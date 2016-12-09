@@ -1,0 +1,7 @@
+{
+  "AppConfiguration": {
+    "ServerConnectionString": "Data Source=(localdb)\\MSSQLLocalDB; Initial Catalog=Fabrikam; Integrated Security=true;",
+    "ClientConnectionString": "Data Source=(localdb)\\MSSQLLocalDB; Initial Catalog=ClientDB; Integrated Security=true;"
+  }
+
+}
