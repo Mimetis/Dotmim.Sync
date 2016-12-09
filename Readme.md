@@ -26,7 +26,7 @@ The sync process is a Master - Slave model (and not a peer to peer model).
 
 It could be represented like this :
 
-![](Assets/Schema01.png)
+![](Assets/Schema01.PNG)
 
 **This version is not compatible with any others versions already existing**.
 
