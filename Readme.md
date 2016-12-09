@@ -11,7 +11,7 @@ DotMim.Sync is a new API, based on .Net Core, allowing you to synchronize any ki
 
 Multi Databases | Cross Plaform |  .Net Standard 1.6 
 -------------|---------------------|--------------------
-![](Assets/CrossPlatform.png) | ![](Assets/MultiOS.png) | ![](Assets/netcore.png) 
+![](Assets/CrossPlatform.png) | ![](Assets/MultiOS.png) | ![](Assets/NetCore.png) 
 
 
 Today supported databases are  :
