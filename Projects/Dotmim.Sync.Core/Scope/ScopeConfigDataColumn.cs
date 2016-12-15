@@ -492,71 +492,7 @@ namespace Dotmim.Sync.Core.Scope
             }
         }
 
-        //private void SetPropertiesFromDataColumn(SyncSchemaColumn dataColumn)
-        //{
-        //    this.Type = dataColumn.ProviderDataType;
-        //    if (this._type.Equals("numeric") || this._type.Equals("decimal"))
-        //    {
-        //        this._precisionSpecified = true;
-        //        this._precision = dataColumn.NumericPrecision;
-        //    }
-        //    else
-        //    {
-        //        this._precisionSpecified = false;
-        //    }
-        //    if (this._type.Equals("numeric") || this._type.Equals("decimal"))
-        //    {
-        //        this._scaleSpecified = true;
-        //        this._scale = dataColumn.NumericScale;
-        //    }
-        //    else
-        //    {
-        //        this._scaleSpecified = false;
-        //    }
-        //    if (!string.IsNullOrEmpty(dataColumn.DefaultValue))
-        //    {
-        //        this._defaultValueSpecified = true;
-        //        this._defaultValue = dataColumn.DefaultValue;
-        //    }
-        //    if (dataColumn.AllowNull)
-        //    {
-        //        this._isNullable = true;
-        //    }
-        //    if (dataColumn.AutoIncrement)
-        //    {
-        //        this._autoIncrementStepSpecified = true;
-        //        this._autoIncrementStep = dataColumn.AutoIncrementStep;
-        //        this._autoIncrementSeedSpecified = true;
-        //        this._autoIncrementSeed = dataColumn.AutoIncrementSeed;
-        //    }
-        //    string str = this._type;
-        //    string str1 = str;
-        //    if (str != null)
-        //    {
-        //        switch (str1)
-        //        {
-        //            case "binary":
-        //            case "varbinary":
-        //            case "varchar":
-        //            case "char":
-        //            case "nvarchar":
-        //            case "nchar":
-        //                {
-        //                    this._sizeSpecified = true;
-        //                    int maxLength = dataColumn.MaxLength;
-        //                    if (maxLength == -1)
-        //                    {
-        //                        this._size = "max";
-        //                        return;
-        //                    }
-        //                    this._size = maxLength.ToString(CultureInfo.InvariantCulture);
-        //                    return;
-        //                }
-        //        }
-        //    }
-        //    this._sizeSpecified = false;
-        //}
-
+       
         /// <summary>Returns a string that represents the <see cref="T:Microsoft.Synchronization.Data.DbSyncColumnDescription" /> object.</summary>
         /// <returns>A string that represents the <see cref="T:Microsoft.Synchronization.Data.DbSyncColumnDescription" /> object.</returns>
         public override string ToString()

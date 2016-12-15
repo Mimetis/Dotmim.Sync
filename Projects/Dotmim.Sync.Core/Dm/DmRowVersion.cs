@@ -10,7 +10,7 @@ namespace Dotmim.Sync.Data
     {
         Original = 0x0100,
         Current = 0x0200,
-        Proposed = 0x0400,
+        Proposed = 0x0400, 
         Default = Proposed | Current,
     }
 }

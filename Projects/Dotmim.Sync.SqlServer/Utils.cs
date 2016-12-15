@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Dotmim.Sync.Data;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
@@ -8,7 +9,7 @@ namespace Dotmim.Sync.SqlServer
 {
     public static class SqlExtensionsMethods
     {
-        internal static SqlParameter[] DeriveParameters(this SqlConnection connection, SqlCommand cmd, bool includeReturnValueParameter= false)
+        internal static SqlParameter[] DeriveParameters(this SqlConnection connection, SqlCommand cmd, bool includeReturnValueParameter = false)
         {
             if (cmd == null) throw new ArgumentNullException("SqlCommand");
 
@@ -101,7 +102,7 @@ namespace Dotmim.Sync.SqlServer
 
             if (!includeReturnValueParameter)
                 cmd.Parameters.RemoveAt(0);
- 
+
             SqlParameter[] discoveredParameters = new SqlParameter[cmd.Parameters.Count];
 
             cmd.Parameters.CopyTo(discoveredParameters, 0);
@@ -124,5 +125,109 @@ namespace Dotmim.Sync.SqlServer
             }
             return discoveredParameters;
         }
+
+        internal static string GetSqlTypePrecision(this DmColumn column)
+        {
+            string sizeString = string.Empty;
+            switch (column.DbType)
+            {
+                case DbType.AnsiString:
+                case DbType.AnsiStringFixedLength:
+                case DbType.Binary:
+                case DbType.String:
+                case DbType.StringFixedLength:
+                    if (column.MaxLength > 0)
+                        sizeString = $"({column.MaxLength})";
+                    break;
+                case DbType.Decimal:
+                case DbType.Double:
+                case DbType.Single:
+                case DbType.VarNumeric:
+                    if (!column.PrecisionSpecified || !column.ScaleSpecified)
+                        break;
+
+                    sizeString = $"({ column.Precision}, {column.Scale})";
+                    break;
+            }
+
+            return sizeString;
+        }
+
+        internal static string GetSqlTypeInfo(this DmColumn column)
+        {
+
+            string sqlType = string.Empty;
+            switch (column.DbType)
+            {
+                case DbType.AnsiString:
+                case DbType.AnsiStringFixedLength:
+                    sqlType = "varchar";
+                    break;
+                case DbType.Binary:
+                    sqlType = "varbinary";
+                    break;
+                case DbType.Boolean:
+                    sqlType = "bit";
+                    break;
+                case DbType.Byte:
+                    sqlType = "tinyint";
+                    break;
+                case DbType.Currency:
+                    sqlType = "money";
+                    break;
+                case DbType.Date:
+                    sqlType = "date";
+                    break;
+                case DbType.DateTime:
+                    sqlType = "datetime";
+                    break;
+                case DbType.DateTime2:
+                    sqlType = "datetime2";
+                    break;
+                case DbType.DateTimeOffset:
+                    sqlType = "datetimeoffset";
+                    break;
+                case DbType.Decimal:
+                case DbType.Double:
+                case DbType.Single:
+                    sqlType = "decimal";
+                    break;
+                case DbType.Guid:
+                    sqlType = "uniqueidentifier";
+                    break;
+                case DbType.Int16:
+                    sqlType = "smallint";
+                    break;
+                case DbType.Int32:
+                case DbType.UInt16:
+                    sqlType = "int";
+                    break;
+                case DbType.Int64:
+                case DbType.UInt32:
+                case DbType.UInt64:
+                    sqlType = "bigint";
+                    break;
+                case DbType.SByte:
+                    sqlType = "smallint";
+                    break;
+                case DbType.String:
+                case DbType.StringFixedLength:
+                case DbType.Xml:
+                    sqlType = "nvarchar";
+                    break;
+                case DbType.Time:
+                    sqlType = "time";
+                    break;
+                case DbType.VarNumeric:
+                    sqlType = "numeric";
+                    break;
+            }
+
+            if (string.IsNullOrEmpty(sqlType))
+                throw new Exception($"sqltype not valid for the column {column.ColumnName}");
+
+            return sqlType;
+        }
+
     }
 }

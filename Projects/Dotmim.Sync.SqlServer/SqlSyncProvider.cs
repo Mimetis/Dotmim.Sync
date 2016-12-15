@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Dotmim.Sync.Core.Batch;
 using Dotmim.Sync.SqlServer.Batch;
+using Dotmim.Sync.SqlServer.Builders;
 using System.Data.Common;
 using System.Data.SqlClient;
 using Dotmim.Sync.Core.Adapter;
@@ -13,6 +14,7 @@ using Dotmim.Sync.Core.Adapter;
 using Dotmim.Sync.Core.Log;
 using Dotmim.Sync.Core.Scope;
 using Dotmim.Sync.Data;
+using Dotmim.Sync.Core.Builders;
 
 namespace Dotmim.Sync.SqlServer
 {
@@ -82,6 +84,11 @@ namespace Dotmim.Sync.SqlServer
         public override SyncAdapter CreateSyncAdapter()
         {
             return new SqlSyncAdapter();
+        }
+
+        public override DbBuilder CreateDatabaseBuilder(DmTable table, DbBuilderOption option = DbBuilderOption.Create)
+        {
+            return new SqlBuilder(table, this.Connection, option);
         }
     }
 }

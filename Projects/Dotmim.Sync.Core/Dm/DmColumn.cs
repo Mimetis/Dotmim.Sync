@@ -7,6 +7,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.Reflection;
+using System.Data;
 
 namespace Dotmim.Sync.Data
 {
@@ -19,6 +20,10 @@ namespace Dotmim.Sync.Data
         internal int maxLength = -1;
         internal int ordinal = -1;
         internal Type dataType = null;
+        internal DbType dbType;
+        internal bool dbTypeAllowed;
+        byte precision;
+        byte scale;
 
         /// <summary>
         ///  Collection of autorized types
@@ -100,8 +105,6 @@ namespace Dotmim.Sync.Data
             if (dataType == typeof(char[]))
                 return new DmColumn<char[]>(columName);
 
-
-
             throw new Exception("this datatype is not supported for DmColumn");
         }
         public dynamic DefaultValue
@@ -117,9 +120,86 @@ namespace Dotmim.Sync.Data
             }
         }
         public bool AllowDBNull { get; set; } = true;
+
+
+        /// <summary>
+        /// Return the abstract DbType
+        /// </summary>
+        public DbType DbType
+        {
+            get
+            {
+                // Should be fix by the user so just return it
+                if (this.dbTypeAllowed)
+                    return this.dbType;
+
+                if (dataType == typeof(bool))
+                    return DbType.Boolean;
+
+                if (dataType == typeof(char))
+                    return DbType.StringFixedLength;
+
+                if (dataType == typeof(sbyte))
+                    return DbType.Byte;
+
+                if (dataType == typeof(short))
+                    return DbType.Int16;
+
+                if (dataType == typeof(ushort))
+                    return DbType.UInt16;
+
+                if (dataType == typeof(int))
+                    return DbType.Int32;
+
+                if (dataType == typeof(uint))
+                    return DbType.UInt32;
+
+                if (dataType == typeof(long))
+                    return DbType.Int64;
+
+                if (dataType == typeof(ulong))
+                    return DbType.UInt64;
+
+                if (dataType == typeof(float))
+                    return DbType.Double;
+
+                if (dataType == typeof(double))
+                    return DbType.Double;
+
+                if (dataType == typeof(decimal))
+                    return DbType.Decimal;
+
+                if (dataType == typeof(DateTime))
+                    return DbType.DateTime;
+
+                if (dataType == typeof(TimeSpan))
+                    return DbType.Time;
+
+                if (dataType == typeof(DateTimeOffset))
+                    return DbType.DateTimeOffset;
+
+                if (dataType == typeof(string))
+                    return DbType.String;
+
+                if (dataType == typeof(Guid))
+                    return DbType.Guid;
+
+                if (dataType == typeof(byte[]))
+                    return DbType.Binary;
+
+                if (dataType == typeof(char[]))
+                    return DbType.Binary;
+
+                return DbType.Object;
+            }
+            set
+            {
+                this.dbType = value;
+                this.dbTypeAllowed = value != DbType.Object;
+            }
+        }
         public bool Unique { get; set; } = false;
         public string ColumnName { get; set; }
-        public string Prefix { get; set; }
         public bool ReadOnly { get; set; } = false;
         public DmTable Table { get; internal set; }
         public int MaxLength
@@ -172,6 +252,42 @@ namespace Dotmim.Sync.Data
             this.ordinal = o;
         }
         public abstract bool AutoIncrement { get; set; }
+        public bool PrecisionSpecified { get; set; }
+        public bool ScaleSpecified { get; set; }
+
+        /// <summary>
+        /// For numeric value, we can specify the precision value
+        /// </summary>
+        public Byte Precision
+        {
+            get
+            {
+                return precision;
+            }
+            set
+            {
+                PrecisionSpecified = value > 0;
+                precision = value;
+            }
+        }
+
+        /// <summary>
+        /// For numeric value, we can specify the scale value
+        /// </summary>
+        public Byte Scale
+        {
+            get
+            {
+                return scale;
+            }
+            set
+            {
+                ScaleSpecified = value > 0;
+                scale = value;
+            }
+        }
+
+
         internal abstract void Init(int record);
         internal abstract object this[int record] { get; set; }
         internal abstract void SetTable(DmTable table);
@@ -391,6 +507,13 @@ namespace Dotmim.Sync.Data
             clone.DefaultValue = DefaultValue;
             clone.ReadOnly = ReadOnly;
             clone.MaxLength = MaxLength;
+            clone.DbType = DbType;
+            clone.dbTypeAllowed = dbTypeAllowed;
+            clone.Precision = Precision;
+            clone.PrecisionSpecified = PrecisionSpecified;
+            clone.Scale = Scale;
+            clone.ScaleSpecified = ScaleSpecified;
+            clone.Unique = Unique;
 
             if (this.autoInc != null)
                 clone.autoInc = this.autoInc.Clone();

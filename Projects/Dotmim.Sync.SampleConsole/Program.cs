@@ -3,6 +3,7 @@ using Dotmim.Sync.Core.Enumerations;
 using Dotmim.Sync.Data;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.SqlServer;
+using Dotmim.Sync.SqlServer.Builders;
 using Microsoft.Extensions.Configuration;
 using System;
 
@@ -10,6 +11,8 @@ class Program
 {
     static void Main(string[] args)
     {
+
+
    
         ConfigurationBuilder configurationBuilder = new ConfigurationBuilder();
         configurationBuilder.AddJsonFile("config.json", true);
@@ -21,6 +24,10 @@ class Program
         var clientConfig = Configuration["AppConfiguration:ClientConnectionString"];
         SqlSyncProvider clientProvider = new SqlSyncProvider(clientConfig);
 
+
+        TestCreateTrackingTable(serverProvider);
+
+        Console.ReadLine();
         SyncAgent agent = new SyncAgent(clientProvider, serverProvider);
      
         // Today the configuration is hosted in a config file hosted in the db
@@ -33,6 +40,53 @@ class Program
 
 
         Console.ReadLine();
+    }
+
+    private static void TestCreateTrackingTable(SqlSyncProvider provider)
+    {
+
+        DmTable table = new DmTable("Products");
+
+
+        DmColumn id = new DmColumn<Int32>("Id");
+        id.AllowDBNull = false;
+        id.AutoIncrement = true;
+        table.Columns.Add(id);
+
+        DmColumn clientId = new DmColumn<Guid>("clientId");
+        clientId.AllowDBNull = false;
+        table.Columns.Add(clientId);
+
+        DmColumn name = new DmColumn<string>("name");
+        name.AllowDBNull = true;
+        name.DbType = System.Data.DbType.StringFixedLength;
+        name.MaxLength = 150;
+        table.Columns.Add(name);
+
+        DmColumn salary = new DmColumn<Decimal>("salary");
+        salary.AllowDBNull = false;
+        salary.DbType = System.Data.DbType.VarNumeric;
+        salary.Precision = 6;
+        salary.Scale = 2;
+        table.Columns.Add(salary);
+
+        table.PrimaryKey = new DmKey(new DmColumn[] { id, name, salary });
+
+        provider.Connection.Open();
+
+        using (var transaction = provider.Connection.BeginTransaction())
+        {
+            var builderTableProducts = provider.CreateDatabaseBuilder(table);
+
+            // this sync is filtered with a client
+            builderTableProducts.FilterColumns.Add(clientId);
+            builderTableProducts.TrackingTableBuilder.FilterColumns = builderTableProducts.FilterColumns;
+            Console.WriteLine(builderTableProducts.TrackingTableBuilder.CreateTableScriptText());
+            Console.WriteLine(builderTableProducts.TrackingTableBuilder.CreatePkScriptText());
+            Console.WriteLine(builderTableProducts.TrackingTableBuilder.CreatePopulateFromBaseTableScriptText());
+        }
+
+        provider.Connection.Close();
     }
 
     private static void Agent_SyncProgress(object sender, ScopeProgressEventArgs e)

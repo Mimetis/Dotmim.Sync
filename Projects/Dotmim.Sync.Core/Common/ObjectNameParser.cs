@@ -84,6 +84,32 @@ namespace Dotmim.Sync.Core.Common
                 return stringBuilder.ToString();
             }
         }
+        public string UnquotedStringWithUnderScore
+        {
+            get
+            {
+                StringBuilder stringBuilder = new StringBuilder();
+                if (!string.IsNullOrEmpty(this.DatabaseName))
+                {
+                    stringBuilder.Append(this.DatabaseName);
+                    stringBuilder.Append("_");
+                }
+                if (!string.IsNullOrEmpty(this.SchemaName))
+                {
+                    stringBuilder.Append(this.SchemaName);
+                    stringBuilder.Append("_");
+                }
+                else if (!string.IsNullOrEmpty(this.DatabaseName) && !string.IsNullOrEmpty(this.ObjectName))
+                {
+                    stringBuilder.Append("_");
+                }
+                if (!string.IsNullOrEmpty(this.ObjectName))
+                {
+                    stringBuilder.Append(this.ObjectName);
+                }
+                return stringBuilder.ToString();
+            }
+        }
 
         public ObjectNameParser()
         {

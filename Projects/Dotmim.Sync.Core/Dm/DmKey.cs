@@ -19,7 +19,7 @@ namespace Dotmim.Sync.Data
         {
             // take ownership of the array passed in
             this.columns = columns;
-            CheckState();
+           // CheckState();
         }
 
         public DmColumn[] Columns
@@ -46,22 +46,22 @@ namespace Dotmim.Sync.Data
             }
         }
 
-        internal void CheckState()
-        {
-            DmTable table = columns[0].Table;
+        //internal void CheckState()
+        //{
+        //    DmTable table = columns[0].Table;
 
-            if (table == null)
-                throw new Exception("ColumnNotInAnyTable");
+        //    if (table == null)
+        //        throw new Exception("ColumnNotInAnyTable");
 
-            for (int i = 1; i < columns.Length; i++)
-            {
-                if (columns[i].Table == null)
-                    throw new Exception("ColumnNotInAnyTable");
+        //    for (int i = 1; i < columns.Length; i++)
+        //    {
+        //        if (columns[i].Table == null)
+        //            throw new Exception("ColumnNotInAnyTable");
 
-                if (columns[i].Table != table)
-                    throw new Exception("KeyTableMismatch");
-            }
-        }
+        //        if (columns[i].Table != table)
+        //            throw new Exception("KeyTableMismatch");
+        //    }
+        //}
 
         //check to see if this.columns && key2's columns are equal regardless of order
         internal bool ColumnsEqual(DmKey key)

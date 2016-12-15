@@ -35,7 +35,6 @@ namespace Dotmim.Sync.Data
 
         // primary key info
         readonly static Int32[] zeroIntegers = new Int32[0];
-        internal readonly static DmColumn[] zeroColumns = new DmColumn[0];
         internal readonly static DmRow[] zeroRows = new DmRow[0];
 
         // rows collection
@@ -148,9 +147,6 @@ namespace Dotmim.Sync.Data
         {
             get
             {
-                if (!primaryKey.HasValue)
-                    return new DmKey(zeroColumns);
-
                 return primaryKey;
             }
             set
@@ -300,7 +296,7 @@ namespace Dotmim.Sync.Data
         /// <summary>
         /// Compare string with the table CultureInfo and CaseSensitive flags
         /// </summary>
-        internal Boolean IsEqual(string s1, string s2)
+        public Boolean IsEqual(string s1, string s2)
         {
             return this.culture.CompareInfo.Compare(s1, s2, this.compareFlags) == 0;
         }

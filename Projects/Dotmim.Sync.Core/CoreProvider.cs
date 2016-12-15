@@ -1,5 +1,6 @@
 ﻿using Dotmim.Sync.Core.Adapter;
 using Dotmim.Sync.Core.Batch;
+using Dotmim.Sync.Core.Builders;
 using Dotmim.Sync.Core.Common;
 using Dotmim.Sync.Core.Context;
 using Dotmim.Sync.Core.Enumerations;
@@ -96,6 +97,12 @@ namespace Dotmim.Sync.Core
         public abstract SyncBatchSerializer CreateSerializer();
 
         /// <summary>
+        /// Get the database builder helper. Will generate table tracking, stored proc and triggers
+        /// </summary>
+        /// <returns></returns>
+        public abstract DbBuilder CreateDatabaseBuilder(DmTable table, DbBuilderOption option);
+
+        /// <summary>
         /// List of Adapter, for each synchronized table
         /// </summary>
         public List<SyncAdapter> Adapters { get; set; }
@@ -142,8 +149,6 @@ namespace Dotmim.Sync.Core
 
             return scopeInfo;
         }
-
-
 
         /// <summary>
         /// Read a scope configuration (serialized as xml in provider db)
@@ -545,7 +550,6 @@ namespace Dotmim.Sync.Core
             Logger.Current.Info("");
         }
 
-       
         /// <summary>
         /// Enumerate all internal changes, no batch mode
         /// </summary>
@@ -698,7 +702,6 @@ namespace Dotmim.Sync.Core
             Logger.Current.Info("");
         }
 
-
         /// <summary>
         /// Create a DmRow from a IDataReader
         /// </summary>
@@ -721,7 +724,6 @@ namespace Dotmim.Sync.Core
 
             return dataRow;
         }
-
 
         /// <summary>
         /// Get a DmRow state
@@ -752,7 +754,6 @@ namespace Dotmim.Sync.Core
         // ------------------------------------------------------------------------------------------
         // Process changes on the server
         // ------------------------------------------------------------------------------------------
-
 
         /// <summary>
         /// REPLACE ProcessChangeBatch
@@ -864,7 +865,6 @@ namespace Dotmim.Sync.Core
                 this.Connection.Close();
             }
         }
-
 
         /// <summary>
         /// Apply changes internal method for one Insert or Update or Delete for every dbSyncAdapter
@@ -984,7 +984,7 @@ namespace Dotmim.Sync.Core
         /// Add metadata columns
         /// </summary>
         /// <param name="table"></param>
-        void AddTrackingColumns<T>(DmTable table, string name)
+        private void AddTrackingColumns<T>(DmTable table, string name)
         {
             if (!table.Columns.Contains(name))
             {
@@ -993,7 +993,7 @@ namespace Dotmim.Sync.Core
             }
         }
 
-        internal void RemoveTrackingColumns(DmTable changes, string name)
+        private  void RemoveTrackingColumns(DmTable changes, string name)
         {
             if (changes.Columns.Contains(name))
                 changes.Columns.Remove(name);
@@ -1002,7 +1002,7 @@ namespace Dotmim.Sync.Core
         /// <summary>
         /// Adding sync columns to the changes datatable
         /// </summary>
-        void AddTimestampValue(DmTable table, long tickCount)
+        private void AddTimestampValue(DmTable table, long tickCount)
         {
             // For each datarow, set the create peerkey or update peer key based on the rowstate.
             // The SyncCreatePeerKey and SyncUpdatePeerKey values are 0 which means the client replica sent these changes.
