@@ -14,21 +14,23 @@ namespace Dotmim.Sync.Data
 
     public class DmSet
     {
-        // Public Collections
         readonly DmTableCollection tableCollection;
+        readonly List<DmRelation> _relationCollection;
         string dmSetName = "NewDataSet";
 
         // globalization stuff
         bool caseSensitive;
+        // Case insensitive compare options
+        CompareOptions compareFlags;
         CultureInfo culture;
 
-      //  internal readonly static DmTable[] zeroTables = new DmTable[0];
         
         public DmSet()
         {
             this.tableCollection = new DmTableCollection(this);
             this.Culture = CultureInfo.CurrentCulture; // Set default locale
             this.CaseSensitive = true;
+            this._relationCollection = new List<DmRelation>();
             this.DmSetName = "NewDmSet";
 
         }
@@ -78,11 +80,25 @@ namespace Dotmim.Sync.Data
                 {
                     caseSensitive = value;
 
+                    if (caseSensitive)
+                        compareFlags = CompareOptions.None;
+                    else
+                        compareFlags = CompareOptions.IgnoreCase | CompareOptions.IgnoreKanaType | CompareOptions.IgnoreWidth;
+
                     foreach (DmTable table in Tables)
                         table.CaseSensitive = value;
                 }
             }
         }
+
+        /// <summary>
+        /// Compare string with the table CultureInfo and CaseSensitive flags
+        /// </summary>
+        public Boolean IsEqual(string s1, string s2)
+        {
+            return this.culture.CompareInfo.Compare(s1, s2, this.compareFlags) == 0;
+        }
+
         public CultureInfo Culture
         {
             get
@@ -102,11 +118,14 @@ namespace Dotmim.Sync.Data
         /// </summary>
         public DmTableCollection Tables => tableCollection;
 
-        void ResetTables()
-        {
-            Tables.Clear();
-        }
+        /// <summary>
+        /// Gets all the relations that link tables and allow navigations
+        /// </summary>
+        public List<DmRelation> Relations => _relationCollection;
 
+        private void ResetTables()  => Tables.Clear();
+       
+        private void ResetRelations() => Relations.Clear();
 
         /// <summary>
         /// Commits all the changes made to this DmSet
@@ -139,6 +158,14 @@ namespace Dotmim.Sync.Data
             {
                 DmTable dt = Tables[i].Clone();
                 ds.Tables.Add(dt);
+            }
+
+            List<DmRelation> rels = Relations;
+
+            for (int i = 0; i < rels.Count; i++)
+            {
+                DmRelation rel = rels[i].Clone(ds);
+                ds.Relations.Add(rel);
             }
 
             return ds;
@@ -325,6 +352,7 @@ namespace Dotmim.Sync.Data
             try
             {
                 Clear();
+                Relations.Clear();
                 Tables.Clear();
             }
             finally

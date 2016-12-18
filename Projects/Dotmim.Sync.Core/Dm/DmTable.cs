@@ -43,22 +43,28 @@ namespace Dotmim.Sync.Data
         // primary key
         DmKey primaryKey;
 
+        // relations
+        internal DmRelationCollection _parentRelationsCollection;
+        internal DmRelationCollection _childRelationsCollection;
+
         public DmTable()
         {
             this.nextRowID = 1;
             this.rows = new DmRowCollection(this);
             this.columns = new DmColumnCollection(this);
-
-            Culture = CultureInfo.CurrentCulture;
-            CaseSensitive = true;
+            this.Culture = CultureInfo.CurrentCulture;
+            this.CaseSensitive = true;
 
         }
+
         public DmTable(string tableName) : this()
         {
             this.tableName = tableName ?? "";
         }
 
-
+        /// <summary>
+        /// Columns collection
+        /// </summary>
         public DmColumnCollection Columns
         {
             get
@@ -66,7 +72,6 @@ namespace Dotmim.Sync.Data
                 return columns;
             }
         }
-
 
         public DmSet DmSet { get; internal set; }
 
@@ -98,7 +103,7 @@ namespace Dotmim.Sync.Data
         /// <summary>
         /// Set the culture used to make comparison
         /// </summary>
-        public CultureInfo Culture 
+        public CultureInfo Culture
         {
             get
             {
@@ -117,6 +122,48 @@ namespace Dotmim.Sync.Data
                 }
 
             }
+        }
+
+        /// <summary>
+        /// Gets the collection of child relations for this DmTable.
+        /// </summary>
+        public List<DmRelation> ChildRelations
+        {
+            get
+            {
+                if (this.DmSet == null)
+                    throw new Exception("Can't use the DmRelation feature without a DmSet which handle them");
+
+                return this.DmSet.Relations.Where(r => r.ParentTable == this).ToList();
+            }
+        }
+
+        /// <summary>
+        /// Gets the collection of parent relations for this DmTable.
+        /// </summary>
+        public List<DmRelation> ParentRelations
+        {
+            get
+            {
+                if (this.DmSet == null)
+                    throw new Exception("Can't use the DmRelation feature without a DmSet which handle them");
+
+                return this.DmSet.Relations.Where(r => r.ChildTable == this).ToList();
+                
+            }
+        }
+
+        public DmRelation AddForeignKey(string relationName, DmColumn childColumn, DmColumn parentColumn)
+        {
+            // check if child column is from the current table
+            if (!this.Columns.Contains(childColumn))
+                throw new Exception("Child column should belong to the dmTable");
+
+
+            DmRelation dr = new DmRelation(relationName, parentColumn, childColumn);
+            this.DmSet.Relations.Add(dr);
+
+            return dr;
         }
 
         /// <summary>
@@ -222,6 +269,18 @@ namespace Dotmim.Sync.Data
             }
         }
 
+        public IEnumerable<DmColumn> NonPkColumns
+        {
+            get
+            {
+                foreach (var column in this.Columns)
+                {
+                    if (this.primaryKey == null || !this.primaryKey.Columns.Contains(column))
+                        yield return column;
+                }
+            }
+        }
+
         /// <summary>
         /// Accept all changes in every DmRow in this DmTable
         /// </summary>
@@ -304,7 +363,7 @@ namespace Dotmim.Sync.Data
         /// <summary>
         /// Get Changes from the DmTable
         /// </summary>
-       public DmTable GetChanges()
+        public DmTable GetChanges()
         {
             DmTable dtChanges = this.Clone();
             DmRow row = null;
@@ -498,7 +557,7 @@ namespace Dotmim.Sync.Data
 
         }
 
-       
+
         public override string ToString() => this.TableName;
 
         /// <summary>

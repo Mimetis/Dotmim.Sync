@@ -9,17 +9,16 @@ namespace Dotmim.Sync.Data
     public struct DmKey
     {
         const int maxColumns = 32;
-
         readonly DmColumn[] columns;
 
-        /// <devdoc>
-        ///    <para>[To be supplied.]</para>
-        /// </devdoc>
         public DmKey(DmColumn[] columns)
         {
-            // take ownership of the array passed in
             this.columns = columns;
-           // CheckState();
+        }
+
+        public DmKey(DmColumn column)
+        {
+            this.columns = new[] { column };
         }
 
         public DmColumn[] Columns

@@ -324,9 +324,7 @@ namespace Dotmim.Sync.Data
 
             return notAlreadyInEditMode;
         }
-        /// <devdoc>
-        ///    <para>Ends the edit occurring on the row.</para>
-        /// </devdoc>
+
         public void EndEdit()
         {
             if (newRecord == -1)
@@ -348,6 +346,7 @@ namespace Dotmim.Sync.Data
             // set the tempRecord to init value
             this.tempRecord = -1;
         }
+
         public void RejectChanges()
         {
             this.Rollback();
@@ -362,6 +361,7 @@ namespace Dotmim.Sync.Data
             foreach (var c in this.table.Columns)
                 c.RemoveRecord(recordId);
         }
+
         internal void Rollback()
         {
             if (this.oldRecord == -1)
@@ -418,6 +418,111 @@ namespace Dotmim.Sync.Data
 
             // Set this row to be in deleted state
             this.ProposeAsNewRecordId(-1);
+        }
+
+        /// <summary>
+        /// Gets the child rows of this DmRow using the
+        /// specified DmRelation.
+        /// </summary>
+        public DmRow[] GetChildRows(string relationName) =>
+            GetChildRows(this.table.ChildRelations.First(r => r.RelationName == relationName), DmRowVersion.Default);
+
+        /// <summary>
+        /// Gets the child rows of this DmRow using the
+        /// specified DmRelation.
+        /// </summary>
+        public DmRow[] GetChildRows(string relationName, DmRowVersion version) =>
+            GetChildRows(table.ChildRelations.First(r => r.RelationName == relationName), version);
+
+        /// <summary>
+        /// Gets the child rows of this DmRow using the
+        /// specified DmRelation.
+        /// </summary>
+        public DmRow[] GetChildRows(DmRelation relation) =>
+            GetChildRows(relation, DmRowVersion.Default);
+
+        /// <summary>
+        /// Gets the child rows of this DmRow using the specified DmRelation and the specified DmRowVersion
+        /// </summary>
+        public DmRow[] GetChildRows(DmRelation relation, DmRowVersion version)
+        {
+            if (relation == null)
+                return new DmRow[] { table.NewRow() };
+
+            if (relation.DmSet != table.DmSet)
+                throw new Exception("RowNotInTheDataSet");
+
+            if (relation.ParentKey.Table != table)
+                throw new Exception("RelationForeignTable");
+
+            return DmRelation.GetChildRows(relation.ParentKey, relation.ChildKey, this, version);
+        }
+
+        public DmRow GetParentRow(string relationName) =>
+            GetParentRow(table.ParentRelations.First(r => r.RelationName == relationName), DmRowVersion.Default);
+
+        public DmRow GetParentRow(string relationName, DmRowVersion version) =>
+            GetParentRow(table.ParentRelations.First(r => r.RelationName == relationName), version);
+
+        /// <summary>
+        /// Gets the parent row of this DmRow using the specified DmRelation .
+        /// </summary>
+        public DmRow GetParentRow(DmRelation relation) =>
+            GetParentRow(relation, DmRowVersion.Default);
+
+        /// <summary>
+        /// Gets the parent rows of this DmRow using the specified DmRelation .
+        /// </summary>
+        public DmRow[] GetParentRows(string relationName) =>
+                    GetParentRows(table.ParentRelations.First(r => r.RelationName == relationName), DmRowVersion.Default);
+
+        /// <summary>
+        /// Gets the parent rows of this DmRow using the specified DmRelation .
+        /// </summary>
+        public DmRow[] GetParentRows(string relationName, DmRowVersion version) =>
+            GetParentRows(table.ParentRelations.First(r => r.RelationName == relationName), version);
+
+        /// <summary>
+        /// Gets the parent rows of this DmRow using the specified DmRelation .
+        /// </summary>
+        public DmRow[] GetParentRows(DmRelation relation) =>
+            GetParentRows(relation, DmRowVersion.Default);
+
+        /// <summary>
+        /// Gets the parent rows of this DmRow using the specified DmRelation .
+        /// </summary>
+        public DmRow[] GetParentRows(DmRelation relation, DmRowVersion version)
+        {
+            if (relation == null)
+                return new DmRow[] { table.NewRow() };
+
+            if (relation.DmSet != table.DmSet)
+                throw new Exception("RowNotInTheDataSet");
+
+            if (relation.ChildKey.Table != table)
+                throw new Exception("RelationForeignTable");
+
+            return DmRelation.GetParentRows(relation.ParentKey, relation.ChildKey, this, version);
+
+        }
+
+        /// <summary>
+        /// Gets the parent row of this <see cref='System.Data.DataRow'/>
+        /// using the specified <see cref='System.Data.DataRelation'/> and <see cref='System.Data.DataRowVersion'/>.
+        /// </summary>
+        public DmRow GetParentRow(DmRelation relation, DmRowVersion version)
+        {
+            if (relation == null)
+                return null;
+
+            if (relation.DmSet != table.DmSet)
+                throw new Exception("RowNotInTheDataSet");
+
+            if (relation.ChildKey.Table != table)
+                throw new Exception("RelationForeignTable");
+
+
+            return DmRelation.GetParentRow(relation.ParentKey, relation.ChildKey, this, version);
         }
 
         internal DmColumn GetDataColumn(string rowName)

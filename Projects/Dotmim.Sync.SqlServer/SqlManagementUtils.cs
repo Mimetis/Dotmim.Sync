@@ -1,4 +1,5 @@
 ﻿using Dotmim.Sync.Core.Common;
+using Dotmim.Sync.Data;
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
@@ -173,7 +174,6 @@ namespace Dotmim.Sync.SqlServer
             return empty;
         }
 
-   
         public static string GetUnquotedSqlSchemaName(ObjectNameParser parser)
         {
             if (string.IsNullOrEmpty(parser.SchemaName))
@@ -204,8 +204,7 @@ namespace Dotmim.Sync.SqlServer
             return flag;
         }
 
- 
-        public static bool TableExists(SqlConnection connection, SqlTransaction transaction, string quotedTableName)
+         public static bool TableExists(SqlConnection connection, SqlTransaction transaction, string quotedTableName)
         {
             bool tableExist;
             ObjectNameParser objectNameParser = new ObjectNameParser(quotedTableName);
@@ -263,6 +262,88 @@ namespace Dotmim.Sync.SqlServer
                 typeExist = (int)sqlCommand.ExecuteScalar() != 0;
             }
             return typeExist;
+        }
+
+        internal static string GetQuotedPrefixedName(string prefix, string objectString, string schemaOverride)
+        {
+            ObjectNameParser objectNameParser = new ObjectNameParser(objectString);
+
+            string empty = string.Empty;
+            if (!string.IsNullOrEmpty(schemaOverride))
+                empty = (new ObjectNameParser(schemaOverride)).QuotedObjectName;
+
+            string strSchema = (string.IsNullOrEmpty(schemaOverride) ? objectNameParser.QuotedSchemaName : empty);
+
+            string strPrefix = (string.IsNullOrEmpty(prefix) ? string.Empty : string.Concat(prefix, "_"));
+
+            if (!string.IsNullOrEmpty(strSchema))
+            {
+                string[] objectName = new string[] { strSchema, ".[", strPrefix, objectNameParser.ObjectName, "]" };
+                objectNameParser = new ObjectNameParser(string.Concat(objectName));
+            }
+            else
+            {
+                ObjectNameParser objectNameParser1 = new ObjectNameParser(string.Concat("[", strPrefix, objectNameParser.ObjectName, "]"));
+                objectNameParser = objectNameParser1;
+            }
+            return objectNameParser.QuotedString;
+        }
+
+        internal static string JoinTwoTablesOnClause(IEnumerable<DmColumn> columns, string leftName, string rightName)
+        {
+            StringBuilder stringBuilder = new StringBuilder();
+            string strRightName = (string.IsNullOrEmpty(rightName) ? string.Empty : string.Concat(rightName, "."));
+            string strLeftName = (string.IsNullOrEmpty(leftName) ? string.Empty : string.Concat(leftName, "."));
+
+            string str = "";
+            foreach (DmColumn column in columns)
+            {
+                ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
+
+                stringBuilder.Append(str);
+                stringBuilder.Append(strLeftName);
+                stringBuilder.Append(quotedColumn.QuotedString);
+                stringBuilder.Append(" = ");
+                stringBuilder.Append(strRightName);
+                stringBuilder.Append(quotedColumn.QuotedString);
+
+                str = " AND ";
+            }
+            return stringBuilder.ToString();
+        }
+
+        internal static string WhereColumnAndParameters(IEnumerable<DmColumn> columns, string fromPrefix)
+        {
+            StringBuilder stringBuilder = new StringBuilder();
+            string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));
+            string str1 = "";
+            foreach (DmColumn column in columns)
+            {
+                ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
+
+                stringBuilder.Append(str1);
+                stringBuilder.Append(strFromPrefix);
+                stringBuilder.Append(quotedColumn.QuotedString);
+                stringBuilder.Append(" = ");
+                stringBuilder.Append($"@{column.ColumnName}");
+                str1 = " AND ";
+            }
+            return stringBuilder.ToString();
+        }
+
+        internal static string CommaSeparatedUpdateFromParameters(DmTable table, string fromPrefix = "")
+        {
+            StringBuilder stringBuilder = new StringBuilder();
+            string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));
+            string strSeparator = "";
+            foreach (DmColumn column in table.NonPkColumns)
+            {
+                ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
+                stringBuilder.AppendLine($"{strSeparator} {strFromPrefix}{quotedColumn.QuotedString} = @{quotedColumn.UnquotedString}");
+                strSeparator = ", ";
+            }
+            return stringBuilder.ToString();
+
         }
     }
 }

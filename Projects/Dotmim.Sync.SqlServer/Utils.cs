@@ -126,7 +126,7 @@ namespace Dotmim.Sync.SqlServer
             return discoveredParameters;
         }
 
-        internal static string GetSqlTypePrecision(this DmColumn column)
+        internal static string GetSqlTypePrecisionString(this DmColumn column)
         {
             string sizeString = string.Empty;
             switch (column.DbType)
@@ -153,7 +153,25 @@ namespace Dotmim.Sync.SqlServer
             return sizeString;
         }
 
-        internal static string GetSqlTypeInfo(this DmColumn column)
+
+        internal static (byte length, byte scale) GetSqlTypePrecision(this DmColumn column)
+        {
+            string sizeString = string.Empty;
+            switch (column.DbType)
+            {
+                case DbType.Decimal:
+                case DbType.Double:
+                case DbType.Single:
+                case DbType.VarNumeric:
+                    if (!column.PrecisionSpecified || !column.ScaleSpecified)
+                        break;
+
+                    return (column.Precision, column.Scale);
+            }
+
+            return (0, 0);
+        }
+        internal static string GetSqlDbTypeString(this DmColumn column)
         {
 
             string sqlType = string.Empty;
@@ -228,6 +246,102 @@ namespace Dotmim.Sync.SqlServer
 
             return sqlType;
         }
+
+        internal static SqlDbType GetSqlDbType(this DmColumn column)
+        {
+
+            SqlDbType sqlType = SqlDbType.Variant;
+            switch (column.DbType)
+            {
+                case DbType.AnsiString:
+                case DbType.AnsiStringFixedLength:
+                    sqlType = SqlDbType.VarChar;
+                    break;
+                case DbType.Binary:
+                    sqlType = SqlDbType.VarBinary;
+                    break;
+                case DbType.Boolean:
+                    sqlType = SqlDbType.Bit;
+                    break;
+                case DbType.Byte:
+                    sqlType = SqlDbType.TinyInt;
+                    break;
+                case DbType.Currency:
+                    sqlType = SqlDbType.Money;
+                    break;
+                case DbType.Date:
+                    sqlType = SqlDbType.Date;
+                    break;
+                case DbType.DateTime:
+                    sqlType = SqlDbType.DateTime;
+                    break;
+                case DbType.DateTime2:
+                    sqlType = SqlDbType.DateTime2;
+                    break;
+                case DbType.DateTimeOffset:
+                    sqlType = SqlDbType.DateTimeOffset;
+                    break;
+                case DbType.Decimal:
+                case DbType.Double:
+                case DbType.Single:
+                    sqlType = SqlDbType.Decimal;
+                    break;
+                case DbType.Guid:
+                    sqlType = SqlDbType.UniqueIdentifier;
+                    break;
+                case DbType.Int16:
+                    sqlType = SqlDbType.SmallInt;
+                    break;
+                case DbType.Int32:
+                case DbType.UInt16:
+                    sqlType = SqlDbType.Int;
+                    break;
+                case DbType.Int64:
+                case DbType.UInt32:
+                case DbType.UInt64:
+                    sqlType = SqlDbType.BigInt;
+                    break;
+                case DbType.SByte:
+                    sqlType = SqlDbType.SmallInt;
+                    break;
+                case DbType.String:
+                case DbType.StringFixedLength:
+                case DbType.Xml:
+                    sqlType = SqlDbType.NVarChar;
+                    break;
+                case DbType.Time:
+                    sqlType = SqlDbType.Time;
+                    break;
+                case DbType.VarNumeric:
+                    sqlType = SqlDbType.Decimal;
+                    break;
+            }
+
+            return sqlType;
+        }
+
+
+        internal static SqlParameter GetSqlParameter(this DmColumn column)
+        {
+            SqlParameter sqlParameter = new SqlParameter();
+            sqlParameter.ParameterName = $"@{column.ColumnName}";
+            sqlParameter.SqlDbType = GetSqlDbType(column);
+            (byte precision, byte scale) = GetSqlTypePrecision(column);
+
+            if (sqlParameter.SqlDbType == SqlDbType.Decimal && precision > 0)
+            {
+                sqlParameter.Precision = precision;
+
+                if (scale > 0)
+                    sqlParameter.Scale = scale;
+            }else if (column.MaxLength > 0)
+            {
+                sqlParameter.Size = column.MaxLength;
+            }
+            return sqlParameter;
+        }
+
+
 
     }
 }

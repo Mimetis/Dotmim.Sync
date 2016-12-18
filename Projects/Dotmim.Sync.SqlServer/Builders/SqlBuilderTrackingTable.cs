@@ -156,8 +156,8 @@ namespace Dotmim.Sync.SqlServer.Builders
             foreach (DmColumn pkColumn in this.table.PrimaryKey.Columns)
             {
                 var quotedColumnName = new ObjectNameParser(pkColumn.ColumnName, "[", "]").QuotedString;
-                var quotedColumnType = new ObjectNameParser(pkColumn.GetSqlTypeInfo(), "[", "]").QuotedString;
-                quotedColumnType += pkColumn.GetSqlTypePrecision(); 
+                var quotedColumnType = new ObjectNameParser(pkColumn.GetSqlDbTypeString(), "[", "]").QuotedString;
+                quotedColumnType += pkColumn.GetSqlTypePrecisionString(); 
                 var nullableColumn = pkColumn.AllowDBNull ? "NULL" : "NOT NULL";
 
                 stringBuilder.AppendLine($"{quotedColumnName} {quotedColumnType} {nullableColumn}, ");
@@ -180,8 +180,8 @@ namespace Dotmim.Sync.SqlServer.Builders
                     continue;
 
                 var quotedColumnName = new ObjectNameParser(filterColumn.ColumnName, "[", "]").QuotedString;
-                var quotedColumnType = new ObjectNameParser(filterColumn.GetSqlTypeInfo(), "[", "]").QuotedString;
-                quotedColumnType += filterColumn.GetSqlTypePrecision();
+                var quotedColumnType = new ObjectNameParser(filterColumn.GetSqlDbTypeString(), "[", "]").QuotedString;
+                quotedColumnType += filterColumn.GetSqlTypePrecisionString();
                 var nullableColumn = filterColumn.AllowDBNull ? "NULL" : "NOT NULL";
 
                 stringBuilder.AppendLine($"{quotedColumnName} {quotedColumnType} {nullableColumn}, ");
@@ -321,8 +321,8 @@ namespace Dotmim.Sync.SqlServer.Builders
         private string AddFilterColumnCommandText(DmColumn col)
         {
             var quotedColumnName = new ObjectNameParser(col.ColumnName, "[", "]").QuotedString;
-            var quotedColumnType = new ObjectNameParser(col.GetSqlTypeInfo(), "[", "]").QuotedString;
-            quotedColumnType += col.GetSqlTypePrecision();
+            var quotedColumnType = new ObjectNameParser(col.GetSqlDbTypeString(), "[", "]").QuotedString;
+            quotedColumnType += col.GetSqlTypePrecisionString();
 
             return string.Concat("ALTER TABLE ", quotedColumnName, " ADD ", quotedColumnType);
         }

@@ -17,6 +17,8 @@ namespace Dotmim.Sync.Core.Builders
 
         void CreateSelectRow(DbTransaction transaction, DbBuilderOption builderOption);
 
+        void CreateSelectIncrementalChanges(DbTransaction transaction, DbBuilderOption builderOption);
+       
         void CreateInsert(DbTransaction transaction, DbBuilderOption builderOption);
 
         void CreateUpdate(DbTransaction transaction, DbBuilderOption builderOption);
@@ -39,6 +41,8 @@ namespace Dotmim.Sync.Core.Builders
 
         String CreateSelectRowScriptText(DbTransaction transaction, DbBuilderOption builderOption);
 
+        String CreateSelectIncrementalChangesScriptText(DbTransaction transaction, DbBuilderOption builderOption);
+        
         String CreateInsertScriptText(DbTransaction transaction, DbBuilderOption builderOption);
 
         String CreateUpdateScriptText(DbTransaction transaction, DbBuilderOption builderOption);
