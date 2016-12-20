@@ -14,7 +14,7 @@ namespace Dotmim.Sync.Data.Surrogate
     {
 
         /// <summary>Gets or sets the name of the DmSet that the DmSetSurrogate object represents.</summary>
-        public string DmsetName { get; set; }
+        public string DmSetName { get; set; }
 
         /// <summary>Gets or sets the locale information used to compare strings within the table.</summary>
         public string CultureInfoName { get; set; }
@@ -22,17 +22,27 @@ namespace Dotmim.Sync.Data.Surrogate
         /// <summary>Gets or sets the Case sensitive rul of the DmSet that the DmSetSurrogate object represents.</summary>
         public bool CaseSensitive { get; set; }
 
-        /// <summary>Gets an array of DmTableSurrogate objects that comprise the dm set that is represented by the DmSetSurrogate object.</summary>
+        /// <summary>
+        /// Gets or Sets an array of DmTableSurrogate objects that comprise 
+        /// the dm set that is represented by the DmSetSurrogate object.
+        /// </summary>
         public DmTableSurrogate[] DmTableSurrogates { get; set; }
 
-        /// <summary>Initializes a new instance of the DmSetSurrogate class from an existing DmSet</summary>
+        /// <summary>
+        /// Gets or Sets an array of every DmRelationSurrogate belong to this DmSet
+        /// </summary>
+        public DmRelationSurrogate[] DmRelationSurrogates { get; set; }
+
+        /// <summary>
+        /// Initializes a new instance of the DmSetSurrogate class from an existing DmSet
+        /// </summary>
         public DmSetSurrogate(DmSet ds)
         {
             if (ds == null)
                 throw new ArgumentNullException("ds");
 
 
-            this.DmsetName = ds.DmSetName;
+            this.DmSetName = ds.DmSetName;
             this.CultureInfoName = ds.Culture.Name;
             this.CaseSensitive = ds.CaseSensitive;
 
@@ -40,6 +50,29 @@ namespace Dotmim.Sync.Data.Surrogate
 
             for (int i = 0; i < ds.Tables.Count; i++)
                 this.DmTableSurrogates[i] = new DmTableSurrogate(ds.Tables[i]);
+
+            if (ds.Relations != null && ds.Relations.Count > 0)
+            {
+                this.DmRelationSurrogates = new DmRelationSurrogate[ds.Relations.Count];
+
+                for (int i = 0; i < ds.Relations.Count; i++)
+                {
+                    DmRelation dr = ds.Relations[i];
+                    DmRelationSurrogate drs = new DmRelationSurrogate();
+
+                    drs.ChildKeySurrogates = new DmColumnSurrogate[dr.ChildKey.Columns.Length];
+                    for (int keyIndex = 0; keyIndex < dr.ChildKey.Columns.Length; keyIndex++)
+                        drs.ChildKeySurrogates[keyIndex] = new DmColumnSurrogate(dr.ChildKey.Columns[keyIndex]);
+
+                    drs.ParentKeySurrogates = new DmColumnSurrogate[dr.ParentKey.Columns.Length];
+                    for (int keyIndex = 0; keyIndex < dr.ParentKey.Columns.Length; keyIndex++)
+                        drs.ParentKeySurrogates[keyIndex] = new DmColumnSurrogate(dr.ParentKey.Columns[keyIndex]);
+
+                    drs.RelationName = dr.RelationName;
+
+                    this.DmRelationSurrogates[i] = drs;
+                }
+            }
         }
 
         /// <summary>
@@ -52,14 +85,14 @@ namespace Dotmim.Sync.Data.Surrogate
 
         /// <summary>
         /// Constructs a DmSet object based on a DmSetSurrogate object.
-        /// [TODO] : Be Careful : the Primary Keys are not replicated !
         /// </summary>
         public DmSet ConvertToDmSet()
         {
             DmSet dmSet = new DmSet()
             {
                 Culture = new CultureInfo(this.CultureInfoName),
-                CaseSensitive = this.CaseSensitive
+                CaseSensitive = this.CaseSensitive,
+                DmSetName = this.DmSetName
             };
             this.ReadSchemaIntoDmSet(dmSet);
             this.ReadDataIntoDmSet(dmSet);
@@ -87,10 +120,8 @@ namespace Dotmim.Sync.Data.Surrogate
 
         internal void ReadSchemaIntoDmSet(DmSet ds)
         {
-            ds.DmSetName = this.DmsetName;
-            ds.Culture = new CultureInfo(this.CultureInfoName);
             DmTableSurrogate[] dmTableSurrogateArray = this.DmTableSurrogates;
-            for (int i = 0; i < (int)dmTableSurrogateArray.Length; i++)
+            for (int i = 0; i < dmTableSurrogateArray.Length; i++)
             {
                 DmTableSurrogate dmTableSurrogate = dmTableSurrogateArray[i];
                 DmTable dmTable = new DmTable();
@@ -99,7 +130,7 @@ namespace Dotmim.Sync.Data.Surrogate
                 dmTable.Culture = new CultureInfo(dmTableSurrogate.CultureInfoName);
                 dmTable.CaseSensitive = dmTableSurrogate.CaseSensitive;
                 dmTable.TableName = dmTableSurrogate.TableName;
-
+                
                 ds.Tables.Add(dmTable);
             }
         }

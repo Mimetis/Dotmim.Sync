@@ -13,7 +13,6 @@ namespace Dotmim.Sync.Data
     public class DmTable
     {
 
-        // rows
         /// <summary>
         /// Monotonically increasing number representing the order <see cref="DmRow"/> have been added to <see cref="DmRowCollection"/>.
         /// </summary>
@@ -43,10 +42,7 @@ namespace Dotmim.Sync.Data
         // primary key
         DmKey primaryKey;
 
-        // relations
-        internal DmRelationCollection _parentRelationsCollection;
-        internal DmRelationCollection _childRelationsCollection;
-
+ 
         public DmTable()
         {
             this.nextRowID = 1;
@@ -134,7 +130,9 @@ namespace Dotmim.Sync.Data
                 if (this.DmSet == null)
                     throw new Exception("Can't use the DmRelation feature without a DmSet which handle them");
 
-                return this.DmSet.Relations.Where(r => r.ParentTable == this).ToList();
+                var lst = this.DmSet.Relations.Where(r => r.ParentTable == this).ToList();
+
+                return lst;
             }
         }
 
@@ -148,7 +146,9 @@ namespace Dotmim.Sync.Data
                 if (this.DmSet == null)
                     throw new Exception("Can't use the DmRelation feature without a DmSet which handle them");
 
-                return this.DmSet.Relations.Where(r => r.ChildTable == this).ToList();
+                var lst = this.DmSet.Relations.Where(r => r.ChildTable == this).ToList();
+
+                return lst;
                 
             }
         }
@@ -166,6 +166,17 @@ namespace Dotmim.Sync.Data
             return dr;
         }
 
+        public DmRelation AddForeignKey(DmRelation relation)
+        {
+            // check if child column is from the current table
+            foreach (var c in relation.ChildColumns)
+                if (!this.Columns.Contains(c))
+                    throw new Exception("Child column should belong to the dmTable");
+
+            this.DmSet.Relations.Add(relation);
+
+            return relation;
+        }
         /// <summary>
         /// Get a DmRow by its primary key 
         /// </summary>
@@ -185,7 +196,6 @@ namespace Dotmim.Sync.Data
 
             return this.Rows.FirstOrDefault(r => primaryKey.ValuesAreEqual(r, key));
         }
-
 
         /// <summary>
         /// Primary key used to identify uniquely a dmRow
@@ -303,6 +313,7 @@ namespace Dotmim.Sync.Data
             clone.Prefix = tablePrefix;
             clone.Culture = culture;
             clone.CaseSensitive = caseSensitive;
+            
 
             // add all columns
             var clmns = this.Columns;
@@ -320,6 +331,7 @@ namespace Dotmim.Sync.Data
 
                 clone.PrimaryKey = new DmKey(key);
             }
+
             return clone;
         }
 
@@ -427,7 +439,7 @@ namespace Dotmim.Sync.Data
                     continue;
                 }
 
-                if (dstColumn.dataType == typeof(byte[]))
+                if (dstColumn.DataType == typeof(byte[]))
                 {
                     byte[] srcArray = (byte[])srcColumn[srcRecord];
                     byte[] destArray = (byte[])dstColumn[newRecord];
@@ -435,7 +447,7 @@ namespace Dotmim.Sync.Data
                     Buffer.BlockCopy(srcArray, 0, destArray, 0, srcArray.Length);
                     continue;
                 }
-                if (dstColumn.dataType == typeof(char[]))
+                if (dstColumn.DataType == typeof(char[]))
                 {
                     char[] srcArray = (char[])srcColumn[srcRecord];
                     char[] destArray = (char[])dstColumn[newRecord];

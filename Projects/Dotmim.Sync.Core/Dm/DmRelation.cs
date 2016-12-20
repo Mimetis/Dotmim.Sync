@@ -8,28 +8,15 @@ namespace Dotmim.Sync.Data
 {
     public class DmRelation
     {
-        private DmSet _dmSet;
+        private DmKey childKey;
+        private DmKey parentKey;
 
-        internal string _relationName = string.Empty;
 
-        // state
-        private DmKey _childKey;
-        private DmKey _parentKey;
-
-        /// <summary>
-        /// this stores whether the  child element appears beneath the parent in the XML persised files.
-        /// </summary>
-        internal bool _nested = false;
-
-        internal string[] _parentColumnNames = null;
-        internal string[] _childColumnNames = null;
-        internal string _parentTableName = null;
-        internal string _childTableName = null;
-        internal string _parentTableNamespace = null;
-        internal string _childTableNamespace = null;
+        public DmSet DmSet { get; internal set; }
 
         public DmRelation(string relationName, DmColumn parentColumn, DmColumn childColumn)
         {
+          
             DmColumn[] parentColumns = new DmColumn[1];
             parentColumns[0] = parentColumn;
 
@@ -53,8 +40,8 @@ namespace Dotmim.Sync.Data
         {
             try
             {
-                _parentKey = new DmKey(parentColumns);
-                _childKey = new DmKey(childColumns);
+                parentKey = new DmKey(parentColumns);
+                childKey = new DmKey(childColumns);
 
                 if (parentColumns.Length != childColumns.Length)
                     throw new Exception("KeyLengthMismatch");
@@ -62,12 +49,12 @@ namespace Dotmim.Sync.Data
                 for (int i = 0; i < parentColumns.Length; i++)
                 {
                     if ((parentColumns[i].Table.DmSet == null) || (childColumns[i].Table.DmSet == null))
-                        throw new Exception("ParentOrChildColumnsDoNotHaveDmSet");
+                        throw new Exception("Parent Or Child Columns Do Not Have DmSet");
                 }
 
                 CheckState();
 
-                _relationName = (relationName == null ? "" : relationName);
+                RelationName = relationName ?? "";
             }
             finally
             {
@@ -83,7 +70,7 @@ namespace Dotmim.Sync.Data
             get
             {
                 CheckStateForProperty();
-                return _parentKey;
+                return parentKey;
             }
         }
 
@@ -95,18 +82,18 @@ namespace Dotmim.Sync.Data
             get
             {
                 CheckStateForProperty();
-                return _parentKey.Table;
+                return parentKey.Table;
             }
         }
 
 
-        internal DmColumn[] ParentColumns => _parentKey.Columns;
+        public DmColumn[] ParentColumns => parentKey.Columns;
 
         /// <summary>
         /// Gets the child columns of this relation.
         /// </summary>
-        public virtual DmColumn[] ChildColumns => _childKey.Columns;
-   
+        public DmColumn[] ChildColumns => childKey.Columns;
+
         /// <summary>
         /// Gets the internal Key object for the child table.
         /// </summary>
@@ -115,7 +102,7 @@ namespace Dotmim.Sync.Data
             get
             {
                 CheckStateForProperty();
-                return _childKey;
+                return childKey;
             }
         }
 
@@ -127,19 +114,7 @@ namespace Dotmim.Sync.Data
             get
             {
                 CheckStateForProperty();
-                return _childKey.Table;
-            }
-        }
-
-        /// <summary>
-        /// Gets the DmSet to which the relations' collection belongs to.
-        /// </summary>
-        public virtual DmSet DmSet
-        {
-            get
-            {
-                CheckStateForProperty();
-                return _dmSet;
+                return childKey.Table;
             }
         }
 
@@ -163,7 +138,7 @@ namespace Dotmim.Sync.Data
                 return new DmRow[] { childKey.Table.NewRow() };
 
             return childKey.Table.Rows.Where(r => childKey.ValuesAreEqual(r, values)).ToArray();
-        
+
         }
 
         /// <summary>
@@ -205,20 +180,19 @@ namespace Dotmim.Sync.Data
         // still a good relation object.
         internal void CheckState()
         {
-            if (_dmSet == null)
+            if (parentKey.Table.DmSet != childKey.Table.DmSet)
+                throw new Exception("RelationDmSetMismatch");
+
+            if (childKey.ColumnsEqual(parentKey))
+                throw new Exception("KeyColumnsIdentical");
+
+            for (int i = 0; i < parentKey.Columns.Length; i++)
             {
-                if (_parentKey.Table.DmSet != _childKey.Table.DmSet)
-                    throw new Exception("RelationDmSetMismatch");
-
-                if (_childKey.ColumnsEqual(_parentKey))
-                    throw new Exception("KeyColumnsIdentical");
-
-                for (int i = 0; i < _parentKey.Columns.Length; i++)
-                {
-                    if (_parentKey.Columns[i].DataType != _childKey.Columns[i].DataType)
-                        throw new Exception("ColumnsTypeMismatch");
-                }
+                if (parentKey.Columns[i].DataType != childKey.Columns[i].DataType)
+                    throw new Exception("ColumnsTypeMismatch");
             }
+
+            this.DmSet = parentKey.Table.DmSet;
         }
 
         /// <summary>
@@ -235,13 +209,13 @@ namespace Dotmim.Sync.Data
                 throw new Exception("BadObjectPropertyAccess " + e.Message);
             }
         }
-  
+
         internal DmRelation Clone(DmSet destination)
         {
 
             DmTable parent = destination.Tables[ParentTable.TableName];
             DmTable child = destination.Tables[ChildTable.TableName];
-            int keyLength = _parentKey.Columns.Length;
+            int keyLength = parentKey.Columns.Length;
 
             DmColumn[] parentColumns = new DmColumn[keyLength];
             DmColumn[] childColumns = new DmColumn[keyLength];
@@ -252,7 +226,7 @@ namespace Dotmim.Sync.Data
                 childColumns[i] = child.Columns[ChildKey.Columns[i].ColumnName];
             }
 
-            DmRelation clone = new DmRelation(_relationName, parentColumns, childColumns);
+            DmRelation clone = new DmRelation(RelationName, parentColumns, childColumns);
 
             return clone;
         }

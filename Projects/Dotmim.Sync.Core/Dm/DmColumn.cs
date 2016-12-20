@@ -19,7 +19,6 @@ namespace Dotmim.Sync.Data
     {
         internal int maxLength = -1;
         internal int ordinal = -1;
-        internal Type dataType = null;
         internal DbType dbType;
         internal bool dbTypeAllowed;
         byte precision;
@@ -123,6 +122,11 @@ namespace Dotmim.Sync.Data
 
 
         /// <summary>
+        /// Returns the Column Type
+        /// </summary>
+        public Type DataType { get; internal set; }
+
+        /// <summary>
         /// Return the abstract DbType
         /// </summary>
         public DbType DbType
@@ -133,61 +137,61 @@ namespace Dotmim.Sync.Data
                 if (this.dbTypeAllowed)
                     return this.dbType;
 
-                if (dataType == typeof(bool))
+                if (DataType == typeof(bool))
                     return DbType.Boolean;
 
-                if (dataType == typeof(char))
+                if (DataType == typeof(char))
                     return DbType.StringFixedLength;
 
-                if (dataType == typeof(sbyte))
+                if (DataType == typeof(sbyte))
                     return DbType.Byte;
 
-                if (dataType == typeof(short))
+                if (DataType == typeof(short))
                     return DbType.Int16;
 
-                if (dataType == typeof(ushort))
+                if (DataType == typeof(ushort))
                     return DbType.UInt16;
 
-                if (dataType == typeof(int))
+                if (DataType == typeof(int))
                     return DbType.Int32;
 
-                if (dataType == typeof(uint))
+                if (DataType == typeof(uint))
                     return DbType.UInt32;
 
-                if (dataType == typeof(long))
+                if (DataType == typeof(long))
                     return DbType.Int64;
 
-                if (dataType == typeof(ulong))
+                if (DataType == typeof(ulong))
                     return DbType.UInt64;
 
-                if (dataType == typeof(float))
+                if (DataType == typeof(float))
                     return DbType.Double;
 
-                if (dataType == typeof(double))
+                if (DataType == typeof(double))
                     return DbType.Double;
 
-                if (dataType == typeof(decimal))
+                if (DataType == typeof(decimal))
                     return DbType.Decimal;
 
-                if (dataType == typeof(DateTime))
+                if (DataType == typeof(DateTime))
                     return DbType.DateTime;
 
-                if (dataType == typeof(TimeSpan))
+                if (DataType == typeof(TimeSpan))
                     return DbType.Time;
 
-                if (dataType == typeof(DateTimeOffset))
+                if (DataType == typeof(DateTimeOffset))
                     return DbType.DateTimeOffset;
 
-                if (dataType == typeof(string))
+                if (DataType == typeof(string))
                     return DbType.String;
 
-                if (dataType == typeof(Guid))
+                if (DataType == typeof(Guid))
                     return DbType.Guid;
 
-                if (dataType == typeof(byte[]))
+                if (DataType == typeof(byte[]))
                     return DbType.Binary;
 
-                if (dataType == typeof(char[]))
+                if (DataType == typeof(char[]))
                     return DbType.Binary;
 
                 return DbType.Object;
@@ -214,18 +218,20 @@ namespace Dotmim.Sync.Data
                     maxLength = Math.Max(value, -1);
             }
         }
-        public int Ordinal => ordinal;
+        public int Ordinal { get; internal set; }
+
         public bool IsValueType
         {
             get
             {
-                if (StorageClassType.ContainsKey(dataType))
-                    return StorageClassType[dataType];
+                if (StorageClassType.ContainsKey(DataType))
+                    return StorageClassType[DataType];
 
-                return dataType.GetTypeInfo().IsValueType;
+                return DataType.GetTypeInfo().IsValueType;
             }
         }
-        public Type DataType => dataType;
+
+
         internal static bool IsAutoIncrementType(Type dataType) => (dataType == typeof(int) || dataType == typeof(long) || dataType == typeof(short) || dataType == typeof(decimal));
 
         /// <summary>
@@ -315,13 +321,13 @@ namespace Dotmim.Sync.Data
         public DmColumn(string columnName)
         {
             ColumnName = columnName ?? string.Empty;
-            dataType = typeof(T);
+            DataType = typeof(T);
 
-            if (dataType == null)
+            if (DataType == null)
                 throw new ArgumentNullException(nameof(columnName), "type is not defined");
 
-            if (!StorageClassType.ContainsKey(dataType))
-                throw new ArgumentException($"This type is not authorized {dataType.FullName}");
+            if (!StorageClassType.ContainsKey(DataType))
+                throw new ArgumentException($"This type is not authorized {DataType.FullName}");
         }
 
         public override bool AutoIncrement
@@ -335,7 +341,7 @@ namespace Dotmim.Sync.Data
                 if (this.AutoIncrement == value)
                     return;
 
-                var canBeAutoIncrement = IsAutoIncrementType(dataType);
+                var canBeAutoIncrement = IsAutoIncrementType(DataType);
 
                 if (!canBeAutoIncrement)
                     throw new ArgumentException($"This column can't be an Auto Increment column, due to its type not supported");
@@ -454,7 +460,6 @@ namespace Dotmim.Sync.Data
             return default(T);
         }
 
-
         void Set(int recordKey, object value)
         {
             Debug.WriteLine($"Adding a record to key {recordKey} with value {value}");
@@ -507,8 +512,11 @@ namespace Dotmim.Sync.Data
             clone.DefaultValue = DefaultValue;
             clone.ReadOnly = ReadOnly;
             clone.MaxLength = MaxLength;
-            clone.DbType = DbType;
+            
             clone.dbTypeAllowed = dbTypeAllowed;
+            if (clone.dbTypeAllowed)
+                clone.DbType = DbType; 
+
             clone.Precision = Precision;
             clone.PrecisionSpecified = PrecisionSpecified;
             clone.Scale = Scale;

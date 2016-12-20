@@ -56,30 +56,33 @@ namespace Dotmim.Sync.SqlServer.Builders
         }
         private string CreateIndexCommandText()
         {
-            return null;
-            //StringBuilder stringBuilder = new StringBuilder();
-            //stringBuilder.Append($"CREATE NONCLUSTERED INDEX [local_update_peer_timestamp_index] ON {this.quotedTableName} (", this._trackingColNames.LocalUpdatePeerTimestamp));
+            StringBuilder stringBuilder = new StringBuilder();
+            stringBuilder.AppendLine($"CREATE NONCLUSTERED INDEX [{this.trackingTableName.UnquotedStringWithUnderScore}_timestamp_index] ON {this.trackingTableName.QuotedString} (");
+            stringBuilder.AppendLine($"\t[update_timestamp] ASC");
+            stringBuilder.AppendLine($"\t,[update_scope_name] ASC");
+            stringBuilder.AppendLine($"\t,[sync_row_is_tombstone] ASC");
+            // Filter columns
+            if (this.FilterColumns != null)
+            {
+                for (int i = 0; i < this.FilterColumns.Count; i++)
+                {
+                    var filterColumn = this.FilterColumns[i];
 
-            //string str = ", ";
-            //if (this._filterColumns.Count > 0)
-            //{
-            //    stringBuilder.Append(string.Concat(str, this._trackingColNames.UpdateScopeLocalId));
-            //    stringBuilder.Append(string.Concat(str, this._trackingColNames.SyncRowIsTombstone));
-            //}
-            //foreach (DbSyncColumnDescription _filterColumn in this._filterColumns)
-            //{
-            //    if (_filterColumn.IsPrimaryKey)
-            //    {
-            //        continue;
-            //    }
-            //    stringBuilder.Append(string.Concat(str, _filterColumn.QuotedName));
-            //}
-            //foreach (DbSyncColumnDescription pkColumn in this._tableDesc.PkColumns)
-            //{
-            //    stringBuilder.Append(string.Concat(str, pkColumn.QuotedName));
-            //}
-            //stringBuilder.Append(")");
-            //return stringBuilder.ToString();
+                    if (this.table.PrimaryKey.Columns.Any(c => c.ColumnName == filterColumn.ColumnName))
+                        continue;
+
+                    ObjectNameParser columnName = new ObjectNameParser(filterColumn.ColumnName);
+                    stringBuilder.AppendLine($"\t,{columnName.QuotedString} ASC");
+                }
+            }
+
+            foreach (var pkColumn in this.table.PrimaryKey.Columns)
+            {
+                ObjectNameParser columnName = new ObjectNameParser(pkColumn.ColumnName);
+                stringBuilder.AppendLine($"\t,{columnName.QuotedString} ASC");
+            }
+            stringBuilder.Append(")");
+            return stringBuilder.ToString();
         }
 
         public string CreateIndexScriptText()

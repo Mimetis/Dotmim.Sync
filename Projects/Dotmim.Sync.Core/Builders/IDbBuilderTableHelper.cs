@@ -19,18 +19,18 @@ namespace Dotmim.Sync.Core.Builders
         /// </summary>
         List<String> GetColumnForTable(DbTransaction transaction, string tableName);
 
-        bool NeedToCreateTable(DbTransaction transaction, DmTable tableDescription);
+        bool NeedToCreateTable(DbTransaction transaction, DmTable tableDescription, DbBuilderOption builderOption);
 
-        void CreateTable(DbTransaction transaction);
+        void CreateTable(DbTransaction transaction, DbBuilderOption builderOption);
 
-        void CreatePk(DbTransaction transaction);
+        void CreatePk(DbTransaction transaction, DbBuilderOption builderOption);
 
-        void CreateForeignKeyConstraints(DbTransaction transaction);
+        void CreateForeignKeyConstraints(DbTransaction transaction, DbBuilderOption builderOption);
 
-        string CreateTableScriptText();
+        string CreateTableScriptText(DbTransaction transaction, DbBuilderOption builderOption);
 
-        bool CreatePkScriptText();
+        string CreatePkScriptText(DbTransaction transaction, DbBuilderOption builderOption);
 
-        bool CreateForeignKeyConstraintsScriptText();
+        string CreateForeignKeyConstraintsScriptText(DbTransaction transaction, DbBuilderOption builderOption);
     }
 }

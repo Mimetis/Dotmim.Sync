@@ -23,11 +23,7 @@ class Program
         var clientConfig = Configuration["AppConfiguration:ClientConnectionString"];
         SqlSyncProvider clientProvider = new SqlSyncProvider(clientConfig);
 
-        // Test DmRelation
-        TestDmRelations();
-
-
-        //TestCreateTrackingTable(serverProvider);
+        TestCreateTrackingTable(clientProvider);
 
         Console.ReadLine();
         //SyncAgent agent = new SyncAgent(clientProvider, serverProvider);
@@ -44,96 +40,71 @@ class Program
         //Console.ReadLine();
     }
 
-    private static void TestDmRelations()
-    {
-        DmSet set = new DmSet();
-        DmTable tblClientType = new DmTable("ClientType");
-
-        DmColumn colClientTypeId = new DmColumn<int>("Id");
-        colClientTypeId.AutoIncrement = true;
-        tblClientType.Columns.Add(colClientTypeId);
-
-        DmColumn colClientTypeName = new DmColumn<String>("Name");
-        tblClientType.Columns.Add(colClientTypeName);
-
-        tblClientType.PrimaryKey = new DmKey(colClientTypeId);
-        set.Tables.Add(tblClientType);
-
-        DmTable tblClient = new DmTable("Client");
-
-        DmColumn colClientId = new DmColumn<int>("Id");
-        colClientId.AutoIncrement = true;
-        tblClient.Columns.Add(colClientId);
-        tblClient.PrimaryKey = new DmKey(colClientId);
-
-        DmColumn colClientClientTypeId = new DmColumn<int>("ClientTypeId");
-        tblClient.Columns.Add(colClientClientTypeId);
-
-        DmColumn colClientName = new DmColumn<String>("Name");
-        tblClient.Columns.Add(colClientName);
-        set.Tables.Add(tblClient);
-
-        DmRelation fkClientClientType = new DmRelation("Fk_Client_ClientType", colClientTypeId, colClientClientTypeId);
-        set.Relations.Add(fkClientClientType);
-
-    }
 
     private static void TestCreateTrackingTable(SqlSyncProvider provider)
     {
 
-        DmTable table = new DmTable("Products");
+        DmSet set = new DmSet();
+        DmTable clientsTable = new DmTable("Clients");
+        DmTable productsTable = new DmTable("Products");
 
+        // orders matters !!
+        set.Tables.Add(clientsTable);
+        set.Tables.Add(productsTable);
 
         DmColumn id = new DmColumn<Int32>("Id");
         id.AllowDBNull = false;
         id.AutoIncrement = true;
-        table.Columns.Add(id);
+        productsTable.Columns.Add(id);
 
-        DmColumn clientId = new DmColumn<Guid>("clientId");
-        clientId.AllowDBNull = true;
-        table.Columns.Add(clientId);
+        DmColumn fkClientId = new DmColumn<Guid>("clientId");
+        fkClientId.AllowDBNull = true;
+        productsTable.Columns.Add(fkClientId);
 
         DmColumn name = new DmColumn<string>("name");
         name.AllowDBNull = true;
         name.DbType = System.Data.DbType.StringFixedLength;
         name.MaxLength = 150;
-        table.Columns.Add(name);
+        productsTable.Columns.Add(name);
 
         DmColumn salary = new DmColumn<Decimal>("salary");
         salary.AllowDBNull = false;
         salary.DbType = System.Data.DbType.VarNumeric;
         salary.Precision = 6;
         salary.Scale = 2;
-        table.Columns.Add(salary);
+        productsTable.Columns.Add(salary);
 
-        table.PrimaryKey = new DmKey(new DmColumn[] { id, name, salary });
+        productsTable.PrimaryKey = new DmKey(new DmColumn[] { id, name, salary });
+
+
+        DmColumn clientId = new DmColumn<Guid>("Id");
+        clientId.AllowDBNull = false;
+        clientsTable.Columns.Add(clientId);
+
+        DmColumn clientName = new DmColumn<string>("Name");
+        clientsTable.Columns.Add(clientName);
+
+        clientsTable.PrimaryKey = new DmKey(clientId);
+
+        // ForeignKey
+        DmRelation fkClientRelation = new DmRelation("FK_Products_Clients", clientId, fkClientId);
+        productsTable.AddForeignKey(fkClientRelation);
 
         provider.Connection.Open();
 
-        using (var transaction = provider.Connection.BeginTransaction())
+        foreach (var table in set.Tables)
         {
-            var builderTableProducts = provider.CreateDatabaseBuilder(table);
+            var builder = provider.CreateDatabaseBuilder(table, DbBuilderOption.Create);
 
-            // this sync is filtered with a client
-            builderTableProducts.FilterColumns.Add(clientId);
-            builderTableProducts.TrackingTableBuilder.FilterColumns = builderTableProducts.FilterColumns;
-            builderTableProducts.ProcBuilder.FilterColumns = builderTableProducts.FilterColumns;
-            Console.WriteLine(builderTableProducts.TrackingTableBuilder.CreateTableScriptText());
-            Console.WriteLine(builderTableProducts.TrackingTableBuilder.CreatePkScriptText());
-            Console.WriteLine(builderTableProducts.TrackingTableBuilder.CreatePopulateFromBaseTableScriptText());
-            Console.WriteLine(builderTableProducts.ProcBuilder.CreateDeleteScriptText(transaction, DbBuilderOption.Create));
-            Console.WriteLine(builderTableProducts.ProcBuilder.CreateInsertScriptText(transaction, DbBuilderOption.Create));
-            Console.WriteLine(builderTableProducts.ProcBuilder.CreateUpdateScriptText(transaction, DbBuilderOption.Create));
-            Console.WriteLine(builderTableProducts.ProcBuilder.CreateDeleteMetadataScriptText(transaction, DbBuilderOption.Create));
-            Console.WriteLine(builderTableProducts.ProcBuilder.CreateInsertMetadataScriptText(transaction, DbBuilderOption.Create));
-            Console.WriteLine(builderTableProducts.ProcBuilder.CreateSelectRowScriptText(transaction, DbBuilderOption.Create));
-            Console.WriteLine(builderTableProducts.ProcBuilder.CreateUpdateMetadataScriptText(transaction, DbBuilderOption.Create));
-            Console.WriteLine(builderTableProducts.ProcBuilder.CreateTVPTypeScriptText(transaction, DbBuilderOption.Create));
-            Console.WriteLine(builderTableProducts.ProcBuilder.CreateBulkDeleteScriptText(transaction, DbBuilderOption.Create));
-            Console.WriteLine(builderTableProducts.ProcBuilder.CreateBulkInsertScriptText(transaction, DbBuilderOption.Create));
-            Console.WriteLine(builderTableProducts.ProcBuilder.CreateBulkUpdateScriptText(transaction, DbBuilderOption.Create));
-            Console.WriteLine(builderTableProducts.ProcBuilder.CreateSelectIncrementalChangesScriptText(transaction, DbBuilderOption.Create));
+            if (table.TableName == "Clients")
+                builder.AddFilterColumn("Id");
 
+            if (table.TableName == "Products")
+                builder.AddFilterColumn("clientId");
+
+            builder.Apply();
+
+            Console.WriteLine(builder.Script());
         }
 
         provider.Connection.Close();

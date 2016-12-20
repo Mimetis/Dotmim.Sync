@@ -138,6 +138,8 @@ namespace Dotmim.Sync.SqlServer
                 case DbType.StringFixedLength:
                     if (column.MaxLength > 0)
                         sizeString = $"({column.MaxLength})";
+                    else
+                        sizeString = $"(MAX)";
                     break;
                 case DbType.Decimal:
                 case DbType.Double:
@@ -334,10 +336,16 @@ namespace Dotmim.Sync.SqlServer
 
                 if (scale > 0)
                     sqlParameter.Scale = scale;
-            }else if (column.MaxLength > 0)
+            }
+            else if (column.MaxLength > 0)
             {
                 sqlParameter.Size = column.MaxLength;
             }
+            else
+            {
+                sqlParameter.Size = -1;
+            }
+
             return sqlParameter;
         }
 

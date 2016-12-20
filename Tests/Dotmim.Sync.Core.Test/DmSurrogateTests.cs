@@ -1,5 +1,6 @@
 ﻿using Dotmim.Sync.Data;
 using Dotmim.Sync.Data.Surrogate;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -249,35 +250,47 @@ namespace Dotmim.Sync.Core.Test
         [Fact]
         public void Convert_DmSetSurrogate_To_DmSet()
         {
-            DmSetSurrogate dmSetSurrogate = new DmSetSurrogate(set);
-            DmSet newSet = dmSetSurrogate.ConvertToDmSet();
+            // Convert to DmSetSurrogate
+            var surrogateDs = new DmSetSurrogate(set);
+            // serialize as json string
+            var stringSurrogate = JsonConvert.SerializeObject(surrogateDs);
+            // deserialize as surrogate
+            var surrogateDsFromJson = JsonConvert.DeserializeObject<DmSetSurrogate>(stringSurrogate);
+            // Convert to DmSet
+            var set2 = surrogateDs.ConvertToDmSet(set);
 
-            Assert.NotSame(set, newSet);
-            Assert.Equal(set.CaseSensitive, newSet.CaseSensitive);
-            Assert.Equal(set.Culture, newSet.Culture);
-            Assert.Equal(set.DmSetName, newSet.DmSetName);
-            Assert.Equal(set.Tables.Count, newSet.Tables.Count);
-            Assert.Equal(set.Tables[0].Columns.Count, newSet.Tables[0].Columns.Count);
-            Assert.Equal(set.Tables[0].Rows.Count, newSet.Tables[0].Rows.Count);
+            Assert.NotSame(set, set2);
+            Assert.Equal(set.CaseSensitive, set2.CaseSensitive);
+            Assert.Equal(set.Culture, set2.Culture);
+            Assert.Equal(set.DmSetName, set2.DmSetName);
+            Assert.Equal(set.Tables.Count, set2.Tables.Count);
+            Assert.Equal(set.Tables[0].Columns.Count, set2.Tables[0].Columns.Count);
+            Assert.Equal(set.Tables[0].Rows.Count, set2.Tables[0].Rows.Count);
 
         }
 
         [Fact]
         public void Convert_DmSetSurrogate_To_ClonableDmSet()
         {
-            DmSetSurrogate dmSetSurrogate = new DmSetSurrogate(set);
-            DmSet newSet = dmSetSurrogate.ConvertToDmSet(set);
+            // Convert to DmSetSurrogate
+            var surrogateDs = new DmSetSurrogate(set);
+            // serialize as json string
+            var stringSurrogate = JsonConvert.SerializeObject(surrogateDs);
+            // deserialize as surrogate
+            var surrogateDsFromJson = JsonConvert.DeserializeObject<DmSetSurrogate>(stringSurrogate);
+            // Convert to DmSet
+            var set2 = surrogateDs.ConvertToDmSet(set);
 
-            Assert.NotSame(set, newSet);
-            Assert.Equal(set.CaseSensitive, newSet.CaseSensitive);
-            Assert.Equal(set.Culture, newSet.Culture);
-            Assert.Equal(set.DmSetName, newSet.DmSetName);
-            Assert.Equal(set.Tables.Count, newSet.Tables.Count);
-            Assert.Equal(set.Tables[0].Columns.Count, newSet.Tables[0].Columns.Count);
-            Assert.Equal(set.Tables[0].Rows.Count, newSet.Tables[0].Rows.Count);
+            Assert.NotSame(set, set2);
+            Assert.Equal(set.CaseSensitive, set2.CaseSensitive);
+            Assert.Equal(set.Culture, set2.Culture);
+            Assert.Equal(set.DmSetName, set2.DmSetName);
+            Assert.Equal(set.Tables.Count, set2.Tables.Count);
+            Assert.Equal(set.Tables[0].Columns.Count, set2.Tables[0].Columns.Count);
+            Assert.Equal(set.Tables[0].Rows.Count, set2.Tables[0].Rows.Count);
 
             // Check the PKeys
-            Assert.Equal(set.Tables[0].PrimaryKey.Columns.Length, newSet.Tables[0].PrimaryKey.Columns.Length);
+            Assert.Equal(set.Tables[0].PrimaryKey.Columns.Length, set2.Tables[0].PrimaryKey.Columns.Length);
         }
 
 
@@ -291,8 +304,17 @@ namespace Dotmim.Sync.Core.Test
 
             DmSetSurrogate dss = new DmSetSurrogate(set);
 
-            var set2 = dss.ConvertToDmSet(set);
+            // Convert to DmSetSurrogate
+            var surrogateDs = new DmSetSurrogate(set);
+            // serialize as json string
+            var stringSurrogate = JsonConvert.SerializeObject(surrogateDs);
+            // deserialize as surrogate
+            var surrogateDsFromJson = JsonConvert.DeserializeObject<DmSetSurrogate>(stringSurrogate);
+            // Convert to DmSet
+            var set2 = surrogateDs.ConvertToDmSet(set);
+
             var rows2 = set2.Tables[0].Rows;
+
 
             Assert.Equal(DmRowState.Deleted, rows2[0].RowState);
             Assert.Equal(DmRowState.Added, rows2[1].RowState);
@@ -301,6 +323,138 @@ namespace Dotmim.Sync.Core.Test
             Assert.Equal(DmRowState.Unchanged, rows2[4].RowState);
             Assert.Equal(DmRowState.Unchanged, rows2[5].RowState);
 
+
+        }
+
+        [Fact]
+        public void Properties()
+        {
+            DmSet set = new DmSet("DMSET");
+            DmTable clientsTable = new DmTable("Clients");
+            DmTable productsTable = new DmTable("Products");
+
+            set.Tables.Add(clientsTable);
+            set.Tables.Add(productsTable);
+
+            DmColumn productId = new DmColumn<Int32>("Id");
+            productId.AllowDBNull = false;
+            productId.AutoIncrement = true;
+            productsTable.Columns.Add(productId);
+
+            DmColumn fkClientId = new DmColumn<Guid>("clientId");
+            fkClientId.AllowDBNull = true;
+            productsTable.Columns.Add(fkClientId);
+
+            DmColumn productName = new DmColumn<string>("name");
+            productName.AllowDBNull = true;
+            productName.DbType = System.Data.DbType.StringFixedLength;
+            productName.MaxLength = 150;
+            productsTable.Columns.Add(productName);
+
+            DmColumn productPrice = new DmColumn<Decimal>("price");
+            productPrice.AllowDBNull = false;
+            productPrice.DbType = System.Data.DbType.VarNumeric;
+            productPrice.Precision = 6;
+            productPrice.Scale = 2;
+            productsTable.Columns.Add(productPrice);
+
+            productsTable.PrimaryKey = new DmKey(new DmColumn[] { productId, productName, productPrice });
+
+            DmColumn clientId = new DmColumn<Guid>("Id");
+            clientId.AllowDBNull = false;
+            clientsTable.Columns.Add(clientId);
+
+            DmColumn clientName = new DmColumn<string>("Name");
+            clientsTable.Columns.Add(clientName);
+
+            clientsTable.PrimaryKey = new DmKey(clientId);
+
+            // ForeignKey
+            DmRelation fkClientRelation = new DmRelation("FK_Products_Clients", clientId, fkClientId);
+            productsTable.AddForeignKey(fkClientRelation);
+
+            var clientGuid = Guid.NewGuid();
+            var drClient = clientsTable.NewRow();
+            drClient["Name"] = "Pertus";
+            drClient["Id"] = clientGuid;
+            clientsTable.Rows.Add(drClient);
+
+            var drProduct = productsTable.NewRow();
+            drProduct["clientId"] = clientGuid;
+            drProduct["name"] = "Ensemble bleu blanc rouge";
+            drProduct["price"] = 12.23d ;
+            productsTable.Rows.Add(drProduct);
+
+
+            // Convert to DmSetSurrogate
+            var surrogateDs = new DmSetSurrogate(set);
+            // serialize as json string
+            var stringSurrogate = JsonConvert.SerializeObject(surrogateDs);
+            // deserialize as surrogate
+            var surrogateDsFromJson = JsonConvert.DeserializeObject<DmSetSurrogate>(stringSurrogate);
+            // Convert to DmSet
+            var set2 = surrogateDs.ConvertToDmSet(set);
+
+            // Assertions on DmSet properties
+            Assert.Equal(set.DmSetName, set2.DmSetName);
+            Assert.Equal(set.Culture, set2.Culture);
+            Assert.Equal(set.CaseSensitive, set2.CaseSensitive);
+            Assert.Equal(set.Relations.Count, set2.Relations.Count);
+            Assert.Equal(set.Tables.Count, set2.Tables.Count);
+
+            //Assertions on Table properties
+            var productsTable2 = set2.Tables["Products"];
+            var clientsTable2 = set2.Tables["Clients"];
+            AssertIsEqual(productsTable, productsTable2);
+            AssertIsEqual(clientsTable, clientsTable2);
+
+            // Assertions on columns
+            var productId2 = set2.Tables["Products"].Columns["Id"];
+            AssertIsEqual(productId, productId2);
+            var fkClientId2 = set2.Tables["Products"].Columns["clientId"];
+            AssertIsEqual(fkClientId, fkClientId2);
+            var productName2 = set2.Tables["Products"].Columns["name"];
+            AssertIsEqual(productName, productName2);
+            var productPrice2 = set2.Tables["Products"].Columns["price"];
+            AssertIsEqual(productPrice, productPrice2);
+            var clientId2 = set2.Tables["Clients"].Columns["Id"];
+            AssertIsEqual(clientId, clientId2);
+            var clientName2 = set2.Tables["Clients"].Columns["Name"];
+            AssertIsEqual(clientName, clientName2);
+
+
+
+        }
+
+        private void AssertIsEqual(DmTable t1, DmTable t2)
+        {
+            Assert.Equal(t1.CaseSensitive, t2.CaseSensitive);
+            Assert.Equal(t1.Columns.Count, t2.Columns.Count);
+            Assert.Equal(t1.Culture, t2.Culture);
+            Assert.Equal(t1.DmSet.DmSetName, t2.DmSet.DmSetName);
+            Assert.Equal(t1.Prefix, t2.Prefix);
+            Assert.Equal(t1.PrimaryKey.Columns.Length, t2.PrimaryKey.Columns.Length);
+            Assert.Equal(t1.Rows.Count, t2.Rows.Count);
+            Assert.Equal(t1.TableName, t2.TableName);
+        }
+        private void AssertIsEqual(DmColumn c, DmColumn d)
+        {
+            Assert.Equal(c.AllowDBNull, d.AllowDBNull);
+            Assert.Equal(c.AutoIncrement, d.AutoIncrement);
+            Assert.Equal(c.ColumnName, d.ColumnName);
+            Assert.Equal(c.DataType, d.DataType);
+            Assert.Equal(c.DbType, d.DbType);
+            Assert.Equal(c.DefaultValue, d.DefaultValue);
+            Assert.Equal(c.IsValueType, d.IsValueType);
+            Assert.Equal(c.MaxLength, d.MaxLength);
+            Assert.Equal(c.Ordinal, d.Ordinal);
+            Assert.Equal(c.Precision, d.Precision);
+            Assert.Equal(c.PrecisionSpecified, d.PrecisionSpecified);
+            Assert.Equal(c.ReadOnly, d.ReadOnly);
+            Assert.Equal(c.Scale, d.Scale);
+            Assert.Equal(c.ScaleSpecified, d.ScaleSpecified);
+            Assert.Equal(c.Unique, d.Unique);
+            Assert.Equal(c.Table.TableName, d.Table.TableName);
 
         }
 

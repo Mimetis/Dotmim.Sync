@@ -53,8 +53,8 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         private void AddColumnParametersToCommand(SqlCommand sqlCommand)
         {
-            foreach (DmColumn pkColumn in this.table.Columns)
-                sqlCommand.Parameters.Add(pkColumn.GetSqlParameter());
+            foreach (DmColumn column in this.table.Columns)
+                sqlCommand.Parameters.Add(column.GetSqlParameter());
         }
 
         private (SqlConnection, SqlTransaction) GetTypedConnection(DbTransaction transaction)

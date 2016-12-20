@@ -9,76 +9,81 @@ namespace Dotmim.Sync.Core.Test
     public class DmRelationTests
     {
         private DmSet _set = null;
-        private DmTable _mom = null;
-        private DmTable _child = null;
+        private DmTable clientTable = null;
+        private DmTable clientTypeTable = null;
 
         public DmRelationTests()
         {
             _set = new DmSet();
-            _mom = new DmTable("Mom");
-            _child = new DmTable("Child");
-            _set.Tables.Add(_mom);
-            _set.Tables.Add(_child);
+            clientTable = new DmTable("Client");
+            clientTypeTable = new DmTable("TypeClient");
+            _set.Tables.Add(clientTable);
+            _set.Tables.Add(clientTypeTable);
 
-            DmColumn Col = new DmColumn<String>("Name");
-            DmColumn Col2 = new DmColumn<String>("ChildName");
-            _mom.Columns.Add(Col);
-            _mom.Columns.Add(Col2);
+            DmColumn Col0 = new DmColumn<int>("ClientId");
+            DmColumn Col1 = new DmColumn<int>("ClientType");
+            DmColumn Col2 = new DmColumn<String>("ClientName");
+            clientTable.Columns.Add(Col0);
+            clientTable.Columns.Add(Col1);
+            clientTable.Columns.Add(Col2);
+            clientTable.PrimaryKey = new DmKey(Col0);
 
-            DmColumn Col3 = new DmColumn<String>("Name");
-            DmColumn Col4 = new DmColumn<Int16>("Age");
-            _child.Columns.Add(Col3);
-            _child.Columns.Add(Col4);
+            DmColumn Col3 = new DmColumn<int>("TypeId");
+            DmColumn Col4 = new DmColumn<string>("TypeName");
+            clientTypeTable.Columns.Add(Col3);
+            clientTypeTable.Columns.Add(Col4);
+            clientTypeTable.PrimaryKey = new DmKey(Col3);
         }
 
         [Fact]
         public void Foreign()
         {
-            DmRelation Relation = new DmRelation("Rel", _mom.Columns[1], _child.Columns[0]);
+
+            DmRelation Relation = new DmRelation("FK_ClientType",
+                clientTypeTable.Columns["TypeId"],
+                clientTable.Columns["ClientType"]);
+
             _set.Relations.Add(Relation);
 
-            DmRow Row = _mom.NewRow();
-            Row[0] = "Teresa";
-            Row[1] = "Jack";
-            _mom.Rows.Add(Row);
+            DmRow Row = clientTable.NewRow();
+            Row[0] = 1;
+            Row[1] = 1;
+            Row[2] = "Sébastien";
+            clientTable.Rows.Add(Row);
 
-            Row = _mom.NewRow();
-            Row[0] = "Teresa";
-            Row[1] = "Dick";
-            _mom.Rows.Add(Row);
+            Row = clientTable.NewRow();
+            Row[0] = 2;
+            Row[1] = 1;
+            Row[2] = "Pierre";
+            clientTable.Rows.Add(Row);
 
-            Row = _mom.NewRow();
-            Row[0] = "Mary";
-            Row[1] = "Harry";
+            Row = clientTable.NewRow();
+            Row[0] = 3;
+            Row[1] = 2;
+            Row[2] = "Paul";
 
-            Row = _child.NewRow();
-            Row[0] = "Jack";
-            Row[1] = 16;
-            _child.Rows.Add(Row);
+            Row = clientTypeTable.NewRow();
+            Row[0] = 1;
+            Row[1] = "Grand Compte";
+            clientTypeTable.Rows.Add(Row);
 
-            Row = _child.NewRow();
-            Row[0] = "Dick";
-            Row[1] = 56;
-            _child.Rows.Add(Row);
+            Row = clientTypeTable.NewRow();
+            Row[0] = 2;
+            Row[1] = "PME";
+            clientTypeTable.Rows.Add(Row);
 
-            Assert.Equal(2, _child.Rows.Count);
+            // Get all rows wher ClientType = "Grand Compte"
+            var rowTypeGrandCompte = clientTypeTable.FindByKey(1);
+            // Get all childs
+            var rowsClients = rowTypeGrandCompte.GetChildRows("FK_ClientType");
+            Assert.Equal(2, rowsClients.Length);
 
-            Row = _mom.Rows[0];
-            Row.Delete();
-
-            Assert.Equal(1, _child.Rows.Count);
-
-            Row = _mom.NewRow();
-            Row[0] = "Teresa";
-            Row[1] = "Dick";
+            // Get all parents
+            var rowClient = clientTable.Rows[0];
+            var rowClientType = rowClient.GetParentRow("FK_ClientType");
 
 
-            Row = _mom.NewRow();
-            Row[0] = "Teresa";
-            Row[1] = "Mich";
-            _mom.Rows.Add(Row);
-            Assert.Equal(1, _child.Rows.Count);
-
+            Assert.Equal("Grand Compte", rowClientType[1]);
         }
 
 

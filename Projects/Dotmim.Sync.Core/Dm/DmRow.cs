@@ -132,7 +132,6 @@ namespace Dotmim.Sync.Data
             }
         }
 
-
         /// <summary>
         /// Gets or sets the data stored in the column
         /// </summary>
@@ -425,14 +424,14 @@ namespace Dotmim.Sync.Data
         /// specified DmRelation.
         /// </summary>
         public DmRow[] GetChildRows(string relationName) =>
-            GetChildRows(this.table.ChildRelations.First(r => r.RelationName == relationName), DmRowVersion.Default);
+            GetChildRows(this.table.ChildRelations.FirstOrDefault(r => r.RelationName == relationName), DmRowVersion.Default);
 
         /// <summary>
         /// Gets the child rows of this DmRow using the
         /// specified DmRelation.
         /// </summary>
         public DmRow[] GetChildRows(string relationName, DmRowVersion version) =>
-            GetChildRows(table.ChildRelations.First(r => r.RelationName == relationName), version);
+            GetChildRows(table.ChildRelations.FirstOrDefault(r => r.RelationName == relationName), version);
 
         /// <summary>
         /// Gets the child rows of this DmRow using the
@@ -459,10 +458,10 @@ namespace Dotmim.Sync.Data
         }
 
         public DmRow GetParentRow(string relationName) =>
-            GetParentRow(table.ParentRelations.First(r => r.RelationName == relationName), DmRowVersion.Default);
+            GetParentRow(table.ParentRelations.FirstOrDefault(r => r.RelationName == relationName), DmRowVersion.Default);
 
         public DmRow GetParentRow(string relationName, DmRowVersion version) =>
-            GetParentRow(table.ParentRelations.First(r => r.RelationName == relationName), version);
+            GetParentRow(table.ParentRelations.FirstOrDefault(r => r.RelationName == relationName), version);
 
         /// <summary>
         /// Gets the parent row of this DmRow using the specified DmRelation .
@@ -474,13 +473,13 @@ namespace Dotmim.Sync.Data
         /// Gets the parent rows of this DmRow using the specified DmRelation .
         /// </summary>
         public DmRow[] GetParentRows(string relationName) =>
-                    GetParentRows(table.ParentRelations.First(r => r.RelationName == relationName), DmRowVersion.Default);
+                    GetParentRows(table.ParentRelations.FirstOrDefault(r => r.RelationName == relationName), DmRowVersion.Default);
 
         /// <summary>
         /// Gets the parent rows of this DmRow using the specified DmRelation .
         /// </summary>
         public DmRow[] GetParentRows(string relationName, DmRowVersion version) =>
-            GetParentRows(table.ParentRelations.First(r => r.RelationName == relationName), version);
+            GetParentRows(table.ParentRelations.FirstOrDefault(r => r.RelationName == relationName), version);
 
         /// <summary>
         /// Gets the parent rows of this DmRow using the specified DmRelation .

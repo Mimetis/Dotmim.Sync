@@ -12,7 +12,7 @@ namespace Dotmim.Sync.Core.Builders
     public abstract class DbBuilder
     {
         private DbConnection connection;
-        private bool useBulkProcedures;
+        private bool useBulkProcedures = true;
 
         private DmTable tableDescription;
 
@@ -121,11 +121,11 @@ namespace Dotmim.Sync.Core.Builders
                 using (var transaction = connection.BeginTransaction())
                 {
 
-                    if (this.TableBuilder.NeedToCreateTable(transaction, this.tableDescription))
+                    if (this.TableBuilder.NeedToCreateTable(transaction, this.tableDescription, this.BuilderOption))
                     {
-                        this.TableBuilder.CreateTable(transaction);
-                        this.TableBuilder.CreatePk(transaction);
-                        this.TableBuilder.CreateForeignKeyConstraints(transaction);
+                        this.TableBuilder.CreateTable(transaction, this.BuilderOption);
+                        this.TableBuilder.CreatePk(transaction, this.BuilderOption);
+                        this.TableBuilder.CreateForeignKeyConstraints(transaction, this.BuilderOption);
                     }
 
 
@@ -171,6 +171,7 @@ namespace Dotmim.Sync.Core.Builders
                     this.ProcBuilder.FilterColumns = this.FilterColumns;
                     this.ProcBuilder.FilterParameters = this.FilterParameters;
 
+                    this.ProcBuilder.CreateSelectIncrementalChanges(transaction, this.BuilderOption);
                     this.ProcBuilder.CreateSelectRow(transaction, this.BuilderOption);
                     this.ProcBuilder.CreateInsert(transaction, this.BuilderOption);
                     this.ProcBuilder.CreateUpdate(transaction, this.BuilderOption);
@@ -226,13 +227,12 @@ namespace Dotmim.Sync.Core.Builders
                     Logger.Current.Info($"----- Scripting Provisioning of Table '{this.tableDescription.TableName}' -----");
 
                     StringBuilder stringBuilder = new StringBuilder();
-                    if (this.TableBuilder.NeedToCreateTable(transaction, this.tableDescription))
+                    if (this.TableBuilder.NeedToCreateTable(transaction, this.tableDescription, this.BuilderOption))
                     {
-                        stringBuilder.Append(this.TableBuilder.CreateTableScriptText());
-                        stringBuilder.Append(this.TableBuilder.CreatePkScriptText());
-                        stringBuilder.Append(this.TableBuilder.CreateForeignKeyConstraintsScriptText());
+                        stringBuilder.Append(this.TableBuilder.CreateTableScriptText(transaction, this.BuilderOption));
+                        stringBuilder.Append(this.TableBuilder.CreatePkScriptText(transaction, this.BuilderOption));
+                        stringBuilder.Append(this.TableBuilder.CreateForeignKeyConstraintsScriptText(transaction, this.BuilderOption));
                     }
-
 
                     if (this.TrackingTableBuilder.NeedToCreateTrackingTable(transaction, this.tableDescription, this.BuilderOption))
                     {
@@ -267,8 +267,8 @@ namespace Dotmim.Sync.Core.Builders
                             stringBuilder.Append(this.TriggerBuilder.AlterDeleteTriggerScriptText());
                         }
                     }
-                    this.TriggerBuilder.FilterColumns = this.FilterColumns;
 
+                    this.TriggerBuilder.FilterColumns = this.FilterColumns;
                     stringBuilder.Append(this.TriggerBuilder.CreateInsertTriggerScriptText(transaction, this.BuilderOption));
                     stringBuilder.Append(this.TriggerBuilder.CreateUpdateTriggerScriptText(transaction, this.BuilderOption));
                     stringBuilder.Append(this.TriggerBuilder.CreateDeleteTriggerScriptText(transaction, this.BuilderOption));
