@@ -688,7 +688,6 @@ namespace Dotmim.Sync.Data
             if (this.Columns.Count == 0)
             {
 
-                List<DmColumn> keyColumns = new List<DmColumn>();
                 for (int i = 0; i < reader.FieldCount; i++)
                 {
                     var columnName = reader.GetName(i);

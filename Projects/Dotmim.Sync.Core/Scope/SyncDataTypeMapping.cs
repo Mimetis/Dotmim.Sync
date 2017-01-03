@@ -7,11 +7,14 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Core.Scope
 {
-    static class SyncDataTypeMapping
+    /// <summary>
+    /// TODO : Merge with the correct helper, in Sql Provider
+    /// </summary>
+    public static class SyncDataTypeMapping
     {
         static Dictionary<string, Type> DataTypeHashtable;
 
-        internal static Type GetType(string sqlTypeName)
+        public static Type GetType(string sqlTypeName)
         {
             if (DataTypeHashtable == null)
                 Init();

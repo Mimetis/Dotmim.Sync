@@ -6,32 +6,40 @@ using Dotmim.Sync.Data;
 using System.Data.Common;
 using Dotmim.Sync.Core.Common;
 using System.Data.SqlClient;
+using Dotmim.Sync.Core.Scope;
+using System.Linq;
+using System.Data;
+using Dotmim.Sync.Core.Log;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
     public class SqlBuilderTable : IDbBuilderTableHelper
     {
-        private DmTable table;
-        private ObjectNameParser originalTableName;
+        private ObjectNameParser tableName;
+        private ObjectNameParser trackingName;
+        private DmTable tableDescription;
+        private SqlConnection connection;
+        private SqlTransaction transaction;
 
-        public SqlBuilderTable(DmTable tableDescription)
+        public DmTable TableDescription
         {
-            this.table = tableDescription;
-            string tableAndPrefixName = String.IsNullOrWhiteSpace(this.table.Prefix) ? this.table.TableName : $"{this.table.Prefix}.{this.table.TableName}";
-            this.originalTableName = new ObjectNameParser(tableAndPrefixName, "[", "]");
+            get
+            {
+                return this.tableDescription;
+            }
+            set
+            {
+                this.tableDescription = value;
+                (this.tableName, this.trackingName) = SqlBuilder.GetParsers(TableDescription);
+
+            }
         }
-        private (SqlConnection, SqlTransaction) GetTypedConnection(DbTransaction transaction)
+        public SqlBuilderTable(DbConnection connection, DbTransaction transaction = null)
         {
-            SqlTransaction sqlTransaction = transaction as SqlTransaction;
-
-            if (sqlTransaction == null)
-                throw new Exception("Transaction is not a SqlTransaction. Wrong provider");
-
-            SqlConnection sqlConnection = sqlTransaction.Connection;
-
-            return (sqlConnection, sqlTransaction);
-
+            this.connection = connection as SqlConnection;
+            this.transaction = transaction as SqlTransaction;
         }
+
 
         private SqlCommand BuildForeignKeyConstraintsCommand(DmRelation foreignKey)
         {
@@ -69,27 +77,59 @@ namespace Dotmim.Sync.SqlServer.Builders
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
-
-        public void CreateForeignKeyConstraints(DbTransaction transaction, DbBuilderOption builderOption)
+        public void CreateForeignKeyConstraints()
         {
-            (var connection, var trans) = GetTypedConnection(transaction);
 
-            foreach (DmRelation constraint in this.table.ParentRelations)
+            bool alreadyOpened = connection.State == ConnectionState.Open;
+
+            try
             {
-                using (var command = BuildForeignKeyConstraintsCommand(constraint))
+                if (!alreadyOpened)
+                    connection.Open();
+
+                foreach (DmRelation constraint in TableDescription.ParentRelations)
                 {
-                    command.Connection = connection;
-                    command.Transaction = trans;
-                    command.ExecuteNonQuery();
+                    if (!EnsureForeignKeysTableExist(constraint))
+                        continue;
+
+                    using (var command = BuildForeignKeyConstraintsCommand(constraint))
+                    {
+                        command.Connection = connection;
+
+                        if (transaction != null)
+                            command.Transaction = transaction;
+
+                        command.ExecuteNonQuery();
+                    }
                 }
+
             }
+            catch (Exception ex)
+            {
+                Logger.Current.Error($"Error during CreateForeignKeyConstraints : {ex}");
+                throw;
+
+            }
+            finally
+            {
+                if (!alreadyOpened && connection.State != ConnectionState.Closed)
+                    connection.Close();
+
+            }
+
         }
 
-        public string CreateForeignKeyConstraintsScriptText(DbTransaction transaction, DbBuilderOption builderOption)
+        public string CreateForeignKeyConstraintsScriptText()
         {
             StringBuilder stringBuilder = new StringBuilder();
-            foreach (DmRelation constraint in this.table.ParentRelations)
+            foreach (DmRelation constraint in TableDescription.ParentRelations)
             {
+                if (!EnsureForeignKeysTableExist(constraint))
+                {
+                    stringBuilder.AppendLine($"Constraint {constraint.RelationName} references the table {constraint.ParentTable.TableName} which is not part of the current sync configuration. Skip this constraint");
+                    continue;
+                }
+
                 var constraintName = $"Create Constraint {constraint.RelationName} between parent {constraint.ParentTable.TableName} and child {constraint.ChildTable.TableName}";
                 var constraintScript = BuildForeignKeyConstraintsCommand(constraint).CommandText;
                 stringBuilder.Append(SqlBuilder.WrapScriptTextWithComments(constraintScript, constraintName));
@@ -98,42 +138,63 @@ namespace Dotmim.Sync.SqlServer.Builders
             return stringBuilder.ToString();
         }
 
-
         private SqlCommand BuildPkCommand()
         {
             string[] localName = new string[] { };
             StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"ALTER TABLE {this.originalTableName.QuotedString} ADD CONSTRAINT [PK_{this.originalTableName.UnquotedStringWithUnderScore}] PRIMARY KEY(");
-            for (int i = 0; i < this.table.PrimaryKey.Columns.Length; i++)
+
+            stringBuilder.AppendLine($"ALTER TABLE {tableName.QuotedString} ADD CONSTRAINT [PK_{tableName.UnquotedStringWithUnderScore}] PRIMARY KEY(");
+            for (int i = 0; i < TableDescription.PrimaryKey.Columns.Length; i++)
             {
-                DmColumn pkColumn = this.table.PrimaryKey.Columns[i];
+                DmColumn pkColumn = TableDescription.PrimaryKey.Columns[i];
                 var quotedColumnName = new ObjectNameParser(pkColumn.ColumnName, "[", "]").QuotedString;
 
                 stringBuilder.Append(quotedColumnName);
 
-                if (i < this.table.PrimaryKey.Columns.Length - 1)
+                if (i < TableDescription.PrimaryKey.Columns.Length - 1)
                     stringBuilder.Append(", ");
             }
             stringBuilder.Append(")");
 
             return new SqlCommand(stringBuilder.ToString());
         }
-        public void CreatePk(DbTransaction transaction, DbBuilderOption builderOption)
+        public void CreatePrimaryKey()
         {
-            (var connection, var trans) = GetTypedConnection(transaction);
+            bool alreadyOpened = connection.State == ConnectionState.Open;
 
-            using (var command = BuildPkCommand())
+            try
             {
-                command.Connection = connection;
-                command.Transaction = trans;
-                command.ExecuteNonQuery();
-            }
-        }
+                using (var command = BuildPkCommand())
+                {
+                    if (!alreadyOpened)
+                        connection.Open();
 
-        public string CreatePkScriptText(DbTransaction transaction, DbBuilderOption builderOption)
+                    if (transaction != null)
+                        command.Transaction = transaction;
+
+                    command.Connection = connection;
+                    command.ExecuteNonQuery();
+
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Current.Error($"Error during Create Pk Command : {ex}");
+                throw;
+
+            }
+            finally
+            {
+                if (!alreadyOpened && connection.State != ConnectionState.Closed)
+                    connection.Close();
+
+            }
+
+        }
+        public string CreatePrimaryKeyScriptText()
         {
             StringBuilder stringBuilder = new StringBuilder();
-            var pkName = $"Create primary keys for table {this.originalTableName.QuotedString}";
+            var pkName = $"Create primary keys for table {tableName.QuotedString}";
             var pkScript = BuildPkCommand().CommandText;
             stringBuilder.Append(SqlBuilder.WrapScriptTextWithComments(pkScript, pkName));
             stringBuilder.AppendLine();
@@ -145,64 +206,130 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
             SqlCommand command = new SqlCommand();
 
-            StringBuilder stringBuilder = new StringBuilder($"CREATE TABLE {this.originalTableName.QuotedString} (");
+            StringBuilder stringBuilder = new StringBuilder($"CREATE TABLE {tableName.QuotedString} (");
             string empty = string.Empty;
             stringBuilder.AppendLine();
-            foreach (var column in this.table.Columns)
+            foreach (var column in TableDescription.Columns)
             {
                 var columnName = new ObjectNameParser(column.ColumnName);
                 var columnType = $"{column.GetSqlDbTypeString()} {column.GetSqlTypePrecisionString()}";
+                var identity = string.Empty;
+
+                if (column.AutoIncrement)
+                {
+                    var s = column.GetAutoIncrementSeedAndStep();
+                    identity = $"IDENTITY({s.Step},{s.Seed})";
+                }
                 var nullString = column.AllowDBNull ? "NULL" : "NOT NULL";
 
-                stringBuilder.AppendLine($"\t{empty}{columnName.QuotedString} {columnType} {nullString}");
+                stringBuilder.AppendLine($"\t{empty}{columnName.QuotedString} {columnType} {identity} {nullString}");
                 empty = ",";
             }
             stringBuilder.Append(")");
             return new SqlCommand(stringBuilder.ToString());
         }
-        public void CreateTable(DbTransaction transaction, DbBuilderOption builderOption)
-        {
-            (var connection, var trans) = GetTypedConnection(transaction);
 
-            using (var command = BuildTableCommand())
+
+        public void CreateTable()
+        {
+            bool alreadyOpened = connection.State == ConnectionState.Open;
+
+            try
             {
-                command.Connection = connection;
-                command.Transaction = trans;
-                command.ExecuteNonQuery();
+                using (var command = BuildTableCommand())
+                {
+                    if (!alreadyOpened)
+                        connection.Open();
+
+                    if (transaction != null)
+                        command.Transaction = transaction;
+
+                    command.Connection = connection;
+                    command.ExecuteNonQuery();
+
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Current.Error($"Error during CreateTable : {ex}");
+                throw;
+
+            }
+            finally
+            {
+                if (!alreadyOpened && connection.State != ConnectionState.Closed)
+                    connection.Close();
+
             }
 
         }
-        public string CreateTableScriptText(DbTransaction transaction, DbBuilderOption builderOption)
+        public string CreateTableScriptText()
         {
             StringBuilder stringBuilder = new StringBuilder();
-            var tableName = $"Create Table {this.originalTableName.QuotedString}";
+            var tableNameScript = $"Create Table {tableName.QuotedString}";
             var tableScript = BuildTableCommand().CommandText;
-            stringBuilder.Append(SqlBuilder.WrapScriptTextWithComments(tableScript, tableName));
+            stringBuilder.Append(SqlBuilder.WrapScriptTextWithComments(tableScript, tableNameScript));
             stringBuilder.AppendLine();
             return stringBuilder.ToString();
         }
 
-        public List<string> GetColumnForTable(DbTransaction transaction, string tableName)
+
+        /// <summary>
+        /// For a foreign key, check if the Parent table exists
+        /// </summary>
+        private bool EnsureForeignKeysTableExist(DmRelation foreignKey)
         {
-            throw new NotImplementedException();
+            var childTable = foreignKey.ChildTable;
+            var parentTable = foreignKey.ParentTable;
+
+            // The foreignkey comes from the child table
+            var ds = foreignKey.ChildTable.DmSet;
+
+            if (ds == null)
+                return false;
+
+            // Check if the parent table is part of the sync configuration
+            var exist = ds.Tables.Any(t => ds.IsEqual(t.TableName, parentTable.TableName));
+
+            if (!exist)
+                return false;
+
+            bool alreadyOpened = connection.State == ConnectionState.Open;
+
+            try
+            {
+                if (!alreadyOpened)
+                    connection.Open();
+
+                return SqlManagementUtils.TableExists(connection, null, parentTable.TableName);
+
+            }
+            catch (Exception ex)
+            {
+                Logger.Current.Error($"Error during EnsureForeignKeysTableExist : {ex}");
+                throw;
+
+            }
+            finally
+            {
+                if (!alreadyOpened && connection.State != ConnectionState.Closed)
+                    connection.Close();
+
+            }
+
+            
         }
 
-        public bool NeedToCreateTable(DbTransaction transaction, DmTable tableDescription, DbBuilderOption builderOption)
+        /// <summary>
+        /// Check if we need to create the table in the current database
+        /// </summary>
+        public bool NeedToCreateTable(DbBuilderOption builderOptions)
         {
-            (var connection, var trans) = GetTypedConnection(transaction);
+            if (builderOptions.HasFlag(DbBuilderOption.CreateOrUseExistingSchema))
+                return !SqlManagementUtils.TableExists(connection, transaction, tableName.QuotedString);
 
-            switch (builderOption)
-            {
-                case DbBuilderOption.Create:
-                    return true;
-                case DbBuilderOption.Skip:
-                    return false;
-                case DbBuilderOption.CreateOrUseExisting:
-                    return !SqlManagementUtils.TableExists(connection, trans, this.originalTableName.QuotedString);
-            }
             return false;
         }
-
 
     }
 }

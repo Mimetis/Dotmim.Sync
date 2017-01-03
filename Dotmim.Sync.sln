@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.25928.0
+VisualStudioVersion = 15.0.26009.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dotmim.Sync.Core", "Projects\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj", "{C58C0E87-84B4-4DC7-A2F2-CCC2B9DAEF86}"
 EndProject
@@ -12,8 +12,6 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{AC37FDEF-1057-4915-806D-DC22DD68F44B}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dotmim.Sync.Core.Test", "Tests\Dotmim.Sync.Core.Test\Dotmim.Sync.Core.Test.csproj", "{4BB24ED8-7F70-4E6F-9150-7AAEC21D9B4A}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConsoleApp1", "ConsoleApp1\ConsoleApp1.csproj", "{39C8FADF-85F0-47C2-9194-B0D3655B068B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -73,18 +71,6 @@ Global
 		{4BB24ED8-7F70-4E6F-9150-7AAEC21D9B4A}.Release|x64.Build.0 = Release|Any CPU
 		{4BB24ED8-7F70-4E6F-9150-7AAEC21D9B4A}.Release|x86.ActiveCfg = Release|Any CPU
 		{4BB24ED8-7F70-4E6F-9150-7AAEC21D9B4A}.Release|x86.Build.0 = Release|Any CPU
-		{39C8FADF-85F0-47C2-9194-B0D3655B068B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{39C8FADF-85F0-47C2-9194-B0D3655B068B}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{39C8FADF-85F0-47C2-9194-B0D3655B068B}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{39C8FADF-85F0-47C2-9194-B0D3655B068B}.Debug|x64.Build.0 = Debug|Any CPU
-		{39C8FADF-85F0-47C2-9194-B0D3655B068B}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{39C8FADF-85F0-47C2-9194-B0D3655B068B}.Debug|x86.Build.0 = Debug|Any CPU
-		{39C8FADF-85F0-47C2-9194-B0D3655B068B}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{39C8FADF-85F0-47C2-9194-B0D3655B068B}.Release|Any CPU.Build.0 = Release|Any CPU
-		{39C8FADF-85F0-47C2-9194-B0D3655B068B}.Release|x64.ActiveCfg = Release|Any CPU
-		{39C8FADF-85F0-47C2-9194-B0D3655B068B}.Release|x64.Build.0 = Release|Any CPU
-		{39C8FADF-85F0-47C2-9194-B0D3655B068B}.Release|x86.ActiveCfg = Release|Any CPU
-		{39C8FADF-85F0-47C2-9194-B0D3655B068B}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

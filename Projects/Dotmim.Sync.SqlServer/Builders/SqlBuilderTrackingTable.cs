@@ -7,57 +7,80 @@ using System.Data.Common;
 using System.Data.SqlClient;
 using Dotmim.Sync.Core.Common;
 using System.Linq;
+using Dotmim.Sync.Core.Log;
+using System.Data;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
     public class SqlBuilderTrackingTable : IDbBuilderTrackingTableHelper
     {
+        private ObjectNameParser tableName;
+        private ObjectNameParser trackingName;
+        private DmTable tableDescription;
+        private SqlConnection connection;
+        private SqlTransaction transaction;
+        public List<DmColumn> FilterColumns { get; set; }
 
-        private DmTable table;
-        private ObjectNameParser originalTableName;
-        private ObjectNameParser trackingTableName;
-
-
-        public SqlBuilderTrackingTable(DmTable tableDescription)
+        public DmTable TableDescription
         {
-            this.table = tableDescription;
-            string tableAndPrefixName = String.IsNullOrWhiteSpace(this.table.Prefix) ? this.table.TableName : $"{this.table.Prefix}.{this.table.TableName}";
-            this.originalTableName = new ObjectNameParser(tableAndPrefixName, "[", "]");
-            this.trackingTableName = new ObjectNameParser($"{tableAndPrefixName}_tracking", "[", "]");
-        }
-
-        private (SqlConnection, SqlTransaction) GetTypedConnection(DbTransaction transaction)
-        {
-            SqlTransaction sqlTransaction = transaction as SqlTransaction;
-
-            if (sqlTransaction == null)
-                throw new Exception("Transaction is not a SqlTransaction. Wrong provider");
-
-            SqlConnection sqlConnection = sqlTransaction.Connection;
-
-            return (sqlConnection, sqlTransaction);
-
-        }
-        public List<DmColumn> FilterColumns { get; set; } = new List<DmColumn>();
-
-
-        public void CreateIndex(DbTransaction transaction)
-        {
-            (SqlConnection sqlConnection, SqlTransaction sqlTransaction) = GetTypedConnection(transaction);
-
-            using (SqlCommand command = new SqlCommand())
+            get
             {
-                command.Transaction = sqlTransaction;
-                command.Connection = sqlConnection;
-                command.CommandText = this.CreateIndexCommandText();
-                command.ExecuteNonQuery();
+                return this.tableDescription;
+            }
+            set
+            {
+                this.tableDescription = value;
+                (this.tableName, this.trackingName) = SqlBuilder.GetParsers(TableDescription);
 
             }
+        }
+
+
+        public SqlBuilderTrackingTable(DbConnection connection, DbTransaction transaction = null)
+        {
+            this.connection = connection as SqlConnection;
+            this.transaction = transaction as SqlTransaction;
+        }
+
+
+        public void CreateIndex()
+        {
+            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+
+            try
+            {
+                using (var command = new SqlCommand())
+                {
+                    if (!alreadyOpened)
+                        this.connection.Open();
+
+                    if (this.transaction != null)
+                        command.Transaction = this.transaction;
+
+                    command.CommandText = this.CreateIndexCommandText();
+                    command.Connection = this.connection;
+                    command.ExecuteNonQuery();
+
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Current.Error($"Error during CreateIndex : {ex}");
+                throw;
+
+            }
+            finally
+            {
+                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
+                    this.connection.Close();
+
+            }
+
         }
         private string CreateIndexCommandText()
         {
             StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"CREATE NONCLUSTERED INDEX [{this.trackingTableName.UnquotedStringWithUnderScore}_timestamp_index] ON {this.trackingTableName.QuotedString} (");
+            stringBuilder.AppendLine($"CREATE NONCLUSTERED INDEX [{trackingName.UnquotedStringWithUnderScore}_timestamp_index] ON {trackingName.QuotedString} (");
             stringBuilder.AppendLine($"\t[update_timestamp] ASC");
             stringBuilder.AppendLine($"\t,[update_scope_name] ASC");
             stringBuilder.AppendLine($"\t,[sync_row_is_tombstone] ASC");
@@ -68,7 +91,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 {
                     var filterColumn = this.FilterColumns[i];
 
-                    if (this.table.PrimaryKey.Columns.Any(c => c.ColumnName == filterColumn.ColumnName))
+                    if (TableDescription.PrimaryKey.Columns.Any(c => c.ColumnName == filterColumn.ColumnName))
                         continue;
 
                     ObjectNameParser columnName = new ObjectNameParser(filterColumn.ColumnName);
@@ -76,7 +99,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 }
             }
 
-            foreach (var pkColumn in this.table.PrimaryKey.Columns)
+            foreach (var pkColumn in TableDescription.PrimaryKey.Columns)
             {
                 ObjectNameParser columnName = new ObjectNameParser(pkColumn.ColumnName);
                 stringBuilder.AppendLine($"\t,{columnName.QuotedString} ASC");
@@ -87,42 +110,63 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         public string CreateIndexScriptText()
         {
-            string str = string.Concat("Create index on Tracking Table ", this.trackingTableName.QuotedString);
+            string str = string.Concat("Create index on Tracking Table ", trackingName.QuotedString);
             return SqlBuilder.WrapScriptTextWithComments(this.CreateIndexCommandText(), str);
         }
 
-        public void CreatePk(DbTransaction transaction)
+        public void CreatePk()
         {
-            (SqlConnection sqlConnection, SqlTransaction sqlTransaction) = GetTypedConnection(transaction);
+            bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
-            using (SqlCommand command = new SqlCommand())
+            try
             {
-                command.Transaction = sqlTransaction;
-                command.Connection = sqlConnection;
-                command.CommandText = this.CreatePkCommandText();
-                command.ExecuteNonQuery();
+                using (var command = new SqlCommand())
+                {
+                    if (!alreadyOpened)
+                        this.connection.Open();
+
+                    if (transaction != null)
+                        command.Transaction = transaction;
+
+                    command.CommandText = this.CreatePkCommandText();
+                    command.Connection = this.connection;
+                    command.ExecuteNonQuery();
+
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Current.Error($"Error during CreateIndex : {ex}");
+                throw;
 
             }
+            finally
+            {
+                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
+                    this.connection.Close();
+
+            }
+
         }
         public string CreatePkScriptText()
         {
-            string str = string.Concat("Create Primary Key on Tracking Table ", this.trackingTableName.QuotedString);
+            string str = string.Concat("Create Primary Key on Tracking Table ", trackingName.QuotedString);
             return SqlBuilder.WrapScriptTextWithComments(this.CreatePkCommandText(), str);
         }
 
         public string CreatePkCommandText()
         {
             StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.Append($"ALTER TABLE {this.trackingTableName.QuotedString} ADD CONSTRAINT [PK_{this.trackingTableName.UnquotedStringWithUnderScore}] PRIMARY KEY (");
+            stringBuilder.Append($"ALTER TABLE {trackingName.QuotedString} ADD CONSTRAINT [PK_{trackingName.UnquotedStringWithUnderScore}] PRIMARY KEY (");
 
-            for (int i = 0; i < this.table.PrimaryKey.Columns.Length; i++)
+            for (int i = 0; i < TableDescription.PrimaryKey.Columns.Length; i++)
             {
-                DmColumn pkColumn = this.table.PrimaryKey.Columns[i];
+                DmColumn pkColumn = TableDescription.PrimaryKey.Columns[i];
                 var quotedColumnName = new ObjectNameParser(pkColumn.ColumnName, "[", "]").QuotedString;
 
                 stringBuilder.Append(quotedColumnName);
 
-                if (i < this.table.PrimaryKey.Columns.Length - 1)
+                if (i < TableDescription.PrimaryKey.Columns.Length - 1)
                     stringBuilder.Append(", ");
             }
             stringBuilder.Append(")");
@@ -130,37 +174,59 @@ namespace Dotmim.Sync.SqlServer.Builders
             return stringBuilder.ToString();
         }
 
-        public void CreateTable(DbTransaction transaction)
+        public void CreateTable()
         {
-            (SqlConnection sqlConnection, SqlTransaction sqlTransaction) = GetTypedConnection(transaction);
+            bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
-            using (SqlCommand command = new SqlCommand())
+            try
             {
-                command.Transaction = sqlTransaction;
-                command.Connection = sqlConnection;
-                command.CommandText = this.CreateTableCommandText();
-                command.ExecuteNonQuery();
+                using (var command = new SqlCommand())
+                {
+                    if (!alreadyOpened)
+                        this.connection.Open();
+
+                    if (this.transaction != null)
+                        command.Transaction = this.transaction;
+
+                    command.CommandText = this.CreateTableCommandText();
+                    command.Connection = this.connection;
+                    command.ExecuteNonQuery();
+
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Current.Error($"Error during CreateIndex : {ex}");
+                throw;
 
             }
+            finally
+            {
+                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
+                    this.connection.Close();
+
+            }
+
+
         }
 
         public string CreateTableScriptText()
         {
-            string str = string.Concat("Create Tracking Table ", this.trackingTableName.QuotedString);
+            string str = string.Concat("Create Tracking Table ", trackingName.QuotedString);
             return SqlBuilder.WrapScriptTextWithComments(this.CreateTableCommandText(), str);
         }
 
         public string CreateTableCommandText()
         {
             StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"CREATE TABLE {this.trackingTableName.QuotedString} (");
+            stringBuilder.AppendLine($"CREATE TABLE {trackingName.QuotedString} (");
 
             // Adding the primary key
-            foreach (DmColumn pkColumn in this.table.PrimaryKey.Columns)
+            foreach (DmColumn pkColumn in TableDescription.PrimaryKey.Columns)
             {
                 var quotedColumnName = new ObjectNameParser(pkColumn.ColumnName, "[", "]").QuotedString;
                 var quotedColumnType = new ObjectNameParser(pkColumn.GetSqlDbTypeString(), "[", "]").QuotedString;
-                quotedColumnType += pkColumn.GetSqlTypePrecisionString(); 
+                quotedColumnType += pkColumn.GetSqlTypePrecisionString();
                 var nullableColumn = pkColumn.AllowDBNull ? "NULL" : "NOT NULL";
 
                 stringBuilder.AppendLine($"{quotedColumnName} {quotedColumnType} {nullableColumn}, ");
@@ -176,57 +242,72 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"[last_change_datetime] [datetime] NULL, ");
 
             // adding the filter columns
-            foreach (DmColumn filterColumn in this.FilterColumns)
-            {
-                var isPk = this.table.PrimaryKey.Columns.Any(dm => this.table.IsEqual(dm.ColumnName, filterColumn.ColumnName));
-                if (isPk)
-                    continue;
+            if (this.FilterColumns != null)
+                foreach (DmColumn filterColumn in this.FilterColumns)
+                {
+                    var isPk = TableDescription.PrimaryKey.Columns.Any(dm => TableDescription.IsEqual(dm.ColumnName, filterColumn.ColumnName));
+                    if (isPk)
+                        continue;
 
-                var quotedColumnName = new ObjectNameParser(filterColumn.ColumnName, "[", "]").QuotedString;
-                var quotedColumnType = new ObjectNameParser(filterColumn.GetSqlDbTypeString(), "[", "]").QuotedString;
-                quotedColumnType += filterColumn.GetSqlTypePrecisionString();
-                var nullableColumn = filterColumn.AllowDBNull ? "NULL" : "NOT NULL";
+                    var quotedColumnName = new ObjectNameParser(filterColumn.ColumnName, "[", "]").QuotedString;
+                    var quotedColumnType = new ObjectNameParser(filterColumn.GetSqlDbTypeString(), "[", "]").QuotedString;
+                    quotedColumnType += filterColumn.GetSqlTypePrecisionString();
+                    var nullableColumn = filterColumn.AllowDBNull ? "NULL" : "NOT NULL";
 
-                stringBuilder.AppendLine($"{quotedColumnName} {quotedColumnType} {nullableColumn}, ");
-            }
+                    stringBuilder.AppendLine($"{quotedColumnName} {quotedColumnType} {nullableColumn}, ");
+                }
             stringBuilder.Append(")");
             return stringBuilder.ToString();
         }
 
-        public bool NeedToCreateTrackingTable(DbTransaction transaction, DmTable tableDescription, DbBuilderOption builderOption)
+        public bool NeedToCreateTrackingTable(DbBuilderOption builderOption)
         {
-            (SqlConnection sqlConnection, SqlTransaction sqlTransaction) = GetTypedConnection(transaction);
 
-            switch (builderOption)
-            {
-                case DbBuilderOption.Create:
-                        return true;
-                case DbBuilderOption.Skip:
-                        return false;
-                case DbBuilderOption.CreateOrUseExisting:
-                        return !SqlManagementUtils.TableExists(sqlConnection, sqlTransaction, this.trackingTableName.QuotedString);
-            }
+            if (builderOption.HasFlag(DbBuilderOption.CreateOrUseExistingSchema))
+                return !SqlManagementUtils.TableExists(connection, transaction, trackingName.QuotedString);
+
             return false;
         }
 
-        public void PopulateFromBaseTable(DbTransaction transaction)
+        public void PopulateFromBaseTable()
         {
-            (SqlConnection sqlConnection, SqlTransaction sqlTransaction) = GetTypedConnection(transaction);
+            bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
-            using (SqlCommand command = new SqlCommand())
+            try
             {
-                command.Transaction = sqlTransaction;
-                command.Connection = sqlConnection;
-                command.CommandText = this.CreatePopulateFromBaseTableCommandText();
-                command.ExecuteNonQuery();
+                using (var command = new SqlCommand())
+                {
+                    if (!alreadyOpened)
+                        this.connection.Open();
+
+                    if (this.transaction != null)
+                        command.Transaction = this.transaction;
+
+                    command.CommandText = this.CreatePopulateFromBaseTableCommandText();
+                    command.Connection = this.connection;
+                    command.ExecuteNonQuery();
+
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Current.Error($"Error during CreateIndex : {ex}");
+                throw;
 
             }
+            finally
+            {
+                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
+                    this.connection.Close();
+
+            }
+
         }
 
         private string CreatePopulateFromBaseTableCommandText()
         {
             StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine(string.Concat("INSERT INTO ", this.trackingTableName.QuotedString, " ("));
+            stringBuilder.AppendLine(string.Concat("INSERT INTO ", trackingName.QuotedString, " ("));
             StringBuilder stringBuilder1 = new StringBuilder();
             StringBuilder stringBuilder2 = new StringBuilder();
             string empty = string.Empty;
@@ -235,7 +316,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             string str = string.Empty;
             string baseTable = "[base]";
             string sideTable = "[side]";
-            foreach (var pkColumn in this.table.PrimaryKey.Columns)
+            foreach (var pkColumn in TableDescription.PrimaryKey.Columns)
             {
                 var quotedColumnName = new ObjectNameParser(pkColumn.ColumnName, "[", "]").QuotedString;
 
@@ -253,17 +334,18 @@ namespace Dotmim.Sync.SqlServer.Builders
             StringBuilder stringBuilder5 = new StringBuilder();
             StringBuilder stringBuilder6 = new StringBuilder();
 
-            foreach (var filterColumn in this.FilterColumns)
-            {
-                var isPk = this.table.PrimaryKey.Columns.Any(dm => this.table.IsEqual(dm.ColumnName, filterColumn.ColumnName));
-                if (isPk)
-                    continue;
+            if (FilterColumns != null)
+                foreach (var filterColumn in this.FilterColumns)
+                {
+                    var isPk = TableDescription.PrimaryKey.Columns.Any(dm => TableDescription.IsEqual(dm.ColumnName, filterColumn.ColumnName));
+                    if (isPk)
+                        continue;
 
-                var quotedColumnName = new ObjectNameParser(filterColumn.ColumnName, "[", "]").QuotedString;
+                    var quotedColumnName = new ObjectNameParser(filterColumn.ColumnName, "[", "]").QuotedString;
 
-                stringBuilder6.Append(string.Concat(empty, quotedColumnName));
-                stringBuilder5.Append(string.Concat(empty, baseTable, ".", quotedColumnName));
-            }
+                    stringBuilder6.Append(string.Concat(empty, quotedColumnName));
+                    stringBuilder5.Append(string.Concat(empty, baseTable, ".", quotedColumnName));
+                }
 
             // (list of pkeys)
             stringBuilder.Append(string.Concat(stringBuilder1.ToString(), ", "));
@@ -272,53 +354,73 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.Append("[update_scope_name], ");
             stringBuilder.Append("[create_timestamp], ");
             stringBuilder.Append("[update_timestamp], ");
-            //stringBuilder.Append("[timestamp], ");
+            //stringBuilder.Append("[timestamp], "); // timestamp is not a column we update, it's auto
             stringBuilder.Append("[sync_row_is_tombstone] ");
             stringBuilder.AppendLine(string.Concat(stringBuilder6.ToString(), ") "));
             stringBuilder.Append(string.Concat("SELECT ", stringBuilder2.ToString(), ", "));
             stringBuilder.Append("NULL, ");
             stringBuilder.Append("NULL, ");
-            stringBuilder.Append("0, ");
+            stringBuilder.Append("@@DBTS+1, ");
             stringBuilder.Append("0, ");
             //stringBuilder.Append("@@DBTS+1, "); // timestamp is not a column we update, it's auto
             stringBuilder.Append("0");
             stringBuilder.AppendLine(string.Concat(stringBuilder5.ToString(), " "));
-            string[] localName = new string[] { "FROM ", this.originalTableName.QuotedString, " ", baseTable, " LEFT OUTER JOIN ", this.trackingTableName.QuotedString, " ", sideTable, " " };
+            string[] localName = new string[] { "FROM ", tableName.QuotedString, " ", baseTable, " LEFT OUTER JOIN ", trackingName.QuotedString, " ", sideTable, " " };
             stringBuilder.AppendLine(string.Concat(localName));
             stringBuilder.AppendLine(string.Concat(stringBuilderOnClause.ToString(), " "));
             stringBuilder.AppendLine(string.Concat(stringBuilderWhereClause.ToString(), "; \n"));
             return stringBuilder.ToString();
         }
 
-
         public string CreatePopulateFromBaseTableScriptText()
         {
-            string str = string.Concat("Populate tracking table ", this.trackingTableName.QuotedString, " for existing data in table ", this.originalTableName.QuotedString);
+            string str = string.Concat("Populate tracking table ", trackingName.QuotedString, " for existing data in table ", tableName.QuotedString);
             return SqlBuilder.WrapScriptTextWithComments(this.CreatePopulateFromBaseTableCommandText(), str);
         }
 
-        public void PopulateNewFilterColumnFromBaseTable(DbTransaction transaction, DmColumn filterColumn)
+        public void PopulateNewFilterColumnFromBaseTable(DmColumn filterColumn)
         {
             throw new NotImplementedException();
         }
-
 
         public string ScriptPopulateNewFilterColumnFromBaseTable(DmColumn filterColumn)
         {
             throw new NotImplementedException();
         }
 
-        public void AddFilterColumn(DbTransaction transaction, DmColumn filterColumn)
+        public void AddFilterColumn(DmColumn filterColumn)
         {
-            (SqlConnection sqlConnection, SqlTransaction sqlTransaction) = GetTypedConnection(transaction);
+            bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
-            using (SqlCommand command = new SqlCommand())
+            try
             {
-                command.Transaction = sqlTransaction;
-                command.Connection = sqlConnection;
-                command.CommandText = this.AddFilterColumnCommandText(filterColumn);
-                command.ExecuteNonQuery();
+                using (var command = new SqlCommand())
+                {
+                    if (!alreadyOpened)
+                        this.connection.Open();
+
+                    if (this.transaction != null)
+                        command.Transaction = this.transaction;
+
+                    command.CommandText = this.AddFilterColumnCommandText(filterColumn);
+                    command.Connection = this.connection;
+                    command.ExecuteNonQuery();
+
+                }
             }
+            catch (Exception ex)
+            {
+                Logger.Current.Error($"Error during CreateIndex : {ex}");
+                throw;
+
+            }
+            finally
+            {
+                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
+                    this.connection.Close();
+
+            }
+
         }
 
         private string AddFilterColumnCommandText(DmColumn col)
@@ -333,9 +435,10 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
             var quotedColumnName = new ObjectNameParser(filterColumn.ColumnName, "[", "]");
 
-            string str = string.Concat("Add new filter column, ", quotedColumnName.UnquotedString, ", to Tracking Table ", this.trackingTableName.QuotedString);
+            string str = string.Concat("Add new filter column, ", quotedColumnName.UnquotedString, ", to Tracking Table ", trackingName.QuotedString);
             return SqlBuilder.WrapScriptTextWithComments(this.AddFilterColumnCommandText(filterColumn), str);
         }
+
 
     }
 }

@@ -1,4 +1,5 @@
 ﻿using Dotmim.Sync.Core.Enumerations;
+using Dotmim.Sync.Data;
 using Dotmim.Sync.Enumerations;
 using System;
 using System.Collections.Generic;
@@ -11,67 +12,50 @@ namespace Dotmim.Sync.Core
 {
     public sealed class ServiceConfiguration
     {
-
-        private static readonly object _lockObject = new object();
-        private List<SyncParameter> _filterParameters = new List<SyncParameter>();
-
-        /// <summary>
-        /// Scope Name
-        /// </summary>
-        public string ScopeName { get; private set; }
-
-     
-        internal void ClearFilterParameters()
-        {
-            _filterParameters.Clear();
-        }
-
         internal int? DownloadBatchSizeInKB;
-
         internal string BatchSpoolDirectory;
 
         /// <summary>
-        /// Contains the SQL Schema that was used to provision the sync objects in the database.
+        /// Gets or Sets the default conflict resolution policy.
         /// </summary>
-        internal string SyncObjectSchema { get; private set; }
-
-
-        // default policies
-        internal ConflictResolutionPolicy ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
-
-     
-        /// <summary>
-        /// Indicates if the configuration is initialized. 
-        /// We ideally don't want to allow rediscovery of types (mainly for performance),
-        /// so this flag is checked before the type discovery is attempted.
-        /// </summary>
-        internal bool IsInitialized { get; private set; }
+        public ConflictResolutionPolicy ConflictResolutionPolicy { get; set; } = ConflictResolutionPolicy.ServerWins;
 
         /// <summary>
-        /// Readonly list that contains the filter parameters that the service is configured to operate on.
+        /// Gets or Sets the DmSet Schema used for synchronization
         /// </summary>
-        internal List<SyncParameter> FilterParameters => _filterParameters;
-     
+        public DmSet ScopeSet { get; set; }
+        
         /// <summary>
-        /// Change the default conflict resolution policy. The default value is ClientWins.
+        /// Gets or Sets the scope Name
         /// </summary>
-        /// <param name="policy">The new conflict resolution policy</param>
-        public void SetConflictResolutionPolicy(ConflictResolutionPolicy policy)
+        public string ScopeName { get; set; }
+
+        /// <summary>
+        /// Gets or Sets the list that contains the filter parameters that the service is configured to operate on.
+        /// </summary>
+        public List<SyncParameter> FilterParameters { get; set; }
+
+        /// <summary>
+        /// Gets Or Sets a boolean indicating if we care about the database configuration, if exists
+        /// </summary>
+        public Boolean OverWriteInBaseConfiguration { get; set; } = false;
+
+
+        public static ServiceConfiguration CreateDefaultConfiguration()
         {
-            ConflictResolutionPolicy = policy;
-        }
-     
+            ServiceConfiguration configuration = new ServiceConfiguration();
+            configuration.ScopeSet = new DmSet("NewDmSet");
+            configuration.EnableDiagnosticPage = false;
+            configuration.ScopeName = "DefaultScope";
+            configuration.ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
+            configuration.DownloadBatchSizeInKB = 2000;
+            configuration.UseVerboseErrors = false;
+            return configuration;
 
-        /// <summary>
-        /// Enable scopes.
-        /// </summary>
-        /// <param name="scopeName">Scope name to enable for sync.</param>
-        /// <exception cref="ArgumentNullException">Throws when scopeName is null</exception>
-        public void SetEnableScope(string scopeName)
-        {
-            this.ScopeName = scopeName;
         }
 
+    
+     
         /// <summary>
         /// Set the path where batches will be spooled. The directory must already exist. Default directory is %TEMP%.
         /// </summary>
@@ -88,15 +72,6 @@ namespace Dotmim.Sync.Core
         public void SetDownloadBatchSize(uint batchSizeInKB)
         {
             DownloadBatchSizeInKB = (int?)(batchSizeInKB);
-        }
-
-        /// <summary>
-        /// Set the schema name under which sync related objects were generated in the SQL database when the database was provisioned.
-        /// </summary>
-        /// <param name="schemaName">Name of the schema under which sync related objects are created.</param>
-        public void SetSyncObjectSchema(string schemaName)
-        {
-            SyncObjectSchema = schemaName;
         }
 
         /// <summary>
@@ -117,8 +92,11 @@ namespace Dotmim.Sync.Core
         /// <summary>Enable or disable the diagnostic page served by the $diag URL.</summary>
         public bool EnableDiagnosticPage { get; set; }
 
- 
-        
+        /// <summary>
+        /// Gets or Sets if we should use the bulk operations 
+        /// </summary>
+        public bool UseBulkOperations { get; set; } = true;
+
 
 
     }

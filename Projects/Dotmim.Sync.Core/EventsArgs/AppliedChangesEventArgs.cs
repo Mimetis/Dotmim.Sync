@@ -1,5 +1,4 @@
-﻿using Dotmim.Sync.Core.Adapter;
-using Dotmim.Sync.Data;
+﻿using Dotmim.Sync.Data;
 using Dotmim.Sync.Enumerations;
 using System;
 using System.Collections.Generic;

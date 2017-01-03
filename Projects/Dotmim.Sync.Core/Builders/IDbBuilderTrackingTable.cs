@@ -11,32 +11,20 @@ namespace Dotmim.Sync.Core.Builders
     /// </summary>
     public interface IDbBuilderTrackingTableHelper
     {
+        DmTable TableDescription { get; set; }
         List<DmColumn> FilterColumns { get; set; }
-
-        bool NeedToCreateTrackingTable(DbTransaction transaction, DmTable tableDescription, DbBuilderOption builderOption);
-
-        void CreateTable(DbTransaction transaction);
-
-        void CreatePk(DbTransaction transaction);
-
-        void CreateIndex(DbTransaction transaction);
-
-        void PopulateFromBaseTable(DbTransaction transaction);
-
+        bool NeedToCreateTrackingTable(DbBuilderOption builderOption);
+        void CreateTable();
+        void CreatePk();
+        void CreateIndex();
+        void PopulateFromBaseTable();
         string CreateTableScriptText();
-
         string CreatePkScriptText();
-
         string CreateIndexScriptText();
-
         string ScriptAddFilterColumn(DmColumn filterColumn);
-
         string ScriptPopulateNewFilterColumnFromBaseTable(DmColumn filterColumn);
-
         string CreatePopulateFromBaseTableScriptText();
-
-        void AddFilterColumn(DbTransaction transaction, DmColumn filterColumn);
-
-        void PopulateNewFilterColumnFromBaseTable(DbTransaction transaction, DmColumn filterColumn);
+        void AddFilterColumn(DmColumn filterColumn);
+        void PopulateNewFilterColumnFromBaseTable(DmColumn filterColumn);
     }
 }

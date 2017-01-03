@@ -11,6 +11,8 @@ namespace Dotmim.Sync.Core.Scope
     /// </summary>
     public class ScopeInfo
     {
+        private long lastTimestamp;
+
         /// <summary>
         /// Scope name. Primary key
         /// </summary>
@@ -18,19 +20,25 @@ namespace Dotmim.Sync.Core.Scope
 
         /// <summary>
         /// Last time the remote has done a good sync
+        /// IF it's a new scope force to Zero to be sure, the first sync will get all datas
         /// </summary>
-        public long LastTimestamp { get; set; }
+        public long LastTimestamp
+        {
+            get
+            {
+                return this.IsNewScope ? 0 : lastTimestamp;
+            }
+            set
+            {
+                this.lastTimestamp = value;
+            }
+        }
 
         /// <summary>
-        /// Scope config id
+        /// Gets or Sets if the current provider is newly created one in database.
+        /// If new, we will override timestamp for first synchronisation to be sure to get all datas from server
         /// </summary>
-        public Guid ConfigId { get; set; }
 
-        /// <summary>
-        /// Comment
-        /// </summary>
-        public string UserComment { get; set; }
-
-     
+        public Boolean IsNewScope { get; set; }
     }
 }

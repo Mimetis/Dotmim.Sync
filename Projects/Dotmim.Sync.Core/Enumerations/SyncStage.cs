@@ -11,30 +11,44 @@ namespace Dotmim.Sync.Enumerations
     /// </summary>
     public enum SyncStage
     {
+        BeginSession,
+
+        EndSession, 
+
         /// <summary>
         /// Reading local table metadata.
         /// </summary>
-        ReadingMetadata,
+        ReadingScope,
 
         /// <summary>
         /// Reading the table schema from the store.
         /// </summary>
-        ReadingSchema,
+        BuildConfiguration,
+
+
+        /// <summary>
+        /// Ensure database is created, and all tables / tracking tables / proc stock and so on
+        /// </summary>
+        EnsureDatabase,
 
         /// <summary>
         /// Updating local metadata.
         /// </summary>
-        WritingMetadata,
+        WritingScope,
 
-        /// <summary>Applying inserts to the store.</summary>
+        /// <summary>Sending changes to the remote.</summary>
+        UploadingChanges,
+        /// <summary>Receiving changes from the remote.</summary>
+        DownloadingChanges,
+
+        /// <summary>Applying inserts to the local datasource.</summary>
         ApplyingInserts,
-        /// <summary>Applying updates to the store.</summary>
+        /// <summary>Applying updates to the local datasource.</summary>
         ApplyingUpdates,
-        /// <summary>Applying deletes to the store.</summary>
+        /// <summary>Applying deletes to the local datasource.</summary>
         ApplyingDeletes,
-        /// <summary>Applying changes to the store.</summary>
-        ApplyingChanges,
-
+        
+ 
         /// <summary>Enumerating changes from the store.</summary>
         SelectedChanges,
 

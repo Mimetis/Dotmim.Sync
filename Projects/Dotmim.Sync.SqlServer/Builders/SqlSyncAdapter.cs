@@ -1,5 +1,4 @@
-﻿using Dotmim.Sync.Core.Adapter;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -13,81 +12,70 @@ using Microsoft.SqlServer.Server;
 using System.Data;
 using System.Data.SqlTypes;
 using System.Reflection;
+using Dotmim.Sync.Core.Builders;
 
-namespace Dotmim.Sync.SqlServer
+namespace Dotmim.Sync.SqlServer.Builders
 {
-    public class SqlSyncAdapter : SyncAdapter
+    public class SqlSyncAdapter : DbSyncAdapter
     {
+        private SqlConnection connection;
+        private SqlTransaction transaction;
 
-        SqlMetaData GetSqlMetadaFromType(Type dataType, string name)
+        public override DmTable TableDescription { get; set; }
+        public override DbConnection Connection
         {
+            get
+            {
+                return this.connection;
+            }
+        }
+        public override DbTransaction Transaction
+        {
+            get
+            {
+                return this.transaction;
+            }
+            
+        }
 
+        public SqlSyncAdapter(DbConnection connection, DbTransaction transaction)
+        {
+            var sqlc = connection as SqlConnection;
+            this.connection = sqlc ?? throw new InvalidCastException("Connection should be a SqlConnection");
+
+            this.transaction = transaction as SqlTransaction;
+        }
+
+        private SqlMetaData GetSqlMetadaFromType(DmColumn column)
+        {
             SqlMetaData smd = null;
 
-            if (dataType == typeof(bool))
-                smd = new SqlMetaData(name, SqlDbType.Bit);
-            else if (dataType == typeof(byte))
-                smd = new SqlMetaData(name, SqlDbType.TinyInt);
-            else if (dataType == typeof(char))
-                smd = new SqlMetaData(name, SqlDbType.NVarChar, 1);
-            else if (dataType == typeof(DateTime))
-                smd = new SqlMetaData(name, SqlDbType.DateTime);
-            else if (dataType == typeof(decimal))
-                smd = new SqlMetaData(name, SqlDbType.Decimal);
-            else if (dataType == typeof(double))
-                smd = new SqlMetaData(name, SqlDbType.Float);
-            else if (dataType == typeof(Int16))
-                smd = new SqlMetaData(name, SqlDbType.SmallInt);
-            else if (dataType == typeof(Int32))
-                smd = new SqlMetaData(name, SqlDbType.Int);
-            else if (dataType == typeof(long))
-                smd = new SqlMetaData(name, SqlDbType.BigInt);
-            else if (dataType == typeof(Single))
-                smd = new SqlMetaData(name, SqlDbType.Real);
-            else if (dataType == typeof(string))
-                smd = new SqlMetaData(name, SqlDbType.NVarChar);
-            else if (dataType == typeof(byte[]))
-                smd = new SqlMetaData(name, SqlDbType.VarBinary);
-            else if (dataType == typeof(char[]))
-                smd = new SqlMetaData(name, SqlDbType.NVarChar);
-            else if (dataType == typeof(bool?))
-                smd = new SqlMetaData(name, SqlDbType.Bit);
-            else if (dataType == typeof(Byte?))
-                smd = new SqlMetaData(name, SqlDbType.TinyInt);
-            else if (dataType == typeof(DateTime?))
-                smd = new SqlMetaData(name, SqlDbType.DateTime);
-            else if (dataType == typeof(decimal?))
-                smd = new SqlMetaData(name, SqlDbType.Decimal);
-            else if (dataType == typeof(double?))
-                smd = new SqlMetaData(name, SqlDbType.Float);
-            else if (dataType == typeof(short?))
-                smd = new SqlMetaData(name, SqlDbType.SmallInt);
-            else if (dataType == typeof(int?))
-                smd = new SqlMetaData(name, SqlDbType.Int);
-            else if (dataType == typeof(long?))
-                smd = new SqlMetaData(name, SqlDbType.BigInt);
-            else if (dataType == typeof(float?))
-                smd = new SqlMetaData(name, SqlDbType.Real);
-            else if (dataType == typeof(Guid))
-                smd = new SqlMetaData(name, SqlDbType.UniqueIdentifier);
-            else if (dataType == typeof(Guid?))
-                smd = new SqlMetaData(name, SqlDbType.UniqueIdentifier);
-            else if (dataType == typeof(object))
-                smd = new SqlMetaData(name, SqlDbType.Variant);
-            else if (dataType == typeof(TimeSpan))
-                smd = new SqlMetaData(name, SqlDbType.Time);
-            else if (dataType == typeof(TimeSpan?))
-                smd = new SqlMetaData(name, SqlDbType.Time);
-            else if (dataType == typeof(DateTimeOffset))
-                smd = new SqlMetaData(name, SqlDbType.DateTimeOffset);
-            else if (dataType == typeof(DateTimeOffset?))
-                smd = new SqlMetaData(name, SqlDbType.DateTimeOffset);
-            else
-                throw new Exception($"Unknown Data Type Code({dataType}, {dataType.GetTypeInfo().FullName}");
+            var sqlDbType = column.GetSqlDbType();
+            var dbType = column.DbType;
+            var precision = column.GetSqlTypePrecision();
+            int maxLength = column.MaxLength;
+
+            if (sqlDbType == SqlDbType.VarChar || sqlDbType == SqlDbType.NVarChar)
+            {
+                maxLength = column.MaxLength <= 0 ? ((sqlDbType == SqlDbType.NVarChar) ? 4000 : 8000) : column.MaxLength;
+                return new SqlMetaData(column.ColumnName, sqlDbType, maxLength);
+            }
+
+            if (column.DataType == typeof(char))
+                return new SqlMetaData(column.ColumnName, sqlDbType, 1);
+
+            smd = new SqlMetaData(column.ColumnName, sqlDbType);
 
             return smd;
         }
 
+        /// <summary>
+        /// Executing a batch command
+        /// </summary>
+        /// <param name="cmd">the DbCommand already prepared</param>
+        /// <param name="applyTable">the table rows to apply</param>
+        /// <param name="failedRows">the failed rows dmTable to store failed rows</param>
+        /// <param name="scope">the current scope</param>
         public override void ExecuteBatchCommand(DbCommand cmd, DmTable applyTable, DmTable failedRows, ScopeInfo scope)
         {
             if (applyTable.Rows.Count <= 0)
@@ -99,10 +87,9 @@ namespace Dotmim.Sync.SqlServer
             {
                 var column = applyTable.Columns[i];
 
-                SqlMetaData metadata = GetSqlMetadaFromType(column.DataType, column.ColumnName);
+                SqlMetaData metadata = GetSqlMetadaFromType(column);
                 metadatas[i] = metadata;
             }
-
 
             foreach (var dmRow in applyTable.Rows)
             {
@@ -128,21 +115,41 @@ namespace Dotmim.Sync.SqlServer
             ((SqlParameterCollection)cmd.Parameters)["@sync_scope_name"].Value = scope.Name;
             ((SqlParameterCollection)cmd.Parameters)["@sync_min_timestamp"].Value = scope.LastTimestamp;
 
+            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+
             try
             {
+                if (!alreadyOpened)
+                    this.connection.Open();
+
+                if (this.transaction != null)
+                    cmd.Transaction = this.transaction;
+
+
                 using (DbDataReader dataReader = cmd.ExecuteReader())
                 {
                     failedRows.Fill(dataReader);
                 }
             }
-            catch (DbException dbException1)
+            catch (DbException ex)
             {
                 //DbException dbException = dbException1;
                 //Error = CheckZombieTransaction(tvpCommandNameForApplyType, Adapter.TableName, dbException);
                 //this.AddFailedRowsAfterRIFailure(applyTable, failedRows);
             }
+            finally
+            {
+                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
+                    this.connection.Close();
+
+            }
         }
 
+
+
+        /// <summary>
+        /// Check if an exception is a primary key exception
+        /// </summary>
         public override bool IsPrimaryKeyViolation(Exception Error)
         {
             SqlException error = Error as SqlException;
@@ -152,7 +159,10 @@ namespace Dotmim.Sync.SqlServer
             return false;
         }
 
-        public override void SetCommandSessionParameters(DbCommand command, ScopeConfigDataAdapter config)
+        /// <summary>
+        /// Set a stored procedure parameters
+        /// </summary>
+        public override void SetCommandSessionParameters(DbCommand command)
         {
             if (command == null)
                 return;
@@ -160,26 +170,20 @@ namespace Dotmim.Sync.SqlServer
             if (command.Parameters != null && command.Parameters.Count > 0)
                 return;
 
-            var alreadyOpened = command.Connection.State != ConnectionState.Closed;
+            bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
             try
             {
-                // Get parameters
                 if (!alreadyOpened)
-                    command.Connection.Open();
+                    this.connection.Open();
 
-                SqlConnection sqlConnection = command.Connection as SqlConnection;
+                if (this.transaction != null)
+                    command.Transaction = this.transaction;
 
-                if (sqlConnection == null)
-                    throw new InvalidCastException("the connection must be a SqlConnection to be able to derive parameters");
-
-                sqlConnection.DeriveParameters((SqlCommand)command);
+                connection.DeriveParameters((SqlCommand)command, false, transaction);
 
                 if (command.Parameters[0].ParameterName == "@RETURN_VALUE")
                     command.Parameters.RemoveAt(0);
-
-                if (!alreadyOpened)
-                    command.Connection.Close();
 
             }
             catch (Exception ex)
@@ -189,18 +193,21 @@ namespace Dotmim.Sync.SqlServer
             }
             finally
             {
-                if (!alreadyOpened && command.Connection.State != ConnectionState.Closed)
-                    command.Connection.Close();
+                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
+                    this.connection.Close();
             }
+
 
             foreach (var parameter in command.Parameters)
             {
                 var sqlParameter = (SqlParameter)parameter;
+                
+                // try to get the source column (from the dmTable)
+                var sqlParameterName = sqlParameter.ParameterName.Replace("@", "");
+                var colDesc = TableDescription.Columns.FirstOrDefault(c => string.Equals(c.ColumnName, sqlParameterName, StringComparison.CurrentCultureIgnoreCase));
 
-                var colDesc = config.Columns.FirstOrDefault(c => string.Equals(c.ParameterName, sqlParameter.ParameterName, StringComparison.CurrentCultureIgnoreCase));
-
-                if (colDesc != null && !string.IsNullOrEmpty(colDesc.UnquotedName))
-                    sqlParameter.SourceColumn = colDesc.UnquotedName;
+                if (colDesc != null && !string.IsNullOrEmpty(colDesc.ColumnName))
+                    sqlParameter.SourceColumn = colDesc.ColumnName;
 
                 #region ....
                 //    if (colDesc != null)

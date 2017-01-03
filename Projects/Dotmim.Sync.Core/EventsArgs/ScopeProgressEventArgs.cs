@@ -11,7 +11,7 @@ using System.Xml.Serialization;
 
 namespace Dotmim.Sync.Core
 {
-    public class ScopeProgressEventArgs : EventArgs
+    public class ScopeProgressEventArgs
     {
         /// <summary>
         /// Get the provider type name which raised the event
@@ -23,9 +23,18 @@ namespace Dotmim.Sync.Core
         /// </summary>
         public ScopeInfo ScopeInfo { get; internal set; }
 
+        /// <summary>
+        /// When check if database exist, we generate a script
+        /// </summary>
+        public String DatabaseScript { get; set; }
 
         /// <summary>
-        /// Rollback the current processus
+        /// Gets the configuration used for this sync
+        /// </summary>
+        public ServiceConfiguration Configuration { get; internal set; }
+
+        /// <summary>
+        /// Gets or Sets the action to be taken : Could eventually Rollback the current processus
         /// </summary>
         public ChangeApplicationAction Action { get; set; }
 
@@ -33,32 +42,6 @@ namespace Dotmim.Sync.Core
         /// Current sync progress stage
         /// </summary>
         public SyncStage Stage { get; internal set; }
-
-        /// <summary>
-        /// Schema used for this sync session
-        /// </summary>
-        public ScopeConfigData Schema { get; internal set; }
-
-        /// <summary>
-        /// Get a readable schema
-        /// </summary>
-        /// <returns></returns>
-        public string GetSerializedSchema()
-        {
-            if (Schema == null)
-                return string.Empty;
-
-            XmlSerializer dcs = new XmlSerializer(typeof(ScopeConfigData));
-
-            StringBuilder sb = new StringBuilder();
-            using (StringWriter sw = new StringWriter(sb))
-            {
-                dcs.Serialize(sw, this.Schema);
-            }
-
-            return sb.ToString();
-
-        }
 
         /// <summary>
         /// Get the changes selected to be applied
@@ -117,7 +100,6 @@ namespace Dotmim.Sync.Core
             }
         }
 
-   
         /// <summary>
         /// Gets the total number of deletes that are to be applied during the synchronization session.
         /// </summary>
@@ -163,26 +145,51 @@ namespace Dotmim.Sync.Core
             }
         }
 
+ 
         internal void Cleanup()
         {
-           
+            SelectedChanges.ForEach(sc => sc.Cleanup());
+            SelectedChanges.Clear();
 
-        }
+            AppliedChanges.ForEach(sc => sc.Cleanup());
+            AppliedChanges.Clear();
+        } 
     }
-
-
+    
+    /// <summary>
+    /// Args for applied changed on a source, for each kind of DmRowState (Update / Delete / Insert)
+    /// </summary>
     public class ScopeAppliedChanges
     {
+        /// <summary>
+        /// Gets the table where changes were applied
+        /// </summary>
         public string TableName => View.Table.TableName;
-        public DmView View { get; internal set; }
-        public DmRowState State { get; internal set; }
-        public int ChangesApplied => View.Count;
-        public int ChangesFailed => View.Table.Rows.Count - ChangesApplied;
 
         /// <summary>
-        /// Rollback the current processus
+        /// Gets the view of every rows eventually applied
         /// </summary>
-        public ChangeApplicationAction Action { get; set; }
+        public DmView View { get; internal set; }
+
+        /// <summary>
+        /// Gets the RowState of the apploed
+        /// </summary>
+        public DmRowState State { get; internal set; }
+
+        /// <summary>
+        /// Gets the rows changes applied count
+        /// </summary>
+        public int ChangesApplied => View.Count;
+
+        /// <summary>
+        /// Gets the rows changes failed count
+        /// </summary>
+        public int ChangesFailed => View.Table.Rows.Count - ChangesApplied;
+
+        ///// <summary>
+        ///// Gets or Sets the action to be taken : Could eventually Rollback the current processus
+        ///// </summary>
+        //public ChangeApplicationAction Action { get; set; }
 
         internal void Cleanup()
         {
@@ -190,20 +197,26 @@ namespace Dotmim.Sync.Core
         }
     }
 
+    /// <summary>
+    /// Get changes to be applied (contains Deletes AND Inserts AND Updates)
+    /// </summary>
     public class ScopeSelectedChanges
     {
+        /// <summary>
+        /// Gets the table name
+        /// </summary>
         public string TableName => View.Table.TableName;
+
+        /// <summary>
+        /// Gets the View
+        /// </summary>
         public DmView View { get; internal set; }
         int GetCountByRowState(DmRowState state) => View.Count(r => r.RowState == state);
+
         internal void Cleanup()
         {
             View = null;
         }
-
-        /// <summary>
-        /// Rollback the current processus
-        /// </summary>
-        public ChangeApplicationAction Action { get; set; }
 
         /// <summary>
         /// Gets or sets the number of deletes that should be applied to a table during the synchronization session.
@@ -226,5 +239,5 @@ namespace Dotmim.Sync.Core
         public int TotalChanges => this.Inserts + this.Updates + this.Deletes;
     }
 
-   
+
 }

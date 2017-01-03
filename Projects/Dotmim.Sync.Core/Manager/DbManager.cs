@@ -4,19 +4,31 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Globalization;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
-namespace Dotmim.Sync.Core.Common
+namespace Dotmim.Sync.Core.Manager
 {
-
-    /// <summary>
-    /// Database Helper.
-    /// Have to be agnostic to every relational datasources
-    /// </summary>
-    public static class DbHelper
+    public abstract class DbManager : IDisposable
     {
+
+        public string TableName { get; }
+
+        public DbManager(string tableName)
+        {
+            this.TableName = tableName;
+        }
+
+        /// <summary>
+        /// Gets a table manager, who can execute somes queries directly on source database
+        /// </summary>
+        public abstract IDbManagerTable CreateManagerTable(DbConnection connection, DbTransaction transaction = null);
+        
+        public IDbManagerTable GetManagerTable(DbConnection connection, DbTransaction transaction = null)
+        {
+            var mgerTable = CreateManagerTable(connection, transaction);
+            mgerTable.TableName = this.TableName;
+            return mgerTable;
+        }
 
         /// <summary>
         /// Get a parameter even if it's a @param or :param or param
@@ -52,7 +64,7 @@ namespace Dotmim.Sync.Core.Common
         }
 
 
-        internal static int GetSyncIntOutParameter(string parameter, DbCommand command)
+        public static int GetSyncIntOutParameter(string parameter, DbCommand command)
         {
             DbParameter dbParameter = GetParameter(command, parameter);
             if (dbParameter == null || dbParameter.Value == null || string.IsNullOrEmpty(dbParameter.Value.ToString()))
@@ -66,7 +78,7 @@ namespace Dotmim.Sync.Core.Common
         /// </summary>
         /// <param name="obj"></param>
         /// <returns></returns>
-        internal static long ParseTimestamp(object obj)
+        public static long ParseTimestamp(object obj)
         {
             long timestamp = 0;
 
@@ -101,7 +113,7 @@ namespace Dotmim.Sync.Core.Common
         /// <summary>
         /// Get a row size. Useful to calculate batch size, eventually
         /// </summary>
-        internal static long GetRowSizeFromReader(IDataReader reader)
+        public static long GetRowSizeFromReader(IDataReader reader)
         {
             long bytes = (long)0;
             for (int i = 0; i < reader.FieldCount; i++)
@@ -119,7 +131,7 @@ namespace Dotmim.Sync.Core.Common
             return bytes;
         }
 
-        internal static long GetRowSizeFromDataRow(DmRow row)
+        public static long GetRowSizeFromDataRow(DmRow row)
         {
             bool isRowDeleted = false;
             if (row.RowState == DmRowState.Deleted)
@@ -152,7 +164,8 @@ namespace Dotmim.Sync.Core.Common
             }
             return byteCount;
         }
-        internal static long GetSizeForType(Type type)
+
+        public static long GetSizeForType(Type type)
         {
 
             if (type == typeof(object) || type == typeof(long) || type == typeof(ulong) ||
@@ -178,15 +191,37 @@ namespace Dotmim.Sync.Core.Common
 
         }
 
-        public static DbType GetDbTypeFromString(string typeString)
+        #region IDisposable Support
+        private bool disposedValue = false; // To detect redundant calls
+
+        protected virtual void Dispose(bool disposing)
         {
-            if (string.Compare(typeString, "numeric", StringComparison.OrdinalIgnoreCase) == 0)
-                return DbType.Decimal;
+            if (!disposedValue)
+            {
+                if (disposing)
+                {
 
-            if (string.Equals(typeString, "uniqueidentifier", StringComparison.OrdinalIgnoreCase))
-                return DbType.Guid;
+                   
+                }
 
-            return (DbType)Enum.Parse(typeof(DbType), typeString, true);
+                // TODO: free unmanaged resources (unmanaged objects) and override a finalizer below.
+                // TODO: set large fields to null.
+
+                disposedValue = true;
+            }
         }
+
+     
+
+        // This code added to correctly implement the disposable pattern.
+        public void Dispose()
+        {
+            // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
+            Dispose(true);
+            // TODO: uncomment the following line if the finalizer is overridden above.
+            // GC.SuppressFinalize(this);
+        }
+        #endregion
+
     }
 }

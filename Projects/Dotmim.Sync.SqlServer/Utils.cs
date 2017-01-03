@@ -1,4 +1,5 @@
-﻿using Dotmim.Sync.Data;
+﻿using Dotmim.Sync.Core.Common;
+using Dotmim.Sync.Data;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -9,13 +10,15 @@ namespace Dotmim.Sync.SqlServer
 {
     public static class SqlExtensionsMethods
     {
-        internal static SqlParameter[] DeriveParameters(this SqlConnection connection, SqlCommand cmd, bool includeReturnValueParameter = false)
+        internal static SqlParameter[] DeriveParameters(this SqlConnection connection, SqlCommand cmd, bool includeReturnValueParameter = false, SqlTransaction transaction = null)
         {
             if (cmd == null) throw new ArgumentNullException("SqlCommand");
 
+            var textParser = new ObjectNameParser(cmd.CommandText);
+
             // Hack to check for schema name in the spName
             string schemaName = "dbo";
-            string spName = cmd.CommandText;
+            string spName = textParser.UnquotedString;
             int firstDot = spName.IndexOf('.');
             if (firstDot > 0)
             {
@@ -23,19 +26,25 @@ namespace Dotmim.Sync.SqlServer
                 spName = spName.Substring(firstDot + 1);
             }
 
-            connection.Open();
+            var alreadyOpened = connection.State == ConnectionState.Open;
+
+            if (!alreadyOpened)
+                connection.Open();
 
             try
             {
-                SqlCommand getParams = new SqlCommand("sp_procedure_params_rowset", connection);
-                getParams.CommandType = CommandType.StoredProcedure;
+                SqlCommand getParamsCommand = new SqlCommand("sp_procedure_params_rowset", connection);
+                getParamsCommand.CommandType = CommandType.StoredProcedure;
+                if (transaction != null)
+                    getParamsCommand.Transaction = transaction;
+
                 SqlParameter p = new SqlParameter("@procedure_name", SqlDbType.NVarChar);
                 p.Value = spName;
-                getParams.Parameters.Add(p);
+                getParamsCommand.Parameters.Add(p);
                 p = new SqlParameter("@procedure_schema", SqlDbType.NVarChar);
                 p.Value = schemaName;
-                getParams.Parameters.Add(p);
-                SqlDataReader sdr = getParams.ExecuteReader();
+                getParamsCommand.Parameters.Add(p);
+                SqlDataReader sdr = getParamsCommand.ExecuteReader();
 
                 // Do we have any rows?
                 if (sdr.HasRows)
@@ -61,8 +70,14 @@ namespace Dotmim.Sync.SqlServer
                             if (0 == String.Compare("xml", datatype, true))
                                 datatype = "Text";
 
-                            object parsedType = Enum.Parse(typeof(SqlDbType), datatype, true);
-                            SqlDbType type = (SqlDbType)parsedType;
+                            if (0 == String.Compare("table", datatype, true))
+                                datatype = "Structured";
+
+                            SqlDbType type = SqlDbType.Int;
+
+                            if (!Enum.TryParse<SqlDbType>(datatype, true, out type))
+                                type = SqlDbType.Variant;
+
                             bool Nullable = sdr.GetBoolean(ParamNullCol);
                             SqlParameter param = new SqlParameter(name, type);
                             // Determine parameter direction
@@ -97,10 +112,11 @@ namespace Dotmim.Sync.SqlServer
             }
             finally
             {
-                connection.Close();
+                if (!alreadyOpened)
+                    connection.Close();
             }
 
-            if (!includeReturnValueParameter)
+            if (!includeReturnValueParameter && cmd.Parameters.Count > 0)
                 cmd.Parameters.RemoveAt(0);
 
             SqlParameter[] discoveredParameters = new SqlParameter[cmd.Parameters.Count];
@@ -155,8 +171,7 @@ namespace Dotmim.Sync.SqlServer
             return sizeString;
         }
 
-
-        internal static (byte length, byte scale) GetSqlTypePrecision(this DmColumn column)
+       internal static (byte length, byte scale) GetSqlTypePrecision(this DmColumn column)
         {
             string sizeString = string.Empty;
             switch (column.DbType)
@@ -328,6 +343,8 @@ namespace Dotmim.Sync.SqlServer
             SqlParameter sqlParameter = new SqlParameter();
             sqlParameter.ParameterName = $"@{column.ColumnName}";
             sqlParameter.SqlDbType = GetSqlDbType(column);
+            sqlParameter.IsNullable = column.AllowDBNull;
+
             (byte precision, byte scale) = GetSqlTypePrecision(column);
 
             if (sqlParameter.SqlDbType == SqlDbType.Decimal && precision > 0)

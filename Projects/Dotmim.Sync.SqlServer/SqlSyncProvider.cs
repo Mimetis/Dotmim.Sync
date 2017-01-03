@@ -9,12 +9,13 @@ using Dotmim.Sync.SqlServer.Batch;
 using Dotmim.Sync.SqlServer.Builders;
 using System.Data.Common;
 using System.Data.SqlClient;
-using Dotmim.Sync.Core.Adapter;
-
 using Dotmim.Sync.Core.Log;
 using Dotmim.Sync.Core.Scope;
 using Dotmim.Sync.Data;
 using Dotmim.Sync.Core.Builders;
+using Dotmim.Sync.SqlServer.Scope;
+using Dotmim.Sync.Core.Manager;
+using Dotmim.Sync.SqlServer.Manager;
 
 namespace Dotmim.Sync.SqlServer
 {
@@ -23,7 +24,6 @@ namespace Dotmim.Sync.SqlServer
         FileSystemBatchSerializer serializer;
         string batchFileName;
         string connectionString;
-        SqlConnection sqlConnection;
 
 
         /// <summary>
@@ -57,15 +57,9 @@ namespace Dotmim.Sync.SqlServer
         /// <summary>
         /// Get the sql connection used to access the server side database
         /// </summary>
-        public override DbConnection Connection
+        public override DbConnection CreateConnection()
         {
-            get
-            {
-                if (sqlConnection == null)
-                    sqlConnection = new SqlConnection(this.connectionString);
-
-                return sqlConnection;
-            }
+            return new SqlConnection(this.connectionString);
         }
 
 
@@ -75,20 +69,28 @@ namespace Dotmim.Sync.SqlServer
             this.connectionString = connectionString;
         }
 
-        public override SyncBatchSerializer CreateSerializer()
+        public override SyncBatchSerializer GetSerializer()
         {
-                return serializer;
+            return serializer;
         }
 
-        
-        public override SyncAdapter CreateSyncAdapter()
+
+
+
+        public override DbScopeBuilder GetScopeBuilder()
         {
-            return new SqlSyncAdapter();
+            return new SqlScopeBuilder();
         }
 
-        public override DbBuilder CreateDatabaseBuilder(DmTable table, DbBuilderOption option = DbBuilderOption.Create)
+
+        public override DbBuilder GetDatabaseBuilder(DmTable tableDescription, DbBuilderOption options = DbBuilderOption.UseExistingSchema)
         {
-            return new SqlBuilder(table, this.Connection, option);
+            return new SqlBuilder(tableDescription, options);
+        }
+
+        public override DbManager GetDbManager(string tableName)
+        {
+            return new SqlManager(tableName);
         }
     }
 }

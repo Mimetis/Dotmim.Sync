@@ -86,6 +86,9 @@ namespace Dotmim.Sync.Data
             if (index != -1)
             {
                 collection.Insert(index, column);
+
+                for (int i = 0; i < Count; i++)
+                    collection[i].SetOrdinalInternal(i);
             }
             else
             {

@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Xml;
 using System.Collections.ObjectModel;
+using System.Text;
 
 namespace Dotmim.Sync.Data
 {
@@ -210,6 +211,38 @@ namespace Dotmim.Sync.Data
             }
         }
 
+
+        public string ToString(DmRowVersion version)
+        {
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < columns.Count; i++)
+            {
+                var c = columns[i];
+                var o = this[c, version];
+                var os = o == null ? "<NULL />" : o.ToString();
+
+                sb.Append($"{c.ColumnName}: {os}, ");
+            }
+
+            return sb.ToString();
+        }
+        public override string ToString()
+        {
+            if (ItemArray == null || ItemArray.Length == 0)
+                return "empty row";
+
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < columns.Count; i++)
+            {
+                var c = columns[i];
+                var o = ItemArray[i];
+                var os = o == null ? "<NULL />" : o.ToString();
+
+                sb.Append($"{c.ColumnName}: {os}, ");
+            }
+
+            return sb.ToString();
+        }
         /// <summary>
         /// Gets or sets all of the values for this row through an array.
         /// </summary>
@@ -546,6 +579,12 @@ namespace Dotmim.Sync.Data
         {
             return GetKeyValues(this.table.PrimaryKey);
         }
+
+        internal object[] GetKeyValues(DmRowVersion version)
+        {
+            int record = GetRecordFromVersion(version);
+            return this.table.PrimaryKey.GetKeyValues(record);
+        }
         internal object[] GetKeyValues(DmKey key)
         {
             int record = GetRecordId();
@@ -699,11 +738,6 @@ namespace Dotmim.Sync.Data
             return !key.RecordsEqual(GetRecordFromVersion(version1), GetRecordFromVersion(version2));
         }
 
-        /// <devdoc>
-        ///    <para>
-        ///       Gets a value indicating whether a specified version exists.
-        ///    </para>
-        /// </devdoc>
         public bool HasVersion(DmRowVersion version)
         {
             switch (version)

@@ -22,6 +22,11 @@ namespace Dotmim.Sync.Core
         public Guid SessionId { get; internal set; }
 
         /// <summary>
+        /// Gets or Sets the Set Schema used for this sync
+        /// </summary>
+        public DmSet ScopeSet { get; set; }
+
+        /// <summary>
         /// Get the Server sync progress
         /// </summary>
         public SyncSetProgress Server { get; } = new SyncSetProgress();
@@ -73,17 +78,5 @@ namespace Dotmim.Sync.Core
         {
             this.SessionId = sessionId;
         }
-
-
-        //internal void Cleanup()
-        //{
-        //    if (this.dmSet != null)
-        //    {
-        //        this.dmSet.Clear();
-        //        this.dmSet = null;
-        //    }
-        //}
-
-
     }
 }

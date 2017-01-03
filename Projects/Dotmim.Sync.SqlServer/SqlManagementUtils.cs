@@ -7,6 +7,8 @@ using System.Data.SqlClient;
 using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Linq;
+using Dotmim.Sync.Core.Scope;
 
 namespace Dotmim.Sync.SqlServer
 {
@@ -16,31 +18,54 @@ namespace Dotmim.Sync.SqlServer
         /// <summary>
         /// Get columns for table
         /// </summary>
-        public static List<string> ColumnsForTable(SqlConnection connection, SqlTransaction transaction, string quotedString)
+        internal static DmTable ColumnsForTable(SqlConnection connection, SqlTransaction transaction, string tableName)
         {
-            ObjectNameParser objectNameParser = new ObjectNameParser(quotedString);
-            List<string> strs = new List<string>();
-            using (SqlCommand sqlCommand = new SqlCommand("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = @tableName AND TABLE_SCHEMA = @schemaName", connection, transaction))
+
+            var commandColumn = $"Select col.name as name, col.column_id, typ.name as [type], col.max_length, col.precision, col.scale, col.is_nullable, col.is_identity from sys.columns as col " +
+                                $"Inner join sys.tables as tbl on tbl.object_id = col.object_id " +
+                                $"Inner Join sys.systypes typ on typ.xusertype = col.system_type_id " +
+                                $"Where tbl.name = @tableName";
+
+            ObjectNameParser tableNameParser = new ObjectNameParser(tableName);
+            DmTable dmTable = new DmTable(tableNameParser.UnquotedStringWithUnderScore);
+            using (SqlCommand sqlCommand = new SqlCommand(commandColumn, connection, transaction))
             {
-                sqlCommand.Parameters.AddWithValue("@tableName", objectNameParser.ObjectName);
-                sqlCommand.Parameters.AddWithValue("@schemaName", SqlManagementUtils.GetUnquotedSqlSchemaName(objectNameParser));
-                using (SqlDataReader sqlDataReader = sqlCommand.ExecuteReader())
+                sqlCommand.Parameters.AddWithValue("@tableName", tableNameParser.ObjectName);
+
+                using (var reader = sqlCommand.ExecuteReader())
                 {
-                    while (sqlDataReader.Read())
-                    {
-                        strs.Add(string.Concat("[", sqlDataReader.GetString(0), "]"));
-                    }
+                    dmTable.Fill(reader);
                 }
             }
-            return strs;
+            return dmTable;
         }
 
         /// <summary>
-        /// Drop a stored proc if exists
+        /// Get columns for table
         /// </summary>
-        public static void DropProcedureIfExists(SqlConnection connection, SqlTransaction transaction, string quotedProcedureName)
+        internal static DmTable PrimaryKeysForTable(SqlConnection connection, SqlTransaction transaction, string tableName)
         {
-            SqlManagementUtils.DropProcedureIfExists(connection, transaction, 30, quotedProcedureName);
+
+            var commandColumn = @"select ind.name, col.name as columnName, ind_col.column_id
+                                  from sys.indexes ind
+                                  left outer join sys.index_columns ind_col on ind_col.object_id = ind.object_id and ind_col.index_id = ind.index_id
+                                  inner join sys.columns col on col.object_id = ind_col.object_id and col.column_id = ind_col.column_id
+                                  inner join sys.tables tbl on tbl.object_id = ind.object_id
+                                  where tbl.name = @tableName and ind.index_id >= 0 and ind.type <> 3 and ind.type <> 4 and ind.is_hypothetical = 0 and ind.is_primary_key = 1
+                                  order by ind.index_id, ind_col.key_ordinal";
+
+            ObjectNameParser tableNameParser = new ObjectNameParser(tableName);
+            DmTable dmTable = new DmTable(tableNameParser.UnquotedStringWithUnderScore);
+            using (SqlCommand sqlCommand = new SqlCommand(commandColumn, connection, transaction))
+            {
+                sqlCommand.Parameters.AddWithValue("@tableName", tableNameParser.ObjectName);
+
+                using (var reader = sqlCommand.ExecuteReader())
+                {
+                    dmTable.Fill(reader);
+                }
+            }
+            return dmTable;
         }
 
         public static void DropProcedureIfExists(SqlConnection connection, SqlTransaction transaction, int commandTimout, string quotedProcedureName)
@@ -58,11 +83,6 @@ namespace Dotmim.Sync.SqlServer
         public static string DropProcedureScriptText(string quotedProcedureName)
         {
             return string.Format(CultureInfo.InvariantCulture, "DROP PROCEDURE {0};\n", quotedProcedureName);
-        }
-
-        public static void DropTableIfExists(SqlConnection connection, SqlTransaction transaction, string quotedTableName)
-        {
-            SqlManagementUtils.DropTableIfExists(connection, transaction, 30, quotedTableName);
         }
 
         public static void DropTableIfExists(SqlConnection connection, SqlTransaction transaction, int commandTimeout, string quotedTableName)
@@ -91,11 +111,6 @@ namespace Dotmim.Sync.SqlServer
             return string.Format(invariantCulture, "DROP TABLE {0};\n", objArray);
         }
 
-        public static void DropTriggerIfExists(SqlConnection connection, SqlTransaction transaction, string quotedTriggerName)
-        {
-            SqlManagementUtils.DropTriggerIfExists(connection, transaction, 30, quotedTriggerName);
-        }
-
         public static void DropTriggerIfExists(SqlConnection connection, SqlTransaction transaction, int commandTimeout, string quotedTriggerName)
         {
             ObjectNameParser objectNameParser = new ObjectNameParser(quotedTriggerName);
@@ -113,10 +128,6 @@ namespace Dotmim.Sync.SqlServer
             return string.Format(CultureInfo.InvariantCulture, "DROP TRIGGER {0};\n", quotedTriggerName);
         }
 
-        public static void DropTypeIfExists(SqlConnection connection, SqlTransaction transaction, string quotedTypeName)
-        {
-            SqlManagementUtils.DropTypeIfExists(connection, transaction, 30, quotedTypeName);
-        }
 
         public static void DropTypeIfExists(SqlConnection connection, SqlTransaction transaction, int commandTimeout, string quotedTypeName)
         {
@@ -204,29 +215,31 @@ namespace Dotmim.Sync.SqlServer
             return flag;
         }
 
-         public static bool TableExists(SqlConnection connection, SqlTransaction transaction, string quotedTableName)
+        public static bool TableExists(SqlConnection connection, SqlTransaction transaction, string quotedTableName)
         {
             bool tableExist;
             ObjectNameParser objectNameParser = new ObjectNameParser(quotedTableName);
             using (DbCommand dbCommand = connection.CreateCommand())
             {
                 dbCommand.CommandText = "IF EXISTS (SELECT t.name FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @tableName AND s.name = @schemaName) SELECT 1 ELSE SELECT 0";
+
                 SqlParameter sqlParameter = new SqlParameter()
                 {
                     ParameterName = "@tableName",
                     Value = objectNameParser.ObjectName
                 };
                 dbCommand.Parameters.Add(sqlParameter);
+
                 sqlParameter = new SqlParameter()
                 {
                     ParameterName = "@schemaName",
                     Value = SqlManagementUtils.GetUnquotedSqlSchemaName(objectNameParser)
                 };
                 dbCommand.Parameters.Add(sqlParameter);
+
                 if (transaction != null)
-                {
                     dbCommand.Transaction = transaction;
-                }
+
                 tableExist = (int)dbCommand.ExecuteScalar() != 0;
             }
             return tableExist;

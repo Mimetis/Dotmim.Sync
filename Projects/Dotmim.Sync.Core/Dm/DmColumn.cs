@@ -18,7 +18,6 @@ namespace Dotmim.Sync.Data
     public abstract class DmColumn
     {
         internal int maxLength = -1;
-        internal int ordinal = -1;
         internal DbType dbType;
         internal bool dbTypeAllowed;
         byte precision;
@@ -67,6 +66,8 @@ namespace Dotmim.Sync.Data
 
             if (dataType == typeof(bool))
                 return new DmColumn<bool>(columName);
+            if (dataType == typeof(byte))
+                return new DmColumn<byte>(columName);
             if (dataType == typeof(char))
                 return new DmColumn<char>(columName);
             if (dataType == typeof(sbyte))
@@ -218,7 +219,7 @@ namespace Dotmim.Sync.Data
                     maxLength = Math.Max(value, -1);
             }
         }
-        public int Ordinal { get; internal set; }
+        public int Ordinal { get; internal set; } = -1;
 
         public bool IsValueType
         {
@@ -239,12 +240,17 @@ namespace Dotmim.Sync.Data
         /// </summary>
         public void SetOrdinal(int ordinal)
         {
-            if (this.ordinal == -1)
+            if (ordinal == -1)
                 throw new Exception("Ordinal must be 0 or more");
 
             // check if we have to move
-            if (this.ordinal != ordinal)
-                Table.Columns.MoveTo(this, ordinal);
+            if (this.Ordinal != ordinal)
+            {
+                if (Table != null)
+                    Table.Columns.MoveTo(this, ordinal);
+                else
+                    this.Ordinal = ordinal;
+            }
         }
 
         /// <summary>
@@ -252,14 +258,15 @@ namespace Dotmim.Sync.Data
         /// </summary>
         internal void SetOrdinalInternal(int o)
         {
-            if (this.ordinal == o)
+            if (this.Ordinal == o)
                 return;
 
-            this.ordinal = o;
+            this.Ordinal = o;
         }
         public abstract bool AutoIncrement { get; set; }
         public bool PrecisionSpecified { get; set; }
         public bool ScaleSpecified { get; set; }
+
 
         /// <summary>
         /// For numeric value, we can specify the precision value
@@ -304,6 +311,8 @@ namespace Dotmim.Sync.Data
         internal abstract void RemoveRecord(int record);
         internal abstract void Clear();
         internal abstract bool IsNull(int recordKey);
+        public abstract (int Step, int Seed) GetAutoIncrementSeedAndStep();
+        public abstract void SetAutoIncrementSeedAndStep(int step, int seed);
     }
 
     /// <summary>
@@ -385,6 +394,25 @@ namespace Dotmim.Sync.Data
                 if (!EqualityComparer<T>.Default.Equals(this.autoInc.Step, value))
                     this.AutoInc.Step = value;
             }
+        }
+
+        public override void SetAutoIncrementSeedAndStep(int step, int seed)
+        {
+            dynamic seed1 = default(T);
+            seed1 += seed;
+            dynamic step1 = default(T);
+            step1 += step;
+            
+            this.AutoIncrementSeed = seed1;
+            this.AutoIncrementStep = step1;
+        }
+        public override (int Step, int Seed) GetAutoIncrementSeedAndStep()
+        {
+            int step = Convert.ToInt32(AutoIncrementStep);
+            var seed = Convert.ToInt32(AutoIncrementSeed);
+
+            return (step, seed);
+            
         }
         public new T DefaultValue
         {
@@ -575,6 +603,7 @@ namespace Dotmim.Sync.Data
         }
         public override string ToString() => this.ColumnName;
 
+      
     }
 
     class AutoIncrement

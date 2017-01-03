@@ -32,11 +32,6 @@ namespace Dotmim.Sync.Core
         public ScopeInfo ScopeInfo { get; set; }
 
         /// <summary>
-        /// Schema used for sync
-        /// </summary>
-        public ScopeConfigData ScopeConfigData { get; internal set; }
-
-        /// <summary>
         /// Gets or sets whether the current batch is the last batch of changes.
         /// </summary>
         public bool IsLastBatch { get; internal set; }

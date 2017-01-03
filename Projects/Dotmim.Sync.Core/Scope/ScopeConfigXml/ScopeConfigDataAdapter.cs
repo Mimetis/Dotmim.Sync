@@ -1,5 +1,4 @@
-﻿using Dotmim.Sync.Core.Adapter;
-using Dotmim.Sync.Core.Common;
+﻿using Dotmim.Sync.Core.Common;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;

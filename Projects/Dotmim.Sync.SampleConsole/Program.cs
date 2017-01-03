@@ -2,42 +2,45 @@
 using Dotmim.Sync.Core.Builders;
 using Dotmim.Sync.Core.Enumerations;
 using Dotmim.Sync.Data;
+using Dotmim.Sync.Data.Surrogate;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.SqlServer.Builders;
 using Microsoft.Extensions.Configuration;
+using Newtonsoft.Json;
 using System;
+using System.Data.Common;
+using System.Linq;
 
 class Program
 {
     static void Main(string[] args)
     {
-
         ConfigurationBuilder configurationBuilder = new ConfigurationBuilder();
         configurationBuilder.AddJsonFile("config.json", true);
-
         IConfiguration Configuration = configurationBuilder.Build();
-
         var serverConfig = Configuration["AppConfiguration:ServerConnectionString"];
-        SqlSyncProvider serverProvider = new SqlSyncProvider(serverConfig);
         var clientConfig = Configuration["AppConfiguration:ClientConnectionString"];
+
+        SqlSyncProvider serverProvider = new SqlSyncProvider(serverConfig);
         SqlSyncProvider clientProvider = new SqlSyncProvider(clientConfig);
 
-        TestCreateTrackingTable(clientProvider);
+        SyncAgent agent = new SyncAgent(clientProvider, serverProvider,
+            new[] { "ServiceTickets", "ProductType", "Products" });
+
+        agent.SyncProgress += Agent_SyncProgress;
+
+        do
+        {
+            Console.WriteLine("Sync Start");
+            var s = agent.SynchronizeAsync();
+
+            Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+        Console.WriteLine("End");
 
         Console.ReadLine();
-        //SyncAgent agent = new SyncAgent(clientProvider, serverProvider);
-
-        //// Today the configuration is hosted in a config file hosted in the db
-        //// I want to change that
-        //agent.Configuration.SetEnableScope("DefaultScope");
-
-        //agent.SyncProgress += Agent_SyncProgress;
-
-        //agent.SynchronizeAsync();
-
-
-        //Console.ReadLine();
     }
 
 
@@ -90,24 +93,40 @@ class Program
         DmRelation fkClientRelation = new DmRelation("FK_Products_Clients", clientId, fkClientId);
         productsTable.AddForeignKey(fkClientRelation);
 
-        provider.Connection.Open();
-
-        foreach (var table in set.Tables)
+        DbConnection connection = null;
+        try
         {
-            var builder = provider.CreateDatabaseBuilder(table, DbBuilderOption.Create);
+            using (connection = provider.CreateConnection())
+            {
+                foreach (var table in set.Tables)
+                {
+                    var builder = provider.GetDatabaseBuilder(table, DbBuilderOption.CreateOrUseExistingSchema);
 
-            if (table.TableName == "Clients")
-                builder.AddFilterColumn("Id");
+                    if (table.TableName == "Clients")
+                        builder.AddFilterColumn("Id");
 
-            if (table.TableName == "Products")
-                builder.AddFilterColumn("clientId");
+                    if (table.TableName == "Products")
+                        builder.AddFilterColumn("clientId");
 
-            builder.Apply();
+                    builder.Apply(connection);
 
-            Console.WriteLine(builder.Script());
+                    Console.WriteLine(builder.Script(connection));
+                }
+            }
+
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex);
+            return;
+        }
+        finally
+        {
+            if (connection.State != System.Data.ConnectionState.Closed)
+                connection.Close();
         }
 
-        provider.Connection.Close();
+
     }
 
     private static void Agent_SyncProgress(object sender, ScopeProgressEventArgs e)
@@ -117,50 +136,88 @@ class Program
 
         switch (e.Stage)
         {
-            case SyncStage.ReadingMetadata:
+            case SyncStage.BeginSession:
                 Console.WriteLine($"----------------------------------------");
-                Console.WriteLine($"{scopeName}. Reading metadata");
-                Console.WriteLine($"ScopeName : {e.ScopeInfo.Name} - Last provider timestamp {e.ScopeInfo.LastTimestamp}");
+                Console.WriteLine($"Begin Session");
+                break;
+            case SyncStage.EndSession:
+                Console.WriteLine($"End Session");
                 Console.WriteLine($"----------------------------------------");
+                break;
+
+            case SyncStage.ReadingScope:
+                Console.WriteLine($"{scopeName}. Reading metadata on ScopeName : {e.ScopeInfo.Name} - Last provider timestamp {e.ScopeInfo.LastTimestamp} - Is new : {e.ScopeInfo.IsNewScope} ");
 
                 break;
-            case SyncStage.ReadingSchema:
-                Console.WriteLine($"----------------------------------------");
-                Console.WriteLine($"{scopeName}. Reading Schema");
-                Console.WriteLine(e.GetSerializedSchema());
-                Console.WriteLine($"----------------------------------------");
+            case SyncStage.BuildConfiguration:
+                Console.WriteLine($"{scopeName}. Configuration read and built");
+                var ds = e.Configuration.ScopeSet;
+                Func<JsonSerializerSettings> settings = new Func<JsonSerializerSettings>(() =>
+                {
+                    var s = new JsonSerializerSettings();
+                    s.Formatting = Formatting.Indented;
+                    s.StringEscapeHandling = StringEscapeHandling.Default;
+                    return s;
+                });
+                JsonConvert.DefaultSettings = settings;
+                var dsString = JsonConvert.SerializeObject(new DmSetSurrogate(ds));
+                //Console.WriteLine(dsString);
+                break;
+            case SyncStage.EnsureDatabase:
+                Console.WriteLine($"{scopeName}. Ensure database is created");
+                //Console.WriteLine(e.DatabaseScript);
                 break;
             case SyncStage.SelectedChanges:
+                Console.WriteLine($"----------------------------------------");
                 Console.WriteLine($"{scopeName}. Selection changes");
-                //foreach (var table in e.DmSet.Tables)
-                //    foreach (var row in table.Rows)
-                //        Console.WriteLine($"[{row["ServiceTicketID"]} : {row["Title"]} ");
-                break;
-            case SyncStage.ApplyingChanges:
-                Console.WriteLine($"{scopeName}. Applying changes");
-                //foreach (var table in e.DmSet.Tables)
-                //{
-                //    foreach (var row in table.Rows)
-                //    {
-                //        if (row.RowState == DmRowState.Deleted)
-                //            Console.WriteLine($"[{row.RowState}] [{row["ServiceTicketID", DmRowVersion.Original]} : {row["Title", DmRowVersion.Original]} ");
-                //        else
-                //            Console.WriteLine($"[{row.RowState}] [{row["ServiceTicketID"]} : {row["Title"]} ");
-                //    }
+                foreach (var changes in e.SelectedChanges)
+                {
+                    Console.WriteLine($"Changes on {changes.TableName}. Insert  {changes.Inserts}. Updates : {changes.Updates}. Deletes : {changes.Deletes}");
+                    foreach (var dmRow in changes.View)
+                    {
+                        if (dmRow.RowState == DmRowState.Deleted)
+                            Console.WriteLine($"[{dmRow.RowState}] {dmRow.ToString(DmRowVersion.Original)}");
+                        else
+                            Console.WriteLine($"[{dmRow.RowState}] {dmRow.ToString()} ");
+                    }
+                }
 
-                //}
-                break;
-            case SyncStage.ApplyingDeletes:
-                Console.WriteLine($"{scopeName}. Applying deletes");
                 break;
             case SyncStage.ApplyingInserts:
-                Console.WriteLine($"{scopeName}. Applying inserts");
+                Console.WriteLine($"----------------------------------------");
+                Console.WriteLine($"{scopeName}. Applying Inserts");
+
+                foreach (var apply in e.AppliedChanges.Where(ac => ac.State == DmRowState.Added))
+                {
+                    Console.WriteLine($"Apply Inserts on table {apply.TableName}. Success  {apply.ChangesApplied}. Failed : {apply.ChangesFailed}");
+                    foreach(var dmRow in apply.View)
+                    {
+                        Console.WriteLine(dmRow.ToString());
+                    }
+                }
+
                 break;
+            case SyncStage.ApplyingDeletes:
+                Console.WriteLine($"----------------------------------------");
+                Console.WriteLine($"{scopeName}. Applying deletes");
+                break;
+
             case SyncStage.ApplyingUpdates:
+                Console.WriteLine($"----------------------------------------");
                 Console.WriteLine($"{scopeName}. Applying updates");
+
+                foreach (var apply in e.AppliedChanges.Where(ac => ac.State == DmRowState.Modified))
+                {
+                    Console.WriteLine($"Apply Updates on table {apply.TableName}. Success  {apply.ChangesApplied}. Failed : {apply.ChangesFailed}");
+                    foreach (var dmRow in apply.View)
+                    {
+                        Console.WriteLine(dmRow.ToString());
+                    }
+                }
                 break;
-            case SyncStage.WritingMetadata:
-                Console.WriteLine($"{scopeName}. Writing metadatas");
+            case SyncStage.WritingScope:
+                Console.WriteLine($"----------------------------------------");
+                Console.WriteLine($"{scopeName}. Writing Scopes");
                 break;
         }
     }

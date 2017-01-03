@@ -11,30 +11,23 @@ namespace Dotmim.Sync.Core.Builders
     /// </summary>
     public interface IDbBuilderTriggerHelper
     {
+
+        DmTable TableDescription { get; set; }
+        DbObjectNames ObjectNames { get; set; }
         List<DmColumn> FilterColumns { get; set; }
-
-        void CreateInsertTrigger(DbTransaction transaction, DbBuilderOption builderOption);
-
-        void CreateUpdateTrigger(DbTransaction transaction, DbBuilderOption builderOption);
-
-        void CreateDeleteTrigger(DbTransaction transaction, DbBuilderOption builderOption);
-
+    
+        bool NeedToCreateTrigger(DbTriggerType triggerType, DbBuilderOption builderOption);
+        void CreateInsertTrigger();
+        void CreateUpdateTrigger();
+        void CreateDeleteTrigger();
         string AlterInsertTriggerScriptText();
-
         string AlterUpdateTriggerScriptText();
-
         string AlterDeleteTriggerScriptText();
-
-        string CreateInsertTriggerScriptText(DbTransaction transaction, DbBuilderOption builderOption);
-
-        string CreateUpdateTriggerScriptText(DbTransaction transaction, DbBuilderOption builderOption);
-
-        string CreateDeleteTriggerScriptText(DbTransaction transaction, DbBuilderOption builderOption);
-
-        void AlterInsertTrigger(DbTransaction transaction);
-
-        void AlterUpdateTrigger(DbTransaction transaction);
-
-        void AlterDeleteTrigger(DbTransaction transaction);
+        string CreateInsertTriggerScriptText();
+        string CreateUpdateTriggerScriptText();
+        string CreateDeleteTriggerScriptText();
+        void AlterInsertTrigger();
+        void AlterUpdateTrigger();
+        void AlterDeleteTrigger();
     }
 }
