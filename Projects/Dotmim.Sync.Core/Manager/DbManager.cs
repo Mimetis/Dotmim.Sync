@@ -1,4 +1,5 @@
-﻿using Dotmim.Sync.Data;
+﻿using DmBinaryFormatter;
+using Dotmim.Sync.Data;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -108,87 +109,6 @@ namespace Dotmim.Sync.Core.Manager
 
             long.TryParse(stringBuilder.ToString(), NumberStyles.HexNumber, CultureInfo.InvariantCulture.NumberFormat, out timestamp);
             return timestamp;
-        }
-
-        /// <summary>
-        /// Get a row size. Useful to calculate batch size, eventually
-        /// </summary>
-        public static long GetRowSizeFromReader(IDataReader reader)
-        {
-            long bytes = (long)0;
-            for (int i = 0; i < reader.FieldCount; i++)
-            {
-                Type fieldType = reader.GetFieldType(i);
-                if (reader.IsDBNull(i))
-                    bytes = bytes + 5;
-                else if (fieldType == typeof(Guid))
-                    bytes = bytes + 16;
-                else if (fieldType != typeof(byte[]))
-                    bytes = (fieldType != typeof(string) ? bytes + GetSizeForType(fieldType) : bytes + reader.GetChars(i, 0, null, 0, 0) * 2);
-                else
-                    bytes = bytes + reader.GetBytes(i, 0, null, 0, 0);
-            }
-            return bytes;
-        }
-
-        public static long GetRowSizeFromDataRow(DmRow row)
-        {
-            bool isRowDeleted = false;
-            if (row.RowState == DmRowState.Deleted)
-            {
-                row.RejectChanges();
-                isRowDeleted = true;
-            }
-
-            long byteCount = 0;
-            object[] itemArray = row.ItemArray;
-
-            for (int i = 0; i < itemArray.Length; i++)
-            {
-                object obj = itemArray[i];
-                string str = obj as string;
-                byte[] numArray = obj as byte[];
-                if (obj is DBNull)
-                    byteCount = byteCount + 5;
-                else if (obj is Guid)
-                    byteCount = byteCount + 16;
-                else if (str == null)
-                    byteCount = (numArray == null ? byteCount + GetSizeForType(obj.GetType()) : byteCount + numArray.Length);
-                else
-                    byteCount = byteCount + Encoding.Unicode.GetByteCount(str);
-
-            }
-            if (isRowDeleted)
-            {
-                row.Delete();
-            }
-            return byteCount;
-        }
-
-        public static long GetSizeForType(Type type)
-        {
-
-            if (type == typeof(object) || type == typeof(long) || type == typeof(ulong) ||
-                type == typeof(double) || type == typeof(DateTime))
-                return 8L;
-
-            if (type == typeof(DBNull))
-                return 0L;
-
-            if (type == typeof(bool) || type == typeof(sbyte) || type == typeof(byte))
-                return 1L;
-
-            if (type == typeof(char) || type == typeof(short) || type == typeof(ushort))
-                return 2L;
-
-            if (type == typeof(int) || type == typeof(uint) || type == typeof(float))
-                return 4L;
-
-            if (type == typeof(decimal))
-                return 16L;
-
-            return 0L;
-
         }
 
         #region IDisposable Support

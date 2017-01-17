@@ -145,36 +145,8 @@ namespace Dotmim.Sync.SqlServer
         {
             return string.Format(CultureInfo.InvariantCulture, "DROP TYPE {0};\n", quotedTypeName);
         }
+        
 
-        //public static List<string> GetAllScopeNames(string objectPrefix, string objectSchema, SqlConnection connection, string scopeNameCol)
-        //{
-        //    List<string> strs = new List<string>();
-        //    string quotedPrefixedName = ManagementUtils.GetQuotedPrefixedName(objectPrefix, ManagementUtils.ScopeTableDefaultName, objectSchema);
-        //    SqlCommand sqlCommand = new SqlCommand(string.Concat("SELECT [", scopeNameCol, "] FROM ", quotedPrefixedName), connection);
-        //    SqlDataReader sqlDataReader = null;
-        //    try
-        //    {
-        //        sqlDataReader = sqlCommand.ExecuteReader();
-        //        int ordinal = sqlDataReader.GetOrdinal(scopeNameCol);
-        //        while (sqlDataReader.Read())
-        //        {
-        //            strs.Add(sqlDataReader.GetString(ordinal));
-        //        }
-        //    }
-        //    finally
-        //    {
-        //        if (sqlCommand != null)
-        //        {
-        //            sqlCommand.Dispose();
-        //        }
-        //        if (sqlDataReader != null)
-        //        {
-
-        //            sqlDataReader.Dispose();
-        //        }
-        //    }
-        //    return strs;
-        //}
 
         internal static string GetObjectSchemaValue(string value)
         {

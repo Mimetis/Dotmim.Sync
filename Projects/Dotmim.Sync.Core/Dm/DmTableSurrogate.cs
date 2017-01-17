@@ -1,10 +1,13 @@
-﻿using Dotmim.Sync.Data;
+﻿using DmBinaryFormatter;
+using Dotmim.Sync.Data;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.Linq;
+using System.Text;
 
 namespace Dotmim.Sync.Data.Surrogate
 {
@@ -31,7 +34,7 @@ namespace Dotmim.Sync.Data.Surrogate
         /// <summary>
         /// Gets or sets an array that represents the state of each row in the table.
         /// </summary>
-        public DmRowState[] RowStates { get; set; }
+        public int[] RowStates { get; set; }
 
         /// <summary>
         /// Gets or sets the name of the table that the DmTableSurrogate object represents.
@@ -46,10 +49,23 @@ namespace Dotmim.Sync.Data.Surrogate
         /// <summary>
         /// Gets an array of DmColumnSurrogate objects that represent the PrimaryKeys.
         /// </summary>
-        public DmColumnSurrogate[] DmPrimaryKeySurrogates { get; set; }
+        public string[] DmPrimaryKeySurrogates { get; set; }
 
         /// <summary>Gets an array of objects that represent the columns and rows of dm in the <see cref="T:Microsoft.Synchronization.Dm.DmTableSurrogate" /> object.</summary>
         public Dictionary<int, List<object>> Records { get; set; }
+
+
+        public long GetEmptyBytesLength()
+        {
+            long bytesLength = String.IsNullOrEmpty(CultureInfoName) ? 1L : Encoding.UTF8.GetBytes(CultureInfoName).Length;
+            bytesLength += 1L; // CasSensitive
+            bytesLength += String.IsNullOrEmpty(Prefix) ? 1L : Encoding.UTF8.GetBytes(Prefix).Length;
+            bytesLength += String.IsNullOrEmpty(TableName) ? 1L : Encoding.UTF8.GetBytes(TableName).Length;
+            bytesLength += Encoding.UTF8.GetBytes(this.GetType().GetAssemblyQualifiedName()).Length; // Type
+
+            return bytesLength;
+
+        }
 
         /// <summary>
         /// Only used for Serialization
@@ -79,11 +95,11 @@ namespace Dotmim.Sync.Data.Surrogate
                 this.DmColumnSurrogates[i] = new DmColumnSurrogate(dt.Columns[i]);
 
             // Primary Keys
-            if (dt.PrimaryKey != null)
+            if (dt.PrimaryKey != null && dt.PrimaryKey.Columns != null && dt.PrimaryKey.Columns.Length > 0)
             {
-                this.DmPrimaryKeySurrogates = new DmColumnSurrogate[dt.PrimaryKey.Columns.Length];
+                this.DmPrimaryKeySurrogates = new String[dt.PrimaryKey.Columns.Length];
                 for (int i = 0; i < dt.PrimaryKey.Columns.Length; i++)
-                    this.DmPrimaryKeySurrogates[i] = new DmColumnSurrogate(dt.PrimaryKey.Columns[i]);
+                    this.DmPrimaryKeySurrogates[i] = dt.PrimaryKey.Columns[i].ColumnName;
             }
 
             // Fill the rows
@@ -91,7 +107,7 @@ namespace Dotmim.Sync.Data.Surrogate
                 return;
 
             // the BitArray contains bit values initialized to false. We will use it to store row state
-            this.RowStates = new DmRowState[dt.Rows.Count];
+            this.RowStates = new int[dt.Rows.Count];
 
             // Records in a straightforward object array
             this.Records = new Dictionary<int, List<object>>(dt.Columns.Count);
@@ -101,7 +117,7 @@ namespace Dotmim.Sync.Data.Surrogate
 
             for (int k = 0; k < dt.Rows.Count; k++)
             {
-                this.RowStates[k] = dt.Rows[k].RowState;
+                this.RowStates[k] = (int)dt.Rows[k].RowState;
                 this.ConvertToSurrogateRecords(dt.Rows[k]);
             }
 
@@ -122,7 +138,7 @@ namespace Dotmim.Sync.Data.Surrogate
 
             for (int i = 0; i < this.DmColumnSurrogates.Length; i++)
             {
-                DmColumn dmColumn = this.DmColumnSurrogates[i].ConvertToDmColumn();
+                DmColumn dmColumn = ((DmColumnSurrogate)this.DmColumnSurrogates[i]).ConvertToDmColumn();
                 dt.Columns.Add(dmColumn);
             }
 
@@ -131,7 +147,10 @@ namespace Dotmim.Sync.Data.Surrogate
                 DmColumn[] keyColumns = new DmColumn[this.DmPrimaryKeySurrogates.Length];
 
                 for (int i = 0; i < this.DmPrimaryKeySurrogates.Length; i++)
-                    keyColumns[i] = this.DmPrimaryKeySurrogates[i].ConvertToDmColumn();
+                {
+                    string columnName = this.DmPrimaryKeySurrogates[i];
+                    keyColumns[i] = dt.Columns.First(c => dt.IsEqual(c.ColumnName, columnName));
+                }
 
                 DmKey key = new DmKey(keyColumns);
 
@@ -155,7 +174,7 @@ namespace Dotmim.Sync.Data.Surrogate
 
         private DmRow ConvertToDmRow(DmTable dt, int bitIndex)
         {
-            DmRowState rowState = this.RowStates[bitIndex];
+            DmRowState rowState = (DmRowState)this.RowStates[bitIndex];
             return this.ConstructRow(dt, rowState, bitIndex);
         }
 
@@ -168,8 +187,24 @@ namespace Dotmim.Sync.Data.Surrogate
             int count = dt.Columns.Count;
 
             dmRow.BeginEdit();
-            for (int i = 0; i < count; i++)
-                dmRow[i] = this.Records[i][bitIndex];
+
+            if (rowState == DmRowState.Deleted)
+            {
+                // we are in a deleted state, so we have only primary keys available
+                for (int i = 0; i < count; i++)
+                {
+                    // since some columns might be not null (and we have null because the row is deleted)
+                    if (this.Records[i][bitIndex] != null)
+                        dmRow[i] = this.Records[i][bitIndex];
+                }
+
+            }
+            else
+            {
+                for (int i = 0; i < count; i++)
+                    dmRow[i] = this.Records[i][bitIndex];
+
+            }
 
             dt.Rows.Add(dmRow);
 
@@ -217,7 +252,88 @@ namespace Dotmim.Sync.Data.Surrogate
         }
 
 
+        /// <summary>
+        /// Get a row size
+        /// </summary>
+        public static long GetRowSizeFromDataRow(DmRow row)
+        {
+            bool isRowDeleted = false;
 
+            if (row.RowState == DmRowState.Deleted)
+            {
+                row.RejectChanges();
+                isRowDeleted = true;
+            }
+
+            long byteCount = 0;
+            object[] itemArray = row.ItemArray;
+
+            for (int i = 0; i < itemArray.Length; i++)
+            {
+                // Size for the value
+                object obj = itemArray[i];
+
+                if (obj == null)
+                    byteCount = byteCount + 5;
+                else if (obj is DBNull)
+                    byteCount = byteCount + 5;
+                else if (obj.GetType() == typeof(string))
+                    byteCount = byteCount + Encoding.UTF8.GetByteCount((string)obj);
+                else if (obj.GetType() == typeof(byte[]))
+                    byteCount = byteCount + ((byte[])obj).Length;
+                else
+                    byteCount = byteCount + GetSizeForType(obj.GetType());
+
+                // Size for the type
+                var typeofobject = row.Table.Columns[i].DataType;
+                var byteslengthtype = Encoding.UTF8.GetBytes(DmUtils.GetAssemblyQualifiedName(typeofobject)).Length;
+                byteCount += byteslengthtype;
+
+                // State
+                byteCount += 4L;
+
+                // Index
+                byteCount += 4L;
+
+
+
+            }
+            if (isRowDeleted)
+            {
+                row.Delete();
+            }
+            return byteCount;
+        }
+
+
+        /// <summary>
+        /// Gets a size for a given type
+        /// </summary>
+        public static long GetSizeForType(Type type)
+        {
+
+            if (type == typeof(object) || type == typeof(long) || type == typeof(ulong) ||
+                type == typeof(double) || type == typeof(DateTime))
+                return 8L;
+
+            if (type == typeof(DBNull))
+                return 0L;
+
+            if (type == typeof(bool) || type == typeof(sbyte) || type == typeof(byte))
+                return 1L;
+
+            if (type == typeof(char) || type == typeof(short) || type == typeof(ushort))
+                return 2L;
+
+            if (type == typeof(int) || type == typeof(uint) || type == typeof(float))
+                return 4L;
+
+            if (type == typeof(decimal) || type == typeof(Guid))
+                return 16L;
+
+            return 0L;
+
+        }
         public void Dispose()
         {
             this.Dispose(true);
@@ -226,6 +342,8 @@ namespace Dotmim.Sync.Data.Surrogate
 
         protected virtual void Dispose(bool cleanup)
         {
+            foreach (var d in this.Records)
+                d.Value.Clear();
             this.Records = null;
             this.DmColumnSurrogates = null;
         }

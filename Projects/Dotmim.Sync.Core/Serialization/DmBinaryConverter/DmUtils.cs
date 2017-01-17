@@ -283,8 +283,98 @@ namespace DmBinaryFormatter
                 return true;
 
             return false;
+        }
+
+        public static Type GetTypeFromAssemblyQualifiedName(string valueType)
+        {
+            if (valueType == "1")
+                return typeof(bool);
+            else if (valueType == "2")
+                return typeof(byte);
+            else if (valueType == "3")
+                return typeof(char);
+            else if (valueType == "4")
+                return typeof(double);
+            else if (valueType == "5")
+                return typeof(float);
+            else if (valueType == "6")
+                return typeof(int);
+            else if (valueType == "7")
+                return typeof(long);
+            else if (valueType == "8")
+                return typeof(short);
+            else if (valueType == "9")
+                return typeof(uint);
+            else if (valueType == "10")
+                return typeof(ulong);
+            else if (valueType == "11")
+                return typeof(ushort);
+            else if (valueType == "12")
+                return typeof(byte[]);
+            else if (valueType == "13")
+                return typeof(DateTime);
+            else if (valueType == "14")
+                return typeof(DateTimeOffset);
+            else if (valueType == "15")
+                return typeof(Decimal);
+            else if (valueType == "16")
+                return typeof(Guid);
+            else if (valueType == "17")
+                return typeof(String);
+            else if (valueType == "18")
+                return typeof(SByte);
+            else if (valueType == "19")
+                return typeof(TimeSpan);
+
+            return Type.GetType(valueType, true);
 
         }
+
+        public static string GetAssemblyQualifiedName(this Type valueType)
+        {
+            if (valueType == typeof(bool))
+                return "1";
+            else if (valueType == typeof(byte))
+                return "2";
+            else if (valueType == typeof(char))
+                return "3";
+            else if (valueType == typeof(double))
+                return "4";
+            else if (valueType == typeof(float))
+                return "5";
+            else if (valueType == typeof(int))
+                return "6";
+            else if (valueType == typeof(long))
+                return "7";
+            else if (valueType == typeof(short))
+                return "8";
+            else if (valueType == typeof(uint))
+                return "9";
+            else if (valueType == typeof(ulong))
+                return "10";
+            else if (valueType == typeof(ushort))
+                return "11";
+            else if (valueType == typeof(byte[]))
+                return "12";
+            else if (valueType == typeof(DateTime))
+                return "13";
+            else if (valueType == typeof(DateTimeOffset))
+                return "14";
+            else if (valueType == typeof(Decimal))
+                return "15";
+            else if (valueType == typeof(Guid))
+                return "16";
+            else if (valueType == typeof(String))
+                return "17";
+            else if (valueType == typeof(SByte))
+                return "18";
+            else if (valueType == typeof(TimeSpan))
+                return "19";
+
+            return valueType.ToString();
+
+        }
+
 
         public static Type GetBaseType(this Type t)
         {

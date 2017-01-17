@@ -6,6 +6,7 @@ using Dotmim.Sync.Enumerations;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -21,9 +22,9 @@ namespace Dotmim.Sync.Core
     public class SyncAgent : IDisposable
     {
 
-        string[] configurationTables;
         string scopeName;
-        bool isConfigured;
+        private IResponseHandler clientProvider;
+        private IResponseHandler serverProvider;
 
         /// <summary>
         /// Defines the state that a synchronization session is in.
@@ -33,23 +34,18 @@ namespace Dotmim.Sync.Core
         /// <summary>
         /// Get the provider for the Client Side
         /// </summary>
-        public CoreProvider LocalProvider { get; }
+        public IResponseHandler LocalProvider { get; }
 
         /// <summary>
         /// Get the provider for the Server Side
         /// </summary>
-        public CoreProvider RemoteProvider { get; }
-
+        public IResponseHandler RemoteProvider { get; }
 
         // Scope informaitons. 
         // On Server, we have tow scopes available : Server Scope and Client (server timestamp) scope
         // On Client, we have only the client scope
         public Dictionary<string, ScopeInfo> Scopes { get; set; }
 
-        /// <summary>
-        /// Gets or Sets the configuration option needed by the synchronization
-        /// </summary>
-        public ServiceConfiguration Configuration { get; set; }
 
         /// <summary>
         /// Occurs during progress
@@ -63,7 +59,7 @@ namespace Dotmim.Sync.Core
         /// SyncAgent manage both server and client provider
         /// It's the main object to launch the Sync process
         /// </summary>
-        public SyncAgent(string scopeName, CoreProvider localProvider, CoreProvider remoteProvider)
+        public SyncAgent(string scopeName, IResponseHandler localProvider, IResponseHandler remoteProvider)
         {
             this.LocalProvider = localProvider ?? throw new ArgumentNullException("ClientProvider");
             this.RemoteProvider = remoteProvider ?? throw new ArgumentNullException("ServerProvider");
@@ -71,68 +67,80 @@ namespace Dotmim.Sync.Core
 
             this.LocalProvider.SyncProgress += ClientProvider_SyncProgress;
             this.RemoteProvider.SyncProgress += ServerProvider_SyncProgress;
+
+
         }
+
 
         /// <summary>
         /// SyncAgent manage both server and client provider
         /// It's the main object to launch the Sync process
         /// </summary>
-        public SyncAgent(CoreProvider clientProvider, CoreProvider serverProvider)
-            : this("DefaultScope", clientProvider, serverProvider)
-        {
-        }
-
-        /// <summary>
-        /// SyncAgent manage both server and client provider
-        /// The Configuration object contains the DmSet Schema for the synchronization
-        /// </summary>
-        public SyncAgent(string scopeName, CoreProvider clientProvider, CoreProvider serverProvider, ServiceConfiguration configuration)
-            : this(scopeName, clientProvider, serverProvider)
-        {
-
-            if (configuration == null)
-                throw new ArgumentNullException("configuration");
-
-            if (configuration.ScopeSet == null || configuration.ScopeSet.Tables.Count <= 0)
-                throw new ArgumentNullException("configuration.ScopeSet");
-
-            this.configurationTables = null;
-
-            // Set the Server configuration
-            this.Configuration = configuration;
-        }
-
-        /// <summary>
-        /// SyncAgent manage both server and client provider
-        /// The Configuration object contains the DmSet Schema for the synchronization
-        /// </summary>
-        public SyncAgent(CoreProvider clientProvider, CoreProvider serverProvider, ServiceConfiguration configuration)
-          : this("DefaultScope", clientProvider, serverProvider, configuration)
+        public SyncAgent(IResponseHandler localProvider, IResponseHandler remoteProvider)
+            : this("DefaultScope", localProvider, remoteProvider)
         {
         }
 
         /// <summary>
         /// SyncAgent manage both server and client provider
         /// the tables array represents the tables you want to sync
+        /// Don't work on the proxy provider
         /// </summary>
-        public SyncAgent(string scopeName, CoreProvider clientProvider, CoreProvider serverProvider, string[] tables)
+        public SyncAgent(string scopeName, IResponseHandler clientProvider, IResponseHandler serverProvider, string[] tables)
         : this(scopeName, clientProvider, serverProvider)
         {
             if (tables == null || tables.Length <= 0)
                 throw new ArgumentException("you need to pass at lease one table name");
 
-            this.configurationTables = tables;
+            var remoteCoreProvider = this.RemoteProvider as CoreProvider;
 
+            if (remoteCoreProvider == null)
+                throw new ArgumentException("Since the remote provider is a web proxy, you have to configure the server side");
+
+            remoteCoreProvider.Configuration = new ServiceConfiguration(tables);
         }
 
         /// <summary>
         /// SyncAgent manage both server and client provider
         /// the tables array represents the tables you want to sync
+        /// Don't work on the proxy provider
         /// </summary>
-        public SyncAgent(CoreProvider clientProvider, CoreProvider serverProvider, string[] tables)
+        public SyncAgent(IResponseHandler clientProvider, IResponseHandler serverProvider, string[] tables)
         : this("DefaultScope", clientProvider, serverProvider, tables)
         {
         }
+
+
+        /// <summary>
+        /// SyncAgent manage both server and client provider
+        /// the Configuration object represents the server configuration 
+        /// Don't work on the proxy provider
+        /// </summary>
+        public SyncAgent(string scopeName, IResponseHandler clientProvider, IResponseHandler serverProvider, ServiceConfiguration configuration)
+        : this(scopeName, clientProvider, serverProvider)
+        {
+            if (configuration.Tables == null || configuration.Tables.Length <= 0)
+                throw new ArgumentException("you need to pass at least one table name");
+
+            var remoteCoreProvider = this.RemoteProvider as CoreProvider;
+
+            if (remoteCoreProvider == null)
+                throw new ArgumentException("Since the remote provider is a web proxy, you have to configure the server side");
+
+            remoteCoreProvider.Configuration = configuration;
+
+        }
+
+        /// <summary>
+        /// SyncAgent manage both server and client provider
+        /// the Configuration object represents the server configuration 
+        /// Don't work on the proxy provider
+        /// </summary>
+        public SyncAgent(IResponseHandler clientProvider, IResponseHandler serverProvider, ServiceConfiguration configuration)
+        : this("DefaultScope", clientProvider, serverProvider, configuration)
+        {
+        }
+
 
 
         /// <summary>
@@ -150,7 +158,7 @@ namespace Dotmim.Sync.Core
 
             this.SessionState = SyncSessionState.Synchronizing;
             this.SessionStateChanged?.Invoke(this, this.SessionState);
-
+            ScopeInfo localScopeInfo = null, serverScopeInfo = null, serverLocalScopeReferenceInfo = null;
             try
             {
                 // Begin Session / Read the adapters
@@ -160,81 +168,64 @@ namespace Dotmim.Sync.Core
                 // ----------------------------------------
                 // 1) Read scope info
                 // ----------------------------------------
-                //ScopeInfo scopeInfoClient;
-                //ScopeInfo scopeInfoServerClient;
-                //ScopeInfo scopeInfoServer;
-
-                //// Read the client provider scope info and actually create a new one if needed
-                //scopeInfoClient = this.LocalProvider.EnsureScopes(scopeName, null)[0];
-
-                //// Read the server provider and create a new one if needed, and then add the client scope in its server version
-                //var scopes = this.RemoteProvider.EnsureScopes(scopeName, scopeInfoClient.Name);
-                //scopeInfoServer = scopes[0];
-                //scopeInfoServerClient = scopes[1];
-
                 // Ensures local scopes are created fo both provieders
-                this.LocalProvider.EnsureScopes(scopeName);
-                this.RemoteProvider.EnsureScopes(scopeName, this.LocalProvider.ClientScopeInfo.Name);
+                (serverScopeInfo, localScopeInfo) = this.LocalProvider.EnsureScopes(scopeName);
+
+                (serverScopeInfo, serverLocalScopeReferenceInfo) = this.RemoteProvider.EnsureScopes(scopeName, localScopeInfo.Name);
 
                 // set the correct ScopeInfo to localProvider since the ServerScope is not the good one
-                this.LocalProvider.ServerScopeInfo = this.RemoteProvider.ServerScopeInfo;
+                ((CoreProvider)this.LocalProvider).ServerScopeInfo = serverScopeInfo;
 
                 // ----------------------------------------
                 // 2) Build Configuration Object
                 // ----------------------------------------
 
-                // Construct the configuration
-                if (!isConfigured)
-                {
-                    if (this.configurationTables != null && this.configurationTables.Length > 0)
-                        this.Configuration = this.RemoteProvider.BuildConfiguration(this.configurationTables);
-                    else if (this.Configuration != null)
-                        this.Configuration = this.RemoteProvider.BuildConfiguration(this.Configuration);
-                    else
-                        throw new Exception("Configuration is not good enough today");
+                // Applying Configuration on remote provider
+                // Actually should take the remote configuration already available on the remote machine
+                this.RemoteProvider.ApplyConfiguration();
 
-                    // Here, the configuration is correct, tables schema is ready and all dmTables ar schema complete
-                    // So we can pass the configuration to the client side
-                    this.LocalProvider.BuildConfiguration(this.Configuration);
+                // Get Configuration from remote provider
+                ServiceConfiguration configuration = this.RemoteProvider.GetConfiguration();
 
-                    isConfigured = true;
-                }
+                // Invert policy on the client
+                var configurationLocale = configuration.Clone();
+                var policy = configuration.ConflictResolutionPolicy;
+                if (policy == ConflictResolutionPolicy.ServerWins)
+                    configurationLocale.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
+                if (policy == ConflictResolutionPolicy.ClientWins)
+                    configurationLocale.ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
 
+                // Apply on local Provider
+                this.LocalProvider.ApplyConfiguration(configurationLocale);
 
-                // Set the schema for information purpose
-                context.ScopeSet = this.Configuration.ScopeSet.Clone();
-  
                 // ----------------------------------------
                 // 3) Ensure databases are ready
                 // ----------------------------------------
 
                 // Server should have already the schema
                 this.RemoteProvider.EnsureDatabase(DbBuilderOption.CreateOrUseExistingSchema | DbBuilderOption.CreateOrUseExistingTrackingTables);
+
                 // Client could have, or not, the tables
                 this.LocalProvider.EnsureDatabase(DbBuilderOption.CreateOrUseExistingSchema | DbBuilderOption.CreateOrUseExistingTrackingTables);
 
                 // ----------------------------------------
                 // 5) Get changes and apply them
                 // ----------------------------------------
-
-                // Get Changes from client to server
-                // Since we are on the client, we need to compare to its own scope timestamp
-                var setClient = this.LocalProvider.GetChangeBatch();
-                // scopeinfoclient it's the local scopename
+                var clientBatchInfo = this.LocalProvider.GetChangeBatch();
 
                 // Apply on the Server Side
                 // Since we are on the server, we need to check the server client timestamp (not the client timestamp which is completely different)
-                this.RemoteProvider.ApplyChanges(this.RemoteProvider.ClientScopeInfo, setClient);
+                this.RemoteProvider.ApplyChanges(serverLocalScopeReferenceInfo, clientBatchInfo);
 
                 // Get changes from server
-                var setServer = this.RemoteProvider.GetChangeBatch();
+                var serverBatchInfo = this.RemoteProvider.GetChangeBatch();
 
                 // Apply on client side
                 // On the client side we should be able to direct write, without check the server scope
                 //var scope = new ScopeInfo { Name = scopeName, LastTimestamp = 0 };
 
                 // Apply local changes
-                this.LocalProvider.ApplyChanges(this.LocalProvider.ServerScopeInfo, setServer);
+                this.LocalProvider.ApplyChanges(serverScopeInfo, serverBatchInfo);
 
                 long serverTimestamp = this.RemoteProvider.GetLocalTimestamp();
                 long clientTimestamp = this.LocalProvider.GetLocalTimestamp();
@@ -269,12 +260,12 @@ namespace Dotmim.Sync.Core
 
         void ServerProvider_SyncProgress(object sender, ScopeProgressEventArgs e)
         {
-           this.SyncProgress?.Invoke(this, e);
+            //this.SyncProgress?.Invoke(this, e);
         }
 
         void ClientProvider_SyncProgress(object sender, ScopeProgressEventArgs e)
         {
-           this.SyncProgress?.Invoke(this, e);
+            this.SyncProgress?.Invoke(this, e);
         }
 
 

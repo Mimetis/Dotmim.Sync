@@ -9,6 +9,7 @@ using System.Data.SqlClient;
 using System.Data;
 using System.Globalization;
 using Dotmim.Sync.Core.Log;
+using System.Linq;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
@@ -464,7 +465,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"\t) AS changes ON {str5}");
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("-- Si la ligne n'existe pas en local et qu'elle a été créé avant le timestamp de référence");
-            stringBuilder.Append("WHEN NOT MATCHED BY TARGET AND changes.[timestamp] <= @sync_min_timestamp OR changes.[timestamp] IS NULL THEN");
+            stringBuilder.Append("WHEN NOT MATCHED BY TARGET AND (changes.[timestamp] <= @sync_min_timestamp OR changes.[timestamp] IS NULL) THEN");
 
             StringBuilder stringBuilderArguments = new StringBuilder();
             StringBuilder stringBuilderParameters = new StringBuilder();
@@ -619,7 +620,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"\t) AS changes ON {str5}");
             stringBuilder.AppendLine();
 
-            stringBuilder.AppendLine("WHEN MATCHED AND [changes].[update_scope_name] = @sync_scope_name OR [changes].[timestamp] <= @sync_min_timestamp THEN");
+            stringBuilder.AppendLine("WHEN MATCHED AND ([changes].[update_scope_name] = @sync_scope_name OR [changes].[timestamp] <= @sync_min_timestamp) THEN");
 
             StringBuilder stringBuilderArguments = new StringBuilder();
             StringBuilder stringBuilderParameters = new StringBuilder();
@@ -985,8 +986,9 @@ namespace Dotmim.Sync.SqlServer.Builders
             string str = "";
             foreach (var c in TableDescription.Columns)
             {
+                var isPrimaryKey = TableDescription.PrimaryKey.Columns.Any(cc => TableDescription.IsEqual(cc.ColumnName, c.ColumnName));
                 var columnName = new ObjectNameParser(c.ColumnName);
-                var nullString = c.AllowDBNull ? "NULL" : "NOT NULL";
+                var nullString = isPrimaryKey ? "NOT NULL" : "NULL";
                 var quotedColumnType = new ObjectNameParser(c.GetSqlDbTypeString(), "[", "]").QuotedString;
                 quotedColumnType += c.GetSqlTypePrecisionString();
 
@@ -1164,8 +1166,10 @@ namespace Dotmim.Sync.SqlServer.Builders
             SqlCommand sqlCommand = new SqlCommand();
             SqlParameter sqlParameter1 = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt);
             SqlParameter sqlParameter3 = new SqlParameter("@sync_scope_name", SqlDbType.NVarChar, 100);
+            SqlParameter sqlParameter4 = new SqlParameter("@sync_scope_is_new", SqlDbType.NVarChar, 100);
             sqlCommand.Parameters.Add(sqlParameter1);
             sqlCommand.Parameters.Add(sqlParameter3);
+            sqlCommand.Parameters.Add(sqlParameter4);
 
             StringBuilder stringBuilder = new StringBuilder("SELECT ");
             foreach (var pkColumn in TableDescription.PrimaryKey.Columns)
@@ -1218,13 +1222,19 @@ namespace Dotmim.Sync.SqlServer.Builders
             //    str = " AND ";
             //}
 
-            stringBuilder.AppendLine("\t-- Update Machine");
+            stringBuilder.AppendLine("\t-- Update made by the local instance");
             stringBuilder.AppendLine("\t[side].[update_scope_name] IS NULL");
             stringBuilder.AppendLine("\t-- Or Update different from remote");
             stringBuilder.AppendLine("\tOR [side].[update_scope_name] <> @sync_scope_name");
             stringBuilder.AppendLine("    )");
-            stringBuilder.AppendLine("-- And Timestamp is > from remote timestamp");
-            stringBuilder.AppendLine("AND [side].[timestamp] > @sync_min_timestamp");
+            stringBuilder.AppendLine("AND (");
+            stringBuilder.AppendLine("\t-- And Timestamp is > from remote timestamp");
+            stringBuilder.AppendLine("\t[side].[timestamp] > @sync_min_timestamp");
+            stringBuilder.AppendLine("\tOR");
+            stringBuilder.AppendLine("\t-- remote instance is new, so we don't take the last timestamp");
+            stringBuilder.AppendLine("\t@sync_scope_is_new = 1");
+            stringBuilder.AppendLine("\t)");
+
 
             sqlCommand.CommandText = stringBuilder.ToString();
             //if (this._filterParameters != null)

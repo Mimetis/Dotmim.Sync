@@ -80,6 +80,41 @@ namespace Dotmim.Sync.Data
             }
 
         }
+
+        //protected internal DmRow(DmTable table, DmRowState state)
+        //{
+        //    this.table = table;
+        //    this.columns = table.Columns;
+        //    var record = this.Table.Rows.GetNewVersionId();
+
+        //    this.tempRecord = record;
+
+        //    // si oldRecord == -1 && newRecord != -1 alors l'enregistrement est Added
+        //    // si oldRecord != -1 && newRecord == -1 alors l'enregistrement est Deleted
+        //    // si oldRecord != -1 && newRecord != -1 alors l'enregistrement est Modified
+        //    // si oldRecord == -1 && newRecord == -1 alors l'enregisrement est Detached
+        //    switch (state)
+        //    {
+        //        case DmRowState.Added:
+        //            this.oldRecord = -1;
+        //            this.newRecord = this.Table.Rows.GetNewVersionId();
+        //            break;
+        //        case DmRowState.Deleted:
+        //            this.oldRecord = this.Table.Rows.GetNewVersionId();
+        //            this.newRecord = -1;
+        //            break;
+        //        case DmRowState.Modified:
+        //            this.newRecord = this.Table.Rows.GetNewVersionId();
+        //            this.oldRecord = this.Table.Rows.GetNewVersionId();
+        //            break;
+        //        case DmRowState.Detached:
+        //            this.oldRecord = -1;
+        //            this.newRecord = -1;
+        //            break;
+        //    }
+
+        //}
+
         protected internal DmRow(DmTable table, bool initColumns = true)
         {
             this.table = table;
@@ -92,7 +127,6 @@ namespace Dotmim.Sync.Data
 
                 foreach (var c in columns)
                     c.Init(this.tempRecord);
-
             }
 
         }

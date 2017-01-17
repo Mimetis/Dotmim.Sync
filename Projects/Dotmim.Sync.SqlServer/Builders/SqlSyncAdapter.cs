@@ -13,6 +13,7 @@ using System.Data;
 using System.Data.SqlTypes;
 using System.Reflection;
 using Dotmim.Sync.Core.Builders;
+using Dotmim.Sync.Core.Common;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
@@ -35,7 +36,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             {
                 return this.transaction;
             }
-            
+
         }
 
         public SqlSyncAdapter(DbConnection connection, DbTransaction transaction)
@@ -145,8 +146,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
         }
 
-
-
         /// <summary>
         /// Check if an exception is a primary key exception
         /// </summary>
@@ -158,6 +157,10 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             return false;
         }
+
+
+        // Derive Parameters cache
+        private static Dictionary<string, List<SqlParameter>> derivingParameters = new Dictionary<string, List<SqlParameter>>();
 
         /// <summary>
         /// Set a stored procedure parameters
@@ -180,7 +183,23 @@ namespace Dotmim.Sync.SqlServer.Builders
                 if (this.transaction != null)
                     command.Transaction = this.transaction;
 
-                connection.DeriveParameters((SqlCommand)command, false, transaction);
+                var textParser = new ObjectNameParser(command.CommandText);
+
+                if (derivingParameters.ContainsKey(textParser.UnquotedString))
+                {
+                    foreach(var p in derivingParameters[textParser.UnquotedString])
+                        command.Parameters.Add(p.Clone());
+                }
+                else
+                {
+                    var parameters = connection.DeriveParameters((SqlCommand)command, false, transaction);
+
+                    var arrayParameters = new List<SqlParameter>();
+                    foreach(var p in parameters)
+                        arrayParameters.Add(p.Clone());
+
+                    derivingParameters.Add(textParser.UnquotedString, arrayParameters);
+                }
 
                 if (command.Parameters[0].ParameterName == "@RETURN_VALUE")
                     command.Parameters.RemoveAt(0);
@@ -201,7 +220,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             foreach (var parameter in command.Parameters)
             {
                 var sqlParameter = (SqlParameter)parameter;
-                
+
                 // try to get the source column (from the dmTable)
                 var sqlParameterName = sqlParameter.ParameterName.Replace("@", "");
                 var colDesc = TableDescription.Columns.FirstOrDefault(c => string.Equals(c.ColumnName, sqlParameterName, StringComparison.CurrentCultureIgnoreCase));

@@ -145,7 +145,7 @@ namespace Dotmim.Sync.Core
             }
         }
 
- 
+
         internal void Cleanup()
         {
             SelectedChanges.ForEach(sc => sc.Cleanup());
@@ -153,9 +153,9 @@ namespace Dotmim.Sync.Core
 
             AppliedChanges.ForEach(sc => sc.Cleanup());
             AppliedChanges.Clear();
-        } 
+        }
     }
-    
+
     /// <summary>
     /// Args for applied changed on a source, for each kind of DmRowState (Update / Delete / Insert)
     /// </summary>
@@ -164,12 +164,7 @@ namespace Dotmim.Sync.Core
         /// <summary>
         /// Gets the table where changes were applied
         /// </summary>
-        public string TableName => View.Table.TableName;
-
-        /// <summary>
-        /// Gets the view of every rows eventually applied
-        /// </summary>
-        public DmView View { get; internal set; }
+        public string TableName { get; internal set; }
 
         /// <summary>
         /// Gets the RowState of the apploed
@@ -179,21 +174,15 @@ namespace Dotmim.Sync.Core
         /// <summary>
         /// Gets the rows changes applied count
         /// </summary>
-        public int ChangesApplied => View.Count;
+        public int ChangesApplied { get; set; }
 
         /// <summary>
         /// Gets the rows changes failed count
         /// </summary>
-        public int ChangesFailed => View.Table.Rows.Count - ChangesApplied;
-
-        ///// <summary>
-        ///// Gets or Sets the action to be taken : Could eventually Rollback the current processus
-        ///// </summary>
-        //public ChangeApplicationAction Action { get; set; }
-
+        public int ChangesFailed { get; set; }
+   
         internal void Cleanup()
         {
-            View = null;
         }
     }
 

@@ -147,6 +147,8 @@ namespace DmBinaryFormatter
             }
         }
 
+        private Dictionary<Type, TypeSerializer> typeSerializers = new Dictionary<Type, TypeSerializer>();
+
         /// <summary>
         /// Recursive method, serializing every object in my objects graph
         /// </summary>
@@ -157,15 +159,22 @@ namespace DmBinaryFormatter
             if (objType == typeof(Object) && obj != null)
             {
                 var baseType = obj.GetType().GetBaseType();
-                var s = TypeSerializer.GetSerializer(baseType);
+               // var s = TypeSerializer.GetSerializer(baseType);
                 Serialize(obj, baseType);
                 return;
             }
+            TypeSerializer serializer = null;
 
-            var serializer = TypeSerializer.GetSerializer(objType);
+            if (!typeSerializers.ContainsKey(objType))
+            {
+                serializer = TypeSerializer.GetSerializer(objType);
+                typeSerializers.Add(objType, serializer);
+            }
 
+            serializer = typeSerializers[objType];
+            
             // Write object type
-            this.Writer.Write(objType.AssemblyQualifiedName);
+            this.Writer.Write(objType.GetAssemblyQualifiedName());
 
             // Check if it's not a reference
             int refIndex = 0;
@@ -193,12 +202,24 @@ namespace DmBinaryFormatter
             }
         }
 
+        public void Serialize(object obj, Type objType, Stream s)
+        {
+            if (!s.CanWrite)
+                throw new ArgumentException("Can't write in this stream");
+
+            if (obj == null)
+                throw new ArgumentException("Object is null");
+
+            this.Serialize(obj, s);
+
+        }
+
         /// <summary>
         /// Deserialize a stream containing a binary instance
         /// </summary>
         public object Deserialize(Stream s)
         {
-            if (!s.CanRead || !s.CanWrite)
+            if (!s.CanRead)
                 throw new ArgumentException("Can't Read / write in the stram");
 
             Object obj = null;
@@ -239,8 +260,8 @@ namespace DmBinaryFormatter
 
             int indent = 0;
 
-            if (this.Reader.BaseStream.Position >= this.Reader.BaseStream.Length)
-                throw new IndexOutOfRangeException("stream is ended !");
+            //if (this.Reader.BaseStream.Position >= this.Reader.BaseStream.Length)
+            //    throw new IndexOutOfRangeException("stream is ended !");
 
 
             if (isDebugMode)
@@ -251,13 +272,12 @@ namespace DmBinaryFormatter
 
             // Get Type
             var objTypeFromStream = Reader.ReadString();
-            var objType = Type.GetType(objTypeFromStream);
+            var objType = DmUtils.GetTypeFromAssemblyQualifiedName(objTypeFromStream);
 
             if (isDebugMode)
             {
                 DebugWriter.Write($"[{objType.Name}]");
             }
-
 
             // Get State and Index
             var state = (DmState)Reader.ReadByte();
@@ -267,7 +287,14 @@ namespace DmBinaryFormatter
                 DebugWriter.Write($"[{state}][{index}]");
 
             TypeSerializer serializer = null;
-            serializer = TypeSerializer.GetSerializer(objType);
+
+            if (!typeSerializers.ContainsKey(objType))
+            {
+                serializer = TypeSerializer.GetSerializer(objType);
+                typeSerializers.Add(objType, serializer);
+            }
+
+            serializer = typeSerializers[objType];
 
             if (state == DmState.IsReference)
             {

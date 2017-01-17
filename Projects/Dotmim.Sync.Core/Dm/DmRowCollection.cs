@@ -61,7 +61,6 @@ namespace Dotmim.Sync.Data
             // Todo : maybe a lock object here ?
             var newVersionId = nextVersionColumnsId;
             nextVersionColumnsId += 1;
-            Debug.WriteLine($"Getting a new version id {newVersionId}");
             return newVersionId;
         }
 

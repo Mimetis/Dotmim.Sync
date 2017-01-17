@@ -29,12 +29,12 @@ namespace Dotmim.Sync.Core
         /// <summary>
         /// Get the Server sync progress
         /// </summary>
-        public SyncSetProgress Server { get; } = new SyncSetProgress();
+        //public SyncSetProgress Server { get; } = new SyncSetProgress();
 
         /// <summary>
         /// Get the Client sync progress
         /// </summary>
-        public SyncSetProgress Client { get; } = new SyncSetProgress();
+        //public SyncSetProgress Client { get; } = new SyncSetProgress();
 
         /// <summary>
         /// Gets or sets the number of changes downloaded from the server that were applied at the client.

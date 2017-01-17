@@ -25,7 +25,7 @@ namespace Dotmim.Sync.Core.Builders
     {
         public delegate ApplyAction ConflictActionDelegate(SyncConflict conflict, DbConnection connection, DbTransaction transaction = null);
 
-        public ConflictActionDelegate ConflictActionInvoker;
+        public ConflictActionDelegate ConflictActionInvoker = null;
 
         /// <summary>
         /// Gets the table description, a dmTable with no rows
@@ -81,7 +81,12 @@ namespace Dotmim.Sync.Core.Builders
                 {
                     if (row.Table.Columns.Contains(parameter.SourceColumn))
                     {
-                        var value = row[parameter.SourceColumn];
+                        object value = null;
+                        if (row.RowState == DmRowState.Deleted)
+                            value = row[parameter.SourceColumn, DmRowVersion.Original];
+                        else
+                            value = row[parameter.SourceColumn];
+
                         DbManager.SetParameterValue(command, parameter.ParameterName, value);
                     }
                 }
@@ -203,7 +208,7 @@ namespace Dotmim.Sync.Core.Builders
         /// Launch apply bulk changes
         /// </summary>
         /// <returns></returns>
-        public DmView ApplyBulkChanges(DmView dmChanges, ScopeInfo fromScope, List<SyncConflict> conflicts)
+        public int ApplyBulkChanges(DmView dmChanges, ScopeInfo fromScope, List<SyncConflict> conflicts)
         {
             DbCommand bulkCommand = null;
 
@@ -245,7 +250,7 @@ namespace Dotmim.Sync.Core.Builders
                 batchCount++;
                 rowCount++;
 
-                if (batchCount != 75 && rowCount != dmChanges.Count)
+                if (batchCount != 500 && rowCount != dmChanges.Count)
                     continue;
 
                 // Since the update and create timestamp come from remote, change name for the bulk operations
@@ -255,6 +260,11 @@ namespace Dotmim.Sync.Core.Builders
                 // execute the batch, through the provider
                 ExecuteBatchCommand(bulkCommand, batchDmTable, failedDmtable, fromScope);
 
+                // Clear the batch
+                batchDmTable.Clear();
+
+                // Recreate a Clone
+                // TODO : Evaluate if it's necessary
                 batchDmTable = dmChanges.Table.Clone();
                 batchCount = 0;
             }
@@ -263,7 +273,7 @@ namespace Dotmim.Sync.Core.Builders
             //tableProgress.ChangesApplied = dmChanges.Count - failedDmtable.Rows.Count;
 
             if (failedDmtable.Rows.Count == 0)
-                return dmChanges;
+                return dmChanges.Count;
 
 
             // Check all conflicts raised
@@ -275,26 +285,22 @@ namespace Dotmim.Sync.Core.Builders
                     return failedDmtable.FindByKey(row.GetKeyValues()) != null;
             });
 
-            var appliedFilter = new Predicate<DmRow>(row =>
-            {
-                if (row.RowState == DmRowState.Deleted)
-                    return failedDmtable.FindByKey(row.GetKeyValues(DmRowVersion.Original)) == null;
-                else
-                    return failedDmtable.FindByKey(row.GetKeyValues()) == null;
-            });
-
 
 
             // New View
             var dmFailedRows = new DmView(dmChanges, failedFilter);
-            var dmAppliedRows = new DmView(dmChanges, appliedFilter);
 
             // Generate a conflict and add it
             foreach (var dmFailedRow in dmFailedRows)
                 conflicts.Add(GetConflict(dmFailedRow));
 
+            int failedRows = dmFailedRows.Count;
+
+            // Dispose the failed view
+            dmFailedRows.Dispose();
+
             // return applied rows - failed rows (generating a conflict)
-            return dmAppliedRows;
+            return dmChanges.Count - failedRows;
         }
 
         /// <summary>
@@ -303,9 +309,9 @@ namespace Dotmim.Sync.Core.Builders
         /// </summary>
         /// <param name="dmChanges">Changes from remote</param>
         /// <returns>every lines not updated on the server side</returns>
-        internal DmView ApplyChanges(DmView dmChanges, ScopeInfo scope, List<SyncConflict> conflicts)
+        internal int ApplyChanges(DmView dmChanges, ScopeInfo scope, List<SyncConflict> conflicts)
         {
-            DmView appliedRows = new DmView(dmChanges);
+            int appliedRows = 0;
 
             foreach (var dmRow in dmChanges)
             {
@@ -318,15 +324,12 @@ namespace Dotmim.Sync.Core.Builders
                 else if (applyType == DmRowState.Deleted)
                     operationComplete = this.ApplyDelete(dmRow, scope, false);
 
-                // if no pb, go to next row
                 if (operationComplete)
-                {
-                    appliedRows.Add(dmRow);
-                    continue;
-                }
-
-                // Generate a conflict and add it
-                conflicts.Add(GetConflict(dmRow));
+                    // if no pb, increment then go to next row
+                    appliedRows++;
+                else
+                    // Generate a conflict and add it
+                    conflicts.Add(GetConflict(dmRow));
             }
 
             return appliedRows;
@@ -580,6 +583,7 @@ namespace Dotmim.Sync.Core.Builders
         }
 
 
+        internal ApplyAction ConflictApplyAction { get; set; } = ApplyAction.Continue;
 
         /// <summary>
         /// Handle a conflict
@@ -587,21 +591,13 @@ namespace Dotmim.Sync.Core.Builders
         internal ChangeApplicationAction HandleConflict(SyncConflict conflict, ScopeInfo scope, long timestamp, out DmRow finalRow)
         {
             finalRow = null;
-            // Default beahvior : Server wins
-            ApplyAction conflictApplyAction = ApplyAction.Continue;
 
-            // on client, no resolution, so it's a forcewrite
-            //if (scope.Name == this.ScopeName)
-            //    conflictApplyAction = ApplyAction.RetryWithForceWrite;
-            //else 
-            if (this.ConflictActionInvoker == null)
-                // Default behavior
-                conflictApplyAction = ApplyAction.Continue;
-            else
-                conflictApplyAction = this.ConflictActionInvoker(conflict, Connection, Transaction);
+            // overwrite apply action if we handle it (ie : user wants to change the action)
+            if (this.ConflictActionInvoker != null)
+                ConflictApplyAction = this.ConflictActionInvoker(conflict, Connection, Transaction);
 
             // Default behavior and an error occured
-            if (conflictApplyAction == ApplyAction.Rollback)
+            if (ConflictApplyAction == ApplyAction.Rollback)
             {
                 Logger.Current.Info("Rollback all operation");
 
@@ -609,7 +605,7 @@ namespace Dotmim.Sync.Core.Builders
             }
 
             // Server wins
-            if (conflictApplyAction == ApplyAction.Continue)
+            if (ConflictApplyAction == ApplyAction.Continue)
             {
                 Logger.Current.Info("Local Wins, update metadata");
 
@@ -644,7 +640,7 @@ namespace Dotmim.Sync.Core.Builders
             }
 
             // We gonna apply with force the remote line
-            if (conflictApplyAction == ApplyAction.RetryWithForceWrite)
+            if (ConflictApplyAction == ApplyAction.RetryWithForceWrite)
             {
                 if (conflict.RemoteChange.Rows.Count == 0)
                 {
@@ -734,36 +730,7 @@ namespace Dotmim.Sync.Core.Builders
             }
         }
 
-        /// <summary>
-        /// Create a DmTable from a datareader fields
-        /// </summary>
-        internal DmTable BuildDataTable(DbDataReader enumQueryResults)
-        {
-            DmTable dataTable = new DmTable(this.TableDescription.TableName);
-
-            List<DmColumn> keyColumns = new List<DmColumn>();
-            for (int i = 0; i < enumQueryResults.FieldCount; i++)
-            {
-                var columnName = enumQueryResults.GetName(i);
-                var columnType = enumQueryResults.GetFieldType(i);
-                DmColumn column = DmColumn.CreateColumn(columnName, columnType);
-
-                if (enumQueryResults.CanGetColumnSchema())
-                {
-                    DbColumn dbColumn = enumQueryResults.GetColumnSchema()[i];
-                    column.AllowDBNull = dbColumn.AllowDBNull.HasValue ? dbColumn.AllowDBNull.Value : false;
-                    column.AutoIncrement = dbColumn.IsAutoIncrement.HasValue ? dbColumn.IsAutoIncrement.Value : false;
-                }
-                if (this.TableDescription.PrimaryKey.Columns.Any(c => c.ColumnName == columnName))
-                    keyColumns.Add(column);
-
-                dataTable.Columns.Add(column);
-
-            }
-            dataTable.PrimaryKey = new DmKey(keyColumns.ToArray());
-
-            return dataTable;
-        }
+      
 
     }
 

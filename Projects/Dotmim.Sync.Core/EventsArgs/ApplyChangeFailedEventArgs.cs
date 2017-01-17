@@ -60,11 +60,12 @@ namespace Dotmim.Sync.Core
             }
         }
 
-        public ApplyChangeFailedEventArgs(SyncConflict dbSyncConflict, DbConnection connection, DbTransaction transaction)
+        public ApplyChangeFailedEventArgs(SyncConflict dbSyncConflict, ApplyAction action, DbConnection connection, DbTransaction transaction)
         {
             this._syncConflict = dbSyncConflict;
             this._connection = connection;
             this._transaction = transaction;
+            this._applyAction = action;
         }
     }
 }

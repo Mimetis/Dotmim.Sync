@@ -13,7 +13,7 @@ namespace Dotmim.Sync.Core.Scope
         ScopeInfo ReadFirstScopeInfo();
         ScopeInfo ReadScopeInfo(string scopeName);
         List<ScopeInfo> GetAllScopes();
-        ScopeInfo InsertOrUpdateScopeInfo(string scopeName, Guid? configId = null, String comment = null);
+        ScopeInfo InsertOrUpdateScopeInfo(string scopeName, bool? isDatabaseCreated = null);
         long GetLocalTimestamp();
     }
 }

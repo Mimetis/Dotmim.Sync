@@ -81,9 +81,6 @@ namespace DmBinaryFormatter
         {
             WriteToConsole(BitConverter.GetBytes(value));
             base.Write(value);
-
-            //if (value == (byte)DmBofEof.End)
-            //    Console.WriteLine();
         }
 
         public override void Write(char ch)

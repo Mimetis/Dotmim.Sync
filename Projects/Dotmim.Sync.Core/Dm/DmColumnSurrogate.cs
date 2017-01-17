@@ -1,6 +1,8 @@
-﻿using Dotmim.Sync.Data;
+﻿using DmBinaryFormatter;
+using Dotmim.Sync.Data;
 using System;
 using System.Data;
+using System.Text;
 
 namespace Dotmim.Sync.Data.Surrogate
 {
@@ -10,15 +12,10 @@ namespace Dotmim.Sync.Data.Surrogate
     [Serializable]
     public class DmColumnSurrogate
     {
+
         /// <summary>Gets or sets the name of the column that the DmColumnSurrogate object represents.</summary>
         public string ColumnName { get; set; }
-
-        /// <summary>
-        /// Gets or sets the dm type of the column that the DmColumnSurrogate object represents.
-        /// </summary>
-        public Type DataType { get; set; }
-        internal bool dbTypeAllowed;
-        public DbType DbType { get; set; }
+        public int DbType { get; set; }
         public bool AllowDBNull { get; set; } = true;
         public bool Unique { get; set; } = false;
         public bool ReadOnly { get; set; } = false;
@@ -29,6 +26,11 @@ namespace Dotmim.Sync.Data.Surrogate
         public Boolean AutoIncrement { get; set; }
         public Byte Precision { get; internal set; }
         public Byte Scale { get; set; }
+        /// <summary>
+        /// Gets or sets the dm type of the column that the DmColumnSurrogate object represents.
+        /// </summary>
+        public Type DataType { get; set; }
+        internal bool dbTypeAllowed;
 
         /// <summary>
         /// Only used for Serialization
@@ -36,8 +38,31 @@ namespace Dotmim.Sync.Data.Surrogate
         public DmColumnSurrogate()
         {
 
+
+
         }
 
+        public long GetBytesLength()
+        {
+            long bytesLength = String.IsNullOrEmpty(ColumnName) ? 1L : Encoding.UTF8.GetBytes(ColumnName).Length;
+            bytesLength += 4L; // DbType
+            bytesLength += 1L; // AllowDBNull
+            bytesLength += 1L; // Unique
+            bytesLength += 1L; // Readonly
+            bytesLength += 4L; // Maxlength
+            bytesLength += 4L; // Ordinal
+            bytesLength += 1L; // PrecisionsSpecified
+            bytesLength += 1L; // ScaleScpecified
+            bytesLength += 1L; // Autoinc
+            bytesLength += 1L; // Precision
+            bytesLength += 1L; // Scale
+            bytesLength += 1L; // dbTypeAllowed
+            bytesLength += Encoding.UTF8.GetBytes(DataType.GetAssemblyQualifiedName()).Length; //Type
+
+            bytesLength += Encoding.UTF8.GetBytes(this.GetType().GetAssemblyQualifiedName()).Length; // Type
+
+            return bytesLength;
+        }
         /// <summary>
         /// Initializes a new instance of the DmColumnSurrogate class.
         /// </summary>
@@ -49,7 +74,7 @@ namespace Dotmim.Sync.Data.Surrogate
 
             this.dbTypeAllowed = dc.dbTypeAllowed;
             if (dc.dbTypeAllowed)
-                this.DbType = dc.DbType;
+                this.DbType = (int)dc.DbType;
 
             this.AllowDBNull = dc.AllowDBNull;
             this.ColumnName = dc.ColumnName;
@@ -74,7 +99,7 @@ namespace Dotmim.Sync.Data.Surrogate
 
             dmColumn.dbTypeAllowed = this.dbTypeAllowed;
             if (dmColumn.dbTypeAllowed)
-                dmColumn.DbType = this.DbType;
+                dmColumn.DbType = (DbType)this.DbType;
 
             dmColumn.AllowDBNull = this.AllowDBNull;
             dmColumn.ReadOnly = this.ReadOnly;

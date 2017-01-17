@@ -92,5 +92,7 @@ namespace Dotmim.Sync.SqlServer
         {
             return new SqlManager(tableName);
         }
+
+      
     }
 }

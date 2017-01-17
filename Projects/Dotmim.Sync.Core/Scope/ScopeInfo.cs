@@ -26,7 +26,7 @@ namespace Dotmim.Sync.Core.Scope
         {
             get
             {
-                return this.IsNewScope ? 0 : lastTimestamp;
+                return lastTimestamp;
             }
             set
             {
@@ -38,7 +38,13 @@ namespace Dotmim.Sync.Core.Scope
         /// Gets or Sets if the current provider is newly created one in database.
         /// If new, we will override timestamp for first synchronisation to be sure to get all datas from server
         /// </summary>
-
         public Boolean IsNewScope { get; set; }
+
+        /// <summary>
+        /// Check if the database is already created.
+        /// If so, we won't do any check on the structure.
+        /// Edit this value after EnsureScopes to force checking.
+        /// </summary>
+        public Boolean IsDatabaseCreated { get; set; }
     }
 }

@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
 using System.Text;
+using System.Runtime;
+using System.Reflection;
 
 namespace DmBinaryFormatter.Converters
 {
@@ -11,12 +13,16 @@ namespace DmBinaryFormatter.Converters
 
         public override string ConvertToString(Object obj)
         {
-            return ((Type)obj).AssemblyQualifiedName;
+            var typeObj = (Type)obj;
+
+            var typeCode = typeObj.GetAssemblyQualifiedName();
+
+            return typeCode;
         }
 
         public override object ConvertFromString(string s)
         {
-            return Type.GetType(s);
+            return DmUtils.GetTypeFromAssemblyQualifiedName(s);
         }
 
     }

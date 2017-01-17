@@ -490,7 +490,6 @@ namespace Dotmim.Sync.Data
 
         void Set(int recordKey, object value)
         {
-            Debug.WriteLine($"Adding a record to key {recordKey} with value {value}");
             if (storage.ContainsKey(recordKey))
                 storage[recordKey] = value;
             else

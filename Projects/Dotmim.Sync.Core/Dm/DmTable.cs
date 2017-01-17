@@ -549,6 +549,10 @@ namespace Dotmim.Sync.Data
         /// </summary>
         public DmRow NewRow() => new DmRow(this);
 
+
+       // public DmRow NewRow(DmRowState state) => new DmRow(this, state);
+        
+      
         protected virtual Type GetRowType()
         {
             return typeof(DmRow);

@@ -41,8 +41,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                     @"CREATE TABLE [dbo].[scope_info](
 	                    [sync_scope_name] [nvarchar](100) NOT NULL,
 	                    [scope_timestamp] [timestamp] NULL,
-	                    [scope_config_id] [uniqueidentifier] NULL,
-	                    [scope_user_comment] [nvarchar](max) NULL,
+	                    [scope_database_created] [bit] NOT NULL DEFAULT(0)
                         CONSTRAINT [PK_scope_info] PRIMARY KEY CLUSTERED ([sync_scope_name] ASC)
                         )";
                 command.ExecuteNonQuery();
@@ -80,8 +79,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                 command.CommandText =
                     @"SELECT [sync_scope_name]
                            ,[scope_timestamp]
-                           ,[scope_config_id]
-                           ,[scope_user_comment]
+                           ,[scope_database_created]
                     FROM  [scope_info]";
 
                 using (DbDataReader reader = command.ExecuteReader())
@@ -93,6 +91,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                         ScopeInfo scopeInfo = new ScopeInfo();
                         scopeInfo.Name = reader["sync_scope_name"] as String;
                         scopeInfo.LastTimestamp = SqlManager.ParseTimestamp(reader["scope_timestamp"]);
+                        scopeInfo.IsDatabaseCreated = (bool)reader["scope_database_created"];
                         scopes.Add(scopeInfo);
                     }
                 }
@@ -162,7 +161,7 @@ namespace Dotmim.Sync.SqlServer.Scope
             }
         }
 
-        public ScopeInfo InsertOrUpdateScopeInfo(string scopeName, Guid? configId = default(Guid?), string comment = null)
+        public ScopeInfo InsertOrUpdateScopeInfo(string scopeName, bool? isDatabaseCreated = null)
         {
             var command = connection.CreateCommand();
             if (transaction != null)
@@ -175,22 +174,25 @@ namespace Dotmim.Sync.SqlServer.Scope
                     connection.Open();
 
                 command.CommandText = @"
-                    IF (SELECT count(*) FROM [scope_info] WHERE [sync_scope_name] = @sync_scope_name) > 0
-                    BEGIN
-                     UPDATE [scope_info]     
-                     SET [sync_scope_name] = @sync_scope_name
-                     WHERE [sync_scope_name] = @sync_scope_name;
-                     SELECT [sync_scope_name] ,[scope_timestamp] ,[scope_config_id], [scope_user_comment]
-                     FROM  [scope_info]
-                     WHERE [sync_scope_name] = @sync_scope_name;                    END
-                    ELSE
-                    BEGIN
-                     INSERT INTO [scope_info] ([sync_scope_name] , [scope_config_id], [scope_user_comment]) 
-                     VALUES (@sync_scope_name, @scope_config_id, @scope_user_comment);
-                     SELECT [sync_scope_name], [scope_timestamp] ,[scope_config_id] ,[scope_user_comment]
-                     FROM  [scope_info]
-                     WHERE [sync_scope_name] = @sync_scope_name
-                    END";
+                    MERGE [scope_info] AS [base] USING
+                    (
+	                    SELECT T.[sync_scope_name],
+		                    CASE WHEN @scope_database_created IS NULL 
+		                    THEN S.[scope_database_created] 
+		                    ELSE T.[scope_database_created] 
+		                    END AS [scope_database_created]
+	                    FROM [scope_info] S
+	                    RIGHT JOIN (SELECT @sync_scope_name AS sync_scope_name, @scope_database_created AS scope_database_created) AS T ON T.sync_scope_name = S.sync_scope_name
+	                    WHERE T.[sync_scope_name] = @sync_scope_name
+                    ) 
+                    AS [changes] ON [base].[sync_scope_name] = [changes].[sync_scope_name]
+                    WHEN NOT MATCHED THEN
+	                    INSERT ([sync_scope_name])
+	                    VALUES ([changes].[sync_scope_name])
+                    WHEN MATCHED THEN
+	                    UPDATE SET [sync_scope_name] = [changes].[sync_scope_name], [scope_database_created] = [changes].[scope_database_created]
+                    OUTPUT INSERTED.[sync_scope_name], INSERTED.[scope_timestamp], INSERTED.[scope_database_created];
+                ";
 
                 var p = command.CreateParameter();
                 p.ParameterName = "@sync_scope_name";
@@ -199,16 +201,11 @@ namespace Dotmim.Sync.SqlServer.Scope
                 command.Parameters.Add(p);
 
                 p = command.CreateParameter();
-                p.ParameterName = "@scope_config_id";
-                p.Value = !configId.HasValue ? (object)DBNull.Value : configId.Value;
-                p.DbType = DbType.Guid;
+                p.ParameterName = "@scope_database_created";
+                p.Value = isDatabaseCreated.HasValue ? (object)isDatabaseCreated : DBNull.Value ;
+                p.DbType = DbType.Boolean;
                 command.Parameters.Add(p);
-
-                p = command.CreateParameter();
-                p.ParameterName = "@scope_user_comment";
-                p.Value = string.IsNullOrEmpty(comment) ? (object)DBNull.Value : comment;
-                p.DbType = DbType.String;
-                command.Parameters.Add(p);
+             
 
                 ScopeInfo scopeInfo = new ScopeInfo();
                 using (DbDataReader reader = command.ExecuteReader())
@@ -217,8 +214,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                     {
                         scopeInfo.Name = reader["sync_scope_name"] as String;
                         scopeInfo.LastTimestamp = SqlManager.ParseTimestamp(reader["scope_timestamp"]);
-                        //scopeInfo.ConfigId = reader["scope_config_id"] == DBNull.Value ? Guid.Empty : (Guid)reader["scope_config_id"];
-                        //scopeInfo.UserComment = reader["scope_user_comment"] as string;
+                        scopeInfo.IsDatabaseCreated = (bool)reader["scope_database_created"];
                     }
                 }
 
@@ -293,8 +289,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                 command.CommandText =
                     @"SELECT [sync_scope_name]
                            ,[scope_timestamp]
-                           ,[scope_config_id]
-                           ,[scope_user_comment]
+                           ,[scope_database_created]
                     FROM  [scope_info]";
 
                 using (DbDataReader reader = command.ExecuteReader())
@@ -305,7 +300,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                         ScopeInfo scopeInfo = new ScopeInfo();
                         scopeInfo.Name = reader["sync_scope_name"] as String;
                         scopeInfo.LastTimestamp = SqlManager.ParseTimestamp(reader["scope_timestamp"]);
-                        //scopeInfo.ConfigId = reader["scope_config_id"] == DBNull.Value ? Guid.Empty : (Guid)reader["scope_config_id"];
+                        scopeInfo.IsDatabaseCreated = (bool)reader["scope_database_created"];
                         //scopeInfo.UserComment = reader["scope_user_comment"] as string;
                         return scopeInfo;
                     }
@@ -347,8 +342,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                 command.CommandText =
                     @"SELECT [sync_scope_name]
                            ,[scope_timestamp]
-                           ,[scope_config_id]
-                           ,[scope_user_comment]
+                           ,[scope_database_created]
                   FROM  [scope_info]
                   WHERE [sync_scope_name] = @sync_scope_name";
 
@@ -367,7 +361,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                     {
                         scopeInfo.Name = reader["sync_scope_name"] as String;
                         scopeInfo.LastTimestamp = SqlManager.ParseTimestamp(reader["scope_timestamp"]);
-                        //scopeInfo.ConfigId = reader["scope_config_id"] == DBNull.Value ? Guid.Empty : (Guid)reader["scope_config_id"];
+                        scopeInfo.IsDatabaseCreated = (bool)reader["scope_database_created"];
                         //scopeInfo.UserComment = reader["scope_user_comment"] as string;
                     }
                 }
