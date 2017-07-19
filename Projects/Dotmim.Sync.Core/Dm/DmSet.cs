@@ -24,7 +24,7 @@ namespace Dotmim.Sync.Data
         CompareOptions compareFlags;
         CultureInfo culture;
 
-        
+
         public DmSet()
         {
             this.tableCollection = new DmTableCollection(this);
@@ -123,8 +123,8 @@ namespace Dotmim.Sync.Data
         /// </summary>
         public List<DmRelation> Relations => _relationCollection;
 
-        private void ResetTables()  => Tables.Clear();
-       
+        private void ResetTables() => Tables.Clear();
+
         private void ResetRelations() => Relations.Clear();
 
         /// <summary>
@@ -142,8 +142,9 @@ namespace Dotmim.Sync.Data
         /// </summary>
         public void Clear()
         {
-            for (int i = 0; i < Tables.Count; i++)
-                Tables[i].Clear();
+            if (this.Tables != null)
+                for (int i = 0; i < Tables.Count; i++)
+                    Tables[i].Clear();
         }
 
         public virtual DmSet Clone()

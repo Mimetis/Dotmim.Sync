@@ -6,13 +6,14 @@ using System.Text;
 
 namespace Dotmim.Sync.Core.Serialization
 {
-    public class JsonConverter<T> :  BaseConverter<T>
+    public class JsonConverter<T> : BaseConverter<T>
     {
         public override T Deserialize(Stream ms)
         {
             using (StreamReader sr = new StreamReader(ms))
             {
-                return JsonConvert.DeserializeObject<T>(sr.ReadToEnd());
+                var stringObject = sr.ReadToEnd();
+                return JsonConvert.DeserializeObject<T>(stringObject);
 
             }
         }
@@ -20,11 +21,20 @@ namespace Dotmim.Sync.Core.Serialization
         public override void Serialize(T obj, Stream ms)
         {
             var serializedObjectString = JsonConvert.SerializeObject(obj);
+            StreamWriter writer = new StreamWriter(ms);
+            writer.Write(serializedObjectString);
+            
+        }
+
+        public override byte[] Serialize(T obj)
+        {
+            MemoryStream ms = new MemoryStream();
+            var serializedObjectString = JsonConvert.SerializeObject(obj);
             using (StreamWriter writer = new StreamWriter(ms))
             {
                 writer.Write(serializedObjectString);
-                writer.Flush();
             }
+            return ms.ToArray();
         }
 
     }

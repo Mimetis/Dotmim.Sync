@@ -24,5 +24,9 @@ namespace Dotmim.Sync.Core.Serialization
         {
             serializer.Serialize(obj, ms);
         }
+        public override byte[] Serialize(T obj)
+        {
+            return serializer.Serialize(obj);
+        }
     }
 }

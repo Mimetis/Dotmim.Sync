@@ -16,6 +16,7 @@ using Dotmim.Sync.Core.Builders;
 using Dotmim.Sync.SqlServer.Scope;
 using Dotmim.Sync.Core.Manager;
 using Dotmim.Sync.SqlServer.Manager;
+using Dotmim.Sync.Core.Cache;
 
 namespace Dotmim.Sync.SqlServer
 {
@@ -24,7 +25,7 @@ namespace Dotmim.Sync.SqlServer
         FileSystemBatchSerializer serializer;
         string batchFileName;
         string connectionString;
-
+  
 
         /// <summary>
         /// Set the batch filename spooler
@@ -54,6 +55,7 @@ namespace Dotmim.Sync.SqlServer
             }
         }
 
+
         /// <summary>
         /// Get the sql connection used to access the server side database
         /// </summary>
@@ -69,12 +71,24 @@ namespace Dotmim.Sync.SqlServer
             this.connectionString = connectionString;
         }
 
-        public override SyncBatchSerializer GetSerializer()
+        public override SyncBatchSerializer Serializer => serializer;
+
+        private ICache cacheManager;
+        public override ICache CacheManager
         {
-            return serializer;
+            get
+            {
+                if (cacheManager == null)
+                    cacheManager = new InMemoryCache();
+
+                return cacheManager;
+            }
+            set
+            {
+                cacheManager = value;
+
+            }
         }
-
-
 
 
         public override DbScopeBuilder GetScopeBuilder()
@@ -93,6 +107,5 @@ namespace Dotmim.Sync.SqlServer
             return new SqlManager(tableName);
         }
 
-      
     }
 }

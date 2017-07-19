@@ -82,7 +82,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.AppendLine($"CREATE NONCLUSTERED INDEX [{trackingName.UnquotedStringWithUnderScore}_timestamp_index] ON {trackingName.QuotedString} (");
             stringBuilder.AppendLine($"\t[update_timestamp] ASC");
-            stringBuilder.AppendLine($"\t,[update_scope_name] ASC");
+            stringBuilder.AppendLine($"\t,[update_scope_id] ASC");
             stringBuilder.AppendLine($"\t,[sync_row_is_tombstone] ASC");
             // Filter columns
             if (this.FilterColumns != null)
@@ -233,8 +233,8 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
 
             // adding the tracking columns
-            stringBuilder.AppendLine($"[create_scope_name] [nvarchar](100) NULL, ");
-            stringBuilder.AppendLine($"[update_scope_name] [nvarchar](100) NULL, ");
+            stringBuilder.AppendLine($"[create_scope_id] [uniqueidentifier] NULL, ");
+            stringBuilder.AppendLine($"[update_scope_id] [uniqueidentifier] NULL, ");
             stringBuilder.AppendLine($"[create_timestamp] [bigint] NULL, ");
             stringBuilder.AppendLine($"[update_timestamp] [bigint] NULL, ");
             stringBuilder.AppendLine($"[timestamp] [timestamp] NULL, ");
@@ -350,8 +350,8 @@ namespace Dotmim.Sync.SqlServer.Builders
             // (list of pkeys)
             stringBuilder.Append(string.Concat(stringBuilder1.ToString(), ", "));
 
-            stringBuilder.Append("[create_scope_name], ");
-            stringBuilder.Append("[update_scope_name], ");
+            stringBuilder.Append("[create_scope_id], ");
+            stringBuilder.Append("[update_scope_id], ");
             stringBuilder.Append("[create_timestamp], ");
             stringBuilder.Append("[update_timestamp], ");
             //stringBuilder.Append("[timestamp], "); // timestamp is not a column we update, it's auto

@@ -52,7 +52,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("UPDATE [side] ");
             stringBuilder.AppendLine("SET \t[sync_row_is_tombstone] = 1");
-            stringBuilder.AppendLine("\t,[update_scope_name] = NULL -- since the update if from local, it's a NULL");
+            stringBuilder.AppendLine("\t,[update_scope_id] = NULL -- since the update if from local, it's a NULL");
             stringBuilder.AppendLine("\t,[update_timestamp] = @@DBTS+1");
             stringBuilder.AppendLine("\t,[last_change_datetime] = GetDate()");
             // Filter columns
@@ -179,7 +179,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             return SqlBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
         }
 
-
         private string InsertTriggerBodyText(DmTable TableDescription)
         {
             (var tableName, var trackingName) = SqlBuilder.GetParsers(TableDescription);
@@ -188,7 +187,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("-- If row was deleted before, it already exists, so just make an update");
             stringBuilder.AppendLine("UPDATE [side] ");
             stringBuilder.AppendLine("SET \t[sync_row_is_tombstone] = 0");
-            stringBuilder.AppendLine("\t,[update_scope_name] = NULL -- since the update if from local, it's a NULL");
+            stringBuilder.AppendLine("\t,[update_scope_id] = NULL -- since the update if from local, it's a NULL");
             stringBuilder.AppendLine("\t,[last_change_datetime] = GetDate()");
             // Filter columns
             if (this.FilterColumns != null)
@@ -230,9 +229,9 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
 
             stringBuilder.Append(stringBuilderArguments.ToString());
-            stringBuilder.AppendLine("\t,[create_scope_name]");
+            stringBuilder.AppendLine("\t,[create_scope_id]");
             stringBuilder.AppendLine("\t,[create_timestamp]");
-            stringBuilder.AppendLine("\t,[update_scope_name]");
+            stringBuilder.AppendLine("\t,[update_scope_id]");
             stringBuilder.AppendLine("\t,[update_timestamp]");
             stringBuilder.AppendLine("\t,[sync_row_is_tombstone]");
             stringBuilder.AppendLine("\t,[last_change_datetime]");
@@ -262,7 +261,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("\t,NULL");
             stringBuilder.AppendLine("\t,@@DBTS+1");
             stringBuilder.AppendLine("\t,NULL");
-            stringBuilder.AppendLine("\t,@@DBTS+1");
+            stringBuilder.AppendLine("\t,0");
             stringBuilder.AppendLine("\t,0");
             stringBuilder.AppendLine("\t,GetDate()");
 
@@ -382,7 +381,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("UPDATE [side] ");
-            stringBuilder.AppendLine("SET \t[update_scope_name] = NULL -- since the update if from local, it's a NULL");
+            stringBuilder.AppendLine("SET \t[update_scope_id] = NULL -- since the update if from local, it's a NULL");
             stringBuilder.AppendLine("\t,[update_timestamp] = @@DBTS+1");
             stringBuilder.AppendLine("\t,[last_change_datetime] = GetDate()");
             // Filter columns

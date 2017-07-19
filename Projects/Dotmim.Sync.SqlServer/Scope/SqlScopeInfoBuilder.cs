@@ -39,10 +39,11 @@ namespace Dotmim.Sync.SqlServer.Scope
 
                 command.CommandText =
                     @"CREATE TABLE [dbo].[scope_info](
+                        [sync_scope_id] [uniqueidentifier] NOT NULL,
 	                    [sync_scope_name] [nvarchar](100) NOT NULL,
 	                    [scope_timestamp] [timestamp] NULL,
-	                    [scope_database_created] [bit] NOT NULL DEFAULT(0)
-                        CONSTRAINT [PK_scope_info] PRIMARY KEY CLUSTERED ([sync_scope_name] ASC)
+                        [scope_is_local] [bit] NOT NULL DEFAULT(0) -- , [scope_database_created] [bit] NOT NULL DEFAULT(0)
+                        CONSTRAINT [PK_scope_info] PRIMARY KEY CLUSTERED ([sync_scope_id] ASC)
                         )";
                 command.ExecuteNonQuery();
             }
@@ -62,7 +63,7 @@ namespace Dotmim.Sync.SqlServer.Scope
         }
 
 
-        public List<ScopeInfo> GetAllScopes()
+        public List<ScopeInfo> GetAllScopes(string scopeName)
         {
             var command = connection.CreateCommand();
             if (transaction != null)
@@ -77,21 +78,30 @@ namespace Dotmim.Sync.SqlServer.Scope
                     connection.Open();
 
                 command.CommandText =
-                    @"SELECT [sync_scope_name]
-                           ,[scope_timestamp]
-                           ,[scope_database_created]
-                    FROM  [scope_info]";
+                    @"SELECT [sync_scope_id]
+                           , [sync_scope_name]
+                           , [scope_timestamp]
+                           , [scope_is_local] -- , [scope_database_created]
+                    FROM  [scope_info] 
+                    WHERE [sync_scope_name] = @sync_scope_name";
+
+                var p = command.CreateParameter();
+                p.ParameterName = "@sync_scope_name";
+                p.Value = scopeName;
+                p.DbType = DbType.String;
+                command.Parameters.Add(p);
 
                 using (DbDataReader reader = command.ExecuteReader())
                 {
-
                     // read only the first one
                     while (reader.Read())
                     {
                         ScopeInfo scopeInfo = new ScopeInfo();
                         scopeInfo.Name = reader["sync_scope_name"] as String;
+                        scopeInfo.Id = (Guid)reader["sync_scope_id"];
                         scopeInfo.LastTimestamp = SqlManager.ParseTimestamp(reader["scope_timestamp"]);
-                        scopeInfo.IsDatabaseCreated = (bool)reader["scope_database_created"];
+                        //scopeInfo.IsDatabaseCreated = (bool)reader["scope_database_created"];
+                        scopeInfo.IsLocal = (bool)reader["scope_is_local"];
                         scopes.Add(scopeInfo);
                     }
                 }
@@ -100,7 +110,7 @@ namespace Dotmim.Sync.SqlServer.Scope
             }
             catch (Exception ex)
             {
-                Logger.Current.Error($"Error during ReadScopeInfo : {ex}");
+                Logger.Current.Error($"Error during GetAllScopes : {ex}");
                 throw;
             }
             finally
@@ -161,7 +171,7 @@ namespace Dotmim.Sync.SqlServer.Scope
             }
         }
 
-        public ScopeInfo InsertOrUpdateScopeInfo(string scopeName, bool? isDatabaseCreated = null)
+        public ScopeInfo InsertOrUpdateScopeInfo(ScopeInfo scopeInfo)
         {
             var command = connection.CreateCommand();
             if (transaction != null)
@@ -174,47 +184,60 @@ namespace Dotmim.Sync.SqlServer.Scope
                     connection.Open();
 
                 command.CommandText = @"
-                    MERGE [scope_info] AS [base] USING
-                    (
-	                    SELECT T.[sync_scope_name],
-		                    CASE WHEN @scope_database_created IS NULL 
-		                    THEN S.[scope_database_created] 
-		                    ELSE T.[scope_database_created] 
-		                    END AS [scope_database_created]
-	                    FROM [scope_info] S
-	                    RIGHT JOIN (SELECT @sync_scope_name AS sync_scope_name, @scope_database_created AS scope_database_created) AS T ON T.sync_scope_name = S.sync_scope_name
-	                    WHERE T.[sync_scope_name] = @sync_scope_name
-                    ) 
-                    AS [changes] ON [base].[sync_scope_name] = [changes].[sync_scope_name]
+                    MERGE [scope_info] AS [base] 
+                    USING (
+	                           SELECT  @sync_scope_name AS sync_scope_name,  
+                                       @sync_scope_id AS sync_scope_id,  
+                                       @scope_is_local as scope_is_local --,@scope_database_created AS scope_database_created
+                           ) AS [changes] 
+                    ON [base].[sync_scope_name] = [changes].[sync_scope_name] AND [base].[sync_scope_id] = [changes].[sync_scope_id]
                     WHEN NOT MATCHED THEN
-	                    INSERT ([sync_scope_name])
-	                    VALUES ([changes].[sync_scope_name])
+	                    INSERT ([sync_scope_name], [sync_scope_id], [scope_is_local]) --, [scope_database_created])
+	                    VALUES ([changes].[sync_scope_name], [changes].[sync_scope_id], [changes].[scope_is_local]) --, [changes].[scope_database_created])
                     WHEN MATCHED THEN
-	                    UPDATE SET [sync_scope_name] = [changes].[sync_scope_name], [scope_database_created] = [changes].[scope_database_created]
-                    OUTPUT INSERTED.[sync_scope_name], INSERTED.[scope_timestamp], INSERTED.[scope_database_created];
+	                    UPDATE SET [sync_scope_name] = [changes].[sync_scope_name], 
+                                   [sync_scope_id] = [changes].[sync_scope_id], 
+                                   [scope_is_local] = [changes].[scope_is_local] --, [scope_database_created] = [changes].[scope_database_created]
+                    OUTPUT  INSERTED.[sync_scope_name], 
+                            INSERTED.[sync_scope_id], 
+                            INSERTED.[scope_timestamp], 
+                            INSERTED.[scope_is_local]; --,INSERTED.[scope_database_created];
                 ";
 
                 var p = command.CreateParameter();
                 p.ParameterName = "@sync_scope_name";
-                p.Value = scopeName;
+                p.Value = scopeInfo.Name;
                 p.DbType = DbType.String;
                 command.Parameters.Add(p);
 
                 p = command.CreateParameter();
-                p.ParameterName = "@scope_database_created";
-                p.Value = isDatabaseCreated.HasValue ? (object)isDatabaseCreated : DBNull.Value ;
+                p.ParameterName = "@sync_scope_id";
+                p.Value = scopeInfo.Id;
+                p.DbType = DbType.Guid;
+                command.Parameters.Add(p);
+
+                p = command.CreateParameter();
+                p.ParameterName = "@scope_is_local";
+                p.Value = scopeInfo.IsLocal;
                 p.DbType = DbType.Boolean;
                 command.Parameters.Add(p);
-             
 
-                ScopeInfo scopeInfo = new ScopeInfo();
+                //p = command.CreateParameter();
+                //p.ParameterName = "@scope_database_created";
+                //p.Value = scopeInfo.IsDatabaseCreated;
+                //p.DbType = DbType.Boolean;
+                //command.Parameters.Add(p);
+             
+                
                 using (DbDataReader reader = command.ExecuteReader())
                 {
                     while (reader.Read())
                     {
                         scopeInfo.Name = reader["sync_scope_name"] as String;
+                        scopeInfo.Id = (Guid)reader["sync_scope_Id"];
                         scopeInfo.LastTimestamp = SqlManager.ParseTimestamp(reader["scope_timestamp"]);
-                        scopeInfo.IsDatabaseCreated = (bool)reader["scope_database_created"];
+                        scopeInfo.IsLocal = (bool)reader["scope_is_local"];
+                        //scopeInfo.IsDatabaseCreated = (bool)reader["scope_database_created"];
                     }
                 }
 
@@ -274,116 +297,7 @@ namespace Dotmim.Sync.SqlServer.Scope
             }
         }
 
-        public ScopeInfo ReadFirstScopeInfo()
-        {
-            var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
-
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-            try
-            {
-                if (!alreadyOpened)
-                    connection.Open();
-
-                command.CommandText =
-                    @"SELECT [sync_scope_name]
-                           ,[scope_timestamp]
-                           ,[scope_database_created]
-                    FROM  [scope_info]";
-
-                using (DbDataReader reader = command.ExecuteReader())
-                {
-                    // read only the first one
-                    if (reader.Read())
-                    {
-                        ScopeInfo scopeInfo = new ScopeInfo();
-                        scopeInfo.Name = reader["sync_scope_name"] as String;
-                        scopeInfo.LastTimestamp = SqlManager.ParseTimestamp(reader["scope_timestamp"]);
-                        scopeInfo.IsDatabaseCreated = (bool)reader["scope_database_created"];
-                        //scopeInfo.UserComment = reader["scope_user_comment"] as string;
-                        return scopeInfo;
-                    }
-                }
-
-                return null;
-            }
-            catch (Exception ex)
-            {
-                Logger.Current.Error($"Error during ReadScopeInfo : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-                if (command != null)
-                    command.Dispose();
-            }
-
-        }
-
-
-        public ScopeInfo ReadScopeInfo(string scopeName)
-        {
-            var command = connection.CreateCommand();
-
-            if (transaction != null)
-                command.Transaction = transaction;
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            try
-            {
-
-                if (!alreadyOpened)
-                    connection.Open();
-
-                command.CommandText =
-                    @"SELECT [sync_scope_name]
-                           ,[scope_timestamp]
-                           ,[scope_database_created]
-                  FROM  [scope_info]
-                  WHERE [sync_scope_name] = @sync_scope_name";
-
-                var p = command.CreateParameter();
-                p.ParameterName = "@sync_scope_name";
-                p.Value = scopeName;
-                command.Parameters.Add(p);
-
-                ScopeInfo scopeInfo = new ScopeInfo();
-                using (DbDataReader reader = command.ExecuteReader())
-                {
-                    if (!reader.HasRows)
-                        return null;
-
-                    while (reader.Read())
-                    {
-                        scopeInfo.Name = reader["sync_scope_name"] as String;
-                        scopeInfo.LastTimestamp = SqlManager.ParseTimestamp(reader["scope_timestamp"]);
-                        scopeInfo.IsDatabaseCreated = (bool)reader["scope_database_created"];
-                        //scopeInfo.UserComment = reader["scope_user_comment"] as string;
-                    }
-                }
-                return scopeInfo;
-            }
-            catch (Exception ex)
-            {
-                Logger.Current.Error($"Error during ReadScopeInfo : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-                if (command != null)
-                    command.Dispose();
-            }
-
-        }
-
-
+       
 
     }
 }

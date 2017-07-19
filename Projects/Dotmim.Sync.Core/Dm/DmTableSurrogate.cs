@@ -4,6 +4,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
@@ -44,12 +45,12 @@ namespace Dotmim.Sync.Data.Surrogate
         /// <summary>
         /// Gets an array of DmColumnSurrogate objects that comprise the table that is represented by the DmTableSurrogate object.
         /// </summary>
-        public DmColumnSurrogate[] DmColumnSurrogates { get; set; }
+        public List<DmColumnSurrogate> Columns { get; set; } = new List<DmColumnSurrogate>();
 
         /// <summary>
         /// Gets an array of DmColumnSurrogate objects that represent the PrimaryKeys.
         /// </summary>
-        public string[] DmPrimaryKeySurrogates { get; set; }
+        public List<string> PrimaryKeys { get; set; } = new List<string>();
 
         /// <summary>Gets an array of objects that represent the columns and rows of dm in the <see cref="T:Microsoft.Synchronization.Dm.DmTableSurrogate" /> object.</summary>
         public Dictionary<int, List<object>> Records { get; set; }
@@ -61,6 +62,8 @@ namespace Dotmim.Sync.Data.Surrogate
             bytesLength += 1L; // CasSensitive
             bytesLength += String.IsNullOrEmpty(Prefix) ? 1L : Encoding.UTF8.GetBytes(Prefix).Length;
             bytesLength += String.IsNullOrEmpty(TableName) ? 1L : Encoding.UTF8.GetBytes(TableName).Length;
+
+            // TODO : Potentially error in bytes length calcul
             bytesLength += Encoding.UTF8.GetBytes(this.GetType().GetAssemblyQualifiedName()).Length; // Type
 
             return bytesLength;
@@ -88,18 +91,14 @@ namespace Dotmim.Sync.Data.Surrogate
             this.CaseSensitive = dt.CaseSensitive;
             this.Prefix = dt.Prefix;
 
-            // Create the columns
-            this.DmColumnSurrogates = new DmColumnSurrogate[dt.Columns.Count];
-
             for (int i = 0; i < dt.Columns.Count; i++)
-                this.DmColumnSurrogates[i] = new DmColumnSurrogate(dt.Columns[i]);
+                this.Columns.Add(new DmColumnSurrogate(dt.Columns[i]));
 
             // Primary Keys
             if (dt.PrimaryKey != null && dt.PrimaryKey.Columns != null && dt.PrimaryKey.Columns.Length > 0)
             {
-                this.DmPrimaryKeySurrogates = new String[dt.PrimaryKey.Columns.Length];
                 for (int i = 0; i < dt.PrimaryKey.Columns.Length; i++)
-                    this.DmPrimaryKeySurrogates[i] = dt.PrimaryKey.Columns[i].ColumnName;
+                    this.PrimaryKeys.Add(dt.PrimaryKey.Columns[i].ColumnName);
             }
 
             // Fill the rows
@@ -136,19 +135,19 @@ namespace Dotmim.Sync.Data.Surrogate
             dt.Prefix = this.Prefix;
             dt.CaseSensitive = this.CaseSensitive;
 
-            for (int i = 0; i < this.DmColumnSurrogates.Length; i++)
+            for (int i = 0; i < this.Columns.Count; i++)
             {
-                DmColumn dmColumn = ((DmColumnSurrogate)this.DmColumnSurrogates[i]).ConvertToDmColumn();
+                DmColumn dmColumn = this.Columns[i].ConvertToDmColumn();
                 dt.Columns.Add(dmColumn);
             }
 
-            if (this.DmPrimaryKeySurrogates != null && this.DmPrimaryKeySurrogates.Length > 0)
+            if (this.PrimaryKeys != null && this.PrimaryKeys.Count > 0)
             {
-                DmColumn[] keyColumns = new DmColumn[this.DmPrimaryKeySurrogates.Length];
+                DmColumn[] keyColumns = new DmColumn[this.PrimaryKeys.Count];
 
-                for (int i = 0; i < this.DmPrimaryKeySurrogates.Length; i++)
+                for (int i = 0; i < this.PrimaryKeys.Count; i++)
                 {
-                    string columnName = this.DmPrimaryKeySurrogates[i];
+                    string columnName = this.PrimaryKeys[i];
                     keyColumns[i] = dt.Columns.First(c => dt.IsEqual(c.ColumnName, columnName));
                 }
 
@@ -188,23 +187,71 @@ namespace Dotmim.Sync.Data.Surrogate
 
             dmRow.BeginEdit();
 
-            if (rowState == DmRowState.Deleted)
+            for (int i = 0; i < count; i++)
             {
-                // we are in a deleted state, so we have only primary keys available
-                for (int i = 0; i < count; i++)
+                object dmRowObject = this.Records[i][bitIndex];
+
+                // Sometimes, a serializer could potentially serialize type into string
+                // For example JSON.Net will serialize GUID into STRING
+                // So we try to deserialize in correct type
+                if (dmRowObject != null)
                 {
-                    // since some columns might be not null (and we have null because the row is deleted)
-                    if (this.Records[i][bitIndex] != null)
-                        dmRow[i] = this.Records[i][bitIndex];
+                    var columnType = dt.Columns[i].DataType;
+
+                    if (columnType == typeof(Guid) && (dmRowObject as string) != null)
+                    {
+                        dmRowObject = new Guid(dmRowObject.ToString());
+                    }
+                    else if (columnType == typeof(Int32) && dmRowObject.GetType() != typeof(Int32))
+                    {
+                        dmRowObject = Convert.ToInt32(dmRowObject);
+                    }
+                    else if (columnType == typeof(Int16) && dmRowObject.GetType() != typeof(Int16))
+                    {
+                        dmRowObject = Convert.ToInt16(dmRowObject);
+                    }
+                    else if (dmRowObject.GetType() != columnType)
+                    {
+                        Debug.WriteLine($"Can't convert serialized value {dmRowObject.ToString()} to {columnType}");
+
+                        var t = dmRowObject.GetType();
+                        var converter = columnType.GetConverter();
+                        if (converter.CanConvertFrom(t))
+                            dmRowObject = converter.ConvertFrom(dmRowObject);
+                        else
+                            dmRowObject = Convert.ChangeType(dmRowObject, columnType, CultureInfo.InvariantCulture);
+                    }
                 }
 
+                if (rowState == DmRowState.Deleted)
+                {
+                    // Since some columns might be not null (and we have null because the row is deleted)
+                    if (this.Records[i][bitIndex] != null)
+                        dmRow[i] = dmRowObject;
+                }
+                else
+                {
+                    dmRow[i] = dmRowObject;
+                }
             }
-            else
-            {
-                for (int i = 0; i < count; i++)
-                    dmRow[i] = this.Records[i][bitIndex];
 
-            }
+            //if (rowState == DmRowState.Deleted)
+            //{
+            //    // we are in a deleted state, so we have only primary keys available
+            //    for (int i = 0; i < count; i++)
+            //    {
+            //        // since some columns might be not null (and we have null because the row is deleted)
+            //        if (this.Records[i][bitIndex] != null)
+            //            dmRow[i] = this.Records[i][bitIndex];
+            //    }
+
+            //}
+            //else
+            //{
+            //    for (int i = 0; i < count; i++)
+            //        dmRow[i] = this.Records[i][bitIndex];
+
+            //}
 
             dt.Rows.Add(dmRow);
 
@@ -342,12 +389,31 @@ namespace Dotmim.Sync.Data.Surrogate
 
         protected virtual void Dispose(bool cleanup)
         {
-            foreach (var d in this.Records)
-                d.Value.Clear();
-            this.Records = null;
-            this.DmColumnSurrogates = null;
+            this.Clear();
         }
 
+        public void Clear()
+        {
+            if (this.Records != null)
+            {
+                foreach (var d in this.Records)
+                    d.Value.Clear();
+
+                this.Records.Clear();
+                this.Records = null;
+            }
+            if (this.PrimaryKeys != null)
+            {
+                this.PrimaryKeys.Clear();
+                this.PrimaryKeys = null;
+            }
+
+            if (this.Columns != null)
+            {
+                this.Columns.Clear();
+                this.Columns = null;
+            }
+        }
 
 
 

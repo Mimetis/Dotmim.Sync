@@ -14,7 +14,6 @@ namespace Dotmim.Sync.Core.Batch
     /// </summary>
     public class BatchPart
     {
-
         /// <summary>
         /// get the DmSetSurrogate associated with this batch part
         /// </summary>
@@ -30,33 +29,33 @@ namespace Dotmim.Sync.Core.Batch
 
             BatchPart bp = new BatchPart();
 
+            //TODO : Should we use the serializer from the user ?
             using (FileStream fs = new FileStream(fileName, FileMode.Open, FileAccess.Read))
             {
                 DmSerializer serializer = new DmSerializer();
-                bp = serializer.Deserialize<BatchPart>(fs);
+                bp.DmSetSurrogate = serializer.Deserialize<DmSetSurrogate>(fs);
             }
 
             return bp;
         }
 
-        /// <summary>
-        /// Create a new batch part with an existing DmSet
-        /// </summary>
-        public static void Serialize(DmSet set, string fileName)
+
+        public static void Serialize(DmSetSurrogate set, string fileName)
         {
-            using (DmSetSurrogate dss = new DmSetSurrogate(set))
+            DmSerializer serializer = new DmSerializer();
+
+            FileInfo fi = new FileInfo(fileName);
+
+            if (!Directory.Exists(fi.Directory.FullName))
+                Directory.CreateDirectory(fi.Directory.FullName);
+
+            // Serialize on disk.
+            using (var f = new FileStream(fileName, FileMode.CreateNew, FileAccess.ReadWrite))
             {
-                BatchPart bp = new BatchPart();
-                bp.DmSetSurrogate = new DmSetSurrogate(set);
-                DmSerializer serializer = new DmSerializer();
-                // Serialize on disk.
-                using (var f = new FileStream(fileName, FileMode.CreateNew, FileAccess.ReadWrite))
-                {
-                    serializer.Serialize(bp, typeof(BatchPart), f);
-                }
-                bp.Clear();
+                serializer.Serialize(set, f);
             }
         }
+
 
         /// <summary>
         /// Initializing a BatchPart with an existing file

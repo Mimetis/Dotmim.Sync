@@ -1,6 +1,8 @@
 ﻿using Dotmim.Sync.Data;
+using Dotmim.Sync.Data.Surrogate;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace Dotmim.Sync.Core.Batch
@@ -25,12 +27,12 @@ namespace Dotmim.Sync.Core.Batch
 
             return batch;
         }
+
         public String FileName { get; set; }
 
         public int Index { get; set; }
 
         public Boolean IsLastBatch { get; set; }
-
 
         /// <summary>
         /// Tables contained in the DmSet (serialiazed or not)
@@ -42,28 +44,105 @@ namespace Dotmim.Sync.Core.Batch
         /// </summary>
         public DmSet Set { get; set; }
 
-        public bool InMemory { get; set; }
 
-        /// <summary>
-        /// Initializing a BatchPartInfo with an existing file
-        /// So it's a serialized batch
-        /// </summary>
-        public BatchPartInfo(string fileName)
+        internal BatchPartInfo()
         {
-            this.FileName = fileName;
-            this.InMemory = true;
         }
 
+        /// <summary>
+        /// Deserialize the BPI WITHOUT the DmSet
+        /// </summary>
+        public static BatchPartInfo DeserializeFromDmSet(DmSet set)
+        {
+            if (set == null)
+                return null;
+
+            if (!set.Tables.Contains("DotmimSync__BatchPartsInfo"))
+                return null;
+
+            var dmRow = set.Tables["DotmimSync__BatchPartsInfo"].Rows[0];
+
+            var bpi = new BatchPartInfo();
+            bpi.Index = (int)dmRow["Index"];
+            bpi.FileName = dmRow["FileName"] as string;
+            bpi.IsLastBatch = (Boolean)dmRow["IsLastBatch"];
+
+            if (dmRow["Tables"] != null)
+            {
+                var stringTables = dmRow["Tables"] as string;
+                var tables = stringTables.Split(new char[] { '|' }, StringSplitOptions.RemoveEmptyEntries);
+                bpi.Tables = tables;
+            }
+
+            return bpi;
+        }
 
         /// <summary>
-        /// Initializing a BatchPart with an existing DmSet
-        /// So it's an in memory batch
+        /// Serialize the BatchPartInfo WITHOUT the DmSet
         /// </summary>
-        public BatchPartInfo(DmSet set)
+        internal static void SerializeInDmSet(DmSet set, BatchPartInfo bpi)
         {
-            // no need of a batch here since we are in memory
-            this.Set = set;
-            this.InMemory = false;
+            if (set == null)
+                return;
+
+            DmTable dmTableBatchPartsInfo = null;
+
+            if (!set.Tables.Contains("DotmimSync__BatchPartsInfo"))
+            {
+                dmTableBatchPartsInfo = new DmTable("DotmimSync__BatchPartsInfo");
+                set.Tables.Add(dmTableBatchPartsInfo);
+            }
+
+            dmTableBatchPartsInfo = set.Tables["DotmimSync__BatchPartsInfo"];
+
+            dmTableBatchPartsInfo.Columns.Add<String>("FileName");
+            dmTableBatchPartsInfo.Columns.Add<int>("Index");
+            dmTableBatchPartsInfo.Columns.Add<Boolean>("IsLastBatch");
+            dmTableBatchPartsInfo.Columns.Add<String>("Tables");
+
+            var dmRow = dmTableBatchPartsInfo.NewRow();
+            dmRow["FileName"] = bpi.FileName;
+            dmRow["Index"] = bpi.Index;
+            dmRow["IsLastBatch"] = bpi.IsLastBatch;
+
+            if (bpi.Tables != null && bpi.Tables.Length > 0)
+            {
+                var tablesString = String.Join("|", bpi.Tables);
+                dmRow["Tables"] = tablesString;
+            }
+
+            dmTableBatchPartsInfo.Rows.Add(dmRow);
+
+        }
+
+        /// <summary>
+        /// Create a new BPI, and serialize the changeset if not in memory
+        /// </summary>
+        internal static BatchPartInfo CreateBatchPartInfo(int batchIndex, DmSet changesSet, string fileName, Boolean isLastBatch, Boolean inMemory)
+        {
+            BatchPartInfo bpi = null;
+
+            // Create a batch part
+            // The batch part creation process will serialize the changesSet to the disk
+            if (!inMemory)
+            {
+                // Serialize the file !
+                BatchPart.Serialize(new DmSetSurrogate(changesSet), fileName);
+
+                bpi = new BatchPartInfo { FileName = fileName };
+            }
+            else
+            {
+                bpi = new BatchPartInfo { Set = changesSet };
+            }
+
+            bpi.Index = batchIndex;
+            bpi.IsLastBatch = isLastBatch;
+
+            // Even if the set is empty (serialized on disk), we should retain the tables names
+            bpi.Tables = changesSet.Tables.Select(t => t.TableName).ToArray();
+
+            return bpi;
         }
 
     }

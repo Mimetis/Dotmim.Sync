@@ -156,7 +156,7 @@ namespace Dotmim.Sync.SqlServer.Scope
         //        command.CommandText = GetScopeConfigExistCommand();
 
         //        var p = command.CreateParameter();
-        //        p.ParameterName = "@sync_scope_name";
+        //        p.ParameterName = "@sync_scope_id";
         //        p.DbType = DbType.String;
         //        p.Value = scopeName;
         //        command.Parameters.Add(p);
@@ -296,9 +296,9 @@ namespace Dotmim.Sync.SqlServer.Scope
         //                    JOIN sys.schemas s ON s.schema_id = t.schema_id 
         //                    WHERE t.name = N'scope_config')
         //             BEGIN
-        //                IF EXISTS (SELECT si.[sync_scope_name]
+        //                IF EXISTS (SELECT si.[sync_scope_id]
         //                            FROM [scope_info] si INNER JOIN [scope_config] sc on si.[scope_config_id] = sc.[config_id]
-        //                            where si.[sync_scope_name] = @sync_scope_name)
+        //                            where si.[sync_scope_id] = @sync_scope_id)
         //                SELECT 1 
         //                ELSE
         //                SELECT 0

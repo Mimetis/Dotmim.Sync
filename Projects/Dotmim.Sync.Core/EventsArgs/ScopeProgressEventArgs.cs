@@ -39,9 +39,9 @@ namespace Dotmim.Sync.Core
         public ChangeApplicationAction Action { get; set; }
 
         /// <summary>
-        /// Current sync progress stage
+        /// Current sync context
         /// </summary>
-        public SyncStage Stage { get; internal set; }
+        public SyncContext Context { get; internal set; }
 
         /// <summary>
         /// Get the changes selected to be applied

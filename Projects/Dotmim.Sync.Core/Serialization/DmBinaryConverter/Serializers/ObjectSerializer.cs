@@ -12,39 +12,53 @@ namespace DmBinaryFormatter.Serializers
 
         public override void Serialize(DmSerializer dmSerializer, object obj, Type objType)
         {
-            // Get the serialized members
-            var members = DmUtils.GetMembers(objType);
+            var currentType = objType;
 
-            //var ctorParameters = objType.GetConstructorParameters(true);
-            //if (ctorParameters != null)
-            //    members = DmUtils.GetMembersOrderedByParametersForConstructor(members, ctorParameters);
-
-            foreach (MemberInfo member in members)
+            while (currentType != null && currentType != typeof(Object))
             {
-                object memberValue = member.GetValue(obj);
-                var memberType = member.GetMemberType();
+                // Get the serialized members
+                var members = DmUtils.GetMembers(currentType);
 
-                dmSerializer.Serialize(memberValue, memberType);
+                //var ctorParameters = objType.GetConstructorParameters(true);
+                //if (ctorParameters != null)
+                //    members = DmUtils.GetMembersOrderedByParametersForConstructor(members, ctorParameters);
+
+                foreach (MemberInfo member in members)
+                {
+                    object memberValue = member.GetValue(obj);
+                    var memberType = member.GetMemberType();
+
+                    dmSerializer.Serialize(memberValue, memberType);
+                }
+
+                currentType = currentType.GetTypeInfo().BaseType;
             }
-
         }
 
         public override object Deserialize(DmSerializer dmSerializer, Type objType, bool isDebugMode = false)
         {
+
             Object instance = objType.CreateInstance();
-            List<MemberInfo> members = DmUtils.GetMembers(objType);
 
-            var membersValue = new object[members.Count];
+            var currentType = objType;
 
-            for (int i = 0; i < members.Count; i++)
+            while (currentType != null && currentType != typeof(Object))
+
             {
-                var member = members[i];
-                var memberValue = dmSerializer.GetObject(isDebugMode);
-     
-                if (memberValue != null)
-                    member.SetValue(instance, memberValue);
-            }
+                List<MemberInfo> members = DmUtils.GetMembers(currentType);
 
+                var membersValue = new object[members.Count];
+
+                for (int i = 0; i < members.Count; i++)
+                {
+                    var member = members[i];
+                    var memberValue = dmSerializer.GetObject(isDebugMode);
+
+                    if (memberValue != null)
+                        member.SetValue(instance, memberValue);
+                }
+                currentType = currentType.GetTypeInfo().BaseType;
+            }
 
             return instance;
         }

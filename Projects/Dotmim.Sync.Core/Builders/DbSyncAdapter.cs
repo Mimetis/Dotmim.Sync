@@ -117,7 +117,7 @@ namespace Dotmim.Sync.Core.Builders
             // Set the id parameter
             this.SetColumnParameters(command, row);
 
-            DbManager.SetParameterValue(command, "sync_scope_name", scope.Name);
+            DbManager.SetParameterValue(command, "sync_scope_id", scope.Id);
             DbManager.SetParameterValue(command, "sync_row_is_tombstone", row.RowState == DmRowState.Deleted ? 1 : 0);
             DbManager.SetParameterValue(command, "create_timestamp", scope.LastTimestamp);
             DbManager.SetParameterValue(command, "update_timestamp", scope.LastTimestamp);
@@ -531,8 +531,8 @@ namespace Dotmim.Sync.Core.Builders
                 }
                 else
                 {
-                    var isLocallyCreated = destinationRow["create_scope_name"] == DBNull.Value;
-                    var islocallyUpdated = destinationRow["update_scope_name"] == DBNull.Value;
+                    var isLocallyCreated = destinationRow["create_scope_id"] == DBNull.Value;
+                    var islocallyUpdated = destinationRow["update_scope_id"] == DBNull.Value;
 
                     if (applyType == DmRowState.Added && islocallyUpdated)
                         dbConflictType = ConflictType.LocalUpdateRemoteInsert;

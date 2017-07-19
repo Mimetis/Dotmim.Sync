@@ -12,7 +12,6 @@ namespace Dotmim.Sync.Data.Surrogate
     [Serializable]
     public class DmColumnSurrogate
     {
-
         /// <summary>Gets or sets the name of the column that the DmColumnSurrogate object represents.</summary>
         public string ColumnName { get; set; }
         public int DbType { get; set; }
@@ -29,7 +28,7 @@ namespace Dotmim.Sync.Data.Surrogate
         /// <summary>
         /// Gets or sets the dm type of the column that the DmColumnSurrogate object represents.
         /// </summary>
-        public Type DataType { get; set; }
+        public String DataType { get; set; }
         internal bool dbTypeAllowed;
 
         /// <summary>
@@ -57,7 +56,7 @@ namespace Dotmim.Sync.Data.Surrogate
             bytesLength += 1L; // Precision
             bytesLength += 1L; // Scale
             bytesLength += 1L; // dbTypeAllowed
-            bytesLength += Encoding.UTF8.GetBytes(DataType.GetAssemblyQualifiedName()).Length; //Type
+            bytesLength += Encoding.UTF8.GetBytes(DataType).Length; //Type
 
             bytesLength += Encoding.UTF8.GetBytes(this.GetType().GetAssemblyQualifiedName()).Length; // Type
 
@@ -86,7 +85,7 @@ namespace Dotmim.Sync.Data.Surrogate
             this.Scale = dc.Scale;
             this.ScaleSpecified = dc.ScaleSpecified;
             this.Unique = dc.Unique;
-            this.DataType = dc.DataType;
+            this.DataType = dc.DataType.GetAssemblyQualifiedName();
             this.Ordinal = dc.Ordinal;
         }
 
@@ -95,7 +94,7 @@ namespace Dotmim.Sync.Data.Surrogate
         /// </summary>
         public DmColumn ConvertToDmColumn()
         {
-            DmColumn dmColumn = DmColumn.CreateColumn(this.ColumnName, this.DataType);
+            DmColumn dmColumn = DmColumn.CreateColumn(this.ColumnName, DmUtils.GetTypeFromAssemblyQualifiedName(this.DataType));
 
             dmColumn.dbTypeAllowed = this.dbTypeAllowed;
             if (dmColumn.dbTypeAllowed)

@@ -34,6 +34,8 @@ namespace DmBinaryFormatter
         {
             List<MemberInfo> targetMembers = new List<MemberInfo>();
 
+            var s = type.GetBaseType().GetFields(flags);
+
             targetMembers.AddRange(type.GetFields(flags));
 
             // Dont add Properties since they are methods

@@ -10,10 +10,10 @@ namespace Dotmim.Sync.Core.Scope
     {
         bool NeedToCreateScopeInfoTable();
         void CreateScopeInfoTable();
-        ScopeInfo ReadFirstScopeInfo();
-        ScopeInfo ReadScopeInfo(string scopeName);
-        List<ScopeInfo> GetAllScopes();
-        ScopeInfo InsertOrUpdateScopeInfo(string scopeName, bool? isDatabaseCreated = null);
+        //ScopeInfo ReadFirstScopeInfo();
+        //ScopeInfo ReadScopeInfo(string scopeName);
+        List<ScopeInfo> GetAllScopes(string scopeName);
+        ScopeInfo InsertOrUpdateScopeInfo(ScopeInfo scopeInfo);
         long GetLocalTimestamp();
     }
 }

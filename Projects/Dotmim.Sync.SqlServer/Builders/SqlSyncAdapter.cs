@@ -113,7 +113,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             ((SqlParameterCollection)cmd.Parameters)["@changeTable"].TypeName = string.Empty;
             ((SqlParameterCollection)cmd.Parameters)["@changeTable"].Value = records;
-            ((SqlParameterCollection)cmd.Parameters)["@sync_scope_name"].Value = scope.Name;
+            ((SqlParameterCollection)cmd.Parameters)["@sync_scope_id"].Value = scope.Id;
             ((SqlParameterCollection)cmd.Parameters)["@sync_min_timestamp"].Value = scope.LastTimestamp;
 
             bool alreadyOpened = this.connection.State == ConnectionState.Open;

@@ -1,4 +1,5 @@
-﻿using Dotmim.Sync.Core.Builders;
+﻿using Dotmim.Sync.Core.Batch;
+using Dotmim.Sync.Core.Builders;
 using Dotmim.Sync.Core.Context;
 using Dotmim.Sync.Core.Scope;
 using Dotmim.Sync.Data;
@@ -23,8 +24,7 @@ namespace Dotmim.Sync.Core
     {
 
         string scopeName;
-        private IResponseHandler clientProvider;
-        private IResponseHandler serverProvider;
+        ServiceConfiguration serviceConfiguration;
 
         /// <summary>
         /// Defines the state that a synchronization session is in.
@@ -97,7 +97,7 @@ namespace Dotmim.Sync.Core
             if (remoteCoreProvider == null)
                 throw new ArgumentException("Since the remote provider is a web proxy, you have to configure the server side");
 
-            remoteCoreProvider.Configuration = new ServiceConfiguration(tables);
+            this.serviceConfiguration = new ServiceConfiguration(tables);
         }
 
         /// <summary>
@@ -127,7 +127,7 @@ namespace Dotmim.Sync.Core
             if (remoteCoreProvider == null)
                 throw new ArgumentException("Since the remote provider is a web proxy, you have to configure the server side");
 
-            remoteCoreProvider.Configuration = configuration;
+            this.serviceConfiguration = configuration;
 
         }
 
@@ -143,10 +143,15 @@ namespace Dotmim.Sync.Core
 
 
 
+        public async Task<SyncContext> SynchronizeAsync()
+        {
+            return await this.SynchronizeAsync(CancellationToken.None);
+        }
+
         /// <summary>
         /// Main action : Launch the synchronization
         /// </summary>
-        public SyncContext SynchronizeAsync()
+        public async Task<SyncContext> SynchronizeAsync(CancellationToken cancellationToken)
         {
             if (string.IsNullOrEmpty(this.scopeName))
                 throw new Exception("Scope Name is mandatory");
@@ -159,98 +164,142 @@ namespace Dotmim.Sync.Core
             this.SessionState = SyncSessionState.Synchronizing;
             this.SessionStateChanged?.Invoke(this, this.SessionState);
             ScopeInfo localScopeInfo = null, serverScopeInfo = null, serverLocalScopeReferenceInfo = null;
+
+            
             try
             {
+                if (cancellationToken.IsCancellationRequested)
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                // Setting the cancellation token
+                this.LocalProvider.SetCancellationToken(cancellationToken);
+                this.RemoteProvider.SetCancellationToken(cancellationToken);
+
                 // Begin Session / Read the adapters
-                this.RemoteProvider.BeginSession();
-                this.LocalProvider.BeginSession();
+                context = await this.RemoteProvider.BeginSessionAsync(context);
+                context = await this.LocalProvider.BeginSessionAsync(context);
 
                 // ----------------------------------------
                 // 1) Read scope info
                 // ----------------------------------------
-                // Ensures local scopes are created fo both provieders
-                (serverScopeInfo, localScopeInfo) = this.LocalProvider.EnsureScopes(scopeName);
 
-                (serverScopeInfo, serverLocalScopeReferenceInfo) = this.RemoteProvider.EnsureScopes(scopeName, localScopeInfo.Name);
+                // get the scope from local provider 
+                List<ScopeInfo> localScopes;
+                List<ScopeInfo> serverScopes;
+                (context,  localScopes) = await this.LocalProvider.EnsureScopesAsync(context, scopeName);
+                if (localScopes.Count != 1)
+                    throw new Exception("On Local provider, we should have only one scope info");
 
-                // set the correct ScopeInfo to localProvider since the ServerScope is not the good one
-                ((CoreProvider)this.LocalProvider).ServerScopeInfo = serverScopeInfo;
+                localScopeInfo = localScopes[0];
+
+                (context, serverScopes) = await this.RemoteProvider.EnsureScopesAsync(context, scopeName, localScopeInfo.Id);
+
+                if (serverScopes.Count != 2)
+                    throw new Exception("On Remote provider, we should have two scopes (one for server and one for client side)");
+
+                serverScopeInfo = serverScopes.First(s => s.Id != localScopeInfo.Id);
+                serverLocalScopeReferenceInfo = serverScopes.First(s => s.Id == localScopeInfo.Id);
 
                 // ----------------------------------------
                 // 2) Build Configuration Object
                 // ----------------------------------------
 
-                // Applying Configuration on remote provider
-                // Actually should take the remote configuration already available on the remote machine
-                this.RemoteProvider.ApplyConfiguration();
-
                 // Get Configuration from remote provider
-                ServiceConfiguration configuration = this.RemoteProvider.GetConfiguration();
+                (context, this.serviceConfiguration) = await this.RemoteProvider.EnsureConfigurationAsync(context, this.serviceConfiguration);
 
                 // Invert policy on the client
-                var configurationLocale = configuration.Clone();
-                var policy = configuration.ConflictResolutionPolicy;
+                var configurationLocale = this.serviceConfiguration.Clone();
+                var policy = this.serviceConfiguration.ConflictResolutionPolicy;
                 if (policy == ConflictResolutionPolicy.ServerWins)
                     configurationLocale.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
                 if (policy == ConflictResolutionPolicy.ClientWins)
                     configurationLocale.ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
 
                 // Apply on local Provider
-                this.LocalProvider.ApplyConfiguration(configurationLocale);
+                ServiceConfiguration configuration;
+                (context, configuration) = await this.LocalProvider.EnsureConfigurationAsync(context, configurationLocale);
 
                 // ----------------------------------------
                 // 3) Ensure databases are ready
                 // ----------------------------------------
 
                 // Server should have already the schema
-                this.RemoteProvider.EnsureDatabase(DbBuilderOption.CreateOrUseExistingSchema | DbBuilderOption.CreateOrUseExistingTrackingTables);
+                context = await this.RemoteProvider.EnsureDatabaseAsync(context, serverScopeInfo, DbBuilderOption.CreateOrUseExistingSchema | DbBuilderOption.CreateOrUseExistingTrackingTables);
 
                 // Client could have, or not, the tables
-                this.LocalProvider.EnsureDatabase(DbBuilderOption.CreateOrUseExistingSchema | DbBuilderOption.CreateOrUseExistingTrackingTables);
+                context = await this.LocalProvider.EnsureDatabaseAsync(context, localScopeInfo, DbBuilderOption.CreateOrUseExistingSchema | DbBuilderOption.CreateOrUseExistingTrackingTables);
 
                 // ----------------------------------------
                 // 5) Get changes and apply them
                 // ----------------------------------------
-                var clientBatchInfo = this.LocalProvider.GetChangeBatch();
+                BatchInfo clientBatchInfo;
+                BatchInfo serverBatchInfo;
+
+                // Generate the client batchinfo with all files involved
+                (context, clientBatchInfo) = await this.LocalProvider.GetChangeBatchAsync(context, localScopeInfo);
+
 
                 // Apply on the Server Side
                 // Since we are on the server, we need to check the server client timestamp (not the client timestamp which is completely different)
-                this.RemoteProvider.ApplyChanges(serverLocalScopeReferenceInfo, clientBatchInfo);
+                // This method will
+                context = await this.RemoteProvider.ApplyChangesAsync(context, serverLocalScopeReferenceInfo, clientBatchInfo);
 
                 // Get changes from server
-                var serverBatchInfo = this.RemoteProvider.GetChangeBatch();
+                // for
+                (context, serverBatchInfo) = await this.RemoteProvider.GetChangeBatchAsync(context, serverScopeInfo);
 
                 // Apply on client side
                 // On the client side we should be able to direct write, without check the server scope
                 //var scope = new ScopeInfo { Name = scopeName, LastTimestamp = 0 };
 
                 // Apply local changes
-                this.LocalProvider.ApplyChanges(serverScopeInfo, serverBatchInfo);
+                await this.LocalProvider.ApplyChangesAsync(context, serverScopeInfo, serverBatchInfo);
 
-                long serverTimestamp = this.RemoteProvider.GetLocalTimestamp();
-                long clientTimestamp = this.LocalProvider.GetLocalTimestamp();
+                long serverTimestamp, clientTimestamp;
 
+                (context, serverTimestamp) = await this.RemoteProvider.GetLocalTimestampAsync(context);
+                (context, clientTimestamp) = await this.LocalProvider.GetLocalTimestampAsync(context);
+
+                serverScopeInfo.LastTimestamp = serverTimestamp;
+                serverLocalScopeReferenceInfo.LastTimestamp = serverTimestamp;
+                localScopeInfo.LastTimestamp = clientTimestamp;
+
+                //serverScopeInfo.IsDatabaseCreated = true;
+                serverScopeInfo.IsNewScope = false;
+
+                //serverLocalScopeReferenceInfo.IsDatabaseCreated = true;
+                serverLocalScopeReferenceInfo.IsNewScope = false;
+
+                //localScopeInfo.IsDatabaseCreated = true;
+                localScopeInfo.IsNewScope = false;
                 //update scopes
-                this.RemoteProvider.WriteScopes();
-                this.LocalProvider.WriteScopes();
+
+                serverScopeInfo.IsLocal = true;
+                serverLocalScopeReferenceInfo.IsLocal = false;
+
+                context = await this.RemoteProvider.WriteScopesAsync(context, new List <ScopeInfo> { serverScopeInfo, serverLocalScopeReferenceInfo });
+
+                serverScopeInfo.IsLocal = false;
+                localScopeInfo.IsLocal = true;
+                context = await this.LocalProvider.WriteScopesAsync(context, new List <ScopeInfo> { localScopeInfo, serverScopeInfo });
 
 
                 // Begin Session / Read the adapters
-                this.RemoteProvider.EndSession();
-                this.LocalProvider.EndSession();
+                context = await this.RemoteProvider.EndSessionAsync(context);
+                context = await this.LocalProvider.EndSessionAsync(context);
 
 
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-
+                Console.WriteLine("[SynchronizeAsync]" + ex.Message);
                 throw;
             }
             finally
             {
                 this.SessionState = SyncSessionState.Ready;
                 this.SessionStateChanged?.Invoke(this, this.SessionState);
-                context.SyncCompleteTime = DateTime.Now;
+                //context.SyncCompleteTime = DateTime.Now;
             }
 
             return context;

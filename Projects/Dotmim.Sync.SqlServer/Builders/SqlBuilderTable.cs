@@ -118,7 +118,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
 
         }
-
         public string CreateForeignKeyConstraintsScriptText()
         {
             StringBuilder stringBuilder = new StringBuilder();
@@ -137,7 +136,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             return stringBuilder.ToString();
         }
-
         private SqlCommand BuildPkCommand()
         {
             string[] localName = new string[] { };

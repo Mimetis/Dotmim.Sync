@@ -277,10 +277,10 @@ namespace Dotmim.Sync.Core.Test
                 Assert.Equal("salary", name);
                 c = rows[3];
                 name = c["name"].ToString();
-                Assert.Equal("create_scope_name", name);
+                Assert.Equal("create_scope_id", name);
                 c = rows[4];
                 name = c["name"].ToString();
-                Assert.Equal("update_scope_name", name);
+                Assert.Equal("update_scope_id", name);
                 c = rows[5];
                 name = c["name"].ToString();
                 Assert.Equal("create_timestamp", name);

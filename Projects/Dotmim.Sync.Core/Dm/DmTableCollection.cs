@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -64,6 +65,20 @@ namespace Dotmim.Sync.Data
             table.CheckNameCompliance(table.TableName);
             collection.Add(table);
         }
+
+        /// <summary>
+        /// Remove a table
+        /// </summary>
+        public bool Remove(DmTable table)
+        {
+            var isRemoved = collection.Remove(table);
+
+            table.DmSet = null;
+            table.Culture = CultureInfo.InvariantCulture;
+            table.CaseSensitive = true;
+
+            return isRemoved;
+        }
         public void AddRange(DmTable[] tables)
         {
             if (tables != null)
@@ -118,15 +133,7 @@ namespace Dotmim.Sync.Data
 
        
 
-        /// <summary>
-        /// Remove a table
-        /// </summary>
-        public bool Remove(DmTable table)
-        {
-            var r = collection.Remove(table);
 
-            return r;
-        }
         public void RemoveAt(int index)
         {
             DmTable dc = this[index];

@@ -11,48 +11,33 @@ namespace Dotmim.Sync.Enumerations
     /// </summary>
     public enum SyncStage
     {
+        /// <summary>Begin a new sync session</summary>
         BeginSession,
 
-        EndSession, 
+        /// <summary>Ensure scopes, configuration and tables</summary>
+        EnsureMetadata,
 
-        /// <summary>
-        /// Reading local table metadata.
-        /// </summary>
-        ReadingScope,
-
-        /// <summary>
-        /// Reading the table schema from the store.
-        /// </summary>
-        BuildConfiguration,
-
-
-        /// <summary>
-        /// Ensure database is created, and all tables / tracking tables / proc stock and so on
-        /// </summary>
-        EnsureDatabase,
-
-        /// <summary>
-        /// Updating local metadata.
-        /// </summary>
-        WritingScope,
-
-        /// <summary>Sending changes to the remote.</summary>
-        UploadingChanges,
-        /// <summary>Receiving changes from the remote.</summary>
-        DownloadingChanges,
-
-        /// <summary>Applying inserts to the local datasource.</summary>
-        ApplyingInserts,
-        /// <summary>Applying updates to the local datasource.</summary>
-        ApplyingUpdates,
-        /// <summary>Applying deletes to the local datasource.</summary>
-        ApplyingDeletes,
-        
- 
-        /// <summary>Enumerating changes from the store.</summary>
+        /// <summary>Enumerating changes </summary>
         SelectedChanges,
+
+        /// <summary>Applying changes </summary>
+        ApplyingChanges,
+
+        /// <summary>Applying inserts </summary>
+        ApplyingInserts,
+        /// <summary>Applying updates </summary>
+        ApplyingUpdates,
+        /// <summary>Applying deletes </summary>
+        ApplyingDeletes,
+
+        /// <summary>Writes scopes</summary>
+        WriteMetadata,
+
+        /// <summary>End the current sync session</summary>
+        EndSession,
 
         /// <summary>Cleanup metadata from tracking tables.</summary>
         CleanupMetadata
+
     }
 }

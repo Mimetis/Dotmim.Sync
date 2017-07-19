@@ -227,9 +227,9 @@ namespace Dotmim.Sync.Core.Test
         {
             DmSetSurrogate dmSetSurrogate = new DmSetSurrogate(set);
 
-            Assert.Equal(set.Tables.Count, dmSetSurrogate.DmTableSurrogates.Length);
+            Assert.Equal(set.Tables.Count, dmSetSurrogate.Tables.Count);
 
-            var records = dmSetSurrogate.DmTableSurrogates[0].Records;
+            var records = dmSetSurrogate.Tables[0].Records;
 
             Assert.Equal(set.Tables[0].Rows.Count, records[0].Count);
         }

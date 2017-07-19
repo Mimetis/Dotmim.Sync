@@ -1,7 +1,7 @@
 ﻿using Dotmim.Sync.Data;
 
 using System;
-
+using System.Collections.Generic;
 using System.Globalization;
 
 namespace Dotmim.Sync.Data.Surrogate
@@ -26,12 +26,12 @@ namespace Dotmim.Sync.Data.Surrogate
         /// Gets or Sets an array of DmTableSurrogate objects that comprise 
         /// the dm set that is represented by the DmSetSurrogate object.
         /// </summary>
-        public DmTableSurrogate[] DmTableSurrogates { get; set; }
+        public List<DmTableSurrogate> Tables { get; set; }
 
         /// <summary>
         /// Gets or Sets an array of every DmRelationSurrogate belong to this DmSet
         /// </summary>
-        public DmRelationSurrogate[] DmRelationSurrogates { get; set; }
+        public List<DmRelationSurrogate> Relations { get; set; }
 
         /// <summary>
         /// Initializes a new instance of the DmSetSurrogate class from an existing DmSet
@@ -46,14 +46,14 @@ namespace Dotmim.Sync.Data.Surrogate
             this.CultureInfoName = ds.Culture.Name;
             this.CaseSensitive = ds.CaseSensitive;
 
-            this.DmTableSurrogates = new DmTableSurrogate[ds.Tables.Count];
+            this.Tables = new List<DmTableSurrogate>(ds.Tables.Count);
 
             for (int i = 0; i < ds.Tables.Count; i++)
-                this.DmTableSurrogates[i] = new DmTableSurrogate(ds.Tables[i]);
+                this.Tables.Add(new DmTableSurrogate(ds.Tables[i]));
 
             if (ds.Relations != null && ds.Relations.Count > 0)
             {
-                this.DmRelationSurrogates = new DmRelationSurrogate[ds.Relations.Count];
+                this.Relations = new List<DmRelationSurrogate>(ds.Relations.Count);
 
                 for (int i = 0; i < ds.Relations.Count; i++)
                 {
@@ -70,7 +70,7 @@ namespace Dotmim.Sync.Data.Surrogate
 
                     drs.RelationName = dr.RelationName;
 
-                    this.DmRelationSurrogates[i] = drs;
+                    this.Relations.Add(drs);
                 }
             }
         }
@@ -80,7 +80,8 @@ namespace Dotmim.Sync.Data.Surrogate
         /// </summary>
         public DmSetSurrogate()
         {
-
+            //this.DmTableSurrogates = new List<DmTableSurrogate>();
+            //this.DmRelationSurrogates = new List<DmRelationSurrogate>();
         }
 
         /// <summary>
@@ -113,15 +114,15 @@ namespace Dotmim.Sync.Data.Surrogate
         {
             for (int i = 0; i < ds.Tables.Count; i++)
             {
-                DmTableSurrogate dmTableSurrogate = this.DmTableSurrogates[i];
+                DmTableSurrogate dmTableSurrogate = this.Tables[i];
                 dmTableSurrogate.ReadDatasIntoDmTable(ds.Tables[i]);
             }
         }
 
         internal void ReadSchemaIntoDmSet(DmSet ds)
         {
-            DmTableSurrogate[] dmTableSurrogateArray = this.DmTableSurrogates;
-            for (int i = 0; i < dmTableSurrogateArray.Length; i++)
+            var dmTableSurrogateArray = this.Tables;
+            for (int i = 0; i < dmTableSurrogateArray.Count; i++)
             {
                 DmTableSurrogate dmTableSurrogate = dmTableSurrogateArray[i];
                 DmTable dmTable = new DmTable();
@@ -130,11 +131,28 @@ namespace Dotmim.Sync.Data.Surrogate
                 dmTable.Culture = new CultureInfo(dmTableSurrogate.CultureInfoName);
                 dmTable.CaseSensitive = dmTableSurrogate.CaseSensitive;
                 dmTable.TableName = dmTableSurrogate.TableName;
-                
+
                 ds.Tables.Add(dmTable);
             }
         }
 
+        public void Clear()
+        {
+            if (this.Relations != null)
+            {
+                this.Relations.Clear();
+                this.Relations = null;
+            }
+
+            if (this.Tables != null)
+            {
+                foreach(var tbl in this.Tables)
+                    tbl.Clear();
+
+                this.Tables.Clear();
+                this.Tables = null;
+            }
+        }
         public void Dispose()
         {
             this.Dispose(true);
@@ -143,11 +161,7 @@ namespace Dotmim.Sync.Data.Surrogate
 
         protected virtual void Dispose(bool cleanup)
         {
-            DmTableSurrogate[] dmTableSurrogateArray = this.DmTableSurrogates;
-            for (int i = 0; i < (int)dmTableSurrogateArray.Length; i++)
-                dmTableSurrogateArray[i].Dispose();
-
-            this.DmTableSurrogates = null;
+            this.Clear();
         }
     }
 }
