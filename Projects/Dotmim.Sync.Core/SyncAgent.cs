@@ -50,7 +50,7 @@ namespace Dotmim.Sync.Core
         /// <summary>
         /// Occurs during progress
         /// </summary>
-        public event EventHandler<ScopeProgressEventArgs> SyncProgress = null;
+        public event EventHandler<SyncProgressEventArgs> SyncProgress = null;
 
 
         public event EventHandler<SyncSessionState> SessionStateChanged = null;
@@ -156,16 +156,17 @@ namespace Dotmim.Sync.Core
             if (string.IsNullOrEmpty(this.scopeName))
                 throw new Exception("Scope Name is mandatory");
 
-            // Context, containing statistics
+            // Context, used to back and forth data between servers
             SyncContext context = new SyncContext(Guid.NewGuid());
             // set start time
-            context.SyncStartTime = DateTime.Now;
+            context.StartTime = DateTime.Now;
 
             this.SessionState = SyncSessionState.Synchronizing;
             this.SessionStateChanged?.Invoke(this, this.SessionState);
             ScopeInfo localScopeInfo = null, serverScopeInfo = null, serverLocalScopeReferenceInfo = null;
 
-            
+            // Stats computed
+            ChangesStatistics changesStatistics = new ChangesStatistics();
             try
             {
                 if (cancellationToken.IsCancellationRequested)
@@ -234,26 +235,40 @@ namespace Dotmim.Sync.Core
                 // ----------------------------------------
                 BatchInfo clientBatchInfo;
                 BatchInfo serverBatchInfo;
+                ChangesStatistics clientStatistics = null;
+                ChangesStatistics serverStatistics = null;
+                ChangesStatistics tmpClientStatistics = null;
+                ChangesStatistics tmpServerStatistics = null;
+
 
                 // Generate the client batchinfo with all files involved
-                (context, clientBatchInfo) = await this.LocalProvider.GetChangeBatchAsync(context, localScopeInfo);
-
-
+                (context, clientBatchInfo, clientStatistics) = await this.LocalProvider.GetChangeBatchAsync(context, localScopeInfo);
+           
                 // Apply on the Server Side
                 // Since we are on the server, we need to check the server client timestamp (not the client timestamp which is completely different)
-                // This method will
-                context = await this.RemoteProvider.ApplyChangesAsync(context, serverLocalScopeReferenceInfo, clientBatchInfo);
+                (context, serverStatistics) = await this.RemoteProvider.ApplyChangesAsync(context, serverLocalScopeReferenceInfo, clientBatchInfo);
 
                 // Get changes from server
-                // for
-                (context, serverBatchInfo) = await this.RemoteProvider.GetChangeBatchAsync(context, serverScopeInfo);
+                (context, serverBatchInfo, tmpServerStatistics) = await this.RemoteProvider.GetChangeBatchAsync(context, serverScopeInfo);
 
-                // Apply on client side
-                // On the client side we should be able to direct write, without check the server scope
-                //var scope = new ScopeInfo { Name = scopeName, LastTimestamp = 0 };
+                // Update server stats
+                if (serverStatistics == null)
+                    serverStatistics = tmpServerStatistics;
+                else
+                    clientStatistics.SelectedChanges = tmpServerStatistics.SelectedChanges;
 
                 // Apply local changes
-                await this.LocalProvider.ApplyChangesAsync(context, serverScopeInfo, serverBatchInfo);
+                (context, tmpClientStatistics)  = await this.LocalProvider.ApplyChangesAsync(context, serverScopeInfo, serverBatchInfo);
+      
+
+                if (clientStatistics == null)
+                    clientStatistics = tmpClientStatistics;
+                else
+                    clientStatistics.AppliedChanges = tmpClientStatistics.AppliedChanges;
+
+                context.TotalChangesDownloaded = clientStatistics.TotalAppliedChanges;
+                context.TotalChangesUploaded = serverStatistics.TotalAppliedChanges;
+                context.TotalSyncErrors = clientStatistics.TotalAppliedChangesFailed;
 
                 long serverTimestamp, clientTimestamp;
 
@@ -264,16 +279,9 @@ namespace Dotmim.Sync.Core
                 serverLocalScopeReferenceInfo.LastTimestamp = serverTimestamp;
                 localScopeInfo.LastTimestamp = clientTimestamp;
 
-                //serverScopeInfo.IsDatabaseCreated = true;
                 serverScopeInfo.IsNewScope = false;
-
-                //serverLocalScopeReferenceInfo.IsDatabaseCreated = true;
                 serverLocalScopeReferenceInfo.IsNewScope = false;
-
-                //localScopeInfo.IsDatabaseCreated = true;
                 localScopeInfo.IsNewScope = false;
-                //update scopes
-
                 serverScopeInfo.IsLocal = true;
                 serverLocalScopeReferenceInfo.IsLocal = false;
 
@@ -299,7 +307,7 @@ namespace Dotmim.Sync.Core
             {
                 this.SessionState = SyncSessionState.Ready;
                 this.SessionStateChanged?.Invoke(this, this.SessionState);
-                //context.SyncCompleteTime = DateTime.Now;
+                context.CompleteTime = DateTime.Now;
             }
 
             return context;
@@ -307,12 +315,12 @@ namespace Dotmim.Sync.Core
         }
 
 
-        void ServerProvider_SyncProgress(object sender, ScopeProgressEventArgs e)
+        void ServerProvider_SyncProgress(object sender, SyncProgressEventArgs e)
         {
             //this.SyncProgress?.Invoke(this, e);
         }
 
-        void ClientProvider_SyncProgress(object sender, ScopeProgressEventArgs e)
+        void ClientProvider_SyncProgress(object sender, SyncProgressEventArgs e)
         {
             this.SyncProgress?.Invoke(this, e);
         }

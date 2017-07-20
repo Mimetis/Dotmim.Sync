@@ -67,7 +67,7 @@ namespace Dotmim.Sync.Core.Proxy
         public Boolean InMemory { get; set; }
         public BatchPartInfo BatchPartInfo { get; set; }
         public DmSetSurrogate Set { get; set; }
-
+        public ChangesStatistics ChangesStatistics { get; set; }
     }
     public class HttpGetLocalTimestampMessage
     {
@@ -81,6 +81,7 @@ namespace Dotmim.Sync.Core.Proxy
         public int BatchIndex { get; set; }
         public BatchPartInfo BatchPartInfo { get; set; }
         public DmSetSurrogate Set { get; set; }
+        public ChangesStatistics ChangesStatistics { get; set; }
 
     }
 

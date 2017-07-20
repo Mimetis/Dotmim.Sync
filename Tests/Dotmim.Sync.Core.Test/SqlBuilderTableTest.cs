@@ -161,8 +161,8 @@ namespace Dotmim.Sync.Core.Test
                 var isIdentity = (bool)c["is_identity"];
 
                 Assert.Equal("Id", name);
-                Assert.Equal(false, isNullable);
-                Assert.Equal(true, isIdentity);
+                Assert.False(isNullable);
+                Assert.True(isIdentity);
 
                 c = rows[1];
                 name = c["name"].ToString();
@@ -175,8 +175,8 @@ namespace Dotmim.Sync.Core.Test
                 isIdentity = (bool)c["is_identity"];
 
                 Assert.Equal("clientId", name);
-                Assert.Equal(true, isNullable);
-                Assert.Equal(false, isIdentity);
+                Assert.True(isNullable);
+                Assert.False(isIdentity);
 
                 c = rows[2];
                 name = c["name"].ToString();
@@ -189,7 +189,7 @@ namespace Dotmim.Sync.Core.Test
                 isIdentity = (bool)c["is_identity"];
 
                 Assert.Equal("name", name);
-                Assert.Equal(false, isNullable);
+                Assert.False(isNullable);
                 Assert.Equal(300, maxLength);
                 Assert.Equal("nvarchar", typeString);
 
@@ -204,7 +204,7 @@ namespace Dotmim.Sync.Core.Test
                 isIdentity = (bool)c["is_identity"];
 
                 Assert.Equal("salary", name);
-                Assert.Equal(false, isNullable);
+                Assert.False(isNullable);
                 Assert.Equal(6, precision);
                 Assert.Equal(2, scale);
 

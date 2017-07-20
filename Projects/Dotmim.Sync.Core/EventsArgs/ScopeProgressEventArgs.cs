@@ -11,17 +11,15 @@ using System.Xml.Serialization;
 
 namespace Dotmim.Sync.Core
 {
-    public class ScopeProgressEventArgs
+    /// <summary>
+    /// Event args during a sync progress
+    /// </summary>
+    public class SyncProgressEventArgs
     {
         /// <summary>
         /// Get the provider type name which raised the event
         /// </summary>
         public string ProviderTypeName { get; internal set; }
-
-        /// <summary>
-        /// Get the scope information (name and last local timestamp)
-        /// </summary>
-        public ScopeInfo ScopeInfo { get; internal set; }
 
         /// <summary>
         /// When check if database exist, we generate a script
@@ -34,24 +32,42 @@ namespace Dotmim.Sync.Core
         public ServiceConfiguration Configuration { get; internal set; }
 
         /// <summary>
+        /// Gets the scope info during WriteScopes event
+        /// </summary>
+        public ScopeInfo ScopeInfo { get; internal set; }
+
+        /// <summary>
         /// Gets or Sets the action to be taken : Could eventually Rollback the current processus
         /// </summary>
         public ChangeApplicationAction Action { get; set; }
+
+        /// <summary>
+        /// Statistics
+        /// </summary>
+        public ChangesStatistics ChangesStatistics { get; set; }
 
         /// <summary>
         /// Current sync context
         /// </summary>
         public SyncContext Context { get; internal set; }
 
+
+    }
+
+    /// <summary>
+    /// Changes statistics on a data store
+    /// </summary>
+    public class ChangesStatistics
+    {
         /// <summary>
         /// Get the changes selected to be applied
         /// </summary>
-        public List<ScopeSelectedChanges> SelectedChanges { get; internal set; } = new List<ScopeSelectedChanges>();
+        public List<SelectedChanges> SelectedChanges { get; internal set; } = new List<SelectedChanges>();
 
         /// <summary>
         /// Get the view to be applied 
         /// </summary>
-        public List<ScopeAppliedChanges> AppliedChanges { get; internal set; } = new List<ScopeAppliedChanges>();
+        public List<AppliedChanges> AppliedChanges { get; internal set; } = new List<AppliedChanges>();
 
         /// <summary>
         /// Gets the total number of changes that are to be applied during the synchronization session.
@@ -144,22 +160,13 @@ namespace Dotmim.Sync.Core
                 return updates;
             }
         }
-
-
-        internal void Cleanup()
-        {
-            SelectedChanges.ForEach(sc => sc.Cleanup());
-            SelectedChanges.Clear();
-
-            AppliedChanges.ForEach(sc => sc.Cleanup());
-            AppliedChanges.Clear();
-        }
     }
+
 
     /// <summary>
     /// Args for applied changed on a source, for each kind of DmRowState (Update / Delete / Insert)
     /// </summary>
-    public class ScopeAppliedChanges
+    public class AppliedChanges
     {
         /// <summary>
         /// Gets the table where changes were applied
@@ -180,7 +187,7 @@ namespace Dotmim.Sync.Core
         /// Gets the rows changes failed count
         /// </summary>
         public int ChangesFailed { get; set; }
-   
+
         internal void Cleanup()
         {
         }
@@ -189,43 +196,33 @@ namespace Dotmim.Sync.Core
     /// <summary>
     /// Get changes to be applied (contains Deletes AND Inserts AND Updates)
     /// </summary>
-    public class ScopeSelectedChanges
+    public class SelectedChanges
     {
         /// <summary>
         /// Gets the table name
         /// </summary>
-        public string TableName => View.Table.TableName;
-
-        /// <summary>
-        /// Gets the View
-        /// </summary>
-        public DmView View { get; internal set; }
-        int GetCountByRowState(DmRowState state) => View.Count(r => r.RowState == state);
-
-        internal void Cleanup()
-        {
-            View = null;
-        }
+        public string TableName { get; internal set; }
 
         /// <summary>
         /// Gets or sets the number of deletes that should be applied to a table during the synchronization session.
         /// </summary>
-        public int Deletes => GetCountByRowState(DmRowState.Deleted);
+        public int Deletes { get; internal set; }
 
         /// <summary>
         /// Gets or sets the number of inserts that should be applied to a table during the synchronization session.
         /// </summary>
-        public int Inserts => GetCountByRowState(DmRowState.Added);
+        public int Inserts { get; internal set; }
 
         /// <summary>
         /// Gets or sets the number of updates that should be applied to a table during the synchronization session.
         /// </summary>
-        public int Updates => GetCountByRowState(DmRowState.Modified);
+        public int Updates { get; internal set; }
 
         /// <summary>
         /// Gets the total number of changes that are applied to a table during the synchronization session.
+        /// TODO : DEBUG TIME : To be sure we have the correct number, I set this value from CoreProvider
         /// </summary>
-        public int TotalChanges => this.Inserts + this.Updates + this.Deletes;
+        public int TotalChanges { get; internal set; } // => this.Inserts + this.Updates + this.Deletes;
     }
 
 

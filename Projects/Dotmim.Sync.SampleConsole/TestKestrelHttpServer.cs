@@ -21,10 +21,8 @@ using System.Diagnostics;
 namespace Dotmim.Sync.SampleConsole
 {
     public delegate Task ResponseDelegate(string serviceUri);
-
     public static class TestKestrelHttpServer
     {
-
         public async static Task LaunchKestrellAsync(RequestDelegate serverHandler, ResponseDelegate clientHandler)
         {
             var hostBuilder = new WebHostBuilder()
@@ -54,47 +52,45 @@ namespace Dotmim.Sync.SampleConsole
 
             }
         }
-
-
-        public async static Task TestKestrell()
-        {
-
-            var headerName = "Header-Value";
-            var headerValue = "1";
-
-            var hostBuilder = new WebHostBuilder()
-                .UseKestrel()
-                .UseUrls("http://127.0.0.1:0/")
-                .Configure(app =>
-                {
-                    app.Run(async context =>
-                    {
-                        context.Response.Headers.Add(headerName, headerValue);
-
-                        await context.Response.WriteAsync("");
-                    });
-                });
-
-            using (var host = hostBuilder.Build())
-            {
-                host.Start();
-
-                using (var client = new HttpClient())
-                {
-                    var response = await client.GetAsync($"http://localhost:{host.GetPort()}/");
-                    response.EnsureSuccessStatusCode();
-
-                    var headers = response.Headers;
-
-                    if (headers.Contains(headerName))
-                        Debug.WriteLine($"Containing Header {headerName} : {headers.GetValues(headerName).Single()}");
-
-
-                }
-            }
-        }
     }
 
+    //public async static Task TestKestrell()
+    //{
+
+    //    var headerName = "Header-Value";
+    //    var headerValue = "1";
+
+    //    var hostBuilder = new WebHostBuilder()
+    //        .UseKestrel()
+    //        .UseUrls("http://127.0.0.1:0/")
+    //        .Configure(app =>
+    //        {
+    //            app.Run(async context =>
+    //            {
+    //                context.Response.Headers.Add(headerName, headerValue);
+
+    //                await context.Response.WriteAsync("");
+    //            });
+    //        });
+
+    //    using (var host = hostBuilder.Build())
+    //    {
+    //        host.Start();
+
+    //        using (var client = new HttpClient())
+    //        {
+    //            var response = await client.GetAsync($"http://localhost:{host.GetPort()}/");
+    //            response.EnsureSuccessStatusCode();
+
+    //            var headers = response.Headers;
+
+    //            if (headers.Contains(headerName))
+    //                Debug.WriteLine($"Containing Header {headerName} : {headers.GetValues(headerName).Single()}");
+
+
+    //        }
+    //    }
+    //}
 
     public static class IWebHostPortExtensions
     {

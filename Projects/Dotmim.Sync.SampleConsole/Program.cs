@@ -282,12 +282,12 @@ class Program
 
         using (var server = new TestServer(builder))
         {
-
             var client = server.CreateClient();
-            var host = server.Host.GetPort();
 
-            string serviceUrl = $"http://localhost.fiddlerd/";
-            var response = await client.GetAsync("http://localhost.fiddler/first");
+            // Nothing here seems to work
+            // client.BaseAddress = new Uri("http://localhost.fiddler/");
+
+            var response = await client.GetAsync("first");
             response.EnsureSuccessStatusCode();
             Console.WriteLine("Server result : " + await response.Content.ReadAsStringAsync());
 
@@ -765,7 +765,7 @@ class Program
 
     }
 
-    private static void Agent_SyncProgress(object sender, ScopeProgressEventArgs e)
+    private static void Agent_SyncProgress(object sender, SyncProgressEventArgs e)
     {
         var sessionId = e.Context.SessionId.ToString();
 
@@ -804,19 +804,19 @@ class Program
                 }
                 break;
             case SyncStage.SelectedChanges:
-                Console.WriteLine($"{sessionId}. Selected added Changes : {e.SelectedChanges.Sum(ssc => ssc.Inserts)}");
-                Console.WriteLine($"{sessionId}. Selected updates Changes : {e.SelectedChanges.Sum(ssc => ssc.Updates)}");
-                Console.WriteLine($"{sessionId}. Selected deleted Changes : {e.SelectedChanges.Sum(ssc => ssc.Deletes)}");
+                Console.WriteLine($"{sessionId}. Selected added Changes : {e.ChangesStatistics.TotalSelectedChangesInserts}");
+                Console.WriteLine($"{sessionId}. Selected updates Changes : {e.ChangesStatistics.TotalSelectedChangesUpdates}");
+                Console.WriteLine($"{sessionId}. Selected deleted Changes : {e.ChangesStatistics.TotalSelectedChangesDeletes}");
                 break;
 
             case SyncStage.ApplyingInserts:
-                Console.WriteLine($"{sessionId}. Applying Inserts : {e.AppliedChanges.Where(ac => ac.State == DmRowState.Added).Sum(ac => ac.ChangesApplied)}");
+                Console.WriteLine($"{sessionId}. Applying Inserts : {e.ChangesStatistics.AppliedChanges.Where(ac => ac.State == DmRowState.Added).Sum(ac => ac.ChangesApplied) }");
                 break;
             case SyncStage.ApplyingDeletes:
-                Console.WriteLine($"{sessionId}. Applying deletes : {e.AppliedChanges.Where(ac => ac.State == DmRowState.Deleted).Sum(ac => ac.ChangesApplied)}");
+                Console.WriteLine($"{sessionId}. Applying Deletes : {e.ChangesStatistics.AppliedChanges.Where(ac => ac.State == DmRowState.Deleted).Sum(ac => ac.ChangesApplied) }");
                 break;
             case SyncStage.ApplyingUpdates:
-                Console.WriteLine($"{sessionId}. Applying updates : {e.AppliedChanges.Where(ac => ac.State == DmRowState.Modified).Sum(ac => ac.ChangesApplied)}");
+                Console.WriteLine($"{sessionId}. Applying Updates : {e.ChangesStatistics.AppliedChanges.Where(ac => ac.State == DmRowState.Modified).Sum(ac => ac.ChangesApplied) }");
                 break;
             case SyncStage.WriteMetadata:
                 Console.WriteLine($"{sessionId}. Writing Scopes");

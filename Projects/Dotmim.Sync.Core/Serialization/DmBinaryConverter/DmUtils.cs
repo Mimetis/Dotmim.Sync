@@ -328,7 +328,7 @@ namespace DmBinaryFormatter
             else if (valueType == "19")
                 return typeof(TimeSpan);
 
-            return Type.GetType(valueType, true);
+            return Type.GetType(valueType, true, true);
 
         }
 
@@ -373,7 +373,7 @@ namespace DmBinaryFormatter
             else if (valueType == typeof(TimeSpan))
                 return "19";
 
-            return valueType.ToString();
+            return valueType.AssemblyQualifiedName;
 
         }
 

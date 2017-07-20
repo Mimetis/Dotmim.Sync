@@ -33,7 +33,7 @@ namespace Dotmim.Sync.Core.Proxy
         private SerializationFormat serializationFormat;
         private CancellationToken cancellationToken;
         private ServiceConfiguration serviceConfiguration;
-        public event EventHandler<ScopeProgressEventArgs> SyncProgress;
+        public event EventHandler<SyncProgressEventArgs> SyncProgress;
 
         /// <summary>
         /// Use this Constructor if you are on the Client Side, only
@@ -169,7 +169,7 @@ namespace Dotmim.Sync.Core.Proxy
 
 
 
-        public async Task<(SyncContext, BatchInfo)> GetChangeBatchAsync(SyncContext context, ScopeInfo scopeInfo)
+        public async Task<(SyncContext, BatchInfo, ChangesStatistics)> GetChangeBatchAsync(SyncContext context, ScopeInfo scopeInfo)
         {
             // While we have an other batch to process
             var isLastBatch = false;
@@ -178,6 +178,7 @@ namespace Dotmim.Sync.Core.Proxy
             BatchInfo changes = new BatchInfo();
             changes.Directory = BatchInfo.GenerateNewDirectoryName();
             SyncContext syncContext = null;
+            ChangesStatistics changesStatistics = null;
 
             while (!isLastBatch)
             {
@@ -198,6 +199,8 @@ namespace Dotmim.Sync.Core.Proxy
 
                 if (httpMessageResponse.GetChangeBatch == null || httpMessageResponse.GetChangeBatch.BatchPartInfo == null)
                     throw new Exception("Can't have an empty GetChangeBatch");
+
+                changesStatistics = httpMessageResponse.GetChangeBatch.ChangesStatistics;
 
                 // get the bpi and add it to the BatchInfo
                 var bpi = httpMessageResponse.GetChangeBatch.BatchPartInfo;
@@ -233,18 +236,20 @@ namespace Dotmim.Sync.Core.Proxy
 
             }
 
-            return (syncContext, changes);
+            return (syncContext, changes, changesStatistics);
         }
 
         /// <summary>
         /// Send changes to server
         /// </summary>
-        public async Task<SyncContext> ApplyChangesAsync(SyncContext context, ScopeInfo fromScope, BatchInfo changes)
+        public async Task<(SyncContext, ChangesStatistics)> ApplyChangesAsync(SyncContext context, ScopeInfo fromScope, BatchInfo changes)
         {
             if (changes == null || changes.BatchPartsInfo.Count == 0)
-                return context;
+                return (context, new ChangesStatistics());
 
             SyncContext syncContext = null;
+            ChangesStatistics changesStatistics = null;
+
             // Foreach part, will have to send them to the remote
             // once finished, return context
             foreach (var bpi in changes.BatchPartsInfo.OrderBy(bpi => bpi.Index))
@@ -298,10 +303,10 @@ namespace Dotmim.Sync.Core.Proxy
                     throw new Exception("Can't have an empty body");
 
                 syncContext = httpMessageResponse.SyncContext;
-
+                changesStatistics = httpMessageResponse.ApplyChanges.ChangesStatistics;
             }
 
-            return syncContext;
+            return (syncContext, changesStatistics);
 
         }
 

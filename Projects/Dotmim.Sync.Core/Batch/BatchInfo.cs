@@ -9,8 +9,7 @@ using System.Text;
 namespace Dotmim.Sync.Core.Batch
 {
     /// <summary>
-    /// Represents a Batch, for a complete change set
-    /// FullName like : [Guid].batchinfo
+    /// Represents a Batch, containing a full or serialized change set
     /// </summary>
     public class BatchInfo
     {
@@ -87,7 +86,6 @@ namespace Dotmim.Sync.Core.Batch
 
         }
 
-
         /// <summary>
         /// Generate a new BatchPartInfo and add it to the current batchInfo
         /// </summary>
@@ -124,6 +122,26 @@ namespace Dotmim.Sync.Core.Batch
             return bpi;
         }
 
+        ///// <summary>
+        ///// Gets the total number of changes in the BatchInfo.
+        ///// </summary>
+        //public int TotalChanges { get; set; }
+
+        ///// <summary>
+        ///// Gets the total number of deletes in the BatchInfo.
+        ///// </summary>
+        //public int TotalChangesDeletes { get; set; }
+
+        ///// <summary>
+        ///// Gets the total number of inserts in the BatchInfo.
+        ///// </summary>
+        //public int TotalChangesInserts { get; set; }
+
+        ///// <summary>
+        ///// Gets the total number of updates in the BatchInfo.
+        ///// </summary>
+        //public int TotalChangesUpdates { get; set; }
+
 
         internal static string GenerateNewDirectoryName()
         {
@@ -142,53 +160,6 @@ namespace Dotmim.Sync.Core.Batch
                 throw new OverflowException("too much batches !!!");
 
             return $"{batchIndex}_{Path.GetRandomFileName().Replace(".", "_")}.batch";
-        }
-
-        public static BatchInfo DeserializeFromDmSet(DmSet set)
-        {
-            if (set == null)
-                return null;
-
-            if (!set.Tables.Contains("DotmimSync__BatchInfo"))
-                return null;
-
-            var dmRow = set.Tables["DotmimSync__BatchInfo"].Rows[0];
-            BatchInfo bi = new BatchInfo();
-
-            bi.Directory= dmRow["Directory"] as string;
-            bi.InMemory = (Boolean)dmRow["InMemory"];
-            bi.BatchIndex = (int)dmRow["BatchIndex"];
-
-            return bi;
-
-        }
-        internal static void SerializeInDmSet(DmSet set, BatchInfo bi)
-        {
-            if (set == null)
-                return;
-
-            DmTable dmTableBatchInfo = null;
-
-            if (!set.Tables.Contains("DotmimSync__BatchInfo"))
-            {
-                dmTableBatchInfo = new DmTable("DotmimSync__BatchInfo");
-                set.Tables.Add(dmTableBatchInfo);
-            }
-
-            dmTableBatchInfo = set.Tables["DotmimSync__BatchInfo"];
-
-            dmTableBatchInfo.Columns.Add<String>("Directory");
-            dmTableBatchInfo.Columns.Add<int>("BatchIndex");
-            dmTableBatchInfo.Columns.Add<Boolean>("InMemory");
-
-            var dmRow = dmTableBatchInfo.NewRow();
-            dmRow["Directory"] = bi.Directory;
-            dmRow["BatchIndex"] = bi.BatchIndex;
-            dmRow["InMemory"] = bi.InMemory;
-
-            dmTableBatchInfo.Rows.Add(dmRow);
-
-
         }
 
     }

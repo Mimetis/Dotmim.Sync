@@ -34,7 +34,7 @@ namespace Dotmim.Sync.Core.Proxy
         private SerializationFormat serializationFormat;
         private BaseConverter<HttpMessage> serializer;
 
-        public event EventHandler<ScopeProgressEventArgs> SyncProgress;
+        public event EventHandler<SyncProgressEventArgs> SyncProgress;
 
         /// <summary>
         /// Use this constructor when you are on the Remote Side, only
@@ -63,7 +63,6 @@ namespace Dotmim.Sync.Core.Proxy
         /// </summary>
         public async Task HandleRequestAsync(HttpContext context, CancellationToken cancellationToken)
         {
-
             var httpRequest = context.Request;
             var httpResponse = context.Response;
             var streamArray = httpRequest.Body;
@@ -195,7 +194,7 @@ namespace Dotmim.Sync.Core.Proxy
             // Server is able to define if it's in memory or not
             if (httpMessage.GetChangeBatch.BatchIndexRequested == 0)
             {
-                var (syncContext, bi) = await this.GetChangeBatchAsync(httpMessage.SyncContext, scopeInfo);
+                var (syncContext, bi, s) = await this.GetChangeBatchAsync(httpMessage.SyncContext, scopeInfo);
 
                 // Select the first bpi needed (index == 0)
                 if (bi.BatchPartsInfo.Count > 0)
@@ -204,6 +203,7 @@ namespace Dotmim.Sync.Core.Proxy
                 httpMessage.SyncContext = syncContext;
 
                 httpMessage.GetChangeBatch.InMemory = bi.InMemory;
+                httpMessage.GetChangeBatch.ChangesStatistics = s;
 
                 // if we are not in memory, we set the BI in session, to be able to get it back on next request
                 if (!bi.InMemory)
@@ -277,9 +277,10 @@ namespace Dotmim.Sync.Core.Proxy
                 httpMessage.ApplyChanges.Set.Dispose();
                 httpMessage.ApplyChanges.Set = null;
 
-                var syncContext = await this.ApplyChangesAsync(httpMessage.SyncContext, scopeInfo, batchInfo);
+                var (c, s) = await this.ApplyChangesAsync(httpMessage.SyncContext, scopeInfo, batchInfo);
 
-                httpMessage.SyncContext = syncContext;
+                httpMessage.SyncContext =c;
+                httpMessage.ApplyChanges.ChangesStatistics = s;
 
                 return httpMessage;
             }
@@ -316,9 +317,10 @@ namespace Dotmim.Sync.Core.Proxy
             // if it's last batch sent
             if (bpi.IsLastBatch)
             {
-                var syncContext = await this.ApplyChangesAsync(httpMessage.SyncContext, scopeInfo, batchInfo);
+                var (c, s) = await this.ApplyChangesAsync(httpMessage.SyncContext, scopeInfo, batchInfo);
                 this.localProvider.CacheManager.Remove("ApplyChanges_BatchInfo");
-                httpMessage.SyncContext = syncContext;
+                httpMessage.SyncContext = c;
+                httpMessage.ApplyChanges.ChangesStatistics = s;
             }
 
             return httpMessage;
@@ -393,7 +395,7 @@ namespace Dotmim.Sync.Core.Proxy
 
         }
 
-        public async Task<SyncContext> ApplyChangesAsync(SyncContext ctx, ScopeInfo fromScope, BatchInfo changes)
+        public async Task<(SyncContext, ChangesStatistics)> ApplyChangesAsync(SyncContext ctx, ScopeInfo fromScope, BatchInfo changes)
             => await this.localProvider.ApplyChangesAsync(ctx, fromScope, changes);
         public async Task<SyncContext> BeginSessionAsync(SyncContext ctx)
             => await this.localProvider.BeginSessionAsync(ctx);
@@ -403,7 +405,7 @@ namespace Dotmim.Sync.Core.Proxy
             => await this.localProvider.EnsureDatabaseAsync(ctx, scopeInfo, options);
         public async Task<(SyncContext, List<ScopeInfo>)> EnsureScopesAsync(SyncContext ctx, string scopeName, Guid? clientReferenceId = null)
             => await this.localProvider.EnsureScopesAsync(ctx, scopeName, clientReferenceId);
-        public async Task<(SyncContext, BatchInfo)> GetChangeBatchAsync(SyncContext ctx, ScopeInfo scopeInfo)
+        public async Task<(SyncContext, BatchInfo, ChangesStatistics)> GetChangeBatchAsync(SyncContext ctx, ScopeInfo scopeInfo)
             => await this.localProvider.GetChangeBatchAsync(ctx, scopeInfo);
         public async Task<(SyncContext, Int64)> GetLocalTimestampAsync(SyncContext ctx)
             => await this.localProvider.GetLocalTimestampAsync(ctx);

@@ -25,7 +25,7 @@ namespace Dotmim.Sync.Core
         /// <summary>
         /// Event Progress
         /// </summary>
-        event EventHandler<ScopeProgressEventArgs> SyncProgress;
+        event EventHandler<SyncProgressEventArgs> SyncProgress;
 
         /// <summary>
         /// Ensure scopes are created on both local and remote 
@@ -39,7 +39,7 @@ namespace Dotmim.Sync.Core
         /// <summary>
         /// Ensure Configuration is correct and tables are get from datastore
         /// </summary>
-        Task<(SyncContext,ServiceConfiguration)> EnsureConfigurationAsync(SyncContext context, ServiceConfiguration configuration = null);
+        Task<(SyncContext, ServiceConfiguration)> EnsureConfigurationAsync(SyncContext context, ServiceConfiguration configuration = null);
 
         /// <summary>
         /// Ensure database is ready and created
@@ -49,12 +49,12 @@ namespace Dotmim.Sync.Core
         /// <summary>
         /// Apply changes to the local storage, coming from this scope
         /// </summary>
-        Task<SyncContext> ApplyChangesAsync(SyncContext context, ScopeInfo fromScope, BatchInfo changes);
+        Task<(SyncContext, ChangesStatistics)> ApplyChangesAsync(SyncContext context, ScopeInfo fromScope, BatchInfo changes);
 
         /// <summary>
         /// Get Changes to be applied 
         /// </summary>
-        Task<(SyncContext,BatchInfo)> GetChangeBatchAsync(SyncContext context, ScopeInfo scopeInfo);
+        Task<(SyncContext, BatchInfo, ChangesStatistics)> GetChangeBatchAsync(SyncContext context, ScopeInfo scopeInfo);
 
         /// <summary>
         /// Update scope to reflect last changed timestamp
