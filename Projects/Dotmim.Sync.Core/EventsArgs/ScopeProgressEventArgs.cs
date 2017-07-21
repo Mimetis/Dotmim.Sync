@@ -19,7 +19,7 @@ namespace Dotmim.Sync.Core
         /// <summary>
         /// Get the provider type name which raised the event
         /// </summary>
-        public string ProviderTypeName { get; internal set; }
+        public string ProviderTypeName { get;  set; }
 
         /// <summary>
         /// When check if database exist, we generate a script
@@ -29,12 +29,12 @@ namespace Dotmim.Sync.Core
         /// <summary>
         /// Gets the configuration used for this sync
         /// </summary>
-        public ServiceConfiguration Configuration { get; internal set; }
+        public ServiceConfiguration Configuration { get;  set; }
 
         /// <summary>
         /// Gets the scope info during WriteScopes event
         /// </summary>
-        public ScopeInfo ScopeInfo { get; internal set; }
+        public ScopeInfo ScopeInfo { get;  set; }
 
         /// <summary>
         /// Gets or Sets the action to be taken : Could eventually Rollback the current processus
@@ -49,7 +49,7 @@ namespace Dotmim.Sync.Core
         /// <summary>
         /// Current sync context
         /// </summary>
-        public SyncContext Context { get; internal set; }
+        public SyncContext Context { get;  set; }
 
 
     }
@@ -62,12 +62,12 @@ namespace Dotmim.Sync.Core
         /// <summary>
         /// Get the changes selected to be applied
         /// </summary>
-        public List<SelectedChanges> SelectedChanges { get; internal set; } = new List<SelectedChanges>();
+        public List<SelectedChanges> SelectedChanges { get;  set; } = new List<SelectedChanges>();
 
         /// <summary>
         /// Get the view to be applied 
         /// </summary>
-        public List<AppliedChanges> AppliedChanges { get; internal set; } = new List<AppliedChanges>();
+        public List<AppliedChanges> AppliedChanges { get;  set; } = new List<AppliedChanges>();
 
         /// <summary>
         /// Gets the total number of changes that are to be applied during the synchronization session.
@@ -171,12 +171,12 @@ namespace Dotmim.Sync.Core
         /// <summary>
         /// Gets the table where changes were applied
         /// </summary>
-        public string TableName { get; internal set; }
+        public string TableName { get;  set; }
 
         /// <summary>
         /// Gets the RowState of the apploed
         /// </summary>
-        public DmRowState State { get; internal set; }
+        public DmRowState State { get;  set; }
 
         /// <summary>
         /// Gets the rows changes applied count
@@ -188,7 +188,7 @@ namespace Dotmim.Sync.Core
         /// </summary>
         public int ChangesFailed { get; set; }
 
-        internal void Cleanup()
+         void Cleanup()
         {
         }
     }
@@ -201,28 +201,28 @@ namespace Dotmim.Sync.Core
         /// <summary>
         /// Gets the table name
         /// </summary>
-        public string TableName { get; internal set; }
+        public string TableName { get;  set; }
 
         /// <summary>
         /// Gets or sets the number of deletes that should be applied to a table during the synchronization session.
         /// </summary>
-        public int Deletes { get; internal set; }
+        public int Deletes { get;  set; }
 
         /// <summary>
         /// Gets or sets the number of inserts that should be applied to a table during the synchronization session.
         /// </summary>
-        public int Inserts { get; internal set; }
+        public int Inserts { get;  set; }
 
         /// <summary>
         /// Gets or sets the number of updates that should be applied to a table during the synchronization session.
         /// </summary>
-        public int Updates { get; internal set; }
+        public int Updates { get;  set; }
 
         /// <summary>
         /// Gets the total number of changes that are applied to a table during the synchronization session.
         /// TODO : DEBUG TIME : To be sure we have the correct number, I set this value from CoreProvider
         /// </summary>
-        public int TotalChanges { get; internal set; } // => this.Inserts + this.Updates + this.Deletes;
+        public int TotalChanges { get;  set; } // => this.Inserts + this.Updates + this.Deletes;
     }
 
 

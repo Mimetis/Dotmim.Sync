@@ -1,5 +1,4 @@
-﻿using Dotmim.Sync.Core.Proxy.Client;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
@@ -11,7 +10,6 @@ namespace Dotmim.Sync.Core.Proxy
     {
         public WebSyncException(string message) : base(message)
         {
-
         }
     
         public String Type { get; set; }

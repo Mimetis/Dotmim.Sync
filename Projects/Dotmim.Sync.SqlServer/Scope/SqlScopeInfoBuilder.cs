@@ -42,7 +42,8 @@ namespace Dotmim.Sync.SqlServer.Scope
                         [sync_scope_id] [uniqueidentifier] NOT NULL,
 	                    [sync_scope_name] [nvarchar](100) NOT NULL,
 	                    [scope_timestamp] [timestamp] NULL,
-                        [scope_is_local] [bit] NOT NULL DEFAULT(0) -- , [scope_database_created] [bit] NOT NULL DEFAULT(0)
+                        [scope_is_local] [bit] NOT NULL DEFAULT(0), 
+                        [scope_last_sync] [datetime] NULL
                         CONSTRAINT [PK_scope_info] PRIMARY KEY CLUSTERED ([sync_scope_id] ASC)
                         )";
                 command.ExecuteNonQuery();
@@ -81,7 +82,8 @@ namespace Dotmim.Sync.SqlServer.Scope
                     @"SELECT [sync_scope_id]
                            , [sync_scope_name]
                            , [scope_timestamp]
-                           , [scope_is_local] -- , [scope_database_created]
+                           , [scope_is_local]
+                           , [scope_last_sync]
                     FROM  [scope_info] 
                     WHERE [sync_scope_name] = @sync_scope_name";
 
@@ -100,7 +102,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                         scopeInfo.Name = reader["sync_scope_name"] as String;
                         scopeInfo.Id = (Guid)reader["sync_scope_id"];
                         scopeInfo.LastTimestamp = SqlManager.ParseTimestamp(reader["scope_timestamp"]);
-                        //scopeInfo.IsDatabaseCreated = (bool)reader["scope_database_created"];
+                        scopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value ? (DateTime?)reader["scope_last_sync"] : null;
                         scopeInfo.IsLocal = (bool)reader["scope_is_local"];
                         scopes.Add(scopeInfo);
                     }
@@ -186,22 +188,24 @@ namespace Dotmim.Sync.SqlServer.Scope
                 command.CommandText = @"
                     MERGE [scope_info] AS [base] 
                     USING (
-	                           SELECT  @sync_scope_name AS sync_scope_name,  
-                                       @sync_scope_id AS sync_scope_id,  
-                                       @scope_is_local as scope_is_local --,@scope_database_created AS scope_database_created
+                               SELECT  @sync_scope_id AS sync_scope_id,  
+	                                   @sync_scope_name AS sync_scope_name,  
+                                       @scope_is_local as scope_is_local,
+                                       @scope_last_sync AS scope_last_sync
                            ) AS [changes] 
-                    ON [base].[sync_scope_name] = [changes].[sync_scope_name] AND [base].[sync_scope_id] = [changes].[sync_scope_id]
+                    ON [base].[sync_scope_id] = [changes].[sync_scope_id]
                     WHEN NOT MATCHED THEN
-	                    INSERT ([sync_scope_name], [sync_scope_id], [scope_is_local]) --, [scope_database_created])
-	                    VALUES ([changes].[sync_scope_name], [changes].[sync_scope_id], [changes].[scope_is_local]) --, [changes].[scope_database_created])
+	                    INSERT ([sync_scope_name], [sync_scope_id], [scope_is_local], [scope_last_sync])
+	                    VALUES ([changes].[sync_scope_name], [changes].[sync_scope_id], [changes].[scope_is_local], [changes].[scope_last_sync])
                     WHEN MATCHED THEN
 	                    UPDATE SET [sync_scope_name] = [changes].[sync_scope_name], 
-                                   [sync_scope_id] = [changes].[sync_scope_id], 
-                                   [scope_is_local] = [changes].[scope_is_local] --, [scope_database_created] = [changes].[scope_database_created]
+                                   [scope_is_local] = [changes].[scope_is_local], 
+                                   [scope_last_sync] = [changes].[scope_last_sync]
                     OUTPUT  INSERTED.[sync_scope_name], 
                             INSERTED.[sync_scope_id], 
                             INSERTED.[scope_timestamp], 
-                            INSERTED.[scope_is_local]; --,INSERTED.[scope_database_created];
+                            INSERTED.[scope_is_local],
+                            INSERTED.[scope_last_sync];
                 ";
 
                 var p = command.CreateParameter();
@@ -222,13 +226,13 @@ namespace Dotmim.Sync.SqlServer.Scope
                 p.DbType = DbType.Boolean;
                 command.Parameters.Add(p);
 
-                //p = command.CreateParameter();
-                //p.ParameterName = "@scope_database_created";
-                //p.Value = scopeInfo.IsDatabaseCreated;
-                //p.DbType = DbType.Boolean;
-                //command.Parameters.Add(p);
-             
-                
+                p = command.CreateParameter();
+                p.ParameterName = "@scope_last_sync";
+                p.Value = scopeInfo.LastSync.HasValue ? (object)scopeInfo.LastSync.Value : DBNull.Value;
+                p.DbType = DbType.DateTime;
+                command.Parameters.Add(p);
+
+
                 using (DbDataReader reader = command.ExecuteReader())
                 {
                     while (reader.Read())
@@ -237,7 +241,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                         scopeInfo.Id = (Guid)reader["sync_scope_Id"];
                         scopeInfo.LastTimestamp = SqlManager.ParseTimestamp(reader["scope_timestamp"]);
                         scopeInfo.IsLocal = (bool)reader["scope_is_local"];
-                        //scopeInfo.IsDatabaseCreated = (bool)reader["scope_database_created"];
+                        scopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value ? (DateTime?)reader["scope_last_sync"] : null;
                     }
                 }
 

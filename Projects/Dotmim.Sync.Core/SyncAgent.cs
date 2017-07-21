@@ -1,6 +1,7 @@
 ﻿using Dotmim.Sync.Core.Batch;
 using Dotmim.Sync.Core.Builders;
 using Dotmim.Sync.Core.Context;
+using Dotmim.Sync.Core.Log;
 using Dotmim.Sync.Core.Scope;
 using Dotmim.Sync.Data;
 using Dotmim.Sync.Enumerations;
@@ -178,8 +179,14 @@ namespace Dotmim.Sync.Core
 
                 // Begin Session / Read the adapters
                 context = await this.RemoteProvider.BeginSessionAsync(context);
+
+                if (cancellationToken.IsCancellationRequested)
+                    cancellationToken.ThrowIfCancellationRequested();
+
                 context = await this.LocalProvider.BeginSessionAsync(context);
 
+                if (cancellationToken.IsCancellationRequested)
+                    cancellationToken.ThrowIfCancellationRequested();
                 // ----------------------------------------
                 // 1) Read scope info
                 // ----------------------------------------
@@ -191,12 +198,18 @@ namespace Dotmim.Sync.Core
                 if (localScopes.Count != 1)
                     throw new Exception("On Local provider, we should have only one scope info");
 
+                if (cancellationToken.IsCancellationRequested)
+                    cancellationToken.ThrowIfCancellationRequested();
+
                 localScopeInfo = localScopes[0];
 
                 (context, serverScopes) = await this.RemoteProvider.EnsureScopesAsync(context, scopeName, localScopeInfo.Id);
 
                 if (serverScopes.Count != 2)
                     throw new Exception("On Remote provider, we should have two scopes (one for server and one for client side)");
+
+                if (cancellationToken.IsCancellationRequested)
+                    cancellationToken.ThrowIfCancellationRequested();
 
                 serverScopeInfo = serverScopes.First(s => s.Id != localScopeInfo.Id);
                 serverLocalScopeReferenceInfo = serverScopes.First(s => s.Id == localScopeInfo.Id);
@@ -207,6 +220,9 @@ namespace Dotmim.Sync.Core
 
                 // Get Configuration from remote provider
                 (context, this.serviceConfiguration) = await this.RemoteProvider.EnsureConfigurationAsync(context, this.serviceConfiguration);
+
+                if (cancellationToken.IsCancellationRequested)
+                    cancellationToken.ThrowIfCancellationRequested();
 
                 // Invert policy on the client
                 var configurationLocale = this.serviceConfiguration.Clone();
@@ -220,6 +236,9 @@ namespace Dotmim.Sync.Core
                 ServiceConfiguration configuration;
                 (context, configuration) = await this.LocalProvider.EnsureConfigurationAsync(context, configurationLocale);
 
+                if (cancellationToken.IsCancellationRequested)
+                    cancellationToken.ThrowIfCancellationRequested();
+
                 // ----------------------------------------
                 // 3) Ensure databases are ready
                 // ----------------------------------------
@@ -227,8 +246,14 @@ namespace Dotmim.Sync.Core
                 // Server should have already the schema
                 context = await this.RemoteProvider.EnsureDatabaseAsync(context, serverScopeInfo, DbBuilderOption.CreateOrUseExistingSchema | DbBuilderOption.CreateOrUseExistingTrackingTables);
 
+                if (cancellationToken.IsCancellationRequested)
+                    cancellationToken.ThrowIfCancellationRequested();
+
                 // Client could have, or not, the tables
                 context = await this.LocalProvider.EnsureDatabaseAsync(context, localScopeInfo, DbBuilderOption.CreateOrUseExistingSchema | DbBuilderOption.CreateOrUseExistingTrackingTables);
+
+                if (cancellationToken.IsCancellationRequested)
+                    cancellationToken.ThrowIfCancellationRequested();
 
                 // ----------------------------------------
                 // 5) Get changes and apply them
@@ -243,13 +268,22 @@ namespace Dotmim.Sync.Core
 
                 // Generate the client batchinfo with all files involved
                 (context, clientBatchInfo, clientStatistics) = await this.LocalProvider.GetChangeBatchAsync(context, localScopeInfo);
-           
+
+                if (cancellationToken.IsCancellationRequested)
+                    cancellationToken.ThrowIfCancellationRequested();
+
                 // Apply on the Server Side
                 // Since we are on the server, we need to check the server client timestamp (not the client timestamp which is completely different)
                 (context, serverStatistics) = await this.RemoteProvider.ApplyChangesAsync(context, serverLocalScopeReferenceInfo, clientBatchInfo);
 
+                if (cancellationToken.IsCancellationRequested)
+                    cancellationToken.ThrowIfCancellationRequested();
+
                 // Get changes from server
                 (context, serverBatchInfo, tmpServerStatistics) = await this.RemoteProvider.GetChangeBatchAsync(context, serverScopeInfo);
+
+                if (cancellationToken.IsCancellationRequested)
+                    cancellationToken.ThrowIfCancellationRequested();
 
                 // Update server stats
                 if (serverStatistics == null)
@@ -260,7 +294,6 @@ namespace Dotmim.Sync.Core
                 // Apply local changes
                 (context, tmpClientStatistics)  = await this.LocalProvider.ApplyChangesAsync(context, serverScopeInfo, serverBatchInfo);
       
-
                 if (clientStatistics == null)
                     clientStatistics = tmpClientStatistics;
                 else
@@ -272,16 +305,29 @@ namespace Dotmim.Sync.Core
 
                 long serverTimestamp, clientTimestamp;
 
+                if (cancellationToken.IsCancellationRequested)
+                    cancellationToken.ThrowIfCancellationRequested();
+
                 (context, serverTimestamp) = await this.RemoteProvider.GetLocalTimestampAsync(context);
+
+                if (cancellationToken.IsCancellationRequested)
+                    cancellationToken.ThrowIfCancellationRequested();
+
                 (context, clientTimestamp) = await this.LocalProvider.GetLocalTimestampAsync(context);
 
-                serverScopeInfo.LastTimestamp = serverTimestamp;
-                serverLocalScopeReferenceInfo.LastTimestamp = serverTimestamp;
-                localScopeInfo.LastTimestamp = clientTimestamp;
+                if (cancellationToken.IsCancellationRequested)
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                context.CompleteTime = DateTime.Now;
 
                 serverScopeInfo.IsNewScope = false;
                 serverLocalScopeReferenceInfo.IsNewScope = false;
                 localScopeInfo.IsNewScope = false;
+
+                serverScopeInfo.LastSync = context.CompleteTime;
+                serverLocalScopeReferenceInfo.LastSync = context.CompleteTime;
+                localScopeInfo.LastSync = context.CompleteTime;
+
                 serverScopeInfo.IsLocal = true;
                 serverLocalScopeReferenceInfo.IsLocal = false;
 
@@ -289,31 +335,91 @@ namespace Dotmim.Sync.Core
 
                 serverScopeInfo.IsLocal = false;
                 localScopeInfo.IsLocal = true;
+
+                if (cancellationToken.IsCancellationRequested)
+                    cancellationToken.ThrowIfCancellationRequested();
+
                 context = await this.LocalProvider.WriteScopesAsync(context, new List <ScopeInfo> { localScopeInfo, serverScopeInfo });
 
+                if (cancellationToken.IsCancellationRequested)
+                    cancellationToken.ThrowIfCancellationRequested();
 
                 // Begin Session / Read the adapters
                 context = await this.RemoteProvider.EndSessionAsync(context);
                 context = await this.LocalProvider.EndSessionAsync(context);
-
-
+            }
+            catch (OperationCanceledException oce)
+            {
+                var error = SyncException.CreateOperationCanceledException(context.SyncStage, oce);
+                HandleSyncError(error);
+                context.Error = error;
+            }
+            catch (SyncException sex)
+            {
+                HandleSyncError(sex);
+                context.Error = sex;
             }
             catch (Exception ex)
             {
-                Console.WriteLine("[SynchronizeAsync]" + ex.Message);
-                throw;
+                var error = SyncException.CreateUnknowException(context.SyncStage, ex);
+                HandleSyncError(error);
+                context.Error = error;
             }
             finally
             {
+                // if EndSessionAsync() was never called, try a last time
+                try
+                {
+                    context = await this.RemoteProvider.EndSessionAsync(context);
+                    context = await this.LocalProvider.EndSessionAsync(context);
+
+                }
+                catch (Exception)
+                {
+                    // no raise
+                }
+
                 this.SessionState = SyncSessionState.Ready;
                 this.SessionStateChanged?.Invoke(this, this.SessionState);
-                context.CompleteTime = DateTime.Now;
             }
 
             return context;
 
         }
 
+        private static void HandleSyncError(SyncException sex)
+        {
+            switch (sex.SyncStage)
+            {
+                case SyncStage.BeginSession:
+                    Logger.Current.Info(sex.ToString());
+                    break;
+                case SyncStage.EnsureMetadata:
+                    break;
+                case SyncStage.SelectedChanges:
+                    break;
+                case SyncStage.ApplyingChanges:
+                    break;
+                case SyncStage.ApplyingInserts:
+                    break;
+                case SyncStage.ApplyingUpdates:
+                    break;
+                case SyncStage.ApplyingDeletes:
+                    break;
+                case SyncStage.WriteMetadata:
+                    break;
+                case SyncStage.EndSession:
+                    break;
+                case SyncStage.CleanupMetadata:
+                    break;
+                default:
+                    break;
+            }
+
+            // try to end sessions on both
+
+
+        }
 
         void ServerProvider_SyncProgress(object sender, SyncProgressEventArgs e)
         {

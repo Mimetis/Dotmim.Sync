@@ -601,7 +601,7 @@ namespace Dotmim.Sync.Core.Builders
             {
                 Logger.Current.Info("Rollback all operation");
 
-                return ChangeApplicationAction.RollbackTransaction;
+                return ChangeApplicationAction.Rollback;
             }
 
             // Server wins
@@ -636,7 +636,7 @@ namespace Dotmim.Sync.Core.Builders
                 }
 
                 // tableProgress.ChangesFailed += 1;
-                return ChangeApplicationAction.RollbackTransaction;
+                return ChangeApplicationAction.Rollback;
             }
 
             // We gonna apply with force the remote line
@@ -645,7 +645,7 @@ namespace Dotmim.Sync.Core.Builders
                 if (conflict.RemoteChange.Rows.Count == 0)
                 {
                     Logger.Current.Error("Cant find a remote row");
-                    return ChangeApplicationAction.RollbackTransaction;
+                    return ChangeApplicationAction.Rollback;
                 }
 
                 var row = conflict.RemoteChange.Rows[0];
@@ -677,14 +677,14 @@ namespace Dotmim.Sync.Core.Builders
                     var ex = $"Can't force operation for applyType {applyType}";
                     Logger.Current.Error(ex);
                     finalRow = null;
-                    return ChangeApplicationAction.RollbackTransaction;
+                    return ChangeApplicationAction.Rollback;
                 }
 
                 // tableProgress.ChangesApplied += 1;
                 return ChangeApplicationAction.Continue;
             }
 
-            return ChangeApplicationAction.RollbackTransaction;
+            return ChangeApplicationAction.Rollback;
 
         }
 

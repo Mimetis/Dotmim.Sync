@@ -41,6 +41,12 @@ namespace Dotmim.Sync.Core.Scope
         /// </summary>
         public Boolean IsNewScope { get; set; }
 
+
+        /// <summary>
+        /// Gets or Sets the last datetime when a sync has successfully ended.
+        /// </summary>
+        public DateTime? LastSync { get; set; }
+
         /// <summary>
         /// Check if the database is already created.
         /// If so, we won't do any check on the structure.

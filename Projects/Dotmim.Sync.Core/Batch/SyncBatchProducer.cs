@@ -528,7 +528,7 @@
 //            catch (Exception ex)
 //            {
 //                Trace.TraceError("SyncBatchProducer: Exception in PrepareAndQueueBatch. {0}", ex.Message);
-//                this.EnqueueBatchItem(new ApplicationException("PrepareAndQueueBatchError", ex), true);
+//                this.EnqueueBatchItem(ex, true);
 //            }
 //        }
 

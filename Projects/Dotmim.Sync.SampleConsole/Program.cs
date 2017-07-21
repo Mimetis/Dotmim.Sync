@@ -35,23 +35,9 @@ class Program
 {
     static void Main(string[] args)
     {
+        TestSync().Wait();
 
-        //TestSyncThroughKestrell();
-
-        //TestKestrelHttpServer.TestKestrell().Wait();
-
-        //TestSync();
-        //TestWebPostStream().Wait();
-
-        //TestSerializerSize();
-
-        //TestKestrelHttpServer.TestKestrell().Wait();
-
-        //TestSync().Wait() ;
-
-        TestSyncThroughKestrellAsync().Wait();
-
-        //DmTableSurrogatetest().Wait();
+        //TestSyncThroughKestrellAsync().Wait();
 
         Console.ReadLine();
 
@@ -322,11 +308,13 @@ class Program
             SqlSyncProvider serverProvider = new SqlSyncProvider(serverConfig);
             // Create the configuration stuff
             ServiceConfiguration configuration = new ServiceConfiguration(new string[] { "ServiceTickets" });
-            configuration.DownloadBatchSizeInKB = 100;
+            configuration.DownloadBatchSizeInKB = 500;
             serverProvider.SetConfiguration(configuration);
 
             // Create the proxy provider
             WebProxyServerProvider proxyServerProvider = new WebProxyServerProvider(serverProvider, SerializationFormat.Json);
+
+            serverProvider.SyncProgress += ServerProvider_SyncProgress;
 
             try
             {
@@ -385,6 +373,7 @@ class Program
         await TestKestrelHttpServer.LaunchKestrellAsync(serverHandler, clientHandler);
     }
 
+
     private static async Task TestSync()
     {
         // Get SQL Server connection string
@@ -402,7 +391,7 @@ class Program
 
         // With a config when we are in local mode (no proxy)
         ServiceConfiguration configuration = new ServiceConfiguration(new string[] { "ServiceTickets" });
-        configuration.DownloadBatchSizeInKB = 500;
+        //configuration.DownloadBatchSizeInKB = 500;
         SyncAgent agent = new SyncAgent(clientProvider, serverProvider, configuration);
 
         agent.SyncProgress += Agent_SyncProgress;
@@ -418,19 +407,12 @@ class Program
                 CancellationToken token = cts.Token;
                 var s = await agent.SynchronizeAsync(token);
 
-            }
-            catch (WebException we)
-            {
-                Console.WriteLine("WebException : " + we.Message);
-
-            }
-            catch (OperationCanceledException oce)
-            {
-                Console.WriteLine("WebException : " + oce.Message);
+                if (s.Error != null)
+                    Console.WriteLine(s.Error.ToString());
             }
             catch (Exception e)
             {
-                Console.WriteLine("Exception : " + e.Message);
+                Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
             }
 
 
@@ -765,17 +747,31 @@ class Program
 
     }
 
+    private static void ServerProvider_SyncProgress(object sender, SyncProgressEventArgs e)
+    {
+        SyncProgress(e, ConsoleColor.Red);
+    }
+
     private static void Agent_SyncProgress(object sender, SyncProgressEventArgs e)
     {
+        SyncProgress(e);
+    }
+
+    private static void SyncProgress(SyncProgressEventArgs e, ConsoleColor? consoleColor = null)
+    {
         var sessionId = e.Context.SessionId.ToString();
+
+        if (consoleColor.HasValue)
+            Console.ForegroundColor = consoleColor.Value;
 
         switch (e.Context.SyncStage)
         {
             case SyncStage.BeginSession:
-                Console.WriteLine($"Begin Session");
+                Console.WriteLine($"Begin Session {sessionId}");
+                e.Action = ChangeApplicationAction.Rollback;
                 break;
             case SyncStage.EndSession:
-                Console.WriteLine($"End Session");
+                Console.WriteLine($"End Session {sessionId}");
                 break;
             case SyncStage.EnsureMetadata:
                 Console.WriteLine($"{sessionId}. EnsureMetadata");
@@ -828,8 +824,9 @@ class Program
                 Console.WriteLine($"{sessionId}. CleanupMetadata");
                 break;
         }
-    }
 
+        Console.ResetColor();
+    }
 
     static void SqlSyncProvider_ApplyChangedFailed(object sender, ApplyChangeFailedEventArgs e)
     {

@@ -110,14 +110,16 @@ namespace Dotmim.Sync.Core
         {
             try
             {
+                Logger.Current.Info($"BeginSession() called on Provider {this.ProviderTypeName}");
 
                 lock (this)
                 {
                     if (this.syncInProgress)
-                        throw new Exception("Session already in progress");
+                        throw SyncException.CreateInProgressException(context.SyncStage);
 
                     this.syncInProgress = true;
                 }
+                // Set stage
                 context.SyncStage = SyncStage.BeginSession;
 
                 // Event progress
@@ -129,18 +131,19 @@ namespace Dotmim.Sync.Core
                 };
                 this.SyncProgress?.Invoke(this, progressEventArgs);
 
-                Logger.Current.Info($"BeginSession() called on Provider {this.ProviderTypeName}");
+                if (progressEventArgs.Action == ChangeApplicationAction.Rollback)
+                    throw SyncException.CreateRollbackException(context.SyncStage);
 
-                return Task.FromResult(context);
+
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                lock (this)
-                {
-                    this.syncInProgress = false;
-                }
-                throw;
+                if (ex is SyncException)
+                    throw;
+                else
+                    throw SyncException.CreateUnknowException(context.SyncStage, ex);
             }
+            return Task.FromResult(context);
         }
 
 
@@ -335,7 +338,15 @@ namespace Dotmim.Sync.Core
         {
             try
             {
+                // already ended
+                lock (this)
+                {
+                    if (!syncInProgress)
+                        return Task.FromResult(context);
+                }
+
                 Logger.Current.Info($"EndSession() called on Provider {this.ProviderTypeName}");
+
                 context.SyncStage = SyncStage.EndSession;
 
                 // Event progress
@@ -347,12 +358,17 @@ namespace Dotmim.Sync.Core
                 };
                 this.SyncProgress?.Invoke(this, progressEventArgs);
             }
+            catch (Exception ex)
+            {
+                if (ex is SyncException)
+                    throw;
+                else
+                    throw SyncException.CreateUnknowException(context.SyncStage, ex);
+            }
+
             finally
             {
-                lock (this)
-                {
-                    this.syncInProgress = false;
-                }
+                lock (this) { this.syncInProgress = false; }
             }
 
             return Task.FromResult(context);
@@ -365,8 +381,6 @@ namespace Dotmim.Sync.Core
         {
             try
             {
-
-
                 if (string.IsNullOrEmpty(scopeName))
                     throw new ArgumentNullException("ScopeName is mandatory");
 
@@ -419,6 +433,7 @@ namespace Dotmim.Sync.Core
                                 scope.Name = scopeName;
                                 scope.IsLocal = true;
                                 scope.IsNewScope = true;
+                                scope.LastSync = null;
 
                                 scope = scopeInfoBuilder.InsertOrUpdateScopeInfo(scope);
 
@@ -438,6 +453,7 @@ namespace Dotmim.Sync.Core
                                     refScope.Name = scopeName;
                                     refScope.IsLocal = false;
                                     refScope.IsNewScope = true;
+                                    refScope.LastSync = null;
 
                                     refScope = scopeInfoBuilder.InsertOrUpdateScopeInfo(refScope);
 
@@ -492,7 +508,6 @@ namespace Dotmim.Sync.Core
 
                         foreach (var scope in scopes)
                         {
-                            //scope.IsDatabaseCreated = true;
                             var newScope = scopeInfoBuilder.InsertOrUpdateScopeInfo(scope);
 
                             context.SyncStage = SyncStage.WriteMetadata;
@@ -523,11 +538,6 @@ namespace Dotmim.Sync.Core
             }
             catch (Exception)
             {
-                lock (this)
-                {
-                    this.syncInProgress = false;
-                }
-
                 throw;
             }
         }
@@ -578,11 +588,7 @@ namespace Dotmim.Sync.Core
             }
             catch (Exception)
             {
-                lock (this)
-                {
-                    this.syncInProgress = false;
-                }
-
+  
                 throw;
             }
         }
@@ -649,10 +655,6 @@ namespace Dotmim.Sync.Core
             }
             catch (Exception)
             {
-                lock (this)
-                {
-                    this.syncInProgress = false;
-                }
 
                 throw;
             }
@@ -680,7 +682,6 @@ namespace Dotmim.Sync.Core
             try
             {
 
-
                 if (scopeInfo == null)
                     throw new ArgumentException("ClientScope is null");
 
@@ -691,16 +692,6 @@ namespace Dotmim.Sync.Core
                     Logger.Current.Info($"Enumeration data cache size selected: {configuration.DownloadBatchSizeInKB} Kb");
 
                 context.SyncStage = SyncStage.SelectedChanges;
-
-                // Event progress
-                var progressEventArgs = new SyncProgressEventArgs
-                {
-                    ProviderTypeName = this.ProviderTypeName,
-                    Context = context,
-                    Action = ChangeApplicationAction.Continue,
-                };
-                this.SyncProgress?.Invoke(this, progressEventArgs);
-
 
                 //this.BuildTableProgress();
                 BatchInfo batchInfo;
@@ -717,11 +708,6 @@ namespace Dotmim.Sync.Core
             }
             catch (Exception)
             {
-                lock (this)
-                {
-                    this.syncInProgress = false;
-                }
-
                 throw;
             }
         }
@@ -772,11 +758,6 @@ namespace Dotmim.Sync.Core
             }
             catch (Exception)
             {
-                lock (this)
-                {
-                    this.syncInProgress = false;
-                }
-
                 throw;
             }
 
@@ -1136,7 +1117,7 @@ namespace Dotmim.Sync.Core
                                         selectedChanges.TableName = tableDescription.TableName;
 
                                         // TODO : Rollback possible here ?
-                                        if (progEventArgs.Action == ChangeApplicationAction.RollbackTransaction)
+                                        if (progEventArgs.Action == ChangeApplicationAction.Rollback)
                                         {
                                             // ?
                                         }
@@ -1179,7 +1160,7 @@ namespace Dotmim.Sync.Core
                                 this.SyncProgress?.Invoke(this, progressEventArgs);
 
                                 // TODO : Rollback possible here ?
-                                if (progressEventArgs.Action == ChangeApplicationAction.RollbackTransaction)
+                                if (progressEventArgs.Action == ChangeApplicationAction.Rollback)
                                 {
                                     // ?
                                 }
@@ -1340,10 +1321,10 @@ namespace Dotmim.Sync.Core
                                 applyTransaction = null;
                             }
 
-                        // Update the syncContext metadatas
-                        //this.UpdateRollbackSessionStats(setProgress);
+                            // Update the syncContext metadatas
+                            //this.UpdateRollbackSessionStats(setProgress);
 
-                        if (connection != null && connection.State == ConnectionState.Open)
+                            if (connection != null && connection.State == ConnectionState.Open)
                                 connection.Close();
                         };
 
@@ -1359,7 +1340,7 @@ namespace Dotmim.Sync.Core
                         changeApplicationAction = this.ApplyChangesInternal(context, connection, applyTransaction, fromScope, changes, DmRowState.Deleted, changesStatistics);
 
                         // Rollback
-                        if (changeApplicationAction == ChangeApplicationAction.RollbackTransaction)
+                        if (changeApplicationAction == ChangeApplicationAction.Rollback)
                         {
                             rollbackAction();
                             return (context, changesStatistics);
@@ -1372,7 +1353,7 @@ namespace Dotmim.Sync.Core
                         changeApplicationAction = this.ApplyChangesInternal(context, connection, applyTransaction, fromScope, changes, DmRowState.Added, changesStatistics);
 
                         // Rollback
-                        if (changeApplicationAction == ChangeApplicationAction.RollbackTransaction)
+                        if (changeApplicationAction == ChangeApplicationAction.Rollback)
                         {
                             rollbackAction();
                             return (context, changesStatistics);
@@ -1389,7 +1370,7 @@ namespace Dotmim.Sync.Core
 
 
                         // Rollback
-                        if (changeApplicationAction == ChangeApplicationAction.RollbackTransaction)
+                        if (changeApplicationAction == ChangeApplicationAction.Rollback)
                         {
                             rollbackAction();
                             return (context, changesStatistics);
@@ -1426,11 +1407,6 @@ namespace Dotmim.Sync.Core
             }
             catch (Exception)
             {
-                lock (this)
-                {
-                    this.syncInProgress = false;
-                }
-
                 throw;
             }
         }
@@ -1444,11 +1420,27 @@ namespace Dotmim.Sync.Core
 
             var configuration = GetCacheConfiguration();
 
+            // Set the good stage
+            switch (applyType)
+            {
+                case DmRowState.Added:
+                    context.SyncStage = SyncStage.ApplyingInserts;
+                    break;
+                case DmRowState.Modified:
+                    context.SyncStage = SyncStage.ApplyingUpdates;
+                    break;
+                case DmRowState.Deleted:
+                    context.SyncStage = SyncStage.ApplyingDeletes;
+                    break;
+            }
+
             // Event progress
             var progressEventArgs = new SyncProgressEventArgs
             {
                 ProviderTypeName = this.ProviderTypeName,
-                Action = ChangeApplicationAction.Continue
+                Action = ChangeApplicationAction.Continue,
+                Context = context,
+                ChangesStatistics = changesStatistics
             };
 
             // for each adapters (Zero to End for Insert / Updates -- End to Zero for Deletes
@@ -1523,14 +1515,13 @@ namespace Dotmim.Sync.Core
                                     if (resolvedRow != null)
                                         rowsApplied++;
 
-                                    if (changeApplicationAction != ChangeApplicationAction.RollbackTransaction)
+                                    if (changeApplicationAction != ChangeApplicationAction.Rollback)
                                         continue;
                                 }
                             }
 
                             // Handle sync progress for this syncadapter (so this table)
                             var changedFailed = dmChangesView.Count - rowsApplied;
-
 
                             // raise SyncProgress Event
                             AppliedChanges appliedChanges = new AppliedChanges();
@@ -1552,16 +1543,8 @@ namespace Dotmim.Sync.Core
                                 existAppliedChanges.ChangesApplied += appliedChanges.ChangesApplied;
                                 existAppliedChanges.ChangesFailed += appliedChanges.ChangesFailed;
                             }
-                            // Event progress
-                            var progEventArgs = new SyncProgressEventArgs
-                            {
-                                ProviderTypeName = this.ProviderTypeName,
-                                Context = context,
-                                Action = ChangeApplicationAction.Continue
-                            };
-                            progEventArgs.ChangesStatistics = changesStatistics;
 
-                            this.SyncProgress?.Invoke(this, progEventArgs);
+                            this.SyncProgress?.Invoke(this, progressEventArgs);
                         }
                     }
 
@@ -1578,26 +1561,19 @@ namespace Dotmim.Sync.Core
                 }
             }
 
-            switch (applyType)
-            {
-                case DmRowState.Added:
-                    context.SyncStage = SyncStage.ApplyingInserts;
-                    break;
-                case DmRowState.Modified:
-                    context.SyncStage = SyncStage.ApplyingUpdates;
-                    break;
-                case DmRowState.Deleted:
-                    context.SyncStage = SyncStage.ApplyingDeletes;
-                    break;
-            }
 
-            this.SyncProgress?.Invoke(this, progressEventArgs);
+            // could potentially be null if nothing to apply. Just raise this event to notify 0 applied rows
+            if (progressEventArgs.ChangesStatistics.AppliedChanges.Count == 0)
+            {
+                progressEventArgs.ChangesStatistics.AppliedChanges.Add(new AppliedChanges());
+                this.SyncProgress?.Invoke(this, progressEventArgs);
+            }
 
             // Check action
             changeApplicationAction = progressEventArgs.Action;
 
-            if (changeApplicationAction == ChangeApplicationAction.RollbackTransaction)
-                return ChangeApplicationAction.RollbackTransaction;
+            if (changeApplicationAction == ChangeApplicationAction.Rollback)
+                return ChangeApplicationAction.Rollback;
 
 
             return ChangeApplicationAction.Continue;

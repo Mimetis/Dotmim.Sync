@@ -1,5 +1,4 @@
 ﻿using Dotmim.Sync.Core.Enumerations;
-using Dotmim.Sync.Core.Proxy.Client;
 using Dotmim.Sync.Core.Serialization;
 using Dotmim.Sync.Data.Surrogate;
 using Dotmim.Sync.Enumerations;
@@ -120,8 +119,7 @@ namespace Dotmim.Sync.Core.Proxy
                     // get response from server
                     if (!response.IsSuccessStatusCode)
                     {
-                        ApplicationException applicationException = new ApplicationException(response.ReasonPhrase);
-                        throw new Exception("Error on sending request", applicationException);
+                        throw new Exception(response.ReasonPhrase);
                     }
 
                     // try to set the cookie for http session

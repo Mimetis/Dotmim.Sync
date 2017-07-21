@@ -36,7 +36,24 @@ namespace Dotmim.Sync.Core.Test
 
             Assert.Equal(10, session.TotalChangesDownloaded);
             Assert.Equal(0, session.TotalChangesUploaded);
-            
+
+        }
+
+        [Fact, TestPriority(2)]
+        public async Task Sync_No_Rows()
+        {
+
+            SqlSyncProvider serverProvider = new SqlSyncProvider(fixture.ServerDatabaseString);
+            SqlSyncProvider clientProvider = new SqlSyncProvider(fixture.ClientDatabaseString);
+
+            ServiceConfiguration configuration = new ServiceConfiguration(new string[] { "ServiceTickets" });
+
+            SyncAgent agent = new SyncAgent(clientProvider, serverProvider, configuration);
+
+            var session = await agent.SynchronizeAsync();
+
+            Assert.Equal(0, session.TotalChangesDownloaded);
+            Assert.Equal(0, session.TotalChangesUploaded);
         }
 
         [Fact, TestPriority(2)]
@@ -58,7 +75,7 @@ namespace Dotmim.Sync.Core.Test
                 }
 
             }
-         
+
 
             SqlSyncProvider serverProvider = new SqlSyncProvider(fixture.ServerDatabaseString);
             SqlSyncProvider clientProvider = new SqlSyncProvider(fixture.ClientDatabaseString);
@@ -93,7 +110,6 @@ namespace Dotmim.Sync.Core.Test
 
             }
 
-
             SqlSyncProvider serverProvider = new SqlSyncProvider(fixture.ServerDatabaseString);
             SqlSyncProvider clientProvider = new SqlSyncProvider(fixture.ClientDatabaseString);
 
@@ -107,6 +123,25 @@ namespace Dotmim.Sync.Core.Test
             Assert.Equal(1, session.TotalChangesUploaded);
         }
 
+
+
+        [Fact, TestPriority(2)]
+        public async Task Sync_Bad_Server_Connection()
+        {
+            var ex = await Assert.ThrowsAsync(typeof(Exception), async () =>
+            {
+
+                SqlSyncProvider serverProvider = new SqlSyncProvider(@"Data Source=(localdb)\MSSQLLocalDB; Initial Catalog=WrongDB; Integrated Security=true;");
+                SqlSyncProvider clientProvider = new SqlSyncProvider(fixture.ClientDatabaseString);
+
+                ServiceConfiguration configuration = new ServiceConfiguration(new string[] { "ServiceTickets" });
+
+                SyncAgent agent = new SyncAgent(clientProvider, serverProvider, configuration);
+
+                var session = await agent.SynchronizeAsync();
+
+            });
+        }
 
 
     }

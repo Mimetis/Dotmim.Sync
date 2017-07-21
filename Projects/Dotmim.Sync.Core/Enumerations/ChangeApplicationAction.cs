@@ -15,7 +15,7 @@ namespace Dotmim.Sync.Enumerations
         /// <summary>
         /// Rollback transaction
         /// </summary>
-        RollbackTransaction,
+        Rollback,
 
     }
 }

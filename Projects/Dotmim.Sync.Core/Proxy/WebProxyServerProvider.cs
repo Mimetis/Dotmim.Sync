@@ -7,7 +7,6 @@ using Dotmim.Sync.Core.Batch;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
-using Dotmim.Sync.Core.Proxy.Client;
 using System.IO;
 using System.Linq;
 using DmBinaryFormatter;
@@ -92,7 +91,7 @@ namespace Dotmim.Sync.Core.Proxy
                         break;
                     case HttpStep.ApplyChanges:
                         httpMessageResponse = await ApplyChangesAsync(httpMessage);
-                       
+
                         break;
                     case HttpStep.GetLocalTimestamp:
                         httpMessageResponse = await GetLocalTimestampAsync(httpMessage);
@@ -201,15 +200,19 @@ namespace Dotmim.Sync.Core.Proxy
                     httpMessage.GetChangeBatch.BatchPartInfo = bi.BatchPartsInfo.First(bpi => bpi.Index == 0);
 
                 httpMessage.SyncContext = syncContext;
-
                 httpMessage.GetChangeBatch.InMemory = bi.InMemory;
                 httpMessage.GetChangeBatch.ChangesStatistics = s;
+
+                // if no changes, return
+                if (httpMessage.GetChangeBatch.BatchPartInfo == null)
+                    return httpMessage;
 
                 // if we are not in memory, we set the BI in session, to be able to get it back on next request
                 if (!bi.InMemory)
                 {
                     // Save the BatchInfo
                     this.localProvider.CacheManager.Set("GetChangeBatch_BatchInfo", bi);
+                    this.localProvider.CacheManager.Set("GetChangeBatch_ChangesStatistics", s);
 
                     // load the batchpart set directly, to be able to send it back
                     var batchPart = httpMessage.GetChangeBatch.BatchPartInfo.GetBatch();
@@ -231,10 +234,12 @@ namespace Dotmim.Sync.Core.Proxy
 
             // We are in batch mode here
             var batchInfo = this.localProvider.CacheManager.GetValue<BatchInfo>("GetChangeBatch_BatchInfo");
+            var stats = this.localProvider.CacheManager.GetValue<ChangesStatistics>("GetChangeBatch_ChangesStatistics");
 
             if (batchInfo == null)
                 throw new ArgumentNullException("batchInfo stored in session can't be null if request more batch part info.");
 
+            httpMessage.GetChangeBatch.ChangesStatistics = stats;
             httpMessage.GetChangeBatch.InMemory = batchInfo.InMemory;
 
             var batchPartInfo = batchInfo.BatchPartsInfo.FirstOrDefault(bpi => bpi.Index == httpMessage.GetChangeBatch.BatchIndexRequested);
@@ -245,7 +250,10 @@ namespace Dotmim.Sync.Core.Proxy
             httpMessage.GetChangeBatch.Set = httpMessage.GetChangeBatch.BatchPartInfo.GetBatch().DmSetSurrogate;
 
             if (httpMessage.GetChangeBatch.BatchPartInfo.IsLastBatch)
+            {
                 this.localProvider.CacheManager.Remove("GetChangeBatch_BatchInfo");
+                this.localProvider.CacheManager.Remove("GetChangeBatch_ChangesStatistics");
+            }
 
             return httpMessage;
         }
@@ -279,7 +287,7 @@ namespace Dotmim.Sync.Core.Proxy
 
                 var (c, s) = await this.ApplyChangesAsync(httpMessage.SyncContext, scopeInfo, batchInfo);
 
-                httpMessage.SyncContext =c;
+                httpMessage.SyncContext = c;
                 httpMessage.ApplyChanges.ChangesStatistics = s;
 
                 return httpMessage;

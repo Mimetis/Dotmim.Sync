@@ -7,7 +7,6 @@ using Dotmim.Sync.Core.Batch;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
-using Dotmim.Sync.Core.Proxy.Client;
 using System.IO;
 using System.Linq;
 using DmBinaryFormatter;
@@ -197,18 +196,30 @@ namespace Dotmim.Sync.Core.Proxy
                 if (httpMessageResponse == null)
                     throw new Exception("Can't have an empty body");
 
-                if (httpMessageResponse.GetChangeBatch == null || httpMessageResponse.GetChangeBatch.BatchPartInfo == null)
+                if (httpMessageResponse.GetChangeBatch == null)
                     throw new Exception("Can't have an empty GetChangeBatch");
 
+
                 changesStatistics = httpMessageResponse.GetChangeBatch.ChangesStatistics;
+                changes.InMemory = httpMessageResponse.GetChangeBatch.InMemory;
+                syncContext = httpMessageResponse.SyncContext;
 
                 // get the bpi and add it to the BatchInfo
                 var bpi = httpMessageResponse.GetChangeBatch.BatchPartInfo;
-                changes.BatchIndex = bpi.Index;
-                changes.BatchPartsInfo.Add(bpi);
-                changes.InMemory = httpMessageResponse.GetChangeBatch.InMemory;
+                if (bpi != null)
+                {
+                    changes.BatchIndex = bpi.Index;
+                    changes.BatchPartsInfo.Add(bpi);
+                    isLastBatch = bpi.IsLastBatch;
+                }
+                else
+                {
+                    changes.BatchIndex = 0;
+                    isLastBatch = true;
 
-                isLastBatch = bpi.IsLastBatch;
+                    // break the while { } story
+                    break;
+                }
 
                 if (changes.InMemory)
                 {
@@ -228,10 +239,8 @@ namespace Dotmim.Sync.Core.Proxy
                 httpMessageResponse.GetChangeBatch.Set.Dispose();
                 httpMessageResponse.GetChangeBatch.Set = null;
 
-                // if last, set the context, else increment batchIndex for next request
-                if (isLastBatch)
-                    syncContext = httpMessage.SyncContext;
-                else
+                // if not last, increment batchIndex for next request
+                if (!isLastBatch)
                     changes.BatchIndex++;
 
             }
