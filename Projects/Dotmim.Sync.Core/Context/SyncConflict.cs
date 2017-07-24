@@ -10,15 +10,12 @@ namespace Dotmim.Sync.Core.Context
 {
     /// <summary>
     /// Represents a synchronization conflict at the row level.
+    /// Conflict could be resolved only on server side
     /// </summary>
     public class SyncConflict
     {
- 
-  
         DmTable localRows;
-
         DmTable remoteRows;
-
         string errorMessage;
 
         /// <summary>
@@ -29,12 +26,12 @@ namespace Dotmim.Sync.Core.Context
         /// <summary>
         /// Gets the DmTable object that contains the conflicting rows from the local database.
         /// </summary>
-        public DmTable LocalChange => this.localRows;
+        public DmTable LocalChanges => this.localRows;
 
         /// <summary>
         /// Gets the DmTable object that contains the conflicting rows from the remote database.
         /// </summary>
-        public DmTable RemoteChange => this.remoteRows;
+        public DmTable RemoteChanges => this.remoteRows;
 
 
         /// <summary>

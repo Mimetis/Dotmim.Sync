@@ -34,6 +34,7 @@ namespace Dotmim.Sync.Core.Proxy
         private BaseConverter<HttpMessage> serializer;
 
         public event EventHandler<SyncProgressEventArgs> SyncProgress;
+        public event EventHandler<ApplyChangeFailedEventArgs> ApplyChangedFailed;
 
         /// <summary>
         /// Use this constructor when you are on the Remote Side, only

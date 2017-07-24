@@ -53,7 +53,14 @@ namespace Dotmim.Sync.Core
         /// </summary>
         public event EventHandler<SyncProgressEventArgs> SyncProgress = null;
 
-
+        /// <summary>
+        /// Occurs when a conflict is raised on the server side
+        /// </summary>
+        public event EventHandler<ApplyChangeFailedEventArgs> ApplyChangedFailed = null;
+        
+        /// <summary>
+        /// Occurs when sync is starting, ending
+        /// </summary>
         public event EventHandler<SyncSessionState> SessionStateChanged = null;
 
 
@@ -80,8 +87,9 @@ namespace Dotmim.Sync.Core
             this.scopeName = scopeName ?? throw new ArgumentNullException("scopeName");
 
             this.LocalProvider.SyncProgress += ClientProvider_SyncProgress;
-            this.RemoteProvider.SyncProgress += ServerProvider_SyncProgress;
+            this.RemoteProvider.ApplyChangedFailed += RemoteProvider_ApplyChangedFailed;
         }
+
 
 
         /// <summary>
@@ -420,6 +428,7 @@ namespace Dotmim.Sync.Core
                 case SyncStage.WriteMetadata:
                     break;
                 case SyncStage.EndSession:
+                    Logger.Current.Info(sex.ToString());
                     break;
                 case SyncStage.CleanupMetadata:
                     break;
@@ -432,16 +441,15 @@ namespace Dotmim.Sync.Core
 
         }
 
-        void ServerProvider_SyncProgress(object sender, SyncProgressEventArgs e)
-        {
-            //this.SyncProgress?.Invoke(this, e);
-        }
-
         void ClientProvider_SyncProgress(object sender, SyncProgressEventArgs e)
         {
             this.SyncProgress?.Invoke(this, e);
         }
 
+        private void RemoteProvider_ApplyChangedFailed(object sender, ApplyChangeFailedEventArgs e)
+        {
+            this.ApplyChangedFailed?.Invoke(this, e);
+        }
 
 
         // --------------------------------------------------------------------
@@ -464,7 +472,8 @@ namespace Dotmim.Sync.Core
         protected virtual void Dispose(bool cleanup)
         {
             this.LocalProvider.SyncProgress -= ClientProvider_SyncProgress;
-            this.RemoteProvider.SyncProgress -= ServerProvider_SyncProgress;
+            this.RemoteProvider.ApplyChangedFailed -= RemoteProvider_ApplyChangedFailed;
+
 
         }
     }

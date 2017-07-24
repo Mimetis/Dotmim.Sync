@@ -117,7 +117,7 @@ namespace Dotmim.Sync.Core.Builders
             // Set the id parameter
             this.SetColumnParameters(command, row);
 
-            DbManager.SetParameterValue(command, "sync_scope_id", scope.Id == Guid.Empty ?  null : (object)scope.Id);
+            DbManager.SetParameterValue(command, "sync_scope_id", scope.Id == Guid.Empty ? null : (object)scope.Id);
             DbManager.SetParameterValue(command, "sync_row_is_tombstone", row.RowState == DmRowState.Deleted ? 1 : 0);
             DbManager.SetParameterValue(command, "create_timestamp", scope.LastTimestamp);
             DbManager.SetParameterValue(command, "update_timestamp", scope.LastTimestamp);
@@ -486,67 +486,65 @@ namespace Dotmim.Sync.Core.Builders
         }
 
         /// <summary>
-        /// We have a conflict, try to get the source (server) row and generate a conflict
+        /// We have a conflict, try to get the source row and generate a conflict
         /// </summary>
         private SyncConflict GetConflict(DmRow dmRow)
         {
-            DmRow destinationRow = null;
+            DmRow localRow = null;
 
             // Problem during operation
             // Getting the row involved in the conflict 
-            var dmTableSelected = GetRow(dmRow);
+            var localTable = GetRow(dmRow);
 
             ConflictType dbConflictType = ConflictType.ErrorsOccurred;
 
-            // Can't find the row on the local datastore
-            if (dmTableSelected.Rows.Count == 0)
+            // Can't find the row on the server datastore
+            if (localTable.Rows.Count == 0)
             {
                 var errorMessage = "Change Application failed due to Row not Found on the server";
 
                 Logger.Current.Error($"Conflict detected with error: {errorMessage}");
 
                 if (applyType == DmRowState.Added)
-                    dbConflictType = ConflictType.LocalNoRowRemoteInsert;
+                    dbConflictType = ConflictType.RemoteInsertLocalNoRow;
                 else if (applyType == DmRowState.Modified)
-                    dbConflictType = ConflictType.LocalNoRowRemoteUpdate;
+                    dbConflictType = ConflictType.RemoteUpdateLocalNoRow;
                 else if (applyType == DmRowState.Deleted)
-                    dbConflictType = ConflictType.LocalNoRowRemoteDelete;
+                    dbConflictType = ConflictType.RemoteDeleteLocalNoRow;
             }
             else
             {
                 // We have a problem and found the row on the server side
-                destinationRow = dmTableSelected.Rows[0];
+                localRow = localTable.Rows[0];
 
-                var isTombstone = (bool)destinationRow["sync_row_is_tombstone"];
+                var isTombstone = (bool)localRow["sync_row_is_tombstone"];
 
                 // the row on local is deleted
                 if (isTombstone)
                 {
                     if (applyType == DmRowState.Added)
-                        dbConflictType = ConflictType.LocalDeleteRemoteInsert;
+                        dbConflictType = ConflictType.RemoteInsertLocalDelete;
                     else if (applyType == DmRowState.Modified)
-                        dbConflictType = ConflictType.LocalDeleteRemoteUpdate;
+                        dbConflictType = ConflictType.RemoteUpdateLocalDelete;
                     else if (applyType == DmRowState.Deleted)
-                        dbConflictType = ConflictType.LocalDeleteRemoteDelete;
+                        dbConflictType = ConflictType.RemoteDeleteLocalDelete;
                 }
                 else
                 {
-                    var isLocallyCreated = destinationRow["create_scope_id"] == DBNull.Value;
-                    var islocallyUpdated = destinationRow["update_scope_id"] == DBNull.Value;
-
-                    if (applyType == DmRowState.Added && islocallyUpdated)
-                        dbConflictType = ConflictType.LocalUpdateRemoteInsert;
-                    else if (applyType == DmRowState.Added && isLocallyCreated)
-                        dbConflictType = ConflictType.LocalInsertRemoteInsert;
-                    else if (applyType == DmRowState.Modified && islocallyUpdated)
-                        dbConflictType = ConflictType.LocalUpdateRemoteUpdate;
-                    else if (applyType == DmRowState.Modified && isLocallyCreated)
-                        dbConflictType = ConflictType.LocalInsertRemoteUpdate;
-                    else if (applyType == DmRowState.Deleted && islocallyUpdated)
-                        dbConflictType = ConflictType.LocalUpdateRemoteDelete;
-                    else if (applyType == DmRowState.Deleted && isLocallyCreated)
-                        dbConflictType = ConflictType.LocalInsertRemoteDelete;
-
+                    var createTimestamp = localRow["create_timestamp"] != DBNull.Value ? (long)localRow["create_timestamp"] : 0L;
+                    var updateTimestamp = localRow["update_timestamp"] != DBNull.Value ? (long)localRow["update_timestamp"] : 0L;
+                    switch (applyType)
+                    {
+                        case DmRowState.Added:
+                            dbConflictType = updateTimestamp == 0 ? ConflictType.RemoteInsertLocalInsert : ConflictType.RemoteInsertLocalUpdate;
+                            break;
+                        case DmRowState.Modified:
+                            dbConflictType = updateTimestamp == 0 ? ConflictType.RemoteUpdateLocalInsert : ConflictType.RemoteUpdateLocalUpdate;
+                            break;
+                        case DmRowState.Deleted:
+                            dbConflictType = updateTimestamp == 0 ? ConflictType.RemoteDeleteLocalInsert : ConflictType.RemoteDeleteLocalUpdate;
+                            break;
+                    }
                 }
             }
 
@@ -554,10 +552,11 @@ namespace Dotmim.Sync.Core.Builders
             // Generate the conflict
             var conflict = new SyncConflict(dbConflictType);
             conflict.AddRemoteRow(dmRow);
-            if (destinationRow != null)
-                conflict.AddLocalRow(destinationRow);
 
-            dmTableSelected.Clear();
+            if (localRow != null)
+                conflict.AddLocalRow(localRow);
+
+            localTable.Clear();
 
             return conflict;
         }
@@ -599,26 +598,27 @@ namespace Dotmim.Sync.Core.Builders
             // Default behavior and an error occured
             if (ConflictApplyAction == ApplyAction.Rollback)
             {
-                Logger.Current.Info("Rollback all operation");
+                Logger.Current.Info("Rollback action taken on conflict");
+                conflict.ErrorMessage = "Rollback action taken on conflict";
+                conflict.Type = ConflictType.ErrorsOccurred;
 
                 return ChangeApplicationAction.Rollback;
             }
 
-            // Server wins
             if (ConflictApplyAction == ApplyAction.Continue)
             {
                 Logger.Current.Info("Local Wins, update metadata");
 
 
                 // COnflict on a line that is not present on the datasource
-                if (conflict.LocalChange == null || conflict.LocalChange.Rows == null || conflict.LocalChange.Rows.Count == 0)
+                if (conflict.LocalChanges == null || conflict.LocalChanges.Rows == null || conflict.LocalChanges.Rows.Count == 0)
                 {
                     return ChangeApplicationAction.Continue;
                 }
 
-                if (conflict.LocalChange != null && conflict.LocalChange.Rows != null && conflict.LocalChange.Rows.Count > 0)
+                if (conflict.LocalChanges != null && conflict.LocalChanges.Rows != null && conflict.LocalChanges.Rows.Count > 0)
                 {
-                    var localRow = conflict.LocalChange.Rows[0];
+                    var localRow = conflict.LocalChanges.Rows[0];
                     // TODO : Différencier le timestamp de mise à jour ou de création
                     var updateMetadataCommand = GetCommand(DbObjectType.UpdateMetadataProcName);
 
@@ -635,34 +635,60 @@ namespace Dotmim.Sync.Core.Builders
                     return ChangeApplicationAction.Continue;
                 }
 
-                // tableProgress.ChangesFailed += 1;
                 return ChangeApplicationAction.Rollback;
             }
 
-            // We gonna apply with force the remote line
+            // We gonna apply with force the line
             if (ConflictApplyAction == ApplyAction.RetryWithForceWrite)
             {
-                if (conflict.RemoteChange.Rows.Count == 0)
+                if (conflict.RemoteChanges.Rows.Count == 0)
                 {
                     Logger.Current.Error("Cant find a remote row");
                     return ChangeApplicationAction.Rollback;
                 }
 
-                var row = conflict.RemoteChange.Rows[0];
+                var row = conflict.RemoteChanges.Rows[0];
                 bool operationComplete = false;
 
                 // create a localscope to override values
                 var localScope = new ScopeInfo { Name = scope.Name, LastTimestamp = timestamp };
 
-
-                if (conflict.Type == ConflictType.LocalNoRowRemoteUpdate || conflict.Type == ConflictType.LocalNoRowRemoteInsert)
+                if (conflict.Type == ConflictType.RemoteUpdateLocalNoRow || conflict.Type == ConflictType.RemoteInsertLocalNoRow)
                     operationComplete = this.ApplyInsert(row);
-                else if (applyType == DmRowState.Added)
-                    operationComplete = this.ApplyInsert(row);
-                else if (applyType == DmRowState.Modified)
-                    operationComplete = this.ApplyUpdate(row, localScope, true);
-                else if (applyType == DmRowState.Deleted)
+                else if (conflict.Type == ConflictType.RemoteDeleteLocalDelete)
+                    operationComplete = true;
+                else if (conflict.Type == ConflictType.RemoteDeleteLocalInsert)
                     operationComplete = this.ApplyDelete(row, localScope, true);
+                else if (conflict.Type == ConflictType.RemoteDeleteLocalNoRow)
+                    operationComplete = true;
+                else if (conflict.Type == ConflictType.RemoteDeleteLocalUpdate)
+                    operationComplete = this.ApplyDelete(row, localScope, true);
+                else if (conflict.Type == ConflictType.RemoteInsertLocalDelete)
+                    operationComplete = this.ApplyInsert(row);
+                else if (conflict.Type == ConflictType.RemoteInsertLocalInsert)
+                    operationComplete = this.ApplyUpdate(row, localScope, true);
+                else if (conflict.Type == ConflictType.RemoteInsertLocalUpdate)
+                    operationComplete = this.ApplyUpdate(row, localScope, true);
+                else if (conflict.Type == ConflictType.RemoteUpdateLocalDelete)
+                    operationComplete = this.ApplyInsert(row);
+                else if (conflict.Type == ConflictType.RemoteUpdateLocalInsert)
+                    operationComplete = this.ApplyUpdate(row, localScope, true);
+                else if (conflict.Type == ConflictType.RemoteUpdateLocalUpdate)
+                    operationComplete = this.ApplyUpdate(row, localScope, true);
+
+                //// un insert local
+                //// je force le local
+
+
+                //// TODO : more tests on this part
+                //if (conflict.Type == ConflictType.RemoteUpdateLocalNoRow || conflict.Type == ConflictType.RemoteInsertLocalNoRow)
+                //    operationComplete = this.ApplyInsert(row);
+                //else if (applyType == DmRowState.Added)
+                //    operationComplete = this.ApplyInsert(row);
+                //else if (applyType == DmRowState.Modified)
+                //    operationComplete = this.ApplyUpdate(row, localScope, true);
+                //else if (applyType == DmRowState.Deleted)
+                //    operationComplete = this.ApplyDelete(row, localScope, true);
 
                 var insertMetadataCommand = GetCommand(DbObjectType.InsertMetadataProcName);
                 var rowsApplied = this.InsertOrUpdateMetadatas(insertMetadataCommand, row, localScope);
@@ -730,7 +756,7 @@ namespace Dotmim.Sync.Core.Builders
             }
         }
 
-      
+
 
     }
 

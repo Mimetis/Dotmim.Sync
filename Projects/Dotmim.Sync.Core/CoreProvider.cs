@@ -1520,14 +1520,23 @@ namespace Dotmim.Sync.Core
 
                                     changeApplicationAction = syncAdapter.HandleConflict(conflict, fromScope, localTimeStamp, out resolvedRow);
 
-                                    // row resolved
-                                    if (resolvedRow != null)
-                                        rowsApplied++;
-
-                                    if (changeApplicationAction != ChangeApplicationAction.Rollback)
-                                        continue;
+                                    if (changeApplicationAction == ChangeApplicationAction.Continue)
+                                    {
+                                        // row resolved
+                                        if (resolvedRow != null)
+                                            rowsApplied++;
+                                    }
+                                    else
+                                    {
+                                        context.TotalSyncErrors++;
+                                        // TODO : Should we break at the first error ?
+                                        return ChangeApplicationAction.Rollback;
+                                    }
                                 }
                             }
+
+                            // Get all conflicts resolved
+                            context.TotalSyncConflicts = conflicts.Where(c => c.Type != ConflictType.ErrorsOccurred).Sum(c => 1);
 
                             // Handle sync progress for this syncadapter (so this table)
                             var changedFailed = dmChangesView.Count - rowsApplied;

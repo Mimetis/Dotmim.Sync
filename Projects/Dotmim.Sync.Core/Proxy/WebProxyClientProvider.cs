@@ -33,6 +33,7 @@ namespace Dotmim.Sync.Core.Proxy
         private CancellationToken cancellationToken;
         private ServiceConfiguration serviceConfiguration;
         public event EventHandler<SyncProgressEventArgs> SyncProgress;
+        public event EventHandler<ApplyChangeFailedEventArgs> ApplyChangedFailed;
 
         /// <summary>
         /// Use this Constructor if you are on the Client Side, only

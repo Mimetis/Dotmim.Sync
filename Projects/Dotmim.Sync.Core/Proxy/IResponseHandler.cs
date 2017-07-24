@@ -27,6 +27,8 @@ namespace Dotmim.Sync.Core
         /// </summary>
         event EventHandler<SyncProgressEventArgs> SyncProgress;
 
+        event EventHandler<ApplyChangeFailedEventArgs> ApplyChangedFailed;
+
         /// <summary>
         /// Ensure scopes are created on both local and remote 
         /// If clientReferenceId is specified, we are on the server side and we need the client reference scope (with server timestamp)

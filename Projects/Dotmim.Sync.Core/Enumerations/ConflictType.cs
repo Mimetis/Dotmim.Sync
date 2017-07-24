@@ -17,71 +17,71 @@ namespace Dotmim.Sync.Enumerations
         ErrorsOccurred,
 
         /// <summary>
-        /// The local datasource update a row and the remote datasource insert a row with same key
+        /// The Remote datasource update a row and the Local datasource insert a row with same key
         /// </summary>
         [Obsolete("this can't happened")]
-        LocalUpdateRemoteInsert,
+        RemoteUpdateLocalInsert,
 
         /// <summary>
-        /// The local and remote datasources both updated the same row.
+        /// The Remote and Local datasources both updated the same row.
         /// </summary>
-        LocalUpdateRemoteUpdate,
+        RemoteUpdateLocalUpdate,
 
         /// <summary>
-        /// The local datasource updated a row that the remote datasource deleted.
+        /// The Remote datasource updated a row that the Local datasource deleted.
         /// </summary>
-        LocalUpdateRemoteDelete,
+        RemoteUpdateLocalDelete,
 
         /// <summary>
-        /// The local datasource deleted a row that the remote datasource insert with the same key.
+        /// The Remote datasource deleted a row that the Local datasource insert with the same key.
         /// </summary>
-        [Obsolete("this can't happened")]
-        LocalDeleteRemoteInsert,
+        [Obsolete("this should not happened")]
+        RemoteDeleteLocalInsert,
 
         /// <summary>
-        /// The local datasource deleted a row that the remote datasource updated.
+        /// The Remote datasource deleted a row that the Local datasource updated.
         /// </summary>
-        LocalDeleteRemoteUpdate,
+        RemoteDeleteLocalUpdate,
 
         /// <summary>
-        /// The local and remote datasource both deleted the same row.
+        /// The Remote and Local datasource both deleted the same row.
         /// </summary>
-        LocalDeleteRemoteDelete,
+        RemoteDeleteLocalDelete,
 
         /// <summary>
-        /// The local and remote datasource both inserted a row that has the same primary key value. This caused a primary key violation.
+        /// The Remote and Local datasource both inserted a row that has the same primary key value. This caused a primary key violation.
         /// </summary>
-        LocalInsertRemoteInsert,
+        RemoteInsertLocalInsert,
 
         /// <summary>
-        /// The local datasource insert a row that the remote datasource updated.
+        /// The Remote datasource insert a row that the Local datasource updated.
         /// </summary>
-        [Obsolete("this can't happened")]
-        LocalInsertRemoteUpdate,
+        [Obsolete("this should not happened")]
+        RemoteInsertLocalUpdate,
 
         /// <summary>
-        /// The local datasource insert a row that the remote datasource delete.
+        /// The Remote datasource insert a row that the Local datasource delete.
         /// </summary>
-        LocalInsertRemoteDelete,
+        RemoteInsertLocalDelete,
 
         /// <summary>
-        /// The local peer deleted a row that the remote peer updated, and the metadata for that row was cleaned up.
+        /// The Remote peer deleted a row that the Local peer updated, and the metadata for that row was cleaned up.
         /// </summary>
-        LocalCleanedupDeleteRemoteUpdate,
+        RemoteCleanedupDeleteLocalUpdate,
 
         /// <summary>
-        /// The local peer has no row that the remote peer updated.
+        /// The Remote peer update a row that the Local never had.
         /// </summary>
-        LocalNoRowRemoteUpdate,
+        RemoteUpdateLocalNoRow,
 
         /// <summary>
-        /// The local peer has no row that the remote peer insert.
+        /// The Remote peer insert a row that the Local never had.
         /// </summary>
-        LocalNoRowRemoteInsert,
+        RemoteInsertLocalNoRow,
 
         /// <summary>
-        /// The local peer has no row that the remote peer delete.
+        /// The Remote peer delete a row that the Local never had.
         /// </summary>
-        LocalNoRowRemoteDelete
+        RemoteDeleteLocalNoRow
     }
 }
