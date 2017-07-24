@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Data.Common;
 
 namespace Dotmim.Sync.Core
 {
@@ -34,6 +35,11 @@ namespace Dotmim.Sync.Core
         /// Gets or Sets the stage when the exception has raised
         /// </summary>
         public SyncStage SyncStage { get; set; }
+
+        /// <summary>
+        /// Gets or Sets an additionnal optional argument
+        /// </summary>
+        public String Argument { get; set; }
 
         /// <summary>
         /// Create a rollback exception to rollback the Sync session
@@ -69,6 +75,20 @@ namespace Dotmim.Sync.Core
             SyncException syncException = new SyncException("Operation canceled.", syncStage, SyncExceptionType.OperationCanceled);
             return syncException;
         }
+        internal static SyncException CreateArgumentException(SyncStage syncStage, string paramName, string message = null)
+        {
+            var m = message ?? $"Argument exception on parameter {paramName}";
+            SyncException syncException = new SyncException(m, syncStage, SyncExceptionType.Argument);
+            syncException.Argument = paramName;
+            return syncException;
+
+        }
+
+        internal static Exception CreateDbException(SyncStage syncStage, DbException dbex)
+        {
+            SyncException syncException = new SyncException("Database exception", syncStage, dbex, SyncExceptionType.DbException);
+            return syncException;
+        }
     }
 
 
@@ -82,6 +102,8 @@ namespace Dotmim.Sync.Core
         SyncInProgress,
         OperationCanceled,
         Rollback,
+        Argument,
         Unknown,
+        DbException,
     }
 }

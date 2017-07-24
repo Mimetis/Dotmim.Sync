@@ -30,6 +30,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Server.Kestrel.Internal;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Net.Http.Headers;
+using System.Data.SqlClient;
 
 class Program
 {
@@ -389,10 +390,17 @@ class Program
         // Shortcut 
         //SyncAgent agent = new SyncAgent(clientProvider, serverProvider, new string[] { "ServiceTickets" });
 
+        //SyncAgent shortAgent = new SyncAgent(new string[] { "ServiceTickets" });
+        //var stats = await shortAgent.UseSqlServer(serverConfig, SyncProviderType.IsRemote)
+        //                .UseSqlServer(clientConfig, SyncProviderType.IsLocal)
+        //                .SynchronizeAsync();
+
         // With a config when we are in local mode (no proxy)
         ServiceConfiguration configuration = new ServiceConfiguration(new string[] { "ServiceTickets" });
         //configuration.DownloadBatchSizeInKB = 500;
         SyncAgent agent = new SyncAgent(clientProvider, serverProvider, configuration);
+
+        SyncAgent agent2 = new SyncAgent(configuration);
 
         agent.SyncProgress += Agent_SyncProgress;
 
@@ -403,7 +411,6 @@ class Program
             try
             {
                 CancellationTokenSource cts = new CancellationTokenSource();
-                cts.CancelAfter(1000);
                 CancellationToken token = cts.Token;
                 var s = await agent.SynchronizeAsync(token);
 
@@ -767,21 +774,18 @@ class Program
         switch (e.Context.SyncStage)
         {
             case SyncStage.BeginSession:
-                Console.WriteLine($"Begin Session {sessionId}");
-                e.Action = ChangeApplicationAction.Rollback;
+                Console.WriteLine($"Begin Session.");
                 break;
             case SyncStage.EndSession:
-                Console.WriteLine($"End Session {sessionId}");
+                Console.WriteLine($"End Session.");
                 break;
             case SyncStage.EnsureMetadata:
-                Console.WriteLine($"{sessionId}. EnsureMetadata");
-
-                if (e.ScopeInfo != null)
-                    Console.WriteLine($"{sessionId}. Ensure scope : {e.ScopeInfo.Name} - Last provider timestamp {e.ScopeInfo.LastTimestamp} - Is new : {e.ScopeInfo.IsNewScope} ");
                 if (e.Configuration != null)
                 {
-                    Console.WriteLine("Configuration set.");
                     var ds = e.Configuration.ScopeSet;
+
+                    Console.WriteLine($"Configuration readed. {ds.Tables.Count} table(s) involved.");
+
                     Func<JsonSerializerSettings> settings = new Func<JsonSerializerSettings>(() =>
                     {
                         var s = new JsonSerializerSettings();
@@ -791,37 +795,44 @@ class Program
                     });
                     JsonConvert.DefaultSettings = settings;
                     var dsString = JsonConvert.SerializeObject(new DmSetSurrogate(ds));
-                    Console.WriteLine(dsString);
+
+                    //Console.WriteLine(dsString);
                 }
                 if (e.DatabaseScript != null)
                 {
-                    Console.WriteLine($"{sessionId}. Ensure database is created");
-                    Console.WriteLine(e.DatabaseScript);
+                    Console.WriteLine($"Database is created");
+                    //Console.WriteLine(e.DatabaseScript);
                 }
                 break;
             case SyncStage.SelectedChanges:
-                Console.WriteLine($"{sessionId}. Selected added Changes : {e.ChangesStatistics.TotalSelectedChangesInserts}");
-                Console.WriteLine($"{sessionId}. Selected updates Changes : {e.ChangesStatistics.TotalSelectedChangesUpdates}");
-                Console.WriteLine($"{sessionId}. Selected deleted Changes : {e.ChangesStatistics.TotalSelectedChangesDeletes}");
+                Console.WriteLine($"Selected changes : {e.ChangesStatistics.TotalSelectedChanges}");
+
+                //Console.WriteLine($"{sessionId}. Selected added Changes : {e.ChangesStatistics.TotalSelectedChangesInserts}");
+                //Console.WriteLine($"{sessionId}. Selected updates Changes : {e.ChangesStatistics.TotalSelectedChangesUpdates}");
+                //Console.WriteLine($"{sessionId}. Selected deleted Changes : {e.ChangesStatistics.TotalSelectedChangesDeletes}");
                 break;
 
-            case SyncStage.ApplyingInserts:
-                Console.WriteLine($"{sessionId}. Applying Inserts : {e.ChangesStatistics.AppliedChanges.Where(ac => ac.State == DmRowState.Added).Sum(ac => ac.ChangesApplied) }");
+            case SyncStage.AppliedChanges:
+                Console.WriteLine($"Applied changes : {e.ChangesStatistics.TotalAppliedChanges}");
                 break;
-            case SyncStage.ApplyingDeletes:
-                Console.WriteLine($"{sessionId}. Applying Deletes : {e.ChangesStatistics.AppliedChanges.Where(ac => ac.State == DmRowState.Deleted).Sum(ac => ac.ChangesApplied) }");
-                break;
-            case SyncStage.ApplyingUpdates:
-                Console.WriteLine($"{sessionId}. Applying Updates : {e.ChangesStatistics.AppliedChanges.Where(ac => ac.State == DmRowState.Modified).Sum(ac => ac.ChangesApplied) }");
-                break;
+            //case SyncStage.ApplyingInserts:
+            //    Console.WriteLine($"{sessionId}. Applying Inserts : {e.ChangesStatistics.AppliedChanges.Where(ac => ac.State == DmRowState.Added).Sum(ac => ac.ChangesApplied) }");
+            //    break;
+            //case SyncStage.ApplyingDeletes:
+            //    Console.WriteLine($"{sessionId}. Applying Deletes : {e.ChangesStatistics.AppliedChanges.Where(ac => ac.State == DmRowState.Deleted).Sum(ac => ac.ChangesApplied) }");
+            //    break;
+            //case SyncStage.ApplyingUpdates:
+            //    Console.WriteLine($"{sessionId}. Applying Updates : {e.ChangesStatistics.AppliedChanges.Where(ac => ac.State == DmRowState.Modified).Sum(ac => ac.ChangesApplied) }");
+            //    break;
             case SyncStage.WriteMetadata:
-                Console.WriteLine($"{sessionId}. Writing Scopes");
-                break;
-            case SyncStage.ApplyingChanges:
-                Console.WriteLine($"{sessionId}. Applying Changes");
+                if (e.Scopes != null)
+                {
+                    Console.WriteLine($"Writing Scopes : ");
+                    e.Scopes.ForEach(sc => Console.WriteLine($"\t{sc.Id} synced at {sc.LastSync}. "));
+                }
                 break;
             case SyncStage.CleanupMetadata:
-                Console.WriteLine($"{sessionId}. CleanupMetadata");
+                Console.WriteLine($"CleanupMetadata");
                 break;
         }
 

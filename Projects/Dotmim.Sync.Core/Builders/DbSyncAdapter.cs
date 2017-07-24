@@ -117,7 +117,7 @@ namespace Dotmim.Sync.Core.Builders
             // Set the id parameter
             this.SetColumnParameters(command, row);
 
-            DbManager.SetParameterValue(command, "sync_scope_id", scope.Id);
+            DbManager.SetParameterValue(command, "sync_scope_id", scope.Id == Guid.Empty ?  null : (object)scope.Id);
             DbManager.SetParameterValue(command, "sync_row_is_tombstone", row.RowState == DmRowState.Deleted ? 1 : 0);
             DbManager.SetParameterValue(command, "create_timestamp", scope.LastTimestamp);
             DbManager.SetParameterValue(command, "update_timestamp", scope.LastTimestamp);

@@ -21,7 +21,7 @@ namespace Dotmim.Sync.Enumerations
         SelectedChanges,
 
         /// <summary>Applying changes </summary>
-        ApplyingChanges,
+        AppliedChanges,
 
         /// <summary>Applying inserts </summary>
         ApplyingInserts,

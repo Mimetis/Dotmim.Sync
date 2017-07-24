@@ -33,14 +33,14 @@ namespace Dotmim.Sync.Core
         public SyncSessionState SessionState { get; set; }
 
         /// <summary>
-        /// Get the provider for the Client Side
+        /// Gets or Sets the provider for the Client Side
         /// </summary>
-        public IResponseHandler LocalProvider { get; }
+        public IResponseHandler LocalProvider { get;  set; }
 
         /// <summary>
-        /// Get the provider for the Server Side
+        /// Get or Sets the provider for the Server Side
         /// </summary>
-        public IResponseHandler RemoteProvider { get; }
+        public IResponseHandler RemoteProvider { get; set; }
 
         // Scope informaitons. 
         // On Server, we have tow scopes available : Server Scope and Client (server timestamp) scope
@@ -56,6 +56,19 @@ namespace Dotmim.Sync.Core
 
         public event EventHandler<SyncSessionState> SessionStateChanged = null;
 
+
+        public SyncAgent(string[] tables)
+        {
+            this.serviceConfiguration = new ServiceConfiguration(tables);
+
+        }
+
+        public SyncAgent(ServiceConfiguration configuration)
+        {
+            this.serviceConfiguration = configuration;
+
+        }
+
         /// <summary>
         /// SyncAgent manage both server and client provider
         /// It's the main object to launch the Sync process
@@ -68,8 +81,6 @@ namespace Dotmim.Sync.Core
 
             this.LocalProvider.SyncProgress += ClientProvider_SyncProgress;
             this.RemoteProvider.SyncProgress += ServerProvider_SyncProgress;
-
-
         }
 
 
@@ -398,7 +409,7 @@ namespace Dotmim.Sync.Core
                     break;
                 case SyncStage.SelectedChanges:
                     break;
-                case SyncStage.ApplyingChanges:
+                case SyncStage.AppliedChanges:
                     break;
                 case SyncStage.ApplyingInserts:
                     break;

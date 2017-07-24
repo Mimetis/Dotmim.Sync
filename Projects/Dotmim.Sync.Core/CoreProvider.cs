@@ -213,8 +213,6 @@ namespace Dotmim.Sync.Core
         {
             try
             {
-
-
                 DmSerializer serializer = new DmSerializer();
 
                 context.SyncStage = SyncStage.EnsureMetadata;
@@ -225,7 +223,7 @@ namespace Dotmim.Sync.Core
 
                 // if we don't pass config object, we may be in proxy mode, so the config object is handled by a local configuration object.
                 if (configuration == null && this.serviceConfiguration == null)
-                    throw new ArgumentException("You try to set a provider with no configuration object");
+                    throw SyncException.CreateArgumentException(SyncStage.EnsureMetadata, "Configuration", "You try to set a provider with no configuration object");
 
                 // the configuration has been set from the proxy server itself, use it.
                 if (configuration == null && this.serviceConfiguration != null)
@@ -275,14 +273,12 @@ namespace Dotmim.Sync.Core
 
                 return (context, configuration);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                lock (this)
-                {
-                    this.syncInProgress = false;
-                }
-
-                throw;
+                if (ex is SyncException)
+                    throw;
+                else
+                    throw SyncException.CreateUnknowException(context.SyncStage, ex);
             }
         }
 
@@ -382,7 +378,7 @@ namespace Dotmim.Sync.Core
             try
             {
                 if (string.IsNullOrEmpty(scopeName))
-                    throw new ArgumentNullException("ScopeName is mandatory");
+                    throw SyncException.CreateArgumentException(SyncStage.EnsureMetadata, "ScopeName");
 
                 context.SyncStage = SyncStage.EnsureMetadata;
 
@@ -464,10 +460,9 @@ namespace Dotmim.Sync.Core
                         }
 
                     }
-                    catch (Exception ex)
+                    catch (DbException dbex)
                     {
-                        Logger.Current.Error(ex.Message);
-                        throw;
+                        throw SyncException.CreateDbException(context.SyncStage, dbex);
                     }
                     finally
                     {
@@ -478,14 +473,12 @@ namespace Dotmim.Sync.Core
                 }
                 return (context, scopes);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                lock (this)
-                {
-                    this.syncInProgress = false;
-                }
-
-                throw;
+                if (ex is SyncException)
+                    throw;
+                else
+                    throw SyncException.CreateUnknowException(context.SyncStage, ex);
             }
         }
 
@@ -494,51 +487,54 @@ namespace Dotmim.Sync.Core
         /// </summary>
         public virtual async Task<SyncContext> WriteScopesAsync(SyncContext context, List<ScopeInfo> scopes)
         {
-            try
+            // Open the connection
+            using (var connection = this.CreateConnection())
             {
-                // Open the connection
-                using (var connection = this.CreateConnection())
+                try
                 {
-                    try
+                    context.SyncStage = SyncStage.WriteMetadata;
+
+                    await connection.OpenAsync();
+
+                    var scopeBuilder = this.GetScopeBuilder();
+                    var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(connection);
+
+                    var progressEventArgs = new SyncProgressEventArgs
                     {
-                        await connection.OpenAsync();
-
-                        var scopeBuilder = this.GetScopeBuilder();
-                        var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(connection);
-
-                        foreach (var scope in scopes)
-                        {
-                            var newScope = scopeInfoBuilder.InsertOrUpdateScopeInfo(scope);
-
-                            context.SyncStage = SyncStage.WriteMetadata;
-
-                            // Event progress
-                            var progressEventArgs = new SyncProgressEventArgs
-                            {
-                                ProviderTypeName = this.ProviderTypeName,
-                                Context = context,
-                                Action = ChangeApplicationAction.Continue,
-                                ScopeInfo = newScope
-                            };
-                            this.SyncProgress?.Invoke(this, progressEventArgs);
-                        }
-                    }
-                    catch (Exception ex)
+                        ProviderTypeName = this.ProviderTypeName,
+                        Context = context,
+                        Action = ChangeApplicationAction.Continue,
+                        Scopes = new List<ScopeInfo>()
+                    };
+                    foreach (var scope in scopes)
                     {
-                        Logger.Current.Error(ex.Message);
-                        throw;
+                        var newScope = scopeInfoBuilder.InsertOrUpdateScopeInfo(scope);
+                        progressEventArgs.Scopes.Add(newScope);
                     }
-                    finally
-                    {
-                        if (connection.State != ConnectionState.Closed)
-                            connection.Close();
-                    }
-                    return context;
+
+                    this.SyncProgress?.Invoke(this, progressEventArgs);
                 }
-            }
-            catch (Exception)
-            {
-                throw;
+                catch (DbException dbex)
+                {
+                    throw SyncException.CreateDbException(context.SyncStage, dbex);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Current.Error(ex.Message);
+
+                    if (ex is SyncException)
+                        throw;
+                    else
+                        throw SyncException.CreateUnknowException(context.SyncStage, ex);
+
+                    throw;
+                }
+                finally
+                {
+                    if (connection.State != ConnectionState.Closed)
+                        connection.Close();
+                }
+                return context;
             }
         }
 
@@ -548,48 +544,33 @@ namespace Dotmim.Sync.Core
         /// <returns></returns>
         public virtual async Task<(SyncContext, long)> GetLocalTimestampAsync(SyncContext context)
         {
-            try
+            // Open the connection
+            using (var connection = this.CreateConnection())
             {
-                // Open the connection
-                using (var connection = this.CreateConnection())
+                try
                 {
-                    try
-                    {
-                        await connection.OpenAsync();
-                        var scopeBuilder = this.GetScopeBuilder();
-                        var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(connection);
-                        var localTime = scopeInfoBuilder.GetLocalTimestamp();
-
-                        context.SyncStage = SyncStage.WriteMetadata;
-
-                        // Event progress
-                        var progressEventArgs = new SyncProgressEventArgs
-                        {
-                            ProviderTypeName = this.ProviderTypeName,
-                            Context = context,
-                            Action = ChangeApplicationAction.Continue,
-                        };
-                        this.SyncProgress?.Invoke(this, progressEventArgs);
-
-
-                        return (context, localTime);
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.Current.Error(ex.Message);
-                        throw;
-                    }
-                    finally
-                    {
-                        if (connection.State != ConnectionState.Closed)
-                            connection.Close();
-                    }
+                    await connection.OpenAsync();
+                    var scopeBuilder = this.GetScopeBuilder();
+                    var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(connection);
+                    var localTime = scopeInfoBuilder.GetLocalTimestamp();
+                    return (context, localTime);
                 }
-            }
-            catch (Exception)
-            {
-  
-                throw;
+                catch (DbException dbex)
+                {
+                    throw SyncException.CreateDbException(context.SyncStage, dbex);
+                }
+                catch (Exception ex)
+                {
+                    if (ex is SyncException)
+                        throw;
+                    else
+                        throw SyncException.CreateUnknowException(context.SyncStage, ex);
+                }
+                finally
+                {
+                    if (connection.State != ConnectionState.Closed)
+                        connection.Close();
+                }
             }
         }
 
@@ -599,65 +580,66 @@ namespace Dotmim.Sync.Core
         /// </summary>
         public virtual async Task<SyncContext> EnsureDatabaseAsync(SyncContext context, ScopeInfo scopeInfo, DbBuilderOption options)
         {
-            try
+
+            context.SyncStage = SyncStage.EnsureMetadata;
+            var configuration = GetCacheConfiguration();
+
+            // TODO : Check if database already exists :
+            // If scope exists and lastdatetime sync is present, so database exists
+            // Check if we don't have an OverwriteConfiguration (if true, we force the check)
+            if (scopeInfo.LastSync.HasValue && !configuration.OverwriteConfiguration)
+                return context;
+
+            string script = null;
+
+            // Open the connection
+            using (var connection = this.CreateConnection())
             {
-
-                var configuration = GetCacheConfiguration();
-
-                context.SyncStage = SyncStage.EnsureMetadata;
-
-                //// Check if database is already created
-                //if (scopeInfo.IsDatabaseCreated)
-                //    return context;
-
-                string script = null;
-
-                // Open the connection
-                using (var connection = this.CreateConnection())
+                try
                 {
-                    try
+                    await connection.OpenAsync();
+
+                    using (var transaction = connection.BeginTransaction(IsolationLevel.ReadUncommitted))
                     {
-                        await connection.OpenAsync();
-
-                        using (var transaction = connection.BeginTransaction(IsolationLevel.ReadUncommitted))
+                        foreach (var dmTable in configuration.ScopeSet.Tables)
                         {
-                            foreach (var dmTable in configuration.ScopeSet.Tables)
-                            {
-                                var builder = GetDatabaseBuilder(dmTable, options);
-                                script = builder.Script(connection, transaction);
-                                builder.Apply(connection, transaction);
-                            }
-
-                            transaction.Commit();
+                            var builder = GetDatabaseBuilder(dmTable, options);
+                            script = builder.Script(connection, transaction);
+                            builder.Apply(connection, transaction);
                         }
-                        // Event progress
-                        var progressEventArgs = new SyncProgressEventArgs
-                        {
-                            ProviderTypeName = this.ProviderTypeName,
-                            Context = context,
-                            Action = ChangeApplicationAction.Continue,
-                            DatabaseScript = script
-                        };
-                        this.SyncProgress?.Invoke(this, progressEventArgs);
 
+                        transaction.Commit();
                     }
-                    catch
+                    // Event progress
+                    var progressEventArgs = new SyncProgressEventArgs
                     {
-                        throw;
-                    }
-                    finally
-                    {
-                        if (connection.State != ConnectionState.Closed)
-                            connection.Close();
-                    }
-                    return context;
+                        ProviderTypeName = this.ProviderTypeName,
+                        Context = context,
+                        Action = ChangeApplicationAction.Continue,
+                        DatabaseScript = script
+                    };
+                    this.SyncProgress?.Invoke(this, progressEventArgs);
+
                 }
+                catch (DbException dbex)
+                {
+                    throw SyncException.CreateDbException(context.SyncStage, dbex);
+                }
+                catch (Exception ex)
+                {
+                    if (ex is SyncException)
+                        throw;
+                    else
+                        throw SyncException.CreateUnknowException(context.SyncStage, ex);
+                }
+                finally
+                {
+                    if (connection.State != ConnectionState.Closed)
+                        connection.Close();
+                }
+                return context;
             }
-            catch (Exception)
-            {
 
-                throw;
-            }
         }
 
 
@@ -706,9 +688,16 @@ namespace Dotmim.Sync.Core
 
                 return (context, batchInfo, changesStatistics);
             }
-            catch (Exception)
+            catch (DbException dbex)
             {
-                throw;
+                throw SyncException.CreateDbException(context.SyncStage, dbex);
+            }
+            catch (Exception ex)
+            {
+                if (ex is SyncException)
+                    throw;
+                else
+                    throw SyncException.CreateUnknowException(context.SyncStage, ex);
             }
         }
 
@@ -1314,6 +1303,9 @@ namespace Dotmim.Sync.Core
                         // Shortcut to rollback
                         Action rollbackAction = () =>
                         {
+                            // even if we rollback, some changes may be applied
+                            context.SyncStage = SyncStage.AppliedChanges;
+
                             if (applyTransaction != null)
                             {
                                 applyTransaction.Rollback();
@@ -1321,11 +1313,19 @@ namespace Dotmim.Sync.Core
                                 applyTransaction = null;
                             }
 
-                            // Update the syncContext metadatas
-                            //this.UpdateRollbackSessionStats(setProgress);
-
                             if (connection != null && connection.State == ConnectionState.Open)
                                 connection.Close();
+
+                            // Event progress on applied change
+                            var pEventArgs = new SyncProgressEventArgs
+                            {
+                                ProviderTypeName = this.ProviderTypeName,
+                                Action = ChangeApplicationAction.Continue,
+                                Context = context,
+                                ChangesStatistics = changesStatistics
+                            };
+
+                            this.SyncProgress?.Invoke(this, pEventArgs);
                         };
 
                         // Create a transaction
@@ -1365,10 +1365,6 @@ namespace Dotmim.Sync.Core
 
                         changeApplicationAction = this.ApplyChangesInternal(context, connection, applyTransaction, fromScope, changes, DmRowState.Modified, changesStatistics);
 
-                        //if (changeApplicationAction == ChangeApplicationAction.Continue && this.ChangesApplied != null)
-                        //    this.ChangesApplied?.Invoke(this, this.CreateChangesAppliedEvent(scopeMetadata, applyTransaction));
-
-
                         // Rollback
                         if (changeApplicationAction == ChangeApplicationAction.Rollback)
                         {
@@ -1376,11 +1372,24 @@ namespace Dotmim.Sync.Core
                             return (context, changesStatistics);
                         }
 
+                        applyTransaction.Commit();
+
+                        // Insert / Delete / Update applied, so change stage
+                        context.SyncStage = SyncStage.AppliedChanges;
+
+                        // Event progress on applied change
+                        var progressEventArgs = new SyncProgressEventArgs
+                        {
+                            ProviderTypeName = this.ProviderTypeName,
+                            Action = ChangeApplicationAction.Continue,
+                            Context = context,
+                            ChangesStatistics = changesStatistics
+                        };
+
+                        this.SyncProgress?.Invoke(this, progressEventArgs);
 
                         Logger.Current.Info($"--- End Applying Changes for Scope \"{fromScope.Name}\" ---");
                         Logger.Current.Info("");
-
-                        applyTransaction.Commit();
 
                     }
                     catch (Exception exception)
@@ -1559,14 +1568,6 @@ namespace Dotmim.Sync.Core
                     Logger.Current.Error($"Error during ApplyInternalChanges : {ex.Message}");
                     throw;
                 }
-            }
-
-
-            // could potentially be null if nothing to apply. Just raise this event to notify 0 applied rows
-            if (progressEventArgs.ChangesStatistics.AppliedChanges.Count == 0)
-            {
-                progressEventArgs.ChangesStatistics.AppliedChanges.Add(new AppliedChanges());
-                this.SyncProgress?.Invoke(this, progressEventArgs);
             }
 
             // Check action

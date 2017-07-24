@@ -1,4 +1,5 @@
-﻿using Dotmim.Sync.Core.Common;
+﻿using Dotmim.Sync.Core;
+using Dotmim.Sync.Core.Common;
 using Dotmim.Sync.Data;
 using System;
 using System.Collections.Generic;
@@ -10,7 +11,6 @@ namespace Dotmim.Sync.SqlServer
 {
     public static class SqlExtensionsMethods
     {
-
 
         internal static SqlParameter[] DeriveParameters(this SqlConnection connection, SqlCommand cmd, bool includeReturnValueParameter = false, SqlTransaction transaction = null)
         {

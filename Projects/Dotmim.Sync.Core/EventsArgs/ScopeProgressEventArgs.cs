@@ -32,9 +32,9 @@ namespace Dotmim.Sync.Core
         public ServiceConfiguration Configuration { get;  set; }
 
         /// <summary>
-        /// Gets the scope info during WriteScopes event
+        /// Gets or Sets the scopes info during WriteScopes event
         /// </summary>
-        public ScopeInfo ScopeInfo { get;  set; }
+        public List<ScopeInfo> Scopes { get;  set; }
 
         /// <summary>
         /// Gets or Sets the action to be taken : Could eventually Rollback the current processus
