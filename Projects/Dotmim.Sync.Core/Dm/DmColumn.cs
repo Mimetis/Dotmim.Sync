@@ -115,17 +115,22 @@ namespace Dotmim.Sync.Data
 
                 if (type == typeof(string))
                     return null;
-
+                
                 return this.IsValueType ? Activator.CreateInstance(type) : null;
             }
         }
         public bool AllowDBNull { get; set; } = true;
 
+        /// <summary>
+        /// Optional string indicating the orginal type from the database involved
+        /// </summary>
+        public String OrginalDbType { get; set; }
 
         /// <summary>
         /// Returns the Column Type
         /// </summary>
         public Type DataType { get; internal set; }
+
 
         /// <summary>
         /// Return the abstract DbType
@@ -232,7 +237,6 @@ namespace Dotmim.Sync.Data
             }
         }
 
-
         internal static bool IsAutoIncrementType(Type dataType) => (dataType == typeof(int) || dataType == typeof(long) || dataType == typeof(short) || dataType == typeof(decimal));
 
         /// <summary>
@@ -263,6 +267,7 @@ namespace Dotmim.Sync.Data
 
             this.Ordinal = o;
         }
+
         public abstract bool AutoIncrement { get; set; }
         public bool PrecisionSpecified { get; set; }
         public bool ScaleSpecified { get; set; }
@@ -299,7 +304,6 @@ namespace Dotmim.Sync.Data
                 scale = value;
             }
         }
-
 
         internal abstract void Init(int record);
         internal abstract object this[int record] { get; set; }
@@ -542,15 +546,16 @@ namespace Dotmim.Sync.Data
             
             clone.dbTypeAllowed = dbTypeAllowed;
             if (clone.dbTypeAllowed)
-                clone.DbType = DbType; 
+                clone.DbType = DbType;
 
+            clone.OrginalDbType = OrginalDbType;
             clone.Precision = Precision;
             clone.PrecisionSpecified = PrecisionSpecified;
             clone.Scale = Scale;
             clone.ScaleSpecified = ScaleSpecified;
             clone.Unique = Unique;
 
-            if (this.autoInc != null)
+            if (this.AutoIncrement && this.autoInc != null)
                 clone.autoInc = this.autoInc.Clone();
 
             return clone;

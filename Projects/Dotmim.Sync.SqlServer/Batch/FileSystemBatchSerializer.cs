@@ -10,51 +10,51 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync.SqlServer.Batch
 {
-    public class FileSystemBatchSerializer : SyncBatchSerializer
-    {
-        string batchFileName;
+    //public class FileSystemBatchSerializer : SyncBatchSerializer
+    //{
+    //    string batchFileName;
 
-        public override SyncBatchInfo Deserialize(bool deserializeData = true)
-        {
-            DmBinaryConverter<SyncBatchInfo> converter = new DmBinaryConverter<SyncBatchInfo>();
+    //    public override BatchInfo Deserialize(bool deserializeData = true)
+    //    {
+    //        DmBinaryConverter<BatchInfo> converter = new DmBinaryConverter<BatchInfo>();
 
-            SyncBatchInfo dbSyncBatchInfo = null;
-            using (FileStream fileStream = new FileStream(batchFileName, FileMode.Open, FileAccess.ReadWrite))
-            {
-                try
-                {
-                    dbSyncBatchInfo = converter.Deserialize(fileStream);
+    //        BatchInfo dbSyncBatchInfo = null;
+    //        using (FileStream fileStream = new FileStream(batchFileName, FileMode.Open, FileAccess.ReadWrite))
+    //        {
+    //            try
+    //            {
+    //                dbSyncBatchInfo = converter.Deserialize(fileStream);
 
-                    //if (deserializeData)
-                    //    dbSyncBatchInfo.DmSet = converter.Deserialize<DmSet>(dbSyncBatchInfo.DmSet);
-                }
-                catch
-                {
+    //                //if (deserializeData)
+    //                //    dbSyncBatchInfo.DmSet = converter.Deserialize<DmSet>(dbSyncBatchInfo.DmSet);
+    //            }
+    //            catch
+    //            {
 
-                }
-            }
-            return dbSyncBatchInfo;
-        }
+    //            }
+    //        }
+    //        return dbSyncBatchInfo;
+    //    }
 
-        public override void Initialize(string batchFileName)
-        {
-            this.batchFileName = batchFileName;
-        }
+    //    public override void Initialize(string batchFileName)
+    //    {
+    //        this.batchFileName = batchFileName;
+    //    }
 
-        public override void Serialize(SyncBatchInfo batchInfo)
-        {
-            DmBinaryConverter<SyncBatchInfo> converter = new DmBinaryConverter<SyncBatchInfo>();
-            using (FileStream fileStream = new FileStream(batchFileName, FileMode.Create, FileAccess.ReadWrite))
-            {
-                try
-                {
-                    converter.Serialize(batchInfo, fileStream);
-                }
-                catch
-                {
+    //    public override void Serialize(SyncBatchInfo batchInfo)
+    //    {
+    //        DmBinaryConverter<SyncBatchInfo> converter = new DmBinaryConverter<SyncBatchInfo>();
+    //        using (FileStream fileStream = new FileStream(batchFileName, FileMode.Create, FileAccess.ReadWrite))
+    //        {
+    //            try
+    //            {
+    //                converter.Serialize(batchInfo, fileStream);
+    //            }
+    //            catch
+    //            {
                     
-                }
-            }
-        }
-    }
+    //            }
+    //        }
+    //    }
+    //}
 }

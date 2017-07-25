@@ -59,7 +59,7 @@ namespace Dotmim.Sync.Core.Proxy
         /// <summary>
         /// Process a request message with HttpClient object. 
         /// </summary>
-        public async Task<T> ProcessRequest<T>(SyncContext context, T content, CancellationToken cancellationToken)
+        public async Task<T> ProcessRequest<T>(T content, CancellationToken cancellationToken)
         {
             HttpResponseMessage response = null;
             T dmSetResponse = default(T);

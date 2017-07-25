@@ -8,6 +8,7 @@ using System.Linq;
 using Dotmim.Sync.Core.Scope;
 using Dotmim.Sync.SqlServer.Builders;
 using System.Data.SqlClient;
+using System.Data;
 
 namespace Dotmim.Sync.SqlServer.Manager
 {
@@ -24,9 +25,12 @@ namespace Dotmim.Sync.SqlServer.Manager
             this.sqlConnection = connection as SqlConnection;
             this.sqlTransaction = transaction as SqlTransaction;
         }
+
+        /// <summary>
+        /// TODO : Check if table exist !
+        /// </summary>
         public DmTable GetTableDefinition()
         {
-    
             DmTable table = new DmTable(this.tableName);
 
             // Get the columns definition
@@ -43,19 +47,36 @@ namespace Dotmim.Sync.SqlServer.Manager
                 var isNullable = (bool)c["is_nullable"];
                 var isIdentity = (bool)c["is_identity"];
 
-                Type objectType = SyncDataTypeMapping.GetType(typeString);
+                // SqlDbType is the referee to all types from Sql Server
+                SqlDbType? sqlDbType = typeString.ToSqlDbType();
+
+                if (!sqlDbType.HasValue)
+                    throw new Exception($"Actual Core Framework does not support {typeString} type");
+
+                // That's why we go trough double parsing String => SqlDbType => Type
+                Type objectType = sqlDbType.Value.ToManagedType();
 
                 var newColumn = DmColumn.CreateColumn(name, objectType);
                 newColumn.AllowDBNull = isNullable;
                 newColumn.AutoIncrement = isIdentity;
                 newColumn.MaxLength = maxLength > -1 ? maxLength : 0;
                 newColumn.SetOrdinal(ordinal);
+                newColumn.OrginalDbType = sqlDbType == SqlDbType.Variant ? "sql_variant" : sqlDbType.Value.ToString();
 
-                if ((objectType == typeof(double) || objectType == typeof(decimal)) && precision > 0)
+                if (sqlDbType == SqlDbType.Timestamp)
+                    newColumn.ReadOnly = true;
+
+                if (newColumn.MaxLength > 0 && sqlDbType != SqlDbType.VarChar && sqlDbType != SqlDbType.NVarChar &&
+                    sqlDbType != SqlDbType.Char && sqlDbType != SqlDbType.NChar &&
+                    sqlDbType != SqlDbType.Binary && sqlDbType != SqlDbType.VarBinary)
+                    newColumn.MaxLength = 0;
+
+                if (sqlDbType == SqlDbType.Decimal && precision > 0)
                 {
                     newColumn.Precision = precision;
                     newColumn.Scale = scale;
                 }
+
 
                 table.Columns.Add(newColumn);
             }

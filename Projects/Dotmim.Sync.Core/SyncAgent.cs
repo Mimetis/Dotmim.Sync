@@ -35,7 +35,7 @@ namespace Dotmim.Sync.Core
         /// <summary>
         /// Gets or Sets the provider for the Client Side
         /// </summary>
-        public IResponseHandler LocalProvider { get;  set; }
+        public IResponseHandler LocalProvider { get; set; }
 
         /// <summary>
         /// Get or Sets the provider for the Server Side
@@ -57,7 +57,7 @@ namespace Dotmim.Sync.Core
         /// Occurs when a conflict is raised on the server side
         /// </summary>
         public event EventHandler<ApplyChangeFailedEventArgs> ApplyChangedFailed = null;
-        
+
         /// <summary>
         /// Occurs when sync is starting, ending
         /// </summary>
@@ -213,7 +213,7 @@ namespace Dotmim.Sync.Core
                 // get the scope from local provider 
                 List<ScopeInfo> localScopes;
                 List<ScopeInfo> serverScopes;
-                (context,  localScopes) = await this.LocalProvider.EnsureScopesAsync(context, scopeName);
+                (context, localScopes) = await this.LocalProvider.EnsureScopesAsync(context, scopeName);
                 if (localScopes.Count != 1)
                     throw new Exception("On Local provider, we should have only one scope info");
 
@@ -311,8 +311,8 @@ namespace Dotmim.Sync.Core
                     clientStatistics.SelectedChanges = tmpServerStatistics.SelectedChanges;
 
                 // Apply local changes
-                (context, tmpClientStatistics)  = await this.LocalProvider.ApplyChangesAsync(context, serverScopeInfo, serverBatchInfo);
-      
+                (context, tmpClientStatistics) = await this.LocalProvider.ApplyChangesAsync(context, serverScopeInfo, serverBatchInfo);
+
                 if (clientStatistics == null)
                     clientStatistics = tmpClientStatistics;
                 else
@@ -350,7 +350,7 @@ namespace Dotmim.Sync.Core
                 serverScopeInfo.IsLocal = true;
                 serverLocalScopeReferenceInfo.IsLocal = false;
 
-                context = await this.RemoteProvider.WriteScopesAsync(context, new List <ScopeInfo> { serverScopeInfo, serverLocalScopeReferenceInfo });
+                context = await this.RemoteProvider.WriteScopesAsync(context, new List<ScopeInfo> { serverScopeInfo, serverLocalScopeReferenceInfo });
 
                 serverScopeInfo.IsLocal = false;
                 localScopeInfo.IsLocal = true;
@@ -358,7 +358,7 @@ namespace Dotmim.Sync.Core
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
-                context = await this.LocalProvider.WriteScopesAsync(context, new List <ScopeInfo> { localScopeInfo, serverScopeInfo });
+                context = await this.LocalProvider.WriteScopesAsync(context, new List<ScopeInfo> { localScopeInfo, serverScopeInfo });
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -389,8 +389,11 @@ namespace Dotmim.Sync.Core
                 // if EndSessionAsync() was never called, try a last time
                 try
                 {
-                    context = await this.RemoteProvider.EndSessionAsync(context);
-                    context = await this.LocalProvider.EndSessionAsync(context);
+                    if (context.Error != null)
+                    {
+                        context = await this.RemoteProvider.EndSessionAsync(context);
+                        context = await this.LocalProvider.EndSessionAsync(context);
+                    }
 
                 }
                 catch (Exception)

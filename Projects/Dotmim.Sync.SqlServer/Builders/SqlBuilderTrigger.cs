@@ -219,7 +219,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             string argComma = string.Empty;
             string argAnd = string.Empty;
-            foreach (var mutableColumn in TableDescription.PrimaryKey.Columns)
+            foreach (var mutableColumn in TableDescription.PrimaryKey.Columns.Where(c => !c.ReadOnly))
             {
                 ObjectNameParser columnName = new ObjectNameParser(mutableColumn.ColumnName);
                 stringBuilderArguments.AppendLine($"\t{argComma}[i].{columnName.QuotedString}");

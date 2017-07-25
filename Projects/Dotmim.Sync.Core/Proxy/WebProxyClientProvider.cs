@@ -67,7 +67,7 @@ namespace Dotmim.Sync.Core.Proxy
             message.SyncContext = context;
 
             //Post request and get response
-            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(context, message, cancellationToken);
+            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(message, cancellationToken);
 
             if (httpMessageResponse == null)
                 throw new Exception("Can't have an empty body");
@@ -83,7 +83,7 @@ namespace Dotmim.Sync.Core.Proxy
             message.SyncContext = context;
 
             //Post request and get response
-            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(context, message, cancellationToken);
+            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(message, cancellationToken);
 
             if (httpMessageResponse == null)
                 throw new Exception("Can't have an empty body");
@@ -106,7 +106,7 @@ namespace Dotmim.Sync.Core.Proxy
             httpMessage.SyncContext = context;
 
             //Post request and get response
-            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(context, httpMessage, cancellationToken);
+            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, cancellationToken);
 
             if (httpMessageResponse == null)
                 throw new Exception("Can't have an empty body");
@@ -121,7 +121,7 @@ namespace Dotmim.Sync.Core.Proxy
             httpMessage.Step = HttpStep.EnsureConfiguration;
 
             //Post request and get response
-            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(context, httpMessage, cancellationToken);
+            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, cancellationToken);
 
             if (httpMessageResponse == null)
                 throw new Exception("Can't have an empty body");
@@ -159,7 +159,7 @@ namespace Dotmim.Sync.Core.Proxy
             httpMessage.EnsureDatabase = ensureDatabaseMessage;
 
             //Post request and get response
-            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(context, httpMessage, cancellationToken);
+            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, cancellationToken);
 
             if (httpMessageResponse == null)
                 throw new Exception("Can't have an empty body");
@@ -192,7 +192,7 @@ namespace Dotmim.Sync.Core.Proxy
                     BatchIndexRequested = changes.BatchIndex
                 };
 
-                var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(context, httpMessage, cancellationToken);
+                var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, cancellationToken);
 
                 if (httpMessageResponse == null)
                     throw new Exception("Can't have an empty body");
@@ -303,7 +303,7 @@ namespace Dotmim.Sync.Core.Proxy
                 httpMessage.ApplyChanges.BatchIndex = bpi.Index;
 
                 //Post request and get response
-                var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(context, httpMessage, cancellationToken);
+                var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, cancellationToken);
 
                 // Clear surrogate
                 httpMessage.ApplyChanges.Set.Dispose();
@@ -328,7 +328,7 @@ namespace Dotmim.Sync.Core.Proxy
             message.SyncContext = context;
 
             //Post request and get response
-            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(context, message, cancellationToken);
+            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(message, cancellationToken);
 
             if (httpMessageResponse == null)
                 throw new Exception("Can't have an empty body");
@@ -348,7 +348,7 @@ namespace Dotmim.Sync.Core.Proxy
             message.WriteScopes.Scopes = scopes;
 
             //Post request and get response
-            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(context, message, cancellationToken);
+            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(message, cancellationToken);
 
             if (httpMessageResponse == null)
                 throw new Exception("Can't have an empty body");

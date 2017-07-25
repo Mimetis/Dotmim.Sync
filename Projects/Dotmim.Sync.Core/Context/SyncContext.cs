@@ -21,7 +21,7 @@ namespace Dotmim.Sync.Core
         /// <summary>
         /// Current Session, in progress
         /// </summary>
-        public Guid SessionId { get; internal set; }
+        public Guid SessionId { get; set; }
 
         /// <summary>Gets or sets the time when a sync sessionn started.
         /// </summary>
@@ -35,22 +35,22 @@ namespace Dotmim.Sync.Core
         /// <summary>
         /// Total number of change sets downloaded
         /// </summary>
-        public int TotalChangesDownloaded { get; internal set; }
+        public int TotalChangesDownloaded { get; set; }
 
         /// <summary>
         /// Total number of change sets uploaded
         /// </summary>
-        public int TotalChangesUploaded { get; internal set; }
+        public int TotalChangesUploaded { get; set; }
 
         /// <summary>
         /// Total number of Sync Conflicts
         /// </summary>
-        public int TotalSyncConflicts { get; internal set; }
+        public int TotalSyncConflicts { get; set; }
 
         /// <summary>
         /// Total number of Sync Conflicts
         /// </summary>
-        public int TotalSyncErrors { get; internal set; }
+        public int TotalSyncErrors { get; set; }
 
         /// <summary>
         /// Actual sync stage
@@ -60,7 +60,7 @@ namespace Dotmim.Sync.Core
         /// <summary>
         /// Error has occured a sync session
         /// </summary>
-        public SyncException Error { get; internal set; }
+        public SyncException Error { get; set; }
 
         public SyncContext(Guid sessionId)
         {

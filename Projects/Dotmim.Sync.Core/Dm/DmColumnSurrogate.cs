@@ -18,13 +18,15 @@ namespace Dotmim.Sync.Data.Surrogate
         public bool AllowDBNull { get; set; } = true;
         public bool Unique { get; set; } = false;
         public bool ReadOnly { get; set; } = false;
-        public int MaxLength { get; internal set; }
-        public int Ordinal { get; internal set; }
+        public int MaxLength { get;  set; }
+        public int Ordinal { get;  set; }
         public bool PrecisionSpecified { get; set; }
         public bool ScaleSpecified { get; set; }
         public Boolean AutoIncrement { get; set; }
-        public Byte Precision { get; internal set; }
+        public Byte Precision { get;  set; }
         public Byte Scale { get; set; }
+        public String OrginalDbType { get; set; }
+
         /// <summary>
         /// Gets or sets the dm type of the column that the DmColumnSurrogate object represents.
         /// </summary>
@@ -56,8 +58,8 @@ namespace Dotmim.Sync.Data.Surrogate
             bytesLength += 1L; // Precision
             bytesLength += 1L; // Scale
             bytesLength += 1L; // dbTypeAllowed
+            bytesLength += String.IsNullOrEmpty(OrginalDbType) ? 1L : Encoding.UTF8.GetBytes(OrginalDbType).Length;
             bytesLength += Encoding.UTF8.GetBytes(DataType).Length; //Type
-
             bytesLength += Encoding.UTF8.GetBytes(this.GetType().GetAssemblyQualifiedName()).Length; // Type
 
             return bytesLength;
@@ -87,6 +89,7 @@ namespace Dotmim.Sync.Data.Surrogate
             this.Unique = dc.Unique;
             this.DataType = dc.DataType.GetAssemblyQualifiedName();
             this.Ordinal = dc.Ordinal;
+            this.OrginalDbType = dc.OrginalDbType;
         }
 
         /// <summary>
@@ -109,6 +112,7 @@ namespace Dotmim.Sync.Data.Surrogate
             dmColumn.Scale = this.Scale;
             dmColumn.ScaleSpecified = this.ScaleSpecified;
             dmColumn.Unique = this.Unique;
+            dmColumn.OrginalDbType = this.OrginalDbType;
             dmColumn.SetOrdinal(this.Ordinal);
 
             return dmColumn;

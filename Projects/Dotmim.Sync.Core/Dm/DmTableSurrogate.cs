@@ -213,13 +213,12 @@ namespace Dotmim.Sync.Data.Surrogate
                     else if (dmRowObject.GetType() != columnType)
                     {
                         Debug.WriteLine($"Can't convert serialized value {dmRowObject.ToString()} to {columnType}");
+                        Debug.WriteLine("Try to set directly in the row");
 
                         var t = dmRowObject.GetType();
                         var converter = columnType.GetConverter();
                         if (converter.CanConvertFrom(t))
                             dmRowObject = converter.ConvertFrom(dmRowObject);
-                        else
-                            dmRowObject = Convert.ChangeType(dmRowObject, columnType, CultureInfo.InvariantCulture);
                     }
                 }
 

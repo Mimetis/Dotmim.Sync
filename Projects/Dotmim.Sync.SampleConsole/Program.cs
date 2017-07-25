@@ -36,15 +36,18 @@ class Program
 {
     static void Main(string[] args)
     {
-        TestSync().Wait();
+        //TestSync().Wait();
 
         //TestSyncThroughKestrellAsync().Wait();
 
+        //TestAllAvailablesColumns().Wait();
+
+        TestColumnVariant().Wait();
         Console.ReadLine();
 
     }
 
- 
+
     private static async Task TestSyncWithTestServer()
     {
         var builder = new WebHostBuilder()
@@ -182,6 +185,47 @@ class Program
     }
 
 
+
+    private static async Task TestColumnVariant()
+    {
+        var serverConfig = "Data Source=(localdb)\\MSSQLLocalDB; Initial Catalog=VariantServerDB; Integrated Security=true;";
+        var clientConfig = "Data Source=(localdb)\\MSSQLLocalDB; Initial Catalog=VariantClientDB; Integrated Security=true;";
+
+
+        SqlSyncProvider serverProvider = new SqlSyncProvider(serverConfig);
+        SqlSyncProvider clientProvider = new SqlSyncProvider(clientConfig);
+
+        SyncAgent agent = new SyncAgent(clientProvider, serverProvider, new[] { "TblVariant" });
+
+        var s = await agent.SynchronizeAsync();
+
+        if (s.Error != null)
+            Console.WriteLine(s.Error.ToString());
+
+
+        Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+    }
+
+    private static async Task TestAllAvailablesColumns()
+    {
+        var serverConfig = "Data Source=(localdb)\\MSSQLLocalDB; Initial Catalog=AllAvailableColumnsServerDB; Integrated Security=true;";
+        var clientConfig = "Data Source=(localdb)\\MSSQLLocalDB; Initial Catalog=AllAvailableColumnsClientDB; Integrated Security=true;";
+
+
+        SqlSyncProvider serverProvider = new SqlSyncProvider(serverConfig);
+        SqlSyncProvider clientProvider = new SqlSyncProvider(clientConfig);
+
+        SyncAgent agent = new SyncAgent(clientProvider, serverProvider, new[] { "AllAvailablesColumns" });
+
+        var s = await agent.SynchronizeAsync();
+
+        if (s.Error != null)
+            Console.WriteLine(s.Error.ToString());
+
+
+        Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+    }
+
     private static async Task TestSync()
     {
         // Get SQL Server connection string
@@ -260,8 +304,6 @@ class Program
 
         Console.WriteLine("End");
     }
-
-  
 
     private static void ServerProvider_SyncProgress(object sender, SyncProgressEventArgs e)
     {

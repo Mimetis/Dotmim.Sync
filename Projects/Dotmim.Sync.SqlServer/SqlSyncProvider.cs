@@ -22,40 +22,8 @@ namespace Dotmim.Sync.SqlServer
 {
     public class SqlSyncProvider : CoreProvider
     {
-        FileSystemBatchSerializer serializer;
-        string batchFileName;
         string connectionString;
   
-
-        /// <summary>
-        /// Set the batch filename spooler
-        /// If == null, no batch enabled
-        /// </summary>
-        public string BatchFileName
-        {
-            get
-            {
-                return batchFileName;
-            }
-            set
-            {
-                batchFileName = value;
-
-                if (string.IsNullOrEmpty(batchFileName))
-                {
-                    serializer = null;
-                }
-                else
-                {
-                    if (serializer == null)
-                        serializer = new FileSystemBatchSerializer();
-
-                    serializer.Initialize(batchFileName);
-                }
-            }
-        }
-
-
         /// <summary>
         /// Get the sql connection used to access the server side database
         /// </summary>
@@ -67,11 +35,8 @@ namespace Dotmim.Sync.SqlServer
 
         public SqlSyncProvider(string connectionString) : base()
         {
-            this.BatchFileName = Environment.ExpandEnvironmentVariables("%Temp%");
             this.connectionString = connectionString;
         }
-
-        public override SyncBatchSerializer Serializer => serializer;
 
         private ICache cacheManager;
         public override ICache CacheManager
@@ -90,12 +55,10 @@ namespace Dotmim.Sync.SqlServer
             }
         }
 
-
         public override DbScopeBuilder GetScopeBuilder()
         {
             return new SqlScopeBuilder();
         }
-
 
         public override DbBuilder GetDatabaseBuilder(DmTable tableDescription, DbBuilderOption options = DbBuilderOption.UseExistingSchema)
         {

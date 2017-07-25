@@ -57,12 +57,7 @@ namespace Dotmim.Sync.Core
         /// Create a new instance of the implemented Connection provider
         /// </summary>
         public abstract DbConnection CreateConnection();
-
-        /// <summary>
-        /// Get the serializer
-        /// </summary>
-        public abstract SyncBatchSerializer Serializer { get; }
-
+    
         /// <summary>
         /// Get a table builder helper. Need a complete table description (DmTable). Will then generate table, table tracking, stored proc and triggers
         /// </summary>

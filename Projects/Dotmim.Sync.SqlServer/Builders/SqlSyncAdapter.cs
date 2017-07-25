@@ -49,7 +49,6 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         private SqlMetaData GetSqlMetadaFromType(DmColumn column)
         {
-            SqlMetaData smd = null;
 
             var sqlDbType = column.GetSqlDbType();
             var dbType = column.DbType;
@@ -65,9 +64,20 @@ namespace Dotmim.Sync.SqlServer.Builders
             if (column.DataType == typeof(char))
                 return new SqlMetaData(column.ColumnName, sqlDbType, 1);
 
-            smd = new SqlMetaData(column.ColumnName, sqlDbType);
+            if (sqlDbType == SqlDbType.Char || sqlDbType == SqlDbType.NChar)
+            {
+                maxLength = column.MaxLength <= 0 ? (sqlDbType == SqlDbType.NChar ? 4000 : 8000) : column.MaxLength;
+                return new SqlMetaData(column.ColumnName, sqlDbType, maxLength);
+            }
 
-            return smd;
+            if (sqlDbType == SqlDbType.Binary || sqlDbType == SqlDbType.VarBinary)
+            {
+                maxLength = column.MaxLength <= 0 ? 8000 : column.MaxLength;
+                return new SqlMetaData(column.ColumnName, sqlDbType, maxLength);
+            }
+
+            return new SqlMetaData(column.ColumnName, sqlDbType);
+
         }
 
         /// <summary>
@@ -82,11 +92,14 @@ namespace Dotmim.Sync.SqlServer.Builders
             if (applyTable.Rows.Count <= 0)
                 return;
 
+            var lstMutableColumns = applyTable.Columns.Where(c => !c.ReadOnly).ToList();
+
             List<SqlDataRecord> records = new List<SqlDataRecord>(applyTable.Rows.Count);
-            SqlMetaData[] metadatas = new SqlMetaData[applyTable.Columns.Count];
-            for (int i = 0; i < applyTable.Columns.Count; i++)
+            SqlMetaData[] metadatas = new SqlMetaData[lstMutableColumns.Count];
+
+            for (int i = 0; i < lstMutableColumns.Count; i++)
             {
-                var column = applyTable.Columns[i];
+                var column = lstMutableColumns[i];
 
                 SqlMetaData metadata = GetSqlMetadaFromType(column);
                 metadatas[i] = metadata;
@@ -95,18 +108,24 @@ namespace Dotmim.Sync.SqlServer.Builders
             foreach (var dmRow in applyTable.Rows)
             {
                 SqlDataRecord record = new SqlDataRecord(metadatas);
+
+                int sqlMetadataIndex = 0;
                 for (int i = 0; i < dmRow.ItemArray.Length; i++)
                 {
-                    var c = dmRow.Table.Columns[i];
-                    dynamic defaultValue = c.DefaultValue;
+                    // check if it's readonly
+                    if (applyTable.Columns[i].ReadOnly)
+                        continue;
+
+                    dynamic defaultValue = applyTable.Columns[i].DefaultValue;
                     dynamic rowValue = dmRow[i];
 
-                    if (c.AllowDBNull && rowValue == null)
+                    if (applyTable.Columns[i].AllowDBNull && rowValue == null)
                         rowValue = DBNull.Value;
                     else if (rowValue == null)
                         rowValue = defaultValue;
 
-                    record.SetValue(i, rowValue);
+                    record.SetValue(sqlMetadataIndex, rowValue);
+                    sqlMetadataIndex++;
                 }
                 records.Add(record);
             }
@@ -187,7 +206,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                 if (derivingParameters.ContainsKey(textParser.UnquotedString))
                 {
-                    foreach(var p in derivingParameters[textParser.UnquotedString])
+                    foreach (var p in derivingParameters[textParser.UnquotedString])
                         command.Parameters.Add(p.Clone());
                 }
                 else
@@ -195,7 +214,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                     var parameters = connection.DeriveParameters((SqlCommand)command, false, transaction);
 
                     var arrayParameters = new List<SqlParameter>();
-                    foreach(var p in parameters)
+                    foreach (var p in parameters)
                         arrayParameters.Add(p.Clone());
 
                     derivingParameters.Add(textParser.UnquotedString, arrayParameters);

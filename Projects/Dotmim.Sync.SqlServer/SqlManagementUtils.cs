@@ -321,7 +321,7 @@ namespace Dotmim.Sync.SqlServer
             StringBuilder stringBuilder = new StringBuilder();
             string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));
             string strSeparator = "";
-            foreach (DmColumn column in table.NonPkColumns)
+            foreach (DmColumn column in table.NonPkColumns.Where(c => !c.ReadOnly))
             {
                 ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
                 stringBuilder.AppendLine($"{strSeparator} {strFromPrefix}{quotedColumn.QuotedString} = @{quotedColumn.UnquotedString}");

@@ -122,27 +122,7 @@ namespace Dotmim.Sync.Core.Batch
             return bpi;
         }
 
-        ///// <summary>
-        ///// Gets the total number of changes in the BatchInfo.
-        ///// </summary>
-        //public int TotalChanges { get; set; }
-
-        ///// <summary>
-        ///// Gets the total number of deletes in the BatchInfo.
-        ///// </summary>
-        //public int TotalChangesDeletes { get; set; }
-
-        ///// <summary>
-        ///// Gets the total number of inserts in the BatchInfo.
-        ///// </summary>
-        //public int TotalChangesInserts { get; set; }
-
-        ///// <summary>
-        ///// Gets the total number of updates in the BatchInfo.
-        ///// </summary>
-        //public int TotalChangesUpdates { get; set; }
-
-
+ 
         internal static string GenerateNewDirectoryName()
         {
             return String.Concat(DateTime.UtcNow.ToString("yyyy_MM_dd_ss"), Path.GetRandomFileName().Replace(".", ""));
