@@ -16,9 +16,11 @@
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="2.0.0-preview2-final" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="2.0.0-preview2-final" />
     <PackageReference Include="Newtonsoft.Json" Version="10.0.3" />
+    <PackageReference Include="System.Data.SQLite.Core" Version="1.0.105.2" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" />
+    <ProjectReference Include="..\Dotmim.Sync.Sqlite\Dotmim.Sync.Sqlite.csproj" />
     <ProjectReference Include="..\Dotmim.Sync.SqlServer\Dotmim.Sync.SqlServer.csproj" />
   </ItemGroup>
 </Project>

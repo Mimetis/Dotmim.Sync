@@ -31,6 +31,8 @@ using Microsoft.AspNetCore.Server.Kestrel.Internal;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Net.Http.Headers;
 using System.Data.SqlClient;
+using Dotmim.Sync.Sqlite;
+using Dotmim.Sync.Core.Scope;
 
 class Program
 {
@@ -42,8 +44,48 @@ class Program
 
         //TestAllAvailablesColumns().Wait();
 
+        TestSQLiteSyncScopeBuilder().Wait();
+
         Console.ReadLine();
 
+    }
+
+    private static async Task TestSQLiteSyncScopeBuilder()
+    {
+        var path = Path.Combine(Environment.CurrentDirectory, "db.sqlite");
+
+        var builder = new System.Data.SQLite.SQLiteConnectionStringBuilder
+        {
+            DataSource = path
+        };
+
+        var sqliteConnectionString = builder.ConnectionString;
+
+        SqliteSyncProvider sqliteSyncProvider = new SqliteSyncProvider(sqliteConnectionString);
+        var dbScopeBuilder = sqliteSyncProvider.GetScopeBuilder();
+
+        Guid scopeInfoId = Guid.NewGuid();
+
+        using (DbConnection sqliteConnection = sqliteSyncProvider.CreateConnection())
+        {
+            var scopeBuilder = dbScopeBuilder.CreateScopeInfoBuilder(sqliteConnection);
+
+            if (scopeBuilder.NeedToCreateScopeInfoTable())
+                scopeBuilder.CreateScopeInfoTable();
+
+            var scopeInfo = new ScopeInfo
+            {
+                Id = scopeInfoId,
+                IsLocal = true,
+                IsNewScope = false,
+                LastSync = DateTime.Now,
+                Name = "DefaultScope"
+            };
+
+            scopeBuilder.InsertOrUpdateScopeInfo(scopeInfo);
+
+            var lstScopes = scopeBuilder.GetAllScopes("DefaultScope");
+        }
     }
 
 

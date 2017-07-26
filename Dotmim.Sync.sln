@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26510.0
+VisualStudioVersion = 15.0.26621.2
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dotmim.Sync.Core", "Projects\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj", "{C58C0E87-84B4-4DC7-A2F2-CCC2B9DAEF86}"
 EndProject
@@ -12,6 +12,8 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dotmim.Sync.Core.Test", "Tests\Dotmim.Sync.Core.Test\Dotmim.Sync.Core.Test.csproj", "{4BB24ED8-7F70-4E6F-9150-7AAEC21D9B4A}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dotmim.Sync.SampleConsole", "Projects\Dotmim.Sync.SampleConsole\Dotmim.Sync.SampleConsole.csproj", "{F8C90F8B-6A00-4A03-A74D-5703860EF406}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dotmim.Sync.Sqlite", "Projects\Dotmim.Sync.Sqlite\Dotmim.Sync.Sqlite.csproj", "{92259FC7-577B-4328-A336-3B0FD5E265E1}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -71,11 +73,26 @@ Global
 		{F8C90F8B-6A00-4A03-A74D-5703860EF406}.Release|x64.Build.0 = Release|Any CPU
 		{F8C90F8B-6A00-4A03-A74D-5703860EF406}.Release|x86.ActiveCfg = Release|Any CPU
 		{F8C90F8B-6A00-4A03-A74D-5703860EF406}.Release|x86.Build.0 = Release|Any CPU
+		{92259FC7-577B-4328-A336-3B0FD5E265E1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{92259FC7-577B-4328-A336-3B0FD5E265E1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{92259FC7-577B-4328-A336-3B0FD5E265E1}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{92259FC7-577B-4328-A336-3B0FD5E265E1}.Debug|x64.Build.0 = Debug|Any CPU
+		{92259FC7-577B-4328-A336-3B0FD5E265E1}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{92259FC7-577B-4328-A336-3B0FD5E265E1}.Debug|x86.Build.0 = Debug|Any CPU
+		{92259FC7-577B-4328-A336-3B0FD5E265E1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{92259FC7-577B-4328-A336-3B0FD5E265E1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{92259FC7-577B-4328-A336-3B0FD5E265E1}.Release|x64.ActiveCfg = Release|Any CPU
+		{92259FC7-577B-4328-A336-3B0FD5E265E1}.Release|x64.Build.0 = Release|Any CPU
+		{92259FC7-577B-4328-A336-3B0FD5E265E1}.Release|x86.ActiveCfg = Release|Any CPU
+		{92259FC7-577B-4328-A336-3B0FD5E265E1}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{4BB24ED8-7F70-4E6F-9150-7AAEC21D9B4A} = {AC37FDEF-1057-4915-806D-DC22DD68F44B}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {348020ED-748B-4CC8-AA1D-9F7D36E2AC12}
 	EndGlobalSection
 EndGlobal

@@ -8,10 +8,7 @@ namespace Dotmim.Sync.Core.Scope
 {
     public abstract class DbScopeBuilder : IDisposable
     {
-        public abstract IDbScopeConfigBuilder CreateScopeConfigBuilder(DbConnection connection, DbTransaction transaction = null);
         public abstract IDbScopeInfoBuilder CreateScopeInfoBuilder(DbConnection connection, DbTransaction transaction = null);
-
-
 
         #region IDisposable Support
         private bool disposedValue = false; // To detect redundant calls

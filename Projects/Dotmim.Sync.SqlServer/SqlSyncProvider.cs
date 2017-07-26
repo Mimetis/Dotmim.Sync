@@ -5,7 +5,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Dotmim.Sync.Core.Batch;
-using Dotmim.Sync.SqlServer.Batch;
 using Dotmim.Sync.SqlServer.Builders;
 using System.Data.Common;
 using System.Data.SqlClient;
