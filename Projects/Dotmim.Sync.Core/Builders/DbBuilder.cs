@@ -42,22 +42,22 @@ namespace Dotmim.Sync.Core.Builders
         public List<DmColumn> FilterParameters { get; } = new List<DmColumn>();
 
         /// <summary>
-        /// You have to provider an proc builder implementation for your current database
+        /// You have to provide a proc builder implementation for your current database
         /// </summary>
         public abstract IDbBuilderProcedureHelper CreateProcBuilder(DbConnection connection, DbTransaction transaction = null);
 
         /// <summary>
-        /// You have to provider an trigger builder implementation for your current database
+        /// You have to provide a trigger builder implementation for your current database
         /// </summary>
         public abstract IDbBuilderTriggerHelper CreateTriggerBuilder(DbConnection connection, DbTransaction transaction = null);
 
         /// <summary>
-        /// You have to provider an trigger builder implementation for your current database
+        /// You have to provide a table builder implementation for your current database
         /// </summary>
         public abstract IDbBuilderTableHelper CreateTableBuilder(DbConnection connection, DbTransaction transaction = null);
 
         /// <summary>
-        /// You have to provider an tracking table builder implementation for your current database
+        /// You have to provider a tracking table builder implementation for your current database
         /// </summary>
         public abstract IDbBuilderTrackingTableHelper CreateTrackingTableBuilder(DbConnection connection, DbTransaction transaction = null);
 
@@ -66,11 +66,13 @@ namespace Dotmim.Sync.Core.Builders
         /// </summary>
         public abstract DbSyncAdapter CreateSyncAdapter(DbConnection connection, DbTransaction transaction= null);
      
+        /// <summary>
+        /// ObjectNames
+        /// </summary>
         public abstract DbObjectNames ObjectNames { get; }
 
-
         /// <summary>
-        /// Construct a DbBuilder. You should provide
+        /// Construct a DbBuilder
         /// </summary>
         public DbBuilder(DmTable tableDescription, DbBuilderOption option = DbBuilderOption.CreateOrUseExistingSchema)
         {
@@ -90,7 +92,6 @@ namespace Dotmim.Sync.Core.Builders
 
             this.FilterColumns.Add(column);
         }
-
 
         /// <summary>
         /// Apply the config.
@@ -195,7 +196,6 @@ namespace Dotmim.Sync.Core.Builders
         /// <summary>
         /// Generate the creating script string (admin only)
         /// </summary>
-        /// <returns></returns>
         public string Script(DbConnection connection, DbTransaction transaction = null)
         {
             string str = null;

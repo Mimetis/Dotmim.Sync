@@ -57,11 +57,7 @@ namespace Dotmim.Sync.Core
         /// </summary>
         public SyncStage SyncStage { get; set; }
 
-        /// <summary>
-        /// Error has occured a sync session
-        /// </summary>
-        public SyncException Error { get; set; }
-
+     
         public SyncContext(Guid sessionId)
         {
             this.SessionId = sessionId;

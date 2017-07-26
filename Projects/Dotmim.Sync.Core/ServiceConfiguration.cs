@@ -184,6 +184,16 @@ namespace Dotmim.Sync.Core
                 foreach (var configTable in configTables)
                     configuration.ScopeSet.Tables.Add(configTable.Clone());
 
+            if (set.Relations != null && set.Relations.Count > 0)
+            {
+                foreach(var r in set.Relations)
+                {
+                    var relation = r.Clone(configuration.ScopeSet);
+                    configuration.ScopeSet.Relations.Add(relation);
+                }
+            }
+
+
             return configuration;
         }
 
@@ -234,6 +244,12 @@ namespace Dotmim.Sync.Core
                 {
                     var dmTableConf = dmTable.Clone();
                     set.Tables.Add(dmTableConf);
+                }
+
+                foreach(var dmRelation in configuration.ScopeSet.Relations)
+                {
+                    var dmRelationConf = dmRelation.Clone(set);
+                    set.Relations.Add(dmRelationConf);
                 }
             }
 

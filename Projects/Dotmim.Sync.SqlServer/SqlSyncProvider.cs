@@ -23,22 +23,13 @@ namespace Dotmim.Sync.SqlServer
     public class SqlSyncProvider : CoreProvider
     {
         string connectionString;
-  
-        /// <summary>
-        /// Get the sql connection used to access the server side database
-        /// </summary>
-        public override DbConnection CreateConnection()
-        {
-            return new SqlConnection(this.connectionString);
-        }
-
+        ICache cacheManager;
 
         public SqlSyncProvider(string connectionString) : base()
         {
             this.connectionString = connectionString;
         }
 
-        private ICache cacheManager;
         public override ICache CacheManager
         {
             get
@@ -54,21 +45,10 @@ namespace Dotmim.Sync.SqlServer
 
             }
         }
-
-        public override DbScopeBuilder GetScopeBuilder()
-        {
-            return new SqlScopeBuilder();
-        }
-
-        public override DbBuilder GetDatabaseBuilder(DmTable tableDescription, DbBuilderOption options = DbBuilderOption.UseExistingSchema)
-        {
-            return new SqlBuilder(tableDescription, options);
-        }
-
-        public override DbManager GetDbManager(string tableName)
-        {
-            return new SqlManager(tableName);
-        }
+        public override DbConnection CreateConnection() => new SqlConnection(this.connectionString);
+        public override DbScopeBuilder GetScopeBuilder() => new SqlScopeBuilder();
+        public override DbBuilder GetDatabaseBuilder(DmTable tableDescription, DbBuilderOption options = DbBuilderOption.UseExistingSchema) => new SqlBuilder(tableDescription, options);
+        public override DbManager GetDbManager(string tableName) => new SqlManager(tableName);
 
     }
 }

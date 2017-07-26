@@ -63,39 +63,39 @@ namespace Dotmim.Sync.Core.Test
             tbl.PrimaryKey = key;
 
             // if is PK, non null allowable
-            Assert.Equal(false, id.AllowDBNull);
+            Assert.False(id.AllowDBNull);
             Assert.Equal("ServiceTicketID", id.ColumnName);
-            Assert.Equal(id.DataType, typeof(Guid));
-            Assert.Equal(id.Ordinal, 0);
-            Assert.Equal(id.Unique, true);
+            Assert.Equal(typeof(Guid), id.DataType);
+            Assert.Equal(0, id.Ordinal);
+            Assert.True(id.Unique);
 
             var titleColumn = new DmColumn<string>("Title");
             tbl.Columns.Add(titleColumn);
             Assert.Equal("Title", titleColumn.ColumnName);
-            Assert.Equal(titleColumn.DataType, typeof(string));
-            Assert.Equal(titleColumn.Ordinal, 1);
-            Assert.Equal(titleColumn.Unique, false);
+            Assert.Equal(typeof(string), titleColumn.DataType);
+            Assert.Equal(1, titleColumn.Ordinal);
+            Assert.False(titleColumn.Unique);
 
             var sv = new DmColumn<int>("StatusValue");
             tbl.Columns.Add(sv);
             Assert.Equal("StatusValue", sv.ColumnName);
-            Assert.Equal(sv.DataType, typeof(Int32));
-            Assert.Equal(sv.Ordinal, 2);
-            Assert.Equal(sv.Unique, false);
+            Assert.Equal(typeof(Int32), sv.DataType);
+            Assert.Equal(2, sv.Ordinal);
+            Assert.False(sv.Unique);
 
             var opened = new DmColumn<DateTime>("Opened");
             tbl.Columns.Add(opened);
             Assert.Equal("Opened", opened.ColumnName);
-            Assert.Equal(opened.DataType, typeof(DateTime));
-            Assert.Equal(opened.Ordinal, 3);
-            Assert.Equal(opened.Unique, false);
+            Assert.Equal(typeof(DateTime), opened.DataType);
+            Assert.Equal(3, opened.Ordinal);
+            Assert.False(opened.Unique);
 
             var closedColumn = DmColumn.CreateColumn("Closed", typeof(DateTime));
             tbl.Columns.Add(closedColumn);
             Assert.Equal("Closed", closedColumn.ColumnName);
-            Assert.Equal(closedColumn.DataType, typeof(DateTime));
-            Assert.Equal(closedColumn.Ordinal, 4);
-            Assert.Equal(closedColumn.Unique, false);
+            Assert.Equal(typeof(DateTime), closedColumn.DataType);
+            Assert.Equal(4, closedColumn.Ordinal);
+            Assert.False(closedColumn.Unique);
         }
 
         [Fact]
@@ -117,27 +117,27 @@ namespace Dotmim.Sync.Core.Test
             var closedColumn = DmColumn.CreateColumn("Closed", typeof(DateTime));
             tbl.Columns.Add(closedColumn);
 
-            Assert.Equal(id.Ordinal, 0);
-            Assert.Equal(titleColumn.Ordinal, 1);
-            Assert.Equal(sv.Ordinal, 2);
-            Assert.Equal(opened.Ordinal, 3);
-            Assert.Equal(closedColumn.Ordinal, 4);
+            Assert.Equal(0, id.Ordinal);
+            Assert.Equal(1, titleColumn.Ordinal);
+            Assert.Equal(2, sv.Ordinal);
+            Assert.Equal(3, opened.Ordinal);
+            Assert.Equal(4, closedColumn.Ordinal);
 
             sv.SetOrdinal(1);
 
-            Assert.Equal(id.Ordinal, 0);
-            Assert.Equal(sv.Ordinal, 1);
-            Assert.Equal(titleColumn.Ordinal, 2);
-            Assert.Equal(opened.Ordinal, 3);
-            Assert.Equal(closedColumn.Ordinal, 4);
+            Assert.Equal(0, id.Ordinal);
+            Assert.Equal(1, sv.Ordinal);
+            Assert.Equal(2, titleColumn.Ordinal);
+            Assert.Equal(3, opened.Ordinal);
+            Assert.Equal(4, closedColumn.Ordinal);
 
             closedColumn.SetOrdinal(0);
 
-            Assert.Equal(closedColumn.Ordinal, 0);
-            Assert.Equal(id.Ordinal, 1);
-            Assert.Equal(sv.Ordinal, 2);
-            Assert.Equal(titleColumn.Ordinal, 3);
-            Assert.Equal(opened.Ordinal, 4);
+            Assert.Equal(0, closedColumn.Ordinal);
+            Assert.Equal(1, id.Ordinal);
+            Assert.Equal(2, sv.Ordinal);
+            Assert.Equal(3, titleColumn.Ordinal);
+            Assert.Equal(4, opened.Ordinal);
           
 
         }

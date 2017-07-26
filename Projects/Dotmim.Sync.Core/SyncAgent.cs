@@ -161,8 +161,6 @@ namespace Dotmim.Sync.Core
         {
         }
 
-
-
         public async Task<SyncContext> SynchronizeAsync()
         {
             return await this.SynchronizeAsync(CancellationToken.None);
@@ -187,6 +185,9 @@ namespace Dotmim.Sync.Core
 
             // Stats computed
             ChangesStatistics changesStatistics = new ChangesStatistics();
+
+            // tmp check error
+            bool hasErrors = false;
             try
             {
                 if (cancellationToken.IsCancellationRequested)
@@ -371,26 +372,29 @@ namespace Dotmim.Sync.Core
             {
                 var error = SyncException.CreateOperationCanceledException(context.SyncStage, oce);
                 HandleSyncError(error);
-                context.Error = error;
+                hasErrors = true;
+                throw;
             }
             catch (SyncException sex)
             {
                 HandleSyncError(sex);
-                context.Error = sex;
+                hasErrors = true;
+                throw;
             }
             catch (Exception ex)
             {
                 var error = SyncException.CreateUnknowException(context.SyncStage, ex);
                 HandleSyncError(error);
-                context.Error = error;
+                hasErrors = true;
+                throw;
             }
             finally
             {
-                // if EndSessionAsync() was never called, try a last time
                 try
                 {
-                    if (context.Error != null)
+                    if (hasErrors)
                     {
+                        // if EndSessionAsync() was never called, try a last time
                         context = await this.RemoteProvider.EndSessionAsync(context);
                         context = await this.LocalProvider.EndSessionAsync(context);
                     }

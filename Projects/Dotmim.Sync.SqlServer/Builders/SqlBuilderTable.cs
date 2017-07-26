@@ -52,26 +52,26 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.Append("ALTER TABLE ");
-            stringBuilder.AppendLine(childTableName.QuotedString);
+            stringBuilder.AppendLine(parentTableName.QuotedString);
             stringBuilder.Append("ADD CONSTRAINT ");
             stringBuilder.AppendLine(foreignKey.RelationName);
             stringBuilder.Append("FOREIGN KEY (");
             string empty = string.Empty;
-            foreach (var childColumn in foreignKey.ChildColumns)
+            foreach (var parentdColumn in foreignKey.ParentColumns)
             {
-                var childColumnName = new ObjectNameParser(childColumn.ColumnName);
+                var parentColumnName = new ObjectNameParser(parentdColumn.ColumnName);
 
-                stringBuilder.Append($"{empty} {childColumnName.QuotedString}");
+                stringBuilder.Append($"{empty} {parentColumnName.QuotedString}");
                 empty = ", ";
             }
             stringBuilder.AppendLine(" )");
             stringBuilder.Append("REFERENCES ");
-            stringBuilder.Append(parentTableName.QuotedString).Append(" (");
+            stringBuilder.Append(childTableName.QuotedString).Append(" (");
             empty = string.Empty;
-            foreach (var parentColumn in foreignKey.ParentColumns)
+            foreach (var childColumn in foreignKey.ChildColumns)
             {
-                var parentColumnName = new ObjectNameParser(parentColumn.ColumnName);
-                stringBuilder.Append($"{empty} {parentColumnName.QuotedString}");
+                var childColumnName = new ObjectNameParser(childColumn.ColumnName);
+                stringBuilder.Append($"{empty} {childColumnName.QuotedString}");
             }
             stringBuilder.Append(" ) ");
             sqlCommand.CommandText = stringBuilder.ToString();
@@ -87,11 +87,9 @@ namespace Dotmim.Sync.SqlServer.Builders
                 if (!alreadyOpened)
                     connection.Open();
 
-                foreach (DmRelation constraint in TableDescription.ParentRelations)
+                foreach (DmRelation constraint in TableDescription.ChildRelations)
                 {
-                    if (!EnsureForeignKeysTableExist(constraint))
-                        continue;
-
+               
                     using (var command = BuildForeignKeyConstraintsCommand(constraint))
                     {
                         command.Connection = connection;
@@ -121,14 +119,8 @@ namespace Dotmim.Sync.SqlServer.Builders
         public string CreateForeignKeyConstraintsScriptText()
         {
             StringBuilder stringBuilder = new StringBuilder();
-            foreach (DmRelation constraint in TableDescription.ParentRelations)
+            foreach (DmRelation constraint in TableDescription.ChildRelations)
             {
-                if (!EnsureForeignKeysTableExist(constraint))
-                {
-                    stringBuilder.AppendLine($"Constraint {constraint.RelationName} references the table {constraint.ParentTable.TableName} which is not part of the current sync configuration. Skip this constraint");
-                    continue;
-                }
-
                 var constraintName = $"Create Constraint {constraint.RelationName} between parent {constraint.ParentTable.TableName} and child {constraint.ChildTable.TableName}";
                 var constraintScript = BuildForeignKeyConstraintsCommand(constraint).CommandText;
                 stringBuilder.Append(SqlBuilder.WrapScriptTextWithComments(constraintScript, constraintName));
@@ -299,7 +291,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 if (!alreadyOpened)
                     connection.Open();
 
-                return SqlManagementUtils.TableExists(connection, null, parentTable.TableName);
+                return SqlManagementUtils.TableExists(connection, transaction, parentTable.TableName);
 
             }
             catch (Exception ex)

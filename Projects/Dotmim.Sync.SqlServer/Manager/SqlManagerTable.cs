@@ -27,7 +27,7 @@ namespace Dotmim.Sync.SqlServer.Manager
         }
 
         /// <summary>
-        /// TODO : Check if table exist !
+        /// Get DmTable
         /// </summary>
         public DmTable GetTableDefinition()
         {
@@ -101,11 +101,14 @@ namespace Dotmim.Sync.SqlServer.Manager
             // Set the primary Key
             table.PrimaryKey = new DmKey(columnsForKey);
 
-
-            // TODO
-            // Get the datarelation
-
             return table;
+
+  
+        }
+
+        public DmTable GetTableRelations()
+        {
+            return SqlManagementUtils.RelationsForTable(sqlConnection, sqlTransaction, tableName);
         }
     }
 }

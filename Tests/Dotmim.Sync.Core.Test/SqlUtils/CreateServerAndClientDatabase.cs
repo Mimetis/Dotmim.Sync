@@ -1,36 +1,72 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Data.SqlClient;
+using System.Linq;
 using System.Text;
 
 namespace Dotmim.Sync.Core.Test.SqlUtils
 {
     public class CreateServerAndClientDatabase : IDisposable
     {
-        public String ServerDatabaseString { get; set; } = @"Data Source=(localdb)\MSSQLLocalDB; Initial Catalog=ServerDB; Integrated Security=true;";
-        public String ClientDatabaseString { get; set; } = @"Data Source=(localdb)\MSSQLLocalDB; Initial Catalog=ClientDB; Integrated Security=true;";
+        private Dictionary<string, string> tablesScript = new Dictionary<string, string>();
+        private Dictionary<string, string> datasScript = new Dictionary<string, string>();
+        internal Dictionary<string, string> insertOneRowScript = new Dictionary<string, string>();
+        internal Dictionary<string, string> deleteOneRowScript = new Dictionary<string, string>();
+        internal Dictionary<string, string> updateOneRowScript = new Dictionary<string, string>();
+        public List<PairDatabases> PairDatabases { get; set; } = new List<PairDatabases>();
 
-        private SqlConnection serverConnection;
-        private SqlConnection masterConnection;
-        private SqlConnection clientConnection;
+        public static String GetDatabaseConnectionString(string dbName) => $@"Data Source=(localdb)\MSSQLLocalDB; Initial Catalog={dbName}; Integrated Security=true;";
+
         public CreateServerAndClientDatabase()
         {
-            masterConnection = new SqlConnection(@"Data Source=(localdb)\MSSQLLocalDB; Initial Catalog=master; Integrated Security=true;");
-            serverConnection = new SqlConnection(ServerDatabaseString);
-            clientConnection = new SqlConnection(ClientDatabaseString);
+            PairDatabases.Add(new PairDatabases("SimpleSync", "SSimpleDB", "CSimpleDB", "ServiceTickets"));
+            PairDatabases.Add(new PairDatabases("TwoTablesSync", "STwoTableseDB", "CTwoTablesDB", new List<string>(new string[] { "Customers", "ServiceTickets" })));
+            PairDatabases.Add(new PairDatabases("VariantSync", "CVariantDB", "SVariantDB", "TableVariant"));
+            PairDatabases.Add(new PairDatabases("AllColumnsSync", "CAllColumnsDB", "SAllColumnsDB", "TableAllColumns"));
 
-            this.EnsureDatabasesAreCreated();
-            this.GenerateSingleTableInServerDB();
+            // Adding scripts for create tables and datas
+            AddSingleTableScript("SimpleSync");
+            AddTwoTableScript("TwoTablesSync");
+            AddAllColumnsAvailabeTableScript("AllColumnsSync");
+            AddSqlVariantTableScript("VariantSync");
+
         }
-        public void EnsureDatabasesAreCreated()
+
+        public void GenerateDatabasesAndTables(PairDatabases db, Boolean recreateDb = true, Boolean withSchemaOnClient = false, Boolean withDatasOnServer = true)
         {
+            SqlConnection connection = null;
+            SqlConnection masterConnection = null;
             try
             {
+                masterConnection = new SqlConnection(GetDatabaseConnectionString("master"));
                 masterConnection.Open();
-                var cmd = new SqlCommand(GetCreationDBScript("ClientDB"), masterConnection);
+                var cmdDb = new SqlCommand(GetCreationDBScript(db.ServerDatabase, recreateDb), masterConnection);
+                cmdDb.ExecuteNonQuery();
+                cmdDb = new SqlCommand(GetCreationDBScript(db.ClientDatabase, recreateDb), masterConnection);
+                cmdDb.ExecuteNonQuery();
+                masterConnection.Close();
+
+                connection = new SqlConnection(GetDatabaseConnectionString(db.ServerDatabase));
+                connection.Open();
+                var cmd = new SqlCommand(tablesScript[db.Key], connection);
                 cmd.ExecuteNonQuery();
-                cmd = new SqlCommand(GetCreationDBScript("ServerDB"), masterConnection);
-                cmd.ExecuteNonQuery();
+
+                if (withDatasOnServer)
+                {
+                    cmd = new SqlCommand(datasScript[db.Key], connection);
+                    cmd.ExecuteNonQuery();
+                }
+                connection.Close();
+
+                if (withSchemaOnClient)
+                {
+                    connection = new SqlConnection(GetDatabaseConnectionString(db.ClientDatabase));
+                    connection.Open();
+                    cmd = new SqlCommand(tablesScript[db.Key], connection);
+                    cmd.ExecuteNonQuery();
+                    connection.Close();
+                }
 
             }
             catch (Exception)
@@ -39,61 +75,26 @@ namespace Dotmim.Sync.Core.Test.SqlUtils
             }
             finally
             {
-                if (masterConnection.State != System.Data.ConnectionState.Closed)
+                if (connection.State != ConnectionState.Closed)
+                    connection.Close();
+                if (masterConnection.State != ConnectionState.Closed)
                     masterConnection.Close();
             }
         }
 
-        public void GenerateSingleTableInServerDB()
+
+        public void AddTwoTableScript(string key)
         {
-            try
-            {
-                serverConnection.Open();
-                var cmd = new SqlCommand(GetSingleTableScript(), serverConnection);
-                cmd.ExecuteNonQuery();
-                serverConnection.Close();
+            string tableCustomers = PairDatabases.First(c => c.Key == key).Tables[0];
+            string tableServiceTickets = PairDatabases.First(c => c.Key == key).Tables[1];
 
-            }
-            catch (Exception)
-            {
-                throw;
-            }
-            finally
-            {
-                if (serverConnection.State != System.Data.ConnectionState.Closed)
-                    serverConnection.Close();
-            }
-        }
+            string id = Guid.NewGuid().ToString();
 
-        public void DeleteAllDatabases()
-        {
-            try
-            {
-                masterConnection.Open();
-                var cmd = new SqlCommand(GetDeleteDatabaseScript("ClientDB"), masterConnection);
-                cmd.ExecuteNonQuery();
-                cmd = new SqlCommand(GetDeleteDatabaseScript("ServerDB"), masterConnection);
-                cmd.ExecuteNonQuery();
-
-            }
-            catch (Exception)
-            {
-                throw;
-            }
-            finally
-            {
-                if (masterConnection.State != System.Data.ConnectionState.Closed)
-                    masterConnection.Close();
-            }
-        }
-
-        public string GetSingleTableScript()
-        {
             var tblScript =
-                @"
-                    if (not exists (select * from sys.tables where name = 'ServiceTickets'))
+                $@"
+                    if (not exists (select * from sys.tables where name = '{tableServiceTickets}'))
                     begin
-                        CREATE TABLE [ServiceTickets](
+                        CREATE TABLE [{tableServiceTickets}](
 	                    [ServiceTicketID] [uniqueidentifier] NOT NULL,
 	                    [Title] [nvarchar](max) NOT NULL,
 	                    [Description] [nvarchar](max) NULL,
@@ -102,38 +103,327 @@ namespace Dotmim.Sync.Core.Test.SqlUtils
 	                    [Opened] [datetime] NULL,
 	                    [Closed] [datetime] NULL,
 	                    [CustomerID] [int] NULL,
-                        CONSTRAINT [PK_ServiceTickets] PRIMARY KEY CLUSTERED ( [ServiceTicketID] ASC ));
-
-                        INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (N'c3cd62ac-314b-4dbf-b2bb-0d154d59c9b3', N'Titre 3', N'Description 3', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-                        INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (N'04254b03-3dcb-4232-9b74-36f71b7ad26c', N'Titre 4', N'Description 4', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-                        INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (N'3d7c603e-5790-4d99-9737-37a9db95a642', N'Titre Client 1', N'Description Client 1', 1, 0, CAST(N'2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
-                        INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (N'aba16ee2-50d0-4d0c-870d-607cf88a74b5', N'Titre 6', N'Description 6', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-                        INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (N'f30bb2f9-6cb3-4957-89b1-65246319e3da', N'Titre 7', N'Description 7', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-                        INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (N'55d080ff-713b-456a-b900-8bd6d310593c', N'Titre 5', N'Description 5', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-                        INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (N'036e6ac5-bda9-4c45-aa0e-ab1f603319c3', N'Titre 2', N'Description 2', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-                        INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (N'2ca388cf-8d9a-4b7a-9bd1-b0bc6617a766', N'Titre 1', N'Description 1', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-                        INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (N'c762b922-737a-448a-a9b6-bcf02e803eb5', N'Titre 8', N'Description 8', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-                        INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (N'17114fe9-5106-4299-9e1a-bf84be37d992', N'Titre 9', N'Description 9', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+                        CONSTRAINT [PK_{tableServiceTickets}] PRIMARY KEY CLUSTERED ( [ServiceTicketID] ASC ));
+                    end;
+                    if (not exists (select * from sys.tables where name = '{tableCustomers}'))
+                    begin
+                        CREATE TABLE [{tableCustomers}](
+	                    [CustomerID] [int] NOT NULL,
+	                    [FirstName] [nvarchar](max) NOT NULL,
+	                    [LastName] [nvarchar](max) NULL
+                        CONSTRAINT [PK_{tableCustomers}] PRIMARY KEY CLUSTERED ( [CustomerID] ASC ));
+                    end;
+                    if (not exists (select * from sys.foreign_keys where name = 'FK_{tableServiceTickets}_{tableCustomers}'))
+                    begin
+                        ALTER TABLE {tableServiceTickets} ADD CONSTRAINT FK_{tableServiceTickets}_{tableCustomers} 
+                        FOREIGN KEY ( CustomerID ) 
+                        REFERENCES {tableCustomers} ( CustomerID ) 
                     end
+                ";
+            var datas =
+                    $@"
+
+                        INSERT [{tableCustomers}] ([CustomerID], [FirstName], [LastName]) VALUES (1, N'John', N'Doe');
+
+                        INSERT [{tableServiceTickets}] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (N'{id}', N'Titre 3', N'Description 3', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+                        INSERT [{tableServiceTickets}] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 4', N'Description 4', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+                        INSERT [{tableServiceTickets}] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre Client 1', N'Description Client 1', 1, 0, CAST(N'2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
+                        INSERT [{tableServiceTickets}] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 6', N'Description 6', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+                        INSERT [{tableServiceTickets}] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 7', N'Description 7', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
                  ";
 
-            return tblScript;
+
+            if (!tablesScript.ContainsKey(key))
+                tablesScript.Add(key, tblScript);
+
+            if (!datasScript.ContainsKey(key))
+                datasScript.Add(key, datas);
+
         }
 
-        public string GetCreationDBScript(string dbName)
+
+        public void AddSingleTableScript(string key)
         {
-            var createDbScript =
-                    $@"if (exists (Select * from sys.databases where name = '{dbName}'))
+            string tableName = PairDatabases.First(c => c.Key == key).Tables[0];
+
+            string id = Guid.NewGuid().ToString();
+
+            var tblScript =
+                $@"
+                    if (not exists (select * from sys.tables where name = '{tableName}'))
+                    begin
+                        CREATE TABLE [{tableName}](
+	                    [ServiceTicketID] [uniqueidentifier] NOT NULL,
+	                    [Title] [nvarchar](max) NOT NULL,
+	                    [Description] [nvarchar](max) NULL,
+	                    [StatusValue] [int] NOT NULL,
+	                    [EscalationLevel] [int] NOT NULL,
+	                    [Opened] [datetime] NULL,
+	                    [Closed] [datetime] NULL,
+	                    [CustomerID] [int] NULL,
+                        CONSTRAINT [PK_{tableName}] PRIMARY KEY CLUSTERED ( [ServiceTicketID] ASC ));
+                    end";
+            var datas =
+                    $@"
+                        INSERT [{tableName}] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (N'{id}', N'Titre 3', N'Description 3', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+                        INSERT [{tableName}] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 4', N'Description 4', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+                        INSERT [{tableName}] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre Client 1', N'Description Client 1', 1, 0, CAST(N'2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
+                        INSERT [{tableName}] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 6', N'Description 6', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+                        INSERT [{tableName}] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 7', N'Description 7', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+                 ";
+
+            var insertRowScript =
+                    $@"
+                        INSERT [{tableName}] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Insert One Row', N'Description Insert One Row', 1, 0, getdate(), NULL, 1)
+                    ";
+
+            var updateRowScript =
+                    $@"Update [{tableName}] Set [Title] = 'Updated Row' Where ServiceTicketId = '{id}'";
+
+            var deleteRowScript =
+                    $@"Delete from  [{tableName}] Where ServiceTicketId = '{id}'";
+
+            if (!tablesScript.ContainsKey(key))
+                tablesScript.Add(key, tblScript);
+
+            if (!datasScript.ContainsKey(key))
+                datasScript.Add(key, datas);
+
+            if (!insertOneRowScript.ContainsKey(key))
+                insertOneRowScript.Add(key, insertRowScript);
+
+            if (!updateOneRowScript.ContainsKey(key))
+                updateOneRowScript.Add(key, updateRowScript);
+
+            if (!deleteOneRowScript.ContainsKey(key))
+                deleteOneRowScript.Add(key, deleteRowScript);
+        }
+        public void AddAllColumnsAvailabeTableScript(string key)
+        {
+            string tableName = PairDatabases.First(c => c.Key == key).Tables[0];
+            string id = Guid.NewGuid().ToString();
+
+            var tblScript =
+                $@"
+                    if (not exists (select * from sys.tables where name = '{tableName}'))
+                    begin
+                        CREATE TABLE [dbo].[{tableName}](
+	                        [ClientID] [uniqueidentifier] NOT NULL,
+	                        [CBinary] [binary](50) NULL,
+	                        [CBigInt] [bigint] NULL,
+	                        [CBit] [bit] NULL,
+	                        [CChar10] [char](10) NULL,
+	                        [CDate] [date] NULL,
+	                        [CDateTime] [datetime] NULL,
+	                        [CDateTime2] [datetime2](7) NULL,
+	                        [CDateTimeOffset] [datetimeoffset](7) NULL,
+	                        [CDecimal64] [decimal](6, 4) NULL,
+	                        [CFloat] [float] NULL,
+	                        [CInt] [int] NULL,
+	                        [CMoney] [money] NULL,
+	                        [CNChar10] [nchar](10) NULL,
+	                        [CNumeric64] [numeric](6, 4) NULL,
+	                        [CNVarchar50] [nvarchar](50) NULL,
+	                        [CNVarcharMax] [nvarchar](max) NULL,
+	                        [CReal] [real] NULL,
+	                        [CSmallDateTime] [smalldatetime] NULL,
+	                        [CSmallInt] [smallint] NULL,
+	                        [CSmallMoney] [smallmoney] NULL,
+	                        [CSqlVariant] [sql_variant] NULL,
+	                        [CTime7] [time](7) NULL,
+	                        [CTimeStamp] [timestamp] NULL,
+	                        [CTinyint] [tinyint] NULL,
+	                        [CUniqueIdentifier] [uniqueidentifier] NULL,
+	                        [CVarbinary50] [varbinary](50) NULL,
+	                        [CVarbinaryMax] [varbinary](max) NULL,
+	                        [CVarchar50] [varchar](50) NULL,
+	                        [CVarcharMax] [varchar](max) NULL,
+	                        [CXml] [xml] NULL,
+                         CONSTRAINT [PK_{tableName}] PRIMARY KEY CLUSTERED ( [ClientID] ASC))                
+                     end;";
+            var datas =
+                    $@"
+                     INSERT INTO [dbo].[{tableName}]
+                               ([ClientID] ,[CBinary],[CBigInt],[CBit],[CChar10],[CDate],[CDateTime]
+                               ,[CDateTime2],[CDateTimeOffset],[CDecimal64],[CFloat],[CInt],[CMoney]
+                               ,[CNChar10],[CNumeric64],[CNVarchar50],[CNVarcharMax],[CReal]
+                               ,[CSmallDateTime],[CSmallInt],[CSmallMoney],[CSqlVariant],[CTime7]
+                               ,[CTinyint],[CUniqueIdentifier],[CVarbinary50],[CVarbinaryMax]
+                               ,[CVarchar50],[CVarcharMax],[CXml])
+                     VALUES
+                               ('{id}',12345,10000000000000,1,'char10',GETDATE(),GETDATE(),GETDATE()
+                               ,GETDATE(),23.1234,12.123,1,3148.29,'char10',23.1234
+                               ,'nvarchar(50)','nvarchar(max)',12.34,GETDATE(),12,3148.29
+                               ,GETDATE(),GETDATE(),1,NEWID(),123456,123456,'varchar(50)','varchar(max)'
+                               ,'<root><client name=''Doe''>inner Doe client</client></root>')
+                     INSERT INTO [dbo].[{tableName}]
+                               ([ClientID] ,[CBinary],[CBigInt],[CBit],[CChar10],[CDate],[CDateTime]
+                               ,[CDateTime2],[CDateTimeOffset],[CDecimal64],[CFloat],[CInt],[CMoney]
+                               ,[CNChar10],[CNumeric64],[CNVarchar50],[CNVarcharMax],[CReal]
+                               ,[CSmallDateTime],[CSmallInt],[CSmallMoney],[CSqlVariant],[CTime7]
+                               ,[CTinyint],[CUniqueIdentifier],[CVarbinary50],[CVarbinaryMax]
+                               ,[CVarchar50],[CVarcharMax],[CXml])
+                     VALUES
+                               (NEWID(),12345,10000000000000,1,'char10',GETDATE(),GETDATE(),GETDATE()
+                               ,GETDATE(),23.1234,12.123,1,3148.29,'char10',23.1234
+                               ,'nvarchar(50)','nvarchar(max)',12.34,GETDATE(),12,3148.29
+                               ,GETDATE(),GETDATE(),1,NEWID(),123456,123456,'varchar(50)','varchar(max)'
+                               ,'<root><client name=''Doe''>inner Doe client</client></root>')
+                     INSERT INTO [dbo].[{tableName}]
+                               ([ClientID] ,[CBinary],[CBigInt],[CBit],[CChar10],[CDate],[CDateTime]
+                               ,[CDateTime2],[CDateTimeOffset],[CDecimal64],[CFloat],[CInt],[CMoney]
+                               ,[CNChar10],[CNumeric64],[CNVarchar50],[CNVarcharMax],[CReal]
+                               ,[CSmallDateTime],[CSmallInt],[CSmallMoney],[CSqlVariant],[CTime7]
+                               ,[CTinyint],[CUniqueIdentifier],[CVarbinary50],[CVarbinaryMax]
+                               ,[CVarchar50],[CVarcharMax],[CXml])
+                     VALUES
+                               (NEWID(),12345,10000000000000,1,'char10',GETDATE(),GETDATE(),GETDATE()
+                               ,GETDATE(),23.1234,12.123,1,3148.29,'char10',23.1234
+                               ,'nvarchar(50)','nvarchar(max)',12.34,GETDATE(),12,3148.29
+                               ,GETDATE(),GETDATE(),1,NEWID(),123456,123456,'varchar(50)','varchar(max)'
+                               ,'<root><client name=''Doe''>inner Doe client</client></root>')
+                     INSERT INTO [dbo].[{tableName}]
+                               ([ClientID] ,[CBinary],[CBigInt],[CBit],[CChar10],[CDate],[CDateTime]
+                               ,[CDateTime2],[CDateTimeOffset],[CDecimal64],[CFloat],[CInt],[CMoney]
+                               ,[CNChar10],[CNumeric64],[CNVarchar50],[CNVarcharMax],[CReal]
+                               ,[CSmallDateTime],[CSmallInt],[CSmallMoney],[CSqlVariant],[CTime7]
+                               ,[CTinyint],[CUniqueIdentifier],[CVarbinary50],[CVarbinaryMax]
+                               ,[CVarchar50],[CVarcharMax],[CXml])
+                     VALUES
+                               (NEWID(),12345,10000000000000,1,'char10',GETDATE(),GETDATE(),GETDATE()
+                               ,GETDATE(),23.1234,12.123,1,3148.29,'char10',23.1234
+                               ,'nvarchar(50)','nvarchar(max)',12.34,GETDATE(),12,3148.29
+                               ,GETDATE(),GETDATE(),1,NEWID(),123456,123456,'varchar(50)','varchar(max)'
+                               ,'<root><client name=''Doe''>inner Doe client</client></root>')
+                     INSERT INTO [dbo].[{tableName}]
+                               ([ClientID] ,[CBinary],[CBigInt],[CBit],[CChar10],[CDate],[CDateTime]
+                               ,[CDateTime2],[CDateTimeOffset],[CDecimal64],[CFloat],[CInt],[CMoney]
+                               ,[CNChar10],[CNumeric64],[CNVarchar50],[CNVarcharMax],[CReal]
+                               ,[CSmallDateTime],[CSmallInt],[CSmallMoney],[CSqlVariant],[CTime7]
+                               ,[CTinyint],[CUniqueIdentifier],[CVarbinary50],[CVarbinaryMax]
+                               ,[CVarchar50],[CVarcharMax],[CXml])
+                     VALUES
+                               (NEWID(),12345,10000000000000,1,'char10',GETDATE(),GETDATE(),GETDATE()
+                               ,GETDATE(),23.1234,12.123,1,3148.29,'char10',23.1234
+                               ,'nvarchar(50)','nvarchar(max)',12.34,GETDATE(),12,3148.29
+                               ,GETDATE(),GETDATE(),1,NEWID(),123456,123456,'varchar(50)','varchar(max)'
+                               ,'<root><client name=''Doe''>inner Doe client</client></root>')
+                    ";
+
+            var insertRowScript =
+                    $@"
+                     INSERT INTO [dbo].[{tableName}]
+                               ([ClientID] ,[CBinary],[CBigInt],[CBit],[CChar10],[CDate],[CDateTime]
+                               ,[CDateTime2],[CDateTimeOffset],[CDecimal64],[CFloat],[CInt],[CMoney]
+                               ,[CNChar10],[CNumeric64],[CNVarchar50],[CNVarcharMax],[CReal]
+                               ,[CSmallDateTime],[CSmallInt],[CSmallMoney],[CSqlVariant],[CTime7]
+                               ,[CTinyint],[CUniqueIdentifier],[CVarbinary50],[CVarbinaryMax]
+                               ,[CVarchar50],[CVarcharMax],[CXml])
+                     VALUES
+                               (NEWID(),12345,10000000000000,1,'char10',GETDATE(),GETDATE(),GETDATE()
+                               ,GETDATE(),23.1234,12.123,1,3148.29,'char10',23.1234
+                               ,'nvarchar(50)','nvarchar(max)',12.34,GETDATE(),12,3148.29
+                               ,GETDATE(),GETDATE(),1,NEWID(),123456,123456,'varchar(50)','varchar(max)'
+                               ,'<root><client name=''Doe''>inner Doe client</client></root>')
+                    ";
+
+            var updateRowScript =
+                    $@"Update [{tableName}] Set [CNVarchar50] = 'Updated Row' Where ClientID = '{id}'";
+
+            var deleteRowScript =
+                    $@"Delete from  [{tableName}] Where ClientID = '{id}'";
+
+            if (!tablesScript.ContainsKey(key))
+                tablesScript.Add(key, tblScript);
+
+            if (!datasScript.ContainsKey(key))
+                datasScript.Add(key, datas);
+
+            if (!insertOneRowScript.ContainsKey(key))
+                insertOneRowScript.Add(key, insertRowScript);
+
+            if (!updateOneRowScript.ContainsKey(key))
+                updateOneRowScript.Add(key, updateRowScript);
+
+            if (!deleteOneRowScript.ContainsKey(key))
+                deleteOneRowScript.Add(key, deleteRowScript);
+        }
+        public void AddSqlVariantTableScript(string key)
+        {
+            string tableName = PairDatabases.First(c => c.Key == key).Tables[0];
+            string id = Guid.NewGuid().ToString();
+            var tblScript =
+                $@"
+                    if (not exists (select * from sys.tables where name = '{tableName}'))
+                    begin
+                        CREATE TABLE [dbo].[{tableName}](
+	                    [ClientID] [uniqueidentifier] NOT NULL,
+	                    [Value] [sql_variant] NULL,
+                        CONSTRAINT [PK_{tableName}] PRIMARY KEY CLUSTERED ( [ClientID] ASC ));
+                    end";
+            var datas =
+                    $@"
+
+                        INSERT INTO [dbo].[{tableName}] ([ClientID] ,[Value])
+                        VALUES ('{id}' ,getdate())
+
+                        INSERT INTO [dbo].[{tableName}] ([ClientID] ,[Value])
+                        VALUES (newid(),'varchar text')
+
+                        INSERT INTO [dbo].[{tableName}] ([ClientID] ,[Value])
+                        VALUES (newid() , 12)
+
+                        INSERT INTO [dbo].[{tableName}] ([ClientID] ,[Value])
+                        VALUES (newid() ,45.1234)
+
+                        INSERT INTO [dbo].[{tableName}] ([ClientID] ,[Value])
+                        VALUES (newid() , CONVERT(bigint, 120000))
+                 ";
+
+            var insertRowScript =
+                    $@"
+                        INSERT INTO [dbo].[{tableName}] ([ClientID] ,[Value])
+                        VALUES (newid() , 12)
+                    ";
+
+            var updateRowScript =
+                    $@"Update [{tableName}] Set [Value] = 'Updated Row' Where ClientID = '{id}'";
+
+            var deleteRowScript =
+                    $@"Delete from  [{tableName}] Where ClientID = '{id}'";
+
+            if (!tablesScript.ContainsKey(key))
+                tablesScript.Add(key, tblScript);
+
+            if (!datasScript.ContainsKey(key))
+                datasScript.Add(key, datas);
+
+            if (!insertOneRowScript.ContainsKey(key))
+                insertOneRowScript.Add(key, insertRowScript);
+
+            if (!updateOneRowScript.ContainsKey(key))
+                updateOneRowScript.Add(key, updateRowScript);
+
+            if (!deleteOneRowScript.ContainsKey(key))
+                deleteOneRowScript.Add(key, deleteRowScript);
+        }
+
+        private string GetCreationDBScript(string dbName, Boolean recreateDb = true)
+        {
+            if (recreateDb)
+                return $@"if (exists (Select * from sys.databases where name = '{dbName}'))
                     begin
 	                    alter database [{dbName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE
 	                    drop database {dbName}
                     end
                     Create database {dbName}";
+            else
+                return $@"if not (exists (Select * from sys.databases where name = '{dbName}')) 
+                          Create database {dbName}";
 
-            return createDbScript;
         }
 
-        public string GetDeleteDatabaseScript(string dbName)
+        private string GetDeleteDatabaseScript(string dbName)
         {
             return $@"if (exists (Select * from sys.databases where name = '{dbName}'))
                     begin
@@ -142,11 +432,75 @@ namespace Dotmim.Sync.Core.Test.SqlUtils
                     end";
         }
 
+        public void DeleteDatabases(PairDatabases db)
+        {
+            SqlConnection masterConnection = null;
+            try
+            {
+                masterConnection = new SqlConnection(GetDatabaseConnectionString("master"));
+                masterConnection.Open();
+                var cmdDb = new SqlCommand(GetDeleteDatabaseScript(db.ServerDatabase), masterConnection);
+                cmdDb.ExecuteNonQuery();
+                cmdDb = new SqlCommand(GetDeleteDatabaseScript(db.ClientDatabase), masterConnection);
+                cmdDb.ExecuteNonQuery();
+                masterConnection.Close();
+
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+            finally
+            {
+                if (masterConnection.State != ConnectionState.Closed)
+                    masterConnection.Close();
+            }
+
+        }
+
         public void Dispose()
         {
             //this.DeleteAllDatabases();
-            serverConnection.Dispose();
-            masterConnection.Dispose();
         }
+    }
+
+    public struct PairDatabases
+    {
+        public string Key { get; set; }
+        public string ServerDatabase { get; set; }
+        public string ServerConnectionString
+        {
+            get
+            {
+                return CreateServerAndClientDatabase.GetDatabaseConnectionString(ServerDatabase);
+            }
+        }
+
+        public string ClientConnectionString
+        {
+            get
+            {
+                return CreateServerAndClientDatabase.GetDatabaseConnectionString(ClientDatabase);
+            }
+        }
+        public string ClientDatabase { get; set; }
+        public List<String> Tables { get; set; }
+        public PairDatabases(string key, string serverDatabase, string clientDatabase, List<string> tables)
+        {
+            this.Key = key;
+            this.ServerDatabase = serverDatabase;
+            this.ClientDatabase = clientDatabase;
+            this.Tables = tables;
+        }
+        public PairDatabases(string key, string serverDatabase, string clientDatabase, string table)
+        {
+            this.Key = key;
+            this.ServerDatabase = serverDatabase;
+            this.ClientDatabase = clientDatabase;
+            this.Tables = new List<string>();
+            this.Tables.Add(table);
+        }
+
+
     }
 }

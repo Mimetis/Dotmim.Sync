@@ -57,7 +57,7 @@ namespace Dotmim.Sync.Core
         /// Create a new instance of the implemented Connection provider
         /// </summary>
         public abstract DbConnection CreateConnection();
-    
+
         /// <summary>
         /// Get a table builder helper. Need a complete table description (DmTable). Will then generate table, table tracking, stored proc and triggers
         /// </summary>
@@ -156,7 +156,7 @@ namespace Dotmim.Sync.Core
         /// <summary>
         /// update configuration object with tables desc from server database
         /// </summary>
-        private async Task<ServiceConfiguration> UpdateConfigurationInternalAsync(ServiceConfiguration serviceConfiguration)
+        private async Task<ServiceConfiguration> UpdateConfigurationInternalAsync(SyncContext context, ServiceConfiguration serviceConfiguration)
         {
             // clear service configuration
             serviceConfiguration.ScopeSet.Clear();
@@ -179,6 +179,37 @@ namespace Dotmim.Sync.Core
                             var dmTable = tblManager.GetTableDefinition();
 
                             serviceConfiguration.ScopeSet.Tables.Add(dmTable);
+
+                            var dmRelations = tblManager.GetTableRelations();
+
+                            if (dmRelations != null)
+                            {
+                                foreach (var dmRow in dmRelations.Rows)
+                                {
+                                    var foreignKeyName = dmRow["ForeignKey"] as string;
+                                    var tblName = dmRow["TableName"] as string;
+                                    var columnName = dmRow["ColumnName"] as string;
+                                    var refTblName = dmRow["ReferenceTableName"] as string;
+                                    var refColumnName = dmRow["ReferenceColumnName"] as string;
+
+                                    DmColumn tblColumn = dmTable.Columns[columnName];
+                                    DmColumn foreignColumn = null;
+                                    var foreignTable = serviceConfiguration.ScopeSet.Tables[refTblName];
+
+                                    if (foreignTable == null)
+                                        throw new SyncException($"Foreign table {refTblName} does not exist", context.SyncStage, SyncExceptionType.DataStore);
+
+                                    foreignColumn = foreignTable.Columns[refColumnName];
+
+                                    if (foreignColumn == null)
+                                        throw new SyncException($"Foreign column {refColumnName} does not exist in table {refTblName}", context.SyncStage, SyncExceptionType.DataStore);
+
+                                    DmRelation dmRelation = new DmRelation(foreignKeyName, tblColumn, foreignColumn);
+
+                                    serviceConfiguration.ScopeSet.Relations.Add(dmRelation);
+                                }
+                            }
+
                         }
 
                         transaction.Commit();
@@ -248,7 +279,7 @@ namespace Dotmim.Sync.Core
 
                 // if we dont have already read the tables || we want to overwrite the current config
                 if (configuration.ScopeSet == null || configuration.ScopeSet.Tables.Count == 0 || configuration.OverwriteConfiguration)
-                    configuration = await this.UpdateConfigurationInternalAsync(configuration);
+                    configuration = await this.UpdateConfigurationInternalAsync(context, configuration);
 
                 // save to cache
                 var dmSetConf = new DmSet();

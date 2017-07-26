@@ -60,7 +60,7 @@ namespace Dotmim.Sync.Core
 
         public override string ToString()
         {
-            return $@"Error occured during stage {SyncStage.ToString()} of type: {ExceptionType.ToString()}. {Message}";
+            return $@"Error occured during {SyncStage.ToString()} of type {ExceptionType.ToString()}: {Message}";
 
         }
 
@@ -84,9 +84,10 @@ namespace Dotmim.Sync.Core
 
         }
 
-        internal static Exception CreateDbException(SyncStage syncStage, DbException dbex)
+        internal static SyncException CreateDbException(SyncStage syncStage, DbException dbex)
         {
-            SyncException syncException = new SyncException("Database exception", syncStage, dbex, SyncExceptionType.DbException);
+
+            SyncException syncException = new SyncException(dbex.Message, syncStage, dbex, SyncExceptionType.DataStore);
             return syncException;
         }
     }
@@ -104,6 +105,5 @@ namespace Dotmim.Sync.Core
         Rollback,
         Argument,
         Unknown,
-        DbException,
     }
 }

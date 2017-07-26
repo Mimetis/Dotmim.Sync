@@ -10,5 +10,6 @@ namespace Dotmim.Sync.Core.Manager
     {
         string TableName { set; }
         DmTable GetTableDefinition();
+        DmTable GetTableRelations();
     }
 }

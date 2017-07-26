@@ -14,6 +14,7 @@ namespace Dotmim.Sync.Data.Surrogate
     {
         /// <summary>Gets or sets the name of the column that the DmColumnSurrogate object represents.</summary>
         public string ColumnName { get; set; }
+        public string TableName { get; set; }
         public int DbType { get; set; }
         public bool AllowDBNull { get; set; } = true;
         public bool Unique { get; set; } = false;
@@ -58,6 +59,7 @@ namespace Dotmim.Sync.Data.Surrogate
             bytesLength += 1L; // Precision
             bytesLength += 1L; // Scale
             bytesLength += 1L; // dbTypeAllowed
+            bytesLength += String.IsNullOrEmpty(TableName) ? 1L : Encoding.UTF8.GetBytes(TableName).Length;
             bytesLength += String.IsNullOrEmpty(OrginalDbType) ? 1L : Encoding.UTF8.GetBytes(OrginalDbType).Length;
             bytesLength += Encoding.UTF8.GetBytes(DataType).Length; //Type
             bytesLength += Encoding.UTF8.GetBytes(this.GetType().GetAssemblyQualifiedName()).Length; // Type
@@ -79,6 +81,7 @@ namespace Dotmim.Sync.Data.Surrogate
 
             this.AllowDBNull = dc.AllowDBNull;
             this.ColumnName = dc.ColumnName;
+            this.TableName = dc.Table?.TableName;
             this.ReadOnly = dc.ReadOnly;
             this.MaxLength = dc.MaxLength;
             this.AutoIncrement = dc.AutoIncrement;

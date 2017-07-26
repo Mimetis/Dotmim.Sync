@@ -134,6 +134,32 @@ namespace Dotmim.Sync.Data.Surrogate
 
                 ds.Tables.Add(dmTable);
             }
+
+            if (this.Relations != null && this.Relations.Count > 0)
+            {
+                foreach(var dmRelationSurrogate in this.Relations)
+                {
+                    DmColumn[] parentColumns = new DmColumn[dmRelationSurrogate.ParentKeySurrogates.Length];
+                    DmColumn[] childColumns = new DmColumn[dmRelationSurrogate.ChildKeySurrogates.Length];
+
+                    for (int i = 0; i < parentColumns.Length; i++)
+                    {
+                        var columnName = dmRelationSurrogate.ParentKeySurrogates[i].ColumnName;
+                        var tableName = dmRelationSurrogate.ParentKeySurrogates[i].TableName;
+
+                        parentColumns[i]  = ds.Tables[tableName].Columns[columnName];
+
+                        columnName = dmRelationSurrogate.ChildKeySurrogates[i].ColumnName;
+                        tableName = dmRelationSurrogate.ChildKeySurrogates[i].TableName;
+
+                        childColumns[i] = ds.Tables[tableName].Columns[columnName];
+
+                    }
+
+                    DmRelation relation = new DmRelation(dmRelationSurrogate.RelationName, parentColumns, childColumns);
+                    ds.Relations.Add(relation);
+                }
+            }
         }
 
         public void Clear()
