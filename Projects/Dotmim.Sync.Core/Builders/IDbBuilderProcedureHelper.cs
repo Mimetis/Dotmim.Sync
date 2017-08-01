@@ -11,36 +11,34 @@ namespace Dotmim.Sync.Core.Builders
     /// </summary>
     public interface IDbBuilderProcedureHelper
     {
-       DmTable TableDescription { get; set; }
-       DbObjectNames ObjectNames { get; set; }
        List<DmColumn> FilterColumns { get; set; }
        List<DmColumn> FilterParameters { get; set; }
 
-        bool NeedToCreateProcedure(string procedureName, DbBuilderOption builderOption);
-        bool NeedToCreateType(string typeName, DbBuilderOption builderOption);
-        void CreateSelectRow(string procedureName);
-        void CreateSelectIncrementalChanges(string procedureName);
-        void CreateInsert(string procedureName);
-        void CreateUpdate(string procedureName);
-        void CreateDelete(string procedureName);
-        void CreateInsertMetadata(string procedureName);
-        void CreateUpdateMetadata(string procedureName);
-        void CreateDeleteMetadata(string procedureName);
-        void CreateTVPType(string bulkTypeName);
-        void CreateBulkInsert(string procedureName);
-        void CreateBulkUpdate(string procedureName);
-        void CreateBulkDelete(string procedureName);
-        String CreateSelectRowScriptText(string procedureName);
-        String CreateSelectIncrementalChangesScriptText(string procedureName);
-        String CreateInsertScriptText(string procedureName);
-        String CreateUpdateScriptText(string procedureName);
-        String CreateDeleteScriptText(string procedureName);
-        String CreateInsertMetadataScriptText(string procedureName);
-        String CreateUpdateMetadataScriptText(string procedureName);
-        String CreateDeleteMetadataScriptText(string procedureName);
-        String CreateTVPTypeScriptText(string bulkTypeName);
-        String CreateBulkInsertScriptText(string procedureName);
-        String CreateBulkUpdateScriptText(string procedureName);
-        String CreateBulkDeleteScriptText(string procedureName);
+        bool NeedToCreateProcedure(DbCommandType commandName, DbBuilderOption builderOption);
+        bool NeedToCreateType(DbCommandType typeName, DbBuilderOption builderOption);
+        void CreateSelectRow();
+        void CreateSelectIncrementalChanges();
+        void CreateInsert();
+        void CreateUpdate();
+        void CreateDelete();
+        void CreateInsertMetadata();
+        void CreateUpdateMetadata();
+        void CreateDeleteMetadata();
+        void CreateTVPType();
+        void CreateBulkInsert();
+        void CreateBulkUpdate();
+        void CreateBulkDelete();
+        String CreateSelectRowScriptText();
+        String CreateSelectIncrementalChangesScriptText();
+        String CreateInsertScriptText();
+        String CreateUpdateScriptText();
+        String CreateDeleteScriptText();
+        String CreateInsertMetadataScriptText();
+        String CreateUpdateMetadataScriptText();
+        String CreateDeleteMetadataScriptText();
+        String CreateTVPTypeScriptText();
+        String CreateBulkInsertScriptText();
+        String CreateBulkUpdateScriptText();
+        String CreateBulkDeleteScriptText();
     }
 }

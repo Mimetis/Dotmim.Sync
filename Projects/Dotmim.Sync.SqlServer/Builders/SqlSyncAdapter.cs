@@ -21,8 +21,11 @@ namespace Dotmim.Sync.SqlServer.Builders
     {
         private SqlConnection connection;
         private SqlTransaction transaction;
+        private SqlObjectNames sqlObjectNames;
 
-        public override DmTable TableDescription { get; set; }
+        // Derive Parameters cache
+        private static Dictionary<string, List<SqlParameter>> derivingParameters = new Dictionary<string, List<SqlParameter>>();
+
         public override DbConnection Connection
         {
             get
@@ -39,17 +42,18 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         }
 
-        public SqlSyncAdapter(DbConnection connection, DbTransaction transaction)
+        public SqlSyncAdapter(DmTable tableDescription, DbConnection connection, DbTransaction transaction) : base(tableDescription)
         {
             var sqlc = connection as SqlConnection;
             this.connection = sqlc ?? throw new InvalidCastException("Connection should be a SqlConnection");
 
             this.transaction = transaction as SqlTransaction;
+
+            this.sqlObjectNames = new SqlObjectNames(tableDescription);
         }
 
         private SqlMetaData GetSqlMetadaFromType(DmColumn column)
         {
-
             var sqlDbType = column.GetSqlDbType();
             var dbType = column.DbType;
             var precision = column.GetSqlTypePrecision();
@@ -79,6 +83,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             return new SqlMetaData(column.ColumnName, sqlDbType);
 
         }
+
 
         /// <summary>
         /// Executing a batch command
@@ -178,13 +183,26 @@ namespace Dotmim.Sync.SqlServer.Builders
         }
 
 
-        // Derive Parameters cache
-        private static Dictionary<string, List<SqlParameter>> derivingParameters = new Dictionary<string, List<SqlParameter>>();
+
+        public override DbCommand GetCommand(DbCommandType nameType)
+        {
+            var command = this.Connection.CreateCommand();
+            
+            // on Sql Server, everything is Stored Procedure
+            command.CommandType = CommandType.StoredProcedure;
+            command.CommandText = sqlObjectNames.GetCommandName(nameType);
+            command.Connection = Connection;
+
+            if (Transaction != null)
+                command.Transaction = Transaction;
+
+            return command;
+        }
 
         /// <summary>
         /// Set a stored procedure parameters
         /// </summary>
-        public override void SetCommandSessionParameters(DbCommand command)
+        public override void SetCommandParameters(DbCommand command)
         {
             if (command == null)
                 return;
@@ -246,56 +264,6 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                 if (colDesc != null && !string.IsNullOrEmpty(colDesc.ColumnName))
                     sqlParameter.SourceColumn = colDesc.ColumnName;
-
-                #region ....
-                //    if (colDesc != null)
-                //    {
-                //        sqlParameter.ParameterName = colDesc.ParameterName;
-                //        sqlParameter.DbType = DbHelper.GetDbTypeFromString(colDesc.Type);
-                //        sqlParameter.SourceColumn = colDesc.UnquotedName;
-                //        sqlParameter.IsNullable = colDesc.IsNullable;
-
-                //        if (colDesc.Type == null)
-                //            continue;
-
-                //        switch (colDesc.Type)
-                //        {
-                //            case "decimal":
-                //            case "numeric":
-                //                {
-                //                    if (colDesc.PrecisionSpecified)
-                //                        sqlParameter.Precision = (byte)colDesc.Precision;
-
-                //                    if (!colDesc.ScaleSpecified)
-                //                        break;
-
-                //                    sqlParameter.Scale = (byte)colDesc.Scale;
-                //                    break;
-                //                }
-                //            case "binary":
-                //            case "varbinary":
-                //            case "varchar":
-                //            case "char":
-                //            case "nvarchar":
-                //            case "nchar":
-                //                {
-                //                    if (!colDesc.SizeSpecified)
-                //                        break;
-
-                //                    if (!string.Equals(colDesc.Size, "max", StringComparison.OrdinalIgnoreCase))
-                //                    {
-                //                        sqlParameter.Size = int.Parse(colDesc.Size, CultureInfo.InvariantCulture);
-                //                        break;
-                //                    }
-
-                //                    sqlParameter.Size = -1;
-                //                    break;
-                //                }
-
-                //        }
-                //    }
-                #endregion
-
             }
         }
 

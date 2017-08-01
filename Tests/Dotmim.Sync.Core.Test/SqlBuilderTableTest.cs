@@ -102,9 +102,7 @@ namespace Dotmim.Sync.Core.Test
             {
                 var options = DbBuilderOption.CreateOrUseExistingSchema;
                 var builder = provider.GetDatabaseBuilder(set.Tables["Products"], options);
-
                 var tableBuilder = builder.CreateTableBuilder(connection);
-                tableBuilder.TableDescription = builder.TableDescription;
 
                 connection.Open();
 
@@ -223,7 +221,6 @@ namespace Dotmim.Sync.Core.Test
                 var builder = provider.GetDatabaseBuilder(set.Tables["Products"], options);
 
                 var tableBuilder = builder.CreateTrackingTableBuilder(connection);
-                tableBuilder.TableDescription = builder.TableDescription;
 
                 connection.Open();
 

@@ -128,7 +128,7 @@ namespace Dotmim.Sync.Data
             get
             {
                 if (this.DmSet == null)
-                    throw new Exception("Can't use the DmRelation feature without a DmSet which handle them");
+                    return null;
 
                 var lst = this.DmSet.Relations.Where(r => r.ParentTable == this).ToList();
 
@@ -144,7 +144,7 @@ namespace Dotmim.Sync.Data
             get
             {
                 if (this.DmSet == null)
-                    throw new Exception("Can't use the DmRelation feature without a DmSet which handle them");
+                    return null;
 
                 var lst = this.DmSet.Relations.Where(r => r.ChildTable == this).ToList();
 

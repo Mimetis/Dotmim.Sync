@@ -5,37 +5,34 @@ using System.Text;
 using Dotmim.Sync.Data;
 using System.Data.Common;
 using Dotmim.Sync.Core.Common;
-using System.Data.SqlClient;
 using Dotmim.Sync.Core.Scope;
 using System.Linq;
 using System.Data;
 using Dotmim.Sync.Core.Log;
+using System.Data.SQLite;
 
-namespace Dotmim.Sync.SqlServer.Builders
+namespace Dotmim.Sync.SQLite
 {
-    public class SqlBuilderTable : IDbBuilderTableHelper
+    public class SQLiteBuilderTable : IDbBuilderTableHelper
     {
         private ObjectNameParser tableName;
         private ObjectNameParser trackingName;
         private DmTable tableDescription;
-        private SqlConnection connection;
-        private SqlTransaction transaction;
+        private SQLiteConnection connection;
+        private SQLiteTransaction transaction;
 
-
-        public SqlBuilderTable(DmTable tableDescription, DbConnection connection, DbTransaction transaction = null)
+        public SQLiteBuilderTable(DmTable tableDescription, DbConnection connection, DbTransaction transaction = null)
         {
-            this.connection = connection as SqlConnection;
-            this.transaction = transaction as SqlTransaction;
-
+            this.connection = connection as SQLiteConnection;
+            this.transaction = transaction as SQLiteTransaction;
             this.tableDescription = tableDescription;
-            (this.tableName, this.trackingName) = SqlBuilder.GetParsers(this.tableDescription);
-
+            (this.tableName, this.trackingName) = SQLiteBuilder.GetParsers(this.tableDescription);
         }
 
 
-        private SqlCommand BuildForeignKeyConstraintsCommand(DmRelation foreignKey)
+        private SQLiteCommand BuildForeignKeyConstraintsCommand(DmRelation foreignKey)
         {
-            SqlCommand sqlCommand = new SqlCommand();
+            SQLiteCommand sqlCommand = new SQLiteCommand();
 
             var childTable = foreignKey.ChildTable;
             var childTableName = new ObjectNameParser(childTable.TableName);
@@ -71,6 +68,8 @@ namespace Dotmim.Sync.SqlServer.Builders
         }
         public void CreateForeignKeyConstraints()
         {
+            if (this.tableDescription.ChildRelations == null)
+                return;
 
             bool alreadyOpened = connection.State == ConnectionState.Open;
 
@@ -110,26 +109,63 @@ namespace Dotmim.Sync.SqlServer.Builders
         }
         public string CreateForeignKeyConstraintsScriptText()
         {
+            if (this.tableDescription.ChildRelations == null)
+                return null;
+
             StringBuilder stringBuilder = new StringBuilder();
             foreach (DmRelation constraint in this.tableDescription.ChildRelations)
             {
                 var constraintName = $"Create Constraint {constraint.RelationName} between parent {constraint.ParentTable.TableName} and child {constraint.ChildTable.TableName}";
                 var constraintScript = BuildForeignKeyConstraintsCommand(constraint).CommandText;
-                stringBuilder.Append(SqlBuilder.WrapScriptTextWithComments(constraintScript, constraintName));
+                stringBuilder.Append(SQLiteBuilder.WrapScriptTextWithComments(constraintScript, constraintName));
                 stringBuilder.AppendLine();
             }
             return stringBuilder.ToString();
         }
-        private SqlCommand BuildPkCommand()
-        {
-            string[] localName = new string[] { };
-            StringBuilder stringBuilder = new StringBuilder();
 
-            stringBuilder.AppendLine($"ALTER TABLE {tableName.QuotedString} ADD CONSTRAINT [PK_{tableName.UnquotedStringWithUnderScore}] PRIMARY KEY(");
+    
+        public void CreatePrimaryKey()
+        {
+            return;
+
+        }
+        public string CreatePrimaryKeyScriptText()
+        {
+            return string.Empty;
+        }
+
+
+        private SQLiteCommand BuildTableCommand()
+        {
+            SQLiteCommand command = new SQLiteCommand();
+
+            StringBuilder stringBuilder = new StringBuilder($"CREATE TABLE IF NOT EXISTS {tableName.QuotedString} (");
+            string empty = string.Empty;
+            stringBuilder.AppendLine();
+            foreach (var column in this.tableDescription.Columns)
+            {
+                var columnName = new ObjectNameParser(column.ColumnName);
+                var columnType = $"{column.GetSqlDbTypeString()} {column.GetSQLiteTypePrecisionString()}";
+                var identity = string.Empty;
+
+                if (column.AutoIncrement)
+                {
+                    var s = column.GetAutoIncrementSeedAndStep();
+                    if (s.Seed > 1 || s.Step > 1)
+                        throw new NotSupportedException("can't establish a seed / step in SQLite autoinc value");
+
+                    identity = $"AUTOINCREMENT";
+                }
+                var nullString = column.AllowDBNull ? "NULL" : "NOT NULL";
+
+                stringBuilder.AppendLine($"\t{empty}{columnName.QuotedString} {columnType} {identity} {nullString}");
+                empty = ",";
+            }
+            stringBuilder.Append("\t,PRIMARY KEY (");
             for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
             {
                 DmColumn pkColumn = this.tableDescription.PrimaryKey.Columns[i];
-                var quotedColumnName = new ObjectNameParser(pkColumn.ColumnName, "[", "]").QuotedString;
+                var quotedColumnName = new ObjectNameParser(pkColumn.ColumnName).ObjectName;
 
                 stringBuilder.Append(quotedColumnName);
 
@@ -137,78 +173,8 @@ namespace Dotmim.Sync.SqlServer.Builders
                     stringBuilder.Append(", ");
             }
             stringBuilder.Append(")");
-
-            return new SqlCommand(stringBuilder.ToString());
-        }
-        public void CreatePrimaryKey()
-        {
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            try
-            {
-                using (var command = BuildPkCommand())
-                {
-                    if (!alreadyOpened)
-                        connection.Open();
-
-                    if (transaction != null)
-                        command.Transaction = transaction;
-
-                    command.Connection = connection;
-                    command.ExecuteNonQuery();
-
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.Current.Error($"Error during Create Pk Command : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-            }
-
-        }
-        public string CreatePrimaryKeyScriptText()
-        {
-            StringBuilder stringBuilder = new StringBuilder();
-            var pkName = $"Create primary keys for table {tableName.QuotedString}";
-            var pkScript = BuildPkCommand().CommandText;
-            stringBuilder.Append(SqlBuilder.WrapScriptTextWithComments(pkScript, pkName));
-            stringBuilder.AppendLine();
-            return stringBuilder.ToString();
-        }
-
-
-        private SqlCommand BuildTableCommand()
-        {
-            SqlCommand command = new SqlCommand();
-
-            StringBuilder stringBuilder = new StringBuilder($"CREATE TABLE {tableName.QuotedString} (");
-            string empty = string.Empty;
-            stringBuilder.AppendLine();
-            foreach (var column in this.tableDescription.Columns)
-            {
-                var columnName = new ObjectNameParser(column.ColumnName);
-                var columnType = $"{column.GetSqlDbTypeString()} {column.GetSqlTypePrecisionString()}";
-                var identity = string.Empty;
-
-                if (column.AutoIncrement)
-                {
-                    var s = column.GetAutoIncrementSeedAndStep();
-                    identity = $"IDENTITY({s.Step},{s.Seed})";
-                }
-                var nullString = column.AllowDBNull ? "NULL" : "NOT NULL";
-
-                stringBuilder.AppendLine($"\t{empty}{columnName.QuotedString} {columnType} {identity} {nullString}");
-                empty = ",";
-            }
             stringBuilder.Append(")");
-            return new SqlCommand(stringBuilder.ToString());
+            return new SQLiteCommand(stringBuilder.ToString());
         }
 
 
@@ -250,7 +216,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             StringBuilder stringBuilder = new StringBuilder();
             var tableNameScript = $"Create Table {tableName.QuotedString}";
             var tableScript = BuildTableCommand().CommandText;
-            stringBuilder.Append(SqlBuilder.WrapScriptTextWithComments(tableScript, tableNameScript));
+            stringBuilder.Append(SQLiteBuilder.WrapScriptTextWithComments(tableScript, tableNameScript));
             stringBuilder.AppendLine();
             return stringBuilder.ToString();
         }
@@ -283,7 +249,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 if (!alreadyOpened)
                     connection.Open();
 
-                return SqlManagementUtils.TableExists(connection, transaction, parentTable.TableName);
+                return SQLiteManagementUtils.TableExists(connection, transaction, parentTable.TableName);
 
             }
             catch (Exception ex)
@@ -308,7 +274,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         public bool NeedToCreateTable(DbBuilderOption builderOptions)
         {
             if (builderOptions.HasFlag(DbBuilderOption.CreateOrUseExistingSchema))
-                return !SqlManagementUtils.TableExists(connection, transaction, tableName.QuotedString);
+                return !SQLiteManagementUtils.TableExists(connection, transaction, tableName.QuotedString);
 
             return false;
         }

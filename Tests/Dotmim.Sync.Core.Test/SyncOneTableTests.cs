@@ -23,7 +23,9 @@ namespace Dotmim.Sync.Core.Test
         public SyncOneTableTests(CreateServerAndClientDatabase fixture)
         {
             this.fixture = fixture;
-            lstPairs = this.fixture.PairDatabases.Where(pd => pd.Key == "SimpleSync" || pd.Key == "VariantSync" || pd.Key == "AllColumnsSync").ToList();
+            lstPairs = this.fixture.PairDatabases.Where(pd => pd.Key == "SimpleSync" 
+                || pd.Key == "VariantSync" 
+                || pd.Key == "AllColumnsSync").ToList();
         }
 
         [Fact, TestPriority(1)]

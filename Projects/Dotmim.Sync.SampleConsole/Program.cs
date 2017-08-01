@@ -31,13 +31,16 @@ using Microsoft.AspNetCore.Server.Kestrel.Internal;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Net.Http.Headers;
 using System.Data.SqlClient;
-using Dotmim.Sync.Sqlite;
+using Dotmim.Sync.SQLite;
 using Dotmim.Sync.Core.Scope;
+using System.Data.SQLite;
 
 class Program
 {
     static void Main(string[] args)
     {
+
+        
         //TestSync().Wait();
 
         //TestSyncThroughKestrellAsync().Wait();
@@ -61,31 +64,44 @@ class Program
 
         var sqliteConnectionString = builder.ConnectionString;
 
-        SqliteSyncProvider sqliteSyncProvider = new SqliteSyncProvider(sqliteConnectionString);
-        var dbScopeBuilder = sqliteSyncProvider.GetScopeBuilder();
+        SQLiteSyncProvider sqliteSyncProvider = new SQLiteSyncProvider(sqliteConnectionString);
 
-        Guid scopeInfoId = Guid.NewGuid();
+        var tbl = new DmTable("ServiceTickets");
+        var id = new DmColumn<Guid>("ServiceTicketID");
+        tbl.Columns.Add(id);
+        var key = new DmKey(new DmColumn[] { id });
+        tbl.PrimaryKey = key;
+        tbl.Columns.Add(new DmColumn<string>("Title"));
+        tbl.Columns.Add(new DmColumn<bool>("IsAware"));
+        tbl.Columns.Add(new DmColumn<string>("Description"));
+        tbl.Columns.Add(new DmColumn<int>("StatusValue"));
+        tbl.Columns.Add(new DmColumn<long>("EscalationLevel"));
+        tbl.Columns.Add(new DmColumn<DateTime>("Opened"));
+        tbl.Columns.Add(new DmColumn<DateTime>("Closed"));
+        tbl.Columns.Add(new DmColumn<int>("CustomerID"));
 
-        using (DbConnection sqliteConnection = sqliteSyncProvider.CreateConnection())
+        var dbTableBuilder = sqliteSyncProvider.GetDatabaseBuilder(tbl, DbBuilderOption.CreateOrUseExistingSchema | DbBuilderOption.CreateOrUseExistingTrackingTables);
+
+        using (var sqliteConnection = new SQLiteConnection(sqliteConnectionString))
         {
-            var scopeBuilder = dbScopeBuilder.CreateScopeInfoBuilder(sqliteConnection);
-
-            if (scopeBuilder.NeedToCreateScopeInfoTable())
-                scopeBuilder.CreateScopeInfoTable();
-
-            var scopeInfo = new ScopeInfo
+            try
             {
-                Id = scopeInfoId,
-                IsLocal = true,
-                IsNewScope = false,
-                LastSync = DateTime.Now,
-                Name = "DefaultScope"
-            };
+                await sqliteConnection.OpenAsync();
 
-            scopeBuilder.InsertOrUpdateScopeInfo(scopeInfo);
+                var script = dbTableBuilder.Script(sqliteConnection);
 
-            var lstScopes = scopeBuilder.GetAllScopes("DefaultScope");
+                dbTableBuilder.Apply(sqliteConnection);
+
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+                throw;
+            }
+
+
         }
+
     }
 
 

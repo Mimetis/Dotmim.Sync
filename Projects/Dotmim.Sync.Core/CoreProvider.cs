@@ -825,26 +825,17 @@ namespace Dotmim.Sync.Core
                         {
                             var builder = this.GetDatabaseBuilder(tableDescription);
                             var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
-                            syncAdapter.TableDescription = tableDescription;
-                            syncAdapter.ObjectNames = builder.ObjectNames;
                             syncAdapter.ConflictApplyAction = configuration.GetApplyAction();
 
-                            Logger.Current.Info($"----- Table \"{syncAdapter.TableDescription.TableName}\" -----");
+                            Logger.Current.Info($"----- Table \"{tableDescription.TableName}\" -----");
 
                             // for stats
                             SelectedChanges selectedChanges = new SelectedChanges();
                             selectedChanges.TableName = tableDescription.TableName;
 
-
-                            // get the select incremental changes command
-                            DbCommand selectIncrementalChangesCommand = connection.CreateCommand();
-                            selectIncrementalChangesCommand.Connection = connection;
-                            selectIncrementalChangesCommand.CommandType = CommandType.StoredProcedure;
-                            selectIncrementalChangesCommand.CommandText = syncAdapter.ObjectNames.GetObjectName(DbObjectType.SelectChangesProcName);
-                            if (transaction != null)
-                                selectIncrementalChangesCommand.Transaction = transaction;
-                            syncAdapter.SetCommandSessionParameters(selectIncrementalChangesCommand);
-
+                            // Get Command
+                            DbCommand selectIncrementalChangesCommand = syncAdapter.GetCommand(DbCommandType.SelectChanges);
+                            
                             if (selectIncrementalChangesCommand == null)
                             {
                                 var exc = "Missing command 'SelectIncrementalChangesCommand' ";
@@ -852,8 +843,11 @@ namespace Dotmim.Sync.Core
                                 throw new Exception(exc);
                             }
 
+                            // Deriving Parameters
+                            syncAdapter.SetCommandParameters(selectIncrementalChangesCommand);
+
                             // Get a clone of the table with tracking columns
-                            var dmTableChanges = BuildChangesTable(syncAdapter.TableDescription.TableName);
+                            var dmTableChanges = BuildChangesTable(tableDescription.TableName);
 
                             // Set the parameters
                             DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_min_timestamp", scopeInfo.LastTimestamp);
@@ -913,7 +907,7 @@ namespace Dotmim.Sync.Core
 
                             }
 
-                            Logger.Current.Info($"--- End Table \"{syncAdapter.TableDescription.TableName}\" ---");
+                            Logger.Current.Info($"--- End Table \"{tableDescription.TableName}\" ---");
                             Logger.Current.Info("");
                         }
 
@@ -987,22 +981,15 @@ namespace Dotmim.Sync.Core
                     {
                         var builder = this.GetDatabaseBuilder(tableDescription);
                         var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
-                        syncAdapter.TableDescription = tableDescription;
-                        syncAdapter.ObjectNames = builder.ObjectNames;
-                        syncAdapter.ConflictApplyAction = configuration.GetApplyAction();
+                       syncAdapter.ConflictApplyAction = configuration.GetApplyAction();
 
-                        Logger.Current.Info($"----- Table \"{syncAdapter.TableDescription.TableName}\" -----");
+                        Logger.Current.Info($"----- Table \"{tableDescription.TableName}\" -----");
 
                         // get the select incremental changes command
-                        DbCommand selectIncrementalChangesCommand = connection.CreateCommand();
-                        selectIncrementalChangesCommand.Connection = connection;
-                        selectIncrementalChangesCommand.CommandType = CommandType.StoredProcedure;
-                        selectIncrementalChangesCommand.CommandText = syncAdapter.ObjectNames.GetObjectName(DbObjectType.SelectChangesProcName);
+                        DbCommand selectIncrementalChangesCommand =  syncAdapter.GetCommand(DbCommandType.SelectChanges);
 
-                        if (transaction != null)
-                            selectIncrementalChangesCommand.Transaction = transaction;
-
-                        syncAdapter.SetCommandSessionParameters(selectIncrementalChangesCommand);
+                        // Deriving Parameters
+                        syncAdapter.SetCommandParameters(selectIncrementalChangesCommand);
 
                         if (selectIncrementalChangesCommand == null)
                         {
@@ -1011,7 +998,7 @@ namespace Dotmim.Sync.Core
                             throw new Exception(exc);
                         }
 
-                        var dmTable = BuildChangesTable(syncAdapter.TableDescription.TableName);
+                        var dmTable = BuildChangesTable(tableDescription.TableName);
 
                         try
                         {
@@ -1189,7 +1176,7 @@ namespace Dotmim.Sync.Core
                         finally
                         {
 
-                            Logger.Current.Info($"--- End Table \"{syncAdapter.TableDescription.TableName}\" ---");
+                            Logger.Current.Info($"--- End Table \"{tableDescription.TableName}\" ---");
                             Logger.Current.Info("");
                         }
                     }
@@ -1490,9 +1477,7 @@ namespace Dotmim.Sync.Core
 
                     var builder = this.GetDatabaseBuilder(tableDescription);
                     var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
-                    syncAdapter.TableDescription = tableDescription;
-                    syncAdapter.ObjectNames = builder.ObjectNames;
-                    syncAdapter.ConflictApplyAction = configuration.GetApplyAction();
+                   syncAdapter.ConflictApplyAction = configuration.GetApplyAction();
 
                     // Set syncAdapter properties
                     syncAdapter.applyType = applyType;
@@ -1500,14 +1485,14 @@ namespace Dotmim.Sync.Core
                     if (syncAdapter.ConflictActionInvoker == null && this.ApplyChangedFailed != null)
                         syncAdapter.ConflictActionInvoker = GetConflictAction;
 
-                    Logger.Current.Info($"----- Operation {applyType.ToString()} for Table \"{syncAdapter.TableDescription.TableName}\" -----");
+                    Logger.Current.Info($"----- Operation {applyType.ToString()} for Table \"{tableDescription.TableName}\" -----");
 
 
                     if (changes.BatchPartsInfo != null && changes.BatchPartsInfo.Count > 0)
                     {
                         // getting the table to be applied
                         // we may have multiple batch files, so we iterate
-                        foreach (var dmTable in changes.GetTable(syncAdapter.TableDescription.TableName))
+                        foreach (var dmTable in changes.GetTable(tableDescription.TableName))
                         {
                             if (dmTable == null || dmTable.Rows.Count == 0)
                                 continue;
@@ -1518,7 +1503,7 @@ namespace Dotmim.Sync.Core
                             if (dmChangesView.Count == 0)
                             {
                                 Logger.Current.Info($"0 {applyType.ToString()} Applied");
-                                Logger.Current.Info($"--- End {applyType.ToString()} for Table \"{syncAdapter.TableDescription.TableName}\" ---");
+                                Logger.Current.Info($"--- End {applyType.ToString()} for Table \"{tableDescription.TableName}\" ---");
                                 Logger.Current.Info($"");
                                 continue;
                             }
@@ -1569,7 +1554,7 @@ namespace Dotmim.Sync.Core
 
                             // raise SyncProgress Event
                             AppliedChanges appliedChanges = new AppliedChanges();
-                            appliedChanges.TableName = syncAdapter.TableDescription.TableName;
+                            appliedChanges.TableName = tableDescription.TableName;
                             appliedChanges.ChangesApplied = rowsApplied;
                             appliedChanges.ChangesFailed = changedFailed;
                             appliedChanges.State = applyType;
@@ -1593,8 +1578,7 @@ namespace Dotmim.Sync.Core
                     }
 
                     Logger.Current.Info("");
-                    //Logger.Current.Info($"{this._changeHandler.ApplyCount} {operation} Applied");
-                    Logger.Current.Info($"--- End {applyType.ToString()} for Table \"{syncAdapter.TableDescription.TableName}\" ---");
+                    Logger.Current.Info($"--- End {applyType.ToString()} for Table \"{tableDescription.TableName}\" ---");
                     Logger.Current.Info("");
 
                 }

@@ -6,9 +6,9 @@ using System.Data.Common;
 using System.Data;
 using Dotmim.Sync.Core.Log;
 using System.Data.SQLite;
-using Dotmim.Sync.SqlServer.Manager;
 
-namespace Dotmim.Sync.SqlServer.Scope
+
+namespace Dotmim.Sync.SQLite
 {
     public class SQLiteScopeInfoBuilder : IDbScopeInfoBuilder
     {
@@ -133,26 +133,12 @@ namespace Dotmim.Sync.SqlServer.Scope
             bool alreadyOpened = connection.State == ConnectionState.Open;
             try
             {
-                command.CommandText = "SELECT @sync_new_timestamp = min_active_rowversion() - 1";
-                DbParameter p = command.CreateParameter();
-                p.ParameterName = "@sync_new_timestamp";
-                p.DbType = DbType.Int64;
-                p.Direction = ParameterDirection.Output;
-                command.Parameters.Add(p);
+                command.CommandText = "Select strftime('%s', datetime('now', 'utc'))";
 
                 if (!alreadyOpened)
                     connection.Open();
 
-                command.ExecuteNonQuery();
-
-                var outputParameter = SQLiteManager.GetParameter(command, "sync_new_timestamp");
-
-                if (outputParameter == null)
-                    return 0L;
-
-                long result = 0L;
-
-                long.TryParse(outputParameter.Value.ToString(), out result);
+                long result = (long)command.ExecuteScalar() ;
 
                 return result;
             }
@@ -195,8 +181,8 @@ namespace Dotmim.Sync.SqlServer.Scope
                 var exist = (long)command.ExecuteScalar() > 0;
 
                 string stmtText = exist
-                    ? "Update scope_info set sync_scope_name=@sync_scope_name, scope_is_local=@scope_is_local, scope_last_sync=@scope_last_sync where sync_scope_id=@sync_scope_id"
-                    : "Insert into scope_info (sync_scope_name, scope_is_local, scope_last_sync, sync_scope_id) values (@sync_scope_name, @scope_is_local, @scope_last_sync, @sync_scope_id)";
+                    ? "Update scope_info set sync_scope_name=@sync_scope_name, scope_timestamp=strftime('%s', datetime('now', 'utc')), scope_is_local=@scope_is_local, scope_last_sync=@scope_last_sync where sync_scope_id=@sync_scope_id"
+                    : "Insert into scope_info (sync_scope_name, scope_timestamp, scope_is_local, scope_last_sync, sync_scope_id) values (@sync_scope_name, strftime('%s', datetime('now', 'utc')), @scope_is_local, @scope_last_sync, @sync_scope_id)";
 
                 command = connection.CreateCommand();
                 command.CommandText = stmtText;

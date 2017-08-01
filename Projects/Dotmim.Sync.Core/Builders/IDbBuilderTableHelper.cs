@@ -12,7 +12,6 @@ namespace Dotmim.Sync.Core.Builders
     /// </summary>
     public interface IDbBuilderTableHelper
     {
-        DmTable TableDescription { get; set; }
         bool NeedToCreateTable(DbBuilderOption builderOption);
         void CreateTable();
         void CreatePrimaryKey();

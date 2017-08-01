@@ -13,12 +13,12 @@ using Dotmim.Sync.Core.Builders;
 using Dotmim.Sync.Core.Manager;
 using Dotmim.Sync.Core.Cache;
 using System.Data.SQLite;
-using Dotmim.Sync.SqlServer.Scope;
 
-namespace Dotmim.Sync.Sqlite
+
+namespace Dotmim.Sync.SQLite
 {
 
-    public class SqliteSyncProvider : CoreProvider
+    public class SQLiteSyncProvider : CoreProvider
     {
         ICache cacheManager;
         string connectionString;
@@ -39,26 +39,16 @@ namespace Dotmim.Sync.Sqlite
             }
         }
 
-        public SqliteSyncProvider(string connectionString) : base()
+        public SQLiteSyncProvider(string connectionString) : base()
         {
             this.connectionString = connectionString;
         }
 
+        public override DbConnection CreateConnection() => new SQLiteConnection(this.connectionString);
+        
+        public override DbBuilder GetDatabaseBuilder(DmTable tableDescription, DbBuilderOption options = DbBuilderOption.UseExistingSchema) => new SQLiteBuilder(tableDescription, options);
 
-        public override DbConnection CreateConnection()
-        {
-            return new SQLiteConnection(this.connectionString);
-        }
-
-        public override DbBuilder GetDatabaseBuilder(DmTable tableDescription, DbBuilderOption options = DbBuilderOption.UseExistingSchema)
-        {
-            throw new NotImplementedException();
-        }
-
-        public override DbManager GetDbManager(string tableName)
-        {
-            throw new NotImplementedException();
-        }
+        public override DbManager GetDbManager(string tableName) => new SQLiteManager(tableName);
 
         public override DbScopeBuilder GetScopeBuilder() => new SQLiteScopeBuilder();
     }

@@ -5,7 +5,7 @@ using System.Text;
 using System.Data.Common;
 
 
-namespace Dotmim.Sync.SqlServer.Scope
+namespace Dotmim.Sync.SQLite
 {
     public class SQLiteScopeBuilder : DbScopeBuilder
     {

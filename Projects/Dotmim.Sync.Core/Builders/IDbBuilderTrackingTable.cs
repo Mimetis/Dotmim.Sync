@@ -11,7 +11,6 @@ namespace Dotmim.Sync.Core.Builders
     /// </summary>
     public interface IDbBuilderTrackingTableHelper
     {
-        DmTable TableDescription { get; set; }
         List<DmColumn> FilterColumns { get; set; }
         bool NeedToCreateTrackingTable(DbBuilderOption builderOption);
         void CreateTable();

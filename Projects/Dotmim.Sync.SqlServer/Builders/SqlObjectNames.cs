@@ -6,7 +6,7 @@ using Dotmim.Sync.Data;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
-    public class SqlObjectNames : DbObjectNames
+    public class SqlObjectNames
     {
         internal const string insertTriggerName = "[{0}_insert_trigger]";
         internal const string updateTriggerName = "[{0}_update_trigger]";
@@ -28,8 +28,29 @@ namespace Dotmim.Sync.SqlServer.Builders
         internal const string bulkUpdateProcName = "[{0}_bulkupdate]";
         internal const string bulkDeleteProcName = "[{0}_bulkdelete]";
 
-        public SqlObjectNames(DmTable tableDescription) : base(tableDescription)
+
+        Dictionary<DbCommandType, String> names = new Dictionary<DbCommandType, string>();
+        public DmTable TableDescription { get; }
+
+    
+        public void AddName(DbCommandType objectType, string name)
         {
+            if (names.ContainsKey(objectType))
+                throw new Exception("Yous can't add an objectType multiple times");
+
+            names.Add(objectType, name);
+        }
+        public string GetCommandName(DbCommandType objectType)
+        {
+            if (!names.ContainsKey(objectType))
+                throw new Exception("Yous should provide a value for all DbCommandName");
+
+            return names[objectType];
+        }
+
+        public SqlObjectNames(DmTable tableDescription) 
+        {
+            this.TableDescription = tableDescription;
             SetDefaultNames();
         }
 
@@ -40,24 +61,24 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
             (var tableName, var trackingName) = SqlBuilder.GetParsers(this.TableDescription);
 
-            this.AddName(DbObjectType.SelectChangesProcName, string.Format(selectChangesProcName, tableName.UnquotedStringWithUnderScore));
-            this.AddName(DbObjectType.SelectRowProcName, string.Format(selectRowProcName, tableName.UnquotedStringWithUnderScore));
-            this.AddName(DbObjectType.InsertProcName, string.Format(insertProcName, tableName.UnquotedStringWithUnderScore));
-            this.AddName(DbObjectType.UpdateProcName, string.Format(updateProcName, tableName.UnquotedStringWithUnderScore));
-            this.AddName(DbObjectType.DeleteProcName, string.Format(deleteProcName, tableName.UnquotedStringWithUnderScore));
-            this.AddName(DbObjectType.InsertMetadataProcName, string.Format(insertMetadataProcName, tableName.UnquotedStringWithUnderScore));
-            this.AddName(DbObjectType.UpdateMetadataProcName, string.Format(updateMetadataProcName, tableName.UnquotedStringWithUnderScore));
-            this.AddName(DbObjectType.DeleteMetadataProcName, string.Format(deleteProcName, tableName.UnquotedStringWithUnderScore));
+            this.AddName(DbCommandType.SelectChanges, string.Format(selectChangesProcName, tableName.UnquotedStringWithUnderScore));
+            this.AddName(DbCommandType.SelectRow, string.Format(selectRowProcName, tableName.UnquotedStringWithUnderScore));
+            this.AddName(DbCommandType.InsertRow, string.Format(insertProcName, tableName.UnquotedStringWithUnderScore));
+            this.AddName(DbCommandType.UpdateRow, string.Format(updateProcName, tableName.UnquotedStringWithUnderScore));
+            this.AddName(DbCommandType.DeleteRow, string.Format(deleteProcName, tableName.UnquotedStringWithUnderScore));
+            this.AddName(DbCommandType.InsertMetadata, string.Format(insertMetadataProcName, tableName.UnquotedStringWithUnderScore));
+            this.AddName(DbCommandType.UpdateMetadata, string.Format(updateMetadataProcName, tableName.UnquotedStringWithUnderScore));
+            this.AddName(DbCommandType.DeleteMetadata, string.Format(deleteProcName, tableName.UnquotedStringWithUnderScore));
 
-            this.AddName(DbObjectType.InsertTriggerName, string.Format(insertTriggerName, tableName.UnquotedStringWithUnderScore));
-            this.AddName(DbObjectType.UpdateTriggerName, string.Format(updateTriggerName, tableName.UnquotedStringWithUnderScore));
-            this.AddName(DbObjectType.DeleteTriggerName, string.Format(deleteTriggerName, tableName.UnquotedStringWithUnderScore));
+            this.AddName(DbCommandType.InsertTrigger, string.Format(insertTriggerName, tableName.UnquotedStringWithUnderScore));
+            this.AddName(DbCommandType.UpdateTrigger, string.Format(updateTriggerName, tableName.UnquotedStringWithUnderScore));
+            this.AddName(DbCommandType.DeleteTrigger, string.Format(deleteTriggerName, tableName.UnquotedStringWithUnderScore));
 
-            this.AddName(DbObjectType.BulkTableTypeName, string.Format(bulkTableTypeName, tableName.UnquotedStringWithUnderScore));
+            this.AddName(DbCommandType.BulkTableType, string.Format(bulkTableTypeName, tableName.UnquotedStringWithUnderScore));
 
-            this.AddName(DbObjectType.BulkInsertProcName, string.Format(bulkInsertProcName, tableName.UnquotedStringWithUnderScore));
-            this.AddName(DbObjectType.BulkUpdateProcName, string.Format(bulkUpdateProcName, tableName.UnquotedStringWithUnderScore));
-            this.AddName(DbObjectType.BulkDeleteProcName, string.Format(bulkDeleteProcName, tableName.UnquotedStringWithUnderScore));
+            this.AddName(DbCommandType.BulkInsertRows, string.Format(bulkInsertProcName, tableName.UnquotedStringWithUnderScore));
+            this.AddName(DbCommandType.BulkUpdateRows, string.Format(bulkUpdateProcName, tableName.UnquotedStringWithUnderScore));
+            this.AddName(DbCommandType.BulkDeleteRows, string.Format(bulkDeleteProcName, tableName.UnquotedStringWithUnderScore));
         }
 
     }

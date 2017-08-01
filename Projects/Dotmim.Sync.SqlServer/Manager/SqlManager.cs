@@ -10,8 +10,6 @@ namespace Dotmim.Sync.SqlServer.Manager
     public class SqlManager : DbManager
     {
 
-        SqlManagerTable tableManager;
-
         public SqlManager(string tableName): base(tableName)
         {
 

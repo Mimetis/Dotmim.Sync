@@ -11,9 +11,6 @@ namespace Dotmim.Sync.Core.Builders
     /// </summary>
     public interface IDbBuilderTriggerHelper
     {
-
-        DmTable TableDescription { get; set; }
-        DbObjectNames ObjectNames { get; set; }
         List<DmColumn> FilterColumns { get; set; }
     
         bool NeedToCreateTrigger(DbTriggerType triggerType, DbBuilderOption builderOption);

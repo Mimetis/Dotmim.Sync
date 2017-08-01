@@ -17,7 +17,7 @@ namespace Dotmim.Sync.Core.Builders
         /// <summary>
         /// Gets the table description for the current DbBuilder
         /// </summary>
-        public DmTable TableDescription { get; private set; }
+        public DmTable TableDescription { get; set; }
         
         /// <summary>
         /// Specify if we have to check for recreate or not
@@ -66,11 +66,7 @@ namespace Dotmim.Sync.Core.Builders
         /// </summary>
         public abstract DbSyncAdapter CreateSyncAdapter(DbConnection connection, DbTransaction transaction= null);
      
-        /// <summary>
-        /// ObjectNames
-        /// </summary>
-        public abstract DbObjectNames ObjectNames { get; }
-
+  
         /// <summary>
         /// Construct a DbBuilder
         /// </summary>
@@ -110,7 +106,6 @@ namespace Dotmim.Sync.Core.Builders
                     connection.Open();
 
                 var tableBuilder = CreateTableBuilder(connection, transaction);
-                tableBuilder.TableDescription = this.TableDescription;
 
                 // Check if we need to create the tables
                 if (tableBuilder.NeedToCreateTable(this.BuilderOption))
@@ -121,7 +116,6 @@ namespace Dotmim.Sync.Core.Builders
                 }
 
                 var trackingTableBuilder = CreateTrackingTableBuilder(connection, transaction);
-                trackingTableBuilder.TableDescription = this.TableDescription;
                 trackingTableBuilder.FilterColumns = this.FilterColumns;
 
                 if (trackingTableBuilder.NeedToCreateTrackingTable(this.BuilderOption))
@@ -135,9 +129,7 @@ namespace Dotmim.Sync.Core.Builders
                 }
 
                 var triggerBuilder = CreateTriggerBuilder(connection, transaction);
-                triggerBuilder.TableDescription = this.TableDescription;
                 triggerBuilder.FilterColumns = this.FilterColumns;
-                triggerBuilder.ObjectNames = this.ObjectNames;
 
                 if (triggerBuilder.NeedToCreateTrigger(DbTriggerType.Insert, this.BuilderOption))
                     triggerBuilder.CreateInsertTrigger();
@@ -146,35 +138,37 @@ namespace Dotmim.Sync.Core.Builders
                 if (triggerBuilder.NeedToCreateTrigger(DbTriggerType.Delete, this.BuilderOption))
                     triggerBuilder.CreateDeleteTrigger();
 
+                // could be null
                 var procBuilder = CreateProcBuilder(connection, transaction);
-                procBuilder.TableDescription = this.TableDescription;
-                procBuilder.ObjectNames = this.ObjectNames;
+                if (procBuilder == null)
+                    return;
+
                 procBuilder.FilterColumns = this.FilterColumns;
                 procBuilder.FilterParameters = this.FilterParameters;
 
-                if (procBuilder.NeedToCreateProcedure(ObjectNames.GetObjectName(DbObjectType.SelectChangesProcName), this.BuilderOption))
-                    procBuilder.CreateSelectIncrementalChanges(ObjectNames.GetObjectName(DbObjectType.SelectChangesProcName));
-                if (procBuilder.NeedToCreateProcedure(ObjectNames.GetObjectName(DbObjectType.SelectRowProcName), this.BuilderOption))
-                    procBuilder.CreateSelectRow(ObjectNames.GetObjectName(DbObjectType.SelectRowProcName));
-                if (procBuilder.NeedToCreateProcedure(ObjectNames.GetObjectName(DbObjectType.InsertProcName), this.BuilderOption))
-                    procBuilder.CreateInsert(ObjectNames.GetObjectName(DbObjectType.InsertProcName));
-                if (procBuilder.NeedToCreateProcedure(ObjectNames.GetObjectName(DbObjectType.UpdateProcName), this.BuilderOption))
-                    procBuilder.CreateUpdate(ObjectNames.GetObjectName(DbObjectType.UpdateProcName));
-                if (procBuilder.NeedToCreateProcedure(ObjectNames.GetObjectName(DbObjectType.DeleteProcName), this.BuilderOption))
-                    procBuilder.CreateDelete(ObjectNames.GetObjectName(DbObjectType.DeleteProcName));
-                if (procBuilder.NeedToCreateProcedure(ObjectNames.GetObjectName(DbObjectType.InsertMetadataProcName), this.BuilderOption))
-                    procBuilder.CreateInsertMetadata(ObjectNames.GetObjectName(DbObjectType.InsertMetadataProcName));
-                if (procBuilder.NeedToCreateProcedure(ObjectNames.GetObjectName(DbObjectType.UpdateMetadataProcName), this.BuilderOption))
-                    procBuilder.CreateUpdateMetadata(ObjectNames.GetObjectName(DbObjectType.UpdateMetadataProcName));
-                if (procBuilder.NeedToCreateProcedure(ObjectNames.GetObjectName(DbObjectType.DeleteMetadataProcName), this.BuilderOption))
-                    procBuilder.CreateDeleteMetadata(ObjectNames.GetObjectName(DbObjectType.DeleteMetadataProcName));
+                if (procBuilder.NeedToCreateProcedure(DbCommandType.SelectChanges, this.BuilderOption))
+                    procBuilder.CreateSelectIncrementalChanges();
+                if (procBuilder.NeedToCreateProcedure(DbCommandType.SelectRow, this.BuilderOption))
+                    procBuilder.CreateSelectRow();
+                if (procBuilder.NeedToCreateProcedure(DbCommandType.InsertRow, this.BuilderOption))
+                    procBuilder.CreateInsert();
+                if (procBuilder.NeedToCreateProcedure(DbCommandType.UpdateRow, this.BuilderOption))
+                    procBuilder.CreateUpdate();
+                if (procBuilder.NeedToCreateProcedure(DbCommandType.DeleteRow, this.BuilderOption))
+                    procBuilder.CreateDelete();
+                if (procBuilder.NeedToCreateProcedure(DbCommandType.InsertMetadata, this.BuilderOption))
+                    procBuilder.CreateInsertMetadata();
+                if (procBuilder.NeedToCreateProcedure(DbCommandType.UpdateMetadata, this.BuilderOption))
+                    procBuilder.CreateUpdateMetadata();
+                if (procBuilder.NeedToCreateProcedure(DbCommandType.DeleteMetadata, this.BuilderOption))
+                    procBuilder.CreateDeleteMetadata();
 
-                if (this.useBulkProcedures && procBuilder.NeedToCreateType(ObjectNames.GetObjectName(DbObjectType.BulkTableTypeName), this.BuilderOption))
+                if (this.useBulkProcedures && procBuilder.NeedToCreateType(DbCommandType.BulkTableType, this.BuilderOption))
                 {
-                    procBuilder.CreateTVPType(ObjectNames.GetObjectName(DbObjectType.BulkTableTypeName));
-                    procBuilder.CreateBulkInsert(ObjectNames.GetObjectName(DbObjectType.BulkInsertProcName));
-                    procBuilder.CreateBulkUpdate(ObjectNames.GetObjectName(DbObjectType.BulkUpdateProcName));
-                    procBuilder.CreateBulkDelete(ObjectNames.GetObjectName(DbObjectType.BulkDeleteProcName));
+                    procBuilder.CreateTVPType();
+                    procBuilder.CreateBulkInsert();
+                    procBuilder.CreateBulkUpdate();
+                    procBuilder.CreateBulkDelete();
                 }
 
 
@@ -212,7 +206,6 @@ namespace Dotmim.Sync.Core.Builders
                 StringBuilder stringBuilder = new StringBuilder();
 
                 var tableBuilder = CreateTableBuilder(connection, transaction);
-                tableBuilder.TableDescription = this.TableDescription;
 
                 // Check if we need to create the tables
                 if (tableBuilder.NeedToCreateTable(this.BuilderOption))
@@ -223,7 +216,6 @@ namespace Dotmim.Sync.Core.Builders
                 }
 
                 var trackingTableBuilder = CreateTrackingTableBuilder(connection, transaction);
-                trackingTableBuilder.TableDescription = this.TableDescription;
                 trackingTableBuilder.FilterColumns = this.FilterColumns;
 
                 if (trackingTableBuilder.NeedToCreateTrackingTable(this.BuilderOption))
@@ -235,8 +227,6 @@ namespace Dotmim.Sync.Core.Builders
                     needToCreateTrackingTable = true;
                 }
                 var triggerBuilder = CreateTriggerBuilder(connection, transaction);
-                triggerBuilder.TableDescription = TableDescription;
-                triggerBuilder.ObjectNames = this.ObjectNames;
                 triggerBuilder.FilterColumns = this.FilterColumns;
 
                 if (triggerBuilder.NeedToCreateTrigger(DbTriggerType.Insert, this.BuilderOption))
@@ -246,39 +236,42 @@ namespace Dotmim.Sync.Core.Builders
                 if (triggerBuilder.NeedToCreateTrigger(DbTriggerType.Delete, this.BuilderOption))
                     stringBuilder.Append(triggerBuilder.CreateDeleteTriggerScriptText());
 
+
                 var procBuilder = CreateProcBuilder(connection, transaction);
-                procBuilder.TableDescription = this.TableDescription;
-                procBuilder.ObjectNames = this.ObjectNames;
-                procBuilder.FilterColumns = this.FilterColumns;
-                procBuilder.FilterParameters = this.FilterParameters;
 
-                if (procBuilder.NeedToCreateProcedure(ObjectNames.GetObjectName(DbObjectType.SelectChangesProcName), this.BuilderOption))
-                    stringBuilder.Append(procBuilder.CreateSelectIncrementalChangesScriptText(ObjectNames.GetObjectName(DbObjectType.SelectChangesProcName)));
-                if (procBuilder.NeedToCreateProcedure(ObjectNames.GetObjectName(DbObjectType.SelectRowProcName), this.BuilderOption))
-                    stringBuilder.Append(procBuilder.CreateSelectRowScriptText(ObjectNames.GetObjectName(DbObjectType.SelectRowProcName)));
-                if (procBuilder.NeedToCreateProcedure(ObjectNames.GetObjectName(DbObjectType.InsertProcName), this.BuilderOption))
-                    stringBuilder.Append(procBuilder.CreateInsertScriptText(ObjectNames.GetObjectName(DbObjectType.InsertProcName)));
-                if (procBuilder.NeedToCreateProcedure(ObjectNames.GetObjectName(DbObjectType.UpdateProcName), this.BuilderOption))
-                    stringBuilder.Append(procBuilder.CreateUpdateScriptText(ObjectNames.GetObjectName(DbObjectType.UpdateProcName)));
-                if (procBuilder.NeedToCreateProcedure(ObjectNames.GetObjectName(DbObjectType.DeleteProcName), this.BuilderOption))
-                    stringBuilder.Append(procBuilder.CreateDeleteScriptText(ObjectNames.GetObjectName(DbObjectType.DeleteProcName)));
-                if (procBuilder.NeedToCreateProcedure(ObjectNames.GetObjectName(DbObjectType.InsertMetadataProcName), this.BuilderOption))
-                    stringBuilder.Append(procBuilder.CreateInsertMetadataScriptText(ObjectNames.GetObjectName(DbObjectType.InsertMetadataProcName)));
-                if (procBuilder.NeedToCreateProcedure(ObjectNames.GetObjectName(DbObjectType.UpdateMetadataProcName), this.BuilderOption))
-                    stringBuilder.Append(procBuilder.CreateUpdateMetadataScriptText(ObjectNames.GetObjectName(DbObjectType.UpdateMetadataProcName)));
-                if (procBuilder.NeedToCreateProcedure(ObjectNames.GetObjectName(DbObjectType.DeleteMetadataProcName), this.BuilderOption))
-                    stringBuilder.Append(procBuilder.CreateDeleteMetadataScriptText(ObjectNames.GetObjectName(DbObjectType.DeleteMetadataProcName)));
+                if (procBuilder != null)
+                {
+                    procBuilder.FilterColumns = this.FilterColumns;
+                    procBuilder.FilterParameters = this.FilterParameters;
 
-                if (this.useBulkProcedures && procBuilder.NeedToCreateType(ObjectNames.GetObjectName(DbObjectType.BulkTableTypeName), this.BuilderOption))
-                {
-                    stringBuilder.Append(procBuilder.CreateTVPTypeScriptText(ObjectNames.GetObjectName(DbObjectType.BulkTableTypeName)));
-                    stringBuilder.Append(procBuilder.CreateBulkInsertScriptText(ObjectNames.GetObjectName(DbObjectType.BulkInsertProcName)));
-                    stringBuilder.Append(procBuilder.CreateBulkUpdateScriptText(ObjectNames.GetObjectName(DbObjectType.BulkUpdateProcName)));
-                    stringBuilder.Append(procBuilder.CreateBulkDeleteScriptText(ObjectNames.GetObjectName(DbObjectType.BulkDeleteProcName)));
-                }
-                if (needToCreateTrackingTable)
-                {
-                    stringBuilder.Append(trackingTableBuilder.CreatePopulateFromBaseTableScriptText());
+                    if (procBuilder.NeedToCreateProcedure(DbCommandType.SelectChanges, this.BuilderOption))
+                        stringBuilder.Append(procBuilder.CreateSelectIncrementalChangesScriptText());
+                    if (procBuilder.NeedToCreateProcedure(DbCommandType.SelectRow, this.BuilderOption))
+                        stringBuilder.Append(procBuilder.CreateSelectRowScriptText());
+                    if (procBuilder.NeedToCreateProcedure(DbCommandType.InsertRow, this.BuilderOption))
+                        stringBuilder.Append(procBuilder.CreateInsertScriptText());
+                    if (procBuilder.NeedToCreateProcedure(DbCommandType.UpdateRow, this.BuilderOption))
+                        stringBuilder.Append(procBuilder.CreateUpdateScriptText());
+                    if (procBuilder.NeedToCreateProcedure(DbCommandType.DeleteRow, this.BuilderOption))
+                        stringBuilder.Append(procBuilder.CreateDeleteScriptText());
+                    if (procBuilder.NeedToCreateProcedure(DbCommandType.InsertMetadata, this.BuilderOption))
+                        stringBuilder.Append(procBuilder.CreateInsertMetadataScriptText());
+                    if (procBuilder.NeedToCreateProcedure(DbCommandType.UpdateMetadata, this.BuilderOption))
+                        stringBuilder.Append(procBuilder.CreateUpdateMetadataScriptText());
+                    if (procBuilder.NeedToCreateProcedure(DbCommandType.DeleteMetadata, this.BuilderOption))
+                        stringBuilder.Append(procBuilder.CreateDeleteMetadataScriptText());
+
+                    if (this.useBulkProcedures && procBuilder.NeedToCreateType(DbCommandType.BulkTableType, this.BuilderOption))
+                    {
+                        stringBuilder.Append(procBuilder.CreateTVPTypeScriptText());
+                        stringBuilder.Append(procBuilder.CreateBulkInsertScriptText());
+                        stringBuilder.Append(procBuilder.CreateBulkUpdateScriptText());
+                        stringBuilder.Append(procBuilder.CreateBulkDeleteScriptText());
+                    }
+                    if (needToCreateTrackingTable)
+                    {
+                        stringBuilder.Append(trackingTableBuilder.CreatePopulateFromBaseTableScriptText());
+                    }
                 }
                 str = stringBuilder.ToString();
 

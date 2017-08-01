@@ -4,112 +4,59 @@ using System.Collections.Generic;
 using System.Text;
 using Dotmim.Sync.Data;
 using System.Data.Common;
-using System.Data.SqlClient;
+
 using Dotmim.Sync.Core.Common;
 using System.Linq;
 using Dotmim.Sync.Core.Log;
 using System.Data;
+using System.Data.SQLite;
 
-namespace Dotmim.Sync.SqlServer.Builders
+namespace Dotmim.Sync.SQLite
 {
     public class SqlBuilderTrackingTable : IDbBuilderTrackingTableHelper
     {
         private ObjectNameParser tableName;
         private ObjectNameParser trackingName;
         private DmTable tableDescription;
-        private SqlConnection connection;
-        private SqlTransaction transaction;
+        private SQLiteConnection connection;
+        private SQLiteTransaction transaction;
         public List<DmColumn> FilterColumns { get; set; }
 
-     
-     
+
         public SqlBuilderTrackingTable(DmTable tableDescription, DbConnection connection, DbTransaction transaction = null)
         {
-            this.connection = connection as SqlConnection;
-            this.transaction = transaction as SqlTransaction;
+            this.connection = connection as SQLiteConnection;
+            this.transaction = transaction as SQLiteTransaction;
             this.tableDescription = tableDescription;
-            (this.tableName, this.trackingName) = SqlBuilder.GetParsers(this.tableDescription);
+            (this.tableName, this.trackingName) = SQLiteBuilder.GetParsers(this.tableDescription);
         }
 
 
         public void CreateIndex()
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
-
-            try
-            {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        this.connection.Open();
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    command.CommandText = this.CreateIndexCommandText();
-                    command.Connection = this.connection;
-                    command.ExecuteNonQuery();
-
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.Current.Error($"Error during CreateIndex : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
+           
 
         }
+
         private string CreateIndexCommandText()
         {
             StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"CREATE NONCLUSTERED INDEX [{trackingName.UnquotedStringWithUnderScore}_timestamp_index] ON {trackingName.QuotedString} (");
-            stringBuilder.AppendLine($"\t[update_timestamp] ASC");
-            stringBuilder.AppendLine($"\t,[update_scope_id] ASC");
-            stringBuilder.AppendLine($"\t,[sync_row_is_tombstone] ASC");
-            // Filter columns
-            if (this.FilterColumns != null)
-            {
-                for (int i = 0; i < this.FilterColumns.Count; i++)
-                {
-                    var filterColumn = this.FilterColumns[i];
-
-                    if (this.tableDescription.PrimaryKey.Columns.Any(c => c.ColumnName == filterColumn.ColumnName))
-                        continue;
-
-                    ObjectNameParser columnName = new ObjectNameParser(filterColumn.ColumnName);
-                    stringBuilder.AppendLine($"\t,{columnName.QuotedString} ASC");
-                }
-            }
-
-            foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
-            {
-                ObjectNameParser columnName = new ObjectNameParser(pkColumn.ColumnName);
-                stringBuilder.AppendLine($"\t,{columnName.QuotedString} ASC");
-            }
-            stringBuilder.Append(")");
+           
             return stringBuilder.ToString();
         }
 
         public string CreateIndexScriptText()
         {
             string str = string.Concat("Create index on Tracking Table ", trackingName.QuotedString);
-            return SqlBuilder.WrapScriptTextWithComments(this.CreateIndexCommandText(), str);
+            return "";
         }
 
         public void CreatePk()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
-
             try
             {
-                using (var command = new SqlCommand())
+                using (var command = new SQLiteCommand())
                 {
                     if (!alreadyOpened)
                         this.connection.Open();
@@ -120,47 +67,28 @@ namespace Dotmim.Sync.SqlServer.Builders
                     command.CommandText = this.CreatePkCommandText();
                     command.Connection = this.connection;
                     command.ExecuteNonQuery();
-
                 }
             }
             catch (Exception ex)
             {
                 Logger.Current.Error($"Error during CreateIndex : {ex}");
                 throw;
-
             }
             finally
             {
                 if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
                     this.connection.Close();
-
             }
-
         }
         public string CreatePkScriptText()
         {
-            string str = string.Concat("Create Primary Key on Tracking Table ", trackingName.QuotedString);
-            return SqlBuilder.WrapScriptTextWithComments(this.CreatePkCommandText(), str);
+            string str = string.Concat("No need to Create Primary Key on Tracking Table since it's done during table creation ", trackingName.QuotedString);
+            return "";
         }
 
         public string CreatePkCommandText()
         {
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.Append($"ALTER TABLE {trackingName.QuotedString} ADD CONSTRAINT [PK_{trackingName.UnquotedStringWithUnderScore}] PRIMARY KEY (");
-
-            for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
-            {
-                DmColumn pkColumn = this.tableDescription.PrimaryKey.Columns[i];
-                var quotedColumnName = new ObjectNameParser(pkColumn.ColumnName, "[", "]").QuotedString;
-
-                stringBuilder.Append(quotedColumnName);
-
-                if (i < this.tableDescription.PrimaryKey.Columns.Length - 1)
-                    stringBuilder.Append(", ");
-            }
-            stringBuilder.Append(")");
-
-            return stringBuilder.ToString();
+            return "";
         }
 
         public void CreateTable()
@@ -169,7 +97,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             try
             {
-                using (var command = new SqlCommand())
+                using (var command = new SQLiteCommand())
                 {
                     if (!alreadyOpened)
                         this.connection.Open();
@@ -202,7 +130,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         public string CreateTableScriptText()
         {
             string str = string.Concat("Create Tracking Table ", trackingName.QuotedString);
-            return SqlBuilder.WrapScriptTextWithComments(this.CreateTableCommandText(), str);
+            return SQLiteBuilder.WrapScriptTextWithComments(this.CreateTableCommandText(), str);
         }
 
         public string CreateTableCommandText()
@@ -215,19 +143,19 @@ namespace Dotmim.Sync.SqlServer.Builders
             {
                 var quotedColumnName = new ObjectNameParser(pkColumn.ColumnName, "[", "]").QuotedString;
                 var quotedColumnType = new ObjectNameParser(pkColumn.GetSqlDbTypeString(), "[", "]").QuotedString;
-                quotedColumnType += pkColumn.GetSqlTypePrecisionString();
+                quotedColumnType += pkColumn.GetSQLiteTypePrecisionString();
                 var nullableColumn = pkColumn.AllowDBNull ? "NULL" : "NOT NULL";
 
                 stringBuilder.AppendLine($"{quotedColumnName} {quotedColumnType} {nullableColumn}, ");
             }
 
             // adding the tracking columns
-            stringBuilder.AppendLine($"[create_scope_id] [uniqueidentifier] NULL, ");
-            stringBuilder.AppendLine($"[update_scope_id] [uniqueidentifier] NULL, ");
-            stringBuilder.AppendLine($"[create_timestamp] [bigint] NULL, ");
-            stringBuilder.AppendLine($"[update_timestamp] [bigint] NULL, ");
-            stringBuilder.AppendLine($"[timestamp] [timestamp] NULL, ");
-            stringBuilder.AppendLine($"[sync_row_is_tombstone] [bit] NOT NULL default(0), ");
+            stringBuilder.AppendLine($"[create_scope_id] [text] NULL, ");
+            stringBuilder.AppendLine($"[update_scope_id] [text] NULL, ");
+            stringBuilder.AppendLine($"[create_timestamp] [integer] NULL, ");
+            stringBuilder.AppendLine($"[update_timestamp] [integer] NULL, ");
+            stringBuilder.AppendLine($"[timestamp] [integer] NULL, ");
+            stringBuilder.AppendLine($"[sync_row_is_tombstone] [integer] NOT NULL default(0), ");
             stringBuilder.AppendLine($"[last_change_datetime] [datetime] NULL, ");
 
             // adding the filter columns
@@ -240,20 +168,35 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                     var quotedColumnName = new ObjectNameParser(filterColumn.ColumnName, "[", "]").QuotedString;
                     var quotedColumnType = new ObjectNameParser(filterColumn.GetSqlDbTypeString(), "[", "]").QuotedString;
-                    quotedColumnType += filterColumn.GetSqlTypePrecisionString();
+                    quotedColumnType += filterColumn.GetSQLiteTypePrecisionString();
                     var nullableColumn = filterColumn.AllowDBNull ? "NULL" : "NOT NULL";
 
                     stringBuilder.AppendLine($"{quotedColumnName} {quotedColumnType} {nullableColumn}, ");
                 }
+
+            stringBuilder.Append(" PRIMARY KEY (");
+            for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
+            {
+                DmColumn pkColumn = this.tableDescription.PrimaryKey.Columns[i];
+                var quotedColumnName = new ObjectNameParser(pkColumn.ColumnName).ObjectName;
+
+                stringBuilder.Append(quotedColumnName);
+
+                if (i < this.tableDescription.PrimaryKey.Columns.Length - 1)
+                    stringBuilder.Append(", ");
+            }
             stringBuilder.Append(")");
+
+
+            stringBuilder.Append(")");
+
             return stringBuilder.ToString();
         }
 
         public bool NeedToCreateTrackingTable(DbBuilderOption builderOption)
         {
-
             if (builderOption.HasFlag(DbBuilderOption.CreateOrUseExistingSchema))
-                return !SqlManagementUtils.TableExists(connection, transaction, trackingName.QuotedString);
+                return !SQLiteManagementUtils.TableExists(connection, transaction, trackingName.QuotedString);
 
             return false;
         }
@@ -264,7 +207,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             try
             {
-                using (var command = new SqlCommand())
+                using (var command = new SQLiteCommand())
                 {
                     if (!alreadyOpened)
                         this.connection.Open();
@@ -343,15 +286,15 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.Append("[update_scope_id], ");
             stringBuilder.Append("[create_timestamp], ");
             stringBuilder.Append("[update_timestamp], ");
-            //stringBuilder.Append("[timestamp], "); // timestamp is not a column we update, it's auto
+            stringBuilder.Append("[timestamp], "); // timestamp is not a column we update, it's auto
             stringBuilder.Append("[sync_row_is_tombstone] ");
             stringBuilder.AppendLine(string.Concat(stringBuilder6.ToString(), ") "));
             stringBuilder.Append(string.Concat("SELECT ", stringBuilder2.ToString(), ", "));
             stringBuilder.Append("NULL, ");
             stringBuilder.Append("NULL, ");
-            stringBuilder.Append("@@DBTS+1, ");
+            stringBuilder.Append("strftime('%s', datetime('now', 'utc')), ");
             stringBuilder.Append("0, ");
-            //stringBuilder.Append("@@DBTS+1, "); // timestamp is not a column we update, it's auto
+            stringBuilder.Append($"strftime('%s', datetime('now', 'utc')), ");
             stringBuilder.Append("0");
             stringBuilder.AppendLine(string.Concat(stringBuilder5.ToString(), " "));
             string[] localName = new string[] { "FROM ", tableName.QuotedString, " ", baseTable, " LEFT OUTER JOIN ", trackingName.QuotedString, " ", sideTable, " " };
@@ -364,7 +307,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         public string CreatePopulateFromBaseTableScriptText()
         {
             string str = string.Concat("Populate tracking table ", trackingName.QuotedString, " for existing data in table ", tableName.QuotedString);
-            return SqlBuilder.WrapScriptTextWithComments(this.CreatePopulateFromBaseTableCommandText(), str);
+            return SQLiteBuilder.WrapScriptTextWithComments(this.CreatePopulateFromBaseTableCommandText(), str);
         }
 
         public void PopulateNewFilterColumnFromBaseTable(DmColumn filterColumn)
@@ -383,7 +326,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             try
             {
-                using (var command = new SqlCommand())
+                using (var command = new SQLiteCommand())
                 {
                     if (!alreadyOpened)
                         this.connection.Open();
@@ -416,7 +359,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
             var quotedColumnName = new ObjectNameParser(col.ColumnName, "[", "]").QuotedString;
             var quotedColumnType = new ObjectNameParser(col.GetSqlDbTypeString(), "[", "]").QuotedString;
-            quotedColumnType += col.GetSqlTypePrecisionString();
+            quotedColumnType += col.GetSQLiteTypePrecisionString();
 
             return string.Concat("ALTER TABLE ", quotedColumnName, " ADD ", quotedColumnType);
         }
@@ -425,7 +368,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             var quotedColumnName = new ObjectNameParser(filterColumn.ColumnName, "[", "]");
 
             string str = string.Concat("Add new filter column, ", quotedColumnName.UnquotedString, ", to Tracking Table ", trackingName.QuotedString);
-            return SqlBuilder.WrapScriptTextWithComments(this.AddFilterColumnCommandText(filterColumn), str);
+            return SQLiteBuilder.WrapScriptTextWithComments(this.AddFilterColumnCommandText(filterColumn), str);
         }
 
 
