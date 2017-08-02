@@ -145,7 +145,7 @@ namespace Dotmim.Sync.SQLite
             foreach (var column in this.tableDescription.Columns)
             {
                 var columnName = new ObjectNameParser(column.ColumnName);
-                var columnType = $"{column.GetSqlDbTypeString()} {column.GetSQLiteTypePrecisionString()}";
+                var columnType = $"{column.GetSQLiteDbTypeString()} {column.GetSQLiteTypePrecisionString()}";
                 var identity = string.Empty;
 
                 if (column.AutoIncrement)

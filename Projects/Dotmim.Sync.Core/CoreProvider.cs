@@ -98,6 +98,17 @@ namespace Dotmim.Sync.Core
 
 
         /// <summary>
+        /// Gets a boolean indicating if the provider can use bulk operations
+        /// </summary>
+        public abstract bool SupportBulkOperations { get; }
+
+        /// <summary>
+        /// Gets a boolean indicating if the provider can be a server side provider
+        /// </summary>
+        public abstract bool CanBeServerProvider { get; }
+
+
+        /// <summary>
         /// Called by the  to indicate that a 
         /// synchronization session has started.
         /// </summary>
@@ -170,7 +181,7 @@ namespace Dotmim.Sync.Core
                 {
                     await connection.OpenAsync();
 
-                    using (var transaction = connection.BeginTransaction(IsolationLevel.ReadUncommitted))
+                    using (var transaction = connection.BeginTransaction())
                     {
                         foreach (var table in serviceConfiguration.Tables)
                         {
@@ -426,7 +437,7 @@ namespace Dotmim.Sync.Core
                     {
                         await connection.OpenAsync();
 
-                        using (var transaction = connection.BeginTransaction(IsolationLevel.ReadUncommitted))
+                        using (var transaction = connection.BeginTransaction())
                         {
                             var scopeBuilder = this.GetScopeBuilder();
                             var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(connection, transaction);
@@ -625,7 +636,7 @@ namespace Dotmim.Sync.Core
                 {
                     await connection.OpenAsync();
 
-                    using (var transaction = connection.BeginTransaction(IsolationLevel.ReadUncommitted))
+                    using (var transaction = connection.BeginTransaction())
                     {
                         foreach (var dmTable in configuration.ScopeSet.Tables)
                         {
@@ -804,7 +815,7 @@ namespace Dotmim.Sync.Core
                 // Open the connection
                 await connection.OpenAsync();
 
-                using (var transaction = connection.BeginTransaction(IsolationLevel.ReadUncommitted))
+                using (var transaction = connection.BeginTransaction())
                 {
                     try
                     {
@@ -835,7 +846,7 @@ namespace Dotmim.Sync.Core
 
                             // Get Command
                             DbCommand selectIncrementalChangesCommand = syncAdapter.GetCommand(DbCommandType.SelectChanges);
-                            
+
                             if (selectIncrementalChangesCommand == null)
                             {
                                 var exc = "Missing command 'SelectIncrementalChangesCommand' ";
@@ -844,7 +855,7 @@ namespace Dotmim.Sync.Core
                             }
 
                             // Deriving Parameters
-                            syncAdapter.SetCommandParameters(selectIncrementalChangesCommand);
+                            syncAdapter.SetCommandParameters(DbCommandType.SelectChanges, selectIncrementalChangesCommand);
 
                             // Get a clone of the table with tracking columns
                             var dmTableChanges = BuildChangesTable(tableDescription.TableName);
@@ -972,7 +983,7 @@ namespace Dotmim.Sync.Core
                 // Open the connection
                 await connection.OpenAsync();
 
-                using (var transaction = connection.BeginTransaction(IsolationLevel.ReadUncommitted))
+                using (var transaction = connection.BeginTransaction())
                 {
                     // create the in memory changes set
                     DmSet changesSet = new DmSet(configuration.ScopeSet.DmSetName);
@@ -981,15 +992,15 @@ namespace Dotmim.Sync.Core
                     {
                         var builder = this.GetDatabaseBuilder(tableDescription);
                         var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
-                       syncAdapter.ConflictApplyAction = configuration.GetApplyAction();
+                        syncAdapter.ConflictApplyAction = configuration.GetApplyAction();
 
                         Logger.Current.Info($"----- Table \"{tableDescription.TableName}\" -----");
 
                         // get the select incremental changes command
-                        DbCommand selectIncrementalChangesCommand =  syncAdapter.GetCommand(DbCommandType.SelectChanges);
+                        DbCommand selectIncrementalChangesCommand = syncAdapter.GetCommand(DbCommandType.SelectChanges);
 
                         // Deriving Parameters
-                        syncAdapter.SetCommandParameters(selectIncrementalChangesCommand);
+                        syncAdapter.SetCommandParameters(DbCommandType.SelectChanges, selectIncrementalChangesCommand);
 
                         if (selectIncrementalChangesCommand == null)
                         {
@@ -1205,28 +1216,66 @@ namespace Dotmim.Sync.Core
         /// </summary>
         private DmRow CreateRowFromReader(IDataReader dataReader, DmTable dmTable)
         {
-            object object_create_timestamp = dataReader["create_timestamp"];
-            object object_update_timestamp = dataReader["update_timestamp"];
-            object object_sync_row_is_tombstone = dataReader["sync_row_is_tombstone"];
-            object object_create_scope_id = dataReader["create_scope_id"];
-            object object_update_scope_id = dataReader["update_scope_id"];
-
-            //var state = GetStateFromDmRow(object_create_timestamp, object_update_timestamp,
-            //    object_sync_row_is_tombstone, object_create_scope_id, object_update_scope_id);
-
             // we have an insert / update or delete
             DmRow dataRow = dmTable.NewRow();
 
             for (int i = 0; i < dataReader.FieldCount; i++)
             {
                 var columnName = dataReader.GetName(i);
-                var value = dataReader.GetValue(i);
+                var dmRowObject = dataReader.GetValue(i);
 
-                //if (!dmTable.Columns.Contains(columnName))
-                //    Logger.Current.Critical($"{columnName} does not exist ...");
+                if (dmRowObject != DBNull.Value)
+                {
+                    if (dmRowObject != null)
+                    {
+                        var columnType = dmTable.Columns[columnName].DataType;
+                        var dmRowObjectType = dmRowObject.GetType();
 
-                if (value != DBNull.Value)
-                    dataRow[columnName] = value;
+                        if (dmRowObjectType != columnType)
+                        {
+                            if (columnType == typeof(Guid) && (dmRowObject as string) != null)
+                                dmRowObject = new Guid(dmRowObject.ToString());
+                            else if (columnType == typeof(Int32) && dmRowObjectType != typeof(Int32))
+                                dmRowObject = Convert.ToInt32(dmRowObject);
+                            else if (columnType == typeof(UInt32) && dmRowObjectType != typeof(UInt32))
+                                dmRowObject = Convert.ToUInt32(dmRowObject);
+                            else if (columnType == typeof(Int16) && dmRowObjectType != typeof(Int16))
+                                dmRowObject = Convert.ToInt16(dmRowObject);
+                            else if (columnType == typeof(UInt16) && dmRowObjectType != typeof(UInt16))
+                                dmRowObject = Convert.ToUInt16(dmRowObject);
+                            else if (columnType == typeof(Int64) && dmRowObjectType != typeof(Int64))
+                                dmRowObject = Convert.ToInt64(dmRowObject);
+                            else if (columnType == typeof(UInt64) && dmRowObjectType != typeof(UInt64))
+                                dmRowObject = Convert.ToUInt64(dmRowObject);
+                            else if (columnType == typeof(Byte) && dmRowObjectType != typeof(Byte))
+                                dmRowObject = Convert.ToByte(dmRowObject);
+                            else if (columnType == typeof(Char) && dmRowObjectType != typeof(Char))
+                                dmRowObject = Convert.ToChar(dmRowObject);
+                            else if (columnType == typeof(DateTime) && dmRowObjectType != typeof(DateTime))
+                                dmRowObject = Convert.ToDateTime(dmRowObject);
+                            else if (columnType == typeof(Decimal) && dmRowObjectType != typeof(Decimal))
+                                dmRowObject = Convert.ToDecimal(dmRowObject);
+                            else if (columnType == typeof(Double) && dmRowObjectType != typeof(Double))
+                                dmRowObject = Convert.ToDouble(dmRowObject);
+                            else if (columnType == typeof(SByte) && dmRowObjectType != typeof(SByte))
+                                dmRowObject = Convert.ToSByte(dmRowObject);
+                            else if (columnType == typeof(Single) && dmRowObjectType != typeof(Single))
+                                dmRowObject = Convert.ToSingle(dmRowObject);
+                            else if (columnType == typeof(String) && dmRowObjectType != typeof(String))
+                                dmRowObject = Convert.ToString(dmRowObject);
+                            else if (columnType == typeof(Boolean) && dmRowObjectType != typeof(Boolean))
+                                dmRowObject = Convert.ToBoolean(dmRowObject);
+                            else if (dmRowObjectType != columnType)
+                            {
+                                var t = dmRowObject.GetType();
+                                var converter = columnType.GetConverter();
+                                if (converter.CanConvertFrom(t))
+                                    dmRowObject = converter.ConvertFrom(dmRowObject);
+                            }
+                        }
+                    }
+                    dataRow[columnName] = dmRowObject;
+                }
             }
 
             return dataRow;
@@ -1239,7 +1288,9 @@ namespace Dotmim.Sync.Core
         {
             DmRowState dmRowState = DmRowState.Unchanged;
 
-            if ((bool)dataRow["sync_row_is_tombstone"])
+            var isTombstone = Convert.ToInt64(dataRow["sync_row_is_tombstone"]) > 0;
+
+            if (isTombstone)
                 dmRowState = DmRowState.Deleted;
             else
             {
@@ -1342,7 +1393,7 @@ namespace Dotmim.Sync.Core
                         };
 
                         // Create a transaction
-                        applyTransaction = connection.BeginTransaction(IsolationLevel.ReadCommitted);
+                        applyTransaction = connection.BeginTransaction();
 
                         Logger.Current.Info($"----- Applying Changes for Scope \"{fromScope.Name}\" -----");
                         Logger.Current.Info("");
@@ -1477,7 +1528,7 @@ namespace Dotmim.Sync.Core
 
                     var builder = this.GetDatabaseBuilder(tableDescription);
                     var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
-                   syncAdapter.ConflictApplyAction = configuration.GetApplyAction();
+                    syncAdapter.ConflictApplyAction = configuration.GetApplyAction();
 
                     // Set syncAdapter properties
                     syncAdapter.applyType = applyType;
@@ -1513,7 +1564,7 @@ namespace Dotmim.Sync.Core
 
                             int rowsApplied;
                             // applying the bulkchanges command
-                            if (configuration.UseBulkOperations)
+                            if (configuration.UseBulkOperations && this.SupportBulkOperations)
                                 rowsApplied = syncAdapter.ApplyBulkChanges(dmChangesView, fromScope, conflicts);
                             else
                                 rowsApplied = syncAdapter.ApplyChanges(dmChangesView, fromScope, conflicts);

@@ -23,7 +23,7 @@ namespace Dotmim.Sync.Core.Manager
         /// Gets a table manager, who can execute somes queries directly on source database
         /// </summary>
         public abstract IDbManagerTable CreateManagerTable(DbConnection connection, DbTransaction transaction = null);
-        
+
         public IDbManagerTable GetManagerTable(DbConnection connection, DbTransaction transaction = null)
         {
             var mgerTable = CreateManagerTable(connection, transaction);
@@ -39,11 +39,11 @@ namespace Dotmim.Sync.Core.Manager
             if (command == null)
                 return null;
 
-            if (command.Parameters.Contains(string.Concat("@", parameterName)))
-                return command.Parameters[string.Concat("@", parameterName)];
+            if (command.Parameters.Contains($"@{parameterName}"))
+                return command.Parameters[$"@{parameterName}"];
 
-            if (command.Parameters.Contains(string.Concat(":", parameterName)))
-                return command.Parameters[string.Concat(":", parameterName)];
+            if (command.Parameters.Contains($":{parameterName}"))
+                return command.Parameters[$":{parameterName}"];
 
             if (!command.Parameters.Contains(parameterName))
                 return null;
@@ -57,13 +57,11 @@ namespace Dotmim.Sync.Core.Manager
         public static void SetParameterValue(DbCommand command, string parameterName, object value)
         {
             DbParameter parameter = GetParameter(command, parameterName);
-            if (parameter != null)
-                if (value == null)
-                    parameter.Value = DBNull.Value;
-                else
-                    parameter.Value = value;
-        }
+            if (parameter == null)
+                return;
 
+            parameter.Value = value == null ? DBNull.Value : value;
+        }
 
         public static int GetSyncIntOutParameter(string parameter, DbCommand command)
         {
@@ -121,7 +119,7 @@ namespace Dotmim.Sync.Core.Manager
                 if (disposing)
                 {
 
-                   
+
                 }
 
                 // TODO: free unmanaged resources (unmanaged objects) and override a finalizer below.
@@ -131,7 +129,7 @@ namespace Dotmim.Sync.Core.Manager
             }
         }
 
-     
+
 
         // This code added to correctly implement the disposable pattern.
         public void Dispose()

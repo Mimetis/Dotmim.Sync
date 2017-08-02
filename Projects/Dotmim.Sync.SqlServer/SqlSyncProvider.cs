@@ -44,6 +44,19 @@ namespace Dotmim.Sync.SqlServer
 
             }
         }
+
+        /// <summary>
+        /// Sql server support bulk operations through Table Value parameter
+        /// </summary>
+        public override bool SupportBulkOperations => true;
+
+        /// <summary>
+        /// Sql Server supports to be a server side provider
+        /// </summary>
+        public override bool CanBeServerProvider => true;
+        
+
+
         public override DbConnection CreateConnection() => new SqlConnection(this.connectionString);
         public override DbScopeBuilder GetScopeBuilder() => new SqlScopeBuilder();
         public override DbBuilder GetDatabaseBuilder(DmTable tableDescription, DbBuilderOption options = DbBuilderOption.UseExistingSchema) => new SqlBuilder(tableDescription, options);

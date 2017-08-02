@@ -142,7 +142,7 @@ namespace Dotmim.Sync.SQLite
             foreach (DmColumn pkColumn in this.tableDescription.PrimaryKey.Columns)
             {
                 var quotedColumnName = new ObjectNameParser(pkColumn.ColumnName, "[", "]").QuotedString;
-                var quotedColumnType = new ObjectNameParser(pkColumn.GetSqlDbTypeString(), "[", "]").QuotedString;
+                var quotedColumnType = new ObjectNameParser(pkColumn.GetSQLiteDbTypeString(), "[", "]").QuotedString;
                 quotedColumnType += pkColumn.GetSQLiteTypePrecisionString();
                 var nullableColumn = pkColumn.AllowDBNull ? "NULL" : "NOT NULL";
 
@@ -167,7 +167,7 @@ namespace Dotmim.Sync.SQLite
                         continue;
 
                     var quotedColumnName = new ObjectNameParser(filterColumn.ColumnName, "[", "]").QuotedString;
-                    var quotedColumnType = new ObjectNameParser(filterColumn.GetSqlDbTypeString(), "[", "]").QuotedString;
+                    var quotedColumnType = new ObjectNameParser(filterColumn.GetSQLiteDbTypeString(), "[", "]").QuotedString;
                     quotedColumnType += filterColumn.GetSQLiteTypePrecisionString();
                     var nullableColumn = filterColumn.AllowDBNull ? "NULL" : "NOT NULL";
 
@@ -358,7 +358,7 @@ namespace Dotmim.Sync.SQLite
         private string AddFilterColumnCommandText(DmColumn col)
         {
             var quotedColumnName = new ObjectNameParser(col.ColumnName, "[", "]").QuotedString;
-            var quotedColumnType = new ObjectNameParser(col.GetSqlDbTypeString(), "[", "]").QuotedString;
+            var quotedColumnType = new ObjectNameParser(col.GetSQLiteDbTypeString(), "[", "]").QuotedString;
             quotedColumnType += col.GetSQLiteTypePrecisionString();
 
             return string.Concat("ALTER TABLE ", quotedColumnName, " ADD ", quotedColumnType);

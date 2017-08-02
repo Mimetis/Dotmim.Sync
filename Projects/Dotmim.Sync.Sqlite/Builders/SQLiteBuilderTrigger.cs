@@ -44,6 +44,7 @@ namespace Dotmim.Sync.SQLite
             stringBuilder.AppendLine("SET [sync_row_is_tombstone] = 1");
             stringBuilder.AppendLine("\t,[update_scope_id] = NULL -- since the update if from local, it's a NULL");
             stringBuilder.AppendLine("\t,[update_timestamp] = strftime('%s', datetime('now', 'utc'))");
+            stringBuilder.AppendLine("\t,[timestamp] = strftime('%s', datetime('now', 'utc'))");
             stringBuilder.AppendLine("\t,[last_change_datetime] = datetime('now')");
             // Filter columns
             if (this.FilterColumns != null)
@@ -158,6 +159,7 @@ namespace Dotmim.Sync.SQLite
             stringBuilder.AppendLine("\t\t,[create_timestamp]");
             stringBuilder.AppendLine("\t\t,[update_scope_id]");
             stringBuilder.AppendLine("\t\t,[update_timestamp]");
+            stringBuilder.AppendLine("\t\t,[timestamp]");
             stringBuilder.AppendLine("\t\t,[sync_row_is_tombstone]");
             stringBuilder.AppendLine("\t\t,[last_change_datetime]");
 
@@ -168,16 +170,12 @@ namespace Dotmim.Sync.SQLite
                 for (int i = 0; i < this.FilterColumns.Count; i++)
                 {
                     var filterColumn = this.FilterColumns[i];
-
                     if (this.tableDescription.PrimaryKey.Columns.Any(c => c.ColumnName == filterColumn.ColumnName))
                         continue;
 
                     ObjectNameParser columnName = new ObjectNameParser(filterColumn.ColumnName);
-
                     filterColumnsString.AppendLine($"\t,[i].{columnName.QuotedString}");
-
                 }
-
                 stringBuilder.AppendLine(filterColumnsString.ToString());
             }
             stringBuilder.AppendLine("\t) ");
@@ -187,6 +185,7 @@ namespace Dotmim.Sync.SQLite
             stringBuilder.AppendLine("\t\t,strftime('%s', datetime('now', 'utc'))");
             stringBuilder.AppendLine("\t\t,NULL");
             stringBuilder.AppendLine("\t\t,0");
+            stringBuilder.AppendLine("\t\t,strftime('%s', datetime('now', 'utc'))");
             stringBuilder.AppendLine("\t\t,0");
             stringBuilder.AppendLine("\t\t,datetime('now')");
 
@@ -265,6 +264,7 @@ namespace Dotmim.Sync.SQLite
             stringBuilder.AppendLine($"\tUPDATE {trackingName.QuotedString} ");
             stringBuilder.AppendLine("\tSET [update_scope_id] = NULL -- since the update if from local, it's a NULL");
             stringBuilder.AppendLine("\t\t,[update_timestamp] = strftime('%s', datetime('now', 'utc'))");
+            stringBuilder.AppendLine("\t\t,[timestamp] = strftime('%s', datetime('now', 'utc'))");
             stringBuilder.AppendLine("\t\t,[last_change_datetime] = datetime('now')");
             // Filter columns
             if (this.FilterColumns != null && FilterColumns.Count > 0)

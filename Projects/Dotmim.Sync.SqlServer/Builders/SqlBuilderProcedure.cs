@@ -33,8 +33,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             this.tableDescription = tableDescription;
             (this.tableName, this.trackingName) = SqlBuilder.GetParsers(tableDescription);
             this.sqlObjectNames = new SqlObjectNames(this.tableDescription);
-
-
         }
 
         private void AddPkColumnParametersToCommand(SqlCommand sqlCommand)
@@ -213,7 +211,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             return false;
         }
 
-
         private string BulkSelectUnsuccessfulRows()
         {
             var stringBuilder = new StringBuilder();
@@ -255,7 +252,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("\t)");
             return stringBuilder.ToString();
         }
-
 
         //------------------------------------------------------------------
         // Bulk Delete command
@@ -691,7 +687,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         public void CreateBulkUpdate()
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkUpdateRows);
-            CreateProcedureCommand(BuildBulkInsertCommand, commandName);
+            CreateProcedureCommand(BuildBulkUpdateCommand, commandName);
         }
         public string CreateBulkUpdateScriptText()
         {

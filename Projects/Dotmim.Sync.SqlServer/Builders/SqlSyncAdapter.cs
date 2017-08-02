@@ -202,7 +202,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         /// <summary>
         /// Set a stored procedure parameters
         /// </summary>
-        public override void SetCommandParameters(DbCommand command)
+        public override void SetCommandParameters(DbCommandType commandType, DbCommand command)
         {
             if (command == null)
                 return;

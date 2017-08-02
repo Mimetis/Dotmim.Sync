@@ -8,6 +8,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Reflection;
 using System.Data;
+using DmBinaryFormatter;
 
 namespace Dotmim.Sync.Data
 {
@@ -494,6 +495,57 @@ namespace Dotmim.Sync.Data
 
         void Set(int recordKey, object value)
         {
+
+            //if (value != null)
+            //{
+            //    var columnType = this.DataType;
+            //    var valueType = value.GetType();
+
+            //    if (valueType != columnType)
+            //    {
+            //        if (columnType == typeof(Guid) && (value as string) != null)
+            //            value = new Guid(value.ToString());
+            //        else if (columnType == typeof(Int32) && valueType != typeof(Int32))
+            //            value = Convert.ToInt32(value);
+            //        else if (columnType == typeof(UInt32) && valueType != typeof(UInt32))
+            //            value = Convert.ToUInt32(value);
+            //        else if (columnType == typeof(Int16) && valueType != typeof(Int16))
+            //            value = Convert.ToInt16(value);
+            //        else if (columnType == typeof(UInt16) && valueType != typeof(UInt16))
+            //            value = Convert.ToUInt16(value);
+            //        else if (columnType == typeof(Int64) && valueType != typeof(Int64))
+            //            value = Convert.ToInt64(value);
+            //        else if (columnType == typeof(UInt64) && valueType != typeof(UInt64))
+            //            value = Convert.ToUInt64(value);
+            //        else if (columnType == typeof(Byte) && valueType != typeof(Byte))
+            //            value = Convert.ToByte(value);
+            //        else if (columnType == typeof(Char) && valueType != typeof(Char))
+            //            value = Convert.ToChar(value);
+            //        else if (columnType == typeof(DateTime) && valueType != typeof(DateTime))
+            //            value = Convert.ToDateTime(value);
+            //        else if (columnType == typeof(Decimal) && valueType != typeof(Decimal))
+            //            value = Convert.ToDecimal(value);
+            //        else if (columnType == typeof(Double) && valueType != typeof(Double))
+            //            value = Convert.ToDouble(value);
+            //        else if (columnType == typeof(SByte) && valueType != typeof(SByte))
+            //            value = Convert.ToSByte(value);
+            //        else if (columnType == typeof(Single) && valueType != typeof(Single))
+            //            value = Convert.ToSingle(value);
+            //        else if (columnType == typeof(String) && valueType != typeof(String))
+            //            value = Convert.ToString(value);
+            //        else if (columnType == typeof(Boolean) && valueType != typeof(Boolean))
+            //            value = Convert.ToBoolean(value);
+            //        else if (valueType != columnType)
+            //        {
+            //            var t = value.GetType();
+            //            var converter = columnType.GetConverter();
+            //            if (converter.CanConvertFrom(t))
+            //                value = converter.ConvertFrom(value);
+            //        }
+            //    }
+            //}
+
+
             if (storage.ContainsKey(recordKey))
                 storage[recordKey] = value;
             else

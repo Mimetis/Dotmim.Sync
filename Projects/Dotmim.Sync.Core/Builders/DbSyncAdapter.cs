@@ -50,7 +50,7 @@ namespace Dotmim.Sync.Core.Builders
         /// <summary>
         /// Set parameters on a command
         /// </summary>
-        public abstract void SetCommandParameters(DbCommand command);
+        public abstract void SetCommandParameters(DbCommandType commandType, DbCommand command);
 
         /// <summary>
         /// Execute a batch command
@@ -80,7 +80,7 @@ namespace Dotmim.Sync.Core.Builders
         /// <summary>
         /// Set command parameters value mapped to Row
         /// </summary>
-        internal void SetColumnParameters(DbCommand command, DmRow row)
+        internal void SetColumnParametersValues(DbCommand command, DmRow row)
         {
             foreach (DbParameter parameter in command.Parameters)
             {
@@ -111,7 +111,7 @@ namespace Dotmim.Sync.Core.Builders
         /// <summary>
         /// Insert or update a metadata line
         /// </summary>
-        internal bool InsertOrUpdateMetadatas(DbCommand command, DmRow row, ScopeInfo scope)
+        internal bool InsertOrUpdateMetadatas(DbCommand command, DmRow row, Guid fromScopeId, long lastTimestamp)
         {
             int rowsApplied = 0;
 
@@ -123,12 +123,12 @@ namespace Dotmim.Sync.Core.Builders
             }
 
             // Set the id parameter
-            this.SetColumnParameters(command, row);
+            this.SetColumnParametersValues(command, row);
 
-            DbManager.SetParameterValue(command, "sync_scope_id", scope.Id == Guid.Empty ? null : (object)scope.Id);
+            DbManager.SetParameterValue(command, "sync_scope_id", fromScopeId == Guid.Empty ? null : (object)fromScopeId);
             DbManager.SetParameterValue(command, "sync_row_is_tombstone", row.RowState == DmRowState.Deleted ? 1 : 0);
-            DbManager.SetParameterValue(command, "create_timestamp", scope.LastTimestamp);
-            DbManager.SetParameterValue(command, "update_timestamp", scope.LastTimestamp);
+            DbManager.SetParameterValue(command, "create_timestamp", lastTimestamp);
+            DbManager.SetParameterValue(command, "update_timestamp", lastTimestamp);
 
             try
             {
@@ -162,9 +162,9 @@ namespace Dotmim.Sync.Core.Builders
             DbCommand selectCommand = GetCommand(DbCommandType.SelectRow);
 
             // Deriving Parameters
-            this.SetCommandParameters(selectCommand);
+            this.SetCommandParameters(DbCommandType.SelectRow, selectCommand);
 
-            this.SetColumnParameters(selectCommand, sourceRow);
+            this.SetColumnParametersValues(selectCommand, sourceRow);
 
             var alreadyOpened = Connection.State == ConnectionState.Open;
 
@@ -208,16 +208,23 @@ namespace Dotmim.Sync.Core.Builders
             DbCommand bulkCommand = null;
 
             if (this.applyType == DmRowState.Added)
+            {
                 bulkCommand = this.GetCommand(DbCommandType.BulkInsertRows);
+                this.SetCommandParameters(DbCommandType.BulkInsertRows, bulkCommand);
+            }
             else if (this.applyType == DmRowState.Modified)
+            {
                 bulkCommand = this.GetCommand(DbCommandType.BulkUpdateRows);
+                this.SetCommandParameters(DbCommandType.BulkUpdateRows, bulkCommand);
+            }
             else if (this.applyType == DmRowState.Deleted)
+            {
                 bulkCommand = this.GetCommand(DbCommandType.BulkDeleteRows);
+                this.SetCommandParameters(DbCommandType.BulkDeleteRows, bulkCommand);
+            }
             else
                 throw new Exception("DmRowState not valid during ApplyBulkChanges operation");
 
-            // Deriving Parameters
-            this.SetCommandParameters(bulkCommand);
 
             if (Transaction != null && Transaction.Connection != null)
                 bulkCommand.Transaction = Transaction;
@@ -310,17 +317,49 @@ namespace Dotmim.Sync.Core.Builders
         internal int ApplyChanges(DmView dmChanges, ScopeInfo scope, List<SyncConflict> conflicts)
         {
             int appliedRows = 0;
-
+            DbCommand dbCommand;
             foreach (var dmRow in dmChanges)
             {
                 bool operationComplete = false;
 
                 if (applyType == DmRowState.Added)
-                    operationComplete = this.ApplyInsert(dmRow);
+                {
+                    operationComplete = this.ApplyInsert(dmRow, scope, false);
+                    if (operationComplete)
+                    {
+                        dbCommand = this.GetCommand(DbCommandType.InsertMetadata);
+                        this.SetCommandParameters(DbCommandType.InsertMetadata, dbCommand);
+
+                        var lastTimestamp = (long)dmRow["create_timestamp"];
+                        this.InsertOrUpdateMetadatas(dbCommand, dmRow, scope.Id, lastTimestamp);
+
+                    }
+                }
                 else if (applyType == DmRowState.Modified)
+                {
                     operationComplete = this.ApplyUpdate(dmRow, scope, false);
+                    if (operationComplete)
+                    {
+                        dbCommand = this.GetCommand(DbCommandType.UpdateMetadata);
+
+                        var lastTimestamp = (long)dmRow["update_timestamp"];
+                        this.SetCommandParameters(DbCommandType.UpdateMetadata, dbCommand);
+                        this.InsertOrUpdateMetadatas(dbCommand, dmRow, scope.Id, lastTimestamp);
+                    }
+                }
                 else if (applyType == DmRowState.Deleted)
+                {
                     operationComplete = this.ApplyDelete(dmRow, scope, false);
+                    if (operationComplete)
+                    {
+                        dbCommand = this.GetCommand(DbCommandType.UpdateMetadata);
+
+                        var lastTimestamp = (long)dmRow["update_timestamp"];
+                        this.SetCommandParameters(DbCommandType.UpdateMetadata, dbCommand);
+                        this.InsertOrUpdateMetadatas(dbCommand, dmRow, scope.Id, lastTimestamp);
+                    }
+                }
+
 
                 if (operationComplete)
                     // if no pb, increment then go to next row
@@ -336,15 +375,18 @@ namespace Dotmim.Sync.Core.Builders
         /// <summary>
         /// Apply a single insert in the current data source
         /// </summary>
-        internal bool ApplyInsert(DmRow remoteRow)
+        internal bool ApplyInsert(DmRow remoteRow, ScopeInfo scope, bool forceWrite)
         {
             var command = this.GetCommand(DbCommandType.InsertRow);
 
             // Deriving Parameters
-            this.SetCommandParameters(command);
+            this.SetCommandParameters(DbCommandType.InsertRow, command);
 
             // Set the parameters value from row
-            this.SetColumnParameters(command, remoteRow);
+            this.SetColumnParametersValues(command, remoteRow);
+
+            // Set the special parameters for insert
+            AddCommonParametersValues(command, scope.Id, scope.LastTimestamp, false, forceWrite);
 
             var alreadyOpened = Connection.State == ConnectionState.Open;
 
@@ -390,14 +432,13 @@ namespace Dotmim.Sync.Core.Builders
             var command = this.GetCommand(DbCommandType.DeleteRow);
 
             // Deriving Parameters
-            this.SetCommandParameters(command);
+            this.SetCommandParameters(DbCommandType.DeleteRow, command);
 
             // Set the parameters value from row
-            SetColumnParameters(command, sourceRow);
+            this.SetColumnParametersValues(command, sourceRow);
 
-            // special parameters for update
-            DbManager.SetParameterValue(command, "sync_force_write", (forceWrite ? 1 : 0));
-            DbManager.SetParameterValue(command, "sync_min_timestamp", scope.LastTimestamp);
+            // Set the special parameters for update
+            this.AddCommonParametersValues(command, scope.Id, scope.LastTimestamp, true, forceWrite);
 
             var alreadyOpened = Connection.State == ConnectionState.Open;
 
@@ -442,14 +483,13 @@ namespace Dotmim.Sync.Core.Builders
             var command = this.GetCommand(DbCommandType.UpdateRow);
 
             // Deriving Parameters
-            this.SetCommandParameters(command);
+            this.SetCommandParameters(DbCommandType.UpdateRow, command);
 
             // Set the parameters value from row
-            this.SetColumnParameters(command, sourceRow);
+            this.SetColumnParametersValues(command, sourceRow);
 
-            // special parameters for update
-            DbManager.SetParameterValue(command, "sync_force_write", (forceWrite ? 1 : 0));
-            DbManager.SetParameterValue(command, "sync_min_timestamp", scope.LastTimestamp);
+            // Set the special parameters for update
+            AddCommonParametersValues(command, scope.Id, scope.LastTimestamp, false, forceWrite);
 
             var alreadyOpened = Connection.State == ConnectionState.Open;
 
@@ -482,6 +522,21 @@ namespace Dotmim.Sync.Core.Builders
             }
 
             return rowInsertedCount > 0;
+        }
+
+
+        /// <summary>
+        /// Add common parameters which could be part of the command
+        /// if not found, no set done
+        /// </summary>
+        private void AddCommonParametersValues(DbCommand command, Guid id, long lastTimestamp, bool isDeleted, bool forceWrite)
+        {
+            // special parameters for update
+            DbManager.SetParameterValue(command, "sync_force_write", (forceWrite ? 1 : 0));
+            DbManager.SetParameterValue(command, "sync_min_timestamp", lastTimestamp);
+            DbManager.SetParameterValue(command, "sync_scope_id", id);
+            DbManager.SetParameterValue(command, "sync_row_is_tombstone", isDeleted);
+
         }
 
         /// <summary>
@@ -622,12 +677,9 @@ namespace Dotmim.Sync.Core.Builders
                     var updateMetadataCommand = GetCommand(DbCommandType.UpdateMetadata);
 
                     // Deriving Parameters
-                    this.SetCommandParameters(updateMetadataCommand);
+                    this.SetCommandParameters(DbCommandType.UpdateMetadata, updateMetadataCommand);
 
-                    // create a localscope to override values
-                    var localScope = new ScopeInfo { Name = null, LastTimestamp = timestamp };
-
-                    var rowsApplied = this.InsertOrUpdateMetadatas(updateMetadataCommand, localRow, localScope);
+                    var rowsApplied = this.InsertOrUpdateMetadatas(updateMetadataCommand, localRow, Guid.Empty, timestamp);
 
                     if (!rowsApplied)
                         throw new Exception("No metadatas rows found, can't update the server side");
@@ -656,7 +708,7 @@ namespace Dotmim.Sync.Core.Builders
                 var localScope = new ScopeInfo { Name = scope.Name, LastTimestamp = timestamp };
 
                 if (conflict.Type == ConflictType.RemoteUpdateLocalNoRow || conflict.Type == ConflictType.RemoteInsertLocalNoRow)
-                    operationComplete = this.ApplyInsert(row);
+                    operationComplete = this.ApplyInsert(row, localScope, true);
                 else if (conflict.Type == ConflictType.RemoteDeleteLocalDelete)
                     operationComplete = true;
                 else if (conflict.Type == ConflictType.RemoteDeleteLocalInsert)
@@ -666,13 +718,13 @@ namespace Dotmim.Sync.Core.Builders
                 else if (conflict.Type == ConflictType.RemoteDeleteLocalUpdate)
                     operationComplete = this.ApplyDelete(row, localScope, true);
                 else if (conflict.Type == ConflictType.RemoteInsertLocalDelete)
-                    operationComplete = this.ApplyInsert(row);
+                    operationComplete = this.ApplyInsert(row, localScope, true);
                 else if (conflict.Type == ConflictType.RemoteInsertLocalInsert)
                     operationComplete = this.ApplyUpdate(row, localScope, true);
                 else if (conflict.Type == ConflictType.RemoteInsertLocalUpdate)
                     operationComplete = this.ApplyUpdate(row, localScope, true);
                 else if (conflict.Type == ConflictType.RemoteUpdateLocalDelete)
-                    operationComplete = this.ApplyInsert(row);
+                    operationComplete = this.ApplyInsert(row, localScope, true);
                 else if (conflict.Type == ConflictType.RemoteUpdateLocalInsert)
                     operationComplete = this.ApplyUpdate(row, localScope, true);
                 else if (conflict.Type == ConflictType.RemoteUpdateLocalUpdate)
@@ -682,9 +734,9 @@ namespace Dotmim.Sync.Core.Builders
                 var insertMetadataCommand = GetCommand(DbCommandType.InsertMetadata);
 
                 // Deriving Parameters
-                this.SetCommandParameters(insertMetadataCommand);
+                this.SetCommandParameters(DbCommandType.InsertMetadata, insertMetadataCommand);
 
-                var rowsApplied = this.InsertOrUpdateMetadatas(insertMetadataCommand, row, localScope);
+                var rowsApplied = this.InsertOrUpdateMetadatas(insertMetadataCommand, row, localScope.Id, localScope.LastTimestamp);
                 if (!rowsApplied)
                     throw new Exception("No metadatas rows found, can't update the server side");
 

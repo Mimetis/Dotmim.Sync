@@ -193,7 +193,7 @@ namespace Dotmim.Sync.SQLite
             return "";
         }
 
-        internal static string GetSqlDbTypeString(this DmColumn column)
+        internal static string GetSQLiteDbTypeString(this DmColumn column)
         {
             var typeAffinity = column.DataType.ToSQLiteAffinity();
 

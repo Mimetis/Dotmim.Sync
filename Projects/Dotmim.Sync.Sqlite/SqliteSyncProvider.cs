@@ -22,6 +22,7 @@ namespace Dotmim.Sync.SQLite
     {
         ICache cacheManager;
         string connectionString;
+        private string filePath;
 
         public override ICache CacheManager
         {
@@ -39,13 +40,32 @@ namespace Dotmim.Sync.SQLite
             }
         }
 
-        public SQLiteSyncProvider(string connectionString) : base()
+        /// <summary>
+        /// SQLite does not support Bulk operations
+        /// </summary>
+        public override bool SupportBulkOperations => false;
+
+        /// <summary>
+        /// SQLIte does not support to be a server side.
+        /// Reason 1 : Can't easily insert / update batch with handling conflict
+        /// </summary>
+        public override bool CanBeServerProvider => false;
+
+
+        public SQLiteSyncProvider(string filePath) : base()
         {
-            this.connectionString = connectionString;
+            this.filePath = filePath;
+            var builder = new SQLiteConnectionStringBuilder { DataSource = filePath };
+            
+            // prefer to store guid in text
+            builder.BinaryGUID = false;
+            
+
+            this.connectionString = builder.ConnectionString;
         }
 
         public override DbConnection CreateConnection() => new SQLiteConnection(this.connectionString);
-        
+
         public override DbBuilder GetDatabaseBuilder(DmTable tableDescription, DbBuilderOption options = DbBuilderOption.UseExistingSchema) => new SQLiteBuilder(tableDescription, options);
 
         public override DbManager GetDbManager(string tableName) => new SQLiteManager(tableName);

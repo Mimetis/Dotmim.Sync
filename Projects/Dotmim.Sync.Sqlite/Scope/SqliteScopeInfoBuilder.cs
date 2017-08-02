@@ -138,7 +138,7 @@ namespace Dotmim.Sync.SQLite
                 if (!alreadyOpened)
                     connection.Open();
 
-                long result = (long)command.ExecuteScalar() ;
+                long result = Convert.ToInt64(command.ExecuteScalar()) ;
 
                 return result;
             }

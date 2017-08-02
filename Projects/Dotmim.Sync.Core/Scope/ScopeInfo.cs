@@ -12,7 +12,6 @@ namespace Dotmim.Sync.Core.Scope
     /// </summary>
     public class ScopeInfo
     {
-
         /// <summary>
         /// Scope name. Shared by all clients and the server
         /// </summary>
@@ -54,71 +53,5 @@ namespace Dotmim.Sync.Core.Scope
         /// </summary>
         //public Boolean IsDatabaseCreated { get; set; }
 
-        /// <summary>
-        /// Generate a DmTable based on a SyncContext object
-        /// </summary>
-        public static void SerializeInDmSet(DmSet set, IEnumerable<ScopeInfo> scopesInfo)
-        {
-            if (set == null)
-                return;
-
-            DmTable dmTable = null;
-
-            if (!set.Tables.Contains("DotmimSync__ScopeInfo"))
-            {
-                dmTable = new DmTable("DotmimSync__ScopeInfo");
-                set.Tables.Add(dmTable);
-            }
-
-            dmTable = set.Tables["DotmimSync__ScopeInfo"];
-
-            dmTable.Columns.Add<Guid>("Id");
-            dmTable.Columns.Add<Boolean>("IsDatabaseCreated");
-            dmTable.Columns.Add<Boolean>("IsLocal");
-            dmTable.Columns.Add<Boolean>("IsNewScope");
-            dmTable.Columns.Add<Int64>("LastTimestamp");
-            dmTable.Columns.Add<String>("Name");
-
-            foreach (var scopeInfo in scopesInfo)
-            {
-                DmRow dmRow = dmTable.NewRow();
-
-                dmRow["Id"] = scopeInfo.Id;
-                //dmRow["IsDatabaseCreated"] = scopeInfo.IsDatabaseCreated;
-                dmRow["IsLocal"] = scopeInfo.IsLocal;
-                dmRow["IsNewScope"] = scopeInfo.IsNewScope;
-                dmRow["LastTimestamp"] = scopeInfo.LastTimestamp;
-                dmRow["Name"] = scopeInfo.Name;
-                dmTable.Rows.Add(dmRow);
-            }
-
-        }
-        public static List<ScopeInfo> DeserializeFromDmSet(DmSet set)
-        {
-            if (set == null)
-                return null;
-
-            if (!set.Tables.Contains("DotmimSync__ScopeInfo"))
-                return null;
-
-            List<ScopeInfo> scopesInfo = new List<ScopeInfo>();
-
-            foreach(var dmRow in set.Tables["DotmimSync__ScopeInfo"].Rows)
-            {
-
-                ScopeInfo scopeInfo = new ScopeInfo();
-
-                scopeInfo.Id = (Guid)dmRow["Id"];
-                //scopeInfo.IsDatabaseCreated = (bool)dmRow["IsDatabaseCreated"];
-                scopeInfo.IsLocal = (bool)dmRow["IsLocal"];
-                scopeInfo.IsNewScope = (bool)dmRow["IsNewScope"];
-                scopeInfo.LastTimestamp = (long)dmRow["LastTimestamp"];
-                scopeInfo.Name = dmRow["Name"] as string;
-
-                scopesInfo.Add(scopeInfo);
-            }
-
-            return scopesInfo;
-        }
     }
 }

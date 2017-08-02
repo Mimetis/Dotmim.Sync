@@ -86,6 +86,9 @@ namespace Dotmim.Sync.Core
             this.RemoteProvider = remoteProvider ?? throw new ArgumentNullException("ServerProvider");
             this.scopeName = scopeName ?? throw new ArgumentNullException("scopeName");
 
+            if (!((CoreProvider)remoteProvider).CanBeServerProvider)
+                throw new NotSupportedException();
+            
             this.LocalProvider.SyncProgress += ClientProvider_SyncProgress;
             this.RemoteProvider.ApplyChangedFailed += RemoteProvider_ApplyChangedFailed;
         }
@@ -117,6 +120,9 @@ namespace Dotmim.Sync.Core
             if (remoteCoreProvider == null)
                 throw new ArgumentException("Since the remote provider is a web proxy, you have to configure the server side");
 
+            if (!remoteCoreProvider.CanBeServerProvider)
+                throw new NotSupportedException();
+
             this.serviceConfiguration = new ServiceConfiguration(tables);
         }
 
@@ -146,6 +152,9 @@ namespace Dotmim.Sync.Core
 
             if (remoteCoreProvider == null)
                 throw new ArgumentException("Since the remote provider is a web proxy, you have to configure the server side");
+
+            if (!remoteCoreProvider.CanBeServerProvider)
+                throw new NotSupportedException();
 
             this.serviceConfiguration = configuration;
 
@@ -181,7 +190,11 @@ namespace Dotmim.Sync.Core
 
             this.SessionState = SyncSessionState.Synchronizing;
             this.SessionStateChanged?.Invoke(this, this.SessionState);
-            ScopeInfo localScopeInfo = null, serverScopeInfo = null, serverLocalScopeReferenceInfo = null;
+            ScopeInfo localScopeInfo = null, serverScopeInfo = null, localScopeReferenceInfo = null, scope = null;
+
+            Guid fromId = Guid.Empty;
+            long lastSyncTS = 0L;
+            bool isNew = true;
 
             // Stats computed
             ChangesStatistics changesStatistics = new ChangesStatistics();
@@ -232,7 +245,7 @@ namespace Dotmim.Sync.Core
                     cancellationToken.ThrowIfCancellationRequested();
 
                 serverScopeInfo = serverScopes.First(s => s.Id != localScopeInfo.Id);
-                serverLocalScopeReferenceInfo = serverScopes.First(s => s.Id == localScopeInfo.Id);
+                localScopeReferenceInfo = serverScopes.First(s => s.Id == localScopeInfo.Id);
 
                 // ----------------------------------------
                 // 2) Build Configuration Object
@@ -287,20 +300,49 @@ namespace Dotmim.Sync.Core
 
 
                 // Generate the client batchinfo with all files involved
-                (context, clientBatchInfo, clientStatistics) = await this.LocalProvider.GetChangeBatchAsync(context, localScopeInfo);
+
+                // fromId : not really needed on this case, since updated / inserted / deleted row has marked null
+                // otherwise, lines updated by server or others clients are already syncked
+                fromId = localScopeInfo.Id;
+                // lastSyncTS : get lines inserted / updated / deteleted after the last sync commited
+                lastSyncTS = localScopeInfo.LastTimestamp;
+                // isNew : If isNew, lasttimestamp is not correct, so grab all
+                isNew = localScopeInfo.IsNewScope;
+
+                scope = new ScopeInfo { Id = fromId, IsNewScope = isNew, LastTimestamp = lastSyncTS };
+                (context, clientBatchInfo, clientStatistics) = await this.LocalProvider.GetChangeBatchAsync(context, scope);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
                 // Apply on the Server Side
-                // Since we are on the server, we need to check the server client timestamp (not the client timestamp which is completely different)
-                (context, serverStatistics) = await this.RemoteProvider.ApplyChangesAsync(context, serverLocalScopeReferenceInfo, clientBatchInfo);
+                // Since we are on the server, 
+                // we need to check the server client timestamp (not the client timestamp which is completely different)
+
+                // fromId : When applying rows, make sure it's identified as applied by this client scope
+                fromId = localScopeReferenceInfo.Id;
+                // lastSyncTS : apply lines only if thye are not modified since last client sync
+                lastSyncTS = localScopeReferenceInfo.LastTimestamp;
+                // isNew : not needed
+                isNew = false;
+                scope = new ScopeInfo { Id = fromId, IsNewScope = isNew, LastTimestamp = lastSyncTS };
+
+                (context, serverStatistics) = await this.RemoteProvider.ApplyChangesAsync(context, scope, clientBatchInfo);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
                 // Get changes from server
-                (context, serverBatchInfo, tmpServerStatistics) = await this.RemoteProvider.GetChangeBatchAsync(context, serverScopeInfo);
+
+                // fromId : Make sure we don't select lines on server that has been already updated by the client
+                fromId = localScopeReferenceInfo.Id;
+                // lastSyncTS : apply lines only if thye are not modified since last client sync
+                lastSyncTS = localScopeReferenceInfo.LastTimestamp;
+                // isNew : make sure we take all lines if it's the first time we get 
+                isNew = localScopeReferenceInfo.IsNewScope;
+                scope = new ScopeInfo { Id = fromId, IsNewScope = isNew, LastTimestamp = lastSyncTS };
+
+                (context, serverBatchInfo, tmpServerStatistics) = await this.RemoteProvider.GetChangeBatchAsync(context, scope);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -312,7 +354,16 @@ namespace Dotmim.Sync.Core
                     clientStatistics.SelectedChanges = tmpServerStatistics.SelectedChanges;
 
                 // Apply local changes
-                (context, tmpClientStatistics) = await this.LocalProvider.ApplyChangesAsync(context, serverScopeInfo, serverBatchInfo);
+
+                // fromId : When applying rows, make sure it's identified as applied by this server scope
+                fromId = serverScopeInfo.Id;
+                // lastSyncTS : apply lines only if they are not modified since last client sync
+                lastSyncTS = localScopeReferenceInfo.LastTimestamp;
+                // isNew : not needed
+                isNew = false;
+                scope = new ScopeInfo { Id = fromId, IsNewScope = isNew, LastTimestamp = lastSyncTS };
+
+                (context, tmpClientStatistics) = await this.LocalProvider.ApplyChangesAsync(context, scope, serverBatchInfo);
 
                 if (clientStatistics == null)
                     clientStatistics = tmpClientStatistics;
@@ -341,17 +392,17 @@ namespace Dotmim.Sync.Core
                 context.CompleteTime = DateTime.Now;
 
                 serverScopeInfo.IsNewScope = false;
-                serverLocalScopeReferenceInfo.IsNewScope = false;
+                localScopeReferenceInfo.IsNewScope = false;
                 localScopeInfo.IsNewScope = false;
 
                 serverScopeInfo.LastSync = context.CompleteTime;
-                serverLocalScopeReferenceInfo.LastSync = context.CompleteTime;
+                localScopeReferenceInfo.LastSync = context.CompleteTime;
                 localScopeInfo.LastSync = context.CompleteTime;
 
                 serverScopeInfo.IsLocal = true;
-                serverLocalScopeReferenceInfo.IsLocal = false;
+                localScopeReferenceInfo.IsLocal = false;
 
-                context = await this.RemoteProvider.WriteScopesAsync(context, new List<ScopeInfo> { serverScopeInfo, serverLocalScopeReferenceInfo });
+                context = await this.RemoteProvider.WriteScopesAsync(context, new List<ScopeInfo> { serverScopeInfo, localScopeReferenceInfo });
 
                 serverScopeInfo.IsLocal = false;
                 localScopeInfo.IsLocal = true;
