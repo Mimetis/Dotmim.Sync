@@ -142,18 +142,13 @@ namespace Dotmim.Sync.SQLite
             }
 
             p = command.CreateParameter();
-            p.ParameterName = "@sync_scope_id";
+            p.ParameterName = "@update_scope_id";
             p.DbType = DbType.Guid;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
             p.ParameterName = "@sync_row_is_tombstone";
             p.DbType = DbType.Int32;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "@create_timestamp";
-            p.DbType = DbType.Int64;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
@@ -192,7 +187,12 @@ namespace Dotmim.Sync.SQLite
             }
 
             p = command.CreateParameter();
-            p.ParameterName = "@sync_scope_id";
+            p.ParameterName = "@create_scope_id";
+            p.DbType = DbType.Guid;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@update_scope_id";
             p.DbType = DbType.Guid;
             command.Parameters.Add(p);
 

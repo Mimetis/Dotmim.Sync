@@ -1297,7 +1297,7 @@ namespace Dotmim.Sync.Core
                 var createdTimeStamp = DbManager.ParseTimestamp(dataRow["create_timestamp"]);
                 var updatedTimeStamp = DbManager.ParseTimestamp(dataRow["update_timestamp"]);
                 var isLocallyCreated = dataRow["create_scope_id"] == DBNull.Value || dataRow["create_scope_id"] == null;
-                var islocallyUpdated = dataRow["update_scope_id"] == DBNull.Value || dataRow["update_scope_id"] == null;
+                var islocallyUpdated = dataRow["update_scope_id"] == DBNull.Value || dataRow["update_scope_id"] == null || (Guid)dataRow["update_scope_id"] != scopeInfo.Id;
 
                 if (!scopeInfo.IsNewScope && islocallyUpdated && updatedTimeStamp > scopeInfo.LastTimestamp)
                     dmRowState = DmRowState.Modified;

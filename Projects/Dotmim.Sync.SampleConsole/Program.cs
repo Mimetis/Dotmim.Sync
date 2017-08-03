@@ -249,10 +249,13 @@ class Program
         IConfiguration Configuration = configurationBuilder.Build();
         var serverConfig = Configuration["AppConfiguration:ServerConnectionString"];
         var clientConfig = Configuration["AppConfiguration:ClientSQLiteConnectionString"];
-
+        var clientConfig2 = Configuration["AppConfiguration:ClientSQLiteConnectionString2"];
+        var clientConfig3 = Configuration["AppConfiguration:ClientConnectionString"];
 
         SqlSyncProvider serverProvider = new SqlSyncProvider(serverConfig);
         SQLiteSyncProvider clientProvider = new SQLiteSyncProvider(clientConfig);
+        SQLiteSyncProvider clientProvider2 = new SQLiteSyncProvider(clientConfig2);
+        SqlSyncProvider clientProvider3 = new SqlSyncProvider(clientConfig3);
 
         // With a config when we are in local mode (no proxy)
         ServiceConfiguration configuration = new ServiceConfiguration(new string[] { "ServiceTickets" });
@@ -260,9 +263,13 @@ class Program
         configuration.UseBulkOperations = false;
 
         SyncAgent agent = new SyncAgent(clientProvider, serverProvider, configuration);
+        SyncAgent agent2 = new SyncAgent(clientProvider2, serverProvider, configuration);
+        SyncAgent agent3 = new SyncAgent(clientProvider3, serverProvider, configuration);
 
         agent.SyncProgress += SyncProgress;
-        agent.ApplyChangedFailed += ApplyChangedFailed;
+        agent2.SyncProgress += SyncProgress;
+        agent3.SyncProgress += SyncProgress;
+        // agent.ApplyChangedFailed += ApplyChangedFailed;
 
         do
         {
@@ -270,9 +277,9 @@ class Program
             Console.WriteLine("Sync Start");
             try
             {
-                CancellationTokenSource cts = new CancellationTokenSource();
-                CancellationToken token = cts.Token;
-                var s = await agent.SynchronizeAsync(token);
+                var s = await agent.SynchronizeAsync();
+                var s2 = await agent2.SynchronizeAsync();
+                var s3 = await agent3.SynchronizeAsync();
 
             }
             catch (SyncException e)

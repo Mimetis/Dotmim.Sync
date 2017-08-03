@@ -320,7 +320,7 @@ namespace Dotmim.Sync.Core
                 // we need to check the server client timestamp (not the client timestamp which is completely different)
 
                 // fromId : When applying rows, make sure it's identified as applied by this client scope
-                fromId = localScopeReferenceInfo.Id;
+                fromId = localScopeInfo.Id;
                 // lastSyncTS : apply lines only if thye are not modified since last client sync
                 lastSyncTS = localScopeReferenceInfo.LastTimestamp;
                 // isNew : not needed
@@ -335,7 +335,7 @@ namespace Dotmim.Sync.Core
                 // Get changes from server
 
                 // fromId : Make sure we don't select lines on server that has been already updated by the client
-                fromId = localScopeReferenceInfo.Id;
+                fromId = localScopeInfo.Id;
                 // lastSyncTS : apply lines only if thye are not modified since last client sync
                 lastSyncTS = localScopeReferenceInfo.LastTimestamp;
                 // isNew : make sure we take all lines if it's the first time we get 
@@ -358,7 +358,7 @@ namespace Dotmim.Sync.Core
                 // fromId : When applying rows, make sure it's identified as applied by this server scope
                 fromId = serverScopeInfo.Id;
                 // lastSyncTS : apply lines only if they are not modified since last client sync
-                lastSyncTS = localScopeReferenceInfo.LastTimestamp;
+                lastSyncTS = localScopeInfo.LastTimestamp;
                 // isNew : not needed
                 isNew = false;
                 scope = new ScopeInfo { Id = fromId, IsNewScope = isNew, LastTimestamp = lastSyncTS };

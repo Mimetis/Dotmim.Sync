@@ -80,7 +80,7 @@ namespace Dotmim.Sync.SQLite
 
                 foreach (DmRelation constraint in this.tableDescription.ChildRelations)
                 {
-               
+
                     using (var command = BuildForeignKeyConstraintsCommand(constraint))
                     {
                         command.Connection = connection;
@@ -123,7 +123,7 @@ namespace Dotmim.Sync.SQLite
             return stringBuilder.ToString();
         }
 
-    
+
         public void CreatePrimaryKey()
         {
             return;
@@ -146,6 +146,21 @@ namespace Dotmim.Sync.SQLite
             {
                 var columnName = new ObjectNameParser(column.ColumnName);
                 var columnType = $"{column.GetSQLiteDbTypeString()} {column.GetSQLiteTypePrecisionString()}";
+
+                // check case
+                string casesensitive = "";
+                if (column.GetSQLiteDbTypeString() == "text")
+                {
+                    casesensitive = this.tableDescription.CaseSensitive ? "" : "COLLATE NOCASE";
+
+                    //check if it's a primary key, then, even if it's case sensitive, we turn on case insensitive
+                    if (this.tableDescription.CaseSensitive)
+                    {
+                        if (this.tableDescription.PrimaryKey.Columns.Contains(column))
+                            casesensitive = "COLLATE NOCASE";
+                    }
+                }
+
                 var identity = string.Empty;
 
                 if (column.AutoIncrement)
@@ -158,7 +173,7 @@ namespace Dotmim.Sync.SQLite
                 }
                 var nullString = column.AllowDBNull ? "NULL" : "NOT NULL";
 
-                stringBuilder.AppendLine($"\t{empty}{columnName.QuotedString} {columnType} {identity} {nullString}");
+                stringBuilder.AppendLine($"\t{empty}{columnName.QuotedString} {columnType} {identity} {nullString} {casesensitive}");
                 empty = ",";
             }
             stringBuilder.Append("\t,PRIMARY KEY (");
@@ -265,7 +280,7 @@ namespace Dotmim.Sync.SQLite
 
             }
 
-            
+
         }
 
         /// <summary>

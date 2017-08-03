@@ -111,7 +111,7 @@ namespace Dotmim.Sync.Core.Builders
         /// <summary>
         /// Insert or update a metadata line
         /// </summary>
-        internal bool InsertOrUpdateMetadatas(DbCommand command, DmRow row, Guid fromScopeId, long lastTimestamp)
+        internal bool InsertOrUpdateMetadatas(DbCommand command, DmRow row, Guid fromScopeId)
         {
             int rowsApplied = 0;
 
@@ -125,10 +125,29 @@ namespace Dotmim.Sync.Core.Builders
             // Set the id parameter
             this.SetColumnParametersValues(command, row);
 
-            DbManager.SetParameterValue(command, "sync_scope_id", fromScopeId == Guid.Empty ? null : (object)fromScopeId);
+            DmRowVersion version = row.RowState == DmRowState.Deleted ? DmRowVersion.Original : DmRowVersion.Current;
+
+            long createTimestamp = row["create_timestamp", version] != null ? Convert.ToInt64(row["create_timestamp", version]) : 0;
+            long updateTimestamp = row["update_timestamp", version] != null ? Convert.ToInt64(row["update_timestamp", version]): 0;
+
+            Guid? createScopeId = fromScopeId;
+            Guid? updateScopeId = fromScopeId;
+
+            //// Override create and update scope id to reflect who change the value
+            //// if it's an update, the createscope is staying the same (because not present in dbCommand)
+            //createScopeId = (createTimestamp > 0 && createScopeId == null) ? (Guid?)fromScopeId : createScopeId;
+            //updateScopeId = (updateTimestamp > 0 && updateScopeId == null) ? (Guid?)fromScopeId : updateScopeId;
+
+            // some proc stock does not differentiate update and create and use sync_scope_id
+            DbManager.SetParameterValue(command, "sync_scope_id", createScopeId);
+            // else they use create_scope_id and update_scope_id
+            DbManager.SetParameterValue(command, "create_scope_id", createScopeId);
+            DbManager.SetParameterValue(command, "update_scope_id", updateScopeId);
+
             DbManager.SetParameterValue(command, "sync_row_is_tombstone", row.RowState == DmRowState.Deleted ? 1 : 0);
-            DbManager.SetParameterValue(command, "create_timestamp", lastTimestamp);
-            DbManager.SetParameterValue(command, "update_timestamp", lastTimestamp);
+
+            DbManager.SetParameterValue(command, "create_timestamp", createTimestamp);
+            DbManager.SetParameterValue(command, "update_timestamp", updateTimestamp);
 
             try
             {
@@ -151,6 +170,9 @@ namespace Dotmim.Sync.Core.Builders
 
             return rowsApplied > 0;
         }
+
+
+
 
         /// <summary>
         /// Try to get a source row
@@ -331,7 +353,7 @@ namespace Dotmim.Sync.Core.Builders
                         this.SetCommandParameters(DbCommandType.InsertMetadata, dbCommand);
 
                         var lastTimestamp = (long)dmRow["create_timestamp"];
-                        this.InsertOrUpdateMetadatas(dbCommand, dmRow, scope.Id, lastTimestamp);
+                        this.InsertOrUpdateMetadatas(dbCommand, dmRow, scope.Id);
 
                     }
                 }
@@ -344,7 +366,7 @@ namespace Dotmim.Sync.Core.Builders
 
                         var lastTimestamp = (long)dmRow["update_timestamp"];
                         this.SetCommandParameters(DbCommandType.UpdateMetadata, dbCommand);
-                        this.InsertOrUpdateMetadatas(dbCommand, dmRow, scope.Id, lastTimestamp);
+                        this.InsertOrUpdateMetadatas(dbCommand, dmRow, scope.Id);
                     }
                 }
                 else if (applyType == DmRowState.Deleted)
@@ -353,10 +375,8 @@ namespace Dotmim.Sync.Core.Builders
                     if (operationComplete)
                     {
                         dbCommand = this.GetCommand(DbCommandType.UpdateMetadata);
-
-                        var lastTimestamp = (long)dmRow["update_timestamp"];
                         this.SetCommandParameters(DbCommandType.UpdateMetadata, dbCommand);
-                        this.InsertOrUpdateMetadatas(dbCommand, dmRow, scope.Id, lastTimestamp);
+                        this.InsertOrUpdateMetadatas(dbCommand, dmRow, scope.Id);
                     }
                 }
 
@@ -571,7 +591,7 @@ namespace Dotmim.Sync.Core.Builders
                 // We have a problem and found the row on the server side
                 localRow = localTable.Rows[0];
 
-                var isTombstone = (bool)localRow["sync_row_is_tombstone"];
+                var isTombstone = Convert.ToBoolean(localRow["sync_row_is_tombstone"]);
 
                 // the row on local is deleted
                 if (isTombstone)
@@ -679,7 +699,7 @@ namespace Dotmim.Sync.Core.Builders
                     // Deriving Parameters
                     this.SetCommandParameters(DbCommandType.UpdateMetadata, updateMetadataCommand);
 
-                    var rowsApplied = this.InsertOrUpdateMetadatas(updateMetadataCommand, localRow, Guid.Empty, timestamp);
+                    var rowsApplied = this.InsertOrUpdateMetadatas(updateMetadataCommand, localRow, scope.Id);
 
                     if (!rowsApplied)
                         throw new Exception("No metadatas rows found, can't update the server side");
@@ -736,7 +756,7 @@ namespace Dotmim.Sync.Core.Builders
                 // Deriving Parameters
                 this.SetCommandParameters(DbCommandType.InsertMetadata, insertMetadataCommand);
 
-                var rowsApplied = this.InsertOrUpdateMetadatas(insertMetadataCommand, row, localScope.Id, localScope.LastTimestamp);
+                var rowsApplied = this.InsertOrUpdateMetadatas(insertMetadataCommand, row, scope.Id);
                 if (!rowsApplied)
                     throw new Exception("No metadatas rows found, can't update the server side");
 

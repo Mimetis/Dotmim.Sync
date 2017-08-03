@@ -49,7 +49,7 @@ namespace Dotmim.Sync.Data
             this.rows = new DmRowCollection(this);
             this.columns = new DmColumnCollection(this);
             this.Culture = CultureInfo.CurrentCulture;
-            this.CaseSensitive = true;
+            this.CaseSensitive = false;
 
         }
 

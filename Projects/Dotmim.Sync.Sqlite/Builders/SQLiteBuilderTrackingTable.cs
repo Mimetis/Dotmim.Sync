@@ -144,14 +144,13 @@ namespace Dotmim.Sync.SQLite
                 var quotedColumnName = new ObjectNameParser(pkColumn.ColumnName, "[", "]").QuotedString;
                 var quotedColumnType = new ObjectNameParser(pkColumn.GetSQLiteDbTypeString(), "[", "]").QuotedString;
                 quotedColumnType += pkColumn.GetSQLiteTypePrecisionString();
-                var nullableColumn = pkColumn.AllowDBNull ? "NULL" : "NOT NULL";
 
-                stringBuilder.AppendLine($"{quotedColumnName} {quotedColumnType} {nullableColumn}, ");
+                stringBuilder.AppendLine($"{quotedColumnName} {quotedColumnType} NOT NULL COLLATE NOCASE, ");
             }
 
             // adding the tracking columns
-            stringBuilder.AppendLine($"[create_scope_id] [text] NULL, ");
-            stringBuilder.AppendLine($"[update_scope_id] [text] NULL, ");
+            stringBuilder.AppendLine($"[create_scope_id] [text] NULL COLLATE NOCASE, ");
+            stringBuilder.AppendLine($"[update_scope_id] [text] NULL COLLATE NOCASE, ");
             stringBuilder.AppendLine($"[create_timestamp] [integer] NULL, ");
             stringBuilder.AppendLine($"[update_timestamp] [integer] NULL, ");
             stringBuilder.AppendLine($"[timestamp] [integer] NULL, ");

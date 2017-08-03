@@ -84,25 +84,14 @@ namespace Dotmim.Sync.SQLite
         private void CreateUpdatedMetadataCommandText()
         {
             StringBuilder stringBuilder = new StringBuilder();
-            StringBuilder stringBuilderArguments = new StringBuilder();
-            StringBuilder stringBuilderParameters = new StringBuilder();
 
-            stringBuilder.AppendLine($"\tINSERT OR REPLACE INTO {trackingName.QuotedString}");
-
-            string empty = string.Empty;
-            foreach (var pkColumn in this.TableDescription.PrimaryKey.Columns)
-            {
-                ObjectNameParser columnName = new ObjectNameParser(pkColumn.ColumnName);
-                stringBuilderArguments.Append(string.Concat(empty, columnName.QuotedString));
-                stringBuilderParameters.Append(string.Concat(empty, $"@{columnName.UnquotedString}"));
-                empty = ", ";
-            }
-            stringBuilder.AppendLine($"\t({stringBuilderArguments.ToString()}, ");
-            stringBuilder.AppendLine($"\t[update_scope_id], [update_timestamp],");
-            stringBuilder.AppendLine($"\t[sync_row_is_tombstone], [timestamp], [last_change_datetime])");
-            stringBuilder.AppendLine($"\tVALUES ({stringBuilderParameters.ToString()}, ");
-            stringBuilder.AppendLine($"\t@sync_scope_id, @update_timestamp, ");
-            stringBuilder.AppendLine($"\t@sync_row_is_tombstone, strftime('%s', datetime('now', 'utc')), datetime('now'));");
+            stringBuilder.AppendLine($"UPDATE {trackingName.QuotedString}");
+            stringBuilder.AppendLine($"SET [update_scope_id] = @update_scope_id, ");
+            stringBuilder.AppendLine($"\t [update_timestamp] = @update_timestamp, ");
+            stringBuilder.AppendLine($"\t [sync_row_is_tombstone] = @sync_row_is_tombstone, ");
+            stringBuilder.AppendLine($"\t [timestamp] = strftime('%s', datetime('now', 'utc')), ");
+            stringBuilder.AppendLine($"\t [last_change_datetime] = datetime('now') ");
+            stringBuilder.Append($"WHERE {SQLiteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKey.Columns, "")}");
 
             this.AddName(DbCommandType.UpdateMetadata, stringBuilder.ToString());
 
@@ -127,7 +116,7 @@ namespace Dotmim.Sync.SQLite
             stringBuilder.AppendLine($"\t[create_scope_id], [create_timestamp], [update_scope_id], [update_timestamp],");
             stringBuilder.AppendLine($"\t[sync_row_is_tombstone], [timestamp], [last_change_datetime])");
             stringBuilder.AppendLine($"\tVALUES ({stringBuilderParameters.ToString()}, ");
-            stringBuilder.AppendLine($"\t@sync_scope_id, @create_timestamp, @sync_scope_id, @update_timestamp, ");
+            stringBuilder.AppendLine($"\t@create_scope_id, @create_timestamp, @update_scope_id, @update_timestamp, ");
             stringBuilder.AppendLine($"\t@sync_row_is_tombstone, strftime('%s', datetime('now', 'utc')), datetime('now'));");
 
             this.AddName(DbCommandType.InsertMetadata, stringBuilder.ToString());

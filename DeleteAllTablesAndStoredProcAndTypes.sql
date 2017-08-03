@@ -1,3 +1,5 @@
+select NEWID()
+
 
 DROP TRIGGER [dbo].[ServiceTickets_delete_trigger];
 DROP TRIGGER [dbo].[ServiceTickets_insert_trigger];
@@ -19,6 +21,7 @@ DROP PROCEDURE [dbo].[ServiceTickets_selectchanges];
 DROP PROCEDURE [dbo].[ServiceTickets_selectrow];
 DROP PROCEDURE [dbo].[ServiceTickets_update];
 DROP PROCEDURE [dbo].[ServiceTickets_updatemetadata];
+DROP PROCEDURE [dbo].[ServiceTickets_deletemetadata];
 GO
 DROP TYPE [dbo].[ServiceTickets_BulkType];
 

@@ -29,7 +29,7 @@ namespace Dotmim.Sync.Data
         {
             this.tableCollection = new DmTableCollection(this);
             this.Culture = CultureInfo.CurrentCulture; // Set default locale
-            this.CaseSensitive = true;
+            this.CaseSensitive = false;
             this._relationCollection = new List<DmRelation>();
             this.DmSetName = "NewDmSet";
 
