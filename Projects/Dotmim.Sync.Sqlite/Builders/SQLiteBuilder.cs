@@ -73,7 +73,7 @@ namespace Dotmim.Sync.SQLite
 
         public override IDbBuilderTrackingTableHelper CreateTrackingTableBuilder(DbConnection connection, DbTransaction transaction = null)
         {
-            return new SqlBuilderTrackingTable(TableDescription, connection, transaction);
+            return new SQLiteBuilderTrackingTable(TableDescription, connection, transaction);
         }
 
         public override DbSyncAdapter CreateSyncAdapter(DbConnection connection, DbTransaction transaction = null)

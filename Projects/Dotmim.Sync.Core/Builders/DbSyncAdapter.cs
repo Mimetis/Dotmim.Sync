@@ -45,7 +45,7 @@ namespace Dotmim.Sync.Core.Builders
         /// <summary>
         /// Gets a command from the current adapter
         /// </summary>
-        public abstract DbCommand GetCommand(DbCommandType commandType);
+        public abstract DbCommand GetCommand(DbCommandType commandType, IEnumerable<string> additionals = null);
 
         /// <summary>
         /// Set parameters on a command
@@ -130,15 +130,12 @@ namespace Dotmim.Sync.Core.Builders
             long createTimestamp = row["create_timestamp", version] != null ? Convert.ToInt64(row["create_timestamp", version]) : 0;
             long updateTimestamp = row["update_timestamp", version] != null ? Convert.ToInt64(row["update_timestamp", version]): 0;
 
+            // Override create and update scope id to reflect who change the value
+            // if it's an update, the createscope is staying the same (because not present in dbCommand)
             Guid? createScopeId = fromScopeId;
             Guid? updateScopeId = fromScopeId;
 
-            //// Override create and update scope id to reflect who change the value
-            //// if it's an update, the createscope is staying the same (because not present in dbCommand)
-            //createScopeId = (createTimestamp > 0 && createScopeId == null) ? (Guid?)fromScopeId : createScopeId;
-            //updateScopeId = (updateTimestamp > 0 && updateScopeId == null) ? (Guid?)fromScopeId : updateScopeId;
-
-            // some proc stock does not differentiate update and create and use sync_scope_id
+            // some proc stock does not differentiate update_scope_id and create_scope_id and use sync_scope_id
             DbManager.SetParameterValue(command, "sync_scope_id", createScopeId);
             // else they use create_scope_id and update_scope_id
             DbManager.SetParameterValue(command, "create_scope_id", createScopeId);

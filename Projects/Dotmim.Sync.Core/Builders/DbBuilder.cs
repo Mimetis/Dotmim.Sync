@@ -6,6 +6,7 @@ using System.Text;
 using System.Linq;
 using System.Data;
 using Dotmim.Sync.Core.Log;
+using Dotmim.Sync.Core.Filter;
 
 namespace Dotmim.Sync.Core.Builders
 {
@@ -24,22 +25,12 @@ namespace Dotmim.Sync.Core.Builders
         /// </summary>
         public DbBuilderOption BuilderOption { get; set; }
 
-        /// <summary>
-        /// Gets or sets the SQL WHERE clause (without the WHERE keyword) that is used 
-        /// to filter the result set from the base table.
-        /// </summary>
-		public string FilterClause { get; set; }
 
         /// <summary>
-        /// Gets the list of columns that were added by using 
-        /// AddFilterColumn(System.String)
+        /// Filtered Columns
         /// </summary>
-        public List<DmColumn> FilterColumns { get; } = new List<DmColumn>();
+        public FilterClauseCollection FilterColumns { get; set; } = new FilterClauseCollection();
 
-        /// <summary>
-        /// Gets the list of filter parameters that are used to control which items are enumerated.
-        /// </summary>
-        public List<DmColumn> FilterParameters { get; } = new List<DmColumn>();
 
         /// <summary>
         /// You have to provide a proc builder implementation for your current database
@@ -77,19 +68,6 @@ namespace Dotmim.Sync.Core.Builders
         }
 
         /// <summary>
-        /// Check if the filter column exist and add the DmColumn
-        /// </summary>
-        public void AddFilterColumn(string name)
-        {
-            var column = TableDescription.Columns[name];
-
-            if (column == null)
-                throw new Exception($"Can't add this filter column, since the column doesn't exist in the current table {TableDescription.TableName}");
-
-            this.FilterColumns.Add(column);
-        }
-
-        /// <summary>
         /// Apply the config.
         /// Create the table if needed
         /// </summary>
@@ -116,7 +94,7 @@ namespace Dotmim.Sync.Core.Builders
                 }
 
                 var trackingTableBuilder = CreateTrackingTableBuilder(connection, transaction);
-                trackingTableBuilder.FilterColumns = this.FilterColumns;
+                trackingTableBuilder.Filters = this.FilterColumns;
 
                 if (trackingTableBuilder.NeedToCreateTrackingTable(this.BuilderOption))
                 {
@@ -129,7 +107,7 @@ namespace Dotmim.Sync.Core.Builders
                 }
 
                 var triggerBuilder = CreateTriggerBuilder(connection, transaction);
-                triggerBuilder.FilterColumns = this.FilterColumns;
+                triggerBuilder.Filters = this.FilterColumns;
 
                 if (triggerBuilder.NeedToCreateTrigger(DbTriggerType.Insert, this.BuilderOption))
                     triggerBuilder.CreateInsertTrigger();
@@ -143,9 +121,8 @@ namespace Dotmim.Sync.Core.Builders
                 if (procBuilder == null)
                     return;
 
-                procBuilder.FilterColumns = this.FilterColumns;
-                procBuilder.FilterParameters = this.FilterParameters;
-
+                procBuilder.Filters = this.FilterColumns;
+                
                 if (procBuilder.NeedToCreateProcedure(DbCommandType.SelectChanges, this.BuilderOption))
                     procBuilder.CreateSelectIncrementalChanges();
                 if (procBuilder.NeedToCreateProcedure(DbCommandType.SelectRow, this.BuilderOption))
@@ -216,7 +193,7 @@ namespace Dotmim.Sync.Core.Builders
                 }
 
                 var trackingTableBuilder = CreateTrackingTableBuilder(connection, transaction);
-                trackingTableBuilder.FilterColumns = this.FilterColumns;
+                trackingTableBuilder.Filters = this.FilterColumns;
 
                 if (trackingTableBuilder.NeedToCreateTrackingTable(this.BuilderOption))
                 {
@@ -227,7 +204,7 @@ namespace Dotmim.Sync.Core.Builders
                     needToCreateTrackingTable = true;
                 }
                 var triggerBuilder = CreateTriggerBuilder(connection, transaction);
-                triggerBuilder.FilterColumns = this.FilterColumns;
+                triggerBuilder.Filters = this.FilterColumns;
 
                 if (triggerBuilder.NeedToCreateTrigger(DbTriggerType.Insert, this.BuilderOption))
                     stringBuilder.Append(triggerBuilder.CreateInsertTriggerScriptText());
@@ -241,9 +218,8 @@ namespace Dotmim.Sync.Core.Builders
 
                 if (procBuilder != null)
                 {
-                    procBuilder.FilterColumns = this.FilterColumns;
-                    procBuilder.FilterParameters = this.FilterParameters;
-
+                    procBuilder.Filters = this.FilterColumns;
+                 
                     if (procBuilder.NeedToCreateProcedure(DbCommandType.SelectChanges, this.BuilderOption))
                         stringBuilder.Append(procBuilder.CreateSelectIncrementalChangesScriptText());
                     if (procBuilder.NeedToCreateProcedure(DbCommandType.SelectRow, this.BuilderOption))

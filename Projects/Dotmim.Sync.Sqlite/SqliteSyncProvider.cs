@@ -48,6 +48,7 @@ namespace Dotmim.Sync.SQLite
         /// <summary>
         /// SQLIte does not support to be a server side.
         /// Reason 1 : Can't easily insert / update batch with handling conflict
+        /// Reason 2 : Can't filter rows (based on filterclause)
         /// </summary>
         public override bool CanBeServerProvider => false;
 

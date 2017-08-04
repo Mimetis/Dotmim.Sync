@@ -53,13 +53,19 @@ namespace Dotmim.Sync.SQLite
             return false;
         }
 
-        public override DbCommand GetCommand(DbCommandType commandType)
+        public override DbCommand GetCommand(DbCommandType commandType, IEnumerable<string> additionals = null)
         {
             var command = this.Connection.CreateCommand();
+            string text;
+
+            if (additionals != null)
+                text = this.sqliteObjectNames.GetCommandName(commandType, additionals);
+            else
+                text = this.sqliteObjectNames.GetCommandName(commandType);
 
             // on Sqlite, everything is text :)
             command.CommandType = CommandType.Text;
-            command.CommandText = this.sqliteObjectNames.GetCommandName(commandType);
+            command.CommandText = text;
             command.Connection = Connection;
 
             if (Transaction != null)

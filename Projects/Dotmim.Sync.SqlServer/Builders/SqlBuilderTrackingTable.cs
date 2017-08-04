@@ -9,6 +9,7 @@ using Dotmim.Sync.Core.Common;
 using System.Linq;
 using Dotmim.Sync.Core.Log;
 using System.Data;
+using Dotmim.Sync.Core.Filter;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
@@ -19,7 +20,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         private DmTable tableDescription;
         private SqlConnection connection;
         private SqlTransaction transaction;
-        public List<DmColumn> FilterColumns { get; set; }
+        public FilterClauseCollection Filters { get; set; }
 
      
      
@@ -74,13 +75,13 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"\t,[update_scope_id] ASC");
             stringBuilder.AppendLine($"\t,[sync_row_is_tombstone] ASC");
             // Filter columns
-            if (this.FilterColumns != null)
+            if (this.Filters != null && this.Filters.Count > 0)
             {
-                for (int i = 0; i < this.FilterColumns.Count; i++)
+                for (int i = 0; i < this.Filters.Count; i++)
                 {
-                    var filterColumn = this.FilterColumns[i];
+                    var filterColumn = this.Filters[i];
 
-                    if (this.tableDescription.PrimaryKey.Columns.Any(c => c.ColumnName == filterColumn.ColumnName))
+                    if (this.tableDescription.Columns.Any(c => c.ColumnName == filterColumn.ColumnName))
                         continue;
 
                     ObjectNameParser columnName = new ObjectNameParser(filterColumn.ColumnName);
@@ -231,17 +232,23 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"[last_change_datetime] [datetime] NULL, ");
 
             // adding the filter columns
-            if (this.FilterColumns != null)
-                foreach (DmColumn filterColumn in this.FilterColumns)
+            if (this.Filters != null && this.Filters.Count > 0)
+                foreach (var filter in this.Filters)
                 {
-                    var isPk = this.tableDescription.PrimaryKey.Columns.Any(dm => this.tableDescription.IsEqual(dm.ColumnName, filterColumn.ColumnName));
+                    var columnFilter = this.tableDescription.Columns[filter.ColumnName];
+
+                    if (columnFilter == null)
+                        throw new InvalidExpressionException($"Column {filter.ColumnName} does not exist in Table {this.tableDescription.TableName}");
+
+                    var isPk = this.tableDescription.PrimaryKey.Columns.Any(dm => this.tableDescription.IsEqual(dm.ColumnName, filter.ColumnName));
                     if (isPk)
                         continue;
 
-                    var quotedColumnName = new ObjectNameParser(filterColumn.ColumnName, "[", "]").QuotedString;
-                    var quotedColumnType = new ObjectNameParser(filterColumn.GetSqlDbTypeString(), "[", "]").QuotedString;
-                    quotedColumnType += filterColumn.GetSqlTypePrecisionString();
-                    var nullableColumn = filterColumn.AllowDBNull ? "NULL" : "NOT NULL";
+
+                    var quotedColumnName = new ObjectNameParser(columnFilter.ColumnName, "[", "]").QuotedString;
+                    var quotedColumnType = new ObjectNameParser(columnFilter.GetSqlDbTypeString(), "[", "]").QuotedString;
+                    quotedColumnType += columnFilter.GetSqlTypePrecisionString();
+                    var nullableColumn = columnFilter.AllowDBNull ? "NULL" : "NOT NULL";
 
                     stringBuilder.AppendLine($"{quotedColumnName} {quotedColumnType} {nullableColumn}, ");
                 }
@@ -323,14 +330,19 @@ namespace Dotmim.Sync.SqlServer.Builders
             StringBuilder stringBuilder5 = new StringBuilder();
             StringBuilder stringBuilder6 = new StringBuilder();
 
-            if (FilterColumns != null)
-                foreach (var filterColumn in this.FilterColumns)
+            if (Filters != null && Filters.Count > 0)
+                foreach (var filter in this.Filters)
                 {
-                    var isPk = this.tableDescription.PrimaryKey.Columns.Any(dm => this.tableDescription.IsEqual(dm.ColumnName, filterColumn.ColumnName));
+                    var columnFilter = this.tableDescription.Columns[filter.ColumnName];
+
+                    if (columnFilter == null)
+                        throw new InvalidExpressionException($"Column {filter.ColumnName} does not exist in Table {this.tableDescription.TableName}");
+
+                    var isPk = this.tableDescription.PrimaryKey.Columns.Any(dm => this.tableDescription.IsEqual(dm.ColumnName, columnFilter.ColumnName));
                     if (isPk)
                         continue;
 
-                    var quotedColumnName = new ObjectNameParser(filterColumn.ColumnName, "[", "]").QuotedString;
+                    var quotedColumnName = new ObjectNameParser(columnFilter.ColumnName, "[", "]").QuotedString;
 
                     stringBuilder6.Append(string.Concat(empty, quotedColumnName));
                     stringBuilder5.Append(string.Concat(empty, baseTable, ".", quotedColumnName));

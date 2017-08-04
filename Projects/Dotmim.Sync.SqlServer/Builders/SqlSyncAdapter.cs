@@ -184,13 +184,19 @@ namespace Dotmim.Sync.SqlServer.Builders
 
 
 
-        public override DbCommand GetCommand(DbCommandType nameType)
+        public override DbCommand GetCommand(DbCommandType nameType, IEnumerable<string> additionals = null)
         {
             var command = this.Connection.CreateCommand();
-            
+
+            string text;
+            if (additionals != null)
+                text = this.sqlObjectNames.GetCommandName(nameType, additionals);
+            else
+                text = this.sqlObjectNames.GetCommandName(nameType);
+
             // on Sql Server, everything is Stored Procedure
             command.CommandType = CommandType.StoredProcedure;
-            command.CommandText = sqlObjectNames.GetCommandName(nameType);
+            command.CommandText = text;
             command.Connection = Connection;
 
             if (Transaction != null)

@@ -1,4 +1,5 @@
-﻿using Dotmim.Sync.Data;
+﻿using Dotmim.Sync.Core.Filter;
+using Dotmim.Sync.Data;
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
@@ -11,7 +12,7 @@ namespace Dotmim.Sync.Core.Builders
     /// </summary>
     public interface IDbBuilderTrackingTableHelper
     {
-        List<DmColumn> FilterColumns { get; set; }
+        FilterClauseCollection Filters { get; set; }
         bool NeedToCreateTrackingTable(DbBuilderOption builderOption);
         void CreateTable();
         void CreatePk();

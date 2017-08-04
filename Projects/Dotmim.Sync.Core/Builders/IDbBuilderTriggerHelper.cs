@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data.Common;
 using System.Text;
 using Dotmim.Sync.Data;
+using Dotmim.Sync.Core.Filter;
 
 namespace Dotmim.Sync.Core.Builders
 {
@@ -11,7 +12,7 @@ namespace Dotmim.Sync.Core.Builders
     /// </summary>
     public interface IDbBuilderTriggerHelper
     {
-        List<DmColumn> FilterColumns { get; set; }
+        FilterClauseCollection Filters { get; set; }
     
         bool NeedToCreateTrigger(DbTriggerType triggerType, DbBuilderOption builderOption);
         void CreateInsertTrigger();

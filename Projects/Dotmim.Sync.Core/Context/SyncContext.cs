@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using Dotmim.Sync.Core.Scope;
 using Newtonsoft.Json;
 using System.ComponentModel;
+using Dotmim.Sync.Core.Filter;
 
 namespace Dotmim.Sync.Core
 {
@@ -57,7 +58,12 @@ namespace Dotmim.Sync.Core
         /// </summary>
         public SyncStage SyncStage { get; set; }
 
-     
+        /// <summary>
+        /// Get or Sets the Sync parameter to pass to Remote provider for filtering rows
+        /// </summary>
+        public SyncParameterCollection Parameters { get; set; }
+
+
         public SyncContext(Guid sessionId)
         {
             this.SessionId = sessionId;

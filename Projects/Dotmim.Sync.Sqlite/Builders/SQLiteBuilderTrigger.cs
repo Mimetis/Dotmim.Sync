@@ -10,6 +10,7 @@ using System.Linq;
 using Dotmim.Sync.Core.Log;
 using System.Data;
 using System.Data.SQLite;
+using Dotmim.Sync.Core.Filter;
 
 namespace Dotmim.Sync.SQLite
 {
@@ -22,7 +23,7 @@ namespace Dotmim.Sync.SQLite
         private SQLiteTransaction transaction;
         private SQLiteObjectNames sqliteObjectNames;
 
-        public List<DmColumn> FilterColumns { get; set; }
+        public FilterClauseCollection Filters { get; set; }
 
     
 
@@ -46,23 +47,27 @@ namespace Dotmim.Sync.SQLite
             stringBuilder.AppendLine("\t,[update_timestamp] = strftime('%s', datetime('now', 'utc'))");
             stringBuilder.AppendLine("\t,[timestamp] = strftime('%s', datetime('now', 'utc'))");
             stringBuilder.AppendLine("\t,[last_change_datetime] = datetime('now')");
-            // Filter columns
-            if (this.FilterColumns != null)
-            {
-                for (int i = 0; i < this.FilterColumns.Count; i++)
-                {
-                    var filterColumn = this.FilterColumns[i];
 
-                    if (this.tableDescription.PrimaryKey.Columns.Any(c => c.ColumnName == filterColumn.ColumnName))
-                        continue;
+            // --------------------------------------------------------------------------------
+            // SQLITE doesnot support (yet) filtering columns, since it's only a client provider
+            // --------------------------------------------------------------------------------
+            //// Filter columns
+            //if (this.Filters != null)
+            //{
+            //    for (int i = 0; i < this.Filters.Count; i++)
+            //    {
+            //        var filterColumn = this.Filters[i];
 
-                    ObjectNameParser columnName = new ObjectNameParser(filterColumn.ColumnName);
+            //        if (this.tableDescription.PrimaryKey.Columns.Any(c => c.ColumnName == filterColumn.ColumnName))
+            //            continue;
 
-                    stringBuilder.AppendLine($"\t,{columnName.QuotedString} = [d].{columnName.QuotedString}");
+            //        ObjectNameParser columnName = new ObjectNameParser(filterColumn.ColumnName);
 
-                }
-                stringBuilder.AppendLine();
-            }
+            //        stringBuilder.AppendLine($"\t,{columnName.QuotedString} = [d].{columnName.QuotedString}");
+
+            //    }
+            //    stringBuilder.AppendLine();
+            //}
 
             stringBuilder.Append($"WHERE ");
             stringBuilder.Append(SQLiteManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, trackingName.QuotedString, "old"));
@@ -164,20 +169,25 @@ namespace Dotmim.Sync.SQLite
             stringBuilder.AppendLine("\t\t,[last_change_datetime]");
 
             StringBuilder filterColumnsString = new StringBuilder();
-            // Filter columns
-            if (this.FilterColumns != null && this.FilterColumns.Count > 0)
-            {
-                for (int i = 0; i < this.FilterColumns.Count; i++)
-                {
-                    var filterColumn = this.FilterColumns[i];
-                    if (this.tableDescription.PrimaryKey.Columns.Any(c => c.ColumnName == filterColumn.ColumnName))
-                        continue;
 
-                    ObjectNameParser columnName = new ObjectNameParser(filterColumn.ColumnName);
-                    filterColumnsString.AppendLine($"\t,[i].{columnName.QuotedString}");
-                }
-                stringBuilder.AppendLine(filterColumnsString.ToString());
-            }
+            // --------------------------------------------------------------------------------
+            // SQLITE doesnot support (yet) filtering columns, since it's only a client provider
+            // --------------------------------------------------------------------------------
+            //// Filter columns
+            //if (this.Filters != null && this.Filters.Count > 0)
+            //{
+            //    for (int i = 0; i < this.Filters.Count; i++)
+            //    {
+            //        var filterColumn = this.Filters[i];
+            //        if (this.tableDescription.PrimaryKey.Columns.Any(c => c.ColumnName == filterColumn.ColumnName))
+            //            continue;
+
+            //        ObjectNameParser columnName = new ObjectNameParser(filterColumn.ColumnName);
+            //        filterColumnsString.AppendLine($"\t,[i].{columnName.QuotedString}");
+            //    }
+            //    stringBuilder.AppendLine(filterColumnsString.ToString());
+            //}
+
             stringBuilder.AppendLine("\t) ");
             stringBuilder.AppendLine("\tVALUES (");
             stringBuilder.Append(stringBuilderArguments2.ToString());
@@ -189,7 +199,7 @@ namespace Dotmim.Sync.SQLite
             stringBuilder.AppendLine("\t\t,0");
             stringBuilder.AppendLine("\t\t,datetime('now')");
 
-            if (FilterColumns != null && FilterColumns.Count > 0)
+            if (Filters != null && Filters.Count > 0)
                 stringBuilder.AppendLine(filterColumnsString.ToString());
 
             stringBuilder.AppendLine("\t);");
@@ -266,23 +276,27 @@ namespace Dotmim.Sync.SQLite
             stringBuilder.AppendLine("\t\t,[update_timestamp] = strftime('%s', datetime('now', 'utc'))");
             stringBuilder.AppendLine("\t\t,[timestamp] = strftime('%s', datetime('now', 'utc'))");
             stringBuilder.AppendLine("\t\t,[last_change_datetime] = datetime('now')");
+
+            // --------------------------------------------------------------------------------
+            // SQLITE doesnot support (yet) filtering columns, since it's only a client provider
+            // --------------------------------------------------------------------------------
             // Filter columns
-            if (this.FilterColumns != null && FilterColumns.Count > 0)
-            {
-                for (int i = 0; i < this.FilterColumns.Count; i++)
-                {
-                    var filterColumn = this.FilterColumns[i];
+            //if (this.Filters != null && Filters.Count > 0)
+            //{
+            //    for (int i = 0; i < this.Filters.Count; i++)
+            //    {
+            //        var filterColumn = this.Filters[i];
 
-                    if (this.tableDescription.PrimaryKey.Columns.Any(c => c.ColumnName == filterColumn.ColumnName))
-                        continue;
+            //        if (this.tableDescription.PrimaryKey.Columns.Any(c => c.ColumnName == filterColumn.ColumnName))
+            //            continue;
 
-                    ObjectNameParser columnName = new ObjectNameParser(filterColumn.ColumnName);
+            //        ObjectNameParser columnName = new ObjectNameParser(filterColumn.ColumnName);
 
-                    stringBuilder.AppendLine($"\t,{columnName.QuotedString} = [i].{columnName.QuotedString}");
+            //        stringBuilder.AppendLine($"\t,{columnName.QuotedString} = [i].{columnName.QuotedString}");
 
-                }
-                stringBuilder.AppendLine();
-            }
+            //    }
+            //    stringBuilder.AppendLine();
+            //}
 
             stringBuilder.Append($"\tWhere ");
             stringBuilder.Append(SQLiteManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, trackingName.QuotedString, "new"));

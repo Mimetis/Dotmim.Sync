@@ -9,6 +9,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using DmBinaryFormatter;
+using Dotmim.Sync.Core.Filter;
 
 namespace Dotmim.Sync.Core
 {
@@ -40,10 +41,6 @@ namespace Dotmim.Sync.Core
         /// </summary>
         public int DownloadBatchSizeInKB { get; set; }
 
-        /// <summary>
-        /// Gets or Sets the list that contains the filter parameters that the service is configured to operate on.
-        /// </summary>
-        public List<SyncParameter> FilterParameters { get; set; }
 
         /// <summary>
         /// Gets/Sets the serialization converter object
@@ -71,6 +68,11 @@ namespace Dotmim.Sync.Core
         public bool OverwriteConfiguration { get; set; } = false;
 
         /// <summary>
+        /// Filters applied on tables
+        /// </summary>
+        public FilterClauseCollection Filters { get; set; }
+
+        /// <summary>
         /// Get the default apply action on conflict resolution
         /// </summary>
         public ApplyAction GetApplyAction() => this.ConflictResolutionPolicy == ConflictResolutionPolicy.ServerWins ?
@@ -86,6 +88,7 @@ namespace Dotmim.Sync.Core
             this.UseVerboseErrors = false;
             this.BatchDirectory = Path.Combine(Path.GetTempPath(), "DotmimSync");
             this.SerializationConverter = SerializationFormat.Json;
+            this.Filters = new FilterClauseCollection(this);
         }
 
         public ServiceConfiguration(string[] tables) : this()
@@ -107,17 +110,9 @@ namespace Dotmim.Sync.Core
             serviceConfiguration.UseVerboseErrors = this.UseVerboseErrors;
             serviceConfiguration.SerializationConverter = this.SerializationConverter;
 
-            if (this.FilterParameters != null)
-            {
-                serviceConfiguration.FilterParameters = new List<SyncParameter>();
-                foreach (var p in this.FilterParameters)
-                {
-                    SyncParameter p1 = new SyncParameter();
-                    p1.Name = p.Name;
-                    p1.Value = p.Value;
-                    serviceConfiguration.FilterParameters.Add(p1);
-                }
-            }
+            if (this.Filters != null)
+                foreach (var p in this.Filters)
+                    serviceConfiguration.Filters.Add(p.TableName, p.ColumnName);
 
             return serviceConfiguration;
 
@@ -144,24 +139,23 @@ namespace Dotmim.Sync.Core
             configuration.OverwriteConfiguration = (bool)dmRowConfiguration["OverwriteConfiguration"];
             configuration.SerializationConverter = (SerializationFormat)dmRowConfiguration["SerializationConverter"];
 
-            if (set.Tables.Contains("DotmimSync__FilterParameter"))
+            if (set.Tables.Contains("DotmimSync__Filters"))
             {
-                configuration.FilterParameters = new List<SyncParameter>();
-                var dmTableFilterParameters = set.Tables["DotmimSync__FilterParameter"];
+                var dmTableFilterParameters = set.Tables["DotmimSync__Filters"];
 
                 foreach (var dmRowFilter in dmTableFilterParameters.Rows)
                 {
-                    SyncParameter syncParameter = new SyncParameter();
-                    syncParameter.Name = dmRowFilter["Name"] as String;
+                    FilterClause filterClause = new FilterClause();
 
-                    var valueType = dmRowFilter["ValueType"] as String;
-                    var value = dmRowFilter["Value"] as String;
-                    var objType = DmUtils.GetTypeFromAssemblyQualifiedName(valueType);
-                    var converter = objType.GetConverter();
-                    var objValue = converter.ConvertFromInvariantString(valueType);
-                    syncParameter.Value = objValue;
+                    var tableName = dmRowFilter["TableName"] as String;
+                    var columnName = dmRowFilter["ColumnName"] as String;
 
-                    configuration.FilterParameters.Add(syncParameter);
+                    //var objType = DmUtils.GetTypeFromAssemblyQualifiedName(valueType);
+                    //var converter = objType.GetConverter();
+                    //var objValue = converter.ConvertFromInvariantString(valueType);
+                    // syncParameter.Value = objValue;
+
+                    configuration.Filters.Add(tableName, columnName);
                 }
             }
 
@@ -186,7 +180,7 @@ namespace Dotmim.Sync.Core
 
             if (set.Relations != null && set.Relations.Count > 0)
             {
-                foreach(var r in set.Relations)
+                foreach (var r in set.Relations)
                 {
                     var relation = r.Clone(configuration.ScopeSet);
                     configuration.ScopeSet.Relations.Add(relation);
@@ -246,39 +240,39 @@ namespace Dotmim.Sync.Core
                     set.Tables.Add(dmTableConf);
                 }
 
-                foreach(var dmRelation in configuration.ScopeSet.Relations)
+                foreach (var dmRelation in configuration.ScopeSet.Relations)
                 {
                     var dmRelationConf = dmRelation.Clone(set);
                     set.Relations.Add(dmRelationConf);
                 }
             }
 
-            if (configuration.FilterParameters != null && configuration.FilterParameters.Count > 0)
+            if (configuration.Filters.Count > 0)
             {
 
-                if (!set.Tables.Contains("DotmimSync__FilterParameter"))
+                if (!set.Tables.Contains("DotmimSync__Filters"))
                 {
-                    dmTableFilterParameters = new DmTable("DotmimSync__FilterParameter");
+                    dmTableFilterParameters = new DmTable("DotmimSync__Filters");
                     set.Tables.Add(dmTableFilterParameters);
                 }
 
-                dmTableFilterParameters = set.Tables["DotmimSync__FilterParameter"];
-                dmTableFilterParameters.Columns.Add<String>("Name");
-                dmTableFilterParameters.Columns.Add<String>("Value");
-                dmTableFilterParameters.Columns.Add<String>("ValueType");
+                dmTableFilterParameters = set.Tables["DotmimSync__Filters"];
+                dmTableFilterParameters.Columns.Add<String>("TableName");
+                dmTableFilterParameters.Columns.Add<String>("ColumnName");
 
                 DmSerializer serializer = new DmSerializer();
 
-                foreach (var p in configuration.FilterParameters)
+                foreach (var p in configuration.Filters)
                 {
                     var dmRowFilter = dmTableFilterParameters.NewRow();
-                    dmRowFilter["Name"] = p.Name;
+                    dmRowFilter["TableName"] = p.TableName;
+                    dmRowFilter["ColumnName"] = p.ColumnName;
 
-                    var objType = p.Value.GetType();
-                    var converter = objType.GetConverter();
+                    //var objType = p.Value.GetType();
+                    //var converter = objType.GetConverter();
+                    //dmRowFilter["Value"] = converter.ConvertToInvariantString(p.Value);
+                    //dmRowFilter["ValueType"] = objType.GetAssemblyQualifiedName();
 
-                    dmRowFilter["Value"] = converter.ConvertToInvariantString(p.Value);
-                    dmRowFilter["ValueType"] = objType.GetAssemblyQualifiedName();
                     dmTableFilterParameters.Rows.Add(dmRowFilter);
                 }
             }

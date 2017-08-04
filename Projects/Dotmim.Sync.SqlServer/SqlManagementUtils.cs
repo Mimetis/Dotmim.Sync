@@ -325,7 +325,7 @@ namespace Dotmim.Sync.SqlServer
             return stringBuilder.ToString();
         }
 
-        internal static string WhereColumnAndParameters(IEnumerable<DmColumn> columns, string fromPrefix)
+        internal static string ColumnsAndParameters(IEnumerable<DmColumn> columns, string fromPrefix)
         {
             StringBuilder stringBuilder = new StringBuilder();
             string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));

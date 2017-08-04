@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using Dotmim.Sync.Data;
+using Dotmim.Sync.Core.Common;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
@@ -13,6 +14,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         internal const string deleteTriggerName = "[{0}_delete_trigger]";
 
         internal const string selectChangesProcName = "[{0}_selectchanges]";
+        internal const string selectChangesProcNameWithFilters = "[{0}_{1}_selectchanges]";
         internal const string selectRowProcName = "[{0}_selectrow]";
 
         internal const string insertProcName = "[{0}_insert]";
@@ -32,7 +34,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         Dictionary<DbCommandType, String> names = new Dictionary<DbCommandType, string>();
         public DmTable TableDescription { get; }
 
-    
+
         public void AddName(DbCommandType objectType, string name)
         {
             if (names.ContainsKey(objectType))
@@ -40,15 +42,30 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             names.Add(objectType, name);
         }
-        public string GetCommandName(DbCommandType objectType)
+        public string GetCommandName(DbCommandType objectType, IEnumerable<string> filters = null)
         {
             if (!names.ContainsKey(objectType))
                 throw new Exception("Yous should provide a value for all DbCommandName");
 
-            return names[objectType];
+            var commandName = names[objectType];
+
+            if (filters != null)
+            {
+                string name = "";
+                string sep = "";
+                foreach (var c in filters)
+                {
+                    var unquotedColumnName = new ObjectNameParser(c).UnquotedString;
+                    name += $"{unquotedColumnName}{sep}";
+                    sep = "_";
+                }
+
+                commandName = String.Format(commandName, name);
+            }
+            return commandName;
         }
 
-        public SqlObjectNames(DmTable tableDescription) 
+        public SqlObjectNames(DmTable tableDescription)
         {
             this.TableDescription = tableDescription;
             SetDefaultNames();
@@ -62,6 +79,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             (var tableName, var trackingName) = SqlBuilder.GetParsers(this.TableDescription);
 
             this.AddName(DbCommandType.SelectChanges, string.Format(selectChangesProcName, tableName.UnquotedStringWithUnderScore));
+            this.AddName(DbCommandType.SelectChangesWitFilters, string.Format(selectChangesProcNameWithFilters, tableName.UnquotedStringWithUnderScore, "{0}"));
             this.AddName(DbCommandType.SelectRow, string.Format(selectRowProcName, tableName.UnquotedStringWithUnderScore));
             this.AddName(DbCommandType.InsertRow, string.Format(insertProcName, tableName.UnquotedStringWithUnderScore));
             this.AddName(DbCommandType.UpdateRow, string.Format(updateProcName, tableName.UnquotedStringWithUnderScore));

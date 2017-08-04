@@ -641,6 +641,23 @@ namespace Dotmim.Sync.Core
                         foreach (var dmTable in configuration.ScopeSet.Tables)
                         {
                             var builder = GetDatabaseBuilder(dmTable, options);
+
+                            // adding filter
+                            if (configuration.Filters != null && configuration.Filters.Count > 0)
+                            {
+                                var filters = configuration.Filters.Where(f => dmTable.TableName.Equals(f.TableName, StringComparison.InvariantCultureIgnoreCase));
+
+                                foreach (var filter in filters)
+                                {
+                                    var columnFilter = dmTable.Columns[filter.ColumnName];
+
+                                    if (columnFilter == null)
+                                        throw new InvalidExpressionException($"Column {filter.ColumnName} does not exist in Table {dmTable.TableName}");
+
+                                    builder.FilterColumns.Add(filter.TableName, filter.ColumnName);
+                                }
+                            }
+
                             script = builder.Script(connection, transaction);
                             builder.Apply(connection, transaction);
                         }
@@ -845,7 +862,31 @@ namespace Dotmim.Sync.Core
                             selectedChanges.TableName = tableDescription.TableName;
 
                             // Get Command
-                            DbCommand selectIncrementalChangesCommand = syncAdapter.GetCommand(DbCommandType.SelectChanges);
+                            DbCommand selectIncrementalChangesCommand;
+                            DbCommandType dbCommandType;
+
+                            if (this.CanBeServerProvider && context.Parameters != null && context.Parameters.Count > 0 && configuration.Filters != null && configuration.Filters.Count > 0)
+                            {
+                                var filtersName = configuration.Filters
+                                                .Where(f => f.TableName.Equals(tableDescription.TableName, StringComparison.InvariantCultureIgnoreCase))
+                                                .Select(f => f.ColumnName);
+
+                                if (filtersName != null && filtersName.Count() > 0)
+                                {
+                                    dbCommandType = DbCommandType.SelectChangesWitFilters;
+                                    selectIncrementalChangesCommand = syncAdapter.GetCommand(dbCommandType, filtersName);
+                                }
+                                else
+                                {
+                                    dbCommandType = DbCommandType.SelectChanges;
+                                    selectIncrementalChangesCommand = syncAdapter.GetCommand(dbCommandType);
+                                }
+                            }
+                            else
+                            {
+                                dbCommandType = DbCommandType.SelectChanges;
+                                selectIncrementalChangesCommand = syncAdapter.GetCommand(dbCommandType);
+                            }
 
                             if (selectIncrementalChangesCommand == null)
                             {
@@ -855,7 +896,7 @@ namespace Dotmim.Sync.Core
                             }
 
                             // Deriving Parameters
-                            syncAdapter.SetCommandParameters(DbCommandType.SelectChanges, selectIncrementalChangesCommand);
+                            syncAdapter.SetCommandParameters(dbCommandType, selectIncrementalChangesCommand);
 
                             // Get a clone of the table with tracking columns
                             var dmTableChanges = BuildChangesTable(tableDescription.TableName);
@@ -864,6 +905,23 @@ namespace Dotmim.Sync.Core
                             DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_min_timestamp", scopeInfo.LastTimestamp);
                             DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_id", scopeInfo.Id);
                             DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_is_new", scopeInfo.IsNewScope ? 1 : 0);
+
+                            // Set filter parameters if any
+                            if (this.CanBeServerProvider && context.Parameters != null && context.Parameters.Count > 0 && configuration.Filters != null && configuration.Filters.Count > 0)
+                            {
+                                var filters = configuration.Filters.Where(f => f.TableName.Equals(tableDescription.TableName, StringComparison.InvariantCultureIgnoreCase)).ToList();
+
+                                if (filters != null && filters.Count > 0)
+                                {
+                                    foreach (var filter in filters)
+                                    {
+                                        var parameter = context.Parameters.FirstOrDefault(p => p.ColumnName.Equals(filter.ColumnName, StringComparison.InvariantCultureIgnoreCase) && p.TableName.Equals(filter.TableName, StringComparison.InvariantCultureIgnoreCase));
+
+                                        if (parameter != null)
+                                            DbManager.SetParameterValue(selectIncrementalChangesCommand, parameter.ColumnName, parameter.Value);
+                                    }
+                                }
+                            }
 
                             this.AddTrackingColumns<int>(dmTableChanges, "sync_row_is_tombstone");
 
@@ -996,8 +1054,32 @@ namespace Dotmim.Sync.Core
 
                         Logger.Current.Info($"----- Table \"{tableDescription.TableName}\" -----");
 
-                        // get the select incremental changes command
-                        DbCommand selectIncrementalChangesCommand = syncAdapter.GetCommand(DbCommandType.SelectChanges);
+                        // Get Command
+                        DbCommand selectIncrementalChangesCommand;
+                        DbCommandType dbCommandType;
+
+                        if (this.CanBeServerProvider && context.Parameters != null && context.Parameters.Count > 0 && configuration.Filters != null && configuration.Filters.Count > 0)
+                        {
+                            var filtersName = configuration.Filters
+                                            .Where(f => f.TableName.Equals(tableDescription.TableName, StringComparison.InvariantCultureIgnoreCase))
+                                            .Select(f => f.ColumnName);
+
+                            if (filtersName != null && filtersName.Count() > 0)
+                            {
+                                dbCommandType = DbCommandType.SelectChangesWitFilters;
+                                selectIncrementalChangesCommand = syncAdapter.GetCommand(dbCommandType, filtersName);
+                            }
+                            else
+                            {
+                                dbCommandType = DbCommandType.SelectChanges;
+                                selectIncrementalChangesCommand = syncAdapter.GetCommand(dbCommandType);
+                            }
+                        }
+                        else
+                        {
+                            dbCommandType = DbCommandType.SelectChanges;
+                            selectIncrementalChangesCommand = syncAdapter.GetCommand(dbCommandType);
+                        }
 
                         // Deriving Parameters
                         syncAdapter.SetCommandParameters(DbCommandType.SelectChanges, selectIncrementalChangesCommand);
@@ -1017,6 +1099,24 @@ namespace Dotmim.Sync.Core
                             DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_min_timestamp", scopeInfo.LastTimestamp);
                             DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_id", scopeInfo.Id);
                             DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_is_new", (scopeInfo.IsNewScope ? 1 : 0));
+
+                            // Set filter parameters if any
+                            // Only on server side
+                            if (this.CanBeServerProvider && context.Parameters != null && context.Parameters.Count > 0 && configuration.Filters != null && configuration.Filters.Count > 0)
+                            {
+                                var filters = configuration.Filters.Where(f => f.TableName.Equals(tableDescription.TableName, StringComparison.InvariantCultureIgnoreCase)).ToList();
+
+                                if (filters != null && filters.Count > 0)
+                                {
+                                    foreach (var filter in filters)
+                                    {
+                                        var parameter = context.Parameters.FirstOrDefault(p => p.ColumnName.Equals(filter.ColumnName, StringComparison.InvariantCultureIgnoreCase) && p.TableName.Equals(filter.TableName, StringComparison.InvariantCultureIgnoreCase));
+
+                                        if (parameter != null)
+                                            DbManager.SetParameterValue(selectIncrementalChangesCommand, parameter.ColumnName, parameter.Value);
+                                    }
+                                }
+                            }
 
                             this.AddTrackingColumns<int>(dmTable, "sync_row_is_tombstone");
 

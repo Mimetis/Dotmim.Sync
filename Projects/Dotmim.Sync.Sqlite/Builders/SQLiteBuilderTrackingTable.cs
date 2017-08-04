@@ -10,20 +10,21 @@ using System.Linq;
 using Dotmim.Sync.Core.Log;
 using System.Data;
 using System.Data.SQLite;
+using Dotmim.Sync.Core.Filter;
 
 namespace Dotmim.Sync.SQLite
 {
-    public class SqlBuilderTrackingTable : IDbBuilderTrackingTableHelper
+    public class SQLiteBuilderTrackingTable : IDbBuilderTrackingTableHelper
     {
         private ObjectNameParser tableName;
         private ObjectNameParser trackingName;
         private DmTable tableDescription;
         private SQLiteConnection connection;
         private SQLiteTransaction transaction;
-        public List<DmColumn> FilterColumns { get; set; }
+        public FilterClauseCollection Filters { get; set; }
 
 
-        public SqlBuilderTrackingTable(DmTable tableDescription, DbConnection connection, DbTransaction transaction = null)
+        public SQLiteBuilderTrackingTable(DmTable tableDescription, DbConnection connection, DbTransaction transaction = null)
         {
             this.connection = connection as SQLiteConnection;
             this.transaction = transaction as SQLiteTransaction;
@@ -158,20 +159,23 @@ namespace Dotmim.Sync.SQLite
             stringBuilder.AppendLine($"[last_change_datetime] [datetime] NULL, ");
 
             // adding the filter columns
-            if (this.FilterColumns != null)
-                foreach (DmColumn filterColumn in this.FilterColumns)
-                {
-                    var isPk = this.tableDescription.PrimaryKey.Columns.Any(dm => this.tableDescription.IsEqual(dm.ColumnName, filterColumn.ColumnName));
-                    if (isPk)
-                        continue;
+            // --------------------------------------------------------------------------------
+            // SQLITE doesnot support (yet) filtering columns, since it's only a client provider
+            // --------------------------------------------------------------------------------
+            //if (this.FilterColumns != null)
+            //    foreach (DmColumn filterColumn in this.FilterColumns)
+            //    {
+            //        var isPk = this.tableDescription.PrimaryKey.Columns.Any(dm => this.tableDescription.IsEqual(dm.ColumnName, filterColumn.ColumnName));
+            //        if (isPk)
+            //            continue;
 
-                    var quotedColumnName = new ObjectNameParser(filterColumn.ColumnName, "[", "]").QuotedString;
-                    var quotedColumnType = new ObjectNameParser(filterColumn.GetSQLiteDbTypeString(), "[", "]").QuotedString;
-                    quotedColumnType += filterColumn.GetSQLiteTypePrecisionString();
-                    var nullableColumn = filterColumn.AllowDBNull ? "NULL" : "NOT NULL";
+            //        var quotedColumnName = new ObjectNameParser(filterColumn.ColumnName, "[", "]").QuotedString;
+            //        var quotedColumnType = new ObjectNameParser(filterColumn.GetSQLiteDbTypeString(), "[", "]").QuotedString;
+            //        quotedColumnType += filterColumn.GetSQLiteTypePrecisionString();
+            //        var nullableColumn = filterColumn.AllowDBNull ? "NULL" : "NOT NULL";
 
-                    stringBuilder.AppendLine($"{quotedColumnName} {quotedColumnType} {nullableColumn}, ");
-                }
+            //        stringBuilder.AppendLine($"{quotedColumnName} {quotedColumnType} {nullableColumn}, ");
+            //    }
 
             stringBuilder.Append(" PRIMARY KEY (");
             for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
@@ -265,18 +269,21 @@ namespace Dotmim.Sync.SQLite
             StringBuilder stringBuilder5 = new StringBuilder();
             StringBuilder stringBuilder6 = new StringBuilder();
 
-            if (FilterColumns != null)
-                foreach (var filterColumn in this.FilterColumns)
-                {
-                    var isPk = this.tableDescription.PrimaryKey.Columns.Any(dm => this.tableDescription.IsEqual(dm.ColumnName, filterColumn.ColumnName));
-                    if (isPk)
-                        continue;
+            // --------------------------------------------------------------------------------
+            // SQLITE doesnot support (yet) filtering columns, since it's only a client provider
+            // --------------------------------------------------------------------------------
+            //if (FilterColumns != null)
+            //    foreach (var filterColumn in this.FilterColumns)
+            //    {
+            //        var isPk = this.tableDescription.PrimaryKey.Columns.Any(dm => this.tableDescription.IsEqual(dm.ColumnName, filterColumn.ColumnName));
+            //        if (isPk)
+            //            continue;
 
-                    var quotedColumnName = new ObjectNameParser(filterColumn.ColumnName, "[", "]").QuotedString;
+            //        var quotedColumnName = new ObjectNameParser(filterColumn.ColumnName, "[", "]").QuotedString;
 
-                    stringBuilder6.Append(string.Concat(empty, quotedColumnName));
-                    stringBuilder5.Append(string.Concat(empty, baseTable, ".", quotedColumnName));
-                }
+            //        stringBuilder6.Append(string.Concat(empty, quotedColumnName));
+            //        stringBuilder5.Append(string.Concat(empty, baseTable, ".", quotedColumnName));
+            //    }
 
             // (list of pkeys)
             stringBuilder.Append(string.Concat(stringBuilder1.ToString(), ", "));

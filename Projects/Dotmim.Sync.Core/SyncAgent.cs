@@ -1,6 +1,7 @@
 ﻿using Dotmim.Sync.Core.Batch;
 using Dotmim.Sync.Core.Builders;
 using Dotmim.Sync.Core.Context;
+using Dotmim.Sync.Core.Filter;
 using Dotmim.Sync.Core.Log;
 using Dotmim.Sync.Core.Scope;
 using Dotmim.Sync.Data;
@@ -47,6 +48,10 @@ namespace Dotmim.Sync.Core
         // On Client, we have only the client scope
         public Dictionary<string, ScopeInfo> Scopes { get; set; }
 
+        /// <summary>
+        /// Get or Sets the Sync parameter to pass to Remote provider for filtering rows
+        /// </summary>
+        public SyncParameterCollection Parameters { get; set; } = new SyncParameterCollection();
 
         /// <summary>
         /// Occurs during progress
@@ -187,6 +192,9 @@ namespace Dotmim.Sync.Core
             SyncContext context = new SyncContext(Guid.NewGuid());
             // set start time
             context.StartTime = DateTime.Now;
+
+            // if any parameters, set in context
+            context.Parameters = this.Parameters;
 
             this.SessionState = SyncSessionState.Synchronizing;
             this.SessionStateChanged?.Invoke(this, this.SessionState);
@@ -463,6 +471,8 @@ namespace Dotmim.Sync.Core
             return context;
 
         }
+
+
 
         private static void HandleSyncError(SyncException sex)
         {

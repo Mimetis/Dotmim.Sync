@@ -29,7 +29,7 @@ namespace Dotmim.Sync.SQLite
 
             names.Add(objectType, name);
         }
-        public string GetCommandName(DbCommandType objectType)
+        public string GetCommandName(DbCommandType objectType, IEnumerable<string> adds = null)
         {
             if (!names.ContainsKey(objectType))
                 throw new NotSupportedException($"SQLite provider does not support the command type {objectType.ToString()}");
@@ -239,6 +239,7 @@ namespace Dotmim.Sync.SQLite
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("WHERE (");
             string str = string.Empty;
+
             //if (!SqlManagementUtils.IsStringNullOrWhitespace(this._filterClause))
             //{
             //    StringBuilder stringBuilder1 = new StringBuilder();
@@ -274,6 +275,7 @@ namespace Dotmim.Sync.SQLite
             stringBuilder.AppendLine("\t);");
 
             this.AddName(DbCommandType.SelectChanges, stringBuilder.ToString());
+            this.AddName(DbCommandType.SelectChangesWitFilters, stringBuilder.ToString());
         }
 
     }

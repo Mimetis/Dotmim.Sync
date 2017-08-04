@@ -10,6 +10,7 @@ using System.Data;
 using System.Globalization;
 using Dotmim.Sync.Core.Log;
 using System.Linq;
+using Dotmim.Sync.Core.Filter;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
@@ -22,8 +23,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         private DmTable tableDescription;
         private SqlObjectNames sqlObjectNames;
 
-        public List<DmColumn> FilterColumns { get; set; }
-        public List<DmColumn> FilterParameters { get; set; }
+        public FilterClauseCollection Filters { get; set; }
 
         public SqlBuilderProcedure(DmTable tableDescription, DbConnection connection, DbTransaction transaction = null)
         {
@@ -722,7 +722,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             stringBuilder.AppendLine("WHERE ([side].[timestamp] <= @sync_min_timestamp  OR @sync_force_write = 1)");
             stringBuilder.Append("AND ");
-            stringBuilder.AppendLine(string.Concat("(", SqlManagementUtils.WhereColumnAndParameters(this.tableDescription.PrimaryKey.Columns, "[base]"), ");"));
+            stringBuilder.AppendLine(string.Concat("(", SqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKey.Columns, "[base]"), ");"));
             stringBuilder.AppendLine();
             stringBuilder.AppendLine(string.Concat("SET ", sqlParameter2.ParameterName, " = @@ROWCOUNT;"));
             sqlCommand.CommandText = stringBuilder.ToString();
@@ -759,7 +759,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($"DELETE [side] FROM {trackingName.QuotedString} [side]");
             stringBuilder.Append($"WHERE ");
-            stringBuilder.AppendLine(SqlManagementUtils.WhereColumnAndParameters(this.tableDescription.PrimaryKey.Columns, ""));
+            stringBuilder.AppendLine(SqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKey.Columns, ""));
             stringBuilder.AppendLine();
             stringBuilder.AppendLine(string.Concat("SET ", sqlParameter2.ParameterName, " = @@ROWCOUNT;"));
             sqlCommand.CommandText = stringBuilder.ToString();
@@ -805,7 +805,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"SET {sqlParameter.ParameterName} = 0;");
 
             stringBuilder.Append(string.Concat("IF NOT EXISTS (SELECT * FROM ", trackingName.QuotedString, " WHERE "));
-            stringBuilder.Append(SqlManagementUtils.WhereColumnAndParameters(this.tableDescription.PrimaryKey.Columns, string.Empty));
+            stringBuilder.Append(SqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKey.Columns, string.Empty));
             stringBuilder.AppendLine(") ");
             stringBuilder.AppendLine("BEGIN ");
             if (hasAutoIncColumn)
@@ -881,7 +881,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("\t[update_scope_id] = @sync_scope_id, ");
             stringBuilder.AppendLine("\t[update_timestamp] = @update_timestamp, ");
             stringBuilder.AppendLine("\t[sync_row_is_tombstone] = @sync_row_is_tombstone ");
-            stringBuilder.AppendLine($"WHERE ({SqlManagementUtils.WhereColumnAndParameters(this.tableDescription.PrimaryKey.Columns, "")})");
+            stringBuilder.AppendLine($"WHERE ({SqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKey.Columns, "")})");
             stringBuilder.AppendLine();
 
             stringBuilder.AppendLine($"SET {sqlParameter8.ParameterName} = @@rowcount; ");
@@ -1084,7 +1084,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "[base]", "[side]"));
             stringBuilder.AppendLine("WHERE ([side].[timestamp] <= @sync_min_timestamp OR @sync_force_write = 1)");
             stringBuilder.Append("AND (");
-            stringBuilder.Append(SqlManagementUtils.WhereColumnAndParameters(this.tableDescription.PrimaryKey.Columns, "[base]"));
+            stringBuilder.Append(SqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKey.Columns, "[base]"));
             stringBuilder.AppendLine(");");
             stringBuilder.AppendLine();
             stringBuilder.Append(string.Concat("SET ", sqlParameter2.ParameterName, " = @@ROWCOUNT;"));
@@ -1122,7 +1122,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             sqlParameter8.Direction = ParameterDirection.Output;
             sqlCommand.Parameters.Add(sqlParameter8);
 
-            string str1 = SqlManagementUtils.WhereColumnAndParameters(this.tableDescription.PrimaryKey.Columns, "");
+            string str1 = SqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKey.Columns, "");
 
             stringBuilder.AppendLine($"SET {sqlParameter8.ParameterName} = 0;");
             stringBuilder.AppendLine();
@@ -1171,7 +1171,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         //------------------------------------------------------------------
         // Select changes command
         //------------------------------------------------------------------
-        private SqlCommand BuildSelectIncrementalChangesCommand()
+        private SqlCommand BuildSelectIncrementalChangesCommand(bool withFilter = false)
         {
             SqlCommand sqlCommand = new SqlCommand();
             SqlParameter sqlParameter1 = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt);
@@ -1180,6 +1180,22 @@ namespace Dotmim.Sync.SqlServer.Builders
             sqlCommand.Parameters.Add(sqlParameter1);
             sqlCommand.Parameters.Add(sqlParameter3);
             sqlCommand.Parameters.Add(sqlParameter4);
+
+
+            if (withFilter && this.Filters != null && this.Filters.Count > 0)
+            {
+                foreach (var c in this.Filters)
+                {
+                    var columnFilter = this.tableDescription.Columns[c.ColumnName];
+
+                    if (columnFilter == null)
+                        throw new InvalidExpressionException($"Column {c.ColumnName} does not exist in Table {this.tableDescription.TableName}");
+
+                    var columnFilterName = new ObjectNameParser(columnFilter.ColumnName, "[", "]");
+                    SqlParameter sqlParamFilter = new SqlParameter($"@{columnFilterName.UnquotedString}", columnFilter.GetSqlDbType());
+                    sqlCommand.Parameters.Add(sqlParamFilter);
+                }
+            }
 
             StringBuilder stringBuilder = new StringBuilder("SELECT ");
             foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
@@ -1211,26 +1227,55 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("WHERE (");
             string str = string.Empty;
-            //if (!SqlManagementUtils.IsStringNullOrWhitespace(this._filterClause))
-            //{
-            //    StringBuilder stringBuilder1 = new StringBuilder();
-            //    stringBuilder1.Append("((").Append(this._filterClause).Append(") OR (");
-            //    stringBuilder1.Append(SqlSyncProcedureHelper.TrackingTableAlias).Append(".").Append(this._trackingColNames.SyncRowIsTombstone).Append(" = 1 AND ");
-            //    stringBuilder1.Append("(");
-            //    stringBuilder1.Append(SqlSyncProcedureHelper.TrackingTableAlias).Append(".").Append(this._trackingColNames.UpdateScopeLocalId).Append(" = ").Append(sqlParameter.ParameterName);
-            //    stringBuilder1.Append(" OR ");
-            //    stringBuilder1.Append(SqlSyncProcedureHelper.TrackingTableAlias).Append(".").Append(this._trackingColNames.UpdateScopeLocalId).Append(" IS NULL");
-            //    stringBuilder1.Append(") AND ");
-            //    string empty1 = string.Empty;
-            //    foreach (DbSyncColumnDescription _filterColumn in this._filterColumns)
-            //    {
-            //        stringBuilder1.Append(empty1).Append(SqlSyncProcedureHelper.TrackingTableAlias).Append(".").Append(_filterColumn.QuotedName).Append(" IS NULL");
-            //        empty1 = " AND ";
-            //    }
-            //    stringBuilder1.Append("))");
-            //    stringBuilder.Append(stringBuilder1.ToString());
-            //    str = " AND ";
-            //}
+
+            //  --Changes where only customerId is identified
+            //  ([side].[CustomerId] = @CustomerId
+
+            //   Or(
+            //       --Or row customer is null and it's come from the scope_id who deal the filter 
+            //       ([side].[update_scope_id] = @sync_scope_id or[side].[update_scope_id] IS NULL)
+
+            //       and[side].[CustomerId] is null
+            //   )
+            //)
+
+            if (withFilter && this.Filters != null && this.Filters.Count > 0)
+            {
+                StringBuilder builderFilter = new StringBuilder();
+                builderFilter.Append("\t(");
+                string filterSeparationString = "";
+                foreach (var c in this.Filters)
+                {
+                    var columnFilter = this.tableDescription.Columns[c.ColumnName];
+
+                    if (columnFilter == null)
+                        throw new InvalidExpressionException($"Column {c.ColumnName} does not exist in Table {this.tableDescription.TableName}");
+
+                    var columnFilterName = new ObjectNameParser(columnFilter.ColumnName, "[", "]");
+
+                    builderFilter.Append($"[side].{columnFilterName.QuotedObjectName} = @{columnFilterName.UnquotedString}{filterSeparationString}");
+                    filterSeparationString = " AND ";
+                }
+                builderFilter.AppendLine(")");
+                builderFilter.Append("\tOR (");
+                builderFilter.AppendLine("([side].[update_scope_id] = @sync_scope_id or [side].[update_scope_id] IS NULL)");
+                builderFilter.Append("\t\tAND (");
+
+                filterSeparationString = "";
+                foreach (var c in this.Filters)
+                {
+                    var columnFilter = this.tableDescription.Columns[c.ColumnName];
+                    var columnFilterName = new ObjectNameParser(columnFilter.ColumnName, "[", "]");
+
+                    builderFilter.Append($"[side].{columnFilterName.QuotedObjectName} IS NULL{filterSeparationString}");
+                    filterSeparationString = " OR ";
+                }
+
+                builderFilter.AppendLine("))");
+                builderFilter.AppendLine("\t)");
+                builderFilter.AppendLine("AND (");
+                stringBuilder.Append(builderFilter.ToString());
+            }
 
             stringBuilder.AppendLine("\t-- Update made by the local instance");
             stringBuilder.AppendLine("\t[side].[update_scope_id] IS NULL");
@@ -1247,6 +1292,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
 
             sqlCommand.CommandText = stringBuilder.ToString();
+
             //if (this._filterParameters != null)
             //{
             //    foreach (SqlParameter _filterParameter in this._filterParameters)
@@ -1259,12 +1305,59 @@ namespace Dotmim.Sync.SqlServer.Builders
         public void CreateSelectIncrementalChanges()
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChanges);
-            CreateProcedureCommand(BuildSelectIncrementalChangesCommand, commandName);
+            Func<SqlCommand> cmdWithoutFilter = () => BuildSelectIncrementalChangesCommand(false);
+            CreateProcedureCommand(cmdWithoutFilter, commandName);
+
+            if (this.Filters != null && this.Filters.Count > 0)
+            {
+                foreach (var c in this.Filters)
+                {
+                    var columnFilter = this.tableDescription.Columns[c.ColumnName];
+
+                    if (columnFilter == null)
+                        throw new InvalidExpressionException($"Column {c.ColumnName} does not exist in Table {this.tableDescription.TableName}");
+                }
+
+                var filtersName = this.Filters.Select(f => f.ColumnName);
+                commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWitFilters, filtersName);
+                Func<SqlCommand> cmdWithFilter = () => BuildSelectIncrementalChangesCommand(true);
+                CreateProcedureCommand(cmdWithFilter, commandName);
+
+            }
+
         }
         public string CreateSelectIncrementalChangesScriptText()
         {
+            StringBuilder sbSelecteChanges = new StringBuilder();
+
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChanges);
-            return CreateProcedureCommandScriptText(BuildSelectIncrementalChangesCommand, commandName);
+            Func<SqlCommand> cmdWithoutFilter = () => BuildSelectIncrementalChangesCommand(false);
+            sbSelecteChanges.AppendLine(CreateProcedureCommandScriptText(cmdWithoutFilter, commandName));
+
+
+            if (this.Filters != null && this.Filters.Count > 0)
+            {
+                commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWitFilters);
+                string name = "";
+                string sep = "";
+                foreach (var c in this.Filters)
+                {
+                    var columnFilter = this.tableDescription.Columns[c.ColumnName];
+
+                    if (columnFilter == null)
+                        throw new InvalidExpressionException($"Column {c.ColumnName} does not exist in Table {this.tableDescription.TableName}");
+
+                    var unquotedColumnName = new ObjectNameParser(columnFilter.ColumnName).UnquotedString;
+                    name += $"{unquotedColumnName}{sep}";
+                    sep = "_";
+                }
+
+                commandName = String.Format(commandName, name);
+                Func<SqlCommand> cmdWithFilter = () => BuildSelectIncrementalChangesCommand(true);
+                sbSelecteChanges.AppendLine(CreateProcedureCommandScriptText(cmdWithFilter, commandName));
+
+            }
+            return sbSelecteChanges.ToString();
         }
 
 
