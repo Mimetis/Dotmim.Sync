@@ -26,7 +26,7 @@ namespace Dotmim.Sync.Core
     {
 
         string scopeName;
-        ServiceConfiguration serviceConfiguration;
+        public ServiceConfiguration ServiceConfiguration { get; set; }
 
         /// <summary>
         /// Defines the state that a synchronization session is in.
@@ -71,13 +71,13 @@ namespace Dotmim.Sync.Core
 
         public SyncAgent(string[] tables)
         {
-            this.serviceConfiguration = new ServiceConfiguration(tables);
+            this.ServiceConfiguration = new ServiceConfiguration(tables);
 
         }
 
         public SyncAgent(ServiceConfiguration configuration)
         {
-            this.serviceConfiguration = configuration;
+            this.ServiceConfiguration = configuration;
 
         }
 
@@ -128,7 +128,7 @@ namespace Dotmim.Sync.Core
             if (!remoteCoreProvider.CanBeServerProvider)
                 throw new NotSupportedException();
 
-            this.serviceConfiguration = new ServiceConfiguration(tables);
+            this.ServiceConfiguration = new ServiceConfiguration(tables);
         }
 
         /// <summary>
@@ -161,7 +161,7 @@ namespace Dotmim.Sync.Core
             if (!remoteCoreProvider.CanBeServerProvider)
                 throw new NotSupportedException();
 
-            this.serviceConfiguration = configuration;
+            this.ServiceConfiguration = configuration;
 
         }
 
@@ -260,14 +260,14 @@ namespace Dotmim.Sync.Core
                 // ----------------------------------------
 
                 // Get Configuration from remote provider
-                (context, this.serviceConfiguration) = await this.RemoteProvider.EnsureConfigurationAsync(context, this.serviceConfiguration);
+                (context, this.ServiceConfiguration) = await this.RemoteProvider.EnsureConfigurationAsync(context, this.ServiceConfiguration);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
                 // Invert policy on the client
-                var configurationLocale = this.serviceConfiguration.Clone();
-                var policy = this.serviceConfiguration.ConflictResolutionPolicy;
+                var configurationLocale = this.ServiceConfiguration.Clone();
+                var policy = this.ServiceConfiguration.ConflictResolutionPolicy;
                 if (policy == ConflictResolutionPolicy.ServerWins)
                     configurationLocale.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
                 if (policy == ConflictResolutionPolicy.ClientWins)

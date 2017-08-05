@@ -20,10 +20,10 @@ namespace Dotmim.Sync.Core.Test.SqlUtils
 
         public CreateServerAndClientDatabase()
         {
-            PairDatabases.Add(new PairDatabases("SimpleSync", "SSimpleDB", "CSimpleDB", "ServiceTickets"));
-            PairDatabases.Add(new PairDatabases("TwoTablesSync", "STwoTableseDB", "CTwoTablesDB", new List<string>(new string[] { "Customers", "ServiceTickets" })));
-            PairDatabases.Add(new PairDatabases("VariantSync", "CVariantDB", "SVariantDB", "TableVariant"));
-            PairDatabases.Add(new PairDatabases("AllColumnsSync", "CAllColumnsDB", "SAllColumnsDB", "TableAllColumns"));
+            PairDatabases.Add(new PairDatabases("SimpleSync", "TEST_SSimpleDB", "TEST_CSimpleDB", "ServiceTickets"));
+            PairDatabases.Add(new PairDatabases("TwoTablesSync", "TEST_STwoTableseDB", "TEST_CTwoTablesDB", new List<string>(new string[] { "Customers", "ServiceTickets" })));
+            PairDatabases.Add(new PairDatabases("VariantSync", "TEST_CVariantDB", "TEST_SVariantDB", "TableVariant"));
+            PairDatabases.Add(new PairDatabases("AllColumnsSync", "TEST_CAllColumnsDB", "TEST_SAllColumnsDB", "TableAllColumns"));
 
             // Adding scripts for create tables and datas
             AddSingleTableScript("SimpleSync");
@@ -33,29 +33,55 @@ namespace Dotmim.Sync.Core.Test.SqlUtils
 
         }
 
+        public void GenerateDatabase(string dbName, bool recreateDb = true)
+        {
+            SqlConnection masterConnection = null;
+            SqlCommand cmdDb = null;
+            masterConnection = new SqlConnection(GetDatabaseConnectionString("master"));
+
+            masterConnection.Open();
+            cmdDb = new SqlCommand(GetCreationDBScript(dbName, recreateDb), masterConnection);
+            cmdDb.ExecuteNonQuery();
+            masterConnection.Close();
+
+        }
+
         public void GenerateDatabasesAndTables(PairDatabases db, Boolean recreateDb = true, Boolean withSchemaOnClient = false, Boolean withDatasOnServer = true)
         {
             SqlConnection connection = null;
             SqlConnection masterConnection = null;
+            SqlCommand cmdDb = null;
             try
             {
                 masterConnection = new SqlConnection(GetDatabaseConnectionString("master"));
-                masterConnection.Open();
-                var cmdDb = new SqlCommand(GetCreationDBScript(db.ServerDatabase, recreateDb), masterConnection);
-                cmdDb.ExecuteNonQuery();
-                cmdDb = new SqlCommand(GetCreationDBScript(db.ClientDatabase, recreateDb), masterConnection);
-                cmdDb.ExecuteNonQuery();
-                masterConnection.Close();
 
-                connection = new SqlConnection(GetDatabaseConnectionString(db.ServerDatabase));
-                connection.Open();
-                var cmd = new SqlCommand(tablesScript[db.Key], connection);
-                cmd.ExecuteNonQuery();
+                masterConnection.Open();
+                if (db.ServerDatabase != null)
+                {
+                    cmdDb = new SqlCommand(GetCreationDBScript(db.ServerDatabase, recreateDb), masterConnection);
+                    cmdDb.ExecuteNonQuery();
+                }
+
+                if (db.ClientDatabase != null)
+                {
+                    cmdDb = new SqlCommand(GetCreationDBScript(db.ClientDatabase, recreateDb), masterConnection);
+                    cmdDb.ExecuteNonQuery();
+                }
+
+                masterConnection.Close();
+                if (db.ServerDatabase != null)
+                {
+
+                    connection = new SqlConnection(GetDatabaseConnectionString(db.ServerDatabase));
+                    connection.Open();
+                    cmdDb = new SqlCommand(tablesScript[db.Key], connection);
+                    cmdDb.ExecuteNonQuery();
+                }
 
                 if (withDatasOnServer)
                 {
-                    cmd = new SqlCommand(datasScript[db.Key], connection);
-                    cmd.ExecuteNonQuery();
+                    cmdDb = new SqlCommand(datasScript[db.Key], connection);
+                    cmdDb.ExecuteNonQuery();
                 }
                 connection.Close();
 
@@ -63,8 +89,8 @@ namespace Dotmim.Sync.Core.Test.SqlUtils
                 {
                     connection = new SqlConnection(GetDatabaseConnectionString(db.ClientDatabase));
                     connection.Open();
-                    cmd = new SqlCommand(tablesScript[db.Key], connection);
-                    cmd.ExecuteNonQuery();
+                    cmdDb = new SqlCommand(tablesScript[db.Key], connection);
+                    cmdDb.ExecuteNonQuery();
                     connection.Close();
                 }
 
@@ -129,7 +155,7 @@ namespace Dotmim.Sync.Core.Test.SqlUtils
                         INSERT [{tableServiceTickets}] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 4', N'Description 4', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
                         INSERT [{tableServiceTickets}] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre Client 1', N'Description Client 1', 1, 0, CAST(N'2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
                         INSERT [{tableServiceTickets}] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 6', N'Description 6', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-                        INSERT [{tableServiceTickets}] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 7', N'Description 7', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+                        INSERT [{tableServiceTickets}] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 7', N'Description 7', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
                  ";
 
 
@@ -169,7 +195,7 @@ namespace Dotmim.Sync.Core.Test.SqlUtils
                         INSERT [{tableName}] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 4', N'Description 4', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
                         INSERT [{tableName}] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre Client 1', N'Description Client 1', 1, 0, CAST(N'2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
                         INSERT [{tableName}] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 6', N'Description 6', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-                        INSERT [{tableName}] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 7', N'Description 7', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+                        INSERT [{tableName}] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 7', N'Description 7', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
                  ";
 
             var insertRowScript =

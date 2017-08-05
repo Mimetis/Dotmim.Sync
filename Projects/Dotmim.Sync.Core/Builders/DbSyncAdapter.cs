@@ -111,7 +111,7 @@ namespace Dotmim.Sync.Core.Builders
         /// <summary>
         /// Insert or update a metadata line
         /// </summary>
-        internal bool InsertOrUpdateMetadatas(DbCommand command, DmRow row, Guid fromScopeId)
+        internal bool InsertOrUpdateMetadatas(DbCommand command, DmRow row, Guid? fromScopeId)
         {
             int rowsApplied = 0;
 
@@ -128,7 +128,7 @@ namespace Dotmim.Sync.Core.Builders
             DmRowVersion version = row.RowState == DmRowState.Deleted ? DmRowVersion.Original : DmRowVersion.Current;
 
             long createTimestamp = row["create_timestamp", version] != null ? Convert.ToInt64(row["create_timestamp", version]) : 0;
-            long updateTimestamp = row["update_timestamp", version] != null ? Convert.ToInt64(row["update_timestamp", version]): 0;
+            long updateTimestamp = row["update_timestamp", version] != null ? Convert.ToInt64(row["update_timestamp", version]) : 0;
 
             // Override create and update scope id to reflect who change the value
             // if it's an update, the createscope is staying the same (because not present in dbCommand)
@@ -696,7 +696,8 @@ namespace Dotmim.Sync.Core.Builders
                     // Deriving Parameters
                     this.SetCommandParameters(DbCommandType.UpdateMetadata, updateMetadataCommand);
 
-                    var rowsApplied = this.InsertOrUpdateMetadatas(updateMetadataCommand, localRow, scope.Id);
+                    // apply local row, set scope.id to null becoz applied locally
+                    var rowsApplied = this.InsertOrUpdateMetadatas(updateMetadataCommand, localRow, null);
 
                     if (!rowsApplied)
                         throw new Exception("No metadatas rows found, can't update the server side");
@@ -724,36 +725,69 @@ namespace Dotmim.Sync.Core.Builders
                 // create a localscope to override values
                 var localScope = new ScopeInfo { Name = scope.Name, LastTimestamp = timestamp };
 
+                DbCommandType commandType = DbCommandType.InsertMetadata;
+
                 if (conflict.Type == ConflictType.RemoteUpdateLocalNoRow || conflict.Type == ConflictType.RemoteInsertLocalNoRow)
+                {
                     operationComplete = this.ApplyInsert(row, localScope, true);
+                    commandType = DbCommandType.InsertMetadata;
+                }
                 else if (conflict.Type == ConflictType.RemoteDeleteLocalDelete)
+                {
                     operationComplete = true;
+                }
                 else if (conflict.Type == ConflictType.RemoteDeleteLocalInsert)
+                {
                     operationComplete = this.ApplyDelete(row, localScope, true);
+                    commandType = DbCommandType.UpdateMetadata;
+                }
                 else if (conflict.Type == ConflictType.RemoteDeleteLocalNoRow)
+                {
                     operationComplete = true;
+                }
                 else if (conflict.Type == ConflictType.RemoteDeleteLocalUpdate)
+                {
                     operationComplete = this.ApplyDelete(row, localScope, true);
+                    commandType = DbCommandType.UpdateMetadata;
+                }
                 else if (conflict.Type == ConflictType.RemoteInsertLocalDelete)
+                {
                     operationComplete = this.ApplyInsert(row, localScope, true);
+                    commandType = DbCommandType.InsertMetadata;
+                }
                 else if (conflict.Type == ConflictType.RemoteInsertLocalInsert)
+                {
                     operationComplete = this.ApplyUpdate(row, localScope, true);
+                    commandType = DbCommandType.UpdateMetadata;
+                }
                 else if (conflict.Type == ConflictType.RemoteInsertLocalUpdate)
+                {
                     operationComplete = this.ApplyUpdate(row, localScope, true);
+                    commandType = DbCommandType.UpdateMetadata;
+                }
                 else if (conflict.Type == ConflictType.RemoteUpdateLocalDelete)
+                {
                     operationComplete = this.ApplyInsert(row, localScope, true);
+                    commandType = DbCommandType.InsertMetadata;
+                }
                 else if (conflict.Type == ConflictType.RemoteUpdateLocalInsert)
+                {
                     operationComplete = this.ApplyUpdate(row, localScope, true);
+                    commandType = DbCommandType.UpdateMetadata;
+                }
                 else if (conflict.Type == ConflictType.RemoteUpdateLocalUpdate)
+                {
                     operationComplete = this.ApplyUpdate(row, localScope, true);
+                    commandType = DbCommandType.UpdateMetadata;
+                }
 
-
-                var insertMetadataCommand = GetCommand(DbCommandType.InsertMetadata);
+                var metadataCommand = GetCommand(commandType);
 
                 // Deriving Parameters
-                this.SetCommandParameters(DbCommandType.InsertMetadata, insertMetadataCommand);
+                this.SetCommandParameters(commandType, metadataCommand);
 
-                var rowsApplied = this.InsertOrUpdateMetadatas(insertMetadataCommand, row, scope.Id);
+                // force applying client row, so apply scope.id (client scope here)
+                var rowsApplied = this.InsertOrUpdateMetadatas(metadataCommand, row, scope.Id);
                 if (!rowsApplied)
                     throw new Exception("No metadatas rows found, can't update the server side");
 

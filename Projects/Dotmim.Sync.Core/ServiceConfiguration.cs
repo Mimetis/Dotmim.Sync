@@ -58,7 +58,7 @@ namespace Dotmim.Sync.Core
         public bool EnableDiagnosticPage { get; set; }
 
         /// <summary>
-        /// Gets or Sets if we should use the bulk operations 
+        /// Gets or Sets if we should use the bulk operations. Default is true.
         /// </summary>
         public bool UseBulkOperations { get; set; } = true;
 
