@@ -14,8 +14,8 @@ namespace Dotmim.Sync.Data
 
     public class DmSet
     {
-        readonly DmTableCollection tableCollection;
-        readonly List<DmRelation> _relationCollection;
+        readonly DmTableCollection tables;
+        readonly List<DmRelation> relations;
         string dmSetName = "NewDataSet";
 
         // globalization stuff
@@ -27,10 +27,11 @@ namespace Dotmim.Sync.Data
 
         public DmSet()
         {
-            this.tableCollection = new DmTableCollection(this);
+            this.tables = new DmTableCollection(this);
             this.Culture = CultureInfo.CurrentCulture; // Set default locale
             this.CaseSensitive = false;
-            this._relationCollection = new List<DmRelation>();
+            this.compareFlags = CompareOptions.IgnoreCase | CompareOptions.IgnoreKanaType | CompareOptions.IgnoreWidth;
+            this.relations = new List<DmRelation>();
             this.DmSetName = "NewDmSet";
 
         }
@@ -68,6 +69,9 @@ namespace Dotmim.Sync.Data
             }
         }
 
+        /// <summary>
+        /// Set the case sensitive property for the DmSet and all DmTables affiliated. Default is false
+        /// </summary>
         public bool CaseSensitive
         {
             get
@@ -116,17 +120,14 @@ namespace Dotmim.Sync.Data
         /// <summary>
         /// Gets the collection of tables contained in the DmSet
         /// </summary>
-        public DmTableCollection Tables => tableCollection;
+        public DmTableCollection Tables => tables;
 
         /// <summary>
         /// Gets all the relations that link tables and allow navigations
         /// </summary>
-        public List<DmRelation> Relations => _relationCollection;
+        public List<DmRelation> Relations => relations;
 
-        private void ResetTables() => Tables.Clear();
-
-        private void ResetRelations() => Relations.Clear();
-
+   
         /// <summary>
         /// Commits all the changes made to this DmSet
         /// </summary>
@@ -145,6 +146,9 @@ namespace Dotmim.Sync.Data
             if (this.Tables != null)
                 for (int i = 0; i < Tables.Count; i++)
                     Tables[i].Clear();
+
+            if (this.Relations != null)
+                this.Relations.Clear();
         }
 
         public virtual DmSet Clone()

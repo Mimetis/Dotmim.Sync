@@ -20,7 +20,7 @@ namespace Dotmim.Sync.Core.Proxy
     /// <summary>
     /// Object in charge to send requests
     /// </summary>
-    public class HttpRequestHandler
+    public class HttpRequestHandler : IDisposable
     {
         private Uri baseUri;
         private Dictionary<string, string> scopeParameters;
@@ -30,6 +30,7 @@ namespace Dotmim.Sync.Core.Proxy
         private SerializationFormat serializationFormat;
         private String cookieName;
         private String cookieValue;
+        private HttpClient client;
 
         public HttpRequestHandler(Uri serviceUri, SerializationFormat serializationFormat, CancellationToken cancellationToken)
         {
@@ -93,61 +94,58 @@ namespace Dotmim.Sync.Core.Proxy
                 var binaryData = serializer.Serialize(content);
                 ByteArrayContent arrayContent = new ByteArrayContent(binaryData);
 
-                // Create the httpClient and send content
-                using (HttpClient client = new HttpClient(httpClientHandler))
+                // do not dispose HttpClient for performance issue
+                if (client == null)
+                    client = new HttpClient(httpClientHandler);
+
+                if (this.cookieName != null && this.cookieValue != null)
                 {
-                    if (this.cookieName != null && this.cookieValue != null)
-                    {
-                        // add it to the default header
-                        client.DefaultRequestHeaders.Add("Cookie", new CookieHeaderValue(this.cookieName, this.cookieValue).ToString());
-                    }
-
-                    HttpRequestMessage requestMessage = new HttpRequestMessage(HttpMethod.Post, requestUri.ToString())
-                    {
-                        Content = arrayContent
-                    };
-
-                    if (this.customHeaders != null)
-                        foreach (var kvp in this.customHeaders)
-                            requestMessage.Headers.Add(kvp.Key, kvp.Value);
-
-                    response = await client.SendAsync(requestMessage, cancellationToken);
-
-                    if (cancellationToken.IsCancellationRequested)
-                        cancellationToken.ThrowIfCancellationRequested();
-
-                    // get response from server
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        throw new Exception(response.ReasonPhrase);
-                    }
-
-                    // try to set the cookie for http session
-                    var headers = response?.Headers; 
-                    if (headers != null)
-                    {
-                        if (headers.TryGetValues("Set-Cookie", out IEnumerable<string> tmpList))
-                        {
-                            var cookieList = tmpList.ToList();
-                            // var cookieList = response.Headers.GetValues("Set-Cookie").ToList();
-                            if (cookieList != null && cookieList.Count > 0)
-                            {
-                                // Get the first cookie
-                                var cookie = SetCookieHeaderValue.ParseList(cookieList).First();
-
-                                this.cookieName = cookie.Name.Value;
-                                this.cookieValue = cookie.Value.Value;
-                            }
-                        }
-
-                    }
-
-                    using (var streamResponse = await response.Content.ReadAsStreamAsync())
-                    {
-                        if (streamResponse.CanRead && streamResponse.Length > 0)
-                            dmSetResponse = serializer.Deserialize(streamResponse);
-                    }
+                    // add it to the default header
+                    client.DefaultRequestHeaders.Add("Cookie", new CookieHeaderValue(this.cookieName, this.cookieValue).ToString());
                 }
+
+                HttpRequestMessage requestMessage = new HttpRequestMessage(HttpMethod.Post, requestUri.ToString())
+                {
+                    Content = arrayContent
+                };
+
+                if (this.customHeaders != null)
+                    foreach (var kvp in this.customHeaders)
+                        requestMessage.Headers.Add(kvp.Key, kvp.Value);
+
+                response = await client.SendAsync(requestMessage, cancellationToken);
+
+                if (cancellationToken.IsCancellationRequested)
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                // get response from server
+                if (!response.IsSuccessStatusCode)
+                    throw new Exception(response.ReasonPhrase);
+
+                // try to set the cookie for http session
+                var headers = response?.Headers;
+                if (headers != null)
+                {
+                    if (headers.TryGetValues("Set-Cookie", out IEnumerable<string> tmpList))
+                    {
+                        var cookieList = tmpList.ToList();
+                        // var cookieList = response.Headers.GetValues("Set-Cookie").ToList();
+                        if (cookieList != null && cookieList.Count > 0)
+                        {
+                            // Get the first cookie
+                            var cookie = SetCookieHeaderValue.ParseList(cookieList).First();
+
+                            this.cookieName = cookie.Name.Value;
+                            this.cookieValue = cookie.Value.Value;
+                        }
+                    }
+
+                }
+
+                using (var streamResponse = await response.Content.ReadAsStreamAsync())
+                    if (streamResponse.CanRead && streamResponse.Length > 0)
+                        dmSetResponse = serializer.Deserialize(streamResponse);
+
                 return dmSetResponse;
 
             }
@@ -179,5 +177,32 @@ namespace Dotmim.Sync.Core.Proxy
             }
 
         }
+
+        #region IDisposable Support
+        private bool disposedValue = false; // To detect redundant calls
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                if (disposing)
+                {
+                    if (client != null)
+                        client.Dispose();
+                }
+                disposedValue = true;
+            }
+        }
+
+
+        // This code added to correctly implement the disposable pattern.
+        public void Dispose()
+        {
+            // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
+            Dispose(true);
+        }
+        #endregion
+
+
     }
 }

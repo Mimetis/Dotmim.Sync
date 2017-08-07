@@ -7,7 +7,7 @@ namespace Dotmim.Sync.Core.Test.SqlUtils
 {
     public class HelperDB
     {
-        public String GetDatabaseConnectionString(string dbName) => $@"Data Source=(localdb)\MSSQLLocalDB; Initial Catalog={dbName}; Integrated Security=true;";
+        public static String GetDatabaseConnectionString(string dbName) => $@"Data Source=(localdb)\MSSQLLocalDB; Initial Catalog={dbName}; Integrated Security=true;";
 
         /// <summary>
         /// Generate a database

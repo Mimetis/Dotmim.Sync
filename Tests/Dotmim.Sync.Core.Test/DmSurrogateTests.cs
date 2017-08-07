@@ -29,6 +29,7 @@ namespace Dotmim.Sync.Core.Test
             tbl.Columns.Add(new DmColumn<DateTime>("Opened"));
             tbl.Columns.Add(new DmColumn<DateTime>("Closed"));
             tbl.Columns.Add(new DmColumn<int>("CustomerID"));
+            tbl.Columns.Add(new DmColumn<Object>("VariantObject"));
 
             #region adding rows
             var st = tbl.NewRow();
@@ -40,6 +41,7 @@ namespace Dotmim.Sync.Core.Test
             st["Opened"] = DateTime.Now;
             st["Closed"] = null;
             st["CustomerID"] = 1;
+            st["VariantObject"] = DateTime.Now;
             tbl.Rows.Add(st);
 
             st = tbl.NewRow();
@@ -51,6 +53,7 @@ namespace Dotmim.Sync.Core.Test
             st["Opened"] = DateTime.Now;
             st["Closed"] = null;
             st["CustomerID"] = 1;
+            st["VariantObject"] = 12;
             tbl.Rows.Add(st);
 
             st = tbl.NewRow();
@@ -62,6 +65,7 @@ namespace Dotmim.Sync.Core.Test
             st["Opened"] = DateTime.Now;
             st["Closed"] = null;
             st["CustomerID"] = 2;
+            st["VariantObject"] = new { Prop1 = 12, Prop2 = DateTime.Now };
             tbl.Rows.Add(st);
 
             st = tbl.NewRow();
@@ -73,6 +77,7 @@ namespace Dotmim.Sync.Core.Test
             st["Opened"] = DateTime.Now;
             st["Closed"] = null;
             st["CustomerID"] = 2;
+            st["VariantObject"] = null;
             tbl.Rows.Add(st);
 
             st = tbl.NewRow();
@@ -84,6 +89,7 @@ namespace Dotmim.Sync.Core.Test
             st["Opened"] = DateTime.Now;
             st["Closed"] = null;
             st["CustomerID"] = 2;
+            st["VariantObject"] = "Hello";
             tbl.Rows.Add(st);
 
             st = tbl.NewRow();
@@ -95,6 +101,7 @@ namespace Dotmim.Sync.Core.Test
             st["Opened"] = DateTime.Now;
             st["Closed"] = null;
             st["CustomerID"] = 3;
+            st["VariantObject"] = DmRowState.Added;
             tbl.Rows.Add(st);
 
             st = tbl.NewRow();
@@ -106,6 +113,7 @@ namespace Dotmim.Sync.Core.Test
             st["Opened"] = DateTime.Now;
             st["Closed"] = null;
             st["CustomerID"] = 3;
+            st["VariantObject"] = 0;
             tbl.Rows.Add(st);
 
             st = tbl.NewRow();
@@ -117,6 +125,7 @@ namespace Dotmim.Sync.Core.Test
             st["Opened"] = DateTime.Now;
             st["Closed"] = null;
             st["CustomerID"] = 3;
+            st["VariantObject"] = new Byte[0];
             tbl.Rows.Add(st);
 
             st = tbl.NewRow();
@@ -382,7 +391,7 @@ namespace Dotmim.Sync.Core.Test
             var drProduct = productsTable.NewRow();
             drProduct["clientId"] = clientGuid;
             drProduct["name"] = "Ensemble bleu blanc rouge";
-            drProduct["price"] = 12.23d ;
+            drProduct["price"] = 12.23d;
             productsTable.Rows.Add(drProduct);
 
 

@@ -11,8 +11,6 @@ namespace Dotmim.Sync.Core.Test.SqlUtils
 
         public InlineConfigurations()
         {
-            confs.Add(new object[] { new ServiceConfiguration() });
-
             confs.Add(new object[] { new ServiceConfiguration{
                 DownloadBatchSizeInKB = 100,
                 UseBulkOperations = true,
@@ -36,6 +34,7 @@ namespace Dotmim.Sync.Core.Test.SqlUtils
                 UseBulkOperations = false,
                 SerializationConverter= Enumerations.SerializationFormat.Json
             } });
+
             confs.Add(new object[] { new ServiceConfiguration{
                 DownloadBatchSizeInKB = 100,
                 UseBulkOperations = true,

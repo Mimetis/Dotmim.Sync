@@ -70,8 +70,11 @@ namespace Dotmim.Sync.Core.Batch
         /// </summary>
         internal void Clear()
         {
-            this.DmSetSurrogate.Dispose();
-            this.DmSetSurrogate = null;
+            if (this.DmSetSurrogate != null)
+            {
+                this.DmSetSurrogate.Dispose();
+                this.DmSetSurrogate = null;
+            }
         }
     }
 }

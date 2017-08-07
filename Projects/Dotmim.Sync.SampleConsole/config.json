@@ -1,8 +1,8 @@
 {
   "AppConfiguration": {
-    "ServerConnectionString": "Data Source=(localdb)\\MSSQLLocalDB; Initial Catalog=SSimpleDB; Integrated Security=true;",
+    "ServerConnectionString": "Data Source=(localdb)\\MSSQLLocalDB; Initial Catalog=Test_Simple_Server; Integrated Security=true;",
     "ServerFilteredConnectionString": "Data Source=(localdb)\\MSSQLLocalDB; Initial Catalog=FilterServerDB; Integrated Security=true;",
-    "ClientConnectionString": "Data Source=(localdb)\\MSSQLLocalDB; Initial Catalog=CSimpleDB; Integrated Security=true;",
+    "ClientConnectionString": "Data Source=(localdb)\\MSSQLLocalDB; Initial Catalog=Test_Simple_Client; Integrated Security=true;",
     "ClientSQLiteConnectionString": "clientsqlite.db",
     "ClientSQLiteConnectionString2": "clientsqlite2.db"
   }

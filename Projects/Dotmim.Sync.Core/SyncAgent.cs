@@ -3,6 +3,7 @@ using Dotmim.Sync.Core.Builders;
 using Dotmim.Sync.Core.Context;
 using Dotmim.Sync.Core.Filter;
 using Dotmim.Sync.Core.Log;
+using Dotmim.Sync.Core.Proxy;
 using Dotmim.Sync.Core.Scope;
 using Dotmim.Sync.Data;
 using Dotmim.Sync.Enumerations;
@@ -91,9 +92,15 @@ namespace Dotmim.Sync.Core
             this.RemoteProvider = remoteProvider ?? throw new ArgumentNullException("ServerProvider");
             this.scopeName = scopeName ?? throw new ArgumentNullException("scopeName");
 
-            if (!((CoreProvider)remoteProvider).CanBeServerProvider)
+            CoreProvider p = null;
+            if ((remoteProvider as WebProxyServerProvider) != null)
+                p = ((WebProxyServerProvider)RemoteProvider).LocalProvider;
+            else if ((remoteProvider as CoreProvider ) != null)
+                p = (CoreProvider)remoteProvider;
+
+            if (p != null && !p.CanBeServerProvider)
                 throw new NotSupportedException();
-            
+
             this.LocalProvider.SyncProgress += ClientProvider_SyncProgress;
             this.RemoteProvider.ApplyChangedFailed += RemoteProvider_ApplyChangedFailed;
         }

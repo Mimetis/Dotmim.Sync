@@ -12,7 +12,7 @@ using Xunit;
 namespace Dotmim.Sync.Core.Test
 {
 
-    public class SyncOneTableFilteredTestsFixture : IDisposable
+    public class SyncFilterFixture : IDisposable
     {
         private string createTableScript =
         $@"if (not exists (select * from sys.tables where name = 'ServiceTickets'))
@@ -44,12 +44,12 @@ namespace Dotmim.Sync.Core.Test
         private string client2DbName = "Test_Filter_Client2";
         private string client3DbName = "Test_Filter_Client3";
 
-        public String ServerConnectionString => helperDb.GetDatabaseConnectionString(serverDbName);
-        public String Client1ConnectionString => helperDb.GetDatabaseConnectionString(client1DbName);
-        public String Client2ConnectionString => helperDb.GetDatabaseConnectionString(client2DbName);
-        public String Client3ConnectionString => helperDb.GetDatabaseConnectionString(client3DbName);
+        public String ServerConnectionString => HelperDB.GetDatabaseConnectionString(serverDbName);
+        public String Client1ConnectionString => HelperDB.GetDatabaseConnectionString(client1DbName);
+        public String Client2ConnectionString => HelperDB.GetDatabaseConnectionString(client2DbName);
+        public String Client3ConnectionString => HelperDB.GetDatabaseConnectionString(client3DbName);
 
-        public SyncOneTableFilteredTestsFixture()
+        public SyncFilterFixture()
         {
             // create databases
             helperDb.CreateDatabase(serverDbName);
@@ -76,11 +76,11 @@ namespace Dotmim.Sync.Core.Test
 
     [Collection("Sync")]
     [TestCaseOrderer("Dotmim.Sync.Core.Test.Misc.PriorityOrderer", "Dotmim.Sync.Core.Test")]
-    public class SyncOneTableFilteredTests : IClassFixture<SyncOneTableFilteredTestsFixture>
+    public class SyncFilterTests : IClassFixture<SyncFilterFixture>
     {
-        SyncOneTableFilteredTestsFixture fixture;
+        SyncFilterFixture fixture;
 
-        public SyncOneTableFilteredTests(SyncOneTableFilteredTestsFixture fixture)
+        public SyncFilterTests(SyncFilterFixture fixture)
         {
             this.fixture = fixture;
         }

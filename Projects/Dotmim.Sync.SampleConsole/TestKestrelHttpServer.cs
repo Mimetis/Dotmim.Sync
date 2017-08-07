@@ -21,77 +21,67 @@ using System.Diagnostics;
 namespace Dotmim.Sync.SampleConsole
 {
     public delegate Task ResponseDelegate(string serviceUri);
-    public static class TestKestrelHttpServer
+
+    /// <summary>
+    /// This is a test server for Kestrell
+    /// Actually we can use Microsoft.AspNetCore.TestHost
+    /// But I can't manage to find a way to perform through Fiddler
+    /// </summary>
+    public class KestrellTestServer : IDisposable
     {
-        public async static Task LaunchKestrellAsync(RequestDelegate serverHandler, ResponseDelegate clientHandler)
+        IWebHostBuilder builder;
+        IWebHost host;
+
+        public KestrellTestServer(WebHostBuilder builder = null)
         {
-            var hostBuilder = new WebHostBuilder()
-            .UseKestrel()
-            .UseUrls("http://127.0.0.1:0/")
-            .Configure(app =>
-                {
-                    app.UseSession();
-                    app.Run(async context => await serverHandler(context));
-                }
-            )
-            .ConfigureServices(services => {
-                services.AddDistributedMemoryCache();
-                services.AddSession(options =>
-                {
-                    // Set a long timeout for easy testing.
-                    options.IdleTimeout = TimeSpan.FromDays(10);
-                    options.CookieHttpOnly = true;
-                }); ;
+            if (builder == null)
+            {
+                var hostBuilder = new WebHostBuilder()
+                    .UseKestrel()
+                    .UseUrls("http://127.0.0.1:0/")
+                    .ConfigureServices(services =>
+                    {
+                        services.AddDistributedMemoryCache();
+                        services.AddSession(options =>
+                        {
+                            // Set a long timeout for easy testing.
+                            options.IdleTimeout = TimeSpan.FromDays(10);
+                            options.CookieHttpOnly = true;
+                        }); ;
+                    });
+                this.builder = hostBuilder;
+            }
+        }
+
+        public async Task Run(RequestDelegate serverHandler, ResponseDelegate clientHandler)
+        {
+            this.builder.Configure(app =>
+            {
+                app.UseSession();
+                app.Run(async context => await serverHandler(context));
             });
 
-            using (var host = hostBuilder.Build())
-            {
-                host.Start();
-                string serviceUrl = $"http://localhost.fiddler:{host.GetPort()}/";
-                await clientHandler(serviceUrl);
+            this.host = this.builder.Build();
+            this.host.Start();
+            string serviceUrl = $"http://localhost:{host.GetPort()}/";
+            await clientHandler(serviceUrl);
+        }
 
+        public async void Dispose()
+        {
+            await this.Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual async Task Dispose(bool cleanup)
+        {
+            if (this.host != null)
+            {
+                await this.host.StopAsync();
+                this.host.Dispose();
             }
         }
     }
-
-    //public async static Task TestKestrell()
-    //{
-
-    //    var headerName = "Header-Value";
-    //    var headerValue = "1";
-
-    //    var hostBuilder = new WebHostBuilder()
-    //        .UseKestrel()
-    //        .UseUrls("http://127.0.0.1:0/")
-    //        .Configure(app =>
-    //        {
-    //            app.Run(async context =>
-    //            {
-    //                context.Response.Headers.Add(headerName, headerValue);
-
-    //                await context.Response.WriteAsync("");
-    //            });
-    //        });
-
-    //    using (var host = hostBuilder.Build())
-    //    {
-    //        host.Start();
-
-    //        using (var client = new HttpClient())
-    //        {
-    //            var response = await client.GetAsync($"http://localhost:{host.GetPort()}/");
-    //            response.EnsureSuccessStatusCode();
-
-    //            var headers = response.Headers;
-
-    //            if (headers.Contains(headerName))
-    //                Debug.WriteLine($"Containing Header {headerName} : {headers.GetValues(headerName).Single()}");
-
-
-    //        }
-    //    }
-    //}
-
     public static class IWebHostPortExtensions
     {
         public static string GetHost(this IWebHost host, bool isHttps = false)

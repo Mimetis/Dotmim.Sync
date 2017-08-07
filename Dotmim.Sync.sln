@@ -13,7 +13,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dotmim.Sync.Core.Test", "Te
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dotmim.Sync.SampleConsole", "Projects\Dotmim.Sync.SampleConsole\Dotmim.Sync.SampleConsole.csproj", "{F8C90F8B-6A00-4A03-A74D-5703860EF406}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dotmim.Sync.Sqlite", "Projects\Dotmim.Sync.Sqlite\Dotmim.Sync.Sqlite.csproj", "{92259FC7-577B-4328-A336-3B0FD5E265E1}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dotmim.Sync.Sqlite", "Projects\Dotmim.Sync.Sqlite\Dotmim.Sync.Sqlite.csproj", "{92259FC7-577B-4328-A336-3B0FD5E265E1}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -94,5 +94,11 @@ Global
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {348020ED-748B-4CC8-AA1D-9F7D36E2AC12}
+	EndGlobalSection
+	GlobalSection(Performance) = preSolution
+		HasPerformanceSessions = true
+	EndGlobalSection
+	GlobalSection(Performance) = preSolution
+		HasPerformanceSessions = true
 	EndGlobalSection
 EndGlobal

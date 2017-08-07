@@ -29,8 +29,27 @@ namespace Dotmim.Sync.Core.Proxy
     /// </summary>
     public class WebProxyServerProvider : IResponseHandler
     {
-        private CoreProvider localProvider;
+        public CoreProvider LocalProvider { get; private set; }
+
         private SerializationFormat serializationFormat;
+
+        public SerializationFormat SerializationFormat
+        {
+            get
+            {
+                return this.serializationFormat;
+            }
+            set
+            {
+                if (this.serializationFormat != value)
+                {
+                    this.serializationFormat = value;
+                    this.serializer = BaseConverter<HttpMessage>.GetConverter(this.serializationFormat);
+                }
+            }
+        }
+
+
         private BaseConverter<HttpMessage> serializer;
 
         public event EventHandler<SyncProgressEventArgs> SyncProgress;
@@ -44,7 +63,7 @@ namespace Dotmim.Sync.Core.Proxy
         }
         public WebProxyServerProvider(CoreProvider localProvider, SerializationFormat serializationFormat)
         {
-            this.localProvider = localProvider;
+            this.LocalProvider = localProvider;
             this.serializationFormat = serializationFormat;
             this.serializer = BaseConverter<HttpMessage>.GetConverter(this.serializationFormat);
         }
@@ -66,10 +85,11 @@ namespace Dotmim.Sync.Core.Proxy
             var httpRequest = context.Request;
             var httpResponse = context.Response;
             var streamArray = httpRequest.Body;
-            this.localProvider.CacheManager = new SessionCache(context);
+            this.LocalProvider.CacheManager = new SessionCache(context);
 
             try
             {
+
                 var httpMessage = serializer.Deserialize(streamArray);
 
                 HttpMessage httpMessageResponse = null;
@@ -153,11 +173,17 @@ namespace Dotmim.Sync.Core.Proxy
             var (syncContext, conf) = await this.EnsureConfigurationAsync(httpMessage.SyncContext);
 
             httpMessage.SyncContext = syncContext;
-            var scopeSurrogate = new DmSetSurrogate(conf.ScopeSet);
-            conf.ScopeSet = null;
+
+            // since I will delete ScopeSet, we need to clone Cong
+            // to be sure the caller will be able to reuse it
+            var conf2 = conf.Clone();
+            var scopeSurrogate = new DmSetSurrogate(conf2.ScopeSet);
+            conf2.ScopeSet.Clear();
+            conf2.ScopeSet = null;
+
             httpMessage.EnsureConfiguration = new HttpEnsureConfigurationMessage
             {
-                Configuration = conf,
+                Configuration = conf2,
                 ConfigurationSet = scopeSurrogate
             };
 
@@ -212,8 +238,8 @@ namespace Dotmim.Sync.Core.Proxy
                 if (!bi.InMemory)
                 {
                     // Save the BatchInfo
-                    this.localProvider.CacheManager.Set("GetChangeBatch_BatchInfo", bi);
-                    this.localProvider.CacheManager.Set("GetChangeBatch_ChangesStatistics", s);
+                    this.LocalProvider.CacheManager.Set("GetChangeBatch_BatchInfo", bi);
+                    this.LocalProvider.CacheManager.Set("GetChangeBatch_ChangesStatistics", s);
 
                     // load the batchpart set directly, to be able to send it back
                     var batchPart = httpMessage.GetChangeBatch.BatchPartInfo.GetBatch();
@@ -234,8 +260,8 @@ namespace Dotmim.Sync.Core.Proxy
             }
 
             // We are in batch mode here
-            var batchInfo = this.localProvider.CacheManager.GetValue<BatchInfo>("GetChangeBatch_BatchInfo");
-            var stats = this.localProvider.CacheManager.GetValue<ChangesStatistics>("GetChangeBatch_ChangesStatistics");
+            var batchInfo = this.LocalProvider.CacheManager.GetValue<BatchInfo>("GetChangeBatch_BatchInfo");
+            var stats = this.LocalProvider.CacheManager.GetValue<ChangesStatistics>("GetChangeBatch_ChangesStatistics");
 
             if (batchInfo == null)
                 throw new ArgumentNullException("batchInfo stored in session can't be null if request more batch part info.");
@@ -252,8 +278,8 @@ namespace Dotmim.Sync.Core.Proxy
 
             if (httpMessage.GetChangeBatch.BatchPartInfo.IsLastBatch)
             {
-                this.localProvider.CacheManager.Remove("GetChangeBatch_BatchInfo");
-                this.localProvider.CacheManager.Remove("GetChangeBatch_ChangesStatistics");
+                this.LocalProvider.CacheManager.Remove("GetChangeBatch_BatchInfo");
+                this.LocalProvider.CacheManager.Remove("GetChangeBatch_ChangesStatistics");
             }
 
             return httpMessage;
@@ -291,11 +317,14 @@ namespace Dotmim.Sync.Core.Proxy
                 httpMessage.SyncContext = c;
                 httpMessage.ApplyChanges.ChangesStatistics = s;
 
+                httpMessage.ApplyChanges.BatchPartInfo.Clear();
+                httpMessage.ApplyChanges.BatchPartInfo.FileName = null;
+
                 return httpMessage;
             }
 
             // not in memory
-            batchInfo = this.localProvider.CacheManager.GetValue<BatchInfo>("ApplyChanges_BatchInfo");
+            batchInfo = this.LocalProvider.CacheManager.GetValue<BatchInfo>("ApplyChanges_BatchInfo");
 
             if (batchInfo == null)
             {
@@ -313,40 +342,41 @@ namespace Dotmim.Sync.Core.Proxy
             }
 
             var bpId = BatchInfo.GenerateNewFileName(httpMessage.ApplyChanges.BatchIndex.ToString());
-            var fileName = Path.Combine(this.localProvider.GetCacheConfiguration().BatchDirectory,
+            var fileName = Path.Combine(this.LocalProvider.GetCacheConfiguration().BatchDirectory,
                 batchInfo.Directory, bpId);
             BatchPart.Serialize(httpMessage.ApplyChanges.Set, fileName);
             bpi.FileName = fileName;
-            this.localProvider.CacheManager.Set("ApplyChanges_BatchInfo", batchInfo);
+            this.LocalProvider.CacheManager.Set("ApplyChanges_BatchInfo", batchInfo);
 
             // Clear the httpMessage set
-            httpMessage.ApplyChanges.Set.Dispose();
-            httpMessage.ApplyChanges.Set = null;
+            if (httpMessage.ApplyChanges != null)
+            {
+                httpMessage.ApplyChanges.Set.Dispose();
+                httpMessage.ApplyChanges.Set = null;
+            }
+
 
             // if it's last batch sent
             if (bpi.IsLastBatch)
             {
                 var (c, s) = await this.ApplyChangesAsync(httpMessage.SyncContext, scopeInfo, batchInfo);
-                this.localProvider.CacheManager.Remove("ApplyChanges_BatchInfo");
+                this.LocalProvider.CacheManager.Remove("ApplyChanges_BatchInfo");
                 httpMessage.SyncContext = c;
                 httpMessage.ApplyChanges.ChangesStatistics = s;
             }
 
+            httpMessage.ApplyChanges.BatchPartInfo.Clear();
+            httpMessage.ApplyChanges.BatchPartInfo.FileName = null;
+
             return httpMessage;
         }
-
 
         private async Task<HttpMessage> GetLocalTimestampAsync(HttpMessage httpMessage)
         {
             var (ctx, ts) = await this.GetLocalTimestampAsync(httpMessage.SyncContext);
 
-            httpMessage.GetLocalTimestamp = new HttpGetLocalTimestampMessage
-            {
-                LocalTimestamp = ts
-            };
-
+            httpMessage.GetLocalTimestamp = new HttpGetLocalTimestampMessage { LocalTimestamp = ts };
             httpMessage.SyncContext = ctx;
-
             return httpMessage;
         }
 
@@ -405,23 +435,23 @@ namespace Dotmim.Sync.Core.Proxy
         }
 
         public async Task<(SyncContext, ChangesStatistics)> ApplyChangesAsync(SyncContext ctx, ScopeInfo fromScope, BatchInfo changes)
-            => await this.localProvider.ApplyChangesAsync(ctx, fromScope, changes);
+            => await this.LocalProvider.ApplyChangesAsync(ctx, fromScope, changes);
         public async Task<SyncContext> BeginSessionAsync(SyncContext ctx)
-            => await this.localProvider.BeginSessionAsync(ctx);
+            => await this.LocalProvider.BeginSessionAsync(ctx);
         public async Task<SyncContext> EndSessionAsync(SyncContext ctx)
-            => await this.localProvider.EndSessionAsync(ctx);
+            => await this.LocalProvider.EndSessionAsync(ctx);
         public async Task<SyncContext> EnsureDatabaseAsync(SyncContext ctx, ScopeInfo scopeInfo, DbBuilderOption options)
-            => await this.localProvider.EnsureDatabaseAsync(ctx, scopeInfo, options);
+            => await this.LocalProvider.EnsureDatabaseAsync(ctx, scopeInfo, options);
         public async Task<(SyncContext, List<ScopeInfo>)> EnsureScopesAsync(SyncContext ctx, string scopeName, Guid? clientReferenceId = null)
-            => await this.localProvider.EnsureScopesAsync(ctx, scopeName, clientReferenceId);
+            => await this.LocalProvider.EnsureScopesAsync(ctx, scopeName, clientReferenceId);
         public async Task<(SyncContext, BatchInfo, ChangesStatistics)> GetChangeBatchAsync(SyncContext ctx, ScopeInfo scopeInfo)
-            => await this.localProvider.GetChangeBatchAsync(ctx, scopeInfo);
+            => await this.LocalProvider.GetChangeBatchAsync(ctx, scopeInfo);
         public async Task<(SyncContext, Int64)> GetLocalTimestampAsync(SyncContext ctx)
-            => await this.localProvider.GetLocalTimestampAsync(ctx);
+            => await this.LocalProvider.GetLocalTimestampAsync(ctx);
         public async Task<SyncContext> WriteScopesAsync(SyncContext ctx, List<ScopeInfo> scopes)
-            => await this.localProvider.WriteScopesAsync(ctx, scopes);
+            => await this.LocalProvider.WriteScopesAsync(ctx, scopes);
         public async Task<(SyncContext, ServiceConfiguration)> EnsureConfigurationAsync(SyncContext ctx, ServiceConfiguration configuration = null)
-            => await this.localProvider.EnsureConfigurationAsync(ctx, configuration);
+            => await this.LocalProvider.EnsureConfigurationAsync(ctx, configuration);
 
         public void SetCancellationToken(CancellationToken token)
         {

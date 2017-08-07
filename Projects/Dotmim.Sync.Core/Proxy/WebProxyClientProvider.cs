@@ -25,16 +25,52 @@ namespace Dotmim.Sync.Core.Proxy
     /// <summary>
     /// Class used when you have to deal with a Web Server
     /// </summary>
-    public class WebProxyClientProvider : IResponseHandler
+    public class WebProxyClientProvider : IResponseHandler, IDisposable
     {
-        private Uri serviceUri;
         private HttpRequestHandler httpRequestHandler;
-        private SerializationFormat serializationFormat;
         private CancellationToken cancellationToken;
         private ServiceConfiguration serviceConfiguration;
         public event EventHandler<SyncProgressEventArgs> SyncProgress;
         public event EventHandler<ApplyChangeFailedEventArgs> ApplyChangedFailed;
+        private Uri serviceUri;
+        private SerializationFormat serializationFormat;
 
+        public Uri ServiceUri
+        {
+            get
+            {
+                return this.serviceUri;
+            }
+            set
+            {
+                if (this.serviceUri != value)
+                {
+                    this.serviceUri = value;
+                    this.httpRequestHandler = new HttpRequestHandler(this.serviceUri, this.SerializationFormat);
+                }
+            }
+        }
+
+        public SerializationFormat SerializationFormat
+        {
+            get
+            {
+                return this.serializationFormat;
+            }
+            set
+            {
+                if (this.serializationFormat != value)
+                {
+                    this.serializationFormat = value;
+                    this.httpRequestHandler = new HttpRequestHandler(this.ServiceUri, this.serializationFormat);
+                }
+            }
+        }
+
+        public WebProxyClientProvider()
+        {
+
+        }
         /// <summary>
         /// Use this Constructor if you are on the Client Side, only
         /// </summary>
@@ -44,9 +80,9 @@ namespace Dotmim.Sync.Core.Proxy
 
         public WebProxyClientProvider(Uri serviceUri, SerializationFormat serializationFormat)
         {
-            this.serviceUri = serviceUri;
-            this.httpRequestHandler = new HttpRequestHandler(this.serviceUri, serializationFormat);
-            this.serializationFormat = serializationFormat;
+            this.ServiceUri = serviceUri;
+            this.httpRequestHandler = new HttpRequestHandler(this.ServiceUri, serializationFormat);
+            this.SerializationFormat = serializationFormat;
         }
 
         /// <summary>
@@ -54,9 +90,9 @@ namespace Dotmim.Sync.Core.Proxy
         /// </summary>
         public WebProxyClientProvider(Uri serviceUri, HttpClientHandler handler, Dictionary<string, string> scopeParameters = null, SerializationFormat serializationFormat = SerializationFormat.Json)
         {
-            this.serviceUri = serviceUri;
-            this.httpRequestHandler = new HttpRequestHandler(this.serviceUri, serializationFormat, handler, scopeParameters);
-            this.serializationFormat = serializationFormat;
+            this.ServiceUri = serviceUri;
+            this.httpRequestHandler = new HttpRequestHandler(this.ServiceUri, serializationFormat, handler, scopeParameters);
+            this.SerializationFormat = serializationFormat;
         }
 
 
@@ -234,11 +270,16 @@ namespace Dotmim.Sync.Core.Proxy
                     var fileName = Path.Combine(this.serviceConfiguration.BatchDirectory, changes.Directory, bpId);
                     BatchPart.Serialize(httpMessageResponse.GetChangeBatch.Set, fileName);
                     bpi.FileName = fileName;
+                    bpi.Clear();
+
                 }
 
                 // Clear the DmSetSurrogate from response, we don't need it anymore
-                httpMessageResponse.GetChangeBatch.Set.Dispose();
-                httpMessageResponse.GetChangeBatch.Set = null;
+                if (httpMessageResponse.GetChangeBatch.Set != null)
+                {
+                    httpMessageResponse.GetChangeBatch.Set.Dispose();
+                    httpMessageResponse.GetChangeBatch.Set = null;
+                }
 
                 // if not last, increment batchIndex for next request
                 if (!isLastBatch)
@@ -361,5 +402,29 @@ namespace Dotmim.Sync.Core.Proxy
         {
             this.cancellationToken = token;
         }
+
+        #region IDisposable Support
+        private bool disposedValue = false; // To detect redundant calls
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                if (disposing)
+                {
+                    if (this.httpRequestHandler != null)
+                        this.httpRequestHandler.Dispose();
+                }
+                disposedValue = true;
+            }
+        }
+
+        // This code added to correctly implement the disposable pattern.
+        public void Dispose()
+        {
+            // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
+            Dispose(true);
+        }
+        #endregion
     }
 }

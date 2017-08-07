@@ -242,6 +242,7 @@ namespace Dotmim.Sync.Core.Test
         public void DmTable_CaseSensitive()
         {
             var set0 = new DmSet("CaseSensitive");
+            set0.CaseSensitive = true;
             var tbl0 = new DmTable("CASESENSITIVE");
             set0.Tables.Add(tbl0);
             // No error throws, it's ok

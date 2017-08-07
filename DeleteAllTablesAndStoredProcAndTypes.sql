@@ -25,5 +25,7 @@ DROP PROCEDURE [dbo].[ServiceTickets_deletemetadata];
 GO
 DROP TYPE [dbo].[ServiceTickets_BulkType];
 
+DROP TABLE [dbo].[ServiceTickets];
+
 
 

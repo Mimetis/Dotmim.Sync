@@ -24,6 +24,9 @@ namespace Dotmim.Sync.SqlServer
         string connectionString;
         ICache cacheManager;
 
+        public SqlSyncProvider() : base()
+        { }
+
         public SqlSyncProvider(string connectionString) : base()
         {
             this.connectionString = connectionString;

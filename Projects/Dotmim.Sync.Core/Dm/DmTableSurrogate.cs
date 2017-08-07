@@ -197,28 +197,49 @@ namespace Dotmim.Sync.Data.Surrogate
                 if (dmRowObject != null)
                 {
                     var columnType = dt.Columns[i].DataType;
+                    var dmRowObjectType = dmRowObject.GetType();
 
-                    if (columnType == typeof(Guid) && (dmRowObject as string) != null)
+                    if (dmRowObjectType != columnType && columnType != typeof(object))
                     {
-                        dmRowObject = new Guid(dmRowObject.ToString());
-                    }
-                    else if (columnType == typeof(Int32) && dmRowObject.GetType() != typeof(Int32))
-                    {
-                        dmRowObject = Convert.ToInt32(dmRowObject);
-                    }
-                    else if (columnType == typeof(Int16) && dmRowObject.GetType() != typeof(Int16))
-                    {
-                        dmRowObject = Convert.ToInt16(dmRowObject);
-                    }
-                    else if (dmRowObject.GetType() != columnType)
-                    {
-                        Debug.WriteLine($"Can't convert serialized value {dmRowObject.ToString()} to {columnType}");
-                        Debug.WriteLine("Try to set directly in the row");
-
-                        var t = dmRowObject.GetType();
-                        var converter = columnType.GetConverter();
-                        if (converter.CanConvertFrom(t))
-                            dmRowObject = converter.ConvertFrom(dmRowObject);
+                        if (columnType == typeof(Guid) && (dmRowObject as string) != null)
+                            dmRowObject = new Guid(dmRowObject.ToString());
+                        else if (columnType == typeof(Int32) && dmRowObjectType != typeof(Int32))
+                            dmRowObject = Convert.ToInt32(dmRowObject);
+                        else if (columnType == typeof(UInt32) && dmRowObjectType != typeof(UInt32))
+                            dmRowObject = Convert.ToUInt32(dmRowObject);
+                        else if (columnType == typeof(Int16) && dmRowObjectType != typeof(Int16))
+                            dmRowObject = Convert.ToInt16(dmRowObject);
+                        else if (columnType == typeof(UInt16) && dmRowObjectType != typeof(UInt16))
+                            dmRowObject = Convert.ToUInt16(dmRowObject);
+                        else if (columnType == typeof(Int64) && dmRowObjectType != typeof(Int64))
+                            dmRowObject = Convert.ToInt64(dmRowObject);
+                        else if (columnType == typeof(UInt64) && dmRowObjectType != typeof(UInt64))
+                            dmRowObject = Convert.ToUInt64(dmRowObject);
+                        else if (columnType == typeof(Byte) && dmRowObjectType != typeof(Byte))
+                            dmRowObject = Convert.ToByte(dmRowObject);
+                        else if (columnType == typeof(Char) && dmRowObjectType != typeof(Char))
+                            dmRowObject = Convert.ToChar(dmRowObject);
+                        else if (columnType == typeof(DateTime) && dmRowObjectType != typeof(DateTime))
+                            dmRowObject = Convert.ToDateTime(dmRowObject);
+                        else if (columnType == typeof(Decimal) && dmRowObjectType != typeof(Decimal))
+                            dmRowObject = Convert.ToDecimal(dmRowObject);
+                        else if (columnType == typeof(Double) && dmRowObjectType != typeof(Double))
+                            dmRowObject = Convert.ToDouble(dmRowObject);
+                        else if (columnType == typeof(SByte) && dmRowObjectType != typeof(SByte))
+                            dmRowObject = Convert.ToSByte(dmRowObject);
+                        else if (columnType == typeof(Single) && dmRowObjectType != typeof(Single))
+                            dmRowObject = Convert.ToSingle(dmRowObject);
+                        else if (columnType == typeof(String) && dmRowObjectType != typeof(String))
+                            dmRowObject = Convert.ToString(dmRowObject);
+                        else if (columnType == typeof(Boolean) && dmRowObjectType != typeof(Boolean))
+                            dmRowObject = Convert.ToBoolean(dmRowObject);
+                        else if (dmRowObjectType != columnType)
+                        {
+                            var t = dmRowObject.GetType();
+                            var converter = columnType.GetConverter();
+                            if (converter != null && converter.CanConvertFrom(t))
+                                dmRowObject = converter.ConvertFrom(dmRowObject);
+                        }
                     }
                 }
 
@@ -233,24 +254,6 @@ namespace Dotmim.Sync.Data.Surrogate
                     dmRow[i] = dmRowObject;
                 }
             }
-
-            //if (rowState == DmRowState.Deleted)
-            //{
-            //    // we are in a deleted state, so we have only primary keys available
-            //    for (int i = 0; i < count; i++)
-            //    {
-            //        // since some columns might be not null (and we have null because the row is deleted)
-            //        if (this.Records[i][bitIndex] != null)
-            //            dmRow[i] = this.Records[i][bitIndex];
-            //    }
-
-            //}
-            //else
-            //{
-            //    for (int i = 0; i < count; i++)
-            //        dmRow[i] = this.Records[i][bitIndex];
-
-            //}
 
             dt.Rows.Add(dmRow);
 

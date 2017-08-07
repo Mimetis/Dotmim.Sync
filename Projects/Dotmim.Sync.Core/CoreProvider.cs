@@ -118,13 +118,13 @@ namespace Dotmim.Sync.Core
             {
                 Logger.Current.Info($"BeginSession() called on Provider {this.ProviderTypeName}");
 
-                lock (this)
-                {
-                    if (this.syncInProgress)
-                        throw SyncException.CreateInProgressException(context.SyncStage);
+                //lock (this)
+                //{
+                //    if (this.syncInProgress)
+                //        throw SyncException.CreateInProgressException(context.SyncStage);
 
-                    this.syncInProgress = true;
-                }
+                //    this.syncInProgress = true;
+                //}
                 // Set stage
                 context.SyncStage = SyncStage.BeginSession;
 
@@ -170,7 +170,11 @@ namespace Dotmim.Sync.Core
         private async Task<ServiceConfiguration> UpdateConfigurationInternalAsync(SyncContext context, ServiceConfiguration serviceConfiguration)
         {
             // clear service configuration
-            serviceConfiguration.ScopeSet.Clear();
+            if (serviceConfiguration.ScopeSet != null)
+                serviceConfiguration.ScopeSet.Clear();
+
+            if (serviceConfiguration.ScopeSet == null)
+                serviceConfiguration.ScopeSet = new DmSet("DotmimSync");
 
             if (serviceConfiguration.Tables == null || serviceConfiguration.Tables.Length <= 0)
                 return serviceConfiguration;
@@ -282,7 +286,7 @@ namespace Dotmim.Sync.Core
                 }
 
                 // create configuration if not exists
-                cacheConfiguration = cacheConfiguration ?? new ServiceConfiguration();
+                //cacheConfiguration = cacheConfiguration ?? new ServiceConfiguration();
 
                 // create local directory
                 if (!String.IsNullOrEmpty(configuration.BatchDirectory) && !Directory.Exists(configuration.BatchDirectory))
@@ -1331,7 +1335,7 @@ namespace Dotmim.Sync.Core
                         var columnType = dmTable.Columns[columnName].DataType;
                         var dmRowObjectType = dmRowObject.GetType();
 
-                        if (dmRowObjectType != columnType)
+                        if (dmRowObjectType != columnType && columnType != typeof(object))
                         {
                             if (columnType == typeof(Guid) && (dmRowObject as string) != null)
                                 dmRowObject = new Guid(dmRowObject.ToString());
@@ -1369,7 +1373,7 @@ namespace Dotmim.Sync.Core
                             {
                                 var t = dmRowObject.GetType();
                                 var converter = columnType.GetConverter();
-                                if (converter.CanConvertFrom(t))
+                                if (converter != null && converter.CanConvertFrom(t))
                                     dmRowObject = converter.ConvertFrom(dmRowObject);
                             }
                         }

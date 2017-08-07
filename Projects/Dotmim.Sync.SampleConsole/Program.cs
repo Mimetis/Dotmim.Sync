@@ -47,7 +47,7 @@ class Program
 
         //TestAllAvailablesColumns().Wait();
 
-        FilterSync().Wait();
+        TestSyncThroughKestrellAsync().Wait();
 
         Console.ReadLine();
 
@@ -104,6 +104,40 @@ class Program
 
     }
 
+    private static async Task TestSimpleHttpServer()
+    {
+        using (var server = new KestrellTestServer())
+        {
+            var clientHandler = new ResponseDelegate(async baseAdress =>
+            {
+                var startTime = DateTime.Now;
+
+                var httpClient = new HttpClient();
+                var response = await httpClient.GetAsync(baseAdress + "first");
+                response.EnsureSuccessStatusCode();
+                var resString = await response.Content.ReadAsStringAsync();
+
+                var ellapsedTime = DateTime.Now.Subtract(startTime).TotalSeconds;
+                Console.WriteLine($"Ellapsed time : {ellapsedTime}sec.");
+
+                startTime = DateTime.Now;
+                response = await httpClient.GetAsync(baseAdress + "first");
+                response.EnsureSuccessStatusCode();
+                resString = await response.Content.ReadAsStringAsync();
+                ellapsedTime = DateTime.Now.Subtract(startTime).TotalSeconds;
+                Console.WriteLine($"Ellapsed time : {ellapsedTime}sec.");
+
+            });
+
+            var serverHandler = new RequestDelegate(async context =>
+            {
+                var pathFirst = new PathString("/first");
+                await context.Response.WriteAsync("first_first");
+            });
+
+            await server.Run(serverHandler, clientHandler);
+        };
+    }
 
     private static async Task TestSyncWithTestServer()
     {
@@ -169,76 +203,83 @@ class Program
         var serverConfig = Configuration["AppConfiguration:ServerConnectionString"];
         var clientConfig = Configuration["AppConfiguration:ClientConnectionString"];
 
-        // Server side
-        var serverHandler = new RequestDelegate(async context =>
+        var serverProvider = new SqlSyncProvider(serverConfig);
+        var proxyServerProvider = new WebProxyServerProvider(serverProvider);
+
+        var clientProvider = new SqlSyncProvider(clientConfig);
+        var proxyClientProvider = new WebProxyClientProvider();
+
+        var configuration = new ServiceConfiguration(new[] { "ServiceTickets" });
+        configuration.UseBulkOperations = false;
+        configuration.DownloadBatchSizeInKB = 0;
+
+        var agent = new SyncAgent(clientProvider, proxyClientProvider);
+
+        serverProvider.SetConfiguration(configuration);
+
+        using (var server = new KestrellTestServer())
         {
-            // Create the internal provider
-            SqlSyncProvider serverProvider = new SqlSyncProvider(serverConfig);
-            // Create the configuration stuff
-            ServiceConfiguration configuration = new ServiceConfiguration(new string[] { "ServiceTickets" });
-            configuration.DownloadBatchSizeInKB = 500;
-            serverProvider.SetConfiguration(configuration);
-
-            // Create the proxy provider
-            WebProxyServerProvider proxyServerProvider = new WebProxyServerProvider(serverProvider, SerializationFormat.Json);
-
-            serverProvider.SyncProgress += ServerProvider_SyncProgress;
-
-            try
+            var serverHandler = new RequestDelegate(async context =>
             {
-                CancellationTokenSource cts = new CancellationTokenSource();
-                //   cts.CancelAfter(60000);
-                CancellationToken token = cts.Token;
-                await proxyServerProvider.HandleRequestAsync(context, token);
-
-            }
-            catch (WebSyncException webSyncException)
+                proxyServerProvider.SerializationFormat = SerializationFormat.Json;
+                await proxyServerProvider.HandleRequestAsync(context);
+            });
+            var clientHandler = new ResponseDelegate(async (serviceUri) =>
             {
-                Console.WriteLine("Proxy Server WebSyncException : " + webSyncException.Message);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine("Proxy Server Exception : " + e.Message);
-                throw e;
-            }
-        });
+                proxyClientProvider.ServiceUri = new Uri(serviceUri);
+                proxyClientProvider.SerializationFormat = SerializationFormat.Json;
 
-        var clientHandler = new ResponseDelegate(async (serviceUri) =>
-        {
-            var proxyProvider = new WebProxyClientProvider(new Uri(serviceUri), SerializationFormat.Json);
-            var clientProvider = new SqlSyncProvider(clientConfig);
+                //var startTime = DateTime.Now;
+                //var c = await proxyClientProvider.BeginSessionAsync(new SyncContext(Guid.NewGuid()));
+                //var ellapsedTime = DateTime.Now.Subtract(startTime).TotalSeconds;
+                //Console.WriteLine($"Ellapsed time : {ellapsedTime}sec.");
 
-            SyncAgent agent = new SyncAgent(clientProvider, proxyProvider);
+                //startTime = DateTime.Now;
+                //c = await proxyClientProvider.BeginSessionAsync(new SyncContext(Guid.NewGuid()));
+                //ellapsedTime = DateTime.Now.Subtract(startTime).TotalSeconds;
+                //Console.WriteLine($"Ellapsed time : {ellapsedTime}sec.");
 
-            agent.SyncProgress += SyncProgress;
-            do
-            {
-                try
+                var insertRowScript =
+                $@"INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
+                VALUES (newid(), N'Insert One Row', N'Description Insert One Row', 1, 0, getdate(), NULL, 1)";
+
+                proxyClientProvider.ServiceUri = new Uri(serviceUri);
+                proxyClientProvider.SerializationFormat = SerializationFormat.Json;
+
+                agent.SyncProgress += SyncProgress;
+                agent.ApplyChangedFailed += ApplyChangedFailed;
+
+                using (var sqlConnection = new SqlConnection(serverConfig))
                 {
-                    CancellationTokenSource cts = new CancellationTokenSource();
-                    //cts.CancelAfter(1000);
-                    CancellationToken token = cts.Token;
-                    var s = await agent.SynchronizeAsync(token);
-
-                }
-                catch (WebSyncException webSyncException)
-                {
-                    Console.WriteLine("Proxy Client WebSyncException : " + webSyncException.Message);
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine("Proxy Client Exception : " + e.Message);
+                    using (var sqlCmd = new SqlCommand(insertRowScript, sqlConnection))
+                    {
+                        sqlConnection.Open();
+                        sqlCmd.ExecuteNonQuery();
+                        sqlConnection.Close();
+                    }
                 }
 
-                Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
-            } while (Console.ReadKey().Key != ConsoleKey.Escape);
+                var session = await agent.SynchronizeAsync();
+                Console.WriteLine($"Sync ended in {session.CompleteTime.Subtract(session.StartTime).TotalSeconds}sec. Total download / upload / conflicts : {session.TotalChangesDownloaded} / {session.TotalChangesDownloaded} / {session.TotalSyncConflicts} ");
 
 
+                using (var sqlConnection = new SqlConnection(serverConfig))
+                {
+                    using (var sqlCmd = new SqlCommand(insertRowScript, sqlConnection))
+                    {
+                        sqlConnection.Open();
+                        sqlCmd.ExecuteNonQuery();
+                        sqlConnection.Close();
+                    }
+                }
 
-        });
+                session = await agent.SynchronizeAsync();
+                Console.WriteLine($"Sync ended in {session.CompleteTime.Subtract(session.StartTime).TotalSeconds}sec. Total download / upload / conflicts : {session.TotalChangesDownloaded} / {session.TotalChangesDownloaded} / {session.TotalSyncConflicts} ");
 
 
-        await TestKestrelHttpServer.LaunchKestrellAsync(serverHandler, clientHandler);
+            });
+            await server.Run(serverHandler, clientHandler);
+        }
     }
 
     private static async Task FilterSync()
@@ -259,7 +300,7 @@ class Program
         configuration.UseBulkOperations = false;
         // Adding filters on schema
         configuration.Filters.Add("ServiceTickets", "CustomerID");
-       
+
         SyncAgent agent = new SyncAgent(clientProvider, serverProvider, configuration);
 
         // Adding a parameter for this agent

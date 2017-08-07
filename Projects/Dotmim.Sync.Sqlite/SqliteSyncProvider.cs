@@ -52,15 +52,17 @@ namespace Dotmim.Sync.SQLite
         /// </summary>
         public override bool CanBeServerProvider => false;
 
-
+        public SQLiteSyncProvider() : base()
+        {
+        }
         public SQLiteSyncProvider(string filePath) : base()
         {
             this.filePath = filePath;
             var builder = new SQLiteConnectionStringBuilder { DataSource = filePath };
-            
+
             // prefer to store guid in text
             builder.BinaryGUID = false;
-            
+
 
             this.connectionString = builder.ConnectionString;
         }

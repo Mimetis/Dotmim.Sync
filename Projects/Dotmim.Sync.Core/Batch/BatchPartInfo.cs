@@ -14,6 +14,10 @@ namespace Dotmim.Sync.Core.Batch
     public class BatchPartInfo
     {
         private BatchPart batch;
+
+        /// <summary>
+        /// Gets or sets the batch file included in this batch part
+        /// </summary>
         public BatchPart GetBatch()
         {
             if (batch != null)
@@ -26,6 +30,23 @@ namespace Dotmim.Sync.Core.Batch
             batch = BatchPart.Deserialize(this.FileName);
 
             return batch;
+        }
+
+        /// <summary>
+        /// Delete the DmSet surrogate affiliated with the BatchPart, if exists.
+        /// </summary>
+        public void Clear()
+        {
+            if (this.batch != null)
+            {
+                this.batch.Clear();
+                this.batch = null;
+            }
+            if (this.Set != null)
+            {
+                this.Set.Clear();
+                this.Set = null;
+            }
         }
 
         public String FileName { get; set; }

@@ -42,7 +42,7 @@ namespace Dotmim.Sync.Data
         // primary key
         DmKey primaryKey;
 
- 
+
         public DmTable()
         {
             this.nextRowID = 1;
@@ -50,6 +50,8 @@ namespace Dotmim.Sync.Data
             this.columns = new DmColumnCollection(this);
             this.Culture = CultureInfo.CurrentCulture;
             this.CaseSensitive = false;
+            this.compareFlags = CompareOptions.IgnoreCase | CompareOptions.IgnoreKanaType | CompareOptions.IgnoreWidth;
+
 
         }
 
@@ -149,7 +151,7 @@ namespace Dotmim.Sync.Data
                 var lst = this.DmSet.Relations.Where(r => r.ChildTable == this).ToList();
 
                 return lst;
-                
+
             }
         }
 
@@ -313,7 +315,7 @@ namespace Dotmim.Sync.Data
             clone.Prefix = tablePrefix;
             clone.Culture = culture;
             clone.CaseSensitive = caseSensitive;
-            
+
 
             // add all columns
             var clmns = this.Columns;
@@ -433,28 +435,43 @@ namespace Dotmim.Sync.Data
                     continue;
                 }
 
+                ICloneable cloneable = srcColumn[srcRecord] as ICloneable;
+                if (cloneable != null)
+                {
+                    dstColumn[newRecord] = ((ICloneable)srcColumn[srcRecord]).Clone();
+                    continue;
+                }
                 if (dstColumn.IsValueType)
                 {
                     dstColumn[newRecord] = srcColumn[srcRecord];
                     continue;
                 }
-
                 if (dstColumn.DataType == typeof(byte[]))
                 {
                     byte[] srcArray = (byte[])srcColumn[srcRecord];
-                    byte[] destArray = (byte[])dstColumn[newRecord];
 
-                    Buffer.BlockCopy(srcArray, 0, destArray, 0, srcArray.Length);
+                    if (srcArray != null && srcArray.Length > 0)
+                    {
+                        byte[] destArray = (byte[])dstColumn[newRecord];
+                        destArray = new Byte[srcArray.Length];
+                        Buffer.BlockCopy(srcArray, 0, destArray, 0, srcArray.Length);
+                    }
                     continue;
                 }
                 if (dstColumn.DataType == typeof(char[]))
                 {
                     char[] srcArray = (char[])srcColumn[srcRecord];
-                    char[] destArray = (char[])dstColumn[newRecord];
+                    if (srcArray != null && srcArray.Length > 0)
+                    {
+                        char[] destArray = (char[])dstColumn[newRecord];
+                        destArray = new char[srcArray.Length];
+                        Buffer.BlockCopy(srcArray, 0, destArray, 0, srcArray.Length);
+                    }
 
-                    Buffer.BlockCopy(srcArray, 0, destArray, 0, srcArray.Length);
                     continue;
                 }
+
+               
 
                 dstColumn[newRecord] = srcColumn[srcRecord];
 
@@ -550,9 +567,9 @@ namespace Dotmim.Sync.Data
         public DmRow NewRow() => new DmRow(this);
 
 
-       // public DmRow NewRow(DmRowState state) => new DmRow(this, state);
-        
-      
+        // public DmRow NewRow(DmRowState state) => new DmRow(this, state);
+
+
         protected virtual Type GetRowType()
         {
             return typeof(DmRow);

@@ -533,7 +533,7 @@ namespace Dotmim.Sync.SqlServer
                 case SqlDbType.VarChar:
                     return Type.GetType("System.String");
                 case SqlDbType.Variant:
-                    return Type.GetType("System.Byte[]");
+                    return Type.GetType("System.Object");
                 case SqlDbType.Xml:
                     return Type.GetType("System.String");
                 default:
@@ -572,7 +572,7 @@ namespace Dotmim.Sync.SqlServer
                 { "tinyint", Type.GetType("System.Byte") },
                 { "varbinary", Type.GetType("System.Byte[]") },
                 { "varchar", Type.GetType("System.String") },
-                { "variant", Type.GetType("System.Byte[]") },
+                { "variant", Type.GetType("System.Object") },
                 { "xml", Type.GetType("System.String") },
                 { "udt", Type.GetType("System.Byte[]") },
                 { "structured", Type.GetType("System.Byte[]") },

@@ -56,6 +56,10 @@ namespace Dotmim.Sync.Data
             // Not a value type but authorized
             StorageClassType.Add(typeof(byte[]), false);
             StorageClassType.Add(typeof(char[]), false);
+
+            // test to add object type
+            StorageClassType.Add(typeof(Object), false);
+
         }
         public static DmColumn CreateColumn(string columName, Type dataType)
         {
@@ -105,6 +109,8 @@ namespace Dotmim.Sync.Data
                 return new DmColumn<byte[]>(columName);
             if (dataType == typeof(char[]))
                 return new DmColumn<char[]>(columName);
+            if (dataType == typeof(Object))
+                return new DmColumn<Object>(columName);
 
             throw new Exception("this datatype is not supported for DmColumn");
         }

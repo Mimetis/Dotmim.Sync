@@ -46,8 +46,8 @@ namespace Dotmim.Sync.Core.Test
 
         public string[] Tables => new string[] { "ServiceTickets" };
 
-        public String ServerConnectionString => helperDb.GetDatabaseConnectionString(serverDbName);
-        public String Client1ConnectionString => helperDb.GetDatabaseConnectionString(client1DbName);
+        public String ServerConnectionString => HelperDB.GetDatabaseConnectionString(serverDbName);
+        public String Client1ConnectionString => HelperDB.GetDatabaseConnectionString(client1DbName);
 
         public SyncSimpleFixture()
         {
@@ -69,17 +69,16 @@ namespace Dotmim.Sync.Core.Test
 
     }
 
-
-    [Collection("Sync")]
+    [Collection("SyncSimple")]
     [TestCaseOrderer("Dotmim.Sync.Core.Test.Misc.PriorityOrderer", "Dotmim.Sync.Core.Test")]
-    public class SyncSimpleTests : IClassFixture<SyncSimpleFixture>
+    public class SyncTests : IClassFixture<SyncSimpleFixture>
     {
         SqlSyncProvider serverProvider;
         SqlSyncProvider clientProvider;
         SyncSimpleFixture fixture;
         SyncAgent agent;
 
-        public SyncSimpleTests(SyncSimpleFixture fixture)
+        public SyncTests(SyncSimpleFixture fixture)
         {
             this.fixture = fixture;
 
@@ -97,6 +96,20 @@ namespace Dotmim.Sync.Core.Test
 
             Assert.Equal(5, session.TotalChangesDownloaded);
             Assert.Equal(0, session.TotalChangesUploaded);
+        }
+
+        [Fact]
+        public async Task BadServerConnection()
+        {
+            SqlSyncProvider serverProvider = new SqlSyncProvider(@"Data Source=(localdb)\MSSQLLocalDB; Initial Catalog=WrongDB; Integrated Security=true;");
+            SqlSyncProvider clientProvider = new SqlSyncProvider(fixture.Client1ConnectionString);
+
+            ServiceConfiguration configuration = new ServiceConfiguration(new string[] { "ServiceTickets" });
+            SyncAgent agent = new SyncAgent(clientProvider, serverProvider, configuration);
+
+            var ex = await Assert.ThrowsAsync<SyncException>(async () => await agent.SynchronizeAsync());
+
+            Assert.Equal(SyncExceptionType.DataStore, ex.ExceptionType);
         }
 
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(2)]
