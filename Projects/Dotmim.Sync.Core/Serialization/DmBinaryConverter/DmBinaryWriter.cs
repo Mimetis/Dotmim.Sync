@@ -4,7 +4,7 @@ using System.IO;
 using System.Numerics;
 using System.Text;
 
-namespace DmBinaryFormatter
+namespace Dotmim.Sync.Serialization
 {
     internal class DmBinaryWriter : BinaryWriter
     {

@@ -1,5 +1,5 @@
-﻿using Dotmim.Sync.Core.Test.Misc;
-using Dotmim.Sync.Core.Test.SqlUtils;
+﻿using Dotmim.Sync.Test.Misc;
+using Dotmim.Sync.Test.SqlUtils;
 using Dotmim.Sync.SqlServer;
 using System;
 using System.Collections.Generic;
@@ -8,8 +8,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Xunit;
+using System.Diagnostics;
+using Dotmim.Sync.Data;
 
-namespace Dotmim.Sync.Core.Test
+namespace Dotmim.Sync.Test
 {
 
     public class SyncAllColumnsFixture : IDisposable
@@ -120,6 +122,71 @@ namespace Dotmim.Sync.Core.Test
                     ,'nvarchar(50)','nvarchar(max)',12.34,GETDATE(),12,3148.29
                     ,GETDATE(),GETDATE(),1,NEWID(),123456,123456,'varchar(50)','varchar(max)'
                     ,'<root><client name=''Doe''>inner Doe client</client></root>')
+            INSERT INTO [dbo].[AllColumns]
+                    ([ClientID] ,[CBinary],[CBigInt],[CBit],[CChar10],[CDate],[CDateTime]
+                    ,[CDateTime2],[CDateTimeOffset],[CDecimal64],[CFloat],[CInt],[CMoney]
+                    ,[CNChar10],[CNumeric64],[CNVarchar50],[CNVarcharMax],[CReal]
+                    ,[CSmallDateTime],[CSmallInt],[CSmallMoney],[CSqlVariant],[CTime7]
+                    ,[CTinyint],[CUniqueIdentifier],[CVarbinary50],[CVarbinaryMax]
+                    ,[CVarchar50],[CVarcharMax],[CXml])
+            VALUES
+                    (newId(),12345,10000000000000,1,'char10',GETDATE(),GETDATE(),GETDATE()
+                    ,GETDATE(),23.1234,12.123,1,3148.29,'char10',23.1234
+                    ,'nvarchar(50)','nvarchar(max)',12.34,GETDATE(),12,3148.29
+                    ,GETDATE(),GETDATE(),1,NEWID(),123456,123456,'varchar(50)','varchar(max)'
+                    ,'<root><client name=''Doe''>inner Doe client</client></root>')
+            INSERT INTO [dbo].[AllColumns]
+                    ([ClientID] ,[CBinary],[CBigInt],[CBit],[CChar10],[CDate],[CDateTime]
+                    ,[CDateTime2],[CDateTimeOffset],[CDecimal64],[CFloat],[CInt],[CMoney]
+                    ,[CNChar10],[CNumeric64],[CNVarchar50],[CNVarcharMax],[CReal]
+                    ,[CSmallDateTime],[CSmallInt],[CSmallMoney],[CSqlVariant],[CTime7]
+                    ,[CTinyint],[CUniqueIdentifier],[CVarbinary50],[CVarbinaryMax]
+                    ,[CVarchar50],[CVarcharMax],[CXml])
+            VALUES
+                    (NEWID(),12345,10000000000000,1,'char10',GETDATE(),GETDATE(),GETDATE()
+                    ,GETDATE(),23.1234,12.123,1,3148.29,'char10',23.1234
+                    ,'nvarchar(50)','nvarchar(max)',12.34,GETDATE(),12,3148.29
+                    ,GETDATE(),GETDATE(),1,NEWID(),123456,123456,'varchar(50)','varchar(max)'
+                    ,'<root><client name=''Doe''>inner Doe client</client></root>')
+            INSERT INTO [dbo].[AllColumns]
+                    ([ClientID] ,[CBinary],[CBigInt],[CBit],[CChar10],[CDate],[CDateTime]
+                    ,[CDateTime2],[CDateTimeOffset],[CDecimal64],[CFloat],[CInt],[CMoney]
+                    ,[CNChar10],[CNumeric64],[CNVarchar50],[CNVarcharMax],[CReal]
+                    ,[CSmallDateTime],[CSmallInt],[CSmallMoney],[CSqlVariant],[CTime7]
+                    ,[CTinyint],[CUniqueIdentifier],[CVarbinary50],[CVarbinaryMax]
+                    ,[CVarchar50],[CVarcharMax],[CXml])
+            VALUES
+                    (NEWID(),12345,10000000000000,1,'char10',GETDATE(),GETDATE(),GETDATE()
+                    ,GETDATE(),23.1234,12.123,1,3148.29,'char10',23.1234
+                    ,'nvarchar(50)','nvarchar(max)',12.34,GETDATE(),12,3148.29
+                    ,GETDATE(),GETDATE(),1,NEWID(),123456,123456,'varchar(50)','varchar(max)'
+                    ,'<root><client name=''Doe''>inner Doe client</client></root>')
+            INSERT INTO [dbo].[AllColumns]
+                    ([ClientID] ,[CBinary],[CBigInt],[CBit],[CChar10],[CDate],[CDateTime]
+                    ,[CDateTime2],[CDateTimeOffset],[CDecimal64],[CFloat],[CInt],[CMoney]
+                    ,[CNChar10],[CNumeric64],[CNVarchar50],[CNVarcharMax],[CReal]
+                    ,[CSmallDateTime],[CSmallInt],[CSmallMoney],[CSqlVariant],[CTime7]
+                    ,[CTinyint],[CUniqueIdentifier],[CVarbinary50],[CVarbinaryMax]
+                    ,[CVarchar50],[CVarcharMax],[CXml])
+            VALUES
+                    (NEWID(),12345,10000000000000,1,'char10',GETDATE(),GETDATE(),GETDATE()
+                    ,GETDATE(),23.1234,12.123,1,3148.29,'char10',23.1234
+                    ,'nvarchar(50)','nvarchar(max)',12.34,GETDATE(),12,3148.29
+                    ,GETDATE(),GETDATE(),1,NEWID(),123456,123456,'varchar(50)','varchar(max)'
+                    ,'<root><client name=''Doe''>inner Doe client</client></root>')
+            INSERT INTO [dbo].[AllColumns]
+                    ([ClientID] ,[CBinary],[CBigInt],[CBit],[CChar10],[CDate],[CDateTime]
+                    ,[CDateTime2],[CDateTimeOffset],[CDecimal64],[CFloat],[CInt],[CMoney]
+                    ,[CNChar10],[CNumeric64],[CNVarchar50],[CNVarcharMax],[CReal]
+                    ,[CSmallDateTime],[CSmallInt],[CSmallMoney],[CSqlVariant],[CTime7]
+                    ,[CTinyint],[CUniqueIdentifier],[CVarbinary50],[CVarbinaryMax]
+                    ,[CVarchar50],[CVarcharMax],[CXml])
+            VALUES
+                    (NEWID(),12345,10000000000000,1,'char10',GETDATE(),GETDATE(),GETDATE()
+                    ,GETDATE(),23.1234,12.123,1,3148.29,'char10',23.1234
+                    ,'nvarchar(50)','nvarchar(max)',12.34,GETDATE(),12,3148.29
+                    ,GETDATE(),GETDATE(),1,NEWID(),123456,123456,'varchar(50)','varchar(max)'
+                    ,'<root><client name=''Doe''>inner Doe client</client></root>')
         ";
 
         private HelperDB helperDb = new HelperDB();
@@ -149,12 +216,12 @@ namespace Dotmim.Sync.Core.Test
 
     }
 
-    [TestCaseOrderer("Dotmim.Sync.Core.Test.Misc.PriorityOrderer", "Dotmim.Sync.Core.Test")]
+    [TestCaseOrderer("Dotmim.Sync.Test.Misc.PriorityOrderer", "Dotmim.Sync.Core.Test")]
     public class SyncAllColumnsTests : IClassFixture<SyncAllColumnsFixture>
     {
         SyncAllColumnsFixture fixture;
         SyncAgent agent;
-        ServiceConfiguration configuration;
+        SyncConfiguration configuration;
         public SyncAllColumnsTests(SyncAllColumnsFixture fixture)
         {
             this.fixture = fixture;
@@ -162,7 +229,7 @@ namespace Dotmim.Sync.Core.Test
             SqlSyncProvider serverProvider = new SqlSyncProvider(fixture.ServerConnectionString);
             SqlSyncProvider clientProvider = new SqlSyncProvider(fixture.Client1ConnectionString);
 
-            configuration = new ServiceConfiguration(new[] { "AllColumns" });
+            configuration = new SyncConfiguration(new[] { "AllColumns" });
             agent = new SyncAgent(clientProvider, serverProvider, configuration);
         }
 
@@ -171,8 +238,58 @@ namespace Dotmim.Sync.Core.Test
         {
             var session = await agent.SynchronizeAsync();
 
-            Assert.Equal(5, session.TotalChangesDownloaded);
+            Debug.WriteLine(session.TotalChangesDownloaded);
+
+            Assert.Equal(10, session.TotalChangesDownloaded);
             Assert.Equal(0, session.TotalChangesUploaded);
+
+            DmTable dmColumnsListServer;
+            DmTable dmColumnsListClient;
+
+            // check if all types are correct
+            using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
+            {
+                sqlConnection.Open();
+                dmColumnsListServer = SqlManagementUtils.ColumnsForTable(sqlConnection, null, "AllColumns");
+                sqlConnection.Close();
+            }
+            using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
+            {
+                sqlConnection.Open();
+                dmColumnsListClient = SqlManagementUtils.ColumnsForTable(sqlConnection, null, "AllColumns");
+                sqlConnection.Close();
+            }
+
+            // check if all columns are replicated
+            Assert.Equal(dmColumnsListServer.Rows.Count, dmColumnsListClient.Rows.Count);
+
+            // check if all types are correct
+            foreach (var serverRow in dmColumnsListServer.Rows.OrderBy(r => (int)r["column_id"]))
+            {
+                var name = serverRow["name"].ToString();
+                var ordinal = (int)serverRow["column_id"];
+                var typeString = serverRow["type"].ToString();
+                var maxLength = (Int16)serverRow["max_length"];
+                var precision = (byte)serverRow["precision"];
+                var scale = (byte)serverRow["scale"];
+                var isNullable = (bool)serverRow["is_nullable"];
+                var isIdentity = (bool)serverRow["is_identity"];
+
+                var clientRow = dmColumnsListClient.Rows.FirstOrDefault(cr => (int)cr["column_id"] == ordinal);
+
+                Assert.NotNull(clientRow);
+
+                Assert.Equal(name, clientRow["name"].ToString());
+                Assert.Equal(ordinal ,(int)clientRow["column_id"]);
+                Assert.Equal(typeString , clientRow["type"].ToString());
+                Assert.Equal(maxLength , (Int16)clientRow["max_length"]);
+                Assert.Equal(precision , (byte)clientRow["precision"]);
+                Assert.Equal(scale , (byte)clientRow["scale"]);
+                Assert.Equal(isNullable , (bool)clientRow["is_nullable"]);
+                Assert.Equal(isIdentity , (bool)clientRow["is_identity"]);
+
+            }
+
         }
 
         [Fact, TestPriority(2)]
@@ -288,7 +405,7 @@ namespace Dotmim.Sync.Core.Test
                 Declare @id uniqueidentifier;
                 select top 1 @id = ClientID from AllColumns;
                 Update [AllColumns] Set [CNVarchar50] = 'Updated Row' Where ClientID = @id";
-            
+
             using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
             {
                 using (var sqlCmd = new SqlCommand(insertRowScript, sqlConnection))

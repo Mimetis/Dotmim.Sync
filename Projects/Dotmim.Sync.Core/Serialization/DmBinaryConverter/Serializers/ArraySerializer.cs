@@ -6,7 +6,7 @@ using System.Reflection;
 using System.Text;
 using System.Linq;
 
-namespace DmBinaryFormatter.Serializers
+namespace Dotmim.Sync.Serialization.Serializers
 {
     public class ArraySerializer : TypeSerializer
     {

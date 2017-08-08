@@ -1,11 +1,11 @@
-﻿using DmBinaryFormatter.Converters;
+﻿using Dotmim.Sync.Serialization.Converters;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Text;
 
-namespace DmBinaryFormatter.Serializers
+namespace Dotmim.Sync.Serialization.Serializers
 {
     class ConverterSerializer : TypeSerializer
     {

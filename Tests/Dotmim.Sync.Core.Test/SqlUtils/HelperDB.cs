@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Text;
 
-namespace Dotmim.Sync.Core.Test.SqlUtils
+namespace Dotmim.Sync.Test.SqlUtils
 {
     public class HelperDB
     {

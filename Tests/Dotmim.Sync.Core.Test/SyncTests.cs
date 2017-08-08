@@ -1,18 +1,13 @@
-﻿using Dotmim.Sync.Core.Test.Misc;
-using Dotmim.Sync.Core.Test.SqlUtils;
+﻿using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.SqlServer;
+using Dotmim.Sync.Test.Misc;
+using Dotmim.Sync.Test.SqlUtils;
 using System;
-using System.Collections.Generic;
 using System.Data.SqlClient;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using Xunit;
-using System.Collections;
-using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Core.Enumerations;
 
-namespace Dotmim.Sync.Core.Test
+namespace Dotmim.Sync.Test
 {
     public class SyncSimpleFixture : IDisposable
     {
@@ -33,6 +28,51 @@ namespace Dotmim.Sync.Core.Test
 
         private string datas =
         $@"
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 3', N'Description 3', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 4', N'Description 4', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre Client 1', N'Description Client 1', 1, 0, CAST(N'2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 6', N'Description 6', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 7', N'Description 7', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 3', N'Description 3', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 4', N'Description 4', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre Client 1', N'Description Client 1', 1, 0, CAST(N'2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 6', N'Description 6', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 7', N'Description 7', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 3', N'Description 3', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 4', N'Description 4', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre Client 1', N'Description Client 1', 1, 0, CAST(N'2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 6', N'Description 6', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 7', N'Description 7', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 3', N'Description 3', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 4', N'Description 4', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre Client 1', N'Description Client 1', 1, 0, CAST(N'2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 6', N'Description 6', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 7', N'Description 7', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 3', N'Description 3', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 4', N'Description 4', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre Client 1', N'Description Client 1', 1, 0, CAST(N'2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 6', N'Description 6', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 7', N'Description 7', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 3', N'Description 3', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 4', N'Description 4', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre Client 1', N'Description Client 1', 1, 0, CAST(N'2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 6', N'Description 6', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 7', N'Description 7', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 3', N'Description 3', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 4', N'Description 4', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre Client 1', N'Description Client 1', 1, 0, CAST(N'2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 6', N'Description 6', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 7', N'Description 7', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 3', N'Description 3', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 4', N'Description 4', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre Client 1', N'Description Client 1', 1, 0, CAST(N'2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 6', N'Description 6', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 7', N'Description 7', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 3', N'Description 3', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 4', N'Description 4', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre Client 1', N'Description Client 1', 1, 0, CAST(N'2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 6', N'Description 6', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 7', N'Description 7', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
             INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 3', N'Description 3', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
             INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 4', N'Description 4', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
             INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre Client 1', N'Description Client 1', 1, 0, CAST(N'2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
@@ -70,7 +110,7 @@ namespace Dotmim.Sync.Core.Test
     }
 
     [Collection("SyncSimple")]
-    [TestCaseOrderer("Dotmim.Sync.Core.Test.Misc.PriorityOrderer", "Dotmim.Sync.Core.Test")]
+    [TestCaseOrderer("Dotmim.Sync.Test.Misc.PriorityOrderer", "Dotmim.Sync.Core.Test")]
     public class SyncTests : IClassFixture<SyncSimpleFixture>
     {
         SqlSyncProvider serverProvider;
@@ -84,27 +124,27 @@ namespace Dotmim.Sync.Core.Test
 
             serverProvider = new SqlSyncProvider(fixture.ServerConnectionString);
             clientProvider = new SqlSyncProvider(fixture.Client1ConnectionString);
-            var simpleConfiguration = new ServiceConfiguration(fixture.Tables);
+            var simpleConfiguration = new SyncConfiguration(fixture.Tables);
 
             agent = new SyncAgent(clientProvider, serverProvider, simpleConfiguration);
         }
 
-        [Fact, TestPriority(1)]
+        [Fact, TestPriority(0)]
         public async Task Initialize()
         {
             var session = await agent.SynchronizeAsync();
 
-            Assert.Equal(5, session.TotalChangesDownloaded);
+            Assert.Equal(50, session.TotalChangesDownloaded);
             Assert.Equal(0, session.TotalChangesUploaded);
         }
 
-        [Fact]
+        [Fact, TestPriority(1)]
         public async Task BadServerConnection()
         {
             SqlSyncProvider serverProvider = new SqlSyncProvider(@"Data Source=(localdb)\MSSQLLocalDB; Initial Catalog=WrongDB; Integrated Security=true;");
             SqlSyncProvider clientProvider = new SqlSyncProvider(fixture.Client1ConnectionString);
 
-            ServiceConfiguration configuration = new ServiceConfiguration(new string[] { "ServiceTickets" });
+            SyncConfiguration configuration = new SyncConfiguration(new string[] { "ServiceTickets" });
             SyncAgent agent = new SyncAgent(clientProvider, serverProvider, configuration);
 
             var ex = await Assert.ThrowsAsync<SyncException>(async () => await agent.SynchronizeAsync());
@@ -113,10 +153,10 @@ namespace Dotmim.Sync.Core.Test
         }
 
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(2)]
-        public async Task SyncNoRows(ServiceConfiguration conf)
+        public async Task SyncNoRows(SyncConfiguration conf)
         {
-            agent.ServiceConfiguration = conf;
-            agent.ServiceConfiguration.Tables = fixture.Tables;
+            agent.Configuration = conf;
+            agent.Configuration.Tables = fixture.Tables;
             var session = await agent.SynchronizeAsync();
 
             Assert.Equal(0, session.TotalChangesDownloaded);
@@ -124,7 +164,7 @@ namespace Dotmim.Sync.Core.Test
         }
 
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(3)]
-        public async Task InsertFromServer(ServiceConfiguration conf)
+        public async Task InsertFromServer(SyncConfiguration conf)
         {
             var insertRowScript =
             $@"INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
@@ -139,8 +179,8 @@ namespace Dotmim.Sync.Core.Test
                     sqlConnection.Close();
                 }
             }
-            agent.ServiceConfiguration = conf;
-            agent.ServiceConfiguration.Tables = fixture.Tables;
+            agent.Configuration = conf;
+            agent.Configuration.Tables = fixture.Tables;
             var session = await agent.SynchronizeAsync();
 
             Assert.Equal(1, session.TotalChangesDownloaded);
@@ -148,7 +188,7 @@ namespace Dotmim.Sync.Core.Test
         }
 
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(4)]
-        public async Task InsertFromClient(ServiceConfiguration conf)
+        public async Task InsertFromClient(SyncConfiguration conf)
         {
             var insertRowScript =
             $@"INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
@@ -163,8 +203,8 @@ namespace Dotmim.Sync.Core.Test
                     sqlConnection.Close();
                 }
             }
-            agent.ServiceConfiguration = conf;
-            agent.ServiceConfiguration.Tables = fixture.Tables;
+            agent.Configuration = conf;
+            agent.Configuration.Tables = fixture.Tables;
             var session = await agent.SynchronizeAsync();
 
             Assert.Equal(0, session.TotalChangesDownloaded);
@@ -172,7 +212,7 @@ namespace Dotmim.Sync.Core.Test
         }
 
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(5)]
-        public async Task UpdateFromClient(ServiceConfiguration conf)
+        public async Task UpdateFromClient(SyncConfiguration conf)
         {
             var updateRowScript =
             $@" Declare @id uniqueidentifier;
@@ -188,8 +228,8 @@ namespace Dotmim.Sync.Core.Test
                     sqlConnection.Close();
                 }
             }
-            agent.ServiceConfiguration = conf;
-            agent.ServiceConfiguration.Tables = fixture.Tables;
+            agent.Configuration = conf;
+            agent.Configuration.Tables = fixture.Tables;
             var session = await agent.SynchronizeAsync();
 
             Assert.Equal(0, session.TotalChangesDownloaded);
@@ -197,7 +237,7 @@ namespace Dotmim.Sync.Core.Test
         }
 
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(6)]
-        public async Task UpdateFromServer(ServiceConfiguration conf)
+        public async Task UpdateFromServer(SyncConfiguration conf)
         {
             var updateRowScript =
             $@" Declare @id uniqueidentifier;
@@ -213,8 +253,8 @@ namespace Dotmim.Sync.Core.Test
                     sqlConnection.Close();
                 }
             }
-            agent.ServiceConfiguration = conf;
-            agent.ServiceConfiguration.Tables = fixture.Tables;
+            agent.Configuration = conf;
+            agent.Configuration.Tables = fixture.Tables;
             var session = await agent.SynchronizeAsync();
 
             Assert.Equal(1, session.TotalChangesDownloaded);
@@ -222,7 +262,7 @@ namespace Dotmim.Sync.Core.Test
         }
 
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(7)]
-        public async Task DeleteFromServer(ServiceConfiguration conf)
+        public async Task DeleteFromServer(SyncConfiguration conf)
         {
             var updateRowScript =
             $@" Declare @id uniqueidentifier;
@@ -238,8 +278,8 @@ namespace Dotmim.Sync.Core.Test
                     sqlConnection.Close();
                 }
             }
-            agent.ServiceConfiguration = conf;
-            agent.ServiceConfiguration.Tables = fixture.Tables;
+            agent.Configuration = conf;
+            agent.Configuration.Tables = fixture.Tables;
             var session = await agent.SynchronizeAsync();
 
             Assert.Equal(1, session.TotalChangesDownloaded);
@@ -247,7 +287,7 @@ namespace Dotmim.Sync.Core.Test
         }
 
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(8)]
-        public async Task DeleteFromClient(ServiceConfiguration conf)
+        public async Task DeleteFromClient(SyncConfiguration conf)
         {
             int count;
             var selectcount = $@"Select count(*) From [ServiceTickets]";
@@ -263,8 +303,8 @@ namespace Dotmim.Sync.Core.Test
                 sqlConnection.Close();
             }
 
-            agent.ServiceConfiguration = conf;
-            agent.ServiceConfiguration.Tables = fixture.Tables;
+            agent.Configuration = conf;
+            agent.Configuration.Tables = fixture.Tables;
             var session = await agent.SynchronizeAsync();
 
             Assert.Equal(0, session.TotalChangesDownloaded);
@@ -281,7 +321,7 @@ namespace Dotmim.Sync.Core.Test
         }
 
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(9)]
-        public async Task ConflictInsertInsertServerWins(ServiceConfiguration conf)
+        public async Task ConflictInsertInsertServerWins(SyncConfiguration conf)
         {
             Guid id = Guid.NewGuid();
 
@@ -315,8 +355,8 @@ namespace Dotmim.Sync.Core.Test
                 }
             }
 
-            agent.ServiceConfiguration = conf;
-            agent.ServiceConfiguration.Tables = fixture.Tables;
+            agent.Configuration = conf;
+            agent.Configuration.Tables = fixture.Tables;
             var session = await agent.SynchronizeAsync();
 
             // check statistics
@@ -342,7 +382,7 @@ namespace Dotmim.Sync.Core.Test
         }
 
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(10)]
-        public async Task ConflictUpdateUpdateServerWins(ServiceConfiguration conf)
+        public async Task ConflictUpdateUpdateServerWins(SyncConfiguration conf)
         {
             var id = Guid.NewGuid().ToString();
 
@@ -361,8 +401,8 @@ namespace Dotmim.Sync.Core.Test
                 }
             }
 
-            agent.ServiceConfiguration = conf;
-            agent.ServiceConfiguration.Tables = fixture.Tables;
+            agent.Configuration = conf;
+            agent.Configuration.Tables = fixture.Tables;
             var session = await agent.SynchronizeAsync();
 
             //just check, even if it's not the real test :)
@@ -425,7 +465,7 @@ namespace Dotmim.Sync.Core.Test
         }
 
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(11)]
-        public async Task ConflictUpdateUpdateClientWins(ServiceConfiguration conf)
+        public async Task ConflictUpdateUpdateClientWins(SyncConfiguration conf)
         {
             var id = Guid.NewGuid().ToString();
 
@@ -444,8 +484,8 @@ namespace Dotmim.Sync.Core.Test
                 }
             }
 
-            agent.ServiceConfiguration = conf;
-            agent.ServiceConfiguration.Tables = fixture.Tables;
+            agent.Configuration = conf;
+            agent.Configuration.Tables = fixture.Tables;
             var session = await agent.SynchronizeAsync();
 
             //just check, even if it's not the real test :)
@@ -515,7 +555,7 @@ namespace Dotmim.Sync.Core.Test
         }
 
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(12)]
-        public async Task ConflictInsertInsertConfigurationClientWins(ServiceConfiguration conf)
+        public async Task ConflictInsertInsertConfigurationClientWins(SyncConfiguration conf)
         {
 
             Guid id = Guid.NewGuid();
@@ -550,9 +590,9 @@ namespace Dotmim.Sync.Core.Test
                 }
             }
 
-            agent.ServiceConfiguration = conf;
-            agent.ServiceConfiguration.Tables = fixture.Tables;
-            agent.ServiceConfiguration.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
+            agent.Configuration = conf;
+            agent.Configuration.Tables = fixture.Tables;
+            agent.Configuration.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
             var session = await agent.SynchronizeAsync();
 
             // check statistics

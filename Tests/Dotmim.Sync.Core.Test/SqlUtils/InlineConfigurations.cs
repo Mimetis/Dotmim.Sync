@@ -3,7 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Dotmim.Sync.Core.Test.SqlUtils
+namespace Dotmim.Sync.Test.SqlUtils
 {
     public class InlineConfigurations : IEnumerable<object[]>
     {
@@ -11,52 +11,52 @@ namespace Dotmim.Sync.Core.Test.SqlUtils
 
         public InlineConfigurations()
         {
-            confs.Add(new object[] { new ServiceConfiguration{
+            confs.Add(new object[] { new SyncConfiguration{
                 DownloadBatchSizeInKB = 100,
                 UseBulkOperations = true,
-                SerializationConverter= Enumerations.SerializationFormat.Json
+                SerializationFormat= Enumerations.SerializationFormat.Json
             } });
 
-            confs.Add(new object[] { new ServiceConfiguration{
+            confs.Add(new object[] { new SyncConfiguration{
                 DownloadBatchSizeInKB = 100,
                 UseBulkOperations = false,
-                SerializationConverter= Enumerations.SerializationFormat.Json
+                SerializationFormat= Enumerations.SerializationFormat.Json
             } });
 
-            confs.Add(new object[] { new ServiceConfiguration{
+            confs.Add(new object[] { new SyncConfiguration{
                 DownloadBatchSizeInKB = 0,
                 UseBulkOperations = true,
-                SerializationConverter= Enumerations.SerializationFormat.Json
+                SerializationFormat= Enumerations.SerializationFormat.Json
             } });
 
-            confs.Add(new object[] { new ServiceConfiguration{
+            confs.Add(new object[] { new SyncConfiguration{
                 DownloadBatchSizeInKB = 0,
                 UseBulkOperations = false,
-                SerializationConverter= Enumerations.SerializationFormat.Json
+                SerializationFormat= Enumerations.SerializationFormat.Json
             } });
 
-            confs.Add(new object[] { new ServiceConfiguration{
+            confs.Add(new object[] { new SyncConfiguration{
                 DownloadBatchSizeInKB = 100,
                 UseBulkOperations = true,
-                SerializationConverter= Enumerations.SerializationFormat.DmSerializer
+                SerializationFormat= Enumerations.SerializationFormat.DmSerializer
             } });
 
-            confs.Add(new object[] { new ServiceConfiguration{
+            confs.Add(new object[] { new SyncConfiguration{
                 DownloadBatchSizeInKB = 100,
                 UseBulkOperations = false,
-                SerializationConverter= Enumerations.SerializationFormat.DmSerializer
+                SerializationFormat= Enumerations.SerializationFormat.DmSerializer
             } });
 
-            confs.Add(new object[] { new ServiceConfiguration{
+            confs.Add(new object[] { new SyncConfiguration{
                 DownloadBatchSizeInKB = 0,
                 UseBulkOperations = true,
-                SerializationConverter= Enumerations.SerializationFormat.DmSerializer
+                SerializationFormat= Enumerations.SerializationFormat.DmSerializer
             } });
 
-            confs.Add(new object[] { new ServiceConfiguration{
+            confs.Add(new object[] { new SyncConfiguration{
                 DownloadBatchSizeInKB = 0,
                 UseBulkOperations = false,
-                SerializationConverter= Enumerations.SerializationFormat.DmSerializer
+                SerializationFormat= Enumerations.SerializationFormat.DmSerializer
             } });
 
         }

@@ -1,40 +1,33 @@
-﻿using DmBinaryFormatter;
-using Dotmim.Sync.Core.Batch;
-using Dotmim.Sync.Core.Builders;
-using Dotmim.Sync.Core.Cache;
-using Dotmim.Sync.Core.Common;
-using Dotmim.Sync.Core.Context;
-using Dotmim.Sync.Core.Enumerations;
-using Dotmim.Sync.Core.Log;
-using Dotmim.Sync.Core.Manager;
-using Dotmim.Sync.Core.Scope;
+﻿using Dotmim.Sync.Batch;
+using Dotmim.Sync.Builders;
+using Dotmim.Sync.Cache;
+using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.Log;
+using Dotmim.Sync.Manager;
 using Dotmim.Sync.Data;
 using Dotmim.Sync.Data.Surrogate;
-using Dotmim.Sync.Enumerations;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
-using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
-using System.Xml.Serialization;
 using System.Threading;
+using Dotmim.Sync.Serialization;
 
-namespace Dotmim.Sync.Core
+namespace Dotmim.Sync
 {
     /// <summary>
     /// Core provider : should be implemented by any server / client provider
     /// </summary>
-    public abstract class CoreProvider : IResponseHandler
+    public abstract class CoreProvider : IProvider
     {
         private const string SYNC_CONF = "syncconf";
 
         private bool syncInProgress;
         private string providerType;
-        private ServiceConfiguration serviceConfiguration;
+        private SyncConfiguration syncConfiguration;
         private CancellationToken cancellationToken;
 
         /// <summary>
@@ -96,6 +89,11 @@ namespace Dotmim.Sync.Core
             }
         }
 
+        /// <summary>
+        /// Gets or sets the connection string used by the implemented provider
+        /// </summary>
+        public string ConnectionString { get; set; }
+
 
         /// <summary>
         /// Gets a boolean indicating if the provider can use bulk operations
@@ -106,7 +104,6 @@ namespace Dotmim.Sync.Core
         /// Gets a boolean indicating if the provider can be a server side provider
         /// </summary>
         public abstract bool CanBeServerProvider { get; }
-
 
         /// <summary>
         /// Called by the  to indicate that a 
@@ -152,32 +149,31 @@ namespace Dotmim.Sync.Core
             return Task.FromResult(context);
         }
 
-
         /// <summary>
         /// Gets or Sets the Server configuration. Use this property only in Proxy mode, and on server side !
         /// </summary>
-        public void SetConfiguration(ServiceConfiguration serviceConfiguration)
+        public void SetConfiguration(SyncConfiguration syncConfiguration)
         {
-            if (serviceConfiguration == null || serviceConfiguration.Tables == null || serviceConfiguration.Tables.Length <= 0)
+            if (syncConfiguration == null || syncConfiguration.Tables == null || syncConfiguration.Tables.Length <= 0)
                 throw new ArgumentException("Service Configuration must exists and contains at least one table to sync.");
 
-            this.serviceConfiguration = serviceConfiguration;
+            this.syncConfiguration = syncConfiguration;
         }
 
         /// <summary>
         /// update configuration object with tables desc from server database
         /// </summary>
-        private async Task<ServiceConfiguration> UpdateConfigurationInternalAsync(SyncContext context, ServiceConfiguration serviceConfiguration)
+        private async Task<SyncConfiguration> UpdateConfigurationInternalAsync(SyncContext context, SyncConfiguration syncConfiguration)
         {
             // clear service configuration
-            if (serviceConfiguration.ScopeSet != null)
-                serviceConfiguration.ScopeSet.Clear();
+            if (syncConfiguration.ScopeSet != null)
+                syncConfiguration.ScopeSet.Clear();
 
-            if (serviceConfiguration.ScopeSet == null)
-                serviceConfiguration.ScopeSet = new DmSet("DotmimSync");
+            if (syncConfiguration.ScopeSet == null)
+                syncConfiguration.ScopeSet = new DmSet("DotmimSync");
 
-            if (serviceConfiguration.Tables == null || serviceConfiguration.Tables.Length <= 0)
-                return serviceConfiguration;
+            if (syncConfiguration.Tables == null || syncConfiguration.Tables.Length <= 0)
+                return syncConfiguration;
 
             using (var connection = this.CreateConnection())
             {
@@ -187,13 +183,13 @@ namespace Dotmim.Sync.Core
 
                     using (var transaction = connection.BeginTransaction())
                     {
-                        foreach (var table in serviceConfiguration.Tables)
+                        foreach (var table in syncConfiguration.Tables)
                         {
                             var builderTable = this.GetDbManager(table);
                             var tblManager = builderTable.GetManagerTable(connection, transaction);
                             var dmTable = tblManager.GetTableDefinition();
 
-                            serviceConfiguration.ScopeSet.Tables.Add(dmTable);
+                            syncConfiguration.ScopeSet.Tables.Add(dmTable);
 
                             var dmRelations = tblManager.GetTableRelations();
 
@@ -209,7 +205,7 @@ namespace Dotmim.Sync.Core
 
                                     DmColumn tblColumn = dmTable.Columns[columnName];
                                     DmColumn foreignColumn = null;
-                                    var foreignTable = serviceConfiguration.ScopeSet.Tables[refTblName];
+                                    var foreignTable = syncConfiguration.ScopeSet.Tables[refTblName];
 
                                     if (foreignTable == null)
                                         throw new SyncException($"Foreign table {refTblName} does not exist", context.SyncStage, SyncExceptionType.DataStore);
@@ -221,7 +217,7 @@ namespace Dotmim.Sync.Core
 
                                     DmRelation dmRelation = new DmRelation(foreignKeyName, tblColumn, foreignColumn);
 
-                                    serviceConfiguration.ScopeSet.Relations.Add(dmRelation);
+                                    syncConfiguration.ScopeSet.Relations.Add(dmRelation);
                                 }
                             }
 
@@ -242,7 +238,7 @@ namespace Dotmim.Sync.Core
                     if (connection.State != ConnectionState.Closed)
                         connection.Close();
                 }
-                return serviceConfiguration;
+                return syncConfiguration;
             }
         }
 
@@ -250,7 +246,7 @@ namespace Dotmim.Sync.Core
         /// Ensure configuration is correct on both server and client side
         /// TODO : Do we have to merge if already exists and args is provided ?
         /// </summary>
-        public virtual async Task<(SyncContext, ServiceConfiguration)> EnsureConfigurationAsync(SyncContext context, ServiceConfiguration configuration = null)
+        public virtual async Task<(SyncContext, SyncConfiguration)> EnsureConfigurationAsync(SyncContext context, SyncConfiguration configuration = null)
         {
             try
             {
@@ -263,12 +259,12 @@ namespace Dotmim.Sync.Core
                 var cacheConfiguration = GetCacheConfiguration();
 
                 // if we don't pass config object, we may be in proxy mode, so the config object is handled by a local configuration object.
-                if (configuration == null && this.serviceConfiguration == null)
+                if (configuration == null && this.syncConfiguration == null)
                     throw SyncException.CreateArgumentException(SyncStage.EnsureMetadata, "Configuration", "You try to set a provider with no configuration object");
 
                 // the configuration has been set from the proxy server itself, use it.
-                if (configuration == null && this.serviceConfiguration != null)
-                    configuration = this.serviceConfiguration;
+                if (configuration == null && this.syncConfiguration != null)
+                    configuration = this.syncConfiguration;
 
                 // if we have already a cache configuration, we can return, except if we should overwrite it
                 if (cacheConfiguration != null && !configuration.OverwriteConfiguration)
@@ -285,9 +281,6 @@ namespace Dotmim.Sync.Core
                     return (context, cacheConfiguration);
                 }
 
-                // create configuration if not exists
-                //cacheConfiguration = cacheConfiguration ?? new ServiceConfiguration();
-
                 // create local directory
                 if (!String.IsNullOrEmpty(configuration.BatchDirectory) && !Directory.Exists(configuration.BatchDirectory))
                     Directory.CreateDirectory(configuration.BatchDirectory);
@@ -298,7 +291,7 @@ namespace Dotmim.Sync.Core
 
                 // save to cache
                 var dmSetConf = new DmSet();
-                ServiceConfiguration.SerializeInDmSet(dmSetConf, configuration);
+                SyncConfiguration.SerializeInDmSet(dmSetConf, configuration);
                 var dmSSetConf = new DmSetSurrogate(dmSetConf);
                 cacheManager.Set(SYNC_CONF, dmSSetConf);
 
@@ -323,11 +316,10 @@ namespace Dotmim.Sync.Core
             }
         }
 
-
         /// <summary>
         /// Get cached configuration (inmemory or session cache)
         /// </summary>
-        internal ServiceConfiguration GetCacheConfiguration()
+        internal SyncConfiguration GetCacheConfiguration()
         {
             var configurationSurrogate = this.CacheManager.GetValue<DmSetSurrogate>(SYNC_CONF);
             if (configurationSurrogate == null)
@@ -337,7 +329,7 @@ namespace Dotmim.Sync.Core
             if (dmSet == null)
                 return null;
 
-            var conf = ServiceConfiguration.DeserializeFromDmSet(dmSet);
+            var conf = SyncConfiguration.DeserializeFromDmSet(dmSet);
             return conf;
 
         }
@@ -699,7 +691,6 @@ namespace Dotmim.Sync.Core
             }
 
         }
-
 
         /// <summary>
         /// TODO : Manager le fait qu'un scope peut être out dater, car il n'a pas synchronisé depuis assez longtemps
@@ -1773,40 +1764,7 @@ namespace Dotmim.Sync.Core
                 changes.Columns.Remove(name);
         }
 
-        /// <summary>
-        /// Adding sync columns to the changes datatable
-        /// </summary>
-        private void AddTimestampValue(DmTable table, long tickCount)
-        {
-            // For each datarow, set the create peerkey or update peer key based on the rowstate.
-            // The SyncCreatePeerKey and SyncUpdatePeerKey values are 0 which means the client replica sent these changes.
-            foreach (DmRow row in table.Rows)
-            {
-                switch (row.RowState)
-                {
-                    case DmRowState.Added:
-                        // for rows that have been added we need to
-                        // update both the create and update versions to be the same.
-                        // for ex, if a row was deleted and added again, the server update version will otherwise have a higher value
-                        // since the sent update version will be set to 0. This results in the DbChangeHandler.ApplyInsert returning LocalSupersedes
-                        // internally after it compares the versions.
-                        row["create_timestamp"] = tickCount;
-                        row["update_timestamp"] = tickCount;
-                        break;
-                    case DmRowState.Modified:
-                        // Only update the update version for modified rows.
-                        row["update_timestamp"] = tickCount;
-                        break;
-                    case DmRowState.Deleted:
-                        row.RejectChanges();
-                        row["update_timestamp"] = tickCount;
-                        row.AcceptChanges();
-                        row.Delete();
-                        break;
-                }
-            }
-        }
-
+     
         /// <summary>
         /// A conflict has occured, we try to ask for the solution to the user
         /// </summary>

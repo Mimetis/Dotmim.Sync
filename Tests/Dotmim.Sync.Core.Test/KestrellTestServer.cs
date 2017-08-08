@@ -10,7 +10,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Dotmim.Sync.Core.Test
+namespace Dotmim.Sync.Test
 {
     public delegate Task ResponseDelegate(string serviceUri);
 
@@ -39,7 +39,7 @@ namespace Dotmim.Sync.Core.Test
                             // Set a long timeout for easy testing.
                             options.IdleTimeout = TimeSpan.FromDays(10);
                             options.CookieHttpOnly = true;
-                        }); ;
+                        }); 
                     });
                 this.builder = hostBuilder;
             }

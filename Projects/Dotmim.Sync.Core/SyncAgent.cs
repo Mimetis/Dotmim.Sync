@@ -1,22 +1,16 @@
-﻿using Dotmim.Sync.Core.Batch;
-using Dotmim.Sync.Core.Builders;
-using Dotmim.Sync.Core.Context;
-using Dotmim.Sync.Core.Filter;
-using Dotmim.Sync.Core.Log;
-using Dotmim.Sync.Core.Proxy;
-using Dotmim.Sync.Core.Scope;
-using Dotmim.Sync.Data;
+﻿using Dotmim.Sync.Batch;
+using Dotmim.Sync.Builders;
+using Dotmim.Sync.Filter;
+using Dotmim.Sync.Log;
+using Dotmim.Sync.Proxy;
 using Dotmim.Sync.Enumerations;
 using System;
 using System.Collections.Generic;
-using System.Globalization;
-using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Dotmim.Sync.Core
+namespace Dotmim.Sync
 {
 
     /// <summary>
@@ -27,7 +21,7 @@ namespace Dotmim.Sync.Core
     {
 
         string scopeName;
-        public ServiceConfiguration ServiceConfiguration { get; set; }
+        public SyncConfiguration Configuration { get; set; }
 
         /// <summary>
         /// Defines the state that a synchronization session is in.
@@ -37,12 +31,12 @@ namespace Dotmim.Sync.Core
         /// <summary>
         /// Gets or Sets the provider for the Client Side
         /// </summary>
-        public IResponseHandler LocalProvider { get; set; }
+        public IProvider LocalProvider { get; set; }
 
         /// <summary>
         /// Get or Sets the provider for the Server Side
         /// </summary>
-        public IResponseHandler RemoteProvider { get; set; }
+        public IProvider RemoteProvider { get; set; }
 
         // Scope informaitons. 
         // On Server, we have tow scopes available : Server Scope and Client (server timestamp) scope
@@ -72,13 +66,12 @@ namespace Dotmim.Sync.Core
 
         public SyncAgent(string[] tables)
         {
-            this.ServiceConfiguration = new ServiceConfiguration(tables);
-
+            this.Configuration = new SyncConfiguration(tables);
         }
 
-        public SyncAgent(ServiceConfiguration configuration)
+        public SyncAgent(SyncConfiguration configuration)
         {
-            this.ServiceConfiguration = configuration;
+            this.Configuration = configuration;
 
         }
 
@@ -86,7 +79,7 @@ namespace Dotmim.Sync.Core
         /// SyncAgent manage both server and client provider
         /// It's the main object to launch the Sync process
         /// </summary>
-        public SyncAgent(string scopeName, IResponseHandler localProvider, IResponseHandler remoteProvider)
+        public SyncAgent(string scopeName, IProvider localProvider, IProvider remoteProvider)
         {
             this.LocalProvider = localProvider ?? throw new ArgumentNullException("ClientProvider");
             this.RemoteProvider = remoteProvider ?? throw new ArgumentNullException("ServerProvider");
@@ -111,7 +104,7 @@ namespace Dotmim.Sync.Core
         /// SyncAgent manage both server and client provider
         /// It's the main object to launch the Sync process
         /// </summary>
-        public SyncAgent(IResponseHandler localProvider, IResponseHandler remoteProvider)
+        public SyncAgent(IProvider localProvider, IProvider remoteProvider)
             : this("DefaultScope", localProvider, remoteProvider)
         {
         }
@@ -121,7 +114,7 @@ namespace Dotmim.Sync.Core
         /// the tables array represents the tables you want to sync
         /// Don't work on the proxy provider
         /// </summary>
-        public SyncAgent(string scopeName, IResponseHandler clientProvider, IResponseHandler serverProvider, string[] tables)
+        public SyncAgent(string scopeName, IProvider clientProvider, IProvider serverProvider, string[] tables)
         : this(scopeName, clientProvider, serverProvider)
         {
             if (tables == null || tables.Length <= 0)
@@ -135,7 +128,7 @@ namespace Dotmim.Sync.Core
             if (!remoteCoreProvider.CanBeServerProvider)
                 throw new NotSupportedException();
 
-            this.ServiceConfiguration = new ServiceConfiguration(tables);
+            this.Configuration = new SyncConfiguration(tables);
         }
 
         /// <summary>
@@ -143,7 +136,7 @@ namespace Dotmim.Sync.Core
         /// the tables array represents the tables you want to sync
         /// Don't work on the proxy provider
         /// </summary>
-        public SyncAgent(IResponseHandler clientProvider, IResponseHandler serverProvider, string[] tables)
+        public SyncAgent(IProvider clientProvider, IProvider serverProvider, string[] tables)
         : this("DefaultScope", clientProvider, serverProvider, tables)
         {
         }
@@ -154,7 +147,7 @@ namespace Dotmim.Sync.Core
         /// the Configuration object represents the server configuration 
         /// Don't work on the proxy provider
         /// </summary>
-        public SyncAgent(string scopeName, IResponseHandler clientProvider, IResponseHandler serverProvider, ServiceConfiguration configuration)
+        public SyncAgent(string scopeName, IProvider clientProvider, IProvider serverProvider, SyncConfiguration configuration)
         : this(scopeName, clientProvider, serverProvider)
         {
             if (configuration.Tables == null || configuration.Tables.Length <= 0)
@@ -168,7 +161,7 @@ namespace Dotmim.Sync.Core
             if (!remoteCoreProvider.CanBeServerProvider)
                 throw new NotSupportedException();
 
-            this.ServiceConfiguration = configuration;
+            this.Configuration = configuration;
 
         }
 
@@ -177,7 +170,7 @@ namespace Dotmim.Sync.Core
         /// the Configuration object represents the server configuration 
         /// Don't work on the proxy provider
         /// </summary>
-        public SyncAgent(IResponseHandler clientProvider, IResponseHandler serverProvider, ServiceConfiguration configuration)
+        public SyncAgent(IProvider clientProvider, IProvider serverProvider, SyncConfiguration configuration)
         : this("DefaultScope", clientProvider, serverProvider, configuration)
         {
         }
@@ -267,21 +260,21 @@ namespace Dotmim.Sync.Core
                 // ----------------------------------------
 
                 // Get Configuration from remote provider
-                (context, this.ServiceConfiguration) = await this.RemoteProvider.EnsureConfigurationAsync(context, this.ServiceConfiguration);
+                (context, this.Configuration) = await this.RemoteProvider.EnsureConfigurationAsync(context, this.Configuration);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
                 // Invert policy on the client
-                var configurationLocale = this.ServiceConfiguration.Clone();
-                var policy = this.ServiceConfiguration.ConflictResolutionPolicy;
+                var configurationLocale = this.Configuration.Clone();
+                var policy = this.Configuration.ConflictResolutionPolicy;
                 if (policy == ConflictResolutionPolicy.ServerWins)
                     configurationLocale.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
                 if (policy == ConflictResolutionPolicy.ClientWins)
                     configurationLocale.ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
 
                 // Apply on local Provider
-                ServiceConfiguration configuration;
+                SyncConfiguration configuration;
                 (context, configuration) = await this.LocalProvider.EnsureConfigurationAsync(context, configurationLocale);
 
                 if (cancellationToken.IsCancellationRequested)

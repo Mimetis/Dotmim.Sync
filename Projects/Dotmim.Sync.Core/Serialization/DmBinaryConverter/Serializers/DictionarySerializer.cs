@@ -5,7 +5,7 @@ using System.IO;
 using System.Reflection;
 using System.Text;
 
-namespace DmBinaryFormatter.Serializers
+namespace Dotmim.Sync.Serialization.Serializers
 {
     public class DictionarySerializer : TypeSerializer
     {

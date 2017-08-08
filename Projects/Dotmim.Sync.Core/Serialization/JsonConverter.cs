@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
-namespace Dotmim.Sync.Core.Serialization
+namespace Dotmim.Sync.Serialization
 {
     public class JsonConverter<T> : BaseConverter<T>
     {

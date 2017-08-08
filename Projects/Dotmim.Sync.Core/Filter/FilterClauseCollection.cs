@@ -2,15 +2,15 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Dotmim.Sync.Core.Filter
+namespace Dotmim.Sync.Filter
 {
     public class FilterClauseCollection : List<FilterClause>
     {
-        private ServiceConfiguration serviceConfiguration;
+        private SyncConfiguration syncConfiguration;
 
-        public FilterClauseCollection(ServiceConfiguration serviceConfiguration)
+        public FilterClauseCollection(SyncConfiguration syncConfiguration)
         {
-            this.serviceConfiguration = serviceConfiguration;
+            this.syncConfiguration = syncConfiguration;
         }
 
         public FilterClauseCollection()

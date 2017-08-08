@@ -6,14 +6,12 @@ using System.Linq;
 using System.Collections;
 using System.Runtime.CompilerServices;
 using System.ComponentModel;
-using DmBinaryFormatter.Serializers;
 using System.IO;
 using System.Runtime.Serialization;
-using DmBinaryFormatter.Converters;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
-namespace DmBinaryFormatter
+namespace Dotmim.Sync.Serialization
 {
     internal static class DmUtils
     {

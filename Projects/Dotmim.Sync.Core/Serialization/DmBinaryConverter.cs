@@ -1,10 +1,6 @@
-﻿using DmBinaryFormatter;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Text;
+﻿using System.IO;
 
-namespace Dotmim.Sync.Core.Serialization
+namespace Dotmim.Sync.Serialization
 {
     public class DmBinaryConverter<T> : BaseConverter<T>
     {

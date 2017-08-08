@@ -1,9 +1,8 @@
-﻿using Dotmim.Sync.Core.Builders;
+﻿using Dotmim.Sync.Builders;
+using Dotmim.Sync.Data;
 using System;
 using System.Collections.Generic;
-using System.Text;
-using Dotmim.Sync.Data;
-using Dotmim.Sync.Core.Common;
+
 
 namespace Dotmim.Sync.SqlServer.Builders
 {

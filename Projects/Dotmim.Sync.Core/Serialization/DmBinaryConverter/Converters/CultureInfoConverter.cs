@@ -4,7 +4,7 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Text;
 
-namespace DmBinaryFormatter.Converters
+namespace Dotmim.Sync.Serialization.Converters
 {
     public class CultureInfoConverter : ObjectConverter
     {

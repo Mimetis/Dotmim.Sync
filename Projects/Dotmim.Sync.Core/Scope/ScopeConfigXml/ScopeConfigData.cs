@@ -7,7 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
 
-namespace Dotmim.Sync.Core.Scope
+namespace Dotmim.Sync.Scope
 {
     /// <summary>
     /// Represents a scope config xml or json data

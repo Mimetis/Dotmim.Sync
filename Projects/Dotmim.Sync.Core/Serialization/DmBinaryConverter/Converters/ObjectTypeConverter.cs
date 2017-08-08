@@ -6,7 +6,7 @@ using System.Text;
 using System.Runtime;
 using System.Reflection;
 
-namespace DmBinaryFormatter.Converters
+namespace Dotmim.Sync.Serialization.Converters
 {
     public class ObjectTypeConverter : ObjectConverter
     {

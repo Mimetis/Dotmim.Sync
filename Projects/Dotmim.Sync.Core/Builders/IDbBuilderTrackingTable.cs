@@ -1,11 +1,11 @@
-﻿using Dotmim.Sync.Core.Filter;
+﻿using Dotmim.Sync.Filter;
 using Dotmim.Sync.Data;
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Text;
 
-namespace Dotmim.Sync.Core.Builders
+namespace Dotmim.Sync.Builders
 {
     /// <summary>
     /// This class will be used to generate the tracking table

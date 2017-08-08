@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace DmBinaryFormatter.Converters
+namespace Dotmim.Sync.Serialization.Converters
 {
     public class VersionConverter : ObjectConverter
     {

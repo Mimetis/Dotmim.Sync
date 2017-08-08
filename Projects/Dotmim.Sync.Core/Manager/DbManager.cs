@@ -1,13 +1,9 @@
-﻿using DmBinaryFormatter;
-using Dotmim.Sync.Data;
-using System;
-using System.Collections.Generic;
-using System.Data;
+﻿using System;
 using System.Data.Common;
 using System.Globalization;
 using System.Text;
 
-namespace Dotmim.Sync.Core.Manager
+namespace Dotmim.Sync.Manager
 {
     public abstract class DbManager : IDisposable
     {

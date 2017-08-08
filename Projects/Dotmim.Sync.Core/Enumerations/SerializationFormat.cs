@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Dotmim.Sync.Core.Enumerations
+namespace Dotmim.Sync.Enumerations
 {
     public enum SerializationFormat
     {

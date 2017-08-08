@@ -1,24 +1,23 @@
-﻿using Dotmim.Sync.Core.Common;
+﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Data;
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Data.SqlClient;
 using System.Globalization;
+using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Linq;
-using Dotmim.Sync.Core.Scope;
 
 namespace Dotmim.Sync.SqlServer
 {
-    internal static class SqlManagementUtils
+    public static class SqlManagementUtils
     {
 
         /// <summary>
         /// Get columns for table
         /// </summary>
-        internal static DmTable ColumnsForTable(SqlConnection connection, SqlTransaction transaction, string tableName)
+        public static DmTable ColumnsForTable(SqlConnection connection, SqlTransaction transaction, string tableName)
         {
 
             var commandColumn = $"Select col.name as name, col.column_id, typ.name as [type], col.max_length, col.precision, col.scale, col.is_nullable, col.is_identity from sys.columns as col " +

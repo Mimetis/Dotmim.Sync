@@ -1,21 +1,17 @@
-﻿using Dotmim.Sync.Core.Enumerations;
-using Dotmim.Sync.Core.Serialization;
-using Dotmim.Sync.Data.Surrogate;
-using Dotmim.Sync.Enumerations;
+﻿using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.Serialization;
 using Microsoft.Net.Http.Headers;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Primitives;
 
-namespace Dotmim.Sync.Core.Proxy
+
+namespace Dotmim.Sync.Proxy
 {
     /// <summary>
     /// Object in charge to send requests
@@ -89,6 +85,7 @@ namespace Dotmim.Sync.Core.Proxy
                 // default handler if no one specified
                 HttpClientHandler httpClientHandler = this.handler ?? new HttpClientHandler();
 
+
                 // serialize dmSet content to bytearraycontent
                 var serializer = BaseConverter<T>.GetConverter(serializationFormat);
                 var binaryData = serializer.Serialize(content);
@@ -112,6 +109,10 @@ namespace Dotmim.Sync.Core.Proxy
                 if (this.customHeaders != null)
                     foreach (var kvp in this.customHeaders)
                         requestMessage.Headers.Add(kvp.Key, kvp.Value);
+
+                //request.AddHeader("content-type", "application/json");
+                if (serializationFormat == SerializationFormat.Json && !requestMessage.Content.Headers.Contains("content-type"))
+                    requestMessage.Content.Headers.Add("content-type", "application/json");
 
                 response = await client.SendAsync(requestMessage, cancellationToken);
 

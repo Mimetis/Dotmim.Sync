@@ -1,5 +1,5 @@
-﻿using DmBinaryFormatter.Converters;
-using DmBinaryFormatter.Serializers;
+﻿using Dotmim.Sync.Serialization.Converters;
+using Dotmim.Sync.Serialization.Serializers;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -7,7 +7,7 @@ using System.IO;
 using System.Reflection;
 using System.Text;
 
-namespace DmBinaryFormatter
+namespace Dotmim.Sync.Serialization
 {
 
     /// <summary>
