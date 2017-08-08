@@ -43,143 +43,6 @@ class Program
 
     }
 
-    private static async Task TestSQLiteSyncScopeBuilder()
-    {
-        var path = Path.Combine(Environment.CurrentDirectory, "db.sqlite");
-
-        var builder = new System.Data.SQLite.SQLiteConnectionStringBuilder
-        {
-            DataSource = path
-        };
-
-        var sqliteConnectionString = builder.ConnectionString;
-
-        SQLiteSyncProvider sqliteSyncProvider = new SQLiteSyncProvider(sqliteConnectionString);
-
-        var tbl = new DmTable("ServiceTickets");
-        var id = new DmColumn<Guid>("ServiceTicketID");
-        tbl.Columns.Add(id);
-        var key = new DmKey(new DmColumn[] { id });
-        tbl.PrimaryKey = key;
-        tbl.Columns.Add(new DmColumn<string>("Title"));
-        tbl.Columns.Add(new DmColumn<bool>("IsAware"));
-        tbl.Columns.Add(new DmColumn<string>("Description"));
-        tbl.Columns.Add(new DmColumn<int>("StatusValue"));
-        tbl.Columns.Add(new DmColumn<long>("EscalationLevel"));
-        tbl.Columns.Add(new DmColumn<DateTime>("Opened"));
-        tbl.Columns.Add(new DmColumn<DateTime>("Closed"));
-        tbl.Columns.Add(new DmColumn<int>("CustomerID"));
-
-        var dbTableBuilder = sqliteSyncProvider.GetDatabaseBuilder(tbl, DbBuilderOption.CreateOrUseExistingSchema | DbBuilderOption.CreateOrUseExistingTrackingTables);
-
-        using (var sqliteConnection = new SQLiteConnection(sqliteConnectionString))
-        {
-            try
-            {
-                await sqliteConnection.OpenAsync();
-
-                var script = dbTableBuilder.Script(sqliteConnection);
-
-                dbTableBuilder.Apply(sqliteConnection);
-
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.Message);
-                throw;
-            }
-
-
-        }
-
-    }
-
-    private static async Task TestSimpleHttpServer()
-    {
-        using (var server = new KestrellTestServer())
-        {
-            var clientHandler = new ResponseDelegate(async baseAdress =>
-            {
-                var startTime = DateTime.Now;
-
-                var httpClient = new HttpClient();
-                var response = await httpClient.GetAsync(baseAdress + "first");
-                response.EnsureSuccessStatusCode();
-                var resString = await response.Content.ReadAsStringAsync();
-
-                var ellapsedTime = DateTime.Now.Subtract(startTime).TotalSeconds;
-                Console.WriteLine($"Ellapsed time : {ellapsedTime}sec.");
-
-                startTime = DateTime.Now;
-                response = await httpClient.GetAsync(baseAdress + "first");
-                response.EnsureSuccessStatusCode();
-                resString = await response.Content.ReadAsStringAsync();
-                ellapsedTime = DateTime.Now.Subtract(startTime).TotalSeconds;
-                Console.WriteLine($"Ellapsed time : {ellapsedTime}sec.");
-
-            });
-
-            var serverHandler = new RequestDelegate(async context =>
-            {
-                var pathFirst = new PathString("/first");
-                await context.Response.WriteAsync("first_first");
-            });
-
-            await server.Run(serverHandler, clientHandler);
-        };
-    }
-
-    private static async Task TestSyncWithTestServer()
-    {
-        var builder = new WebHostBuilder()
-               .UseKestrel()
-               .UseUrls("http://127.0.0.1:0/")
-               .Configure(app =>
-               {
-                   app.UseSession();
-
-                   app.Run(context =>
-                   {
-                       int? value = context.Session.GetInt32("Key");
-                       if (context.Request.Path == new PathString("/first"))
-                       {
-                           Console.WriteLine("value.HasValue : " + value.HasValue);
-                           value = 0;
-                       }
-                       Console.WriteLine("value.HasValue " + value.HasValue);
-                       context.Session.SetInt32("Key", value.Value + 1);
-                       return context.Response.WriteAsync(value.Value.ToString());
-
-                   });
-               })
-               .ConfigureServices(services =>
-               {
-                   services.AddDistributedMemoryCache();
-                   services.AddSession();
-               });
-
-        using (var server = new TestServer(builder))
-        {
-            var client = server.CreateClient();
-
-            // Nothing here seems to work
-            // client.BaseAddress = new Uri("http://localhost.fiddler/");
-
-            var response = await client.GetAsync("first");
-            response.EnsureSuccessStatusCode();
-            Console.WriteLine("Server result : " + await response.Content.ReadAsStringAsync());
-
-            client = server.CreateClient();
-            var cookie = SetCookieHeaderValue.ParseList(response.Headers.GetValues("Set-Cookie").ToList()).First();
-            client.DefaultRequestHeaders.Add("Cookie", new CookieHeaderValue(cookie.Name, cookie.Value).ToString());
-
-            Console.WriteLine("Server result : " + await client.GetStringAsync("/"));
-            Console.WriteLine("Server result : " + await client.GetStringAsync("/"));
-            Console.WriteLine("Server result : " + await client.GetStringAsync("/"));
-
-        }
-    }
-
 
     private static async Task TestSyncThroughWebApi()
     {
@@ -220,98 +83,7 @@ class Program
 
     }
 
-    /// <summary>
-    /// Test syncking through Kestrell server
-    /// </summary>
-    private static async Task TestSyncThroughKestrellAsync()
-    {
-        var id = Guid.NewGuid();
-
-        ConfigurationBuilder configurationBuilder = new ConfigurationBuilder();
-        configurationBuilder.AddJsonFile("config.json", true);
-        IConfiguration Configuration = configurationBuilder.Build();
-        var serverConfig = Configuration["AppConfiguration:ServerConnectionString"];
-        var clientConfig = Configuration["AppConfiguration:ClientConnectionString"];
-
-        var serverProvider = new SqlSyncProvider(serverConfig);
-        var proxyServerProvider = new WebProxyServerProvider(serverProvider);
-
-        var clientProvider = new SqlSyncProvider(clientConfig);
-        var proxyClientProvider = new WebProxyClientProvider();
-
-        var configuration = new SyncConfiguration(new[] { "ServiceTickets" });
-        configuration.UseBulkOperations = false;
-        configuration.DownloadBatchSizeInKB = 0;
-
-        var agent = new SyncAgent(clientProvider, proxyClientProvider);
-
-        serverProvider.SetConfiguration(configuration);
-
-        using (var server = new KestrellTestServer())
-        {
-            var serverHandler = new RequestDelegate(async context =>
-            {
-                proxyServerProvider.SerializationFormat = SerializationFormat.Json;
-                await proxyServerProvider.HandleRequestAsync(context);
-            });
-            var clientHandler = new ResponseDelegate(async (serviceUri) =>
-            {
-                proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                proxyClientProvider.SerializationFormat = SerializationFormat.Json;
-
-                //var startTime = DateTime.Now;
-                //var c = await proxyClientProvider.BeginSessionAsync(new SyncContext(Guid.NewGuid()));
-                //var ellapsedTime = DateTime.Now.Subtract(startTime).TotalSeconds;
-                //Console.WriteLine($"Ellapsed time : {ellapsedTime}sec.");
-
-                //startTime = DateTime.Now;
-                //c = await proxyClientProvider.BeginSessionAsync(new SyncContext(Guid.NewGuid()));
-                //ellapsedTime = DateTime.Now.Subtract(startTime).TotalSeconds;
-                //Console.WriteLine($"Ellapsed time : {ellapsedTime}sec.");
-
-                var insertRowScript =
-                $@"INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
-                VALUES (newid(), N'Insert One Row', N'Description Insert One Row', 1, 0, getdate(), NULL, 1)";
-
-                proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                proxyClientProvider.SerializationFormat = SerializationFormat.Json;
-
-                agent.SyncProgress += SyncProgress;
-                agent.ApplyChangedFailed += ApplyChangedFailed;
-
-                using (var sqlConnection = new SqlConnection(serverConfig))
-                {
-                    using (var sqlCmd = new SqlCommand(insertRowScript, sqlConnection))
-                    {
-                        sqlConnection.Open();
-                        sqlCmd.ExecuteNonQuery();
-                        sqlConnection.Close();
-                    }
-                }
-
-                var session = await agent.SynchronizeAsync();
-                Console.WriteLine($"Sync ended in {session.CompleteTime.Subtract(session.StartTime).TotalSeconds}sec. Total download / upload / conflicts : {session.TotalChangesDownloaded} / {session.TotalChangesDownloaded} / {session.TotalSyncConflicts} ");
-
-
-                using (var sqlConnection = new SqlConnection(serverConfig))
-                {
-                    using (var sqlCmd = new SqlCommand(insertRowScript, sqlConnection))
-                    {
-                        sqlConnection.Open();
-                        sqlCmd.ExecuteNonQuery();
-                        sqlConnection.Close();
-                    }
-                }
-
-                session = await agent.SynchronizeAsync();
-                Console.WriteLine($"Sync ended in {session.CompleteTime.Subtract(session.StartTime).TotalSeconds}sec. Total download / upload / conflicts : {session.TotalChangesDownloaded} / {session.TotalChangesDownloaded} / {session.TotalSyncConflicts} ");
-
-
-            });
-            await server.Run(serverHandler, clientHandler);
-        }
-    }
-
+  
     private static async Task FilterSync()
     {
         // Get SQL Server connection string
@@ -360,7 +132,6 @@ class Program
 
         Console.WriteLine("End");
     }
-
 
     private static async Task TestSyncSQLite()
     {
@@ -419,7 +190,6 @@ class Program
         Console.WriteLine("End");
     }
 
-
     private static async Task TestSync()
     {
         // Get SQL Server connection string
@@ -429,45 +199,31 @@ class Program
         var serverConfig = Configuration["AppConfiguration:ServerConnectionString"];
         var clientConfig = Configuration["AppConfiguration:ClientConnectionString"];
 
-
-        Guid id = Guid.NewGuid();
-
-        using (var sqlConnection = new SqlConnection(clientConfig))
-        {
-            var script = $@"INSERT [ServiceTickets] 
-                            ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
-                            VALUES 
-                            (N'{id.ToString()}', N'Conflict Line Client', N'Description client', 1, 0, getdate(), NULL, 1)";
-
-            using (var sqlCmd = new SqlCommand(script, sqlConnection))
-            {
-                sqlConnection.Open();
-                sqlCmd.ExecuteNonQuery();
-                sqlConnection.Close();
-            }
-        }
-
-        using (var sqlConnection = new SqlConnection(serverConfig))
-        {
-            var script = $@"INSERT [ServiceTickets] 
-                            ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
-                            VALUES 
-                            (N'{id.ToString()}', N'Conflict Line Server', N'Description client', 1, 0, getdate(), NULL, 1)";
-
-            using (var sqlCmd = new SqlCommand(script, sqlConnection))
-            {
-                sqlConnection.Open();
-                sqlCmd.ExecuteNonQuery();
-                sqlConnection.Close();
-            }
-        }
-
-
         SqlSyncProvider serverProvider = new SqlSyncProvider(serverConfig);
         SqlSyncProvider clientProvider = new SqlSyncProvider(clientConfig);
 
         // With a config when we are in local mode (no proxy)
         SyncConfiguration configuration = new SyncConfiguration(new string[] { "ServiceTickets" });
+
+        // Configure the default resolution priority
+        // Default : Server wins
+        configuration.ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
+        // Configure the batch size when memory is limited.
+        // Default : 0. Batch is disabled
+        configuration.DownloadBatchSizeInKB = 1000;
+        // Configure the batch directory if batch size is specified
+        // Default : Windows tmp folder
+        configuration.BatchDirectory = "D://tmp";
+        // configuration is stored in memory, you can disable this behavior
+        // Default : false
+        configuration.OverwriteConfiguration = true;
+        // Configure the default serialization mode (Json or Binary)
+        // Default : Json
+        configuration.SerializationFormat = SerializationFormat.Json;
+        // Configure the default model to Insert / Update / Delete rows (SQL Server use TVP to bulk insert)
+        // Default true if SQL Server
+        configuration.UseBulkOperations = true;
+
         //configuration.DownloadBatchSizeInKB = 500;
         SyncAgent agent = new SyncAgent(clientProvider, serverProvider, configuration);
 
@@ -588,14 +344,25 @@ class Program
 
     static void ApplyChangedFailed(object sender, ApplyChangeFailedEventArgs e)
     {
-        // Note: LocalChange table name may be null if the record does not exist on the server. So use the remote table name.
-        string tableName = e.Conflict.RemoteChanges.TableName;
+        // tables name
+        string serverTableName = e.Conflict.RemoteChanges.TableName;
+        string clientTableName = e.Conflict.LocalChanges.TableName;
 
-        // Line exist on client, not on server, force to create it
-        if (e.Conflict.Type == ConflictType.RemoteInsertLocalNoRow || e.Conflict.Type == ConflictType.RemoteUpdateLocalNoRow)
-            e.Action = ApplyAction.RetryWithForceWrite;
+        // server row in conflict
+        var dmRowServer = e.Conflict.RemoteChanges.Rows[0];
+        var dmRowClient = e.Conflict.LocalChanges.Rows[0];
+
+        // Example 1 : Resolution based on rows values
+        if ((int)dmRowServer["ClientID"] == 100 && (int)dmRowClient["ClientId"] == 0)
+            e.Action = ApplyAction.Continue;
         else
             e.Action = ApplyAction.RetryWithForceWrite;
 
+        // Example 2 : resolution based on conflict type
+        // Line exist on client, not on server, force to create it
+        //if (e.Conflict.Type == ConflictType.RemoteInsertLocalNoRow || e.Conflict.Type == ConflictType.RemoteUpdateLocalNoRow)
+        //    e.Action = ApplyAction.RetryWithForceWrite;
+        //else
+        //    e.Action = ApplyAction.RetryWithForceWrite;
     }
 }
