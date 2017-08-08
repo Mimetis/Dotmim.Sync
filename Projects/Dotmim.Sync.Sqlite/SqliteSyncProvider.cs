@@ -1,17 +1,8 @@
-﻿using Dotmim.Sync.Core;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Dotmim.Sync.Core.Batch;
-using System.Data.Common;
-using Dotmim.Sync.Core.Log;
-using Dotmim.Sync.Core.Scope;
+﻿using Dotmim.Sync.Builders;
+using Dotmim.Sync.Cache;
 using Dotmim.Sync.Data;
-using Dotmim.Sync.Core.Builders;
-using Dotmim.Sync.Core.Manager;
-using Dotmim.Sync.Core.Cache;
+using Dotmim.Sync.Manager;
+using System.Data.Common;
 using System.Data.SQLite;
 
 
@@ -21,7 +12,6 @@ namespace Dotmim.Sync.SQLite
     public class SQLiteSyncProvider : CoreProvider
     {
         ICache cacheManager;
-        string connectionString;
         private string filePath;
 
         public override ICache CacheManager
@@ -63,11 +53,10 @@ namespace Dotmim.Sync.SQLite
             // prefer to store guid in text
             builder.BinaryGUID = false;
 
-
-            this.connectionString = builder.ConnectionString;
+            this.ConnectionString = builder.ConnectionString;
         }
 
-        public override DbConnection CreateConnection() => new SQLiteConnection(this.connectionString);
+        public override DbConnection CreateConnection() => new SQLiteConnection(this.ConnectionString);
 
         public override DbBuilder GetDatabaseBuilder(DmTable tableDescription, DbBuilderOption options = DbBuilderOption.UseExistingSchema) => new SQLiteBuilder(tableDescription, options);
 

@@ -1,35 +1,26 @@
-﻿using System;
+﻿using Dotmim.Sync.Batch;
+using Dotmim.Sync.Builders;
+using Dotmim.Sync.Data.Surrogate;
+using Dotmim.Sync.Enumerations;
+using System;
 using System.Collections.Generic;
-using System.Text;
-using Dotmim.Sync.Core.Builders;
-using Dotmim.Sync.Core.Scope;
-using Dotmim.Sync.Core.Batch;
-using System.Net.Http;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
 using System.IO;
 using System.Linq;
-using DmBinaryFormatter;
-using System.Net;
+using System.Net.Http;
 using System.Threading;
-using Dotmim.Sync.Core.Enumerations;
-using Dotmim.Sync.Core.Serialization;
-using Dotmim.Sync.Data.Surrogate;
-using Dotmim.Sync.Data;
-using Dotmim.Sync.Enumerations;
-using Microsoft.Net.Http.Headers;
+using System.Threading.Tasks;
 
-namespace Dotmim.Sync.Core.Proxy
+namespace Dotmim.Sync.Proxy
 {
 
     /// <summary>
     /// Class used when you have to deal with a Web Server
     /// </summary>
-    public class WebProxyClientProvider : IResponseHandler, IDisposable
+    public class WebProxyClientProvider : IProvider, IDisposable
     {
         private HttpRequestHandler httpRequestHandler;
         private CancellationToken cancellationToken;
-        private ServiceConfiguration serviceConfiguration;
+        private SyncConfiguration syncConfiguration;
         public event EventHandler<SyncProgressEventArgs> SyncProgress;
         public event EventHandler<ApplyChangeFailedEventArgs> ApplyChangedFailed;
         private Uri serviceUri;
@@ -150,7 +141,7 @@ namespace Dotmim.Sync.Core.Proxy
             return (httpMessageResponse.SyncContext, httpMessageResponse.EnsureScopes.Scopes);
         }
 
-        public async Task<(SyncContext, ServiceConfiguration)> EnsureConfigurationAsync(SyncContext context, ServiceConfiguration configuration = null)
+        public async Task<(SyncContext, SyncConfiguration)> EnsureConfigurationAsync(SyncContext context, SyncConfiguration configuration = null)
         {
             HttpMessage httpMessage = new HttpMessage();
             httpMessage.SyncContext = context;
@@ -177,7 +168,7 @@ namespace Dotmim.Sync.Core.Proxy
             var syncContext = httpMessageResponse.SyncContext;
 
             // because we need it after
-            this.serviceConfiguration = conf;
+            this.syncConfiguration = conf;
 
             return (syncContext, conf);
         }
@@ -267,7 +258,7 @@ namespace Dotmim.Sync.Core.Proxy
                 {
                     // Serialize the file !
                     var bpId = BatchInfo.GenerateNewFileName(changes.BatchIndex.ToString());
-                    var fileName = Path.Combine(this.serviceConfiguration.BatchDirectory, changes.Directory, bpId);
+                    var fileName = Path.Combine(this.syncConfiguration.BatchDirectory, changes.Directory, bpId);
                     BatchPart.Serialize(httpMessageResponse.GetChangeBatch.Set, fileName);
                     bpi.FileName = fileName;
                     bpi.Clear();

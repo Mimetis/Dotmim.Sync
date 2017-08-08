@@ -1,11 +1,6 @@
-﻿using Dotmim.Sync.Core;
-using Dotmim.Sync.Core.Common;
-using Dotmim.Sync.Data;
+﻿using Dotmim.Sync.Data;
 using System;
-using System.Collections.Generic;
 using System.Data;
-using System.Text;
-using System.Linq;
 using System.Data.SQLite;
 
 namespace Dotmim.Sync.SQLite

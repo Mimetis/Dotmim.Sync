@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Data.Common;
 using System.Text;
 using Dotmim.Sync.Data;
-using Dotmim.Sync.Core.Filter;
+using Dotmim.Sync.Filter;
 
-namespace Dotmim.Sync.Core.Builders
+namespace Dotmim.Sync.Builders
 {
     /// <summary>
     /// This class is responsible to create a stored proc for one particular sync table

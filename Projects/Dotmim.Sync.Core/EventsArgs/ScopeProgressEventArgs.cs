@@ -1,15 +1,9 @@
-﻿using Dotmim.Sync.Core.Scope;
-using Dotmim.Sync.Data;
+﻿using Dotmim.Sync.Data;
 using Dotmim.Sync.Enumerations;
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Xml.Serialization;
 
-namespace Dotmim.Sync.Core
+namespace Dotmim.Sync
 {
     /// <summary>
     /// Event args during a sync progress
@@ -29,7 +23,7 @@ namespace Dotmim.Sync.Core
         /// <summary>
         /// Gets the configuration used for this sync
         /// </summary>
-        public ServiceConfiguration Configuration { get;  set; }
+        public SyncConfiguration Configuration { get;  set; }
 
         /// <summary>
         /// Gets or Sets the scopes info during WriteScopes event

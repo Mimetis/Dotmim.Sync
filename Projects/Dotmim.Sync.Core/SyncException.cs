@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Data.Common;
 
-namespace Dotmim.Sync.Core
+namespace Dotmim.Sync
 {
     public class SyncException : Exception
     {

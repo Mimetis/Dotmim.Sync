@@ -1,5 +1,4 @@
-﻿using DmBinaryFormatter;
-using Dotmim.Sync.Data;
+﻿using Dotmim.Sync.Serialization;
 using System;
 using System.Data;
 using System.Text;

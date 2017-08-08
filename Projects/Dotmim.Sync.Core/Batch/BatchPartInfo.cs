@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace Dotmim.Sync.Core.Batch
+namespace Dotmim.Sync.Batch
 {
     /// <summary>
     /// Info about a BatchPart
@@ -98,44 +98,7 @@ namespace Dotmim.Sync.Core.Batch
             return bpi;
         }
 
-        /// <summary>
-        /// Serialize the BatchPartInfo WITHOUT the DmSet
-        /// </summary>
-        internal static void SerializeInDmSet(DmSet set, BatchPartInfo bpi)
-        {
-            if (set == null)
-                return;
-
-            DmTable dmTableBatchPartsInfo = null;
-
-            if (!set.Tables.Contains("DotmimSync__BatchPartsInfo"))
-            {
-                dmTableBatchPartsInfo = new DmTable("DotmimSync__BatchPartsInfo");
-                set.Tables.Add(dmTableBatchPartsInfo);
-            }
-
-            dmTableBatchPartsInfo = set.Tables["DotmimSync__BatchPartsInfo"];
-
-            dmTableBatchPartsInfo.Columns.Add<String>("FileName");
-            dmTableBatchPartsInfo.Columns.Add<int>("Index");
-            dmTableBatchPartsInfo.Columns.Add<Boolean>("IsLastBatch");
-            dmTableBatchPartsInfo.Columns.Add<String>("Tables");
-
-            var dmRow = dmTableBatchPartsInfo.NewRow();
-            dmRow["FileName"] = bpi.FileName;
-            dmRow["Index"] = bpi.Index;
-            dmRow["IsLastBatch"] = bpi.IsLastBatch;
-
-            if (bpi.Tables != null && bpi.Tables.Length > 0)
-            {
-                var tablesString = String.Join("|", bpi.Tables);
-                dmRow["Tables"] = tablesString;
-            }
-
-            dmTableBatchPartsInfo.Rows.Add(dmRow);
-
-        }
-
+    
         /// <summary>
         /// Create a new BPI, and serialize the changeset if not in memory
         /// </summary>

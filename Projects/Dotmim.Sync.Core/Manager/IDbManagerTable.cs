@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Data.Common;
 using System.Text;
 
-namespace Dotmim.Sync.Core.Manager
+namespace Dotmim.Sync.Manager
 {
     public interface IDbManagerTable
     {

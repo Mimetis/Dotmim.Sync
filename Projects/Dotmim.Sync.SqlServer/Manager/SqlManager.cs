@@ -1,9 +1,5 @@
-﻿using Dotmim.Sync.Core.Manager;
-using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using Dotmim.Sync.Manager;
 using System.Data.Common;
-using System.Data.SqlClient;
 
 namespace Dotmim.Sync.SqlServer.Manager
 {

@@ -1,14 +1,10 @@
-﻿using Dotmim.Sync.Core.Manager;
+﻿using Dotmim.Sync.Data;
+using Dotmim.Sync.Manager;
 using System;
-using System.Collections.Generic;
-using System.Text;
-using Dotmim.Sync.Data;
-using System.Data.Common;
-using System.Linq;
-using Dotmim.Sync.Core.Scope;
-using Dotmim.Sync.SqlServer.Builders;
-using System.Data.SqlClient;
 using System.Data;
+using System.Data.Common;
+using System.Data.SqlClient;
+using System.Linq;
 
 namespace Dotmim.Sync.SqlServer.Manager
 {
@@ -56,12 +52,16 @@ namespace Dotmim.Sync.SqlServer.Manager
                 // That's why we go trough double parsing String => SqlDbType => Type
                 Type objectType = sqlDbType.Value.ToManagedType();
 
+                // special length for nchar and nvarchar
+                if ((sqlDbType == SqlDbType.NChar || sqlDbType == SqlDbType.NVarChar) && maxLength > -1)
+                    maxLength = (Int16)(maxLength / 2);
+
                 var newColumn = DmColumn.CreateColumn(name, objectType);
                 newColumn.AllowDBNull = isNullable;
                 newColumn.AutoIncrement = isIdentity;
                 newColumn.MaxLength = maxLength > -1 ? maxLength : 0;
                 newColumn.SetOrdinal(ordinal);
-                newColumn.OrginalDbType = sqlDbType == SqlDbType.Variant ? "sql_variant" : sqlDbType.Value.ToString();
+                newColumn.OrginalDbType = typeString; // sqlDbType == SqlDbType.Variant ? "sql_variant" : sqlDbType.Value.ToString();
 
                 if (sqlDbType == SqlDbType.Timestamp)
                     newColumn.ReadOnly = true;

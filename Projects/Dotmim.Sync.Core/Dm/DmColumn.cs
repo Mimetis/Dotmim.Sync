@@ -1,14 +1,7 @@
 ﻿using System;
-using System.Linq;
-using System.Collections;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Diagnostics;
-using System.Globalization;
-using System.Reflection;
 using System.Data;
-using DmBinaryFormatter;
+using System.Reflection;
 
 namespace Dotmim.Sync.Data
 {

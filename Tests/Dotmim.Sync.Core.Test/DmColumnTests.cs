@@ -5,7 +5,7 @@ using System.Text;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Dotmim.Sync.Core.Test
+namespace Dotmim.Sync.Test
 {
     public class DmColumnTests
     {

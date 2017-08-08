@@ -1,15 +1,13 @@
-﻿using Dotmim.Sync.Core.Builders;
-using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Data;
+using Dotmim.Sync.Filter;
+using Dotmim.Sync.Log;
+using System;
+using System.Data;
 using System.Data.Common;
 using System.Data.SqlClient;
-using Dotmim.Sync.Core.Common;
 using System.Linq;
-using Dotmim.Sync.Core.Log;
-using System.Data;
-using Dotmim.Sync.Core.Filter;
+using System.Text;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {

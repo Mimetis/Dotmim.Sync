@@ -1,16 +1,12 @@
-﻿using Dotmim.Sync.Core.Builders;
-using Dotmim.Sync.Core.Common;
+﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Data;
 using Dotmim.Sync.SqlServer;
 using System;
-using System.Collections.Generic;
-using System.Data.Common;
 using System.Data.SqlClient;
 using System.Linq;
-using System.Text;
 using Xunit;
 
-namespace Dotmim.Sync.Core.Test
+namespace Dotmim.Sync.Test
 {
     public class SqlBuilderTableTest : IDisposable
     {

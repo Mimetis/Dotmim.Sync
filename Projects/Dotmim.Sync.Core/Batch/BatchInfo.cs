@@ -6,7 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
-namespace Dotmim.Sync.Core.Batch
+namespace Dotmim.Sync.Batch
 {
     /// <summary>
     /// Represents a Batch, containing a full or serialized change set

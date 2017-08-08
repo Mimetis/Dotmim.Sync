@@ -1,37 +1,35 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
-using Dotmim.Sync.Core.Builders;
-using Dotmim.Sync.Core.Scope;
-using Dotmim.Sync.Core.Batch;
-using System.Net.Http;
+using Dotmim.Sync.Builders;
+using Dotmim.Sync.Batch;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using System.IO;
 using System.Linq;
-using DmBinaryFormatter;
-using System.Net;
 using System.Threading;
 using Newtonsoft.Json;
-using Dotmim.Sync.Core.Enumerations;
-using Dotmim.Sync.Core.Serialization;
 using Dotmim.Sync.Enumerations;
-using Microsoft.Extensions.Primitives;
+using Dotmim.Sync.Serialization;
 using Dotmim.Sync.Data.Surrogate;
-using Dotmim.Sync.Data;
-using Dotmim.Sync.Core.Cache;
+using Dotmim.Sync.Cache;
+using Microsoft.AspNetCore.Session;
 
-namespace Dotmim.Sync.Core.Proxy
+namespace Dotmim.Sync.Proxy
 {
 
     /// <summary>
     /// Class used when you have to deal with a Web Server
     /// </summary>
-    public class WebProxyServerProvider : IResponseHandler
+    public class WebProxyServerProvider : IProvider
     {
         public CoreProvider LocalProvider { get; private set; }
-
         private SerializationFormat serializationFormat;
+
+        /// <summary>
+        /// Gets or sets a boolean value to indicate if this service is register as Singleton on web server.
+        /// if true, we don't need to use Session, if false, we will try to use session
+        /// </summary>
+        public Boolean IsRegisterAsSingleton { get; set; }
 
         public SerializationFormat SerializationFormat
         {
@@ -68,6 +66,8 @@ namespace Dotmim.Sync.Core.Proxy
             this.serializer = BaseConverter<HttpMessage>.GetConverter(this.serializationFormat);
         }
 
+
+
         /// <summary>
         /// Call this method to handle requests on the server, sent by the client
         /// </summary>
@@ -85,7 +85,16 @@ namespace Dotmim.Sync.Core.Proxy
             var httpRequest = context.Request;
             var httpResponse = context.Response;
             var streamArray = httpRequest.Body;
-            this.LocalProvider.CacheManager = new SessionCache(context);
+
+            // Check if we should handle a session store to handle configuration
+            if (!this.IsRegisterAsSingleton)
+            {
+                // try to get the session store service from DI
+                var sessionStore = context.RequestServices.GetService(typeof(ISessionStore));
+
+                if (sessionStore != null)
+                    this.LocalProvider.CacheManager = new SessionCache(context);
+            }
 
             try
             {
@@ -450,7 +459,7 @@ namespace Dotmim.Sync.Core.Proxy
             => await this.LocalProvider.GetLocalTimestampAsync(ctx);
         public async Task<SyncContext> WriteScopesAsync(SyncContext ctx, List<ScopeInfo> scopes)
             => await this.LocalProvider.WriteScopesAsync(ctx, scopes);
-        public async Task<(SyncContext, ServiceConfiguration)> EnsureConfigurationAsync(SyncContext ctx, ServiceConfiguration configuration = null)
+        public async Task<(SyncContext, SyncConfiguration)> EnsureConfigurationAsync(SyncContext ctx, SyncConfiguration configuration = null)
             => await this.LocalProvider.EnsureConfigurationAsync(ctx, configuration);
 
         public void SetCancellationToken(CancellationToken token)

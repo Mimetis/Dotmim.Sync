@@ -1,15 +1,10 @@
-﻿using Dotmim.Sync.Core.Common;
-using Dotmim.Sync.Data;
-using System;
+﻿using Dotmim.Sync.Data;
 using System.Collections.Generic;
 using System.Data.Common;
-
-using System.Globalization;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Linq;
-using Dotmim.Sync.Core.Scope;
 using System.Data.SQLite;
+using Dotmim.Sync.Builders;
 
 namespace Dotmim.Sync.SQLite
 {

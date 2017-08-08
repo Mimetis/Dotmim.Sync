@@ -4,7 +4,7 @@ using System.Data.Common;
 using System.Text;
 using Dotmim.Sync.Data;
 
-namespace Dotmim.Sync.Core.Builders
+namespace Dotmim.Sync.Builders
 {
 
     /// <summary>

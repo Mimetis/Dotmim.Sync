@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Dotmim.Sync.Core.Scope
+namespace Dotmim.Sync.Scope
 {
     public class ScopeConfig
     {

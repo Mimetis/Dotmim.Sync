@@ -1,6 +1,4 @@
-﻿
-using Dotmim.Sync.Core.Context;
-using Dotmim.Sync.Core.Enumerations;
+﻿using Dotmim.Sync.Enumerations;
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
@@ -8,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Dotmim.Sync.Core
+namespace Dotmim.Sync
 {
     public class ApplyChangeFailedEventArgs : EventArgs
     {

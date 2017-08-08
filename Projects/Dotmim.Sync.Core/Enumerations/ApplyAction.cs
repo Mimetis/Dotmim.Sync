@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Dotmim.Sync.Core.Enumerations
+namespace Dotmim.Sync.Enumerations
 {
     /// <summary>
     /// Specifies the options for processing a row when the row cannot be applied during synchronization.

@@ -1,12 +1,9 @@
-﻿using DmBinaryFormatter;
-using Dotmim.Sync.Data;
-using Dotmim.Sync.Data.Surrogate;
+﻿using Dotmim.Sync.Data.Surrogate;
+using Dotmim.Sync.Serialization;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Text;
 
-namespace Dotmim.Sync.Core.Batch
+namespace Dotmim.Sync.Batch
 {
     /// <summary>
     /// Batch Part

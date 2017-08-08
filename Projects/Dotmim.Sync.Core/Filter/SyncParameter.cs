@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Dotmim.Sync.Core
+namespace Dotmim.Sync.Filter
 {
     /// <summary>
     /// Encapsulates information sent from the client to the server.

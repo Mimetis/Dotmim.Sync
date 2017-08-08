@@ -6,14 +6,15 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore" Version="2.0.0-preview2-final" />
     <PackageReference Include="Microsoft.AspNetCore.Http" Version="2.0.0-preview2-final" />
-    <PackageReference Include="Microsoft.CSharp" Version="4.3.0" />
-    <PackageReference Include="Newtonsoft.Json" Version="9.0.2-beta2" />
+    <PackageReference Include="Microsoft.AspNetCore.Session" Version="2.0.0-preview2-final" />
+    <PackageReference Include="Microsoft.CSharp" Version="4.4.0-preview2-25405-01" />
+    <PackageReference Include="Newtonsoft.Json" Version="10.0.3" />
     <PackageReference Include="System.Collections.NonGeneric" Version="4.3.0" />
     <PackageReference Include="System.ComponentModel.TypeConverter" Version="4.3.0" />
     <PackageReference Include="System.Data.Common" Version="4.3.0" />
-    <PackageReference Include="System.Reflection.TypeExtensions" Version="4.3.0" />
+    <PackageReference Include="System.Reflection.TypeExtensions" Version="4.4.0-preview2-25405-01" />
     <PackageReference Include="System.Runtime.Serialization.Formatters" Version="4.3.0" />
-    <PackageReference Include="System.ValueTuple" Version="4.3.0" />
+    <PackageReference Include="System.ValueTuple" Version="4.4.0-preview2-25405-01" />
     <PackageReference Include="System.Xml.XmlSerializer" Version="4.3.0" />
   </ItemGroup>
 </Project>

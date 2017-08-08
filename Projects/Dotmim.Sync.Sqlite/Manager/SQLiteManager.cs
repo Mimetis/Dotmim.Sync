@@ -1,4 +1,4 @@
-﻿using Dotmim.Sync.Core.Manager;
+﻿using Dotmim.Sync.Manager;
 using System;
 using System.Collections.Generic;
 using System.Text;

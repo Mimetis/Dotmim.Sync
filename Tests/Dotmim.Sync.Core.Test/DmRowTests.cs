@@ -5,7 +5,7 @@ using System.Text;
 using Xunit;
 using System.Linq;
 
-namespace Dotmim.Sync.Core.Test
+namespace Dotmim.Sync.Test
 {
     public class DmRowTests
     {

@@ -1,31 +1,26 @@
-﻿using Dotmim.Sync.Core.Test.Misc;
-using Dotmim.Sync.Core.Test.SqlUtils;
+﻿using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.Proxy;
 using Dotmim.Sync.SqlServer;
+using Dotmim.Sync.Test.Misc;
+using Dotmim.Sync.Test.SqlUtils;
+using Microsoft.AspNetCore.Http;
 using System;
-using System.Collections.Generic;
 using System.Data.SqlClient;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using Xunit;
-using System.Collections;
-using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Core.Enumerations;
-using Microsoft.AspNetCore.Http;
-using Dotmim.Sync.Core.Proxy;
 
-namespace Dotmim.Sync.Core.Test
+namespace Dotmim.Sync.Test
 {
 
     [Collection("SyncSimple")]
-    [TestCaseOrderer("Dotmim.Sync.Core.Test.Misc.PriorityOrderer", "Dotmim.Sync.Core.Test")]
+    [TestCaseOrderer("Dotmim.Sync.Test.Misc.PriorityOrderer", "Dotmim.Sync.Core.Test")]
     public class SyncHttpTests : IClassFixture<SyncSimpleFixture>
     {
         SqlSyncProvider serverProvider;
         SqlSyncProvider clientProvider;
         WebProxyServerProvider proxyServerProvider;
         WebProxyClientProvider proxyClientProvider;
-        ServiceConfiguration configuration;
+        SyncConfiguration configuration;
 
         SyncSimpleFixture fixture;
         SyncAgent agent;
@@ -40,7 +35,7 @@ namespace Dotmim.Sync.Core.Test
             clientProvider = new SqlSyncProvider(fixture.Client1ConnectionString);
             proxyClientProvider = new WebProxyClientProvider();
 
-            configuration = new ServiceConfiguration(this.fixture.Tables);
+            configuration = new SyncConfiguration(this.fixture.Tables);
 
             agent = new SyncAgent(clientProvider, proxyClientProvider);
 
@@ -65,7 +60,7 @@ namespace Dotmim.Sync.Core.Test
 
                     var session = await agent.SynchronizeAsync();
 
-                    Assert.Equal(5, session.TotalChangesDownloaded);
+                    Assert.Equal(50, session.TotalChangesDownloaded);
                     Assert.Equal(0, session.TotalChangesUploaded);
                 });
                 await server.Run(serverHandler, clientHandler);
@@ -73,7 +68,7 @@ namespace Dotmim.Sync.Core.Test
         }
 
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(2)]
-        public async Task SyncNoRows(ServiceConfiguration conf)
+        public async Task SyncNoRows(SyncConfiguration conf)
         {
             using (var server = new KestrellTestServer())
             {
@@ -81,14 +76,14 @@ namespace Dotmim.Sync.Core.Test
                 {
                     conf.Tables = fixture.Tables;
                     serverProvider.SetConfiguration(conf);
-                    proxyServerProvider.SerializationFormat = conf.SerializationConverter;
+                    proxyServerProvider.SerializationFormat = conf.SerializationFormat;
 
                     await proxyServerProvider.HandleRequestAsync(context);
                 });
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationConverter;
+                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     var session = await agent.SynchronizeAsync();
 
@@ -101,7 +96,7 @@ namespace Dotmim.Sync.Core.Test
         }
 
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(3)]
-        public async Task InsertFromServer(ServiceConfiguration conf)
+        public async Task InsertFromServer(SyncConfiguration conf)
         {
             var insertRowScript =
             $@"INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
@@ -123,14 +118,14 @@ namespace Dotmim.Sync.Core.Test
                 {
                     conf.Tables = fixture.Tables;
                     serverProvider.SetConfiguration(conf);
-                    proxyServerProvider.SerializationFormat = conf.SerializationConverter;
+                    proxyServerProvider.SerializationFormat = conf.SerializationFormat;
 
                     await proxyServerProvider.HandleRequestAsync(context);
                 });
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationConverter;
+                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     var session = await agent.SynchronizeAsync();
 
@@ -142,7 +137,7 @@ namespace Dotmim.Sync.Core.Test
         }
 
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(4)]
-        public async Task InsertFromClient(ServiceConfiguration conf)
+        public async Task InsertFromClient(SyncConfiguration conf)
         {
             var insertRowScript =
             $@"INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
@@ -163,14 +158,14 @@ namespace Dotmim.Sync.Core.Test
                 {
                     conf.Tables = fixture.Tables;
                     serverProvider.SetConfiguration(conf);
-                    proxyServerProvider.SerializationFormat = conf.SerializationConverter;
+                    proxyServerProvider.SerializationFormat = conf.SerializationFormat;
 
                     await proxyServerProvider.HandleRequestAsync(context);
                 });
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationConverter;
+                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     var session = await agent.SynchronizeAsync();
 
@@ -182,7 +177,7 @@ namespace Dotmim.Sync.Core.Test
         }
 
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(5)]
-        public async Task UpdateFromClient(ServiceConfiguration conf)
+        public async Task UpdateFromClient(SyncConfiguration conf)
         {
             var updateRowScript =
             $@" Declare @id uniqueidentifier;
@@ -204,14 +199,14 @@ namespace Dotmim.Sync.Core.Test
                 {
                     conf.Tables = fixture.Tables;
                     serverProvider.SetConfiguration(conf);
-                    proxyServerProvider.SerializationFormat = conf.SerializationConverter;
+                    proxyServerProvider.SerializationFormat = conf.SerializationFormat;
 
                     await proxyServerProvider.HandleRequestAsync(context);
                 });
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationConverter;
+                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     var session = await agent.SynchronizeAsync();
 
@@ -223,7 +218,7 @@ namespace Dotmim.Sync.Core.Test
         }
 
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(6)]
-        public async Task UpdateFromServer(ServiceConfiguration conf)
+        public async Task UpdateFromServer(SyncConfiguration conf)
         {
             var updateRowScript =
             $@" Declare @id uniqueidentifier;
@@ -245,14 +240,14 @@ namespace Dotmim.Sync.Core.Test
                 {
                     conf.Tables = fixture.Tables;
                     serverProvider.SetConfiguration(conf);
-                    proxyServerProvider.SerializationFormat = conf.SerializationConverter;
+                    proxyServerProvider.SerializationFormat = conf.SerializationFormat;
 
                     await proxyServerProvider.HandleRequestAsync(context);
                 });
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationConverter;
+                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     var session = await agent.SynchronizeAsync();
 
@@ -264,7 +259,7 @@ namespace Dotmim.Sync.Core.Test
         }
 
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(7)]
-        public async Task DeleteFromServer(ServiceConfiguration conf)
+        public async Task DeleteFromServer(SyncConfiguration conf)
         {
             var updateRowScript =
             $@" Declare @id uniqueidentifier;
@@ -286,14 +281,14 @@ namespace Dotmim.Sync.Core.Test
                 {
                     conf.Tables = fixture.Tables;
                     serverProvider.SetConfiguration(conf);
-                    proxyServerProvider.SerializationFormat = conf.SerializationConverter;
+                    proxyServerProvider.SerializationFormat = conf.SerializationFormat;
 
                     await proxyServerProvider.HandleRequestAsync(context);
                 });
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationConverter;
+                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     var session = await agent.SynchronizeAsync();
 
@@ -305,7 +300,7 @@ namespace Dotmim.Sync.Core.Test
         }
 
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(8)]
-        public async Task DeleteFromClient(ServiceConfiguration conf)
+        public async Task DeleteFromClient(SyncConfiguration conf)
         {
             int count;
             var selectcount = $@"Select count(*) From [ServiceTickets]";
@@ -327,14 +322,14 @@ namespace Dotmim.Sync.Core.Test
                 {
                     conf.Tables = fixture.Tables;
                     serverProvider.SetConfiguration(conf);
-                    proxyServerProvider.SerializationFormat = conf.SerializationConverter;
+                    proxyServerProvider.SerializationFormat = conf.SerializationFormat;
 
                     await proxyServerProvider.HandleRequestAsync(context);
                 });
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationConverter;
+                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     var session = await agent.SynchronizeAsync();
 
@@ -355,7 +350,7 @@ namespace Dotmim.Sync.Core.Test
         }
 
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(9)]
-        public async Task ConflictInsertInsertServerWins(ServiceConfiguration conf)
+        public async Task ConflictInsertInsertServerWins(SyncConfiguration conf)
         {
             Guid id = Guid.NewGuid();
 
@@ -395,14 +390,14 @@ namespace Dotmim.Sync.Core.Test
                 {
                     conf.Tables = fixture.Tables;
                     serverProvider.SetConfiguration(conf);
-                    proxyServerProvider.SerializationFormat = conf.SerializationConverter;
+                    proxyServerProvider.SerializationFormat = conf.SerializationFormat;
 
                     await proxyServerProvider.HandleRequestAsync(context);
                 });
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationConverter;
+                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     var session = await agent.SynchronizeAsync();
 
@@ -431,7 +426,7 @@ namespace Dotmim.Sync.Core.Test
         }
 
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(10)]
-        public async Task ConflictUpdateUpdateServerWins(ServiceConfiguration conf)
+        public async Task ConflictUpdateUpdateServerWins(SyncConfiguration conf)
         {
             var id = Guid.NewGuid().ToString();
 
@@ -456,14 +451,14 @@ namespace Dotmim.Sync.Core.Test
                 {
                     conf.Tables = fixture.Tables;
                     serverProvider.SetConfiguration(conf);
-                    proxyServerProvider.SerializationFormat = conf.SerializationConverter;
+                    proxyServerProvider.SerializationFormat = conf.SerializationFormat;
 
                     await proxyServerProvider.HandleRequestAsync(context);
                 });
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationConverter;
+                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     var session = await agent.SynchronizeAsync();
 
@@ -510,14 +505,14 @@ namespace Dotmim.Sync.Core.Test
                 {
                     conf.Tables = fixture.Tables;
                     serverProvider.SetConfiguration(conf);
-                    proxyServerProvider.SerializationFormat = conf.SerializationConverter;
+                    proxyServerProvider.SerializationFormat = conf.SerializationFormat;
 
                     await proxyServerProvider.HandleRequestAsync(context);
                 });
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationConverter;
+                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     var session = await agent.SynchronizeAsync();
 
@@ -547,7 +542,7 @@ namespace Dotmim.Sync.Core.Test
         }
 
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(11)]
-        public async Task ConflictUpdateUpdateClientWins(ServiceConfiguration conf)
+        public async Task ConflictUpdateUpdateClientWins(SyncConfiguration conf)
         {
             var id = Guid.NewGuid().ToString();
 
@@ -572,14 +567,14 @@ namespace Dotmim.Sync.Core.Test
                 {
                     conf.Tables = fixture.Tables;
                     serverProvider.SetConfiguration(conf);
-                    proxyServerProvider.SerializationFormat = conf.SerializationConverter;
+                    proxyServerProvider.SerializationFormat = conf.SerializationFormat;
 
                     await proxyServerProvider.HandleRequestAsync(context);
                 });
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationConverter;
+                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     var session = await agent.SynchronizeAsync();
 
@@ -627,7 +622,7 @@ namespace Dotmim.Sync.Core.Test
                 {
                     conf.Tables = fixture.Tables;
                     serverProvider.SetConfiguration(conf);
-                    proxyServerProvider.SerializationFormat = conf.SerializationConverter;
+                    proxyServerProvider.SerializationFormat = conf.SerializationFormat;
 
                     // Since we move to server side, it's server to handle errors
                     serverProvider.ApplyChangedFailed += (s, args) =>
@@ -641,7 +636,7 @@ namespace Dotmim.Sync.Core.Test
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationConverter;
+                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     SyncContext session = null;
                     await Assert.RaisesAsync<ApplyChangeFailedEventArgs>(
@@ -677,7 +672,7 @@ namespace Dotmim.Sync.Core.Test
         }
 
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(12)]
-        public async Task ConflictInsertInsertConfigurationClientWins(ServiceConfiguration conf)
+        public async Task ConflictInsertInsertConfigurationClientWins(SyncConfiguration conf)
         {
 
             Guid id = Guid.NewGuid();
@@ -720,14 +715,14 @@ namespace Dotmim.Sync.Core.Test
                     conf.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
 
                     serverProvider.SetConfiguration(conf);
-                    proxyServerProvider.SerializationFormat = conf.SerializationConverter;
+                    proxyServerProvider.SerializationFormat = conf.SerializationFormat;
 
                     await proxyServerProvider.HandleRequestAsync(context);
                 });
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationConverter;
+                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     var session = await agent.SynchronizeAsync();
 

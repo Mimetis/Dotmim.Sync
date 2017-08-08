@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Dotmim.Sync.Core.Log
+namespace Dotmim.Sync.Log
 {
     public class Logger : EventSource
     {

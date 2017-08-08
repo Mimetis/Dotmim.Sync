@@ -1,20 +1,13 @@
-﻿using Dotmim.Sync.Core.Test.Misc;
-using Dotmim.Sync.Core.Test.SqlUtils;
-using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.SqlServer;
-using Microsoft.AspNetCore.Http;
+﻿using Dotmim.Sync.SqlServer;
+using Dotmim.Sync.Test.Misc;
+using Dotmim.Sync.Test.SqlUtils;
 using System;
-using System.Collections.Generic;
 using System.Data.SqlClient;
-using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Net.Http;
-using System.Text;
 using System.Threading.Tasks;
 using Xunit;
 
-namespace Dotmim.Sync.Core.Test
+namespace Dotmim.Sync.Test
 {
     public class SyncTwoTablesFixture : IDisposable
     {
@@ -95,7 +88,7 @@ namespace Dotmim.Sync.Core.Test
 
     }
 
-    [TestCaseOrderer("Dotmim.Sync.Core.Test.Misc.PriorityOrderer", "Dotmim.Sync.Core.Test")]
+    [TestCaseOrderer("Dotmim.Sync.Test.Misc.PriorityOrderer", "Dotmim.Sync.Core.Test")]
     public class SyncTwoTablesTests : IClassFixture<SyncTwoTablesFixture>
     {
         SyncTwoTablesFixture fixture;
@@ -109,7 +102,7 @@ namespace Dotmim.Sync.Core.Test
 
             serverProvider = new SqlSyncProvider(fixture.ServerConnectionString);
             clientProvider = new SqlSyncProvider(fixture.Client1ConnectionString);
-            var simpleConfiguration = new ServiceConfiguration(fixture.Tables);
+            var simpleConfiguration = new SyncConfiguration(fixture.Tables);
 
             agent = new SyncAgent(clientProvider, serverProvider, simpleConfiguration);
         }

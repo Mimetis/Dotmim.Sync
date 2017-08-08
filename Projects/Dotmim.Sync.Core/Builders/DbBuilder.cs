@@ -5,10 +5,10 @@ using System.Data.Common;
 using System.Text;
 using System.Linq;
 using System.Data;
-using Dotmim.Sync.Core.Log;
-using Dotmim.Sync.Core.Filter;
+using Dotmim.Sync.Log;
+using Dotmim.Sync.Filter;
 
-namespace Dotmim.Sync.Core.Builders
+namespace Dotmim.Sync.Builders
 {
     public abstract class DbBuilder : IDisposable
     {

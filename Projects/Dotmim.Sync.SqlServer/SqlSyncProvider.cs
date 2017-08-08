@@ -1,27 +1,17 @@
-﻿using Dotmim.Sync.Core;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Dotmim.Sync.Core.Batch;
+﻿using Dotmim.Sync.Builders;
+using Dotmim.Sync.Cache;
+using Dotmim.Sync.Data;
+using Dotmim.Sync.Manager;
 using Dotmim.Sync.SqlServer.Builders;
+using Dotmim.Sync.SqlServer.Manager;
+using Dotmim.Sync.SqlServer.Scope;
 using System.Data.Common;
 using System.Data.SqlClient;
-using Dotmim.Sync.Core.Log;
-using Dotmim.Sync.Core.Scope;
-using Dotmim.Sync.Data;
-using Dotmim.Sync.Core.Builders;
-using Dotmim.Sync.SqlServer.Scope;
-using Dotmim.Sync.Core.Manager;
-using Dotmim.Sync.SqlServer.Manager;
-using Dotmim.Sync.Core.Cache;
 
 namespace Dotmim.Sync.SqlServer
 {
     public class SqlSyncProvider : CoreProvider
     {
-        string connectionString;
         ICache cacheManager;
 
         public SqlSyncProvider() : base()
@@ -29,7 +19,7 @@ namespace Dotmim.Sync.SqlServer
 
         public SqlSyncProvider(string connectionString) : base()
         {
-            this.connectionString = connectionString;
+            this.ConnectionString = connectionString;
         }
 
         public override ICache CacheManager
@@ -60,7 +50,7 @@ namespace Dotmim.Sync.SqlServer
         
 
 
-        public override DbConnection CreateConnection() => new SqlConnection(this.connectionString);
+        public override DbConnection CreateConnection() => new SqlConnection(this.ConnectionString);
         public override DbScopeBuilder GetScopeBuilder() => new SqlScopeBuilder();
         public override DbBuilder GetDatabaseBuilder(DmTable tableDescription, DbBuilderOption options = DbBuilderOption.UseExistingSchema) => new SqlBuilder(tableDescription, options);
         public override DbManager GetDbManager(string tableName) => new SqlManager(tableName);
