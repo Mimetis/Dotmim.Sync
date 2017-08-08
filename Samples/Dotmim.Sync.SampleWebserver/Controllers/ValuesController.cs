@@ -15,46 +15,21 @@ namespace Dotmim.Sync.SampleWebserver.Controllers
         {
             return new string[] { "value1", "value2" };
         }
-
-        // GET api/values/5
-        [HttpGet("{id}")]
-        public string Get(int id)
-        {
-
-            var webHost = Program.Host;
-            var wpsp = webHost.Services.GetService<WebProxyServerProvider>();
-
-            return TempData["TheInstance"] as string;
-
-        }
-
-        // POST api/values
-        [HttpPost]
-        public async Task Post()
-        {
-            await webProxyServer.HandleRequestAsync(this.HttpContext);
-
-        }
-
+      
+        // proxy to handle requests and send them to SqlSyncProvider
         private WebProxyServerProvider webProxyServer;
 
+        // Injected thanks to Dependency Injection
         public ValuesController(WebProxyServerProvider proxy)
         {
             webProxyServer = proxy;
         }
 
-
-
-        // PUT api/values/5
-        [HttpPut("{id}")]
-        public void Put(int id, [FromBody]string value)
+        // Handle all requests :)
+        [HttpPost]
+        public async Task Post()
         {
-        }
-
-        // DELETE api/values/5
-        [HttpDelete("{id}")]
-        public void Delete(int id)
-        {
+            await webProxyServer.HandleRequestAsync(this.HttpContext);
         }
     }
 

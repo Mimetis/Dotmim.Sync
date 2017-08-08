@@ -25,28 +25,17 @@ namespace Dotmim.Sync.SampleWebserver
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddMvc();
-            services.AddDistributedMemoryCache();
-            services.AddSession(options =>
-            {
-                // Set a long timeout for easy testing.
-                options.IdleTimeout = TimeSpan.FromDays(10);
-                options.CookieHttpOnly = true;
-            });
-            services.Configure<Data>(Configuration.GetSection("Data"));
 
-            var connectionString = Configuration.GetSection("Data").Get<Data>().ConnectionString;
-
+            var connectionString = Configuration["Data:ConnectionString"];
             services.AddSyncServer<SqlSyncProvider>(connectionString, configuration =>
             {
                 configuration.Tables = new string[] { "ServiceTickets" };
-                
             });
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
         {
-            app.UseSession();
             app.UseMvc();
             
             
