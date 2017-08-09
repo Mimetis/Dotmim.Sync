@@ -9,6 +9,8 @@ namespace Dotmim.Sync.SQLite
 {
     public class SQLiteObjectNames
     {
+        public const string TimestampValue = "replace(strftime('%Y%m%d%H%M%f', 'now'), '.', '')";
+
         internal const string insertTriggerName = "[{0}_insert_trigger]";
         internal const string updateTriggerName = "[{0}_update_trigger]";
         internal const string deleteTriggerName = "[{0}_delete_trigger]";
@@ -86,7 +88,7 @@ namespace Dotmim.Sync.SQLite
             stringBuilder.AppendLine($"SET [update_scope_id] = @update_scope_id, ");
             stringBuilder.AppendLine($"\t [update_timestamp] = @update_timestamp, ");
             stringBuilder.AppendLine($"\t [sync_row_is_tombstone] = @sync_row_is_tombstone, ");
-            stringBuilder.AppendLine($"\t [timestamp] = strftime('%s', datetime('now', 'utc')), ");
+            stringBuilder.AppendLine($"\t [timestamp] = {SQLiteObjectNames.TimestampValue}, ");
             stringBuilder.AppendLine($"\t [last_change_datetime] = datetime('now') ");
             stringBuilder.Append($"WHERE {SQLiteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKey.Columns, "")}");
 
@@ -114,7 +116,7 @@ namespace Dotmim.Sync.SQLite
             stringBuilder.AppendLine($"\t[sync_row_is_tombstone], [timestamp], [last_change_datetime])");
             stringBuilder.AppendLine($"\tVALUES ({stringBuilderParameters.ToString()}, ");
             stringBuilder.AppendLine($"\t@create_scope_id, @create_timestamp, @update_scope_id, @update_timestamp, ");
-            stringBuilder.AppendLine($"\t@sync_row_is_tombstone, strftime('%s', datetime('now', 'utc')), datetime('now'));");
+            stringBuilder.AppendLine($"\t@sync_row_is_tombstone, {SQLiteObjectNames.TimestampValue}, datetime('now'));");
 
             this.AddName(DbCommandType.InsertMetadata, stringBuilder.ToString());
 
@@ -141,6 +143,7 @@ namespace Dotmim.Sync.SQLite
         }
         private void CreateDeleteMetadataCommandText()
         {
+
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.AppendLine($"DELETE FROM {trackingName.QuotedString} ");
             stringBuilder.Append($"WHERE ");
@@ -152,15 +155,13 @@ namespace Dotmim.Sync.SQLite
         private void CreateDeleteCommandText()
         {
             StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"DELETE {tableName.QuotedString}");
-            stringBuilder.AppendLine($"FROM {tableName.QuotedString} [base]");
-            stringBuilder.AppendLine($"JOIN {trackingName.QuotedString} [side] ON ");
 
-            stringBuilder.AppendLine(SQLiteManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKey.Columns, "[base]", "[side]"));
-
-            stringBuilder.AppendLine("WHERE ([side].[timestamp] <= @sync_min_timestamp  OR @sync_force_write = 1)");
-            stringBuilder.Append("AND ");
-            stringBuilder.AppendLine(string.Concat("(", SQLiteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKey.Columns, "[base]"), ");"));
+            stringBuilder.AppendLine($"DELETE FROM {tableName.QuotedString} ");
+            stringBuilder.Append($"WHERE {SQLiteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKey.Columns, "")}");
+            stringBuilder.AppendLine($" AND ((SELECT [timestamp] FROM {trackingName.QuotedObjectName} ");
+            stringBuilder.AppendLine($"  WHERE {SQLiteManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKey.Columns, tableName.QuotedObjectName, trackingName.QuotedObjectName)}");
+            stringBuilder.AppendLine(" ) <= @sync_min_timestamp OR @sync_force_write = 1");
+            stringBuilder.AppendLine(");");
 
             this.AddName(DbCommandType.DeleteRow, stringBuilder.ToString());
         }

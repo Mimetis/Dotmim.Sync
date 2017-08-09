@@ -294,9 +294,9 @@ namespace Dotmim.Sync.SQLite
             stringBuilder.Append(string.Concat("SELECT ", stringBuilder2.ToString(), ", "));
             stringBuilder.Append("NULL, ");
             stringBuilder.Append("NULL, ");
-            stringBuilder.Append("strftime('%s', datetime('now', 'utc')), ");
+            stringBuilder.Append($"{SQLiteObjectNames.TimestampValue}, ");
             stringBuilder.Append("0, ");
-            stringBuilder.Append($"strftime('%s', datetime('now', 'utc')), ");
+            stringBuilder.Append($"{SQLiteObjectNames.TimestampValue}, ");
             stringBuilder.Append("0");
             stringBuilder.AppendLine(string.Concat(stringBuilder5.ToString(), " "));
             string[] localName = new string[] { "FROM ", tableName.QuotedString, " ", baseTable, " LEFT OUTER JOIN ", trackingName.QuotedString, " ", sideTable, " " };

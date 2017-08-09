@@ -131,7 +131,7 @@ namespace Dotmim.Sync.SQLite
             bool alreadyOpened = connection.State == ConnectionState.Open;
             try
             {
-                command.CommandText = "Select strftime('%s', datetime('now', 'utc'))";
+                command.CommandText = $"Select {SQLiteObjectNames.TimestampValue}";
 
                 if (!alreadyOpened)
                     connection.Open();
@@ -179,8 +179,8 @@ namespace Dotmim.Sync.SQLite
                 var exist = (long)command.ExecuteScalar() > 0;
 
                 string stmtText = exist
-                    ? "Update scope_info set sync_scope_name=@sync_scope_name, scope_timestamp=strftime('%s', datetime('now', 'utc')), scope_is_local=@scope_is_local, scope_last_sync=@scope_last_sync where sync_scope_id=@sync_scope_id"
-                    : "Insert into scope_info (sync_scope_name, scope_timestamp, scope_is_local, scope_last_sync, sync_scope_id) values (@sync_scope_name, strftime('%s', datetime('now', 'utc')), @scope_is_local, @scope_last_sync, @sync_scope_id)";
+                    ? $"Update scope_info set sync_scope_name=@sync_scope_name, scope_timestamp={SQLiteObjectNames.TimestampValue}, scope_is_local=@scope_is_local, scope_last_sync=@scope_last_sync where sync_scope_id=@sync_scope_id"
+                    : $"Insert into scope_info (sync_scope_name, scope_timestamp, scope_is_local, scope_last_sync, sync_scope_id) values (@sync_scope_name, {SQLiteObjectNames.TimestampValue}, @scope_is_local, @scope_last_sync, @sync_scope_id)";
 
                 command = connection.CreateCommand();
                 command.CommandText = stmtText;

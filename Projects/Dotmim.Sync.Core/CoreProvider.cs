@@ -115,13 +115,14 @@ namespace Dotmim.Sync
             {
                 Logger.Current.Info($"BeginSession() called on Provider {this.ProviderTypeName}");
 
-                //lock (this)
-                //{
-                //    if (this.syncInProgress)
-                //        throw SyncException.CreateInProgressException(context.SyncStage);
+                lock (this)
+                {
+                    if (this.syncInProgress)
+                        throw SyncException.CreateInProgressException(context.SyncStage);
 
-                //    this.syncInProgress = true;
-                //}
+                    this.syncInProgress = true;
+                }
+
                 // Set stage
                 context.SyncStage = SyncStage.BeginSession;
 
@@ -174,14 +175,16 @@ namespace Dotmim.Sync
 
             if (syncConfiguration.Tables == null || syncConfiguration.Tables.Length <= 0)
                 return syncConfiguration;
+            DbConnection connection;
+            DbTransaction transaction;
 
-            using (var connection = this.CreateConnection())
+            using (connection = this.CreateConnection())
             {
                 try
                 {
                     await connection.OpenAsync();
 
-                    using (var transaction = connection.BeginTransaction())
+                    using (transaction = connection.BeginTransaction())
                     {
                         foreach (var table in syncConfiguration.Tables)
                         {
@@ -1033,271 +1036,282 @@ namespace Dotmim.Sync
 
             using (var connection = this.CreateConnection())
             {
-                // Open the connection
-                await connection.OpenAsync();
-
-                using (var transaction = connection.BeginTransaction())
+                try
                 {
-                    // create the in memory changes set
-                    DmSet changesSet = new DmSet(configuration.ScopeSet.DmSetName);
+                    // Open the connection
+                    await connection.OpenAsync();
 
-                    foreach (var tableDescription in configuration.ScopeSet.Tables)
+                    using (var transaction = connection.BeginTransaction())
                     {
-                        var builder = this.GetDatabaseBuilder(tableDescription);
-                        var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
-                        syncAdapter.ConflictApplyAction = configuration.GetApplyAction();
+                        // create the in memory changes set
+                        DmSet changesSet = new DmSet(configuration.ScopeSet.DmSetName);
 
-                        Logger.Current.Info($"----- Table \"{tableDescription.TableName}\" -----");
-
-                        // Get Command
-                        DbCommand selectIncrementalChangesCommand;
-                        DbCommandType dbCommandType;
-
-                        if (this.CanBeServerProvider && context.Parameters != null && context.Parameters.Count > 0 && configuration.Filters != null && configuration.Filters.Count > 0)
+                        foreach (var tableDescription in configuration.ScopeSet.Tables)
                         {
-                            var filtersName = configuration.Filters
-                                            .Where(f => f.TableName.Equals(tableDescription.TableName, StringComparison.InvariantCultureIgnoreCase))
-                                            .Select(f => f.ColumnName);
+                            var builder = this.GetDatabaseBuilder(tableDescription);
+                            var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
+                            syncAdapter.ConflictApplyAction = configuration.GetApplyAction();
 
-                            if (filtersName != null && filtersName.Count() > 0)
+                            Logger.Current.Info($"----- Table \"{tableDescription.TableName}\" -----");
+
+                            // Get Command
+                            DbCommand selectIncrementalChangesCommand;
+                            DbCommandType dbCommandType;
+
+                            if (this.CanBeServerProvider && context.Parameters != null && context.Parameters.Count > 0 && configuration.Filters != null && configuration.Filters.Count > 0)
                             {
-                                dbCommandType = DbCommandType.SelectChangesWitFilters;
-                                selectIncrementalChangesCommand = syncAdapter.GetCommand(dbCommandType, filtersName);
+                                var filtersName = configuration.Filters
+                                                .Where(f => f.TableName.Equals(tableDescription.TableName, StringComparison.InvariantCultureIgnoreCase))
+                                                .Select(f => f.ColumnName);
+
+                                if (filtersName != null && filtersName.Count() > 0)
+                                {
+                                    dbCommandType = DbCommandType.SelectChangesWitFilters;
+                                    selectIncrementalChangesCommand = syncAdapter.GetCommand(dbCommandType, filtersName);
+                                }
+                                else
+                                {
+                                    dbCommandType = DbCommandType.SelectChanges;
+                                    selectIncrementalChangesCommand = syncAdapter.GetCommand(dbCommandType);
+                                }
                             }
                             else
                             {
                                 dbCommandType = DbCommandType.SelectChanges;
                                 selectIncrementalChangesCommand = syncAdapter.GetCommand(dbCommandType);
                             }
-                        }
-                        else
-                        {
-                            dbCommandType = DbCommandType.SelectChanges;
-                            selectIncrementalChangesCommand = syncAdapter.GetCommand(dbCommandType);
-                        }
 
-                        // Deriving Parameters
-                        syncAdapter.SetCommandParameters(DbCommandType.SelectChanges, selectIncrementalChangesCommand);
+                            // Deriving Parameters
+                            syncAdapter.SetCommandParameters(DbCommandType.SelectChanges, selectIncrementalChangesCommand);
 
-                        if (selectIncrementalChangesCommand == null)
-                        {
-                            var exc = "Missing command 'SelectIncrementalChangesCommand' ";
-                            Logger.Current.Error(exc);
-                            throw new Exception(exc);
-                        }
-
-                        var dmTable = BuildChangesTable(tableDescription.TableName);
-
-                        try
-                        {
-                            // Set the parameters
-                            DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_min_timestamp", scopeInfo.LastTimestamp);
-                            DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_id", scopeInfo.Id);
-                            DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_is_new", (scopeInfo.IsNewScope ? 1 : 0));
-
-                            // Set filter parameters if any
-                            // Only on server side
-                            if (this.CanBeServerProvider && context.Parameters != null && context.Parameters.Count > 0 && configuration.Filters != null && configuration.Filters.Count > 0)
+                            if (selectIncrementalChangesCommand == null)
                             {
-                                var filters = configuration.Filters.Where(f => f.TableName.Equals(tableDescription.TableName, StringComparison.InvariantCultureIgnoreCase)).ToList();
+                                var exc = "Missing command 'SelectIncrementalChangesCommand' ";
+                                Logger.Current.Error(exc);
+                                throw new Exception(exc);
+                            }
 
-                                if (filters != null && filters.Count > 0)
+                            var dmTable = BuildChangesTable(tableDescription.TableName);
+
+                            try
+                            {
+                                // Set the parameters
+                                DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_min_timestamp", scopeInfo.LastTimestamp);
+                                DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_id", scopeInfo.Id);
+                                DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_is_new", (scopeInfo.IsNewScope ? 1 : 0));
+
+                                // Set filter parameters if any
+                                // Only on server side
+                                if (this.CanBeServerProvider && context.Parameters != null && context.Parameters.Count > 0 && configuration.Filters != null && configuration.Filters.Count > 0)
                                 {
-                                    foreach (var filter in filters)
-                                    {
-                                        var parameter = context.Parameters.FirstOrDefault(p => p.ColumnName.Equals(filter.ColumnName, StringComparison.InvariantCultureIgnoreCase) && p.TableName.Equals(filter.TableName, StringComparison.InvariantCultureIgnoreCase));
+                                    var filters = configuration.Filters.Where(f => f.TableName.Equals(tableDescription.TableName, StringComparison.InvariantCultureIgnoreCase)).ToList();
 
-                                        if (parameter != null)
-                                            DbManager.SetParameterValue(selectIncrementalChangesCommand, parameter.ColumnName, parameter.Value);
+                                    if (filters != null && filters.Count > 0)
+                                    {
+                                        foreach (var filter in filters)
+                                        {
+                                            var parameter = context.Parameters.FirstOrDefault(p => p.ColumnName.Equals(filter.ColumnName, StringComparison.InvariantCultureIgnoreCase) && p.TableName.Equals(filter.TableName, StringComparison.InvariantCultureIgnoreCase));
+
+                                            if (parameter != null)
+                                                DbManager.SetParameterValue(selectIncrementalChangesCommand, parameter.ColumnName, parameter.Value);
+                                        }
+                                    }
+                                }
+
+                                this.AddTrackingColumns<int>(dmTable, "sync_row_is_tombstone");
+
+                                // Statistics
+                                SelectedChanges selectedChanges = new SelectedChanges();
+                                selectedChanges.TableName = tableDescription.TableName;
+
+                                // Get the reader
+                                using (var dataReader = selectIncrementalChangesCommand.ExecuteReader())
+                                {
+                                    while (dataReader.Read())
+                                    {
+                                        DmRow dmRow = CreateRowFromReader(dataReader, dmTable);
+
+                                        DmRowState state = DmRowState.Unchanged;
+
+                                        state = GetStateFromDmRow(dmRow, scopeInfo);
+
+                                        // If the row is not deleted inserted or modified, go next
+                                        if (state != DmRowState.Deleted && state != DmRowState.Modified && state != DmRowState.Added)
+                                            continue;
+
+                                        var fieldsSize = DmTableSurrogate.GetRowSizeFromDataRow(dmRow);
+                                        var dmRowSize = fieldsSize / 1024d;
+
+                                        if (dmRowSize > configuration.DownloadBatchSizeInKB)
+                                        {
+                                            var exc = $"Row is too big ({dmRowSize} kb.) for the current Configuration.DownloadBatchSizeInKB ({configuration.DownloadBatchSizeInKB} kb.) Aborting Sync...";
+                                            Logger.Current.Error(exc);
+                                            throw new Exception(exc);
+                                        }
+
+                                        // Calculate the new memory size
+                                        memorySizeFromDmRows = memorySizeFromDmRows + dmRowSize;
+
+                                        // add row
+                                        dmTable.Rows.Add(dmRow);
+                                        selectedChanges.TotalChanges++;
+
+                                        // acceptchanges before modifying 
+                                        dmRow.AcceptChanges();
+
+                                        // Set the correct state to be applied
+                                        if (state == DmRowState.Deleted)
+                                        {
+                                            dmRow.Delete();
+                                            selectedChanges.Deletes++;
+                                        }
+                                        else if (state == DmRowState.Added)
+                                        {
+                                            dmRow.SetAdded();
+                                            selectedChanges.Inserts++;
+                                        }
+                                        else if (state == DmRowState.Modified)
+                                        {
+                                            dmRow.SetModified();
+                                            selectedChanges.Updates++;
+                                        }
+
+                                        // We exceed the memorySize, so we can add it to a batch
+                                        if (memorySizeFromDmRows > configuration.DownloadBatchSizeInKB)
+                                        {
+                                            // Since we dont need this column anymore, remove it
+                                            this.RemoveTrackingColumns(dmTable, "sync_row_is_tombstone");
+
+                                            changesSet.Tables.Add(dmTable);
+
+                                            // generate the batch part info
+                                            batchInfo.GenerateBatchInfo(batchIndex, changesSet, configuration.BatchDirectory);
+
+                                            // increment batch index
+                                            batchIndex++;
+
+                                            changesSet.Clear();
+
+                                            // Recreate an empty DmSet, then a dmTable clone
+                                            changesSet = new DmSet(configuration.ScopeSet.DmSetName);
+                                            dmTable = dmTable.Clone();
+                                            this.AddTrackingColumns<int>(dmTable, "sync_row_is_tombstone");
+
+                                            // Init the row memory size
+                                            memorySizeFromDmRows = 0L;
+
+                                            // raise SyncProgress Event
+                                            var existSelectedChanges = changesStatistics.SelectedChanges.FirstOrDefault(sc => string.Equals(sc.TableName, tableDescription.TableName));
+                                            if (existSelectedChanges == null)
+                                            {
+                                                existSelectedChanges = selectedChanges;
+                                                changesStatistics.SelectedChanges.Add(selectedChanges);
+                                            }
+                                            else
+                                            {
+                                                existSelectedChanges.Deletes += selectedChanges.Deletes;
+                                                existSelectedChanges.Inserts += selectedChanges.Inserts;
+                                                existSelectedChanges.Updates += selectedChanges.Updates;
+                                                existSelectedChanges.TotalChanges += selectedChanges.TotalChanges;
+                                            }
+                                            // Event progress
+                                            var progEventArgs = new SyncProgressEventArgs
+                                            {
+                                                ProviderTypeName = this.ProviderTypeName,
+                                                Context = context,
+                                                Action = ChangeApplicationAction.Continue
+                                            };
+                                            progEventArgs.ChangesStatistics = changesStatistics;
+
+                                            this.SyncProgress?.Invoke(this, progEventArgs);
+
+                                            // reinit stats 
+                                            selectedChanges = new SelectedChanges();
+                                            selectedChanges.TableName = tableDescription.TableName;
+
+                                            // TODO : Rollback possible here ?
+                                            if (progEventArgs.Action == ChangeApplicationAction.Rollback)
+                                            {
+                                                // ?
+                                            }
+                                        }
+                                    }
+
+                                    // Since we dont need this column anymore, remove it
+                                    this.RemoveTrackingColumns(dmTable, "sync_row_is_tombstone");
+
+                                    context.SyncStage = SyncStage.SelectedChanges;
+
+                                    changesSet.Tables.Add(dmTable);
+
+                                    // Init the row memory size
+                                    memorySizeFromDmRows = 0L;
+
+                                    // raise SyncProgress Event
+                                    var esc = changesStatistics.SelectedChanges.FirstOrDefault(sc => string.Equals(sc.TableName, tableDescription.TableName));
+                                    if (esc == null)
+                                    {
+                                        esc = selectedChanges;
+                                        changesStatistics.SelectedChanges.Add(esc);
+                                    }
+                                    else
+                                    {
+                                        esc.Deletes += selectedChanges.Deletes;
+                                        esc.Inserts += selectedChanges.Inserts;
+                                        esc.Updates += selectedChanges.Updates;
+                                        esc.TotalChanges += selectedChanges.TotalChanges;
+                                    }
+                                    // Event progress
+                                    var progressEventArgs = new SyncProgressEventArgs
+                                    {
+                                        ProviderTypeName = this.ProviderTypeName,
+                                        Context = context,
+                                        Action = ChangeApplicationAction.Continue
+                                    };
+                                    progressEventArgs.ChangesStatistics = changesStatistics;
+
+                                    this.SyncProgress?.Invoke(this, progressEventArgs);
+
+                                    // TODO : Rollback possible here ?
+                                    if (progressEventArgs.Action == ChangeApplicationAction.Rollback)
+                                    {
+                                        // ?
                                     }
                                 }
                             }
-
-                            this.AddTrackingColumns<int>(dmTable, "sync_row_is_tombstone");
-
-                            // Statistics
-                            SelectedChanges selectedChanges = new SelectedChanges();
-                            selectedChanges.TableName = tableDescription.TableName;
-
-                            // Get the reader
-                            using (var dataReader = selectIncrementalChangesCommand.ExecuteReader())
+                            catch (Exception dbException)
                             {
-                                while (dataReader.Read())
-                                {
-                                    DmRow dmRow = CreateRowFromReader(dataReader, dmTable);
+                                Logger.Current.Error($"Caught exception while enumerating changes\n{dbException}\n");
+                                throw;
+                            }
+                            finally
+                            {
 
-                                    DmRowState state = DmRowState.Unchanged;
-
-                                    state = GetStateFromDmRow(dmRow, scopeInfo);
-
-                                    // If the row is not deleted inserted or modified, go next
-                                    if (state != DmRowState.Deleted && state != DmRowState.Modified && state != DmRowState.Added)
-                                        continue;
-
-                                    var fieldsSize = DmTableSurrogate.GetRowSizeFromDataRow(dmRow);
-                                    var dmRowSize = fieldsSize / 1024d;
-
-                                    if (dmRowSize > configuration.DownloadBatchSizeInKB)
-                                    {
-                                        var exc = $"Row is too big ({dmRowSize} kb.) for the current Configuration.DownloadBatchSizeInKB ({configuration.DownloadBatchSizeInKB} kb.) Aborting Sync...";
-                                        Logger.Current.Error(exc);
-                                        throw new Exception(exc);
-                                    }
-
-                                    // Calculate the new memory size
-                                    memorySizeFromDmRows = memorySizeFromDmRows + dmRowSize;
-
-                                    // add row
-                                    dmTable.Rows.Add(dmRow);
-                                    selectedChanges.TotalChanges++;
-
-                                    // acceptchanges before modifying 
-                                    dmRow.AcceptChanges();
-
-                                    // Set the correct state to be applied
-                                    if (state == DmRowState.Deleted)
-                                    {
-                                        dmRow.Delete();
-                                        selectedChanges.Deletes++;
-                                    }
-                                    else if (state == DmRowState.Added)
-                                    {
-                                        dmRow.SetAdded();
-                                        selectedChanges.Inserts++;
-                                    }
-                                    else if (state == DmRowState.Modified)
-                                    {
-                                        dmRow.SetModified();
-                                        selectedChanges.Updates++;
-                                    }
-
-                                    // We exceed the memorySize, so we can add it to a batch
-                                    if (memorySizeFromDmRows > configuration.DownloadBatchSizeInKB)
-                                    {
-                                        // Since we dont need this column anymore, remove it
-                                        this.RemoveTrackingColumns(dmTable, "sync_row_is_tombstone");
-
-                                        changesSet.Tables.Add(dmTable);
-
-                                        // generate the batch part info
-                                        batchInfo.GenerateBatchInfo(batchIndex, changesSet, configuration.BatchDirectory);
-
-                                        // increment batch index
-                                        batchIndex++;
-
-                                        changesSet.Clear();
-
-                                        // Recreate an empty DmSet, then a dmTable clone
-                                        changesSet = new DmSet(configuration.ScopeSet.DmSetName);
-                                        dmTable = dmTable.Clone();
-                                        this.AddTrackingColumns<int>(dmTable, "sync_row_is_tombstone");
-
-                                        // Init the row memory size
-                                        memorySizeFromDmRows = 0L;
-
-                                        // raise SyncProgress Event
-                                        var existSelectedChanges = changesStatistics.SelectedChanges.FirstOrDefault(sc => string.Equals(sc.TableName, tableDescription.TableName));
-                                        if (existSelectedChanges == null)
-                                        {
-                                            existSelectedChanges = selectedChanges;
-                                            changesStatistics.SelectedChanges.Add(selectedChanges);
-                                        }
-                                        else
-                                        {
-                                            existSelectedChanges.Deletes += selectedChanges.Deletes;
-                                            existSelectedChanges.Inserts += selectedChanges.Inserts;
-                                            existSelectedChanges.Updates += selectedChanges.Updates;
-                                            existSelectedChanges.TotalChanges += selectedChanges.TotalChanges;
-                                        }
-                                        // Event progress
-                                        var progEventArgs = new SyncProgressEventArgs
-                                        {
-                                            ProviderTypeName = this.ProviderTypeName,
-                                            Context = context,
-                                            Action = ChangeApplicationAction.Continue
-                                        };
-                                        progEventArgs.ChangesStatistics = changesStatistics;
-
-                                        this.SyncProgress?.Invoke(this, progEventArgs);
-
-                                        // reinit stats 
-                                        selectedChanges = new SelectedChanges();
-                                        selectedChanges.TableName = tableDescription.TableName;
-
-                                        // TODO : Rollback possible here ?
-                                        if (progEventArgs.Action == ChangeApplicationAction.Rollback)
-                                        {
-                                            // ?
-                                        }
-                                    }
-                                }
-
-                                // Since we dont need this column anymore, remove it
-                                this.RemoveTrackingColumns(dmTable, "sync_row_is_tombstone");
-
-                                context.SyncStage = SyncStage.SelectedChanges;
-
-                                changesSet.Tables.Add(dmTable);
-
-                                // Init the row memory size
-                                memorySizeFromDmRows = 0L;
-
-                                // raise SyncProgress Event
-                                var esc = changesStatistics.SelectedChanges.FirstOrDefault(sc => string.Equals(sc.TableName, tableDescription.TableName));
-                                if (esc == null)
-                                {
-                                    esc = selectedChanges;
-                                    changesStatistics.SelectedChanges.Add(esc);
-                                }
-                                else
-                                {
-                                    esc.Deletes += selectedChanges.Deletes;
-                                    esc.Inserts += selectedChanges.Inserts;
-                                    esc.Updates += selectedChanges.Updates;
-                                    esc.TotalChanges += selectedChanges.TotalChanges;
-                                }
-                                // Event progress
-                                var progressEventArgs = new SyncProgressEventArgs
-                                {
-                                    ProviderTypeName = this.ProviderTypeName,
-                                    Context = context,
-                                    Action = ChangeApplicationAction.Continue
-                                };
-                                progressEventArgs.ChangesStatistics = changesStatistics;
-
-                                this.SyncProgress?.Invoke(this, progressEventArgs);
-
-                                // TODO : Rollback possible here ?
-                                if (progressEventArgs.Action == ChangeApplicationAction.Rollback)
-                                {
-                                    // ?
-                                }
+                                Logger.Current.Info($"--- End Table \"{tableDescription.TableName}\" ---");
+                                Logger.Current.Info("");
                             }
                         }
-                        catch (Exception dbException)
-                        {
-                            Logger.Current.Error($"Caught exception while enumerating changes\n{dbException}\n");
-                            throw;
-                        }
-                        finally
-                        {
 
-                            Logger.Current.Info($"--- End Table \"{tableDescription.TableName}\" ---");
-                            Logger.Current.Info("");
-                        }
+                        // We are in batch mode, and we are at the last batchpart info
+                        var batchPartInfo = batchInfo.GenerateBatchInfo(batchIndex, changesSet, configuration.BatchDirectory);
+
+                        if (batchPartInfo != null)
+                            batchPartInfo.IsLastBatch = true;
+
+                        transaction.Commit();
                     }
 
-                    // We are in batch mode, and we are at the last batchpart info
-                    var batchPartInfo = batchInfo.GenerateBatchInfo(batchIndex, changesSet, configuration.BatchDirectory);
-
-                    if (batchPartInfo != null)
-                        batchPartInfo.IsLastBatch = true;
-
-                    transaction.Commit();
+                }
+                catch (Exception)
+                {
+                    throw;
+                }
+                finally
+                {
+                    if (connection != null && connection.State == ConnectionState.Open)
+                        connection.Close();
                 }
 
-                if (connection != null && connection.State == ConnectionState.Open)
-                    connection.Close();
 
             }
             Logger.Current.Info($"--- End Enumerating Changes for Scope \"{scopeInfo.Name}\" ---");
@@ -1764,7 +1778,7 @@ namespace Dotmim.Sync
                 changes.Columns.Remove(name);
         }
 
-     
+
         /// <summary>
         /// A conflict has occured, we try to ask for the solution to the user
         /// </summary>

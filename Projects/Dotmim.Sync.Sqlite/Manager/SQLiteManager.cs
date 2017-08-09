@@ -16,6 +16,7 @@ namespace Dotmim.Sync.SQLite
 
         public override IDbManagerTable CreateManagerTable(DbConnection connection, DbTransaction transaction = null)
         {
+            // TODO : works with PRAGMA table_info('TableNAme');
             throw new NotImplementedException("At this time, SQLite does not support getting table structure from SQLite metadatas");
         }
 
