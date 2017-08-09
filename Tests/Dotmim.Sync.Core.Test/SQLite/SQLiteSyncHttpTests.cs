@@ -1,18 +1,20 @@
 ﻿using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Proxy;
+using Dotmim.Sync.SQLite;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Test.Misc;
 using Dotmim.Sync.Test.SqlUtils;
 using Microsoft.AspNetCore.Http;
 using System;
 using System.Data.SqlClient;
+using System.Data.SQLite;
+using System.IO;
 using System.Threading.Tasks;
 using Xunit;
 
 namespace Dotmim.Sync.Test
 {
-
-    public class SyncSimpleHttpFixture : IDisposable
+    public class SQLiteSyncHttpFixture : IDisposable
     {
         private string createTableScript =
         $@"if (not exists (select * from sys.tables where name = 'ServiceTickets'))
@@ -31,109 +33,121 @@ namespace Dotmim.Sync.Test
 
         private string datas =
         $@"
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 3', N'Description 3', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 4', N'Description 4', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre Client 1', N'Description Client 1', 1, 0, CAST(N'2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 6', N'Description 6', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 7', N'Description 7', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 3', N'Description 3', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 4', N'Description 4', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre Client 1', N'Description Client 1', 1, 0, CAST(N'2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 6', N'Description 6', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 7', N'Description 7', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 3', N'Description 3', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 4', N'Description 4', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre Client 1', N'Description Client 1', 1, 0, CAST(N'2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 6', N'Description 6', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 7', N'Description 7', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 3', N'Description 3', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 4', N'Description 4', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre Client 1', N'Description Client 1', 1, 0, CAST(N'2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 6', N'Description 6', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 7', N'Description 7', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 3', N'Description 3', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 4', N'Description 4', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre Client 1', N'Description Client 1', 1, 0, CAST(N'2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 6', N'Description 6', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 7', N'Description 7', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 3', N'Description 3', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 4', N'Description 4', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre Client 1', N'Description Client 1', 1, 0, CAST(N'2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 6', N'Description 6', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 7', N'Description 7', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 3', N'Description 3', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 4', N'Description 4', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre Client 1', N'Description Client 1', 1, 0, CAST(N'2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 6', N'Description 6', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 7', N'Description 7', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 3', N'Description 3', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 4', N'Description 4', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre Client 1', N'Description Client 1', 1, 0, CAST(N'2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 6', N'Description 6', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 7', N'Description 7', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 3', N'Description 3', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 4', N'Description 4', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre Client 1', N'Description Client 1', 1, 0, CAST(N'2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 6', N'Description 6', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 7', N'Description 7', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 3', N'Description 3', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 4', N'Description 4', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre Client 1', N'Description Client 1', 1, 0, CAST(N'2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 6', N'Description 6', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), N'Titre 7', N'Description 7', 1, 0, CAST(N'2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 3', 'Description 3', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 4', 'Description 4', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre Client 1', 'Description Client 1', 1, 0, CAST('2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 6', 'Description 6', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 7', 'Description 7', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 3', 'Description 3', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 4', 'Description 4', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre Client 1', 'Description Client 1', 1, 0, CAST('2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 6', 'Description 6', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 7', 'Description 7', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 3', 'Description 3', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 4', 'Description 4', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre Client 1', 'Description Client 1', 1, 0, CAST('2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 6', 'Description 6', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 7', 'Description 7', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 3', 'Description 3', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 4', 'Description 4', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre Client 1', 'Description Client 1', 1, 0, CAST('2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 6', 'Description 6', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 7', 'Description 7', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 3', 'Description 3', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 4', 'Description 4', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre Client 1', 'Description Client 1', 1, 0, CAST('2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 6', 'Description 6', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 7', 'Description 7', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 3', 'Description 3', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 4', 'Description 4', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre Client 1', 'Description Client 1', 1, 0, CAST('2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 6', 'Description 6', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 7', 'Description 7', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 3', 'Description 3', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 4', 'Description 4', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre Client 1', 'Description Client 1', 1, 0, CAST('2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 6', 'Description 6', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 7', 'Description 7', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 3', 'Description 3', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 4', 'Description 4', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre Client 1', 'Description Client 1', 1, 0, CAST('2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 6', 'Description 6', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 7', 'Description 7', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 3', 'Description 3', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 4', 'Description 4', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre Client 1', 'Description Client 1', 1, 0, CAST('2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 6', 'Description 6', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 7', 'Description 7', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 3', 'Description 3', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 4', 'Description 4', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre Client 1', 'Description Client 1', 1, 0, CAST('2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 6', 'Description 6', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 7', 'Description 7', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
           ";
 
         private HelperDB helperDb = new HelperDB();
-        private string serverDbName = "Test_SimpleHttp_Server";
-        private string client1DbName = "Test_SimpleHttp_Client";
+        private string serverDbName = "Test_SQLite_Http_Server";
 
         public string[] Tables => new string[] { "ServiceTickets" };
 
         public String ServerConnectionString => HelperDB.GetDatabaseConnectionString(serverDbName);
-        public String Client1ConnectionString => HelperDB.GetDatabaseConnectionString(client1DbName);
+        public String ClientSQLiteConnectionString { get; set; }
+        public string ClientSQLiteFilePath => Path.Combine(Directory.GetCurrentDirectory(), "sqliteHttpTmpDb.db");
 
-        public SyncSimpleHttpFixture()
+        public SQLiteSyncHttpFixture()
         {
+
+            var builder = new SQLiteConnectionStringBuilder { DataSource = ClientSQLiteFilePath };
+            this.ClientSQLiteConnectionString = builder.ConnectionString;
+
+            if (File.Exists(ClientSQLiteFilePath))
+                File.Delete(ClientSQLiteFilePath);
+
             // create databases
             helperDb.CreateDatabase(serverDbName);
-            helperDb.CreateDatabase(client1DbName);
-
             // create table
             helperDb.ExecuteScript(serverDbName, createTableScript);
-
             // insert table
             helperDb.ExecuteScript(serverDbName, datas);
+
+            var serverProvider = new SqlSyncProvider(ServerConnectionString);
+            var clientProvider = new SQLiteSyncProvider(ClientSQLiteFilePath);
+            var simpleConfiguration = new SyncConfiguration(Tables);
+
         }
         public void Dispose()
         {
             helperDb.DeleteDatabase(serverDbName);
-            helperDb.DeleteDatabase(client1DbName);
+
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+
+            if (File.Exists(ClientSQLiteFilePath))
+                File.Delete(ClientSQLiteFilePath);
         }
 
     }
 
-
     [Collection("Http")]
     [TestCaseOrderer("Dotmim.Sync.Test.Misc.PriorityOrderer", "Dotmim.Sync.Core.Test")]
-    public class SyncHttpTests : IClassFixture<SyncSimpleHttpFixture>
+    public class SQLiteSyncHttpTests : IClassFixture<SQLiteSyncHttpFixture>
     {
         SqlSyncProvider serverProvider;
-        SqlSyncProvider clientProvider;
+        SQLiteSyncProvider clientProvider;
+        SQLiteSyncHttpFixture fixture;
         WebProxyServerProvider proxyServerProvider;
         WebProxyClientProvider proxyClientProvider;
         SyncConfiguration configuration;
-
-        SyncSimpleHttpFixture fixture;
         SyncAgent agent;
 
-        public SyncHttpTests(SyncSimpleHttpFixture fixture)
+        public SQLiteSyncHttpTests(SQLiteSyncHttpFixture fixture)
         {
             this.fixture = fixture;
 
             serverProvider = new SqlSyncProvider(fixture.ServerConnectionString);
             proxyServerProvider = new WebProxyServerProvider(serverProvider);
 
-            clientProvider = new SqlSyncProvider(fixture.Client1ConnectionString);
+            clientProvider = new SQLiteSyncProvider(fixture.ClientSQLiteFilePath);
             proxyClientProvider = new WebProxyClientProvider();
 
             configuration = new SyncConfiguration(this.fixture.Tables);
@@ -193,7 +207,6 @@ namespace Dotmim.Sync.Test
                 });
                 await server.Run(serverHandler, clientHandler);
             }
-
         }
 
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(3)]
@@ -201,7 +214,7 @@ namespace Dotmim.Sync.Test
         {
             var insertRowScript =
             $@"INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
-                VALUES (newid(), N'Insert One Row', N'Description Insert One Row', 1, 0, getdate(), NULL, 1)";
+                VALUES (newid(), 'Insert One Row', 'Description Insert One Row', 1, 0, getdate(), NULL, 1)";
 
             using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
             {
@@ -212,7 +225,6 @@ namespace Dotmim.Sync.Test
                     sqlConnection.Close();
                 }
             }
-
             using (var server = new KestrellTestServer())
             {
                 var serverHandler = new RequestDelegate(async context =>
@@ -240,13 +252,62 @@ namespace Dotmim.Sync.Test
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(4)]
         public async Task InsertFromClient(SyncConfiguration conf)
         {
-            var insertRowScript =
-            $@"INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
-                VALUES (newid(), N'Insert One Row', N'Description Insert One Row', 1, 0, getdate(), NULL, 1)";
+            Guid newId = Guid.NewGuid();
 
-            using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
+            var insertRowScript =
+            $@"INSERT INTO [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
+                VALUES ('{newId.ToString()}', 'Insert One Row in SQLite client', 'Description Insert One Row', 1, 0, datetime('now'), NULL, 1)";
+
+            int nbRowsInserted = 0;
+
+            using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
             {
-                using (var sqlCmd = new SqlCommand(insertRowScript, sqlConnection))
+                using (var sqlCmd = new SQLiteCommand(insertRowScript, sqlConnection))
+                {
+                    sqlConnection.Open();
+                    nbRowsInserted = sqlCmd.ExecuteNonQuery();
+                    sqlConnection.Close();
+                }
+            }
+            if (nbRowsInserted < 0)
+                throw new Exception("Row not inserted");
+
+            using (var server = new KestrellTestServer())
+            {
+                var serverHandler = new RequestDelegate(async context =>
+                {
+                    conf.Tables = fixture.Tables;
+                    serverProvider.SetConfiguration(conf);
+                    proxyServerProvider.SerializationFormat = conf.SerializationFormat;
+
+                    await proxyServerProvider.HandleRequestAsync(context);
+                });
+                var clientHandler = new ResponseDelegate(async (serviceUri) =>
+                {
+                    proxyClientProvider.ServiceUri = new Uri(serviceUri);
+                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
+
+                    var session = await agent.SynchronizeAsync();
+
+                    Assert.Equal(0, session.TotalChangesDownloaded);
+                    Assert.Equal(1, session.TotalChangesUploaded);
+                });
+                await server.Run(serverHandler, clientHandler);
+            }
+        }
+
+        [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(5)]
+        public async Task UpdateFromClient(SyncConfiguration conf)
+        {
+            Guid newId = Guid.NewGuid();
+
+            var insertRowScript =
+            $@"INSERT INTO [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
+                VALUES ('{newId.ToString()}', 'Insert One Row in SQLite client', 'Description Insert One Row', 1, 0, datetime('now'), NULL, 1)";
+
+            using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
+            {
+                using (var sqlCmd = new SQLiteCommand(insertRowScript, sqlConnection))
                 {
                     sqlConnection.Open();
                     sqlCmd.ExecuteNonQuery();
@@ -275,19 +336,13 @@ namespace Dotmim.Sync.Test
                 });
                 await server.Run(serverHandler, clientHandler);
             }
-        }
 
-        [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(5)]
-        public async Task UpdateFromClient(SyncConfiguration conf)
-        {
             var updateRowScript =
-            $@" Declare @id uniqueidentifier;
-                Select top 1 @id = ServiceTicketID from ServiceTickets;
-                Update [ServiceTickets] Set [Title] = 'Updated !' Where ServiceTicketId = @id";
+            $@" Update [ServiceTickets] Set [Title] = 'Updated from SQLite Client side !' Where ServiceTicketId = '{newId.ToString()}'";
 
-            using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
+            using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
             {
-                using (var sqlCmd = new SqlCommand(updateRowScript, sqlConnection))
+                using (var sqlCmd = new SQLiteCommand(updateRowScript, sqlConnection))
                 {
                     sqlConnection.Open();
                     sqlCmd.ExecuteNonQuery();
@@ -403,16 +458,16 @@ namespace Dotmim.Sync.Test
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(8)]
         public async Task DeleteFromClient(SyncConfiguration conf)
         {
-            int count;
+            long count;
             var selectcount = $@"Select count(*) From [ServiceTickets]";
             var updateRowScript = $@"Delete From [ServiceTickets]";
 
-            using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
+            using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
             {
                 sqlConnection.Open();
-                using (var sqlCmd = new SqlCommand(selectcount, sqlConnection))
-                    count = (int)sqlCmd.ExecuteScalar();
-                using (var sqlCmd = new SqlCommand(updateRowScript, sqlConnection))
+                using (var sqlCmd = new SQLiteCommand(selectcount, sqlConnection))
+                    count = (long)sqlCmd.ExecuteScalar();
+                using (var sqlCmd = new SQLiteCommand(updateRowScript, sqlConnection))
                     sqlCmd.ExecuteNonQuery();
                 sqlConnection.Close();
             }
@@ -453,16 +508,16 @@ namespace Dotmim.Sync.Test
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(9)]
         public async Task ConflictInsertInsertServerWins(SyncConfiguration conf)
         {
-            Guid id = Guid.NewGuid();
+            Guid insertConflictId = Guid.NewGuid();
 
-            using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
+            using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
             {
-                var script = $@"INSERT [ServiceTickets] 
+                var script = $@"INSERT INTO [ServiceTickets] 
                             ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
                             VALUES 
-                            (N'{id.ToString()}', N'Conflict Line Client', N'Description client', 1, 0, getdate(), NULL, 1)";
+                            ('{insertConflictId.ToString()}', 'Conflict Line Client', 'Description client', 1, 0, datetime('now'), NULL, 1)";
 
-                using (var sqlCmd = new SqlCommand(script, sqlConnection))
+                using (var sqlCmd = new SQLiteCommand(script, sqlConnection))
                 {
                     sqlConnection.Open();
                     sqlCmd.ExecuteNonQuery();
@@ -475,7 +530,7 @@ namespace Dotmim.Sync.Test
                 var script = $@"INSERT [ServiceTickets] 
                             ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
                             VALUES 
-                            (N'{id.ToString()}', N'Conflict Line Server', N'Description client', 1, 0, getdate(), NULL, 1)";
+                            ('{insertConflictId.ToString()}', 'Conflict Line Server', 'Description client', 1, 0, getdate(), NULL, 1)";
 
                 using (var sqlCmd = new SqlCommand(script, sqlConnection))
                 {
@@ -509,12 +564,13 @@ namespace Dotmim.Sync.Test
                 });
                 await server.Run(serverHandler, clientHandler);
             }
-            string expectedRes = string.Empty;
-            using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
-            {
-                var script = $@"Select Title from [ServiceTickets] Where ServiceTicketID='{id.ToString()}'";
 
-                using (var sqlCmd = new SqlCommand(script, sqlConnection))
+            string expectedRes = string.Empty;
+            using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
+            {
+                var script = $@"Select Title from [ServiceTickets] Where ServiceTicketID='{insertConflictId.ToString()}'";
+
+                using (var sqlCmd = new SQLiteCommand(script, sqlConnection))
                 {
                     sqlConnection.Open();
                     expectedRes = sqlCmd.ExecuteScalar() as string;
@@ -529,16 +585,15 @@ namespace Dotmim.Sync.Test
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(10)]
         public async Task ConflictUpdateUpdateServerWins(SyncConfiguration conf)
         {
-            var id = Guid.NewGuid().ToString();
-
-            using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
+            Guid updateConflictId = Guid.NewGuid();
+            using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
             {
-                var script = $@"INSERT [ServiceTickets] 
+                var script = $@"INSERT INTO [ServiceTickets] 
                             ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
                             VALUES 
-                            (N'{id}', N'Line Client', N'Description client', 1, 0, getdate(), NULL, 1)";
+                            ('{updateConflictId.ToString()}', 'Line Client', 'Description client', 1, 0, datetime('now'), NULL, 1)";
 
-                using (var sqlCmd = new SqlCommand(script, sqlConnection))
+                using (var sqlCmd = new SQLiteCommand(script, sqlConnection))
                 {
                     sqlConnection.Open();
                     sqlCmd.ExecuteNonQuery();
@@ -571,14 +626,13 @@ namespace Dotmim.Sync.Test
                 await server.Run(serverHandler, clientHandler);
             }
 
-
-            using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
+            using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
             {
                 var script = $@"Update [ServiceTickets] 
                                 Set Title = 'Updated from Client'
-                                Where ServiceTicketId = '{id}'";
+                                Where ServiceTicketId = '{updateConflictId.ToString()}'";
 
-                using (var sqlCmd = new SqlCommand(script, sqlConnection))
+                using (var sqlCmd = new SQLiteCommand(script, sqlConnection))
                 {
                     sqlConnection.Open();
                     sqlCmd.ExecuteNonQuery();
@@ -590,7 +644,7 @@ namespace Dotmim.Sync.Test
             {
                 var script = $@"Update [ServiceTickets] 
                                 Set Title = 'Updated from Server'
-                                Where ServiceTicketId = '{id}'";
+                                Where ServiceTicketId = '{updateConflictId.ToString()}'";
 
                 using (var sqlCmd = new SqlCommand(script, sqlConnection))
                 {
@@ -626,11 +680,11 @@ namespace Dotmim.Sync.Test
             }
 
             string expectedRes = string.Empty;
-            using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
+            using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
             {
-                var script = $@"Select Title from [ServiceTickets] Where ServiceTicketID='{id}'";
+                var script = $@"Select Title from [ServiceTickets] Where ServiceTicketID='{updateConflictId.ToString()}'";
 
-                using (var sqlCmd = new SqlCommand(script, sqlConnection))
+                using (var sqlCmd = new SQLiteCommand(script, sqlConnection))
                 {
                     sqlConnection.Open();
                     expectedRes = sqlCmd.ExecuteScalar() as string;
@@ -647,14 +701,14 @@ namespace Dotmim.Sync.Test
         {
             var id = Guid.NewGuid().ToString();
 
-            using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
+            using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
             {
-                var script = $@"INSERT [ServiceTickets] 
+                var script = $@"INSERT INTO [ServiceTickets] 
                             ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
                             VALUES 
-                            (N'{id}', N'Line for conflict', N'Description client', 1, 0, getdate(), NULL, 1)";
+                            ('{id}', 'Line for conflict', 'Description client', 1, 0, datetime('now'), NULL, 1)";
 
-                using (var sqlCmd = new SqlCommand(script, sqlConnection))
+                using (var sqlCmd = new SQLiteCommand(script, sqlConnection))
                 {
                     sqlConnection.Open();
                     sqlCmd.ExecuteNonQuery();
@@ -687,14 +741,13 @@ namespace Dotmim.Sync.Test
                 await server.Run(serverHandler, clientHandler);
             }
 
-
-            using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
+            using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
             {
                 var script = $@"Update [ServiceTickets] 
                                 Set Title = 'Updated from Client'
                                 Where ServiceTicketId = '{id}'";
 
-                using (var sqlCmd = new SqlCommand(script, sqlConnection))
+                using (var sqlCmd = new SQLiteCommand(script, sqlConnection))
                 {
                     sqlConnection.Open();
                     sqlCmd.ExecuteNonQuery();
@@ -716,7 +769,6 @@ namespace Dotmim.Sync.Test
                 }
             }
 
-
             using (var server = new KestrellTestServer())
             {
                 var serverHandler = new RequestDelegate(async context =>
@@ -730,7 +782,6 @@ namespace Dotmim.Sync.Test
                     {
                         args.Action = ApplyAction.RetryWithForceWrite;
                     };
-
 
                     await proxyServerProvider.HandleRequestAsync(context);
                 });
@@ -778,14 +829,14 @@ namespace Dotmim.Sync.Test
 
             Guid id = Guid.NewGuid();
 
-            using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
+            using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
             {
-                var script = $@"INSERT [ServiceTickets] 
+                var script = $@"INSERT INTO [ServiceTickets] 
                             ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
                             VALUES 
-                            (N'{id.ToString()}', N'Conflict Line Client', N'Description client', 1, 0, getdate(), NULL, 1)";
+                            ('{id.ToString()}', 'Conflict Line Client', 'Description client', 1, 0, datetime('now'), NULL, 1)";
 
-                using (var sqlCmd = new SqlCommand(script, sqlConnection))
+                using (var sqlCmd = new SQLiteCommand(script, sqlConnection))
                 {
                     sqlConnection.Open();
                     sqlCmd.ExecuteNonQuery();
@@ -798,7 +849,7 @@ namespace Dotmim.Sync.Test
                 var script = $@"INSERT [ServiceTickets] 
                             ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
                             VALUES 
-                            (N'{id.ToString()}', N'Conflict Line Server', N'Description client', 1, 0, getdate(), NULL, 1)";
+                            ('{id.ToString()}', 'Conflict Line Server', 'Description client', 1, 0, getdate(), NULL, 1)";
 
                 using (var sqlCmd = new SqlCommand(script, sqlConnection))
                 {
@@ -834,7 +885,6 @@ namespace Dotmim.Sync.Test
                 });
                 await server.Run(serverHandler, clientHandler);
             }
-
 
             string expectedRes = string.Empty;
             using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))

@@ -141,12 +141,11 @@ namespace Dotmim.Sync
 
             DbManager.SetParameterValue(command, "create_timestamp", createTimestamp);
             DbManager.SetParameterValue(command, "update_timestamp", updateTimestamp);
+            var alreadyOpened = Connection.State == ConnectionState.Open;
 
             try
             {
-                var alreadyOpened = Connection.State == ConnectionState.Open;
-
-                // OPen Connection
+                // Open Connection
                 if (!alreadyOpened)
                     Connection.Open();
 
@@ -159,6 +158,13 @@ namespace Dotmim.Sync
             {
                 Logger.Current.Error(ex.Message);
                 throw;
+            }
+            finally
+            {
+                // Close Connection
+                if (!alreadyOpened)
+                    Connection.Close();
+
             }
 
             return rowsApplied > 0;
@@ -209,6 +215,12 @@ namespace Dotmim.Sync
             {
                 Logger.Current.Error("Server Error on Getting a row : " + ex.Message);
                 throw;
+            }
+            finally
+            {
+                // Close Connection
+                if (!alreadyOpened)
+                    Connection.Close();
             }
 
             return dmTableSelected;

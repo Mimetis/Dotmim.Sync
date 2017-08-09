@@ -109,7 +109,7 @@ namespace Dotmim.Sync.Test
 
     }
 
-    [Collection("SyncSimple")]
+
     [TestCaseOrderer("Dotmim.Sync.Test.Misc.PriorityOrderer", "Dotmim.Sync.Core.Test")]
     public class SyncTests : IClassFixture<SyncSimpleFixture>
     {

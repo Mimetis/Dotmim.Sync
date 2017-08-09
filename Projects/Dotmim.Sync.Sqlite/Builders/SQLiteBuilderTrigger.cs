@@ -41,8 +41,8 @@ namespace Dotmim.Sync.SQLite
             stringBuilder.AppendLine($"UPDATE {trackingName.QuotedString} ");
             stringBuilder.AppendLine("SET [sync_row_is_tombstone] = 1");
             stringBuilder.AppendLine("\t,[update_scope_id] = NULL -- since the update if from local, it's a NULL");
-            stringBuilder.AppendLine("\t,[update_timestamp] = strftime('%s', datetime('now', 'utc'))");
-            stringBuilder.AppendLine("\t,[timestamp] = strftime('%s', datetime('now', 'utc'))");
+            stringBuilder.AppendLine($"\t,[update_timestamp] = {SQLiteObjectNames.TimestampValue}");
+            stringBuilder.AppendLine($"\t,[timestamp] = {SQLiteObjectNames.TimestampValue}");
             stringBuilder.AppendLine("\t,[last_change_datetime] = datetime('now')");
 
             // --------------------------------------------------------------------------------
@@ -84,7 +84,7 @@ namespace Dotmim.Sync.SQLite
                         this.connection.Open();
 
                     if (this.transaction != null)
-                        command.Transaction = (SQLiteTransaction)this.transaction;
+                        command.Transaction = this.transaction;
 
                     var delTriggerName = this.sqliteObjectNames.GetCommandName(DbCommandType.DeleteTrigger);
                     StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER IF NOT EXISTS {delTriggerName} AFTER DELETE ON {tableName.QuotedString} ");
@@ -189,10 +189,10 @@ namespace Dotmim.Sync.SQLite
             stringBuilder.AppendLine("\tVALUES (");
             stringBuilder.Append(stringBuilderArguments2.ToString());
             stringBuilder.AppendLine("\t\t,NULL");
-            stringBuilder.AppendLine("\t\t,strftime('%s', datetime('now', 'utc'))");
+            stringBuilder.AppendLine($"\t\t,{SQLiteObjectNames.TimestampValue}");
             stringBuilder.AppendLine("\t\t,NULL");
             stringBuilder.AppendLine("\t\t,0");
-            stringBuilder.AppendLine("\t\t,strftime('%s', datetime('now', 'utc'))");
+            stringBuilder.AppendLine($"\t\t,{SQLiteObjectNames.TimestampValue}");
             stringBuilder.AppendLine("\t\t,0");
             stringBuilder.AppendLine("\t\t,datetime('now')");
 
@@ -215,7 +215,7 @@ namespace Dotmim.Sync.SQLite
                         this.connection.Open();
 
                     if (this.transaction != null)
-                        command.Transaction = (SQLiteTransaction)this.transaction;
+                        command.Transaction = this.transaction;
 
                     var insTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.InsertTrigger), tableName.UnquotedStringWithUnderScore);
 
@@ -270,8 +270,8 @@ namespace Dotmim.Sync.SQLite
             stringBuilder.AppendLine($"Begin ");
             stringBuilder.AppendLine($"\tUPDATE {trackingName.QuotedString} ");
             stringBuilder.AppendLine("\tSET [update_scope_id] = NULL -- since the update if from local, it's a NULL");
-            stringBuilder.AppendLine("\t\t,[update_timestamp] = strftime('%s', datetime('now', 'utc'))");
-            stringBuilder.AppendLine("\t\t,[timestamp] = strftime('%s', datetime('now', 'utc'))");
+            stringBuilder.AppendLine($"\t\t,[update_timestamp] = {SQLiteObjectNames.TimestampValue}");
+            stringBuilder.AppendLine($"\t\t,[timestamp] = {SQLiteObjectNames.TimestampValue}");
             stringBuilder.AppendLine("\t\t,[last_change_datetime] = datetime('now')");
 
             // --------------------------------------------------------------------------------
@@ -313,7 +313,7 @@ namespace Dotmim.Sync.SQLite
                         this.connection.Open();
 
                     if (this.transaction != null)
-                        command.Transaction = (SQLiteTransaction)this.transaction;
+                        command.Transaction = this.transaction;
 
                     var updTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.UpdateTrigger), tableName.UnquotedStringWithUnderScore);
                     StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER IF NOT EXISTS {updTriggerName} AFTER UPDATE ON {tableName.QuotedString} ");
