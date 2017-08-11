@@ -150,42 +150,41 @@ class Program
 
         SyncAgent agent = new SyncAgent(clientProvider, serverProvider, configuration);
 
-        agent.SyncProgress += (s,e) =>
-        {
-            switch (e.Context.SyncStage)
-            {
-                case SyncStage.EnsureConfiguration:
-                    if (e.DatabaseScript != null)
-                        e.Action = ChangeApplicationAction.Rollback;
-                    break;
-                case SyncStage.EnsureDatabase:
-                    if (e.DatabaseScript != null)
-                        e.Action = ChangeApplicationAction.Rollback;
-                    break;
-                case SyncStage.SelectedChanges:
-                    Console.WriteLine($"Selected changes : {e.ChangesStatistics.TotalSelectedChanges}. I:{e.ChangesStatistics.TotalSelectedChangesInserts}. U:{e.ChangesStatistics.TotalSelectedChangesUpdates}. D:{e.ChangesStatistics.TotalSelectedChangesDeletes}");
-                    break;
-                case SyncStage.ApplyingChanges:
-                    Console.WriteLine($"Going to apply changes.");
-                    e.Action = ChangeApplicationAction.Continue;
-                    break;
-                case SyncStage.AppliedChanges:
-                    Console.WriteLine($"Applied changes : {e.ChangesStatistics.TotalAppliedChanges}");
-                    e.Action = ChangeApplicationAction.Continue;
-                    break;
-                case SyncStage.ApplyingInserts:
-                    Console.WriteLine($"Applying Inserts : {e.ChangesStatistics.AppliedChanges.Where(ac => ac.State == DmRowState.Added).Sum(ac => ac.ChangesApplied) }");
-                    e.Action = ChangeApplicationAction.Continue;
-                    break; 
-                case SyncStage.ApplyingDeletes:
-                    Console.WriteLine($"Applying Deletes : {e.ChangesStatistics.AppliedChanges.Where(ac => ac.State == DmRowState.Deleted).Sum(ac => ac.ChangesApplied) }");
-                    break;
-                case SyncStage.ApplyingUpdates:
-                    Console.WriteLine($"Applying Updates : {e.ChangesStatistics.AppliedChanges.Where(ac => ac.State == DmRowState.Modified).Sum(ac => ac.ChangesApplied) }");
-                    e.Action = ChangeApplicationAction.Continue;
-                    break;
-            }
-        };
+        agent.SyncProgress += SyncProgress;
+            //(s,e) =>
+        //{
+        //    switch (e.Context.SyncStage)
+        //    {
+        //        case SyncStage.EnsureConfiguration:
+        //            break;
+        //        case SyncStage.EnsureDatabase:
+        //            if (e.DatabaseScript != null)
+        //                e.Action = ChangeApplicationAction.Rollback;
+        //            break;
+        //        case SyncStage.SelectedChanges:
+        //            Console.WriteLine($"Selected changes : {e.ChangesStatistics.TotalSelectedChanges}. I:{e.ChangesStatistics.TotalSelectedChangesInserts}. U:{e.ChangesStatistics.TotalSelectedChangesUpdates}. D:{e.ChangesStatistics.TotalSelectedChangesDeletes}");
+        //            break;
+        //        case SyncStage.ApplyingChanges:
+        //            Console.WriteLine($"Going to apply changes.");
+        //            e.Action = ChangeApplicationAction.Continue;
+        //            break;
+        //        case SyncStage.AppliedChanges:
+        //            Console.WriteLine($"Applied changes : {e.ChangesStatistics.TotalAppliedChanges}");
+        //            e.Action = ChangeApplicationAction.Continue;
+        //            break;
+        //        case SyncStage.ApplyingInserts:
+        //            Console.WriteLine($"Applying Inserts : {e.ChangesStatistics.AppliedChanges.Where(ac => ac.State == DmRowState.Added).Sum(ac => ac.ChangesApplied) }");
+        //            e.Action = ChangeApplicationAction.Continue;
+        //            break; 
+        //        case SyncStage.ApplyingDeletes:
+        //            Console.WriteLine($"Applying Deletes : {e.ChangesStatistics.AppliedChanges.Where(ac => ac.State == DmRowState.Deleted).Sum(ac => ac.ChangesApplied) }");
+        //            break;
+        //        case SyncStage.ApplyingUpdates:
+        //            Console.WriteLine($"Applying Updates : {e.ChangesStatistics.AppliedChanges.Where(ac => ac.State == DmRowState.Modified).Sum(ac => ac.ChangesApplied) }");
+        //            e.Action = ChangeApplicationAction.Continue;
+        //            break;
+        //    }
+        //};
         agent.ApplyChangedFailed += ApplyChangedFailed;
 
         do
@@ -287,7 +286,11 @@ class Program
             case SyncStage.EndSession:
                 Console.WriteLine($"End Session.");
                 break;
+            case SyncStage.EnsureScopes:
+                Console.WriteLine($"Ensure Scopes");
+                break;
             case SyncStage.EnsureConfiguration:
+                Console.WriteLine($"Ensure Configuration");
                 if (e.Configuration != null)
                 {
                     var ds = e.Configuration.ScopeSet;
@@ -306,32 +309,31 @@ class Program
 
                     //Console.WriteLine(dsString);
                 }
-                if (e.DatabaseScript != null)
-                {
-                    Console.WriteLine($"Database is created");
-                    //Console.WriteLine(e.DatabaseScript);
-                }
+                break;
+            case SyncStage.EnsureDatabase:
+                Console.WriteLine($"Ensure Database");
+                break;
+            case SyncStage.SelectingChanges:
+                Console.WriteLine($"Selecting changes...");
                 break;
             case SyncStage.SelectedChanges:
-                Console.WriteLine($"Selected changes : {e.ChangesStatistics.TotalSelectedChanges}");
-
-                //Console.WriteLine($"{sessionId}. Selected added Changes : {e.ChangesStatistics.TotalSelectedChangesInserts}");
-                //Console.WriteLine($"{sessionId}. Selected updates Changes : {e.ChangesStatistics.TotalSelectedChangesUpdates}");
-                //Console.WriteLine($"{sessionId}. Selected deleted Changes : {e.ChangesStatistics.TotalSelectedChangesDeletes}");
+                Console.WriteLine($"Changes selected : {e.ChangesStatistics.TotalSelectedChanges}");
                 break;
-
+            case SyncStage.ApplyingChanges:
+                Console.WriteLine($"Applying changes...");
+                break;
+            case SyncStage.ApplyingInserts:
+                Console.WriteLine($"\tApplying Inserts : {e.ChangesStatistics.AppliedChanges.Where(ac => ac.State == DmRowState.Added).Sum(ac => ac.ChangesApplied) }");
+                break;
+            case SyncStage.ApplyingDeletes:
+                Console.WriteLine($"\tApplying Deletes : {e.ChangesStatistics.AppliedChanges.Where(ac => ac.State == DmRowState.Deleted).Sum(ac => ac.ChangesApplied) }");
+                break;
+            case SyncStage.ApplyingUpdates:
+                Console.WriteLine($"\tApplying Updates : {e.ChangesStatistics.AppliedChanges.Where(ac => ac.State == DmRowState.Modified).Sum(ac => ac.ChangesApplied) }");
+                break;
             case SyncStage.AppliedChanges:
-                Console.WriteLine($"Applied changes : {e.ChangesStatistics.TotalAppliedChanges}");
+                Console.WriteLine($"Changes applied : {e.ChangesStatistics.TotalAppliedChanges}");
                 break;
-            //case SyncStage.ApplyingInserts:
-            //    Console.WriteLine($"{sessionId}. Applying Inserts : {e.ChangesStatistics.AppliedChanges.Where(ac => ac.State == DmRowState.Added).Sum(ac => ac.ChangesApplied) }");
-            //    break;
-            //case SyncStage.ApplyingDeletes:
-            //    Console.WriteLine($"{sessionId}. Applying Deletes : {e.ChangesStatistics.AppliedChanges.Where(ac => ac.State == DmRowState.Deleted).Sum(ac => ac.ChangesApplied) }");
-            //    break;
-            //case SyncStage.ApplyingUpdates:
-            //    Console.WriteLine($"{sessionId}. Applying Updates : {e.ChangesStatistics.AppliedChanges.Where(ac => ac.State == DmRowState.Modified).Sum(ac => ac.ChangesApplied) }");
-            //    break;
             case SyncStage.WriteMetadata:
                 if (e.Scopes != null)
                 {
