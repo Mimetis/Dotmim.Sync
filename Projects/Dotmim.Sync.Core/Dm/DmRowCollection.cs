@@ -58,7 +58,7 @@ namespace Dotmim.Sync.Data
 
         internal int GetNewVersionId()
         {
-            // Todo : maybe a lock object here ?
+            // TODO : maybe a lock object here ?
             var newVersionId = nextVersionColumnsId;
             nextVersionColumnsId += 1;
             return newVersionId;

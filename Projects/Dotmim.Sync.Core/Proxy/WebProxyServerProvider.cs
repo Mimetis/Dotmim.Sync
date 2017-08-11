@@ -121,7 +121,6 @@ namespace Dotmim.Sync.Proxy
                         break;
                     case HttpStep.ApplyChanges:
                         httpMessageResponse = await ApplyChangesAsync(httpMessage);
-
                         break;
                     case HttpStep.GetLocalTimestamp:
                         httpMessageResponse = await GetLocalTimestampAsync(httpMessage);
@@ -464,7 +463,7 @@ namespace Dotmim.Sync.Proxy
 
         public void SetCancellationToken(CancellationToken token)
         {
-            // no need in proxy mode, since it's different token than from syncagent
+            // no need in proxy mode, since it's different token than SyncAgent
             return;
         }
     }

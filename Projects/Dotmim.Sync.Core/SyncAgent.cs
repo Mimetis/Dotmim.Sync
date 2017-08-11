@@ -481,7 +481,7 @@ namespace Dotmim.Sync
                 case SyncStage.BeginSession:
                     Logger.Current.Info(sex.ToString());
                     break;
-                case SyncStage.EnsureMetadata:
+                case SyncStage.EnsureConfiguration:
                     break;
                 case SyncStage.SelectedChanges:
                     break;

@@ -10,10 +10,9 @@ using Dotmim.Sync.Filter;
 
 namespace Dotmim.Sync.Builders
 {
-    public abstract class DbBuilder : IDisposable
+    public abstract class DbBuilder 
     {
         private bool useBulkProcedures = true;
-
 
         /// <summary>
         /// Gets the table description for the current DbBuilder
@@ -25,12 +24,10 @@ namespace Dotmim.Sync.Builders
         /// </summary>
         public DbBuilderOption BuilderOption { get; set; }
 
-
         /// <summary>
         /// Filtered Columns
         /// </summary>
         public FilterClauseCollection FilterColumns { get; set; } = new FilterClauseCollection();
-
 
         /// <summary>
         /// You have to provide a proc builder implementation for your current database
@@ -57,7 +54,6 @@ namespace Dotmim.Sync.Builders
         /// </summary>
         public abstract DbSyncAdapter CreateSyncAdapter(DbConnection connection, DbTransaction transaction= null);
      
-  
         /// <summary>
         /// Construct a DbBuilder
         /// </summary>
@@ -265,46 +261,6 @@ namespace Dotmim.Sync.Builders
             }
             return str;
         }
-
-        private List<DmColumn> GetExistingFilterColumns(DbTransaction transaction)
-        {
-            throw new NotImplementedException();
-        }
-
-        private void AddNewFilterColumnsToTrackingTable(DbTransaction transaction)
-        {
-            throw new NotImplementedException();
-        }
-
-        #region IDisposable Support
-        private bool disposedValue = false; // To detect redundant calls
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!disposedValue)
-            {
-                if (disposing)
-                {
-                    
-                }
-
-                // TODO: free unmanaged resources (unmanaged objects) and override a finalizer below.
-                // TODO: set large fields to null.
-
-                disposedValue = true;
-            }
-        }
-
-
-
-        // This code added to correctly implement the disposable pattern.
-        public void Dispose()
-        {
-            // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
-            Dispose(true);
-            // TODO: uncomment the following line if the finalizer is overridden above.
-            // GC.SuppressFinalize(this);
-        }
-        #endregion
+        
     }
 }

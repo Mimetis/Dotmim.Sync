@@ -14,15 +14,23 @@ namespace Dotmim.Sync.Enumerations
         /// <summary>Begin a new sync session</summary>
         BeginSession,
 
-        /// <summary>Ensure scopes, configuration and tables</summary>
-        EnsureMetadata,
+        /// <summary>Ensure scopes</summary>
+        EnsureScopes,
+
+        /// <summary>Ensure configuration and tables</summary>
+        EnsureConfiguration,
+
+        /// <summary>Ensure database and tables</summary>
+        EnsureDatabase,
+
+        /// <summary>Occurs before changes are selected from datastore</summary>
+        SelectingChanges,
 
         /// <summary>Occurs after changes are selected from datastore</summary>
         SelectedChanges,
 
         /// <summary>Occurs before applying changes</summary>
         ApplyingChanges,
-
         /// <summary>Occurs afeter changes are applied</summary>
         AppliedChanges,
 

@@ -26,7 +26,6 @@ namespace Dotmim.Sync.Batch
 
             BatchPart bp = new BatchPart();
 
-            //TODO : Should we use the serializer from the user ?
             using (FileStream fs = new FileStream(fileName, FileMode.Open, FileAccess.Read))
             {
                 DmSerializer serializer = new DmSerializer();

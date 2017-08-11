@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Dotmim.Sync.Enumerations;
+using System;
 
 namespace Dotmim.Sync
 {
@@ -42,11 +43,14 @@ namespace Dotmim.Sync
         public DateTime? LastSync { get; set; }
 
         /// <summary>
-        /// Check if the database is already created.
-        /// If so, we won't do any check on the structure.
-        /// Edit this value after EnsureScopes to force checking.
+        /// Gets or sets the last time we apply a clean up on metadata
         /// </summary>
-        //public Boolean IsDatabaseCreated { get; set; }
+        public long LastCleanupTimestamp { get; set; }
+
+        /// <summary>
+        /// Gets or sets the last sync state.
+        /// </summary>
+        public SyncState SyncState { get; set; }
 
     }
 }
