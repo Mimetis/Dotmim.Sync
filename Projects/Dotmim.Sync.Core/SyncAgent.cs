@@ -367,8 +367,8 @@ namespace Dotmim.Sync
                 fromId = serverScopeInfo.Id;
                 // lastSyncTS : apply lines only if they are not modified since last client sync
                 lastSyncTS = localScopeInfo.LastTimestamp;
-                // isNew : not needed
-                isNew = false;
+                // isNew : if IsNew, don't apply deleted rows from server
+                isNew = localScopeInfo.IsNewScope;
                 scope = new ScopeInfo { Id = fromId, IsNewScope = isNew, LastTimestamp = lastSyncTS };
 
                 (context, tmpClientStatistics) = await this.LocalProvider.ApplyChangesAsync(context, scope, serverBatchInfo);

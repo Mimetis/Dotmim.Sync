@@ -283,6 +283,8 @@ namespace Dotmim.Sync
 
                     if (progressEventArgs.Action == ChangeApplicationAction.Rollback)
                         throw SyncException.CreateRollbackException(context.SyncStage);
+
+                    return (context, cacheConfiguration);
                 }
 
                 // create local directory
@@ -545,14 +547,13 @@ namespace Dotmim.Sync
             // Open the connection
             using (var connection = this.CreateConnection())
             {
-                using (var transaction = connection.BeginTransaction())
+                try
                 {
-
-                    try
+                    await connection.OpenAsync();
+                    using (var transaction = connection.BeginTransaction())
                     {
                         context.SyncStage = SyncStage.WriteMetadata;
 
-                        await connection.OpenAsync();
 
                         var scopeBuilder = this.GetScopeBuilder();
                         var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(connection, transaction);
@@ -576,30 +577,30 @@ namespace Dotmim.Sync
                             throw SyncException.CreateRollbackException(context.SyncStage);
 
                         transaction.Commit();
-
                     }
-                    catch (DbException dbex)
-                    {
-                        throw SyncException.CreateDbException(context.SyncStage, dbex);
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.Current.Error(ex.Message);
-
-                        if (ex is SyncException)
-                            throw;
-                        else
-                            throw SyncException.CreateUnknowException(context.SyncStage, ex);
-
-                        throw;
-                    }
-                    finally
-                    {
-                        if (connection.State != ConnectionState.Closed)
-                            connection.Close();
-                    }
-                    return context;
                 }
+                catch (DbException dbex)
+                {
+                    throw SyncException.CreateDbException(context.SyncStage, dbex);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Current.Error(ex.Message);
+
+                    if (ex is SyncException)
+                        throw;
+                    else
+                        throw SyncException.CreateUnknowException(context.SyncStage, ex);
+
+                    throw;
+                }
+                finally
+                {
+                    if (connection.State != ConnectionState.Closed)
+                        connection.Close();
+                }
+                return context;
+
             }
         }
 
@@ -828,6 +829,8 @@ namespace Dotmim.Sync
                     Action = ChangeApplicationAction.Continue,
                     ChangesStatistics = changesStatistics
                 };
+
+                this.SyncProgress?.Invoke(this, progressEventArgs);
 
                 if (progressEventArgs.Action == ChangeApplicationAction.Rollback)
                     throw SyncException.CreateRollbackException(context.SyncStage);
@@ -1506,7 +1509,6 @@ namespace Dotmim.Sync
                 if (progressEventArgs.Action == ChangeApplicationAction.Rollback)
                     throw SyncException.CreateRollbackException(context.SyncStage);
 
-
                 using (var connection = this.CreateConnection())
                 {
                     try
@@ -1520,13 +1522,16 @@ namespace Dotmim.Sync
                         Logger.Current.Info("");
 
                         // -----------------------------------------------------
-                        // 1) Applying deletes
+                        // 1) Applying deletes. Do not apply deletes if we are in a new database
                         // -----------------------------------------------------
-                        changeApplicationAction = this.ApplyChangesInternal(context, connection, applyTransaction, fromScope, changes, DmRowState.Deleted, changesStatistics);
+                        if (!fromScope.IsNewScope)
+                        {
+                            changeApplicationAction = this.ApplyChangesInternal(context, connection, applyTransaction, fromScope, changes, DmRowState.Deleted, changesStatistics);
 
-                        // Rollback
-                        if (changeApplicationAction == ChangeApplicationAction.Rollback)
-                            throw SyncException.CreateRollbackException(context.SyncStage);
+                            // Rollback
+                            if (changeApplicationAction == ChangeApplicationAction.Rollback)
+                                throw SyncException.CreateRollbackException(context.SyncStage);
+                        }
 
                         // -----------------------------------------------------
                         // 1) Applying Inserts
