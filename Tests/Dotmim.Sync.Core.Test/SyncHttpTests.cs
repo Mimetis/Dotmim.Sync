@@ -280,10 +280,12 @@ namespace Dotmim.Sync.Test
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(5)]
         public async Task UpdateFromClient(SyncConfiguration conf)
         {
+            string title = $"Update from client at {DateTime.Now.Ticks.ToString()}";
+
             var updateRowScript =
             $@" Declare @id uniqueidentifier;
                 Select top 1 @id = ServiceTicketID from ServiceTickets;
-                Update [ServiceTickets] Set [Title] = 'Updated !' Where ServiceTicketId = @id";
+                Update [ServiceTickets] Set [Title] = '{title}' Where ServiceTicketId = @id";
 
             using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
             {
@@ -321,10 +323,12 @@ namespace Dotmim.Sync.Test
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(6)]
         public async Task UpdateFromServer(SyncConfiguration conf)
         {
+            string title = $"Update from server at {DateTime.Now.Ticks.ToString()}";
+
             var updateRowScript =
             $@" Declare @id uniqueidentifier;
                 Select top 1 @id = ServiceTicketID from ServiceTickets;
-                Update [ServiceTickets] Set [Title] = 'Updated from server' Where ServiceTicketId = @id";
+                Update [ServiceTickets] Set [Title] = '{title}' Where ServiceTicketId = @id";
 
             using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
             {

@@ -1459,11 +1459,16 @@ namespace Dotmim.Sync
                 var islocallyUpdated = dataRow["update_scope_id"] == DBNull.Value || dataRow["update_scope_id"] == null || (Guid)dataRow["update_scope_id"] != scopeInfo.Id;
 
 
+                //if (scopeInfo.IsNewScope || (isLocallyCreated && createdTimeStamp > scopeInfo.LastTimestamp))
+                //    dmRowState = DmRowState.Added;
+                //else
+                //    dmRowState = DmRowState.Modified;
+
                 // Check if a row is modified :
                 // 1) Row is not new
                 // 2) Row update is AFTER last sync of asker
                 // 3) Row insert is BEFORE last sync of asker (if insert is after last sync, it's not an update, it's an insert)
-                if (!scopeInfo.IsNewScope && islocallyUpdated && updatedTimeStamp > scopeInfo.LastTimestamp && createdTimeStamp < scopeInfo.LastTimestamp)
+                if (!scopeInfo.IsNewScope && islocallyUpdated && updatedTimeStamp > scopeInfo.LastTimestamp && (createdTimeStamp < scopeInfo.LastTimestamp || !isLocallyCreated))
                     dmRowState = DmRowState.Modified;
                 else if (scopeInfo.IsNewScope || (isLocallyCreated && createdTimeStamp > scopeInfo.LastTimestamp))
                     dmRowState = DmRowState.Added;

@@ -214,10 +214,12 @@ namespace Dotmim.Sync.Test
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(5)]
         public async Task UpdateFromClient(SyncConfiguration conf)
         {
+            string title = $"Update from client at {DateTime.Now.Ticks.ToString()}";
+
             var updateRowScript =
             $@" Declare @id uniqueidentifier;
                 Select top 1 @id = ServiceTicketID from ServiceTickets;
-                Update [ServiceTickets] Set [Title] = 'Updated !' Where ServiceTicketId = @id";
+                Update [ServiceTickets] Set [Title] = '{title}' Where ServiceTicketId = @id";
 
             using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
             {
@@ -239,10 +241,11 @@ namespace Dotmim.Sync.Test
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(6)]
         public async Task UpdateFromServer(SyncConfiguration conf)
         {
+            string title = $"Update from server at {DateTime.Now.Ticks.ToString()}"; 
             var updateRowScript =
             $@" Declare @id uniqueidentifier;
                 Select top 1 @id = ServiceTicketID from ServiceTickets;
-                Update [ServiceTickets] Set [Title] = 'Updated from server' Where ServiceTicketId = @id";
+                Update [ServiceTickets] Set [Title] = '{title}' Where ServiceTicketId = @id";
 
             using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
             {
@@ -264,6 +267,7 @@ namespace Dotmim.Sync.Test
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(7)]
         public async Task DeleteFromServer(SyncConfiguration conf)
         {
+
             var updateRowScript =
             $@" Declare @id uniqueidentifier;
                 Select top 1 @id = ServiceTicketID from ServiceTickets;
@@ -385,6 +389,7 @@ namespace Dotmim.Sync.Test
         public async Task ConflictUpdateUpdateServerWins(SyncConfiguration conf)
         {
             var id = Guid.NewGuid().ToString();
+            string expectedString;
 
             using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
             {
@@ -414,8 +419,9 @@ namespace Dotmim.Sync.Test
 
             using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
             {
+                string title = $"Update from client at {DateTime.Now.Ticks.ToString()}";
                 var script = $@"Update [ServiceTickets] 
-                                Set Title = 'Updated from Client'
+                                Set Title = '{title}'
                                 Where ServiceTicketId = '{id}'";
 
                 using (var sqlCmd = new SqlCommand(script, sqlConnection))
@@ -428,8 +434,9 @@ namespace Dotmim.Sync.Test
 
             using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
             {
+                string title = $"Update from server at {DateTime.Now.Ticks.ToString()}";
                 var script = $@"Update [ServiceTickets] 
-                                Set Title = 'Updated from Server'
+                                Set Title = '{title}'
                                 Where ServiceTicketId = '{id}'";
 
                 using (var sqlCmd = new SqlCommand(script, sqlConnection))
@@ -438,6 +445,7 @@ namespace Dotmim.Sync.Test
                     sqlCmd.ExecuteNonQuery();
                     sqlConnection.Close();
                 }
+                expectedString = title;
             }
 
             session = await agent.SynchronizeAsync();
@@ -447,7 +455,7 @@ namespace Dotmim.Sync.Test
             Assert.Equal(1, session.TotalChangesUploaded);
             Assert.Equal(1, session.TotalSyncConflicts);
 
-            string expectedRes = string.Empty;
+            string resultString = string.Empty;
             using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
             {
                 var script = $@"Select Title from [ServiceTickets] Where ServiceTicketID='{id}'";
@@ -455,19 +463,20 @@ namespace Dotmim.Sync.Test
                 using (var sqlCmd = new SqlCommand(script, sqlConnection))
                 {
                     sqlConnection.Open();
-                    expectedRes = sqlCmd.ExecuteScalar() as string;
+                    resultString = sqlCmd.ExecuteScalar() as string;
                     sqlConnection.Close();
                 }
             }
 
             // check good title on client
-            Assert.Equal("Updated from Server", expectedRes);
+            Assert.Equal(expectedString, resultString);
         }
 
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(11)]
         public async Task ConflictUpdateUpdateClientWins(SyncConfiguration conf)
         {
             var id = Guid.NewGuid().ToString();
+            string expectedString = "";
 
             using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
             {
@@ -497,8 +506,9 @@ namespace Dotmim.Sync.Test
 
             using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
             {
+                string title = $"Update from client at {DateTime.Now.Ticks.ToString()}";
                 var script = $@"Update [ServiceTickets] 
-                                Set Title = 'Updated from Client'
+                                Set Title = '{title}'
                                 Where ServiceTicketId = '{id}'";
 
                 using (var sqlCmd = new SqlCommand(script, sqlConnection))
@@ -507,12 +517,14 @@ namespace Dotmim.Sync.Test
                     sqlCmd.ExecuteNonQuery();
                     sqlConnection.Close();
                 }
+                expectedString = title;
             }
 
             using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
             {
+                string title = $"Update from server at {DateTime.Now.Ticks.ToString()}";
                 var script = $@"Update [ServiceTickets] 
-                                Set Title = 'Updated from Server'
+                                Set Title = '{title}'
                                 Where ServiceTicketId = '{id}'";
 
                 using (var sqlCmd = new SqlCommand(script, sqlConnection))
@@ -537,7 +549,7 @@ namespace Dotmim.Sync.Test
             Assert.Equal(1, session.TotalChangesUploaded);
             Assert.Equal(1, session.TotalSyncConflicts);
 
-            string expectedRes = string.Empty;
+            string resultString = string.Empty;
             using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
             {
                 var script = $@"Select Title from [ServiceTickets] Where ServiceTicketID='{id}'";
@@ -545,13 +557,13 @@ namespace Dotmim.Sync.Test
                 using (var sqlCmd = new SqlCommand(script, sqlConnection))
                 {
                     sqlConnection.Open();
-                    expectedRes = sqlCmd.ExecuteScalar() as string;
+                    resultString = sqlCmd.ExecuteScalar() as string;
                     sqlConnection.Close();
                 }
             }
 
             // check good title on client
-            Assert.Equal("Updated from Client", expectedRes);
+            Assert.Equal(expectedString, resultString);
         }
 
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(12)]
