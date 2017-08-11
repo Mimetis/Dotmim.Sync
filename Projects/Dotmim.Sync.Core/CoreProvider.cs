@@ -471,6 +471,14 @@ namespace Dotmim.Sync
 
                                 scopes.Add(scope);
                             }
+                            else
+                            {
+                                //check if we have alread a good last sync. if no, treat it as new
+                                scopes.ForEach(sc =>
+                                {
+                                    sc.IsNewScope = sc.LastSync == null;
+                                });
+                            }
 
                             // if we have a reference in args, we need to get this specific line from database
                             // this happen only on the server side
@@ -490,6 +498,10 @@ namespace Dotmim.Sync
                                     refScope = scopeInfoBuilder.InsertOrUpdateScopeInfo(refScope);
 
                                     scopes.Add(refScope);
+                                }
+                                else
+                                {
+                                    refScope.IsNewScope = refScope.LastSync == null;
                                 }
                             }
                             transaction.Commit();
@@ -1391,7 +1403,7 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Get a DmRow state
+        /// Get a DmRow state to know is we have an inserted, updated, or deleted row to apply
         /// </summary>
         private DmRowState GetStateFromDmRow(DmRow dataRow, ScopeInfo scopeInfo)
         {
@@ -1408,41 +1420,14 @@ namespace Dotmim.Sync
                 var isLocallyCreated = dataRow["create_scope_id"] == DBNull.Value || dataRow["create_scope_id"] == null;
                 var islocallyUpdated = dataRow["update_scope_id"] == DBNull.Value || dataRow["update_scope_id"] == null || (Guid)dataRow["update_scope_id"] != scopeInfo.Id;
 
-                if (!scopeInfo.IsNewScope && islocallyUpdated && updatedTimeStamp > scopeInfo.LastTimestamp)
+
+                // Check if a row is modified :
+                // 1) Row is not new
+                // 2) Row update is AFTER last sync of asker
+                // 3) Row insert is BEFORE last sync of asker (if insert is after last sync, it's not an update, it's an insert)
+                if (!scopeInfo.IsNewScope && islocallyUpdated && updatedTimeStamp > scopeInfo.LastTimestamp && createdTimeStamp < scopeInfo.LastTimestamp)
                     dmRowState = DmRowState.Modified;
                 else if (scopeInfo.IsNewScope || (isLocallyCreated && createdTimeStamp > scopeInfo.LastTimestamp))
-                    dmRowState = DmRowState.Added;
-                else
-                    dmRowState = DmRowState.Unchanged;
-            }
-
-            return dmRowState;
-        }
-
-        /// <summary>
-        /// Get a DmRow state
-        /// </summary>
-        private DmRowState GetStateFromDmRow(ScopeInfo scopeInfo,
-            object object_create_timestamp,
-            object object_update_timestamp,
-            object object_sync_row_is_tombstone,
-            object object_create_scope_id,
-            object object_update_scope_id)
-        {
-            DmRowState dmRowState = DmRowState.Unchanged;
-
-            if ((bool)object_sync_row_is_tombstone)
-                dmRowState = DmRowState.Deleted;
-            else
-            {
-                var createdTimeStamp = DbManager.ParseTimestamp(object_create_timestamp);
-                var updatedTimeStamp = DbManager.ParseTimestamp(object_update_timestamp);
-                var isLocallyCreated = object_create_scope_id == DBNull.Value || object_create_scope_id == null;
-                var islocallyUpdated = object_update_scope_id == DBNull.Value || object_update_scope_id == null;
-
-                if (islocallyUpdated && updatedTimeStamp > scopeInfo.LastTimestamp)
-                    dmRowState = DmRowState.Modified;
-                else if (isLocallyCreated && createdTimeStamp > scopeInfo.LastTimestamp)
                     dmRowState = DmRowState.Added;
                 else
                     dmRowState = DmRowState.Unchanged;
@@ -1467,6 +1452,26 @@ namespace Dotmim.Sync
                 ChangeApplicationAction changeApplicationAction;
                 DbTransaction applyTransaction = null;
                 ChangesStatistics changesStatistics = new ChangesStatistics();
+                SyncProgressEventArgs progressEventArgs;
+
+                // just before applying changes
+                context.SyncStage = SyncStage.ApplyingChanges;
+
+                // Event progress
+                progressEventArgs = new SyncProgressEventArgs
+                {
+                    ProviderTypeName = this.ProviderTypeName,
+                    Action = ChangeApplicationAction.Continue,
+                    Context = context,
+                    ChangesStatistics = changesStatistics
+                };
+
+                this.SyncProgress?.Invoke(this, progressEventArgs);
+
+                if (progressEventArgs.Action == ChangeApplicationAction.Rollback)
+                    throw SyncException.CreateRollbackException(context.SyncStage);
+
+
                 using (var connection = this.CreateConnection())
                 {
                     try
@@ -1514,44 +1519,31 @@ namespace Dotmim.Sync
 
                         // Rollback
                         if (changeApplicationAction == ChangeApplicationAction.Rollback)
-                        {
-                            rollbackAction();
-                            return (context, changesStatistics);
-                        }
+                            throw SyncException.CreateRollbackException(context.SyncStage);
 
                         // -----------------------------------------------------
                         // 1) Applying Inserts
                         // -----------------------------------------------------
-
                         changeApplicationAction = this.ApplyChangesInternal(context, connection, applyTransaction, fromScope, changes, DmRowState.Added, changesStatistics);
 
                         // Rollback
                         if (changeApplicationAction == ChangeApplicationAction.Rollback)
-                        {
-                            rollbackAction();
-                            return (context, changesStatistics);
-                        }
+                            throw SyncException.CreateRollbackException(context.SyncStage);
 
                         // -----------------------------------------------------
                         // 1) Applying updates
                         // -----------------------------------------------------
-
                         changeApplicationAction = this.ApplyChangesInternal(context, connection, applyTransaction, fromScope, changes, DmRowState.Modified, changesStatistics);
 
                         // Rollback
                         if (changeApplicationAction == ChangeApplicationAction.Rollback)
-                        {
-                            rollbackAction();
-                            return (context, changesStatistics);
-                        }
-
-                        applyTransaction.Commit();
+                            throw SyncException.CreateRollbackException(context.SyncStage);
 
                         // Insert / Delete / Update applied, so change stage
                         context.SyncStage = SyncStage.AppliedChanges;
 
                         // Event progress on applied change
-                        var progressEventArgs = new SyncProgressEventArgs
+                        progressEventArgs = new SyncProgressEventArgs
                         {
                             ProviderTypeName = this.ProviderTypeName,
                             Action = ChangeApplicationAction.Continue,
@@ -1560,6 +1552,11 @@ namespace Dotmim.Sync
                         };
 
                         this.SyncProgress?.Invoke(this, progressEventArgs);
+
+                        if (progressEventArgs.Action == ChangeApplicationAction.Rollback)
+                            throw SyncException.CreateRollbackException(context.SyncStage);
+
+                        applyTransaction.Commit();
 
                         Logger.Current.Info($"--- End Applying Changes for Scope \"{fromScope.Name}\" ---");
                         Logger.Current.Info("");

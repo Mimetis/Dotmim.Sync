@@ -17,17 +17,20 @@ namespace Dotmim.Sync.Enumerations
         /// <summary>Ensure scopes, configuration and tables</summary>
         EnsureMetadata,
 
-        /// <summary>Enumerating changes </summary>
+        /// <summary>Occurs after changes are selected from datastore</summary>
         SelectedChanges,
 
-        /// <summary>Applying changes </summary>
+        /// <summary>Occurs before applying changes</summary>
+        ApplyingChanges,
+
+        /// <summary>Occurs afeter changes are applied</summary>
         AppliedChanges,
 
-        /// <summary>Applying inserts </summary>
+        /// <summary>Occurs before applying inserts </summary>
         ApplyingInserts,
-        /// <summary>Applying updates </summary>
+        /// <summary>Occurs before applying updates </summary>
         ApplyingUpdates,
-        /// <summary>Applying deletes </summary>
+        /// <summary>Occurs before applying deletes </summary>
         ApplyingDeletes,
 
         /// <summary>Writes scopes</summary>

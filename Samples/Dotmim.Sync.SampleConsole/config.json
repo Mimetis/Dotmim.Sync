@@ -2,7 +2,7 @@
   "AppConfiguration": {
     "ServerConnectionString": "Data Source=(localdb)\\MSSQLLocalDB; Initial Catalog=ServerDB; Integrated Security=true;",
     "ClientConnectionString": "Data Source=(localdb)\\MSSQLLocalDB; Initial Catalog=ClientDB; Integrated Security=true;",
-    "ClientSQLiteConnectionString": "clientsqlite.db",
+    "ClientSQLiteConnectionString": "clientsqlitesyncex.db",
     "ClientSQLiteConnectionString2": "clientsqlite2.db"
   }
 
