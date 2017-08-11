@@ -247,7 +247,6 @@ namespace Dotmim.Sync
 
         /// <summary>
         /// Ensure configuration is correct on both server and client side
-        /// TODO : Do we have to merge if already exists and args is provided ?
         /// </summary>
         public virtual async Task<(SyncContext, SyncConfiguration)> EnsureConfigurationAsync(SyncContext context, SyncConfiguration configuration = null)
         {
@@ -255,7 +254,7 @@ namespace Dotmim.Sync
             {
                 DmSerializer serializer = new DmSerializer();
 
-                context.SyncStage = SyncStage.EnsureMetadata;
+                context.SyncStage = SyncStage.EnsureConfiguration;
 
                 // Get cache manager and try to get configuration from cache
                 var cacheManager = this.CacheManager;
@@ -263,7 +262,7 @@ namespace Dotmim.Sync
 
                 // if we don't pass config object, we may be in proxy mode, so the config object is handled by a local configuration object.
                 if (configuration == null && this.syncConfiguration == null)
-                    throw SyncException.CreateArgumentException(SyncStage.EnsureMetadata, "Configuration", "You try to set a provider with no configuration object");
+                    throw SyncException.CreateArgumentException(SyncStage.EnsureConfiguration, "Configuration", "You try to set a provider with no configuration object");
 
                 // the configuration has been set from the proxy server itself, use it.
                 if (configuration == null && this.syncConfiguration != null)
@@ -281,7 +280,9 @@ namespace Dotmim.Sync
                         Configuration = configuration
                     };
                     this.SyncProgress?.Invoke(this, progressEventArgs);
-                    return (context, cacheConfiguration);
+
+                    if (progressEventArgs.Action == ChangeApplicationAction.Rollback)
+                        throw SyncException.CreateRollbackException(context.SyncStage);
                 }
 
                 // create local directory
@@ -307,6 +308,9 @@ namespace Dotmim.Sync
                     Configuration = configuration
                 };
                 this.SyncProgress?.Invoke(this, progressEventArgs2);
+
+                if (progressEventArgs2.Action == ChangeApplicationAction.Rollback)
+                    throw SyncException.CreateRollbackException(context.SyncStage);
 
                 return (context, configuration);
             }
@@ -414,9 +418,9 @@ namespace Dotmim.Sync
             try
             {
                 if (string.IsNullOrEmpty(scopeName))
-                    throw SyncException.CreateArgumentException(SyncStage.EnsureMetadata, "ScopeName");
+                    throw SyncException.CreateArgumentException(SyncStage.EnsureScopes, "ScopeName");
 
-                context.SyncStage = SyncStage.EnsureMetadata;
+                context.SyncStage = SyncStage.EnsureScopes;
 
                 // Event progress
                 var progressEventArgs = new SyncProgressEventArgs
@@ -426,6 +430,9 @@ namespace Dotmim.Sync
                     Action = ChangeApplicationAction.Continue
                 };
                 this.SyncProgress?.Invoke(this, progressEventArgs);
+
+                if (progressEventArgs.Action == ChangeApplicationAction.Rollback)
+                    throw SyncException.CreateRollbackException(context.SyncStage);
 
                 List<ScopeInfo> scopes = new List<ScopeInfo>();
 
@@ -538,51 +545,61 @@ namespace Dotmim.Sync
             // Open the connection
             using (var connection = this.CreateConnection())
             {
-                try
+                using (var transaction = connection.BeginTransaction())
                 {
-                    context.SyncStage = SyncStage.WriteMetadata;
 
-                    await connection.OpenAsync();
-
-                    var scopeBuilder = this.GetScopeBuilder();
-                    var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(connection);
-
-                    var progressEventArgs = new SyncProgressEventArgs
+                    try
                     {
-                        ProviderTypeName = this.ProviderTypeName,
-                        Context = context,
-                        Action = ChangeApplicationAction.Continue,
-                        Scopes = new List<ScopeInfo>()
-                    };
-                    foreach (var scope in scopes)
-                    {
-                        var newScope = scopeInfoBuilder.InsertOrUpdateScopeInfo(scope);
-                        progressEventArgs.Scopes.Add(newScope);
+                        context.SyncStage = SyncStage.WriteMetadata;
+
+                        await connection.OpenAsync();
+
+                        var scopeBuilder = this.GetScopeBuilder();
+                        var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(connection, transaction);
+
+                        var progressEventArgs = new SyncProgressEventArgs
+                        {
+                            ProviderTypeName = this.ProviderTypeName,
+                            Context = context,
+                            Action = ChangeApplicationAction.Continue,
+                            Scopes = new List<ScopeInfo>()
+                        };
+                        foreach (var scope in scopes)
+                        {
+                            var newScope = scopeInfoBuilder.InsertOrUpdateScopeInfo(scope);
+                            progressEventArgs.Scopes.Add(newScope);
+                        }
+
+                        this.SyncProgress?.Invoke(this, progressEventArgs);
+
+                        if (progressEventArgs.Action == ChangeApplicationAction.Rollback)
+                            throw SyncException.CreateRollbackException(context.SyncStage);
+
+                        transaction.Commit();
+
                     }
+                    catch (DbException dbex)
+                    {
+                        throw SyncException.CreateDbException(context.SyncStage, dbex);
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Current.Error(ex.Message);
 
-                    this.SyncProgress?.Invoke(this, progressEventArgs);
-                }
-                catch (DbException dbex)
-                {
-                    throw SyncException.CreateDbException(context.SyncStage, dbex);
-                }
-                catch (Exception ex)
-                {
-                    Logger.Current.Error(ex.Message);
+                        if (ex is SyncException)
+                            throw;
+                        else
+                            throw SyncException.CreateUnknowException(context.SyncStage, ex);
 
-                    if (ex is SyncException)
                         throw;
-                    else
-                        throw SyncException.CreateUnknowException(context.SyncStage, ex);
-
-                    throw;
+                    }
+                    finally
+                    {
+                        if (connection.State != ConnectionState.Closed)
+                            connection.Close();
+                    }
+                    return context;
                 }
-                finally
-                {
-                    if (connection.State != ConnectionState.Closed)
-                        connection.Close();
-                }
-                return context;
             }
         }
 
@@ -629,10 +646,9 @@ namespace Dotmim.Sync
         public virtual async Task<SyncContext> EnsureDatabaseAsync(SyncContext context, ScopeInfo scopeInfo, DbBuilderOption options)
         {
 
-            context.SyncStage = SyncStage.EnsureMetadata;
+            context.SyncStage = SyncStage.EnsureDatabase;
             var configuration = GetCacheConfiguration();
 
-            // TODO : Check if database already exists :
             // If scope exists and lastdatetime sync is present, so database exists
             // Check if we don't have an OverwriteConfiguration (if true, we force the check)
             if (scopeInfo.LastSync.HasValue && !configuration.OverwriteConfiguration)
@@ -673,17 +689,21 @@ namespace Dotmim.Sync
                             builder.Apply(connection, transaction);
                         }
 
+                        // Event progress
+                        var progressEventArgs = new SyncProgressEventArgs
+                        {
+                            ProviderTypeName = this.ProviderTypeName,
+                            Context = context,
+                            Action = ChangeApplicationAction.Continue,
+                            DatabaseScript = script
+                        };
+                        this.SyncProgress?.Invoke(this, progressEventArgs);
+
+                        if (progressEventArgs.Action == ChangeApplicationAction.Rollback)
+                            throw SyncException.CreateRollbackException(context.SyncStage);
+
                         transaction.Commit();
                     }
-                    // Event progress
-                    var progressEventArgs = new SyncProgressEventArgs
-                    {
-                        ProviderTypeName = this.ProviderTypeName,
-                        Context = context,
-                        Action = ChangeApplicationAction.Continue,
-                        DatabaseScript = script
-                    };
-                    this.SyncProgress?.Invoke(this, progressEventArgs);
 
                 }
                 catch (DbException dbex)
@@ -737,7 +757,7 @@ namespace Dotmim.Sync
                 if (configuration.DownloadBatchSizeInKB > 0)
                     Logger.Current.Info($"Enumeration data cache size selected: {configuration.DownloadBatchSizeInKB} Kb");
 
-                context.SyncStage = SyncStage.SelectedChanges;
+                context.SyncStage = SyncStage.SelectingChanges;
 
                 //this.BuildTableProgress();
                 BatchInfo batchInfo;
@@ -786,10 +806,9 @@ namespace Dotmim.Sync
                     Logger.Current.Info($"Action taken : {outdatedEventArgs.Action.ToString()}");
 
                     if (outdatedEventArgs.Action == OutdatedSyncAction.PartialSync)
-                    {
                         Logger.Current.Info("Attempting Partial Sync");
-                    }
                 }
+
                 ChangesStatistics changesStatistics = null;
 
                 // the sync is still outdated, abort it
@@ -799,12 +818,24 @@ namespace Dotmim.Sync
                     return (context, null, null);
                 }
 
+                context.SyncStage = SyncStage.SelectingChanges;
+
+                // Event progress
+                var progressEventArgs = new SyncProgressEventArgs
+                {
+                    ProviderTypeName = this.ProviderTypeName,
+                    Context = context,
+                    Action = ChangeApplicationAction.Continue,
+                    ChangesStatistics = changesStatistics
+                };
+
+                if (progressEventArgs.Action == ChangeApplicationAction.Rollback)
+                    throw SyncException.CreateRollbackException(context.SyncStage);
+
                 if (configuration.DownloadBatchSizeInKB == 0)
                     (batchInfo, changesStatistics) = await this.EnumerateChangesInternal(context, scopeInfo);
                 else
                     (batchInfo, changesStatistics) = await this.EnumerateChangesInBatchesInternal(context, scopeInfo);
-
-                Logger.Current.Info("Committing transaction");
 
                 return (context, batchInfo, changesStatistics);
 
@@ -846,7 +877,7 @@ namespace Dotmim.Sync
                 {
                     try
                     {
-                        context.SyncStage = SyncStage.SelectedChanges;
+                        context.SyncStage = SyncStage.SelectingChanges;
 
                         ChangesStatistics changesStatistics = new ChangesStatistics();
 
@@ -991,8 +1022,12 @@ namespace Dotmim.Sync
                         }
 
                         // add stats for a SyncProgress event
+                        context.SyncStage = SyncStage.SelectedChanges;
                         progressEventArgs.ChangesStatistics = changesStatistics;
                         this.SyncProgress?.Invoke(this, progressEventArgs);
+
+                        if (progressEventArgs.Action == ChangeApplicationAction.Rollback)
+                            throw SyncException.CreateRollbackException(context.SyncStage);
 
                         transaction.Commit();
 
@@ -1237,6 +1272,9 @@ namespace Dotmim.Sync
 
                                             this.SyncProgress?.Invoke(this, progEventArgs);
 
+                                            if (progEventArgs.Action == ChangeApplicationAction.Rollback)
+                                                throw SyncException.CreateRollbackException(context.SyncStage);
+
                                             // reinit stats 
                                             selectedChanges = new SelectedChanges();
                                             selectedChanges.TableName = tableDescription.TableName;
@@ -1284,11 +1322,8 @@ namespace Dotmim.Sync
 
                                     this.SyncProgress?.Invoke(this, progressEventArgs);
 
-                                    // TODO : Rollback possible here ?
                                     if (progressEventArgs.Action == ChangeApplicationAction.Rollback)
-                                    {
-                                        // ?
-                                    }
+                                        throw SyncException.CreateRollbackException(context.SyncStage);
                                 }
                             }
                             catch (Exception dbException)
@@ -1477,34 +1512,6 @@ namespace Dotmim.Sync
                     try
                     {
                         await connection.OpenAsync();
-
-                        // Shortcut to rollback
-                        Action rollbackAction = () =>
-                        {
-                            // even if we rollback, some changes may be applied
-                            context.SyncStage = SyncStage.AppliedChanges;
-
-                            if (applyTransaction != null)
-                            {
-                                applyTransaction.Rollback();
-                                applyTransaction.Dispose();
-                                applyTransaction = null;
-                            }
-
-                            if (connection != null && connection.State == ConnectionState.Open)
-                                connection.Close();
-
-                            // Event progress on applied change
-                            var pEventArgs = new SyncProgressEventArgs
-                            {
-                                ProviderTypeName = this.ProviderTypeName,
-                                Action = ChangeApplicationAction.Continue,
-                                Context = context,
-                                ChangesStatistics = changesStatistics
-                            };
-
-                            this.SyncProgress?.Invoke(this, pEventArgs);
-                        };
 
                         // Create a transaction
                         applyTransaction = connection.BeginTransaction();
@@ -1731,6 +1738,10 @@ namespace Dotmim.Sync
                             }
 
                             this.SyncProgress?.Invoke(this, progressEventArgs);
+
+                            if (progressEventArgs.Action == ChangeApplicationAction.Rollback)
+                                break;
+
                         }
                     }
 

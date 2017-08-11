@@ -154,6 +154,14 @@ class Program
         {
             switch (e.Context.SyncStage)
             {
+                case SyncStage.EnsureConfiguration:
+                    if (e.DatabaseScript != null)
+                        e.Action = ChangeApplicationAction.Rollback;
+                    break;
+                case SyncStage.EnsureDatabase:
+                    if (e.DatabaseScript != null)
+                        e.Action = ChangeApplicationAction.Rollback;
+                    break;
                 case SyncStage.SelectedChanges:
                     Console.WriteLine($"Selected changes : {e.ChangesStatistics.TotalSelectedChanges}. I:{e.ChangesStatistics.TotalSelectedChangesInserts}. U:{e.ChangesStatistics.TotalSelectedChangesUpdates}. D:{e.ChangesStatistics.TotalSelectedChangesDeletes}");
                     break;
@@ -168,7 +176,7 @@ class Program
                 case SyncStage.ApplyingInserts:
                     Console.WriteLine($"Applying Inserts : {e.ChangesStatistics.AppliedChanges.Where(ac => ac.State == DmRowState.Added).Sum(ac => ac.ChangesApplied) }");
                     e.Action = ChangeApplicationAction.Continue;
-                    break;
+                    break; 
                 case SyncStage.ApplyingDeletes:
                     Console.WriteLine($"Applying Deletes : {e.ChangesStatistics.AppliedChanges.Where(ac => ac.State == DmRowState.Deleted).Sum(ac => ac.ChangesApplied) }");
                     break;
@@ -279,7 +287,7 @@ class Program
             case SyncStage.EndSession:
                 Console.WriteLine($"End Session.");
                 break;
-            case SyncStage.EnsureMetadata:
+            case SyncStage.EnsureConfiguration:
                 if (e.Configuration != null)
                 {
                     var ds = e.Configuration.ScopeSet;
