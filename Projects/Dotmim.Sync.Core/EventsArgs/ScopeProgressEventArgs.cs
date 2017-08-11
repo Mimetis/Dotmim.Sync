@@ -168,7 +168,7 @@ namespace Dotmim.Sync
         public string TableName { get;  set; }
 
         /// <summary>
-        /// Gets the RowState of the apploed
+        /// Gets the RowState of the applied rows
         /// </summary>
         public DmRowState State { get;  set; }
 

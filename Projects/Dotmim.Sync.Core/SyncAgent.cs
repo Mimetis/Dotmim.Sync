@@ -485,6 +485,8 @@ namespace Dotmim.Sync
                     break;
                 case SyncStage.SelectedChanges:
                     break;
+                case SyncStage.ApplyingChanges:
+                    break;
                 case SyncStage.AppliedChanges:
                     break;
                 case SyncStage.ApplyingInserts:

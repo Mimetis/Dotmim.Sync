@@ -29,7 +29,7 @@ class Program
     static void Main(string[] args)
     {
 
-        
+
 
         //TestSync().Wait();
 
@@ -37,7 +37,7 @@ class Program
 
         //TestAllAvailablesColumns().Wait();
 
-        TestSyncThroughWebApi().Wait();
+        TestSyncSQLite().Wait();
 
         Console.ReadLine();
 
@@ -141,27 +141,44 @@ class Program
         IConfiguration Configuration = configurationBuilder.Build();
         var serverConfig = Configuration["AppConfiguration:ServerConnectionString"];
         var clientConfig = Configuration["AppConfiguration:ClientSQLiteConnectionString"];
-        var clientConfig2 = Configuration["AppConfiguration:ClientSQLiteConnectionString2"];
-        var clientConfig3 = Configuration["AppConfiguration:ClientConnectionString"];
 
         SqlSyncProvider serverProvider = new SqlSyncProvider(serverConfig);
         SQLiteSyncProvider clientProvider = new SQLiteSyncProvider(clientConfig);
-        SQLiteSyncProvider clientProvider2 = new SQLiteSyncProvider(clientConfig2);
-        SqlSyncProvider clientProvider3 = new SqlSyncProvider(clientConfig3);
 
         // With a config when we are in local mode (no proxy)
         SyncConfiguration configuration = new SyncConfiguration(new string[] { "ServiceTickets" });
-        //configuration.DownloadBatchSizeInKB = 500;
-        configuration.UseBulkOperations = false;
 
         SyncAgent agent = new SyncAgent(clientProvider, serverProvider, configuration);
-        SyncAgent agent2 = new SyncAgent(clientProvider2, serverProvider, configuration);
-        SyncAgent agent3 = new SyncAgent(clientProvider3, serverProvider, configuration);
 
-        agent.SyncProgress += SyncProgress;
-        agent2.SyncProgress += SyncProgress;
-        agent3.SyncProgress += SyncProgress;
-        // agent.ApplyChangedFailed += ApplyChangedFailed;
+        agent.SyncProgress += (s,e) =>
+        {
+            switch (e.Context.SyncStage)
+            {
+                case SyncStage.SelectedChanges:
+                    Console.WriteLine($"Selected changes : {e.ChangesStatistics.TotalSelectedChanges}. I:{e.ChangesStatistics.TotalSelectedChangesInserts}. U:{e.ChangesStatistics.TotalSelectedChangesUpdates}. D:{e.ChangesStatistics.TotalSelectedChangesDeletes}");
+                    break;
+                case SyncStage.ApplyingChanges:
+                    Console.WriteLine($"Going to apply changes.");
+                    e.Action = ChangeApplicationAction.Continue;
+                    break;
+                case SyncStage.AppliedChanges:
+                    Console.WriteLine($"Applied changes : {e.ChangesStatistics.TotalAppliedChanges}");
+                    e.Action = ChangeApplicationAction.Continue;
+                    break;
+                case SyncStage.ApplyingInserts:
+                    Console.WriteLine($"Applying Inserts : {e.ChangesStatistics.AppliedChanges.Where(ac => ac.State == DmRowState.Added).Sum(ac => ac.ChangesApplied) }");
+                    e.Action = ChangeApplicationAction.Continue;
+                    break;
+                case SyncStage.ApplyingDeletes:
+                    Console.WriteLine($"Applying Deletes : {e.ChangesStatistics.AppliedChanges.Where(ac => ac.State == DmRowState.Deleted).Sum(ac => ac.ChangesApplied) }");
+                    break;
+                case SyncStage.ApplyingUpdates:
+                    Console.WriteLine($"Applying Updates : {e.ChangesStatistics.AppliedChanges.Where(ac => ac.State == DmRowState.Modified).Sum(ac => ac.ChangesApplied) }");
+                    e.Action = ChangeApplicationAction.Continue;
+                    break;
+            }
+        };
+        agent.ApplyChangedFailed += ApplyChangedFailed;
 
         do
         {
@@ -170,8 +187,6 @@ class Program
             try
             {
                 var s = await agent.SynchronizeAsync();
-                var s2 = await agent2.SynchronizeAsync();
-                var s3 = await agent3.SynchronizeAsync();
 
             }
             catch (SyncException e)
@@ -205,24 +220,6 @@ class Program
         // With a config when we are in local mode (no proxy)
         SyncConfiguration configuration = new SyncConfiguration(new string[] { "ServiceTickets" });
 
-        // Configure the default resolution priority
-        // Default : Server wins
-        configuration.ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
-        // Configure the batch size when memory is limited.
-        // Default : 0. Batch is disabled
-        configuration.DownloadBatchSizeInKB = 1000;
-        // Configure the batch directory if batch size is specified
-        // Default : Windows tmp folder
-        configuration.BatchDirectory = "D://tmp";
-        // configuration is stored in memory, you can disable this behavior
-        // Default : false
-        configuration.OverwriteConfiguration = true;
-        // Configure the default serialization mode (Json or Binary)
-        // Default : Json
-        configuration.SerializationFormat = SerializationFormat.Json;
-        // Configure the default model to Insert / Update / Delete rows (SQL Server use TVP to bulk insert)
-        // Default true if SQL Server
-        configuration.UseBulkOperations = true;
 
         //configuration.DownloadBatchSizeInKB = 500;
         SyncAgent agent = new SyncAgent(clientProvider, serverProvider, configuration);
@@ -344,6 +341,9 @@ class Program
 
     static void ApplyChangedFailed(object sender, ApplyChangeFailedEventArgs e)
     {
+
+        e.Action = ApplyAction.Continue;
+        return;
         // tables name
         string serverTableName = e.Conflict.RemoteChanges.TableName;
         string clientTableName = e.Conflict.LocalChanges.TableName;
