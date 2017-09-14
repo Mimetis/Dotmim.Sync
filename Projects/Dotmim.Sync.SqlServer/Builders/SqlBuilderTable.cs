@@ -1,6 +1,7 @@
 ﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Data;
 using Dotmim.Sync.Log;
+using Dotmim.Sync.SqlServer.Manager;
 using System;
 using System.Data;
 using System.Data.Common;
@@ -17,6 +18,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         private DmTable tableDescription;
         private SqlConnection connection;
         private SqlTransaction transaction;
+        private SqlDbMetadata sqlDbMetadata;
 
 
         public SqlBuilderTable(DmTable tableDescription, DbConnection connection, DbTransaction transaction = null)
@@ -26,7 +28,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             this.tableDescription = tableDescription;
             (this.tableName, this.trackingName) = SqlBuilder.GetParsers(this.tableDescription);
-
+            this.sqlDbMetadata = new SqlDbMetadata();
         }
 
 
@@ -78,7 +80,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                 foreach (DmRelation constraint in this.tableDescription.ChildRelations)
                 {
-               
+
                     using (var command = BuildForeignKeyConstraintsCommand(constraint))
                     {
                         command.Connection = connection;
@@ -160,13 +162,11 @@ namespace Dotmim.Sync.SqlServer.Builders
             {
                 Logger.Current.Error($"Error during Create Pk Command : {ex}");
                 throw;
-
             }
             finally
             {
                 if (!alreadyOpened && connection.State != ConnectionState.Closed)
                     connection.Close();
-
             }
 
         }
@@ -191,7 +191,10 @@ namespace Dotmim.Sync.SqlServer.Builders
             foreach (var column in this.tableDescription.Columns)
             {
                 var columnName = new ObjectNameParser(column.ColumnName);
-                var columnType = $"{column.GetSqlDbTypeString()} {column.GetSqlTypePrecisionString()}";
+
+                var columnTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(column.OrginalDbType, column.DbType, false, false, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+                var columnPrecisionString = this.sqlDbMetadata.TryGetOwnerDbTypePrecision(column.OrginalDbType, column.DbType, false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+                var columnType = $"{columnTypeString} {columnPrecisionString}";
                 var identity = string.Empty;
 
                 if (column.AutoIncrement)
@@ -296,7 +299,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             }
 
-            
+
         }
 
         /// <summary>

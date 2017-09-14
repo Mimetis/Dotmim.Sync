@@ -84,9 +84,14 @@ namespace Dotmim.Sync
 
         }
 
+        internal static SyncException CreateNotSupportedException(SyncStage syncStage, string notSupportedMessage)
+        {
+            SyncException syncException = new SyncException(notSupportedMessage, syncStage, SyncExceptionType.NotSupported);
+            return syncException;
+        }
+
         internal static SyncException CreateDbException(SyncStage syncStage, DbException dbex)
         {
-
             SyncException syncException = new SyncException(dbex.Message, syncStage, dbex, SyncExceptionType.DataStore);
             return syncException;
         }
@@ -105,5 +110,6 @@ namespace Dotmim.Sync
         Rollback,
         Argument,
         Unknown,
+        NotSupported,
     }
 }

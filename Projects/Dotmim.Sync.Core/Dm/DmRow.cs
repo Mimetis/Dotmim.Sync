@@ -593,7 +593,7 @@ namespace Dotmim.Sync.Data
 
         internal DmColumn GetDataColumn(string rowName)
         {
-            DmColumn column = columns.FirstOrDefault(c => c.ColumnName == rowName);
+            DmColumn column = columns.FirstOrDefault(c => this.Table.IsEqual(c.ColumnName, rowName));
             if (null != column)
                 return column;
 

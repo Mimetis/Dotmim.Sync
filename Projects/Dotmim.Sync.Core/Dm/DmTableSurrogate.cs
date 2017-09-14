@@ -47,8 +47,16 @@ namespace Dotmim.Sync.Data.Surrogate
         /// </summary>
         public List<string> PrimaryKeys { get; set; } = new List<string>();
 
-        /// <summary>Gets an array of objects that represent the columns and rows of dm in the <see cref="T:Microsoft.Synchronization.Dm.DmTableSurrogate" /> object.</summary>
+        /// <summary>
+        /// Gets an array of objects that represent the columns and rows of dm in the dmTable.
+        /// </summary>
         public Dictionary<int, List<object>> Records { get; set; }
+
+
+        /// <summary>
+        /// Gets or Sets the original provider (SqlServer, MySql, SQLite, Oracle, PostgreSQL)
+        /// </summary>
+        public string OriginalProvider { get; set; }
 
 
         public long GetEmptyBytesLength()
@@ -85,6 +93,7 @@ namespace Dotmim.Sync.Data.Surrogate
             this.CultureInfoName = dt.Culture.Name;
             this.CaseSensitive = dt.CaseSensitive;
             this.Prefix = dt.Prefix;
+            this.OriginalProvider = dt.OriginalProvider;
 
             for (int i = 0; i < dt.Columns.Count; i++)
                 this.Columns.Add(new DmColumnSurrogate(dt.Columns[i]));
@@ -129,6 +138,7 @@ namespace Dotmim.Sync.Data.Surrogate
             dt.Culture = new CultureInfo(this.CultureInfoName);
             dt.Prefix = this.Prefix;
             dt.CaseSensitive = this.CaseSensitive;
+            dt.OriginalProvider = this.OriginalProvider;
 
             for (int i = 0; i < this.Columns.Count; i++)
             {

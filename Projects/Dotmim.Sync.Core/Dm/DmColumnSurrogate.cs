@@ -18,7 +18,7 @@ namespace Dotmim.Sync.Data.Surrogate
         public bool AllowDBNull { get; set; } = true;
         public bool Unique { get; set; } = false;
         public bool ReadOnly { get; set; } = false;
-        public int MaxLength { get;  set; }
+        public Int32 MaxLength { get;  set; }
         public int Ordinal { get;  set; }
         public bool PrecisionSpecified { get; set; }
         public bool ScaleSpecified { get; set; }

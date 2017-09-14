@@ -51,8 +51,6 @@ namespace Dotmim.Sync.Data
             this.Culture = CultureInfo.CurrentCulture;
             this.CaseSensitive = false;
             this.compareFlags = CompareOptions.IgnoreCase | CompareOptions.IgnoreKanaType | CompareOptions.IgnoreWidth;
-
-
         }
 
         public DmTable(string tableName) : this()
@@ -97,6 +95,12 @@ namespace Dotmim.Sync.Data
                 }
             }
         }
+
+        /// <summary>
+        /// Gets or Sets the original provider (SqlServer, MySql, SQLite, Oracle, PostgreSQL)
+        /// </summary>
+        public string OriginalProvider { get; set; }
+
 
         /// <summary>
         /// Set the culture used to make comparison
@@ -293,6 +297,7 @@ namespace Dotmim.Sync.Data
             }
         }
 
+
         /// <summary>
         /// Accept all changes in every DmRow in this DmTable
         /// </summary>
@@ -315,7 +320,7 @@ namespace Dotmim.Sync.Data
             clone.Prefix = tablePrefix;
             clone.Culture = culture;
             clone.CaseSensitive = caseSensitive;
-
+            clone.OriginalProvider = OriginalProvider;
 
             // add all columns
             var clmns = this.Columns;

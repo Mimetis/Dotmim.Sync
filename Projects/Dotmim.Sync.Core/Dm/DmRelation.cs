@@ -11,7 +11,6 @@ namespace Dotmim.Sync.Data
         private DmKey childKey;
         private DmKey parentKey;
 
-
         public DmSet DmSet { get; internal set; }
 
         public DmRelation(string relationName, DmColumn parentColumn, DmColumn childColumn)

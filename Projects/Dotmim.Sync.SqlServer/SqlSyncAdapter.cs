@@ -1,6 +1,7 @@
 ﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Data;
 using Dotmim.Sync.Log;
+using Dotmim.Sync.SqlServer.Manager;
 using Microsoft.SqlServer.Server;
 using System;
 using System.Collections.Generic;
@@ -17,6 +18,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         private SqlConnection connection;
         private SqlTransaction transaction;
         private SqlObjectNames sqlObjectNames;
+        private SqlDbMetadata sqlMetadata;
 
         // Derive Parameters cache
         private static Dictionary<string, List<SqlParameter>> derivingParameters = new Dictionary<string, List<SqlParameter>>();
@@ -45,18 +47,22 @@ namespace Dotmim.Sync.SqlServer.Builders
             this.transaction = transaction as SqlTransaction;
 
             this.sqlObjectNames = new SqlObjectNames(tableDescription);
+            this.sqlMetadata = new SqlDbMetadata();
         }
 
         private SqlMetaData GetSqlMetadaFromType(DmColumn column)
         {
-            var sqlDbType = column.GetSqlDbType();
             var dbType = column.DbType;
-            var precision = column.GetSqlTypePrecision();
+            var precision = column.Precision;
             int maxLength = column.MaxLength;
+
+            SqlDbType sqlDbType = (SqlDbType)this.sqlMetadata.TryGetOwnerDbType(column.OrginalDbType, column.DbType, false, false, this.TableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+
+            // TODO : Since we validate length before, is it mandatory here ?
 
             if (sqlDbType == SqlDbType.VarChar || sqlDbType == SqlDbType.NVarChar)
             {
-                maxLength = column.MaxLength <= 0 ? ((sqlDbType == SqlDbType.NVarChar) ? 4000 : 8000) : column.MaxLength;
+                maxLength = Convert.ToInt32(column.MaxLength) <= 0 ? ((sqlDbType == SqlDbType.NVarChar) ? 4000 : 8000) : Convert.ToInt32(column.MaxLength);
                 return new SqlMetaData(column.ColumnName, sqlDbType, maxLength);
             }
 
@@ -65,13 +71,13 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             if (sqlDbType == SqlDbType.Char || sqlDbType == SqlDbType.NChar)
             {
-                maxLength = column.MaxLength <= 0 ? (sqlDbType == SqlDbType.NChar ? 4000 : 8000) : column.MaxLength;
+                maxLength = Convert.ToInt32(column.MaxLength) <= 0 ? (sqlDbType == SqlDbType.NChar ? 4000 : 8000) : Convert.ToInt32(column.MaxLength);
                 return new SqlMetaData(column.ColumnName, sqlDbType, maxLength);
             }
 
             if (sqlDbType == SqlDbType.Binary || sqlDbType == SqlDbType.VarBinary)
             {
-                maxLength = column.MaxLength <= 0 ? 8000 : column.MaxLength;
+                maxLength = Convert.ToInt32(column.MaxLength) <= 0 ? 8000 : Convert.ToInt32(column.MaxLength);
                 return new SqlMetaData(column.ColumnName, sqlDbType, maxLength);
             }
 
@@ -176,8 +182,6 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             return false;
         }
-
-
 
         public override DbCommand GetCommand(DbCommandType nameType, IEnumerable<string> additionals = null)
         {

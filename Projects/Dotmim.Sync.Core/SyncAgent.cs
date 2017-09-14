@@ -88,7 +88,7 @@ namespace Dotmim.Sync
             CoreProvider p = null;
             if ((remoteProvider as WebProxyServerProvider) != null)
                 p = ((WebProxyServerProvider)RemoteProvider).LocalProvider;
-            else if ((remoteProvider as CoreProvider ) != null)
+            else if ((remoteProvider as CoreProvider) != null)
                 p = (CoreProvider)remoteProvider;
 
             if (p != null && !p.CanBeServerProvider)
@@ -175,16 +175,27 @@ namespace Dotmim.Sync
         {
         }
 
+        /// <summary>
+        /// Launch a normal synchronization
+        /// </summary>
         public async Task<SyncContext> SynchronizeAsync()
         {
-            return await this.SynchronizeAsync(CancellationToken.None);
+            return await this.SynchronizeAsync(SyncType.Normal, CancellationToken.None);
         }
 
         /// <summary>
-        /// Main action : Launch the synchronization
+        /// Launch a normal synchronization with a cancellation token
         /// </summary>
         public async Task<SyncContext> SynchronizeAsync(CancellationToken cancellationToken)
         {
+            return await this.SynchronizeAsync(SyncType.Normal, cancellationToken);
+        }
+        /// <summary>
+        /// Launch a synchronization with the specified mode
+        /// </summary>
+        public async Task<SyncContext> SynchronizeAsync(SyncType syncType, CancellationToken cancellationToken)
+        {
+
             if (string.IsNullOrEmpty(this.scopeName))
                 throw new Exception("Scope Name is mandatory");
 
@@ -195,6 +206,8 @@ namespace Dotmim.Sync
 
             // if any parameters, set in context
             context.Parameters = this.Parameters;
+
+            context.SyncType = syncType;
 
             this.SessionState = SyncSessionState.Synchronizing;
             this.SessionStateChanged?.Invoke(this, this.SessionState);
@@ -306,9 +319,6 @@ namespace Dotmim.Sync
                 ChangesStatistics tmpClientStatistics = null;
                 ChangesStatistics tmpServerStatistics = null;
 
-
-                // Generate the client batchinfo with all files involved
-
                 // fromId : not really needed on this case, since updated / inserted / deleted row has marked null
                 // otherwise, lines updated by server or others clients are already syncked
                 fromId = localScopeInfo.Id;
@@ -339,7 +349,6 @@ namespace Dotmim.Sync
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
-
                 // Get changes from server
 
                 // fromId : Make sure we don't select lines on server that has been already updated by the client

@@ -1,6 +1,9 @@
-﻿using System;
+﻿using Dotmim.Sync.Data;
+using System;
+using System.Collections.Generic;
 using System.Data.Common;
 using System.Globalization;
+using System.Linq;
 using System.Text;
 
 namespace Dotmim.Sync.Manager
@@ -19,6 +22,8 @@ namespace Dotmim.Sync.Manager
         /// Gets a table manager, who can execute somes queries directly on source database
         /// </summary>
         public abstract IDbManagerTable CreateManagerTable(DbConnection connection, DbTransaction transaction = null);
+
+
 
         public IDbManagerTable GetManagerTable(DbConnection connection, DbTransaction transaction = null)
         {
@@ -106,6 +111,6 @@ namespace Dotmim.Sync.Manager
         }
 
 
-
+ 
     }
 }

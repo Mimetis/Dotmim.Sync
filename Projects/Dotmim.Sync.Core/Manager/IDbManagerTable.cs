@@ -8,8 +8,23 @@ namespace Dotmim.Sync.Manager
 {
     public interface IDbManagerTable
     {
+        /// <summary>
+        /// Sets the current tableName
+        /// </summary>
         string TableName { set; }
-        DmTable GetTableDefinition();
-        DmTable GetTableRelations();
+
+        /// <summary>
+        /// Gets a columns list from the datastore
+        /// </summary>
+        List<DbColumnDefinition> GetTableDefinition();
+
+        /// <summary>
+        /// Gets all relations from a current table
+        /// </summary>
+        List<DbRelationDefinition> GetTableRelations();
+
+
+        List<string> GetTablePrimaryKeys();
+
     }
 }

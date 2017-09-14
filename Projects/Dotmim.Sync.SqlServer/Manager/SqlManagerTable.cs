@@ -5,6 +5,7 @@ using System.Data;
 using System.Data.Common;
 using System.Data.SqlClient;
 using System.Linq;
+using System.Collections.Generic;
 
 namespace Dotmim.Sync.SqlServer.Manager
 {
@@ -21,94 +22,79 @@ namespace Dotmim.Sync.SqlServer.Manager
             this.sqlConnection = connection as SqlConnection;
             this.sqlTransaction = transaction as SqlTransaction;
         }
-
-        /// <summary>
-        /// Get DmTable
-        /// </summary>
-        public DmTable GetTableDefinition()
+  
+        public List<DbRelationDefinition> GetTableRelations()
         {
-            DmTable table = new DmTable(this.tableName);
+            var dmRelations = SqlManagementUtils.RelationsForTable(sqlConnection, sqlTransaction, tableName);
 
+            if (dmRelations == null || dmRelations.Rows.Count == 0)
+                return null;
+
+            List<DbRelationDefinition> relations = new List<DbRelationDefinition>();
+
+            foreach (var dmRow in dmRelations.Rows)
+            {
+                DbRelationDefinition relationDefinition = new DbRelationDefinition();
+                relationDefinition.ForeignKey = (string)dmRow["ForeignKey"];
+                relationDefinition.ColumnName = (string)dmRow["ColumnName"];
+                relationDefinition.ReferenceColumnName = (string)dmRow["ReferenceColumnName"];
+                relationDefinition.ReferenceTableName = (string)dmRow["ReferenceTableName"];
+                relationDefinition.TableName = (string)dmRow["TableName"];
+
+                relations.Add(relationDefinition);
+            }
+
+            return relations;
+        }
+
+        public List<DbColumnDefinition> GetTableDefinition()
+        {
+            List<DbColumnDefinition> columns = new List<DbColumnDefinition>();
             // Get the columns definition
             var dmColumnsList = SqlManagementUtils.ColumnsForTable(sqlConnection, sqlTransaction, this.tableName);
 
             foreach (var c in dmColumnsList.Rows.OrderBy(r => (int)r["column_id"]))
             {
-                var name = c["name"].ToString();
-                var ordinal = (int)c["column_id"];
-                var typeString = c["type"].ToString();
-                var maxLength = (Int16)c["max_length"];
-                var precision = (byte)c["precision"];
-                var scale = (byte)c["scale"];
-                var isNullable = (bool)c["is_nullable"];
-                var isIdentity = (bool)c["is_identity"];
+                DbColumnDefinition dbColumn = new DbColumnDefinition();
 
-                // SqlDbType is the referee to all types from Sql Server
-                SqlDbType? sqlDbType = typeString.ToSqlDbType();
+                dbColumn.Name = c["name"].ToString();
+                dbColumn.Ordinal = (int)c["column_id"];
+                dbColumn.TypeName = c["type"].ToString();
+                dbColumn.MaxLength = Convert.ToInt64(c["max_length"]);
+                dbColumn.Precision = (byte)c["precision"];
+                dbColumn.Scale = (byte)c["scale"];
+                dbColumn.IsNullable = (bool)c["is_nullable"];
+                dbColumn.IsIdentity = (bool)c["is_identity"];
 
-                if (!sqlDbType.HasValue)
-                    throw new Exception($"Actual Core Framework does not support {typeString} type");
-
-                // That's why we go trough double parsing String => SqlDbType => Type
-                Type objectType = sqlDbType.Value.ToManagedType();
-
-                // special length for nchar and nvarchar
-                if ((sqlDbType == SqlDbType.NChar || sqlDbType == SqlDbType.NVarChar) && maxLength > -1)
-                    maxLength = (Int16)(maxLength / 2);
-
-                var newColumn = DmColumn.CreateColumn(name, objectType);
-                newColumn.AllowDBNull = isNullable;
-                newColumn.AutoIncrement = isIdentity;
-                newColumn.MaxLength = maxLength > -1 ? maxLength : 0;
-                newColumn.SetOrdinal(ordinal);
-                newColumn.OrginalDbType = typeString; // sqlDbType == SqlDbType.Variant ? "sql_variant" : sqlDbType.Value.ToString();
-
-                if (sqlDbType == SqlDbType.Timestamp)
-                    newColumn.ReadOnly = true;
-
-                if (newColumn.MaxLength > 0 && sqlDbType != SqlDbType.VarChar && sqlDbType != SqlDbType.NVarChar &&
-                    sqlDbType != SqlDbType.Char && sqlDbType != SqlDbType.NChar &&
-                    sqlDbType != SqlDbType.Binary && sqlDbType != SqlDbType.VarBinary)
-                    newColumn.MaxLength = 0;
-
-                if (sqlDbType == SqlDbType.Decimal && precision > 0)
+                switch (dbColumn.TypeName.ToLowerInvariant())
                 {
-                    newColumn.Precision = precision;
-                    newColumn.Scale = scale;
+                    case "nchar":
+                    case "nvarchar":
+                        dbColumn.IsUnicode = true;
+                        break;
+                    default:
+                        dbColumn.IsUnicode = false;
+                        break;
                 }
 
+                // No unsigned type in SQL Server
+                dbColumn.IsUnsigned = false;
 
-                table.Columns.Add(newColumn);
+                columns.Add(dbColumn);
+
             }
-
-            // Get PrimaryKey
-            var dmTableKeys = SqlManagementUtils.PrimaryKeysForTable(sqlConnection, sqlTransaction, tableName);
-
-            if (dmTableKeys == null || dmTableKeys.Rows.Count == 0)
-                throw new Exception("No Primary Keys in this table, it' can't happen :) ");
-
-            DmColumn[] columnsForKey = new DmColumn[dmTableKeys.Rows.Count];
-
-            for (int i = 0; i < dmTableKeys.Rows.Count; i++)
-            {
-                var rowColumn = dmTableKeys.Rows[i];
-
-                var columnKey = table.Columns.FirstOrDefault(c => c.ColumnName == rowColumn["columnName"].ToString());
-
-                columnsForKey[i] = columnKey ?? throw new Exception("Primary key found is not present in the columns list");
-            }
-
-            // Set the primary Key
-            table.PrimaryKey = new DmKey(columnsForKey);
-
-            return table;
-
-  
+            return columns;
         }
-
-        public DmTable GetTableRelations()
+        
+        public List<string> GetTablePrimaryKeys()
         {
-            return SqlManagementUtils.RelationsForTable(sqlConnection, sqlTransaction, tableName);
+            var dmTableKeys = SqlManagementUtils.PrimaryKeysForTable(sqlConnection, sqlTransaction, tableName);
+            var lstKeys = new List<String>();
+
+            foreach(var dmKey in dmTableKeys.Rows)
+                lstKeys.Add((string)dmKey["columnName"]);
+
+            return lstKeys;
         }
     }
 }

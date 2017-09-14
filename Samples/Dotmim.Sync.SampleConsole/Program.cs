@@ -37,7 +37,9 @@ class Program
 
         //TestAllAvailablesColumns().Wait();
 
-        TestSyncSQLite().Wait();
+        //TestSyncSQLite().Wait();
+
+        //TestMySqlSync().Wait();
 
         Console.ReadLine();
 
@@ -211,6 +213,56 @@ class Program
 
         Console.WriteLine("End");
     }
+
+
+    //private static async Task TestMySqlSync()
+    //{
+    //    // Get SQL Server connection string
+    //    ConfigurationBuilder configurationBuilder = new ConfigurationBuilder();
+    //    configurationBuilder.AddJsonFile("config.json", true);
+    //    IConfiguration Configuration = configurationBuilder.Build();
+    //    var serverConfig = Configuration["AppConfiguration:MySqlServerConnectionString"];
+    //    var clientConfig = Configuration["AppConfiguration:MySqlClientConnectionString"];
+
+    //    MySqlSyncProvider serverProvider = new MySqlSyncProvider(serverConfig);
+    //    MySqlSyncProvider clientProvider = new MySqlSyncProvider(clientConfig);
+
+    //    // With a config when we are in local mode (no proxy)
+    //    SyncConfiguration configuration = new SyncConfiguration(new string[] { "ServiceTickets" });
+
+
+    //    //configuration.DownloadBatchSizeInKB = 500;
+    //    SyncAgent agent = new SyncAgent(clientProvider, serverProvider, configuration);
+
+    //    agent.SyncProgress += SyncProgress;
+    //    agent.ApplyChangedFailed += ApplyChangedFailed;
+
+    //    do
+    //    {
+    //        Console.Clear();
+    //        Console.WriteLine("Sync Start");
+    //        try
+    //        {
+    //            CancellationTokenSource cts = new CancellationTokenSource();
+    //            CancellationToken token = cts.Token;
+    //            var s = await agent.SynchronizeAsync(token);
+
+    //        }
+    //        catch (SyncException e)
+    //        {
+    //            Console.WriteLine(e.ToString());
+    //        }
+    //        catch (Exception e)
+    //        {
+    //            Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+    //        }
+
+
+    //        Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+    //    } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+    //    Console.WriteLine("End");
+    //}
 
     private static async Task TestSync()
     {

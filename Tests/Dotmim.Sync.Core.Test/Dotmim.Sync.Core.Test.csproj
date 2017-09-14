@@ -5,18 +5,18 @@
     <RootNamespace>Dotmim.Sync.Test</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore" Version="2.0.0-preview2-final" />
-    <PackageReference Include="Microsoft.AspNetCore.Session" Version="2.0.0-preview2-final" />
-    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="2.0.0-preview2-final" />
+    <PackageReference Include="Microsoft.AspNetCore" Version="2.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Session" Version="2.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="2.0.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk">
-      <Version>15.3.0-preview-20170628-02</Version>
+      <Version>15.5.0-preview-20170810-02</Version>
     </PackageReference>
     <PackageReference Include="System.Data.SQLite.Core" Version="1.0.105.2" />
     <PackageReference Include="xunit">
-      <Version>2.3.0-beta3-build3705</Version>
+      <Version>2.3.0-beta5-build3769</Version>
     </PackageReference>
     <PackageReference Include="xunit.runner.visualstudio">
-      <Version>2.3.0-beta3-build3705</Version>
+      <Version>2.3.0-beta5-build3769</Version>
     </PackageReference>
   </ItemGroup>
   <ItemGroup>

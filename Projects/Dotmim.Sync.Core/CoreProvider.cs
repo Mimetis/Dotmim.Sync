@@ -68,6 +68,11 @@ namespace Dotmim.Sync
         public abstract DbScopeBuilder GetScopeBuilder();
 
         /// <summary>
+        /// Gets or sets the metadata resolver (validating the columns definition from the data store)
+        /// </summary>
+        public abstract DbMetadata Metadata { get; set; }
+
+        /// <summary>
         /// Get the cache manager. will store the configuration because we dont want to store it in database
         /// </summary>
         public abstract ICache CacheManager { get; set; }
@@ -75,19 +80,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get the provider type name
         /// </summary>
-        public string ProviderTypeName
-        {
-            get
-            {
-                if (!string.IsNullOrEmpty(providerType))
-                    return providerType;
-
-                Type type = base.GetType();
-                providerType = $"{type.Name}, {type.ToString()}";
-
-                return providerType;
-            }
-        }
+        public abstract string ProviderTypeName { get; }
 
         /// <summary>
         /// Gets or sets the connection string used by the implemented provider
@@ -161,6 +154,101 @@ namespace Dotmim.Sync
             this.syncConfiguration = syncConfiguration;
         }
 
+
+        /// <summary>
+        /// Generate the DmTable configuration from a given columns list
+        /// Validate that all columns are currently supported by the provider
+        /// </summary>
+        private DmTable GenerateTableFromColumnsList(string tableName, List<DbColumnDefinition> columns, IDbManagerTable dbManagerTable)
+        {
+            DmTable table = new DmTable(tableName);
+
+            // set the original provider name. IF Server and Client are same providers, we could probably be safer with types
+            table.OriginalProvider = this.ProviderTypeName;
+
+            var ordinal = 0;
+            foreach (var columnDefinition in columns.OrderBy(c => c.Ordinal))
+            {
+                // First of all validate if the column is currently supported
+                if (!Metadata.IsValid(columnDefinition))
+                    throw SyncException.CreateNotSupportedException(
+                        SyncStage.EnsureConfiguration, $"The Column {columnDefinition.Name} of type {columnDefinition.TypeName} from provider {this.ProviderTypeName} is not currently supported.");
+
+                // Gets the datastore owner dbType (could be SqlDbtype, MySqlDbType, SQLiteDbType, NpgsqlDbType & so on ...)
+                object datastoreDbType = Metadata.ValidateOwnerDbType(columnDefinition.TypeName, columnDefinition.IsUnsigned, columnDefinition.IsUnicode);
+
+                // once we have the datastore type, we can have the managed type
+                Type columnType = Metadata.ValidateType(datastoreDbType);
+
+                // and the DbType
+                DbType columnDbType = Metadata.ValidateDbType(columnDefinition.TypeName, columnDefinition.IsUnsigned, columnDefinition.IsUnicode);
+
+                // Create the DmColumn with the right type
+                var newColumn = DmColumn.CreateColumn(columnDefinition.Name, columnType);
+
+                newColumn.DbType = columnDbType;
+
+                // Gets the owner dbtype (SqlDbType, OracleDbType, MySqlDbType, NpsqlDbType & so on ...)
+                // SQLite does not have it's own type, so it's DbType too
+                newColumn.OrginalDbType = datastoreDbType.ToString();
+
+                table.Columns.Add(newColumn);
+
+                newColumn.SetOrdinal(ordinal);
+                ordinal++;
+
+                newColumn.AllowDBNull = columnDefinition.IsNullable;
+                newColumn.AutoIncrement = columnDefinition.IsIdentity;
+
+                // Validate max length
+                newColumn.MaxLength = Metadata.ValidateMaxLength(columnDefinition.TypeName, columnDefinition.IsUnsigned, columnDefinition.IsUnicode, columnDefinition.MaxLength);
+
+                // Validate if column should be readonly
+                newColumn.ReadOnly = Metadata.ValidateIsReadonly(columnDefinition);
+
+                // Validate the precision and scale properties
+                if (Metadata.IsNumericType(columnDefinition.TypeName))
+                {
+                    if (Metadata.SupportScale(columnDefinition.TypeName))
+                    {
+                        var (p, s) = Metadata.ValidatePrecisionAndScale(columnDefinition);
+                        newColumn.Precision = p;
+                        newColumn.Scale = s;
+                    }
+                    else
+                    {
+                        newColumn.Precision = Metadata.ValidatePrecision(columnDefinition);
+                    }
+
+                }
+
+            }
+
+            // Get PrimaryKey
+            var dmTableKeys = dbManagerTable.GetTablePrimaryKeys();
+
+            if (dmTableKeys == null || dmTableKeys.Count == 0)
+                throw new Exception("No Primary Keys in this table, it' can't happen :) ");
+
+            DmColumn[] columnsForKey = new DmColumn[dmTableKeys.Count];
+
+            for (int i = 0; i < dmTableKeys.Count; i++)
+            {
+                var rowColumn = dmTableKeys[i];
+
+                var columnKey = table.Columns.FirstOrDefault(c => String.Equals(c.ColumnName, rowColumn, StringComparison.InvariantCultureIgnoreCase));
+
+                columnsForKey[i] = columnKey ?? throw new Exception("Primary key found is not present in the columns list");
+            }
+
+            // Set the primary Key
+            table.PrimaryKey = new DmKey(columnsForKey);
+
+
+            return table;
+        }
+
+
         /// <summary>
         /// update configuration object with tables desc from server database
         /// </summary>
@@ -190,35 +278,34 @@ namespace Dotmim.Sync
                         {
                             var builderTable = this.GetDbManager(table);
                             var tblManager = builderTable.GetManagerTable(connection, transaction);
-                            var dmTable = tblManager.GetTableDefinition();
+
+                            // get columns list
+                            var lstColumns = tblManager.GetTableDefinition();
+
+                            // Validate the column list and get the dmTable configuration object.
+                            var dmTable = GenerateTableFromColumnsList(table, lstColumns, tblManager);
 
                             syncConfiguration.ScopeSet.Tables.Add(dmTable);
 
-                            var dmRelations = tblManager.GetTableRelations();
+                            var relations = tblManager.GetTableRelations();
 
-                            if (dmRelations != null)
+                            if (relations != null)
                             {
-                                foreach (var dmRow in dmRelations.Rows)
+                                foreach (var r in relations)
                                 {
-                                    var foreignKeyName = dmRow["ForeignKey"] as string;
-                                    var tblName = dmRow["TableName"] as string;
-                                    var columnName = dmRow["ColumnName"] as string;
-                                    var refTblName = dmRow["ReferenceTableName"] as string;
-                                    var refColumnName = dmRow["ReferenceColumnName"] as string;
-
-                                    DmColumn tblColumn = dmTable.Columns[columnName];
+                                    DmColumn tblColumn = dmTable.Columns[r.ColumnName];
                                     DmColumn foreignColumn = null;
-                                    var foreignTable = syncConfiguration.ScopeSet.Tables[refTblName];
+                                    var foreignTable = syncConfiguration.ScopeSet.Tables[r.ReferenceTableName];
 
                                     if (foreignTable == null)
-                                        throw new SyncException($"Foreign table {refTblName} does not exist", context.SyncStage, SyncExceptionType.DataStore);
+                                        throw new SyncException($"Foreign table {r.ReferenceTableName} does not exist", context.SyncStage, SyncExceptionType.DataStore);
 
-                                    foreignColumn = foreignTable.Columns[refColumnName];
+                                    foreignColumn = foreignTable.Columns[r.ReferenceColumnName];
 
                                     if (foreignColumn == null)
-                                        throw new SyncException($"Foreign column {refColumnName} does not exist in table {refTblName}", context.SyncStage, SyncExceptionType.DataStore);
+                                        throw new SyncException($"Foreign column {r.ReferenceColumnName} does not exist in table {r.TableName}", context.SyncStage, SyncExceptionType.DataStore);
 
-                                    DmRelation dmRelation = new DmRelation(foreignKeyName, tblColumn, foreignColumn);
+                                    DmRelation dmRelation = new DmRelation(r.ForeignKey, tblColumn, foreignColumn);
 
                                     syncConfiguration.ScopeSet.Relations.Add(dmRelation);
                                 }
@@ -748,7 +835,6 @@ namespace Dotmim.Sync
         {
             try
             {
-
                 if (scopeInfo == null)
                     throw new ArgumentException("ClientScope is null");
 
