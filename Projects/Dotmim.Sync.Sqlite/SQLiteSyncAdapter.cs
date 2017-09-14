@@ -14,6 +14,7 @@ namespace Dotmim.Sync.SQLite
         private SQLiteConnection connection;
         private SQLiteTransaction transaction;
         private SQLiteObjectNames sqliteObjectNames;
+        private SQLiteDbMetadata sqliteDbMetadata;
 
         public override DbConnection Connection
         {
@@ -39,6 +40,7 @@ namespace Dotmim.Sync.SQLite
             this.transaction = transaction as SQLiteTransaction;
 
             this.sqliteObjectNames = new SQLiteObjectNames(TableDescription);
+            this.sqliteDbMetadata = new SQLiteDbMetadata();
         }
 
         public override bool IsPrimaryKeyViolation(Exception Error)
@@ -100,6 +102,18 @@ namespace Dotmim.Sync.SQLite
             }
         }
 
+        private DbType GetValidDbType(DbType dbType)
+        {
+            if (dbType == DbType.Time)
+                return DbType.String;
+
+            if (dbType == DbType.Object)
+                return DbType.String;
+
+
+            return dbType;
+        }
+
         private void SetUpdateRowParameters(DbCommand command)
         {
             DbParameter p;
@@ -109,7 +123,7 @@ namespace Dotmim.Sync.SQLite
                 ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
                 p = command.CreateParameter();
                 p.ParameterName = $"@{quotedColumn.UnquotedStringWithUnderScore}";
-                p.DbType = column.DataType.ToSQLiteDbType();
+                p.DbType = GetValidDbType(column.DbType);
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
             }
@@ -135,7 +149,7 @@ namespace Dotmim.Sync.SQLite
                 ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
                 p = command.CreateParameter();
                 p.ParameterName = $"@{quotedColumn.UnquotedStringWithUnderScore}";
-                p.DbType = column.DataType.ToSQLiteDbType();
+                p.DbType = GetValidDbType(column.DbType);
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
             }
@@ -165,7 +179,7 @@ namespace Dotmim.Sync.SQLite
                 ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
                 p = command.CreateParameter();
                 p.ParameterName = $"@{quotedColumn.UnquotedStringWithUnderScore}";
-                p.DbType = column.DataType.ToSQLiteDbType();
+                p.DbType = GetValidDbType(column.DbType);
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
             }
@@ -180,7 +194,7 @@ namespace Dotmim.Sync.SQLite
                 ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
                 p = command.CreateParameter();
                 p.ParameterName = $"@{quotedColumn.UnquotedStringWithUnderScore}";
-                p.DbType = column.DataType.ToSQLiteDbType();
+                p.DbType = column.DbType;
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
             }
@@ -220,7 +234,7 @@ namespace Dotmim.Sync.SQLite
                 ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
                 p = command.CreateParameter();
                 p.ParameterName = $"@{quotedColumn.UnquotedStringWithUnderScore}";
-                p.DbType = column.DataType.ToSQLiteDbType();
+                p.DbType = GetValidDbType(column.DbType);
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
             }
@@ -245,7 +259,7 @@ namespace Dotmim.Sync.SQLite
                 ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
                 p = command.CreateParameter();
                 p.ParameterName = $"@{quotedColumn.UnquotedStringWithUnderScore}";
-                p.DbType = column.DataType.ToSQLiteDbType();
+                p.DbType = GetValidDbType(column.DbType);
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
             }

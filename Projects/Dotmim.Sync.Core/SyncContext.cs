@@ -25,6 +25,11 @@ namespace Dotmim.Sync
         public DateTime CompleteTime { get; set; }
 
         /// <summary>
+        /// Gets or sets the sync type used during this session
+        /// </summary>
+        public SyncType SyncType { get; set; }
+
+        /// <summary>
         /// Total number of change sets downloaded
         /// </summary>
         public int TotalChangesDownloaded { get; set; }

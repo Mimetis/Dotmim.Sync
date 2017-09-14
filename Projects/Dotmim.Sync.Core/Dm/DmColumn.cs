@@ -11,7 +11,7 @@ namespace Dotmim.Sync.Data
     /// </summary>
     public abstract class DmColumn
     {
-        internal int maxLength = -1;
+        internal Int32 maxLength = -1;
         internal DbType dbType;
         internal bool dbTypeAllowed;
         byte precision;
@@ -25,7 +25,6 @@ namespace Dotmim.Sync.Data
 
         static DmColumn()
         {
-
             StorageClassType.Add(typeof(bool), true);
             StorageClassType.Add(typeof(char), true);
             StorageClassType.Add(typeof(sbyte), true);
@@ -126,11 +125,11 @@ namespace Dotmim.Sync.Data
         /// </summary>
         public String OrginalDbType { get; set; }
 
+
         /// <summary>
         /// Returns the Column Type
         /// </summary>
         public Type DataType { get; internal set; }
-
 
         /// <summary>
         /// Return the abstract DbType
@@ -212,7 +211,7 @@ namespace Dotmim.Sync.Data
         public string ColumnName { get; set; }
         public bool ReadOnly { get; set; } = false;
         public DmTable Table { get; internal set; }
-        public int MaxLength
+        public Int32 MaxLength
         {
             get
             {

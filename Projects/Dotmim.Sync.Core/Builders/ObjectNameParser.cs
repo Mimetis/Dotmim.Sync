@@ -173,24 +173,52 @@ namespace Dotmim.Sync.Builders
                 case 1:
                     {
                         this.ObjectName = strMatches[0];
+                        if (this.ObjectName.StartsWith(this.QuotePrefix))
+                            this.ObjectName = this.ObjectName.Substring(1);
+                        if (this.ObjectName.EndsWith(this.QuotePrefix))
+                            this.ObjectName = this.ObjectName.Substring(0, this.ObjectName.Length -1);
+
                         this.QuotedObjectName = string.Concat(this.QuotePrefix, this.ObjectName, this.QuoteSuffix);
                         return;
                     }
                 case 2:
                     {
                         this.SchemaName = strMatches[0];
+                        if (this.SchemaName.StartsWith(this.QuotePrefix))
+                            this.SchemaName = this.SchemaName.Substring(1);
+                        if (this.SchemaName.EndsWith(this.QuotePrefix))
+                            this.SchemaName = this.SchemaName.Substring(0, this.SchemaName.Length - 1);
                         this.QuotedSchemaName = string.Concat(this.QuotePrefix, this.SchemaName, this.QuoteSuffix);
+
                         this.ObjectName = strMatches[1];
+                        if (this.ObjectName.StartsWith(this.QuotePrefix))
+                            this.ObjectName = this.ObjectName.Substring(1);
+                        if (this.ObjectName.EndsWith(this.QuotePrefix))
+                            this.ObjectName = this.ObjectName.Substring(0, this.ObjectName.Length - 1);
                         this.QuotedObjectName = string.Concat(this.QuotePrefix, this.ObjectName, this.QuoteSuffix);
                         return;
                     }
                 case 3:
                     {
                         this.DatabaseName = strMatches[0];
+                        if (this.DatabaseName.StartsWith(this.QuotePrefix))
+                            this.DatabaseName = this.DatabaseName.Substring(1);
+                        if (this.DatabaseName.EndsWith(this.QuotePrefix))
+                            this.DatabaseName = this.DatabaseName.Substring(0, this.DatabaseName.Length - 1);
                         this.QuotedDatabaseName = string.Concat(this.QuotePrefix, this.DatabaseName, this.QuoteSuffix);
+
                         this.SchemaName = strMatches[1];
+                        if (this.SchemaName.StartsWith(this.QuotePrefix))
+                            this.SchemaName = this.SchemaName.Substring(1);
+                        if (this.SchemaName.EndsWith(this.QuotePrefix))
+                            this.SchemaName = this.SchemaName.Substring(0, this.SchemaName.Length - 1);
                         this.QuotedSchemaName = string.Concat(this.QuotePrefix, this.SchemaName, this.QuoteSuffix);
+
                         this.ObjectName = strMatches[2];
+                        if (this.ObjectName.StartsWith(this.QuotePrefix))
+                            this.ObjectName = this.ObjectName.Substring(1);
+                        if (this.ObjectName.EndsWith(this.QuotePrefix))
+                            this.ObjectName = this.ObjectName.Substring(0, this.ObjectName.Length - 1);
                         this.QuotedObjectName = string.Concat(this.QuotePrefix, this.ObjectName, this.QuoteSuffix);
                         return;
                     }

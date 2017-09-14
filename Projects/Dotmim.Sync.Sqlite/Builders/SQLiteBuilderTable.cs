@@ -17,6 +17,7 @@ namespace Dotmim.Sync.SQLite
         private DmTable tableDescription;
         private SQLiteConnection connection;
         private SQLiteTransaction transaction;
+        private SQLiteDbMetadata sqliteDbMetadata;
 
         public SQLiteBuilderTable(DmTable tableDescription, DbConnection connection, DbTransaction transaction = null)
         {
@@ -24,6 +25,7 @@ namespace Dotmim.Sync.SQLite
             this.transaction = transaction as SQLiteTransaction;
             this.tableDescription = tableDescription;
             (this.tableName, this.trackingName) = SQLiteBuilder.GetParsers(this.tableDescription);
+            this.sqliteDbMetadata = new SQLiteDbMetadata();
         }
 
 
@@ -142,11 +144,14 @@ namespace Dotmim.Sync.SQLite
             foreach (var column in this.tableDescription.Columns)
             {
                 var columnName = new ObjectNameParser(column.ColumnName);
-                var columnType = $"{column.GetSQLiteDbTypeString()} {column.GetSQLiteTypePrecisionString()}";
+
+                var columnTypeString = this.sqliteDbMetadata.TryGetOwnerDbTypeString(column.OrginalDbType, column.DbType, false, false, this.tableDescription.OriginalProvider, SQLiteSyncProvider.ProviderType);
+                var columnPrecisionString = this.sqliteDbMetadata.TryGetOwnerDbTypePrecision(column.OrginalDbType, column.DbType, false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, SQLiteSyncProvider.ProviderType);
+                var columnType = $"{columnTypeString} {columnPrecisionString}";
 
                 // check case
                 string casesensitive = "";
-                if (column.GetSQLiteDbTypeString() == "text")
+                if (this.sqliteDbMetadata.IsTextType(column.DbType))
                 {
                     casesensitive = this.tableDescription.CaseSensitive ? "" : "COLLATE NOCASE";
 

@@ -33,7 +33,7 @@ namespace Dotmim.Sync.Data
                 if (string.IsNullOrEmpty(name))
                     throw new ArgumentNullException("name");
 
-                return collection.FirstOrDefault(c => c.ColumnName == name);
+                return collection.FirstOrDefault(c => this.table.IsEqual(c.ColumnName,name));
             }
         }
         public int Count

@@ -2,6 +2,7 @@
 using Dotmim.Sync.Data;
 using Dotmim.Sync.Filter;
 using Dotmim.Sync.Log;
+using Dotmim.Sync.SqlServer.Manager;
 using System;
 using System.Data;
 using System.Data.Common;
@@ -18,16 +19,17 @@ namespace Dotmim.Sync.SqlServer.Builders
         private DmTable tableDescription;
         private SqlConnection connection;
         private SqlTransaction transaction;
-        public FilterClauseCollection Filters { get; set; }
+        private SqlDbMetadata sqlDbMetadata;
 
-     
-     
+        public FilterClauseCollection Filters { get; set; }
+   
         public SqlBuilderTrackingTable(DmTable tableDescription, DbConnection connection, DbTransaction transaction = null)
         {
             this.connection = connection as SqlConnection;
             this.transaction = transaction as SqlTransaction;
             this.tableDescription = tableDescription;
             (this.tableName, this.trackingName) = SqlBuilder.GetParsers(this.tableDescription);
+            this.sqlDbMetadata = new SqlDbMetadata();
         }
 
 
@@ -213,11 +215,14 @@ namespace Dotmim.Sync.SqlServer.Builders
             foreach (DmColumn pkColumn in this.tableDescription.PrimaryKey.Columns)
             {
                 var quotedColumnName = new ObjectNameParser(pkColumn.ColumnName, "[", "]").QuotedString;
-                var quotedColumnType = new ObjectNameParser(pkColumn.GetSqlDbTypeString(), "[", "]").QuotedString;
-                quotedColumnType += pkColumn.GetSqlTypePrecisionString();
-                var nullableColumn = pkColumn.AllowDBNull ? "NULL" : "NOT NULL";
 
-                stringBuilder.AppendLine($"{quotedColumnName} {quotedColumnType} {nullableColumn}, ");
+                var columnTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(pkColumn.OrginalDbType, pkColumn.DbType, false, false, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+                var quotedColumnType = new ObjectNameParser(columnTypeString, "[", "]").QuotedString;
+                var columnPrecisionString = this.sqlDbMetadata.TryGetOwnerDbTypePrecision(pkColumn.OrginalDbType, pkColumn.DbType, false, false, pkColumn.MaxLength, pkColumn.Precision, pkColumn.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+                var columnType = $"{quotedColumnType} {columnPrecisionString}";
+
+                var nullableColumn = pkColumn.AllowDBNull ? "NULL" : "NOT NULL";
+                stringBuilder.AppendLine($"{quotedColumnName} {columnType} {nullableColumn}, ");
             }
 
             // adding the tracking columns
@@ -244,11 +249,15 @@ namespace Dotmim.Sync.SqlServer.Builders
 
 
                     var quotedColumnName = new ObjectNameParser(columnFilter.ColumnName, "[", "]").QuotedString;
-                    var quotedColumnType = new ObjectNameParser(columnFilter.GetSqlDbTypeString(), "[", "]").QuotedString;
-                    quotedColumnType += columnFilter.GetSqlTypePrecisionString();
+
+                    var columnTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(columnFilter.OrginalDbType, columnFilter.DbType, false, false, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+                    var quotedColumnType = new ObjectNameParser(columnTypeString, "[", "]").QuotedString;
+                    var columnPrecisionString = this.sqlDbMetadata.TryGetOwnerDbTypePrecision(columnFilter.OrginalDbType, columnFilter.DbType, false, false, columnFilter.MaxLength, columnFilter.Precision, columnFilter.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+                    var columnType = $"{quotedColumnType} {columnPrecisionString}";
+
                     var nullableColumn = columnFilter.AllowDBNull ? "NULL" : "NOT NULL";
 
-                    stringBuilder.AppendLine($"{quotedColumnName} {quotedColumnType} {nullableColumn}, ");
+                    stringBuilder.AppendLine($"{quotedColumnName} {columnType} {nullableColumn}, ");
                 }
             stringBuilder.Append(")");
             return stringBuilder.ToString();
@@ -425,10 +434,13 @@ namespace Dotmim.Sync.SqlServer.Builders
         private string AddFilterColumnCommandText(DmColumn col)
         {
             var quotedColumnName = new ObjectNameParser(col.ColumnName, "[", "]").QuotedString;
-            var quotedColumnType = new ObjectNameParser(col.GetSqlDbTypeString(), "[", "]").QuotedString;
-            quotedColumnType += col.GetSqlTypePrecisionString();
+            var quotedColumnType = new ObjectNameParser(col.OrginalDbType, "[", "]").QuotedString;
 
-            return string.Concat("ALTER TABLE ", quotedColumnName, " ADD ", quotedColumnType);
+            var columnTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(col.OrginalDbType, col.DbType, false, false, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+            var columnPrecisionString = this.sqlDbMetadata.TryGetOwnerDbTypePrecision(col.OrginalDbType, col.DbType, false, false, col.MaxLength, col.Precision, col.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+            var columnType = $"{columnTypeString} {columnPrecisionString}";
+
+            return string.Concat("ALTER TABLE ", quotedColumnName, " ADD ", columnType);
         }
         public string ScriptAddFilterColumn(DmColumn filterColumn)
         {

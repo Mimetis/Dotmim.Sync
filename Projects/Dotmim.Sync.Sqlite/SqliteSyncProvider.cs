@@ -2,6 +2,7 @@
 using Dotmim.Sync.Cache;
 using Dotmim.Sync.Data;
 using Dotmim.Sync.Manager;
+using System;
 using System.Data.Common;
 using System.Data.SQLite;
 
@@ -11,9 +12,26 @@ namespace Dotmim.Sync.SQLite
 
     public class SQLiteSyncProvider : CoreProvider
     {
-        ICache cacheManager;
+        private ICache cacheManager;
         private string filePath;
+        private DbMetadata dbMetadata;
+        private static String providerType;
 
+        public override DbMetadata Metadata
+        {
+            get
+            {
+                if (dbMetadata == null)
+                    dbMetadata = new SQLiteDbMetadata();
+
+                return dbMetadata;
+            }
+            set
+            {
+                dbMetadata = value;
+
+            }
+        }
         public override ICache CacheManager
         {
             get
@@ -42,6 +60,28 @@ namespace Dotmim.Sync.SQLite
         /// </summary>
         public override bool CanBeServerProvider => false;
 
+        public override string ProviderTypeName
+        {
+            get
+            {
+                return ProviderType;
+            }
+        }
+
+        public static string ProviderType
+        {
+            get
+            {
+                if (!string.IsNullOrEmpty(providerType))
+                    return providerType;
+
+                Type type = typeof(SQLiteSyncProvider);
+                providerType = $"{type.Name}, {type.ToString()}";
+
+                return providerType;
+            }
+
+        }
         public SQLiteSyncProvider() : base()
         {
         }

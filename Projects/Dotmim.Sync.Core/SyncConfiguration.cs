@@ -102,6 +102,7 @@ namespace Dotmim.Sync
             syncConfiguration.UseBulkOperations = this.UseBulkOperations;
             syncConfiguration.UseVerboseErrors = this.UseVerboseErrors;
             syncConfiguration.SerializationFormat = this.SerializationFormat;
+            syncConfiguration.OverwriteConfiguration = this.OverwriteConfiguration;
 
             if (this.Filters != null)
                 foreach (var p in this.Filters)

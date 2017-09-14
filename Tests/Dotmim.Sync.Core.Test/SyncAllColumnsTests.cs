@@ -279,14 +279,19 @@ namespace Dotmim.Sync.Test
 
                 Assert.NotNull(clientRow);
 
+                // exception on numeric, check if it could be decimal
+                var cTypeString = clientRow["type"].ToString();
+                if (typeString.ToLowerInvariant() == "numeric" && cTypeString.ToLowerInvariant() == "decimal")
+                    cTypeString = "numeric";
+
                 Assert.Equal(name, clientRow["name"].ToString());
-                Assert.Equal(ordinal ,(int)clientRow["column_id"]);
-                Assert.Equal(typeString , clientRow["type"].ToString());
-                Assert.Equal(maxLength , (Int16)clientRow["max_length"]);
-                Assert.Equal(precision , (byte)clientRow["precision"]);
-                Assert.Equal(scale , (byte)clientRow["scale"]);
-                Assert.Equal(isNullable , (bool)clientRow["is_nullable"]);
-                Assert.Equal(isIdentity , (bool)clientRow["is_identity"]);
+                Assert.Equal(ordinal, (int)clientRow["column_id"]);
+                Assert.Equal(typeString, cTypeString);
+                Assert.Equal(maxLength, (Int16)clientRow["max_length"]);
+                Assert.Equal(precision, (byte)clientRow["precision"]);
+                Assert.Equal(scale, (byte)clientRow["scale"]);
+                Assert.Equal(isNullable, (bool)clientRow["is_nullable"]);
+                Assert.Equal(isIdentity, (bool)clientRow["is_identity"]);
 
             }
 
