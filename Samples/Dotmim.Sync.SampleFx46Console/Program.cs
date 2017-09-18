@@ -2,6 +2,7 @@
 using Dotmim.Sync.Data;
 using Dotmim.Sync.Data.Surrogate;
 using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.MySql;
 //using Dotmim.Sync.MySql;
 using Dotmim.Sync.SqlServer;
 using Newtonsoft.Json;
@@ -20,7 +21,7 @@ namespace Dotmim.Sync.SampleFx46Console
     {
         static void Main(string[] args)
         {
-            //TestMySqlSync().Wait();
+            TestMySqlSync().Wait();
         }
 
         //private static async Task TestMySqlTableBuilder()
@@ -95,52 +96,53 @@ namespace Dotmim.Sync.SampleFx46Console
 
 
         //}
-        //private static async Task TestMySqlSync()
-        //{
-        //    // Get SQL Server connection string
-           
-        //    var serverConfig = ConfigurationManager.ConnectionStrings["SqlServerConnectionString"].ConnectionString;
-        //    var clientConfig = ConfigurationManager.ConnectionStrings["MySqlLocalClientConnectionString"].ConnectionString;
 
-        //    SqlSyncProvider serverProvider = new SqlSyncProvider(serverConfig);
-        //    MySqlSyncProvider clientProvider = new MySqlSyncProvider(clientConfig);
+        private static async Task TestMySqlSync()
+        {
+            // Get SQL Server connection string
 
-        //    // With a config when we are in local mode (no proxy)
-        //    SyncConfiguration configuration = new SyncConfiguration(new string[] { "Customers", "ServiceTickets" });
-        //    configuration.OverwriteConfiguration = true;
+            var serverConfig = ConfigurationManager.ConnectionStrings["SqlServerConnectionString"].ConnectionString;
+            var clientConfig = ConfigurationManager.ConnectionStrings["MySqlLocalClientConnectionString"].ConnectionString;
 
-        //    //configuration.DownloadBatchSizeInKB = 500;
-        //    SyncAgent agent = new SyncAgent(clientProvider, serverProvider, configuration);
+            SqlSyncProvider serverProvider = new SqlSyncProvider(serverConfig);
+            MySqlSyncProvider clientProvider = new MySqlSyncProvider(clientConfig);
 
-        //    agent.SyncProgress += SyncProgress;
-        //    agent.ApplyChangedFailed += ApplyChangedFailed;
+            // With a config when we are in local mode (no proxy)
+            SyncConfiguration configuration = new SyncConfiguration(new string[] { "Customers", "ServiceTickets" });
+            //configuration.OverwriteConfiguration = true;
 
-        //    do
-        //    {
-        //        Console.Clear();
-        //        Console.WriteLine("Sync Start");
-        //        try
-        //        {
-        //            CancellationTokenSource cts = new CancellationTokenSource();
-        //            CancellationToken token = cts.Token;
-        //            var s = await agent.SynchronizeAsync(token);
+            //configuration.DownloadBatchSizeInKB = 500;
+            SyncAgent agent = new SyncAgent(clientProvider, serverProvider, configuration);
 
-        //        }
-        //        catch (SyncException e)
-        //        {
-        //            Console.WriteLine(e.ToString());
-        //        }
-        //        catch (Exception e)
-        //        {
-        //            Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
-        //        }
+            agent.SyncProgress += SyncProgress;
+            agent.ApplyChangedFailed += ApplyChangedFailed;
+
+            do
+            {
+                Console.Clear();
+                Console.WriteLine("Sync Start");
+                try
+                {
+                    CancellationTokenSource cts = new CancellationTokenSource();
+                    CancellationToken token = cts.Token;
+                    var s = await agent.SynchronizeAsync(token);
+
+                }
+                catch (SyncException e)
+                {
+                    Console.WriteLine(e.ToString());
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+                }
 
 
-        //        Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
-        //    } while (Console.ReadKey().Key != ConsoleKey.Escape);
+                Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+            } while (Console.ReadKey().Key != ConsoleKey.Escape);
 
-        //    Console.WriteLine("End");
-        //}
+            Console.WriteLine("End");
+        }
 
 
 

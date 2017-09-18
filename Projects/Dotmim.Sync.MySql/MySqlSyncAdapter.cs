@@ -59,16 +59,16 @@ namespace Dotmim.Sync.MySql
                 text = this.mySqlObjectNames.GetCommandName(commandType);
 
             // on MySql, everything is text based :)
-            command.CommandType = CommandType.Text;
+            command.CommandType = CommandType.StoredProcedure;
             command.CommandText = text;
             command.Connection = Connection;
 
-            if (commandType == DbCommandType.UpdateRow)
-            {
-                command.CommandType = CommandType.StoredProcedure;
-                command.CommandText = "customers_update";
-                command.Connection = Connection;
-            }
+            //if (commandType == DbCommandType.UpdateRow)
+            //{
+            //    command.CommandType = CommandType.StoredProcedure;
+            //    command.CommandText = "customers_update";
+            //    command.Connection = Connection;
+            //}
 
             if (Transaction != null)
                 command.Transaction = Transaction;
@@ -118,19 +118,19 @@ namespace Dotmim.Sync.MySql
             {
                 ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
                 p = command.CreateParameter();
-                p.ParameterName = $"@{quotedColumn.UnquotedStringWithUnderScore}";
+                p.ParameterName = $"in{quotedColumn.UnquotedStringWithUnderScore}";
                 p.DbType = column.DbType;
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
             }
 
             p = command.CreateParameter();
-            p.ParameterName = "@sync_force_write";
+            p.ParameterName = "sync_force_write";
             p.DbType = DbType.Int64;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
-            p.ParameterName = "@sync_min_timestamp";
+            p.ParameterName = "sync_min_timestamp";
             p.DbType = DbType.Int64;
             command.Parameters.Add(p);
 
@@ -144,24 +144,29 @@ namespace Dotmim.Sync.MySql
             {
                 ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
                 p = command.CreateParameter();
-                p.ParameterName = $"@{quotedColumn.UnquotedStringWithUnderScore}";
+                p.ParameterName = $"in{quotedColumn.UnquotedStringWithUnderScore}";
                 p.DbType = column.DbType;
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
             }
 
             p = command.CreateParameter();
-            p.ParameterName = "@update_scope_id";
+            p.ParameterName = "sync_scope_id";
             p.DbType = DbType.Guid;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
-            p.ParameterName = "@sync_row_is_tombstone";
+            p.ParameterName = "sync_row_is_tombstone";
             p.DbType = DbType.Int32;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
-            p.ParameterName = "@update_timestamp";
+            p.ParameterName = "create_timestamp";
+            p.DbType = DbType.Int64;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "update_timestamp";
             p.DbType = DbType.Int64;
             command.Parameters.Add(p);
         }
@@ -174,7 +179,7 @@ namespace Dotmim.Sync.MySql
             {
                 ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
                 p = command.CreateParameter();
-                p.ParameterName = $"@{quotedColumn.UnquotedStringWithUnderScore}";
+                p.ParameterName = $"in{quotedColumn.UnquotedStringWithUnderScore}";
                 p.DbType = column.DbType;
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
@@ -189,34 +194,29 @@ namespace Dotmim.Sync.MySql
             {
                 ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
                 p = command.CreateParameter();
-                p.ParameterName = $"@{quotedColumn.UnquotedStringWithUnderScore}";
+                p.ParameterName = $"in{quotedColumn.UnquotedStringWithUnderScore}";
                 p.DbType = column.DbType;
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
             }
 
             p = command.CreateParameter();
-            p.ParameterName = "@create_scope_id";
+            p.ParameterName = "sync_scope_id";
             p.DbType = DbType.Guid;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
-            p.ParameterName = "@update_scope_id";
-            p.DbType = DbType.Guid;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "@sync_row_is_tombstone";
+            p.ParameterName = "sync_row_is_tombstone";
             p.DbType = DbType.Int32;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
-            p.ParameterName = "@create_timestamp";
+            p.ParameterName = "create_timestamp";
             p.DbType = DbType.Int64;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
-            p.ParameterName = "@update_timestamp";
+            p.ParameterName = "update_timestamp";
             p.DbType = DbType.Int64;
             command.Parameters.Add(p);
         }
@@ -229,19 +229,19 @@ namespace Dotmim.Sync.MySql
             {
                 ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
                 p = command.CreateParameter();
-                p.ParameterName = $"@{quotedColumn.UnquotedStringWithUnderScore}";
+                p.ParameterName = $"in{quotedColumn.UnquotedStringWithUnderScore}";
                 p.DbType = column.DbType;
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
             }
 
             p = command.CreateParameter();
-            p.ParameterName = "@sync_force_write";
+            p.ParameterName = "sync_force_write";
             p.DbType = DbType.Int64;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
-            p.ParameterName = "@sync_min_timestamp";
+            p.ParameterName = "sync_min_timestamp";
             p.DbType = DbType.Int64;
             command.Parameters.Add(p);
         }
@@ -254,14 +254,14 @@ namespace Dotmim.Sync.MySql
             {
                 ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
                 p = command.CreateParameter();
-                p.ParameterName = $"@{quotedColumn.UnquotedStringWithUnderScore}";
+                p.ParameterName = $"in{quotedColumn.UnquotedStringWithUnderScore}";
                 p.DbType = column.DbType;
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
             }
 
             p = command.CreateParameter();
-            p.ParameterName = "@sync_scope_id";
+            p.ParameterName = "sync_scope_id";
             p.DbType = DbType.Guid;
             command.Parameters.Add(p);
 
@@ -269,23 +269,53 @@ namespace Dotmim.Sync.MySql
 
         private void SetDeleteMetadataParameters(DbCommand command)
         {
-            return;
+            DbParameter p;
+
+            foreach (DmColumn column in this.TableDescription.PrimaryKey.Columns.Where(c => !c.ReadOnly))
+            {
+                ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
+                p = command.CreateParameter();
+                p.ParameterName = $"in{quotedColumn.UnquotedStringWithUnderScore}";
+                p.DbType = column.DbType;
+                p.SourceColumn = column.ColumnName;
+                command.Parameters.Add(p);
+            }
+
+            p = command.CreateParameter();
+            p.ParameterName = "sync_scope_id";
+            p.DbType = DbType.Guid;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "sync_row_is_tombstone";
+            p.DbType = DbType.Int32;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "create_timestamp";
+            p.DbType = DbType.Int64;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "update_timestamp";
+            p.DbType = DbType.Int64;
+            command.Parameters.Add(p);
         }
 
         private void SetSelecteChangesParameters(DbCommand command)
         {
             var p = command.CreateParameter();
-            p.ParameterName = "@sync_min_timestamp";
+            p.ParameterName = "sync_min_timestamp";
             p.DbType = DbType.Int64;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
-            p.ParameterName = "@sync_scope_id";
+            p.ParameterName = "sync_scope_id";
             p.DbType = DbType.Guid;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
-            p.ParameterName = "@sync_scope_is_new";
+            p.ParameterName = "sync_scope_is_new";
             p.DbType = DbType.Boolean;
             command.Parameters.Add(p);
         }

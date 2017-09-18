@@ -66,6 +66,10 @@
       <Project>{c58c0e87-84b4-4dc7-a2f2-ccc2b9daef86}</Project>
       <Name>Dotmim.Sync.Core</Name>
     </ProjectReference>
+    <ProjectReference Include="..\..\Projects\Dotmim.Sync.MySql\Dotmim.Sync.MySql.csproj">
+      <Project>{c8dd2eba-777f-498f-acda-d9966c8fd1a1}</Project>
+      <Name>Dotmim.Sync.MySql</Name>
+    </ProjectReference>
     <ProjectReference Include="..\..\Projects\Dotmim.Sync.SqlServer\Dotmim.Sync.SqlServer.csproj">
       <Project>{6f38701f-1dc0-4e80-ba56-29bf5a37b768}</Project>
       <Name>Dotmim.Sync.SqlServer</Name>
