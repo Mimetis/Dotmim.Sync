@@ -46,6 +46,9 @@ namespace Dotmim.Sync.Manager
             if (command.Parameters.Contains($":{parameterName}"))
                 return command.Parameters[$":{parameterName}"];
 
+            if (command.Parameters.Contains($"in{parameterName}"))
+                return command.Parameters[$"in{parameterName}"];
+
             if (!command.Parameters.Contains(parameterName))
                 return null;
 

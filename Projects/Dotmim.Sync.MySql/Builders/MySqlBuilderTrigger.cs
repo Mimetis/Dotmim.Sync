@@ -130,6 +130,10 @@ namespace Dotmim.Sync.MySql
             return "";
         }
 
+        /// <summary>
+        /// TODO : Check if row was deleted before, to just make an update !!!!
+        /// </summary>
+        /// <returns></returns>
         private string InsertTriggerBodyText()
         {
             StringBuilder stringBuilder = new StringBuilder();
@@ -176,7 +180,7 @@ namespace Dotmim.Sync.MySql
                         continue;
 
                     ObjectNameParser columnName = new ObjectNameParser(filterColumn.ColumnName.ToLowerInvariant(), "`", "`");
-                    filterColumnsString.AppendLine($"\t,`i`.{columnName.QuotedString}");
+                    filterColumnsString.AppendLine($"\t,{columnName.QuotedString}");
                 }
                 stringBuilder.AppendLine(filterColumnsString.ToString());
             }
@@ -195,8 +199,22 @@ namespace Dotmim.Sync.MySql
             if (Filters != null && Filters.Count > 0)
                 stringBuilder.AppendLine(filterColumnsString.ToString());
 
-            stringBuilder.AppendLine("\t);");
-            stringBuilder.AppendLine("END;");
+            stringBuilder.AppendLine("\t)");
+            stringBuilder.AppendLine("ON DUPLICATE KEY UPDATE");
+            stringBuilder.AppendLine("\t`sync_row_is_tombstone` = 0, ");
+            stringBuilder.AppendLine("\t`create_scope_id` = NULL, ");
+            stringBuilder.AppendLine("\t`update_scope_id` = NULL, ");
+            stringBuilder.AppendLine("\t`create_timestamp` = ROUND(UNIX_TIMESTAMP(CURTIME(4)) * 1000), ");
+            stringBuilder.AppendLine("\t`update_timestamp` = NULL, ");
+            stringBuilder.AppendLine("\t`sync_row_is_tombstone` = 0, ");
+            stringBuilder.AppendLine("\t`timestamp` = ROUND(UNIX_TIMESTAMP(CURTIME(4)) * 1000), ");
+            stringBuilder.AppendLine("\t`last_change_datetime` = now()");
+
+            if (Filters != null && Filters.Count > 0)
+                stringBuilder.AppendLine(filterColumnsString.ToString());
+
+            stringBuilder.Append(";");
+            stringBuilder.AppendLine("END");
             return stringBuilder.ToString();
         }
         public void CreateInsertTrigger()

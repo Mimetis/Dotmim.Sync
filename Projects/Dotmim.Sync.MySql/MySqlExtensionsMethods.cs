@@ -5,6 +5,7 @@ using MySql.Data.MySqlClient;
 using Dotmim.Sync.Builders;
 using System.Collections.Generic;
 using System.Linq;
+using Dotmim.Sync.MySql.Builders;
 
 namespace Dotmim.Sync.MySql
 {
@@ -60,12 +61,13 @@ namespace Dotmim.Sync.MySql
 
         internal static MySqlParameter GetMySqlParameter(this DmColumn column)
         {
+            MySqlDbMetadata mySqlDbMetadata = new MySqlDbMetadata();
             MySqlParameter sqlParameter = new MySqlParameter();
             sqlParameter.ParameterName = $"in{column.ColumnName}";
             sqlParameter.DbType = column.DbType;
             sqlParameter.IsNullable = column.AllowDBNull;
 
-            (byte precision, byte scale) = MySqlMetadata.GetPrecisionFromDmColumn(column);
+            (byte precision, byte scale) = mySqlDbMetadata.TryGetOwnerPrecisionAndScale(column.OrginalDbType, column.DbType, false, false, column.Precision, column.Scale, column.Table.OriginalProvider, MySqlSyncProvider.ProviderType);
 
             if ((sqlParameter.DbType == DbType.Decimal || sqlParameter.DbType == DbType.Double
                  || sqlParameter.DbType == DbType.Single || sqlParameter.DbType == DbType.VarNumeric) && precision > 0)

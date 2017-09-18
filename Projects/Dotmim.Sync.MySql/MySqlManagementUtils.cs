@@ -52,11 +52,11 @@ namespace Dotmim.Sync.MySql
 
         internal static DmTable RelationsForTable(MySqlConnection connection, MySqlTransaction transaction, string tableName)
         {
-            var commandRelations = @"Select CONSTRAINT_NAME as foreignKey,
-		                                    TABLE_NAME as tableName,
-                                            COLUMN_NAME as columName,
-                                            REFERENCED_TABLE_NAME as referenceTableName,
-                                            REFERENCED_COLUMN_NAME as referenceColumnName
+            var commandRelations = @"Select CONSTRAINT_NAME as ForeignKey,
+		                                    TABLE_NAME as TableName,
+                                            COLUMN_NAME as ColumName,
+                                            REFERENCED_TABLE_NAME as ReferenceTableName,
+                                            REFERENCED_COLUMN_NAME as ReferenceColumnName
                                     from INFORMATION_SCHEMA.KEY_COLUMN_USAGE
                                     Where TABLE_SCHEMA = schema() 
                                     and REFERENCED_TABLE_NAME is not null and TABLE_NAME = @tableName";
@@ -237,7 +237,7 @@ namespace Dotmim.Sync.MySql
                 stringBuilder.Append(strFromPrefix);
                 stringBuilder.Append(quotedColumn.QuotedString);
                 stringBuilder.Append(" = ");
-                stringBuilder.Append($"@{column.ColumnName}");
+                stringBuilder.Append($"in{column.ColumnName}");
                 str1 = " AND ";
             }
             return stringBuilder.ToString();
@@ -256,7 +256,7 @@ namespace Dotmim.Sync.MySql
                 stringBuilder.Append(strFromPrefix);
                 stringBuilder.Append(quotedColumn.QuotedString);
                 stringBuilder.Append(" = ");
-                stringBuilder.Append($"@{column.ColumnName}");
+                stringBuilder.Append($"in{column.ColumnName}");
                 str1 = " AND ";
             }
             return stringBuilder.ToString();
@@ -270,7 +270,7 @@ namespace Dotmim.Sync.MySql
             foreach (DmColumn column in table.NonPkColumns.Where(c => !c.ReadOnly))
             {
                 ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName, "`", "`");
-                stringBuilder.AppendLine($"{strSeparator} {strFromPrefix}{quotedColumn.QuotedString} = @{quotedColumn.UnquotedString}");
+                stringBuilder.AppendLine($"{strSeparator} {strFromPrefix}{quotedColumn.QuotedString} = in{quotedColumn.UnquotedString}");
                 strSeparator = ", ";
             }
             return stringBuilder.ToString();

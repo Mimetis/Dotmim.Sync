@@ -4,7 +4,8 @@ using Dotmim.Sync.Data;
 using Dotmim.Sync.Manager;
 using System.Data.Common;
 using MySql.Data.MySqlClient;
-
+using Dotmim.Sync.MySql.Builders;
+using System;
 
 namespace Dotmim.Sync.MySql
 {
@@ -12,8 +13,31 @@ namespace Dotmim.Sync.MySql
     public class MySqlSyncProvider : CoreProvider
     {
         ICache cacheManager;
-        IDbMetadata dbMetadata;
+        DbMetadata dbMetadata;
+        static string providerType;
 
+        public override string ProviderTypeName
+        {
+            get
+            {
+                return ProviderType;
+            }
+        }
+
+        public static string ProviderType
+        {
+            get
+            {
+                if (!string.IsNullOrEmpty(providerType))
+                    return providerType;
+
+                Type type = typeof(MySqlSyncProvider);
+                providerType = $"{type.Name}, {type.ToString()}";
+
+                return providerType;
+            }
+
+        }
 
         public override ICache CacheManager
         {
@@ -45,12 +69,15 @@ namespace Dotmim.Sync.MySql
         /// <summary>
         /// Gets or Sets the MySql Metadata object, provided to validate the MySql Columns issued from MySql
         /// </summary>
-        public override IDbMetadata Metadata
+        /// <summary>
+        /// Gets or sets the Metadata object which parse Sql server types
+        /// </summary>
+        public override DbMetadata Metadata
         {
             get
             {
                 if (dbMetadata == null)
-                    dbMetadata = new MySqlMetadata();
+                    dbMetadata = new MySqlDbMetadata();
 
                 return dbMetadata;
             }

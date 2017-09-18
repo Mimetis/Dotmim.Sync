@@ -7,6 +7,7 @@ using System.Linq;
 using System.Data;
 using Dotmim.Sync.Log;
 using MySql.Data.MySqlClient;
+using Dotmim.Sync.MySql.Builders;
 
 namespace Dotmim.Sync.MySql
 {
@@ -17,6 +18,7 @@ namespace Dotmim.Sync.MySql
         private DmTable tableDescription;
         private MySqlConnection connection;
         private MySqlTransaction transaction;
+        private MySqlDbMetadata mySqlDbMetadata;
 
         public MySqlBuilderTable(DmTable tableDescription, DbConnection connection, DbTransaction transaction = null)
         {
@@ -25,6 +27,7 @@ namespace Dotmim.Sync.MySql
             this.transaction = transaction as MySqlTransaction;
             this.tableDescription = tableDescription;
             (this.tableName, this.trackingName) = MySqlBuilder.GetParsers(this.tableDescription);
+            this.mySqlDbMetadata = new MySqlDbMetadata();
         }
 
 
@@ -143,8 +146,8 @@ namespace Dotmim.Sync.MySql
             foreach (var column in this.tableDescription.Columns)
             {
                 var columnName = new ObjectNameParser(column.ColumnName.ToLowerInvariant(), "`", "`");
-                var stringType = MySqlMetadata.GetStringTypeFromDmColumn(column);
-                var stringPrecision = MySqlMetadata.GetStringPrecisionFromDmColumn(column);
+                var stringType = this.mySqlDbMetadata.TryGetOwnerDbTypeString(column.OrginalDbType, column.DbType, false, false, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
+                var stringPrecision = this.mySqlDbMetadata.TryGetOwnerDbTypePrecision(column.OrginalDbType, column.DbType, false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
                 var columnType = $"{stringType} {stringPrecision}";
 
                 var identity = string.Empty;
