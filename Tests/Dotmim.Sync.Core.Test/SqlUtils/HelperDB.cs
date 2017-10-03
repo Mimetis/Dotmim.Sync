@@ -9,6 +9,7 @@ namespace Dotmim.Sync.Test.SqlUtils
     {
         public static String GetDatabaseConnectionString(string dbName) => $@"Data Source=(localdb)\MSSQLLocalDB; Initial Catalog={dbName}; Integrated Security=true;";
 
+        public static string GetMySqlDatabaseConnectionString(string dbName) => $@"Server=spertusmysql.mysql.database.azure.com; Port=3306; Database={dbName}; Uid=spertus@spertusmysql; Pwd=azerty31*; SslMode=Preferred;";
         /// <summary>
         /// Generate a database
         /// </summary>

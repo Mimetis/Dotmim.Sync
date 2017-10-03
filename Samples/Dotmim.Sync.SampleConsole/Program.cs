@@ -37,7 +37,7 @@ class Program
 
         //TestAllAvailablesColumns().Wait();
 
-        //TestSyncSQLite().Wait();
+        TestSyncSQLite().Wait();
 
         //TestMySqlSync().Wait();
 
@@ -85,8 +85,7 @@ class Program
 
     }
 
-  
-    private static async Task FilterSync()
+      private static async Task FilterSync()
     {
         // Get SQL Server connection string
         ConfigurationBuilder configurationBuilder = new ConfigurationBuilder();
@@ -148,7 +147,7 @@ class Program
         SQLiteSyncProvider clientProvider = new SQLiteSyncProvider(clientConfig);
 
         // With a config when we are in local mode (no proxy)
-        SyncConfiguration configuration = new SyncConfiguration(new string[] { "ServiceTickets" });
+        SyncConfiguration configuration = new SyncConfiguration(new string[] { "Customers", "ServiceTickets" });
 
         SyncAgent agent = new SyncAgent(clientProvider, serverProvider, configuration);
 

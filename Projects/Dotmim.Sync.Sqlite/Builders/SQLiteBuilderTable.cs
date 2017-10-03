@@ -67,59 +67,14 @@ namespace Dotmim.Sync.SQLite
         }
         public void CreateForeignKeyConstraints()
         {
-            if (this.tableDescription.ChildRelations == null)
-                return;
+            return;
 
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            try
-            {
-                if (!alreadyOpened)
-                    connection.Open();
-
-                foreach (DmRelation constraint in this.tableDescription.ChildRelations)
-                {
-
-                    using (var command = BuildForeignKeyConstraintsCommand(constraint))
-                    {
-                        command.Connection = connection;
-
-                        if (transaction != null)
-                            command.Transaction = transaction;
-
-                        command.ExecuteNonQuery();
-                    }
-                }
-
-            }
-            catch (Exception ex)
-            {
-                Logger.Current.Error($"Error during CreateForeignKeyConstraints : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-            }
+           
 
         }
         public string CreateForeignKeyConstraintsScriptText()
         {
-            if (this.tableDescription.ChildRelations == null)
-                return null;
-
-            StringBuilder stringBuilder = new StringBuilder();
-            foreach (DmRelation constraint in this.tableDescription.ChildRelations)
-            {
-                var constraintName = $"Create Constraint {constraint.RelationName} between parent {constraint.ParentTable.TableName} and child {constraint.ChildTable.TableName}";
-                var constraintScript = BuildForeignKeyConstraintsCommand(constraint).CommandText;
-                stringBuilder.Append(SQLiteBuilder.WrapScriptTextWithComments(constraintScript, constraintName));
-                stringBuilder.AppendLine();
-            }
-            return stringBuilder.ToString();
+            return string.Empty;
         }
 
 
@@ -190,6 +145,34 @@ namespace Dotmim.Sync.SQLite
                     stringBuilder.Append(", ");
             }
             stringBuilder.Append(")");
+
+            // Constraints
+            foreach (DmRelation constraint in this.tableDescription.ChildRelations)
+            {
+                var childTable = constraint.ChildTable;
+                var childTableName = new ObjectNameParser(childTable.TableName);
+                stringBuilder.AppendLine();
+                stringBuilder.Append($"\tFOREIGN KEY (");
+                empty = string.Empty;
+                foreach (var column in constraint.ParentColumns)
+                {
+                    var columnName = new ObjectNameParser(column.ColumnName);
+
+                    stringBuilder.Append($"{empty} {columnName.QuotedString}");
+                    empty = ", ";
+                }
+                stringBuilder.Append($") ");
+                stringBuilder.Append($"REFERENCES {childTableName.QuotedString}(");
+                empty = string.Empty;
+                foreach (var column in constraint.ChildColumns)
+                {
+                    var columnName = new ObjectNameParser(column.ColumnName);
+
+                    stringBuilder.Append($"{empty} {columnName.QuotedString}");
+                    empty = ", ";
+                }
+                stringBuilder.AppendLine(" )");
+            }
             stringBuilder.Append(")");
             return new SQLiteCommand(stringBuilder.ToString());
         }
