@@ -4,7 +4,7 @@ using System.Net;
 using System.Net.Http;
 using System.Text;
 
-namespace Dotmim.Sync.Proxy
+namespace Dotmim.Sync.Web
 {
     public class WebSyncException : HttpRequestException
     {

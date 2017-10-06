@@ -6,7 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Dotmim.Sync.Proxy
+namespace Dotmim.Sync.Web
 {
     /// <summary>
     /// Message send and receieved during http call

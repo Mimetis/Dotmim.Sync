@@ -1,5 +1,5 @@
 ﻿using Dotmim.Sync;
-using Dotmim.Sync.Proxy;
+using Dotmim.Sync.Web;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using System;

@@ -14,7 +14,7 @@ using Dotmim.Sync.Data.Surrogate;
 using Dotmim.Sync.Cache;
 using Microsoft.AspNetCore.Session;
 
-namespace Dotmim.Sync.Proxy
+namespace Dotmim.Sync.Web
 {
 
     /// <summary>

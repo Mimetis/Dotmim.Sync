@@ -123,12 +123,12 @@ namespace Dotmim.Sync.Batch
         }
 
  
-        internal static string GenerateNewDirectoryName()
+        public static string GenerateNewDirectoryName()
         {
             return String.Concat(DateTime.UtcNow.ToString("yyyy_MM_dd_ss"), Path.GetRandomFileName().Replace(".", ""));
         }
 
-        internal static string GenerateNewFileName(string batchIndex)
+        public static string GenerateNewFileName(string batchIndex)
         {
             if (batchIndex.Length == 1)
                 batchIndex = $"00{batchIndex}";
