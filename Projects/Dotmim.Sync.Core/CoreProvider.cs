@@ -415,7 +415,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get cached configuration (inmemory or session cache)
         /// </summary>
-        internal SyncConfiguration GetCacheConfiguration()
+        public SyncConfiguration GetCacheConfiguration()
         {
             var configurationSurrogate = this.CacheManager.GetValue<DmSetSurrogate>(SYNC_CONF);
             if (configurationSurrogate == null)

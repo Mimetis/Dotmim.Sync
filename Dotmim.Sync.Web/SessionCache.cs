@@ -1,11 +1,12 @@
 ﻿
+using Dotmim.Sync.Cache;
 using Dotmim.Sync.Serialization;
 using Microsoft.AspNetCore.Http;
 using Newtonsoft.Json;
 using System;
 using System.Linq;
 
-namespace Dotmim.Sync.Cache
+namespace Dotmim.Sync.Web
 {
     public class SessionCache : ICache
     {

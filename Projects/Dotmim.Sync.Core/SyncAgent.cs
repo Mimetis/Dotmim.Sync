@@ -2,7 +2,7 @@
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Filter;
 using Dotmim.Sync.Log;
-using Dotmim.Sync.Proxy;
+
 using Dotmim.Sync.Enumerations;
 using System;
 using System.Collections.Generic;
@@ -85,14 +85,15 @@ namespace Dotmim.Sync
             this.RemoteProvider = remoteProvider ?? throw new ArgumentNullException("ServerProvider");
             this.scopeName = scopeName ?? throw new ArgumentNullException("scopeName");
 
-            CoreProvider p = null;
-            if ((remoteProvider as WebProxyServerProvider) != null)
-                p = ((WebProxyServerProvider)RemoteProvider).LocalProvider;
-            else if ((remoteProvider as CoreProvider) != null)
-                p = (CoreProvider)remoteProvider;
+            // Todo : Check if can be server provider
+            //CoreProvider p = null;
+            //if ((remoteProvider as WebProxyServerProvider) != null)
+            //    p = ((WebProxyServerProvider)RemoteProvider).LocalProvider;
+            //else if ((remoteProvider as CoreProvider) != null)
+            //    p = (CoreProvider)remoteProvider;
 
-            if (p != null && !p.CanBeServerProvider)
-                throw new NotSupportedException();
+            //if (p != null && !p.CanBeServerProvider)
+            //    throw new NotSupportedException();
 
             this.LocalProvider.SyncProgress += ClientProvider_SyncProgress;
             this.RemoteProvider.ApplyChangedFailed += RemoteProvider_ApplyChangedFailed;

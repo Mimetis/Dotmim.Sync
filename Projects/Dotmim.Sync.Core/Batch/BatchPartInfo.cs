@@ -66,7 +66,7 @@ namespace Dotmim.Sync.Batch
         public DmSet Set { get; set; }
 
 
-        internal BatchPartInfo()
+        public BatchPartInfo()
         {
         }
 

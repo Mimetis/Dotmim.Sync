@@ -91,7 +91,7 @@ namespace Dotmim.Sync
         }
 
 
-        internal SyncConfiguration Clone()
+        public SyncConfiguration Clone()
         {
             SyncConfiguration syncConfiguration = new SyncConfiguration();
             syncConfiguration.BatchDirectory = this.BatchDirectory;

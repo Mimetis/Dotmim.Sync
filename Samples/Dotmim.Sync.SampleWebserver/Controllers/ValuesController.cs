@@ -1,4 +1,4 @@
-﻿using Dotmim.Sync.Proxy;
+﻿using Dotmim.Sync.Web;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Generic;

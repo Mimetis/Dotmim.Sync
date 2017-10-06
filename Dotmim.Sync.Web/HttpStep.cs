@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Dotmim.Sync.Proxy
+namespace Dotmim.Sync.Web
 {
     /// <summary>
     /// Http steps involved during a sync beetween a proxy client and proxy server

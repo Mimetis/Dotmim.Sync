@@ -11,7 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 
-namespace Dotmim.Sync.Proxy
+namespace Dotmim.Sync.Web
 {
     /// <summary>
     /// Object in charge to send requests
