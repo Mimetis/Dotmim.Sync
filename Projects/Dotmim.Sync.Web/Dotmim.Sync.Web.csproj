@@ -10,7 +10,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Projects\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" />
+    <ProjectReference Include="..\..\Projects\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" />
   </ItemGroup>
 
 </Project>

@@ -21,7 +21,7 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\Dotmim.Sync.Web\Dotmim.Sync.Web.csproj" />
+    <ProjectReference Include="..\..\Projects\Dotmim.Sync.Web\Dotmim.Sync.Web.csproj" />
     <ProjectReference Include="..\..\Projects\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" />
     <ProjectReference Include="..\..\Projects\Dotmim.Sync.MySql\Dotmim.Sync.MySql.csproj" />
     <ProjectReference Include="..\..\Projects\Dotmim.Sync.Sqlite\Dotmim.Sync.Sqlite.csproj" />
