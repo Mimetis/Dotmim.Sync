@@ -23,7 +23,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dotmim.Sync.SampleFx46Conso
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dotmim.Sync.PostgreSql", "Projects\Dotmim.Sync.PostgreSql\Dotmim.Sync.PostgreSql.csproj", "{696B4911-2EA7-4D16-ABCD-545B84AAF0C3}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dotmim.Sync.Web", "Dotmim.Sync.Web\Dotmim.Sync.Web.csproj", "{62CE89E1-1869-4521-9754-5C11F1E2C1FE}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dotmim.Sync.Web", "Projects\Dotmim.Sync.Web\Dotmim.Sync.Web.csproj", "{62CE89E1-1869-4521-9754-5C11F1E2C1FE}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
