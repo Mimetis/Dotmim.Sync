@@ -204,6 +204,10 @@ namespace Dotmim.Sync.SqlServer.Builders
                 }
                 var nullString = column.AllowDBNull ? "NULL" : "NOT NULL";
 
+                // if we have a computed column, we should allow null
+                if (column.ReadOnly)
+                    nullString = "NULL";
+
                 stringBuilder.AppendLine($"\t{empty}{columnName.QuotedString} {columnType} {identity} {nullString}");
                 empty = ",";
             }

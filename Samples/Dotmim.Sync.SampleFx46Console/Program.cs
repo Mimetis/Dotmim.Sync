@@ -25,89 +25,20 @@ namespace Dotmim.Sync.SampleFx46Console
             SyncAdventureWorks().Wait();
         }
 
-        //private static async Task TestMySqlTableBuilder()
-        //{
-        //    var serverConfig = ConfigurationManager.ConnectionStrings["MySqlServerConnectionString"].ConnectionString;
-
-
-        //    // Generate the DmSet schema
-        //    var set = new DmSet();
-        //    DmTable clientsTable = new DmTable("Clients");
-        //    DmTable productsTable = new DmTable("Products");
-
-        //    // orders matters !!
-        //    set.Tables.Add(clientsTable);
-        //    set.Tables.Add(productsTable);
-
-        //    DmColumn id = new DmColumn<Int32>("Id");
-        //    id.AllowDBNull = false;
-        //    id.AutoIncrement = true;
-        //    productsTable.Columns.Add(id);
-
-        //    DmColumn fkClientId = new DmColumn<Guid>("clientId");
-        //    fkClientId.AllowDBNull = true;
-        //    productsTable.Columns.Add(fkClientId);
-
-        //    DmColumn name = new DmColumn<string>("name");
-        //    name.AllowDBNull = false;
-        //    name.DbType = DbType.StringFixedLength;
-        //    name.MaxLength = 150;
-        //    productsTable.Columns.Add(name);
-
-        //    DmColumn salary = new DmColumn<Decimal>("salary");
-        //    salary.AllowDBNull = false;
-        //    salary.DbType = DbType.VarNumeric;
-        //    salary.Precision = 6;
-        //    salary.Scale = 2;
-        //    productsTable.Columns.Add(salary);
-
-        //    productsTable.PrimaryKey = new DmKey(new DmColumn[] { id, name, salary });
-
-        //    DmColumn clientId = new DmColumn<Guid>("Id");
-        //    clientId.AllowDBNull = false;
-        //    clientsTable.Columns.Add(clientId);
-
-        //    DmColumn clientName = new DmColumn<string>("Name");
-        //    clientsTable.Columns.Add(clientName);
-
-        //    clientsTable.PrimaryKey = new DmKey(clientId);
-
-        //    // ForeignKey
-        //    DmRelation fkClientRelation = new DmRelation("FK_Products_Clients", clientId, fkClientId);
-        //    productsTable.AddForeignKey(fkClientRelation);
-
-        //    var provider = new MySqlSyncProvider(serverConfig);
-
-        //    using (var connection = provider.CreateConnection())
-        //    {
-        //        var options = DbBuilderOption.CreateOrUseExistingSchema;
-        //        var builderClients = provider.GetDatabaseBuilder(set.Tables["Clients"], options);
-        //        var builderProducts = provider.GetDatabaseBuilder(set.Tables["Products"], options);
-
-        //        var scopeBuilder = provider.GetScopeBuilder();
-
-        //        connection.Open();
-
-        //        var scriptClients = builderClients.Script(connection);
-        //        var scriptProducts = builderProducts.Script(connection);
-
-
-        //        connection.Close();
-        //    }
-
-
-        //}
-
         public static async Task SyncAdventureWorks()
         {
-
             // Get SQL Server connection string
-            var serverConfig = @"Data Source=(localdb)\MSSQLLocalDB; Initial Catalog=AdventureWorksLT2012;Integrated Security=true;";
-            //var clientConfig = @"Data Source=(localdb)\MSSQLLocalDB; Initial Catalog=AdvClientTest;Integrated Security=true;";
-            var clientConfig = @"advworks2012_2.sqlite";
-
+            var serverConfig = @"Data Source=(localdb)\MSSQLLocalDB; Initial Catalog=AdventureWorks;Integrated Security=true;";
             SqlSyncProvider serverProvider = new SqlSyncProvider(serverConfig);
-            SQLiteSyncProvider clientProvider = new SQLiteSyncProvider(clientConfig);
+
+            var clientConfig = @"Data Source=(localdb)\MSSQLLocalDB; Initial Catalog=AdvClientTest;Integrated Security=true;";
+            SqlSyncProvider clientProvider = new SqlSyncProvider(clientConfig);
+
+            //var clientConfig = @"advworks2012_2.sqlite";
+            //SQLiteSyncProvider clientProvider = new SQLiteSyncProvider(clientConfig);
+
+            //var clientConfig = "Server=127.0.0.1; Port=3306; Database=clientdb; Uid=root; Pwd=azerty31*;";
+            //MySqlSyncProvider clientProvider = new MySqlSyncProvider(clientConfig);
 
             // With a config when we are in local mode (no proxy)
             var tables = new string[] {"ErrorLog", "ProductCategory",

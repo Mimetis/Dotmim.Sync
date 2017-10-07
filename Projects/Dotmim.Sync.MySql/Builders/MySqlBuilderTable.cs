@@ -40,11 +40,13 @@ namespace Dotmim.Sync.MySql
             var parentTable = foreignKey.ParentTable;
             var parentTableName = new ObjectNameParser(parentTable.TableName.ToLowerInvariant(), "`", "`"); ;
 
+            var relationName = foreignKey.RelationName.Length > 50 ? foreignKey.RelationName.Substring(0, 50) : foreignKey.RelationName;
+
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.Append("ALTER TABLE ");
             stringBuilder.AppendLine(parentTableName.QuotedString);
             stringBuilder.Append("ADD CONSTRAINT ");
-            stringBuilder.AppendLine(foreignKey.RelationName);
+            stringBuilder.AppendLine(relationName);
             stringBuilder.Append("FOREIGN KEY (");
             string empty = string.Empty;
             foreach (var parentdColumn in foreignKey.ParentColumns)
@@ -162,20 +164,38 @@ namespace Dotmim.Sync.MySql
                 }
                 var nullString = column.AllowDBNull ? "NULL" : "NOT NULL";
 
+                // if we have a readonly column, we may have a computed one, so we need to allow null
+                if (column.ReadOnly)
+                    nullString = "NULL";
+
                 stringBuilder.AppendLine($"\t{empty}{columnName.QuotedString} {columnType} {identity} {nullString}");
                 empty = ",";
             }
             stringBuilder.Append("\t,PRIMARY KEY (");
-            for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
+
+            int i = 0;
+            // It seems we need to specify the increment column in first place
+            foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns.OrderByDescending(pk => pk.AutoIncrement))
             {
-                DmColumn pkColumn = this.tableDescription.PrimaryKey.Columns[i];
                 var quotedColumnName = new ObjectNameParser(pkColumn.ColumnName.ToLowerInvariant(), "`", "`").QuotedObjectName;
 
                 stringBuilder.Append(quotedColumnName);
 
                 if (i < this.tableDescription.PrimaryKey.Columns.Length - 1)
                     stringBuilder.Append(", ");
+                i++;
             }
+
+            //for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
+            //{
+            //    DmColumn pkColumn = this.tableDescription.PrimaryKey.Columns[i];
+            //    var quotedColumnName = new ObjectNameParser(pkColumn.ColumnName.ToLowerInvariant(), "`", "`").QuotedObjectName;
+
+            //    stringBuilder.Append(quotedColumnName);
+
+            //    if (i < this.tableDescription.PrimaryKey.Columns.Length - 1)
+            //        stringBuilder.Append(", ");
+            //}
             stringBuilder.Append(")");
             stringBuilder.Append(")");
             return new MySqlCommand(stringBuilder.ToString());

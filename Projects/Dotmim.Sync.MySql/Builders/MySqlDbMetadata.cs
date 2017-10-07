@@ -67,7 +67,7 @@ namespace Dotmim.Sync.MySql.Builders
                 case DbType.AnsiStringFixedLength:
                     return MySqlDbType.LongText;
                 case DbType.Binary:
-                    return MySqlDbType.VarBinary;
+                    return MySqlDbType.Blob;
                 case DbType.Boolean:
                     return MySqlDbType.Bit;
                 case DbType.Byte:
@@ -93,7 +93,7 @@ namespace Dotmim.Sync.MySql.Builders
                 case DbType.Int64:
                     return MySqlDbType.Int64;
                 case DbType.Object:
-                    return MySqlDbType.VarBinary;
+                    return MySqlDbType.Blob;
                 case DbType.SByte:
                     return MySqlDbType.Byte;
                 case DbType.Single:
@@ -177,8 +177,11 @@ namespace Dotmim.Sync.MySql.Builders
                 precision = 10;
                 scale = 0;
             }
-            if (!SupportScale(typeName) || scale == 0)
+            if (SupportScale(typeName) && scale == 0)
                 return String.Format("({0})", precision);
+
+            if (!SupportScale(typeName))
+                return string.Empty;
 
             return String.Format("({0},{1})", precision, scale);
         }
@@ -217,8 +220,11 @@ namespace Dotmim.Sync.MySql.Builders
                 precision = 10;
                 scale = 0;
             }
-            if (!SupportScale(typeName) || scale == 0)
+            if (SupportScale(typeName) && scale == 0)
                 return String.Format("({0})", precision);
+
+            if (!SupportScale(typeName))
+                return string.Empty;
 
             return String.Format("({0},{1})", precision, scale);
         }
@@ -229,7 +235,7 @@ namespace Dotmim.Sync.MySql.Builders
             switch (dbType)
             {
                 case DbType.Binary:
-                    mySqlType = "BINARY";
+                    mySqlType = "BLOB";
                     break;
                 case DbType.Boolean:
                 case DbType.Byte:
@@ -355,9 +361,9 @@ namespace Dotmim.Sync.MySql.Builders
                 case MySqlDbType.Blob:
                     return "BLOB";
                 case MySqlDbType.VarBinary:
-                    return "VARBINARY";
+                    return "BLOB";
                 case MySqlDbType.Binary:
-                    return "BINARY";
+                    return "BLOB";
                 case MySqlDbType.Geometry:
                     return "GEOMETRY";
             }
