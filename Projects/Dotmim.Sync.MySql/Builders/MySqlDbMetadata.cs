@@ -376,6 +376,14 @@ namespace Dotmim.Sync.MySql.Builders
             switch (lowerType)
             {
                 case "int":
+                case "int16":
+                case "int24":
+                case "int32":
+                case "int64":
+                case "uint16":
+                case "uint24":
+                case "uint32":
+                case "uint64":
                 case "integer":
                 case "numeric":
                 case "decimal":
@@ -418,8 +426,17 @@ namespace Dotmim.Sync.MySql.Builders
             switch (columnDefinition.TypeName.ToLowerInvariant())
             {
                 case "int":
+                case "int16":
+                case "int24":
+                case "int32":
+                case "int64":
+                case "uint16":
+                case "uint24":
+                case "uint32":
+                case "uint64":
                 case "bit":
                 case "integer":
+                case "datetime":
                 case "numeric":
                 case "decimal":
                 case "dec":
@@ -476,6 +493,20 @@ namespace Dotmim.Sync.MySql.Builders
                 case "integer":
                 case "mediumint":
                     return isUnsigned ? DbType.UInt32 : DbType.Int32;
+                case "int16":
+                    return DbType.Int16;
+                case "int24":
+                case "int32":
+                    return DbType.Int32;
+                case "int64":
+                    return DbType.Int64;
+                case "uint16":
+                    return DbType.UInt16;
+                case "uint24":
+                case "uint32":
+                    return DbType.UInt32;
+                case "uint64":
+                    return DbType.UInt64;
                 case "bit":
                     return DbType.Boolean;
                 case "numeric":
@@ -507,6 +538,11 @@ namespace Dotmim.Sync.MySql.Builders
                 case "text":
                 case "longtext":
                     return DbType.String;
+                case "date":
+                    return DbType.Date;
+                case "datetime":
+                case "newdate":
+                    return DbType.DateTime;
                 case "longblob":
                 case "tinyblob":
                 case "mediumblob":
@@ -579,6 +615,22 @@ namespace Dotmim.Sync.MySql.Builders
                     return MySqlDbType.UInt64;
                 case "BIGINT":
                     return isUnsigned ? MySqlDbType.UInt64 : MySqlDbType.Int64;
+                case "UINT16":
+                    return MySqlDbType.UInt16;
+                case "UINT24":
+                    return MySqlDbType.UInt24;
+                case "UINT32":
+                    return MySqlDbType.UInt32;
+                case "UINT64":
+                    return MySqlDbType.UInt64;
+                case "INT16":
+                    return MySqlDbType.Int16;
+                case "INT24":
+                    return MySqlDbType.Int24;
+                case "INT32":
+                    return MySqlDbType.Int32;
+                case "INT64":
+                    return MySqlDbType.Int64;
                 case "FLOAT":
                     return MySqlDbType.Float;
                 case "DOUBLE":

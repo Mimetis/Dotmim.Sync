@@ -290,12 +290,20 @@ namespace Dotmim.Sync.SqlServer.Manager
             switch (dbType)
             {
                 case DbType.AnsiString:
-                case DbType.String:
                     if (maxLength > 0)
                         return $"({maxLength})";
                     else
                         return $"(MAX)";
+                case DbType.String:
+                    if (maxLength > 0)
+                        return $"({Math.Min(maxLength, 4000)})";
+                    else
+                        return $"(MAX)";
                 case DbType.AnsiStringFixedLength:
+                    if (maxLength > 0)
+                        return $"({Math.Min(maxLength, 4000)})";
+                    else
+                        return string.Empty;
                 case DbType.StringFixedLength:
                 case DbType.Binary:
                     if (maxLength > 0)
@@ -326,6 +334,10 @@ namespace Dotmim.Sync.SqlServer.Manager
             switch (sqlDbType)
             {
                 case SqlDbType.NVarChar:
+                    if (maxLength > 0)
+                        return $"({Math.Min(maxLength, 4000)})";
+                    else
+                        return "(MAX)";
                 case SqlDbType.VarBinary:
                 case SqlDbType.VarChar:
                     if (maxLength > 0)
@@ -333,6 +345,10 @@ namespace Dotmim.Sync.SqlServer.Manager
                     else
                         return "(MAX)";
                 case SqlDbType.NChar:
+                    if (maxLength > 0)
+                        return $"({Math.Min(maxLength, 4000)})";
+                    else
+                        return string.Empty;
                 case SqlDbType.Char:
                 case SqlDbType.Binary:
                     if (maxLength > 0)
