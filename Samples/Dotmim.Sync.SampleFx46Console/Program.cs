@@ -3,6 +3,7 @@ using Dotmim.Sync.Data;
 using Dotmim.Sync.Data.Surrogate;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.MySql;
+using Dotmim.Sync.SQLite;
 //using Dotmim.Sync.MySql;
 using Dotmim.Sync.SqlServer;
 using Newtonsoft.Json;
@@ -21,7 +22,7 @@ namespace Dotmim.Sync.SampleFx46Console
     {
         static void Main(string[] args)
         {
-            TestMySqlSync().Wait();
+            SyncAdventureWorks().Wait();
         }
 
         //private static async Task TestMySqlTableBuilder()
@@ -96,6 +97,61 @@ namespace Dotmim.Sync.SampleFx46Console
 
 
         //}
+
+        public static async Task SyncAdventureWorks()
+        {
+
+            // Get SQL Server connection string
+            var serverConfig = @"Data Source=(localdb)\MSSQLLocalDB; Initial Catalog=AdventureWorksLT2012;Integrated Security=true;";
+            //var clientConfig = @"Data Source=(localdb)\MSSQLLocalDB; Initial Catalog=AdvClientTest;Integrated Security=true;";
+            var clientConfig = @"advworks2012_2.sqlite";
+
+            SqlSyncProvider serverProvider = new SqlSyncProvider(serverConfig);
+            SQLiteSyncProvider clientProvider = new SQLiteSyncProvider(clientConfig);
+
+            // With a config when we are in local mode (no proxy)
+            var tables = new string[] {"ErrorLog", "ProductCategory",
+                "ProductDescription", "ProductModel",
+                "Product", "ProductModelProductDescription",
+                "Address", "Customer", "CustomerAddress",
+                "SalesOrderHeader", "SalesOrderDetail" };
+
+            SyncConfiguration syncConfiguration = new SyncConfiguration();
+
+            SyncAgent agent = new SyncAgent(clientProvider, serverProvider, tables);
+
+            agent.SyncProgress += SyncProgress;
+            agent.ApplyChangedFailed += ApplyChangedFailed;
+
+            do
+            {
+                Console.Clear();
+                Console.WriteLine("Sync Start");
+                try
+                {
+                    CancellationTokenSource cts = new CancellationTokenSource();
+                    CancellationToken token = cts.Token;
+                    var s = await agent.SynchronizeAsync(token);
+
+                }
+                catch (SyncException e)
+                {
+                    Console.WriteLine(e.ToString());
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+                }
+
+
+                Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+            } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+            Console.WriteLine("End");
+
+        }
+
+
 
         private static async Task TestMySqlSync()
         {

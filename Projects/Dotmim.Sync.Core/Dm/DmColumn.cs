@@ -114,7 +114,7 @@ namespace Dotmim.Sync.Data
 
                 if (type == typeof(string))
                     return null;
-                
+
                 return this.IsValueType ? Activator.CreateInstance(type) : null;
             }
         }
@@ -236,7 +236,7 @@ namespace Dotmim.Sync.Data
             }
         }
 
-        internal static bool IsAutoIncrementType(Type dataType) => (dataType == typeof(int) || dataType == typeof(long) || dataType == typeof(short) || dataType == typeof(decimal));
+        internal static bool IsAutoIncrementType(Type dataType) => (dataType == typeof(byte) || dataType == typeof(int) || dataType == typeof(long) || dataType == typeof(short) || dataType == typeof(decimal));
 
         /// <summary>
         /// Change the ordinal and reorder
@@ -405,7 +405,7 @@ namespace Dotmim.Sync.Data
             seed1 += seed;
             dynamic step1 = default(T);
             step1 += step;
-            
+
             this.AutoIncrementSeed = seed1;
             this.AutoIncrementStep = step1;
         }
@@ -415,7 +415,7 @@ namespace Dotmim.Sync.Data
             var seed = Convert.ToInt32(AutoIncrementSeed);
 
             return (step, seed);
-            
+
         }
         public new T DefaultValue
         {
@@ -593,7 +593,7 @@ namespace Dotmim.Sync.Data
             clone.DefaultValue = DefaultValue;
             clone.ReadOnly = ReadOnly;
             clone.MaxLength = MaxLength;
-            
+
             clone.dbTypeAllowed = dbTypeAllowed;
             if (clone.dbTypeAllowed)
                 clone.DbType = DbType;
@@ -657,7 +657,7 @@ namespace Dotmim.Sync.Data
         }
         public override string ToString() => this.ColumnName;
 
-      
+
     }
 
     class AutoIncrement
@@ -696,12 +696,27 @@ namespace Dotmim.Sync.Data
             this.dataType = typeof(T);
             dynamic c = this.Step;
             if (c == 0)
-                this.Step = (dynamic)1;
+                this.Step = (T)Increment(this.Step);
 
             dynamic s = this.Seed;
             if (s == 0)
-                this.Seed = (dynamic)1;
+                this.Seed = (T)Increment(this.Seed);
 
+        }
+        private Object Increment(object val)
+        {
+            if (val.GetType() == typeof(Byte))
+                return (byte)(Convert.ToByte(val) + 1);
+            if (val.GetType() == typeof(Int32))
+                return (Int32)(Convert.ToInt32(val) + 1);
+            if (val.GetType() == typeof(Int16))
+                return (Int16)(Convert.ToInt16(val) + 1);
+            if (val.GetType() == typeof(Int64))
+                return (Int64)(Convert.ToInt64(val) + 1);
+            if (val.GetType() == typeof(Decimal))
+                return (Decimal)(Convert.ToDecimal(val) + 1);
+
+            throw new Exception($"Type {val.GetType()} is not supported");
         }
 
         internal override Type DataType

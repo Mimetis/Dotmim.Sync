@@ -61,5 +61,10 @@ namespace Dotmim.Sync.Manager
         /// </summary>
         public bool IsUnicode { get; set; }
 
+        /// <summary>
+        /// Gets or sets if the column is a computed column
+        /// </summary>
+        public bool IsCompute { get; set; }
+
     }
 }

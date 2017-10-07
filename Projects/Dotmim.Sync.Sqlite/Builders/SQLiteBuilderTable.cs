@@ -69,7 +69,7 @@ namespace Dotmim.Sync.SQLite
         {
             return;
 
-           
+
 
         }
         public string CreateForeignKeyConstraintsScriptText()
@@ -126,9 +126,18 @@ namespace Dotmim.Sync.SQLite
                     if (s.Seed > 1 || s.Step > 1)
                         throw new NotSupportedException("can't establish a seed / step in SQLite autoinc value");
 
-                    identity = $"AUTOINCREMENT";
+                    //identity = $"AUTOINCREMENT";
+                    // Actually no need to set AutoIncrement, if we insert a null value
+                    identity = "";
                 }
                 var nullString = column.AllowDBNull ? "NULL" : "NOT NULL";
+
+                // if auto inc, don't specify NOT NULL option, since we need to insert a null value to make it auto inc.
+                if (column.AutoIncrement)
+                    nullString = "";
+                // if it's a readonly column, it could be a computed column, so we need to allow null
+                else if (column.ReadOnly)
+                    nullString = "NULL";
 
                 stringBuilder.AppendLine($"\t{empty}{columnName.QuotedString} {columnType} {identity} {nullString} {casesensitive}");
                 empty = ",";

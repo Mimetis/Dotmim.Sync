@@ -561,7 +561,8 @@ namespace Dotmim.Sync.SqlServer.Manager
 
         public override bool ValidateIsReadonly(DbColumnDefinition columnDefinition)
         {
-            return columnDefinition.TypeName.ToLowerInvariant() == "timestamp";
+            return columnDefinition.TypeName.ToLowerInvariant() == "timestamp" || 
+                   columnDefinition.IsCompute;
         }
 
         public override byte ValidatePrecision(DbColumnDefinition columnDefinition)

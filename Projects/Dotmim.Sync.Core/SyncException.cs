@@ -104,6 +104,7 @@ namespace Dotmim.Sync
     public enum SyncExceptionType
     {
         DataStore,
+        NoPrimaryKeys,
         Conflict,
         SyncInProgress,
         OperationCanceled,

@@ -5,6 +5,8 @@
     <Authors>Sébastien Pertus</Authors>
     <Company>Microsoft</Company>
     <RootNamespace>Dotmim.Sync</RootNamespace>
+    <Description>Dotmim Sync core assembly. Manage a sync process beetween two relational databases provider.
+Can't be used alone. Choose a server and a client provider such as Dotmim.Sync.SqlServerProvider or Dotmim.Sync.SqliteProvider</Description>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.CSharp" Version="4.4.0" />
