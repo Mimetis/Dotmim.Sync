@@ -20,7 +20,7 @@ namespace Dotmim.Sync.SqlServer
         public static DmTable ColumnsForTable(SqlConnection connection, SqlTransaction transaction, string tableName)
         {
 
-            var commandColumn = $"Select col.name as name, col.column_id, typ.name as [type], col.max_length, col.precision, col.scale, col.is_nullable, col.is_identity from sys.columns as col " +
+            var commandColumn = $"Select col.name as name, col.column_id, typ.name as [type], col.max_length, col.precision, col.scale, col.is_nullable, col.is_computed, col.is_identity from sys.columns as col " +
                                 $"Inner join sys.tables as tbl on tbl.object_id = col.object_id " +
                                 $"Inner Join sys.systypes typ on typ.xusertype = col.system_type_id " +
                                 $"Where tbl.name = @tableName";

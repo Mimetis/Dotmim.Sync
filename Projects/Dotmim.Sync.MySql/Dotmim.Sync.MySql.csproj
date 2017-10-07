@@ -2,6 +2,9 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
+    <Authors>Sébastien Pertus</Authors>
+    <Company>Microsoft</Company>
+    <Description>MySql Provi</Description>
   </PropertyGroup>
 
   <ItemGroup>

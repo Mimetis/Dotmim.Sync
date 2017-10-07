@@ -65,6 +65,7 @@ namespace Dotmim.Sync.SqlServer.Manager
                 dbColumn.Scale = (byte)c["scale"];
                 dbColumn.IsNullable = (bool)c["is_nullable"];
                 dbColumn.IsIdentity = (bool)c["is_identity"];
+                dbColumn.IsCompute = (bool)c["is_computed"];
 
                 switch (dbColumn.TypeName.ToLowerInvariant())
                 {

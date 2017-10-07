@@ -228,7 +228,7 @@ namespace Dotmim.Sync
             var dmTableKeys = dbManagerTable.GetTablePrimaryKeys();
 
             if (dmTableKeys == null || dmTableKeys.Count == 0)
-                throw new Exception("No Primary Keys in this table, it' can't happen :) ");
+                throw new SyncException($"No Primary Keys in table {tableName}, Can't make a synchronization with a table without primary keys.", SyncStage.EnsureDatabase, SyncExceptionType.NoPrimaryKeys);
 
             DmColumn[] columnsForKey = new DmColumn[dmTableKeys.Count];
 
@@ -238,7 +238,7 @@ namespace Dotmim.Sync
 
                 var columnKey = table.Columns.FirstOrDefault(c => String.Equals(c.ColumnName, rowColumn, StringComparison.InvariantCultureIgnoreCase));
 
-                columnsForKey[i] = columnKey ?? throw new Exception("Primary key found is not present in the columns list");
+                columnsForKey[i] = columnKey ?? throw new SyncException("Primary key found is not present in the columns list", SyncStage.EnsureDatabase, SyncExceptionType.NoPrimaryKeys);
             }
 
             // Set the primary Key
