@@ -100,7 +100,7 @@ namespace Dotmim.Sync.MySql
             var lstKeys = new List<String>();
 
             foreach (var dmKey in dmTableKeys.Rows)
-                lstKeys.Add((string)dmKey["columnName"]);
+                lstKeys.Add((string)dmKey["COLUMN_NAME"]);
 
             return lstKeys;
 

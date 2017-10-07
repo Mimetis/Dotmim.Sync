@@ -62,7 +62,8 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             if (sqlDbType == SqlDbType.VarChar || sqlDbType == SqlDbType.NVarChar)
             {
-                maxLength = Convert.ToInt32(column.MaxLength) <= 0 ? ((sqlDbType == SqlDbType.NVarChar) ? 4000 : 8000) : Convert.ToInt32(column.MaxLength);
+                maxLength = Convert.ToInt32(column.MaxLength) <= 0 ? 8000 : Convert.ToInt32(column.MaxLength);
+                maxLength = sqlDbType == SqlDbType.NVarChar ? Math.Min(maxLength, 4000) :Math.Min(maxLength, 8000);
                 return new SqlMetaData(column.ColumnName, sqlDbType, maxLength);
             }
 
@@ -124,6 +125,95 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                     dynamic defaultValue = applyTable.Columns[i].DefaultValue;
                     dynamic rowValue = dmRow[i];
+
+                    var sqlMetadataType = metadatas[i].SqlDbType;
+                    var columnType = applyTable.Columns[i].DataType;
+                    if (rowValue != null)
+                    {
+                        switch (sqlMetadataType)
+                        {
+                            case SqlDbType.BigInt:
+                                if (columnType != typeof(long))
+                                    rowValue = Convert.ToInt64(rowValue);
+                                break;
+                            case SqlDbType.Binary:
+                                break;
+                            case SqlDbType.Bit:
+                                if (columnType != typeof(bool))
+                                    rowValue = Convert.ToBoolean(rowValue);
+                                break;
+                            case SqlDbType.Char:
+                                if (columnType != typeof(char))
+                                    rowValue = Convert.ToChar(rowValue);
+                                break;
+                            case SqlDbType.Date:
+                            case SqlDbType.DateTime:
+                            case SqlDbType.DateTime2:
+                            case SqlDbType.DateTimeOffset:
+                            case SqlDbType.SmallDateTime:
+                                if (columnType != typeof(DateTime))
+                                    rowValue = Convert.ToDateTime(rowValue);
+                                break;
+                            case SqlDbType.Decimal:
+                                if (columnType != typeof(Decimal))
+                                    rowValue = Convert.ToDecimal(rowValue);
+                                break;
+                            case SqlDbType.Float:
+                                if (columnType != typeof(float))
+                                    rowValue = Convert.ToSingle(rowValue);
+                                break;
+                            case SqlDbType.Image:
+                                if (columnType != typeof(Byte[]))
+                                    rowValue = (Byte[])rowValue;
+                                break;
+                            case SqlDbType.Int:
+                                if (columnType != typeof(Int32))
+                                    rowValue = Convert.ToInt32(rowValue);
+                                break;
+                            case SqlDbType.Money:
+                            case SqlDbType.SmallMoney:
+                                if (columnType != typeof(Decimal))
+                                    rowValue = Convert.ToDecimal(rowValue);
+                                break;
+                            case SqlDbType.NChar:
+                            case SqlDbType.NText:
+                            case SqlDbType.VarChar:
+                            case SqlDbType.Xml:
+                            case SqlDbType.NVarChar:
+                            case SqlDbType.Text:
+                                if (columnType != typeof(String))
+                                    rowValue = Convert.ToString(rowValue);
+                                break;
+                            case SqlDbType.Real:
+                                if (columnType != typeof(float))
+                                    rowValue = Convert.ToSingle(rowValue);
+                                break;
+                            case SqlDbType.SmallInt:
+                                if (columnType != typeof(Int16))
+                                    rowValue = Convert.ToInt16(rowValue);
+                                break;
+                            case SqlDbType.Time:
+                                if (columnType != typeof(TimeSpan))
+                                    rowValue = new TimeSpan(Convert.ToInt64(rowValue));
+                                break;
+                            case SqlDbType.Timestamp:
+                                break;
+                            case SqlDbType.TinyInt:
+                                if (columnType != typeof(Byte))
+                                    rowValue = Convert.ToByte(rowValue);
+                                break;
+                            case SqlDbType.Udt:
+                                break;
+                            case SqlDbType.UniqueIdentifier:
+                                if (columnType != typeof(Guid))
+                                    rowValue = new Guid(rowValue.ToString());
+                                break;
+                            case SqlDbType.VarBinary:
+                                break;
+                            case SqlDbType.Variant:
+                                break;
+                        }
+                    }
 
                     if (applyTable.Columns[i].AllowDBNull && rowValue == null)
                         rowValue = DBNull.Value;

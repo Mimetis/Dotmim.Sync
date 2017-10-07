@@ -22,7 +22,53 @@ namespace Dotmim.Sync.SampleFx46Console
     {
         static void Main(string[] args)
         {
-            SyncAdventureWorks().Wait();
+            SyncWordPress().Wait();
+        }
+
+        public static async Task SyncWordPress()
+        {
+            var serverConfig = "Server=tlsemysql.mysql.database.azure.com; Port=3306; Database=mysqldatabase165; Uid=spertus@tlsemysql; Pwd=azerty31$; SslMode=Preferred;";
+            MySqlSyncProvider serverProvider = new MySqlSyncProvider(serverConfig);
+
+            var clientConfig = @"Data Source=(localdb)\MSSQLLocalDB; Initial Catalog=WordPress;Integrated Security=true;";
+            SqlSyncProvider clientProvider = new SqlSyncProvider(clientConfig);
+
+            // With a config when we are in local mode (no proxy)
+            var tables = new string[] { "wp_users", "wp_usermeta", "wp_terms", "wp_termmeta", "wp_term_taxonomy",
+                                        "wp_term_relationships", "wp_posts", "wp_postmeta", "wp_options", "wp_links",
+                                        "wp_comments", "wp_commentmeta"};
+
+            SyncAgent agent = new SyncAgent(clientProvider, serverProvider, tables);
+
+            agent.SyncProgress += SyncProgress;
+            agent.ApplyChangedFailed += ApplyChangedFailed;
+
+            do
+            {
+                Console.Clear();
+                Console.WriteLine("Sync Start");
+                try
+                {
+                    CancellationTokenSource cts = new CancellationTokenSource();
+                    CancellationToken token = cts.Token;
+                    var s = await agent.SynchronizeAsync(token);
+
+                }
+                catch (SyncException e)
+                {
+                    Console.WriteLine(e.ToString());
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+                }
+
+
+                Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+            } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+            Console.WriteLine("End");
+
         }
 
         public static async Task SyncAdventureWorks()
@@ -46,8 +92,6 @@ namespace Dotmim.Sync.SampleFx46Console
                 "Product", "ProductModelProductDescription",
                 "Address", "Customer", "CustomerAddress",
                 "SalesOrderHeader", "SalesOrderDetail" };
-
-            SyncConfiguration syncConfiguration = new SyncConfiguration();
 
             SyncAgent agent = new SyncAgent(clientProvider, serverProvider, tables);
 
