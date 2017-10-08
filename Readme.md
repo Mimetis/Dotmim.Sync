@@ -25,7 +25,7 @@ Here are the nuget packages :
 * **DotMim.Sync.MySql** : [https://www.nuget.org/packages/Dotmim.Sync.MySql/]() : This package is the MySql package. Use it if you want to synchronize MySql databases.
 * **DotMim.Sync.Web** : [https://www.nuget.org/packages/Dotmim.Sync.Web/]() : This package allow you to make a sync process using a web server beetween your server and your clients. Use this package with the corresponding Server provider (SQL, MySQL, SQLite).
 
-## TL;DR I Want to test !
+## TL;DR: I Want to test !
 
 If you don't have any databases ready for testing, use this one : [AdventureWorks leightweight script for SQL Server](/Assets/CreateAdventureWorks.sql)  
 
@@ -33,7 +33,11 @@ The script is ready to execute in SQL Server. It contains :
 * An leightweight AdvenureWorks databases, acting as the Server database (called **AdventureWorks**)
 * An empty database, acting as the Client database (called **Client**)
 
-Here a sample on how to make a simple sync : 
+Here are the simpliest steps to be able to make a simple sync : 
+
+* Create a **.Net Core 2.0** or **.Net Fx 4.6** console application.  
+* Add the nugets packages [DotMim.Sync.SqlServer](https://www.nuget.org/packages/Dotmim.Sync.SqlServer/) and [DotMim.Sync.Sqlite](https://www.nuget.org/packages/Dotmim.Sync.Sqlite/)  
+* Add this code :   
 
 ```
 // Sql Server provider, the master.
