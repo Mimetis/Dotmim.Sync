@@ -8,6 +8,7 @@
 Actually MySql Sync Provider requires ADO.NET Provider MySql.Data, which IS NOT .Net Standard 2.0 compatible.
 So you must use it on classic .NET Framework ( &gt; 4.5)</Description>
     <Version>0.1.0</Version>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <ItemGroup>
