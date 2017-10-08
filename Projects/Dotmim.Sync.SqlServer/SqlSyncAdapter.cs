@@ -63,7 +63,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             if (sqlDbType == SqlDbType.VarChar || sqlDbType == SqlDbType.NVarChar)
             {
                 maxLength = Convert.ToInt32(column.MaxLength) <= 0 ? 8000 : Convert.ToInt32(column.MaxLength);
-                maxLength = sqlDbType == SqlDbType.NVarChar ? Math.Min(maxLength, 4000) :Math.Min(maxLength, 8000);
+                maxLength = sqlDbType == SqlDbType.NVarChar ? Math.Min(maxLength, 4000) : Math.Min(maxLength, 8000);
                 return new SqlMetaData(column.ColumnName, sqlDbType, maxLength);
             }
 
@@ -111,120 +111,170 @@ namespace Dotmim.Sync.SqlServer.Builders
                 SqlMetaData metadata = GetSqlMetadaFromType(column);
                 metadatas[i] = metadata;
             }
-
-            foreach (var dmRow in applyTable.Rows)
+            try
             {
-                SqlDataRecord record = new SqlDataRecord(metadatas);
-
-                int sqlMetadataIndex = 0;
-                for (int i = 0; i < dmRow.ItemArray.Length; i++)
+                foreach (var dmRow in applyTable.Rows)
                 {
-                    // check if it's readonly
-                    if (applyTable.Columns[i].ReadOnly)
-                        continue;
+                    SqlDataRecord record = new SqlDataRecord(metadatas);
 
-                    dynamic defaultValue = applyTable.Columns[i].DefaultValue;
-                    dynamic rowValue = dmRow[i];
-
-                    var sqlMetadataType = metadatas[i].SqlDbType;
-                    var columnType = applyTable.Columns[i].DataType;
-                    if (rowValue != null)
+                    int sqlMetadataIndex = 0;
+                    for (int i = 0; i < dmRow.ItemArray.Length; i++)
                     {
-                        switch (sqlMetadataType)
+                        // check if it's readonly
+                        if (applyTable.Columns[i].ReadOnly)
+                            continue;
+
+                        // Get the default value
+                        // Since we have the readonly values in ItemArray, get the value from original column
+                        dynamic defaultValue = applyTable.Columns[i].DefaultValue;
+                        dynamic rowValue = dmRow[i];
+                        var columnType = applyTable.Columns[i].DataType;
+
+                        // metadatas don't have readonly values, so get from sqlMetadataIndex
+                        var sqlMetadataType = metadatas[sqlMetadataIndex].SqlDbType;
+                        if (rowValue != null)
                         {
-                            case SqlDbType.BigInt:
-                                if (columnType != typeof(long))
-                                    rowValue = Convert.ToInt64(rowValue);
-                                break;
-                            case SqlDbType.Binary:
-                                break;
-                            case SqlDbType.Bit:
-                                if (columnType != typeof(bool))
-                                    rowValue = Convert.ToBoolean(rowValue);
-                                break;
-                            case SqlDbType.Char:
-                                if (columnType != typeof(char))
-                                    rowValue = Convert.ToChar(rowValue);
-                                break;
-                            case SqlDbType.Date:
-                            case SqlDbType.DateTime:
-                            case SqlDbType.DateTime2:
-                            case SqlDbType.DateTimeOffset:
-                            case SqlDbType.SmallDateTime:
-                                if (columnType != typeof(DateTime))
-                                    rowValue = Convert.ToDateTime(rowValue);
-                                break;
-                            case SqlDbType.Decimal:
-                                if (columnType != typeof(Decimal))
-                                    rowValue = Convert.ToDecimal(rowValue);
-                                break;
-                            case SqlDbType.Float:
-                                if (columnType != typeof(float))
-                                    rowValue = Convert.ToSingle(rowValue);
-                                break;
-                            case SqlDbType.Image:
-                                if (columnType != typeof(Byte[]))
-                                    rowValue = (Byte[])rowValue;
-                                break;
-                            case SqlDbType.Int:
-                                if (columnType != typeof(Int32))
-                                    rowValue = Convert.ToInt32(rowValue);
-                                break;
-                            case SqlDbType.Money:
-                            case SqlDbType.SmallMoney:
-                                if (columnType != typeof(Decimal))
-                                    rowValue = Convert.ToDecimal(rowValue);
-                                break;
-                            case SqlDbType.NChar:
-                            case SqlDbType.NText:
-                            case SqlDbType.VarChar:
-                            case SqlDbType.Xml:
-                            case SqlDbType.NVarChar:
-                            case SqlDbType.Text:
-                                if (columnType != typeof(String))
-                                    rowValue = Convert.ToString(rowValue);
-                                break;
-                            case SqlDbType.Real:
-                                if (columnType != typeof(float))
-                                    rowValue = Convert.ToSingle(rowValue);
-                                break;
-                            case SqlDbType.SmallInt:
-                                if (columnType != typeof(Int16))
-                                    rowValue = Convert.ToInt16(rowValue);
-                                break;
-                            case SqlDbType.Time:
-                                if (columnType != typeof(TimeSpan))
-                                    rowValue = new TimeSpan(Convert.ToInt64(rowValue));
-                                break;
-                            case SqlDbType.Timestamp:
-                                break;
-                            case SqlDbType.TinyInt:
-                                if (columnType != typeof(Byte))
-                                    rowValue = Convert.ToByte(rowValue);
-                                break;
-                            case SqlDbType.Udt:
-                                break;
-                            case SqlDbType.UniqueIdentifier:
-                                if (columnType != typeof(Guid))
-                                    rowValue = new Guid(rowValue.ToString());
-                                break;
-                            case SqlDbType.VarBinary:
-                                break;
-                            case SqlDbType.Variant:
-                                break;
+                            switch (sqlMetadataType)
+                            {
+                                case SqlDbType.BigInt:
+                                    if (columnType != typeof(long))
+                                        if (Int64.TryParse(rowValue.ToString(), out Int64 v))
+                                            rowValue = v;
+                                        else
+                                            throw new SyncException($"Can't convert value {rowValue} to Int64", Enumerations.SyncStage.ApplyingChanges, SyncExceptionType.NotSupported);
+                                    break;
+                                case SqlDbType.Bit:
+                                    if (columnType != typeof(bool))
+                                        if (Boolean.TryParse(rowValue.ToString(), out Boolean v))
+                                            rowValue = v;
+                                        else
+                                            throw new SyncException($"Can't convert value {rowValue} to Boolean", Enumerations.SyncStage.ApplyingChanges, SyncExceptionType.NotSupported);
+                                    break;
+                                case SqlDbType.Date:
+                                case SqlDbType.DateTime:
+                                case SqlDbType.DateTime2:
+                                case SqlDbType.SmallDateTime:
+                                    if (columnType != typeof(DateTime))
+                                        if (DateTime.TryParse(rowValue.ToString(), out DateTime v))
+                                            rowValue = v;
+                                        else
+                                            throw new SyncException($"Can't convert value {rowValue} to DateTime", Enumerations.SyncStage.ApplyingChanges, SyncExceptionType.NotSupported);
+                                    break;
+                                case SqlDbType.DateTimeOffset:
+                                    if (columnType != typeof(DateTimeOffset))
+                                    {
+                                        if (DateTimeOffset.TryParse(rowValue.ToString(), out DateTimeOffset dt))
+                                            rowValue = dt;
+                                        else
+                                            throw new SyncException($"Can't convert value {rowValue} to DateTimeOffset", Enumerations.SyncStage.ApplyingChanges, SyncExceptionType.NotSupported);
+                                    }
+                                    break;
+                                case SqlDbType.Decimal:
+                                    if (columnType != typeof(Decimal))
+                                        if (Decimal.TryParse(rowValue.ToString(), out decimal v))
+                                            rowValue = v;
+                                        else
+                                            throw new SyncException($"Can't convert value {rowValue} to Decimal", Enumerations.SyncStage.ApplyingChanges, SyncExceptionType.NotSupported);
+                                    break;
+                                case SqlDbType.Float:
+                                    if (columnType != typeof(Double))
+                                        if (Double.TryParse(rowValue.ToString(), out Double v))
+                                            rowValue = v;
+                                        else
+                                            throw new SyncException($"Can't convert value {rowValue} to Double", Enumerations.SyncStage.ApplyingChanges, SyncExceptionType.NotSupported);
+                                    break;
+                                case SqlDbType.Real:
+                                    if (columnType != typeof(float))
+                                        if (float.TryParse(rowValue.ToString(), out float v))
+                                            rowValue = v;
+                                        else
+                                            throw new SyncException($"Can't convert value {rowValue} to Double", Enumerations.SyncStage.ApplyingChanges, SyncExceptionType.NotSupported);
+                                    break;
+                                case SqlDbType.Image:
+                                case SqlDbType.Binary:
+                                case SqlDbType.VarBinary:
+                                    if (columnType != typeof(Byte[]))
+                                        rowValue = BitConverter.GetBytes(rowValue);
+                                    break;
+                                case SqlDbType.Variant:
+                                    break;
+                                case SqlDbType.Int:
+                                    if (columnType != typeof(Int32))
+                                        if (Int32.TryParse(rowValue.ToString(), out int v))
+                                            rowValue = v;
+                                        else
+                                            throw new SyncException($"Can't convert value {rowValue} to Int32", Enumerations.SyncStage.ApplyingChanges, SyncExceptionType.NotSupported);
+                                    break;
+                                case SqlDbType.Money:
+                                case SqlDbType.SmallMoney:
+                                    if (columnType != typeof(Decimal))
+                                        if (Decimal.TryParse(rowValue.ToString(), out Decimal v))
+                                            rowValue = v;
+                                        else
+                                            throw new SyncException($"Can't convert value {rowValue} to Decimal", Enumerations.SyncStage.ApplyingChanges, SyncExceptionType.NotSupported);
+                                    break;
+                                case SqlDbType.NChar:
+                                case SqlDbType.NText:
+                                case SqlDbType.VarChar:
+                                case SqlDbType.Xml:
+                                case SqlDbType.NVarChar:
+                                case SqlDbType.Text:
+                                case SqlDbType.Char:
+                                    if (columnType != typeof(string))
+                                        rowValue = rowValue.ToString();
+                                    break;
+
+                                case SqlDbType.SmallInt:
+                                    if (columnType != typeof(Int16))
+                                        if (Int16.TryParse(rowValue.ToString(), out Int16 v))
+                                            rowValue = v;
+                                        else
+                                            throw new SyncException($"Can't convert value {rowValue} to Int16", Enumerations.SyncStage.ApplyingChanges, SyncExceptionType.NotSupported);
+                                    break;
+                                case SqlDbType.Time:
+                                    if (columnType != typeof(TimeSpan))
+                                        if (TimeSpan.TryParse(rowValue.ToString(), out TimeSpan v))
+                                            rowValue = v;
+                                        else
+                                            throw new SyncException($"Can't convert value {rowValue} to TimeSpan", Enumerations.SyncStage.ApplyingChanges, SyncExceptionType.NotSupported);
+                                    break;
+                                case SqlDbType.Timestamp:
+                                    break;
+                                case SqlDbType.TinyInt:
+                                    if (columnType != typeof(Byte))
+                                        if (Byte.TryParse(rowValue.ToString(), out byte v))
+                                            rowValue = v;
+                                        else
+                                            throw new SyncException($"Can't convert value {rowValue} to Byte", Enumerations.SyncStage.ApplyingChanges, SyncExceptionType.NotSupported);
+                                    break;
+                                case SqlDbType.Udt:
+                                    throw new SyncException($"Can't use UDT as SQL Type", Enumerations.SyncStage.ApplyingChanges, SyncExceptionType.NotSupported);
+                                case SqlDbType.UniqueIdentifier:
+                                    if (columnType != typeof(Guid))
+                                        if (Guid.TryParse(rowValue.ToString(), out Guid v))
+                                            rowValue = v;
+                                        else
+                                            throw new SyncException($"Can't convert value {rowValue} to Guid", Enumerations.SyncStage.ApplyingChanges, SyncExceptionType.NotSupported);
+                                    break;
+                            }
                         }
+
+                        if (applyTable.Columns[i].AllowDBNull && rowValue == null)
+                            rowValue = DBNull.Value;
+                        else if (rowValue == null)
+                            rowValue = defaultValue;
+
+                        record.SetValue(sqlMetadataIndex, rowValue);
+                        sqlMetadataIndex++;
                     }
-
-                    if (applyTable.Columns[i].AllowDBNull && rowValue == null)
-                        rowValue = DBNull.Value;
-                    else if (rowValue == null)
-                        rowValue = defaultValue;
-
-                    record.SetValue(sqlMetadataIndex, rowValue);
-                    sqlMetadataIndex++;
+                    records.Add(record);
                 }
-                records.Add(record);
             }
+            catch (Exception ex)
+            {
+                throw new SyncException($"Can't create a SqlRecord based on the rows we have: {ex.Message}", Enumerations.SyncStage.ApplyingChanges, SyncExceptionType.NotSupported);
+            }
+
 
             ((SqlParameterCollection)cmd.Parameters)["@changeTable"].TypeName = string.Empty;
             ((SqlParameterCollection)cmd.Parameters)["@changeTable"].Value = records;

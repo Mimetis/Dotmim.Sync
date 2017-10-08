@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
-    public interface IProvider
+    public interface IProvider 
     {
 
         /// <summary>
