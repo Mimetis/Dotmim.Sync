@@ -1,4 +1,4 @@
-## Warning : This is a work in progress !!!
+# Warning : This is a work in progress !!!
 
 If you want to contribute or test :  
 * Code is a work in progress, no available Nuget packages at this time. 
@@ -8,8 +8,60 @@ If you want to contribute or test :
 ![](Assets/VS2017.png)
 
 Go download a free version here : [Visual Studio 2017 Preview](https://www.visualstudio.com/vs/preview/)
+# TL;DR
 
-## Introduction
+**DotMim.Sync** is a straightforward SDK for syncing relational databases. It's **.Net Standard 2.0**, available and ready for **IOT**, **Xamarin**, **.NET**, and so on :)  
+
+It's based on a master slaves architecture :  
+* One provider, as the master, for the server side.
+* One or more provider(s) for the client(s) as slave(s).
+* One sync agent object `SyncAgent` to handle the sync process.
+
+Here are the nuget packages :
+
+* **DotMim.Sync.Core** : [https://www.nuget.org/packages/Dotmim.Sync.Core/]() : This package is used by all providers. No need to reference it (it will be added by the providers)
+* **DotMim.Sync.SqlServer** : [https://www.nuget.org/packages/Dotmim.Sync.SqlServer/]() : This package is the Sql Server package. Use it if you want to synchronize Sql Server databases.
+* **DotMim.Sync.Sqlite** : [https://www.nuget.org/packages/Dotmim.Sync.Sqlite/]() : This package is the SQLite package. Be careful, SQLite is allowed only as a client provider (no SQLite Sync Server provider right now )
+* **DotMim.Sync.MySql** : [https://www.nuget.org/packages/Dotmim.Sync.MySql/]() : This package is the MySql package. Use it if you want to synchronize MySql databases.
+* **DotMim.Sync.Web** : [https://www.nuget.org/packages/Dotmim.Sync.Web/]() : This package allow you to make a sync process using a web server beetween your server and your clients. Use this package with the corresponding Server provider (SQL, MySQL, SQLite).
+
+## TL;DR I Want to test !
+
+If you don't have any databases ready for testing, use this one : [AdventureWorks leightweight script for SQL Server](/Assets/CreateAdventureWorks.sql)  
+
+The script is ready to execute in SQL Server. It contains :
+* An leightweight AdvenureWorks databases, acting as the Server database (called **AdventureWorks**)
+* An empty database, acting as the Client database (called **Client**)
+
+Here a sample on how to make a simple sync : 
+
+```
+// Sql Server provider, the master.
+SqlSyncProvider serverProvider = new SqlSyncProvider(@"Data Source=(localdb)\MSSQLLocalDB; Initial Catalog=AdventureWorks;Integrated Security=true;");
+
+// Sqlite Client provider for a Sql Server <=> Sqlite sync
+SQLiteSyncProvider clientProvider = new SQLiteSyncProvider("advworks.db");
+
+// Tables to be synced
+var tables = new string[] {"ErrorLog", "ProductCategory",
+    "ProductDescription", "ProductModel",
+    "Product", "ProductModelProductDescription",
+    "Address", "Customer", "CustomerAddress",
+    "SalesOrderHeader", "SalesOrderDetail" };
+
+// Agent
+SyncAgent agent = new SyncAgent(clientProvider, serverProvider, tables);
+
+do
+{
+    var s = await agent.SynchronizeAsync();
+    Console.WriteLine($"Total Changes downloaded : {s.TotalChangesDownloaded}");
+
+} while (Console.ReadKey().Key != ConsoleKey.Escape);
+```
+
+
+# Introduction
 
 DotMim.Sync is a new API, based on .Net Standard 2.0, allowing you to synchronize any kind of relational datasources.
 
@@ -20,18 +72,16 @@ Multi Databases | Cross Plaform |  .Net Standard 2.0
 
 Today supported databases are  :
 * SQL Server
-* Azure SQL Database
-* SQL Server on Linux
 * SQLite
-
-Next availables providers :
 * MySql
+
+Next availables providers (**NEED HELP**) :
 * PostgreSQL
 * Oracle
 
-**I currently looking for a .net developer with skills on Oracle or MySql or PostgreSQL to create the corresponding providers**
+**I'm currently looking for a .net developer with skills on Oracle or PostgreSQL to create the corresponding providers**
 
-The sync process is a Master - Slave model (and not a peer to peer model).
+The sync process is a **Master** - **Slave** model (and not a peer to peer model).
 
 It could be represented like this :
 
@@ -39,27 +89,9 @@ It could be represented like this :
 
 **This version is not compatible with any others versions already existing**.
 
+# Availabe features
 
-## How it works, in a nutshell
-
-Keep it simple!  
-
-* One provider for the server side
-* One provider for the client side
-* One sync agent object to handle the sync process
-
-### Console sample
-
-
-    SqlSyncProvider serverProvider = new SqlSyncProvider(serverConfig);
-    SqlSyncProvider clientProvider = new SqlSyncProvider(clientConfig);
-
-    // Sync agent, running on client side
-    SyncAgent agent = new SyncAgent(clientProvider, serverProvider, new string[] { "ServiceTickets" });
-    
-    var session = await agent.SynchronizeAsync();
-
-### Adding configuration
+## Adding configuration
 
 You can configure your synchronization with some parameters, available through the `SyncConfiguration` object
 
@@ -134,7 +166,7 @@ You can follow the sync progression through the `SyncPogress` event :
         }
     }
 
-### Handling a conflict
+## Handling a conflict
 
 On the server side, you can handle a conflict. Just subscribe on the `ApplyChangedFailed` event and choose the correct version.  
 
@@ -170,7 +202,7 @@ You will determinate the correct version through the `ApplyAction` object :
             //    e.Action = ApplyAction.RetryWithForceWrite;
         }
 
-### Using Asp.net Core 
+## Using Asp.net Core 
 
 Obviously, you won't have a direct TCP link to your local and remote servers.  
 That's why we should use a proxy, through an exposed webapi.  
@@ -234,15 +266,9 @@ Your Client side is pretty similar, except we will use a proxy as well to be abl
             var s = await agent.SynchronizeAsync();
 
 
-### Tests / Samples
 
-You will find the unit tests and samples in /Tests and /Samples directories
+# TO DO 
 
-
-## TO DO 
-
-
-* Testing the SQLite provider
 * Adding Oracle, PostgreSQL and MySql providers
 * Finding issues
 
