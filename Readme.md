@@ -27,7 +27,7 @@ Here are the nuget packages :
 
 ## TL;DR: I Want to test !
 
-If you don't have any databases ready for testing, use this one : [AdventureWorks leightweight script for SQL Server](/Assets/CreateAdventureWorks.sql)  
+If you don't have any databases ready for testing, use this one : [AdventureWorks leightweight script for SQL Server](/CreateAdventureWorks.sql)  
 
 The script is ready to execute in SQL Server. It contains :
 * An leightweight AdvenureWorks databases, acting as the Server database (called **AdventureWorks**)
