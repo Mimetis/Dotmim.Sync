@@ -13,8 +13,8 @@ namespace Dotmim.Sync.Test
 {
     public class SQLiteTwoTablesFixture : IDisposable
     {
-        public string serverDbName => "Test_TwoTables_Server";
-        public string client1DbName => "TestTwoTablesClient.db";
+        public string serverDbName => "Test_SQLite_TwoTables_Server";
+        public string client1DbName => "TestSqliteTwoTablesClient.db";
         public string[] Tables => new string[] { "Customers", "ServiceTickets" };
 
         private string createTableScript =

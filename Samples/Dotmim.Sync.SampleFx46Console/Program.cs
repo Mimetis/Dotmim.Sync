@@ -30,8 +30,11 @@ namespace Dotmim.Sync.SampleFx46Console
             var serverConfig = "Server=tlsemysql.mysql.database.azure.com; Port=3306; Database=mysqldatabase165; Uid=spertus@tlsemysql; Pwd=azerty31$; SslMode=Preferred;";
             MySqlSyncProvider serverProvider = new MySqlSyncProvider(serverConfig);
 
-            var clientConfig = @"Data Source=(localdb)\MSSQLLocalDB; Initial Catalog=WordPress;Integrated Security=true;";
-            SqlSyncProvider clientProvider = new SqlSyncProvider(clientConfig);
+            //var clientConfig = @"Data Source=(localdb)\MSSQLLocalDB; Initial Catalog=WordPress;Integrated Security=true;";
+            //SqlSyncProvider clientProvider = new SqlSyncProvider(clientConfig);
+
+            var clientConfig = @"wordpress.sqlite";
+            SQLiteSyncProvider clientProvider = new SQLiteSyncProvider(clientConfig);
 
             // With a config when we are in local mode (no proxy)
             var tables = new string[] { "wp_users", "wp_usermeta", "wp_terms", "wp_termmeta", "wp_term_taxonomy",
