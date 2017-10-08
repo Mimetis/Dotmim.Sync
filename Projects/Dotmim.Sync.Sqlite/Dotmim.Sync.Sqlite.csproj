@@ -3,6 +3,10 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Version>0.1.0</Version>
+    <Authors>Sébastien Pertus</Authors>
+    <Company>Microsoft</Company>
+    <Description>SQLite Sync Provider. Actually can be used as Client provider (Don't use it as a Server provider)</Description>
   </PropertyGroup>
 
   <ItemGroup>

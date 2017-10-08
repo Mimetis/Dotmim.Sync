@@ -4,7 +4,10 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <Authors>Sébastien Pertus</Authors>
     <Company>Microsoft</Company>
-    <Description>MySql Provi</Description>
+    <Description>MySql Sync Provider. Able to be Server and Client. Use with Dotmim.Sync.Core
+Actually MySql Sync Provider requires ADO.NET Provider MySql.Data, which IS NOT .Net Standard 2.0 compatible.
+So you must use it on classic .NET Framework ( &gt; 4.5)</Description>
+    <Version>0.1.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
