@@ -1,7 +1,7 @@
 ﻿using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Web;
 using Dotmim.Sync.SqlServer;
-using Dotmim.Sync.Test.Misc;
+using Dotmim.Sync.Tests.Misc;
 using Dotmim.Sync.Test.SqlUtils;
 using Microsoft.AspNetCore.Http;
 using System;
@@ -69,7 +69,7 @@ namespace Dotmim.Sync.Test
 
     }
 
-    [TestCaseOrderer("Dotmim.Sync.Test.Misc.PriorityOrderer", "Dotmim.Sync.Core.Test")]
+    [TestCaseOrderer("Dotmim.Sync.Tests.Misc.PriorityOrderer", "Dotmim.Sync.Tests")]
     public class SyncVariantTests : IClassFixture<SyncVariantFixture>
     {
         SyncVariantFixture fixture;

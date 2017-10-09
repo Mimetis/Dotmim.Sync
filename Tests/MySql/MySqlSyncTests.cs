@@ -1,18 +1,18 @@
 ﻿using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.SQLite;
+using Dotmim.Sync.MySql;
 using Dotmim.Sync.SqlServer;
-using Dotmim.Sync.Test.Misc;
+using Dotmim.Sync.Tests.Misc;
 using Dotmim.Sync.Test.SqlUtils;
 using System;
 using System.Data.SqlClient;
-using System.Data.SQLite;
 using System.IO;
 using System.Threading.Tasks;
 using Xunit;
+using MySql.Data.MySqlClient;
 
-namespace Dotmim.Sync.Test
+namespace Dotmim.Sync.Tests
 {
-    public class SQLiteSyncSimpleFixture : IDisposable
+    public class MySqlSyncSimpleFixture : IDisposable
     {
         private string createTableScript =
         $@"if (not exists (select * from sys.tables where name = 'ServiceTickets'))
@@ -84,25 +84,44 @@ namespace Dotmim.Sync.Test
           ";
 
         private HelperDB helperDb = new HelperDB();
-        private string serverDbName = "Test_SQLite_Simple_Server";
+        private string serverDbName = "Test_MySql_Simple_Server";
+        private string clientDbName = "test_mysql_simple_client";
 
         public string[] Tables => new string[] { "ServiceTickets" };
 
         public String ServerConnectionString => HelperDB.GetDatabaseConnectionString(serverDbName);
         public SyncAgent Agent { get; set; }
 
-        public String ClientSQLiteConnectionString { get; set; }
-        public string ClientSQLiteFilePath => Path.Combine(Directory.GetCurrentDirectory(), "sqliteTmpDb.db");
+        public String ClientMySqlConnectionString => HelperDB.GetMySqlDatabaseConnectionString(clientDbName);
 
-        public SQLiteSyncSimpleFixture()
+
+        private void CreateMySqlDatabase(string dbName)
         {
+            MySqlConnection sysConnection = null;
+            MySqlCommand cmdDb = null;
+            sysConnection = new MySqlConnection(HelperDB.GetMySqlDatabaseConnectionString("sys"));
 
-            var builder = new SQLiteConnectionStringBuilder { DataSource = ClientSQLiteFilePath };
-            this.ClientSQLiteConnectionString = builder.ConnectionString;
+            sysConnection.Open();
+            cmdDb = new MySqlCommand($"create schema {dbName};", sysConnection);
+            cmdDb.ExecuteNonQuery();
+            sysConnection.Close();
 
-            if (File.Exists(ClientSQLiteFilePath))
-                File.Delete(ClientSQLiteFilePath);
+        }
 
+        private void DropMySqlDatabase(string dbName)
+        {
+            MySqlConnection sysConnection = null;
+            MySqlCommand cmdDb = null;
+            sysConnection = new MySqlConnection(HelperDB.GetMySqlDatabaseConnectionString("sys"));
+
+            sysConnection.Open();
+            cmdDb = new MySqlCommand($"drop database {dbName};", sysConnection);
+            cmdDb.ExecuteNonQuery();
+            sysConnection.Close();
+
+        }
+        public MySqlSyncSimpleFixture()
+        {
             // create databases
             helperDb.CreateDatabase(serverDbName);
             // create table
@@ -110,8 +129,10 @@ namespace Dotmim.Sync.Test
             // insert table
             helperDb.ExecuteScript(serverDbName, datas);
 
+            CreateMySqlDatabase(clientDbName);
+
             var serverProvider = new SqlSyncProvider(ServerConnectionString);
-            var clientProvider = new SQLiteSyncProvider(ClientSQLiteFilePath);
+            var clientProvider = new MySqlSyncProvider(ClientMySqlConnectionString);
             var simpleConfiguration = new SyncConfiguration(Tables);
 
             Agent = new SyncAgent(clientProvider, serverProvider, simpleConfiguration);
@@ -120,25 +141,19 @@ namespace Dotmim.Sync.Test
         public void Dispose()
         {
             helperDb.DeleteDatabase(serverDbName);
+            this.DropMySqlDatabase(clientDbName);
 
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-
-            if (File.Exists(ClientSQLiteFilePath))
-                File.Delete(ClientSQLiteFilePath);
         }
 
     }
 
-    [TestCaseOrderer("Dotmim.Sync.Test.Misc.PriorityOrderer", "Dotmim.Sync.Core.Test")]
-    public class SQLiteSyncTests : IClassFixture<SQLiteSyncSimpleFixture>
+    [TestCaseOrderer("Dotmim.Sync.Tests.Misc.PriorityOrderer", "Dotmim.Sync.Tests")]
+    public class MySqlSyncTests : IClassFixture<MySqlSyncSimpleFixture>
     {
-        SqlSyncProvider serverProvider;
-        SQLiteSyncProvider clientProvider;
-        SQLiteSyncSimpleFixture fixture;
+        MySqlSyncSimpleFixture fixture;
         SyncAgent agent;
 
-        public SQLiteSyncTests(SQLiteSyncSimpleFixture fixture)
+        public MySqlSyncTests(MySqlSyncSimpleFixture fixture)
         {
             this.fixture = fixture;
             this.agent = fixture.Agent;
@@ -195,13 +210,13 @@ namespace Dotmim.Sync.Test
 
             var insertRowScript =
             $@"INSERT INTO [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
-                VALUES ('{newId.ToString()}', 'Insert One Row in SQLite client', 'Description Insert One Row', 1, 0, datetime('now'), NULL, 1)";
+                VALUES ('{newId.ToString()}', 'Insert One Row in MySql client', 'Description Insert One Row', 1, 0, datetime('now'), NULL, 1)";
 
             int nbRowsInserted = 0;
 
-            using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
+            using (var sqlConnection = new MySqlConnection(fixture.ClientMySqlConnectionString))
             {
-                using (var sqlCmd = new SQLiteCommand(insertRowScript, sqlConnection))
+                using (var sqlCmd = new MySqlCommand(insertRowScript, sqlConnection))
                 {
                     sqlConnection.Open();
                     nbRowsInserted = sqlCmd.ExecuteNonQuery();
@@ -226,11 +241,11 @@ namespace Dotmim.Sync.Test
 
             var insertRowScript =
             $@"INSERT INTO [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
-                VALUES ('{newId.ToString()}', 'Insert One Row in SQLite client', 'Description Insert One Row', 1, 0, datetime('now'), NULL, 1)";
+                VALUES ('{newId.ToString()}', 'Insert One Row in MySql client', 'Description Insert One Row', 1, 0, datetime('now'), NULL, 1)";
 
-            using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
+            using (var sqlConnection = new MySqlConnection(fixture.ClientMySqlConnectionString))
             {
-                using (var sqlCmd = new SQLiteCommand(insertRowScript, sqlConnection))
+                using (var sqlCmd = new MySqlCommand(insertRowScript, sqlConnection))
                 {
                     sqlConnection.Open();
                     sqlCmd.ExecuteNonQuery();
@@ -245,11 +260,11 @@ namespace Dotmim.Sync.Test
             Assert.Equal(1, session.TotalChangesUploaded);
 
             var updateRowScript =
-            $@" Update [ServiceTickets] Set [Title] = 'Updated from SQLite Client side !' Where ServiceTicketId = '{newId.ToString()}'";
+            $@" Update [ServiceTickets] Set [Title] = 'Updated from MySql Client side !' Where ServiceTicketId = '{newId.ToString()}'";
 
-            using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
+            using (var sqlConnection = new MySqlConnection(fixture.ClientMySqlConnectionString))
             {
-                using (var sqlCmd = new SQLiteCommand(updateRowScript, sqlConnection))
+                using (var sqlCmd = new MySqlCommand(updateRowScript, sqlConnection))
                 {
                     sqlConnection.Open();
                     sqlCmd.ExecuteNonQuery();
@@ -321,12 +336,12 @@ namespace Dotmim.Sync.Test
             var selectcount = $@"Select count(*) From [ServiceTickets]";
             var updateRowScript = $@"Delete From [ServiceTickets]";
 
-            using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
+            using (var sqlConnection = new MySqlConnection(fixture.ClientMySqlConnectionString))
             {
                 sqlConnection.Open();
-                using (var sqlCmd = new SQLiteCommand(selectcount, sqlConnection))
+                using (var sqlCmd = new MySqlCommand(selectcount, sqlConnection))
                     count = (long)sqlCmd.ExecuteScalar();
-                using (var sqlCmd = new SQLiteCommand(updateRowScript, sqlConnection))
+                using (var sqlCmd = new MySqlCommand(updateRowScript, sqlConnection))
                     sqlCmd.ExecuteNonQuery();
                 sqlConnection.Close();
             }
@@ -353,14 +368,14 @@ namespace Dotmim.Sync.Test
         {
             Guid insertConflictId = Guid.NewGuid();
 
-            using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
+            using (var sqlConnection = new MySqlConnection(fixture.ClientMySqlConnectionString))
             {
                 var script = $@"INSERT INTO [ServiceTickets] 
                             ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
                             VALUES 
                             ('{insertConflictId.ToString()}', 'Conflict Line Client', 'Description client', 1, 0, datetime('now'), NULL, 1)";
 
-                using (var sqlCmd = new SQLiteCommand(script, sqlConnection))
+                using (var sqlCmd = new MySqlCommand(script, sqlConnection))
                 {
                     sqlConnection.Open();
                     sqlCmd.ExecuteNonQuery();
@@ -393,11 +408,11 @@ namespace Dotmim.Sync.Test
             Assert.Equal(1, session.TotalSyncConflicts);
 
             string expectedRes = string.Empty;
-            using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
+            using (var sqlConnection = new MySqlConnection(fixture.ClientMySqlConnectionString))
             {
                 var script = $@"Select Title from [ServiceTickets] Where ServiceTicketID='{insertConflictId.ToString()}'";
 
-                using (var sqlCmd = new SQLiteCommand(script, sqlConnection))
+                using (var sqlCmd = new MySqlCommand(script, sqlConnection))
                 {
                     sqlConnection.Open();
                     expectedRes = sqlCmd.ExecuteScalar() as string;
@@ -413,14 +428,14 @@ namespace Dotmim.Sync.Test
         public async Task ConflictUpdateUpdateServerWins(SyncConfiguration conf)
         {
             Guid updateConflictId = Guid.NewGuid();
-            using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
+            using (var sqlConnection = new MySqlConnection(fixture.ClientMySqlConnectionString))
             {
                 var script = $@"INSERT INTO [ServiceTickets] 
                             ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
                             VALUES 
                             ('{updateConflictId.ToString()}', 'Line Client', 'Description client', 1, 0, datetime('now'), NULL, 1)";
 
-                using (var sqlCmd = new SQLiteCommand(script, sqlConnection))
+                using (var sqlCmd = new MySqlCommand(script, sqlConnection))
                 {
                     sqlConnection.Open();
                     sqlCmd.ExecuteNonQuery();
@@ -439,13 +454,13 @@ namespace Dotmim.Sync.Test
             Assert.Equal(0, session.TotalSyncConflicts);
 
 
-            using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
+            using (var sqlConnection = new MySqlConnection(fixture.ClientMySqlConnectionString))
             {
                 var script = $@"Update [ServiceTickets] 
                                 Set Title = 'Updated from Client'
                                 Where ServiceTicketId = '{updateConflictId.ToString()}'";
 
-                using (var sqlCmd = new SQLiteCommand(script, sqlConnection))
+                using (var sqlCmd = new MySqlCommand(script, sqlConnection))
                 {
                     sqlConnection.Open();
                     sqlCmd.ExecuteNonQuery();
@@ -475,11 +490,11 @@ namespace Dotmim.Sync.Test
             Assert.Equal(1, session.TotalSyncConflicts);
 
             string expectedRes = string.Empty;
-            using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
+            using (var sqlConnection = new MySqlConnection(fixture.ClientMySqlConnectionString))
             {
                 var script = $@"Select Title from [ServiceTickets] Where ServiceTicketID='{updateConflictId.ToString()}'";
 
-                using (var sqlCmd = new SQLiteCommand(script, sqlConnection))
+                using (var sqlCmd = new MySqlCommand(script, sqlConnection))
                 {
                     sqlConnection.Open();
                     expectedRes = sqlCmd.ExecuteScalar() as string;
@@ -496,14 +511,14 @@ namespace Dotmim.Sync.Test
         {
             var id = Guid.NewGuid().ToString();
 
-            using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
+            using (var sqlConnection = new MySqlConnection(fixture.ClientMySqlConnectionString))
             {
                 var script = $@"INSERT INTO [ServiceTickets] 
                             ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
                             VALUES 
                             ('{id}', 'Line for conflict', 'Description client', 1, 0, datetime('now'), NULL, 1)";
 
-                using (var sqlCmd = new SQLiteCommand(script, sqlConnection))
+                using (var sqlCmd = new MySqlCommand(script, sqlConnection))
                 {
                     sqlConnection.Open();
                     sqlCmd.ExecuteNonQuery();
@@ -522,13 +537,13 @@ namespace Dotmim.Sync.Test
             Assert.Equal(0, session.TotalSyncConflicts);
 
 
-            using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
+            using (var sqlConnection = new MySqlConnection(fixture.ClientMySqlConnectionString))
             {
                 var script = $@"Update [ServiceTickets] 
                                 Set Title = 'Updated from Client'
                                 Where ServiceTicketId = '{id}'";
 
-                using (var sqlCmd = new SQLiteCommand(script, sqlConnection))
+                using (var sqlCmd = new MySqlCommand(script, sqlConnection))
                 {
                     sqlConnection.Open();
                     sqlCmd.ExecuteNonQuery();
@@ -551,7 +566,7 @@ namespace Dotmim.Sync.Test
             }
 
             agent.ApplyChangedFailed += (s, args) => args.Action = ApplyAction.RetryWithForceWrite;
-           
+
             await Assert.RaisesAsync<ApplyChangeFailedEventArgs>(
                 h => agent.ApplyChangedFailed += h,
                 h => agent.ApplyChangedFailed -= h, async () =>
@@ -587,14 +602,14 @@ namespace Dotmim.Sync.Test
 
             Guid id = Guid.NewGuid();
 
-            using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
+            using (var sqlConnection = new MySqlConnection(fixture.ClientMySqlConnectionString))
             {
                 var script = $@"INSERT INTO [ServiceTickets] 
                             ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
                             VALUES 
                             ('{id.ToString()}', 'Conflict Line Client', 'Description client', 1, 0, datetime('now'), NULL, 1)";
 
-                using (var sqlCmd = new SQLiteCommand(script, sqlConnection))
+                using (var sqlCmd = new MySqlCommand(script, sqlConnection))
                 {
                     sqlConnection.Open();
                     sqlCmd.ExecuteNonQuery();

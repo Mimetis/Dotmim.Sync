@@ -1,10 +1,8 @@
 ﻿using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Web;
 using Dotmim.Sync.SQLite;
 using Dotmim.Sync.SqlServer;
-using Dotmim.Sync.Test.Misc;
+using Dotmim.Sync.Tests.Misc;
 using Dotmim.Sync.Test.SqlUtils;
-using Microsoft.AspNetCore.Http;
 using System;
 using System.Data.SqlClient;
 using System.Data.SQLite;
@@ -14,7 +12,7 @@ using Xunit;
 
 namespace Dotmim.Sync.Test
 {
-    public class SQLiteSyncHttpFixture : IDisposable
+    public class SQLiteSyncSimpleFixture : IDisposable
     {
         private string createTableScript =
         $@"if (not exists (select * from sys.tables where name = 'ServiceTickets'))
@@ -86,15 +84,17 @@ namespace Dotmim.Sync.Test
           ";
 
         private HelperDB helperDb = new HelperDB();
-        private string serverDbName = "Test_SQLite_Http_Server";
+        private string serverDbName = "Test_SQLite_Simple_Server";
 
         public string[] Tables => new string[] { "ServiceTickets" };
 
         public String ServerConnectionString => HelperDB.GetDatabaseConnectionString(serverDbName);
-        public String ClientSQLiteConnectionString { get; set; }
-        public string ClientSQLiteFilePath => Path.Combine(Directory.GetCurrentDirectory(), "sqliteHttpTmpDb.db");
+        public SyncAgent Agent { get; set; }
 
-        public SQLiteSyncHttpFixture()
+        public String ClientSQLiteConnectionString { get; set; }
+        public string ClientSQLiteFilePath => Path.Combine(Directory.GetCurrentDirectory(), "sqliteTmpDb.db");
+
+        public SQLiteSyncSimpleFixture()
         {
 
             var builder = new SQLiteConnectionStringBuilder { DataSource = ClientSQLiteFilePath };
@@ -114,6 +114,8 @@ namespace Dotmim.Sync.Test
             var clientProvider = new SQLiteSyncProvider(ClientSQLiteFilePath);
             var simpleConfiguration = new SyncConfiguration(Tables);
 
+            Agent = new SyncAgent(clientProvider, serverProvider, simpleConfiguration);
+
         }
         public void Dispose()
         {
@@ -128,85 +130,38 @@ namespace Dotmim.Sync.Test
 
     }
 
-    [Collection("Http")]
-    [TestCaseOrderer("Dotmim.Sync.Test.Misc.PriorityOrderer", "Dotmim.Sync.Core.Test")]
-    public class SQLiteSyncHttpTests : IClassFixture<SQLiteSyncHttpFixture>
+    [TestCaseOrderer("Dotmim.Sync.Tests.Misc.PriorityOrderer", "Dotmim.Sync.Tests")]
+    public class SQLiteSyncTests : IClassFixture<SQLiteSyncSimpleFixture>
     {
         SqlSyncProvider serverProvider;
         SQLiteSyncProvider clientProvider;
-        SQLiteSyncHttpFixture fixture;
-        WebProxyServerProvider proxyServerProvider;
-        WebProxyClientProvider proxyClientProvider;
-        SyncConfiguration configuration;
+        SQLiteSyncSimpleFixture fixture;
         SyncAgent agent;
 
-        public SQLiteSyncHttpTests(SQLiteSyncHttpFixture fixture)
+        public SQLiteSyncTests(SQLiteSyncSimpleFixture fixture)
         {
             this.fixture = fixture;
-
-            serverProvider = new SqlSyncProvider(fixture.ServerConnectionString);
-            proxyServerProvider = new WebProxyServerProvider(serverProvider);
-
-            clientProvider = new SQLiteSyncProvider(fixture.ClientSQLiteFilePath);
-            proxyClientProvider = new WebProxyClientProvider();
-
-            configuration = new SyncConfiguration(this.fixture.Tables);
-
-            agent = new SyncAgent(clientProvider, proxyClientProvider);
-
+            this.agent = fixture.Agent;
         }
 
         [Fact, TestPriority(1)]
         public async Task Initialize()
         {
-            using (var server = new KestrellTestServer())
-            {
-                var serverHandler = new RequestDelegate(async context =>
-                {
-                    serverProvider.SetConfiguration(configuration);
-                    proxyServerProvider.SerializationFormat = SerializationFormat.Json;
+            var session = await agent.SynchronizeAsync();
 
-                    await proxyServerProvider.HandleRequestAsync(context);
-                });
-                var clientHandler = new ResponseDelegate(async (serviceUri) =>
-                {
-                    proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = SerializationFormat.Json;
-
-                    var session = await agent.SynchronizeAsync();
-
-                    Assert.Equal(50, session.TotalChangesDownloaded);
-                    Assert.Equal(0, session.TotalChangesUploaded);
-                });
-                await server.Run(serverHandler, clientHandler);
-            }
+            Assert.Equal(50, session.TotalChangesDownloaded);
+            Assert.Equal(0, session.TotalChangesUploaded);
         }
 
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(2)]
         public async Task SyncNoRows(SyncConfiguration conf)
         {
-            using (var server = new KestrellTestServer())
-            {
-                var serverHandler = new RequestDelegate(async context =>
-                {
-                    conf.Tables = fixture.Tables;
-                    serverProvider.SetConfiguration(conf);
-                    proxyServerProvider.SerializationFormat = conf.SerializationFormat;
+            agent.Configuration = conf;
+            agent.Configuration.Tables = fixture.Tables;
+            var session = await agent.SynchronizeAsync();
 
-                    await proxyServerProvider.HandleRequestAsync(context);
-                });
-                var clientHandler = new ResponseDelegate(async (serviceUri) =>
-                {
-                    proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
-
-                    var session = await agent.SynchronizeAsync();
-
-                    Assert.Equal(0, session.TotalChangesDownloaded);
-                    Assert.Equal(0, session.TotalChangesUploaded);
-                });
-                await server.Run(serverHandler, clientHandler);
-            }
+            Assert.Equal(0, session.TotalChangesDownloaded);
+            Assert.Equal(0, session.TotalChangesUploaded);
         }
 
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(3)]
@@ -225,28 +180,12 @@ namespace Dotmim.Sync.Test
                     sqlConnection.Close();
                 }
             }
-            using (var server = new KestrellTestServer())
-            {
-                var serverHandler = new RequestDelegate(async context =>
-                {
-                    conf.Tables = fixture.Tables;
-                    serverProvider.SetConfiguration(conf);
-                    proxyServerProvider.SerializationFormat = conf.SerializationFormat;
+            agent.Configuration = conf;
+            agent.Configuration.Tables = fixture.Tables;
+            var session = await agent.SynchronizeAsync();
 
-                    await proxyServerProvider.HandleRequestAsync(context);
-                });
-                var clientHandler = new ResponseDelegate(async (serviceUri) =>
-                {
-                    proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
-
-                    var session = await agent.SynchronizeAsync();
-
-                    Assert.Equal(1, session.TotalChangesDownloaded);
-                    Assert.Equal(0, session.TotalChangesUploaded);
-                });
-                await server.Run(serverHandler, clientHandler);
-            }
+            Assert.Equal(1, session.TotalChangesDownloaded);
+            Assert.Equal(0, session.TotalChangesUploaded);
         }
 
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(4)]
@@ -272,28 +211,12 @@ namespace Dotmim.Sync.Test
             if (nbRowsInserted < 0)
                 throw new Exception("Row not inserted");
 
-            using (var server = new KestrellTestServer())
-            {
-                var serverHandler = new RequestDelegate(async context =>
-                {
-                    conf.Tables = fixture.Tables;
-                    serverProvider.SetConfiguration(conf);
-                    proxyServerProvider.SerializationFormat = conf.SerializationFormat;
+            agent.Configuration = conf;
+            agent.Configuration.Tables = fixture.Tables;
+            var session = await agent.SynchronizeAsync();
 
-                    await proxyServerProvider.HandleRequestAsync(context);
-                });
-                var clientHandler = new ResponseDelegate(async (serviceUri) =>
-                {
-                    proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
-
-                    var session = await agent.SynchronizeAsync();
-
-                    Assert.Equal(0, session.TotalChangesDownloaded);
-                    Assert.Equal(1, session.TotalChangesUploaded);
-                });
-                await server.Run(serverHandler, clientHandler);
-            }
+            Assert.Equal(0, session.TotalChangesDownloaded);
+            Assert.Equal(1, session.TotalChangesUploaded);
         }
 
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(5)]
@@ -314,28 +237,12 @@ namespace Dotmim.Sync.Test
                     sqlConnection.Close();
                 }
             }
-            using (var server = new KestrellTestServer())
-            {
-                var serverHandler = new RequestDelegate(async context =>
-                {
-                    conf.Tables = fixture.Tables;
-                    serverProvider.SetConfiguration(conf);
-                    proxyServerProvider.SerializationFormat = conf.SerializationFormat;
+            agent.Configuration = conf;
+            agent.Configuration.Tables = fixture.Tables;
+            var session = await agent.SynchronizeAsync();
 
-                    await proxyServerProvider.HandleRequestAsync(context);
-                });
-                var clientHandler = new ResponseDelegate(async (serviceUri) =>
-                {
-                    proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
-
-                    var session = await agent.SynchronizeAsync();
-
-                    Assert.Equal(0, session.TotalChangesDownloaded);
-                    Assert.Equal(1, session.TotalChangesUploaded);
-                });
-                await server.Run(serverHandler, clientHandler);
-            }
+            Assert.Equal(0, session.TotalChangesDownloaded);
+            Assert.Equal(1, session.TotalChangesUploaded);
 
             var updateRowScript =
             $@" Update [ServiceTickets] Set [Title] = 'Updated from SQLite Client side !' Where ServiceTicketId = '{newId.ToString()}'";
@@ -349,28 +256,12 @@ namespace Dotmim.Sync.Test
                     sqlConnection.Close();
                 }
             }
-            using (var server = new KestrellTestServer())
-            {
-                var serverHandler = new RequestDelegate(async context =>
-                {
-                    conf.Tables = fixture.Tables;
-                    serverProvider.SetConfiguration(conf);
-                    proxyServerProvider.SerializationFormat = conf.SerializationFormat;
+            agent.Configuration = conf;
+            agent.Configuration.Tables = fixture.Tables;
+            session = await agent.SynchronizeAsync();
 
-                    await proxyServerProvider.HandleRequestAsync(context);
-                });
-                var clientHandler = new ResponseDelegate(async (serviceUri) =>
-                {
-                    proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
-
-                    var session = await agent.SynchronizeAsync();
-
-                    Assert.Equal(0, session.TotalChangesDownloaded);
-                    Assert.Equal(1, session.TotalChangesUploaded);
-                });
-                await server.Run(serverHandler, clientHandler);
-            }
+            Assert.Equal(0, session.TotalChangesDownloaded);
+            Assert.Equal(1, session.TotalChangesUploaded);
         }
 
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(6)]
@@ -390,28 +281,12 @@ namespace Dotmim.Sync.Test
                     sqlConnection.Close();
                 }
             }
-            using (var server = new KestrellTestServer())
-            {
-                var serverHandler = new RequestDelegate(async context =>
-                {
-                    conf.Tables = fixture.Tables;
-                    serverProvider.SetConfiguration(conf);
-                    proxyServerProvider.SerializationFormat = conf.SerializationFormat;
+            agent.Configuration = conf;
+            agent.Configuration.Tables = fixture.Tables;
+            var session = await agent.SynchronizeAsync();
 
-                    await proxyServerProvider.HandleRequestAsync(context);
-                });
-                var clientHandler = new ResponseDelegate(async (serviceUri) =>
-                {
-                    proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
-
-                    var session = await agent.SynchronizeAsync();
-
-                    Assert.Equal(1, session.TotalChangesDownloaded);
-                    Assert.Equal(0, session.TotalChangesUploaded);
-                });
-                await server.Run(serverHandler, clientHandler);
-            }
+            Assert.Equal(1, session.TotalChangesDownloaded);
+            Assert.Equal(0, session.TotalChangesUploaded);
         }
 
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(7)]
@@ -431,28 +306,12 @@ namespace Dotmim.Sync.Test
                     sqlConnection.Close();
                 }
             }
-            using (var server = new KestrellTestServer())
-            {
-                var serverHandler = new RequestDelegate(async context =>
-                {
-                    conf.Tables = fixture.Tables;
-                    serverProvider.SetConfiguration(conf);
-                    proxyServerProvider.SerializationFormat = conf.SerializationFormat;
+            agent.Configuration = conf;
+            agent.Configuration.Tables = fixture.Tables;
+            var session = await agent.SynchronizeAsync();
 
-                    await proxyServerProvider.HandleRequestAsync(context);
-                });
-                var clientHandler = new ResponseDelegate(async (serviceUri) =>
-                {
-                    proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
-
-                    var session = await agent.SynchronizeAsync();
-
-                    Assert.Equal(1, session.TotalChangesDownloaded);
-                    Assert.Equal(0, session.TotalChangesUploaded);
-                });
-                await server.Run(serverHandler, clientHandler);
-            }
+            Assert.Equal(1, session.TotalChangesDownloaded);
+            Assert.Equal(0, session.TotalChangesUploaded);
         }
 
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(8)]
@@ -472,28 +331,12 @@ namespace Dotmim.Sync.Test
                 sqlConnection.Close();
             }
 
-            using (var server = new KestrellTestServer())
-            {
-                var serverHandler = new RequestDelegate(async context =>
-                {
-                    conf.Tables = fixture.Tables;
-                    serverProvider.SetConfiguration(conf);
-                    proxyServerProvider.SerializationFormat = conf.SerializationFormat;
+            agent.Configuration = conf;
+            agent.Configuration.Tables = fixture.Tables;
+            var session = await agent.SynchronizeAsync();
 
-                    await proxyServerProvider.HandleRequestAsync(context);
-                });
-                var clientHandler = new ResponseDelegate(async (serviceUri) =>
-                {
-                    proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
-
-                    var session = await agent.SynchronizeAsync();
-
-                    Assert.Equal(0, session.TotalChangesDownloaded);
-                    Assert.Equal(count, session.TotalChangesUploaded);
-                });
-                await server.Run(serverHandler, clientHandler);
-            }
+            Assert.Equal(0, session.TotalChangesDownloaded);
+            Assert.Equal(count, session.TotalChangesUploaded);
 
             // check all rows deleted on server side
             using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
@@ -540,30 +383,14 @@ namespace Dotmim.Sync.Test
                 }
             }
 
-            using (var server = new KestrellTestServer())
-            {
-                var serverHandler = new RequestDelegate(async context =>
-                {
-                    conf.Tables = fixture.Tables;
-                    serverProvider.SetConfiguration(conf);
-                    proxyServerProvider.SerializationFormat = conf.SerializationFormat;
+            agent.Configuration = conf;
+            agent.Configuration.Tables = fixture.Tables;
+            var session = await agent.SynchronizeAsync();
 
-                    await proxyServerProvider.HandleRequestAsync(context);
-                });
-                var clientHandler = new ResponseDelegate(async (serviceUri) =>
-                {
-                    proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
-
-                    var session = await agent.SynchronizeAsync();
-
-                    // check statistics
-                    Assert.Equal(1, session.TotalChangesDownloaded);
-                    Assert.Equal(1, session.TotalChangesUploaded);
-                    Assert.Equal(1, session.TotalSyncConflicts);
-                });
-                await server.Run(serverHandler, clientHandler);
-            }
+            // check statistics
+            Assert.Equal(1, session.TotalChangesDownloaded);
+            Assert.Equal(1, session.TotalChangesUploaded);
+            Assert.Equal(1, session.TotalSyncConflicts);
 
             string expectedRes = string.Empty;
             using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
@@ -601,30 +428,16 @@ namespace Dotmim.Sync.Test
                 }
             }
 
-            using (var server = new KestrellTestServer())
-            {
-                var serverHandler = new RequestDelegate(async context =>
-                {
-                    conf.Tables = fixture.Tables;
-                    serverProvider.SetConfiguration(conf);
-                    proxyServerProvider.SerializationFormat = conf.SerializationFormat;
+            agent.Configuration = conf;
+            agent.Configuration.Tables = fixture.Tables;
+            var session = await agent.SynchronizeAsync();
 
-                    await proxyServerProvider.HandleRequestAsync(context);
-                });
-                var clientHandler = new ResponseDelegate(async (serviceUri) =>
-                {
-                    proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
+            //just check, even if it's not the real test :)
+            // check statistics
+            Assert.Equal(0, session.TotalChangesDownloaded);
+            Assert.Equal(1, session.TotalChangesUploaded);
+            Assert.Equal(0, session.TotalSyncConflicts);
 
-                    var session = await agent.SynchronizeAsync();
-
-                    // check statistics
-                    Assert.Equal(0, session.TotalChangesDownloaded);
-                    Assert.Equal(1, session.TotalChangesUploaded);
-                    Assert.Equal(0, session.TotalSyncConflicts);
-                });
-                await server.Run(serverHandler, clientHandler);
-            }
 
             using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
             {
@@ -654,30 +467,12 @@ namespace Dotmim.Sync.Test
                 }
             }
 
-            using (var server = new KestrellTestServer())
-            {
-                var serverHandler = new RequestDelegate(async context =>
-                {
-                    conf.Tables = fixture.Tables;
-                    serverProvider.SetConfiguration(conf);
-                    proxyServerProvider.SerializationFormat = conf.SerializationFormat;
+            session = await agent.SynchronizeAsync();
 
-                    await proxyServerProvider.HandleRequestAsync(context);
-                });
-                var clientHandler = new ResponseDelegate(async (serviceUri) =>
-                {
-                    proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
-
-                    var session = await agent.SynchronizeAsync();
-
-                    // check statistics
-                    Assert.Equal(1, session.TotalChangesDownloaded);
-                    Assert.Equal(1, session.TotalChangesUploaded);
-                    Assert.Equal(1, session.TotalSyncConflicts);
-                });
-                await server.Run(serverHandler, clientHandler);
-            }
+            // check statistics
+            Assert.Equal(1, session.TotalChangesDownloaded);
+            Assert.Equal(1, session.TotalChangesUploaded);
+            Assert.Equal(1, session.TotalSyncConflicts);
 
             string expectedRes = string.Empty;
             using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
@@ -716,30 +511,16 @@ namespace Dotmim.Sync.Test
                 }
             }
 
-            using (var server = new KestrellTestServer())
-            {
-                var serverHandler = new RequestDelegate(async context =>
-                {
-                    conf.Tables = fixture.Tables;
-                    serverProvider.SetConfiguration(conf);
-                    proxyServerProvider.SerializationFormat = conf.SerializationFormat;
+            agent.Configuration = conf;
+            agent.Configuration.Tables = fixture.Tables;
+            var session = await agent.SynchronizeAsync();
 
-                    await proxyServerProvider.HandleRequestAsync(context);
-                });
-                var clientHandler = new ResponseDelegate(async (serviceUri) =>
-                {
-                    proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
+            //just check, even if it's not the real test :)
+            // check statistics
+            Assert.Equal(0, session.TotalChangesDownloaded);
+            Assert.Equal(1, session.TotalChangesUploaded);
+            Assert.Equal(0, session.TotalSyncConflicts);
 
-                    var session = await agent.SynchronizeAsync();
-
-                    // check statistics
-                    Assert.Equal(0, session.TotalChangesDownloaded);
-                    Assert.Equal(1, session.TotalChangesUploaded);
-                    Assert.Equal(0, session.TotalSyncConflicts);
-                });
-                await server.Run(serverHandler, clientHandler);
-            }
 
             using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
             {
@@ -769,42 +550,19 @@ namespace Dotmim.Sync.Test
                 }
             }
 
-            using (var server = new KestrellTestServer())
-            {
-                var serverHandler = new RequestDelegate(async context =>
+            agent.ApplyChangedFailed += (s, args) => args.Action = ApplyAction.RetryWithForceWrite;
+           
+            await Assert.RaisesAsync<ApplyChangeFailedEventArgs>(
+                h => agent.ApplyChangedFailed += h,
+                h => agent.ApplyChangedFailed -= h, async () =>
                 {
-                    conf.Tables = fixture.Tables;
-                    serverProvider.SetConfiguration(conf);
-                    proxyServerProvider.SerializationFormat = conf.SerializationFormat;
-
-                    // Since we move to server side, it's server to handle errors
-                    serverProvider.ApplyChangedFailed += (s, args) =>
-                    {
-                        args.Action = ApplyAction.RetryWithForceWrite;
-                    };
-
-                    await proxyServerProvider.HandleRequestAsync(context);
+                    session = await agent.SynchronizeAsync();
                 });
-                var clientHandler = new ResponseDelegate(async (serviceUri) =>
-                {
-                    proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
-                    SyncContext session = null;
-                    await Assert.RaisesAsync<ApplyChangeFailedEventArgs>(
-                        h => serverProvider.ApplyChangedFailed += h,
-                        h => serverProvider.ApplyChangedFailed -= h, async () =>
-                        {
-                            session = await agent.SynchronizeAsync();
-                        });
-
-                    // check statistics
-                    Assert.Equal(0, session.TotalChangesDownloaded);
-                    Assert.Equal(1, session.TotalChangesUploaded);
-                    Assert.Equal(1, session.TotalSyncConflicts);
-                });
-                await server.Run(serverHandler, clientHandler);
-            }
+            // check statistics
+            Assert.Equal(0, session.TotalChangesDownloaded);
+            Assert.Equal(1, session.TotalChangesUploaded);
+            Assert.Equal(1, session.TotalSyncConflicts);
 
             string expectedRes = string.Empty;
             using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
@@ -859,32 +617,15 @@ namespace Dotmim.Sync.Test
                 }
             }
 
-            using (var server = new KestrellTestServer())
-            {
-                var serverHandler = new RequestDelegate(async context =>
-                {
-                    conf.Tables = fixture.Tables;
-                    conf.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
+            agent.Configuration = conf;
+            agent.Configuration.Tables = fixture.Tables;
+            agent.Configuration.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
+            var session = await agent.SynchronizeAsync();
 
-                    serverProvider.SetConfiguration(conf);
-                    proxyServerProvider.SerializationFormat = conf.SerializationFormat;
-
-                    await proxyServerProvider.HandleRequestAsync(context);
-                });
-                var clientHandler = new ResponseDelegate(async (serviceUri) =>
-                {
-                    proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
-
-                    var session = await agent.SynchronizeAsync();
-
-                    // check statistics
-                    Assert.Equal(0, session.TotalChangesDownloaded);
-                    Assert.Equal(1, session.TotalChangesUploaded);
-                    Assert.Equal(1, session.TotalSyncConflicts);
-                });
-                await server.Run(serverHandler, clientHandler);
-            }
+            // check statistics
+            Assert.Equal(0, session.TotalChangesDownloaded);
+            Assert.Equal(1, session.TotalChangesUploaded);
+            Assert.Equal(1, session.TotalSyncConflicts);
 
             string expectedRes = string.Empty;
             using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))

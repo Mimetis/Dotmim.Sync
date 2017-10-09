@@ -30,10 +30,10 @@ Here are the nuget packages :
 If you don't have any databases ready for testing, use this one : [AdventureWorks leightweight script for SQL Server](/CreateAdventureWorks.sql)  
 
 The script is ready to execute in SQL Server. It contains :
-* An leightweight AdvenureWorks databases, acting as the Server database (called **AdventureWorks**)
+* An lightweight AdvenureWorks databases, acting as the Server database (called **AdventureWorks**)
 * An empty database, acting as the Client database (called **Client**)
 
-Here are the simpliest steps to be able to make a simple sync : 
+Here are the simplest steps to be able to make a simple sync : 
 
 * Create a **.Net Core 2.0** or **.Net Fx 4.6** console application.  
 * Add the nugets packages [DotMim.Sync.SqlServer](https://www.nuget.org/packages/Dotmim.Sync.SqlServer/) and [DotMim.Sync.Sqlite](https://www.nuget.org/packages/Dotmim.Sync.Sqlite/)  
