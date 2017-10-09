@@ -1,8 +1,8 @@
 ﻿using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.MySql;
 using Dotmim.Sync.SqlServer;
-using Dotmim.Sync.Tests.Misc;
-using Dotmim.Sync.Test.SqlUtils;
+using Dotmim.Sync.FX.Tests.Misc;
+using Dotmim.Sync.FX.Tests.SqlUtils;
 using System;
 using System.Data.SqlClient;
 using System.IO;
@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 using Xunit;
 using MySql.Data.MySqlClient;
 
-namespace Dotmim.Sync.Tests
+namespace Dotmim.Sync.FX.Tests
 {
     public class MySqlSyncSimpleFixture : IDisposable
     {
@@ -147,7 +147,7 @@ namespace Dotmim.Sync.Tests
 
     }
 
-    [TestCaseOrderer("Dotmim.Sync.Tests.Misc.PriorityOrderer", "Dotmim.Sync.Tests")]
+    [TestCaseOrderer("Dotmim.Sync.FX.Tests.Misc.PriorityOrderer", "Dotmim.Sync.FX.Tests")]
     public class MySqlSyncTests : IClassFixture<MySqlSyncSimpleFixture>
     {
         MySqlSyncSimpleFixture fixture;
@@ -209,8 +209,8 @@ namespace Dotmim.Sync.Tests
             Guid newId = Guid.NewGuid();
 
             var insertRowScript =
-            $@"INSERT INTO [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
-                VALUES ('{newId.ToString()}', 'Insert One Row in MySql client', 'Description Insert One Row', 1, 0, datetime('now'), NULL, 1)";
+            $@"INSERT INTO `ServiceTickets` (`ServiceTicketID`, `Title`, `Description`, `StatusValue`, `EscalationLevel`, `Opened`, `Closed`, `CustomerID`) 
+                VALUES ('{newId.ToString()}', 'Insert One Row in MySql client', 'Description Insert One Row', 1, 0, now(), NULL, 1)";
 
             int nbRowsInserted = 0;
 
@@ -240,8 +240,8 @@ namespace Dotmim.Sync.Tests
             Guid newId = Guid.NewGuid();
 
             var insertRowScript =
-            $@"INSERT INTO [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
-                VALUES ('{newId.ToString()}', 'Insert One Row in MySql client', 'Description Insert One Row', 1, 0, datetime('now'), NULL, 1)";
+            $@"INSERT INTO `ServiceTickets` (`ServiceTicketID`, `Title`, `Description`, `StatusValue`, `EscalationLevel`, `Opened`, `Closed`, `CustomerID`) 
+                VALUES ('{newId.ToString()}', 'Insert One Row in MySql client', 'Description Insert One Row', 1, 0, now(), NULL, 1)";
 
             using (var sqlConnection = new MySqlConnection(fixture.ClientMySqlConnectionString))
             {
@@ -260,7 +260,7 @@ namespace Dotmim.Sync.Tests
             Assert.Equal(1, session.TotalChangesUploaded);
 
             var updateRowScript =
-            $@" Update [ServiceTickets] Set [Title] = 'Updated from MySql Client side !' Where ServiceTicketId = '{newId.ToString()}'";
+            $@" Update `ServiceTickets` Set `Title` = 'Updated from MySql Client side !' Where ServiceTicketId = '{newId.ToString()}'";
 
             using (var sqlConnection = new MySqlConnection(fixture.ClientMySqlConnectionString))
             {
@@ -333,8 +333,8 @@ namespace Dotmim.Sync.Tests
         public async Task DeleteFromClient(SyncConfiguration conf)
         {
             long count;
-            var selectcount = $@"Select count(*) From [ServiceTickets]";
-            var updateRowScript = $@"Delete From [ServiceTickets]";
+            var selectcount = $@"Select count(*) From ServiceTickets";
+            var updateRowScript = $@"Delete From `ServiceTickets`";
 
             using (var sqlConnection = new MySqlConnection(fixture.ClientMySqlConnectionString))
             {
@@ -370,10 +370,10 @@ namespace Dotmim.Sync.Tests
 
             using (var sqlConnection = new MySqlConnection(fixture.ClientMySqlConnectionString))
             {
-                var script = $@"INSERT INTO [ServiceTickets] 
-                            ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
+                var script = $@"INSERT INTO `ServiceTickets` 
+                            (`ServiceTicketID`, `Title`, `Description`, `StatusValue`, `EscalationLevel`, `Opened`, `Closed`, `CustomerID`) 
                             VALUES 
-                            ('{insertConflictId.ToString()}', 'Conflict Line Client', 'Description client', 1, 0, datetime('now'), NULL, 1)";
+                            ('{insertConflictId.ToString()}', 'Conflict Line Client', 'Description client', 1, 0, now(), NULL, 1)";
 
                 using (var sqlCmd = new MySqlCommand(script, sqlConnection))
                 {
@@ -410,7 +410,7 @@ namespace Dotmim.Sync.Tests
             string expectedRes = string.Empty;
             using (var sqlConnection = new MySqlConnection(fixture.ClientMySqlConnectionString))
             {
-                var script = $@"Select Title from [ServiceTickets] Where ServiceTicketID='{insertConflictId.ToString()}'";
+                var script = $@"Select Title from `ServiceTickets` Where ServiceTicketID='{insertConflictId.ToString()}'";
 
                 using (var sqlCmd = new MySqlCommand(script, sqlConnection))
                 {
@@ -430,10 +430,10 @@ namespace Dotmim.Sync.Tests
             Guid updateConflictId = Guid.NewGuid();
             using (var sqlConnection = new MySqlConnection(fixture.ClientMySqlConnectionString))
             {
-                var script = $@"INSERT INTO [ServiceTickets] 
-                            ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
+                var script = $@"INSERT INTO `ServiceTickets` 
+                            (`ServiceTicketID`, `Title`, `Description`, `StatusValue`, `EscalationLevel`, `Opened`, `Closed`, `CustomerID`) 
                             VALUES 
-                            ('{updateConflictId.ToString()}', 'Line Client', 'Description client', 1, 0, datetime('now'), NULL, 1)";
+                            ('{updateConflictId.ToString()}', 'Line Client', 'Description client', 1, 0, now(), NULL, 1)";
 
                 using (var sqlCmd = new MySqlCommand(script, sqlConnection))
                 {
@@ -456,7 +456,7 @@ namespace Dotmim.Sync.Tests
 
             using (var sqlConnection = new MySqlConnection(fixture.ClientMySqlConnectionString))
             {
-                var script = $@"Update [ServiceTickets] 
+                var script = $@"Update `ServiceTickets` 
                                 Set Title = 'Updated from Client'
                                 Where ServiceTicketId = '{updateConflictId.ToString()}'";
 
@@ -492,7 +492,7 @@ namespace Dotmim.Sync.Tests
             string expectedRes = string.Empty;
             using (var sqlConnection = new MySqlConnection(fixture.ClientMySqlConnectionString))
             {
-                var script = $@"Select Title from [ServiceTickets] Where ServiceTicketID='{updateConflictId.ToString()}'";
+                var script = $@"Select Title from `ServiceTickets` Where ServiceTicketID='{updateConflictId.ToString()}'";
 
                 using (var sqlCmd = new MySqlCommand(script, sqlConnection))
                 {
@@ -513,10 +513,10 @@ namespace Dotmim.Sync.Tests
 
             using (var sqlConnection = new MySqlConnection(fixture.ClientMySqlConnectionString))
             {
-                var script = $@"INSERT INTO [ServiceTickets] 
-                            ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
+                var script = $@"INSERT INTO `ServiceTickets` 
+                            (`ServiceTicketID`, `Title`, `Description`, `StatusValue`, `EscalationLevel`, `Opened`, `Closed`, `CustomerID`) 
                             VALUES 
-                            ('{id}', 'Line for conflict', 'Description client', 1, 0, datetime('now'), NULL, 1)";
+                            ('{id}', 'Line for conflict', 'Description client', 1, 0, now(), NULL, 1)";
 
                 using (var sqlCmd = new MySqlCommand(script, sqlConnection))
                 {
@@ -539,7 +539,7 @@ namespace Dotmim.Sync.Tests
 
             using (var sqlConnection = new MySqlConnection(fixture.ClientMySqlConnectionString))
             {
-                var script = $@"Update [ServiceTickets] 
+                var script = $@"Update `ServiceTickets` 
                                 Set Title = 'Updated from Client'
                                 Where ServiceTicketId = '{id}'";
 
@@ -604,10 +604,10 @@ namespace Dotmim.Sync.Tests
 
             using (var sqlConnection = new MySqlConnection(fixture.ClientMySqlConnectionString))
             {
-                var script = $@"INSERT INTO [ServiceTickets] 
-                            ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
+                var script = $@"INSERT INTO `ServiceTickets` 
+                            (`ServiceTicketID`, `Title`, `Description`, `StatusValue`, `EscalationLevel`, `Opened`, `Closed`, `CustomerID`) 
                             VALUES 
-                            ('{id.ToString()}', 'Conflict Line Client', 'Description client', 1, 0, datetime('now'), NULL, 1)";
+                            ('{id.ToString()}', 'Conflict Line Client', 'Description client', 1, 0, now(), NULL, 1)";
 
                 using (var sqlCmd = new MySqlCommand(script, sqlConnection))
                 {

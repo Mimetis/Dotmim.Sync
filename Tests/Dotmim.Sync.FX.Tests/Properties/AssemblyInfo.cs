@@ -5,11 +5,11 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("Dotmim.Sync.Tests")]
+[assembly: AssemblyTitle("Dotmim.Sync.FX.Tests")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("Dotmim.Sync.Tests")]
+[assembly: AssemblyProduct("Dotmim.Sync.FX.Tests")]
 [assembly: AssemblyCopyright("Copyright ©  2017")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
@@ -20,7 +20,7 @@ using System.Runtime.InteropServices;
 [assembly: ComVisible(false)]
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
-[assembly: Guid("31e9d1af-0fa1-41c0-ba44-f04e2078330a")]
+[assembly: Guid("2c465e97-024e-4ea0-af70-7aa19a44cc21")]
 
 // Version information for an assembly consists of the following four values:
 //
