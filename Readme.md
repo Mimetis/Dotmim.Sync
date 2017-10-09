@@ -2,7 +2,7 @@
 
 If you want to contribute or test :  
 * Code is a work in progress, no available Nuget packages at this time. 
-* Code is a work in progress, I found bugs evey days. No doubt you'll find a lot, too. Keep calm and open an issue :)
+* Code is a work in progress, I found bugs every days. No doubt you'll find a lot, too. Keep calm and open an issue :)
 * Code is a work in progress, if you want to test / code / you need to install **Visual Studio 2017 Preview** to be able to target **.net standard 2.0**.
 
 ![](Assets/VS2017.png)
@@ -30,7 +30,7 @@ Here are the nuget packages :
 If you don't have any databases ready for testing, use this one : [AdventureWorks leightweight script for SQL Server](/CreateAdventureWorks.sql)  
 
 The script is ready to execute in SQL Server. It contains :
-* An leightweight AdvenureWorks databases, acting as the Server database (called **AdventureWorks**)
+* A leightweight AdvenureWorks database, acting as the Server database (called **AdventureWorks**)
 * An empty database, acting as the Client database (called **Client**)
 
 Here are the simpliest steps to be able to make a simple sync : 
