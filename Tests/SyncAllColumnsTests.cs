@@ -1,4 +1,4 @@
-﻿using Dotmim.Sync.Test.Misc;
+﻿using Dotmim.Sync.Tests.Misc;
 using Dotmim.Sync.Test.SqlUtils;
 using Dotmim.Sync.SqlServer;
 using System;
@@ -10,14 +10,11 @@ using System.Threading.Tasks;
 using Xunit;
 using System.Diagnostics;
 using Dotmim.Sync.Data;
-using System.IO;
-using System.Data.SQLite;
-using Dotmim.Sync.SQLite;
 
 namespace Dotmim.Sync.Test
 {
 
-    public class SQLiteSyncAllColumnsFixture : IDisposable
+    public class SyncAllColumnsFixture : IDisposable
     {
         private string createTableScript =
         $@"
@@ -193,62 +190,47 @@ namespace Dotmim.Sync.Test
         ";
 
         private HelperDB helperDb = new HelperDB();
-        private string serverDbName = "Test_SQLiteAllColumns_Server";
+        private string serverDbName = "Test_AllColumns_Server";
+        private string client1DbName = "Test_AllColumns_Client";
 
         public String ServerConnectionString => HelperDB.GetDatabaseConnectionString(serverDbName);
-        public String ClientSQLiteConnectionString { get; set; }
-        public string ClientSQLiteFilePath => Path.Combine(Directory.GetCurrentDirectory(), "sqliteAllColumnsTmpDb.db");
-        public SyncAgent Agent { get; set; }
+        public String Client1ConnectionString => HelperDB.GetDatabaseConnectionString(client1DbName);
 
-        public SQLiteSyncAllColumnsFixture()
+        public SyncAllColumnsFixture()
         {
-            var builder = new SQLiteConnectionStringBuilder { DataSource = ClientSQLiteFilePath };
-            this.ClientSQLiteConnectionString = builder.ConnectionString;
-
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-
-            if (File.Exists(ClientSQLiteFilePath))
-                File.Delete(ClientSQLiteFilePath);
-
             // create databases
             helperDb.CreateDatabase(serverDbName);
+            helperDb.CreateDatabase(client1DbName);
 
             // create table
             helperDb.ExecuteScript(serverDbName, createTableScript);
 
             // insert table
             helperDb.ExecuteScript(serverDbName, datas);
-
-            var serverProvider = new SqlSyncProvider(ServerConnectionString);
-            var clientProvider = new SQLiteSyncProvider(ClientSQLiteFilePath);
-            var simpleConfiguration = new SyncConfiguration(new[] { "AllColumns" });
-
-            Agent = new SyncAgent(clientProvider, serverProvider, simpleConfiguration);
         }
         public void Dispose()
         {
             helperDb.DeleteDatabase(serverDbName);
-
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-
-            if (File.Exists(ClientSQLiteFilePath))
-                File.Delete(ClientSQLiteFilePath);
+            helperDb.DeleteDatabase(client1DbName);
         }
 
     }
 
-    [TestCaseOrderer("Dotmim.Sync.Test.Misc.PriorityOrderer", "Dotmim.Sync.Core.Test")]
-    public class SQLiteSyncAllColumnsTests : IClassFixture<SQLiteSyncAllColumnsFixture>
+    [TestCaseOrderer("Dotmim.Sync.Tests.Misc.PriorityOrderer", "Dotmim.Sync.Tests")]
+    public class SyncAllColumnsTests : IClassFixture<SyncAllColumnsFixture>
     {
-        SQLiteSyncAllColumnsFixture fixture;
+        SyncAllColumnsFixture fixture;
         SyncAgent agent;
-        //SyncConfiguration configuration;
-        public SQLiteSyncAllColumnsTests(SQLiteSyncAllColumnsFixture fixture)
+        SyncConfiguration configuration;
+        public SyncAllColumnsTests(SyncAllColumnsFixture fixture)
         {
             this.fixture = fixture;
-            this.agent = fixture.Agent;
+
+            SqlSyncProvider serverProvider = new SqlSyncProvider(fixture.ServerConnectionString);
+            SqlSyncProvider clientProvider = new SqlSyncProvider(fixture.Client1ConnectionString);
+
+            configuration = new SyncConfiguration(new[] { "AllColumns" });
+            agent = new SyncAgent(clientProvider, serverProvider, configuration);
         }
 
         [Fact, TestPriority(1)]
@@ -260,6 +242,58 @@ namespace Dotmim.Sync.Test
 
             Assert.Equal(10, session.TotalChangesDownloaded);
             Assert.Equal(0, session.TotalChangesUploaded);
+
+            DmTable dmColumnsListServer;
+            DmTable dmColumnsListClient;
+
+            // check if all types are correct
+            using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
+            {
+                sqlConnection.Open();
+                dmColumnsListServer = SqlManagementUtils.ColumnsForTable(sqlConnection, null, "AllColumns");
+                sqlConnection.Close();
+            }
+            using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
+            {
+                sqlConnection.Open();
+                dmColumnsListClient = SqlManagementUtils.ColumnsForTable(sqlConnection, null, "AllColumns");
+                sqlConnection.Close();
+            }
+
+            // check if all columns are replicated
+            Assert.Equal(dmColumnsListServer.Rows.Count, dmColumnsListClient.Rows.Count);
+
+            // check if all types are correct
+            foreach (var serverRow in dmColumnsListServer.Rows.OrderBy(r => (int)r["column_id"]))
+            {
+                var name = serverRow["name"].ToString();
+                var ordinal = (int)serverRow["column_id"];
+                var typeString = serverRow["type"].ToString();
+                var maxLength = (Int16)serverRow["max_length"];
+                var precision = (byte)serverRow["precision"];
+                var scale = (byte)serverRow["scale"];
+                var isNullable = (bool)serverRow["is_nullable"];
+                var isIdentity = (bool)serverRow["is_identity"];
+
+                var clientRow = dmColumnsListClient.Rows.FirstOrDefault(cr => (int)cr["column_id"] == ordinal);
+
+                Assert.NotNull(clientRow);
+
+                // exception on numeric, check if it could be decimal
+                var cTypeString = clientRow["type"].ToString();
+                if (typeString.ToLowerInvariant() == "numeric" && cTypeString.ToLowerInvariant() == "decimal")
+                    cTypeString = "numeric";
+
+                Assert.Equal(name, clientRow["name"].ToString());
+                Assert.Equal(ordinal, (int)clientRow["column_id"]);
+                Assert.Equal(typeString, cTypeString);
+                Assert.Equal(maxLength, (Int16)clientRow["max_length"]);
+                Assert.Equal(precision, (byte)clientRow["precision"]);
+                Assert.Equal(scale, (byte)clientRow["scale"]);
+                Assert.Equal(isNullable, (bool)clientRow["is_nullable"]);
+                Assert.Equal(isIdentity, (bool)clientRow["is_identity"]);
+
+            }
 
         }
 
@@ -310,10 +344,9 @@ namespace Dotmim.Sync.Test
         [Fact, TestPriority(4)]
         public async Task OneRowFromClient()
         {
-            Guid newId = Guid.NewGuid();
-
             var insertRowScript =
-            $@"INSERT INTO [AllColumns]
+            $@"
+            INSERT INTO [dbo].[AllColumns]
                     ([ClientID] ,[CBinary],[CBigInt],[CBit],[CChar10],[CDate],[CDateTime]
                     ,[CDateTime2],[CDateTimeOffset],[CDecimal64],[CFloat],[CInt],[CMoney]
                     ,[CNChar10],[CNumeric64],[CNVarchar50],[CNVarcharMax],[CReal]
@@ -321,16 +354,16 @@ namespace Dotmim.Sync.Test
                     ,[CTinyint],[CUniqueIdentifier],[CVarbinary50],[CVarbinaryMax]
                     ,[CVarchar50],[CVarcharMax],[CXml])
             VALUES
-                    ('{newId.ToString()}',12345,10000000000000,1,'char10',date('now'),datetime('now'),datetime('now')
-                    ,datetime('now'),23.1234,12.123,1,3148.29,'char10',23.1234
-                    ,'nvarchar(50)','nvarchar(max)',12.34,datetime('now'),12,3148.29
-                    ,datetime('now'),time('now'),1,'{newId.ToString()}',123456,123456,'varchar(50)','varchar(max)'
-                    ,'<root><client name=''Doe''>inner Doe client</client></root>')";
+                    (NEWID(),12345,10000000000000,1,'char10',GETDATE(),GETDATE(),GETDATE()
+                    ,GETDATE(),23.1234,12.123,1,3148.29,'char10',23.1234
+                    ,'nvarchar(50)','nvarchar(max)',12.34,GETDATE(),12,3148.29
+                    ,GETDATE(),GETDATE(),1,NEWID(),123456,123456,'varchar(50)','varchar(max)'
+                    ,'<root><client name=''Doe''>inner Doe client</client></root>')
+            ";
 
-
-            using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
+            using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
             {
-                using (var sqlCmd = new SQLiteCommand(insertRowScript, sqlConnection))
+                using (var sqlCmd = new SqlCommand(insertRowScript, sqlConnection))
                 {
                     sqlConnection.Open();
                     sqlCmd.ExecuteNonQuery();
@@ -372,52 +405,23 @@ namespace Dotmim.Sync.Test
         [Fact, TestPriority(5)]
         public async Task UpdateRowFromClient()
         {
-            Guid newId = Guid.NewGuid();
-
             var insertRowScript =
-            $@"INSERT INTO [AllColumns]
-                    ([ClientID] ,[CBinary],[CBigInt],[CBit],[CChar10],[CDate],[CDateTime]
-                    ,[CDateTime2],[CDateTimeOffset],[CDecimal64],[CFloat],[CInt],[CMoney]
-                    ,[CNChar10],[CNumeric64],[CNVarchar50],[CNVarcharMax],[CReal]
-                    ,[CSmallDateTime],[CSmallInt],[CSmallMoney],[CSqlVariant],[CTime7]
-                    ,[CTinyint],[CUniqueIdentifier],[CVarbinary50],[CVarbinaryMax]
-                    ,[CVarchar50],[CVarcharMax],[CXml])
-            VALUES
-                    ('{newId.ToString()}',12345,10000000000000,1,'char10',date('now'),datetime('now'),datetime('now')
-                    ,datetime('now'),23.1234,12.123,1,3148.29,'char10',23.1234
-                    ,'nvarchar(50)','nvarchar(max)',12.34,datetime('now'),12,3148.29
-                    ,datetime('now'),time('now'),1,'{newId.ToString()}',123456,123456,'varchar(50)','varchar(max)'
-                    ,'<root><client name=''Doe''>inner Doe client</client></root>')";
+                $@"
+                Declare @id uniqueidentifier;
+                select top 1 @id = ClientID from AllColumns;
+                Update [AllColumns] Set [CNVarchar50] = 'Updated Row' Where ClientID = @id";
 
-            using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
+            using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
             {
-                using (var sqlCmd = new SQLiteCommand(insertRowScript, sqlConnection))
+                using (var sqlCmd = new SqlCommand(insertRowScript, sqlConnection))
                 {
                     sqlConnection.Open();
                     sqlCmd.ExecuteNonQuery();
                     sqlConnection.Close();
                 }
             }
+
             var session = await agent.SynchronizeAsync();
-
-            Assert.Equal(0, session.TotalChangesDownloaded);
-            Assert.Equal(1, session.TotalChangesUploaded);
-
-            var updateRowScript =
-            $@"Update [AllColumns] Set [CNVarchar50] = 'Updated Row' Where ClientID = '{newId.ToString()}'";
-
-            using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
-            {
-                using (var sqlCmd = new SQLiteCommand(updateRowScript, sqlConnection))
-                {
-                    sqlConnection.Open();
-                    sqlCmd.ExecuteNonQuery();
-                    sqlConnection.Close();
-                }
-            }
-
-
-            session = await agent.SynchronizeAsync();
 
             Assert.Equal(0, session.TotalChangesDownloaded);
             Assert.Equal(1, session.TotalChangesUploaded);

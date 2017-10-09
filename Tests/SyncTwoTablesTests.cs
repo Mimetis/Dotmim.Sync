@@ -1,21 +1,19 @@
-﻿using Dotmim.Sync.SQLite;
-using Dotmim.Sync.SqlServer;
-using Dotmim.Sync.Test.Misc;
+﻿using Dotmim.Sync.SqlServer;
+using Dotmim.Sync.Tests.Misc;
 using Dotmim.Sync.Test.SqlUtils;
 using System;
 using System.Data.SqlClient;
-using System.Data.SQLite;
 using System.IO;
 using System.Threading.Tasks;
 using Xunit;
 
 namespace Dotmim.Sync.Test
 {
-    public class SQLiteTwoTablesFixture : IDisposable
+    public class SyncTwoTablesFixture : IDisposable
     {
-        public string serverDbName => "Test_SQLite_TwoTables_Server";
-        public string client1DbName => "TestSqliteTwoTablesClient.db";
-        public string[] Tables => new string[] { "Customers", "ServiceTickets" };
+        public string serverDbName => "Test_TwoTables_Server";
+        public string client1DbName => "Test_TwoTables_Client";
+         public string[] Tables => new string[] {"Customers", "ServiceTickets" };
 
         private string createTableScript =
         $@"
@@ -63,19 +61,13 @@ namespace Dotmim.Sync.Test
         private HelperDB helperDb = new HelperDB();
 
         public String ServerConnectionString => HelperDB.GetDatabaseConnectionString(serverDbName);
-        public string ClientSQLiteFilePath => Path.Combine(Directory.GetCurrentDirectory(), client1DbName);
+        public String Client1ConnectionString => HelperDB.GetDatabaseConnectionString(client1DbName);
 
-        public SQLiteTwoTablesFixture()
+        public SyncTwoTablesFixture()
         {
-            //var builder = new SQLiteConnectionStringBuilder { DataSource = ClientSQLiteFilePath };
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-
-            if (File.Exists(ClientSQLiteFilePath))
-                File.Delete(ClientSQLiteFilePath);
-
             // create databases
             helperDb.CreateDatabase(serverDbName);
+            helperDb.CreateDatabase(client1DbName);
 
             // create table
             helperDb.ExecuteScript(serverDbName, createTableScript);
@@ -86,30 +78,29 @@ namespace Dotmim.Sync.Test
         public void Dispose()
         {
             helperDb.DeleteDatabase(serverDbName);
+            helperDb.DeleteDatabase(client1DbName);
 
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-
-            if (File.Exists(ClientSQLiteFilePath))
-                File.Delete(ClientSQLiteFilePath);
+            var filepathSqlite = Path.Combine(Directory.GetCurrentDirectory(), "Test_TwoTables_Client.sdf");
+            if (File.Exists(filepathSqlite))
+                File.Delete(filepathSqlite);
         }
 
     }
 
-    [TestCaseOrderer("Dotmim.Sync.Test.Misc.PriorityOrderer", "Dotmim.Sync.Core.Test")]
-    public class SQLiteTwoTablesTests : IClassFixture<SQLiteTwoTablesFixture>
+    [TestCaseOrderer("Dotmim.Sync.Tests.Misc.PriorityOrderer", "Dotmim.Sync.Tests")]
+    public class SyncTwoTablesTests : IClassFixture<SyncTwoTablesFixture>
     {
-        SQLiteTwoTablesFixture fixture;
+        SyncTwoTablesFixture fixture;
         SqlSyncProvider serverProvider;
-        SQLiteSyncProvider clientProvider;
+        SqlSyncProvider clientProvider;
         SyncAgent agent;
 
-        public SQLiteTwoTablesTests(SQLiteTwoTablesFixture fixture)
+        public SyncTwoTablesTests(SyncTwoTablesFixture fixture)
         {
             this.fixture = fixture;
 
             serverProvider = new SqlSyncProvider(fixture.ServerConnectionString);
-            clientProvider = new SQLiteSyncProvider(fixture.ClientSQLiteFilePath);
+            clientProvider = new SqlSyncProvider(fixture.Client1ConnectionString);
             var simpleConfiguration = new SyncConfiguration(fixture.Tables);
 
             agent = new SyncAgent(clientProvider, serverProvider, simpleConfiguration);
@@ -124,23 +115,19 @@ namespace Dotmim.Sync.Test
             Assert.Equal(0, session.TotalChangesUploaded);
 
             // check relation has been created on client :
-            //int foreignKeysCount=0;
-            //using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
-            //{
-            //    var script = $@"PRAGMA foreign_key_list('ServiceTickets')";
+            int foreignKeysCount;
+            using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
+            {
+                var script = $@"Select count(*) from sys.foreign_keys where name = 'FK_ServiceTickets_Customers'";
 
-            //    using (var sqlCmd = new SQLiteCommand(script, sqlConnection))
-            //    {
-            //        sqlConnection.Open();
-
-            //        var reader = sqlCmd.ExecuteReader();
-            //        while (reader.Read())
-            //            foreignKeysCount++;
-
-            //        sqlConnection.Close();
-            //    }
-            //}
-            //Assert.Equal(1, foreignKeysCount);
+                using (var sqlCmd = new SqlCommand(script, sqlConnection))
+                {
+                    sqlConnection.Open();
+                    foreignKeysCount = (int)sqlCmd.ExecuteScalar();
+                    sqlConnection.Close();
+                }
+            }
+            Assert.Equal(1, foreignKeysCount);
         }
 
         [Fact, TestPriority(2)]

@@ -5,7 +5,7 @@ using System.Text;
 using Xunit.Abstractions;
 using Xunit.Sdk;
 
-namespace Dotmim.Sync.Test.Misc
+namespace Dotmim.Sync.Tests.Misc
 {
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
     public class TestPriorityAttribute : Attribute

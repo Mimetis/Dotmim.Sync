@@ -125,7 +125,6 @@ namespace Dotmim.Sync.Data
         /// </summary>
         public String OrginalDbType { get; set; }
 
-
         /// <summary>
         /// Returns the Column Type
         /// </summary>

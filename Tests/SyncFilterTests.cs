@@ -1,4 +1,4 @@
-﻿using Dotmim.Sync.Test.Misc;
+﻿using Dotmim.Sync.Tests.Misc;
 using Dotmim.Sync.Test.SqlUtils;
 using Dotmim.Sync.SqlServer;
 using System;
@@ -120,7 +120,7 @@ namespace Dotmim.Sync.Test
     }
 
     [Collection("Sync")]
-    [TestCaseOrderer("Dotmim.Sync.Test.Misc.PriorityOrderer", "Dotmim.Sync.Core.Test")]
+    [TestCaseOrderer("Dotmim.Sync.Tests.Misc.PriorityOrderer", "Dotmim.Sync.Tests")]
     public class SyncFilterTests : IClassFixture<SyncFilterFixture>
     {
         SyncFilterFixture fixture;
