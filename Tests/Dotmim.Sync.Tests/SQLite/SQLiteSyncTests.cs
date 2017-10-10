@@ -133,8 +133,6 @@ namespace Dotmim.Sync.Test
     [TestCaseOrderer("Dotmim.Sync.Tests.Misc.PriorityOrderer", "Dotmim.Sync.Tests")]
     public class SQLiteSyncTests : IClassFixture<SQLiteSyncSimpleFixture>
     {
-        SqlSyncProvider serverProvider;
-        SQLiteSyncProvider clientProvider;
         SQLiteSyncSimpleFixture fixture;
         SyncAgent agent;
 
@@ -157,7 +155,7 @@ namespace Dotmim.Sync.Test
         public async Task SyncNoRows(SyncConfiguration conf)
         {
             agent.Configuration = conf;
-            agent.Configuration.Tables = fixture.Tables;
+            agent.Configuration.Add(fixture.Tables);
             var session = await agent.SynchronizeAsync();
 
             Assert.Equal(0, session.TotalChangesDownloaded);
@@ -181,7 +179,7 @@ namespace Dotmim.Sync.Test
                 }
             }
             agent.Configuration = conf;
-            agent.Configuration.Tables = fixture.Tables;
+            agent.Configuration.Add(fixture.Tables);
             var session = await agent.SynchronizeAsync();
 
             Assert.Equal(1, session.TotalChangesDownloaded);
@@ -212,7 +210,7 @@ namespace Dotmim.Sync.Test
                 throw new Exception("Row not inserted");
 
             agent.Configuration = conf;
-            agent.Configuration.Tables = fixture.Tables;
+            agent.Configuration.Add(fixture.Tables);
             var session = await agent.SynchronizeAsync();
 
             Assert.Equal(0, session.TotalChangesDownloaded);
@@ -238,7 +236,7 @@ namespace Dotmim.Sync.Test
                 }
             }
             agent.Configuration = conf;
-            agent.Configuration.Tables = fixture.Tables;
+            agent.Configuration.Add(fixture.Tables);
             var session = await agent.SynchronizeAsync();
 
             Assert.Equal(0, session.TotalChangesDownloaded);
@@ -257,7 +255,7 @@ namespace Dotmim.Sync.Test
                 }
             }
             agent.Configuration = conf;
-            agent.Configuration.Tables = fixture.Tables;
+            agent.Configuration.Add(fixture.Tables);
             session = await agent.SynchronizeAsync();
 
             Assert.Equal(0, session.TotalChangesDownloaded);
@@ -282,7 +280,7 @@ namespace Dotmim.Sync.Test
                 }
             }
             agent.Configuration = conf;
-            agent.Configuration.Tables = fixture.Tables;
+            agent.Configuration.Add(fixture.Tables);
             var session = await agent.SynchronizeAsync();
 
             Assert.Equal(1, session.TotalChangesDownloaded);
@@ -307,7 +305,7 @@ namespace Dotmim.Sync.Test
                 }
             }
             agent.Configuration = conf;
-            agent.Configuration.Tables = fixture.Tables;
+            agent.Configuration.Add(fixture.Tables);
             var session = await agent.SynchronizeAsync();
 
             Assert.Equal(1, session.TotalChangesDownloaded);
@@ -332,7 +330,7 @@ namespace Dotmim.Sync.Test
             }
 
             agent.Configuration = conf;
-            agent.Configuration.Tables = fixture.Tables;
+            agent.Configuration.Add(fixture.Tables);
             var session = await agent.SynchronizeAsync();
 
             Assert.Equal(0, session.TotalChangesDownloaded);
@@ -384,7 +382,7 @@ namespace Dotmim.Sync.Test
             }
 
             agent.Configuration = conf;
-            agent.Configuration.Tables = fixture.Tables;
+            agent.Configuration.Add(fixture.Tables);
             var session = await agent.SynchronizeAsync();
 
             // check statistics
@@ -429,7 +427,7 @@ namespace Dotmim.Sync.Test
             }
 
             agent.Configuration = conf;
-            agent.Configuration.Tables = fixture.Tables;
+            agent.Configuration.Add(fixture.Tables);
             var session = await agent.SynchronizeAsync();
 
             //just check, even if it's not the real test :)
@@ -512,7 +510,7 @@ namespace Dotmim.Sync.Test
             }
 
             agent.Configuration = conf;
-            agent.Configuration.Tables = fixture.Tables;
+            agent.Configuration.Add(fixture.Tables);
             var session = await agent.SynchronizeAsync();
 
             //just check, even if it's not the real test :)
@@ -618,7 +616,7 @@ namespace Dotmim.Sync.Test
             }
 
             agent.Configuration = conf;
-            agent.Configuration.Tables = fixture.Tables;
+            agent.Configuration.Add(fixture.Tables);
             agent.Configuration.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
             var session = await agent.SynchronizeAsync();
 

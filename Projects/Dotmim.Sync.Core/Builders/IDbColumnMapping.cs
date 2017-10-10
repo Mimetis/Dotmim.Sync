@@ -10,7 +10,7 @@ namespace Dotmim.Sync.Builders
     {
 
         /// <summary>
-        /// Get the string DB type issued from a DmColumn OrginalDbType || DbType
+        /// Get the string DB type issued from a DmColumn OriginalDbType || DbType
         /// </summary>
         string GetDbTypeString(DmColumn column);
 

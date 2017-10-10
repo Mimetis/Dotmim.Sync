@@ -16,7 +16,7 @@ namespace Dotmim.Sync.Manager
         /// <summary>
         /// Gets a columns list from the datastore
         /// </summary>
-        List<DbColumnDefinition> GetTableDefinition();
+        List<DmColumn> GetTableDefinition();
 
         /// <summary>
         /// Gets all relations from a current table

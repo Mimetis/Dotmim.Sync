@@ -148,8 +148,8 @@ namespace Dotmim.Sync.MySql
             foreach (var column in this.tableDescription.Columns)
             {
                 var columnName = new ObjectNameParser(column.ColumnName.ToLowerInvariant(), "`", "`");
-                var stringType = this.mySqlDbMetadata.TryGetOwnerDbTypeString(column.OrginalDbType, column.DbType, false, false, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
-                var stringPrecision = this.mySqlDbMetadata.TryGetOwnerDbTypePrecision(column.OrginalDbType, column.DbType, false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
+                var stringType = this.mySqlDbMetadata.TryGetOwnerDbTypeString(column.OriginalDbType, column.DbType, false, false, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
+                var stringPrecision = this.mySqlDbMetadata.TryGetOwnerDbTypePrecision(column.OriginalDbType, column.DbType, false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
                 var columnType = $"{stringType} {stringPrecision}";
 
                 var identity = string.Empty;

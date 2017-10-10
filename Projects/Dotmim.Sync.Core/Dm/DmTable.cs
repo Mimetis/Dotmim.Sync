@@ -6,6 +6,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.Data;
+using Dotmim.Sync.Enumerations;
 
 namespace Dotmim.Sync.Data
 {
@@ -22,8 +23,8 @@ namespace Dotmim.Sync.Data
         internal readonly DmColumnCollection columns;
 
         // props
-        string tableName = "";
-        string tablePrefix = "";
+        string tableName = string.Empty;
+        string schema = string.Empty;
 
         // globalization stuff
         CultureInfo culture;
@@ -101,6 +102,11 @@ namespace Dotmim.Sync.Data
         /// </summary>
         public string OriginalProvider { get; set; }
 
+        /// <summary>
+        /// Gets or Sets the Sync direction (may be Bidirectional, DownloadOnly, UploadOnly) 
+        /// Default is Bidirectional
+        /// </summary>
+        public SyncDirection SyncDirection { get; set; } = SyncDirection.Bidirectional;
 
         /// <summary>
         /// Set the culture used to make comparison
@@ -224,7 +230,7 @@ namespace Dotmim.Sync.Data
 
                 // if we have only One Column, so must be unique
                 if (primaryKey.Columns.Length == 1)
-                    primaryKey.Columns[0].Unique = true;
+                    primaryKey.Columns[0].IsUnique = true;
             }
         }
 
@@ -274,15 +280,12 @@ namespace Dotmim.Sync.Data
         }
 
         /// <summary>
-        /// Table Prefix. [NOT USED]
+        /// Table schema. Useful in Sql Server Provider
         /// </summary>
-        public string Prefix
+        public string Schema
         {
-            get { return tablePrefix; }
-            set
-            {
-                tablePrefix = value == null ? string.Empty : value;
-            }
+            get { return schema; }
+            set { schema = value ?? string.Empty; }
         }
 
         public IEnumerable<DmColumn> NonPkColumns
@@ -317,10 +320,11 @@ namespace Dotmim.Sync.Data
 
             // Set All properties
             clone.TableName = tableName;
-            clone.Prefix = tablePrefix;
+            clone.Schema = schema;
             clone.Culture = culture;
             clone.CaseSensitive = caseSensitive;
             clone.OriginalProvider = OriginalProvider;
+            clone.SyncDirection = SyncDirection;
 
             // add all columns
             var clmns = this.Columns;
@@ -476,7 +480,7 @@ namespace Dotmim.Sync.Data
                     continue;
                 }
 
-               
+
 
                 dstColumn[newRecord] = srcColumn[srcRecord];
 

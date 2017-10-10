@@ -47,27 +47,38 @@ namespace Dotmim.Sync.SqlServer.Manager
             return relations;
         }
 
-        public List<DbColumnDefinition> GetTableDefinition()
+        public List<DmColumn> GetTableDefinition()
         {
-            List<DbColumnDefinition> columns = new List<DbColumnDefinition>();
+            List<DmColumn> columns = new List<DmColumn>();
             // Get the columns definition
             var dmColumnsList = SqlManagementUtils.ColumnsForTable(sqlConnection, sqlTransaction, this.tableName);
+            var sqlDbMetadata = new SqlDbMetadata();
 
             foreach (var c in dmColumnsList.Rows.OrderBy(r => (int)r["column_id"]))
             {
-                DbColumnDefinition dbColumn = new DbColumnDefinition();
+                var typeName = c["type"].ToString();
+                var name = c["name"].ToString();
 
-                dbColumn.Name = c["name"].ToString();
-                dbColumn.Ordinal = (int)c["column_id"];
-                dbColumn.TypeName = c["type"].ToString();
-                dbColumn.MaxLength = Convert.ToInt64(c["max_length"]);
+                // Gets the datastore owner dbType 
+                SqlDbType datastoreDbType = (SqlDbType)sqlDbMetadata.ValidateOwnerDbType(typeName, false, false);
+                // once we have the datastore type, we can have the managed type
+                Type columnType = sqlDbMetadata.ValidateType(datastoreDbType);
+
+                var dbColumn = DmColumn.CreateColumn(name, columnType);
+
+                dbColumn.SetOrdinal((int)c["column_id"]);
+                dbColumn.OriginalTypeName = c["type"].ToString();
+                var maxLengthLong = Convert.ToInt64(c["max_length"]);
+
+                dbColumn.MaxLength = maxLengthLong > Int32.MaxValue ? Int32.MaxValue : (Int32)maxLengthLong;
                 dbColumn.Precision = (byte)c["precision"];
                 dbColumn.Scale = (byte)c["scale"];
-                dbColumn.IsNullable = (bool)c["is_nullable"];
-                dbColumn.IsIdentity = (bool)c["is_identity"];
-                dbColumn.IsCompute = (bool)c["is_computed"];
+                dbColumn.AllowDBNull = (bool)c["is_nullable"];
+                dbColumn.AutoIncrement = (bool)c["is_identity"];
 
-                switch (dbColumn.TypeName.ToLowerInvariant())
+                dbColumn.IsCompute = (bool)c["is_computed"];
+                
+                switch (dbColumn.OriginalTypeName.ToLowerInvariant())
                 {
                     case "nchar":
                     case "nvarchar":

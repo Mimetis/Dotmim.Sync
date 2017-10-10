@@ -134,9 +134,9 @@ namespace Dotmim.Sync.SqlServer
 
         //internal static string GetSqlTypePrecisionString(this DmColumn column)
         //{
-        //    if (!String.IsNullOrEmpty(column.OrginalDbType))
+        //    if (!String.IsNullOrEmpty(column.OriginalDbType))
         //    {
-        //        SqlDbType? sqlDbType = column.OrginalDbType.ToSqlDbType();
+        //        SqlDbType? sqlDbType = column.OriginalDbType.ToSqlDbType();
         //        if (sqlDbType.HasValue)
         //        {
         //            switch (sqlDbType)
@@ -209,11 +209,11 @@ namespace Dotmim.Sync.SqlServer
 
         //internal static string GetSqlDbTypeString(this DmColumn column)
         //{
-        //    if (!String.IsNullOrEmpty(column.OrginalDbType))
+        //    if (!String.IsNullOrEmpty(column.OriginalDbType))
         //    {
-        //        SqlDbType? sqlDbType = column.OrginalDbType.ToSqlDbType();
+        //        SqlDbType? sqlDbType = column.OriginalDbType.ToSqlDbType();
         //        if (sqlDbType.HasValue)
-        //            return column.OrginalDbType;
+        //            return column.OriginalDbType;
         //    }
 
         //    string sqlType = string.Empty;
@@ -294,9 +294,9 @@ namespace Dotmim.Sync.SqlServer
         //internal static SqlDbType GetSqlDbType(this DmColumn column)
         //{
         //    // Try to set the real db type if it's present as string in the column.OriginalDbType property
-        //    if (!String.IsNullOrEmpty(column.OrginalDbType))
+        //    if (!String.IsNullOrEmpty(column.OriginalDbType))
         //    {
-        //        SqlDbType? sqlDbType = column.OrginalDbType.ToSqlDbType();
+        //        SqlDbType? sqlDbType = column.OriginalDbType.ToSqlDbType();
         //        if (sqlDbType.HasValue)
         //            return sqlDbType.Value;
         //    }

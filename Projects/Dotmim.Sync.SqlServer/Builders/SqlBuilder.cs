@@ -31,7 +31,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         internal static (ObjectNameParser tableName, ObjectNameParser trackingName) GetParsers(DmTable tableDescription)
         {
-            string tableAndPrefixName = String.IsNullOrWhiteSpace(tableDescription.Prefix) ? tableDescription.TableName : $"{tableDescription.Prefix}.{tableDescription.TableName}";
+            string tableAndPrefixName = String.IsNullOrWhiteSpace(tableDescription.Schema) ? tableDescription.TableName : $"{tableDescription.Schema}.{tableDescription.TableName}";
             var originalTableName = new ObjectNameParser(tableAndPrefixName, "[", "]");
             var trackingTableName = new ObjectNameParser($"{tableAndPrefixName}_tracking", "[", "]");
 

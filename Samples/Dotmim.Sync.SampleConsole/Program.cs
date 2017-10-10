@@ -406,18 +406,18 @@ class Program
         e.Action = ApplyAction.Continue;
         return;
         // tables name
-        string serverTableName = e.Conflict.RemoteChanges.TableName;
-        string clientTableName = e.Conflict.LocalChanges.TableName;
+        //string serverTableName = e.Conflict.RemoteChanges.TableName;
+        //string clientTableName = e.Conflict.LocalChanges.TableName;
 
-        // server row in conflict
-        var dmRowServer = e.Conflict.RemoteChanges.Rows[0];
-        var dmRowClient = e.Conflict.LocalChanges.Rows[0];
+        //// server row in conflict
+        //var dmRowServer = e.Conflict.RemoteChanges.Rows[0];
+        //var dmRowClient = e.Conflict.LocalChanges.Rows[0];
 
-        // Example 1 : Resolution based on rows values
-        if ((int)dmRowServer["ClientID"] == 100 && (int)dmRowClient["ClientId"] == 0)
-            e.Action = ApplyAction.Continue;
-        else
-            e.Action = ApplyAction.RetryWithForceWrite;
+        //// Example 1 : Resolution based on rows values
+        //if ((int)dmRowServer["ClientID"] == 100 && (int)dmRowClient["ClientId"] == 0)
+        //    e.Action = ApplyAction.Continue;
+        //else
+        //    e.Action = ApplyAction.RetryWithForceWrite;
 
         // Example 2 : resolution based on conflict type
         // Line exist on client, not on server, force to create it

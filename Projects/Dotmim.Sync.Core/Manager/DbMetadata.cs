@@ -11,7 +11,7 @@ namespace Dotmim.Sync.Manager
         /// <summary>
         /// Validate if a column definition is actualy supported by the provider
         /// </summary>
-        public abstract bool IsValid(DbColumnDefinition columnDefinition);
+        public abstract bool IsValid(DmColumn columnDefinition);
 
         /// <summary>
         /// Get the datastore type name from a DbType for generating scripts
@@ -96,12 +96,12 @@ namespace Dotmim.Sync.Manager
         /// <summary>
         /// Get precision and scale from a dmColumn
         /// </summary>
-        public abstract (byte precision, byte scale) ValidatePrecisionAndScale(DbColumnDefinition columnDefinition);
+        public abstract (byte precision, byte scale) ValidatePrecisionAndScale(DmColumn columnDefinition);
 
         /// <summary>
         /// Get precision if supported (MySql supports int(10))
         /// </summary>
-        public abstract byte ValidatePrecision(DbColumnDefinition columnDefinition);
+        public abstract byte ValidatePrecision(DmColumn columnDefinition);
 
 
         /// <summary>
@@ -109,7 +109,7 @@ namespace Dotmim.Sync.Manager
         /// </summary>
         /// <param name="columnDefinition"></param>
         /// <returns></returns>
-        public abstract bool ValidateIsReadonly(DbColumnDefinition columnDefinition);
+        public abstract bool ValidateIsReadonly(DmColumn columnDefinition);
 
 
         /// <summary>

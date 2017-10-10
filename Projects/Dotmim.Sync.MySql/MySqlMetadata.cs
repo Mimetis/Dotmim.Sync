@@ -73,7 +73,7 @@ namespace Dotmim.Sync.MySql
     //    {
     //        var precision = column.Precision;
     //        var scale = column.Scale;
-    //        if (IsNumericType(column.OrginalDbType) && !column.PrecisionSpecified)
+    //        if (IsNumericType(column.OriginalDbType) && !column.PrecisionSpecified)
     //        {
     //            precision = 10;
     //            scale = 0;
@@ -312,16 +312,16 @@ namespace Dotmim.Sync.MySql
     //    /// </summary>
     //    public static string GetStringPrecisionFromDmColumn(DmColumn column)
     //    {
-    //        if (!String.IsNullOrEmpty(column.OrginalDbType) && column.Table.OriginalProvider == "MySql")
+    //        if (!String.IsNullOrEmpty(column.OriginalDbType) && column.Table.OriginalProvider == "MySql")
     //        {
     //            var precision = column.Precision;
     //            var scale = column.Scale;
-    //            if (IsNumericType(column.OrginalDbType) && !column.PrecisionSpecified)
+    //            if (IsNumericType(column.OriginalDbType) && !column.PrecisionSpecified)
     //            {
     //                precision = 10;
     //                scale = 0;
     //            }
-    //            if (!SupportScale(column.OrginalDbType) || !column.ScaleSpecified)
+    //            if (!SupportScale(column.OriginalDbType) || !column.ScaleSpecified)
     //                return String.Format("({0})", precision);
 
     //            return String.Format("({0},{1})", precision, scale);
@@ -359,16 +359,16 @@ namespace Dotmim.Sync.MySql
 
     //    public static (byte precision, byte scale)  GetPrecisionFromDmColumn(DmColumn column)
     //    {
-    //        if (!String.IsNullOrEmpty(column.OrginalDbType) && column.Table.OriginalProvider == "MySql")
+    //        if (!String.IsNullOrEmpty(column.OriginalDbType) && column.Table.OriginalProvider == "MySql")
     //        {
     //            var precision = column.Precision;
     //            var scale = column.Scale;
-    //            if (IsNumericType(column.OrginalDbType) && !column.PrecisionSpecified)
+    //            if (IsNumericType(column.OriginalDbType) && !column.PrecisionSpecified)
     //            {
     //                precision = 10;
     //                scale = 0;
     //            }
-    //            if (!SupportScale(column.OrginalDbType) || !column.ScaleSpecified)
+    //            if (!SupportScale(column.OriginalDbType) || !column.ScaleSpecified)
     //                return (precision, 0);
 
     //            return (precision, scale);
@@ -396,8 +396,8 @@ namespace Dotmim.Sync.MySql
     //    /// </summary>
     //    public static string GetStringTypeFromDmColumn(DmColumn column)
     //    {
-    //        if (!String.IsNullOrEmpty(column.OrginalDbType) && column.Table?.OriginalProvider == "MySql")
-    //            return column.OrginalDbType;
+    //        if (!String.IsNullOrEmpty(column.OriginalDbType) && column.Table?.OriginalProvider == "MySql")
+    //            return column.OriginalDbType;
 
     //        return GetStringTypeFromDbType(column.DbType, Convert.ToInt32(column.MaxLength));
     //    }

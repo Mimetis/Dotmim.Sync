@@ -56,7 +56,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             var precision = column.Precision;
             int maxLength = column.MaxLength;
 
-            SqlDbType sqlDbType = (SqlDbType)this.sqlMetadata.TryGetOwnerDbType(column.OrginalDbType, column.DbType, false, false, this.TableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+            SqlDbType sqlDbType = (SqlDbType)this.sqlMetadata.TryGetOwnerDbType(column.OriginalDbType, column.DbType, false, false, this.TableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
 
             // TODO : Since we validate length before, is it mandatory here ?
 
@@ -297,7 +297,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                     failedRows.Fill(dataReader);
                 }
             }
-            catch (DbException ex)
+            catch (DbException)
             {
                 //DbException dbException = dbException1;
                 //Error = CheckZombieTransaction(tvpCommandNameForApplyType, Adapter.TableName, dbException);

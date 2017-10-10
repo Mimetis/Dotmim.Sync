@@ -149,6 +149,7 @@ namespace Dotmim.Sync.Test
             {
                 var serverHandler = new RequestDelegate(async context =>
                 {
+                    //configuration.AddTable(fixture.Tables);
                     serverProvider.SetConfiguration(configuration);
                     proxyServerProvider.SerializationFormat = SerializationFormat.Json;
 
@@ -175,7 +176,7 @@ namespace Dotmim.Sync.Test
             {
                 var serverHandler = new RequestDelegate(async context =>
                 {
-                    conf.Tables = fixture.Tables;
+                    conf.Add(fixture.Tables);
                     serverProvider.SetConfiguration(conf);
                     proxyServerProvider.SerializationFormat = conf.SerializationFormat;
 
@@ -217,7 +218,7 @@ namespace Dotmim.Sync.Test
             {
                 var serverHandler = new RequestDelegate(async context =>
                 {
-                    conf.Tables = fixture.Tables;
+                    conf.Add(fixture.Tables);
                     serverProvider.SetConfiguration(conf);
                     proxyServerProvider.SerializationFormat = conf.SerializationFormat;
 
@@ -257,7 +258,7 @@ namespace Dotmim.Sync.Test
             {
                 var serverHandler = new RequestDelegate(async context =>
                 {
-                    conf.Tables = fixture.Tables;
+                    conf.Add(fixture.Tables);
                     serverProvider.SetConfiguration(conf);
                     proxyServerProvider.SerializationFormat = conf.SerializationFormat;
 
@@ -300,7 +301,7 @@ namespace Dotmim.Sync.Test
             {
                 var serverHandler = new RequestDelegate(async context =>
                 {
-                    conf.Tables = fixture.Tables;
+                    conf.Add(fixture.Tables);
                     serverProvider.SetConfiguration(conf);
                     proxyServerProvider.SerializationFormat = conf.SerializationFormat;
 
@@ -343,7 +344,7 @@ namespace Dotmim.Sync.Test
             {
                 var serverHandler = new RequestDelegate(async context =>
                 {
-                    conf.Tables = fixture.Tables;
+                    conf.Add(fixture.Tables);
                     serverProvider.SetConfiguration(conf);
                     proxyServerProvider.SerializationFormat = conf.SerializationFormat;
 
@@ -384,7 +385,7 @@ namespace Dotmim.Sync.Test
             {
                 var serverHandler = new RequestDelegate(async context =>
                 {
-                    conf.Tables = fixture.Tables;
+                    conf.Add(fixture.Tables);
                     serverProvider.SetConfiguration(conf);
                     proxyServerProvider.SerializationFormat = conf.SerializationFormat;
 
@@ -425,7 +426,7 @@ namespace Dotmim.Sync.Test
             {
                 var serverHandler = new RequestDelegate(async context =>
                 {
-                    conf.Tables = fixture.Tables;
+                    conf.Add(fixture.Tables);
                     serverProvider.SetConfiguration(conf);
                     proxyServerProvider.SerializationFormat = conf.SerializationFormat;
 
@@ -493,7 +494,7 @@ namespace Dotmim.Sync.Test
             {
                 var serverHandler = new RequestDelegate(async context =>
                 {
-                    conf.Tables = fixture.Tables;
+                    conf.Add(fixture.Tables);
                     serverProvider.SetConfiguration(conf);
                     proxyServerProvider.SerializationFormat = conf.SerializationFormat;
 
@@ -554,7 +555,7 @@ namespace Dotmim.Sync.Test
             {
                 var serverHandler = new RequestDelegate(async context =>
                 {
-                    conf.Tables = fixture.Tables;
+                    conf.Add(fixture.Tables);
                     serverProvider.SetConfiguration(conf);
                     proxyServerProvider.SerializationFormat = conf.SerializationFormat;
 
@@ -608,7 +609,7 @@ namespace Dotmim.Sync.Test
             {
                 var serverHandler = new RequestDelegate(async context =>
                 {
-                    conf.Tables = fixture.Tables;
+                    conf.Add(fixture.Tables);
                     serverProvider.SetConfiguration(conf);
                     proxyServerProvider.SerializationFormat = conf.SerializationFormat;
 
@@ -670,7 +671,7 @@ namespace Dotmim.Sync.Test
             {
                 var serverHandler = new RequestDelegate(async context =>
                 {
-                    conf.Tables = fixture.Tables;
+                    conf.Add(fixture.Tables);
                     serverProvider.SetConfiguration(conf);
                     proxyServerProvider.SerializationFormat = conf.SerializationFormat;
 
@@ -725,7 +726,7 @@ namespace Dotmim.Sync.Test
             {
                 var serverHandler = new RequestDelegate(async context =>
                 {
-                    conf.Tables = fixture.Tables;
+                    conf.Add(fixture.Tables);
                     serverProvider.SetConfiguration(conf);
                     proxyServerProvider.SerializationFormat = conf.SerializationFormat;
 
@@ -816,7 +817,7 @@ namespace Dotmim.Sync.Test
             {
                 var serverHandler = new RequestDelegate(async context =>
                 {
-                    conf.Tables = fixture.Tables;
+                    conf.Add(fixture.Tables);
                     conf.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
 
                     serverProvider.SetConfiguration(conf);

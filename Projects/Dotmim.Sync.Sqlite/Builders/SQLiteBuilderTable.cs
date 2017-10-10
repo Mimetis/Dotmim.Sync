@@ -100,8 +100,8 @@ namespace Dotmim.Sync.SQLite
             {
                 var columnName = new ObjectNameParser(column.ColumnName);
 
-                var columnTypeString = this.sqliteDbMetadata.TryGetOwnerDbTypeString(column.OrginalDbType, column.DbType, false, false, this.tableDescription.OriginalProvider, SQLiteSyncProvider.ProviderType);
-                var columnPrecisionString = this.sqliteDbMetadata.TryGetOwnerDbTypePrecision(column.OrginalDbType, column.DbType, false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, SQLiteSyncProvider.ProviderType);
+                var columnTypeString = this.sqliteDbMetadata.TryGetOwnerDbTypeString(column.OriginalDbType, column.DbType, false, false, this.tableDescription.OriginalProvider, SQLiteSyncProvider.ProviderType);
+                var columnPrecisionString = this.sqliteDbMetadata.TryGetOwnerDbTypePrecision(column.OriginalDbType, column.DbType, false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, SQLiteSyncProvider.ProviderType);
                 var columnType = $"{columnTypeString} {columnPrecisionString}";
 
                 // check case

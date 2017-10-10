@@ -41,7 +41,14 @@ namespace Dotmim.Sync.SampleFx46Console
                                         "wp_term_relationships", "wp_posts", "wp_postmeta", "wp_options", "wp_links",
                                         "wp_comments", "wp_commentmeta"};
 
+
             SyncAgent agent = new SyncAgent(clientProvider, serverProvider, tables);
+
+            // Setting special properties on Configuration tables
+            agent.Configuration["wp_users"].SyncDirection = SyncDirection.DownloadOnly;
+            agent.Configuration["wp_users"].Schema = "SalesLT";
+
+
 
             agent.SyncProgress += SyncProgress;
             agent.ApplyChangedFailed += ApplyChangedFailed;
@@ -269,18 +276,18 @@ namespace Dotmim.Sync.SampleFx46Console
             e.Action = ApplyAction.Continue;
             return;
             // tables name
-            string serverTableName = e.Conflict.RemoteChanges.TableName;
-            string clientTableName = e.Conflict.LocalChanges.TableName;
+            //string serverTableName = e.Conflict.RemoteChanges.TableName;
+            //string clientTableName = e.Conflict.LocalChanges.TableName;
 
-            // server row in conflict
-            var dmRowServer = e.Conflict.RemoteChanges.Rows[0];
-            var dmRowClient = e.Conflict.LocalChanges.Rows[0];
+            //// server row in conflict
+            //var dmRowServer = e.Conflict.RemoteChanges.Rows[0];
+            //var dmRowClient = e.Conflict.LocalChanges.Rows[0];
 
-            // Example 1 : Resolution based on rows values
-            if ((int)dmRowServer["ClientID"] == 100 && (int)dmRowClient["ClientId"] == 0)
-                e.Action = ApplyAction.Continue;
-            else
-                e.Action = ApplyAction.RetryWithForceWrite;
+            //// Example 1 : Resolution based on rows values
+            //if ((int)dmRowServer["ClientID"] == 100 && (int)dmRowClient["ClientId"] == 0)
+            //    e.Action = ApplyAction.Continue;
+            //else
+            //    e.Action = ApplyAction.RetryWithForceWrite;
 
             // Example 2 : resolution based on conflict type
             // Line exist on client, not on server, force to create it

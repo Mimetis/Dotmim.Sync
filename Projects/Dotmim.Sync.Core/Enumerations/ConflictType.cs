@@ -19,7 +19,6 @@ namespace Dotmim.Sync.Enumerations
         /// <summary>
         /// The Remote datasource update a row and the Local datasource insert a row with same key
         /// </summary>
-        [Obsolete("this can't happened")]
         RemoteUpdateLocalInsert,
 
         /// <summary>
@@ -35,7 +34,6 @@ namespace Dotmim.Sync.Enumerations
         /// <summary>
         /// The Remote datasource deleted a row that the Local datasource insert with the same key.
         /// </summary>
-        [Obsolete("this should not happened")]
         RemoteDeleteLocalInsert,
 
         /// <summary>
@@ -56,7 +54,6 @@ namespace Dotmim.Sync.Enumerations
         /// <summary>
         /// The Remote datasource insert a row that the Local datasource updated.
         /// </summary>
-        [Obsolete("this should not happened")]
         RemoteInsertLocalUpdate,
 
         /// <summary>

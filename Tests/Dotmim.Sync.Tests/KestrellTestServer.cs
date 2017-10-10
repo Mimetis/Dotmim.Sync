@@ -38,7 +38,7 @@ namespace Dotmim.Sync.Test
                         {
                             // Set a long timeout for easy testing.
                             options.IdleTimeout = TimeSpan.FromDays(10);
-                            options.CookieHttpOnly = true;
+                            options.Cookie.HttpOnly = true;
                         }); 
                     });
                 this.builder = hostBuilder;

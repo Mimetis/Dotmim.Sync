@@ -151,8 +151,8 @@ namespace Dotmim.Sync
         public SyncAgent(string scopeName, IProvider clientProvider, IProvider serverProvider, SyncConfiguration configuration)
         : this(scopeName, clientProvider, serverProvider)
         {
-            if (configuration.Tables == null || configuration.Tables.Length <= 0)
-                throw new ArgumentException("you need to pass at least one table name");
+            if (configuration.Count <= 0)
+                throw new SyncException("No tables specified", SyncStage.BeginSession, SyncExceptionType.Argument);
 
             var remoteCoreProvider = this.RemoteProvider as CoreProvider;
 
@@ -208,6 +208,7 @@ namespace Dotmim.Sync
             // if any parameters, set in context
             context.Parameters = this.Parameters;
 
+            // set sync type (Normal, Reinitialize, ReinitializeWithUpload). Actually, not used
             context.SyncType = syncType;
 
             this.SessionState = SyncSessionState.Synchronizing;

@@ -14,9 +14,8 @@ namespace Dotmim.Sync
     /// </summary>
     public class SyncConflict
     {
-        DmTable localRows;
-        DmTable remoteRows;
-        string errorMessage;
+        private DmTable localRows;
+        private DmTable remoteRows;
 
         /// <summary>
         /// Gets or sets the error message that is returned when a conflict is set to ConflictType.ErrorsOccurred

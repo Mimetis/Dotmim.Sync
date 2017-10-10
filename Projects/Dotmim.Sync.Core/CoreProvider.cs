@@ -26,7 +26,6 @@ namespace Dotmim.Sync
         private const string SYNC_CONF = "syncconf";
 
         private bool syncInProgress;
-        private string providerType;
         private SyncConfiguration syncConfiguration;
         private CancellationToken cancellationToken;
 
@@ -148,8 +147,8 @@ namespace Dotmim.Sync
         /// </summary>
         public void SetConfiguration(SyncConfiguration syncConfiguration)
         {
-            if (syncConfiguration == null || syncConfiguration.Tables == null || syncConfiguration.Tables.Length <= 0)
-                throw new ArgumentException("Service Configuration must exists and contains at least one table to sync.");
+            if (syncConfiguration == null || !syncConfiguration.HasTables)
+                throw new SyncException("Service Configuration must exists and contains at least one table to sync.", SyncStage.EnsureConfiguration, SyncExceptionType.Argument);
 
             this.syncConfiguration = syncConfiguration;
         }
@@ -159,65 +158,59 @@ namespace Dotmim.Sync
         /// Generate the DmTable configuration from a given columns list
         /// Validate that all columns are currently supported by the provider
         /// </summary>
-        private DmTable GenerateTableFromColumnsList(string tableName, List<DbColumnDefinition> columns, IDbManagerTable dbManagerTable)
+        private void GenerateTableFromColumnsList(DmTable dmTable, List<DmColumn> columns, IDbManagerTable dbManagerTable)
         {
-            DmTable table = new DmTable(tableName);
-
-            // set the original provider name. IF Server and Client are same providers, we could probably be safer with types
-            table.OriginalProvider = this.ProviderTypeName;
+            dmTable.OriginalProvider = this.ProviderTypeName;
 
             var ordinal = 0;
-            foreach (var columnDefinition in columns.OrderBy(c => c.Ordinal))
+            foreach (var column in columns.OrderBy(c => c.Ordinal))
             {
                 // First of all validate if the column is currently supported
-                if (!Metadata.IsValid(columnDefinition))
+                if (!Metadata.IsValid(column))
                     throw SyncException.CreateNotSupportedException(
-                        SyncStage.EnsureConfiguration, $"The Column {columnDefinition.Name} of type {columnDefinition.TypeName} from provider {this.ProviderTypeName} is not currently supported.");
+                        SyncStage.EnsureConfiguration, $"The Column {column.ColumnName} of type {column.OriginalTypeName} from provider {this.ProviderTypeName} is not currently supported.");
+
+                dmTable.Columns.Add(column);
 
                 // Gets the datastore owner dbType (could be SqlDbtype, MySqlDbType, SQLiteDbType, NpgsqlDbType & so on ...)
-                object datastoreDbType = Metadata.ValidateOwnerDbType(columnDefinition.TypeName, columnDefinition.IsUnsigned, columnDefinition.IsUnicode);
+                object datastoreDbType = Metadata.ValidateOwnerDbType(column.OriginalTypeName, column.IsUnsigned, column.IsUnicode);
 
                 // once we have the datastore type, we can have the managed type
                 Type columnType = Metadata.ValidateType(datastoreDbType);
 
                 // and the DbType
-                DbType columnDbType = Metadata.ValidateDbType(columnDefinition.TypeName, columnDefinition.IsUnsigned, columnDefinition.IsUnicode);
-
-                // Create the DmColumn with the right type
-                var newColumn = DmColumn.CreateColumn(columnDefinition.Name, columnType);
-
-                newColumn.DbType = columnDbType;
+                column.DbType = Metadata.ValidateDbType(column.OriginalTypeName, column.IsUnsigned, column.IsUnicode);
 
                 // Gets the owner dbtype (SqlDbType, OracleDbType, MySqlDbType, NpsqlDbType & so on ...)
                 // SQLite does not have it's own type, so it's DbType too
-                newColumn.OrginalDbType = datastoreDbType.ToString();
-
-                table.Columns.Add(newColumn);
-
-                newColumn.SetOrdinal(ordinal);
-                ordinal++;
-
-                newColumn.AllowDBNull = columnDefinition.IsNullable;
-                newColumn.AutoIncrement = columnDefinition.IsIdentity;
+                column.OriginalDbType = datastoreDbType.ToString();
 
                 // Validate max length
-                newColumn.MaxLength = Metadata.ValidateMaxLength(columnDefinition.TypeName, columnDefinition.IsUnsigned, columnDefinition.IsUnicode, columnDefinition.MaxLength);
+                column.MaxLength = Metadata.ValidateMaxLength(column.OriginalTypeName, column.IsUnsigned, column.IsUnicode, column.MaxLength);
 
                 // Validate if column should be readonly
-                newColumn.ReadOnly = Metadata.ValidateIsReadonly(columnDefinition);
+                column.ReadOnly = Metadata.ValidateIsReadonly(column);
+
+                // set position ordinal
+                column.SetOrdinal(ordinal);
+                ordinal++;
 
                 // Validate the precision and scale properties
-                if (Metadata.IsNumericType(columnDefinition.TypeName))
+                if (Metadata.IsNumericType(column.OriginalTypeName))
                 {
-                    if (Metadata.SupportScale(columnDefinition.TypeName))
+                    if (Metadata.SupportScale(column.OriginalTypeName))
                     {
-                        var (p, s) = Metadata.ValidatePrecisionAndScale(columnDefinition);
-                        newColumn.Precision = p;
-                        newColumn.Scale = s;
+                        var (p, s) = Metadata.ValidatePrecisionAndScale(column);
+                        column.Precision = p;
+                        column.PrecisionSpecified = true;
+                        column.Scale = s;
+                        column.ScaleSpecified = true;
                     }
                     else
                     {
-                        newColumn.Precision = Metadata.ValidatePrecision(columnDefinition);
+                        column.Precision = Metadata.ValidatePrecision(column);
+                        column.PrecisionSpecified = true;
+                        column.ScaleSpecified = false;
                     }
 
                 }
@@ -228,7 +221,7 @@ namespace Dotmim.Sync
             var dmTableKeys = dbManagerTable.GetTablePrimaryKeys();
 
             if (dmTableKeys == null || dmTableKeys.Count == 0)
-                throw new SyncException($"No Primary Keys in table {tableName}, Can't make a synchronization with a table without primary keys.", SyncStage.EnsureDatabase, SyncExceptionType.NoPrimaryKeys);
+                throw new SyncException($"No Primary Keys in table {dmTable.TableName}, Can't make a synchronization with a table without primary keys.", SyncStage.EnsureDatabase, SyncExceptionType.NoPrimaryKeys);
 
             DmColumn[] columnsForKey = new DmColumn[dmTableKeys.Count];
 
@@ -236,16 +229,14 @@ namespace Dotmim.Sync
             {
                 var rowColumn = dmTableKeys[i];
 
-                var columnKey = table.Columns.FirstOrDefault(c => String.Equals(c.ColumnName, rowColumn, StringComparison.InvariantCultureIgnoreCase));
+                var columnKey = dmTable.Columns.FirstOrDefault(c => String.Equals(c.ColumnName, rowColumn, StringComparison.InvariantCultureIgnoreCase));
 
                 columnsForKey[i] = columnKey ?? throw new SyncException("Primary key found is not present in the columns list", SyncStage.EnsureDatabase, SyncExceptionType.NoPrimaryKeys);
             }
 
             // Set the primary Key
-            table.PrimaryKey = new DmKey(columnsForKey);
+            dmTable.PrimaryKey = new DmKey(columnsForKey);
 
-
-            return table;
         }
 
 
@@ -254,15 +245,12 @@ namespace Dotmim.Sync
         /// </summary>
         private async Task<SyncConfiguration> UpdateConfigurationInternalAsync(SyncContext context, SyncConfiguration syncConfiguration)
         {
+            if (syncConfiguration.Count == 0)
+                throw new SyncException("Configuration should contains Tables, at least tables with a name", SyncStage.EnsureConfiguration, SyncExceptionType.Argument);
+
             // clear service configuration
-            if (syncConfiguration.ScopeSet != null)
-                syncConfiguration.ScopeSet.Clear();
+            //syncConfiguration.Clear();
 
-            if (syncConfiguration.ScopeSet == null)
-                syncConfiguration.ScopeSet = new DmSet("DotmimSync");
-
-            if (syncConfiguration.Tables == null || syncConfiguration.Tables.Length <= 0)
-                return syncConfiguration;
             DbConnection connection;
             DbTransaction transaction;
 
@@ -274,18 +262,16 @@ namespace Dotmim.Sync
 
                     using (transaction = connection.BeginTransaction())
                     {
-                        foreach (var table in syncConfiguration.Tables)
+                        foreach (var dmTable in syncConfiguration)
                         {
-                            var builderTable = this.GetDbManager(table);
+                            var builderTable = this.GetDbManager(dmTable.TableName);
                             var tblManager = builderTable.GetManagerTable(connection, transaction);
 
                             // get columns list
                             var lstColumns = tblManager.GetTableDefinition();
-
+                            
                             // Validate the column list and get the dmTable configuration object.
-                            var dmTable = GenerateTableFromColumnsList(table, lstColumns, tblManager);
-
-                            syncConfiguration.ScopeSet.Tables.Add(dmTable);
+                            this.GenerateTableFromColumnsList(dmTable, lstColumns, tblManager);
 
                             var relations = tblManager.GetTableRelations();
 
@@ -295,7 +281,7 @@ namespace Dotmim.Sync
                                 {
                                     DmColumn tblColumn = dmTable.Columns[r.ColumnName];
                                     DmColumn foreignColumn = null;
-                                    var foreignTable = syncConfiguration.ScopeSet.Tables[r.ReferenceTableName];
+                                    var foreignTable = syncConfiguration[r.ReferenceTableName];
 
                                     if (foreignTable == null)
                                         throw new SyncException($"Foreign table {r.ReferenceTableName} does not exist", context.SyncStage, SyncExceptionType.DataStore);
@@ -347,7 +333,7 @@ namespace Dotmim.Sync
                 var cacheManager = this.CacheManager;
                 var cacheConfiguration = GetCacheConfiguration();
 
-                // if we don't pass config object, we may be in proxy mode, so the config object is handled by a local configuration object.
+                // if we don't pass config object (configuration == null), we may be in proxy mode, so the config object is handled by a local configuration object.
                 if (configuration == null && this.syncConfiguration == null)
                     throw SyncException.CreateArgumentException(SyncStage.EnsureConfiguration, "Configuration", "You try to set a provider with no configuration object");
 
@@ -379,7 +365,7 @@ namespace Dotmim.Sync
                     Directory.CreateDirectory(configuration.BatchDirectory);
 
                 // if we dont have already read the tables || we want to overwrite the current config
-                if (configuration.ScopeSet == null || configuration.ScopeSet.Tables.Count == 0 || configuration.OverwriteConfiguration)
+                if ((configuration.HasTables && !configuration.HasColumns) || configuration.OverwriteConfiguration)
                     configuration = await this.UpdateConfigurationInternalAsync(context, configuration);
 
                 // save to cache
@@ -434,7 +420,7 @@ namespace Dotmim.Sync
         {
             var configuration = GetCacheConfiguration();
 
-            var dmTable = configuration.ScopeSet.Tables[tableName].Clone();
+            var dmTable = configuration[tableName].Clone();
 
             // Adding the tracking columns
             AddTrackingColumns<Guid>(dmTable, "create_scope_id");
@@ -753,7 +739,7 @@ namespace Dotmim.Sync
 
                     using (var transaction = connection.BeginTransaction())
                     {
-                        foreach (var dmTable in configuration.ScopeSet.Tables)
+                        foreach (var dmTable in configuration)
                         {
                             var builder = GetDatabaseBuilder(dmTable, options);
 
@@ -979,7 +965,7 @@ namespace Dotmim.Sync
                             ChangesStatistics = changesStatistics
                         };
 
-                        foreach (var tableDescription in configuration.ScopeSet.Tables)
+                        foreach (var tableDescription in configuration)
                         {
                             var builder = this.GetDatabaseBuilder(tableDescription);
                             var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
@@ -1182,7 +1168,7 @@ namespace Dotmim.Sync
                         // create the in memory changes set
                         DmSet changesSet = new DmSet(configuration.ScopeSet.DmSetName);
 
-                        foreach (var tableDescription in configuration.ScopeSet.Tables)
+                        foreach (var tableDescription in configuration)
                         {
                             var builder = this.GetDatabaseBuilder(tableDescription);
                             var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
@@ -1726,14 +1712,14 @@ namespace Dotmim.Sync
             };
 
             // for each adapters (Zero to End for Insert / Updates -- End to Zero for Deletes
-            for (int i = 0; i < configuration.ScopeSet.Tables.Count; i++)
+            for (int i = 0; i < configuration.Count; i++)
             {
                 try
                 {
                     // If we have a delete we must go from Up to Down, orthewise Dow to Up index
                     var tableDescription = (applyType != DmRowState.Deleted ?
-                            configuration.ScopeSet.Tables[i] :
-                            configuration.ScopeSet.Tables[configuration.ScopeSet.Tables.Count - i - 1]);
+                            configuration[i] :
+                            configuration[configuration.Count - i - 1]);
 
                     var builder = this.GetDatabaseBuilder(tableDescription);
                     var syncAdapter = builder.CreateSyncAdapter(connection, transaction);

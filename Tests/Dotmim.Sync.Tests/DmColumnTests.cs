@@ -67,35 +67,35 @@ namespace Dotmim.Sync.Test
             Assert.Equal("ServiceTicketID", id.ColumnName);
             Assert.Equal(typeof(Guid), id.DataType);
             Assert.Equal(0, id.Ordinal);
-            Assert.True(id.Unique);
+            Assert.True(id.IsUnique);
 
             var titleColumn = new DmColumn<string>("Title");
             tbl.Columns.Add(titleColumn);
             Assert.Equal("Title", titleColumn.ColumnName);
             Assert.Equal(typeof(string), titleColumn.DataType);
             Assert.Equal(1, titleColumn.Ordinal);
-            Assert.False(titleColumn.Unique);
+            Assert.False(titleColumn.IsUnique);
 
             var sv = new DmColumn<int>("StatusValue");
             tbl.Columns.Add(sv);
             Assert.Equal("StatusValue", sv.ColumnName);
             Assert.Equal(typeof(Int32), sv.DataType);
             Assert.Equal(2, sv.Ordinal);
-            Assert.False(sv.Unique);
+            Assert.False(sv.IsUnique);
 
             var opened = new DmColumn<DateTime>("Opened");
             tbl.Columns.Add(opened);
             Assert.Equal("Opened", opened.ColumnName);
             Assert.Equal(typeof(DateTime), opened.DataType);
             Assert.Equal(3, opened.Ordinal);
-            Assert.False(opened.Unique);
+            Assert.False(opened.IsUnique);
 
             var closedColumn = DmColumn.CreateColumn("Closed", typeof(DateTime));
             tbl.Columns.Add(closedColumn);
             Assert.Equal("Closed", closedColumn.ColumnName);
             Assert.Equal(typeof(DateTime), closedColumn.DataType);
             Assert.Equal(4, closedColumn.Ordinal);
-            Assert.False(closedColumn.Unique);
+            Assert.False(closedColumn.IsUnique);
         }
 
         [Fact]
