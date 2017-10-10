@@ -16,7 +16,7 @@ namespace Dotmim.Sync.Data.Surrogate
         public string TableName { get; set; }
         public int DbType { get; set; }
         public bool AllowDBNull { get; set; } = true;
-        public bool Unique { get; set; } = false;
+        public bool IsUnique { get; set; } = false;
         public bool ReadOnly { get; set; } = false;
         public Int32 MaxLength { get;  set; }
         public int Ordinal { get;  set; }
@@ -25,7 +25,11 @@ namespace Dotmim.Sync.Data.Surrogate
         public Boolean AutoIncrement { get; set; }
         public Byte Precision { get;  set; }
         public Byte Scale { get; set; }
-        public String OrginalDbType { get; set; }
+        public String OriginalDbType { get; set; }
+        public String OriginalTypeName { get; set; }
+        public bool IsUnsigned { get; set; }
+        public bool IsUnicode { get; set; }
+        public bool IsCompute { get; set; }
 
         /// <summary>
         /// Gets or sets the dm type of the column that the DmColumnSurrogate object represents.
@@ -48,7 +52,7 @@ namespace Dotmim.Sync.Data.Surrogate
             long bytesLength = String.IsNullOrEmpty(ColumnName) ? 1L : Encoding.UTF8.GetBytes(ColumnName).Length;
             bytesLength += 4L; // DbType
             bytesLength += 1L; // AllowDBNull
-            bytesLength += 1L; // Unique
+            bytesLength += 1L; // IsUnique
             bytesLength += 1L; // Readonly
             bytesLength += 4L; // Maxlength
             bytesLength += 4L; // Ordinal
@@ -58,8 +62,12 @@ namespace Dotmim.Sync.Data.Surrogate
             bytesLength += 1L; // Precision
             bytesLength += 1L; // Scale
             bytesLength += 1L; // dbTypeAllowed
+            bytesLength += 1L; // IsUnsigned
+            bytesLength += 1L; // IsCompute
+            bytesLength += 1L; // IsUnicode
             bytesLength += String.IsNullOrEmpty(TableName) ? 1L : Encoding.UTF8.GetBytes(TableName).Length;
-            bytesLength += String.IsNullOrEmpty(OrginalDbType) ? 1L : Encoding.UTF8.GetBytes(OrginalDbType).Length;
+            bytesLength += String.IsNullOrEmpty(OriginalDbType) ? 1L : Encoding.UTF8.GetBytes(OriginalDbType).Length;
+            bytesLength += String.IsNullOrEmpty(OriginalTypeName) ? 1L : Encoding.UTF8.GetBytes(OriginalTypeName).Length;
             bytesLength += Encoding.UTF8.GetBytes(DataType).Length; //Type
             bytesLength += Encoding.UTF8.GetBytes(this.GetType().GetAssemblyQualifiedName()).Length; // Type
 
@@ -88,10 +96,14 @@ namespace Dotmim.Sync.Data.Surrogate
             this.PrecisionSpecified = dc.PrecisionSpecified;
             this.Scale = dc.Scale;
             this.ScaleSpecified = dc.ScaleSpecified;
-            this.Unique = dc.Unique;
+            this.IsUnique = dc.IsUnique;
+            this.IsUnsigned = dc.IsUnsigned;
+            this.IsCompute = dc.IsCompute;
+            this.IsUnicode = dc.IsUnicode;
             this.DataType = dc.DataType.GetAssemblyQualifiedName();
             this.Ordinal = dc.Ordinal;
-            this.OrginalDbType = dc.OrginalDbType;
+            this.OriginalDbType = dc.OriginalDbType;
+            this.OriginalTypeName = dc.OriginalTypeName;
         }
 
         /// <summary>
@@ -113,8 +125,12 @@ namespace Dotmim.Sync.Data.Surrogate
             dmColumn.PrecisionSpecified = this.PrecisionSpecified;
             dmColumn.Scale = this.Scale;
             dmColumn.ScaleSpecified = this.ScaleSpecified;
-            dmColumn.Unique = this.Unique;
-            dmColumn.OrginalDbType = this.OrginalDbType;
+            dmColumn.IsUnique = this.IsUnique;
+            dmColumn.IsUnicode = this.IsUnicode;
+            dmColumn.IsCompute = this.IsCompute;
+            dmColumn.IsUnsigned = this.IsUnsigned;
+            dmColumn.OriginalDbType = this.OriginalDbType;
+            dmColumn.OriginalTypeName = this.OriginalTypeName;
             dmColumn.SetOrdinal(this.Ordinal);
 
             return dmColumn;

@@ -25,7 +25,7 @@ namespace Dotmim.Sync
         public DateTime CompleteTime { get; set; }
 
         /// <summary>
-        /// Gets or sets the sync type used during this session
+        /// Gets or sets the sync type used during this session. Can be : Normal, Reinitialize, ReinitializeWithUpload
         /// </summary>
         public SyncType SyncType { get; set; }
 

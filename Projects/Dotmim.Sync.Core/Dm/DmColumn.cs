@@ -53,6 +53,10 @@ namespace Dotmim.Sync.Data
             StorageClassType.Add(typeof(Object), false);
 
         }
+
+        /// <summary>
+        /// Create a DmColumn with specified type
+        /// </summary>
         public static DmColumn CreateColumn(string columName, Type dataType)
         {
             if (dataType == null)
@@ -106,6 +110,10 @@ namespace Dotmim.Sync.Data
 
             throw new Exception("this datatype is not supported for DmColumn");
         }
+
+        /// <summary>
+        /// Gets or Sets the default value
+        /// </summary>
         public dynamic DefaultValue
         {
             get
@@ -118,12 +126,36 @@ namespace Dotmim.Sync.Data
                 return this.IsValueType ? Activator.CreateInstance(type) : null;
             }
         }
+
+        /// <summary>
+        /// Gets or Sets if the column allow null values
+        /// </summary>
         public bool AllowDBNull { get; set; } = true;
 
         /// <summary>
-        /// Optional string indicating the orginal type from the database involved
+        /// Optional string indicating the orginal ADO.NET Db type from the database involved
         /// </summary>
-        public String OrginalDbType { get; set; }
+        public String OriginalDbType { get; set; }
+
+        /// <summary>
+        /// Gets or sets the column datastore type name
+        /// </summary>
+        public string OriginalTypeName { get; set; }
+
+        /// <summary>
+        /// Gets or sets if the column is unsigned
+        /// </summary>
+        public bool IsUnsigned { get; set; }
+
+        /// <summary>
+        /// Gets or sets if the column is unicode 
+        /// </summary>
+        public bool IsUnicode { get; set; }
+
+        /// <summary>
+        /// Gets or sets if the column is a computed column
+        /// </summary>
+        public bool IsCompute { get; set; }
 
         /// <summary>
         /// Returns the Column Type
@@ -131,7 +163,7 @@ namespace Dotmim.Sync.Data
         public Type DataType { get; internal set; }
 
         /// <summary>
-        /// Return the abstract DbType
+        /// Gets or sets the DbType associated
         /// </summary>
         public DbType DbType
         {
@@ -206,10 +238,30 @@ namespace Dotmim.Sync.Data
                 this.dbTypeAllowed = value != DbType.Object;
             }
         }
-        public bool Unique { get; set; } = false;
+
+        /// <summary>
+        /// Gets or sets if the values for this column are unique
+        /// </summary>
+        public bool IsUnique { get; set; } = false;
+
+        /// <summary>
+        /// Gets or Sets the column name
+        /// </summary>
         public string ColumnName { get; set; }
+
+        /// <summary>
+        /// Gets or Sets if the column is readonly
+        /// </summary>
         public bool ReadOnly { get; set; } = false;
+
+        /// <summary>
+        /// Gets the table associated with this column
+        /// </summary>
         public DmTable Table { get; internal set; }
+
+        /// <summary>
+        /// Gets or Sets the columnd max length
+        /// </summary>
         public Int32 MaxLength
         {
             get
@@ -222,8 +274,15 @@ namespace Dotmim.Sync.Data
                     maxLength = Math.Max(value, -1);
             }
         }
+
+        /// <summary>
+        /// Gets the column position (use SetOrdinal method to set the position)
+        /// </summary>
         public int Ordinal { get; internal set; } = -1;
 
+        /// <summary>
+        /// Gets if the column type is a value type
+        /// </summary>
         public bool IsValueType
         {
             get
@@ -235,6 +294,9 @@ namespace Dotmim.Sync.Data
             }
         }
 
+        /// <summary>
+        /// Gets if the column could be auto increment
+        /// </summary>
         internal static bool IsAutoIncrementType(Type dataType) => (dataType == typeof(byte) || dataType == typeof(int) || dataType == typeof(long) || dataType == typeof(short) || dataType == typeof(decimal));
 
         /// <summary>
@@ -266,8 +328,19 @@ namespace Dotmim.Sync.Data
             this.Ordinal = o;
         }
 
+        /// <summary>
+        /// Gets or sets if column is auto increment
+        /// </summary>
         public abstract bool AutoIncrement { get; set; }
+
+        /// <summary>
+        /// Gets or Sets if precision is specified
+        /// </summary>
         public bool PrecisionSpecified { get; set; }
+
+        /// <summary>
+        /// Gets or Sets if scale is specified
+        /// </summary>
         public bool ScaleSpecified { get; set; }
 
 
@@ -597,12 +670,16 @@ namespace Dotmim.Sync.Data
             if (clone.dbTypeAllowed)
                 clone.DbType = DbType;
 
-            clone.OrginalDbType = OrginalDbType;
+            clone.OriginalDbType = OriginalDbType;
             clone.Precision = Precision;
             clone.PrecisionSpecified = PrecisionSpecified;
             clone.Scale = Scale;
             clone.ScaleSpecified = ScaleSpecified;
-            clone.Unique = Unique;
+            clone.IsUnique = IsUnique;
+            clone.IsCompute = IsCompute;
+            clone.IsUnicode = IsUnicode;
+            clone.IsUnsigned = IsUnsigned;
+            clone.OriginalTypeName = OriginalTypeName;
 
             if (this.AutoIncrement && this.autoInc != null)
                 clone.autoInc = this.autoInc.Clone();

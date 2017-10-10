@@ -29,7 +29,7 @@ namespace Dotmim.Sync.SampleWebserver
             var connectionString = Configuration["Data:ConnectionString"];
             services.AddSyncServer<SqlSyncProvider>(connectionString, configuration =>
             {
-                configuration.Tables = new string[] { "ServiceTickets" };
+                configuration.Add("ServiceTickets");
             });
         }
 

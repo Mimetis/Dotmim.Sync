@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync.SampleConsole
@@ -36,7 +37,7 @@ namespace Dotmim.Sync.SampleConsole
                         {
                             // Set a long timeout for easy testing.
                             options.IdleTimeout = TimeSpan.FromDays(10);
-                            options.CookieHttpOnly = true;
+                            options.Cookie.HttpOnly = true;
                         }); ;
                     });
                 this.builder = hostBuilder;

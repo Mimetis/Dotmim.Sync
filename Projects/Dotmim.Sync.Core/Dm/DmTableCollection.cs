@@ -31,7 +31,10 @@ namespace Dotmim.Sync.Data
                 if (string.IsNullOrEmpty(name))
                     throw new ArgumentNullException("name");
 
-                return collection.FirstOrDefault(c => c.TableName == name);
+                if (this.innerSet != null)
+                    return collection.FirstOrDefault(c => this.innerSet.IsEqual(c.TableName, name));
+                else
+                    return collection.FirstOrDefault(c => String.Equals(c.TableName, name, StringComparison.InvariantCultureIgnoreCase));
             }
         }
         public int Count
@@ -48,7 +51,7 @@ namespace Dotmim.Sync.Data
                 return false;
             }
         }
-      
+
 
         public DmTable Add(string name)
         {
@@ -86,18 +89,24 @@ namespace Dotmim.Sync.Data
                     if (table != null)
                         Add(table);
         }
- 
+
         public void Clear()
         {
             collection.Clear();
         }
         public bool Contains(DmTable item)
         {
-            return Contains(item.TableName, false);
+            if (this.innerSet != null)
+                return Contains(item.TableName, this.innerSet.CaseSensitive);
+            else
+                return Contains(item.TableName, false);
         }
         public bool Contains(string name)
         {
-            return Contains(name, false);
+            if (this.innerSet != null)
+                return Contains(name, this.innerSet.CaseSensitive);
+            else
+                return Contains(name, false);
         }
         public bool Contains(string name, bool caseSensitive)
         {
@@ -131,7 +140,7 @@ namespace Dotmim.Sync.Data
             return -1;
         }
 
-       
+
 
 
         public void RemoveAt(int index)

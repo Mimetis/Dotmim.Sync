@@ -348,6 +348,9 @@ namespace Dotmim.Sync.Test
             DmColumn productId = new DmColumn<Int32>("Id");
             productId.AllowDBNull = false;
             productId.AutoIncrement = true;
+            productId.IsCompute = false;
+            productId.IsUnicode = false;
+            productId.IsUnsigned = false;
             productsTable.Columns.Add(productId);
 
             DmColumn fkClientId = new DmColumn<Guid>("clientId");
@@ -358,6 +361,9 @@ namespace Dotmim.Sync.Test
             productName.AllowDBNull = true;
             productName.DbType = System.Data.DbType.StringFixedLength;
             productName.MaxLength = 150;
+            productId.IsCompute = false;
+            productId.IsUnicode = true;
+            productId.IsUnsigned = true;
             productsTable.Columns.Add(productName);
 
             DmColumn productPrice = new DmColumn<Decimal>("price");
@@ -365,6 +371,8 @@ namespace Dotmim.Sync.Test
             productPrice.DbType = System.Data.DbType.VarNumeric;
             productPrice.Precision = 6;
             productPrice.Scale = 2;
+            // for test purpose
+            productId.IsCompute = true;
             productsTable.Columns.Add(productPrice);
 
             productsTable.PrimaryKey = new DmKey(new DmColumn[] { productId, productName, productPrice });
@@ -441,7 +449,7 @@ namespace Dotmim.Sync.Test
             Assert.Equal(t1.Columns.Count, t2.Columns.Count);
             Assert.Equal(t1.Culture, t2.Culture);
             Assert.Equal(t1.DmSet.DmSetName, t2.DmSet.DmSetName);
-            Assert.Equal(t1.Prefix, t2.Prefix);
+            Assert.Equal(t1.Schema, t2.Schema);
             Assert.Equal(t1.PrimaryKey.Columns.Length, t2.PrimaryKey.Columns.Length);
             Assert.Equal(t1.Rows.Count, t2.Rows.Count);
             Assert.Equal(t1.TableName, t2.TableName);
@@ -462,7 +470,10 @@ namespace Dotmim.Sync.Test
             Assert.Equal(c.ReadOnly, d.ReadOnly);
             Assert.Equal(c.Scale, d.Scale);
             Assert.Equal(c.ScaleSpecified, d.ScaleSpecified);
-            Assert.Equal(c.Unique, d.Unique);
+            Assert.Equal(c.IsUnique, d.IsUnique);
+            Assert.Equal(c.IsUnsigned, d.IsUnsigned);
+            Assert.Equal(c.IsUnicode, d.IsUnicode);
+            Assert.Equal(c.IsCompute, d.IsCompute);
             Assert.Equal(c.Table.TableName, d.Table.TableName);
 
         }

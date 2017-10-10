@@ -5,10 +5,12 @@ using System.IO;
 using System.Linq;
 using Dotmim.Sync.Filter;
 using Dotmim.Sync.Serialization;
+using System.Collections;
+using System.Collections.Generic;
 
 namespace Dotmim.Sync
 {
-    public sealed class SyncConfiguration
+    public class SyncConfiguration : ICollection<DmTable>
     {
 
         /// <summary>
@@ -19,7 +21,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Tables involved. Once we have completed the ScopeSet property, this property become obsolete
         /// </summary>
-        public string[] Tables { get; set; }
+        //public string[] Tables { get; set; }
 
         /// <summary>
         /// Gets or Sets the DmSet Schema used for synchronization
@@ -74,6 +76,19 @@ namespace Dotmim.Sync
                     ApplyAction.Continue :
                     ApplyAction.RetryWithForceWrite;
 
+        /// <summary>
+        /// Gets if the config object has tables defined
+        /// </summary>
+        public bool HasTables => this.ScopeSet?.Tables.Count > 0;
+
+        /// <summary>
+        /// Gets if the config tables has columns defined
+        /// </summary>
+        public bool HasColumns =>
+                // using SelectMany to get DmColumns and not DmColumnCollection
+                this.ScopeSet?.Tables?.SelectMany(t => t.Columns).Count() > 0;
+
+
         public SyncConfiguration()
         {
             this.ScopeSet = new DmSet("DotmimSync");
@@ -87,9 +102,12 @@ namespace Dotmim.Sync
 
         public SyncConfiguration(string[] tables) : this()
         {
-            this.Tables = tables;
-        }
+            if (tables.Length <= 0)
+                return;
 
+            foreach (var table in tables)
+                this.Add(new DmTable(table));
+        }
 
         public SyncConfiguration Clone()
         {
@@ -98,7 +116,7 @@ namespace Dotmim.Sync
             syncConfiguration.ConflictResolutionPolicy = this.ConflictResolutionPolicy;
             syncConfiguration.DownloadBatchSizeInKB = this.DownloadBatchSizeInKB;
             syncConfiguration.ScopeSet = this.ScopeSet.Clone();
-            syncConfiguration.Tables = this.Tables;
+            //syncConfiguration.Tables = this.Tables;
             syncConfiguration.UseBulkOperations = this.UseBulkOperations;
             syncConfiguration.UseVerboseErrors = this.UseVerboseErrors;
             syncConfiguration.SerializationFormat = this.SerializationFormat;
@@ -109,7 +127,6 @@ namespace Dotmim.Sync
                     syncConfiguration.Filters.Add(p.TableName, p.ColumnName);
 
             return syncConfiguration;
-
         }
 
         internal static SyncConfiguration DeserializeFromDmSet(DmSet set)
@@ -141,28 +158,22 @@ namespace Dotmim.Sync
 
                     var tableName = dmRowFilter["TableName"] as String;
                     var columnName = dmRowFilter["ColumnName"] as String;
-
-                    //var objType = DmUtils.GetTypeFromAssemblyQualifiedName(valueType);
-                    //var converter = objType.GetConverter();
-                    //var objValue = converter.ConvertFromInvariantString(valueType);
-                    // syncParameter.Value = objValue;
-
                     configuration.Filters.Add(tableName, columnName);
                 }
             }
 
-            if (set.Tables.Contains("DotmimSync__Table"))
-            {
-                var dmTableTables = set.Tables["DotmimSync__Table"];
-                configuration.Tables = new string[dmTableTables.Rows.Count];
+            //if (set.Tables.Contains("DotmimSync__Table"))
+            //{
+            //    var dmTableTables = set.Tables["DotmimSync__Table"];
+            //    configuration.Tables = new string[dmTableTables.Rows.Count];
 
-                for (int i = 0; i < dmTableTables.Rows.Count; i++)
-                {
-                    var dmRowTable = dmTableTables.Rows[i];
-                    var tableName = dmRowTable["Name"] as String;
-                    configuration.Tables[i] = tableName;
-                }
-            }
+            //    for (int i = 0; i < dmTableTables.Rows.Count; i++)
+            //    {
+            //        var dmRowTable = dmTableTables.Rows[i];
+            //        var tableName = dmRowTable["Name"] as String;
+            //        configuration.Tables[i] = tableName;
+            //    }
+            //}
 
             var configTables = set.Tables.Where(tbl => !tbl.TableName.StartsWith("DotmimSync__"));
 
@@ -190,7 +201,6 @@ namespace Dotmim.Sync
 
             DmTable dmTableConfiguration = null;
             DmTable dmTableFilterParameters = null;
-            DmTable dmTableTables = null;
 
             if (!set.Tables.Contains("DotmimSync__ServiceConfiguration"))
             {
@@ -258,35 +268,146 @@ namespace Dotmim.Sync
                     dmRowFilter["TableName"] = p.TableName;
                     dmRowFilter["ColumnName"] = p.ColumnName;
 
-                    //var objType = p.Value.GetType();
-                    //var converter = objType.GetConverter();
-                    //dmRowFilter["Value"] = converter.ConvertToInvariantString(p.Value);
-                    //dmRowFilter["ValueType"] = objType.GetAssemblyQualifiedName();
-
                     dmTableFilterParameters.Rows.Add(dmRowFilter);
                 }
             }
 
-            if (configuration.Tables != null && configuration.Tables.Length > 0)
+            //if (configuration.Tables != null && configuration.Tables.Length > 0)
+            //{
+            //    if (!set.Tables.Contains("DotmimSync__Table"))
+            //    {
+            //        dmTableTables = new DmTable("DotmimSync__Table");
+            //        set.Tables.Add(dmTableTables);
+            //    }
+
+            //    dmTableTables = set.Tables["DotmimSync__Table"];
+            //    dmTableTables.Columns.Add<String>("Name");
+
+            //    foreach (var p in configuration.Tables)
+            //    {
+            //        var dmRowTable = dmTableTables.NewRow();
+            //        dmRowTable["Name"] = p;
+            //        dmTableTables.Rows.Add(dmRowTable);
+            //    }
+            //}
+
+
+        }
+
+        public int Count
+        {
+            get
             {
-                if (!set.Tables.Contains("DotmimSync__Table"))
-                {
-                    dmTableTables = new DmTable("DotmimSync__Table");
-                    set.Tables.Add(dmTableTables);
-                }
-
-                dmTableTables = set.Tables["DotmimSync__Table"];
-                dmTableTables.Columns.Add<String>("Name");
-
-                foreach (var p in configuration.Tables)
-                {
-                    var dmRowTable = dmTableTables.NewRow();
-                    dmRowTable["Name"] = p;
-                    dmTableTables.Rows.Add(dmRowTable);
-                }
+                if (this.ScopeSet == null)
+                    return 0;
+                if (this.ScopeSet.Tables == null)
+                    return 0;
+                return this.ScopeSet.Tables.Count;
             }
+        }
 
+        public bool IsReadOnly => false;
 
+        /// <summary>
+        /// Adding tables to configuration
+        /// </summary>
+        public void Add(string[] tables)
+        {
+            foreach (var table in tables)
+                Add(table);
+        }
+
+        /// <summary>
+        /// Adding tables to configuration
+        /// </summary>
+        public void Add(string table)
+        {
+            if (this.ScopeSet == null || this.ScopeSet.Tables == null)
+                throw new SyncException($"Can't add new table {table} in Configuration, ScopeSet is null", SyncStage.EnsureConfiguration, SyncExceptionType.Argument);
+
+            if (!this.ScopeSet.Tables.Contains(table))
+                this.ScopeSet.Tables.Add(new DmTable(table));
+        }
+
+        public void Add(DmTable item)
+        {
+            if (this.ScopeSet == null || this.ScopeSet.Tables == null)
+                throw new SyncException("Can't add a dmTable in Configuration, ScopeSet is null", SyncStage.EnsureConfiguration, SyncExceptionType.Argument);
+
+            this.ScopeSet.Tables.Add(item);
+        }
+
+        public void Clear()
+        {
+            if (this.ScopeSet == null || this.ScopeSet.Tables == null)
+                return;
+
+            this.ScopeSet.Tables.Clear();
+        }
+
+        public DmTable this[int index]
+        {
+            get
+            {
+                if (this.ScopeSet == null || this.ScopeSet.Tables == null)
+                    return null;
+
+                return this.ScopeSet.Tables[index];
+            }
+        }
+        public DmTable this[string name]
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(name))
+                    throw new ArgumentNullException("name");
+
+                if (this.ScopeSet == null || this.ScopeSet.Tables == null)
+                    return null;
+
+                return this.ScopeSet.Tables[name];
+            }
+        }
+
+        public bool Contains(DmTable item)
+        {
+            if (this.ScopeSet == null || this.ScopeSet.Tables == null)
+                return false;
+
+            return this.ScopeSet.Tables.Contains(item);
+        }
+
+        public void CopyTo(DmTable[] array, int arrayIndex)
+        {
+            if (this.ScopeSet == null || this.ScopeSet.Tables == null)
+                return;
+
+            for (int i = 0; i < this.ScopeSet.Tables.Count; ++i)
+                array[arrayIndex + i] = this.ScopeSet.Tables[i];
+        }
+
+        public bool Remove(DmTable item)
+        {
+            if (this.ScopeSet == null || this.ScopeSet.Tables == null)
+                return false;
+
+            return this.ScopeSet.Tables.Remove(item);
+        }
+
+        public IEnumerator<DmTable> GetEnumerator()
+        {
+            if (this.ScopeSet == null || this.ScopeSet.Tables == null)
+                return null;
+
+            return this.ScopeSet.Tables.GetEnumerator();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            if (this.ScopeSet == null || this.ScopeSet.Tables == null)
+                return null;
+
+            return this.ScopeSet.Tables.GetEnumerator();
         }
     }
 }

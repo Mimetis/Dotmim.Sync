@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using Dotmim.Sync.Enumerations;
 
 namespace Dotmim.Sync.Data.Surrogate
 {
@@ -23,9 +24,9 @@ namespace Dotmim.Sync.Data.Surrogate
         public Boolean CaseSensitive { get; set; }
 
         /// <summary>
-        /// Get or Set the prefix used for the DmTableSurrogate
+        /// Get or Set the schema used for the DmTableSurrogate
         /// </summary>
-        public String Prefix { get; set; }
+        public String Schema { get; set; }
 
         /// <summary>
         /// Gets or sets an array that represents the state of each row in the table.
@@ -57,13 +58,18 @@ namespace Dotmim.Sync.Data.Surrogate
         /// Gets or Sets the original provider (SqlServer, MySql, SQLite, Oracle, PostgreSQL)
         /// </summary>
         public string OriginalProvider { get; set; }
-
+       
+        /// <summary>
+        /// Gets or Sets the Sync direction (may be Bidirectional, DownloadOnly, UploadOnly) 
+        /// Default is Bidirectional
+        /// </summary>
+        public SyncDirection SyncDirection { get;  set; }
 
         public long GetEmptyBytesLength()
         {
             long bytesLength = String.IsNullOrEmpty(CultureInfoName) ? 1L : Encoding.UTF8.GetBytes(CultureInfoName).Length;
             bytesLength += 1L; // CasSensitive
-            bytesLength += String.IsNullOrEmpty(Prefix) ? 1L : Encoding.UTF8.GetBytes(Prefix).Length;
+            bytesLength += String.IsNullOrEmpty(Schema) ? 1L : Encoding.UTF8.GetBytes(Schema).Length;
             bytesLength += String.IsNullOrEmpty(TableName) ? 1L : Encoding.UTF8.GetBytes(TableName).Length;
 
             // TODO : Potentially error in bytes length calcul
@@ -92,8 +98,9 @@ namespace Dotmim.Sync.Data.Surrogate
             this.TableName = dt.TableName;
             this.CultureInfoName = dt.Culture.Name;
             this.CaseSensitive = dt.CaseSensitive;
-            this.Prefix = dt.Prefix;
+            this.Schema = dt.Schema;
             this.OriginalProvider = dt.OriginalProvider;
+            this.SyncDirection = dt.SyncDirection;
 
             for (int i = 0; i < dt.Columns.Count; i++)
                 this.Columns.Add(new DmColumnSurrogate(dt.Columns[i]));
@@ -136,9 +143,10 @@ namespace Dotmim.Sync.Data.Surrogate
 
             dt.TableName = this.TableName;
             dt.Culture = new CultureInfo(this.CultureInfoName);
-            dt.Prefix = this.Prefix;
+            dt.Schema = this.Schema;
             dt.CaseSensitive = this.CaseSensitive;
             dt.OriginalProvider = this.OriginalProvider;
+            dt.SyncDirection = this.SyncDirection;
 
             for (int i = 0; i < this.Columns.Count; i++)
             {

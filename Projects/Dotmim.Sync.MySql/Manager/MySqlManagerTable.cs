@@ -34,28 +34,35 @@ namespace Dotmim.Sync.MySql
             return MySqlManagementUtils.RelationsForTable(sqlConnection, sqlTransaction, tableName);
         }
 
-        List<DbColumnDefinition> IDbManagerTable.GetTableDefinition()
+        List<DmColumn> IDbManagerTable.GetTableDefinition()
         {
-            List<DbColumnDefinition> columns = new List<DbColumnDefinition>();
+            List<DmColumn> columns = new List<DmColumn>();
 
             // Get the columns definition
             var dmColumnsList = MySqlManagementUtils.ColumnsForTable(sqlConnection, sqlTransaction, this.tableName);
+            var mySqlDbMetadata = new MySqlDbMetadata();
 
             foreach (var c in dmColumnsList.Rows.OrderBy(r => (UInt64)r["ordinal_position"]))
             {
-                DbColumnDefinition dbColumn = new DbColumnDefinition();
+                var typeName = c["data_type"].ToString();
+                var name = c["column_name"].ToString();
+                var isUnsigned = c["column_type"] != DBNull.Value ? ((string)c["column_type"]).Contains("unsigned") : false;
 
-                dbColumn.Name = c["column_name"].ToString();
-                dbColumn.Ordinal = Convert.ToInt32(c["ordinal_position"]);
-                dbColumn.TypeName = c["data_type"].ToString();
-                dbColumn.MaxLength = c["character_octet_length"] != DBNull.Value ? Convert.ToInt64(c["character_octet_length"]) : 0;
+                // Gets the datastore owner dbType 
+                MySqlDbType datastoreDbType = (MySqlDbType)mySqlDbMetadata.ValidateOwnerDbType(typeName, isUnsigned, false);
+                // once we have the datastore type, we can have the managed type
+                Type columnType = mySqlDbMetadata.ValidateType(datastoreDbType);
+
+                var dbColumn = DmColumn.CreateColumn(name, columnType);
+                dbColumn.SetOrdinal(Convert.ToInt32(c["ordinal_position"]));
+
+                var maxLengthLong = c["character_octet_length"] != DBNull.Value ? Convert.ToInt64(c["character_octet_length"]) : 0; 
+                dbColumn.MaxLength = maxLengthLong > Int32.MaxValue ? Int32.MaxValue : (Int32)maxLengthLong;
                 dbColumn.Precision = c["numeric_precision"] != DBNull.Value ? Convert.ToByte(c["numeric_precision"]) : (byte)0;
                 dbColumn.Scale = c["numeric_scale"] != DBNull.Value ? Convert.ToByte(c["numeric_scale"]) : (byte)0;
-                dbColumn.IsNullable = (String)c["is_nullable"] == "NO" ? false : true;
-                dbColumn.IsIdentity = c["extra"] != DBNull.Value ? ((string)c["extra"]).Contains("auto increment") : false;
-                dbColumn.IsUnsigned = c["column_type"] != DBNull.Value ? ((string)c["column_type"]).Contains("unsigned") : false;
-
-                //dbColumn.IsUnicode = ?
+                dbColumn.AllowDBNull = (String)c["is_nullable"] == "NO" ? false : true;
+                dbColumn.AutoIncrement = c["extra"] != DBNull.Value ? ((string)c["extra"]).Contains("auto increment") : false;
+                dbColumn.IsUnsigned = isUnsigned;
 
                 columns.Add(dbColumn);
 

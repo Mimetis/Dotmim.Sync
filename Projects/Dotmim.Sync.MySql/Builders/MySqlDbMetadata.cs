@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Data;
 using MySql.Data.MySqlClient;
+using Dotmim.Sync.Data;
 
 namespace Dotmim.Sync.MySql.Builders
 {
@@ -421,9 +422,9 @@ namespace Dotmim.Sync.MySql.Builders
             return false;
         }
 
-        public override bool IsValid(DbColumnDefinition columnDefinition)
+        public override bool IsValid(DmColumn columnDefinition)
         {
-            switch (columnDefinition.TypeName.ToLowerInvariant())
+            switch (columnDefinition.OriginalTypeName.ToLowerInvariant())
             {
                 case "int":
                 case "int16":
@@ -559,9 +560,9 @@ namespace Dotmim.Sync.MySql.Builders
             throw new Exception($"this type name {typeName} is not supported");
         }
 
-        public override bool ValidateIsReadonly(DbColumnDefinition columnDefinition)
+        public override bool ValidateIsReadonly(DmColumn columnDefinition)
         {
-            return columnDefinition.TypeName.ToLowerInvariant() == "timestamp";
+            return columnDefinition.OriginalTypeName.ToLowerInvariant() == "timestamp";
         }
 
         public override int ValidateMaxLength(string typeName, bool isUnsigned, bool isUnicode, long maxLength)
@@ -661,19 +662,19 @@ namespace Dotmim.Sync.MySql.Builders
             throw new Exception("Unhandled type encountered");
         }
 
-        public override byte ValidatePrecision(DbColumnDefinition columnDefinition)
+        public override byte ValidatePrecision(DmColumn columnDefinition)
         {
-            if (IsNumericType(columnDefinition.Name) && columnDefinition.Precision == 0)
+            if (IsNumericType(columnDefinition.OriginalTypeName) && columnDefinition.Precision == 0)
                 return 10;
 
             return columnDefinition.Precision;
         }
 
-        public override (byte precision, byte scale) ValidatePrecisionAndScale(DbColumnDefinition columnDefinition)
+        public override (byte precision, byte scale) ValidatePrecisionAndScale(DmColumn columnDefinition)
         {
             var precision = columnDefinition.Precision;
             var scale = columnDefinition.Scale;
-            if (IsNumericType(columnDefinition.Name) && precision == 0)
+            if (IsNumericType(columnDefinition.OriginalTypeName) && precision == 0)
             {
                 precision = 10;
                 scale = 0;

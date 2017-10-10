@@ -147,9 +147,9 @@ namespace Dotmim.Sync.MySql
             {
                 var quotedColumnName = new ObjectNameParser(pkColumn.ColumnName.ToLowerInvariant(), "`", "`").QuotedString;
 
-                var columnTypeString = this.mySqlDbMetadata.TryGetOwnerDbTypeString(pkColumn.OrginalDbType, pkColumn.DbType, false, false, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
+                var columnTypeString = this.mySqlDbMetadata.TryGetOwnerDbTypeString(pkColumn.OriginalDbType, pkColumn.DbType, false, false, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
                 var unQuotedColumnType = new ObjectNameParser(columnTypeString, "`", "`").UnquotedString;
-                var columnPrecisionString = this.mySqlDbMetadata.TryGetOwnerDbTypePrecision(pkColumn.OrginalDbType, pkColumn.DbType, false, false, pkColumn.MaxLength, pkColumn.Precision, pkColumn.Scale, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
+                var columnPrecisionString = this.mySqlDbMetadata.TryGetOwnerDbTypePrecision(pkColumn.OriginalDbType, pkColumn.DbType, false, false, pkColumn.MaxLength, pkColumn.Precision, pkColumn.Scale, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
                 var columnType = $"{unQuotedColumnType} {columnPrecisionString}";
 
                 stringBuilder.AppendLine($"{quotedColumnName} {columnType} NOT NULL, ");
@@ -179,9 +179,9 @@ namespace Dotmim.Sync.MySql
 
                     var quotedColumnName = new ObjectNameParser(columnFilter.ColumnName.ToLowerInvariant(), "`", "`").QuotedString;
 
-                    var columnTypeString = this.mySqlDbMetadata.TryGetOwnerDbTypeString(columnFilter.OrginalDbType, columnFilter.DbType, false, false, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
+                    var columnTypeString = this.mySqlDbMetadata.TryGetOwnerDbTypeString(columnFilter.OriginalDbType, columnFilter.DbType, false, false, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
                     var unQuotedColumnType = new ObjectNameParser(columnTypeString, "`", "`").UnquotedString;
-                    var columnPrecisionString = this.mySqlDbMetadata.TryGetOwnerDbTypePrecision(columnFilter.OrginalDbType, columnFilter.DbType, false, false, columnFilter.MaxLength, columnFilter.Precision, columnFilter.Scale, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
+                    var columnPrecisionString = this.mySqlDbMetadata.TryGetOwnerDbTypePrecision(columnFilter.OriginalDbType, columnFilter.DbType, false, false, columnFilter.MaxLength, columnFilter.Precision, columnFilter.Scale, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
                     var columnType = $"{unQuotedColumnType} {columnPrecisionString}";
 
                     var nullableColumn = columnFilter.AllowDBNull ? "NULL" : "NOT NULL";
@@ -371,8 +371,8 @@ namespace Dotmim.Sync.MySql
         {
             var quotedColumnName = new ObjectNameParser(col.ColumnName.ToLowerInvariant(), "`", "`").QuotedString;
 
-            var columnTypeString = this.mySqlDbMetadata.TryGetOwnerDbTypeString(col.OrginalDbType, col.DbType, false, false, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
-            var columnPrecisionString = this.mySqlDbMetadata.TryGetOwnerDbTypePrecision(col.OrginalDbType, col.DbType, false, false, col.MaxLength, col.Precision, col.Scale, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
+            var columnTypeString = this.mySqlDbMetadata.TryGetOwnerDbTypeString(col.OriginalDbType, col.DbType, false, false, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
+            var columnPrecisionString = this.mySqlDbMetadata.TryGetOwnerDbTypePrecision(col.OriginalDbType, col.DbType, false, false, col.MaxLength, col.Precision, col.Scale, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
             var columnType = $"{columnTypeString} {columnPrecisionString}";
 
             return string.Concat("ALTER TABLE ", quotedColumnName, " ADD ", columnType);

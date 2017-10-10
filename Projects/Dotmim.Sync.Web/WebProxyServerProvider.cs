@@ -186,7 +186,7 @@ namespace Dotmim.Sync.Web
             // to be sure the caller will be able to reuse it
             var conf2 = conf.Clone();
             var scopeSurrogate = new DmSetSurrogate(conf2.ScopeSet);
-            conf2.ScopeSet.Clear();
+            conf2.Clear();
             conf2.ScopeSet = null;
 
             httpMessage.EnsureConfiguration = new HttpEnsureConfigurationMessage

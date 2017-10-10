@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Data;
+using Dotmim.Sync.Data;
 
 namespace Dotmim.Sync.SQLite
 {
@@ -163,9 +164,9 @@ namespace Dotmim.Sync.SQLite
             return false;
         }
 
-        public override bool IsValid(DbColumnDefinition columnDefinition)
+        public override bool IsValid(DmColumn columnDefinition)
         {
-            switch (columnDefinition.TypeName.ToLowerInvariant())
+            switch (columnDefinition.OriginalTypeName.ToLowerInvariant())
             {
                 case "integer":
                 case "numeric":
@@ -201,7 +202,7 @@ namespace Dotmim.Sync.SQLite
             throw new Exception($"this type name {typeName} is not supported");
         }
 
-        public override bool ValidateIsReadonly(DbColumnDefinition columnDefinition)
+        public override bool ValidateIsReadonly(DmColumn columnDefinition)
         {
             return false;
         }
@@ -217,12 +218,12 @@ namespace Dotmim.Sync.SQLite
             return ValidateDbType(typeName, isUnsigned, isUnicode);
         }
 
-        public override byte ValidatePrecision(DbColumnDefinition columnDefinition)
+        public override byte ValidatePrecision(DmColumn columnDefinition)
         {
             return columnDefinition.Precision;
         }
 
-        public override (byte precision, byte scale) ValidatePrecisionAndScale(DbColumnDefinition columnDefinition)
+        public override (byte precision, byte scale) ValidatePrecisionAndScale(DmColumn columnDefinition)
         {
             return (columnDefinition.Precision, columnDefinition.Scale);
         }
