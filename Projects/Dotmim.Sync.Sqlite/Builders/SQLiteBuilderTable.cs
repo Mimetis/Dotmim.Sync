@@ -288,5 +288,19 @@ namespace Dotmim.Sync.SQLite
             return false;
         }
 
+        public bool NeedToCreateSchema(DbBuilderOption builderOption)
+        {
+            return false;
+        }
+
+        public void CreateSchema()
+        {
+            return;
+        }
+
+        public string CreateSchemaScriptText()
+        {
+            return string.Empty;
+        }
     }
 }

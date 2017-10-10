@@ -80,9 +80,11 @@ namespace Dotmim.Sync.SqlServer.Builders
                         this.connection.Open();
 
                     if (this.transaction != null)
-                        command.Transaction = (SqlTransaction)this.transaction;
+                        command.Transaction = this.transaction;
 
                     var delTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger);
+                    
+
                     StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER {delTriggerName} ON {tableName.QuotedString} FOR DELETE AS");
                     createTrigger.AppendLine();
                     createTrigger.AppendLine(this.DeleteTriggerBodyText());

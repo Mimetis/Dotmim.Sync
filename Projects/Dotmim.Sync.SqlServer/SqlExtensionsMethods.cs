@@ -17,15 +17,8 @@ namespace Dotmim.Sync.SqlServer
 
             var textParser = new ObjectNameParser(cmd.CommandText);
 
-            // Hack to check for schema name in the spName
-            string schemaName = "dbo";
-            string spName = textParser.UnquotedString;
-            int firstDot = spName.IndexOf('.');
-            if (firstDot > 0)
-            {
-                schemaName = cmd.CommandText.Substring(0, firstDot);
-                spName = spName.Substring(firstDot + 1);
-            }
+            string schemaName = textParser.SchemaName;
+            string spName = textParser.ObjectName;
 
             var alreadyOpened = connection.State == ConnectionState.Open;
 

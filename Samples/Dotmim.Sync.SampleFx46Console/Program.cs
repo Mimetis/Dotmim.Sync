@@ -22,9 +22,52 @@ namespace Dotmim.Sync.SampleFx46Console
     {
         static void Main(string[] args)
         {
-            SyncWordPress().Wait();
+          //  SyncWordPress().Wait();
+
+            SyncWithSchema().Wait();
         }
 
+        public static async Task SyncWithSchema()
+        {
+            var serverConfig = @"Data Source=(localdb)\MSSQLLocalDB; Initial Catalog=AdventureWorksLT2012;Integrated Security=true;";
+            SqlSyncProvider serverProvider = new SqlSyncProvider(serverConfig);
+
+            var clientConfig = @"Data Source=(localdb)\MSSQLLocalDB; Initial Catalog=AdvClientTest;Integrated Security=true;";
+            SqlSyncProvider clientProvider = new SqlSyncProvider(clientConfig);
+
+            var tables = new string[] { "SalesLT.ProductCategory", "ProductModel", "SalesLT.Product" };
+
+            SyncAgent agent = new SyncAgent(clientProvider, serverProvider, tables);
+
+            agent.Configuration["ProductModel"].Schema = "SalesLT";
+
+            agent.SyncProgress += SyncProgress;
+            agent.ApplyChangedFailed += ApplyChangedFailed;
+
+            do
+            {
+                Console.Clear();
+                Console.WriteLine("Sync Start");
+                try
+                {
+                    var s = await agent.SynchronizeAsync();
+
+                }
+                catch (SyncException e)
+                {
+                    Console.WriteLine(e.ToString());
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+                }
+
+
+                Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+            } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+            Console.WriteLine("End");
+        }
         public static async Task SyncWordPress()
         {
             var serverConfig = "Server=tlsemysql.mysql.database.azure.com; Port=3306; Database=mysqldatabase165; Uid=spertus@tlsemysql; Pwd=azerty31$; SslMode=Preferred;";
@@ -45,8 +88,8 @@ namespace Dotmim.Sync.SampleFx46Console
             SyncAgent agent = new SyncAgent(clientProvider, serverProvider, tables);
 
             // Setting special properties on Configuration tables
-            agent.Configuration["wp_users"].SyncDirection = SyncDirection.DownloadOnly;
-            agent.Configuration["wp_users"].Schema = "SalesLT";
+            //agent.Configuration["wp_users"].SyncDirection = SyncDirection.DownloadOnly;
+            //agent.Configuration["wp_users"].Schema = "SalesLT";
 
 
 
@@ -233,6 +276,7 @@ namespace Dotmim.Sync.SampleFx46Console
                     break;
                 case SyncStage.EnsureDatabase:
                     Console.WriteLine($"Ensure Database");
+                    var script = e.DatabaseScript;
                     break;
                 case SyncStage.SelectingChanges:
                     Console.WriteLine($"Selecting changes...");

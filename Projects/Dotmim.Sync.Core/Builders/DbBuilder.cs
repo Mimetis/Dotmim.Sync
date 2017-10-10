@@ -84,6 +84,9 @@ namespace Dotmim.Sync.Builders
                 // Check if we need to create the tables
                 if (tableBuilder.NeedToCreateTable(this.BuilderOption))
                 {
+                    if (tableBuilder.NeedToCreateSchema(this.BuilderOption))
+                        tableBuilder.CreateSchema();
+
                     tableBuilder.CreateTable();
                     tableBuilder.CreatePrimaryKey();
                     tableBuilder.CreateForeignKeyConstraints();
@@ -183,6 +186,9 @@ namespace Dotmim.Sync.Builders
                 // Check if we need to create the tables
                 if (tableBuilder.NeedToCreateTable(this.BuilderOption))
                 {
+                    if (tableBuilder.NeedToCreateSchema(this.BuilderOption))
+                        stringBuilder.Append(tableBuilder.CreateSchemaScriptText());
+
                     stringBuilder.Append(tableBuilder.CreateTableScriptText());
                     stringBuilder.Append(tableBuilder.CreatePrimaryKeyScriptText());
                     stringBuilder.Append(tableBuilder.CreateForeignKeyConstraintsScriptText());

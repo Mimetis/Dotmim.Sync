@@ -303,5 +303,20 @@ namespace Dotmim.Sync.MySql
             return false;
         }
 
+        public bool NeedToCreateSchema(DbBuilderOption builderOption)
+        {
+            return false;
+        }
+
+        public void CreateSchema()
+        {
+            return;
+        }
+
+        public string CreateSchemaScriptText()
+        {
+            return string.Empty;
+        }
+
     }
 }

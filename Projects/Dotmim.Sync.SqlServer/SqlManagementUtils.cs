@@ -244,6 +244,28 @@ namespace Dotmim.Sync.SqlServer
             return tableExist;
         }
 
+        public static bool SchemaExists(SqlConnection connection, SqlTransaction transaction, string schemaName)
+        {
+            bool schemaExist;
+            using (DbCommand dbCommand = connection.CreateCommand())
+            {
+                dbCommand.CommandText = "IF EXISTS (SELECT sch.name FROM sys.schemas sch WHERE sch.name = @schemaName) SELECT 1 ELSE SELECT 0";
+
+                var sqlParameter = new SqlParameter()
+                {
+                    ParameterName = "@schemaName",
+                    Value = schemaName
+                };
+                dbCommand.Parameters.Add(sqlParameter);
+
+                if (transaction != null)
+                    dbCommand.Transaction = transaction;
+
+                schemaExist = (int)dbCommand.ExecuteScalar() != 0;
+            }
+            return schemaExist;
+        }
+
         public static bool TriggerExists(SqlConnection connection, SqlTransaction transaction, string quotedTriggerName)
         {
             bool triggerExist;
