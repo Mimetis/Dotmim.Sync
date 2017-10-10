@@ -13,9 +13,12 @@ namespace Dotmim.Sync.Builders
     public interface IDbBuilderTableHelper
     {
         bool NeedToCreateTable(DbBuilderOption builderOption);
+        bool NeedToCreateSchema(DbBuilderOption builderOption);
+        void CreateSchema();
         void CreateTable();
         void CreatePrimaryKey();
         void CreateForeignKeyConstraints();
+        string CreateSchemaScriptText();
         string CreateTableScriptText();
         string CreatePrimaryKeyScriptText();
         string CreateForeignKeyConstraintsScriptText();

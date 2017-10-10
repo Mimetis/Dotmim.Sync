@@ -36,10 +36,16 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
             SqlCommand sqlCommand = new SqlCommand();
 
-            var childTable = foreignKey.ChildTable;
-            var childTableName = new ObjectNameParser(childTable.TableName);
-            var parentTable = foreignKey.ParentTable;
-            var parentTableName = new ObjectNameParser(parentTable.TableName);
+            string childTable = foreignKey.ChildTable.TableName;
+            string childSchema = foreignKey.ChildTable.Schema;
+            string childFullName = String.IsNullOrEmpty(childSchema) ? childTable : $"{childSchema}.{childTable}";
+
+            var childTableName = new ObjectNameParser(childFullName);
+
+            string parentTable = foreignKey.ParentTable.TableName;
+            string parentSchema = foreignKey.ParentTable.Schema;
+            string parentFullName = String.IsNullOrEmpty(parentSchema) ? parentTable : $"{parentSchema}.{parentTable}";
+            var parentTableName = new ObjectNameParser(parentFullName);
 
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.Append("ALTER TABLE ");
@@ -124,7 +130,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             string[] localName = new string[] { };
             StringBuilder stringBuilder = new StringBuilder();
 
-            stringBuilder.AppendLine($"ALTER TABLE {tableName.QuotedString} ADD CONSTRAINT [PK_{tableName.UnquotedStringWithUnderScore}] PRIMARY KEY(");
+            stringBuilder.AppendLine($"ALTER TABLE {tableName.QuotedString} ADD CONSTRAINT [PK_{tableName.ObjectName}] PRIMARY KEY(");
             for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
             {
                 DmColumn pkColumn = this.tableDescription.PrimaryKey.Columns[i];
@@ -181,6 +187,8 @@ namespace Dotmim.Sync.SqlServer.Builders
         }
 
 
+
+
         private SqlCommand BuildTableCommand()
         {
             SqlCommand command = new SqlCommand();
@@ -215,6 +223,43 @@ namespace Dotmim.Sync.SqlServer.Builders
             return new SqlCommand(stringBuilder.ToString());
         }
 
+        public void CreateSchema()
+        {
+            if (string.IsNullOrEmpty(tableName.SchemaName) || tableName.SchemaName.ToLowerInvariant() == "dbo")
+                return;
+
+            bool alreadyOpened = connection.State == ConnectionState.Open;
+
+            try
+            {
+                var schemaCommand = $"Create Schema {tableName.SchemaName}";
+
+                using (var command = new SqlCommand(schemaCommand))
+                {
+                    if (!alreadyOpened)
+                        connection.Open();
+
+                    if (transaction != null)
+                        command.Transaction = transaction;
+
+                    command.Connection = connection;
+                    command.ExecuteNonQuery();
+
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Current.Error($"Error during CreateTable : {ex}");
+                throw;
+
+            }
+            finally
+            {
+                if (!alreadyOpened && connection.State != ConnectionState.Closed)
+                    connection.Close();
+
+            }
+        }
 
         public void CreateTable()
         {
@@ -249,6 +294,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
 
         }
+
         public string CreateTableScriptText()
         {
             StringBuilder stringBuilder = new StringBuilder();
@@ -259,6 +305,20 @@ namespace Dotmim.Sync.SqlServer.Builders
             return stringBuilder.ToString();
         }
 
+        public string CreateSchemaScriptText()
+        {
+            if (String.IsNullOrEmpty(this.tableDescription.Schema) || this.tableDescription.Schema.ToLowerInvariant() == "dbo")
+                return null;
+
+            StringBuilder stringBuilder = new StringBuilder();
+            var schemaNameScript = $"Create Schema {tableName.SchemaName}";
+            var schemaScript = $"Create Schema {tableName.SchemaName}";
+            stringBuilder.Append(SqlBuilder.WrapScriptTextWithComments(schemaScript, schemaNameScript));
+            stringBuilder.AppendLine();
+            return stringBuilder.ToString();
+
+
+        }
 
         /// <summary>
         /// For a foreign key, check if the Parent table exists
@@ -313,6 +373,20 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
             if (builderOptions.HasFlag(DbBuilderOption.CreateOrUseExistingSchema))
                 return !SqlManagementUtils.TableExists(connection, transaction, tableName.QuotedString);
+
+            return false;
+        }
+
+        /// <summary>
+        /// Check if we need to create the table in the current database
+        /// </summary>
+        public bool NeedToCreateSchema(DbBuilderOption builderOptions)
+        {
+            if (string.IsNullOrEmpty(tableName.SchemaName) || tableName.SchemaName.ToLowerInvariant() == "dbo")
+                return false;
+
+            if (builderOptions.HasFlag(DbBuilderOption.CreateOrUseExistingSchema))
+                return !SqlManagementUtils.SchemaExists(connection, transaction, tableName.SchemaName);
 
             return false;
         }

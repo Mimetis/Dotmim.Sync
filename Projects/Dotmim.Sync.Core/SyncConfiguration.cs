@@ -7,6 +7,7 @@ using Dotmim.Sync.Filter;
 using Dotmim.Sync.Serialization;
 using System.Collections;
 using System.Collections.Generic;
+using Dotmim.Sync.Builders;
 
 namespace Dotmim.Sync
 {
@@ -106,7 +107,7 @@ namespace Dotmim.Sync
                 return;
 
             foreach (var table in tables)
-                this.Add(new DmTable(table));
+                this.Add(table);
         }
 
         public SyncConfiguration Clone()
@@ -325,9 +326,24 @@ namespace Dotmim.Sync
             if (this.ScopeSet == null || this.ScopeSet.Tables == null)
                 throw new SyncException($"Can't add new table {table} in Configuration, ScopeSet is null", SyncStage.EnsureConfiguration, SyncExceptionType.Argument);
 
-            if (!this.ScopeSet.Tables.Contains(table))
-                this.ScopeSet.Tables.Add(new DmTable(table));
+            // Potentially user can pass something like [SalesLT].[Product]
+            // or SalesLT.Product or Product. ObjectNameParser will handle it
+            ObjectNameParser parser = new ObjectNameParser(table);
+
+            var tableName = parser.ObjectName;
+            var schema = parser.SchemaName;
+
+            if (!this.ScopeSet.Tables.Contains(tableName))
+            {
+                var dmTable = new DmTable(tableName);
+                if (!String.IsNullOrEmpty(schema))
+                    dmTable.Schema = schema;
+
+                this.ScopeSet.Tables.Add(dmTable);
+            }
         }
+
+
 
         public void Add(DmTable item)
         {
