@@ -95,31 +95,7 @@ namespace Dotmim.Sync.FX.Tests
         public String ClientMySqlConnectionString => HelperDB.GetMySqlDatabaseConnectionString(clientDbName);
 
 
-        private void CreateMySqlDatabase(string dbName)
-        {
-            MySqlConnection sysConnection = null;
-            MySqlCommand cmdDb = null;
-            sysConnection = new MySqlConnection(HelperDB.GetMySqlDatabaseConnectionString("sys"));
-
-            sysConnection.Open();
-            cmdDb = new MySqlCommand($"create schema {dbName};", sysConnection);
-            cmdDb.ExecuteNonQuery();
-            sysConnection.Close();
-
-        }
-
-        private void DropMySqlDatabase(string dbName)
-        {
-            MySqlConnection sysConnection = null;
-            MySqlCommand cmdDb = null;
-            sysConnection = new MySqlConnection(HelperDB.GetMySqlDatabaseConnectionString("sys"));
-
-            sysConnection.Open();
-            cmdDb = new MySqlCommand($"drop database {dbName};", sysConnection);
-            cmdDb.ExecuteNonQuery();
-            sysConnection.Close();
-
-        }
+ 
         public MySqlSyncSimpleFixture()
         {
             // create databases
@@ -129,7 +105,7 @@ namespace Dotmim.Sync.FX.Tests
             // insert table
             helperDb.ExecuteScript(serverDbName, datas);
 
-            CreateMySqlDatabase(clientDbName);
+            helperDb.CreateMySqlDatabase(clientDbName);
 
             var serverProvider = new SqlSyncProvider(ServerConnectionString);
             var clientProvider = new MySqlSyncProvider(ClientMySqlConnectionString);
@@ -141,7 +117,7 @@ namespace Dotmim.Sync.FX.Tests
         public void Dispose()
         {
             helperDb.DeleteDatabase(serverDbName);
-            this.DropMySqlDatabase(clientDbName);
+            helperDb.DropMySqlDatabase(clientDbName);
 
         }
 

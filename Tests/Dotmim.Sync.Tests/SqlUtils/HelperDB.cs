@@ -53,6 +53,26 @@ namespace Dotmim.Sync.Test.SqlUtils
         }
 
 
+        public void RestoreDatabase(string dbName, string filePath)
+        {
+            var script = $@"
+                if (exists (select * from sys.databases where name = '{dbName}'))
+                begin                
+                    ALTER DATABASE [{dbName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE
+                End
+                RESTORE DATABASE [{dbName}] FROM  DISK = N'{filePath}' WITH  RESTRICTED_USER,  FILE = 2,  NOUNLOAD,  REPLACE,  STATS = 5
+                ALTER DATABASE [{dbName}] SET MULTI_USER";
+
+            SqlConnection connection = null;
+            SqlCommand cmdDb = null;
+            connection = new SqlConnection(GetDatabaseConnectionString("master"));
+
+            connection.Open();
+            cmdDb = new SqlCommand(script, connection);
+            cmdDb.ExecuteNonQuery();
+            connection.Close();
+
+        }
 
 
         /// <summary>

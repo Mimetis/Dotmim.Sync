@@ -58,9 +58,10 @@ namespace Dotmim.Sync.MySql
             else
                 text = this.mySqlObjectNames.GetCommandName(commandType);
 
+            var textName = new ObjectNameParser(text, "`", "`");
             // on MySql, everything is text based :)
             command.CommandType = CommandType.StoredProcedure;
-            command.CommandText = text;
+            command.CommandText = textName.ObjectName;
             command.Connection = Connection;
 
             //if (commandType == DbCommandType.UpdateRow)

@@ -66,6 +66,7 @@
   <ItemGroup>
     <Compile Include="Misc\XunitExtensibility.cs" />
     <Compile Include="MySql\MySqlSyncTests.cs" />
+    <Compile Include="MySql\WordPressTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SqlUtils\HelperDB.cs" />
     <Compile Include="SqlUtils\InlineConfigurations.cs" />
@@ -90,6 +91,11 @@
   </ItemGroup>
   <ItemGroup>
     <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Backup\Wordpress.sql">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">

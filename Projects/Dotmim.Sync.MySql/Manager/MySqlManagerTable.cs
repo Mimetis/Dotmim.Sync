@@ -54,6 +54,7 @@ namespace Dotmim.Sync.MySql
                 Type columnType = mySqlDbMetadata.ValidateType(datastoreDbType);
 
                 var dbColumn = DmColumn.CreateColumn(name, columnType);
+                dbColumn.OriginalTypeName = typeName;
                 dbColumn.SetOrdinal(Convert.ToInt32(c["ordinal_position"]));
 
                 var maxLengthLong = c["character_octet_length"] != DBNull.Value ? Convert.ToInt64(c["character_octet_length"]) : 0; 

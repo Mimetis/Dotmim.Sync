@@ -24,4 +24,13 @@
     <ProjectReference Include="..\..\Projects\Dotmim.Sync.Web\Dotmim.Sync.Web.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Backup\AdventureWorks.bak">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Backup\AdventureWorksLT2012.bak">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>
