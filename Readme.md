@@ -10,7 +10,12 @@ If you want to contribute or test :
 Go download a free version here : [Visual Studio 2017 Preview](https://www.visualstudio.com/vs/preview/)
 # TL;DR
 
-**DotMim.Sync** is a straightforward SDK for syncing relational databases. It's **.Net Standard 2.0**, available and ready for **IOT**, **Xamarin**, **.NET**, and so on :)  
+**DotMim.Sync** is a straightforward SDK for syncing relational databases.  
+It's **.Net Standard 2.0**, available and ready for **IOT**, **Xamarin**, **.NET**, and so on :)  
+
+Multi Databases | Cross Plaform |  .Net Standard 2.0 
+-------------|---------------------|--------------------
+![](Assets/CrossPlatform.png) | ![](Assets/MultiOS.png) | ![](Assets/NetCore.png) 
 
 It's based on a master slaves architecture :  
 * One provider, as the master, for the server side.
@@ -24,6 +29,9 @@ Here are the nuget packages :
 * **DotMim.Sync.Sqlite** : [https://www.nuget.org/packages/Dotmim.Sync.Sqlite/]() : This package is the SQLite package. Be careful, SQLite is allowed only as a client provider (no SQLite Sync Server provider right now )
 * **DotMim.Sync.MySql** : [https://www.nuget.org/packages/Dotmim.Sync.MySql/]() : This package is the MySql package. Use it if you want to synchronize MySql databases.
 * **DotMim.Sync.Web** : [https://www.nuget.org/packages/Dotmim.Sync.Web/]() : This package allow you to make a sync process using a web server beetween your server and your clients. Use this package with the corresponding Server provider (SQL, MySQL, SQLite).
+
+
+![](Assets/Schema01.PNG)
 
 ## TL;DR: I Want to test !
 
@@ -65,35 +73,7 @@ do
 ```
 
 
-# Introduction
-
-DotMim.Sync is a new API, based on .Net Standard 2.0, allowing you to synchronize any kind of relational datasources.
-
-Multi Databases | Cross Plaform |  .Net Standard 2.0 
--------------|---------------------|--------------------
-![](Assets/CrossPlatform.png) | ![](Assets/MultiOS.png) | ![](Assets/NetCore.png) 
-
-
-Today supported databases are  :
-* SQL Server
-* SQLite
-* MySql
-
-Next availables providers (**NEED HELP**) :
-* PostgreSQL
-* Oracle
-
-**I'm currently looking for a .net developer with skills on Oracle or PostgreSQL to create the corresponding providers**
-
-The sync process is a **Master** - **Slave** model (and not a peer to peer model).
-
-It could be represented like this :
-
-![](Assets/Schema01.PNG)
-
-**This version is not compatible with any others versions already existing**.
-
-# Available features
+# I want more !
 
 All options and detailed can be found in the [Wiki](https://github.com/Mimetis/Dotmim.Sync/wiki/01-Introduction) !
 
