@@ -27,10 +27,10 @@ Here are the nuget packages :
 
 ## TL;DR: I Want to test !
 
-If you don't have any databases ready for testing, use this one : [AdventureWorks leightweight script for SQL Server](/CreateAdventureWorks.sql)  
+If you don't have any databases ready for testing, use this one : [AdventureWorks lightweight script for SQL Server](/CreateAdventureWorks.sql)  
 
 The script is ready to execute in SQL Server. It contains :
-* A leightweight AdvenureWorks database, acting as the Server database (called **AdventureWorks**)
+* A lightweight AdvenureWorks database, acting as the Server database (called **AdventureWorks**)
 * An empty database, acting as the Client database (called **Client**)
 
 Here are the simplest steps to be able to make a simple sync : 
@@ -93,7 +93,7 @@ It could be represented like this :
 
 **This version is not compatible with any others versions already existing**.
 
-# Availabe features
+# Available features
 
 ## Adding configuration
 
