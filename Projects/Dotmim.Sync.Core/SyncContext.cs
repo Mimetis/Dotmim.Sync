@@ -30,6 +30,14 @@ namespace Dotmim.Sync
         public SyncType SyncType { get; set; }
 
         /// <summary>
+        /// Gets or Sets the current Sync direction. 
+        /// When locally GetChanges and remote ApplyChanges we are in Upload direction
+        /// When remote GetChanges and locally ApplyChanges we are in Download direction
+        /// this Property is used to check SyncDirection on each table.
+        /// </summary>
+        public SyncWay SyncWay { get; set; }
+
+        /// <summary>
         /// Total number of change sets downloaded
         /// </summary>
         public int TotalChangesDownloaded { get; set; }

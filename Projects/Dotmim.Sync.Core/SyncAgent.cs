@@ -328,6 +328,8 @@ namespace Dotmim.Sync
                 lastSyncTS = localScopeInfo.LastTimestamp;
                 // isNew : If isNew, lasttimestamp is not correct, so grab all
                 isNew = localScopeInfo.IsNewScope;
+                //Direction set to Upload
+                context.SyncWay = SyncWay.Upload;
 
                 scope = new ScopeInfo { Id = fromId, IsNewScope = isNew, LastTimestamp = lastSyncTS };
                 (context, clientBatchInfo, clientStatistics) = await this.LocalProvider.GetChangeBatchAsync(context, scope);
@@ -360,6 +362,8 @@ namespace Dotmim.Sync
                 // isNew : make sure we take all lines if it's the first time we get 
                 isNew = localScopeReferenceInfo.IsNewScope;
                 scope = new ScopeInfo { Id = fromId, IsNewScope = isNew, LastTimestamp = lastSyncTS };
+                //Direction set to Download
+                context.SyncWay = SyncWay.Download;
 
                 (context, serverBatchInfo, tmpServerStatistics) = await this.RemoteProvider.GetChangeBatchAsync(context, scope);
 
