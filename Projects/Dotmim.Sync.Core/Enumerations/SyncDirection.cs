@@ -24,4 +24,17 @@ namespace Dotmim.Sync.Enumerations
         UploadOnly = 3
 
     }
+
+    public enum SyncWay
+    {
+        /// <summary>
+        /// Sync is selecting then downloading changes from server
+        /// </summary>
+        Download = 1,
+
+        /// <summary>
+        /// Sync is selecting then uploading changes from client
+        /// </summary>
+        Upload = 2
+    }
 }

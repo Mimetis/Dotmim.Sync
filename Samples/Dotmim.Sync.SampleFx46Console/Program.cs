@@ -35,11 +35,15 @@ namespace Dotmim.Sync.SampleFx46Console
             var clientConfig = @"Data Source=(localdb)\MSSQLLocalDB; Initial Catalog=AdvClientTest;Integrated Security=true;";
             SqlSyncProvider clientProvider = new SqlSyncProvider(clientConfig);
 
-            var tables = new string[] { "SalesLT.ProductCategory", "ProductModel", "SalesLT.Product" };
+            var tables = new string[] { "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product",
+                                         "SalesLT.Address", "SalesLT.Customer", "SalesLT.CustomerAddress"};
 
             SyncAgent agent = new SyncAgent(clientProvider, serverProvider, tables);
 
-            agent.Configuration["ProductModel"].Schema = "SalesLT";
+            agent.Configuration["Address"].SyncDirection = SyncDirection.DownloadOnly;
+            agent.Configuration["Customer"].SyncDirection = SyncDirection.DownloadOnly;
+            agent.Configuration["CustomerAddress"].SyncDirection = SyncDirection.DownloadOnly;
+
 
             agent.SyncProgress += SyncProgress;
             agent.ApplyChangedFailed += ApplyChangedFailed;

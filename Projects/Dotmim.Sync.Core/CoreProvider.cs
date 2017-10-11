@@ -967,6 +967,14 @@ namespace Dotmim.Sync
 
                         foreach (var tableDescription in configuration)
                         {
+                            // if we are in upload stage, so check if table is not download only
+                            if (context.SyncWay == SyncWay.Upload && tableDescription.SyncDirection == SyncDirection.DownloadOnly)
+                                continue;
+
+                            // if we are in download stage, so check if table is not download only
+                            if (context.SyncWay == SyncWay.Download && tableDescription.SyncDirection == SyncDirection.UploadOnly)
+                                continue;
+
                             var builder = this.GetDatabaseBuilder(tableDescription);
                             var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
                             syncAdapter.ConflictApplyAction = configuration.GetApplyAction();
@@ -1170,6 +1178,14 @@ namespace Dotmim.Sync
 
                         foreach (var tableDescription in configuration)
                         {
+                            // if we are in upload stage, so check if table is not download only
+                            if (context.SyncWay == SyncWay.Upload && tableDescription.SyncDirection == SyncDirection.DownloadOnly)
+                                continue;
+
+                            // if we are in download stage, so check if table is not download only
+                            if (context.SyncWay == SyncWay.Download && tableDescription.SyncDirection == SyncDirection.UploadOnly)
+                                continue;
+
                             var builder = this.GetDatabaseBuilder(tableDescription);
                             var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
                             syncAdapter.ConflictApplyAction = configuration.GetApplyAction();
@@ -1720,6 +1736,14 @@ namespace Dotmim.Sync
                     var tableDescription = (applyType != DmRowState.Deleted ?
                             configuration[i] :
                             configuration[configuration.Count - i - 1]);
+
+                    // if we are in upload stage, so check if table is not download only
+                    if (context.SyncWay == SyncWay.Upload && tableDescription.SyncDirection == SyncDirection.DownloadOnly)
+                        continue;
+
+                    // if we are in download stage, so check if table is not download only
+                    if (context.SyncWay == SyncWay.Download && tableDescription.SyncDirection == SyncDirection.UploadOnly)
+                        continue;
 
                     var builder = this.GetDatabaseBuilder(tableDescription);
                     var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
