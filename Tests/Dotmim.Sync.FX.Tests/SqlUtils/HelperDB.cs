@@ -1,4 +1,5 @@
-﻿using System;
+﻿using MySql.Data.MySqlClient;
+using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Text;
@@ -25,6 +26,31 @@ namespace Dotmim.Sync.FX.Tests.SqlUtils
             masterConnection.Close();
         }
 
+        public void CreateMySqlDatabase(string dbName)
+        {
+            MySqlConnection sysConnection = null;
+            MySqlCommand cmdDb = null;
+            sysConnection = new MySqlConnection(HelperDB.GetMySqlDatabaseConnectionString("sys"));
+
+            sysConnection.Open();
+            cmdDb = new MySqlCommand($"create schema if not exists {dbName};", sysConnection);
+            cmdDb.ExecuteNonQuery();
+            sysConnection.Close();
+
+        }
+
+        public void DropMySqlDatabase(string dbName)
+        {
+            MySqlConnection sysConnection = null;
+            MySqlCommand cmdDb = null;
+            sysConnection = new MySqlConnection(HelperDB.GetMySqlDatabaseConnectionString("sys"));
+
+            sysConnection.Open();
+            cmdDb = new MySqlCommand($"drop database if exists {dbName};", sysConnection);
+            cmdDb.ExecuteNonQuery();
+            sysConnection.Close();
+
+        }
         /// <summary>
         /// Delete a database
         /// </summary>
@@ -48,6 +74,17 @@ namespace Dotmim.Sync.FX.Tests.SqlUtils
 
             connection.Open();
             cmdDb = new SqlCommand(script, connection);
+            cmdDb.ExecuteNonQuery();
+            connection.Close();
+        }
+        public void ExecuteMySqlScript(string dbName, string script)
+        {
+            MySqlConnection connection = null;
+            MySqlCommand cmdDb = null;
+            connection = new MySqlConnection(GetMySqlDatabaseConnectionString(dbName));
+
+            connection.Open();
+            cmdDb = new MySqlCommand(script, connection);
             cmdDb.ExecuteNonQuery();
             connection.Close();
         }
