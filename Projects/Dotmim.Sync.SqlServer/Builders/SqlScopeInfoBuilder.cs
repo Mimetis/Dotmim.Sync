@@ -235,7 +235,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                     while (reader.Read())
                     {
                         scopeInfo.Name = reader["sync_scope_name"] as String;
-                        scopeInfo.Id = (Guid)reader["sync_scope_Id"];
+                        scopeInfo.Id = (Guid)reader["sync_scope_id"];
                         scopeInfo.LastTimestamp = SqlManager.ParseTimestamp(reader["scope_timestamp"]);
                         scopeInfo.IsLocal = (bool)reader["scope_is_local"];
                         scopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value ? (DateTime?)reader["scope_last_sync"] : null;

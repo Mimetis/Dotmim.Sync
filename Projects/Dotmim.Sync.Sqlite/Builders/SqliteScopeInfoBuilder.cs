@@ -214,7 +214,7 @@ namespace Dotmim.Sync.SQLite
                     while (reader.Read())
                     {
                         scopeInfo.Name = reader["sync_scope_name"] as String;
-                        scopeInfo.Id = new Guid((string)reader["sync_scope_Id"]);
+                        scopeInfo.Id = new Guid((string)reader["sync_scope_id"]);
                         scopeInfo.LastTimestamp = SQLiteManager.ParseTimestamp(reader["scope_timestamp"]);
                         scopeInfo.IsLocal = (bool)reader["scope_is_local"];
                         scopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value ? (DateTime?)reader["scope_last_sync"] : null;
