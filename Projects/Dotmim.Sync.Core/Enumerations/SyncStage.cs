@@ -6,49 +6,49 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Enumerations
 {
-    /// <summary>
-    /// Sync progress step. Used for the user feedback
-    /// </summary>
-    public enum SyncStage
-    {
-        /// <summary>Begin a new sync session</summary>
-        BeginSession,
+/// <summary>
+/// Sync progress step. Used for the user feedback
+/// </summary>
+public enum SyncStage
+{
+    /// <summary>Begin a new sync session</summary>
+    BeginSession,
 
-        /// <summary>Ensure scopes</summary>
-        EnsureScopes,
+    /// <summary>Ensure scopes</summary>
+    EnsureScopes,
 
-        /// <summary>Ensure configuration and tables</summary>
-        EnsureConfiguration,
+    /// <summary>Ensure configuration and tables</summary>
+    EnsureConfiguration,
 
-        /// <summary>Ensure database and tables</summary>
-        EnsureDatabase,
+    /// <summary>Ensure database and tables</summary>
+    EnsureDatabase,
 
-        /// <summary>Occurs before changes are selected from datastore</summary>
-        SelectingChanges,
+    /// <summary>Occurs before changes are selected from datastore</summary>
+    SelectingChanges,
 
-        /// <summary>Occurs after changes are selected from datastore</summary>
-        SelectedChanges,
+    /// <summary>Occurs after changes are selected from datastore</summary>
+    SelectedChanges,
 
-        /// <summary>Occurs before applying changes</summary>
-        ApplyingChanges,
-        /// <summary>Occurs afeter changes are applied</summary>
-        AppliedChanges,
+    /// <summary>Occurs before applying changes</summary>
+    ApplyingChanges,
+    /// <summary>Occurs afeter changes are applied</summary>
+    AppliedChanges,
 
-        /// <summary>Occurs before applying inserts </summary>
-        ApplyingInserts,
-        /// <summary>Occurs before applying updates </summary>
-        ApplyingUpdates,
-        /// <summary>Occurs before applying deletes </summary>
-        ApplyingDeletes,
+    /// <summary>Occurs before applying inserts </summary>
+    ApplyingInserts,
+    /// <summary>Occurs before applying updates </summary>
+    ApplyingUpdates,
+    /// <summary>Occurs before applying deletes </summary>
+    ApplyingDeletes,
 
-        /// <summary>Writes scopes</summary>
-        WriteMetadata,
+    /// <summary>Writes scopes</summary>
+    WriteMetadata,
 
-        /// <summary>End the current sync session</summary>
-        EndSession,
+    /// <summary>End the current sync session</summary>
+    EndSession,
 
-        /// <summary>Cleanup metadata from tracking tables.</summary>
-        CleanupMetadata
+    /// <summary>Cleanup metadata from tracking tables.</summary>
+    CleanupMetadata
 
-    }
+}
 }

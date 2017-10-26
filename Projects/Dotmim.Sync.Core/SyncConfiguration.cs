@@ -343,8 +343,9 @@ namespace Dotmim.Sync
             }
         }
 
-
-
+        /// <summary>
+        /// Adding table to configuration
+        /// </summary>
         public void Add(DmTable item)
         {
             if (this.ScopeSet == null || this.ScopeSet.Tables == null)
@@ -384,7 +385,6 @@ namespace Dotmim.Sync
                 return this.ScopeSet.Tables[name];
             }
         }
-
         public bool Contains(DmTable item)
         {
             if (this.ScopeSet == null || this.ScopeSet.Tables == null)
@@ -392,7 +392,6 @@ namespace Dotmim.Sync
 
             return this.ScopeSet.Tables.Contains(item);
         }
-
         public void CopyTo(DmTable[] array, int arrayIndex)
         {
             if (this.ScopeSet == null || this.ScopeSet.Tables == null)
@@ -401,7 +400,6 @@ namespace Dotmim.Sync
             for (int i = 0; i < this.ScopeSet.Tables.Count; ++i)
                 array[arrayIndex + i] = this.ScopeSet.Tables[i];
         }
-
         public bool Remove(DmTable item)
         {
             if (this.ScopeSet == null || this.ScopeSet.Tables == null)
@@ -409,7 +407,6 @@ namespace Dotmim.Sync
 
             return this.ScopeSet.Tables.Remove(item);
         }
-
         public IEnumerator<DmTable> GetEnumerator()
         {
             if (this.ScopeSet == null || this.ScopeSet.Tables == null)
@@ -417,7 +414,6 @@ namespace Dotmim.Sync
 
             return this.ScopeSet.Tables.GetEnumerator();
         }
-
         IEnumerator IEnumerable.GetEnumerator()
         {
             if (this.ScopeSet == null || this.ScopeSet.Tables == null)

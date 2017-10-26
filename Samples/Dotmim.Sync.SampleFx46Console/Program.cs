@@ -22,7 +22,7 @@ namespace Dotmim.Sync.SampleFx46Console
     {
         static void Main(string[] args)
         {
-          //  SyncWordPress().Wait();
+            //  SyncWordPress().Wait();
 
             SyncWithSchema().Wait();
         }
@@ -36,13 +36,13 @@ namespace Dotmim.Sync.SampleFx46Console
             SqlSyncProvider clientProvider = new SqlSyncProvider(clientConfig);
 
             var tables = new string[] { "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product",
-                                         "SalesLT.Address", "SalesLT.Customer", "SalesLT.CustomerAddress"};
+                                    "Address", "Customer", "CustomerAddress"};
 
             SyncAgent agent = new SyncAgent(clientProvider, serverProvider, tables);
 
-            agent.Configuration["Address"].SyncDirection = SyncDirection.DownloadOnly;
-            agent.Configuration["Customer"].SyncDirection = SyncDirection.DownloadOnly;
-            agent.Configuration["CustomerAddress"].SyncDirection = SyncDirection.DownloadOnly;
+            agent.Configuration["Address"].Schema = "SalesLT";
+            agent.Configuration["Customer"].Schema = "SalesLT";
+            agent.Configuration["CustomerAddress"].Schema = "SalesLT";
 
 
             agent.SyncProgress += SyncProgress;

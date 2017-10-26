@@ -2,13 +2,14 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <Version>0.1.1</Version>
+    <Version>0.1.2</Version>
     <Authors>Sébastien Pertus</Authors>
     <Company>Microsoft</Company>
     <Description>Proxy to be able to Sync through an ASP.NET CORE application. 
 Can't work without a Server provider, you have to choose an existing one to be able to work with the Proxy</Description>
     <PackageProjectUrl>https://github.com/Mimetis/Dotmim.Sync/</PackageProjectUrl>
     <PackageTags>Dotmim.Sync, ASP.NET Web Sync Proxy, .Net Standard 2.0</PackageTags>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <ItemGroup>

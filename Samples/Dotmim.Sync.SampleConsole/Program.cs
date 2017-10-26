@@ -37,9 +37,12 @@ class Program
 
         //TestAllAvailablesColumns().Wait();
 
-        TestSyncSQLite().Wait();
+        //TestSyncSQLite().Wait();
 
         //TestMySqlSync().Wait();
+
+
+        TestSync().Wait();
 
         Console.ReadLine();
 

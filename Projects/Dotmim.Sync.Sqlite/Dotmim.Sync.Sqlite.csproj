@@ -3,10 +3,14 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <Version>0.1.0</Version>
+    <Version>0.1.2</Version>
     <Authors>Sébastien Pertus</Authors>
     <Company>Microsoft</Company>
     <Description>SQLite Sync Provider. Actually can be used as Client provider (Don't use it as a Server provider)</Description>
+    <AssemblyVersion>0.1.2.0</AssemblyVersion>
+    <FileVersion>0.1.2.0</FileVersion>
+    <PackageProjectUrl>https://github.com/Mimetis/Dotmim.Sync</PackageProjectUrl>
+    <PackageTags>Dotmim.Sync, SQLite Sync Provider, .Net Standard 2.0</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>
