@@ -1,0 +1,24 @@
+providers:
+	- providerType:	sqlSyncProvider
+	  connectionString : "Data Source=(localdb)\MSSQLLocalDB; Initial Catalog=AdventureWorks;Integrated Security=true;"
+	  syncType: server	
+	
+	- providerType:	sqliteSyncProvider
+	  connectionString : "adWorks.db"
+	  syncType: server	
+	
+tables: 
+	- name : ProductCategory
+	  schema : dbo
+	  syncDirection : bidirectional
+
+	- name : Product
+	  schema : dbo
+	  syncDirection : bidirectional
+
+configuration:
+	- conflictResolution : ServerWins
+	- downloadBatchSizeInKB : 1000
+	- batchDirectory : "C:\\tmp"
+	- serializationFormat : json
+	- useBulkOperations : true
