@@ -19,6 +19,14 @@ namespace Dotmim.Sync.Tools
             if (args.Count == 0)
                 throw new Exception("No argument specified. See help: dotnet sync Table --help");
 
+            if (String.IsNullOrEmpty(projectName))
+                throw new Exception("Table commands need a project name. See help: dotnet sync Table --help");
+
+            Project project = DataStore.Current.LoadProject(projectName);
+
+            if (project == null)
+                throw new Exception($"Project {projectName} does not exists.");
+
             Table table = new Table();
 
             foreach (var arg in args)
@@ -27,6 +35,13 @@ namespace Dotmim.Sync.Tools
                 {
                     case ArgumentType.TableAdd:
                         table.Name = arg.Value;
+                        break;
+                    case ArgumentType.TableOrder:
+
+                        if (!int.TryParse(arg.Value, out int neworder))
+                            throw new Exception("Table order is not specified correctly. See help: dotnet sync table --help ");
+
+                        table.Order = neworder;
                         break;
                     case ArgumentType.TableSchema:
                         table.Schema = arg.Value;

@@ -18,7 +18,7 @@ namespace Dotmim.Sync.Tools
         internal const string CONF_TABLE = "ds_conf";
         internal const int OUTPUT_COLUMN_WIDTH = 32;
         private SQLiteConnection connection;
-        private SQLiteTransaction transaction;
+        //private SQLiteTransaction transaction;
 
         private static DataStore dataStore;
 
@@ -95,8 +95,8 @@ namespace Dotmim.Sync.Tools
 
                 var command = connection.CreateCommand();
 
-                if (transaction != null)
-                    command.Transaction = transaction;
+                //if (transaction != null)
+                //    command.Transaction = transaction;
 
                 command.CommandText = $"Delete from {TABLE_TABLE} where project_name=@projectName and name=@tableName";
 
@@ -131,8 +131,8 @@ namespace Dotmim.Sync.Tools
 
                 var command = connection.CreateCommand();
 
-                if (transaction != null)
-                    command.Transaction = transaction;
+                //if (transaction != null)
+                //    command.Transaction = transaction;
 
                 command.CommandText = $"Select count(*) from {TABLE_TABLE} where project_name=@projectName and name=@tableName";
 
@@ -150,16 +150,33 @@ namespace Dotmim.Sync.Tools
 
                 var tableExist = (long)command.ExecuteScalar() > 0;
 
+                command.CommandText = $"Select count(*) from {TABLE_TABLE} where project_name=@projectName";
+
+                p = command.CreateParameter();
+                p.ParameterName = "@projectName";
+                p.Value = projectName;
+                p.DbType = DbType.String;
+                command.Parameters.Add(p);
+
+                p = command.CreateParameter();
+                p.ParameterName = "@tableName";
+                p.Value = tbl.Name;
+                p.DbType = DbType.String;
+                command.Parameters.Add(p);
+
+                var orderNumberMax = (long)command.ExecuteScalar() ;
+
+
                 string commandTableText = string.Empty;
                 if (tableExist)
                     commandTableText = $@"Update {TABLE_TABLE} 
-                                             Set schema=@schema, direction=@direction
+                                             Set schema=@schema, direction=@direction, order_number=@order_number
                                              Where project_name=@projectName and name=@tableName";
                 else
                     commandTableText = $@"Insert into {TABLE_TABLE} 
-                                             (name, project_name, schema, direction)
+                                             (name, project_name, schema, direction, order_number)
                                              Values
-                                             (@tableName, @projectName, @schema, @direction)";
+                                             (@tableName, @projectName, @schema, @direction, @order_number)";
 
                 command = connection.CreateCommand();
                 command.CommandText = commandTableText;
@@ -180,6 +197,12 @@ namespace Dotmim.Sync.Tools
                 p.ParameterName = "@schema";
                 p.Value = tbl.Schema;
                 p.DbType = DbType.String;
+                command.Parameters.Add(p);
+
+                p = command.CreateParameter();
+                p.ParameterName = "@order_number";
+                p.Value = tbl.Order > 0 ? tbl.Order : orderNumberMax;
+                p.DbType = DbType.Int64;
                 command.Parameters.Add(p);
 
                 string direction = null;
@@ -364,6 +387,7 @@ namespace Dotmim.Sync.Tools
                     Table table = new Table
                     {
                         Name = readerTable["name"] as string,
+                        Order = Convert.ToInt32((long)readerTable["order_number"]),
                         Schema = readerTable["schema"] != DBNull.Value ? readerTable["schema"] as string : null
                     };
 
@@ -525,14 +549,6 @@ namespace Dotmim.Sync.Tools
                 command.Parameters.Add(p);
 
                 command.ExecuteNonQuery();
-
-                if (project.Tables.Count > 0)
-                {
-                    foreach (var tbl in project.Tables)
-                    {
-
-                    }
-                }
             }
             finally
             {
@@ -584,6 +600,7 @@ namespace Dotmim.Sync.Tools
             stringBuilder.AppendLine($"project_name text NOT NULL,");
             stringBuilder.AppendLine($"schema text NULL,");
             stringBuilder.AppendLine($"direction text NULL,");
+            stringBuilder.AppendLine($"order_number integer NOT NULL,");
             stringBuilder.AppendLine($"PRIMARY KEY (project_name, name),");
             stringBuilder.AppendLine($"FOREIGN KEY (project_name) REFERENCES {PROJECT_TABLE} (name))");
 

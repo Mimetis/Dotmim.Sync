@@ -304,6 +304,14 @@ namespace Dotmim.Sync.Tools
                             isLongterm = false;
                             argumentType = ArgumentType.TableAdd;
                             break;
+                        case "order":
+                            isLongterm = true;
+                            argumentType = ArgumentType.TableOrder;
+                            break;
+                        case "o":
+                            isLongterm = false;
+                            argumentType = ArgumentType.TableOrder;
+                            break;
                         case "schema":
                             isLongterm = true;
                             argumentType = ArgumentType.TableSchema;

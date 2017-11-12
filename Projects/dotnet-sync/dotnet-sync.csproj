@@ -5,9 +5,9 @@
     <TargetFramework>netcoreapp2.0</TargetFramework>
     <RootNamespace>Dotmim.Sync.Tools</RootNamespace>
     <Description>Dotmim Sync Command Line Tools</Description>
-    <IsPackable>false</IsPackable>
     <StartupObject>Dotmim.Sync.Tools.Program</StartupObject>
     <RuntimeIdentifier>win10-x64</RuntimeIdentifier>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <ItemGroup>

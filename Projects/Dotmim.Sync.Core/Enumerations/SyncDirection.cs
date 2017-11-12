@@ -27,6 +27,11 @@ namespace Dotmim.Sync.Enumerations
     public enum SyncWay
     {
         /// <summary>
+        /// No sync engaged
+        /// </summary>
+        None = 0,
+
+        /// <summary>
         /// Sync is selecting then downloading changes from server
         /// </summary>
         Download = 1,
