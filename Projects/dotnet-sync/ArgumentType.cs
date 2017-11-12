@@ -23,6 +23,7 @@ namespace Dotmim.Sync.Tools
         ProviderSyncType,
         // Table
         TableAdd,
+        TableOrder,
         TableSchema,
         TableRemove,
         TableDirection,

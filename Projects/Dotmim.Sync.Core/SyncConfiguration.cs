@@ -117,7 +117,6 @@ namespace Dotmim.Sync
             syncConfiguration.ConflictResolutionPolicy = this.ConflictResolutionPolicy;
             syncConfiguration.DownloadBatchSizeInKB = this.DownloadBatchSizeInKB;
             syncConfiguration.ScopeSet = this.ScopeSet.Clone();
-            //syncConfiguration.Tables = this.Tables;
             syncConfiguration.UseBulkOperations = this.UseBulkOperations;
             syncConfiguration.UseVerboseErrors = this.UseVerboseErrors;
             syncConfiguration.SerializationFormat = this.SerializationFormat;
@@ -417,9 +416,9 @@ namespace Dotmim.Sync
         IEnumerator IEnumerable.GetEnumerator()
         {
             if (this.ScopeSet == null || this.ScopeSet.Tables == null)
-                return null;
+                yield break;
 
-            return this.ScopeSet.Tables.GetEnumerator();
+            yield return this.ScopeSet.Tables.GetEnumerator();
         }
     }
 }

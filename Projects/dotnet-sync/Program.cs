@@ -11,10 +11,9 @@ namespace Dotmim.Sync.Tools
             {
                 // From dotnet command line or debug mode
                 if (args.Length == 0)
-                    //args = new string[] { "conf", "-c", "clientwins", "p0", "-d", @"C:\PROJECTS\NEXT MEETING\" };
-                    args = new string[] { "-ls" };
-                    //args = new string[] { "p0", "confd", "-s", "1000" };
-
+                    //args = new string[] { "p0", "provider", "-s", "client", "-p", "sqlite", "-c", "adv.db" };
+                    args = new string[] { "p0", "-i" };
+                    
                 Runner.Execute(args);
             }
             catch (Exception ex)

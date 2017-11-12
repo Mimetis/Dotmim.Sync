@@ -156,7 +156,6 @@ $ dotnet sync project -d "syncproject01"
 Project "syncproject01" deleted
 ```
 
-
 ### Adding Sync providers
 
 Once you have loaded your **CLI project**, you can add providers.
@@ -168,26 +167,23 @@ $ dotnet sync provider [arguments]
 ```
 
 Arguments available :
-* `-p` or `--providerType` : Adding a provider type, like `SqlSyncProvider` or `SqliteSyncProvider` or `MySqlSyncProvider`.
+* `-p` or `--providerType` : Adding a provider type, like `sqlserver` or `sqlite` or `mysql`.
 * `-c` or `--connectionString` : Adding the provider connection string.
-* `-s` or `--syncType` : Adding the provider sync type : could be `Server` or `Client`
+* `-s` or `--syncType` : Adding the provider sync type : could be `server` or `client`
 
 Adding providers of type `SqlSyncProvider` as server side and `SqliteSyncProvider` as client side :  
 ```
-$ dotnet sync provider -p SqlSyncProvider -c "Data Source=(localdb)...." -s Server;
-
+$ dotnet sync provider -p sqlserver -c "Data Source=(localdb)...." -s server;
 Server provider of type SqlSyncProvider added to project syncproject01
 
-$ dotnet sync provider -p SqliteSyncProvider -cs "adWorks.db" -s Client;
-
+$ dotnet sync provider -p sqlite -cs "adWorks.db" -s client;
 Client provider of type SqliteSyncProvider added to project syncproject01
  
 ```
 
 Calling the the `dotnet sync provider` again will replace the current provider : 
 ```
-$ dotnet sync provider -p MySqlSyncProvider -c "...." -s Server;
-
+$ dotnet sync provider -p mysql -c "...." -s Server;
 Server provider of type MySqlSyncProvider replaced in the project syncproject01
 ```
 
@@ -202,6 +198,7 @@ $ dotnet sync table [arguments]
 
 Arguments availables:
 * `-a` or `--add` : Adding a table identified with its name.
+* `-o` or `--order` : Specify table order. 
 * `-s` or `--schema` : Set the schema name for the current table. Only used with the `SqlSyncProvider`.
 * `-r` or `--remove` : Remove the specfied table from the sync process.
 * `-d` or `--direction` : Set the sync direction for the current table. Could be `Bidirectional`, `UploadOnly` or `DownloadOnly`

@@ -10,5 +10,7 @@ namespace Dotmim.Sync.Tools
         public String Name { get; set; }
         public String Schema { get; set; }
         public SyncDirection Direction { get; set; }
+        public int Order { get; set; }
+
     }
 }

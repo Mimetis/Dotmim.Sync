@@ -477,7 +477,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             {
                 ObjectNameParser columnName = new ObjectNameParser(mutableColumn.ColumnName);
                 stringBuilderArguments.Append(string.Concat(empty, columnName.QuotedString));
-                stringBuilderParameters.Append(string.Concat(empty, $"changes.{columnName.UnquotedString}"));
+                stringBuilderParameters.Append(string.Concat(empty, $"changes.{columnName.QuotedString}"));
                 empty = ", ";
             }
             stringBuilder.AppendLine();
@@ -637,7 +637,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             {
                 ObjectNameParser columnName = new ObjectNameParser(mutableColumn.ColumnName);
                 stringBuilderArguments.Append(string.Concat(empty, columnName.QuotedString));
-                stringBuilderParameters.Append(string.Concat(empty, $"changes.{columnName.UnquotedString}"));
+                stringBuilderParameters.Append(string.Concat(empty, $"changes.{columnName.QuotedString}"));
                 empty = ", ";
             }
             stringBuilder.AppendLine();
@@ -647,7 +647,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             foreach (DmColumn column in this.tableDescription.NonPkColumns.Where(col => !col.ReadOnly))
             {
                 ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
-                stringBuilder.AppendLine($"\t{strSeparator}{quotedColumn.QuotedString} = [changes].{quotedColumn.UnquotedString}");
+                stringBuilder.AppendLine($"\t{strSeparator}{quotedColumn.QuotedString} = [changes].{quotedColumn.QuotedString}");
                 strSeparator = ", ";
             }
             stringBuilder.Append($"\tOUTPUT ");
