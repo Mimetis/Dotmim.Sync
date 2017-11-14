@@ -1,8 +1,8 @@
 {
   "AppConfiguration": {
     "ServerConnectionString": "Data Source=(localdb)\\MSSQLLocalDB; Initial Catalog=ServerDB; Integrated Security=true;",
-    "ClientConnectionString": "Data Source=(localdb)\\MSSQLLocalDB; Initial Catalog=ClientDB; Integrated Security=true;",
-    "ClientSQLiteConnectionString": "sqlitetesttwotablesd.db",
+    "ClientConnectionString": "Data Source=(localdb)\\MSSQLLocalDB; Initial Catalog=DotminXAFClient; Integrated Security=true;",
+    "ClientSQLiteConnectionString": "DotminXAF.db",
     "ClientSQLiteConnectionString2": "clientsqlite2.db",
     "MySqlServerConnectionString": "Server=mysqlspertus.mysql.database.azure.com; Port=3306; Database=serverdb; Uid=spertus@mysqlspertus; Pwd=DB56hy76; SslMode=Preferred;",
     "MySqlClientConnectionString": "Server=mysqlspertus.mysql.database.azure.com; Port=3306; Database=clientdb; Uid=spertus@mysqlspertus; Pwd=DB56hy76; SslMode=Preferred;"

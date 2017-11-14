@@ -31,18 +31,18 @@ class Program
 
 
 
-        //TestSync().Wait();
+        //TestSync().GetAwaiter().GetResult();
 
-        //TestSyncThroughKestrellAsync().Wait();
+        //TestSyncThroughKestrellAsync().GetAwaiter().GetResult();
 
-        //TestAllAvailablesColumns().Wait();
+        //TestAllAvailablesColumns().GetAwaiter().GetResult();
 
-        //TestSyncSQLite().Wait();
+        //TestSyncSQLite().GetAwaiter().GetResult();
 
-        //TestMySqlSync().Wait();
+        //TestMySqlSync().GetAwaiter().GetResult();
 
 
-        TestSync().Wait();
+        TestSyncThroughWebApi().GetAwaiter().GetResult();
 
         Console.ReadLine();
 
@@ -54,12 +54,20 @@ class Program
         ConfigurationBuilder configurationBuilder = new ConfigurationBuilder();
         configurationBuilder.AddJsonFile("config.json", true);
         IConfiguration Configuration = configurationBuilder.Build();
-        var clientConfig = Configuration["AppConfiguration:ClientConnectionString"];
 
+        //var clientConfig = Configuration["AppConfiguration:ClientSQLiteConnectionString"];
+        //var clientProvider = new SQLiteSyncProvider(clientConfig);
+
+        var clientConfig = Configuration["AppConfiguration:ClientConnectionString"];
         var clientProvider = new SqlSyncProvider(clientConfig);
+
+
         var proxyClientProvider = new WebProxyClientProvider(new Uri("http://localhost:56782/api/values"));
 
         var agent = new SyncAgent(clientProvider, proxyClientProvider);
+
+        agent.SyncProgress += SyncProgress;
+        agent.ApplyChangedFailed += ApplyChangedFailed;
 
         Console.WriteLine("Press a key to start...");
         Console.ReadKey();
@@ -272,14 +280,23 @@ class Program
         ConfigurationBuilder configurationBuilder = new ConfigurationBuilder();
         configurationBuilder.AddJsonFile("config.json", true);
         IConfiguration Configuration = configurationBuilder.Build();
-        var serverConfig = Configuration["AppConfiguration:ServerConnectionString"];
-        var clientConfig = Configuration["AppConfiguration:ClientConnectionString"];
+        var serverConfig = @"Data Source=(localdb)\MSSQLLocalDB; Initial Catalog=DotminXAF; Integrated Security=true;";
+        var clientConfig = @"Data Source=(localdb)\MSSQLLocalDB; Initial Catalog=DotminXAFClient; Integrated Security=true;";
 
         SqlSyncProvider serverProvider = new SqlSyncProvider(serverConfig);
         SqlSyncProvider clientProvider = new SqlSyncProvider(clientConfig);
 
         // With a config when we are in local mode (no proxy)
-        SyncConfiguration configuration = new SyncConfiguration(new string[] { "ServiceTickets" });
+        SyncConfiguration configuration = new SyncConfiguration(new string[] {
+        "Analysis", "Event", "FileData", "HCategory", "ModelDifference", "PermissionPolicyUser",
+        "Resource", "XPObjectType", "C4File", "ModelDifferenceAspect", "PermissionPolicyRole",
+        "ReportDataV2", "ResourceResources_EventEvents",
+        "PermissionPolicyNavigationPermissionsObject", "PermissionPolicyTypePermissionsObject",
+        "PermissionPolicyUserUsers_PermissionPolicyRoleRoles", "PermissionPolicyMemberPermissionsObject",
+        "PermissionPolicyObjectPermissionsObject"});
+
+        //var configuration = new SyncConfiguration(new string[] {
+        //"Analysis", "Event", "FileData","Resource", "C4File"});
 
 
         //configuration.DownloadBatchSizeInKB = 500;

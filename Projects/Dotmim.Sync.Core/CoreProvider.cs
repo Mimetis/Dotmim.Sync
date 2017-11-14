@@ -158,11 +158,27 @@ namespace Dotmim.Sync
         /// Generate the DmTable configuration from a given columns list
         /// Validate that all columns are currently supported by the provider
         /// </summary>
-        private void GenerateTableFromColumnsList(DmTable dmTable, List<DmColumn> columns, IDbManagerTable dbManagerTable)
+        private void ValidateTableFromColumnsList(DmTable dmTable, List<DmColumn> columns, IDbManagerTable dbManagerTable)
         {
             dmTable.OriginalProvider = this.ProviderTypeName;
 
             var ordinal = 0;
+
+            if (columns == null || columns.Count <= 0)
+                throw new SyncException($"{dmTable.TableName} does not contains any columns.", SyncStage.EnsureDatabase, SyncExceptionType.NotSupported);
+
+            // Get PrimaryKey
+            var dmTableKeys = dbManagerTable.GetTablePrimaryKeys();
+
+            if (dmTableKeys == null || dmTableKeys.Count == 0)
+                throw new SyncException($"No Primary Keys in table {dmTable.TableName}, Can't make a synchronization with a table without primary keys.", SyncStage.EnsureDatabase, SyncExceptionType.NoPrimaryKeys);
+
+            // Check if we have more than one column (excepting primarykeys)
+            var columnsNotPkeys = columns.Count(c => !dmTableKeys.Contains(c.ColumnName));
+
+            if (columnsNotPkeys <= 0)
+                throw new SyncException($"{dmTable.TableName} does not contains any columns, excepting primary keys.", SyncStage.EnsureDatabase, SyncExceptionType.NotSupported);
+
             foreach (var column in columns.OrderBy(c => c.Ordinal))
             {
                 // First of all validate if the column is currently supported
@@ -216,21 +232,13 @@ namespace Dotmim.Sync
                 }
 
             }
-
-            // Get PrimaryKey
-            var dmTableKeys = dbManagerTable.GetTablePrimaryKeys();
-
-            if (dmTableKeys == null || dmTableKeys.Count == 0)
-                throw new SyncException($"No Primary Keys in table {dmTable.TableName}, Can't make a synchronization with a table without primary keys.", SyncStage.EnsureDatabase, SyncExceptionType.NoPrimaryKeys);
-
+ 
             DmColumn[] columnsForKey = new DmColumn[dmTableKeys.Count];
 
             for (int i = 0; i < dmTableKeys.Count; i++)
             {
                 var rowColumn = dmTableKeys[i];
-
                 var columnKey = dmTable.Columns.FirstOrDefault(c => String.Equals(c.ColumnName, rowColumn, StringComparison.InvariantCultureIgnoreCase));
-
                 columnsForKey[i] = columnKey ?? throw new SyncException("Primary key found is not present in the columns list", SyncStage.EnsureDatabase, SyncExceptionType.NoPrimaryKeys);
             }
 
@@ -271,7 +279,7 @@ namespace Dotmim.Sync
                             var lstColumns = tblManager.GetTableDefinition();
                             
                             // Validate the column list and get the dmTable configuration object.
-                            this.GenerateTableFromColumnsList(dmTable, lstColumns, tblManager);
+                            this.ValidateTableFromColumnsList(dmTable, lstColumns, tblManager);
 
                             var relations = tblManager.GetTableRelations();
 
