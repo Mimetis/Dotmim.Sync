@@ -6,6 +6,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Mapping sur la table ScopeInfo
     /// </summary>
+    [Serializable]
     public class ScopeInfo
     {
         /// <summary>

@@ -11,6 +11,7 @@ using Dotmim.Sync.Builders;
 
 namespace Dotmim.Sync
 {
+    [Serializable]
     public class SyncConfiguration : ICollection<DmTable>
     {
 
@@ -27,7 +28,22 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets or Sets the DmSet Schema used for synchronization
         /// </summary>
-        public DmSet ScopeSet { get; set; }
+
+
+        [NonSerialized]
+        private DmSet scopeSet;
+
+        public DmSet ScopeSet
+        {
+            get
+            {
+                return scopeSet;
+            }
+            set
+            {
+                scopeSet = value;
+            }
+        }
 
         /// <summary>
         /// Gets or Sets the directory used for batch mode.
@@ -259,8 +275,6 @@ namespace Dotmim.Sync
                 dmTableFilterParameters = set.Tables["DotmimSync__Filters"];
                 dmTableFilterParameters.Columns.Add<String>("TableName");
                 dmTableFilterParameters.Columns.Add<String>("ColumnName");
-
-                DmSerializer serializer = new DmSerializer();
 
                 foreach (var p in configuration.Filters)
                 {

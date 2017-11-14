@@ -51,6 +51,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Changes statistics on a data store
     /// </summary>
+    [Serializable]
     public class ChangesStatistics
     {
         /// <summary>
@@ -160,6 +161,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Args for applied changed on a source, for each kind of DmRowState (Update / Delete / Insert)
     /// </summary>
+    [Serializable]
     public class AppliedChanges
     {
         /// <summary>
@@ -190,6 +192,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Get changes to be applied (contains Deletes AND Inserts AND Updates)
     /// </summary>
+    [Serializable]
     public class SelectedChanges
     {
         /// <summary>

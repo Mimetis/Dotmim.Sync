@@ -18,10 +18,10 @@ namespace Dotmim.Sync.Serialization
             {
                 case SerializationFormat.Json:
                     return new JsonConverter<T>();
-                case SerializationFormat.DmSerializer:
-                    return new DmBinaryConverter<T>();
+                case SerializationFormat.Binary:
+                    return new BinaryConverter<T>();
                 case SerializationFormat.Custom:
-                    return null;
+                    return new DmBinaryConverter<T>();
             }
 
             throw new Exception("Cant get Converter");

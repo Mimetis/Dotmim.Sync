@@ -11,6 +11,7 @@ namespace Dotmim.Sync.Batch
     /// <summary>
     /// Represents a Batch, containing a full or serialized change set
     /// </summary>
+    [Serializable]
     public class BatchInfo
     {
 

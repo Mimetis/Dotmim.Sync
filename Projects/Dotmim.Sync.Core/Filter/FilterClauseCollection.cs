@@ -4,6 +4,7 @@ using System.Text;
 
 namespace Dotmim.Sync.Filter
 {
+    [Serializable]
     public class FilterClauseCollection : List<FilterClause>
     {
         private SyncConfiguration syncConfiguration;

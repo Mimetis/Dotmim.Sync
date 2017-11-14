@@ -11,6 +11,7 @@ namespace Dotmim.Sync.Web
     /// <summary>
     /// Message send and receieved during http call
     /// </summary>
+    [Serializable]
     public class HttpMessage
     {
         /// <summary>
@@ -59,7 +60,7 @@ namespace Dotmim.Sync.Web
         public HttpWriteScopesMessage WriteScopes { get; set; }
     }
 
-
+    [Serializable]
     public class HttpGetChangeBatchMessage
     {
         public ScopeInfo ScopeInfo { get; set; }
@@ -69,11 +70,13 @@ namespace Dotmim.Sync.Web
         public DmSetSurrogate Set { get; set; }
         public ChangesStatistics ChangesStatistics { get; set; }
     }
+    [Serializable]
     public class HttpGetLocalTimestampMessage
     {
         public Int64 LocalTimestamp { get; set; }
     }
 
+    [Serializable]
     public class HttpApplyChangesMessage
     {
         public ScopeInfo ScopeInfo { get; set; }
@@ -85,6 +88,7 @@ namespace Dotmim.Sync.Web
 
     }
 
+    [Serializable]
     public class HttpEnsureScopesMessage
     {
         public String ScopeName { get; set; }
@@ -94,11 +98,13 @@ namespace Dotmim.Sync.Web
         public List<ScopeInfo> Scopes { get; set; }
     }
 
+    [Serializable]
     public class HttpWriteScopesMessage
     {
         public List<ScopeInfo> Scopes { get; set; }
     }
 
+    [Serializable]
     public class HttpEnsureConfigurationMessage
     {
         /// <summary>
@@ -112,6 +118,7 @@ namespace Dotmim.Sync.Web
         public DmSetSurrogate ConfigurationSet { get; set; }
     }
 
+    [Serializable]
     public class HttpEnsureDatabaseMessage
     {
         public ScopeInfo ScopeInfo { get; set; }
