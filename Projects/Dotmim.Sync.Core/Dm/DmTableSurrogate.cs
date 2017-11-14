@@ -246,6 +246,8 @@ namespace Dotmim.Sync.Data.Surrogate
                             dmRowObject = Convert.ToString(dmRowObject);
                         else if (columnType == typeof(Boolean) && dmRowObjectType != typeof(Boolean))
                             dmRowObject = Convert.ToBoolean(dmRowObject);
+                        else if (columnType == typeof(Byte[]) && dmRowObjectType != typeof(Byte[]) && dmRowObjectType == typeof(String))
+                            dmRowObject = Convert.FromBase64String(dmRowObject.ToString());
                         else if (dmRowObjectType != columnType)
                         {
                             var t = dmRowObject.GetType();

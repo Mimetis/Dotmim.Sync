@@ -29,7 +29,17 @@ namespace Dotmim.Sync.SampleWebserver
             var connectionString = Configuration["Data:ConnectionString"];
             services.AddSyncServer<SqlSyncProvider>(connectionString, configuration =>
             {
-                configuration.Add("ServiceTickets");
+                var s = new string[] { "FileData" };
+
+                //var s = new string[] {
+                //        "Analysis", "Event", "FileData", "HCategory", "PermissionPolicyUser",
+                //        "Resource", "XPObjectType", "XpoStateMachine", "C4File", "PermissionPolicyRole",
+                //        "ReportDataV2", "ResourceResources_EventEvents", "XpoState",
+                //        "PermissionPolicyNavigationPermissionsObject", "PermissionPolicyTypePermissionsObject",
+                //        "PermissionPolicyUserUsers_PermissionPolicyRoleRoles","XpoStateAppearance", "XpoTransition",
+                //        "PermissionPolicyMemberPermissionsObject", "PermissionPolicyObjectPermissionsObject"};
+
+                configuration.Add(s);
             });
         }
 
@@ -37,8 +47,8 @@ namespace Dotmim.Sync.SampleWebserver
         public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
         {
             app.UseMvc();
-            
-            
+
+
         }
     }
 }
