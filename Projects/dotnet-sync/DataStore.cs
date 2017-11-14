@@ -362,7 +362,7 @@ namespace Dotmim.Sync.Tools
                 project.Configuration.SerializationFormat = Enumerations.SerializationFormat.Json;
 
             if (format == "dm")
-                project.Configuration.SerializationFormat = Enumerations.SerializationFormat.DmSerializer;
+                project.Configuration.SerializationFormat = Enumerations.SerializationFormat.Binary;
 
             if (batchSize > 0)
                 project.Configuration.DownloadBatchSizeInKB = batchSize;

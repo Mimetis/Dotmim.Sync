@@ -2,6 +2,7 @@
 using Dotmim.Sync.Serialization;
 using System;
 using System.IO;
+using System.Runtime.Serialization.Formatters.Binary;
 
 namespace Dotmim.Sync.Batch
 {
@@ -9,6 +10,7 @@ namespace Dotmim.Sync.Batch
     /// Batch Part
     /// FullName like : [Guid].batch
     /// </summary>
+    [Serializable]
     public class BatchPart
     {
         /// <summary>
@@ -28,8 +30,8 @@ namespace Dotmim.Sync.Batch
 
             using (FileStream fs = new FileStream(fileName, FileMode.Open, FileAccess.Read))
             {
-                DmSerializer serializer = new DmSerializer();
-                bp.DmSetSurrogate = serializer.Deserialize<DmSetSurrogate>(fs);
+                BinaryFormatter serializer = new BinaryFormatter();
+                bp.DmSetSurrogate = serializer.Deserialize(fs) as DmSetSurrogate;
             }
 
             return bp;
@@ -38,7 +40,6 @@ namespace Dotmim.Sync.Batch
 
         public static void Serialize(DmSetSurrogate set, string fileName)
         {
-            DmSerializer serializer = new DmSerializer();
 
             FileInfo fi = new FileInfo(fileName);
 
@@ -48,7 +49,8 @@ namespace Dotmim.Sync.Batch
             // Serialize on disk.
             using (var f = new FileStream(fileName, FileMode.CreateNew, FileAccess.ReadWrite))
             {
-                serializer.Serialize(set, f);
+                BinaryFormatter serializer = new BinaryFormatter();
+                serializer.Serialize(f, set);
             }
         }
 

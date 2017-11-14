@@ -4,10 +4,9 @@ using System.Text;
 
 namespace Dotmim.Sync.Filter
 {
+    [Serializable]
     public class SyncParameterCollection : List<SyncParameter>
     {
-
-
         public SyncParameterCollection()
         {
 

@@ -11,6 +11,7 @@ namespace Dotmim.Sync.Batch
     /// Info about a BatchPart
     /// Will be serialized in the BatchInfo file
     /// </summary>
+    [Serializable]
     public class BatchPartInfo
     {
         private BatchPart batch;
@@ -63,7 +64,20 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Gets or Sets the DmSet from the batch associated once the DmSetSurrogate is deserialized
         /// </summary>
-        public DmSet Set { get; set; }
+
+        [NonSerialized]
+        private DmSet set;
+        public DmSet Set
+        {
+            get
+            {
+                return set;
+            }
+            set
+            {
+                set = value;
+            }
+        }
 
 
         public BatchPartInfo()

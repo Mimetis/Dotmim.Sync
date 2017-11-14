@@ -8,6 +8,7 @@ namespace Dotmim.Sync.Filter
     /// <summary>
     /// Design a filter clause on Dmtable
     /// </summary>
+    [Serializable]
     public class FilterClause
     {
         public String TableName { get; set; }

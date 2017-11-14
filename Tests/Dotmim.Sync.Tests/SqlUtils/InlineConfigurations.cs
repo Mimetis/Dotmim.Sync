@@ -38,25 +38,25 @@ namespace Dotmim.Sync.Test.SqlUtils
             confs.Add(new object[] { new SyncConfiguration{
                 DownloadBatchSizeInKB = 100,
                 UseBulkOperations = true,
-                SerializationFormat= Enumerations.SerializationFormat.DmSerializer
+                SerializationFormat= Enumerations.SerializationFormat.Binary
             } });
 
             confs.Add(new object[] { new SyncConfiguration{
                 DownloadBatchSizeInKB = 100,
                 UseBulkOperations = false,
-                SerializationFormat= Enumerations.SerializationFormat.DmSerializer
+                SerializationFormat= Enumerations.SerializationFormat.Binary
             } });
 
             confs.Add(new object[] { new SyncConfiguration{
                 DownloadBatchSizeInKB = 0,
                 UseBulkOperations = true,
-                SerializationFormat= Enumerations.SerializationFormat.DmSerializer
+                SerializationFormat= Enumerations.SerializationFormat.Binary
             } });
 
             confs.Add(new object[] { new SyncConfiguration{
                 DownloadBatchSizeInKB = 0,
                 UseBulkOperations = false,
-                SerializationFormat= Enumerations.SerializationFormat.DmSerializer
+                SerializationFormat= Enumerations.SerializationFormat.Binary
             } });
 
         }

@@ -232,7 +232,7 @@ namespace Dotmim.Sync
                 }
 
             }
- 
+
             DmColumn[] columnsForKey = new DmColumn[dmTableKeys.Count];
 
             for (int i = 0; i < dmTableKeys.Count; i++)
@@ -277,7 +277,7 @@ namespace Dotmim.Sync
 
                             // get columns list
                             var lstColumns = tblManager.GetTableDefinition();
-                            
+
                             // Validate the column list and get the dmTable configuration object.
                             this.ValidateTableFromColumnsList(dmTable, lstColumns, tblManager);
 
@@ -333,8 +333,6 @@ namespace Dotmim.Sync
         {
             try
             {
-                DmSerializer serializer = new DmSerializer();
-
                 context.SyncStage = SyncStage.EnsureConfiguration;
 
                 // Get cache manager and try to get configuration from cache
@@ -1160,8 +1158,6 @@ namespace Dotmim.Sync
 
             int batchIndex = 0;
 
-            DmSerializer serializer = new DmSerializer();
-
             // this batch info won't be in memory, it will be be batched
             BatchInfo batchInfo = new BatchInfo();
             // directory where all files will be stored
@@ -1551,9 +1547,13 @@ namespace Dotmim.Sync
             {
                 var createdTimeStamp = DbManager.ParseTimestamp(dataRow["create_timestamp"]);
                 var updatedTimeStamp = DbManager.ParseTimestamp(dataRow["update_timestamp"]);
-                var isLocallyCreated = dataRow["create_scope_id"] == DBNull.Value || dataRow["create_scope_id"] == null;
-                var islocallyUpdated = dataRow["update_scope_id"] == DBNull.Value || dataRow["update_scope_id"] == null || (Guid)dataRow["update_scope_id"] != scopeInfo.Id;
+                var isLocallyCreated = dataRow["create_scope_id"] == DBNull.Value
+                                    || dataRow["create_scope_id"] == null;
+                var islocallyUpdated = dataRow["update_scope_id"] == DBNull.Value
+                                || dataRow["update_scope_id"] == null
+                                || (Guid)dataRow["update_scope_id"] != scopeInfo.Id;
 
+                Guid? updateScopeId = (dataRow["update_scope_id"] != DBNull.Value && dataRow["update_scope_id"] != null) ? (Guid)dataRow["update_scope_id"] : (Guid?)null;
 
                 //if (scopeInfo.IsNewScope || (isLocallyCreated && createdTimeStamp > scopeInfo.LastTimestamp))
                 //    dmRowState = DmRowState.Added;
@@ -1568,6 +1568,9 @@ namespace Dotmim.Sync
                     dmRowState = DmRowState.Modified;
                 else if (scopeInfo.IsNewScope || (isLocallyCreated && createdTimeStamp > scopeInfo.LastTimestamp))
                     dmRowState = DmRowState.Added;
+                // The line has been updated from an other host
+                else if (islocallyUpdated && updateScopeId.HasValue && updateScopeId.Value != scopeInfo.Id)
+                    dmRowState = DmRowState.Modified;
                 else
                     dmRowState = DmRowState.Unchanged;
             }

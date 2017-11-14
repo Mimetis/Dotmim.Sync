@@ -14,7 +14,6 @@ namespace Dotmim.Sync.Serialization
             {
                 var stringObject = sr.ReadToEnd();
                 return JsonConvert.DeserializeObject<T>(stringObject);
-
             }
         }
 

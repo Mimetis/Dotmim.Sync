@@ -10,6 +10,7 @@ namespace Dotmim.Sync.Filter
     /// <summary>
     /// Encapsulates information sent from the client to the server.
     /// </summary>
+    [Serializable]
     public class SyncParameter
     {
         /// <summary>

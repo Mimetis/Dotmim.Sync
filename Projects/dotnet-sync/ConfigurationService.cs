@@ -70,7 +70,7 @@ namespace Dotmim.Sync.Tools
                         if (format != "json" && format != "dm")
                             throw new Exception("Conflict resolution must be json or dm. See help: dotnet sync Conf --help");
 
-                        configuration.SerializationFormat = format == "json" ? Enumerations.SerializationFormat.Json : Enumerations.SerializationFormat.DmSerializer;
+                        configuration.SerializationFormat = format == "json" ? Enumerations.SerializationFormat.Json : Enumerations.SerializationFormat.Binary;
                         break;
                 }
 

@@ -8,6 +8,7 @@ namespace Dotmim.Sync
     /// Context of the current Sync session
     /// Encapsulates data changes and metadata for a synchronization session.
     /// </summary>
+    [Serializable]
     public class SyncContext
     {
         /// <summary>

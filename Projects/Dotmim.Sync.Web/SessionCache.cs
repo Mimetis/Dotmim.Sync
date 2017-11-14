@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http;
 using Newtonsoft.Json;
 using System;
 using System.Linq;
+using System.Runtime.Serialization.Formatters.Binary;
 
 namespace Dotmim.Sync.Web
 {
@@ -13,7 +14,6 @@ namespace Dotmim.Sync.Web
         /// <summary>
         /// The cache store. A dictionary that stores different memory caches by the type being cached.
         /// </summary>
-        private DmSerializer serializer;
         private HttpContext context;
 
         /// <summary>
@@ -21,9 +21,7 @@ namespace Dotmim.Sync.Web
         /// </summary>
         public SessionCache(HttpContext context)
         {
-            this.serializer = new DmSerializer();
             this.context = context;
-            
         }
 
         /// <summary>
