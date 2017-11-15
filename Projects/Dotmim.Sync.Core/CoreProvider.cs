@@ -15,6 +15,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Threading;
 using Dotmim.Sync.Serialization;
+using System.Diagnostics;
 
 namespace Dotmim.Sync
 {
@@ -1547,13 +1548,13 @@ namespace Dotmim.Sync
             {
                 var createdTimeStamp = DbManager.ParseTimestamp(dataRow["create_timestamp"]);
                 var updatedTimeStamp = DbManager.ParseTimestamp(dataRow["update_timestamp"]);
-                var isLocallyCreated = dataRow["create_scope_id"] == DBNull.Value
-                                    || dataRow["create_scope_id"] == null;
-                var islocallyUpdated = dataRow["update_scope_id"] == DBNull.Value
-                                || dataRow["update_scope_id"] == null
-                                || (Guid)dataRow["update_scope_id"] != scopeInfo.Id;
 
                 Guid? updateScopeId = (dataRow["update_scope_id"] != DBNull.Value && dataRow["update_scope_id"] != null) ? (Guid)dataRow["update_scope_id"] : (Guid?)null;
+                Guid? createScopeId = (dataRow["create_scope_id"] != DBNull.Value && dataRow["create_scope_id"] != null) ? (Guid)dataRow["create_scope_id"] : (Guid?)null;
+
+                var isLocallyCreated = !createScopeId.HasValue;
+                var islocallyUpdated = !updateScopeId.HasValue || updateScopeId.Value != scopeInfo.Id;
+
 
                 //if (scopeInfo.IsNewScope || (isLocallyCreated && createdTimeStamp > scopeInfo.LastTimestamp))
                 //    dmRowState = DmRowState.Added;
@@ -1572,7 +1573,12 @@ namespace Dotmim.Sync
                 else if (islocallyUpdated && updateScopeId.HasValue && updateScopeId.Value != scopeInfo.Id)
                     dmRowState = DmRowState.Modified;
                 else
+                {
                     dmRowState = DmRowState.Unchanged;
+                    Debug.WriteLine($"Row is in Unchanegd state. " +
+                        $"\tscopeInfo.Id:{scopeInfo.Id}, scopeInfo.IsNewScope :{scopeInfo.IsNewScope}, scopeInfo.LastTimestamp:{scopeInfo.LastTimestamp}" +
+                        $"\tcreateScopeId:{createScopeId}, updateScopeId:{updateScopeId}, createdTimeStamp:{createdTimeStamp}, updatedTimeStamp:{updatedTimeStamp}.");
+                }
             }
 
             return dmRowState;
