@@ -60,7 +60,7 @@ namespace Dotmim.Sync.Test.SqlUtils
                 begin                
                     ALTER DATABASE [{dbName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE
                 End
-                RESTORE DATABASE [{dbName}] FROM  DISK = N'{filePath}' WITH  RESTRICTED_USER,  FILE = 2,  NOUNLOAD,  REPLACE,  STATS = 5
+                RESTORE DATABASE [{dbName}] FROM  DISK = N'{filePath}' WITH  RESTRICTED_USER, REPLACE
                 ALTER DATABASE [{dbName}] SET MULTI_USER";
 
             SqlConnection connection = null;

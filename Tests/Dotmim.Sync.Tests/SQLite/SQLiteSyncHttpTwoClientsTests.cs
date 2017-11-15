@@ -340,7 +340,7 @@ namespace Dotmim.Sync.Test
         }
 
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(5)]
-        public async Task UpdateFromClient(SyncConfiguration conf)
+        public async Task UpdateFromClient1(SyncConfiguration conf)
         {
             Guid newId = Guid.NewGuid();
 
@@ -357,30 +357,33 @@ namespace Dotmim.Sync.Test
                     sqlConnection.Close();
                 }
             }
+            var serverHandler = new RequestDelegate(async context =>
+            {
+                conf.Add(fixture.Tables);
+                serverProvider.SetConfiguration(conf);
+                proxyServerProvider.SerializationFormat = conf.SerializationFormat;
+
+                await proxyServerProvider.HandleRequestAsync(context);
+            });
             using (var server = new KestrellTestServer())
             {
-                var serverHandler = new RequestDelegate(async context =>
-                {
-                    conf.Add(fixture.Tables);
-                    serverProvider.SetConfiguration(conf);
-                    proxyServerProvider.SerializationFormat = conf.SerializationFormat;
-
-                    await proxyServerProvider.HandleRequestAsync(context);
-                });
                 var client1Handler = new ResponseDelegate(async (serviceUri) =>
-                {
-                    proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
+                 {
+                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
+                     proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
-                    agent = new SyncAgent(client1Provider, proxyClientProvider);
+                     agent = new SyncAgent(client1Provider, proxyClientProvider);
 
-                    var session = await agent.SynchronizeAsync();
+                     var session = await agent.SynchronizeAsync();
 
-                    Assert.Equal(0, session.TotalChangesDownloaded);
-                    Assert.Equal(1, session.TotalChangesUploaded);
-                });
+                     Assert.Equal(0, session.TotalChangesDownloaded);
+                     Assert.Equal(1, session.TotalChangesUploaded);
+                 });
                 await server.Run(serverHandler, client1Handler);
+            }
 
+            using (var server = new KestrellTestServer())
+            {
                 var client2Handler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
@@ -393,7 +396,7 @@ namespace Dotmim.Sync.Test
                     Assert.Equal(1, session.TotalChangesDownloaded);
                     Assert.Equal(0, session.TotalChangesUploaded);
                 });
-                await server.Run(serverHandler, client1Handler);
+                await server.Run(serverHandler, client2Handler);
             }
 
             var updateRowScript =
@@ -410,14 +413,6 @@ namespace Dotmim.Sync.Test
             }
             using (var server = new KestrellTestServer())
             {
-                var serverHandler = new RequestDelegate(async context =>
-                {
-                    conf.Add(fixture.Tables);
-                    serverProvider.SetConfiguration(conf);
-                    proxyServerProvider.SerializationFormat = conf.SerializationFormat;
-
-                    await proxyServerProvider.HandleRequestAsync(context);
-                });
                 var client1Handler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
@@ -430,7 +425,9 @@ namespace Dotmim.Sync.Test
                     Assert.Equal(1, session.TotalChangesUploaded);
                 });
                 await server.Run(serverHandler, client1Handler);
-
+            }
+            using (var server = new KestrellTestServer())
+            {
                 var client2Handler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
@@ -439,11 +436,11 @@ namespace Dotmim.Sync.Test
                     agent = new SyncAgent(client2Provider, proxyClientProvider);
 
                     var session = await agent.SynchronizeAsync();
-
+                    
                     Assert.Equal(1, session.TotalChangesDownloaded);
                     Assert.Equal(0, session.TotalChangesUploaded);
                 });
-                await server.Run(serverHandler, client1Handler);
+                await server.Run(serverHandler, client2Handler);
             }
         }
 
@@ -464,16 +461,17 @@ namespace Dotmim.Sync.Test
                     sqlConnection.Close();
                 }
             }
+            var serverHandler = new RequestDelegate(async context =>
+            {
+                conf.Add(fixture.Tables);
+                serverProvider.SetConfiguration(conf);
+                proxyServerProvider.SerializationFormat = conf.SerializationFormat;
+
+                await proxyServerProvider.HandleRequestAsync(context);
+            });
+
             using (var server = new KestrellTestServer())
             {
-                var serverHandler = new RequestDelegate(async context =>
-                {
-                    conf.Add(fixture.Tables);
-                    serverProvider.SetConfiguration(conf);
-                    proxyServerProvider.SerializationFormat = conf.SerializationFormat;
-
-                    await proxyServerProvider.HandleRequestAsync(context);
-                });
                 var client1Handler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
@@ -487,6 +485,10 @@ namespace Dotmim.Sync.Test
                     Assert.Equal(0, session.TotalChangesUploaded);
                 });
                 await server.Run(serverHandler, client1Handler);
+            }
+
+            using (var server = new KestrellTestServer())
+            {
                 var client2Handler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
@@ -503,494 +505,427 @@ namespace Dotmim.Sync.Test
             }
         }
 
-        //[Theory, ClassData(typeof(InlineConfigurations)), TestPriority(7)]
-        //public async Task DeleteFromServer(SyncConfiguration conf)
-        //{
-        //    var updateRowScript =
-        //    $@" Declare @id uniqueidentifier;
-        //        Select top 1 @id = ServiceTicketID from ServiceTickets;
-        //        Delete From [ServiceTickets] Where ServiceTicketId = @id";
-
-        //    using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
-        //    {
-        //        using (var sqlCmd = new SqlCommand(updateRowScript, sqlConnection))
-        //        {
-        //            sqlConnection.Open();
-        //            sqlCmd.ExecuteNonQuery();
-        //            sqlConnection.Close();
-        //        }
-        //    }
-        //    using (var server = new KestrellTestServer())
-        //    {
-        //        var serverHandler = new RequestDelegate(async context =>
-        //        {
-        //            conf.Add(fixture.Tables);
-        //            serverProvider.SetConfiguration(conf);
-        //            proxyServerProvider.SerializationFormat = conf.SerializationFormat;
-
-        //            await proxyServerProvider.HandleRequestAsync(context);
-        //        });
-        //        var clientHandler = new ResponseDelegate(async (serviceUri) =>
-        //        {
-        //            proxyClientProvider.ServiceUri = new Uri(serviceUri);
-        //            proxyClientProvider.SerializationFormat = conf.SerializationFormat;
-
-        //            var session = await agent.SynchronizeAsync();
-
-        //            Assert.Equal(1, session.TotalChangesDownloaded);
-        //            Assert.Equal(0, session.TotalChangesUploaded);
-        //        });
-        //        await server.Run(serverHandler, clientHandler);
-        //    }
-        //}
-
-        //[Theory, ClassData(typeof(InlineConfigurations)), TestPriority(8)]
-        //public async Task DeleteFromClient(SyncConfiguration conf)
-        //{
-        //    long count;
-        //    var selectcount = $@"Select count(*) From [ServiceTickets]";
-        //    var updateRowScript = $@"Delete From [ServiceTickets]";
-
-        //    using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
-        //    {
-        //        sqlConnection.Open();
-        //        using (var sqlCmd = new SQLiteCommand(selectcount, sqlConnection))
-        //            count = (long)sqlCmd.ExecuteScalar();
-        //        using (var sqlCmd = new SQLiteCommand(updateRowScript, sqlConnection))
-        //            sqlCmd.ExecuteNonQuery();
-        //        sqlConnection.Close();
-        //    }
-
-        //    using (var server = new KestrellTestServer())
-        //    {
-        //        var serverHandler = new RequestDelegate(async context =>
-        //        {
-        //            conf.Add(fixture.Tables);
-        //            serverProvider.SetConfiguration(conf);
-        //            proxyServerProvider.SerializationFormat = conf.SerializationFormat;
-
-        //            await proxyServerProvider.HandleRequestAsync(context);
-        //        });
-        //        var clientHandler = new ResponseDelegate(async (serviceUri) =>
-        //        {
-        //            proxyClientProvider.ServiceUri = new Uri(serviceUri);
-        //            proxyClientProvider.SerializationFormat = conf.SerializationFormat;
-
-        //            var session = await agent.SynchronizeAsync();
-
-        //            Assert.Equal(0, session.TotalChangesDownloaded);
-        //            Assert.Equal(count, session.TotalChangesUploaded);
-        //        });
-        //        await server.Run(serverHandler, clientHandler);
-        //    }
-
-        //    // check all rows deleted on server side
-        //    using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
-        //    {
-        //        sqlConnection.Open();
-        //        using (var sqlCmd = new SqlCommand(selectcount, sqlConnection))
-        //            count = (int)sqlCmd.ExecuteScalar();
-        //    }
-        //    Assert.Equal(0, count);
-        //}
-
-        //[Theory, ClassData(typeof(InlineConfigurations)), TestPriority(9)]
-        //public async Task ConflictInsertInsertServerWins(SyncConfiguration conf)
-        //{
-        //    Guid insertConflictId = Guid.NewGuid();
-
-        //    using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
-        //    {
-        //        var script = $@"INSERT INTO [ServiceTickets] 
-        //                    ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
-        //                    VALUES 
-        //                    ('{insertConflictId.ToString()}', 'Conflict Line Client', 'Description client', 1, 0, datetime('now'), NULL, 1)";
-
-        //        using (var sqlCmd = new SQLiteCommand(script, sqlConnection))
-        //        {
-        //            sqlConnection.Open();
-        //            sqlCmd.ExecuteNonQuery();
-        //            sqlConnection.Close();
-        //        }
-        //    }
-
-        //    using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
-        //    {
-        //        var script = $@"INSERT [ServiceTickets] 
-        //                    ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
-        //                    VALUES 
-        //                    ('{insertConflictId.ToString()}', 'Conflict Line Server', 'Description client', 1, 0, getdate(), NULL, 1)";
-
-        //        using (var sqlCmd = new SqlCommand(script, sqlConnection))
-        //        {
-        //            sqlConnection.Open();
-        //            sqlCmd.ExecuteNonQuery();
-        //            sqlConnection.Close();
-        //        }
-        //    }
-
-        //    using (var server = new KestrellTestServer())
-        //    {
-        //        var serverHandler = new RequestDelegate(async context =>
-        //        {
-        //            conf.Add(fixture.Tables);
-        //            serverProvider.SetConfiguration(conf);
-        //            proxyServerProvider.SerializationFormat = conf.SerializationFormat;
-
-        //            await proxyServerProvider.HandleRequestAsync(context);
-        //        });
-        //        var clientHandler = new ResponseDelegate(async (serviceUri) =>
-        //        {
-        //            proxyClientProvider.ServiceUri = new Uri(serviceUri);
-        //            proxyClientProvider.SerializationFormat = conf.SerializationFormat;
-
-        //            var session = await agent.SynchronizeAsync();
-
-        //            // check statistics
-        //            Assert.Equal(1, session.TotalChangesDownloaded);
-        //            Assert.Equal(1, session.TotalChangesUploaded);
-        //            Assert.Equal(1, session.TotalSyncConflicts);
-        //        });
-        //        await server.Run(serverHandler, clientHandler);
-        //    }
-
-        //    string expectedRes = string.Empty;
-        //    using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
-        //    {
-        //        var script = $@"Select Title from [ServiceTickets] Where ServiceTicketID='{insertConflictId.ToString()}'";
-
-        //        using (var sqlCmd = new SQLiteCommand(script, sqlConnection))
-        //        {
-        //            sqlConnection.Open();
-        //            expectedRes = sqlCmd.ExecuteScalar() as string;
-        //            sqlConnection.Close();
-        //        }
-        //    }
-
-        //    // check good title on client
-        //    Assert.Equal("Conflict Line Server", expectedRes);
-        //}
-
-        //[Theory, ClassData(typeof(InlineConfigurations)), TestPriority(10)]
-        //public async Task ConflictUpdateUpdateServerWins(SyncConfiguration conf)
-        //{
-        //    Guid updateConflictId = Guid.NewGuid();
-        //    using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
-        //    {
-        //        var script = $@"INSERT INTO [ServiceTickets] 
-        //                    ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
-        //                    VALUES 
-        //                    ('{updateConflictId.ToString()}', 'Line Client', 'Description client', 1, 0, datetime('now'), NULL, 1)";
-
-        //        using (var sqlCmd = new SQLiteCommand(script, sqlConnection))
-        //        {
-        //            sqlConnection.Open();
-        //            sqlCmd.ExecuteNonQuery();
-        //            sqlConnection.Close();
-        //        }
-        //    }
-
-        //    using (var server = new KestrellTestServer())
-        //    {
-        //        var serverHandler = new RequestDelegate(async context =>
-        //        {
-        //            conf.Add(fixture.Tables);
-        //            serverProvider.SetConfiguration(conf);
-        //            proxyServerProvider.SerializationFormat = conf.SerializationFormat;
-
-        //            await proxyServerProvider.HandleRequestAsync(context);
-        //        });
-        //        var clientHandler = new ResponseDelegate(async (serviceUri) =>
-        //        {
-        //            proxyClientProvider.ServiceUri = new Uri(serviceUri);
-        //            proxyClientProvider.SerializationFormat = conf.SerializationFormat;
-
-        //            var session = await agent.SynchronizeAsync();
-
-        //            // check statistics
-        //            Assert.Equal(0, session.TotalChangesDownloaded);
-        //            Assert.Equal(1, session.TotalChangesUploaded);
-        //            Assert.Equal(0, session.TotalSyncConflicts);
-        //        });
-        //        await server.Run(serverHandler, clientHandler);
-        //    }
-
-        //    using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
-        //    {
-        //        var script = $@"Update [ServiceTickets] 
-        //                        Set Title = 'Updated from Client'
-        //                        Where ServiceTicketId = '{updateConflictId.ToString()}'";
-
-        //        using (var sqlCmd = new SQLiteCommand(script, sqlConnection))
-        //        {
-        //            sqlConnection.Open();
-        //            sqlCmd.ExecuteNonQuery();
-        //            sqlConnection.Close();
-        //        }
-        //    }
-
-        //    using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
-        //    {
-        //        var script = $@"Update [ServiceTickets] 
-        //                        Set Title = 'Updated from Server'
-        //                        Where ServiceTicketId = '{updateConflictId.ToString()}'";
-
-        //        using (var sqlCmd = new SqlCommand(script, sqlConnection))
-        //        {
-        //            sqlConnection.Open();
-        //            sqlCmd.ExecuteNonQuery();
-        //            sqlConnection.Close();
-        //        }
-        //    }
-
-        //    using (var server = new KestrellTestServer())
-        //    {
-        //        var serverHandler = new RequestDelegate(async context =>
-        //        {
-        //            conf.Add(fixture.Tables);
-        //            serverProvider.SetConfiguration(conf);
-        //            proxyServerProvider.SerializationFormat = conf.SerializationFormat;
-
-        //            await proxyServerProvider.HandleRequestAsync(context);
-        //        });
-        //        var clientHandler = new ResponseDelegate(async (serviceUri) =>
-        //        {
-        //            proxyClientProvider.ServiceUri = new Uri(serviceUri);
-        //            proxyClientProvider.SerializationFormat = conf.SerializationFormat;
-
-        //            var session = await agent.SynchronizeAsync();
-
-        //            // check statistics
-        //            Assert.Equal(1, session.TotalChangesDownloaded);
-        //            Assert.Equal(1, session.TotalChangesUploaded);
-        //            Assert.Equal(1, session.TotalSyncConflicts);
-        //        });
-        //        await server.Run(serverHandler, clientHandler);
-        //    }
-
-        //    string expectedRes = string.Empty;
-        //    using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
-        //    {
-        //        var script = $@"Select Title from [ServiceTickets] Where ServiceTicketID='{updateConflictId.ToString()}'";
-
-        //        using (var sqlCmd = new SQLiteCommand(script, sqlConnection))
-        //        {
-        //            sqlConnection.Open();
-        //            expectedRes = sqlCmd.ExecuteScalar() as string;
-        //            sqlConnection.Close();
-        //        }
-        //    }
-
-        //    // check good title on client
-        //    Assert.Equal("Updated from Server", expectedRes);
-        //}
-
-        //[Theory, ClassData(typeof(InlineConfigurations)), TestPriority(11)]
-        //public async Task ConflictUpdateUpdateClientWins(SyncConfiguration conf)
-        //{
-        //    var id = Guid.NewGuid().ToString();
-
-        //    using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
-        //    {
-        //        var script = $@"INSERT INTO [ServiceTickets] 
-        //                    ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
-        //                    VALUES 
-        //                    ('{id}', 'Line for conflict', 'Description client', 1, 0, datetime('now'), NULL, 1)";
-
-        //        using (var sqlCmd = new SQLiteCommand(script, sqlConnection))
-        //        {
-        //            sqlConnection.Open();
-        //            sqlCmd.ExecuteNonQuery();
-        //            sqlConnection.Close();
-        //        }
-        //    }
-
-        //    using (var server = new KestrellTestServer())
-        //    {
-        //        var serverHandler = new RequestDelegate(async context =>
-        //        {
-        //            conf.Add(fixture.Tables);
-        //            serverProvider.SetConfiguration(conf);
-        //            proxyServerProvider.SerializationFormat = conf.SerializationFormat;
-
-        //            await proxyServerProvider.HandleRequestAsync(context);
-        //        });
-        //        var clientHandler = new ResponseDelegate(async (serviceUri) =>
-        //        {
-        //            proxyClientProvider.ServiceUri = new Uri(serviceUri);
-        //            proxyClientProvider.SerializationFormat = conf.SerializationFormat;
-
-        //            var session = await agent.SynchronizeAsync();
-
-        //            // check statistics
-        //            Assert.Equal(0, session.TotalChangesDownloaded);
-        //            Assert.Equal(1, session.TotalChangesUploaded);
-        //            Assert.Equal(0, session.TotalSyncConflicts);
-        //        });
-        //        await server.Run(serverHandler, clientHandler);
-        //    }
-
-        //    using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
-        //    {
-        //        var script = $@"Update [ServiceTickets] 
-        //                        Set Title = 'Updated from Client'
-        //                        Where ServiceTicketId = '{id}'";
-
-        //        using (var sqlCmd = new SQLiteCommand(script, sqlConnection))
-        //        {
-        //            sqlConnection.Open();
-        //            sqlCmd.ExecuteNonQuery();
-        //            sqlConnection.Close();
-        //        }
-        //    }
-
-        //    using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
-        //    {
-        //        var script = $@"Update [ServiceTickets] 
-        //                        Set Title = 'Updated from Server'
-        //                        Where ServiceTicketId = '{id}'";
-
-        //        using (var sqlCmd = new SqlCommand(script, sqlConnection))
-        //        {
-        //            sqlConnection.Open();
-        //            sqlCmd.ExecuteNonQuery();
-        //            sqlConnection.Close();
-        //        }
-        //    }
-
-        //    using (var server = new KestrellTestServer())
-        //    {
-        //        var serverHandler = new RequestDelegate(async context =>
-        //        {
-        //            conf.Add(fixture.Tables);
-        //            serverProvider.SetConfiguration(conf);
-        //            proxyServerProvider.SerializationFormat = conf.SerializationFormat;
-
-        //            // Since we move to server side, it's server to handle errors
-        //            serverProvider.ApplyChangedFailed += (s, args) =>
-        //            {
-        //                args.Action = ApplyAction.RetryWithForceWrite;
-        //            };
-
-        //            await proxyServerProvider.HandleRequestAsync(context);
-        //        });
-        //        var clientHandler = new ResponseDelegate(async (serviceUri) =>
-        //        {
-        //            proxyClientProvider.ServiceUri = new Uri(serviceUri);
-        //            proxyClientProvider.SerializationFormat = conf.SerializationFormat;
-
-        //            SyncContext session = null;
-        //            await Assert.RaisesAsync<ApplyChangeFailedEventArgs>(
-        //                h => serverProvider.ApplyChangedFailed += h,
-        //                h => serverProvider.ApplyChangedFailed -= h, async () =>
-        //                {
-        //                    session = await agent.SynchronizeAsync();
-        //                });
-
-        //            // check statistics
-        //            Assert.Equal(0, session.TotalChangesDownloaded);
-        //            Assert.Equal(1, session.TotalChangesUploaded);
-        //            Assert.Equal(1, session.TotalSyncConflicts);
-        //        });
-        //        await server.Run(serverHandler, clientHandler);
-        //    }
-
-        //    string expectedRes = string.Empty;
-        //    using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
-        //    {
-        //        var script = $@"Select Title from [ServiceTickets] Where ServiceTicketID='{id}'";
-
-        //        using (var sqlCmd = new SqlCommand(script, sqlConnection))
-        //        {
-        //            sqlConnection.Open();
-        //            expectedRes = sqlCmd.ExecuteScalar() as string;
-        //            sqlConnection.Close();
-        //        }
-        //    }
-
-        //    // check good title on client
-        //    Assert.Equal("Updated from Client", expectedRes);
-        //}
-
-        //[Theory, ClassData(typeof(InlineConfigurations)), TestPriority(12)]
-        //public async Task ConflictInsertInsertConfigurationClientWins(SyncConfiguration conf)
-        //{
-
-        //    Guid id = Guid.NewGuid();
-
-        //    using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
-        //    {
-        //        var script = $@"INSERT INTO [ServiceTickets] 
-        //                    ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
-        //                    VALUES 
-        //                    ('{id.ToString()}', 'Conflict Line Client', 'Description client', 1, 0, datetime('now'), NULL, 1)";
-
-        //        using (var sqlCmd = new SQLiteCommand(script, sqlConnection))
-        //        {
-        //            sqlConnection.Open();
-        //            sqlCmd.ExecuteNonQuery();
-        //            sqlConnection.Close();
-        //        }
-        //    }
-
-        //    using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
-        //    {
-        //        var script = $@"INSERT [ServiceTickets] 
-        //                    ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
-        //                    VALUES 
-        //                    ('{id.ToString()}', 'Conflict Line Server', 'Description client', 1, 0, getdate(), NULL, 1)";
-
-        //        using (var sqlCmd = new SqlCommand(script, sqlConnection))
-        //        {
-        //            sqlConnection.Open();
-        //            sqlCmd.ExecuteNonQuery();
-        //            sqlConnection.Close();
-        //        }
-        //    }
-
-        //    using (var server = new KestrellTestServer())
-        //    {
-        //        var serverHandler = new RequestDelegate(async context =>
-        //        {
-        //            conf.Add(fixture.Tables);
-        //            conf.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
-
-        //            serverProvider.SetConfiguration(conf);
-        //            proxyServerProvider.SerializationFormat = conf.SerializationFormat;
-
-        //            await proxyServerProvider.HandleRequestAsync(context);
-        //        });
-        //        var clientHandler = new ResponseDelegate(async (serviceUri) =>
-        //        {
-        //            proxyClientProvider.ServiceUri = new Uri(serviceUri);
-        //            proxyClientProvider.SerializationFormat = conf.SerializationFormat;
-
-        //            var session = await agent.SynchronizeAsync();
-
-        //            // check statistics
-        //            Assert.Equal(0, session.TotalChangesDownloaded);
-        //            Assert.Equal(1, session.TotalChangesUploaded);
-        //            Assert.Equal(1, session.TotalSyncConflicts);
-        //        });
-        //        await server.Run(serverHandler, clientHandler);
-        //    }
-
-        //    string expectedRes = string.Empty;
-        //    using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
-        //    {
-        //        var script = $@"Select Title from [ServiceTickets] Where ServiceTicketID='{id.ToString()}'";
-
-        //        using (var sqlCmd = new SqlCommand(script, sqlConnection))
-        //        {
-        //            sqlConnection.Open();
-        //            expectedRes = sqlCmd.ExecuteScalar() as string;
-        //            sqlConnection.Close();
-        //        }
-        //    }
-
-        //    // check good title on client
-        //    Assert.Equal("Conflict Line Client", expectedRes);
-        //}
+        [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(7)]
+        public async Task DeleteFromServer(SyncConfiguration conf)
+        {
+            var updateRowScript =
+            $@" Declare @id uniqueidentifier;
+                Select top 1 @id = ServiceTicketID from ServiceTickets;
+                Delete From [ServiceTickets] Where ServiceTicketId = @id";
+
+            using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
+            {
+                using (var sqlCmd = new SqlCommand(updateRowScript, sqlConnection))
+                {
+                    sqlConnection.Open();
+                    sqlCmd.ExecuteNonQuery();
+                    sqlConnection.Close();
+                }
+            }
+            var serverHandler = new RequestDelegate(async context =>
+            {
+                conf.Add(fixture.Tables);
+                serverProvider.SetConfiguration(conf);
+                proxyServerProvider.SerializationFormat = conf.SerializationFormat;
+
+                await proxyServerProvider.HandleRequestAsync(context);
+            });
+
+            using (var server = new KestrellTestServer())
+            {
+                var client1Handler = new ResponseDelegate(async (serviceUri) =>
+                {
+                    proxyClientProvider.ServiceUri = new Uri(serviceUri);
+                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
+
+                    agent = new SyncAgent(client1Provider, proxyClientProvider);
+                    var session = await agent.SynchronizeAsync();
+
+                    Assert.Equal(1, session.TotalChangesDownloaded);
+                    Assert.Equal(0, session.TotalChangesUploaded);
+                });
+                await server.Run(serverHandler, client1Handler);
+            }
+            using (var server = new KestrellTestServer())
+            {
+                var client2Handler = new ResponseDelegate(async (serviceUri) =>
+                {
+                    proxyClientProvider.ServiceUri = new Uri(serviceUri);
+                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
+
+                    agent = new SyncAgent(client2Provider, proxyClientProvider);
+                    var session = await agent.SynchronizeAsync();
+
+                    Assert.Equal(1, session.TotalChangesDownloaded);
+                    Assert.Equal(0, session.TotalChangesUploaded);
+                });
+                await server.Run(serverHandler, client2Handler);
+            }
+        }
+
+        [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(8)]
+        public async Task DeleteFromClient1(SyncConfiguration conf)
+        {
+            long count;
+            var selectcount = $@"Select count(*) From [ServiceTickets]";
+            var updateRowScript = $@"Delete From [ServiceTickets]";
+
+            using (var sqlConnection = new SQLiteConnection(fixture.Client1SQLiteConnectionString))
+            {
+                sqlConnection.Open();
+                // get deleted count rows
+                using (var sqlCmd = new SQLiteCommand(selectcount, sqlConnection))
+                    count = (long)sqlCmd.ExecuteScalar();
+
+                // delete all rows
+                using (var sqlCmd = new SQLiteCommand(updateRowScript, sqlConnection))
+                    sqlCmd.ExecuteNonQuery();
+
+                sqlConnection.Close();
+            }
+
+            var serverHandler = new RequestDelegate(async context =>
+            {
+                conf.Add(fixture.Tables);
+                serverProvider.SetConfiguration(conf);
+                proxyServerProvider.SerializationFormat = conf.SerializationFormat;
+
+                await proxyServerProvider.HandleRequestAsync(context);
+            });
+
+            using (var server = new KestrellTestServer())
+            {
+                var clientHandler = new ResponseDelegate(async (serviceUri) =>
+                {
+                    proxyClientProvider.ServiceUri = new Uri(serviceUri);
+                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
+
+                    agent = new SyncAgent(client1Provider, proxyClientProvider);
+                    var session = await agent.SynchronizeAsync();
+
+                    Assert.Equal(0, session.TotalChangesDownloaded);
+                    Assert.Equal(count, session.TotalChangesUploaded);
+                });
+                await server.Run(serverHandler, clientHandler);
+            }
+
+            using (var server = new KestrellTestServer())
+            {
+                var clientHandler = new ResponseDelegate(async (serviceUri) =>
+                {
+                    proxyClientProvider.ServiceUri = new Uri(serviceUri);
+                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
+
+                    agent = new SyncAgent(client2Provider, proxyClientProvider);
+                    var session = await agent.SynchronizeAsync();
+
+                    Assert.Equal(count, session.TotalChangesDownloaded);
+                    Assert.Equal(0, session.TotalChangesUploaded);
+                });
+                await server.Run(serverHandler, clientHandler);
+            }
+
+            // check all rows deleted on server side
+            using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
+            {
+                sqlConnection.Open();
+                using (var sqlCmd = new SqlCommand(selectcount, sqlConnection))
+                    count = (int)sqlCmd.ExecuteScalar();
+            }
+            Assert.Equal(0, count);
+        }
+
+        [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(9)]
+        public async Task ConflictInsertInsertServerWins(SyncConfiguration conf)
+        {
+            Guid insertConflictId = Guid.NewGuid();
+
+            using (var sqlConnection = new SQLiteConnection(fixture.Client1SQLiteConnectionString))
+            {
+                var script = $@"INSERT INTO [ServiceTickets] 
+                            ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
+                            VALUES 
+                            ('{insertConflictId.ToString()}', 'Conflict Line Client 1', 'Description client', 1, 0, datetime('now'), NULL, 1)";
+
+                using (var sqlCmd = new SQLiteCommand(script, sqlConnection))
+                {
+                    sqlConnection.Open();
+                    sqlCmd.ExecuteNonQuery();
+                    sqlConnection.Close();
+                }
+            }
+            using (var sqlConnection = new SQLiteConnection(fixture.Client2SQLiteConnectionString))
+            {
+                var script = $@"INSERT INTO [ServiceTickets] 
+                            ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
+                            VALUES 
+                            ('{insertConflictId.ToString()}', 'Conflict Line Client 2', 'Description client', 1, 0, datetime('now'), NULL, 1)";
+
+                using (var sqlCmd = new SQLiteCommand(script, sqlConnection))
+                {
+                    sqlConnection.Open();
+                    sqlCmd.ExecuteNonQuery();
+                    sqlConnection.Close();
+                }
+            }
+
+            using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
+            {
+                var script = $@"INSERT [ServiceTickets] 
+                            ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
+                            VALUES 
+                            ('{insertConflictId.ToString()}', 'Conflict Line Server', 'Description client', 1, 0, getdate(), NULL, 1)";
+
+                using (var sqlCmd = new SqlCommand(script, sqlConnection))
+                {
+                    sqlConnection.Open();
+                    sqlCmd.ExecuteNonQuery();
+                    sqlConnection.Close();
+                }
+            }
+
+            var serverHandler = new RequestDelegate(async context =>
+            {
+                conf.Add(fixture.Tables);
+                serverProvider.SetConfiguration(conf);
+                proxyServerProvider.SerializationFormat = conf.SerializationFormat;
+
+                await proxyServerProvider.HandleRequestAsync(context);
+            });
+
+            using (var server = new KestrellTestServer())
+            {
+                var clientHandler = new ResponseDelegate(async (serviceUri) =>
+                {
+                    proxyClientProvider.ServiceUri = new Uri(serviceUri);
+                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
+
+                    agent = new SyncAgent(client1Provider, proxyClientProvider);
+                    var session = await agent.SynchronizeAsync();
+
+                    // check statistics
+                    Assert.Equal(1, session.TotalChangesDownloaded);
+                    Assert.Equal(1, session.TotalChangesUploaded);
+                    Assert.Equal(1, session.TotalSyncConflicts);
+                });
+                await server.Run(serverHandler, clientHandler);
+            }
+
+            using (var server = new KestrellTestServer())
+            {
+                var clientHandler = new ResponseDelegate(async (serviceUri) =>
+                {
+                    proxyClientProvider.ServiceUri = new Uri(serviceUri);
+                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
+
+                    agent = new SyncAgent(client2Provider, proxyClientProvider);
+                    var session = await agent.SynchronizeAsync();
+
+                    // check statistics
+                    Assert.Equal(1, session.TotalChangesDownloaded);
+                    Assert.Equal(1, session.TotalChangesUploaded);
+                    Assert.Equal(1, session.TotalSyncConflicts);
+                });
+                await server.Run(serverHandler, clientHandler);
+            }
+
+            string expectedRes = string.Empty;
+            using (var sqlConnection = new SQLiteConnection(fixture.Client1SQLiteConnectionString))
+            {
+                var script = $@"Select Title from [ServiceTickets] Where ServiceTicketID='{insertConflictId.ToString()}'";
+
+                using (var sqlCmd = new SQLiteCommand(script, sqlConnection))
+                {
+                    sqlConnection.Open();
+                    expectedRes = sqlCmd.ExecuteScalar() as string;
+                    sqlConnection.Close();
+                }
+            }
+
+            // check good title on client
+            Assert.Equal("Conflict Line Server", expectedRes);
+
+            using (var sqlConnection = new SQLiteConnection(fixture.Client2SQLiteConnectionString))
+            {
+                var script = $@"Select Title from [ServiceTickets] Where ServiceTicketID='{insertConflictId.ToString()}'";
+
+                using (var sqlCmd = new SQLiteCommand(script, sqlConnection))
+                {
+                    sqlConnection.Open();
+                    expectedRes = sqlCmd.ExecuteScalar() as string;
+                    sqlConnection.Close();
+                }
+            }
+
+            // check good title on client
+            Assert.Equal("Conflict Line Server", expectedRes);
+
+        }
+
+
+
+        [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(12)]
+        public async Task ConflictInsertInsertConfigurationClientWins(SyncConfiguration conf)
+        {
+
+            Guid id = Guid.NewGuid();
+
+            using (var sqlConnection = new SQLiteConnection(fixture.Client1SQLiteConnectionString))
+            {
+                var script = $@"INSERT INTO [ServiceTickets] 
+                            ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
+                            VALUES 
+                            ('{id.ToString()}', 'Conflict Line Client 1', 'Description client', 1, 0, datetime('now'), NULL, 1)";
+
+                using (var sqlCmd = new SQLiteCommand(script, sqlConnection))
+                {
+                    sqlConnection.Open();
+                    sqlCmd.ExecuteNonQuery();
+                    sqlConnection.Close();
+                }
+            }
+            using (var sqlConnection = new SQLiteConnection(fixture.Client2SQLiteConnectionString))
+            {
+                var script = $@"INSERT INTO [ServiceTickets] 
+                            ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
+                            VALUES 
+                            ('{id.ToString()}', 'Conflict Line Client 2', 'Description client', 1, 0, datetime('now'), NULL, 1)";
+
+                using (var sqlCmd = new SQLiteCommand(script, sqlConnection))
+                {
+                    sqlConnection.Open();
+                    sqlCmd.ExecuteNonQuery();
+                    sqlConnection.Close();
+                }
+            }
+
+            using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
+            {
+                var script = $@"INSERT [ServiceTickets] 
+                            ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
+                            VALUES 
+                            ('{id.ToString()}', 'Conflict Line Server', 'Description client', 1, 0, getdate(), NULL, 1)";
+
+                using (var sqlCmd = new SqlCommand(script, sqlConnection))
+                {
+                    sqlConnection.Open();
+                    sqlCmd.ExecuteNonQuery();
+                    sqlConnection.Close();
+                }
+            }
+
+            var serverHandler = new RequestDelegate(async context =>
+            {
+                conf.Add(fixture.Tables);
+                conf.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
+
+                serverProvider.SetConfiguration(conf);
+                proxyServerProvider.SerializationFormat = conf.SerializationFormat;
+
+                await proxyServerProvider.HandleRequestAsync(context);
+            });
+
+            using (var server = new KestrellTestServer())
+            {
+                var clientHandler = new ResponseDelegate(async (serviceUri) =>
+                {
+                    proxyClientProvider.ServiceUri = new Uri(serviceUri);
+                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
+
+                    agent = new SyncAgent(client1Provider, proxyClientProvider);
+                    var session = await agent.SynchronizeAsync();
+
+                    // check statistics
+                    Assert.Equal(0, session.TotalChangesDownloaded);
+                    Assert.Equal(1, session.TotalChangesUploaded);
+                    Assert.Equal(1, session.TotalSyncConflicts);
+                });
+                await server.Run(serverHandler, clientHandler);
+            }
+
+            using (var server = new KestrellTestServer())
+            {
+                var clientHandler = new ResponseDelegate(async (serviceUri) =>
+                {
+                    proxyClientProvider.ServiceUri = new Uri(serviceUri);
+                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
+
+                    agent = new SyncAgent(client2Provider, proxyClientProvider);
+                    var session = await agent.SynchronizeAsync();
+
+                    // check statistics
+                    Assert.Equal(0, session.TotalChangesDownloaded);
+                    Assert.Equal(1, session.TotalChangesUploaded);
+                    Assert.Equal(1, session.TotalSyncConflicts);
+                });
+                await server.Run(serverHandler, clientHandler);
+            }
+
+            using (var server = new KestrellTestServer())
+            {
+                var clientHandler = new ResponseDelegate(async (serviceUri) =>
+                {
+                    proxyClientProvider.ServiceUri = new Uri(serviceUri);
+                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
+
+                    agent = new SyncAgent(client1Provider, proxyClientProvider);
+                    var session = await agent.SynchronizeAsync();
+
+                    // check statistics
+                    Assert.Equal(1, session.TotalChangesDownloaded);
+                    Assert.Equal(0, session.TotalChangesUploaded);
+                    Assert.Equal(0, session.TotalSyncConflicts);
+                });
+                await server.Run(serverHandler, clientHandler);
+            }
+
+            string expectedRes = string.Empty;
+            using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
+            {
+                var script = $@"Select Title from [ServiceTickets] Where ServiceTicketID='{id.ToString()}'";
+
+                using (var sqlCmd = new SqlCommand(script, sqlConnection))
+                {
+                    sqlConnection.Open();
+                    expectedRes = sqlCmd.ExecuteScalar() as string;
+                    sqlConnection.Close();
+                }
+            }
+
+            // check good title on client
+            Assert.Equal("Conflict Line Client 2", expectedRes);
+
+            using (var sqlConnection = new SQLiteConnection(fixture.Client2SQLiteConnectionString))
+            {
+                var script = $@"Select Title from [ServiceTickets] Where ServiceTicketID='{id.ToString()}'";
+
+                using (var sqlCmd = new SQLiteCommand(script, sqlConnection))
+                {
+                    sqlConnection.Open();
+                    expectedRes = sqlCmd.ExecuteScalar() as string;
+                    sqlConnection.Close();
+                }
+            }
+
+            // check good title on client
+            Assert.Equal("Conflict Line Client 2", expectedRes);
+
+
+            using (var sqlConnection = new SQLiteConnection(fixture.Client1SQLiteConnectionString))
+            {
+                var script = $@"Select Title from [ServiceTickets] Where ServiceTicketID='{id.ToString()}'";
+
+                using (var sqlCmd = new SQLiteCommand(script, sqlConnection))
+                {
+                    sqlConnection.Open();
+                    expectedRes = sqlCmd.ExecuteScalar() as string;
+                    sqlConnection.Close();
+                }
+            }
+
+            // check good title on client
+            Assert.Equal("Conflict Line Client 2", expectedRes);
+        }
 
     }
 }

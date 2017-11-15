@@ -67,12 +67,12 @@ namespace Dotmim.Sync.Tests
         }
     }
 
+    [Collection("ADVLT2012")]
     [TestCaseOrderer("Dotmim.Sync.Tests.Misc.PriorityOrderer", "Dotmim.Sync.Tests")]
     public class SyncDirectionTests : IClassFixture<SyncDirectionFixture>
     {
         SqlSyncProvider serverProvider;
         SqlSyncProvider clientProvider;
-        SQLiteSyncProvider sqliteClientProvider;
         SyncDirectionFixture fixture;
         SyncAgent agent;
 

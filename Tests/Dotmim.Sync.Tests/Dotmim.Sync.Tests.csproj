@@ -26,11 +26,15 @@
 
   <ItemGroup>
     <None Update="Backup\AdventureWorks.bak">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="Backup\AdventureWorksLT2012.bak">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Backup\" />
   </ItemGroup>
 
 </Project>
