@@ -99,6 +99,11 @@ namespace Dotmim.Sync.Test
         public string Client2SQLiteFilePath => Path.Combine(Directory.GetCurrentDirectory(),
             "sqliteHttpClientTwo.db");
 
+        public String Client3SQLiteConnectionString { get; set; }
+        public string Client3SQLiteFilePath => Path.Combine(Directory.GetCurrentDirectory(),
+            "sqliteHttpClientThree.db");
+
+
         public SQLiteSyncHttpTwoClientsFixture()
         {
 
@@ -108,11 +113,17 @@ namespace Dotmim.Sync.Test
             var builder2 = new SQLiteConnectionStringBuilder { DataSource = Client2SQLiteFilePath };
             this.Client2SQLiteConnectionString = builder2.ConnectionString;
 
+            var builder3 = new SQLiteConnectionStringBuilder { DataSource = Client3SQLiteFilePath };
+            this.Client3SQLiteConnectionString = builder3.ConnectionString;
+
             if (File.Exists(Client1SQLiteFilePath))
                 File.Delete(Client1SQLiteFilePath);
 
             if (File.Exists(Client2SQLiteFilePath))
                 File.Delete(Client2SQLiteFilePath);
+
+            if (File.Exists(Client3SQLiteFilePath))
+                File.Delete(Client3SQLiteFilePath);
 
             // create databases
             helperDb.CreateDatabase(serverDbName);
@@ -133,6 +144,9 @@ namespace Dotmim.Sync.Test
 
             if (File.Exists(Client2SQLiteFilePath))
                 File.Delete(Client2SQLiteFilePath);
+
+            if (File.Exists(Client3SQLiteFilePath))
+                File.Delete(Client3SQLiteFilePath);
         }
 
     }
@@ -144,6 +158,7 @@ namespace Dotmim.Sync.Test
         SqlSyncProvider serverProvider;
         SQLiteSyncProvider client1Provider;
         SQLiteSyncProvider client2Provider;
+        SQLiteSyncProvider client3Provider;
         SQLiteSyncHttpTwoClientsFixture fixture;
         WebProxyServerProvider proxyServerProvider;
         WebProxyClientProvider proxyClientProvider;
@@ -159,6 +174,7 @@ namespace Dotmim.Sync.Test
 
             client1Provider = new SQLiteSyncProvider(fixture.Client1SQLiteFilePath);
             client2Provider = new SQLiteSyncProvider(fixture.Client2SQLiteFilePath);
+            client3Provider = new SQLiteSyncProvider(fixture.Client3SQLiteFilePath);
 
             proxyClientProvider = new WebProxyClientProvider();
 
@@ -211,6 +227,23 @@ namespace Dotmim.Sync.Test
                     Assert.Equal(0, session.TotalChangesUploaded);
                 });
                 await server.Run(serverHandler, client2Handler);
+            }
+
+            using (var server = new KestrellTestServer())
+            {
+                var client3Handler = new ResponseDelegate(async (serviceUri) =>
+                {
+                    proxyClientProvider.ServiceUri = new Uri(serviceUri);
+                    proxyClientProvider.SerializationFormat = SerializationFormat.Json;
+
+                    agent = new SyncAgent(client3Provider, proxyClientProvider);
+
+                    var session = await agent.SynchronizeAsync();
+
+                    Assert.Equal(50, session.TotalChangesDownloaded);
+                    Assert.Equal(0, session.TotalChangesUploaded);
+                });
+                await server.Run(serverHandler, client3Handler);
             }
         }
 
@@ -270,6 +303,22 @@ namespace Dotmim.Sync.Test
                     Assert.Equal(0, session.TotalChangesUploaded);
                 });
                 await server.Run(serverHandler, client2Handler);
+            }
+            using (var server = new KestrellTestServer())
+            {
+                var client3Handler = new ResponseDelegate(async (serviceUri) =>
+                {
+                    proxyClientProvider.ServiceUri = new Uri(serviceUri);
+                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
+
+                    agent = new SyncAgent(client3Provider, proxyClientProvider);
+
+                    var session = await agent.SynchronizeAsync();
+
+                    Assert.Equal(1, session.TotalChangesDownloaded);
+                    Assert.Equal(0, session.TotalChangesUploaded);
+                });
+                await server.Run(serverHandler, client3Handler);
             }
         }
 
@@ -337,6 +386,22 @@ namespace Dotmim.Sync.Test
                 });
                 await server.Run(serverHandler, client2Handler);
             }
+            using (var server = new KestrellTestServer())
+            {
+                var client3Handler = new ResponseDelegate(async (serviceUri) =>
+                {
+                    proxyClientProvider.ServiceUri = new Uri(serviceUri);
+                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
+
+                    agent = new SyncAgent(client3Provider, proxyClientProvider);
+
+                    var session = await agent.SynchronizeAsync();
+
+                    Assert.Equal(1, session.TotalChangesDownloaded);
+                    Assert.Equal(0, session.TotalChangesUploaded);
+                });
+                await server.Run(serverHandler, client3Handler);
+            }
         }
 
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(5)]
@@ -398,6 +463,22 @@ namespace Dotmim.Sync.Test
                 });
                 await server.Run(serverHandler, client2Handler);
             }
+            using (var server = new KestrellTestServer())
+            {
+                var client3Handler = new ResponseDelegate(async (serviceUri) =>
+                {
+                    proxyClientProvider.ServiceUri = new Uri(serviceUri);
+                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
+
+                    agent = new SyncAgent(client3Provider, proxyClientProvider);
+
+                    var session = await agent.SynchronizeAsync();
+
+                    Assert.Equal(1, session.TotalChangesDownloaded);
+                    Assert.Equal(0, session.TotalChangesUploaded);
+                });
+                await server.Run(serverHandler, client3Handler);
+            }
 
             var updateRowScript =
             $@" Update [ServiceTickets] Set [Title] = 'Updated from SQLite Client side !' Where ServiceTicketId = '{newId.ToString()}'";
@@ -441,6 +522,23 @@ namespace Dotmim.Sync.Test
                     Assert.Equal(0, session.TotalChangesUploaded);
                 });
                 await server.Run(serverHandler, client2Handler);
+            }
+
+            using (var server = new KestrellTestServer())
+            {
+                var client3Handler = new ResponseDelegate(async (serviceUri) =>
+                {
+                    proxyClientProvider.ServiceUri = new Uri(serviceUri);
+                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
+
+                    agent = new SyncAgent(client3Provider, proxyClientProvider);
+
+                    var session = await agent.SynchronizeAsync();
+
+                    Assert.Equal(1, session.TotalChangesDownloaded);
+                    Assert.Equal(0, session.TotalChangesUploaded);
+                });
+                await server.Run(serverHandler, client3Handler);
             }
         }
 
@@ -503,6 +601,23 @@ namespace Dotmim.Sync.Test
                 });
                 await server.Run(serverHandler, client2Handler);
             }
+
+            using (var server = new KestrellTestServer())
+            {
+                var client3Handler = new ResponseDelegate(async (serviceUri) =>
+                {
+                    proxyClientProvider.ServiceUri = new Uri(serviceUri);
+                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
+
+                    agent = new SyncAgent(client3Provider, proxyClientProvider);
+
+                    var session = await agent.SynchronizeAsync();
+
+                    Assert.Equal(1, session.TotalChangesDownloaded);
+                    Assert.Equal(0, session.TotalChangesUploaded);
+                });
+                await server.Run(serverHandler, client3Handler);
+            }
         }
 
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(7)]
@@ -561,6 +676,21 @@ namespace Dotmim.Sync.Test
                 });
                 await server.Run(serverHandler, client2Handler);
             }
+            using (var server = new KestrellTestServer())
+            {
+                var client3Handler = new ResponseDelegate(async (serviceUri) =>
+                {
+                    proxyClientProvider.ServiceUri = new Uri(serviceUri);
+                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
+
+                    agent = new SyncAgent(client3Provider, proxyClientProvider);
+                    var session = await agent.SynchronizeAsync();
+
+                    Assert.Equal(1, session.TotalChangesDownloaded);
+                    Assert.Equal(0, session.TotalChangesUploaded);
+                });
+                await server.Run(serverHandler, client3Handler);
+            }
         }
 
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(8)]
@@ -617,6 +747,22 @@ namespace Dotmim.Sync.Test
                     proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     agent = new SyncAgent(client2Provider, proxyClientProvider);
+                    var session = await agent.SynchronizeAsync();
+
+                    Assert.Equal(count, session.TotalChangesDownloaded);
+                    Assert.Equal(0, session.TotalChangesUploaded);
+                });
+                await server.Run(serverHandler, clientHandler);
+            }
+
+            using (var server = new KestrellTestServer())
+            {
+                var clientHandler = new ResponseDelegate(async (serviceUri) =>
+                {
+                    proxyClientProvider.ServiceUri = new Uri(serviceUri);
+                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
+
+                    agent = new SyncAgent(client3Provider, proxyClientProvider);
                     var session = await agent.SynchronizeAsync();
 
                     Assert.Equal(count, session.TotalChangesDownloaded);
