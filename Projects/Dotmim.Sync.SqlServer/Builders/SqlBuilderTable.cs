@@ -31,7 +31,40 @@ namespace Dotmim.Sync.SqlServer.Builders
             this.sqlDbMetadata = new SqlDbMetadata();
         }
 
+        public bool NeedToCreateForeignKeyConstraints(DmRelation foreignKey, DbBuilderOption builderOptions)
+        {
+            if (!builderOptions.HasFlag(DbBuilderOption.CreateOrUseExistingSchema))
+                return false;
 
+            string parentTable = foreignKey.ParentTable.TableName;
+            string parentSchema = foreignKey.ParentTable.Schema;
+            string parentFullName = String.IsNullOrEmpty(parentSchema) ? parentTable : $"{parentSchema}.{parentTable}";
+
+            bool alreadyOpened = connection.State == ConnectionState.Open;
+
+            try
+            {
+                if (!alreadyOpened)
+                    connection.Open();
+
+                var dmTable = SqlManagementUtils.RelationsForTable(connection, transaction, parentFullName);
+
+                var foreignKeyExist = dmTable.Rows.Any(r =>
+                   dmTable.IsEqual(r["ForeignKey"].ToString(), foreignKey.RelationName));
+
+                return !foreignKeyExist;
+            }
+            catch (Exception ex)
+            {
+                Logger.Current.Error($"Error during checking foreign keys: {ex}");
+                throw;
+            }
+            finally
+            {
+                if (!alreadyOpened && connection.State != ConnectionState.Closed)
+                    connection.Close();
+            }
+        }
         private SqlCommand BuildForeignKeyConstraintsCommand(DmRelation foreignKey)
         {
             SqlCommand sqlCommand = new SqlCommand();
@@ -74,7 +107,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
-        public void CreateForeignKeyConstraints()
+        public void CreateForeignKeyConstraints(DmRelation constraint)
         {
 
             bool alreadyOpened = connection.State == ConnectionState.Open;
@@ -84,20 +117,15 @@ namespace Dotmim.Sync.SqlServer.Builders
                 if (!alreadyOpened)
                     connection.Open();
 
-                foreach (DmRelation constraint in this.tableDescription.ChildRelations)
+                using (var command = BuildForeignKeyConstraintsCommand(constraint))
                 {
+                    command.Connection = connection;
 
-                    using (var command = BuildForeignKeyConstraintsCommand(constraint))
-                    {
-                        command.Connection = connection;
+                    if (transaction != null)
+                        command.Transaction = transaction;
 
-                        if (transaction != null)
-                            command.Transaction = transaction;
-
-                        command.ExecuteNonQuery();
-                    }
+                    command.ExecuteNonQuery();
                 }
-
             }
             catch (Exception ex)
             {
@@ -113,18 +141,22 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
 
         }
-        public string CreateForeignKeyConstraintsScriptText()
+        public string CreateForeignKeyConstraintsScriptText(DmRelation constraint)
         {
             StringBuilder stringBuilder = new StringBuilder();
-            foreach (DmRelation constraint in this.tableDescription.ChildRelations)
-            {
-                var constraintName = $"Create Constraint {constraint.RelationName} between parent {constraint.ParentTable.TableName} and child {constraint.ChildTable.TableName}";
-                var constraintScript = BuildForeignKeyConstraintsCommand(constraint).CommandText;
-                stringBuilder.Append(SqlBuilder.WrapScriptTextWithComments(constraintScript, constraintName));
-                stringBuilder.AppendLine();
-            }
+
+            var constraintName =
+                $"Create Constraint {constraint.RelationName} " +
+                $"between parent {constraint.ParentTable.TableName} " +
+                $"and child {constraint.ChildTable.TableName}";
+
+            var constraintScript = BuildForeignKeyConstraintsCommand(constraint).CommandText;
+            stringBuilder.Append(SqlBuilder.WrapScriptTextWithComments(constraintScript, constraintName));
+            stringBuilder.AppendLine();
+
             return stringBuilder.ToString();
         }
+
         private SqlCommand BuildPkCommand()
         {
             string[] localName = new string[] { };
@@ -185,9 +217,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine();
             return stringBuilder.ToString();
         }
-
-
-
 
         private SqlCommand BuildTableCommand()
         {
@@ -390,6 +419,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             return false;
         }
+
 
     }
 }

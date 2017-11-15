@@ -65,18 +65,6 @@ namespace Dotmim.Sync.SQLite
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
-        public void CreateForeignKeyConstraints()
-        {
-            return;
-
-
-
-        }
-        public string CreateForeignKeyConstraintsScriptText()
-        {
-            return string.Empty;
-        }
-
 
         public void CreatePrimaryKey()
         {
@@ -186,8 +174,7 @@ namespace Dotmim.Sync.SQLite
             return new SQLiteCommand(stringBuilder.ToString());
         }
 
-
-        public void CreateTable()
+       public void CreateTable()
         {
             bool alreadyOpened = connection.State == ConnectionState.Open;
 
@@ -299,6 +286,21 @@ namespace Dotmim.Sync.SQLite
         }
 
         public string CreateSchemaScriptText()
+        {
+            return string.Empty;
+        }
+
+        public bool NeedToCreateForeignKeyConstraints(DmRelation constraint, DbBuilderOption builderOption)
+        {
+            return false;
+        }
+
+        public void CreateForeignKeyConstraints(DmRelation constraint)
+        {
+            return;
+        }
+
+        public string CreateForeignKeyConstraintsScriptText(DmRelation constraint)
         {
             return string.Empty;
         }

@@ -5,7 +5,7 @@ using Dotmim.Sync.Manager;
 using System;
 using System.Data.Common;
 using System.Data.SQLite;
-
+using System.IO;
 
 namespace Dotmim.Sync.SQLite
 {
@@ -88,12 +88,55 @@ namespace Dotmim.Sync.SQLite
         public SQLiteSyncProvider(string filePath) : base()
         {
             this.filePath = filePath;
+            var builder = new SQLiteConnectionStringBuilder();
+
+            if (filePath.ToLowerInvariant().StartsWith("data source"))
+            {
+                builder.ConnectionString = filePath;
+            }
+            else
+            {
+                var fileInfo = new FileInfo(filePath);
+
+                if (!Directory.Exists(fileInfo.Directory.FullName))
+                    throw new Exception($"filePath directory {fileInfo.Directory.FullName} does not exists.");
+
+                if (string.IsNullOrEmpty(fileInfo.Name))
+                    throw new Exception($"SQLite database file path needs a file name");
+
+                builder.DataSource = filePath;
+            }
+
+            // prefer to store guid in text
+            builder.BinaryGUID = false;
+
+            this.ConnectionString = builder.ConnectionString;
+        }
+
+        public SQLiteSyncProvider(FileInfo fileInfo) : base()
+        {
+            this.filePath = fileInfo.FullName;
             var builder = new SQLiteConnectionStringBuilder { DataSource = filePath };
 
             // prefer to store guid in text
             builder.BinaryGUID = false;
 
             this.ConnectionString = builder.ConnectionString;
+        }
+
+
+
+        public SQLiteSyncProvider(SQLiteConnectionStringBuilder sQLiteConnectionStringBuilder) : base()
+        {
+            if (String.IsNullOrEmpty(sQLiteConnectionStringBuilder.DataSource))
+                throw new Exception("You have to provide at least a DataSource property to be able to connect to your SQlite database.");
+
+            this.filePath = sQLiteConnectionStringBuilder.DataSource;
+
+            // prefer to store guid in text
+            sQLiteConnectionStringBuilder.BinaryGUID = false;
+
+            this.ConnectionString = sQLiteConnectionStringBuilder.ConnectionString;
         }
 
         public override DbConnection CreateConnection() => new SQLiteConnection(this.ConnectionString);

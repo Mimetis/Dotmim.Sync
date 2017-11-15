@@ -10,7 +10,7 @@ using Dotmim.Sync.Filter;
 
 namespace Dotmim.Sync.Builders
 {
-    public abstract class DbBuilder 
+    public abstract class DbBuilder
     {
         private bool useBulkProcedures = true;
 
@@ -18,7 +18,7 @@ namespace Dotmim.Sync.Builders
         /// Gets the table description for the current DbBuilder
         /// </summary>
         public DmTable TableDescription { get; set; }
-        
+
         /// <summary>
         /// Specify if we have to check for recreate or not
         /// </summary>
@@ -52,8 +52,8 @@ namespace Dotmim.Sync.Builders
         /// <summary>
         /// Gets the table Sync Adapter in charge of executing all command during sync
         /// </summary>
-        public abstract DbSyncAdapter CreateSyncAdapter(DbConnection connection, DbTransaction transaction= null);
-     
+        public abstract DbSyncAdapter CreateSyncAdapter(DbConnection connection, DbTransaction transaction = null);
+
         /// <summary>
         /// Construct a DbBuilder
         /// </summary>
@@ -63,11 +63,55 @@ namespace Dotmim.Sync.Builders
             this.BuilderOption = option;
         }
 
+
+        /// <summary>
+        /// Apply config.
+        /// Create relations if needed
+        /// </summary>
+        public void CreateForeignKeys(DbConnection connection, DbTransaction transaction = null)
+        {
+            if (!TableDescription.PrimaryKey.HasValue)
+                throw new Exception($"Table {TableDescription.TableName} must have at least one dmColumn as Primary key");
+
+            var alreadyOpened = connection.State != ConnectionState.Closed;
+
+            try
+            {
+                if (!alreadyOpened)
+                    connection.Open();
+
+                var tableBuilder = CreateTableBuilder(connection, transaction);
+
+                if (this.TableDescription.ChildRelations != null && this.TableDescription.ChildRelations.Count > 0)
+                {
+                    foreach (DmRelation constraint in this.TableDescription.ChildRelations)
+                    {
+                        // Check if we need to create the foreign key constraint
+                        if (tableBuilder.NeedToCreateForeignKeyConstraints(constraint, this.BuilderOption))
+                        {
+                            tableBuilder.CreateForeignKeyConstraints(constraint);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Current.Error(ex.Message);
+                throw;
+            }
+            finally
+            {
+                if (!alreadyOpened)
+                    connection.Close();
+            }
+
+        }
+
         /// <summary>
         /// Apply the config.
         /// Create the table if needed
         /// </summary>
-        public void Apply(DbConnection connection, DbTransaction transaction = null)
+        public void CreateTable(DbConnection connection, DbTransaction transaction = null)
         {
             if (!TableDescription.PrimaryKey.HasValue)
                 throw new Exception($"Table {TableDescription.TableName} must have at least one dmColumn as Primary key");
@@ -89,7 +133,6 @@ namespace Dotmim.Sync.Builders
 
                     tableBuilder.CreateTable();
                     tableBuilder.CreatePrimaryKey();
-                    tableBuilder.CreateForeignKeyConstraints();
                 }
 
                 var trackingTableBuilder = CreateTrackingTableBuilder(connection, transaction);
@@ -121,7 +164,7 @@ namespace Dotmim.Sync.Builders
                     return;
 
                 procBuilder.Filters = this.FilterColumns;
-                
+
                 if (procBuilder.NeedToCreateProcedure(DbCommandType.SelectChanges, this.BuilderOption))
                     procBuilder.CreateSelectIncrementalChanges();
                 if (procBuilder.NeedToCreateProcedure(DbCommandType.SelectRow, this.BuilderOption))
@@ -163,10 +206,52 @@ namespace Dotmim.Sync.Builders
 
         }
 
+
+        public string ScriptForeignKeys(DbConnection connection, DbTransaction transaction = null)
+        {
+            string str = null;
+            var alreadyOpened = connection.State != ConnectionState.Closed;
+
+            try
+            {
+                if (!alreadyOpened)
+                    connection.Open();
+
+                Logger.Current.Info($"----- Scripting Provisioning of Table '{TableDescription.TableName}' -----");
+
+                StringBuilder stringBuilder = new StringBuilder();
+
+                var tableBuilder = CreateTableBuilder(connection, transaction);
+
+                if (this.TableDescription.ChildRelations != null && this.TableDescription.ChildRelations.Count > 0)
+                {
+                    foreach (DmRelation constraint in this.TableDescription.ChildRelations)
+                    {
+                        if (tableBuilder.NeedToCreateForeignKeyConstraints(constraint, this.BuilderOption))
+                            stringBuilder.Append(tableBuilder.CreateForeignKeyConstraintsScriptText(constraint));
+                    }
+                }
+
+                str = stringBuilder.ToString();
+            }
+            catch (Exception exception)
+            {
+                Logger.Current.Error(exception.Message);
+                throw;
+            }
+
+            finally
+            {
+                if (!alreadyOpened)
+                    connection.Close();
+            }
+            return str;
+        }
+
         /// <summary>
         /// Generate the creating script string (admin only)
         /// </summary>
-        public string Script(DbConnection connection, DbTransaction transaction = null)
+        public string ScriptTable(DbConnection connection, DbTransaction transaction = null)
         {
             string str = null;
             var alreadyOpened = connection.State != ConnectionState.Closed;
@@ -191,7 +276,6 @@ namespace Dotmim.Sync.Builders
 
                     stringBuilder.Append(tableBuilder.CreateTableScriptText());
                     stringBuilder.Append(tableBuilder.CreatePrimaryKeyScriptText());
-                    stringBuilder.Append(tableBuilder.CreateForeignKeyConstraintsScriptText());
                 }
 
                 var trackingTableBuilder = CreateTrackingTableBuilder(connection, transaction);
@@ -221,7 +305,7 @@ namespace Dotmim.Sync.Builders
                 if (procBuilder != null)
                 {
                     procBuilder.Filters = this.FilterColumns;
-                 
+
                     if (procBuilder.NeedToCreateProcedure(DbCommandType.SelectChanges, this.BuilderOption))
                         stringBuilder.Append(procBuilder.CreateSelectIncrementalChangesScriptText());
                     if (procBuilder.NeedToCreateProcedure(DbCommandType.SelectRow, this.BuilderOption))
@@ -267,6 +351,6 @@ namespace Dotmim.Sync.Builders
             }
             return str;
         }
-        
+
     }
 }

@@ -293,7 +293,7 @@ namespace Dotmim.Sync
                                     var foreignTable = syncConfiguration[r.ReferenceTableName];
 
                                     if (foreignTable == null)
-                                        throw new SyncException($"Foreign table {r.ReferenceTableName} does not exist", context.SyncStage, SyncExceptionType.DataStore);
+                                        throw new SyncException($"Foreign table {r.ReferenceTableName} does not exist. Cross reference is not allowed when using Dotmim.Sync", context.SyncStage, SyncExceptionType.DataStore);
 
                                     foreignColumn = foreignTable.Columns[r.ReferenceColumnName];
 
@@ -766,8 +766,17 @@ namespace Dotmim.Sync
                                 }
                             }
 
-                            script = builder.Script(connection, transaction);
-                            builder.Apply(connection, transaction);
+                            script = builder.ScriptTable(connection, transaction);
+                            builder.CreateTable(connection, transaction);
+                        }
+
+                        // Make all relations after creating all tables, since we can have cross references
+                        foreach (var dmTable in configuration)
+                        {
+                            var builder = GetDatabaseBuilder(dmTable, options);
+
+                            script += builder.ScriptForeignKeys(connection, transaction);
+                            builder.CreateForeignKeys(connection, transaction);
                         }
 
                         // Event progress

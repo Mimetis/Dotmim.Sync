@@ -6,7 +6,7 @@
     <RootNamespace>Dotmim.Sync.Tools</RootNamespace>
     <Description>Dotmim Sync Command Line Tools</Description>
     <StartupObject>Dotmim.Sync.Tools.Program</StartupObject>
-    <RuntimeIdentifier>win10-x64</RuntimeIdentifier>
+    <RuntimeIdentifiers>win10-x64,ubuntu.14.04-x64</RuntimeIdentifiers>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
 
