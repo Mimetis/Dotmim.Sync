@@ -112,6 +112,8 @@ namespace Dotmim.Sync.Test
 
             var serverProvider = new SqlSyncProvider(ServerConnectionString);
             var clientProvider = new SQLiteSyncProvider(ClientSQLiteFilePath);
+            var totoClientProvider = new SQLiteSyncProvider(@"Data Source=D:\database\myData.db;Journal Mode=WAL;Page Size=8192");
+
             var simpleConfiguration = new SyncConfiguration(Tables);
 
             Agent = new SyncAgent(clientProvider, serverProvider, simpleConfiguration);

@@ -22,7 +22,7 @@ namespace Dotmim.Sync.MySql
 
         public MySqlBuilderTable(DmTable tableDescription, DbConnection connection, DbTransaction transaction = null)
         {
-            
+
             this.connection = connection as MySqlConnection;
             this.transaction = transaction as MySqlTransaction;
             this.tableDescription = tableDescription;
@@ -69,11 +69,15 @@ namespace Dotmim.Sync.MySql
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
-        public void CreateForeignKeyConstraints()
-        {
-            if (this.tableDescription.ChildRelations == null)
-                return;
 
+        public bool NeedToCreateForeignKeyConstraints(DmRelation constraint, DbBuilderOption builderOption)
+        {
+            throw new NotImplementedException();
+        }
+
+
+        public void CreateForeignKeyConstraints(DmRelation constraint)
+        {
             bool alreadyOpened = connection.State == ConnectionState.Open;
 
             try
@@ -81,18 +85,14 @@ namespace Dotmim.Sync.MySql
                 if (!alreadyOpened)
                     connection.Open();
 
-                foreach (DmRelation constraint in this.tableDescription.ChildRelations)
+                using (var command = BuildForeignKeyConstraintsCommand(constraint))
                 {
+                    command.Connection = connection;
 
-                    using (var command = BuildForeignKeyConstraintsCommand(constraint))
-                    {
-                        command.Connection = connection;
+                    if (transaction != null)
+                        command.Transaction = transaction;
 
-                        if (transaction != null)
-                            command.Transaction = transaction;
-
-                        command.ExecuteNonQuery();
-                    }
+                    command.ExecuteNonQuery();
                 }
 
             }
@@ -110,19 +110,16 @@ namespace Dotmim.Sync.MySql
             }
 
         }
-        public string CreateForeignKeyConstraintsScriptText()
-        {
-            if (this.tableDescription.ChildRelations == null)
-                return null;
 
+        public string CreateForeignKeyConstraintsScriptText(DmRelation constraint)
+        {
             StringBuilder stringBuilder = new StringBuilder();
-            foreach (DmRelation constraint in this.tableDescription.ChildRelations)
-            {
-                var constraintName = $"Create Constraint {constraint.RelationName} between parent {constraint.ParentTable.TableName.ToLowerInvariant()} and child {constraint.ChildTable.TableName.ToLowerInvariant()}";
-                var constraintScript = BuildForeignKeyConstraintsCommand(constraint).CommandText;
-                stringBuilder.Append(MySqlBuilder.WrapScriptTextWithComments(constraintScript, constraintName));
-                stringBuilder.AppendLine();
-            }
+
+            var constraintName = $"Create Constraint {constraint.RelationName} between parent {constraint.ParentTable.TableName.ToLowerInvariant()} and child {constraint.ChildTable.TableName.ToLowerInvariant()}";
+            var constraintScript = BuildForeignKeyConstraintsCommand(constraint).CommandText;
+            stringBuilder.Append(MySqlBuilder.WrapScriptTextWithComments(constraintScript, constraintName));
+            stringBuilder.AppendLine();
+
             return stringBuilder.ToString();
         }
 
@@ -200,7 +197,6 @@ namespace Dotmim.Sync.MySql
             stringBuilder.Append(")");
             return new MySqlCommand(stringBuilder.ToString());
         }
-
 
         public void CreateTable()
         {
@@ -317,6 +313,7 @@ namespace Dotmim.Sync.MySql
         {
             return string.Empty;
         }
+
 
     }
 }

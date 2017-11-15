@@ -14,13 +14,14 @@ namespace Dotmim.Sync.Builders
     {
         bool NeedToCreateTable(DbBuilderOption builderOption);
         bool NeedToCreateSchema(DbBuilderOption builderOption);
+        bool NeedToCreateForeignKeyConstraints(DmRelation constraint, DbBuilderOption builderOption);
         void CreateSchema();
         void CreateTable();
         void CreatePrimaryKey();
-        void CreateForeignKeyConstraints();
+        void CreateForeignKeyConstraints(DmRelation constraint);
         string CreateSchemaScriptText();
         string CreateTableScriptText();
         string CreatePrimaryKeyScriptText();
-        string CreateForeignKeyConstraintsScriptText();
+        string CreateForeignKeyConstraintsScriptText(DmRelation constraint);
     }
 }

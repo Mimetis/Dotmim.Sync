@@ -107,7 +107,6 @@ namespace Dotmim.Sync.Test
                 {
                     tableBuilder.CreateTable();
                     tableBuilder.CreatePrimaryKey();
-                    tableBuilder.CreateForeignKeyConstraints();
                 }
 
                 connection.Close();
