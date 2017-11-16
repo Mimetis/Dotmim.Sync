@@ -55,11 +55,11 @@ namespace Dotmim.Sync.Tools
                         // exit foreach
                         return;
                     case ArgumentType.TableDirection:
-                        if (arg.Value == "bidirectional")
+                        if (arg.Value == "bidirectional" || arg.Value == "b")
                             table.Direction = SyncDirection.Bidirectional;
-                        if (arg.Value == "uploadonly")
+                        if (arg.Value == "uploadonly" || arg.Value == "u")
                             table.Direction = SyncDirection.UploadOnly;
-                        if (arg.Value == "downloadonly")
+                        if (arg.Value == "downloadonly" || arg.Value == "d")
                             table.Direction = SyncDirection.DownloadOnly;
                         break;
                 }

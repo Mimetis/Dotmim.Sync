@@ -29,7 +29,7 @@ namespace Dotmim.Sync.SampleWebserver
             var connectionString = Configuration["Data:ConnectionString"];
             services.AddSyncServer<SqlSyncProvider>(connectionString, configuration =>
             {
-                var s = new string[] { "FileData" };
+                var s = new string[] { "Customer", "Address", "CustomerAddress" };
 
                 //var s = new string[] {
                 //        "Analysis", "Event", "FileData", "HCategory", "PermissionPolicyUser",

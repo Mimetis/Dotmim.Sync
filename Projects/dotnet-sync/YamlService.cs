@@ -61,7 +61,7 @@ namespace Dotmim.Sync.Tools
                 // try to save it
                 DataStore.Current.SaveProject(project);
 
-                Console.WriteLine($"YAML file {fileName} correctly loaded. Project {project.Name} with {project.Tables.Count} table(s) saved.");
+                Console.WriteLine($"YAML file {fileName} correctly loaded. Project {project.Name} with {project.Tables.Count} table(s) loaded.");
             }
         }
     }

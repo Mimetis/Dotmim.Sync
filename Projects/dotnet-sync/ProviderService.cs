@@ -49,6 +49,8 @@ namespace Dotmim.Sync.Tools
                             providerType = ProviderType.SqlServer;
                         if (ptype == "sqlite")
                             providerType = ProviderType.Sqlite;
+                        if (ptype == "web")
+                            providerType = ProviderType.Web;
 
                         providerSpecified = true;
 
@@ -81,24 +83,30 @@ namespace Dotmim.Sync.Tools
 
             }
 
+
             if (!syncTypeSpecified)
                 throw new Exception("Specifying provider sync type is mandatory. See help: dotnet sync provider --help");
 
+            if (syncType == SyncType.Client && providerType == ProviderType.Web)
+                throw new Exception("If you specify a web proxy as Provider, you can't use it as the client side.");
+
             if (syncType == SyncType.Server)
             {
-                project.ServerProvider.ProviderType = providerSpecified ?  providerType : project.ServerProvider.ProviderType;
+                providerType = providerSpecified ? providerType : project.ServerProvider.ProviderType;
+                project.ServerProvider.ProviderType = providerType;
                 project.ServerProvider.ConnectionString = connectionStringSpecified ? connectionString : project.ServerProvider.ConnectionString;
             }
             else
             {
-                project.ClientProvider.ProviderType = providerSpecified ? providerType : project.ClientProvider.ProviderType;
+                providerType = providerSpecified ? providerType : project.ClientProvider.ProviderType;
+                project.ClientProvider.ProviderType = providerType;
                 project.ClientProvider.ConnectionString = connectionStringSpecified ? connectionString : project.ClientProvider.ConnectionString;
             }
 
             // saving project
             DataStore.Current.SaveProject(project);
 
-            Console.WriteLine($"Provider {syncType} saved to project {project.Name}");
+            Console.WriteLine($"{syncType} provider of type {providerType} saved into project {project.Name}");
         }
 
     }

@@ -61,7 +61,6 @@ class Program
         var clientConfig = Configuration["AppConfiguration:ClientConnectionString"];
         var clientProvider = new SqlSyncProvider(clientConfig);
 
-
         var proxyClientProvider = new WebProxyClientProvider(new Uri("http://localhost:56782/api/values"));
 
         var agent = new SyncAgent(clientProvider, proxyClientProvider);
