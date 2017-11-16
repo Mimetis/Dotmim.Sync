@@ -3,6 +3,7 @@ using Dotmim.Sync.Data;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.SQLite;
 using Dotmim.Sync.SqlServer;
+using Dotmim.Sync.Web;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -83,7 +84,7 @@ namespace Dotmim.Sync.Tools
             if (project.ClientProvider == null || string.IsNullOrEmpty(project.ClientProvider.ConnectionString))
                 throw new Exception($"Client provider for project {project.Name} is not correctly defined. See help: dotnet sync provider --help");
 
-            if (project.Tables == null || project.Tables.Count <= 0)
+            if (project.ServerProvider.ProviderType != ProviderType.Web && (project.Tables == null || project.Tables.Count <= 0))
                 throw new Exception($"No table configured for project {project.Name}. See help: dotnet sync table --help");
 
             IProvider serverProvider, clientprovider;
@@ -91,6 +92,9 @@ namespace Dotmim.Sync.Tools
             {
                 case ProviderType.Sqlite:
                     throw new Exception("Can't use SQLite as a server provider");
+                case ProviderType.Web:
+                    serverProvider = new WebProxyClientProvider(new Uri(project.ServerProvider.ConnectionString));
+                    break;
                 case ProviderType.SqlServer:
                 default:
                     serverProvider = new SqlSyncProvider(project.ServerProvider.ConnectionString);
@@ -102,40 +106,51 @@ namespace Dotmim.Sync.Tools
                 case ProviderType.Sqlite:
                     clientprovider = new SQLiteSyncProvider(project.ClientProvider.ConnectionString);
                     break;
+                case ProviderType.Web:
+                    throw new Exception("Web proxy is used as a proxy server. You have to use an ASP.NET web backend. CLI uses a proxy as server provider");
                 case ProviderType.SqlServer:
                 default:
                     clientprovider = new SqlSyncProvider(project.ClientProvider.ConnectionString);
                     break;
             }
 
-            SyncConfiguration syncConfiguration = new SyncConfiguration();
+            SyncAgent agent = null;
 
-            foreach (var t in project.Tables.OrderBy(tbl => tbl.Order))
+            if (project.ServerProvider.ProviderType != ProviderType.Web)
             {
-                // Potentially user can pass something like [SalesLT].[Product]
-                // or SalesLT.Product or Product. ObjectNameParser will handle it
-                ObjectNameParser parser = new ObjectNameParser(t.Name);
+                SyncConfiguration syncConfiguration = new SyncConfiguration();
 
-                var tableName = parser.ObjectName;
-                var schema = string.IsNullOrEmpty(t.Schema) ? parser.SchemaName : t.Schema;
+                foreach (var t in project.Tables.OrderBy(tbl => tbl.Order))
+                {
+                    // Potentially user can pass something like [SalesLT].[Product]
+                    // or SalesLT.Product or Product. ObjectNameParser will handle it
+                    ObjectNameParser parser = new ObjectNameParser(t.Name);
 
-                var dmTable = new DmTable(tableName);
+                    var tableName = parser.ObjectName;
+                    var schema = string.IsNullOrEmpty(t.Schema) ? parser.SchemaName : t.Schema;
 
-                if (!String.IsNullOrEmpty(schema))
-                    dmTable.Schema = schema;
+                    var dmTable = new DmTable(tableName);
 
-                dmTable.SyncDirection = t.Direction;
+                    if (!String.IsNullOrEmpty(schema))
+                        dmTable.Schema = schema;
 
-                syncConfiguration.Add(dmTable);
+                    dmTable.SyncDirection = t.Direction;
+
+                    syncConfiguration.Add(dmTable);
+                }
+
+                syncConfiguration.BatchDirectory = string.IsNullOrEmpty(project.Configuration.BatchDirectory) ? null : project.Configuration.BatchDirectory;
+                syncConfiguration.SerializationFormat = project.Configuration.SerializationFormat;
+                syncConfiguration.UseBulkOperations = project.Configuration.UseBulkOperations;
+                syncConfiguration.DownloadBatchSizeInKB = (int)Math.Min(Int32.MaxValue, project.Configuration.DownloadBatchSizeInKB);
+                syncConfiguration.ConflictResolutionPolicy = project.Configuration.ConflictResolutionPolicy;
+
+                 agent = new SyncAgent(clientprovider, serverProvider, syncConfiguration);
             }
-
-            syncConfiguration.BatchDirectory = string.IsNullOrEmpty(project.Configuration.BatchDirectory) ? null : project.Configuration.BatchDirectory;
-            syncConfiguration.SerializationFormat = project.Configuration.SerializationFormat;
-            syncConfiguration.UseBulkOperations = project.Configuration.UseBulkOperations;
-            syncConfiguration.DownloadBatchSizeInKB = (int)Math.Min(Int32.MaxValue, project.Configuration.DownloadBatchSizeInKB);
-            syncConfiguration.ConflictResolutionPolicy = project.Configuration.ConflictResolutionPolicy;
-
-            SyncAgent agent = new SyncAgent(clientprovider, serverProvider, syncConfiguration);
+            else
+            {
+                agent = new SyncAgent(clientprovider, serverProvider);
+            }
 
             agent.SyncProgress += SyncProgress;
             // synchronous call
@@ -150,7 +165,7 @@ namespace Dotmim.Sync.Tools
 
             Console.ForegroundColor = ConsoleColor.Green;
             var s = $"Synchronization done. " + Environment.NewLine +
-                    $"\tTotal changes downloaded: {syncContext.TotalChangesDownloaded} " + Environment.NewLine+
+                    $"\tTotal changes downloaded: {syncContext.TotalChangesDownloaded} " + Environment.NewLine +
                     $"\tTotal changes uploaded: {syncContext.TotalChangesUploaded}" + Environment.NewLine +
                     $"\tTotal duration :{durationstr} ";
 

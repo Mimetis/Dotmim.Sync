@@ -324,6 +324,8 @@ namespace Dotmim.Sync.Tools
                     project.ServerProvider.ProviderType = ProviderType.SqlServer;
                 if (serverProvider == "sqlite")
                     project.ServerProvider.ProviderType = ProviderType.Sqlite;
+                if (serverProvider == "web")
+                    project.ServerProvider.ProviderType = ProviderType.Web;
 
                 if (!String.IsNullOrEmpty(serverProviderCs))
                     project.ServerProvider.ConnectionString = serverProviderCs;
@@ -361,7 +363,7 @@ namespace Dotmim.Sync.Tools
             if (format == "json")
                 project.Configuration.SerializationFormat = Enumerations.SerializationFormat.Json;
 
-            if (format == "dm")
+            if (format == "bin")
                 project.Configuration.SerializationFormat = Enumerations.SerializationFormat.Binary;
 
             if (batchSize > 0)
@@ -538,7 +540,7 @@ namespace Dotmim.Sync.Tools
 
                 p = command.CreateParameter();
                 p.ParameterName = "@format";
-                p.Value = project.Configuration.SerializationFormat == Enumerations.SerializationFormat.Json ? "json" : "dm";
+                p.Value = project.Configuration.SerializationFormat == Enumerations.SerializationFormat.Json ? "json" : "bin";
                 p.DbType = DbType.String;
                 command.Parameters.Add(p);
 

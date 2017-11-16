@@ -6,7 +6,8 @@
     <RootNamespace>Dotmim.Sync.Tools</RootNamespace>
     <Description>Dotmim Sync Command Line Tools</Description>
     <StartupObject>Dotmim.Sync.Tools.Program</StartupObject>
-    <RuntimeIdentifiers>win10-x64,ubuntu.14.04-x64</RuntimeIdentifiers>
+    <RuntimeIdentifier>win10-x64</RuntimeIdentifier>
+    <!--<RuntimeIdentifiers>win10-x64,ubuntu.14.04-x64</RuntimeIdentifiers>-->
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
 
@@ -26,6 +27,7 @@
     <ProjectReference Include="..\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" />
     <ProjectReference Include="..\Dotmim.Sync.Sqlite\Dotmim.Sync.Sqlite.csproj" />
     <ProjectReference Include="..\Dotmim.Sync.SqlServer\Dotmim.Sync.SqlServer.csproj" />
+    <ProjectReference Include="..\Dotmim.Sync.Web\Dotmim.Sync.Web.csproj" />
   </ItemGroup>
 
 </Project>

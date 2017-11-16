@@ -67,8 +67,8 @@ namespace Dotmim.Sync.Tools
                     case ArgumentType.ConfigurationFormat:
                         var format = arg.Value.Trim().ToLowerInvariant();
 
-                        if (format != "json" && format != "dm")
-                            throw new Exception("Conflict resolution must be json or dm. See help: dotnet sync Conf --help");
+                        if (format != "json" && format != "bin")
+                            throw new Exception("Conflict resolution must be json or bin. See help: dotnet sync Conf --help");
 
                         configuration.SerializationFormat = format == "json" ? Enumerations.SerializationFormat.Json : Enumerations.SerializationFormat.Binary;
                         break;
