@@ -73,8 +73,8 @@ A **CLI Project** can be represented by a yaml file also to describe itself (see
 
 References :
 * Adding the cli to `dotnet` command : [abusing dotnet core cli](https://surfingthecode.com/2017/02/abusing-dotnet-core-cli/)  
-* `dotnet` extensibility model [https://docs.microsoft.com/fr-fr/dotnet/core/tools/extensibility]()
-* Installing the `dotnet ef` CLI : [https://docs.microsoft.com/en-us/ef/core/miscellaneous/cli/dotnet]() : Great, but require a `.csproj` file.
+* `dotnet` extensibility model [https://docs.microsoft.com/fr-fr/dotnet/core/tools/extensibility](https://docs.microsoft.com/fr-fr/dotnet/core/tools/extensibility)
+* Installing the `dotnet ef` CLI : [https://docs.microsoft.com/en-us/ef/core/miscellaneous/cli/dotnet](https://docs.microsoft.com/fr-fr/dotnet/core/tools/extensibility) : Great, but require a `.csproj` file.
 
 ## CLI Commands
 
