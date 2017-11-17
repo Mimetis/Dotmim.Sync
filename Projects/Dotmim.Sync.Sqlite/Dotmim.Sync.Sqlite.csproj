@@ -6,9 +6,10 @@
     <Version>0.1.5</Version>
     <Authors>Sébastien Pertus</Authors>
     <Company>Microsoft</Company>
+    <Title>Dotmim.Sync.Sqlite</Title>
     <Description>SQLite Sync Provider. Actually can be used as Client provider (Don't use it as a Server provider)</Description>
     <PackageProjectUrl>https://github.com/Mimetis/Dotmim.Sync</PackageProjectUrl>
-    <PackageTags>Dotmim.Sync, SQLite Sync Provider, .Net Standard 2.0</PackageTags>
+    <PackageTags>Dotmim.Sync,Sync, SQLite Sync Provider, .Net Standard 2.0</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>

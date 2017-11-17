@@ -5,8 +5,9 @@
     <Version>0.1.5</Version>
     <Authors>Sébastien Pertus</Authors>
     <Company>Microsoft</Company>
+    <Title>Dotmim.Sync.SqlServer</Title>
     <Description>Sql Server Sync Provider. Can be used as Client or Server provider. Compatible with .Net Standard 2.0</Description>
-    <PackageTags>Dotmim.Sync, Sql Server Provider, .Net Standard 2.0</PackageTags>
+    <PackageTags>Dotmim.Sync,Sync, Sql Server Provider, .Net Standard 2.0</PackageTags>
     <PackageProjectUrl>https://github.com/Mimetis/Dotmim.Sync/</PackageProjectUrl>
   </PropertyGroup>
   <ItemGroup>
