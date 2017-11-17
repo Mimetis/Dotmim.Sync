@@ -11,7 +11,7 @@
     <PackageType>DotnetCliTool</PackageType>
     <PackageTags>dotnet;sync</PackageTags>
     <PackageId>Dotmim.Sync.Tools</PackageId>
-    <Version>0.1.4</Version>
+    <Version>0.1.5</Version>
   </PropertyGroup>
 
   <ItemGroup>

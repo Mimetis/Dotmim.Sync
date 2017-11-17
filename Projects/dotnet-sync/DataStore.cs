@@ -487,6 +487,7 @@ namespace Dotmim.Sync.Tools
                                              Values
                                              (@name, @server_provider, @server_provider_cs, @client_provider, @client_provider_cs,
                                               @conflict, @batch_size, @batch_directory, @format, @bulk_operations)";
+                command = connection.CreateCommand();
 
                 command.CommandText = commandText;
 
