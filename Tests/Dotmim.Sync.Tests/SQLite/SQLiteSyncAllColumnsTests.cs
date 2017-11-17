@@ -11,13 +11,14 @@ using Xunit;
 using System.Diagnostics;
 using Dotmim.Sync.Data;
 using System.IO;
-using System.Data.SQLite;
-using Dotmim.Sync.SQLite;
+using Microsoft.Data.Sqlite;
+using Dotmim.Sync.Sqlite;
+using System.ComponentModel;
 
 namespace Dotmim.Sync.Test
 {
 
-    public class SQLiteSyncAllColumnsFixture : IDisposable
+    public class SqliteSyncAllColumnsFixture : IDisposable
     {
         private string createTableScript =
         $@"
@@ -193,23 +194,23 @@ namespace Dotmim.Sync.Test
         ";
 
         private HelperDB helperDb = new HelperDB();
-        private string serverDbName = "Test_SQLiteAllColumns_Server";
+        private string serverDbName = "Test_SqliteAllColumns_Server";
 
         public String ServerConnectionString => HelperDB.GetDatabaseConnectionString(serverDbName);
-        public String ClientSQLiteConnectionString { get; set; }
-        public string ClientSQLiteFilePath => Path.Combine(Directory.GetCurrentDirectory(), "sqliteAllColumnsTmpDb.db");
+        public String ClientSqliteConnectionString { get; set; }
+        public string ClientSqliteFilePath => Path.Combine(Directory.GetCurrentDirectory(), "sqliteAllColumnsTmpDb.db");
         public SyncAgent Agent { get; set; }
 
-        public SQLiteSyncAllColumnsFixture()
+        public SqliteSyncAllColumnsFixture()
         {
-            var builder = new SQLiteConnectionStringBuilder { DataSource = ClientSQLiteFilePath };
-            this.ClientSQLiteConnectionString = builder.ConnectionString;
+            var builder = new SqliteConnectionStringBuilder { DataSource = ClientSqliteFilePath };
+            this.ClientSqliteConnectionString = builder.ConnectionString;
 
             GC.Collect();
             GC.WaitForPendingFinalizers();
 
-            if (File.Exists(ClientSQLiteFilePath))
-                File.Delete(ClientSQLiteFilePath);
+            if (File.Exists(ClientSqliteFilePath))
+                File.Delete(ClientSqliteFilePath);
 
             // create databases
             helperDb.CreateDatabase(serverDbName);
@@ -221,7 +222,7 @@ namespace Dotmim.Sync.Test
             helperDb.ExecuteScript(serverDbName, datas);
 
             var serverProvider = new SqlSyncProvider(ServerConnectionString);
-            var clientProvider = new SQLiteSyncProvider(ClientSQLiteFilePath);
+            var clientProvider = new SqliteSyncProvider(ClientSqliteFilePath);
             var simpleConfiguration = new SyncConfiguration(new[] { "AllColumns" });
 
             Agent = new SyncAgent(clientProvider, serverProvider, simpleConfiguration);
@@ -233,19 +234,19 @@ namespace Dotmim.Sync.Test
             GC.Collect();
             GC.WaitForPendingFinalizers();
 
-            if (File.Exists(ClientSQLiteFilePath))
-                File.Delete(ClientSQLiteFilePath);
+            if (File.Exists(ClientSqliteFilePath))
+                File.Delete(ClientSqliteFilePath);
         }
 
     }
 
     [TestCaseOrderer("Dotmim.Sync.Tests.Misc.PriorityOrderer", "Dotmim.Sync.Tests")]
-    public class SQLiteSyncAllColumnsTests : IClassFixture<SQLiteSyncAllColumnsFixture>
+    public class SqliteSyncAllColumnsTests : IClassFixture<SqliteSyncAllColumnsFixture>
     {
-        SQLiteSyncAllColumnsFixture fixture;
+        SqliteSyncAllColumnsFixture fixture;
         SyncAgent agent;
         //SyncConfiguration configuration;
-        public SQLiteSyncAllColumnsTests(SQLiteSyncAllColumnsFixture fixture)
+        public SqliteSyncAllColumnsTests(SqliteSyncAllColumnsFixture fixture)
         {
             this.fixture = fixture;
             this.agent = fixture.Agent;
@@ -321,17 +322,20 @@ namespace Dotmim.Sync.Test
                     ,[CTinyint],[CUniqueIdentifier],[CVarbinary50],[CVarbinaryMax]
                     ,[CVarchar50],[CVarcharMax],[CXml])
             VALUES
-                    ('{newId.ToString()}',12345,10000000000000,1,'char10',date('now'),datetime('now'),datetime('now')
+                    (@id,@bin,10000000000000,1,'char10',date('now'),datetime('now'),datetime('now')
                     ,datetime('now'),23.1234,12.123,1,3148.29,'char10',23.1234
                     ,'nvarchar(50)','nvarchar(max)',12.34,datetime('now'),12,3148.29
-                    ,datetime('now'),time('now'),1,'{newId.ToString()}',123456,123456,'varchar(50)','varchar(max)'
+                    ,datetime('now'),time('now'),1,@id,@bin,@bin,'varchar(50)','varchar(max)'
                     ,'<root><client name=''Doe''>inner Doe client</client></root>')";
 
 
-            using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
+            using (var sqlConnection = new SqliteConnection(fixture.ClientSqliteConnectionString))
             {
-                using (var sqlCmd = new SQLiteCommand(insertRowScript, sqlConnection))
+                using (var sqlCmd = new SqliteCommand(insertRowScript, sqlConnection))
                 {
+                    sqlCmd.Parameters.AddWithValue("@id", newId);
+                    sqlCmd.Parameters.AddWithValue("@bin", Encoding.UTF8.GetBytes("123444"));
+
                     sqlConnection.Open();
                     sqlCmd.ExecuteNonQuery();
                     sqlConnection.Close();
@@ -344,7 +348,7 @@ namespace Dotmim.Sync.Test
             Assert.Equal(1, session.TotalChangesUploaded);
         }
 
-        [Fact, TestPriority(4)]
+        [Fact, TestPriority(5)]
         public async Task UpdateRowFromServer()
         {
             var insertRowScript =
@@ -369,7 +373,7 @@ namespace Dotmim.Sync.Test
             Assert.Equal(0, session.TotalChangesUploaded);
         }
 
-        [Fact, TestPriority(5)]
+        [Fact, TestPriority(6)]
         public async Task UpdateRowFromClient()
         {
             Guid newId = Guid.NewGuid();
@@ -383,16 +387,19 @@ namespace Dotmim.Sync.Test
                     ,[CTinyint],[CUniqueIdentifier],[CVarbinary50],[CVarbinaryMax]
                     ,[CVarchar50],[CVarcharMax],[CXml])
             VALUES
-                    ('{newId.ToString()}',12345,10000000000000,1,'char10',date('now'),datetime('now'),datetime('now')
+                    (@id,@bin,12345,1,'char10',date('now'),datetime('now'),datetime('now')
                     ,datetime('now'),23.1234,12.123,1,3148.29,'char10',23.1234
                     ,'nvarchar(50)','nvarchar(max)',12.34,datetime('now'),12,3148.29
-                    ,datetime('now'),time('now'),1,'{newId.ToString()}',123456,123456,'varchar(50)','varchar(max)'
+                    ,datetime('now'),time('now'),1,@id,@bin,@bin,'varchar(50)','varchar(max)'
                     ,'<root><client name=''Doe''>inner Doe client</client></root>')";
 
-            using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
+            using (var sqlConnection = new SqliteConnection(fixture.ClientSqliteConnectionString))
             {
-                using (var sqlCmd = new SQLiteCommand(insertRowScript, sqlConnection))
+                using (var sqlCmd = new SqliteCommand(insertRowScript, sqlConnection))
                 {
+                    sqlCmd.Parameters.AddWithValue("@id", newId);
+                    sqlCmd.Parameters.AddWithValue("@bin", Encoding.UTF8.GetBytes("123444"));
+
                     sqlConnection.Open();
                     sqlCmd.ExecuteNonQuery();
                     sqlConnection.Close();
@@ -404,18 +411,19 @@ namespace Dotmim.Sync.Test
             Assert.Equal(1, session.TotalChangesUploaded);
 
             var updateRowScript =
-            $@"Update [AllColumns] Set [CNVarchar50] = 'Updated Row' Where ClientID = '{newId.ToString()}'";
+            $@"Update [AllColumns] Set [CNVarchar50] = 'Updated Row' Where ClientID = @id";
 
-            using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
+            using (var sqlConnection = new SqliteConnection(fixture.ClientSqliteConnectionString))
             {
-                using (var sqlCmd = new SQLiteCommand(updateRowScript, sqlConnection))
+                using (var sqlCmd = new SqliteCommand(updateRowScript, sqlConnection))
                 {
+                    sqlCmd.Parameters.AddWithValue("@id", newId);
+
                     sqlConnection.Open();
                     sqlCmd.ExecuteNonQuery();
                     sqlConnection.Close();
                 }
             }
-
 
             session = await agent.SynchronizeAsync();
 

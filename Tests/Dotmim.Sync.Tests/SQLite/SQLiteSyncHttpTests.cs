@@ -1,20 +1,20 @@
 ﻿using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Web;
-using Dotmim.Sync.SQLite;
+using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Tests.Misc;
 using Dotmim.Sync.Test.SqlUtils;
 using Microsoft.AspNetCore.Http;
 using System;
 using System.Data.SqlClient;
-using System.Data.SQLite;
+using Microsoft.Data.Sqlite;
 using System.IO;
 using System.Threading.Tasks;
 using Xunit;
 
 namespace Dotmim.Sync.Test
 {
-    public class SQLiteSyncHttpFixture : IDisposable
+    public class SqliteSyncHttpFixture : IDisposable
     {
         private string createTableScript =
         $@"if (not exists (select * from sys.tables where name = 'ServiceTickets'))
@@ -86,22 +86,22 @@ namespace Dotmim.Sync.Test
           ";
 
         private HelperDB helperDb = new HelperDB();
-        private string serverDbName = "Test_SQLite_Http_Server";
+        private string serverDbName = "Test_Sqlite_Http_Server";
 
         public string[] Tables => new string[] { "ServiceTickets" };
 
         public String ServerConnectionString => HelperDB.GetDatabaseConnectionString(serverDbName);
-        public String ClientSQLiteConnectionString { get; set; }
-        public string ClientSQLiteFilePath => Path.Combine(Directory.GetCurrentDirectory(), "sqliteHttpTmpDb.db");
+        public String ClientSqliteConnectionString { get; set; }
+        public string ClientSqliteFilePath => Path.Combine(Directory.GetCurrentDirectory(), "sqliteHttpTmpDb.db");
 
-        public SQLiteSyncHttpFixture()
+        public SqliteSyncHttpFixture()
         {
 
-            var builder = new SQLiteConnectionStringBuilder { DataSource = ClientSQLiteFilePath };
-            this.ClientSQLiteConnectionString = builder.ConnectionString;
+            var builder = new SqliteConnectionStringBuilder { DataSource = ClientSqliteFilePath };
+            this.ClientSqliteConnectionString = builder.ConnectionString;
 
-            if (File.Exists(ClientSQLiteFilePath))
-                File.Delete(ClientSQLiteFilePath);
+            if (File.Exists(ClientSqliteFilePath))
+                File.Delete(ClientSqliteFilePath);
 
             // create databases
             helperDb.CreateDatabase(serverDbName);
@@ -111,7 +111,7 @@ namespace Dotmim.Sync.Test
             helperDb.ExecuteScript(serverDbName, datas);
 
             var serverProvider = new SqlSyncProvider(ServerConnectionString);
-            var clientProvider = new SQLiteSyncProvider(ClientSQLiteFilePath);
+            var clientProvider = new SqliteSyncProvider(ClientSqliteFilePath);
             var simpleConfiguration = new SyncConfiguration(Tables);
 
         }
@@ -122,32 +122,32 @@ namespace Dotmim.Sync.Test
             GC.Collect();
             GC.WaitForPendingFinalizers();
 
-            if (File.Exists(ClientSQLiteFilePath))
-                File.Delete(ClientSQLiteFilePath);
+            if (File.Exists(ClientSqliteFilePath))
+                File.Delete(ClientSqliteFilePath);
         }
 
     }
 
     [Collection("Http")]
     [TestCaseOrderer("Dotmim.Sync.Tests.Misc.PriorityOrderer", "Dotmim.Sync.Tests")]
-    public class SQLiteSyncHttpTests : IClassFixture<SQLiteSyncHttpFixture>
+    public class SqliteSyncHttpTests : IClassFixture<SqliteSyncHttpFixture>
     {
         SqlSyncProvider serverProvider;
-        SQLiteSyncProvider clientProvider;
-        SQLiteSyncHttpFixture fixture;
+        SqliteSyncProvider clientProvider;
+        SqliteSyncHttpFixture fixture;
         WebProxyServerProvider proxyServerProvider;
         WebProxyClientProvider proxyClientProvider;
         SyncConfiguration configuration;
         SyncAgent agent;
 
-        public SQLiteSyncHttpTests(SQLiteSyncHttpFixture fixture)
+        public SqliteSyncHttpTests(SqliteSyncHttpFixture fixture)
         {
             this.fixture = fixture;
 
             serverProvider = new SqlSyncProvider(fixture.ServerConnectionString);
             proxyServerProvider = new WebProxyServerProvider(serverProvider);
 
-            clientProvider = new SQLiteSyncProvider(fixture.ClientSQLiteFilePath);
+            clientProvider = new SqliteSyncProvider(fixture.ClientSqliteFilePath);
             proxyClientProvider = new WebProxyClientProvider();
 
             configuration = new SyncConfiguration(this.fixture.Tables);
@@ -256,14 +256,16 @@ namespace Dotmim.Sync.Test
 
             var insertRowScript =
             $@"INSERT INTO [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
-                VALUES ('{newId.ToString()}', 'Insert One Row in SQLite client', 'Description Insert One Row', 1, 0, datetime('now'), NULL, 1)";
+                VALUES (@id, 'Insert One Row in Sqlite client', 'Description Insert One Row', 1, 0, datetime('now'), NULL, 1)";
 
             int nbRowsInserted = 0;
 
-            using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
+            using (var sqlConnection = new SqliteConnection(fixture.ClientSqliteConnectionString))
             {
-                using (var sqlCmd = new SQLiteCommand(insertRowScript, sqlConnection))
+                using (var sqlCmd = new SqliteCommand(insertRowScript, sqlConnection))
                 {
+                    sqlCmd.Parameters.AddWithValue("@id", newId);
+
                     sqlConnection.Open();
                     nbRowsInserted = sqlCmd.ExecuteNonQuery();
                     sqlConnection.Close();
@@ -303,12 +305,14 @@ namespace Dotmim.Sync.Test
 
             var insertRowScript =
             $@"INSERT INTO [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
-                VALUES ('{newId.ToString()}', 'Insert One Row in SQLite client', 'Description Insert One Row', 1, 0, datetime('now'), NULL, 1)";
+                VALUES (@id, 'Insert One Row in Sqlite client', 'Description Insert One Row', 1, 0, datetime('now'), NULL, 1)";
 
-            using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
+            using (var sqlConnection = new SqliteConnection(fixture.ClientSqliteConnectionString))
             {
-                using (var sqlCmd = new SQLiteCommand(insertRowScript, sqlConnection))
+                using (var sqlCmd = new SqliteCommand(insertRowScript, sqlConnection))
                 {
+                    sqlCmd.Parameters.AddWithValue("@id", newId);
+
                     sqlConnection.Open();
                     sqlCmd.ExecuteNonQuery();
                     sqlConnection.Close();
@@ -338,12 +342,15 @@ namespace Dotmim.Sync.Test
             }
 
             var updateRowScript =
-            $@" Update [ServiceTickets] Set [Title] = 'Updated from SQLite Client side !' Where ServiceTicketId = '{newId.ToString()}'";
+            $@" Update [ServiceTickets] Set [Title] = 'Updated from Sqlite Client side !' 
+                Where ServiceTicketId = @id";
 
-            using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
+            using (var sqlConnection = new SqliteConnection(fixture.ClientSqliteConnectionString))
             {
-                using (var sqlCmd = new SQLiteCommand(updateRowScript, sqlConnection))
+                using (var sqlCmd = new SqliteCommand(updateRowScript, sqlConnection))
                 {
+                    sqlCmd.Parameters.AddWithValue("@id", newId);
+
                     sqlConnection.Open();
                     sqlCmd.ExecuteNonQuery();
                     sqlConnection.Close();
@@ -462,12 +469,12 @@ namespace Dotmim.Sync.Test
             var selectcount = $@"Select count(*) From [ServiceTickets]";
             var updateRowScript = $@"Delete From [ServiceTickets]";
 
-            using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
+            using (var sqlConnection = new SqliteConnection(fixture.ClientSqliteConnectionString))
             {
                 sqlConnection.Open();
-                using (var sqlCmd = new SQLiteCommand(selectcount, sqlConnection))
+                using (var sqlCmd = new SqliteCommand(selectcount, sqlConnection))
                     count = (long)sqlCmd.ExecuteScalar();
-                using (var sqlCmd = new SQLiteCommand(updateRowScript, sqlConnection))
+                using (var sqlCmd = new SqliteCommand(updateRowScript, sqlConnection))
                     sqlCmd.ExecuteNonQuery();
                 sqlConnection.Close();
             }
@@ -510,15 +517,17 @@ namespace Dotmim.Sync.Test
         {
             Guid insertConflictId = Guid.NewGuid();
 
-            using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
+            using (var sqlConnection = new SqliteConnection(fixture.ClientSqliteConnectionString))
             {
                 var script = $@"INSERT INTO [ServiceTickets] 
                             ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
                             VALUES 
-                            ('{insertConflictId.ToString()}', 'Conflict Line Client', 'Description client', 1, 0, datetime('now'), NULL, 1)";
+                            (@id, 'Conflict Line Client', 'Description client', 1, 0, datetime('now'), NULL, 1)";
 
-                using (var sqlCmd = new SQLiteCommand(script, sqlConnection))
+                using (var sqlCmd = new SqliteCommand(script, sqlConnection))
                 {
+                    sqlCmd.Parameters.AddWithValue("@id", insertConflictId);
+
                     sqlConnection.Open();
                     sqlCmd.ExecuteNonQuery();
                     sqlConnection.Close();
@@ -527,6 +536,7 @@ namespace Dotmim.Sync.Test
 
             using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
             {
+                // TODO : Convert to @parameter
                 var script = $@"INSERT [ServiceTickets] 
                             ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
                             VALUES 
@@ -566,12 +576,15 @@ namespace Dotmim.Sync.Test
             }
 
             string expectedRes = string.Empty;
-            using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
+            using (var sqlConnection = new SqliteConnection(fixture.ClientSqliteConnectionString))
             {
-                var script = $@"Select Title from [ServiceTickets] Where ServiceTicketID='{insertConflictId.ToString()}'";
+                var script = $@"Select Title from [ServiceTickets] 
+                             Where ServiceTicketID=@id";
 
-                using (var sqlCmd = new SQLiteCommand(script, sqlConnection))
+                using (var sqlCmd = new SqliteCommand(script, sqlConnection))
                 {
+                    sqlCmd.Parameters.AddWithValue("@id", insertConflictId);
+
                     sqlConnection.Open();
                     expectedRes = sqlCmd.ExecuteScalar() as string;
                     sqlConnection.Close();
@@ -586,15 +599,17 @@ namespace Dotmim.Sync.Test
         public async Task ConflictUpdateUpdateServerWins(SyncConfiguration conf)
         {
             Guid updateConflictId = Guid.NewGuid();
-            using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
+            using (var sqlConnection = new SqliteConnection(fixture.ClientSqliteConnectionString))
             {
                 var script = $@"INSERT INTO [ServiceTickets] 
                             ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
                             VALUES 
-                            ('{updateConflictId.ToString()}', 'Line Client', 'Description client', 1, 0, datetime('now'), NULL, 1)";
+                            (@id, 'Line Client', 'Description client', 1, 0, datetime('now'), NULL, 1)";
 
-                using (var sqlCmd = new SQLiteCommand(script, sqlConnection))
+                using (var sqlCmd = new SqliteCommand(script, sqlConnection))
                 {
+                    sqlCmd.Parameters.AddWithValue("@id", updateConflictId);
+
                     sqlConnection.Open();
                     sqlCmd.ExecuteNonQuery();
                     sqlConnection.Close();
@@ -626,14 +641,16 @@ namespace Dotmim.Sync.Test
                 await server.Run(serverHandler, clientHandler);
             }
 
-            using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
+            using (var sqlConnection = new SqliteConnection(fixture.ClientSqliteConnectionString))
             {
                 var script = $@"Update [ServiceTickets] 
                                 Set Title = 'Updated from Client'
-                                Where ServiceTicketId = '{updateConflictId.ToString()}'";
+                                Where ServiceTicketId = @id";
 
-                using (var sqlCmd = new SQLiteCommand(script, sqlConnection))
+                using (var sqlCmd = new SqliteCommand(script, sqlConnection))
                 {
+                    sqlCmd.Parameters.AddWithValue("@id", updateConflictId);
+
                     sqlConnection.Open();
                     sqlCmd.ExecuteNonQuery();
                     sqlConnection.Close();
@@ -680,12 +697,15 @@ namespace Dotmim.Sync.Test
             }
 
             string expectedRes = string.Empty;
-            using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
+            using (var sqlConnection = new SqliteConnection(fixture.ClientSqliteConnectionString))
             {
-                var script = $@"Select Title from [ServiceTickets] Where ServiceTicketID='{updateConflictId.ToString()}'";
+                var script = $@"Select Title from [ServiceTickets] 
+                            Where ServiceTicketID=@id";
 
-                using (var sqlCmd = new SQLiteCommand(script, sqlConnection))
+                using (var sqlCmd = new SqliteCommand(script, sqlConnection))
                 {
+                    sqlCmd.Parameters.AddWithValue("@id", updateConflictId);
+
                     sqlConnection.Open();
                     expectedRes = sqlCmd.ExecuteScalar() as string;
                     sqlConnection.Close();
@@ -701,15 +721,17 @@ namespace Dotmim.Sync.Test
         {
             var id = Guid.NewGuid().ToString();
 
-            using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
+            using (var sqlConnection = new SqliteConnection(fixture.ClientSqliteConnectionString))
             {
                 var script = $@"INSERT INTO [ServiceTickets] 
                             ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
                             VALUES 
-                            ('{id}', 'Line for conflict', 'Description client', 1, 0, datetime('now'), NULL, 1)";
+                            (@id, 'Line for conflict', 'Description client', 1, 0, datetime('now'), NULL, 1)";
 
-                using (var sqlCmd = new SQLiteCommand(script, sqlConnection))
+                using (var sqlCmd = new SqliteCommand(script, sqlConnection))
                 {
+                    sqlCmd.Parameters.AddWithValue("@id", id);
+
                     sqlConnection.Open();
                     sqlCmd.ExecuteNonQuery();
                     sqlConnection.Close();
@@ -741,14 +763,16 @@ namespace Dotmim.Sync.Test
                 await server.Run(serverHandler, clientHandler);
             }
 
-            using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
+            using (var sqlConnection = new SqliteConnection(fixture.ClientSqliteConnectionString))
             {
                 var script = $@"Update [ServiceTickets] 
                                 Set Title = 'Updated from Client'
-                                Where ServiceTicketId = '{id}'";
+                                Where ServiceTicketId = @id";
 
-                using (var sqlCmd = new SQLiteCommand(script, sqlConnection))
+                using (var sqlCmd = new SqliteCommand(script, sqlConnection))
                 {
+                    sqlCmd.Parameters.AddWithValue("@id", id);
+
                     sqlConnection.Open();
                     sqlCmd.ExecuteNonQuery();
                     sqlConnection.Close();
@@ -829,15 +853,17 @@ namespace Dotmim.Sync.Test
 
             Guid id = Guid.NewGuid();
 
-            using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
+            using (var sqlConnection = new SqliteConnection(fixture.ClientSqliteConnectionString))
             {
                 var script = $@"INSERT INTO [ServiceTickets] 
                             ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
                             VALUES 
-                            ('{id.ToString()}', 'Conflict Line Client', 'Description client', 1, 0, datetime('now'), NULL, 1)";
+                            (@id, 'Conflict Line Client', 'Description client', 1, 0, datetime('now'), NULL, 1)";
 
-                using (var sqlCmd = new SQLiteCommand(script, sqlConnection))
+                using (var sqlCmd = new SqliteCommand(script, sqlConnection))
                 {
+                    sqlCmd.Parameters.AddWithValue("@id", id);
+
                     sqlConnection.Open();
                     sqlCmd.ExecuteNonQuery();
                     sqlConnection.Close();

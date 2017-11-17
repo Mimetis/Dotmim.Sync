@@ -4,7 +4,7 @@ using Dotmim.Sync.Data;
 using Dotmim.Sync.Data.Surrogate;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.SampleConsole;
-using Dotmim.Sync.SQLite;
+using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Web;
 using Microsoft.AspNetCore.Builder;
@@ -17,7 +17,7 @@ using Microsoft.Net.Http.Headers;
 using Newtonsoft.Json;
 using System;
 using System.Data.SqlClient;
-using System.Data.SQLite;
+using Microsoft.Data.Sqlite;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -37,12 +37,12 @@ class Program
 
         //TestAllAvailablesColumns().GetAwaiter().GetResult();
 
-        //TestSyncSQLite().GetAwaiter().GetResult();
+        TestSyncSqlite().GetAwaiter().GetResult();
 
         //TestMySqlSync().GetAwaiter().GetResult();
 
 
-        TestSyncThroughWebApi().GetAwaiter().GetResult();
+        //TestSyncThroughWebApi().GetAwaiter().GetResult();
 
         Console.ReadLine();
 
@@ -55,8 +55,8 @@ class Program
         configurationBuilder.AddJsonFile("config.json", true);
         IConfiguration Configuration = configurationBuilder.Build();
 
-        //var clientConfig = Configuration["AppConfiguration:ClientSQLiteConnectionString"];
-        //var clientProvider = new SQLiteSyncProvider(clientConfig);
+        //var clientConfig = Configuration["AppConfiguration:ClientSqliteConnectionString"];
+        //var clientProvider = new SqliteSyncProvider(clientConfig);
 
         var clientConfig = Configuration["AppConfiguration:ClientConnectionString"];
         var clientProvider = new SqlSyncProvider(clientConfig);
@@ -105,7 +105,7 @@ class Program
         var clientConfig = "sqlitefiltereddb.db";
 
         SqlSyncProvider serverProvider = new SqlSyncProvider(serverConfig);
-        SQLiteSyncProvider clientProvider = new SQLiteSyncProvider(clientConfig);
+        SqliteSyncProvider clientProvider = new SqliteSyncProvider(clientConfig);
 
         // With a config when we are in local mode (no proxy)
         SyncConfiguration configuration = new SyncConfiguration(new string[] { "ServiceTickets" });
@@ -144,58 +144,26 @@ class Program
         Console.WriteLine("End");
     }
 
-    private static async Task TestSyncSQLite()
+    private static async Task TestSyncSqlite()
     {
         // Get SQL Server connection string
         ConfigurationBuilder configurationBuilder = new ConfigurationBuilder();
         configurationBuilder.AddJsonFile("config.json", true);
         IConfiguration Configuration = configurationBuilder.Build();
         var serverConfig = Configuration["AppConfiguration:ServerConnectionString"];
-        var clientConfig = Configuration["AppConfiguration:ClientSQLiteConnectionString"];
+        var clientConfig = "fabrikam3.db";
 
         SqlSyncProvider serverProvider = new SqlSyncProvider(serverConfig);
-        SQLiteSyncProvider clientProvider = new SQLiteSyncProvider(clientConfig);
+        SqliteSyncProvider clientProvider = new SqliteSyncProvider(clientConfig);
 
         // With a config when we are in local mode (no proxy)
-        SyncConfiguration configuration = new SyncConfiguration(new string[] { "Customers", "ServiceTickets" });
+        SyncConfiguration configuration = new SyncConfiguration(new string[] 
+        { "ServiceTickets" });
 
         SyncAgent agent = new SyncAgent(clientProvider, serverProvider, configuration);
 
         agent.SyncProgress += SyncProgress;
-            //(s,e) =>
-        //{
-        //    switch (e.Context.SyncStage)
-        //    {
-        //        case SyncStage.EnsureConfiguration:
-        //            break;
-        //        case SyncStage.EnsureDatabase:
-        //            if (e.DatabaseScript != null)
-        //                e.Action = ChangeApplicationAction.Rollback;
-        //            break;
-        //        case SyncStage.SelectedChanges:
-        //            Console.WriteLine($"Selected changes : {e.ChangesStatistics.TotalSelectedChanges}. I:{e.ChangesStatistics.TotalSelectedChangesInserts}. U:{e.ChangesStatistics.TotalSelectedChangesUpdates}. D:{e.ChangesStatistics.TotalSelectedChangesDeletes}");
-        //            break;
-        //        case SyncStage.ApplyingChanges:
-        //            Console.WriteLine($"Going to apply changes.");
-        //            e.Action = ChangeApplicationAction.Continue;
-        //            break;
-        //        case SyncStage.AppliedChanges:
-        //            Console.WriteLine($"Applied changes : {e.ChangesStatistics.TotalAppliedChanges}");
-        //            e.Action = ChangeApplicationAction.Continue;
-        //            break;
-        //        case SyncStage.ApplyingInserts:
-        //            Console.WriteLine($"Applying Inserts : {e.ChangesStatistics.AppliedChanges.Where(ac => ac.State == DmRowState.Added).Sum(ac => ac.ChangesApplied) }");
-        //            e.Action = ChangeApplicationAction.Continue;
-        //            break; 
-        //        case SyncStage.ApplyingDeletes:
-        //            Console.WriteLine($"Applying Deletes : {e.ChangesStatistics.AppliedChanges.Where(ac => ac.State == DmRowState.Deleted).Sum(ac => ac.ChangesApplied) }");
-        //            break;
-        //        case SyncStage.ApplyingUpdates:
-        //            Console.WriteLine($"Applying Updates : {e.ChangesStatistics.AppliedChanges.Where(ac => ac.State == DmRowState.Modified).Sum(ac => ac.ChangesApplied) }");
-        //            e.Action = ChangeApplicationAction.Continue;
-        //            break;
-        //    }
-        //};
+  
         agent.ApplyChangedFailed += ApplyChangedFailed;
 
         do

@@ -5,16 +5,16 @@ using Dotmim.Sync.Data;
 using System.Data.Common;
 using System.Data;
 using Dotmim.Sync.Builders;
-using System.Data.SQLite;
+using Microsoft.Data.Sqlite;
 
-namespace Dotmim.Sync.SQLite
+namespace Dotmim.Sync.Sqlite
 {
-    public class SQLiteSyncAdapter : DbSyncAdapter
+    public class SqliteSyncAdapter : DbSyncAdapter
     {
-        private SQLiteConnection connection;
-        private SQLiteTransaction transaction;
-        private SQLiteObjectNames sqliteObjectNames;
-        private SQLiteDbMetadata sqliteDbMetadata;
+        private SqliteConnection connection;
+        private SqliteTransaction transaction;
+        private SqliteObjectNames sqliteObjectNames;
+        private SqliteDbMetadata sqliteDbMetadata;
 
         public override DbConnection Connection
         {
@@ -32,15 +32,15 @@ namespace Dotmim.Sync.SQLite
 
         }
 
-        public SQLiteSyncAdapter(DmTable tableDescription, DbConnection connection, DbTransaction transaction) : base(tableDescription)
+        public SqliteSyncAdapter(DmTable tableDescription, DbConnection connection, DbTransaction transaction) : base(tableDescription)
         {
-            var sqlc = connection as SQLiteConnection;
-            this.connection = sqlc ?? throw new InvalidCastException("Connection should be a SQLiteConnection");
+            var sqlc = connection as SqliteConnection;
+            this.connection = sqlc ?? throw new InvalidCastException("Connection should be a SqliteConnection");
 
-            this.transaction = transaction as SQLiteTransaction;
+            this.transaction = transaction as SqliteTransaction;
 
-            this.sqliteObjectNames = new SQLiteObjectNames(TableDescription);
-            this.sqliteDbMetadata = new SQLiteDbMetadata();
+            this.sqliteObjectNames = new SqliteObjectNames(TableDescription);
+            this.sqliteDbMetadata = new SqliteDbMetadata();
         }
 
         public override bool IsPrimaryKeyViolation(Exception Error)
@@ -109,7 +109,6 @@ namespace Dotmim.Sync.SQLite
 
             if (dbType == DbType.Object)
                 return DbType.String;
-
 
             return dbType;
         }

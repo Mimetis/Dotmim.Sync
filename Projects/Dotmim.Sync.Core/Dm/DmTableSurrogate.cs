@@ -55,7 +55,7 @@ namespace Dotmim.Sync.Data.Surrogate
 
 
         /// <summary>
-        /// Gets or Sets the original provider (SqlServer, MySql, SQLite, Oracle, PostgreSQL)
+        /// Gets or Sets the original provider (SqlServer, MySql, Sqlite, Oracle, PostgreSQL)
         /// </summary>
         public string OriginalProvider { get; set; }
        
@@ -216,6 +216,8 @@ namespace Dotmim.Sync.Data.Surrogate
                     {
                         if (columnType == typeof(Guid) && (dmRowObject as string) != null)
                             dmRowObject = new Guid(dmRowObject.ToString());
+                        if (columnType == typeof(Guid) && (dmRowObject.GetType() == typeof(byte[])))
+                            dmRowObject = new Guid((byte[])dmRowObject);
                         else if (columnType == typeof(Int32) && dmRowObjectType != typeof(Int32))
                             dmRowObject = Convert.ToInt32(dmRowObject);
                         else if (columnType == typeof(UInt32) && dmRowObjectType != typeof(UInt32))

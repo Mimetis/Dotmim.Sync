@@ -1,11 +1,11 @@
 providers:
-	- providerType:	sqlSyncProvider
+	- providerType:	sqlserver
 	  connectionString : "Data Source=(localdb)\MSSQLLocalDB; Initial Catalog=AdventureWorks;Integrated Security=true;"
 	  syncType: server	
 	
-	- providerType:	sqliteSyncProvider
+	- providerType:	sqlite
 	  connectionString : "adWorks.db"
-	  syncType: server	
+	  syncType: client	
 	
 tables: 
 	- name : ProductCategory

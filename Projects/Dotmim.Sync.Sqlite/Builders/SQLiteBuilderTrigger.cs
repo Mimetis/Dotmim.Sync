@@ -6,31 +6,31 @@ using System.Data.Common;
 using System.Linq;
 using Dotmim.Sync.Log;
 using System.Data;
-using System.Data.SQLite;
+using Microsoft.Data.Sqlite;
 using Dotmim.Sync.Filter;
 
-namespace Dotmim.Sync.SQLite
+namespace Dotmim.Sync.Sqlite
 {
-    public class SQLiteBuilderTrigger : IDbBuilderTriggerHelper
+    public class SqliteBuilderTrigger : IDbBuilderTriggerHelper
     {
         private ObjectNameParser tableName;
         private ObjectNameParser trackingName;
         private DmTable tableDescription;
-        private SQLiteConnection connection;
-        private SQLiteTransaction transaction;
-        private SQLiteObjectNames sqliteObjectNames;
+        private SqliteConnection connection;
+        private SqliteTransaction transaction;
+        private SqliteObjectNames sqliteObjectNames;
 
         public FilterClauseCollection Filters { get; set; }
 
     
 
-        public SQLiteBuilderTrigger(DmTable tableDescription, DbConnection connection, DbTransaction transaction = null)
+        public SqliteBuilderTrigger(DmTable tableDescription, DbConnection connection, DbTransaction transaction = null)
         {
-            this.connection = connection as SQLiteConnection;
-            this.transaction = transaction as SQLiteTransaction;
+            this.connection = connection as SqliteConnection;
+            this.transaction = transaction as SqliteTransaction;
             this.tableDescription = tableDescription;
-            (this.tableName, this.trackingName) = SQLiteBuilder.GetParsers(this.tableDescription);
-            this.sqliteObjectNames = new SQLiteObjectNames(this.tableDescription);
+            (this.tableName, this.trackingName) = SqliteBuilder.GetParsers(this.tableDescription);
+            this.sqliteObjectNames = new SqliteObjectNames(this.tableDescription);
         }
 
         private string DeleteTriggerBodyText()
@@ -41,8 +41,8 @@ namespace Dotmim.Sync.SQLite
             stringBuilder.AppendLine($"UPDATE {trackingName.QuotedString} ");
             stringBuilder.AppendLine("SET [sync_row_is_tombstone] = 1");
             stringBuilder.AppendLine("\t,[update_scope_id] = NULL -- since the update if from local, it's a NULL");
-            stringBuilder.AppendLine($"\t,[update_timestamp] = {SQLiteObjectNames.TimestampValue}");
-            stringBuilder.AppendLine($"\t,[timestamp] = {SQLiteObjectNames.TimestampValue}");
+            stringBuilder.AppendLine($"\t,[update_timestamp] = {SqliteObjectNames.TimestampValue}");
+            stringBuilder.AppendLine($"\t,[timestamp] = {SqliteObjectNames.TimestampValue}");
             stringBuilder.AppendLine("\t,[last_change_datetime] = datetime('now')");
 
             // --------------------------------------------------------------------------------
@@ -67,7 +67,7 @@ namespace Dotmim.Sync.SQLite
             //}
 
             stringBuilder.Append($"WHERE ");
-            stringBuilder.Append(SQLiteManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, trackingName.QuotedString, "old"));
+            stringBuilder.Append(SqliteManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, trackingName.QuotedString, "old"));
             stringBuilder.AppendLine(";");
             stringBuilder.AppendLine("END;");
             return stringBuilder.ToString();
@@ -78,7 +78,7 @@ namespace Dotmim.Sync.SQLite
 
             try
             {
-                using (var command = new SQLiteCommand())
+                using (var command = new SqliteCommand())
                 {
                     if (!alreadyOpened)
                         this.connection.Open();
@@ -119,7 +119,7 @@ namespace Dotmim.Sync.SQLite
             createTrigger.AppendLine(this.DeleteTriggerBodyText());
 
             string str = $"Delete Trigger for table {tableName.QuotedString}";
-            return SQLiteBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
+            return SqliteBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
         }
         public void AlterDeleteTrigger()
         {
@@ -189,10 +189,10 @@ namespace Dotmim.Sync.SQLite
             stringBuilder.AppendLine("\tVALUES (");
             stringBuilder.Append(stringBuilderArguments2.ToString());
             stringBuilder.AppendLine("\t\t,NULL");
-            stringBuilder.AppendLine($"\t\t,{SQLiteObjectNames.TimestampValue}");
+            stringBuilder.AppendLine($"\t\t,{SqliteObjectNames.TimestampValue}");
             stringBuilder.AppendLine("\t\t,NULL");
             stringBuilder.AppendLine("\t\t,0");
-            stringBuilder.AppendLine($"\t\t,{SQLiteObjectNames.TimestampValue}");
+            stringBuilder.AppendLine($"\t\t,{SqliteObjectNames.TimestampValue}");
             stringBuilder.AppendLine("\t\t,0");
             stringBuilder.AppendLine("\t\t,datetime('now')");
 
@@ -209,7 +209,7 @@ namespace Dotmim.Sync.SQLite
 
             try
             {
-                using (var command = new SQLiteCommand())
+                using (var command = new SqliteCommand())
                 {
                     if (!alreadyOpened)
                         this.connection.Open();
@@ -250,7 +250,7 @@ namespace Dotmim.Sync.SQLite
             createTrigger.AppendLine(this.InsertTriggerBodyText());
 
             string str = $"Insert Trigger for table {tableName.QuotedString}";
-            return SQLiteBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
+            return SqliteBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
 
         }
         public void AlterInsertTrigger()
@@ -270,8 +270,8 @@ namespace Dotmim.Sync.SQLite
             stringBuilder.AppendLine($"Begin ");
             stringBuilder.AppendLine($"\tUPDATE {trackingName.QuotedString} ");
             stringBuilder.AppendLine("\tSET [update_scope_id] = NULL -- since the update if from local, it's a NULL");
-            stringBuilder.AppendLine($"\t\t,[update_timestamp] = {SQLiteObjectNames.TimestampValue}");
-            stringBuilder.AppendLine($"\t\t,[timestamp] = {SQLiteObjectNames.TimestampValue}");
+            stringBuilder.AppendLine($"\t\t,[update_timestamp] = {SqliteObjectNames.TimestampValue}");
+            stringBuilder.AppendLine($"\t\t,[timestamp] = {SqliteObjectNames.TimestampValue}");
             stringBuilder.AppendLine("\t\t,[last_change_datetime] = datetime('now')");
 
             // --------------------------------------------------------------------------------
@@ -296,7 +296,7 @@ namespace Dotmim.Sync.SQLite
             //}
 
             stringBuilder.Append($"\tWhere ");
-            stringBuilder.Append(SQLiteManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, trackingName.QuotedString, "new"));
+            stringBuilder.Append(SqliteManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, trackingName.QuotedString, "new"));
             stringBuilder.AppendLine($"; ");
             stringBuilder.AppendLine($"End; ");
             return stringBuilder.ToString();
@@ -307,7 +307,7 @@ namespace Dotmim.Sync.SQLite
 
             try
             {
-                using (var command = new SQLiteCommand())
+                using (var command = new SqliteCommand())
                 {
                     if (!alreadyOpened)
                         this.connection.Open();
@@ -347,7 +347,7 @@ namespace Dotmim.Sync.SQLite
             createTrigger.AppendLine(this.UpdateTriggerBodyText());
 
             string str = $"Update Trigger for table {tableName.QuotedString}";
-            return SQLiteBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
+            return SqliteBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
         }
         public void AlterUpdateTrigger()
         {
@@ -385,7 +385,7 @@ namespace Dotmim.Sync.SQLite
                         }
                 }
 
-                return !SQLiteManagementUtils.TriggerExists(connection, transaction, triggerName);
+                return !SqliteManagementUtils.TriggerExists(connection, transaction, triggerName);
 
             }
 

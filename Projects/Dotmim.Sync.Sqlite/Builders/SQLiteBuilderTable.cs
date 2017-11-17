@@ -6,32 +6,32 @@ using System.Data.Common;
 using System.Linq;
 using System.Data;
 using Dotmim.Sync.Log;
-using System.Data.SQLite;
+using Microsoft.Data.Sqlite;
 
-namespace Dotmim.Sync.SQLite
+namespace Dotmim.Sync.Sqlite
 {
-    public class SQLiteBuilderTable : IDbBuilderTableHelper
+    public class SqliteBuilderTable : IDbBuilderTableHelper
     {
         private ObjectNameParser tableName;
         private ObjectNameParser trackingName;
         private DmTable tableDescription;
-        private SQLiteConnection connection;
-        private SQLiteTransaction transaction;
-        private SQLiteDbMetadata sqliteDbMetadata;
+        private SqliteConnection connection;
+        private SqliteTransaction transaction;
+        private SqliteDbMetadata sqliteDbMetadata;
 
-        public SQLiteBuilderTable(DmTable tableDescription, DbConnection connection, DbTransaction transaction = null)
+        public SqliteBuilderTable(DmTable tableDescription, DbConnection connection, DbTransaction transaction = null)
         {
-            this.connection = connection as SQLiteConnection;
-            this.transaction = transaction as SQLiteTransaction;
+            this.connection = connection as SqliteConnection;
+            this.transaction = transaction as SqliteTransaction;
             this.tableDescription = tableDescription;
-            (this.tableName, this.trackingName) = SQLiteBuilder.GetParsers(this.tableDescription);
-            this.sqliteDbMetadata = new SQLiteDbMetadata();
+            (this.tableName, this.trackingName) = SqliteBuilder.GetParsers(this.tableDescription);
+            this.sqliteDbMetadata = new SqliteDbMetadata();
         }
 
 
-        private SQLiteCommand BuildForeignKeyConstraintsCommand(DmRelation foreignKey)
+        private SqliteCommand BuildForeignKeyConstraintsCommand(DmRelation foreignKey)
         {
-            SQLiteCommand sqlCommand = new SQLiteCommand();
+            SqliteCommand sqlCommand = new SqliteCommand();
 
             var childTable = foreignKey.ChildTable;
             var childTableName = new ObjectNameParser(childTable.TableName);
@@ -77,9 +77,9 @@ namespace Dotmim.Sync.SQLite
         }
 
 
-        private SQLiteCommand BuildTableCommand()
+        private SqliteCommand BuildTableCommand()
         {
-            SQLiteCommand command = new SQLiteCommand();
+            SqliteCommand command = new SqliteCommand();
 
             StringBuilder stringBuilder = new StringBuilder($"CREATE TABLE IF NOT EXISTS {tableName.QuotedString} (");
             string empty = string.Empty;
@@ -88,8 +88,8 @@ namespace Dotmim.Sync.SQLite
             {
                 var columnName = new ObjectNameParser(column.ColumnName);
 
-                var columnTypeString = this.sqliteDbMetadata.TryGetOwnerDbTypeString(column.OriginalDbType, column.DbType, false, false, this.tableDescription.OriginalProvider, SQLiteSyncProvider.ProviderType);
-                var columnPrecisionString = this.sqliteDbMetadata.TryGetOwnerDbTypePrecision(column.OriginalDbType, column.DbType, false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, SQLiteSyncProvider.ProviderType);
+                var columnTypeString = this.sqliteDbMetadata.TryGetOwnerDbTypeString(column.OriginalDbType, column.DbType, false, false, this.tableDescription.OriginalProvider, SqliteSyncProvider.ProviderType);
+                var columnPrecisionString = this.sqliteDbMetadata.TryGetOwnerDbTypePrecision(column.OriginalDbType, column.DbType, false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, SqliteSyncProvider.ProviderType);
                 var columnType = $"{columnTypeString} {columnPrecisionString}";
 
                 // check case
@@ -112,7 +112,7 @@ namespace Dotmim.Sync.SQLite
                 {
                     var s = column.GetAutoIncrementSeedAndStep();
                     if (s.Seed > 1 || s.Step > 1)
-                        throw new NotSupportedException("can't establish a seed / step in SQLite autoinc value");
+                        throw new NotSupportedException("can't establish a seed / step in Sqlite autoinc value");
 
                     //identity = $"AUTOINCREMENT";
                     // Actually no need to set AutoIncrement, if we insert a null value
@@ -171,7 +171,7 @@ namespace Dotmim.Sync.SQLite
                 stringBuilder.AppendLine(" )");
             }
             stringBuilder.Append(")");
-            return new SQLiteCommand(stringBuilder.ToString());
+            return new SqliteCommand(stringBuilder.ToString());
         }
 
        public void CreateTable()
@@ -212,7 +212,7 @@ namespace Dotmim.Sync.SQLite
             StringBuilder stringBuilder = new StringBuilder();
             var tableNameScript = $"Create Table {tableName.QuotedString}";
             var tableScript = BuildTableCommand().CommandText;
-            stringBuilder.Append(SQLiteBuilder.WrapScriptTextWithComments(tableScript, tableNameScript));
+            stringBuilder.Append(SqliteBuilder.WrapScriptTextWithComments(tableScript, tableNameScript));
             stringBuilder.AppendLine();
             return stringBuilder.ToString();
         }
@@ -245,7 +245,7 @@ namespace Dotmim.Sync.SQLite
                 if (!alreadyOpened)
                     connection.Open();
 
-                return SQLiteManagementUtils.TableExists(connection, transaction, parentTable.TableName);
+                return SqliteManagementUtils.TableExists(connection, transaction, parentTable.TableName);
 
             }
             catch (Exception ex)
@@ -270,7 +270,7 @@ namespace Dotmim.Sync.SQLite
         public bool NeedToCreateTable(DbBuilderOption builderOptions)
         {
             if (builderOptions.HasFlag(DbBuilderOption.CreateOrUseExistingSchema))
-                return !SQLiteManagementUtils.TableExists(connection, transaction, tableName.QuotedString);
+                return !SqliteManagementUtils.TableExists(connection, transaction, tableName.QuotedString);
 
             return false;
         }

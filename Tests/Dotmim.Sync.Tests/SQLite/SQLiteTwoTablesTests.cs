@@ -1,19 +1,19 @@
-﻿using Dotmim.Sync.SQLite;
+﻿using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Tests.Misc;
 using Dotmim.Sync.Test.SqlUtils;
 using System;
 using System.Data.SqlClient;
-using System.Data.SQLite;
+using Microsoft.Data.Sqlite;
 using System.IO;
 using System.Threading.Tasks;
 using Xunit;
 
 namespace Dotmim.Sync.Test
 {
-    public class SQLiteTwoTablesFixture : IDisposable
+    public class SqliteTwoTablesFixture : IDisposable
     {
-        public string serverDbName => "Test_SQLite_TwoTables_Server";
+        public string serverDbName => "Test_Sqlite_TwoTables_Server";
         public string client1DbName => "TestSqliteTwoTablesClient.db";
         public string[] Tables => new string[] { "Customers", "ServiceTickets" };
 
@@ -63,16 +63,16 @@ namespace Dotmim.Sync.Test
         private HelperDB helperDb = new HelperDB();
 
         public String ServerConnectionString => HelperDB.GetDatabaseConnectionString(serverDbName);
-        public string ClientSQLiteFilePath => Path.Combine(Directory.GetCurrentDirectory(), client1DbName);
+        public string ClientSqliteFilePath => Path.Combine(Directory.GetCurrentDirectory(), client1DbName);
 
-        public SQLiteTwoTablesFixture()
+        public SqliteTwoTablesFixture()
         {
-            //var builder = new SQLiteConnectionStringBuilder { DataSource = ClientSQLiteFilePath };
+            //var builder = new SqliteConnectionStringBuilder { DataSource = ClientSqliteFilePath };
             GC.Collect();
             GC.WaitForPendingFinalizers();
 
-            if (File.Exists(ClientSQLiteFilePath))
-                File.Delete(ClientSQLiteFilePath);
+            if (File.Exists(ClientSqliteFilePath))
+                File.Delete(ClientSqliteFilePath);
 
             // create databases
             helperDb.CreateDatabase(serverDbName);
@@ -90,26 +90,26 @@ namespace Dotmim.Sync.Test
             GC.Collect();
             GC.WaitForPendingFinalizers();
 
-            if (File.Exists(ClientSQLiteFilePath))
-                File.Delete(ClientSQLiteFilePath);
+            if (File.Exists(ClientSqliteFilePath))
+                File.Delete(ClientSqliteFilePath);
         }
 
     }
 
     [TestCaseOrderer("Dotmim.Sync.Tests.Misc.PriorityOrderer", "Dotmim.Sync.Tests")]
-    public class SQLiteTwoTablesTests : IClassFixture<SQLiteTwoTablesFixture>
+    public class SqliteTwoTablesTests : IClassFixture<SqliteTwoTablesFixture>
     {
-        SQLiteTwoTablesFixture fixture;
+        SqliteTwoTablesFixture fixture;
         SqlSyncProvider serverProvider;
-        SQLiteSyncProvider clientProvider;
+        SqliteSyncProvider clientProvider;
         SyncAgent agent;
 
-        public SQLiteTwoTablesTests(SQLiteTwoTablesFixture fixture)
+        public SqliteTwoTablesTests(SqliteTwoTablesFixture fixture)
         {
             this.fixture = fixture;
 
             serverProvider = new SqlSyncProvider(fixture.ServerConnectionString);
-            clientProvider = new SQLiteSyncProvider(fixture.ClientSQLiteFilePath);
+            clientProvider = new SqliteSyncProvider(fixture.ClientSqliteFilePath);
             var simpleConfiguration = new SyncConfiguration(fixture.Tables);
 
             agent = new SyncAgent(clientProvider, serverProvider, simpleConfiguration);
@@ -122,25 +122,6 @@ namespace Dotmim.Sync.Test
 
             Assert.Equal(7, session.TotalChangesDownloaded);
             Assert.Equal(0, session.TotalChangesUploaded);
-
-            // check relation has been created on client :
-            //int foreignKeysCount=0;
-            //using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
-            //{
-            //    var script = $@"PRAGMA foreign_key_list('ServiceTickets')";
-
-            //    using (var sqlCmd = new SQLiteCommand(script, sqlConnection))
-            //    {
-            //        sqlConnection.Open();
-
-            //        var reader = sqlCmd.ExecuteReader();
-            //        while (reader.Read())
-            //            foreignKeysCount++;
-
-            //        sqlConnection.Close();
-            //    }
-            //}
-            //Assert.Equal(1, foreignKeysCount);
         }
 
         [Fact, TestPriority(2)]

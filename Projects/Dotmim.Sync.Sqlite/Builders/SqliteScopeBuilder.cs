@@ -1,15 +1,15 @@
 ﻿using Dotmim.Sync.Builders;
 using System.Data.Common;
 
-namespace Dotmim.Sync.SQLite
+namespace Dotmim.Sync.Sqlite
 {
-    public class SQLiteScopeBuilder : DbScopeBuilder
+    public class SqliteScopeBuilder : DbScopeBuilder
     {
         
 
         public override IDbScopeInfoBuilder CreateScopeInfoBuilder(DbConnection connection, DbTransaction transaction = null)
         {
-            return new SQLiteScopeInfoBuilder(connection, transaction);
+            return new SqliteScopeInfoBuilder(connection, transaction);
         }
     }
 }

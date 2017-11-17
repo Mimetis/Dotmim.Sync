@@ -1,7 +1,7 @@
 ﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Data;
 using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.SQLite;
+using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Web;
 using System;
@@ -91,7 +91,7 @@ namespace Dotmim.Sync.Tools
             switch (project.ServerProvider.ProviderType)
             {
                 case ProviderType.Sqlite:
-                    throw new Exception("Can't use SQLite as a server provider");
+                    throw new Exception("Can't use Sqlite as a server provider");
                 case ProviderType.Web:
                     serverProvider = new WebProxyClientProvider(new Uri(project.ServerProvider.ConnectionString));
                     break;
@@ -104,7 +104,7 @@ namespace Dotmim.Sync.Tools
             switch (project.ClientProvider.ProviderType)
             {
                 case ProviderType.Sqlite:
-                    clientprovider = new SQLiteSyncProvider(project.ClientProvider.ConnectionString);
+                    clientprovider = new SqliteSyncProvider(project.ClientProvider.ConnectionString);
                     break;
                 case ProviderType.Web:
                     throw new Exception("Web proxy is used as a proxy server. You have to use an ASP.NET web backend. CLI uses a proxy as server provider");
@@ -237,7 +237,7 @@ namespace Dotmim.Sync.Tools
 
 
         /// <summary>
-        /// Get all projects saved in SQLite database
+        /// Get all projects saved in Sqlite database
         /// </summary>
         private void GetProjectsList()
         {

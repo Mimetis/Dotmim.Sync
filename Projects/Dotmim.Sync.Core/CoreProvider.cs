@@ -189,7 +189,7 @@ namespace Dotmim.Sync
 
                 dmTable.Columns.Add(column);
 
-                // Gets the datastore owner dbType (could be SqlDbtype, MySqlDbType, SQLiteDbType, NpgsqlDbType & so on ...)
+                // Gets the datastore owner dbType (could be SqlDbtype, MySqlDbType, SqliteDbType, NpgsqlDbType & so on ...)
                 object datastoreDbType = Metadata.ValidateOwnerDbType(column.OriginalTypeName, column.IsUnsigned, column.IsUnicode);
 
                 // once we have the datastore type, we can have the managed type
@@ -199,7 +199,7 @@ namespace Dotmim.Sync
                 column.DbType = Metadata.ValidateDbType(column.OriginalTypeName, column.IsUnsigned, column.IsUnicode);
 
                 // Gets the owner dbtype (SqlDbType, OracleDbType, MySqlDbType, NpsqlDbType & so on ...)
-                // SQLite does not have it's own type, so it's DbType too
+                // Sqlite does not have it's own type, so it's DbType too
                 column.OriginalDbType = datastoreDbType.ToString();
 
                 // Validate max length
@@ -1496,6 +1496,8 @@ namespace Dotmim.Sync
                         {
                             if (columnType == typeof(Guid) && (dmRowObject as string) != null)
                                 dmRowObject = new Guid(dmRowObject.ToString());
+                            else if (columnType == typeof(Guid) && dmRowObject.GetType() == typeof(byte[]))
+                                dmRowObject = dataReader.GetGuid(i);
                             else if (columnType == typeof(Int32) && dmRowObjectType != typeof(Int32))
                                 dmRowObject = Convert.ToInt32(dmRowObject);
                             else if (columnType == typeof(UInt32) && dmRowObjectType != typeof(UInt32))

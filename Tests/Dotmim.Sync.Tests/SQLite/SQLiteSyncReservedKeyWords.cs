@@ -7,13 +7,13 @@ using System.Data.SqlClient;
 using System.Threading.Tasks;
 using Xunit;
 using System.IO;
-using System.Data.SQLite;
-using Dotmim.Sync.SQLite;
+using Microsoft.Data.Sqlite;
+using Dotmim.Sync.Sqlite;
 
 namespace Dotmim.Sync.Tests
 {
 
-    public class SQLiteSyncReservedKeyWordsFixture : IDisposable
+    public class SqliteSyncReservedKeyWordsFixture : IDisposable
     {
 
         private string createTableScript =
@@ -44,16 +44,16 @@ namespace Dotmim.Sync.Tests
         public string[] Tables => new string[] { "Sql" };
 
         public String ServerConnectionString => HelperDB.GetDatabaseConnectionString(serverDbName);
-        public String ClientSQLiteConnectionString { get; set; }
-        public string ClientSQLiteFilePath => Path.Combine(Directory.GetCurrentDirectory(), "sqliteReservedKeyWords.db");
+        public String ClientSqliteConnectionString { get; set; }
+        public string ClientSqliteFilePath => Path.Combine(Directory.GetCurrentDirectory(), "sqliteReservedKeyWords.db");
 
-        public SQLiteSyncReservedKeyWordsFixture()
+        public SqliteSyncReservedKeyWordsFixture()
         {
-            var builder = new SQLiteConnectionStringBuilder { DataSource = ClientSQLiteFilePath };
-            this.ClientSQLiteConnectionString = builder.ConnectionString;
+            var builder = new SqliteConnectionStringBuilder { DataSource = ClientSqliteFilePath };
+            this.ClientSqliteConnectionString = builder.ConnectionString;
 
-            if (File.Exists(ClientSQLiteFilePath))
-                File.Delete(ClientSQLiteFilePath);
+            if (File.Exists(ClientSqliteFilePath))
+                File.Delete(ClientSqliteFilePath);
 
             // create databases
             helperDb.CreateDatabase(serverDbName);
@@ -70,27 +70,27 @@ namespace Dotmim.Sync.Tests
             GC.Collect();
             GC.WaitForPendingFinalizers();
 
-            if (File.Exists(ClientSQLiteFilePath))
-                File.Delete(ClientSQLiteFilePath);
+            if (File.Exists(ClientSqliteFilePath))
+                File.Delete(ClientSqliteFilePath);
         }
 
     }
 
 
     [TestCaseOrderer("Dotmim.Sync.Tests.Misc.PriorityOrderer", "Dotmim.Sync.Tests")]
-    public class SQLiteSyncReservedKeyWordsTests : IClassFixture<SQLiteSyncReservedKeyWordsFixture>
+    public class SqliteSyncReservedKeyWordsTests : IClassFixture<SqliteSyncReservedKeyWordsFixture>
     {
         SqlSyncProvider serverProvider;
-        SQLiteSyncProvider clientProvider;
-        SQLiteSyncReservedKeyWordsFixture fixture;
+        SqliteSyncProvider clientProvider;
+        SqliteSyncReservedKeyWordsFixture fixture;
         SyncAgent agent;
 
-        public SQLiteSyncReservedKeyWordsTests(SQLiteSyncReservedKeyWordsFixture fixture)
+        public SqliteSyncReservedKeyWordsTests(SqliteSyncReservedKeyWordsFixture fixture)
         {
             this.fixture = fixture;
 
             serverProvider = new SqlSyncProvider(fixture.ServerConnectionString);
-            clientProvider = new SQLiteSyncProvider(fixture.ClientSQLiteFilePath);
+            clientProvider = new SqliteSyncProvider(fixture.ClientSqliteFilePath);
             var simpleConfiguration = new SyncConfiguration(fixture.Tables);
 
             agent = new SyncAgent(clientProvider, serverProvider, simpleConfiguration);
@@ -152,13 +152,15 @@ namespace Dotmim.Sync.Tests
             $@"
                 INSERT INTO [Sql] ([SqlId], [File], [Read], [From], [To], 
                         [Select], [Array], [String]) 
-                VALUES ('{newId.ToString()}', 'File Info', 'Read on!', 'spertus@microsoft.com', 'an.to@free.fr', 
+                VALUES (@id, 'File Info', 'Read on!', 'spertus@microsoft.com', 'an.to@free.fr', 
                         'Select', 'Array', 'String')";
 
-            using (var sqlConnection = new SQLiteConnection(fixture.ClientSQLiteConnectionString))
+            using (var sqlConnection = new SqliteConnection(fixture.ClientSqliteConnectionString))
             {
-                using (var sqlCmd = new SQLiteCommand(insertRowScript, sqlConnection))
+                using (var sqlCmd = new SqliteCommand(insertRowScript, sqlConnection))
                 {
+                    sqlCmd.Parameters.AddWithValue("@id", newId);
+
                     sqlConnection.Open();
                     sqlCmd.ExecuteNonQuery();
                     sqlConnection.Close();

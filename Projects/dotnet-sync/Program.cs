@@ -12,7 +12,7 @@ namespace Dotmim.Sync.Tools
                 // From dotnet command line or debug mode
                 if (args.Length == 0)
                     //args = new string[] { "p0", "provider", "-s", "client", "-p", "sqlite", "-c", "adv.db" };
-                    args = new string[] {  "-ls" };
+                    args = new string[] {  "p0", "-s" };
                     
                 Runner.Execute(args);
             }

@@ -5,26 +5,13 @@ using System.Text;
 using System.Data;
 using Dotmim.Sync.Data;
 
-namespace Dotmim.Sync.SQLite
+namespace Dotmim.Sync.Sqlite
 {
-    public class SQLiteDbMetadata : DbMetadata
+    public class SqliteDbMetadata : DbMetadata
     {
         public override int GetMaxLengthFromDbType(DbType dbType, int maxLength)
         {
             return 0;
-
-            //switch (dbType)
-            //{
-            //    case DbType.AnsiString:
-            //    case DbType.AnsiStringFixedLength:
-            //    case DbType.String:
-            //    case DbType.StringFixedLength:
-            //    case DbType.Xml:
-            //        return maxLength;
-            //    case DbType.Guid:
-            //        return 36;
-            //}
-            //return 0;
         }
 
         public override int GetMaxLengthFromOwnerDbType(object dbType, int maxLength)
@@ -40,19 +27,6 @@ namespace Dotmim.Sync.SQLite
         public override (byte precision, byte scale) GetPrecisionFromDbType(DbType dbType, byte precision, byte scale)
         {
             return (0, 0);
-
-            //switch (dbType)
-            //{
-            //    case DbType.Guid:
-            //        return (36, 0);
-            //    case DbType.Decimal:
-            //    case DbType.Double:
-            //    case DbType.Single:
-            //    case DbType.VarNumeric:
-            //        return (precision, scale);
-            //}
-            //return (0, 0);
-
         }
 
         public override (byte precision, byte scale) GetPrecisionFromOwnerDbType(object dbType, byte precision, byte scale)
@@ -63,30 +37,6 @@ namespace Dotmim.Sync.SQLite
         public override string GetPrecisionStringFromDbType(DbType dbType, int maxLength, byte precision, byte scale)
         {
             return string.Empty;
-
-            //switch (dbType)
-            //{
-            //    case DbType.AnsiString:
-            //    case DbType.AnsiStringFixedLength:
-            //    case DbType.String:
-            //    case DbType.StringFixedLength:
-            //    case DbType.Xml:
-            //        return maxLength > 0 ? $"({maxLength})" : "";
-            //    case DbType.Guid:
-            //        return "(36)";
-            //    case DbType.Decimal:
-            //    case DbType.Double:
-            //    case DbType.Single:
-            //    case DbType.VarNumeric:
-            //        if (precision > 0 && scale <= 0)
-            //            return $"({precision})";
-            //        else if (precision > 0 && scale > 0)
-            //            return $"({precision}, {scale})";
-            //        else
-            //            return string.Empty;
-            //}
-
-            //return string.Empty;
         }
 
         public override string GetPrecisionStringFromOwnerDbType(object dbType, int maxLength, byte precision, byte scale)
@@ -103,10 +53,10 @@ namespace Dotmim.Sync.SQLite
                 case DbType.String:
                 case DbType.StringFixedLength:
                 case DbType.Xml:
-                case DbType.Guid:
                 case DbType.Time:
                 case DbType.DateTimeOffset:
                     return "text";
+                case DbType.Guid:
                 case DbType.Binary:
                 case DbType.Object:
                     return "blob";
@@ -158,7 +108,6 @@ namespace Dotmim.Sync.SQLite
                 case DbType.String:
                 case DbType.StringFixedLength:
                 case DbType.Xml:
-                case DbType.Guid:
                     return true;
             }
             return false;
