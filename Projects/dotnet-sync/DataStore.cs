@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.SQLite;
+using Microsoft.Data.Sqlite;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
@@ -17,8 +17,8 @@ namespace Dotmim.Sync.Tools
         internal const string TABLE_TABLE = "ds_table";
         internal const string CONF_TABLE = "ds_conf";
         internal const int OUTPUT_COLUMN_WIDTH = 32;
-        private SQLiteConnection connection;
-        //private SQLiteTransaction transaction;
+        private SqliteConnection connection;
+        //private SqliteTransaction transaction;
 
         private static DataStore dataStore;
 
@@ -35,13 +35,13 @@ namespace Dotmim.Sync.Tools
             if (!Directory.Exists(dmsyncfolder))
                 Directory.CreateDirectory(dmsyncfolder);
 
-            var builder = new SQLiteConnectionStringBuilder { DataSource = Path.Combine(dmsyncfolder, DEFAULT_DATABASE_NAME) };
+            var builder = new SqliteConnectionStringBuilder { DataSource = Path.Combine(dmsyncfolder, DEFAULT_DATABASE_NAME) };
 
             // prefer to store guid in text
-            builder.BinaryGUID = false;
+            //builder.Add("BinaryGUID", false);
 
             this.ConnectionString = builder.ConnectionString;
-            this.connection = new SQLiteConnection(this.ConnectionString);
+            this.connection = new SqliteConnection(this.ConnectionString);
         }
 
         internal void EnsureDatabase()
@@ -306,7 +306,7 @@ namespace Dotmim.Sync.Tools
         }
 
 
-        private Project FillProject(SQLiteDataReader reader, SQLiteConnection connection)
+        private Project FillProject(SqliteDataReader reader, SqliteConnection connection)
         {
             var projectName = reader["name"] as string;
 
@@ -562,22 +562,22 @@ namespace Dotmim.Sync.Tools
 
 
 
-        private SQLiteCommand BuildExistTableCommand(string tableName)
+        private SqliteCommand BuildExistTableCommand(string tableName)
         {
-            var dbCommand = new SQLiteCommand();
+            var dbCommand = new SqliteCommand();
             dbCommand.CommandText = "select count(*) from sqlite_master where name = @tableName AND type='table'";
 
-            SQLiteParameter SQLiteParameter = new SQLiteParameter()
+            SqliteParameter SqliteParameter = new SqliteParameter()
             {
                 ParameterName = "@tableName",
                 Value = tableName
             };
-            dbCommand.Parameters.Add(SQLiteParameter);
+            dbCommand.Parameters.Add(SqliteParameter);
 
             return dbCommand;
         }
 
-        private SQLiteCommand BuildTableProjectCommand()
+        private SqliteCommand BuildTableProjectCommand()
         {
             StringBuilder stringBuilder = new StringBuilder($"CREATE TABLE IF NOT EXISTS {PROJECT_TABLE} (");
             stringBuilder.AppendLine($"name text NOT NULL,");
@@ -592,10 +592,10 @@ namespace Dotmim.Sync.Tools
             stringBuilder.AppendLine($"bulk_operations integer NOT NULL,");
             stringBuilder.AppendLine($"PRIMARY KEY (name))");
 
-            return new SQLiteCommand(stringBuilder.ToString());
+            return new SqliteCommand(stringBuilder.ToString());
         }
 
-        private SQLiteCommand BuildTableTableCommand()
+        private SqliteCommand BuildTableTableCommand()
         {
             StringBuilder stringBuilder = new StringBuilder($"CREATE TABLE IF NOT EXISTS {TABLE_TABLE} (");
             stringBuilder.AppendLine($"name text NOT NULL,");
@@ -606,7 +606,7 @@ namespace Dotmim.Sync.Tools
             stringBuilder.AppendLine($"PRIMARY KEY (project_name, name),");
             stringBuilder.AppendLine($"FOREIGN KEY (project_name) REFERENCES {PROJECT_TABLE} (name))");
 
-            return new SQLiteCommand(stringBuilder.ToString());
+            return new SqliteCommand(stringBuilder.ToString());
 
         }
 

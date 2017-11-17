@@ -5,9 +5,9 @@ using System.Text;
 using Dotmim.Sync.Data;
 using System.Linq;
 
-namespace Dotmim.Sync.SQLite
+namespace Dotmim.Sync.Sqlite
 {
-    public class SQLiteObjectNames
+    public class SqliteObjectNames
     {
         public const string TimestampValue = "replace(strftime('%Y%m%d%H%M%f', 'now'), '.', '')";
 
@@ -31,15 +31,15 @@ namespace Dotmim.Sync.SQLite
         public string GetCommandName(DbCommandType objectType, IEnumerable<string> adds = null)
         {
             if (!names.ContainsKey(objectType))
-                throw new NotSupportedException($"SQLite provider does not support the command type {objectType.ToString()}");
+                throw new NotSupportedException($"Sqlite provider does not support the command type {objectType.ToString()}");
 
             return names[objectType];
         }
 
-        public SQLiteObjectNames(DmTable tableDescription)
+        public SqliteObjectNames(DmTable tableDescription)
         {
             this.TableDescription = tableDescription;
-            (tableName, trackingName) = SQLiteBuilder.GetParsers(this.TableDescription);
+            (tableName, trackingName) = SqliteBuilder.GetParsers(this.TableDescription);
 
             SetDefaultNames();
         }
@@ -70,10 +70,10 @@ namespace Dotmim.Sync.SQLite
 
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.AppendLine($"UPDATE {tableName.QuotedString}");
-            stringBuilder.Append($"SET {SQLiteManagementUtils.CommaSeparatedUpdateFromParameters(this.TableDescription)}");
-            stringBuilder.Append($"WHERE {SQLiteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKey.Columns, "")}");
+            stringBuilder.Append($"SET {SqliteManagementUtils.CommaSeparatedUpdateFromParameters(this.TableDescription)}");
+            stringBuilder.Append($"WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKey.Columns, "")}");
             stringBuilder.AppendLine($" AND ((SELECT [timestamp] FROM {trackingName.QuotedObjectName} ");
-            stringBuilder.AppendLine($"  WHERE {SQLiteManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKey.Columns, tableName.QuotedObjectName, trackingName.QuotedObjectName)}");
+            stringBuilder.AppendLine($"  WHERE {SqliteManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKey.Columns, tableName.QuotedObjectName, trackingName.QuotedObjectName)}");
             stringBuilder.AppendLine(" ) <= @sync_min_timestamp OR @sync_force_write = 1");
             stringBuilder.AppendLine(");");
             this.AddName(DbCommandType.UpdateRow, stringBuilder.ToString());
@@ -88,9 +88,9 @@ namespace Dotmim.Sync.SQLite
             stringBuilder.AppendLine($"SET [update_scope_id] = @update_scope_id, ");
             stringBuilder.AppendLine($"\t [update_timestamp] = @update_timestamp, ");
             stringBuilder.AppendLine($"\t [sync_row_is_tombstone] = @sync_row_is_tombstone, ");
-            stringBuilder.AppendLine($"\t [timestamp] = {SQLiteObjectNames.TimestampValue}, ");
+            stringBuilder.AppendLine($"\t [timestamp] = {SqliteObjectNames.TimestampValue}, ");
             stringBuilder.AppendLine($"\t [last_change_datetime] = datetime('now') ");
-            stringBuilder.Append($"WHERE {SQLiteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKey.Columns, "")}");
+            stringBuilder.Append($"WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKey.Columns, "")}");
 
             this.AddName(DbCommandType.UpdateMetadata, stringBuilder.ToString());
 
@@ -116,7 +116,7 @@ namespace Dotmim.Sync.SQLite
             stringBuilder.AppendLine($"\t[sync_row_is_tombstone], [timestamp], [last_change_datetime])");
             stringBuilder.AppendLine($"\tVALUES ({stringBuilderParameters.ToString()}, ");
             stringBuilder.AppendLine($"\t@create_scope_id, @create_timestamp, @update_scope_id, @update_timestamp, ");
-            stringBuilder.AppendLine($"\t@sync_row_is_tombstone, {SQLiteObjectNames.TimestampValue}, datetime('now'));");
+            stringBuilder.AppendLine($"\t@sync_row_is_tombstone, {SqliteObjectNames.TimestampValue}, datetime('now'));");
 
             this.AddName(DbCommandType.InsertMetadata, stringBuilder.ToString());
 
@@ -147,7 +147,7 @@ namespace Dotmim.Sync.SQLite
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.AppendLine($"DELETE FROM {trackingName.QuotedString} ");
             stringBuilder.Append($"WHERE ");
-            stringBuilder.AppendLine(SQLiteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKey.Columns, ""));
+            stringBuilder.AppendLine(SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKey.Columns, ""));
             stringBuilder.Append(";");
 
             this.AddName(DbCommandType.DeleteMetadata, stringBuilder.ToString());
@@ -157,9 +157,9 @@ namespace Dotmim.Sync.SQLite
             StringBuilder stringBuilder = new StringBuilder();
 
             stringBuilder.AppendLine($"DELETE FROM {tableName.QuotedString} ");
-            stringBuilder.Append($"WHERE {SQLiteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKey.Columns, "")}");
+            stringBuilder.Append($"WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKey.Columns, "")}");
             stringBuilder.AppendLine($" AND ((SELECT [timestamp] FROM {trackingName.QuotedObjectName} ");
-            stringBuilder.AppendLine($"  WHERE {SQLiteManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKey.Columns, tableName.QuotedObjectName, trackingName.QuotedObjectName)}");
+            stringBuilder.AppendLine($"  WHERE {SqliteManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKey.Columns, tableName.QuotedObjectName, trackingName.QuotedObjectName)}");
             stringBuilder.AppendLine(" ) <= @sync_min_timestamp OR @sync_force_write = 1");
             stringBuilder.AppendLine(");");
 

@@ -53,7 +53,6 @@ namespace Dotmim.Sync
         /// </summary>
         public abstract void ExecuteBatchCommand(DbCommand cmd, DmTable applyTable, DmTable failedRows, ScopeInfo scope);
 
-
         /// <summary>
         /// Gets the current connection. could be opened
         /// </summary>

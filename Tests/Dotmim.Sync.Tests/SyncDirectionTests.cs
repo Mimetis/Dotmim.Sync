@@ -1,11 +1,11 @@
 ﻿using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.SQLite;
+using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Test.SqlUtils;
 using Dotmim.Sync.Tests.Misc;
 using System;
 using System.Collections.Generic;
-using System.Data.SQLite;
+using Microsoft.Data.Sqlite;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
@@ -18,8 +18,8 @@ namespace Dotmim.Sync.Tests
         private HelperDB helperDb = new HelperDB();
         private string serverDbName = "AdventureWorksLT2012";
         private string client1DbName = "AdventureWorksLT2012ClientDirection";
-        public String ClientSQLiteConnectionString { get; set; }
-        public string ClientSQLiteFilePath => Path.Combine(Directory.GetCurrentDirectory(), "AdventureWorksLT2012Sqlite.db");
+        public String ClientSqliteConnectionString { get; set; }
+        public string ClientSqliteFilePath => Path.Combine(Directory.GetCurrentDirectory(), "AdventureWorksLT2012Sqlite.db");
 
         public String ServerConnectionString => HelperDB.GetDatabaseConnectionString(serverDbName);
         public String Client1ConnectionString => HelperDB.GetDatabaseConnectionString(client1DbName);
@@ -43,11 +43,11 @@ namespace Dotmim.Sync.Tests
             GC.Collect();
             GC.WaitForPendingFinalizers();
 
-            var builder = new SQLiteConnectionStringBuilder { DataSource = ClientSQLiteFilePath };
-            this.ClientSQLiteConnectionString = builder.ConnectionString;
+            var builder = new SqliteConnectionStringBuilder { DataSource = ClientSqliteFilePath };
+            this.ClientSqliteConnectionString = builder.ConnectionString;
 
-            if (File.Exists(ClientSQLiteFilePath))
-                File.Delete(ClientSQLiteFilePath);
+            if (File.Exists(ClientSqliteFilePath))
+                File.Delete(ClientSqliteFilePath);
 
             var backup = Path.Combine(Directory.GetCurrentDirectory(), "Backup", "AdventureWorksLT2012.bak");
             // create databases
@@ -62,8 +62,8 @@ namespace Dotmim.Sync.Tests
             GC.Collect();
             GC.WaitForPendingFinalizers();
 
-            if (File.Exists(ClientSQLiteFilePath))
-                File.Delete(ClientSQLiteFilePath);
+            if (File.Exists(ClientSqliteFilePath))
+                File.Delete(ClientSqliteFilePath);
         }
     }
 

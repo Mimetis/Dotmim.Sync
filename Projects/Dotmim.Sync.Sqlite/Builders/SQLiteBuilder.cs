@@ -4,22 +4,22 @@ using Dotmim.Sync.Data;
 using System.Data.Common;
 
 
-namespace Dotmim.Sync.SQLite
+namespace Dotmim.Sync.Sqlite
 {
 
     /// <summary>
     /// The SqlBuilder class is the Sql implementation of DbBuilder class.
     /// In charge of creating tracking table, stored proc, triggers and adapters.
     /// </summary>
-    public class SQLiteBuilder : DbBuilder
+    public class SqliteBuilder : DbBuilder
     {
 
-        SQLiteObjectNames sqlObjectNames;
+        SqliteObjectNames sqlObjectNames;
        
-        public SQLiteBuilder(DmTable tableDescription, DbBuilderOption option = DbBuilderOption.CreateOrUseExistingSchema)
+        public SqliteBuilder(DmTable tableDescription, DbBuilderOption option = DbBuilderOption.CreateOrUseExistingSchema)
             : base(tableDescription, option)
         {
-            sqlObjectNames = new SQLiteObjectNames(tableDescription);
+            sqlObjectNames = new SqliteObjectNames(tableDescription);
         }
 
         internal static (ObjectNameParser tableName, ObjectNameParser trackingName) GetParsers(DmTable tableDescription)
@@ -48,7 +48,7 @@ namespace Dotmim.Sync.SQLite
         }
 
         /// <summary>
-        /// Proc are not supported in SQLite
+        /// Proc are not supported in Sqlite
         /// </summary>
         /// <param name="connection"></param>
         /// <param name="transaction"></param>
@@ -60,22 +60,22 @@ namespace Dotmim.Sync.SQLite
 
         public override IDbBuilderTriggerHelper CreateTriggerBuilder(DbConnection connection, DbTransaction transaction = null)
         {
-            return new SQLiteBuilderTrigger(TableDescription, connection, transaction);
+            return new SqliteBuilderTrigger(TableDescription, connection, transaction);
         }
 
         public override IDbBuilderTableHelper CreateTableBuilder(DbConnection connection, DbTransaction transaction = null)
         {
-            return new SQLiteBuilderTable(TableDescription, connection, transaction);
+            return new SqliteBuilderTable(TableDescription, connection, transaction);
         }
 
         public override IDbBuilderTrackingTableHelper CreateTrackingTableBuilder(DbConnection connection, DbTransaction transaction = null)
         {
-            return new SQLiteBuilderTrackingTable(TableDescription, connection, transaction);
+            return new SqliteBuilderTrackingTable(TableDescription, connection, transaction);
         }
 
         public override DbSyncAdapter CreateSyncAdapter(DbConnection connection, DbTransaction transaction = null)
         {
-            return new SQLiteSyncAdapter(TableDescription, connection, transaction);
+            return new SqliteSyncAdapter(TableDescription, connection, transaction);
         }
     }
 }

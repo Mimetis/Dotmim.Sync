@@ -3,15 +3,15 @@ using System.Collections.Generic;
 using System.Data.Common;
 using System.Text;
 using System.Linq;
-using System.Data.SQLite;
+using Microsoft.Data.Sqlite;
 using Dotmim.Sync.Builders;
 
-namespace Dotmim.Sync.SQLite
+namespace Dotmim.Sync.Sqlite
 {
-    internal static class SQLiteManagementUtils
+    internal static class SqliteManagementUtils
     {
 
-        public static void DropTableIfExists(SQLiteConnection connection, SQLiteTransaction transaction, string quotedTableName)
+        public static void DropTableIfExists(SqliteConnection connection, SqliteTransaction transaction, string quotedTableName)
         {
             ObjectNameParser objectNameParser = new ObjectNameParser(quotedTableName);
 
@@ -39,7 +39,7 @@ namespace Dotmim.Sync.SQLite
             return $"drop table {objectNameParser.ObjectName}";
         }
 
-        public static void DropTriggerIfExists(SQLiteConnection connection, SQLiteTransaction transaction, string quotedTriggerName)
+        public static void DropTriggerIfExists(SqliteConnection connection, SqliteTransaction transaction, string quotedTriggerName)
         {
             ObjectNameParser objectNameParser = new ObjectNameParser(quotedTriggerName);
 
@@ -60,7 +60,7 @@ namespace Dotmim.Sync.SQLite
         }
 
 
-        public static bool TableExists(SQLiteConnection connection, SQLiteTransaction transaction, string quotedTableName)
+        public static bool TableExists(SqliteConnection connection, SqliteTransaction transaction, string quotedTableName)
         {
             bool tableExist;
             ObjectNameParser objectNameParser = new ObjectNameParser(quotedTableName);
@@ -68,12 +68,12 @@ namespace Dotmim.Sync.SQLite
             {
                 dbCommand.CommandText = "select count(*) from sqlite_master where name = @tableName AND type='table'";
 
-                SQLiteParameter SQLiteParameter = new SQLiteParameter()
+                SqliteParameter SqliteParameter = new SqliteParameter()
                 {
                     ParameterName = "@tableName",
                     Value = objectNameParser.ObjectName
                 };
-                dbCommand.Parameters.Add(SQLiteParameter);
+                dbCommand.Parameters.Add(SqliteParameter);
 
                 if (transaction != null)
                     dbCommand.Transaction = transaction;
@@ -83,13 +83,13 @@ namespace Dotmim.Sync.SQLite
             return tableExist;
         }
 
-        public static bool TriggerExists(SQLiteConnection connection, SQLiteTransaction transaction, string quotedTriggerName)
+        public static bool TriggerExists(SqliteConnection connection, SqliteTransaction transaction, string quotedTriggerName)
         {
             bool triggerExist;
             ObjectNameParser objectNameParser = new ObjectNameParser(quotedTriggerName);
 
 
-            using (SQLiteCommand dbCommand = connection.CreateCommand())
+            using (SqliteCommand dbCommand = connection.CreateCommand())
             {
                 dbCommand.CommandText = "select count(*) from sqlite_master where name = @triggerName AND type='trigger'";
 

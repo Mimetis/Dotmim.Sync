@@ -98,7 +98,7 @@ namespace Dotmim.Sync.Data
         }
 
         /// <summary>
-        /// Gets or Sets the original provider (SqlServer, MySql, SQLite, Oracle, PostgreSQL)
+        /// Gets or Sets the original provider (SqlServer, MySql, Sqlite, Oracle, PostgreSQL)
         /// </summary>
         public string OriginalProvider { get; set; }
 

@@ -5,30 +5,30 @@ using Dotmim.Sync.Data;
 using System.Data.Common;
 using Dotmim.Sync.Log;
 using System.Data;
-using System.Data.SQLite;
+using Microsoft.Data.Sqlite;
 using Dotmim.Sync.Filter;
 
-namespace Dotmim.Sync.SQLite
+namespace Dotmim.Sync.Sqlite
 {
-    public class SQLiteBuilderTrackingTable : IDbBuilderTrackingTableHelper
+    public class SqliteBuilderTrackingTable : IDbBuilderTrackingTableHelper
     {
         private ObjectNameParser tableName;
         private ObjectNameParser trackingName;
         private DmTable tableDescription;
-        private SQLiteConnection connection;
-        private SQLiteTransaction transaction;
-        private SQLiteDbMetadata sqliteDbMetadata;
+        private SqliteConnection connection;
+        private SqliteTransaction transaction;
+        private SqliteDbMetadata sqliteDbMetadata;
 
         public FilterClauseCollection Filters { get; set; }
 
 
-        public SQLiteBuilderTrackingTable(DmTable tableDescription, DbConnection connection, DbTransaction transaction = null)
+        public SqliteBuilderTrackingTable(DmTable tableDescription, DbConnection connection, DbTransaction transaction = null)
         {
-            this.connection = connection as SQLiteConnection;
-            this.transaction = transaction as SQLiteTransaction;
+            this.connection = connection as SqliteConnection;
+            this.transaction = transaction as SqliteTransaction;
             this.tableDescription = tableDescription;
-            (this.tableName, this.trackingName) = SQLiteBuilder.GetParsers(this.tableDescription);
-            this.sqliteDbMetadata = new SQLiteDbMetadata();
+            (this.tableName, this.trackingName) = SqliteBuilder.GetParsers(this.tableDescription);
+            this.sqliteDbMetadata = new SqliteDbMetadata();
         }
 
 
@@ -53,32 +53,34 @@ namespace Dotmim.Sync.SQLite
 
         public void CreatePk()
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
-            try
-            {
-                using (var command = new SQLiteCommand())
-                {
-                    if (!alreadyOpened)
-                        this.connection.Open();
+            return;
 
-                    if (transaction != null)
-                        command.Transaction = transaction;
+            //bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            //try
+            //{
+            //    using (var command = new SqliteCommand())
+            //    {
+            //        if (!alreadyOpened)
+            //            this.connection.Open();
 
-                    command.CommandText = this.CreatePkCommandText();
-                    command.Connection = this.connection;
-                    command.ExecuteNonQuery();
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.Current.Error($"Error during CreateIndex : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-            }
+            //        if (transaction != null)
+            //            command.Transaction = transaction;
+
+            //        command.CommandText = this.CreatePkCommandText();
+            //        command.Connection = this.connection;
+            //        command.ExecuteNonQuery();
+            //    }
+            //}
+            //catch (Exception ex)
+            //{
+            //    Logger.Current.Error($"Error during CreateIndex : {ex}");
+            //    throw;
+            //}
+            //finally
+            //{
+            //    if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
+            //        this.connection.Close();
+            //}
         }
         public string CreatePkScriptText()
         {
@@ -97,7 +99,7 @@ namespace Dotmim.Sync.SQLite
 
             try
             {
-                using (var command = new SQLiteCommand())
+                using (var command = new SqliteCommand())
                 {
                     if (!alreadyOpened)
                         this.connection.Open();
@@ -130,7 +132,7 @@ namespace Dotmim.Sync.SQLite
         public string CreateTableScriptText()
         {
             string str = string.Concat("Create Tracking Table ", trackingName.QuotedString);
-            return SQLiteBuilder.WrapScriptTextWithComments(this.CreateTableCommandText(), str);
+            return SqliteBuilder.WrapScriptTextWithComments(this.CreateTableCommandText(), str);
         }
 
         public string CreateTableCommandText()
@@ -143,8 +145,8 @@ namespace Dotmim.Sync.SQLite
             {
                 var quotedColumnName = new ObjectNameParser(pkColumn.ColumnName, "[", "]").QuotedString;
 
-                var columnTypeString = this.sqliteDbMetadata.TryGetOwnerDbTypeString(pkColumn.OriginalDbType, pkColumn.DbType, false, false, this.tableDescription.OriginalProvider, SQLiteSyncProvider.ProviderType);
-                var columnPrecisionString = this.sqliteDbMetadata.TryGetOwnerDbTypePrecision(pkColumn.OriginalDbType, pkColumn.DbType, false, false, pkColumn.MaxLength, pkColumn.Precision, pkColumn.Scale, this.tableDescription.OriginalProvider, SQLiteSyncProvider.ProviderType);
+                var columnTypeString = this.sqliteDbMetadata.TryGetOwnerDbTypeString(pkColumn.OriginalDbType, pkColumn.DbType, false, false, this.tableDescription.OriginalProvider, SqliteSyncProvider.ProviderType);
+                var columnPrecisionString = this.sqliteDbMetadata.TryGetOwnerDbTypePrecision(pkColumn.OriginalDbType, pkColumn.DbType, false, false, pkColumn.MaxLength, pkColumn.Precision, pkColumn.Scale, this.tableDescription.OriginalProvider, SqliteSyncProvider.ProviderType);
                 var quotedColumnType = new ObjectNameParser(columnTypeString, "[", "]").QuotedString;
                 quotedColumnType += columnPrecisionString;
 
@@ -152,8 +154,8 @@ namespace Dotmim.Sync.SQLite
             }
 
             // adding the tracking columns
-            stringBuilder.AppendLine($"[create_scope_id] [text] NULL COLLATE NOCASE, ");
-            stringBuilder.AppendLine($"[update_scope_id] [text] NULL COLLATE NOCASE, ");
+            stringBuilder.AppendLine($"[create_scope_id] [blob] NULL COLLATE NOCASE, ");
+            stringBuilder.AppendLine($"[update_scope_id] [blob] NULL COLLATE NOCASE, ");
             stringBuilder.AppendLine($"[create_timestamp] [integer] NULL, ");
             stringBuilder.AppendLine($"[update_timestamp] [integer] NULL, ");
             stringBuilder.AppendLine($"[timestamp] [integer] NULL, ");
@@ -172,8 +174,8 @@ namespace Dotmim.Sync.SQLite
             //            continue;
 
             //        var quotedColumnName = new ObjectNameParser(filterColumn.ColumnName, "[", "]").QuotedString;
-            //        var quotedColumnType = new ObjectNameParser(filterColumn.GetSQLiteDbTypeString(), "[", "]").QuotedString;
-            //        quotedColumnType += filterColumn.GetSQLiteTypePrecisionString();
+            //        var quotedColumnType = new ObjectNameParser(filterColumn.GetSqliteDbTypeString(), "[", "]").QuotedString;
+            //        quotedColumnType += filterColumn.GetSqliteTypePrecisionString();
             //        var nullableColumn = filterColumn.AllowDBNull ? "NULL" : "NOT NULL";
 
             //        stringBuilder.AppendLine($"{quotedColumnName} {quotedColumnType} {nullableColumn}, ");
@@ -201,7 +203,7 @@ namespace Dotmim.Sync.SQLite
         public bool NeedToCreateTrackingTable(DbBuilderOption builderOption)
         {
             if (builderOption.HasFlag(DbBuilderOption.CreateOrUseExistingSchema))
-                return !SQLiteManagementUtils.TableExists(connection, transaction, trackingName.QuotedString);
+                return !SqliteManagementUtils.TableExists(connection, transaction, trackingName.QuotedString);
 
             return false;
         }
@@ -212,7 +214,7 @@ namespace Dotmim.Sync.SQLite
 
             try
             {
-                using (var command = new SQLiteCommand())
+                using (var command = new SqliteCommand())
                 {
                     if (!alreadyOpened)
                         this.connection.Open();
@@ -300,9 +302,9 @@ namespace Dotmim.Sync.SQLite
             stringBuilder.Append(string.Concat("SELECT ", stringBuilder2.ToString(), ", "));
             stringBuilder.Append("NULL, ");
             stringBuilder.Append("NULL, ");
-            stringBuilder.Append($"{SQLiteObjectNames.TimestampValue}, ");
+            stringBuilder.Append($"{SqliteObjectNames.TimestampValue}, ");
             stringBuilder.Append("0, ");
-            stringBuilder.Append($"{SQLiteObjectNames.TimestampValue}, ");
+            stringBuilder.Append($"{SqliteObjectNames.TimestampValue}, ");
             stringBuilder.Append("0");
             stringBuilder.AppendLine(string.Concat(stringBuilder5.ToString(), " "));
             string[] localName = new string[] { "FROM ", tableName.QuotedString, " ", baseTable, " LEFT OUTER JOIN ", trackingName.QuotedString, " ", sideTable, " " };
@@ -315,7 +317,7 @@ namespace Dotmim.Sync.SQLite
         public string CreatePopulateFromBaseTableScriptText()
         {
             string str = string.Concat("Populate tracking table ", trackingName.QuotedString, " for existing data in table ", tableName.QuotedString);
-            return SQLiteBuilder.WrapScriptTextWithComments(this.CreatePopulateFromBaseTableCommandText(), str);
+            return SqliteBuilder.WrapScriptTextWithComments(this.CreatePopulateFromBaseTableCommandText(), str);
         }
 
         public void PopulateNewFilterColumnFromBaseTable(DmColumn filterColumn)
@@ -334,7 +336,7 @@ namespace Dotmim.Sync.SQLite
 
             try
             {
-                using (var command = new SQLiteCommand())
+                using (var command = new SqliteCommand())
                 {
                     if (!alreadyOpened)
                         this.connection.Open();
@@ -366,8 +368,8 @@ namespace Dotmim.Sync.SQLite
         private string AddFilterColumnCommandText(DmColumn col)
         {
             var quotedColumnName = new ObjectNameParser(col.ColumnName, "[", "]").QuotedString;
-            var columnTypeString = this.sqliteDbMetadata.TryGetOwnerDbTypeString(col.OriginalDbType, col.DbType, false, false, this.tableDescription.OriginalProvider, SQLiteSyncProvider.ProviderType);
-            var columnPrecisionString = this.sqliteDbMetadata.TryGetOwnerDbTypePrecision(col.OriginalDbType, col.DbType, false, false, col.MaxLength, col.Precision, col.Scale, this.tableDescription.OriginalProvider, SQLiteSyncProvider.ProviderType);
+            var columnTypeString = this.sqliteDbMetadata.TryGetOwnerDbTypeString(col.OriginalDbType, col.DbType, false, false, this.tableDescription.OriginalProvider, SqliteSyncProvider.ProviderType);
+            var columnPrecisionString = this.sqliteDbMetadata.TryGetOwnerDbTypePrecision(col.OriginalDbType, col.DbType, false, false, col.MaxLength, col.Precision, col.Scale, this.tableDescription.OriginalProvider, SqliteSyncProvider.ProviderType);
             var quotedColumnType = new ObjectNameParser(columnTypeString, "[", "]").QuotedString;
             quotedColumnType += columnPrecisionString;
 
@@ -378,7 +380,7 @@ namespace Dotmim.Sync.SQLite
             var quotedColumnName = new ObjectNameParser(filterColumn.ColumnName, "[", "]");
 
             string str = string.Concat("Add new filter column, ", quotedColumnName.UnquotedString, ", to Tracking Table ", trackingName.QuotedString);
-            return SQLiteBuilder.WrapScriptTextWithComments(this.AddFilterColumnCommandText(filterColumn), str);
+            return SqliteBuilder.WrapScriptTextWithComments(this.AddFilterColumnCommandText(filterColumn), str);
         }
 
 

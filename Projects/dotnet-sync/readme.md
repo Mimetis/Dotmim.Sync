@@ -56,7 +56,7 @@ End Session.
 
 ## CLI Project
 
-The CLI will create a **CLI Project** stored in a datastore. Actually, a **SQLite** database is used to store CLI projects.
+The CLI will create a **CLI Project** stored in a datastore. Actually, a **Sqlite** database is used to store CLI projects.
 A **CLI Project** is mandatory to be able to launch a synchronization beetween two databases. 
 
 A **CLI Project** is defined by :
@@ -75,6 +75,7 @@ References :
 * Adding the cli to `dotnet` command : [abusing dotnet core cli](https://surfingthecode.com/2017/02/abusing-dotnet-core-cli/)  
 * `dotnet` extensibility model [https://docs.microsoft.com/fr-fr/dotnet/core/tools/extensibility](https://docs.microsoft.com/fr-fr/dotnet/core/tools/extensibility)
 * Installing the `dotnet ef` CLI : [https://docs.microsoft.com/en-us/ef/core/miscellaneous/cli/dotnet](https://docs.microsoft.com/fr-fr/dotnet/core/tools/extensibility) : Great, but require a `.csproj` file.
+* (https://blog.maartenballiauw.be/post/2017/04/10/extending-dotnet-cli-with-custom-tools.html)[https://blog.maartenballiauw.be/post/2017/04/10/extending-dotnet-cli-with-custom-tools.html]
 
 ## CLI Commands
 

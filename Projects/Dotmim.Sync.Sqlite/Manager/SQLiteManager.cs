@@ -5,11 +5,11 @@ using System.Text;
 using System.Data.Common;
 
 
-namespace Dotmim.Sync.SQLite
+namespace Dotmim.Sync.Sqlite
 {
-    public class SQLiteManager : DbManager
+    public class SqliteManager : DbManager
     {
-        public SQLiteManager(string tableName) : base(tableName)
+        public SqliteManager(string tableName) : base(tableName)
         {
 
         }
@@ -17,7 +17,7 @@ namespace Dotmim.Sync.SQLite
         public override IDbManagerTable CreateManagerTable(DbConnection connection, DbTransaction transaction = null)
         {
             // TODO : works with PRAGMA table_info('TableNAme');
-            throw new NotImplementedException("At this time, SQLite does not support getting table structure from SQLite metadatas");
+            throw new NotImplementedException("At this time, Sqlite does not support getting table structure from Sqlite metadatas");
         }
 
 
