@@ -93,8 +93,20 @@ namespace Dotmim.Sync.MySql
         }
         public MySqlSyncProvider(string connectionString) : base()
         {
+            
             this.ConnectionString = connectionString;
         }
+
+
+        public MySqlSyncProvider(MySqlConnectionStringBuilder builder) : base()
+        {
+            if (String.IsNullOrEmpty(builder.ConnectionString))
+                throw new Exception("You have to provide parameters to the MySql builder to be able to construct a valid connection string.");
+
+
+            this.ConnectionString = builder.ConnectionString;
+        }
+
 
         public override DbConnection CreateConnection() => new MySqlConnection(this.ConnectionString);
 

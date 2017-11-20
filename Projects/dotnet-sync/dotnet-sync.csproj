@@ -6,10 +6,16 @@
     <RootNamespace>Dotmim.Sync.Tools</RootNamespace>
     <Description>Dotmim Sync Command Line Tools</Description>
     <StartupObject>Dotmim.Sync.Tools.Program</StartupObject>
-    <!--<RuntimeIdentifier>win10-x64</RuntimeIdentifier>-->
+    <Title>Dotmim.Sync.Tools</Title>
+    <Authors>Sébastien Pertus</Authors>
+    <Company>Microsoft</Company>
+    <Description>
+      Dotmim Sync Tools allows you to use a CLI console to be able to sync through Dotmim.Sync framework.
+    </Description>
+    <PackageProjectUrl>https://github.com/Mimetis/Dotmim.Sync/</PackageProjectUrl>
+    <PackageTags>Dotmim.Sync.Tools, Sync, CLI, Sync Provider, .Net Standard 2.0</PackageTags>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageType>DotnetCliTool</PackageType>
-    <PackageTags>dotnet;sync</PackageTags>
     <PackageId>Dotmim.Sync.Tools</PackageId>
     <Version>0.1.5</Version>
   </PropertyGroup>
