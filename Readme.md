@@ -2,8 +2,8 @@
 
 If you want to contribute or test :  
 * Code is a work in progress, no available Nuget packages at this time. 
-* Code is a work in progress, I found bugs every days. No doubt you'll find a lot, too. Keep calm and open an issue :)
-* Code is a work in progress, if you want to test / code / you need to install **Visual Studio 2017 Preview** to be able to target **.net standard 2.0**.
+* Code is a work in progress, I find bugs every day. No doubt you'll find a lot, too. Keep calm and open an issue :)
+* Code is a work in progress, if you want to test / code / you need to install **Visual Studio 2017 Preview** or higher, to be able to target **.net standard 2.0**.
 
 ![](Assets/VS2017.png)
 
