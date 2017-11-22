@@ -54,7 +54,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
             var dbType = column.DbType;
             var precision = column.Precision;
-            int maxLength = column.MaxLength;
+            long maxLength = (long)column.MaxLength;
 
             SqlDbType sqlDbType = (SqlDbType)this.sqlMetadata.TryGetOwnerDbType(column.OriginalDbType, column.DbType, false, false, this.TableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
 
@@ -62,8 +62,13 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             if (sqlDbType == SqlDbType.VarChar || sqlDbType == SqlDbType.NVarChar)
             {
-                maxLength = Convert.ToInt32(column.MaxLength) <= 0 ? 8000 : Convert.ToInt32(column.MaxLength);
-                maxLength = sqlDbType == SqlDbType.NVarChar ? Math.Min(maxLength, 4000) : Math.Min(maxLength, 8000);
+                // set value for (MAX) 
+                maxLength = maxLength < 0 ? SqlMetaData.Max : maxLength;
+
+                // If max length is specified (not (MAX) )
+                if (maxLength > 0)
+                    maxLength = sqlDbType == SqlDbType.NVarChar ? Math.Min(maxLength, 4000) : Math.Min(maxLength, 8000);
+
                 return new SqlMetaData(column.ColumnName, sqlDbType, maxLength);
             }
 
@@ -72,15 +77,24 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             if (sqlDbType == SqlDbType.Char || sqlDbType == SqlDbType.NChar)
             {
-                maxLength = Convert.ToInt32(column.MaxLength) <= 0 ? (sqlDbType == SqlDbType.NChar ? 4000 : 8000) : Convert.ToInt32(column.MaxLength);
+                maxLength = maxLength <= 0 ? (sqlDbType == SqlDbType.NChar ? 4000 : 8000) : maxLength;
                 return new SqlMetaData(column.ColumnName, sqlDbType, maxLength);
             }
 
-            if (sqlDbType == SqlDbType.Binary || sqlDbType == SqlDbType.VarBinary)
+            if (sqlDbType == SqlDbType.Binary)
             {
-                maxLength = Convert.ToInt32(column.MaxLength) <= 0 ? 8000 : Convert.ToInt32(column.MaxLength);
+                maxLength = maxLength <= 0 ? 8000 : maxLength;
                 return new SqlMetaData(column.ColumnName, sqlDbType, maxLength);
             }
+
+            if (sqlDbType == SqlDbType.VarBinary)
+            {
+                // set value for (MAX) 
+                maxLength = maxLength <= 0 ? SqlMetaData.Max : maxLength;
+
+                return new SqlMetaData(column.ColumnName, sqlDbType, maxLength);
+            }
+
 
             return new SqlMetaData(column.ColumnName, sqlDbType);
 
@@ -297,11 +311,12 @@ namespace Dotmim.Sync.SqlServer.Builders
                     failedRows.Fill(dataReader);
                 }
             }
-            catch (DbException)
+            catch (DbException ex)
             {
                 //DbException dbException = dbException1;
                 //Error = CheckZombieTransaction(tvpCommandNameForApplyType, Adapter.TableName, dbException);
                 //this.AddFailedRowsAfterRIFailure(applyTable, failedRows);
+                throw;
             }
             finally
             {
