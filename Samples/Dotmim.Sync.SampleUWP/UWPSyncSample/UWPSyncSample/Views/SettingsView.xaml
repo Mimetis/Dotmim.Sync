@@ -1,0 +1,138 @@
+﻿<Page
+    x:Class="UWPSyncSample.Views.SettingsView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:UWPSyncSample.Views"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Text="Settings" Style="{StaticResource TitleStyle}" />
+
+        <ScrollViewer Grid.Row="1">
+            <StackPanel>
+                <StackPanel.Transitions>
+                    <TransitionCollection>
+                        <EntranceThemeTransition IsStaggeringEnabled="False" FromVerticalOffset="50"/>
+                    </TransitionCollection>
+                </StackPanel.Transitions>
+
+                <RelativePanel Margin="10">
+                    <TextBlock Name="LabelServer"
+                           Text="Server connections strings"
+                           FontSize="24"
+                           />
+
+                    <TextBlock Name="LabelServerSqlServer"
+                           Text="Server of type Sql Server"
+                           RelativePanel.Below="LabelServer"
+                           FontSize="18" Margin="0,10,0,0" />
+
+                    <TextBox Name="TextServerSqlServer"
+                             Width="600"
+                             Text="{x:Bind ViewModel.Server_SqlServer, Mode=TwoWay}"
+                             RelativePanel.Below="LabelServerSqlServer"
+                             FontSize="18" />
+
+                    <TextBlock Name="LabelServerProxy"
+                           Text="Web Proxy"
+                           RelativePanel.Below="TextServerSqlServer"
+                           FontSize="18" Margin="0,10,0,0" />
+
+                    <TextBox Name="TextServerProxy"
+                             Width="600"
+                             Text="{x:Bind ViewModel.WebProxy, Mode=TwoWay}"
+                             RelativePanel.Below="LabelServerProxy"
+                             FontSize="18" />
+
+
+                </RelativePanel>
+
+                <RelativePanel Margin="10">
+                    <TextBlock Name="LabelClient"
+                           Text="Client connections strings"
+                           FontSize="24"
+                           />
+
+                    <TextBlock Name="LabelClientSqlServer"
+                           Text="Client of type Sql Server"
+                           RelativePanel.Below="LabelClient"
+                           FontSize="18" Margin="0,10,0,0" />
+
+                    <TextBox Name="TextClientSqlServer"
+                             Width="600"
+                             Text="{x:Bind ViewModel.Client_SqlServer, Mode=TwoWay}"
+                             RelativePanel.Below="LabelClientSqlServer"
+                             FontSize="18" />
+
+                    <TextBlock Name="LabelClientSqlServerHttp"
+                           Text="Client of type Sql Server, through http proxy"
+                           RelativePanel.Below="TextClientSqlServer"
+                           FontSize="18" Margin="0,10,0,0" />
+
+                    <TextBox Name="TextClientSqlServerHttp"
+                             Width="600"
+                             Text="{x:Bind ViewModel.Client_Http_SqlServer, Mode=TwoWay}"
+                             RelativePanel.Below="LabelClientSqlServerHttp"
+                             FontSize="18" />
+
+                    <TextBlock Name="LabelClientSqlite"
+                           Text="Client of type Sqlite"
+                           RelativePanel.Below="TextClientSqlServerHttp"
+                           FontSize="18" Margin="0,10,0,0" />
+
+                    <TextBox Name="TextClientSqlite"
+                             Width="600"
+                             Text="{x:Bind ViewModel.Client_Sqlite, Mode=TwoWay}"
+                             RelativePanel.Below="LabelClientSqlite"
+                             FontSize="18" />
+
+                    <TextBlock Name="LabelClientSqliteHttp"
+                           Text="Client of type Sql Server, through http proxy"
+                           RelativePanel.Below="TextClientSqlite"
+                           FontSize="18" Margin="0,10,0,0" />
+
+                    <TextBox Name="TextClientSqliteHttp"
+                             Width="600"
+                             Text="{x:Bind ViewModel.Client_Http_Sqlite, Mode=TwoWay}"
+                             RelativePanel.Below="LabelClientSqliteHttp"
+                             FontSize="18" />
+
+
+                </RelativePanel>
+
+                <RelativePanel Margin="10" HorizontalAlignment="Stretch" >
+
+                    <TextBlock Name="LabelSync" Text="Save changes" FontSize="24" />
+
+                    <Button Style="{StaticResource TextBlockButtonStyle}" 
+                            HorizontalContentAlignment="Left"
+                            Click="{x:Bind ViewModel.SaveClick}"
+                            RelativePanel.Below="LabelSync"
+                            Name="ButtonSync"
+                            Width="200" Margin="0,10,0,0">
+                        <Grid HorizontalAlignment="Left">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="40" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <SymbolIcon HorizontalAlignment="Left" Symbol="Save" />
+                            <TextBlock  HorizontalAlignment="Left" Text="Save Changes" Grid.Column="1" />
+                        </Grid>
+                    </Button>
+
+                </RelativePanel>
+
+            </StackPanel>
+            
+            
+        </ScrollViewer>
+        
+    </Grid>
+</Page>

@@ -23,6 +23,8 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using MySql.Data.MySqlClient;
+using Dotmim.Sync.MySql;
 
 class Program
 {
@@ -37,14 +39,44 @@ class Program
 
         //TestAllAvailablesColumns().GetAwaiter().GetResult();
 
-        TestSyncSqlite().GetAwaiter().GetResult();
+        // TestSyncSqlite().GetAwaiter().GetResult();
 
-        //TestMySqlSync().GetAwaiter().GetResult();
+        TestMySqlDeriveParameters().GetAwaiter().GetResult();
 
 
         //TestSyncThroughWebApi().GetAwaiter().GetResult();
 
         Console.ReadLine();
+
+    }
+
+
+    public static async Task TestMySqlDeriveParameters()
+    {
+        string c = @"Server=mysqlll.mysql.database.azure.com; Port=3306; Database=contosoclient; Uid=spertus@mysqlll; Pwd=DB56hy76; SslMode=Preferred;";
+
+        MySqlConnection mySqlConnection = new MySqlConnection(c);
+
+        try
+        {
+            mySqlConnection.Open();
+
+            MySqlCommand command = new MySqlCommand("servicetickets_selectrow", mySqlConnection);
+
+         //   var dmTable = mySqlConnection.GetProcedureParameters("contosoclient", "servicetickets_selectrow");
+
+
+
+        }
+        catch (Exception ex)
+        {
+
+            Console.WriteLine(ex.Message);
+        }
+        finally
+        {
+            mySqlConnection.Close();
+        }
 
     }
 

@@ -25,7 +25,7 @@ namespace Dotmim.Sync.Cache
         /// </summary>
         public virtual void Set<T>(string cacheKey, T value)
         {
-            cacheStore.AddOrUpdate(cacheKey, value, (s, v) => v);
+            cacheStore.AddOrUpdate(cacheKey, value, (s, v) => value);
         }
 
 
