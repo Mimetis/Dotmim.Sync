@@ -99,8 +99,9 @@ namespace Dotmim.Sync.Batch
             else
                 hasData = changesSet.Tables.Any(t => t.Rows.Count > 0);
 
-            if (!hasData)
-                return null;
+            // Sometimes we can have a last BPI without any data, but we need to generate it to be able to have the IsLast batch property
+            //if (!hasData)
+            //    return null;
 
             BatchPartInfo bpi = null;
             // Create a batch part
