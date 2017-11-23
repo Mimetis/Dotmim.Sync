@@ -137,7 +137,7 @@ namespace Dotmim.Sync.MySql
                 if (!alreadyOpened)
                     connection.Open();
 
-                long result = Convert.ToInt64(command.ExecuteScalar()) ;
+                long result = Convert.ToInt64(command.ExecuteScalar());
 
                 return result;
             }
@@ -159,70 +159,80 @@ namespace Dotmim.Sync.MySql
 
         public ScopeInfo InsertOrUpdateScopeInfo(ScopeInfo scopeInfo)
         {
-            var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
             bool alreadyOpened = connection.State == ConnectionState.Open;
-
+            bool exist;
             try
             {
-                if (!alreadyOpened)
-                    connection.Open();
+                using (var command = connection.CreateCommand())
+                {
+                    if (transaction != null)
+                        command.Transaction = transaction;
 
-                command.CommandText = @"Select count(*) from scope_info where sync_scope_id = @sync_scope_id";
 
-                var p = command.CreateParameter();
-                p.ParameterName = "@sync_scope_id";
-                p.Value = scopeInfo.Id.ToString();
-                p.DbType = DbType.String;
-                command.Parameters.Add(p);
+                    if (!alreadyOpened)
+                        connection.Open();
 
-                var exist = (long)command.ExecuteScalar() > 0;
+                    command.CommandText = @"Select count(*) from scope_info where sync_scope_id = @sync_scope_id";
+
+                    var p = command.CreateParameter();
+                    p.ParameterName = "@sync_scope_id";
+                    p.Value = scopeInfo.Id.ToString();
+                    p.DbType = DbType.String;
+                    command.Parameters.Add(p);
+
+                    exist = (long)command.ExecuteScalar() > 0;
+
+                }
 
                 string stmtText = exist
                     ? $"Update scope_info set sync_scope_name=@sync_scope_name, scope_timestamp={MySqlObjectNames.TimestampValue}, scope_is_local=@scope_is_local, scope_last_sync=@scope_last_sync where sync_scope_id=@sync_scope_id"
                     : $"Insert into scope_info (sync_scope_name, scope_timestamp, scope_is_local, scope_last_sync, sync_scope_id) values (@sync_scope_name, {MySqlObjectNames.TimestampValue}, @scope_is_local, @scope_last_sync, @sync_scope_id)";
 
-                command = connection.CreateCommand();
-                command.CommandText = stmtText;
-
-                p = command.CreateParameter();
-                p.ParameterName = "@sync_scope_name";
-                p.Value = scopeInfo.Name;
-                p.DbType = DbType.String;
-                command.Parameters.Add(p);
-
-                p = command.CreateParameter();
-                p.ParameterName = "@scope_is_local";
-                p.Value = scopeInfo.IsLocal;
-                p.DbType = DbType.Boolean;
-                command.Parameters.Add(p);
-
-                p = command.CreateParameter();
-                p.ParameterName = "@scope_last_sync";
-                p.Value = scopeInfo.LastSync.HasValue ? (object)scopeInfo.LastSync.Value : DBNull.Value;
-                p.DbType = DbType.DateTime;
-                command.Parameters.Add(p);
-
-                p = command.CreateParameter();
-                p.ParameterName = "@sync_scope_id";
-                p.Value = scopeInfo.Id.ToString();
-                p.DbType = DbType.String;
-                command.Parameters.Add(p);
-
-                using (DbDataReader reader = command.ExecuteReader())
+                using (var command = connection.CreateCommand())
                 {
-                    while (reader.Read())
-                    {
-                        scopeInfo.Name = reader["sync_scope_name"] as String;
-                        scopeInfo.Id = new Guid((string)reader["sync_scope_id"]);
-                        scopeInfo.LastTimestamp = MySqlManager.ParseTimestamp(reader["scope_timestamp"]);
-                        scopeInfo.IsLocal = (bool)reader["scope_is_local"];
-                        scopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value ? (DateTime?)reader["scope_last_sync"] : null;
-                    }
-                }
+                    if (transaction != null)
+                        command.Transaction = transaction;
 
-                return scopeInfo;
+                    command.CommandText = stmtText;
+
+                    var p = command.CreateParameter();
+                    p.ParameterName = "@sync_scope_name";
+                    p.Value = scopeInfo.Name;
+                    p.DbType = DbType.String;
+                    command.Parameters.Add(p);
+
+                    p = command.CreateParameter();
+                    p.ParameterName = "@scope_is_local";
+                    p.Value = scopeInfo.IsLocal;
+                    p.DbType = DbType.Boolean;
+                    command.Parameters.Add(p);
+
+                    p = command.CreateParameter();
+                    p.ParameterName = "@scope_last_sync";
+                    p.Value = scopeInfo.LastSync.HasValue ? (object)scopeInfo.LastSync.Value : DBNull.Value;
+                    p.DbType = DbType.DateTime;
+                    command.Parameters.Add(p);
+
+                    p = command.CreateParameter();
+                    p.ParameterName = "@sync_scope_id";
+                    p.Value = scopeInfo.Id.ToString();
+                    p.DbType = DbType.String;
+                    command.Parameters.Add(p);
+
+                    using (DbDataReader reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            scopeInfo.Name = reader["sync_scope_name"] as String;
+                            scopeInfo.Id = new Guid((string)reader["sync_scope_id"]);
+                            scopeInfo.LastTimestamp = MySqlManager.ParseTimestamp(reader["scope_timestamp"]);
+                            scopeInfo.IsLocal = (bool)reader["scope_is_local"];
+                            scopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value ? (DateTime?)reader["scope_last_sync"] : null;
+                        }
+                    }
+
+                    return scopeInfo;
+                }
             }
             catch (Exception ex)
             {
@@ -233,9 +243,6 @@ namespace Dotmim.Sync.MySql
             {
                 if (!alreadyOpened && connection.State != ConnectionState.Closed)
                     connection.Close();
-
-                if (command != null)
-                    command.Dispose();
             }
         }
 
