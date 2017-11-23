@@ -15,7 +15,9 @@ So you must use it on classic .NET Framework ( &gt; 4.5)</Description>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="MySql.Data" Version="6.9.9" />
+    <PackageReference Include="MySqlConnector">
+      <Version>0.31.3</Version>
+    </PackageReference>
   </ItemGroup>
 
   <ItemGroup>

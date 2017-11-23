@@ -68,7 +68,7 @@ namespace Dotmim.Sync.MySql.Builders
                 case DbType.AnsiStringFixedLength:
                     return MySqlDbType.LongText;
                 case DbType.Binary:
-                    return MySqlDbType.Blob;
+                    return MySqlDbType.LongBlob;
                 case DbType.Boolean:
                     return MySqlDbType.Bit;
                 case DbType.Byte:
@@ -94,7 +94,7 @@ namespace Dotmim.Sync.MySql.Builders
                 case DbType.Int64:
                     return MySqlDbType.Int64;
                 case DbType.Object:
-                    return MySqlDbType.Blob;
+                    return MySqlDbType.LongBlob;
                 case DbType.SByte:
                     return MySqlDbType.Byte;
                 case DbType.Single:
@@ -236,7 +236,7 @@ namespace Dotmim.Sync.MySql.Builders
             switch (dbType)
             {
                 case DbType.Binary:
-                    mySqlType = "BLOB";
+                    mySqlType = "LONGBLOB";
                     break;
                 case DbType.Boolean:
                 case DbType.Byte:
@@ -284,7 +284,7 @@ namespace Dotmim.Sync.MySql.Builders
                     mySqlType = "VARCHAR";
                     break;
                 case DbType.Object:
-                    mySqlType = "BLOB";
+                    mySqlType = "LONGBLOB";
                     break;
             }
 
@@ -362,9 +362,9 @@ namespace Dotmim.Sync.MySql.Builders
                 case MySqlDbType.Blob:
                     return "BLOB";
                 case MySqlDbType.VarBinary:
-                    return "BLOB";
+                    return "LONGBLOB";
                 case MySqlDbType.Binary:
-                    return "BLOB";
+                    return "LONGBLOB";
                 case MySqlDbType.Geometry:
                     return "GEOMETRY";
             }
@@ -460,6 +460,7 @@ namespace Dotmim.Sync.MySql.Builders
                 case "nvarchar":
                 case "enum":
                 case "set":
+                case "blob":
                 case "longblob":
                 case "tinyblob":
                 case "mediumblob":
@@ -544,6 +545,7 @@ namespace Dotmim.Sync.MySql.Builders
                 case "datetime":
                 case "newdate":
                     return DbType.DateTime;
+                case "blob":
                 case "longblob":
                 case "tinyblob":
                 case "mediumblob":
