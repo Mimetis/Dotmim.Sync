@@ -302,10 +302,13 @@ namespace Dotmim.Sync.MySql
         internal static MySqlParameter GetMySqlParameter(this DmColumn column)
         {
             MySqlDbMetadata mySqlDbMetadata = new MySqlDbMetadata();
-            MySqlParameter sqlParameter = new MySqlParameter();
-            sqlParameter.ParameterName = $"in{column.ColumnName}";
-            sqlParameter.DbType = column.DbType;
-            sqlParameter.IsNullable = column.AllowDBNull;
+
+            MySqlParameter sqlParameter = new MySqlParameter
+            {
+                ParameterName = $"in{column.ColumnName}",
+                DbType = column.DbType,
+                IsNullable = column.AllowDBNull
+            };
 
             (byte precision, byte scale) = mySqlDbMetadata.TryGetOwnerPrecisionAndScale(column.OriginalDbType, column.DbType, false, false, column.Precision, column.Scale, column.Table.OriginalProvider, MySqlSyncProvider.ProviderType);
 
