@@ -189,9 +189,14 @@ namespace Dotmim.Sync.MySql
         {
             MySqlCommand sqlCommand = new MySqlCommand();
             this.AddPkColumnParametersToCommand(sqlCommand);
-            MySqlParameter sqlParameter = new MySqlParameter("sync_force_write", MySqlDbType.Int32);
+            MySqlParameter sqlParameter = new MySqlParameter();
+            sqlParameter.ParameterName = "sync_force_write";
+            sqlParameter.MySqlDbType = MySqlDbType.Int32;
             sqlCommand.Parameters.Add(sqlParameter);
-            MySqlParameter sqlParameter1 = new MySqlParameter("sync_min_timestamp", MySqlDbType.Int64);
+
+            MySqlParameter sqlParameter1 = new MySqlParameter();
+            sqlParameter1.ParameterName = "sync_min_timestamp";
+            sqlParameter1.MySqlDbType = MySqlDbType.Int64;
             sqlCommand.Parameters.Add(sqlParameter1);
 
             StringBuilder stringBuilder = new StringBuilder();
@@ -205,11 +210,13 @@ namespace Dotmim.Sync.MySql
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
+
         public void CreateDelete()
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteRow);
             CreateProcedureCommand(BuildDeleteCommand, commandName);
         }
+
         public string CreateDeleteScriptText()
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteRow);
@@ -224,25 +231,32 @@ namespace Dotmim.Sync.MySql
         {
             MySqlCommand sqlCommand = new MySqlCommand();
             this.AddPkColumnParametersToCommand(sqlCommand);
-            MySqlParameter sqlParameter = new MySqlParameter("sync_check_concurrency", MySqlDbType.Int32);
+            MySqlParameter sqlParameter = new MySqlParameter();
+            sqlParameter.ParameterName = "sync_check_concurrency";
+            sqlParameter.MySqlDbType = MySqlDbType.Int32;
             sqlCommand.Parameters.Add(sqlParameter);
-            MySqlParameter sqlParameter1 = new MySqlParameter("sync_row_timestamp", MySqlDbType.Int64);
+
+            MySqlParameter sqlParameter1 = new MySqlParameter();
+            sqlParameter1.ParameterName = "sync_row_timestamp";
+            sqlParameter1.MySqlDbType = MySqlDbType.Int64;
             sqlCommand.Parameters.Add(sqlParameter1);
+
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($"DELETE FROM {trackingName.QuotedString} ");
             stringBuilder.Append($"WHERE ");
             stringBuilder.AppendLine(MySqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKey.Columns, ""));
             stringBuilder.Append(";");
-            stringBuilder.AppendLine();
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
+
         public void CreateDeleteMetadata()
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata);
             CreateProcedureCommand(BuildDeleteMetadataCommand, commandName);
         }
+
         public string CreateDeleteMetadataScriptText()
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata);
@@ -283,11 +297,13 @@ namespace Dotmim.Sync.MySql
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
+
         public void CreateInsert()
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertRow);
             CreateProcedureCommand(BuildInsertCommand, commandName);
         }
+
         public string CreateInsertScriptText()
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertRow);
@@ -305,14 +321,25 @@ namespace Dotmim.Sync.MySql
 
             StringBuilder stringBuilder = new StringBuilder();
             this.AddPkColumnParametersToCommand(sqlCommand);
-            MySqlParameter sqlParameter = new MySqlParameter("sync_scope_id", MySqlDbType.Guid);
+            MySqlParameter sqlParameter = new MySqlParameter();
+            sqlParameter.ParameterName = "sync_scope_id";
+            sqlParameter.MySqlDbType = MySqlDbType.Guid;
             sqlParameter.Size = 36;
             sqlCommand.Parameters.Add(sqlParameter);
-            MySqlParameter sqlParameter1 = new MySqlParameter("sync_row_is_tombstone", MySqlDbType.Int32);
+
+            MySqlParameter sqlParameter1 = new MySqlParameter();
+            sqlParameter1.ParameterName = "sync_row_is_tombstone";
+            sqlParameter1.MySqlDbType = MySqlDbType.Int32;
             sqlCommand.Parameters.Add(sqlParameter1);
-            MySqlParameter sqlParameter3 = new MySqlParameter("create_timestamp", MySqlDbType.Int64);
+
+            MySqlParameter sqlParameter3 = new MySqlParameter();
+            sqlParameter3.ParameterName = "create_timestamp";
+            sqlParameter3.MySqlDbType = MySqlDbType.Int64;
+
             sqlCommand.Parameters.Add(sqlParameter3);
-            MySqlParameter sqlParameter4 = new MySqlParameter("update_timestamp", MySqlDbType.Int64);
+            MySqlParameter sqlParameter4 = new MySqlParameter();
+            sqlParameter4.ParameterName = "update_timestamp";
+            sqlParameter4.MySqlDbType = MySqlDbType.Int64;
             sqlCommand.Parameters.Add(sqlParameter4);
 
             stringBuilder.AppendLine($"\tINSERT INTO {trackingName.QuotedString}");
@@ -326,29 +353,30 @@ namespace Dotmim.Sync.MySql
                 empty = ", ";
             }
             stringBuilder.Append($"\t({stringBuilderArguments.ToString()}, ");
-            stringBuilder.AppendLine($"\t`create_scope_id`, `create_timestamp`, `update_scope_id`, `update_timestamp`,");
+            stringBuilder.AppendLine($"`create_scope_id`, `create_timestamp`, `update_scope_id`, `update_timestamp`,");
             stringBuilder.AppendLine($"\t`sync_row_is_tombstone`, `timestamp`, `last_change_datetime`)");
             stringBuilder.Append($"\tVALUES ({stringBuilderParameters.ToString()}, ");
             stringBuilder.AppendLine($"\tcreate_scope_id, create_timestamp, update_scope_id, update_timestamp, ");
             stringBuilder.AppendLine($"\tsync_row_is_tombstone, {MySqlObjectNames.TimestampValue}, now())");
             stringBuilder.AppendLine($"\tON DUPLICATE KEY UPDATE");
-            stringBuilder.AppendLine($"\t `create_scope_id` = create_scope_id, ");
+            stringBuilder.AppendLine($"\t `create_scope_id` = sync_scope_id, ");
             stringBuilder.AppendLine($"\t `create_timestamp` = create_timestamp, ");
-            stringBuilder.AppendLine($"\t `update_scope_id` = update_scope_id, ");
+            stringBuilder.AppendLine($"\t `update_scope_id` = sync_scope_id, ");
             stringBuilder.AppendLine($"\t `update_timestamp` = update_timestamp, ");
             stringBuilder.AppendLine($"\t `sync_row_is_tombstone` = sync_row_is_tombstone, ");
             stringBuilder.AppendLine($"\t `timestamp` = {MySqlObjectNames.TimestampValue}, ");
             stringBuilder.AppendLine($"\t `last_change_datetime` = now(); ");
-            stringBuilder.AppendLine();
 
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
+
         public void CreateInsertMetadata()
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertMetadata);
             CreateProcedureCommand(BuildInsertMetadataCommand, commandName);
         }
+
         public string CreateInsertMetadataScriptText()
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertMetadata);
@@ -363,7 +391,10 @@ namespace Dotmim.Sync.MySql
         {
             MySqlCommand sqlCommand = new MySqlCommand();
             this.AddPkColumnParametersToCommand(sqlCommand);
-            MySqlParameter sqlParameter = new MySqlParameter("sync_scope_id", MySqlDbType.Guid);
+
+            MySqlParameter sqlParameter = new MySqlParameter();
+            sqlParameter.ParameterName = "sync_scope_id";
+            sqlParameter.MySqlDbType = MySqlDbType.Guid;
             sqlParameter.Size = 36;
             sqlCommand.Parameters.Add(sqlParameter);
 
@@ -406,11 +437,13 @@ namespace Dotmim.Sync.MySql
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
+
         public void CreateSelectRow()
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectRow);
             CreateProcedureCommand(BuildSelectRowCommand, commandName);
         }
+
         public string CreateSelectRowScriptText()
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectRow);
@@ -428,10 +461,16 @@ namespace Dotmim.Sync.MySql
             StringBuilder stringBuilder = new StringBuilder();
             this.AddColumnParametersToCommand(sqlCommand);
 
-            MySqlParameter sqlParameter = new MySqlParameter("sync_force_write", MySqlDbType.Int32);
+            MySqlParameter sqlParameter = new MySqlParameter();
+            sqlParameter.ParameterName = "sync_force_write";
+            sqlParameter.MySqlDbType = MySqlDbType.Int32;
             sqlCommand.Parameters.Add(sqlParameter);
-            MySqlParameter sqlParameter1 = new MySqlParameter("sync_min_timestamp", MySqlDbType.Int64);
+
+            MySqlParameter sqlParameter1 = new MySqlParameter();
+            sqlParameter1.ParameterName = "sync_min_timestamp";
+            sqlParameter1.MySqlDbType = MySqlDbType.Int64;
             sqlCommand.Parameters.Add(sqlParameter1);
+
 
             stringBuilder.AppendLine("DECLARE ts BIGINT;");
             stringBuilder.AppendLine("SET ts = 0;");
@@ -442,14 +481,24 @@ namespace Dotmim.Sync.MySql
             stringBuilder.Append($"WHERE {MySqlManagementUtils.WhereColumnAndParameters(this.tableDescription.PrimaryKey.Columns, "")}");
             stringBuilder.AppendLine($" AND (ts <= sync_min_timestamp OR sync_force_write = 1);");
 
+            stringBuilder.AppendLine();
+            // Can't rely on rows count since MySql will return 0 if an update don't update any columns
+
+            //stringBuilder.AppendLine($"/* Since the update 'could' potentially returns 0 as row affected count when we make a double update with the same values, to be sure, make a fake update on metadatas time column */");
+            //stringBuilder.AppendLine($"UPDATE {trackingName.QuotedObjectName} ");
+            //stringBuilder.AppendLine($"SET `timestamp` = {MySqlObjectNames.TimestampValue}");
+            //stringBuilder.AppendLine($"WHERE {MySqlManagementUtils.WhereColumnAndParameters(this.tableDescription.PrimaryKey.Columns, "")} AND (ts <= sync_min_timestamp OR sync_force_write = 1);");
+
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
+
         public void CreateUpdate()
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateRow);
             this.CreateProcedureCommand(BuildUpdateCommand, commandName);
         }
+
         public string CreateUpdateScriptText()
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateRow);
@@ -464,20 +513,33 @@ namespace Dotmim.Sync.MySql
             MySqlCommand sqlCommand = new MySqlCommand();
             StringBuilder stringBuilder = new StringBuilder();
             this.AddPkColumnParametersToCommand(sqlCommand);
-            MySqlParameter sqlParameter = new MySqlParameter("sync_scope_id", MySqlDbType.Guid);
+            MySqlParameter sqlParameter = new MySqlParameter();
+            sqlParameter.ParameterName = "sync_scope_id";
+            sqlParameter.MySqlDbType = MySqlDbType.Guid;
             sqlParameter.Size = 36;
             sqlCommand.Parameters.Add(sqlParameter);
-            MySqlParameter sqlParameter1 = new MySqlParameter("sync_row_is_tombstone", MySqlDbType.Int32);
-            sqlCommand.Parameters.Add(sqlParameter1);
-            MySqlParameter sqlParameter3 = new MySqlParameter("create_timestamp", MySqlDbType.Int64);
-            sqlCommand.Parameters.Add(sqlParameter3);
-            MySqlParameter sqlParameter5 = new MySqlParameter("update_timestamp", MySqlDbType.Int64);
-            sqlCommand.Parameters.Add(sqlParameter5);
 
+            MySqlParameter sqlParameter1 = new MySqlParameter();
+            sqlParameter1.ParameterName = "sync_row_is_tombstone";
+            sqlParameter1.MySqlDbType = MySqlDbType.Int32;
+            sqlCommand.Parameters.Add(sqlParameter1);
+
+            MySqlParameter sqlParameter3 = new MySqlParameter();
+            sqlParameter3.ParameterName = "create_timestamp";
+            sqlParameter3.MySqlDbType = MySqlDbType.Int64;
+            sqlCommand.Parameters.Add(sqlParameter3);
+
+            MySqlParameter sqlParameter5 = new MySqlParameter();
+            sqlParameter5.ParameterName = "update_timestamp";
+            sqlParameter5.MySqlDbType = MySqlDbType.Int64;
+            sqlCommand.Parameters.Add(sqlParameter5);
 
             stringBuilder.AppendLine($"DECLARE was_tombstone int;");
             stringBuilder.AppendLine($"SET was_tombstone = 1;");
-            stringBuilder.AppendLine($"SELECT was_tombstone = `sync_row_is_tombstone` FROM {trackingName.QuotedObjectName} WHERE {MySqlManagementUtils.WhereColumnAndParameters(this.tableDescription.PrimaryKey.Columns, trackingName.QuotedObjectName)};");
+            stringBuilder.AppendLine($"SELECT `sync_row_is_tombstone` " +
+                                     $"FROM {trackingName.QuotedObjectName} " +
+                                     $"WHERE {MySqlManagementUtils.WhereColumnAndParameters(this.tableDescription.PrimaryKey.Columns, trackingName.QuotedObjectName)} " +
+                                     $"LIMIT 1 INTO was_tombstone;");
             stringBuilder.AppendLine($"IF (was_tombstone is not null and was_tombstone = 1 and sync_row_is_tombstone = 0) THEN");
 
             stringBuilder.AppendLine($"UPDATE {trackingName.QuotedString}");
@@ -500,14 +562,17 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine($"\t `last_change_datetime` = now() ");
             stringBuilder.AppendLine($"WHERE {MySqlManagementUtils.WhereColumnAndParameters(this.tableDescription.PrimaryKey.Columns, "")};");
             stringBuilder.AppendLine("END IF;");
+
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
+
         public void CreateUpdateMetadata()
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata);
             CreateProcedureCommand(BuildUpdateMetadataCommand, commandName);
         }
+
         public string CreateUpdateMetadataScriptText()
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata);
@@ -521,12 +586,20 @@ namespace Dotmim.Sync.MySql
         private MySqlCommand BuildSelectIncrementalChangesCommand(bool withFilter = false)
         {
             MySqlCommand sqlCommand = new MySqlCommand();
-            MySqlParameter sqlParameter1 = new MySqlParameter("sync_min_timestamp", MySqlDbType.Int64);
-            MySqlParameter sqlParameter3 = new MySqlParameter("sync_scope_id", MySqlDbType.Guid);
-            sqlParameter3.Size = 36;
-            MySqlParameter sqlParameter4 = new MySqlParameter("sync_scope_is_new", MySqlDbType.Bit);
+            MySqlParameter sqlParameter1 = new MySqlParameter();
+            sqlParameter1.ParameterName = "sync_min_timestamp";
+            sqlParameter1.MySqlDbType = MySqlDbType.Int64;
             sqlCommand.Parameters.Add(sqlParameter1);
+
+            MySqlParameter sqlParameter3 = new MySqlParameter();
+            sqlParameter3.ParameterName = "sync_scope_id";
+            sqlParameter3.MySqlDbType = MySqlDbType.Guid;
+            sqlParameter3.Size = 36;
             sqlCommand.Parameters.Add(sqlParameter3);
+
+            MySqlParameter sqlParameter4 = new MySqlParameter();
+            sqlParameter4.ParameterName = "sync_scope_is_new";
+            sqlParameter4.MySqlDbType = MySqlDbType.Bit;
             sqlCommand.Parameters.Add(sqlParameter4);
 
 
@@ -651,6 +724,7 @@ namespace Dotmim.Sync.MySql
             //}
             return sqlCommand;
         }
+
         public void CreateSelectIncrementalChanges()
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChanges);
@@ -675,6 +749,7 @@ namespace Dotmim.Sync.MySql
             }
 
         }
+
         public string CreateSelectIncrementalChangesScriptText()
         {
             StringBuilder sbSelecteChanges = new StringBuilder();

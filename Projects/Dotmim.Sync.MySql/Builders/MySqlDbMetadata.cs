@@ -86,7 +86,7 @@ namespace Dotmim.Sync.MySql.Builders
                 case DbType.Double:
                     return MySqlDbType.Double;
                 case DbType.Guid:
-                    return MySqlDbType.VarChar;
+                    return MySqlDbType.Guid;
                 case DbType.Int16:
                     return MySqlDbType.Int16;
                 case DbType.Int32:

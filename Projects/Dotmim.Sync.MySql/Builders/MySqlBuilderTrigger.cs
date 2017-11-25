@@ -204,10 +204,10 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine("\t`sync_row_is_tombstone` = 0, ");
             stringBuilder.AppendLine("\t`create_scope_id` = NULL, ");
             stringBuilder.AppendLine("\t`update_scope_id` = NULL, ");
-            stringBuilder.AppendLine("\t`create_timestamp` = ROUND(UNIX_TIMESTAMP(CURTIME(4)) * 1000), ");
+            stringBuilder.AppendLine($"\t`create_timestamp` = {MySqlObjectNames.TimestampValue}, ");
             stringBuilder.AppendLine("\t`update_timestamp` = NULL, ");
             stringBuilder.AppendLine("\t`sync_row_is_tombstone` = 0, ");
-            stringBuilder.AppendLine("\t`timestamp` = ROUND(UNIX_TIMESTAMP(CURTIME(4)) * 1000), ");
+            stringBuilder.AppendLine($"\t`timestamp` = {MySqlObjectNames.TimestampValue}, ");
             stringBuilder.AppendLine("\t`last_change_datetime` = now()");
 
             if (Filters != null && Filters.Count > 0)

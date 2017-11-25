@@ -93,8 +93,13 @@ namespace Dotmim.Sync.MySql
         }
         public MySqlSyncProvider(string connectionString) : base()
         {
+
+            MySqlConnectionStringBuilder builder = new MySqlConnectionStringBuilder(connectionString);
             
-            this.ConnectionString = connectionString;
+            // Set the default behavior to use Found rows and not Affected rows !
+            builder.UseAffectedRows = false;
+
+            this.ConnectionString = builder.ConnectionString;
         }
 
 
@@ -103,6 +108,8 @@ namespace Dotmim.Sync.MySql
             if (String.IsNullOrEmpty(builder.ConnectionString))
                 throw new Exception("You have to provide parameters to the MySql builder to be able to construct a valid connection string.");
 
+            // Set the default behavior to use Found rows and not Affected rows !
+            builder.UseAffectedRows = false;
 
             this.ConnectionString = builder.ConnectionString;
         }
