@@ -1,4 +1,5 @@
-﻿using System;
+﻿using MySql.Data.MySqlClient;
+using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Text;
@@ -9,7 +10,7 @@ namespace Dotmim.Sync.Test.SqlUtils
     {
         public static String GetDatabaseConnectionString(string dbName) => $@"Data Source=(localdb)\MSSQLLocalDB; Initial Catalog={dbName}; Integrated Security=true;";
 
-        public static string GetMySqlDatabaseConnectionString(string dbName) => $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=azerty31*;";
+        public static string GetMySqlDatabaseConnectionString(string dbName) => $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=azerty31$;";
         /// <summary>
         /// Generate a database
         /// </summary>
@@ -25,6 +26,45 @@ namespace Dotmim.Sync.Test.SqlUtils
             masterConnection.Close();
         }
 
+
+        public void CreateMySqlDatabase(string dbName)
+        {
+            MySqlConnection sysConnection = null;
+            MySqlCommand cmdDb = null;
+            sysConnection = new MySqlConnection(HelperDB.GetMySqlDatabaseConnectionString("sys"));
+
+            sysConnection.Open();
+            cmdDb = new MySqlCommand($"create schema if not exists {dbName};", sysConnection);
+            cmdDb.ExecuteNonQuery();
+            sysConnection.Close();
+
+        }
+
+        public void DropMySqlDatabase(string dbName)
+        {
+            MySqlConnection sysConnection = null;
+            MySqlCommand cmdDb = null;
+            sysConnection = new MySqlConnection(HelperDB.GetMySqlDatabaseConnectionString("sys"));
+
+            sysConnection.Open();
+            cmdDb = new MySqlCommand($"drop database if exists {dbName};", sysConnection);
+            cmdDb.ExecuteNonQuery();
+            sysConnection.Close();
+
+        }
+
+
+        public void ExecuteMySqlScript(string dbName, string script)
+        {
+            MySqlConnection connection = null;
+            MySqlCommand cmdDb = null;
+            connection = new MySqlConnection(GetMySqlDatabaseConnectionString(dbName));
+
+            connection.Open();
+            cmdDb = new MySqlCommand(script, connection);
+            cmdDb.ExecuteNonQuery();
+            connection.Close();
+        }
         /// <summary>
         /// Delete a database
         /// </summary>
