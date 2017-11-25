@@ -14,6 +14,9 @@
     </PackageReference>
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="2.0.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.5.0" />
+    <PackageReference Include="MySqlConnector">
+      <Version>0.31.3</Version>
+    </PackageReference>
     <PackageReference Include="System.Data.SqlClient" Version="4.4.0" />
     <PackageReference Include="xunit" Version="2.2.0" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.2.0" />
@@ -21,6 +24,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Projects\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" />
+    <ProjectReference Include="..\..\Projects\Dotmim.Sync.MySql\Dotmim.Sync.MySql.csproj" />
     <ProjectReference Include="..\..\Projects\Dotmim.Sync.Sqlite\Dotmim.Sync.Sqlite.csproj" />
     <ProjectReference Include="..\..\Projects\Dotmim.Sync.SqlServer\Dotmim.Sync.SqlServer.csproj" />
     <ProjectReference Include="..\..\Projects\Dotmim.Sync.Web\Dotmim.Sync.Web.csproj" />
@@ -33,10 +37,9 @@
     <None Update="Backup\AdventureWorksLT2012.bak">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Backup\" />
+    <None Update="Backup\Wordpress.sql">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>
