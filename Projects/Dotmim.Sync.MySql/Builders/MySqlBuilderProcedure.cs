@@ -650,17 +650,6 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine("WHERE (");
             string str = string.Empty;
 
-            //  --Changes where only customerId is identified
-            //  (`side`.`CustomerId` = CustomerId
-
-            //   Or(
-            //       --Or row customer is null and it's come from the scope_id who deal the filter 
-            //       (`side`.`update_scope_id` = sync_scope_id or`side`.`update_scope_id` IS NULL)
-
-            //       and`side`.`CustomerId` is null
-            //   )
-            //)
-
             if (withFilter && this.Filters != null && this.Filters.Count > 0)
             {
                 StringBuilder builderFilter = new StringBuilder();
@@ -710,7 +699,20 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine("\tOR");
             stringBuilder.AppendLine("\t-- remote instance is new, so we don't take the last timestamp");
             stringBuilder.AppendLine("\tsync_scope_is_new = 1");
-            stringBuilder.AppendLine("\t);");
+            stringBuilder.AppendLine("\t)");
+            stringBuilder.AppendLine("AND (");
+            stringBuilder.AppendLine("\t`side`.`sync_row_is_tombstone` = 1 ");
+            stringBuilder.AppendLine("\tOR");
+            stringBuilder.Append("\t(`side`.`sync_row_is_tombstone` = 0");
+
+            empty = " AND ";
+            foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
+            {
+                var pkColumnName = new ObjectNameParser(pkColumn.ColumnName, "`", "`");
+                stringBuilder.Append($"{empty}`base`.{pkColumnName.QuotedString} is not null");
+            }
+            stringBuilder.AppendLine("\t)");
+            stringBuilder.AppendLine(");");
 
 
             sqlCommand.CommandText = stringBuilder.ToString();

@@ -15,7 +15,6 @@ namespace UWPSyncSample.Services
     public class ContosoServices : IContosoServices
     {
         private readonly ConnectionType contosoType;
-        private ContosoContext dbContext;
 
         public ContosoServices(ConnectionType contosoType)
         {
@@ -39,31 +38,31 @@ namespace UWPSyncSample.Services
 
         public void DeleteEmployee(Guid employeeId)
         {
-            if (this.contosoType == ConnectionType.Client_MySql || this.contosoType == ConnectionType.Client_Http_MySql)
-            {
-                var settingsHelper = ContainerHelper.Current.Container.Resolve<SettingsHelper>();
-                var csString = settingsHelper[contosoType];
+            //if (this.contosoType == ConnectionType.Client_MySql || this.contosoType == ConnectionType.Client_Http_MySql)
+            //{
+            //    var settingsHelper = ContainerHelper.Current.Container.Resolve<SettingsHelper>();
+            //    var csString = settingsHelper[contosoType];
 
-                try
-                {
-                    using (var connection = new MySqlConnection(csString))
-                    {
-                        connection.Open();
-                        string commandtext = "DELETE FROM employees where employeeid = @employeeid";
-                        MySqlCommand command = new MySqlCommand(commandtext, connection);
-                        command.Parameters.AddWithValue("@employeeId", employeeId);
+            //    try
+            //    {
+            //        using (var connection = new MySqlConnection(csString))
+            //        {
+            //            connection.Open();
+            //            string commandtext = "DELETE FROM employees where employeeid = @employeeid";
+            //            MySqlCommand command = new MySqlCommand(commandtext, connection);
+            //            command.Parameters.AddWithValue("@employeeId", employeeId);
 
-                        command.ExecuteNonQuery();
-                        connection.Close();
-                    }
-                }
-                catch (Exception)
-                {
+            //            command.ExecuteNonQuery();
+            //            connection.Close();
+            //        }
+            //    }
+            //    catch (Exception)
+            //    {
 
-                    throw;
-                }
-                return;
-            }
+            //        throw;
+            //    }
+            //    return;
+            //}
 
 
             using (var dbContext = new ContosoContext(this.contosoType))
@@ -86,38 +85,38 @@ namespace UWPSyncSample.Services
         public Employee GetEmployee(Guid employeeId)
         {
 
-            if (this.contosoType == ConnectionType.Client_MySql || this.contosoType == ConnectionType.Client_Http_MySql)
-            {
-                var settingsHelper = ContainerHelper.Current.Container.Resolve<SettingsHelper>();
-                var csString = settingsHelper[contosoType];
+            //if (this.contosoType == ConnectionType.Client_MySql || this.contosoType == ConnectionType.Client_Http_MySql)
+            //{
+            //    var settingsHelper = ContainerHelper.Current.Container.Resolve<SettingsHelper>();
+            //    var csString = settingsHelper[contosoType];
 
-                try
-                {
-                    using (var connection = new MySqlConnection(csString))
-                    {
-                        connection.Open();
-                        string commandtext = "SELECT * employees where employeeid = @employeeid";
-                        MySqlCommand command = new MySqlCommand(commandtext, connection);
-                        command.Parameters.AddWithValue("@employeeid", employeeId);
-                        Employee employee = null;
+            //    try
+            //    {
+            //        using (var connection = new MySqlConnection(csString))
+            //        {
+            //            connection.Open();
+            //            string commandtext = "SELECT * employees where employeeid = @employeeid";
+            //            MySqlCommand command = new MySqlCommand(commandtext, connection);
+            //            command.Parameters.AddWithValue("@employeeid", employeeId);
+            //            Employee employee = null;
 
-                        using (var reader = command.ExecuteReader())
-                        {
-                            reader.Read();
+            //            using (var reader = command.ExecuteReader())
+            //            {
+            //                reader.Read();
 
-                            employee = GetEmployeeFromReader(reader);
+            //                employee = GetEmployeeFromReader(reader);
 
-                        }
-                        connection.Close();
-                        return employee;
-                    }
-                }
-                catch (Exception)
-                {
+            //            }
+            //            connection.Close();
+            //            return employee;
+            //        }
+            //    }
+            //    catch (Exception)
+            //    {
 
-                    throw;
-                }
-            }
+            //        throw;
+            //    }
+            //}
 
             using (var dbContext = new ContosoContext(this.contosoType))
             {
@@ -132,38 +131,38 @@ namespace UWPSyncSample.Services
         public IEnumerable<Employee> GetEmployees()
         {
 
-            if (this.contosoType == ConnectionType.Client_MySql || this.contosoType == ConnectionType.Client_Http_MySql)
-            {
-                var settingsHelper = ContainerHelper.Current.Container.Resolve<SettingsHelper>();
-                var csString = settingsHelper[contosoType];
+            //if (this.contosoType == ConnectionType.Client_MySql || this.contosoType == ConnectionType.Client_Http_MySql)
+            //{
+            //    var settingsHelper = ContainerHelper.Current.Container.Resolve<SettingsHelper>();
+            //    var csString = settingsHelper[contosoType];
 
-                try
-                {
-                    using (var connection = new MySqlConnection(csString))
-                    {
-                        connection.Open();
-                        string commandtext = "SELECT * FROM employees";
-                        MySqlCommand command = new MySqlCommand(commandtext, connection);
-                        List<Employee> lstEmployees = null;
-                        using (var reader = command.ExecuteReader())
-                        {
-                            if (reader.HasRows)
-                                lstEmployees = new List<Employee>();
+            //    try
+            //    {
+            //        using (var connection = new MySqlConnection(csString))
+            //        {
+            //            connection.Open();
+            //            string commandtext = "SELECT * FROM employees";
+            //            MySqlCommand command = new MySqlCommand(commandtext, connection);
+            //            List<Employee> lstEmployees = null;
+            //            using (var reader = command.ExecuteReader())
+            //            {
+            //                if (reader.HasRows)
+            //                    lstEmployees = new List<Employee>();
 
-                            while (reader.Read())
-                                lstEmployees.Add(GetEmployeeFromReader(reader));
+            //                while (reader.Read())
+            //                    lstEmployees.Add(GetEmployeeFromReader(reader));
 
-                        }
-                        connection.Close();
-                        return lstEmployees;
-                    }
-                }
-                catch (Exception)
-                {
+            //            }
+            //            connection.Close();
+            //            return lstEmployees;
+            //        }
+            //    }
+            //    catch (Exception)
+            //    {
 
-                    throw;
-                }
-            }
+            //        throw;
+            //    }
+            //}
 
             using (var dbContext = new ContosoContext(this.contosoType))
             {

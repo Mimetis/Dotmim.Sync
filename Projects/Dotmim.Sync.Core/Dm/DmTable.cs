@@ -438,6 +438,7 @@ namespace Dotmim.Sync.Data
                 // colonne à copier
                 DmColumn srcColumn = src.Columns.FirstOrDefault(c => this.IsEqual(c.ColumnName, dstColumn.ColumnName));
 
+
                 if (srcColumn == null)
                 {
                     dstColumn.Init(newRecord);
@@ -457,9 +458,7 @@ namespace Dotmim.Sync.Data
                 }
                 if (dstColumn.DataType == typeof(byte[]))
                 {
-                    byte[] srcArray = (byte[])srcColumn[srcRecord];
-
-                    if (srcArray != null && srcArray.Length > 0)
+                    if (srcColumn[srcRecord] is byte[] srcArray && srcArray.Length > 0)
                     {
                         byte[] destArray = (byte[])dstColumn[newRecord];
                         destArray = new Byte[srcArray.Length];
@@ -469,8 +468,7 @@ namespace Dotmim.Sync.Data
                 }
                 if (dstColumn.DataType == typeof(char[]))
                 {
-                    char[] srcArray = (char[])srcColumn[srcRecord];
-                    if (srcArray != null && srcArray.Length > 0)
+                    if (srcColumn[srcRecord] is char[] srcArray && srcArray.Length > 0)
                     {
                         char[] destArray = (char[])dstColumn[newRecord];
                         destArray = new char[srcArray.Length];
@@ -479,11 +477,7 @@ namespace Dotmim.Sync.Data
 
                     continue;
                 }
-
-
-
                 dstColumn[newRecord] = srcColumn[srcRecord];
-
             }
         }
 

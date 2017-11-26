@@ -734,59 +734,52 @@ namespace Dotmim.Sync
 
                 DbCommandType commandType = DbCommandType.InsertMetadata;
 
-                if (conflict.Type == ConflictType.RemoteUpdateLocalNoRow || conflict.Type == ConflictType.RemoteInsertLocalNoRow)
+                switch (conflict.Type)
                 {
-                    operationComplete = this.ApplyInsert(row, localScope, true);
-                    commandType = DbCommandType.InsertMetadata;
+                    // Remote source has row, Local don't have the row, so insert it
+                    case ConflictType.RemoteUpdateLocalNoRow:
+                    case ConflictType.RemoteInsertLocalNoRow:
+                        operationComplete = this.ApplyInsert(row, localScope, true);
+                        commandType = DbCommandType.InsertMetadata;
+                        break;
+
+                    // Conflict, but both have delete the row, so nothing to do
+                    case ConflictType.RemoteDeleteLocalDelete:
+                    case ConflictType.RemoteDeleteLocalNoRow:
+                        operationComplete = true;
+                        break;
+
+                    // The remote has delete the row, and local has insert or update it
+                    // So delete the local row
+                    case ConflictType.RemoteDeleteLocalUpdate:
+                    case ConflictType.RemoteDeleteLocalInsert:
+                        operationComplete = this.ApplyDelete(row, localScope, true);
+                        commandType = DbCommandType.UpdateMetadata;
+                        break;
+
+
+                    // Remote insert and local delete, sor insert again on local
+                    // but tracking line exist, so make an update on metadata
+                    case ConflictType.RemoteInsertLocalDelete:
+                    case ConflictType.RemoteUpdateLocalDelete:
+                        operationComplete = this.ApplyInsert(row, localScope, true);
+                        commandType = DbCommandType.UpdateMetadata;
+                        break;
+
+                    // Remote insert and local insert/ update, take the remote row and update the local row
+                    case ConflictType.RemoteUpdateLocalInsert:
+                    case ConflictType.RemoteUpdateLocalUpdate:
+                    case ConflictType.RemoteInsertLocalInsert:
+                    case ConflictType.RemoteInsertLocalUpdate:
+                        operationComplete = this.ApplyUpdate(row, localScope, true);
+                        commandType = DbCommandType.UpdateMetadata;
+                        break;
+
+                    case ConflictType.RemoteCleanedupDeleteLocalUpdate:
+                    case ConflictType.ErrorsOccurred:
+                        return ChangeApplicationAction.Rollback;
                 }
-                else if (conflict.Type == ConflictType.RemoteDeleteLocalDelete)
-                {
-                    operationComplete = true;
-                }
-                else if (conflict.Type == ConflictType.RemoteDeleteLocalInsert)
-                {
-                    operationComplete = this.ApplyDelete(row, localScope, true);
-                    commandType = DbCommandType.UpdateMetadata;
-                }
-                else if (conflict.Type == ConflictType.RemoteDeleteLocalNoRow)
-                {
-                    operationComplete = true;
-                }
-                else if (conflict.Type == ConflictType.RemoteDeleteLocalUpdate)
-                {
-                    operationComplete = this.ApplyDelete(row, localScope, true);
-                    commandType = DbCommandType.UpdateMetadata;
-                }
-                else if (conflict.Type == ConflictType.RemoteInsertLocalDelete)
-                {
-                    operationComplete = this.ApplyInsert(row, localScope, true);
-                    commandType = DbCommandType.InsertMetadata;
-                }
-                else if (conflict.Type == ConflictType.RemoteInsertLocalInsert)
-                {
-                    operationComplete = this.ApplyUpdate(row, localScope, true);
-                    commandType = DbCommandType.UpdateMetadata;
-                }
-                else if (conflict.Type == ConflictType.RemoteInsertLocalUpdate)
-                {
-                    operationComplete = this.ApplyUpdate(row, localScope, true);
-                    commandType = DbCommandType.UpdateMetadata;
-                }
-                else if (conflict.Type == ConflictType.RemoteUpdateLocalDelete)
-                {
-                    operationComplete = this.ApplyInsert(row, localScope, true);
-                    commandType = DbCommandType.InsertMetadata;
-                }
-                else if (conflict.Type == ConflictType.RemoteUpdateLocalInsert)
-                {
-                    operationComplete = this.ApplyUpdate(row, localScope, true);
-                    commandType = DbCommandType.UpdateMetadata;
-                }
-                else if (conflict.Type == ConflictType.RemoteUpdateLocalUpdate)
-                {
-                    operationComplete = this.ApplyUpdate(row, localScope, true);
-                    commandType = DbCommandType.UpdateMetadata;
-                }
+
 
                 var metadataCommand = GetCommand(commandType);
 
@@ -806,7 +799,7 @@ namespace Dotmim.Sync
                     var ex = $"Can't force operation for applyType {applyType}";
                     Logger.Current.Error(ex);
                     finalRow = null;
-                    return ChangeApplicationAction.Rollback;
+                    return ChangeApplicationAction.Continue;
                 }
 
                 // tableProgress.ChangesApplied += 1;

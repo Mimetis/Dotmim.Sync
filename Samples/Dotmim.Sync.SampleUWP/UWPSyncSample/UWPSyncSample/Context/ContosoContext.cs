@@ -37,11 +37,17 @@ namespace UWPSyncSample.Context
                 case ConnectionType.Client_Sqlite:
                     optionsBuilder.UseSqlite(settingsHelper[ConnectionType.Client_Sqlite]);
                     break;
+                case ConnectionType.Client_MySql:
+                    optionsBuilder.UseMySql(settingsHelper[ConnectionType.Client_MySql]);
+                    break;
                 case ConnectionType.Client_Http_SqlServer:
                     optionsBuilder.UseSqlServer(settingsHelper[ConnectionType.Client_Http_SqlServer]);
                     break;
                 case ConnectionType.Client_Http_Sqlite:
                     optionsBuilder.UseSqlite(settingsHelper[ConnectionType.Client_Http_Sqlite]);
+                    break;
+                case ConnectionType.Client_Http_MySql:
+                    optionsBuilder.UseMySql(settingsHelper[ConnectionType.Client_Http_MySql]);
                     break;
             }
         }
