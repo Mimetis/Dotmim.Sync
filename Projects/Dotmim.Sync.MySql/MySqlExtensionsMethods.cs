@@ -21,49 +21,49 @@ namespace Dotmim.Sync.MySql
 
             throw new NotImplementedException("Implementation in progress");
 
-            if (cmd == null) throw new ArgumentNullException("SqlCommand");
+            //if (cmd == null) throw new ArgumentNullException("SqlCommand");
 
-            var textParser = new ObjectNameParser(cmd.CommandText);
+            //var textParser = new ObjectNameParser(cmd.CommandText);
 
-            // Hack to check for schema name in the spName
-            string schemaName = "dbo";
-            string spName = textParser.UnquotedString;
-            int firstDot = spName.IndexOf('.');
-            if (firstDot > 0)
-            {
-                schemaName = cmd.CommandText.Substring(0, firstDot);
-                spName = spName.Substring(firstDot + 1);
-            }
+            //// Hack to check for schema name in the spName
+            //string schemaName = "dbo";
+            //string spName = textParser.UnquotedString;
+            //int firstDot = spName.IndexOf('.');
+            //if (firstDot > 0)
+            //{
+            //    schemaName = cmd.CommandText.Substring(0, firstDot);
+            //    spName = spName.Substring(firstDot + 1);
+            //}
 
-            var alreadyOpened = connection.State == ConnectionState.Open;
+            //var alreadyOpened = connection.State == ConnectionState.Open;
 
-            if (!alreadyOpened)
-                connection.Open();
+            //if (!alreadyOpened)
+            //    connection.Open();
 
-            try
-            {
-                var dmParameters = GetProcedureParameters(connection, connection.Database, spName);
+            //try
+            //{
+            //    var dmParameters = GetProcedureParameters(connection, connection.Database, spName);
                 
 
-            }
-            finally
-            {
-                if (!alreadyOpened)
-                    connection.Close();
-            }
+            //}
+            //finally
+            //{
+            //    if (!alreadyOpened)
+            //        connection.Close();
+            //}
 
-            if (!includeReturnValueParameter && cmd.Parameters.Count > 0)
-                cmd.Parameters.RemoveAt(0);
+            //if (!includeReturnValueParameter && cmd.Parameters.Count > 0)
+            //    cmd.Parameters.RemoveAt(0);
 
-            MySqlParameter[] discoveredParameters = new MySqlParameter[cmd.Parameters.Count];
+            //MySqlParameter[] discoveredParameters = new MySqlParameter[cmd.Parameters.Count];
 
-            cmd.Parameters.CopyTo(discoveredParameters, 0);
+            //cmd.Parameters.CopyTo(discoveredParameters, 0);
 
-            // Init the parameters with a DBNull value
-            foreach (MySqlParameter discoveredParameter in discoveredParameters)
-                discoveredParameter.Value = DBNull.Value;
+            //// Init the parameters with a DBNull value
+            //foreach (MySqlParameter discoveredParameter in discoveredParameters)
+            //    discoveredParameter.Value = DBNull.Value;
 
-            return discoveredParameters;
+            //return discoveredParameters;
 
         }
 
@@ -92,7 +92,7 @@ namespace Dotmim.Sync.MySql
                     ParseProcedureBody(parametersTable, body, sqlMode, schema, procName);
                 }
             }
-            catch (SqlNullValueException snex)
+            catch (Exception)
             {
                 throw new InvalidOperationException($"Unable to retrieve parameters on PROCEDURE {procName}");
             }
@@ -115,10 +115,12 @@ namespace Dotmim.Sync.MySql
             List<string> modes = new List<string>(new string[3] { "IN", "OUT", "INOUT" });
 
             int pos = 1;
-            MySqlTokenizer tokenizer = new MySqlTokenizer(body);
-            tokenizer.AnsiQuotes = sqlMode.IndexOf("ANSI_QUOTES") != -1;
-            tokenizer.BackslashEscapes = sqlMode.IndexOf("NO_BACKSLASH_ESCAPES") == -1;
-            tokenizer.ReturnComments = false;
+            MySqlTokenizer tokenizer = new MySqlTokenizer(body)
+            {
+                AnsiQuotes = sqlMode.IndexOf("ANSI_QUOTES") != -1,
+                BackslashEscapes = sqlMode.IndexOf("NO_BACKSLASH_ESCAPES") == -1,
+                ReturnComments = false
+            };
             string token = tokenizer.NextToken();
 
             // this block will scan for the opening paren while also determining

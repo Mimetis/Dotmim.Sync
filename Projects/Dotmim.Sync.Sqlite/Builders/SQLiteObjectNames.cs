@@ -270,7 +270,21 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine("\tOR");
             stringBuilder.AppendLine("\t-- remote instance is new, so we don't take the last timestamp");
             stringBuilder.AppendLine("\t@sync_scope_is_new = 1");
-            stringBuilder.AppendLine("\t);");
+            stringBuilder.AppendLine("\t)");
+            stringBuilder.AppendLine("AND (");
+            stringBuilder.AppendLine("\t[side].[sync_row_is_tombstone] = 1 ");
+            stringBuilder.AppendLine("\tOR");
+            stringBuilder.Append("\t([side].[sync_row_is_tombstone] = 0");
+
+            empty = " AND ";
+            foreach (var pkColumn in this.TableDescription.PrimaryKey.Columns)
+            {
+                var pkColumnName = new ObjectNameParser(pkColumn.ColumnName, "[", "]");
+                stringBuilder.Append($"{empty}[base].{pkColumnName.QuotedString} is not null");
+            }
+            stringBuilder.AppendLine("\t)");
+            stringBuilder.AppendLine(")");
+
 
             this.AddName(DbCommandType.SelectChanges, stringBuilder.ToString());
             this.AddName(DbCommandType.SelectChangesWitFilters, stringBuilder.ToString());

@@ -1,99 +1,40 @@
 ﻿using Dotmim.Sync;
-using Dotmim.Sync.Builders;
 using Dotmim.Sync.Data;
 using Dotmim.Sync.Data.Surrogate;
 using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.SampleConsole;
-using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Web;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.TestHost;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Net.Http.Headers;
 using Newtonsoft.Json;
 using System;
-using System.Data.SqlClient;
-using Microsoft.Data.Sqlite;
-using System.IO;
 using System.Linq;
-using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-using MySql.Data.MySqlClient;
-using Dotmim.Sync.MySql;
 
 class Program
 {
     static void Main(string[] args)
     {
 
-
-
-        //TestSync().GetAwaiter().GetResult();
-
-        //TestSyncThroughKestrellAsync().GetAwaiter().GetResult();
-
-        //TestAllAvailablesColumns().GetAwaiter().GetResult();
-
-        // TestSyncSqlite().GetAwaiter().GetResult();
-
-        TestMySqlDeriveParameters().GetAwaiter().GetResult();
-
-
-        //TestSyncThroughWebApi().GetAwaiter().GetResult();
+        TestSync().GetAwaiter().GetResult();
 
         Console.ReadLine();
-
     }
 
+    private static string sqlConnectionStringServer = 
+        "Data Source=(localdb)\\MSSQLLocalDB; Initial Catalog=ServerDB; Integrated Security=true;";
 
-    public static async Task TestMySqlDeriveParameters()
-    {
-        string c = @"Server=mysqlll.mysql.database.azure.com; Port=3306; Database=contosoclient; Uid=spertus@mysqlll; Pwd=DB56hy76; SslMode=Preferred;";
+    private static string sqlConnectionStringClient =
+        "Data Source=(localdb)\\MSSQLLocalDB; Initial Catalog=ClientDB; Integrated Security=true;";
 
-        MySqlConnection mySqlConnection = new MySqlConnection(c);
-
-        try
-        {
-            mySqlConnection.Open();
-
-            MySqlCommand command = new MySqlCommand("servicetickets_selectrow", mySqlConnection);
-
-         //   var dmTable = mySqlConnection.GetProcedureParameters("contosoclient", "servicetickets_selectrow");
-
-
-
-        }
-        catch (Exception ex)
-        {
-
-            Console.WriteLine(ex.Message);
-        }
-        finally
-        {
-            mySqlConnection.Close();
-        }
-
-    }
-
-
+    /// <summary>
+    /// Test a client syncing through a web api
+    /// </summary>
     private static async Task TestSyncThroughWebApi()
     {
-        ConfigurationBuilder configurationBuilder = new ConfigurationBuilder();
-        configurationBuilder.AddJsonFile("config.json", true);
-        IConfiguration Configuration = configurationBuilder.Build();
+        var clientProvider = new SqlSyncProvider(sqlConnectionStringClient);
 
-        //var clientConfig = Configuration["AppConfiguration:ClientSqliteConnectionString"];
-        //var clientProvider = new SqliteSyncProvider(clientConfig);
-
-        var clientConfig = Configuration["AppConfiguration:ClientConnectionString"];
-        var clientProvider = new SqlSyncProvider(clientConfig);
-
-        var proxyClientProvider = new WebProxyClientProvider(new Uri("http://localhost:56782/api/values"));
+        var proxyClientProvider = new WebProxyClientProvider(
+            new Uri("http://localhost:56782/api/values"));
 
         var agent = new SyncAgent(clientProvider, proxyClientProvider);
 
@@ -109,6 +50,9 @@ class Program
             try
             {
                 var s = await agent.SynchronizeAsync();
+
+                Console.WriteLine(GetResultString(s));
+
             }
             catch (SyncException e)
             {
@@ -126,179 +70,19 @@ class Program
         Console.WriteLine("End");
 
     }
-
-      private static async Task FilterSync()
-    {
-        // Get SQL Server connection string
-        ConfigurationBuilder configurationBuilder = new ConfigurationBuilder();
-        configurationBuilder.AddJsonFile("config.json", true);
-        IConfiguration Configuration = configurationBuilder.Build();
-        var serverConfig = Configuration["AppConfiguration:ServerFilteredConnectionString"];
-        var clientConfig = "sqlitefiltereddb.db";
-
-        SqlSyncProvider serverProvider = new SqlSyncProvider(serverConfig);
-        SqliteSyncProvider clientProvider = new SqliteSyncProvider(clientConfig);
-
-        // With a config when we are in local mode (no proxy)
-        SyncConfiguration configuration = new SyncConfiguration(new string[] { "ServiceTickets" });
-        //configuration.DownloadBatchSizeInKB = 500;
-        configuration.UseBulkOperations = false;
-        // Adding filters on schema
-        configuration.Filters.Add("ServiceTickets", "CustomerID");
-
-        SyncAgent agent = new SyncAgent(clientProvider, serverProvider, configuration);
-
-        // Adding a parameter for this agent
-        agent.Parameters.Add("ServiceTickets", "CustomerID", 1);
-
-        do
-        {
-            Console.Clear();
-            Console.WriteLine("Sync Start");
-            try
-            {
-                var s = await agent.SynchronizeAsync();
-
-            }
-            catch (SyncException e)
-            {
-                Console.WriteLine(e.ToString());
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
-            }
-
-
-            Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
-        } while (Console.ReadKey().Key != ConsoleKey.Escape);
-
-        Console.WriteLine("End");
-    }
-
-    private static async Task TestSyncSqlite()
-    {
-        // Get SQL Server connection string
-        ConfigurationBuilder configurationBuilder = new ConfigurationBuilder();
-        configurationBuilder.AddJsonFile("config.json", true);
-        IConfiguration Configuration = configurationBuilder.Build();
-        var serverConfig = Configuration["AppConfiguration:ServerConnectionString"];
-        var clientConfig = "fabrikam3.db";
-
-        SqlSyncProvider serverProvider = new SqlSyncProvider(serverConfig);
-        SqliteSyncProvider clientProvider = new SqliteSyncProvider(clientConfig);
-
-        // With a config when we are in local mode (no proxy)
-        SyncConfiguration configuration = new SyncConfiguration(new string[] 
-        { "ServiceTickets" });
-
-        SyncAgent agent = new SyncAgent(clientProvider, serverProvider, configuration);
-
-        agent.SyncProgress += SyncProgress;
-  
-        agent.ApplyChangedFailed += ApplyChangedFailed;
-
-        do
-        {
-            Console.Clear();
-            Console.WriteLine("Sync Start");
-            try
-            {
-                var s = await agent.SynchronizeAsync();
-
-            }
-            catch (SyncException e)
-            {
-                Console.WriteLine(e.ToString());
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
-            }
-
-
-            Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
-        } while (Console.ReadKey().Key != ConsoleKey.Escape);
-
-        Console.WriteLine("End");
-    }
-
-
-    //private static async Task TestMySqlSync()
-    //{
-    //    // Get SQL Server connection string
-    //    ConfigurationBuilder configurationBuilder = new ConfigurationBuilder();
-    //    configurationBuilder.AddJsonFile("config.json", true);
-    //    IConfiguration Configuration = configurationBuilder.Build();
-    //    var serverConfig = Configuration["AppConfiguration:MySqlServerConnectionString"];
-    //    var clientConfig = Configuration["AppConfiguration:MySqlClientConnectionString"];
-
-    //    MySqlSyncProvider serverProvider = new MySqlSyncProvider(serverConfig);
-    //    MySqlSyncProvider clientProvider = new MySqlSyncProvider(clientConfig);
-
-    //    // With a config when we are in local mode (no proxy)
-    //    SyncConfiguration configuration = new SyncConfiguration(new string[] { "ServiceTickets" });
-
-
-    //    //configuration.DownloadBatchSizeInKB = 500;
-    //    SyncAgent agent = new SyncAgent(clientProvider, serverProvider, configuration);
-
-    //    agent.SyncProgress += SyncProgress;
-    //    agent.ApplyChangedFailed += ApplyChangedFailed;
-
-    //    do
-    //    {
-    //        Console.Clear();
-    //        Console.WriteLine("Sync Start");
-    //        try
-    //        {
-    //            CancellationTokenSource cts = new CancellationTokenSource();
-    //            CancellationToken token = cts.Token;
-    //            var s = await agent.SynchronizeAsync(token);
-
-    //        }
-    //        catch (SyncException e)
-    //        {
-    //            Console.WriteLine(e.ToString());
-    //        }
-    //        catch (Exception e)
-    //        {
-    //            Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
-    //        }
-
-
-    //        Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
-    //    } while (Console.ReadKey().Key != ConsoleKey.Escape);
-
-    //    Console.WriteLine("End");
-    //}
-
+    
+    /// <summary>
+    /// Simple Sync test
+    /// </summary>
     private static async Task TestSync()
     {
-        // Get SQL Server connection string
-        ConfigurationBuilder configurationBuilder = new ConfigurationBuilder();
-        configurationBuilder.AddJsonFile("config.json", true);
-        IConfiguration Configuration = configurationBuilder.Build();
-        var serverConfig = @"Data Source=(localdb)\MSSQLLocalDB; Initial Catalog=DotminXAF; Integrated Security=true;";
-        var clientConfig = @"Data Source=(localdb)\MSSQLLocalDB; Initial Catalog=DotminXAFClient; Integrated Security=true;";
-
-        SqlSyncProvider serverProvider = new SqlSyncProvider(serverConfig);
-        SqlSyncProvider clientProvider = new SqlSyncProvider(clientConfig);
+        SqlSyncProvider serverProvider = new SqlSyncProvider(sqlConnectionStringServer);
+        SqlSyncProvider clientProvider = new SqlSyncProvider(sqlConnectionStringClient);
 
         // With a config when we are in local mode (no proxy)
         SyncConfiguration configuration = new SyncConfiguration(new string[] {
-        "Analysis", "Event", "FileData", "HCategory", "ModelDifference", "PermissionPolicyUser",
-        "Resource", "XPObjectType", "C4File", "ModelDifferenceAspect", "PermissionPolicyRole",
-        "ReportDataV2", "ResourceResources_EventEvents",
-        "PermissionPolicyNavigationPermissionsObject", "PermissionPolicyTypePermissionsObject",
-        "PermissionPolicyUserUsers_PermissionPolicyRoleRoles", "PermissionPolicyMemberPermissionsObject",
-        "PermissionPolicyObjectPermissionsObject"});
+        "Customer", "Product", "Address", "CustomerAddress"});
 
-        //var configuration = new SyncConfiguration(new string[] {
-        //"Analysis", "Event", "FileData","Resource", "C4File"});
-
-
-        //configuration.DownloadBatchSizeInKB = 500;
         SyncAgent agent = new SyncAgent(clientProvider, serverProvider, configuration);
 
         agent.SyncProgress += SyncProgress;
@@ -314,6 +98,7 @@ class Program
                 CancellationToken token = cts.Token;
                 var s = await agent.SynchronizeAsync(token);
 
+                Console.WriteLine(GetResultString(s));
             }
             catch (SyncException e)
             {
@@ -331,22 +116,29 @@ class Program
         Console.WriteLine("End");
     }
 
-    private static void ServerProvider_SyncProgress(object sender, SyncProgressEventArgs e)
+    /// <summary>
+    /// Write results
+    /// </summary>
+    private static string GetResultString(SyncContext s)
     {
-        SyncProgress(e, ConsoleColor.Red);
+        var tsEnded = TimeSpan.FromTicks(s.CompleteTime.Ticks);
+        var tsStarted = TimeSpan.FromTicks(s.StartTime.Ticks);
+
+        var durationTs = tsEnded.Subtract(tsStarted);
+        var durationstr = $"{durationTs.Hours}:{durationTs.Minutes}:{durationTs.Seconds}.{durationTs.Milliseconds}";
+
+        return ($"Synchronization done. " + Environment.NewLine +
+                $"\tTotal changes downloaded: {s.TotalChangesDownloaded} " + Environment.NewLine +
+                $"\tTotal changes uploaded: {s.TotalChangesUploaded}" + Environment.NewLine +
+                $"\tTotal duration :{durationstr} ");
     }
 
+    /// <summary>
+    /// Sync progression
+    /// </summary>
     private static void SyncProgress(object sender, SyncProgressEventArgs e)
     {
-        SyncProgress(e);
-    }
-
-    private static void SyncProgress(SyncProgressEventArgs e, ConsoleColor? consoleColor = null)
-    {
         var sessionId = e.Context.SessionId.ToString();
-
-        if (consoleColor.HasValue)
-            Console.ForegroundColor = consoleColor.Value;
 
         switch (e.Context.SyncStage)
         {
@@ -369,9 +161,11 @@ class Program
 
                     Func<JsonSerializerSettings> settings = new Func<JsonSerializerSettings>(() =>
                     {
-                        var s = new JsonSerializerSettings();
-                        s.Formatting = Formatting.Indented;
-                        s.StringEscapeHandling = StringEscapeHandling.Default;
+                        var s = new JsonSerializerSettings
+                        {
+                            Formatting = Formatting.Indented,
+                            StringEscapeHandling = StringEscapeHandling.Default
+                        };
                         return s;
                     });
                     JsonConvert.DefaultSettings = settings;
@@ -419,6 +213,9 @@ class Program
         Console.ResetColor();
     }
 
+    /// <summary>
+    /// Sync apply changed, deciding who win
+    /// </summary>
     static void ApplyChangedFailed(object sender, ApplyChangeFailedEventArgs e)
     {
 

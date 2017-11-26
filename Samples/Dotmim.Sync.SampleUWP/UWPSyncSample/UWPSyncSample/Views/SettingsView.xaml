@@ -94,7 +94,7 @@
                              FontSize="18" />
 
                     <TextBlock Name="LabelClientSqliteHttp"
-                           Text="Client of type Sql Server, through http proxy"
+                           Text="Client of type Sqlite, through http proxy"
                            RelativePanel.Below="TextClientSqlite"
                            FontSize="18" Margin="0,10,0,0" />
 
@@ -102,6 +102,28 @@
                              Width="600"
                              Text="{x:Bind ViewModel.Client_Http_Sqlite, Mode=TwoWay}"
                              RelativePanel.Below="LabelClientSqliteHttp"
+                             FontSize="18" />
+
+                    <TextBlock Name="LabelClientMySql"
+                           Text="Client of type MySql"
+                           RelativePanel.Below="TextClientSqliteHttp"
+                           FontSize="18" Margin="0,10,0,0" />
+
+                    <TextBox Name="TextClientMySql"
+                             Width="600"
+                             Text="{x:Bind ViewModel.Client_MySql, Mode=TwoWay}"
+                             RelativePanel.Below="LabelClientMySql"
+                             FontSize="18" />
+
+                    <TextBlock Name="LabelClienyMySqlHttp"
+                           Text="Client of type MySql, through http proxy"
+                           RelativePanel.Below="TextClientMySql"
+                           FontSize="18" Margin="0,10,0,0" />
+
+                    <TextBox Name="TextClientMySqlHttp"
+                             Width="600"
+                             Text="{x:Bind ViewModel.Client_Http_MySql, Mode=TwoWay}"
+                             RelativePanel.Below="LabelClienyMySqlHttp"
                              FontSize="18" />
 
 
