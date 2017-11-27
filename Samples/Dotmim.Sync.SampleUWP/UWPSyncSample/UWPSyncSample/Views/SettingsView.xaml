@@ -5,6 +5,7 @@
     xmlns:local="using:UWPSyncSample.Views"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:controls="using:UWPSyncSample.Controls"
     mc:Ignorable="d">
 
     <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
@@ -23,38 +24,27 @@
                     </TransitionCollection>
                 </StackPanel.Transitions>
 
-                <RelativePanel Margin="10">
-                    <TextBlock Name="LabelServer"
-                           Text="Server connections strings"
+                <StackPanel Margin="10">
+                    <TextBlock Text="Server connections strings"
                            FontSize="24"
                            />
 
-                    <TextBlock Name="LabelServerSqlServer"
-                           Text="Server of type Sql Server"
-                           RelativePanel.Below="LabelServer"
+                    <TextBlock Text="Server of type Sql Server"
                            FontSize="18" Margin="0,10,0,0" />
 
-                    <TextBox Name="TextServerSqlServer"
-                             Width="600"
+                    <TextBox Width="600" HorizontalAlignment="Left"
                              Text="{x:Bind ViewModel.Server_SqlServer, Mode=TwoWay}"
-                             RelativePanel.Below="LabelServerSqlServer"
                              FontSize="18" />
 
-                    <TextBlock Name="LabelServerProxy"
-                           Text="Web Proxy"
-                           RelativePanel.Below="TextServerSqlServer"
+                    <TextBlock Text="Web Proxy"
                            FontSize="18" Margin="0,10,0,0" />
 
-                    <TextBox Name="TextServerProxy"
-                             Width="600"
+                    <TextBox Width="600" HorizontalAlignment="Left"
                              Text="{x:Bind ViewModel.WebProxy, Mode=TwoWay}"
-                             RelativePanel.Below="LabelServerProxy"
                              FontSize="18" />
+                </StackPanel>
 
-
-                </RelativePanel>
-
-                <RelativePanel Margin="10">
+                <StackPanel Margin="10">
                     <TextBlock Name="LabelClient"
                            Text="Client connections strings"
                            FontSize="24"
@@ -62,94 +52,39 @@
 
                     <TextBlock Name="LabelClientSqlServer"
                            Text="Client of type Sql Server"
-                           RelativePanel.Below="LabelClient"
                            FontSize="18" Margin="0,10,0,0" />
 
-                    <TextBox Name="TextClientSqlServer"
-                             Width="600"
+                    <TextBox Width="600" HorizontalAlignment="Left"
                              Text="{x:Bind ViewModel.Client_SqlServer, Mode=TwoWay}"
-                             RelativePanel.Below="LabelClientSqlServer"
                              FontSize="18" />
 
-                    <TextBlock Name="LabelClientSqlServerHttp"
-                           Text="Client of type Sql Server, through http proxy"
-                           RelativePanel.Below="TextClientSqlServer"
+                    <TextBlock Text="Client of type Sqlite"
                            FontSize="18" Margin="0,10,0,0" />
 
-                    <TextBox Name="TextClientSqlServerHttp"
-                             Width="600"
-                             Text="{x:Bind ViewModel.Client_Http_SqlServer, Mode=TwoWay}"
-                             RelativePanel.Below="LabelClientSqlServerHttp"
-                             FontSize="18" />
-
-                    <TextBlock Name="LabelClientSqlite"
-                           Text="Client of type Sqlite"
-                           RelativePanel.Below="TextClientSqlServerHttp"
-                           FontSize="18" Margin="0,10,0,0" />
-
-                    <TextBox Name="TextClientSqlite"
-                             Width="600"
+                    <TextBox Width="600" HorizontalAlignment="Left"
                              Text="{x:Bind ViewModel.Client_Sqlite, Mode=TwoWay}"
-                             RelativePanel.Below="LabelClientSqlite"
                              FontSize="18" />
 
-                    <TextBlock Name="LabelClientSqliteHttp"
-                           Text="Client of type Sqlite, through http proxy"
-                           RelativePanel.Below="TextClientSqlite"
+                    <TextBlock Text="Client of type MySql"
                            FontSize="18" Margin="0,10,0,0" />
 
-                    <TextBox Name="TextClientSqliteHttp"
-                             Width="600"
-                             Text="{x:Bind ViewModel.Client_Http_Sqlite, Mode=TwoWay}"
-                             RelativePanel.Below="LabelClientSqliteHttp"
-                             FontSize="18" />
-
-                    <TextBlock Name="LabelClientMySql"
-                           Text="Client of type MySql"
-                           RelativePanel.Below="TextClientSqliteHttp"
-                           FontSize="18" Margin="0,10,0,0" />
-
-                    <TextBox Name="TextClientMySql"
-                             Width="600"
+                    <TextBox Width="600" HorizontalAlignment="Left"
                              Text="{x:Bind ViewModel.Client_MySql, Mode=TwoWay}"
-                             RelativePanel.Below="LabelClientMySql"
-                             FontSize="18" />
-
-                    <TextBlock Name="LabelClienyMySqlHttp"
-                           Text="Client of type MySql, through http proxy"
-                           RelativePanel.Below="TextClientMySql"
-                           FontSize="18" Margin="0,10,0,0" />
-
-                    <TextBox Name="TextClientMySqlHttp"
-                             Width="600"
-                             Text="{x:Bind ViewModel.Client_Http_MySql, Mode=TwoWay}"
-                             RelativePanel.Below="LabelClienyMySqlHttp"
                              FontSize="18" />
 
 
-                </RelativePanel>
+                </StackPanel>
 
-                <RelativePanel Margin="10" HorizontalAlignment="Stretch" >
+                <StackPanel Margin="10">
 
                     <TextBlock Name="LabelSync" Text="Save changes" FontSize="24" />
 
-                    <Button Style="{StaticResource TextBlockButtonStyle}" 
-                            HorizontalContentAlignment="Left"
-                            Click="{x:Bind ViewModel.SaveClick}"
-                            RelativePanel.Below="LabelSync"
-                            Name="ButtonSync"
-                            Width="200" Margin="0,10,0,0">
-                        <Grid HorizontalAlignment="Left">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="40" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <SymbolIcon HorizontalAlignment="Left" Symbol="Save" />
-                            <TextBlock  HorizontalAlignment="Left" Text="Save Changes" Grid.Column="1" />
-                        </Grid>
-                    </Button>
+                    <controls:XButton Click="{x:Bind ViewModel.SaveClick}" HorizontalAlignment="Left"
+                                      Symbol="Save" Text="Save Changes"
+                                      Width="200" Margin="0,10,0,0">
+                    </controls:XButton>
 
-                </RelativePanel>
+                </StackPanel>
 
             </StackPanel>
             

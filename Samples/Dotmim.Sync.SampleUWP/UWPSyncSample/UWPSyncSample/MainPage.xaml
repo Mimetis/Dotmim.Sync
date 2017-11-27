@@ -20,17 +20,7 @@
                         <BitmapIcon UriSource="ms-appx:///Assets/SqlServer.png" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem Content="Sql Server and http" >
-                    <NavigationViewItem.Icon>
-                        <BitmapIcon UriSource="ms-appx:///Assets/SqlServer.png" />
-                    </NavigationViewItem.Icon>
-                </NavigationViewItem>
                 <NavigationViewItem Content="Sqlite" >
-                    <NavigationViewItem.Icon>
-                        <BitmapIcon UriSource="ms-appx:///Assets/SqliteHttp.png" />
-                    </NavigationViewItem.Icon>
-                </NavigationViewItem>
-                <NavigationViewItem Content="Sqlite and http" >
                     <NavigationViewItem.Icon>
                         <BitmapIcon UriSource="ms-appx:///Assets/SqliteHttp.png" />
                     </NavigationViewItem.Icon>
@@ -40,11 +30,6 @@
                         <BitmapIcon UriSource="ms-appx:///Assets/MySql.png" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem Content="MySql and http" >
-                    <NavigationViewItem.Icon>
-                        <BitmapIcon UriSource="ms-appx:///Assets/MySql.png" />
-                    </NavigationViewItem.Icon>
-                </NavigationViewItem>                
             </NavigationView.MenuItems>
             <Frame x:Name="appNavFrame" Margin="0,32,0,0">
             </Frame>

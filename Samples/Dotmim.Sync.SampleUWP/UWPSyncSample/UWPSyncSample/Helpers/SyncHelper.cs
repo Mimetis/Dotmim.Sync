@@ -19,11 +19,8 @@ namespace UWPSyncSample.Helpers
 
         private SqlSyncProvider masterSqlSyncProvider;
         private SqlSyncProvider sqlSyncProvider;
-        private SqlSyncProvider sqlSyncProviderHttp;
         private SqliteSyncProvider sqliteSyncProvider;
-        private SqliteSyncProvider sqliteSyncProviderHttp;
         private MySqlSyncProvider mySqlSyncProvider;
-        private MySqlSyncProvider mySqlSyncProviderHttp;
         private WebProxyClientProvider webProxyProvider;
 
         string[] tables = new string[] { "Employees" };
@@ -35,7 +32,7 @@ namespace UWPSyncSample.Helpers
             Init();
         }
 
-        public SyncHelper(ConnectionType contosoType, SettingsHelper settingsHelper) :this(settingsHelper)
+        public SyncHelper(ConnectionType contosoType, SettingsHelper settingsHelper) : this(settingsHelper)
         {
             this.contosoType = contosoType;
         }
@@ -53,39 +50,39 @@ namespace UWPSyncSample.Helpers
             sqlSyncProvider = new SqlSyncProvider(
                 settingsHelper[ConnectionType.Client_SqlServer]);
 
-            sqlSyncProviderHttp = new SqlSyncProvider(
-                settingsHelper[ConnectionType.Client_Http_SqlServer]);
-
             sqliteSyncProvider = new SqliteSyncProvider(
                 settingsHelper[ConnectionType.Client_Sqlite]);
-
-            sqliteSyncProviderHttp = new SqliteSyncProvider(
-                settingsHelper[ConnectionType.Client_Http_Sqlite]);
 
             mySqlSyncProvider = new MySqlSyncProvider(
                 settingsHelper[ConnectionType.Client_MySql]);
 
-            mySqlSyncProviderHttp = new MySqlSyncProvider(
-                settingsHelper[ConnectionType.Client_Http_MySql]);
-
         }
 
-        public SyncAgent GetSyncAgent()
+        public SyncAgent GetSyncAgent(bool useHttp = false)
         {
-            switch (this.contosoType)
+            if (useHttp)
             {
-                case ConnectionType.Client_SqlServer:
-                    return new SyncAgent(sqlSyncProvider, masterSqlSyncProvider, tables);
-                case ConnectionType.Client_Sqlite:
-                    return new SyncAgent(sqliteSyncProvider, masterSqlSyncProvider, tables);
-                case ConnectionType.Client_MySql:
-                    return new SyncAgent(mySqlSyncProvider, masterSqlSyncProvider, tables);
-                case ConnectionType.Client_Http_SqlServer:
-                    return new SyncAgent(sqlSyncProviderHttp, webProxyProvider);
-                case ConnectionType.Client_Http_Sqlite:
-                    return new SyncAgent(sqliteSyncProviderHttp, webProxyProvider);
-                case ConnectionType.Client_Http_MySql:
-                    return new SyncAgent(mySqlSyncProviderHttp, webProxyProvider);
+                switch (this.contosoType)
+                {
+                    case ConnectionType.Client_SqlServer:
+                        return new SyncAgent(sqlSyncProvider, webProxyProvider);
+                    case ConnectionType.Client_Sqlite:
+                        return new SyncAgent(sqliteSyncProvider, webProxyProvider);
+                    case ConnectionType.Client_MySql:
+                        return new SyncAgent(mySqlSyncProvider, webProxyProvider);
+                }
+            }
+            else
+            {
+                switch (this.contosoType)
+                {
+                    case ConnectionType.Client_SqlServer:
+                        return new SyncAgent(sqlSyncProvider, masterSqlSyncProvider, tables);
+                    case ConnectionType.Client_Sqlite:
+                        return new SyncAgent(sqliteSyncProvider, masterSqlSyncProvider, tables);
+                    case ConnectionType.Client_MySql:
+                        return new SyncAgent(mySqlSyncProvider, masterSqlSyncProvider, tables);
+                }
             }
 
             return null;

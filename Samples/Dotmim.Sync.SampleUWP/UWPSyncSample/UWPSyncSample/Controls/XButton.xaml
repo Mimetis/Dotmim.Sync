@@ -1,0 +1,27 @@
+﻿<UserControl
+    x:Class="UWPSyncSample.Controls.XButton"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:UWPSyncSample.Controls"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    d:DesignHeight="300"
+    d:DesignWidth="400">
+
+    <Button Style="{StaticResource TextBlockButtonStyle}" 
+            HorizontalAlignment="Stretch"
+            VerticalAlignment="Stretch"
+            HorizontalContentAlignment="Left"
+            RelativePanel.Below="ButtonAddEmployee"
+            Click="{x:Bind OnClick}">
+        <Grid HorizontalAlignment="Left">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="40" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <SymbolIcon HorizontalAlignment="Left" Symbol="{x:Bind Symbol, Mode=OneWay}" />
+            <TextBlock  HorizontalAlignment="Left" Text="{x:Bind Text, Mode=OneWay}" Grid.Column="1" />
+        </Grid>
+    </Button>
+</UserControl>

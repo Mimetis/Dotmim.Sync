@@ -127,20 +127,11 @@ namespace UWPSyncSample
                 case "Sql Server":
                     await _navigationService.NavigateToPage<EmployeesView>(ConnectionType.Client_SqlServer);
                     break;
-                case "Sql Server and http":
-                    await _navigationService.NavigateToPage<EmployeesView>(ConnectionType.Client_Http_SqlServer);
-                    break;
                 case "Sqlite":
                     await _navigationService.NavigateToPage<EmployeesView>(ConnectionType.Client_Sqlite);
                     break;
-                case "Sqlite and http":
-                    await _navigationService.NavigateToPage<EmployeesView>(ConnectionType.Client_Http_Sqlite);
-                    break;
                 case "MySql":
                     await _navigationService.NavigateToPage<EmployeesView>(ConnectionType.Client_MySql);
-                    break;
-                case "MySql and http":
-                    await _navigationService.NavigateToPage<EmployeesView>(ConnectionType.Client_Http_MySql);
                     break;
             }
 
