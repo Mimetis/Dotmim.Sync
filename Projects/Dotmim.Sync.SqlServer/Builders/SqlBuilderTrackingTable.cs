@@ -7,6 +7,7 @@ using System;
 using System.Data;
 using System.Data.Common;
 using System.Data.SqlClient;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 
@@ -55,7 +56,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             catch (Exception ex)
             {
-                Logger.Current.Error($"Error during CreateIndex : {ex}");
+                Debug.WriteLine($"Error during CreateIndex : {ex}");
                 throw;
 
             }
@@ -126,7 +127,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             catch (Exception ex)
             {
-                Logger.Current.Error($"Error during CreateIndex : {ex}");
+                Debug.WriteLine($"Error during CreateIndex : {ex}");
                 throw;
 
             }
@@ -186,7 +187,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             catch (Exception ex)
             {
-                Logger.Current.Error($"Error during CreateIndex : {ex}");
+                Debug.WriteLine($"Error during CreateIndex : {ex}");
                 throw;
 
             }
@@ -290,7 +291,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             catch (Exception ex)
             {
-                Logger.Current.Error($"Error during CreateIndex : {ex}");
+                Debug.WriteLine($"Error during CreateIndex : {ex}");
                 throw;
 
             }
@@ -414,7 +415,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             catch (Exception ex)
             {
-                Logger.Current.Error($"Error during CreateIndex : {ex}");
+                Debug.WriteLine($"Error during CreateIndex : {ex}");
                 throw;
 
             }

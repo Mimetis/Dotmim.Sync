@@ -494,7 +494,6 @@ namespace Dotmim.Sync
             switch (sex.SyncStage)
             {
                 case SyncStage.BeginSession:
-                    Logger.Current.Info(sex.ToString());
                     break;
                 case SyncStage.EnsureConfiguration:
                     break;
@@ -513,7 +512,6 @@ namespace Dotmim.Sync
                 case SyncStage.WriteMetadata:
                     break;
                 case SyncStage.EndSession:
-                    Logger.Current.Info(sex.ToString());
                     break;
                 case SyncStage.CleanupMetadata:
                     break;

@@ -6,6 +6,7 @@ using System;
 using System.Data;
 using System.Data.Common;
 using System.Data.SqlClient;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 
@@ -54,7 +55,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             catch (Exception ex)
             {
-                Logger.Current.Error($"Error during checking foreign keys: {ex}");
+                Debug.WriteLine($"Error during checking foreign keys: {ex}");
                 throw;
             }
             finally
@@ -127,7 +128,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             catch (Exception ex)
             {
-                Logger.Current.Error($"Error during CreateForeignKeyConstraints : {ex}");
+                Debug.WriteLine($"Error during CreateForeignKeyConstraints : {ex}");
                 throw;
 
             }
@@ -196,7 +197,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             catch (Exception ex)
             {
-                Logger.Current.Error($"Error during Create Pk Command : {ex}");
+                Debug.WriteLine($"Error during Create Pk Command : {ex}");
                 throw;
             }
             finally
@@ -276,7 +277,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             catch (Exception ex)
             {
-                Logger.Current.Error($"Error during CreateTable : {ex}");
+                Debug.WriteLine($"Error during CreateTable : {ex}");
                 throw;
 
             }
@@ -309,7 +310,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             catch (Exception ex)
             {
-                Logger.Current.Error($"Error during CreateTable : {ex}");
+                Debug.WriteLine($"Error during CreateTable : {ex}");
                 throw;
 
             }
@@ -379,7 +380,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             catch (Exception ex)
             {
-                Logger.Current.Error($"Error during EnsureForeignKeysTableExist : {ex}");
+                Debug.WriteLine($"Error during EnsureForeignKeysTableExist : {ex}");
                 throw;
 
             }

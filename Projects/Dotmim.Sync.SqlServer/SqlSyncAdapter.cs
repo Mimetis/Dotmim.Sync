@@ -406,7 +406,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             catch (Exception ex)
             {
-                Logger.Current.Error($"DeriveParameters failed : {ex}");
+                Debug.WriteLine($"DeriveParameters failed : {ex}");
                 throw;
             }
             finally

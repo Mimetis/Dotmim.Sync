@@ -106,7 +106,7 @@ namespace Dotmim.Sync
         {
             try
             {
-                Logger.Current.Info($"BeginSession() called on Provider {this.ProviderTypeName}");
+                Debug.WriteLine($"BeginSession() called on Provider {this.ProviderTypeName}");
 
                 lock (this)
                 {
@@ -311,7 +311,7 @@ namespace Dotmim.Sync
                 }
                 catch (Exception ex)
                 {
-                    Logger.Current.Error($"Error during building BuildConfiguration : {ex.Message}");
+                    Debug.WriteLine($"Error during building BuildConfiguration : {ex.Message}");
 
                     throw;
                 }
@@ -460,7 +460,7 @@ namespace Dotmim.Sync
                         return Task.FromResult(context);
                 }
 
-                Logger.Current.Info($"EndSession() called on Provider {this.ProviderTypeName}");
+                Debug.WriteLine($"EndSession() called on Provider {this.ProviderTypeName}");
 
                 context.SyncStage = SyncStage.EndSession;
 
@@ -669,7 +669,7 @@ namespace Dotmim.Sync
                 }
                 catch (Exception ex)
                 {
-                    Logger.Current.Error(ex.Message);
+                    Debug.WriteLine(ex.Message);
 
                     if (ex is SyncException)
                         throw;
@@ -848,7 +848,7 @@ namespace Dotmim.Sync
 
                 // check batchSize if not > then Configuration.DownloadBatchSizeInKB
                 if (configuration.DownloadBatchSizeInKB > 0)
-                    Logger.Current.Info($"Enumeration data cache size selected: {configuration.DownloadBatchSizeInKB} Kb");
+                    Debug.WriteLine($"Enumeration data cache size selected: {configuration.DownloadBatchSizeInKB} Kb");
 
                 context.SyncStage = SyncStage.SelectingChanges;
 
@@ -883,7 +883,7 @@ namespace Dotmim.Sync
             BatchInfo batchInfo = null;
             try
             {
-                Logger.Current.Info("GetChanges called: _syncBatchProducer is null");
+                Debug.WriteLine("GetChanges called: _syncBatchProducer is null");
 
                 var configuration = GetCacheConfiguration();
 
@@ -893,13 +893,13 @@ namespace Dotmim.Sync
                 // Get a chance to make the sync even if it's outdated
                 if (isOutdated && this.SyncOutdated != null)
                 {
-                    Logger.Current.Info("Raising Sync Remote Outdated Event");
+                    Debug.WriteLine("Raising Sync Remote Outdated Event");
                     var outdatedEventArgs = new OutdatedEventArgs();
                     this.SyncOutdated(this, outdatedEventArgs);
-                    Logger.Current.Info($"Action taken : {outdatedEventArgs.Action.ToString()}");
+                    Debug.WriteLine($"Action taken : {outdatedEventArgs.Action.ToString()}");
 
                     if (outdatedEventArgs.Action == OutdatedSyncAction.PartialSync)
-                        Logger.Current.Info("Attempting Partial Sync");
+                        Debug.WriteLine("Attempting Partial Sync");
                 }
 
                 ChangesStatistics changesStatistics = null;
@@ -907,7 +907,7 @@ namespace Dotmim.Sync
                 // the sync is still outdated, abort it
                 if (isOutdated)
                 {
-                    Logger.Current.Info("Aborting Sync");
+                    Debug.WriteLine("Aborting Sync");
                     return (context, null, null);
                 }
 
@@ -993,9 +993,9 @@ namespace Dotmim.Sync
         /// </summary>
         internal async Task<(BatchInfo, ChangesStatistics)> EnumerateChangesInternal(SyncContext context, ScopeInfo scopeInfo)
         {
-            Logger.Current.Info($"----- Enumerating Changes for Scope \"{scopeInfo.Name}\" -----");
-            Logger.Current.Info("");
-            Logger.Current.Info("");
+            Debug.WriteLine($"----- Enumerating Changes for Scope \"{scopeInfo.Name}\" -----");
+            Debug.WriteLine("");
+            Debug.WriteLine("");
 
             // Get config
             var configuration = GetCacheConfiguration();
@@ -1043,7 +1043,7 @@ namespace Dotmim.Sync
                             var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
                             syncAdapter.ConflictApplyAction = configuration.GetApplyAction();
 
-                            Logger.Current.Info($"----- Table \"{tableDescription.TableName}\" -----");
+                            Debug.WriteLine($"----- Table \"{tableDescription.TableName}\" -----");
 
                             // for stats
                             SelectedChanges selectedChanges = new SelectedChanges();
@@ -1079,7 +1079,7 @@ namespace Dotmim.Sync
                             if (selectIncrementalChangesCommand == null)
                             {
                                 var exc = "Missing command 'SelectIncrementalChangesCommand' ";
-                                Logger.Current.Error(exc);
+                                Debug.WriteLine(exc);
                                 throw new Exception(exc);
                             }
 
@@ -1161,8 +1161,8 @@ namespace Dotmim.Sync
 
                             }
 
-                            Logger.Current.Info($"--- End Table \"{tableDescription.TableName}\" ---");
-                            Logger.Current.Info("");
+                            Debug.WriteLine($"--- End Table \"{tableDescription.TableName}\" ---");
+                            Debug.WriteLine("");
                         }
 
                         // add stats for a SyncProgress event
@@ -1184,7 +1184,7 @@ namespace Dotmim.Sync
                     }
                     catch (Exception dbException)
                     {
-                        Logger.Current.Error($"Caught exception while enumerating changes\n{dbException}\n");
+                        Debug.WriteLine($"Caught exception while enumerating changes\n{dbException}\n");
                         throw;
                     }
                     finally
@@ -1243,9 +1243,9 @@ namespace Dotmim.Sync
         /// </summary>
         internal async Task<(BatchInfo, ChangesStatistics)> EnumerateChangesInBatchesInternal(SyncContext context, ScopeInfo scopeInfo)
         {
-            Logger.Current.Info($"----- Enumerating Changes for Scope \"{scopeInfo.Name}\" -----");
-            Logger.Current.Info("");
-            Logger.Current.Info("");
+            Debug.WriteLine($"----- Enumerating Changes for Scope \"{scopeInfo.Name}\" -----");
+            Debug.WriteLine("");
+            Debug.WriteLine("");
             var configuration = GetCacheConfiguration();
 
             // memory size total
@@ -1289,7 +1289,7 @@ namespace Dotmim.Sync
                             var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
                             syncAdapter.ConflictApplyAction = configuration.GetApplyAction();
 
-                            Logger.Current.Info($"----- Table \"{tableDescription.TableName}\" -----");
+                            Debug.WriteLine($"----- Table \"{tableDescription.TableName}\" -----");
 
                             // Get Command
                             DbCommand selectIncrementalChangesCommand;
@@ -1324,7 +1324,7 @@ namespace Dotmim.Sync
                             if (selectIncrementalChangesCommand == null)
                             {
                                 var exc = "Missing command 'SelectIncrementalChangesCommand' ";
-                                Logger.Current.Error(exc);
+                                Debug.WriteLine(exc);
                                 throw new Exception(exc);
                             }
 
@@ -1380,7 +1380,7 @@ namespace Dotmim.Sync
                                         if (dmRowSize > configuration.DownloadBatchSizeInKB)
                                         {
                                             var exc = $"Row is too big ({dmRowSize} kb.) for the current Configuration.DownloadBatchSizeInKB ({configuration.DownloadBatchSizeInKB} kb.) Aborting Sync...";
-                                            Logger.Current.Error(exc);
+                                            Debug.WriteLine(exc);
                                             throw new Exception(exc);
                                         }
 
@@ -1516,14 +1516,14 @@ namespace Dotmim.Sync
                             }
                             catch (Exception dbException)
                             {
-                                Logger.Current.Error($"Caught exception while enumerating changes\n{dbException}\n");
+                                Debug.WriteLine($"Caught exception while enumerating changes\n{dbException}\n");
                                 throw;
                             }
                             finally
                             {
 
-                                Logger.Current.Info($"--- End Table \"{tableDescription.TableName}\" ---");
-                                Logger.Current.Info("");
+                                Debug.WriteLine($"--- End Table \"{tableDescription.TableName}\" ---");
+                                Debug.WriteLine("");
                             }
                         }
 
@@ -1549,8 +1549,8 @@ namespace Dotmim.Sync
 
 
             }
-            Logger.Current.Info($"--- End Enumerating Changes for Scope \"{scopeInfo.Name}\" ---");
-            Logger.Current.Info("");
+            Debug.WriteLine($"--- End Enumerating Changes for Scope \"{scopeInfo.Name}\" ---");
+            Debug.WriteLine("");
 
             return (batchInfo, changesStatistics);
         }
@@ -1722,8 +1722,8 @@ namespace Dotmim.Sync
                         // Create a transaction
                         applyTransaction = connection.BeginTransaction();
 
-                        Logger.Current.Info($"----- Applying Changes for Scope \"{fromScope.Name}\" -----");
-                        Logger.Current.Info("");
+                        Debug.WriteLine($"----- Applying Changes for Scope \"{fromScope.Name}\" -----");
+                        Debug.WriteLine("");
 
                         // -----------------------------------------------------
                         // 0) Check if we are in a reinit mode
@@ -1786,13 +1786,13 @@ namespace Dotmim.Sync
 
                         applyTransaction.Commit();
 
-                        Logger.Current.Info($"--- End Applying Changes for Scope \"{fromScope.Name}\" ---");
-                        Logger.Current.Info("");
+                        Debug.WriteLine($"--- End Applying Changes for Scope \"{fromScope.Name}\" ---");
+                        Debug.WriteLine("");
 
                     }
                     catch (Exception exception)
                     {
-                        Logger.Current.Info($"Caught exception while applying changes: {exception}");
+                        Debug.WriteLine($"Caught exception while applying changes: {exception}");
                         throw;
                     }
                     finally
@@ -1823,8 +1823,6 @@ namespace Dotmim.Sync
         /// </summary>
         private ChangeApplicationAction ResetInternal(SyncContext context, DbConnection connection, DbTransaction transaction, ScopeInfo fromScope)
         {
-            ChangeApplicationAction changeApplicationAction = ChangeApplicationAction.Continue;
-
             var configuration = GetCacheConfiguration();
 
             for (int i = 0; i < configuration.Count; i++)
@@ -1842,7 +1840,7 @@ namespace Dotmim.Sync
                 }
                 catch (Exception ex)
                 {
-                    Logger.Current.Error($"Error during ResetInternal : {ex.Message}");
+                    Debug.WriteLine($"Error during ResetInternal : {ex.Message}");
                     throw;
                 }
             }
@@ -1910,7 +1908,7 @@ namespace Dotmim.Sync
                     if (syncAdapter.ConflictActionInvoker == null && this.ApplyChangedFailed != null)
                         syncAdapter.ConflictActionInvoker = GetConflictAction;
 
-                    Logger.Current.Info($"----- Operation {applyType.ToString()} for Table \"{tableDescription.TableName}\" -----");
+                    Debug.WriteLine($"----- Operation {applyType.ToString()} for Table \"{tableDescription.TableName}\" -----");
 
 
                     if (changes.BatchPartsInfo != null && changes.BatchPartsInfo.Count > 0)
@@ -1927,9 +1925,9 @@ namespace Dotmim.Sync
 
                             if (dmChangesView.Count == 0)
                             {
-                                Logger.Current.Info($"0 {applyType.ToString()} Applied");
-                                Logger.Current.Info($"--- End {applyType.ToString()} for Table \"{tableDescription.TableName}\" ---");
-                                Logger.Current.Info($"");
+                                Debug.WriteLine($"0 {applyType.ToString()} Applied");
+                                Debug.WriteLine($"--- End {applyType.ToString()} for Table \"{tableDescription.TableName}\" ---");
+                                Debug.WriteLine($"");
                                 continue;
                             }
 
@@ -2006,14 +2004,14 @@ namespace Dotmim.Sync
                         }
                     }
 
-                    Logger.Current.Info("");
-                    Logger.Current.Info($"--- End {applyType.ToString()} for Table \"{tableDescription.TableName}\" ---");
-                    Logger.Current.Info("");
+                    Debug.WriteLine("");
+                    Debug.WriteLine($"--- End {applyType.ToString()} for Table \"{tableDescription.TableName}\" ---");
+                    Debug.WriteLine("");
 
                 }
                 catch (Exception ex)
                 {
-                    Logger.Current.Error($"Error during ApplyInternalChanges : {ex.Message}");
+                    Debug.WriteLine($"Error during ApplyInternalChanges : {ex.Message}");
                     throw;
                 }
             }
@@ -2053,7 +2051,7 @@ namespace Dotmim.Sync
         /// </summary>
         internal ApplyAction GetConflictAction(SyncConflict conflict, DbConnection connection, DbTransaction transaction = null)
         {
-            Logger.Current.Debug("Raising Apply Change Failed Event");
+            Debug.WriteLine("Raising Apply Change Failed Event");
             var configuration = GetCacheConfiguration();
 
             var dbApplyChangeFailedEventArg = new ApplyChangeFailedEventArgs(conflict, configuration.GetApplyAction(), connection, transaction);
@@ -2061,7 +2059,7 @@ namespace Dotmim.Sync
             this.ApplyChangedFailed?.Invoke(this, dbApplyChangeFailedEventArg);
 
             ApplyAction action = dbApplyChangeFailedEventArg.Action;
-            Logger.Current.Debug($"Action: {action.ToString()}");
+            Debug.WriteLine($"Action: {action.ToString()}");
             return action;
         }
 

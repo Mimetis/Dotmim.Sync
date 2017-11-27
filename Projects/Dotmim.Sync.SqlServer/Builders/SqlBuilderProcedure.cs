@@ -9,6 +9,7 @@ using Dotmim.Sync.Log;
 using System.Linq;
 using Dotmim.Sync.Filter;
 using Dotmim.Sync.SqlServer.Manager;
+using System.Diagnostics;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
@@ -143,7 +144,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             catch (Exception ex)
             {
-                Logger.Current.Error($"Error during CreateProcedureCommand : {ex}");
+                Debug.WriteLine($"Error during CreateProcedureCommand : {ex}");
                 throw;
             }
             finally
@@ -171,7 +172,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             catch (Exception ex)
             {
-                Logger.Current.Error($"Error during CreateProcedureCommand : {ex}");
+                Debug.WriteLine($"Error during CreateProcedureCommand : {ex}");
                 throw;
             }
             finally
@@ -1096,7 +1097,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             catch (Exception ex)
             {
-                Logger.Current.Error($"Error during CreateTVPType : {ex}");
+                Debug.WriteLine($"Error during CreateTVPType : {ex}");
                 throw;
             }
             finally

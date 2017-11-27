@@ -9,6 +9,7 @@ using System.Data.Common;
 using System.Globalization;
 using System.Linq;
 using Dotmim.Sync.Builders;
+using System.Diagnostics;
 
 namespace Dotmim.Sync
 {
@@ -113,7 +114,7 @@ namespace Dotmim.Sync
             if (command == null)
             {
                 var exc = $"Missing command for apply metadata ";
-                Logger.Current.Error(exc);
+                Debug.WriteLine(exc);
                 throw new Exception(exc);
             }
 
@@ -164,7 +165,7 @@ namespace Dotmim.Sync
             }
             catch (DbException ex)
             {
-                Logger.Current.Error(ex.Message);
+                Debug.WriteLine(ex.Message);
                 throw;
             }
             finally
@@ -218,7 +219,7 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                Logger.Current.Error("Server Error on Getting a row : " + ex.Message);
+                Debug.WriteLine("Server Error on Getting a row : " + ex.Message);
                 throw;
             }
             finally
@@ -434,12 +435,12 @@ namespace Dotmim.Sync
             }
             catch (ArgumentException ex)
             {
-                Logger.Current.Error(ex.Message);
+                Debug.WriteLine(ex.Message);
                 throw;
             }
             catch (DbException ex)
             {
-                Logger.Current.Error(ex.Message);
+                Debug.WriteLine(ex.Message);
                 return false;
             }
             finally
@@ -487,12 +488,12 @@ namespace Dotmim.Sync
             }
             catch (ArgumentException ex)
             {
-                Logger.Current.Error(ex.Message);
+                Debug.WriteLine(ex.Message);
                 throw;
             }
             catch (DbException ex)
             {
-                Logger.Current.Error(ex.Message);
+                Debug.WriteLine(ex.Message);
                 return false;
             }
             finally
@@ -528,12 +529,12 @@ namespace Dotmim.Sync
             }
             catch (ArgumentException ex)
             {
-                Logger.Current.Error(ex.Message);
+                Debug.WriteLine(ex.Message);
                 throw;
             }
             catch (DbException ex)
             {
-                Logger.Current.Error(ex.Message);
+                Debug.WriteLine(ex.Message);
                 return false;
             }
             finally
@@ -579,12 +580,12 @@ namespace Dotmim.Sync
             }
             catch (ArgumentException ex)
             {
-                Logger.Current.Error(ex.Message);
+                Debug.WriteLine(ex.Message);
                 throw;
             }
             catch (DbException ex)
             {
-                Logger.Current.Error(ex.Message);
+                Debug.WriteLine(ex.Message);
                 return false;
             }
             finally
@@ -629,7 +630,7 @@ namespace Dotmim.Sync
             {
                 var errorMessage = "Change Application failed due to Row not Found on the server";
 
-                Logger.Current.Error($"Conflict detected with error: {errorMessage}");
+                Debug.WriteLine($"Conflict detected with error: {errorMessage}");
 
                 if (applyType == DmRowState.Added)
                     dbConflictType = ConflictType.RemoteInsertLocalNoRow;
@@ -724,7 +725,7 @@ namespace Dotmim.Sync
             // Default behavior and an error occured
             if (ConflictApplyAction == ApplyAction.Rollback)
             {
-                Logger.Current.Info("Rollback action taken on conflict");
+                Debug.WriteLine("Rollback action taken on conflict");
                 conflict.ErrorMessage = "Rollback action taken on conflict";
                 conflict.Type = ConflictType.ErrorsOccurred;
 
@@ -733,7 +734,7 @@ namespace Dotmim.Sync
 
             if (ConflictApplyAction == ApplyAction.Continue)
             {
-                Logger.Current.Info("Local Wins, update metadata");
+                Debug.WriteLine("Local Wins, update metadata");
 
 
                 // COnflict on a line that is not present on the datasource
@@ -770,7 +771,7 @@ namespace Dotmim.Sync
             {
                 if (conflict.RemoteChanges.Rows.Count == 0)
                 {
-                    Logger.Current.Error("Cant find a remote row");
+                    Debug.WriteLine("Cant find a remote row");
                     return ChangeApplicationAction.Rollback;
                 }
 
@@ -845,7 +846,7 @@ namespace Dotmim.Sync
                 if (!operationComplete)
                 {
                     var ex = $"Can't force operation for applyType {applyType}";
-                    Logger.Current.Error(ex);
+                    Debug.WriteLine(ex);
                     finalRow = null;
                     return ChangeApplicationAction.Continue;
                 }
@@ -878,19 +879,19 @@ namespace Dotmim.Sync
                 case DmRowState.Added:
                     {
                         empty = (succeeded ? "Inserted" : "Failed to insert");
-                        Logger.Current.Debug($"{empty} row with PK using bulk apply: {pKstr} on {Connection.Database}");
+                        Debug.WriteLine($"{empty} row with PK using bulk apply: {pKstr} on {Connection.Database}");
                         return;
                     }
                 case DmRowState.Modified:
                     {
                         empty = (succeeded ? "Updated" : "Failed to update");
-                        Logger.Current.Debug($"{empty} row with PK using bulk apply: {pKstr} on {Connection.Database}");
+                        Debug.WriteLine($"{empty} row with PK using bulk apply: {pKstr} on {Connection.Database}");
                         return;
                     }
                 case DmRowState.Deleted:
                     {
                         empty = (succeeded ? "Deleted" : "Failed to delete");
-                        Logger.Current.Debug($"{empty} row with PK using bulk apply: {pKstr} on {Connection.Database}");
+                        Debug.WriteLine($"{empty} row with PK using bulk apply: {pKstr} on {Connection.Database}");
                         break;
                     }
                 default:
