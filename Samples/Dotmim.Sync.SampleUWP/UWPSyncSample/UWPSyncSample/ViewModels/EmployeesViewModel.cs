@@ -29,11 +29,15 @@ namespace UWPSyncSample.ViewModels
         private readonly IContosoServices contosoServices;
         private readonly SyncHelper syncHelper;
         private bool isSynchronizing;
+        private SyncDirection syncDirection;
+        private bool useHttp;
+        private bool overwrite;
 
         public ObservableCollection<EmployeeModel> Employees { get; set; }
         public ObservableCollection<String> Steps { get; set; }
 
-       
+        public ObservableCollection<SyncDirection> SyncDirections { get; set; }
+
         public EmployeesViewModel(INavigationService navigationService,
                                   IContosoServices contosoServices,
                                   SyncHelper syncHelper)
@@ -43,6 +47,16 @@ namespace UWPSyncSample.ViewModels
             this.syncHelper = syncHelper;
             this.Employees = new ObservableCollection<EmployeeModel>();
             this.Steps = new ObservableCollection<string>();
+
+            this.SyncDirections = new ObservableCollection<SyncDirection>
+            {
+                SyncDirection.Bidirectional,
+                SyncDirection.DownloadOnly,
+                SyncDirection.UploadOnly
+            };
+
+            this.SyncDirection = SyncDirection.Bidirectional;
+
         }
 
         public override async Task Navigated(NavigationEventArgs e, CancellationToken cancellationToken)
@@ -92,19 +106,49 @@ namespace UWPSyncSample.ViewModels
             await navigationService.NavigateToPage<EmployeeView>(e.ClickedItem);
         }
 
+        public async void Reinitialize(object sender, RoutedEventArgs e)
+        {
+            await Synchronize(SyncType.Reinitialize);
+
+        }
+
+        public async void ReinitializeWithUpload(object sender, RoutedEventArgs e)
+        {
+            await Synchronize(SyncType.ReinitializeWithUpload);
+
+        }
+
 
         public async void SynchronizeClick(object sender, RoutedEventArgs e)
+        {
+            await Synchronize();
+        }
+
+        private async Task Synchronize(SyncType syncType = SyncType.Normal)
         {
             try
             {
                 IsSynchronizing = true;
                 Steps.Clear();
 
-                var agent = this.syncHelper.GetSyncAgent();
+                var agent = this.syncHelper.GetSyncAgent(this.UseHttp);
 
+                // all config are applied on server side if http is enabled
+                if (!this.UseHttp)
+                {
+                    agent.Configuration.OverwriteConfiguration = this.Overwrite;
+
+                    if (this.SyncDirection == SyncDirection.DownloadOnly || this.SyncDirection == SyncDirection.UploadOnly)
+                    {
+                        foreach (var t in agent.Configuration)
+                        {
+                            t.SyncDirection = this.SyncDirection;
+                        }
+                    }
+                }
 
                 agent.SyncProgress += SyncProgress;
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(syncType, CancellationToken.None);
 
                 if (s.TotalChangesDownloaded > 0)
                     await RefreshAsync();
@@ -121,9 +165,56 @@ namespace UWPSyncSample.ViewModels
             {
                 IsSynchronizing = false;
             }
+
         }
 
+        public Boolean UseHttp
+        {
+            get
+            {
+                return this.useHttp;
+            }
+            set
+            {
+                if (value != useHttp)
+                {
+                    this.useHttp = value;
+                    RaisePropertyChanged(nameof(UseHttp));
+                }
+            }
+        }
 
+        public Boolean Overwrite
+        {
+            get
+            {
+                return this.overwrite;
+            }
+            set
+            {
+                if (value != overwrite)
+                {
+                    this.overwrite = value;
+                    RaisePropertyChanged(nameof(Overwrite));
+                }
+            }
+        }
+
+        public SyncDirection SyncDirection
+        {
+            get
+            {
+                return this.syncDirection;
+            }
+            set
+            {
+                if (value != syncDirection)
+                {
+                    this.syncDirection = value;
+                    RaisePropertyChanged(nameof(SyncDirection));
+                }
+            }
+        }
         public Boolean IsSynchronizing
         {
             get

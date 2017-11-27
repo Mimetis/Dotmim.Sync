@@ -83,52 +83,7 @@ namespace UWPSyncSample.ViewModels
             }
         }
 
-        public String Client_Http_SqlServer
-        {
-            get
-            {
-                return this.settingsHelper[ConnectionType.Client_Http_SqlServer];
-            }
-            set
-            {
-                if (value != this.settingsHelper[ConnectionType.Client_Http_SqlServer])
-                {
-                    this.settingsHelper[ConnectionType.Client_Http_SqlServer] = value;
-                    RaisePropertyChanged(nameof(Client_Http_SqlServer));
-                }
-            }
-        }
-        public String Client_Http_Sqlite
-        {
-            get
-            {
-                return this.settingsHelper[ConnectionType.Client_Http_Sqlite];
-            }
-            set
-            {
-                if (value != this.settingsHelper[ConnectionType.Client_Http_Sqlite])
-                {
-                    this.settingsHelper[ConnectionType.Client_Http_Sqlite] = value;
-                    RaisePropertyChanged(nameof(Client_Http_Sqlite));
-                }
-            }
-        }
-
-        public String Client_Http_MySql
-        {
-            get
-            {
-                return this.settingsHelper[ConnectionType.Client_Http_MySql];
-            }
-            set
-            {
-                if (value != this.settingsHelper[ConnectionType.Client_Http_MySql])
-                {
-                    this.settingsHelper[ConnectionType.Client_Http_MySql] = value;
-                    RaisePropertyChanged(nameof(Client_Http_MySql));
-                }
-            }
-        }
+     
         public String WebProxy
         {
             get
