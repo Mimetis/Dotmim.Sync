@@ -34,14 +34,14 @@ namespace Dotmim.Sync.Sqlite
 
         public void CreateIndex()
         {
-           
+
 
         }
 
         private string CreateIndexCommandText()
         {
             StringBuilder stringBuilder = new StringBuilder();
-           
+
             return stringBuilder.ToString();
         }
 
@@ -200,12 +200,9 @@ namespace Dotmim.Sync.Sqlite
             return stringBuilder.ToString();
         }
 
-        public bool NeedToCreateTrackingTable(DbBuilderOption builderOption)
+        public bool NeedToCreateTrackingTable()
         {
-            if (builderOption.HasFlag(DbBuilderOption.CreateOrUseExistingSchema))
-                return !SqliteManagementUtils.TableExists(connection, transaction, trackingName.QuotedString);
-
-            return false;
+            return !SqliteManagementUtils.TableExists(connection, transaction, trackingName.QuotedString);
         }
 
         public void PopulateFromBaseTable()

@@ -22,7 +22,7 @@ namespace Dotmim.Sync.Sqlite
 
         public FilterClauseCollection Filters { get; set; }
 
-    
+
 
         public SqliteBuilderTrigger(DmTable tableDescription, DbConnection connection, DbTransaction transaction = null)
         {
@@ -123,7 +123,7 @@ namespace Dotmim.Sync.Sqlite
         }
         public void AlterDeleteTrigger()
         {
-            
+
 
         }
         public string AlterDeleteTriggerScriptText()
@@ -137,7 +137,7 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("-- If row was deleted before, it already exists, so just make an update");
             stringBuilder.AppendLine("BEGIN");
- 
+
             stringBuilder.AppendLine($"\tINSERT OR REPLACE INTO {trackingName.QuotedString} (");
 
             StringBuilder stringBuilderArguments = new StringBuilder();
@@ -255,7 +255,7 @@ namespace Dotmim.Sync.Sqlite
         }
         public void AlterInsertTrigger()
         {
-            
+
         }
         public string AlterInsertTriggerScriptText()
         {
@@ -357,42 +357,35 @@ namespace Dotmim.Sync.Sqlite
         {
             return string.Empty;
         }
-        public bool NeedToCreateTrigger(DbTriggerType type, DbBuilderOption option)
+        public bool NeedToCreateTrigger(DbTriggerType type)
         {
             var updTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.UpdateTrigger), tableName.UnquotedStringWithUnderScore);
             var delTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.DeleteTrigger), tableName.UnquotedStringWithUnderScore);
             var insTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.InsertTrigger), tableName.UnquotedStringWithUnderScore);
 
-            if (option.HasFlag(DbBuilderOption.CreateOrUseExistingSchema))
+            string triggerName = string.Empty;
+            switch (type)
             {
-                string triggerName = string.Empty;
-                switch (type)
-                {
-                    case DbTriggerType.Insert:
-                        {
-                            triggerName = insTriggerName;
-                            break;
-                        }
-                    case DbTriggerType.Update:
-                        {
-                            triggerName = updTriggerName;
-                            break;
-                        }
-                    case DbTriggerType.Delete:
-                        {
-                            triggerName = delTriggerName;
-                            break;
-                        }
-                }
-
-                return !SqliteManagementUtils.TriggerExists(connection, transaction, triggerName);
-
+                case DbTriggerType.Insert:
+                    {
+                        triggerName = insTriggerName;
+                        break;
+                    }
+                case DbTriggerType.Update:
+                    {
+                        triggerName = updTriggerName;
+                        break;
+                    }
+                case DbTriggerType.Delete:
+                    {
+                        triggerName = delTriggerName;
+                        break;
+                    }
             }
 
-            if (option.HasFlag(DbBuilderOption.UseExistingSchema))
-                return false;
+            return !SqliteManagementUtils.TriggerExists(connection, transaction, triggerName);
 
-            return false;
+
         }
 
 

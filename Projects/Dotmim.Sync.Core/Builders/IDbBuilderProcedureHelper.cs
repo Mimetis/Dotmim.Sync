@@ -14,8 +14,8 @@ namespace Dotmim.Sync.Builders
     {
         FilterClauseCollection Filters { get; set; }
 
-        bool NeedToCreateProcedure(DbCommandType commandName, DbBuilderOption builderOption);
-        bool NeedToCreateType(DbCommandType typeName, DbBuilderOption builderOption);
+        bool NeedToCreateProcedure(DbCommandType commandName);
+        bool NeedToCreateType(DbCommandType typeName);
         void CreateSelectRow();
         void CreateSelectIncrementalChanges();
         void CreateInsert();
@@ -40,5 +40,6 @@ namespace Dotmim.Sync.Builders
         String CreateBulkInsertScriptText();
         String CreateBulkUpdateScriptText();
         String CreateBulkDeleteScriptText();
+
     }
 }

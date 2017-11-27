@@ -44,7 +44,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Ensure database is ready and created
         /// </summary>
-        Task<SyncContext> EnsureDatabaseAsync(SyncContext context, ScopeInfo scopeInfo, DbBuilderOption options);
+        Task<SyncContext> EnsureDatabaseAsync(SyncContext context, ScopeInfo scopeInfo);
 
         /// <summary>
         /// Apply changes to the local storage, coming from this scope

@@ -205,12 +205,10 @@ namespace Dotmim.Sync.MySql
             return stringBuilder.ToString();
         }
 
-        public bool NeedToCreateTrackingTable(DbBuilderOption builderOption)
+        public bool NeedToCreateTrackingTable()
         {
-            if (builderOption.HasFlag(DbBuilderOption.CreateOrUseExistingSchema))
-                return !MySqlManagementUtils.TableExists(connection, transaction, trackingName.UnquotedString);
+            return !MySqlManagementUtils.TableExists(connection, transaction, trackingName.UnquotedString);
 
-            return false;
         }
 
         public void PopulateFromBaseTable()

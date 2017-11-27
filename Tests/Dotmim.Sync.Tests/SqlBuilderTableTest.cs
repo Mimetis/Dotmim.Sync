@@ -96,14 +96,13 @@ namespace Dotmim.Sync.Test
 
             using (var connection = provider.CreateConnection())
             {
-                var options = DbBuilderOption.CreateOrUseExistingSchema;
-                var builder = provider.GetDatabaseBuilder(set.Tables["Products"], options);
+                var builder = provider.GetDatabaseBuilder(set.Tables["Products"]);
                 var tableBuilder = builder.CreateTableBuilder(connection);
 
                 connection.Open();
 
                 // Check if we need to create the tables
-                if (tableBuilder.NeedToCreateTable(options))
+                if (tableBuilder.NeedToCreateTable())
                 {
                     tableBuilder.CreateTable();
                     tableBuilder.CreatePrimaryKey();
@@ -212,8 +211,7 @@ namespace Dotmim.Sync.Test
 
             using (var connection = provider.CreateConnection())
             {
-                var options = DbBuilderOption.CreateOrUseExistingSchema;
-                var builder = provider.GetDatabaseBuilder(set.Tables["Products"], options);
+                var builder = provider.GetDatabaseBuilder(set.Tables["Products"]);
 
                 var tableBuilder = builder.CreateTrackingTableBuilder(connection);
 

@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Data.SqlClient;
+using System.Diagnostics;
 using System.Linq;
 
 
@@ -313,6 +314,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             catch (DbException ex)
             {
+                Debug.WriteLine(ex.Message);
                 //DbException dbException = dbException1;
                 //Error = CheckZombieTransaction(tvpCommandNameForApplyType, Adapter.TableName, dbException);
                 //this.AddFailedRowsAfterRIFailure(applyTable, failedRows);

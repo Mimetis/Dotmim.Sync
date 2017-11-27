@@ -55,7 +55,7 @@ namespace Dotmim.Sync
         /// Get a table builder helper. Need a complete table description (DmTable). Will then generate table, table tracking, stored proc and triggers
         /// </summary>
         /// <returns></returns>
-        public abstract DbBuilder GetDatabaseBuilder(DmTable tableDescription, DbBuilderOption options = DbBuilderOption.UseExistingSchema);
+        public abstract DbBuilder GetDatabaseBuilder(DmTable tableDescription);
 
         /// <summary>
         /// Get a table manager, which can get informations directly from data source
@@ -724,7 +724,7 @@ namespace Dotmim.Sync
         /// Be sure all tables are ready and configured for sync
         /// the ScopeSet Configuration MUST be filled by the schema form Database
         /// </summary>
-        public virtual async Task<SyncContext> EnsureDatabaseAsync(SyncContext context, ScopeInfo scopeInfo, DbBuilderOption options)
+        public virtual async Task<SyncContext> EnsureDatabaseAsync(SyncContext context, ScopeInfo scopeInfo)
         {
 
             context.SyncStage = SyncStage.EnsureDatabase;
@@ -748,7 +748,7 @@ namespace Dotmim.Sync
                     {
                         foreach (var dmTable in configuration)
                         {
-                            var builder = GetDatabaseBuilder(dmTable, options);
+                            var builder = GetDatabaseBuilder(dmTable);
 
                             // adding filter
                             if (configuration.Filters != null && configuration.Filters.Count > 0)
@@ -773,7 +773,7 @@ namespace Dotmim.Sync
                         // Make all relations after creating all tables, since we can have cross references
                         foreach (var dmTable in configuration)
                         {
-                            var builder = GetDatabaseBuilder(dmTable, options);
+                            var builder = GetDatabaseBuilder(dmTable);
 
                             script += builder.ScriptForeignKeys(connection, transaction);
                             builder.CreateForeignKeys(connection, transaction);

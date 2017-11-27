@@ -173,14 +173,13 @@ namespace Dotmim.Sync.Web
             return (syncContext, conf);
         }
 
-        public async Task<SyncContext> EnsureDatabaseAsync(SyncContext context, ScopeInfo scopeInfo, DbBuilderOption options)
+        public async Task<SyncContext> EnsureDatabaseAsync(SyncContext context, ScopeInfo scopeInfo)
         {
             HttpMessage httpMessage = new HttpMessage { SyncContext = context };
             httpMessage.Step = HttpStep.EnsureDatabase;
 
             HttpEnsureDatabaseMessage ensureDatabaseMessage = new HttpEnsureDatabaseMessage
             {
-                DbBuilderOption = options,
                 ScopeInfo = scopeInfo
             };
             httpMessage.EnsureDatabase = ensureDatabaseMessage;

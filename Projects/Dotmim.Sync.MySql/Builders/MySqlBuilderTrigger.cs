@@ -369,42 +369,34 @@ namespace Dotmim.Sync.MySql
         {
             return string.Empty;
         }
-        public bool NeedToCreateTrigger(DbTriggerType type, DbBuilderOption option)
+        public bool NeedToCreateTrigger(DbTriggerType type)
         {
             var updTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.UpdateTrigger), tableName.UnquotedStringWithUnderScore);
             var delTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.DeleteTrigger), tableName.UnquotedStringWithUnderScore);
             var insTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.InsertTrigger), tableName.UnquotedStringWithUnderScore);
 
-            if (option.HasFlag(DbBuilderOption.CreateOrUseExistingSchema))
+            string triggerName = string.Empty;
+            switch (type)
             {
-                string triggerName = string.Empty;
-                switch (type)
-                {
-                    case DbTriggerType.Insert:
-                        {
-                            triggerName = insTriggerName;
-                            break;
-                        }
-                    case DbTriggerType.Update:
-                        {
-                            triggerName = updTriggerName;
-                            break;
-                        }
-                    case DbTriggerType.Delete:
-                        {
-                            triggerName = delTriggerName;
-                            break;
-                        }
-                }
-
-                return !MySqlManagementUtils.TriggerExists(connection, transaction, triggerName);
-
+                case DbTriggerType.Insert:
+                    {
+                        triggerName = insTriggerName;
+                        break;
+                    }
+                case DbTriggerType.Update:
+                    {
+                        triggerName = updTriggerName;
+                        break;
+                    }
+                case DbTriggerType.Delete:
+                    {
+                        triggerName = delTriggerName;
+                        break;
+                    }
             }
 
-            if (option.HasFlag(DbBuilderOption.UseExistingSchema))
-                return false;
+            return !MySqlManagementUtils.TriggerExists(connection, transaction, triggerName);
 
-            return false;
         }
 
 

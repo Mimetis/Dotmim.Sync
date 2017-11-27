@@ -16,8 +16,7 @@ namespace Dotmim.Sync.Sqlite
 
         SqliteObjectNames sqlObjectNames;
        
-        public SqliteBuilder(DmTable tableDescription, DbBuilderOption option = DbBuilderOption.CreateOrUseExistingSchema)
-            : base(tableDescription, option)
+        public SqliteBuilder(DmTable tableDescription) : base(tableDescription)
         {
             sqlObjectNames = new SqliteObjectNames(tableDescription);
         }

@@ -31,10 +31,8 @@ namespace Dotmim.Sync.SqlServer.Builders
             this.sqlDbMetadata = new SqlDbMetadata();
         }
 
-        public bool NeedToCreateForeignKeyConstraints(DmRelation foreignKey, DbBuilderOption builderOptions)
+        public bool NeedToCreateForeignKeyConstraints(DmRelation foreignKey)
         {
-            if (!builderOptions.HasFlag(DbBuilderOption.CreateOrUseExistingSchema))
-                return false;
 
             string parentTable = foreignKey.ParentTable.TableName;
             string parentSchema = foreignKey.ParentTable.Schema;
@@ -398,26 +396,21 @@ namespace Dotmim.Sync.SqlServer.Builders
         /// <summary>
         /// Check if we need to create the table in the current database
         /// </summary>
-        public bool NeedToCreateTable(DbBuilderOption builderOptions)
+        public bool NeedToCreateTable()
         {
-            if (builderOptions.HasFlag(DbBuilderOption.CreateOrUseExistingSchema))
-                return !SqlManagementUtils.TableExists(connection, transaction, tableName.QuotedString);
+            return !SqlManagementUtils.TableExists(connection, transaction, tableName.QuotedString);
 
-            return false;
         }
 
         /// <summary>
         /// Check if we need to create the table in the current database
         /// </summary>
-        public bool NeedToCreateSchema(DbBuilderOption builderOptions)
+        public bool NeedToCreateSchema()
         {
             if (string.IsNullOrEmpty(tableName.SchemaName) || tableName.SchemaName.ToLowerInvariant() == "dbo")
                 return false;
 
-            if (builderOptions.HasFlag(DbBuilderOption.CreateOrUseExistingSchema))
-                return !SqlManagementUtils.SchemaExists(connection, transaction, tableName.SchemaName);
-
-            return false;
+            return !SqlManagementUtils.SchemaExists(connection, transaction, tableName.SchemaName);
         }
 
 

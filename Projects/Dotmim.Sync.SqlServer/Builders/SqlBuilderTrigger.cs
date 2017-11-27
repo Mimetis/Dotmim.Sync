@@ -83,7 +83,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                         command.Transaction = this.transaction;
 
                     var delTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger);
-                    
+
 
                     StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER {delTriggerName} ON {tableName.QuotedString} FOR DELETE AS");
                     createTrigger.AppendLine();
@@ -497,43 +497,37 @@ namespace Dotmim.Sync.SqlServer.Builders
             string str = $"ALTER Trigger Update for table {tableName.QuotedString}";
             return SqlBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
         }
-        public bool NeedToCreateTrigger(DbTriggerType type, DbBuilderOption option)
+
+        public bool NeedToCreateTrigger(DbTriggerType type)
         {
 
             var updTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger);
             var delTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger);
             var insTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger);
 
-            if (option.HasFlag(DbBuilderOption.CreateOrUseExistingSchema))
+            string triggerName = string.Empty;
+            switch (type)
             {
-                string triggerName = string.Empty;
-                switch (type)
-                {
-                    case DbTriggerType.Insert:
-                        {
-                            triggerName = insTriggerName;
-                            break;
-                        }
-                    case DbTriggerType.Update:
-                        {
-                            triggerName = updTriggerName;
-                            break;
-                        }
-                    case DbTriggerType.Delete:
-                        {
-                            triggerName = delTriggerName;
-                            break;
-                        }
-                }
-
-                return !SqlManagementUtils.TriggerExists(connection, transaction, triggerName);
-
+                case DbTriggerType.Insert:
+                    {
+                        triggerName = insTriggerName;
+                        break;
+                    }
+                case DbTriggerType.Update:
+                    {
+                        triggerName = updTriggerName;
+                        break;
+                    }
+                case DbTriggerType.Delete:
+                    {
+                        triggerName = delTriggerName;
+                        break;
+                    }
             }
 
-            if (option.HasFlag(DbBuilderOption.UseExistingSchema))
-                return false;
+            return !SqlManagementUtils.TriggerExists(connection, transaction, triggerName);
 
-            return false;
+
         }
 
 

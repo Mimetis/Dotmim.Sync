@@ -14,7 +14,7 @@ namespace Dotmim.Sync.Builders
     {
         FilterClauseCollection Filters { get; set; }
     
-        bool NeedToCreateTrigger(DbTriggerType triggerType, DbBuilderOption builderOption);
+        bool NeedToCreateTrigger(DbTriggerType triggerType);
         void CreateInsertTrigger();
         void CreateUpdateTrigger();
         void CreateDeleteTrigger();
