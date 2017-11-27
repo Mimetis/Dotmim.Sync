@@ -20,6 +20,6 @@ namespace Dotmim.Sync.Enumerations
         /// <summary>
         /// Reinitialize the whole sync database, applying all rows from the server to the client, after trying a client upload
         /// </summary>
-        ReinitialzeWithUpload
+        ReinitializeWithUpload
     }
 }
