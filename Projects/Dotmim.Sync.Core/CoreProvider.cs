@@ -257,9 +257,6 @@ namespace Dotmim.Sync
             if (syncConfiguration.Count == 0)
                 throw new SyncException("Configuration should contains Tables, at least tables with a name", SyncStage.EnsureConfiguration, SyncExceptionType.Argument);
 
-            // clear service configuration
-            //syncConfiguration.Clear();
-
             DbConnection connection;
             DbTransaction transaction;
 
@@ -529,19 +526,23 @@ namespace Dotmim.Sync
                         {
                             var scopeBuilder = this.GetScopeBuilder();
                             var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(connection, transaction);
+                            var needToCreateScopeInfoTable = scopeInfoBuilder.NeedToCreateScopeInfoTable();
 
                             // create the scope info table if needed
-                            if (scopeInfoBuilder.NeedToCreateScopeInfoTable())
+                            if (needToCreateScopeInfoTable)
                                 scopeInfoBuilder.CreateScopeInfoTable();
 
-                            // --------------------------------------------------------
-                            // get all scopes shared by all (identified by scopeName)
-                            var lstScopes = scopeInfoBuilder.GetAllScopes(scopeName);
+                            // not the first time we ensure scopes, so get scopes
+                            if (!needToCreateScopeInfoTable)
+                            {
+                                // get all scopes shared by all (identified by scopeName)
+                                var lstScopes = scopeInfoBuilder.GetAllScopes(scopeName);
 
-                            // try to get the scopes from database
-                            // could be two scopes if from server or a single scope if from client
-                            scopes = lstScopes.Where(s => (s.IsLocal == true || (clientReferenceId.HasValue && s.Id == clientReferenceId.Value))).ToList();
-                            // --------------------------------------------------------
+                                // try to get the scopes from database
+                                // could be two scopes if from server or a single scope if from client
+                                scopes = lstScopes.Where(s => (s.IsLocal == true || (clientReferenceId.HasValue && s.Id == clientReferenceId.Value))).ToList();
+
+                            }
 
                             // If no scope found, create it on the local provider
                             if (scopes == null || scopes.Count <= 0)
@@ -563,11 +564,13 @@ namespace Dotmim.Sync
                             else
                             {
                                 //check if we have alread a good last sync. if no, treat it as new
-                                scopes.ForEach(sc =>
-                                {
-                                    sc.IsNewScope = sc.LastSync == null;
-                                });
+                                scopes.ForEach(sc => sc.IsNewScope = sc.LastSync == null);
                             }
+
+                            // if we are not on the server, we have to check that we only have one scope
+                            if (!clientReferenceId.HasValue && scopes.Count > 1)
+                                throw SyncException.CreateNotSupportedException(SyncStage.EnsureScopes, "On Local provider, we should have only one scope info");
+
 
                             // if we have a reference in args, we need to get this specific line from database
                             // this happen only on the server side
@@ -593,6 +596,7 @@ namespace Dotmim.Sync
                                     refScope.IsNewScope = refScope.LastSync == null;
                                 }
                             }
+
                             transaction.Commit();
                         }
 
@@ -726,7 +730,6 @@ namespace Dotmim.Sync
         /// </summary>
         public virtual async Task<SyncContext> EnsureDatabaseAsync(SyncContext context, ScopeInfo scopeInfo)
         {
-
             context.SyncStage = SyncStage.EnsureDatabase;
             var configuration = GetCacheConfiguration();
 
@@ -787,6 +790,7 @@ namespace Dotmim.Sync
                             Action = ChangeApplicationAction.Continue,
                             DatabaseScript = script
                         };
+
                         this.SyncProgress?.Invoke(this, progressEventArgs);
 
                         if (progressEventArgs.Action == ChangeApplicationAction.Rollback)
@@ -923,19 +927,64 @@ namespace Dotmim.Sync
                 if (progressEventArgs.Action == ChangeApplicationAction.Rollback)
                     throw SyncException.CreateRollbackException(context.SyncStage);
 
-                if (configuration.DownloadBatchSizeInKB == 0)
+                // if we try a Reinitialize action, don't get any changes from client
+                // else get changes from batch or in memory methods
+                if (context.SyncWay == SyncWay.Upload && context.SyncType == SyncType.Reinitialize)
+                    (batchInfo, changesStatistics) = this.GetEmptyChanges(context, scopeInfo);
+                else if (configuration.DownloadBatchSizeInKB == 0)
                     (batchInfo, changesStatistics) = await this.EnumerateChangesInternal(context, scopeInfo);
                 else
                     (batchInfo, changesStatistics) = await this.EnumerateChangesInBatchesInternal(context, scopeInfo);
 
                 return (context, batchInfo, changesStatistics);
-
             }
             catch (Exception)
             {
                 throw;
             }
 
+        }
+
+        /// <summary>
+        /// Generate an empty BatchInfo
+        /// </summary>
+        internal (BatchInfo, ChangesStatistics) GetEmptyChanges(SyncContext context, ScopeInfo scopeInfo)
+        {
+            // Get config
+            var configuration = GetCacheConfiguration();
+            var isBatched = configuration.DownloadBatchSizeInKB > 0;
+
+            // create the in memory changes set
+            DmSet changesSet = new DmSet(configuration.ScopeSet.DmSetName);
+
+            // Create the batch info, in memory
+            var batchInfo = new BatchInfo();
+            batchInfo.InMemory = !isBatched;
+
+            if (!isBatched)
+                batchInfo.Directory = BatchInfo.GenerateNewDirectoryName();
+
+            ChangesStatistics changesStatistics = new ChangesStatistics();
+
+            // Event progress
+            var progressEventArgs = new SyncProgressEventArgs
+            {
+                ProviderTypeName = this.ProviderTypeName,
+                Context = context,
+                Action = ChangeApplicationAction.Continue,
+                ChangesStatistics = changesStatistics
+            };
+            // add stats for a SyncProgress event
+            context.SyncStage = SyncStage.SelectedChanges;
+            progressEventArgs.ChangesStatistics = changesStatistics;
+            this.SyncProgress?.Invoke(this, progressEventArgs);
+
+            // generate the batchpartinfo
+            var bpi = batchInfo.GenerateBatchInfo(0, changesSet, configuration.BatchDirectory);
+            bpi.IsLastBatch = true;
+
+            // Create a new in-memory batch info with an the changes DmSet
+            return (batchInfo, changesStatistics);
 
         }
 
@@ -957,7 +1006,6 @@ namespace Dotmim.Sync
             // Create the batch info, in memory
             var batchInfo = new BatchInfo();
             batchInfo.InMemory = true;
-
 
             using (var connection = this.CreateConnection())
             {
@@ -1041,10 +1089,7 @@ namespace Dotmim.Sync
                             // Get a clone of the table with tracking columns
                             var dmTableChanges = BuildChangesTable(tableDescription.TableName);
 
-                            // Set the parameters
-                            DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_min_timestamp", scopeInfo.LastTimestamp);
-                            DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_id", scopeInfo.Id);
-                            DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_is_new", scopeInfo.IsNewScope ? 1 : 0);
+                            SetSelectChangesCommonParameters(context, scopeInfo, selectIncrementalChangesCommand);
 
                             // Set filter parameters if any
                             if (this.CanBeServerProvider && context.Parameters != null && context.Parameters.Count > 0 && configuration.Filters != null && configuration.Filters.Count > 0)
@@ -1153,6 +1198,46 @@ namespace Dotmim.Sync
             }
         }
 
+
+        /// <summary>
+        /// Set common parameters to SelectChanges Sql command
+        /// </summary>
+        private static void SetSelectChangesCommonParameters(SyncContext context, ScopeInfo scopeInfo, DbCommand selectIncrementalChangesCommand)
+        {
+            // Generate the isNewScope Flag.
+            var isNewScope = scopeInfo.IsNewScope ? 1 : 0;
+            var lastTimeStamp = scopeInfo.LastTimestamp;
+            int isReinit = context.SyncType == SyncType.Reinitialize ? 1 : 0;
+
+            switch (context.SyncWay)
+            {
+                case SyncWay.Upload:
+                    // Overwrite if we are in Reinitialize mode (not RenitializeWithUpload)
+                    isNewScope = context.SyncType == SyncType.Reinitialize ? 1 : isNewScope;
+                    lastTimeStamp = context.SyncType == SyncType.Reinitialize ? 0 : lastTimeStamp;
+                    isReinit = context.SyncType == SyncType.Reinitialize ? 1 : 0;
+                    break;
+                case SyncWay.Download:
+                    // Ovewrite on bot Reinitialize and ReinitializeWithUpload
+                    isNewScope = context.SyncType != SyncType.Normal ? 1 : isNewScope;
+                    lastTimeStamp = context.SyncType != SyncType.Normal ? 0 : lastTimeStamp;
+                    isReinit = context.SyncType != SyncType.Normal ? 1 : 0;
+                    break;
+                default:
+                    break;
+            }
+
+            // Set the parameters
+            DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_min_timestamp", lastTimeStamp);
+            DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_id", scopeInfo.Id);
+            DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_is_new", isNewScope);
+            DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_is_reinit", isReinit);
+
+            scopeInfo.IsNewScope = isNewScope ==  1 ? true : false;
+            scopeInfo.LastTimestamp = lastTimeStamp;
+
+        }
+
         /// <summary>
         /// Enumerate all internal changes, no batch mode
         /// </summary>
@@ -1247,10 +1332,8 @@ namespace Dotmim.Sync
 
                             try
                             {
-                                // Set the parameters
-                                DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_min_timestamp", scopeInfo.LastTimestamp);
-                                DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_id", scopeInfo.Id);
-                                DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_is_new", (scopeInfo.IsNewScope ? 1 : 0));
+                                // Set commons parameters
+                                SetSelectChangesCommonParameters(context, scopeInfo, selectIncrementalChangesCommand);
 
                                 // Set filter parameters if any
                                 // Only on server side
@@ -1643,6 +1726,18 @@ namespace Dotmim.Sync
                         Logger.Current.Info("");
 
                         // -----------------------------------------------------
+                        // 0) Check if we are in a reinit mode
+                        // -----------------------------------------------------
+                        if (context.SyncWay == SyncWay.Download && context.SyncType != SyncType.Normal)
+                        {
+                            changeApplicationAction = this.ResetInternal(context, connection, applyTransaction, fromScope);
+
+                            // Rollback
+                            if (changeApplicationAction == ChangeApplicationAction.Rollback)
+                                throw SyncException.CreateRollbackException(context.SyncStage);
+                        }
+
+                        // -----------------------------------------------------
                         // 1) Applying deletes. Do not apply deletes if we are in a new database
                         // -----------------------------------------------------
                         if (!fromScope.IsNewScope)
@@ -1721,6 +1816,38 @@ namespace Dotmim.Sync
             {
                 throw;
             }
+        }
+
+        /// <summary>
+        /// Here we are reseting all tables and tracking tables to be able to Reinitialize completely
+        /// </summary>
+        private ChangeApplicationAction ResetInternal(SyncContext context, DbConnection connection, DbTransaction transaction, ScopeInfo fromScope)
+        {
+            ChangeApplicationAction changeApplicationAction = ChangeApplicationAction.Continue;
+
+            var configuration = GetCacheConfiguration();
+
+            for (int i = 0; i < configuration.Count; i++)
+            {
+                try
+                {
+                    var tableDescription = configuration[i];
+
+                    var builder = this.GetDatabaseBuilder(tableDescription);
+                    var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
+
+                    // reset table
+                    syncAdapter.ResetTable(tableDescription);
+    
+                }
+                catch (Exception ex)
+                {
+                    Logger.Current.Error($"Error during ResetInternal : {ex.Message}");
+                    throw;
+                }
+            }
+            return ChangeApplicationAction.Continue;
+
         }
 
         /// <summary>

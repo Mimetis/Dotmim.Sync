@@ -319,6 +319,11 @@ namespace Dotmim.Sync.MySql
             p.ParameterName = "sync_scope_is_new";
             p.DbType = DbType.Boolean;
             command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "sync_scope_is_reinit";
+            p.DbType = DbType.Boolean;
+            command.Parameters.Add(p);
         }
 
         public override void ExecuteBatchCommand(DbCommand cmd, DmTable applyTable, DmTable failedRows, ScopeInfo scope)

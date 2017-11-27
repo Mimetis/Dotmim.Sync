@@ -178,6 +178,37 @@ namespace Dotmim.Sync.MySql
 
 
 
+        //------------------------------------------------------------------
+        // Reset command
+        //------------------------------------------------------------------
+        private MySqlCommand BuildResetCommand()
+        {
+            var updTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger);
+            var delTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger);
+            var insTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger);
+
+            MySqlCommand sqlCommand = new MySqlCommand();
+
+            StringBuilder stringBuilder = new StringBuilder();
+
+            stringBuilder.AppendLine($"DELETE FROM {tableName.QuotedString};");
+            stringBuilder.AppendLine($"DELETE FROM {trackingName.QuotedString};");
+
+            stringBuilder.AppendLine();
+            sqlCommand.CommandText = stringBuilder.ToString();
+            return sqlCommand;
+        }
+        public void CreateReset()
+        {
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.Reset);
+            CreateProcedureCommand(BuildResetCommand, commandName);
+        }
+        public string CreateResetScriptText()
+        {
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.Reset);
+            return CreateProcedureCommandScriptText(BuildResetCommand, commandName);
+        }
+
 
         //------------------------------------------------------------------
         // Delete command
@@ -599,6 +630,11 @@ namespace Dotmim.Sync.MySql
             sqlParameter4.MySqlDbType = MySqlDbType.Bit;
             sqlCommand.Parameters.Add(sqlParameter4);
 
+            MySqlParameter sqlParameter5 = new MySqlParameter();
+            sqlParameter5.ParameterName = "sync_scope_is_reinit";
+            sqlParameter5.MySqlDbType = MySqlDbType.Bit;
+            sqlCommand.Parameters.Add(sqlParameter5);
+
 
             //if (withFilter && this.Filters != null && this.Filters.Count > 0)
             //{
@@ -689,6 +725,8 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine("\t`side`.`update_scope_id` IS NULL");
             stringBuilder.AppendLine("\t-- Or Update different from remote");
             stringBuilder.AppendLine("\tOR `side`.`update_scope_id` <> sync_scope_id");
+            stringBuilder.AppendLine("\t-- Or we are in reinit mode so we take rows even thoses updated by the scope");
+            stringBuilder.AppendLine("\tOR sync_scope_is_reinit = 1");
             stringBuilder.AppendLine("    )");
             stringBuilder.AppendLine("AND (");
             stringBuilder.AppendLine("\t-- And Timestamp is > from remote timestamp");
@@ -822,5 +860,7 @@ namespace Dotmim.Sync.MySql
         {
             throw new NotImplementedException();
         }
+
+       
     }
 }

@@ -178,9 +178,6 @@ namespace Dotmim.Sync
             return rowsApplied > 0;
         }
 
-
-
-
         /// <summary>
         /// Try to get a source row
         /// </summary>
@@ -505,6 +502,48 @@ namespace Dotmim.Sync
             }
 
             return rowInsertedCount > 0;
+
+        }
+
+        internal bool ResetTable(DmTable tableDescription)
+        {
+            var command = this.GetCommand(DbCommandType.Reset);
+
+            // Deriving Parameters
+            this.SetCommandParameters(DbCommandType.Reset, command);
+
+            var alreadyOpened = Connection.State == ConnectionState.Open;
+
+            int rowCount = 0;
+            try
+            {
+                // OPen Connection
+                if (!alreadyOpened)
+                    Connection.Open();
+
+                if (Transaction != null)
+                    command.Transaction = Transaction;
+
+                rowCount = command.ExecuteNonQuery();
+            }
+            catch (ArgumentException ex)
+            {
+                Logger.Current.Error(ex.Message);
+                throw;
+            }
+            catch (DbException ex)
+            {
+                Logger.Current.Error(ex.Message);
+                return false;
+            }
+            finally
+            {
+                if (!alreadyOpened)
+                    Connection.Close();
+            }
+
+            return rowCount > 0;
+
 
         }
 
@@ -861,8 +900,7 @@ namespace Dotmim.Sync
             }
         }
 
-
-
+        
     }
 
 }

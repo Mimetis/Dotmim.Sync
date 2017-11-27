@@ -208,7 +208,7 @@ namespace Dotmim.Sync
             // if any parameters, set in context
             context.Parameters = this.Parameters;
 
-            // set sync type (Normal, Reinitialize, ReinitializeWithUpload). Actually, not used
+            // set sync type (Normal, Reinitialize, ReinitializeWithUpload)
             context.SyncType = syncType;
 
             this.SessionState = SyncSessionState.Synchronizing;

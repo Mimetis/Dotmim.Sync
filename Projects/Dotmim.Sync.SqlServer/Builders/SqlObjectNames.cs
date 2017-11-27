@@ -24,6 +24,8 @@ namespace Dotmim.Sync.SqlServer.Builders
         internal const string updateMetadataProcName = "[{0}].[{1}_updatemetadata]";
         internal const string deleteMetadataProcName = "[{0}].[{1}_deletemetadata]";
 
+        internal const string resetMetadataProcName = "[{0}].[{1}_reset]";
+
         internal const string bulkTableTypeName = "[{0}].[{1}_BulkType]";
         internal const string bulkInsertProcName = "[{0}].[{1}_bulkinsert]";
         internal const string bulkUpdateProcName = "[{0}].[{1}_bulkupdate]";
@@ -88,6 +90,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             this.AddName(DbCommandType.InsertMetadata, string.Format(insertMetadataProcName, schema, tableName.ObjectName));
             this.AddName(DbCommandType.UpdateMetadata, string.Format(updateMetadataProcName, schema, tableName.ObjectName));
             this.AddName(DbCommandType.DeleteMetadata, string.Format(deleteMetadataProcName, schema, tableName.ObjectName));
+            this.AddName(DbCommandType.Reset, string.Format(resetMetadataProcName, schema, tableName.ObjectName));
 
             this.AddName(DbCommandType.InsertTrigger, string.Format(insertTriggerName, schema, tableName.ObjectName));
             this.AddName(DbCommandType.UpdateTrigger, string.Format(updateTriggerName, schema, tableName.ObjectName));

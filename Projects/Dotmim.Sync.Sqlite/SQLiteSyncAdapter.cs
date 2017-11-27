@@ -97,9 +97,17 @@ namespace Dotmim.Sync.Sqlite
                 case DbCommandType.UpdateRow:
                     this.SetUpdateRowParameters(command);
                     break;
+                case DbCommandType.Reset:
+                    this.SetResetParameters(command);
+                    break;
                 default:
                     break;
             }
+        }
+
+        private void SetResetParameters(DbCommand command)
+        {
+            // nothing to set here
         }
 
         private DbType GetValidDbType(DbType dbType)
@@ -289,6 +297,11 @@ namespace Dotmim.Sync.Sqlite
 
             p = command.CreateParameter();
             p.ParameterName = "@sync_scope_is_new";
+            p.DbType = DbType.Boolean;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_is_reinit";
             p.DbType = DbType.Boolean;
             command.Parameters.Add(p);
         }
