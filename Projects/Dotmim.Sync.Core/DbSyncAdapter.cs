@@ -136,7 +136,16 @@ namespace Dotmim.Sync
             DbManager.SetParameterValue(command, "create_scope_id", createScopeId);
             DbManager.SetParameterValue(command, "update_scope_id", updateScopeId);
 
-            DbManager.SetParameterValue(command, "sync_row_is_tombstone", row.RowState == DmRowState.Deleted ? 1 : 0);
+            // 2 choices for getting deleted
+            bool isTombstone = false;
+
+            if (row.RowState == DmRowState.Deleted)
+                isTombstone = true;
+
+            if (row.Table != null && row.Table.Columns.Contains("sync_row_is_tombstone"))
+                isTombstone = row["sync_row_is_tombstone", version] != null && row["sync_row_is_tombstone", version] != DBNull.Value ? (bool)row["sync_row_is_tombstone", version] : false;
+            
+            DbManager.SetParameterValue(command, "sync_row_is_tombstone", isTombstone ? 1 : 0);
 
             DbManager.SetParameterValue(command, "create_timestamp", createTimestamp);
             DbManager.SetParameterValue(command, "update_timestamp", updateTimestamp);

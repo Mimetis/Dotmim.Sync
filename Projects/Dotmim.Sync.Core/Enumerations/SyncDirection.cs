@@ -4,6 +4,9 @@ using System.Text;
 
 namespace Dotmim.Sync.Enumerations
 {
+    /// <summary>
+    /// Sync direction : Can be Bidirectional (default), DownloadOnly, UploadOnly
+    /// </summary>
     public enum SyncDirection
     {
         /// <summary>
