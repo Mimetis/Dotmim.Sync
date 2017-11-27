@@ -7,6 +7,7 @@ using System.Linq;
 using System.Data;
 using Dotmim.Sync.Log;
 using Microsoft.Data.Sqlite;
+using System.Diagnostics;
 
 namespace Dotmim.Sync.Sqlite
 {
@@ -195,7 +196,7 @@ namespace Dotmim.Sync.Sqlite
             }
             catch (Exception ex)
             {
-                Logger.Current.Error($"Error during CreateTable : {ex}");
+                Debug.WriteLine($"Error during CreateTable : {ex}");
                 throw;
 
             }
@@ -250,7 +251,7 @@ namespace Dotmim.Sync.Sqlite
             }
             catch (Exception ex)
             {
-                Logger.Current.Error($"Error during EnsureForeignKeysTableExist : {ex}");
+                Debug.WriteLine($"Error during EnsureForeignKeysTableExist : {ex}");
                 throw;
 
             }

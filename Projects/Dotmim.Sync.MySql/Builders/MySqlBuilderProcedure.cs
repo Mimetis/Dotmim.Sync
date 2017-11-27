@@ -10,6 +10,7 @@ using Dotmim.Sync.Filter;
 using MySql.Data.MySqlClient;
 using Dotmim.Sync.MySql;
 using Dotmim.Sync.MySql.Builders;
+using System.Diagnostics;
 
 namespace Dotmim.Sync.MySql
 {
@@ -114,7 +115,7 @@ namespace Dotmim.Sync.MySql
             }
             catch (Exception ex)
             {
-                Logger.Current.Error($"Error during CreateProcedureCommand : {ex}");
+                Debug.WriteLine($"Error during CreateProcedureCommand : {ex}");
                 throw;
             }
             finally
@@ -144,7 +145,7 @@ namespace Dotmim.Sync.MySql
             }
             catch (Exception ex)
             {
-                Logger.Current.Error($"Error during CreateProcedureCommand : {ex}");
+                Debug.WriteLine($"Error during CreateProcedureCommand : {ex}");
                 throw;
             }
             finally

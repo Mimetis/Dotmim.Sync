@@ -8,6 +8,7 @@ using System.Data;
 using Dotmim.Sync.Log;
 using MySql.Data.MySqlClient;
 using Dotmim.Sync.MySql.Builders;
+using System.Diagnostics;
 
 namespace Dotmim.Sync.MySql
 {
@@ -98,7 +99,7 @@ namespace Dotmim.Sync.MySql
             }
             catch (Exception ex)
             {
-                Logger.Current.Error($"Error during CreateForeignKeyConstraints : {ex}");
+                Debug.WriteLine($"Error during CreateForeignKeyConstraints : {ex}");
                 throw;
 
             }
@@ -219,7 +220,7 @@ namespace Dotmim.Sync.MySql
             }
             catch (Exception ex)
             {
-                Logger.Current.Error($"Error during CreateTable : {ex}");
+                Debug.WriteLine($"Error during CreateTable : {ex}");
                 throw;
 
             }
@@ -274,7 +275,7 @@ namespace Dotmim.Sync.MySql
             }
             catch (Exception ex)
             {
-                Logger.Current.Error($"Error during EnsureForeignKeysTableExist : {ex}");
+                Debug.WriteLine($"Error during EnsureForeignKeysTableExist : {ex}");
                 throw;
 
             }

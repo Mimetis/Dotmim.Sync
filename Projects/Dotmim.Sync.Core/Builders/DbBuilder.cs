@@ -7,6 +7,7 @@ using System.Linq;
 using System.Data;
 using Dotmim.Sync.Log;
 using Dotmim.Sync.Filter;
+using System.Diagnostics;
 
 namespace Dotmim.Sync.Builders
 {
@@ -95,7 +96,7 @@ namespace Dotmim.Sync.Builders
             }
             catch (Exception ex)
             {
-                Logger.Current.Error(ex.Message);
+                Debug.WriteLine(ex.Message);
                 throw;
             }
             finally
@@ -195,7 +196,7 @@ namespace Dotmim.Sync.Builders
             }
             catch (Exception ex)
             {
-                Logger.Current.Error(ex.Message);
+                Debug.WriteLine(ex.Message);
                 throw;
             }
             finally
@@ -218,7 +219,7 @@ namespace Dotmim.Sync.Builders
                 if (!alreadyOpened)
                     connection.Open();
 
-                Logger.Current.Info($"----- Scripting Provisioning of Table '{TableDescription.TableName}' -----");
+                Debug.WriteLine($"----- Scripting Provisioning of Table '{TableDescription.TableName}' -----");
 
                 StringBuilder stringBuilder = new StringBuilder();
 
@@ -237,7 +238,7 @@ namespace Dotmim.Sync.Builders
             }
             catch (Exception exception)
             {
-                Logger.Current.Error(exception.Message);
+                Debug.WriteLine(exception.Message);
                 throw;
             }
 
@@ -263,7 +264,7 @@ namespace Dotmim.Sync.Builders
                 if (!alreadyOpened)
                     connection.Open();
 
-                Logger.Current.Info($"----- Scripting Provisioning of Table '{TableDescription.TableName}' -----");
+                Debug.WriteLine($"----- Scripting Provisioning of Table '{TableDescription.TableName}' -----");
 
                 StringBuilder stringBuilder = new StringBuilder();
 
@@ -343,7 +344,7 @@ namespace Dotmim.Sync.Builders
             }
             catch (Exception exception)
             {
-                Logger.Current.Error(exception.Message);
+                Debug.WriteLine(exception.Message);
                 throw;
             }
 

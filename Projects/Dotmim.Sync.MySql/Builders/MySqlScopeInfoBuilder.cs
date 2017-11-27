@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using MySql.Data.MySqlClient;
+using System.Diagnostics;
 
 namespace Dotmim.Sync.MySql
 {
@@ -48,7 +49,7 @@ namespace Dotmim.Sync.MySql
             }
             catch (Exception ex)
             {
-                Logger.Current.Error($"Error during CreateTableScope : {ex}");
+                Debug.WriteLine($"Error during CreateTableScope : {ex}");
                 throw;
             }
             finally
@@ -110,7 +111,7 @@ namespace Dotmim.Sync.MySql
             }
             catch (Exception ex)
             {
-                Logger.Current.Error($"Error during GetAllScopes : {ex}");
+                Debug.WriteLine($"Error during GetAllScopes : {ex}");
                 throw;
             }
             finally
@@ -143,7 +144,7 @@ namespace Dotmim.Sync.MySql
             }
             catch (Exception ex)
             {
-                Logger.Current.Error($"Error during GetLocalTimestamp : {ex}");
+                Debug.WriteLine($"Error during GetLocalTimestamp : {ex}");
                 throw;
 
             }
@@ -236,7 +237,7 @@ namespace Dotmim.Sync.MySql
             }
             catch (Exception ex)
             {
-                Logger.Current.Error($"Error during CreateTableScope : {ex}");
+                Debug.WriteLine($"Error during CreateTableScope : {ex}");
                 throw;
             }
             finally
@@ -266,7 +267,7 @@ namespace Dotmim.Sync.MySql
             }
             catch (Exception ex)
             {
-                Logger.Current.Error($"Error during NeedToCreateScopeInfoTable command : {ex}");
+                Debug.WriteLine($"Error during NeedToCreateScopeInfoTable command : {ex}");
                 throw;
             }
             finally

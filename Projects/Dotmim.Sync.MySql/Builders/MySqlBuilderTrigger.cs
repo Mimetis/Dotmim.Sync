@@ -8,6 +8,7 @@ using Dotmim.Sync.Log;
 using System.Data;
 using MySql.Data.MySqlClient;
 using Dotmim.Sync.Filter;
+using System.Diagnostics;
 
 namespace Dotmim.Sync.MySql
 {
@@ -97,7 +98,7 @@ namespace Dotmim.Sync.MySql
             }
             catch (Exception ex)
             {
-                Logger.Current.Error($"Error during CreateDeleteTrigger : {ex}");
+                Debug.WriteLine($"Error during CreateDeleteTrigger : {ex}");
                 throw;
 
             }
@@ -246,7 +247,7 @@ namespace Dotmim.Sync.MySql
             }
             catch (Exception ex)
             {
-                Logger.Current.Error($"Error during CreateDeleteTrigger : {ex}");
+                Debug.WriteLine($"Error during CreateDeleteTrigger : {ex}");
                 throw;
 
             }
@@ -339,7 +340,7 @@ namespace Dotmim.Sync.MySql
             }
             catch (Exception ex)
             {
-                Logger.Current.Error($"Error during CreateDeleteTrigger : {ex}");
+                Debug.WriteLine($"Error during CreateDeleteTrigger : {ex}");
                 throw;
 
             }

@@ -6,6 +6,7 @@ using Microsoft.Toolkit.Uwp.Helpers;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -67,6 +68,8 @@ namespace UWPSyncSample.ViewModels
             }
             catch (Exception ex)
             {
+                Debug.WriteLine($"Error : {ex}");
+
                 MessageDialog cd = new MessageDialog("Cant make a database request. Try to sync");
                 await cd.ShowAsync();
             }

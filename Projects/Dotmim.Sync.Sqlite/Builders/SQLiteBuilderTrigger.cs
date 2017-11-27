@@ -8,6 +8,7 @@ using Dotmim.Sync.Log;
 using System.Data;
 using Microsoft.Data.Sqlite;
 using Dotmim.Sync.Filter;
+using System.Diagnostics;
 
 namespace Dotmim.Sync.Sqlite
 {
@@ -99,7 +100,7 @@ namespace Dotmim.Sync.Sqlite
             }
             catch (Exception ex)
             {
-                Logger.Current.Error($"Error during CreateDeleteTrigger : {ex}");
+                Debug.WriteLine($"Error during CreateDeleteTrigger : {ex}");
                 throw;
 
             }
@@ -231,7 +232,7 @@ namespace Dotmim.Sync.Sqlite
             }
             catch (Exception ex)
             {
-                Logger.Current.Error($"Error during CreateDeleteTrigger : {ex}");
+                Debug.WriteLine($"Error during CreateDeleteTrigger : {ex}");
                 throw;
 
             }
@@ -328,7 +329,7 @@ namespace Dotmim.Sync.Sqlite
             }
             catch (Exception ex)
             {
-                Logger.Current.Error($"Error during CreateDeleteTrigger : {ex}");
+                Debug.WriteLine($"Error during CreateDeleteTrigger : {ex}");
                 throw;
 
             }

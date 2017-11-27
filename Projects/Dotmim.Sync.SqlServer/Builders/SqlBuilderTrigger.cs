@@ -6,6 +6,7 @@ using System;
 using System.Data;
 using System.Data.Common;
 using System.Data.SqlClient;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 
@@ -97,7 +98,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             catch (Exception ex)
             {
-                Logger.Current.Error($"Error during CreateDeleteTrigger : {ex}");
+                Debug.WriteLine($"Error during CreateDeleteTrigger : {ex}");
                 throw;
 
             }
@@ -146,7 +147,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             catch (Exception ex)
             {
-                Logger.Current.Error($"Error during CreateDeleteTrigger : {ex}");
+                Debug.WriteLine($"Error during CreateDeleteTrigger : {ex}");
                 throw;
 
             }
@@ -296,7 +297,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             catch (Exception ex)
             {
-                Logger.Current.Error($"Error during CreateDeleteTrigger : {ex}");
+                Debug.WriteLine($"Error during CreateDeleteTrigger : {ex}");
                 throw;
 
             }
@@ -345,7 +346,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             catch (Exception ex)
             {
-                Logger.Current.Error($"Error during CreateDeleteTrigger : {ex}");
+                Debug.WriteLine($"Error during CreateDeleteTrigger : {ex}");
                 throw;
 
             }
@@ -426,7 +427,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             catch (Exception ex)
             {
-                Logger.Current.Error($"Error during CreateDeleteTrigger : {ex}");
+                Debug.WriteLine($"Error during CreateDeleteTrigger : {ex}");
                 throw;
 
             }
@@ -474,7 +475,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             catch (Exception ex)
             {
-                Logger.Current.Error($"Error during CreateDeleteTrigger : {ex}");
+                Debug.WriteLine($"Error during CreateDeleteTrigger : {ex}");
                 throw;
 
             }

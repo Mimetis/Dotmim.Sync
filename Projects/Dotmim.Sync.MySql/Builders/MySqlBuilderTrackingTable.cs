@@ -9,6 +9,7 @@ using MySql.Data.MySqlClient;
 using Dotmim.Sync.Filter;
 using System.Linq;
 using Dotmim.Sync.MySql.Builders;
+using System.Diagnostics;
 
 namespace Dotmim.Sync.MySql
 {
@@ -75,7 +76,7 @@ namespace Dotmim.Sync.MySql
             }
             catch (Exception ex)
             {
-                Logger.Current.Error($"Error during CreateIndex : {ex}");
+                Debug.WriteLine($"Error during CreateIndex : {ex}");
                 throw;
             }
             finally
@@ -117,7 +118,7 @@ namespace Dotmim.Sync.MySql
             }
             catch (Exception ex)
             {
-                Logger.Current.Error($"Error during CreateIndex : {ex}");
+                Debug.WriteLine($"Error during CreateIndex : {ex}");
                 throw;
 
             }
@@ -233,7 +234,7 @@ namespace Dotmim.Sync.MySql
             }
             catch (Exception ex)
             {
-                Logger.Current.Error($"Error during CreateIndex : {ex}");
+                Debug.WriteLine($"Error during CreateIndex : {ex}");
                 throw;
 
             }
@@ -352,7 +353,7 @@ namespace Dotmim.Sync.MySql
             }
             catch (Exception ex)
             {
-                Logger.Current.Error($"Error during CreateIndex : {ex}");
+                Debug.WriteLine($"Error during CreateIndex : {ex}");
                 throw;
 
             }
