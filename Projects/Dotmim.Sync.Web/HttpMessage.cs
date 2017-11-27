@@ -122,6 +122,5 @@ namespace Dotmim.Sync.Web
     public class HttpEnsureDatabaseMessage
     {
         public ScopeInfo ScopeInfo { get; set; }
-        public DbBuilderOption DbBuilderOption { get; set; }
     }
 }

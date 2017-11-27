@@ -23,8 +23,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
         }
 
-        public SqlBuilder(DmTable tableDescription, DbBuilderOption option = DbBuilderOption.CreateOrUseExistingSchema)
-            : base(tableDescription, option)
+        public SqlBuilder(DmTable tableDescription) : base(tableDescription)
         {
             sqlObjectNames = new SqlObjectNames(tableDescription);
         }

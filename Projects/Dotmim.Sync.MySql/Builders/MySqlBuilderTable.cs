@@ -70,7 +70,7 @@ namespace Dotmim.Sync.MySql
             return sqlCommand;
         }
 
-        public bool NeedToCreateForeignKeyConstraints(DmRelation constraint, DbBuilderOption builderOption)
+        public bool NeedToCreateForeignKeyConstraints(DmRelation constraint)
         {
             throw new NotImplementedException();
         }
@@ -291,15 +291,13 @@ namespace Dotmim.Sync.MySql
         /// <summary>
         /// Check if we need to create the table in the current database
         /// </summary>
-        public bool NeedToCreateTable(DbBuilderOption builderOptions)
+        public bool NeedToCreateTable()
         {
-            if (builderOptions.HasFlag(DbBuilderOption.CreateOrUseExistingSchema))
-                return !MySqlManagementUtils.TableExists(connection, transaction, tableName.UnquotedString);
+            return !MySqlManagementUtils.TableExists(connection, transaction, tableName.UnquotedString);
 
-            return false;
         }
 
-        public bool NeedToCreateSchema(DbBuilderOption builderOption)
+        public bool NeedToCreateSchema()
         {
             return false;
         }

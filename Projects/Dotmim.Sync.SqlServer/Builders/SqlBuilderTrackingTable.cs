@@ -22,7 +22,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         private SqlDbMetadata sqlDbMetadata;
 
         public FilterClauseCollection Filters { get; set; }
-   
+
         public SqlBuilderTrackingTable(DmTable tableDescription, DbConnection connection, DbTransaction transaction = null)
         {
             this.connection = connection as SqlConnection;
@@ -263,13 +263,9 @@ namespace Dotmim.Sync.SqlServer.Builders
             return stringBuilder.ToString();
         }
 
-        public bool NeedToCreateTrackingTable(DbBuilderOption builderOption)
+        public bool NeedToCreateTrackingTable()
         {
-
-            if (builderOption.HasFlag(DbBuilderOption.CreateOrUseExistingSchema))
-                return !SqlManagementUtils.TableExists(connection, transaction, trackingName.QuotedString);
-
-            return false;
+            return !SqlManagementUtils.TableExists(connection, transaction, trackingName.QuotedString);
         }
 
         public void PopulateFromBaseTable()

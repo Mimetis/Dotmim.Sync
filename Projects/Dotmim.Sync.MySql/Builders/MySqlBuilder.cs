@@ -15,8 +15,7 @@ namespace Dotmim.Sync.MySql
 
         MySqlObjectNames sqlObjectNames;
        
-        public MySqlBuilder(DmTable tableDescription, DbBuilderOption option = DbBuilderOption.CreateOrUseExistingSchema)
-            : base(tableDescription, option)
+        public MySqlBuilder(DmTable tableDescription) : base(tableDescription)
         {
             sqlObjectNames = new MySqlObjectNames(tableDescription);
         }

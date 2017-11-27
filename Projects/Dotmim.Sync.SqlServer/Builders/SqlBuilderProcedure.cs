@@ -184,33 +184,28 @@ namespace Dotmim.Sync.SqlServer.Builders
         /// <summary>
         /// Check if we need to create the stored procedure
         /// </summary>
-        public bool NeedToCreateProcedure(DbCommandType commandType, DbBuilderOption option)
+        public bool NeedToCreateProcedure(DbCommandType commandType)
         {
             if (connection.State != ConnectionState.Open)
                 throw new ArgumentException("Here, we need an opened connection please");
 
             var commandName = this.sqlObjectNames.GetCommandName(commandType);
 
-            if (option.HasFlag(DbBuilderOption.CreateOrUseExistingSchema))
-                return !SqlManagementUtils.ProcedureExists(connection, transaction, commandName);
-
-            return false;
+            return !SqlManagementUtils.ProcedureExists(connection, transaction, commandName);
         }
 
         /// <summary>
         /// Check if we need to create the TVP Type
         /// </summary>
-        public bool NeedToCreateType(DbCommandType commandType, DbBuilderOption option)
+        public bool NeedToCreateType(DbCommandType commandType)
         {
             if (connection.State != ConnectionState.Open)
                 throw new ArgumentException("Here, we need an opened connection please");
 
             var commandName = this.sqlObjectNames.GetCommandName(commandType);
 
-            if (option.HasFlag(DbBuilderOption.CreateOrUseExistingSchema))
-                return !SqlManagementUtils.TypeExists(connection, transaction, commandName);
+            return !SqlManagementUtils.TypeExists(connection, transaction, commandName);
 
-            return false;
         }
 
         private string BulkSelectUnsuccessfulRows()
@@ -1245,7 +1240,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("WHERE (");
             string str = string.Empty;
-            
+
             if (withFilter && this.Filters != null && this.Filters.Count > 0)
             {
                 StringBuilder builderFilter = new StringBuilder();

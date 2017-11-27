@@ -22,7 +22,7 @@ namespace Dotmim.Sync.Builders
         /// <summary>
         /// Specify if we have to check for recreate or not
         /// </summary>
-        public DbBuilderOption BuilderOption { get; set; }
+        //public DbBuilderOption BuilderOption { get; set; }
 
         /// <summary>
         /// Filtered Columns
@@ -57,10 +57,9 @@ namespace Dotmim.Sync.Builders
         /// <summary>
         /// Construct a DbBuilder
         /// </summary>
-        public DbBuilder(DmTable tableDescription, DbBuilderOption option = DbBuilderOption.CreateOrUseExistingSchema)
+        public DbBuilder(DmTable tableDescription)
         {
             this.TableDescription = tableDescription;
-            this.BuilderOption = option;
         }
 
 
@@ -87,7 +86,7 @@ namespace Dotmim.Sync.Builders
                     foreach (DmRelation constraint in this.TableDescription.ChildRelations)
                     {
                         // Check if we need to create the foreign key constraint
-                        if (tableBuilder.NeedToCreateForeignKeyConstraints(constraint, this.BuilderOption))
+                        if (tableBuilder.NeedToCreateForeignKeyConstraints(constraint))
                         {
                             tableBuilder.CreateForeignKeyConstraints(constraint);
                         }
@@ -126,9 +125,9 @@ namespace Dotmim.Sync.Builders
                 var tableBuilder = CreateTableBuilder(connection, transaction);
 
                 // Check if we need to create the tables
-                if (tableBuilder.NeedToCreateTable(this.BuilderOption))
+                if (tableBuilder.NeedToCreateTable())
                 {
-                    if (tableBuilder.NeedToCreateSchema(this.BuilderOption))
+                    if (tableBuilder.NeedToCreateSchema())
                         tableBuilder.CreateSchema();
 
                     tableBuilder.CreateTable();
@@ -138,7 +137,7 @@ namespace Dotmim.Sync.Builders
                 var trackingTableBuilder = CreateTrackingTableBuilder(connection, transaction);
                 trackingTableBuilder.Filters = this.FilterColumns;
 
-                if (trackingTableBuilder.NeedToCreateTrackingTable(this.BuilderOption))
+                if (trackingTableBuilder.NeedToCreateTrackingTable())
                 {
                     trackingTableBuilder.CreateTable();
                     trackingTableBuilder.CreatePk();
@@ -151,11 +150,11 @@ namespace Dotmim.Sync.Builders
                 var triggerBuilder = CreateTriggerBuilder(connection, transaction);
                 triggerBuilder.Filters = this.FilterColumns;
 
-                if (triggerBuilder.NeedToCreateTrigger(DbTriggerType.Insert, this.BuilderOption))
+                if (triggerBuilder.NeedToCreateTrigger(DbTriggerType.Insert))
                     triggerBuilder.CreateInsertTrigger();
-                if (triggerBuilder.NeedToCreateTrigger(DbTriggerType.Update, this.BuilderOption))
+                if (triggerBuilder.NeedToCreateTrigger(DbTriggerType.Update))
                     triggerBuilder.CreateUpdateTrigger();
-                if (triggerBuilder.NeedToCreateTrigger(DbTriggerType.Delete, this.BuilderOption))
+                if (triggerBuilder.NeedToCreateTrigger(DbTriggerType.Delete))
                     triggerBuilder.CreateDeleteTrigger();
 
                 // could be null
@@ -165,24 +164,24 @@ namespace Dotmim.Sync.Builders
 
                 procBuilder.Filters = this.FilterColumns;
 
-                if (procBuilder.NeedToCreateProcedure(DbCommandType.SelectChanges, this.BuilderOption))
+                if (procBuilder.NeedToCreateProcedure(DbCommandType.SelectChanges))
                     procBuilder.CreateSelectIncrementalChanges();
-                if (procBuilder.NeedToCreateProcedure(DbCommandType.SelectRow, this.BuilderOption))
+                if (procBuilder.NeedToCreateProcedure(DbCommandType.SelectRow))
                     procBuilder.CreateSelectRow();
-                if (procBuilder.NeedToCreateProcedure(DbCommandType.InsertRow, this.BuilderOption))
+                if (procBuilder.NeedToCreateProcedure(DbCommandType.InsertRow))
                     procBuilder.CreateInsert();
-                if (procBuilder.NeedToCreateProcedure(DbCommandType.UpdateRow, this.BuilderOption))
+                if (procBuilder.NeedToCreateProcedure(DbCommandType.UpdateRow))
                     procBuilder.CreateUpdate();
-                if (procBuilder.NeedToCreateProcedure(DbCommandType.DeleteRow, this.BuilderOption))
+                if (procBuilder.NeedToCreateProcedure(DbCommandType.DeleteRow))
                     procBuilder.CreateDelete();
-                if (procBuilder.NeedToCreateProcedure(DbCommandType.InsertMetadata, this.BuilderOption))
+                if (procBuilder.NeedToCreateProcedure(DbCommandType.InsertMetadata))
                     procBuilder.CreateInsertMetadata();
-                if (procBuilder.NeedToCreateProcedure(DbCommandType.UpdateMetadata, this.BuilderOption))
+                if (procBuilder.NeedToCreateProcedure(DbCommandType.UpdateMetadata))
                     procBuilder.CreateUpdateMetadata();
-                if (procBuilder.NeedToCreateProcedure(DbCommandType.DeleteMetadata, this.BuilderOption))
+                if (procBuilder.NeedToCreateProcedure(DbCommandType.DeleteMetadata))
                     procBuilder.CreateDeleteMetadata();
 
-                if (this.useBulkProcedures && procBuilder.NeedToCreateType(DbCommandType.BulkTableType, this.BuilderOption))
+                if (this.useBulkProcedures && procBuilder.NeedToCreateType(DbCommandType.BulkTableType))
                 {
                     procBuilder.CreateTVPType();
                     procBuilder.CreateBulkInsert();
@@ -227,7 +226,7 @@ namespace Dotmim.Sync.Builders
                 {
                     foreach (DmRelation constraint in this.TableDescription.ChildRelations)
                     {
-                        if (tableBuilder.NeedToCreateForeignKeyConstraints(constraint, this.BuilderOption))
+                        if (tableBuilder.NeedToCreateForeignKeyConstraints(constraint))
                             stringBuilder.Append(tableBuilder.CreateForeignKeyConstraintsScriptText(constraint));
                     }
                 }
@@ -269,9 +268,9 @@ namespace Dotmim.Sync.Builders
                 var tableBuilder = CreateTableBuilder(connection, transaction);
 
                 // Check if we need to create the tables
-                if (tableBuilder.NeedToCreateTable(this.BuilderOption))
+                if (tableBuilder.NeedToCreateTable())
                 {
-                    if (tableBuilder.NeedToCreateSchema(this.BuilderOption))
+                    if (tableBuilder.NeedToCreateSchema())
                         stringBuilder.Append(tableBuilder.CreateSchemaScriptText());
 
                     stringBuilder.Append(tableBuilder.CreateTableScriptText());
@@ -281,7 +280,7 @@ namespace Dotmim.Sync.Builders
                 var trackingTableBuilder = CreateTrackingTableBuilder(connection, transaction);
                 trackingTableBuilder.Filters = this.FilterColumns;
 
-                if (trackingTableBuilder.NeedToCreateTrackingTable(this.BuilderOption))
+                if (trackingTableBuilder.NeedToCreateTrackingTable())
                 {
                     stringBuilder.Append(trackingTableBuilder.CreateTableScriptText());
                     stringBuilder.Append(trackingTableBuilder.CreatePkScriptText());
@@ -292,11 +291,11 @@ namespace Dotmim.Sync.Builders
                 var triggerBuilder = CreateTriggerBuilder(connection, transaction);
                 triggerBuilder.Filters = this.FilterColumns;
 
-                if (triggerBuilder.NeedToCreateTrigger(DbTriggerType.Insert, this.BuilderOption))
+                if (triggerBuilder.NeedToCreateTrigger(DbTriggerType.Insert))
                     stringBuilder.Append(triggerBuilder.CreateInsertTriggerScriptText());
-                if (triggerBuilder.NeedToCreateTrigger(DbTriggerType.Update, this.BuilderOption))
+                if (triggerBuilder.NeedToCreateTrigger(DbTriggerType.Update))
                     stringBuilder.Append(triggerBuilder.CreateUpdateTriggerScriptText());
-                if (triggerBuilder.NeedToCreateTrigger(DbTriggerType.Delete, this.BuilderOption))
+                if (triggerBuilder.NeedToCreateTrigger(DbTriggerType.Delete))
                     stringBuilder.Append(triggerBuilder.CreateDeleteTriggerScriptText());
 
 
@@ -306,24 +305,24 @@ namespace Dotmim.Sync.Builders
                 {
                     procBuilder.Filters = this.FilterColumns;
 
-                    if (procBuilder.NeedToCreateProcedure(DbCommandType.SelectChanges, this.BuilderOption))
+                    if (procBuilder.NeedToCreateProcedure(DbCommandType.SelectChanges))
                         stringBuilder.Append(procBuilder.CreateSelectIncrementalChangesScriptText());
-                    if (procBuilder.NeedToCreateProcedure(DbCommandType.SelectRow, this.BuilderOption))
+                    if (procBuilder.NeedToCreateProcedure(DbCommandType.SelectRow))
                         stringBuilder.Append(procBuilder.CreateSelectRowScriptText());
-                    if (procBuilder.NeedToCreateProcedure(DbCommandType.InsertRow, this.BuilderOption))
+                    if (procBuilder.NeedToCreateProcedure(DbCommandType.InsertRow))
                         stringBuilder.Append(procBuilder.CreateInsertScriptText());
-                    if (procBuilder.NeedToCreateProcedure(DbCommandType.UpdateRow, this.BuilderOption))
+                    if (procBuilder.NeedToCreateProcedure(DbCommandType.UpdateRow))
                         stringBuilder.Append(procBuilder.CreateUpdateScriptText());
-                    if (procBuilder.NeedToCreateProcedure(DbCommandType.DeleteRow, this.BuilderOption))
+                    if (procBuilder.NeedToCreateProcedure(DbCommandType.DeleteRow))
                         stringBuilder.Append(procBuilder.CreateDeleteScriptText());
-                    if (procBuilder.NeedToCreateProcedure(DbCommandType.InsertMetadata, this.BuilderOption))
+                    if (procBuilder.NeedToCreateProcedure(DbCommandType.InsertMetadata))
                         stringBuilder.Append(procBuilder.CreateInsertMetadataScriptText());
-                    if (procBuilder.NeedToCreateProcedure(DbCommandType.UpdateMetadata, this.BuilderOption))
+                    if (procBuilder.NeedToCreateProcedure(DbCommandType.UpdateMetadata))
                         stringBuilder.Append(procBuilder.CreateUpdateMetadataScriptText());
-                    if (procBuilder.NeedToCreateProcedure(DbCommandType.DeleteMetadata, this.BuilderOption))
+                    if (procBuilder.NeedToCreateProcedure(DbCommandType.DeleteMetadata))
                         stringBuilder.Append(procBuilder.CreateDeleteMetadataScriptText());
 
-                    if (this.useBulkProcedures && procBuilder.NeedToCreateType(DbCommandType.BulkTableType, this.BuilderOption))
+                    if (this.useBulkProcedures && procBuilder.NeedToCreateType(DbCommandType.BulkTableType))
                     {
                         stringBuilder.Append(procBuilder.CreateTVPTypeScriptText());
                         stringBuilder.Append(procBuilder.CreateBulkInsertScriptText());

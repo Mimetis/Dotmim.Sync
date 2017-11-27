@@ -300,13 +300,13 @@ namespace Dotmim.Sync
                 // ----------------------------------------
 
                 // Server should have already the schema
-                context = await this.RemoteProvider.EnsureDatabaseAsync(context, serverScopeInfo, DbBuilderOption.CreateOrUseExistingSchema | DbBuilderOption.CreateOrUseExistingTrackingTables);
+                context = await this.RemoteProvider.EnsureDatabaseAsync(context, serverScopeInfo);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
                 // Client could have, or not, the tables
-                context = await this.LocalProvider.EnsureDatabaseAsync(context, localScopeInfo, DbBuilderOption.CreateOrUseExistingSchema | DbBuilderOption.CreateOrUseExistingTrackingTables);
+                context = await this.LocalProvider.EnsureDatabaseAsync(context, localScopeInfo);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();

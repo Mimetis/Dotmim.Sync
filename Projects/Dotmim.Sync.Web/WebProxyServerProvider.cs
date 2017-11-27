@@ -203,7 +203,7 @@ namespace Dotmim.Sync.Web
             if (httpMessage.EnsureDatabase == null)
                 throw new ArgumentException("EnsureDatabase message could not be null");
 
-            httpMessage.SyncContext = await this.EnsureDatabaseAsync(httpMessage.SyncContext, httpMessage.EnsureDatabase.ScopeInfo, httpMessage.EnsureDatabase.DbBuilderOption);
+            httpMessage.SyncContext = await this.EnsureDatabaseAsync(httpMessage.SyncContext, httpMessage.EnsureDatabase.ScopeInfo);
 
             return httpMessage;
         }
@@ -448,8 +448,8 @@ namespace Dotmim.Sync.Web
             => await this.LocalProvider.BeginSessionAsync(ctx);
         public async Task<SyncContext> EndSessionAsync(SyncContext ctx)
             => await this.LocalProvider.EndSessionAsync(ctx);
-        public async Task<SyncContext> EnsureDatabaseAsync(SyncContext ctx, ScopeInfo scopeInfo, DbBuilderOption options)
-            => await this.LocalProvider.EnsureDatabaseAsync(ctx, scopeInfo, options);
+        public async Task<SyncContext> EnsureDatabaseAsync(SyncContext ctx, ScopeInfo scopeInfo)
+            => await this.LocalProvider.EnsureDatabaseAsync(ctx, scopeInfo);
         public async Task<(SyncContext, List<ScopeInfo>)> EnsureScopesAsync(SyncContext ctx, string scopeName, Guid? clientReferenceId = null)
             => await this.LocalProvider.EnsureScopesAsync(ctx, scopeName, clientReferenceId);
         public async Task<(SyncContext, BatchInfo, ChangesStatistics)> GetChangeBatchAsync(SyncContext ctx, ScopeInfo scopeInfo)

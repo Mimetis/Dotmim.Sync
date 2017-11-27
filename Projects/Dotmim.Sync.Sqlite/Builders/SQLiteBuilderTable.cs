@@ -174,7 +174,7 @@ namespace Dotmim.Sync.Sqlite
             return new SqliteCommand(stringBuilder.ToString());
         }
 
-       public void CreateTable()
+        public void CreateTable()
         {
             bool alreadyOpened = connection.State == ConnectionState.Open;
 
@@ -267,15 +267,13 @@ namespace Dotmim.Sync.Sqlite
         /// <summary>
         /// Check if we need to create the table in the current database
         /// </summary>
-        public bool NeedToCreateTable(DbBuilderOption builderOptions)
+        public bool NeedToCreateTable()
         {
-            if (builderOptions.HasFlag(DbBuilderOption.CreateOrUseExistingSchema))
-                return !SqliteManagementUtils.TableExists(connection, transaction, tableName.QuotedString);
+            return !SqliteManagementUtils.TableExists(connection, transaction, tableName.QuotedString);
 
-            return false;
         }
 
-        public bool NeedToCreateSchema(DbBuilderOption builderOption)
+        public bool NeedToCreateSchema()
         {
             return false;
         }
@@ -290,7 +288,7 @@ namespace Dotmim.Sync.Sqlite
             return string.Empty;
         }
 
-        public bool NeedToCreateForeignKeyConstraints(DmRelation constraint, DbBuilderOption builderOption)
+        public bool NeedToCreateForeignKeyConstraints(DmRelation constraint)
         {
             return false;
         }
