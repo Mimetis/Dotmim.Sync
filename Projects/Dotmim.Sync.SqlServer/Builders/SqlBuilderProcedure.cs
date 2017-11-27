@@ -250,6 +250,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             return stringBuilder.ToString();
         }
 
+
         //------------------------------------------------------------------
         // Bulk Delete command
         //------------------------------------------------------------------
@@ -699,6 +700,53 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkUpdateRows);
             return CreateProcedureCommandScriptText(BuildBulkUpdateCommand, commandName);
+        }
+
+
+        //------------------------------------------------------------------
+        // Reset command
+        //------------------------------------------------------------------
+        private SqlCommand BuildResetCommand()
+        {
+            var updTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger);
+            var delTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger);
+            var insTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger);
+
+            SqlCommand sqlCommand = new SqlCommand();
+            SqlParameter sqlParameter2 = new SqlParameter("@sync_row_count", SqlDbType.Int);
+            sqlParameter2.Direction = ParameterDirection.Output;
+            sqlCommand.Parameters.Add(sqlParameter2);
+
+            StringBuilder stringBuilder = new StringBuilder();
+            stringBuilder.AppendLine($"SET {sqlParameter2.ParameterName} = 0;");
+            stringBuilder.AppendLine();
+
+            stringBuilder.AppendLine($"DISABLE TRIGGER {updTriggerName} ON {tableName.QuotedString};");
+            stringBuilder.AppendLine($"DISABLE TRIGGER {insTriggerName} ON {tableName.QuotedString};");
+            stringBuilder.AppendLine($"DISABLE TRIGGER {delTriggerName} ON {tableName.QuotedString};");
+
+            stringBuilder.AppendLine($"DELETE FROM {tableName.QuotedString};");
+            stringBuilder.AppendLine($"DELETE FROM {trackingName.QuotedString};");
+
+            stringBuilder.AppendLine($"ENABLE TRIGGER {updTriggerName} ON {tableName.QuotedString};");
+            stringBuilder.AppendLine($"ENABLE TRIGGER {insTriggerName} ON {tableName.QuotedString};");
+            stringBuilder.AppendLine($"ENABLE TRIGGER {delTriggerName} ON {tableName.QuotedString};");
+
+
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine(string.Concat("SET ", sqlParameter2.ParameterName, " = @@ROWCOUNT;"));
+            sqlCommand.CommandText = stringBuilder.ToString();
+            return sqlCommand;
+        }
+        public void CreateReset()
+        {
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.Reset);
+            CreateProcedureCommand(BuildResetCommand, commandName);
+        }
+        public string CreateResetScriptText()
+        {
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.Reset);
+            return CreateProcedureCommandScriptText(BuildResetCommand, commandName);
         }
 
 
@@ -1186,10 +1234,11 @@ namespace Dotmim.Sync.SqlServer.Builders
             SqlParameter sqlParameter1 = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt);
             SqlParameter sqlParameter3 = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
             SqlParameter sqlParameter4 = new SqlParameter("@sync_scope_is_new", SqlDbType.Bit);
+            SqlParameter sqlParameter5 = new SqlParameter("@sync_scope_is_reinit", SqlDbType.Bit);
             sqlCommand.Parameters.Add(sqlParameter1);
             sqlCommand.Parameters.Add(sqlParameter3);
             sqlCommand.Parameters.Add(sqlParameter4);
-
+            sqlCommand.Parameters.Add(sqlParameter5);
 
             if (withFilter && this.Filters != null && this.Filters.Count > 0)
             {
@@ -1283,6 +1332,8 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("\t[side].[update_scope_id] IS NULL");
             stringBuilder.AppendLine("\t-- Or Update different from remote");
             stringBuilder.AppendLine("\tOR [side].[update_scope_id] <> @sync_scope_id");
+            stringBuilder.AppendLine("\t-- Or we are in reinit mode so we take rows even thoses updated by the scope");
+            stringBuilder.AppendLine("\tOR @sync_scope_is_reinit = 1");
             stringBuilder.AppendLine("    )");
             stringBuilder.AppendLine("AND (");
             stringBuilder.AppendLine("\t-- And Timestamp is > from remote timestamp");
@@ -1373,8 +1424,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             return sbSelecteChanges.ToString();
         }
-
-
 
     }
 }

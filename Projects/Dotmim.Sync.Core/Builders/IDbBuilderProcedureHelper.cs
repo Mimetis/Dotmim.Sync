@@ -28,6 +28,7 @@ namespace Dotmim.Sync.Builders
         void CreateBulkInsert();
         void CreateBulkUpdate();
         void CreateBulkDelete();
+        void CreateReset();
         String CreateSelectRowScriptText();
         String CreateSelectIncrementalChangesScriptText();
         String CreateInsertScriptText();
@@ -40,6 +41,7 @@ namespace Dotmim.Sync.Builders
         String CreateBulkInsertScriptText();
         String CreateBulkUpdateScriptText();
         String CreateBulkDeleteScriptText();
+        String CreateResetScriptText();
 
     }
 }

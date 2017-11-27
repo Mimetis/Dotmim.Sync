@@ -62,7 +62,17 @@ namespace Dotmim.Sync.Sqlite
             this.CreateInsertMetadataCommandText();
             this.CreateUpdateCommandText();
             this.CreateUpdatedMetadataCommandText();
+            this.CreateResetCommandText();
 
+        }
+
+        private void CreateResetCommandText()
+        {
+            StringBuilder stringBuilder = new StringBuilder("SELECT ");
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($"DELETE FROM {tableName.QuotedString};");
+            stringBuilder.AppendLine($"DELETE FROM {trackingName.QuotedString};");
+            this.AddName(DbCommandType.Reset, stringBuilder.ToString());
         }
 
         private void CreateUpdateCommandText()
@@ -206,7 +216,6 @@ namespace Dotmim.Sync.Sqlite
         }
         private void CreateSelectChangesCommandText()
         {
-
             StringBuilder stringBuilder = new StringBuilder("SELECT ");
             foreach (var pkColumn in this.TableDescription.PrimaryKey.Columns)
             {
@@ -263,6 +272,8 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine("\t[side].[update_scope_id] IS NULL");
             stringBuilder.AppendLine("\t-- Or Update different from remote");
             stringBuilder.AppendLine("\tOR [side].[update_scope_id] <> @sync_scope_id");
+            stringBuilder.AppendLine("\t-- Or we are in reinit mode so we take rows even thoses updated by the scope");
+            stringBuilder.AppendLine("\tOR @sync_scope_is_reinit = 1");
             stringBuilder.AppendLine("    )");
             stringBuilder.AppendLine("AND (");
             stringBuilder.AppendLine("\t-- And Timestamp is > from remote timestamp");

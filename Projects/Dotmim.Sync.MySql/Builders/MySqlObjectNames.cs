@@ -23,6 +23,8 @@ namespace Dotmim.Sync.MySql
         internal const string updateProcName = "`{0}_update`";
         internal const string deleteProcName = "`{0}_delete`";
 
+        internal const string resetProcName = "`{0}_reset`";
+
         internal const string insertMetadataProcName = "`{0}_insertmetadata`";
         internal const string updateMetadataProcName = "`{0}_updatemetadata`";
         internal const string deleteMetadataProcName = "`{0}_deletemetadata`";
@@ -75,6 +77,7 @@ namespace Dotmim.Sync.MySql
             this.AddName(DbCommandType.InsertMetadata, string.Format(insertMetadataProcName, tableName.UnquotedStringWithUnderScore));
             this.AddName(DbCommandType.UpdateMetadata, string.Format(updateMetadataProcName, tableName.UnquotedStringWithUnderScore));
             this.AddName(DbCommandType.DeleteMetadata, string.Format(deleteMetadataProcName, tableName.UnquotedStringWithUnderScore));
+            this.AddName(DbCommandType.Reset, string.Format(resetProcName, tableName.UnquotedStringWithUnderScore));
 
             //// Select changes
             //this.CreateSelectChangesCommandText();

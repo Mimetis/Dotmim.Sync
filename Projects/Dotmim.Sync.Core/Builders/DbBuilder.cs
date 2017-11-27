@@ -180,6 +180,8 @@ namespace Dotmim.Sync.Builders
                     procBuilder.CreateUpdateMetadata();
                 if (procBuilder.NeedToCreateProcedure(DbCommandType.DeleteMetadata))
                     procBuilder.CreateDeleteMetadata();
+                if (procBuilder.NeedToCreateProcedure(DbCommandType.Reset))
+                    procBuilder.CreateReset();
 
                 if (this.useBulkProcedures && procBuilder.NeedToCreateType(DbCommandType.BulkTableType))
                 {
@@ -321,6 +323,8 @@ namespace Dotmim.Sync.Builders
                         stringBuilder.Append(procBuilder.CreateUpdateMetadataScriptText());
                     if (procBuilder.NeedToCreateProcedure(DbCommandType.DeleteMetadata))
                         stringBuilder.Append(procBuilder.CreateDeleteMetadataScriptText());
+                    if (procBuilder.NeedToCreateProcedure(DbCommandType.Reset))
+                        stringBuilder.Append(procBuilder.CreateResetScriptText());
 
                     if (this.useBulkProcedures && procBuilder.NeedToCreateType(DbCommandType.BulkTableType))
                     {
