@@ -218,7 +218,10 @@ namespace Dotmim.Sync.Data
                 if (DataType == typeof(DateTimeOffset))
                     return DbType.DateTimeOffset;
 
-                if (DataType == typeof(string))
+                if (DataType == typeof(string) && this.MaxLength > 0)
+                    return DbType.StringFixedLength;
+
+                if (DataType == typeof(string) && this.MaxLength <= 0)
                     return DbType.String;
 
                 if (DataType == typeof(Guid))

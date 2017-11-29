@@ -65,8 +65,10 @@ namespace Dotmim.Sync.MySql.Builders
             switch (dbType)
             {
                 case DbType.AnsiString:
-                case DbType.AnsiStringFixedLength:
                     return MySqlDbType.LongText;
+                case DbType.StringFixedLength:
+                case DbType.AnsiStringFixedLength:
+                    return MySqlDbType.VarChar;
                 case DbType.Binary:
                     return MySqlDbType.LongBlob;
                 case DbType.Boolean:
@@ -101,8 +103,6 @@ namespace Dotmim.Sync.MySql.Builders
                     return MySqlDbType.Float;
                 case DbType.String:
                     return MySqlDbType.LongText;
-                case DbType.StringFixedLength:
-                    return MySqlDbType.VarChar;
                 case DbType.Time:
                     return MySqlDbType.Time;
                 case DbType.UInt16:

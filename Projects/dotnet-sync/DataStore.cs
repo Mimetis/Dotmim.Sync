@@ -150,6 +150,7 @@ namespace Dotmim.Sync.Tools
 
                 var tableExist = (long)command.ExecuteScalar() > 0;
 
+                command = connection.CreateCommand();
                 command.CommandText = $"Select count(*) from {TABLE_TABLE} where project_name=@projectName";
 
                 p = command.CreateParameter();
@@ -195,7 +196,7 @@ namespace Dotmim.Sync.Tools
 
                 p = command.CreateParameter();
                 p.ParameterName = "@schema";
-                p.Value = tbl.Schema;
+                p.Value = tbl.Schema == null ? DBNull.Value : (object)tbl.Schema;
                 p.DbType = DbType.String;
                 command.Parameters.Add(p);
 
@@ -304,7 +305,6 @@ namespace Dotmim.Sync.Tools
 
             return project;
         }
-
 
         private Project FillProject(SqliteDataReader reader, SqliteConnection connection)
         {
@@ -560,8 +560,6 @@ namespace Dotmim.Sync.Tools
             }
             return isNew;
         }
-
-
 
         private SqliteCommand BuildExistTableCommand(string tableName)
         {

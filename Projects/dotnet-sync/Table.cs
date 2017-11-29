@@ -12,5 +12,10 @@ namespace Dotmim.Sync.Tools
         public SyncDirection Direction { get; set; }
         public int Order { get; set; }
 
+        public Table()
+        {
+            Direction = SyncDirection.Bidirectional;
+        }
+
     }
 }
