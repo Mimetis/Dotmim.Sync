@@ -605,6 +605,10 @@ namespace Dotmim.Sync
                     {
                         throw SyncException.CreateDbException(context.SyncStage, dbex);
                     }
+                    catch (Exception dbex)
+                    {
+                        throw SyncException.CreateUnknowException(context.SyncStage, dbex);
+                    }
                     finally
                     {
                         if (connection.State != ConnectionState.Closed)

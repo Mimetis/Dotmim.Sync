@@ -98,7 +98,7 @@ namespace Dotmim.Sync.MySql
             
             // Set the default behavior to use Found rows and not Affected rows !
             builder.UseAffectedRows = false;
-
+            
             this.ConnectionString = builder.ConnectionString;
         }
 

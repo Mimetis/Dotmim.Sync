@@ -163,16 +163,25 @@ namespace Dotmim.Sync.Web
 
         private async Task<HttpMessage> EnsureScopesAsync(HttpMessage httpMessage)
         {
-            if (httpMessage.EnsureScopes == null)
-                throw new ArgumentException("EnsureScopeMessage could not be null");
+            try
+            {
 
-            var (syncContext, lstScopes) = await this.EnsureScopesAsync(httpMessage.SyncContext, httpMessage.EnsureScopes.ScopeName, httpMessage.EnsureScopes.ClientReferenceId);
+                if (httpMessage.EnsureScopes == null)
+                    throw new ArgumentException("EnsureScopeMessage could not be null");
 
-            // Local scope is the server scope here
-            httpMessage.EnsureScopes.Scopes = lstScopes;
-            httpMessage.SyncContext = syncContext;
+                var (syncContext, lstScopes) = await this.EnsureScopesAsync(httpMessage.SyncContext, httpMessage.EnsureScopes.ScopeName, httpMessage.EnsureScopes.ClientReferenceId);
 
-            return httpMessage;
+                // Local scope is the server scope here
+                httpMessage.EnsureScopes.Scopes = lstScopes;
+                httpMessage.SyncContext = syncContext;
+
+                return httpMessage;
+            }
+            catch (Exception ex)
+            {
+
+                throw;
+            }
         }
 
         private async Task<HttpMessage> EnsureConfigurationAsync(HttpMessage httpMessage)
