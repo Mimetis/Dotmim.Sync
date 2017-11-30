@@ -36,7 +36,6 @@ namespace UWPSyncSample.ViewModels
 
         public ObservableCollection<EmployeeModel> Employees { get; set; }
         public ObservableCollection<String> Steps { get; set; }
-
         public ObservableCollection<SyncDirection> SyncDirections { get; set; }
 
         public EmployeesViewModel(INavigationService navigationService,
@@ -64,6 +63,8 @@ namespace UWPSyncSample.ViewModels
         {
             try
             {
+                this.Steps.Clear();
+
                 await RefreshAsync();
             }
             catch (Exception ex)

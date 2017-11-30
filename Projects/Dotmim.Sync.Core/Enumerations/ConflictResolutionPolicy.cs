@@ -21,10 +21,5 @@ namespace Dotmim.Sync.Enumerations
         /// Indicates that the change sent by the client wins in case of a conflict.
         /// </summary>
         ClientWins,
-
-        /// <summary>
-        /// Changes from both server and client version were merged
-        /// </summary>
-        Merge
     }
 }

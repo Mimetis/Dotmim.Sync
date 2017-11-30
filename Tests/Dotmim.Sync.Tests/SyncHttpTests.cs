@@ -733,7 +733,7 @@ namespace Dotmim.Sync.Test
                     // Since we move to server side, it's server to handle errors
                     serverProvider.ApplyChangedFailed += (s, args) =>
                     {
-                        args.Action = ApplyAction.RetryWithForceWrite;
+                        args.Action = ConflictAction.ClientWins;
                     };
 
 

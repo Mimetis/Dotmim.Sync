@@ -1904,6 +1904,8 @@ namespace Dotmim.Sync
 
                     var builder = this.GetDatabaseBuilder(tableDescription);
                     var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
+
+
                     syncAdapter.ConflictApplyAction = configuration.GetApplyAction();
 
                     // Set syncAdapter properties
@@ -2053,18 +2055,32 @@ namespace Dotmim.Sync
         /// <summary>
         /// A conflict has occured, we try to ask for the solution to the user
         /// </summary>
-        internal ApplyAction GetConflictAction(SyncConflict conflict, DbConnection connection, DbTransaction transaction = null)
+        internal (ApplyAction, DmRow) GetConflictAction(SyncConflict conflict, DbConnection connection, DbTransaction transaction = null)
         {
             Debug.WriteLine("Raising Apply Change Failed Event");
             var configuration = GetCacheConfiguration();
 
-            var dbApplyChangeFailedEventArg = new ApplyChangeFailedEventArgs(conflict, configuration.GetApplyAction(), connection, transaction);
+            var configApplyAction = configuration.GetApplyAction();
 
-            this.ApplyChangedFailed?.Invoke(this, dbApplyChangeFailedEventArg);
+            ConflictAction conflictAction = ConflictAction.ServerWins;
 
-            ApplyAction action = dbApplyChangeFailedEventArg.Action;
-            Debug.WriteLine($"Action: {action.ToString()}");
-            return action;
+            if (configuration.ConflictResolutionPolicy == ConflictResolutionPolicy.ClientWins)
+                conflictAction = ConflictAction.ClientWins;
+
+            var arg = new ApplyChangeFailedEventArgs(conflict, conflictAction, connection, transaction);
+
+            this.ApplyChangedFailed?.Invoke(this, arg);
+
+            // if ConflictAction is ServerWins or MergeRow it's Ok to set to Continue
+            ApplyAction action = ApplyAction.Continue;
+
+            if (arg.Action == ConflictAction.ClientWins)
+                action = ApplyAction.RetryWithForceWrite;
+
+            DmRow finalRow = arg.Action == ConflictAction.MergeRow ? arg.FinalRow : null;
+
+            // returning the action to take, and actually the finalRow if action is set to Merge
+            return (action, finalRow);
         }
 
         public void SetCancellationToken(CancellationToken token)

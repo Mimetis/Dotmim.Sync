@@ -535,7 +535,7 @@ namespace Dotmim.Sync.Test
                 }
             }
 
-            agent.ApplyChangedFailed += (s, args) => args.Action = ApplyAction.RetryWithForceWrite;
+            agent.ApplyChangedFailed += (s, args) => args.Action = ConflictAction.ClientWins;
            
             await Assert.RaisesAsync<ApplyChangeFailedEventArgs>(
                 h => agent.ApplyChangedFailed += h,
@@ -628,6 +628,125 @@ namespace Dotmim.Sync.Test
             // check good title on client
             Assert.Equal("Conflict Line Client", expectedRes);
         }
+
+
+        [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(11)]
+        public async Task ConflictUpdateUpdateMerge(SyncConfiguration conf)
+        {
+            var id = Guid.NewGuid().ToString();
+            string expectedString = "";
+
+            using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
+            {
+                var script = $@"INSERT [ServiceTickets] 
+                            ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
+                            VALUES 
+                            (N'{id}', N'Line for conflict', N'Description client', 1, 0, getdate(), NULL, 1)";
+
+                using (var sqlCmd = new SqlCommand(script, sqlConnection))
+                {
+                    sqlConnection.Open();
+                    sqlCmd.ExecuteNonQuery();
+                    sqlConnection.Close();
+                }
+            }
+
+            agent.Configuration = conf;
+            agent.Configuration.Add(fixture.Tables);
+            var session = await agent.SynchronizeAsync();
+
+            //just check, even if it's not the real test :)
+            // check statistics
+            Assert.Equal(0, session.TotalChangesDownloaded);
+            Assert.Equal(1, session.TotalChangesUploaded);
+            Assert.Equal(0, session.TotalSyncConflicts);
+
+
+            using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
+            {
+                string title = $"Update from client at {DateTime.Now.Ticks.ToString()}";
+                var script = $@"Update [ServiceTickets] 
+                                Set Title = '{title}'
+                                Where ServiceTicketId = '{id}'";
+
+                using (var sqlCmd = new SqlCommand(script, sqlConnection))
+                {
+                    sqlConnection.Open();
+                    sqlCmd.ExecuteNonQuery();
+                    sqlConnection.Close();
+                }
+            }
+
+            using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
+            {
+                string title = $"Update from server at {DateTime.Now.Ticks.ToString()}";
+                var script = $@"Update [ServiceTickets] 
+                                Set Title = '{title}'
+                                Where ServiceTicketId = '{id}'";
+
+                using (var sqlCmd = new SqlCommand(script, sqlConnection))
+                {
+                    sqlConnection.Open();
+                    sqlCmd.ExecuteNonQuery();
+                    sqlConnection.Close();
+                }
+            }
+
+            expectedString = "Merged row";
+
+            agent.ApplyChangedFailed += (s, args) =>
+            {
+
+                args.Action = ConflictAction.MergeRow;
+                args.FinalRow["Title"] = expectedString;
+
+            };
+
+            await Assert.RaisesAsync<ApplyChangeFailedEventArgs>(
+                h => agent.ApplyChangedFailed += h,
+                h => agent.ApplyChangedFailed -= h, async () =>
+                {
+                    session = await agent.SynchronizeAsync();
+                });
+
+            // check statistics
+            Assert.Equal(1, session.TotalChangesDownloaded);
+            Assert.Equal(1, session.TotalChangesUploaded);
+            Assert.Equal(1, session.TotalSyncConflicts);
+
+            string resultString = string.Empty;
+            using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
+            {
+                var script = $@"Select Title from [ServiceTickets] Where ServiceTicketID='{id}'";
+
+                using (var sqlCmd = new SqlCommand(script, sqlConnection))
+                {
+                    sqlConnection.Open();
+                    resultString = sqlCmd.ExecuteScalar() as string;
+                    sqlConnection.Close();
+                }
+            }
+
+            // check good title on server
+            Assert.Equal(expectedString, resultString);
+
+            resultString = string.Empty;
+            using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
+            {
+                var script = $@"Select Title from [ServiceTickets] Where ServiceTicketID='{id}'";
+
+                using (var sqlCmd = new SqlCommand(script, sqlConnection))
+                {
+                    sqlConnection.Open();
+                    resultString = sqlCmd.ExecuteScalar() as string;
+                    sqlConnection.Close();
+                }
+            }
+
+            // check good title on client
+            Assert.Equal(expectedString, resultString);
+        }
+
 
     }
 }

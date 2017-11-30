@@ -20,7 +20,9 @@ namespace Dotmim.Sync
     /// </summary>
     public abstract class DbSyncAdapter
     {
-        public delegate ApplyAction ConflictActionDelegate(SyncConflict conflict, DbConnection connection, DbTransaction transaction = null);
+        
+
+        public delegate (ApplyAction, DmRow) ConflictActionDelegate(SyncConflict conflict, DbConnection connection, DbTransaction transaction = null);
 
         public ConflictActionDelegate ConflictActionInvoker = null;
 
@@ -363,7 +365,6 @@ namespace Dotmim.Sync
                         dbCommand = this.GetCommand(DbCommandType.InsertMetadata);
                         this.SetCommandParameters(DbCommandType.InsertMetadata, dbCommand);
 
-                        var lastTimestamp = (long)dmRow["create_timestamp"];
                         this.InsertOrUpdateMetadatas(dbCommand, dmRow, scope.Id);
 
                     }
@@ -375,7 +376,6 @@ namespace Dotmim.Sync
                     {
                         dbCommand = this.GetCommand(DbCommandType.UpdateMetadata);
 
-                        var lastTimestamp = (long)dmRow["update_timestamp"];
                         this.SetCommandParameters(DbCommandType.UpdateMetadata, dbCommand);
                         this.InsertOrUpdateMetadatas(dbCommand, dmRow, scope.Id);
                     }
@@ -720,7 +720,7 @@ namespace Dotmim.Sync
 
             // overwrite apply action if we handle it (ie : user wants to change the action)
             if (this.ConflictActionInvoker != null)
-                ConflictApplyAction = this.ConflictActionInvoker(conflict, Connection, Transaction);
+                (ConflictApplyAction, finalRow) = this.ConflictActionInvoker(conflict, Connection, Transaction);
 
             // Default behavior and an error occured
             if (ConflictApplyAction == ApplyAction.Rollback)
@@ -736,16 +736,19 @@ namespace Dotmim.Sync
             {
                 Debug.WriteLine("Local Wins, update metadata");
 
+                var isMergeAction = finalRow != null;
+                var row = isMergeAction ? finalRow : conflict.LocalRow;
 
                 // COnflict on a line that is not present on the datasource
-                if (conflict.LocalChanges == null || conflict.LocalChanges.Rows == null || conflict.LocalChanges.Rows.Count == 0)
-                {
+                if (row == null)
                     return ChangeApplicationAction.Continue;
-                }
-
-                if (conflict.LocalChanges != null && conflict.LocalChanges.Rows != null && conflict.LocalChanges.Rows.Count > 0)
+                
+                if (row!= null)
                 {
-                    var localRow = conflict.LocalChanges.Rows[0];
+                    // if we have a merge action, we apply the row on the server
+                    if (isMergeAction)
+                        this.ApplyUpdate(row, scope, true);
+
                     // TODO : Différencier le timestamp de mise à jour ou de création
                     var updateMetadataCommand = GetCommand(DbCommandType.UpdateMetadata);
 
@@ -753,12 +756,12 @@ namespace Dotmim.Sync
                     this.SetCommandParameters(DbCommandType.UpdateMetadata, updateMetadataCommand);
 
                     // apply local row, set scope.id to null becoz applied locally
-                    var rowsApplied = this.InsertOrUpdateMetadatas(updateMetadataCommand, localRow, null);
+                    var rowsApplied = this.InsertOrUpdateMetadatas(updateMetadataCommand, conflict.LocalRow, null);
 
                     if (!rowsApplied)
                         throw new Exception("No metadatas rows found, can't update the server side");
 
-                    finalRow = localRow;
+                    finalRow = isMergeAction ? row : conflict.LocalRow;
 
                     return ChangeApplicationAction.Continue;
                 }
@@ -769,13 +772,12 @@ namespace Dotmim.Sync
             // We gonna apply with force the line
             if (ConflictApplyAction == ApplyAction.RetryWithForceWrite)
             {
-                if (conflict.RemoteChanges.Rows.Count == 0)
+                if (conflict.RemoteRow == null)
                 {
                     Debug.WriteLine("Cant find a remote row");
                     return ChangeApplicationAction.Rollback;
                 }
 
-                var row = conflict.RemoteChanges.Rows[0];
                 bool operationComplete = false;
 
                 // create a localscope to override values
@@ -788,7 +790,7 @@ namespace Dotmim.Sync
                     // Remote source has row, Local don't have the row, so insert it
                     case ConflictType.RemoteUpdateLocalNoRow:
                     case ConflictType.RemoteInsertLocalNoRow:
-                        operationComplete = this.ApplyInsert(row, localScope, true);
+                        operationComplete = this.ApplyInsert(conflict.RemoteRow, localScope, true);
                         commandType = DbCommandType.InsertMetadata;
                         break;
 
@@ -802,7 +804,7 @@ namespace Dotmim.Sync
                     // So delete the local row
                     case ConflictType.RemoteDeleteLocalUpdate:
                     case ConflictType.RemoteDeleteLocalInsert:
-                        operationComplete = this.ApplyDelete(row, localScope, true);
+                        operationComplete = this.ApplyDelete(conflict.RemoteRow, localScope, true);
                         commandType = DbCommandType.UpdateMetadata;
                         break;
 
@@ -811,7 +813,7 @@ namespace Dotmim.Sync
                     // but tracking line exist, so make an update on metadata
                     case ConflictType.RemoteInsertLocalDelete:
                     case ConflictType.RemoteUpdateLocalDelete:
-                        operationComplete = this.ApplyInsert(row, localScope, true);
+                        operationComplete = this.ApplyInsert(conflict.RemoteRow, localScope, true);
                         commandType = DbCommandType.UpdateMetadata;
                         break;
 
@@ -820,7 +822,7 @@ namespace Dotmim.Sync
                     case ConflictType.RemoteUpdateLocalUpdate:
                     case ConflictType.RemoteInsertLocalInsert:
                     case ConflictType.RemoteInsertLocalUpdate:
-                        operationComplete = this.ApplyUpdate(row, localScope, true);
+                        operationComplete = this.ApplyUpdate(conflict.RemoteRow, localScope, true);
                         commandType = DbCommandType.UpdateMetadata;
                         break;
 
@@ -836,11 +838,11 @@ namespace Dotmim.Sync
                 this.SetCommandParameters(commandType, metadataCommand);
 
                 // force applying client row, so apply scope.id (client scope here)
-                var rowsApplied = this.InsertOrUpdateMetadatas(metadataCommand, row, scope.Id);
+                var rowsApplied = this.InsertOrUpdateMetadatas(metadataCommand, conflict.RemoteRow, scope.Id);
                 if (!rowsApplied)
                     throw new Exception("No metadatas rows found, can't update the server side");
 
-                finalRow = row;
+                finalRow = conflict.RemoteRow;
 
                 //After a force update, there is a problem, so raise exception
                 if (!operationComplete)

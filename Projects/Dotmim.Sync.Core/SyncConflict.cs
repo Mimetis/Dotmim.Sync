@@ -23,15 +23,14 @@ namespace Dotmim.Sync
         public string ErrorMessage { get; set; }
 
         /// <summary>
-        /// Gets the DmTable object that contains the conflicting rows from the local database.
+        /// Gets the DmRow row that contains the conflicting row from the local database.
         /// </summary>
-        public DmTable LocalChanges => this.localRows;
+        public DmRow LocalRow => this.localRows?.Rows?[0];
 
         /// <summary>
-        /// Gets the DmTable object that contains the conflicting rows from the remote database.
+        /// Gets the DmRow row that contains the conflicting row from the remote database.
         /// </summary>
-        public DmTable RemoteChanges => this.remoteRows;
-
+        public DmRow RemoteRow => this.remoteRows?.Rows?[0];
 
         /// <summary>
         /// Gets or sets the ConflictType enumeration value that represents the type of synchronization conflict.
@@ -54,23 +53,33 @@ namespace Dotmim.Sync
         }
 
 
-        internal void AddLocalRow(DmRow row)
+        private void EnsureTables(DmRow row)
         {
             if (this.localRows == null)
             {
                 this.localRows = row.Table.Clone();
                 this.localRows.TableName = row.Table.TableName;
             }
-            this.localRows.ImportRow(row);
-        }
 
-        internal void AddRemoteRow(DmRow row)
-        {
             if (this.remoteRows == null)
             {
                 this.remoteRows = row.Table.Clone();
                 this.remoteRows.TableName = row.Table.TableName;
             }
+
+        }
+
+        internal void AddLocalRow(DmRow row)
+        {
+            this.EnsureTables(row);
+
+            this.localRows.ImportRow(row);
+        }
+
+        internal void AddRemoteRow(DmRow row)
+        {
+            this.EnsureTables(row);
+
             this.remoteRows.ImportRow(row);
         }
     }

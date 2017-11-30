@@ -549,7 +549,7 @@ namespace Dotmim.Sync.Test
                 }
             }
 
-            agent.ApplyChangedFailed += (s, args) => args.Action = ApplyAction.RetryWithForceWrite;
+            agent.ApplyChangedFailed += (s, args) => args.Action = ConflictAction.ClientWins;
 
             await Assert.RaisesAsync<ApplyChangeFailedEventArgs>(
                 h => agent.ApplyChangedFailed += h,

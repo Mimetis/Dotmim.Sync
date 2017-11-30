@@ -62,53 +62,74 @@ namespace UWPSyncSample.Helpers
 
             builder.RegisterType<SettingsHelper>();
 
-            builder.Register(
-                (c, p) =>
-                {
-                    // ge the type
-                    var contosoType = p.Named<ConnectionType>("contosoType");
-                    var settingsHelper = c.Resolve<SettingsHelper>();
+            foreach (var e in Enum.GetNames(typeof(ConnectionType)))
+            {
+                var connectionType = (ConnectionType)Enum.Parse(typeof(ConnectionType), e);
 
-                    // return correct contoso service
-                    return new SyncHelper(contosoType, settingsHelper);
-                });
+                builder.Register(c => new ContosoServices(connectionType))
+                       .Named<IContosoServices>(e);
 
+                builder.Register(c => new SyncHelper(connectionType, c.Resolve<SettingsHelper>()))
+                       .Named<SyncHelper>(e);
 
-            // Register my contoservices
-            builder.Register<IContosoServices>(
-                (c, p) =>
-                {
-                    // ge the type
-                    var contosoType = p.Named<ConnectionType>("contosoType");
-                    // retrieve correct instance
-                    return new ContosoServices(contosoType);
-                });
+                builder.Register(c => new EmployeesViewModel(c.Resolve<INavigationService>(), c.ResolveNamed<IContosoServices>(e), c.ResolveNamed<SyncHelper>(e)))
+                        .Named<EmployeesViewModel>(e)
+                        .SingleInstance();
+
+                builder.Register(c => new EmployeeViewModel(c.Resolve<INavigationService>(), c.ResolveNamed<IContosoServices>(e)))
+                        .Named<EmployeeViewModel>(e)
+                        .SingleInstance();
+
+            }
 
 
-            builder.Register(
-                (c, p) =>
-                {
-                    // ge the type
-                    var contosoType = p.Named<ConnectionType>("contosoType");
+            //builder.Register(
+            //    (c, p) =>
+            //    {
+            //        // ge the type
+            //        var contosoType = p.Named<ConnectionType>("contosoType");
+            //        var settingsHelper = c.Resolve<SettingsHelper>();
 
-                    var contosoServices = c.Resolve<IContosoServices>(new NamedParameter("contosoType", contosoType));
-                    var navigationServices = c.Resolve<INavigationService>();
-                    var syncHelper = c.Resolve<SyncHelper>(new NamedParameter("contosoType", contosoType));
+            //        // return correct contoso service
+            //        return new SyncHelper(contosoType, settingsHelper);
+            //    });
 
-                    return new EmployeesViewModel(navigationServices, contosoServices, syncHelper);
-                });
 
-            builder.Register(
-                (c, p) =>
-                {
-                    // ge the type
-                    var contosoType = p.Named<ConnectionType>("contosoType");
+            //// Register my contoservices
+            //builder.Register<IContosoServices>(
+            //    (c, p) =>
+            //    {
+            //        // ge the type
+            //        var contosoType = p.Named<ConnectionType>("contosoType");
+            //        // retrieve correct instance
+            //        return new ContosoServices(contosoType);
+            //    });
 
-                    var contosoServices = c.Resolve<IContosoServices>(new NamedParameter("contosoType", contosoType));
-                    var navigationServices = c.Resolve<INavigationService>();
 
-                    return new EmployeeViewModel(navigationServices, contosoServices);
-                });
+            //builder.Register(
+            //    (c, p) =>
+            //    {
+            //        // ge the type
+            //        var contosoType = p.Named<ConnectionType>("contosoType");
+
+            //        var contosoServices = c.Resolve<IContosoServices>(new NamedParameter("contosoType", contosoType));
+            //        var navigationServices = c.Resolve<INavigationService>();
+            //        var syncHelper = c.Resolve<SyncHelper>(new NamedParameter("contosoType", contosoType));
+
+            //        return new EmployeesViewModel(navigationServices, contosoServices, syncHelper);
+            //    });
+
+            //builder.Register(
+            //    (c, p) =>
+            //    {
+            //        // ge the type
+            //        var contosoType = p.Named<ConnectionType>("contosoType");
+
+            //        var contosoServices = c.Resolve<IContosoServices>(new NamedParameter("contosoType", contosoType));
+            //        var navigationServices = c.Resolve<INavigationService>();
+
+            //        return new EmployeeViewModel(navigationServices, contosoServices);
+            //     });
 
             builder.RegisterType<SettingsViewModel>();
 
@@ -154,13 +175,10 @@ namespace UWPSyncSample.Helpers
             if (viewModelType == null)
                 return null;
 
-            var t = this.Container
-                .Resolve<IContosoServices>(new NamedParameter("contosoType", contosoType));
-
+            var t = this.Container.ResolveNamed<IContosoServices>(contosoType.ToString());
 
             // resolving with a contoso type parameter
-            var viewModelNavigable = this.Container
-                .Resolve(viewModelType, new NamedParameter("contosoType", contosoType));
+            var viewModelNavigable = this.Container.ResolveNamed(contosoType.ToString(), viewModelType);
 
             return viewModelNavigable as BaseViewModel;
 

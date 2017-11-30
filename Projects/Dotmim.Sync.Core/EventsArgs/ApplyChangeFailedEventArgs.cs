@@ -1,4 +1,5 @@
-﻿using Dotmim.Sync.Enumerations;
+﻿using Dotmim.Sync.Data;
+using Dotmim.Sync.Enumerations;
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
@@ -10,60 +11,89 @@ namespace Dotmim.Sync
 {
     public class ApplyChangeFailedEventArgs : EventArgs
     {
-        SyncConflict _syncConflict;
-        ApplyAction _applyAction;
-        DbTransaction _transaction;
-        DbConnection _connection;
+        SyncConflict syncConflict;
+        ConflictAction applyAction;
+        DbTransaction transaction;
+        DbConnection connection;
+        DmRow finalRow;
+        DmTable finalRowTable;
 
-        /// <summary>Gets or sets a <see cref="T:Microsoft.Synchronization.Data.ApplyAction" /> enumeration value that specifies the action to handle the conflict.</summary>
-        /// <returns>A <see cref="T:Microsoft.Synchronization.Data.ApplyAction" /> enumeration value that specifies the action to handle the conflict.</returns>
-        public ApplyAction Action
+        /// <summary>
+        /// Gets or Sets the action to be taken when resolving the conflict. 
+        /// If you choose MergeRow, you have to fill the FinalRow property
+        /// </summary>
+        public ConflictAction Action
         {
             get
             {
-                return this._applyAction;
+                return this.applyAction;
             }
             set
             {
-                this._applyAction = value;
+                if (this.applyAction != value)
+                {
+                    this.applyAction = value;
+
+                    if (this.applyAction == ConflictAction.MergeRow)
+                        this.finalRow = this.finalRowTable.ImportRow(this.syncConflict.RemoteRow);
+                    else if (this.finalRow != null && this.finalRowTable.Rows.Count > 0)
+                        this.finalRowTable.Clear();
+                }
             }
         }
 
-        /// <summary>Gets a <see cref="T:Microsoft.Synchronization.Data.DbSyncConflict" /> object that contains data and metadata for the row being applied and for the existing row in the database that caused the failure.</summary>
-        /// <returns>A <see cref="T:Microsoft.Synchronization.Data.DbSyncConflict" /> object that contains conflict data and metadata.</returns>
+        /// <summary>
+        /// Gets the object that contains data and metadata for the row being applied and for the existing row in the database that caused the failure.
+        /// </summary>
         public SyncConflict Conflict
         {
             get
             {
-                return this._syncConflict;
+                return this.syncConflict;
             }
         }
 
-        /// <summary>Gets an <see cref="T:System.Data.IDbConnection" /> object for the connection over which changes were tried during synchronization.</summary>
-        /// <returns>An <see cref="T:System.Data.IDbConnection" /> object that contains a connection to the peer database.</returns>
+        /// <summary>
+        /// Gets the active connection 
+        /// </summary>
         public DbConnection Connection
         {
             get
             {
-                return this._connection;
+                return this.connection;
             }
         }
 
      
+        /// <summary>
+        /// Get the active transaction
+        /// If your rollback the transaction, the sync will abort.
+        /// </summary>
         public DbTransaction Transaction
         {
             get
             {
-                return this._transaction;
+                return this.transaction;
             }
         }
 
-        public ApplyChangeFailedEventArgs(SyncConflict dbSyncConflict, ApplyAction action, DbConnection connection, DbTransaction transaction)
+        public DmRow FinalRow
         {
-            this._syncConflict = dbSyncConflict;
-            this._connection = connection;
-            this._transaction = transaction;
-            this._applyAction = action;
+            get
+            {
+                return this.finalRow;
+            }
+        }
+
+        public ApplyChangeFailedEventArgs(SyncConflict dbSyncConflict, ConflictAction action, DbConnection connection, DbTransaction transaction)
+        {
+            this.syncConflict = dbSyncConflict;
+            this.connection = connection;
+            this.transaction = transaction;
+            this.applyAction = action;
+
+            this.finalRowTable = dbSyncConflict.RemoteRow.Table.Clone();
+            this.finalRowTable.TableName = dbSyncConflict.RemoteRow.Table.TableName;
         }
     }
 }
