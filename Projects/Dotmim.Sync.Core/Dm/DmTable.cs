@@ -372,6 +372,7 @@ namespace Dotmim.Sync.Data
         {
             foreach (var c in this.columns)
                 c.Clear();
+
             Rows.Clear();
         }
 

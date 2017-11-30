@@ -6,6 +6,7 @@ using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Web;
 using Newtonsoft.Json;
 using System;
+using System.Data.SqlClient;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -21,10 +22,10 @@ class Program
     }
 
     private static string sqlConnectionStringServer = 
-        "Data Source=(localdb)\\MSSQLLocalDB; Initial Catalog=ServerDB; Integrated Security=true;";
+        "Data Source=.\\SQLEXPRESS; Initial Catalog=Northwind; Integrated Security=true;";
 
     private static string sqlConnectionStringClient =
-        "Data Source=(localdb)\\MSSQLLocalDB; Initial Catalog=ClientDB; Integrated Security=true;";
+        "Data Source=.\\SQLEXPRESS; Initial Catalog=NorthwindClient; Integrated Security=true;";
 
     /// <summary>
     /// Test a client syncing through a web api
@@ -81,12 +82,13 @@ class Program
 
         // With a config when we are in local mode (no proxy)
         SyncConfiguration configuration = new SyncConfiguration(new string[] {
-        "Customer", "Product", "Address", "CustomerAddress"});
+        "Customers", "Region"});
 
         SyncAgent agent = new SyncAgent(clientProvider, serverProvider, configuration);
 
         agent.SyncProgress += SyncProgress;
         agent.ApplyChangedFailed += ApplyChangedFailed;
+
 
         do
         {
@@ -94,6 +96,9 @@ class Program
             Console.WriteLine("Sync Start");
             try
             {
+                // if you want to test some conflicts resolution
+                // GenerateConflict();
+
                 CancellationTokenSource cts = new CancellationTokenSource();
                 CancellationToken token = cts.Token;
                 var s = await agent.SynchronizeAsync(token);
@@ -114,6 +119,35 @@ class Program
         } while (Console.ReadKey().Key != ConsoleKey.Escape);
 
         Console.WriteLine("End");
+    }
+
+    private static void GenerateConflict()
+    {
+        using (SqlConnection connection = new SqlConnection(sqlConnectionStringServer))
+        {
+            using (SqlCommand command = new SqlCommand())
+            {
+                string text = "Update Region Set RegionDescription = 'Eastern Server' Where RegionID = 1";
+                command.Connection = connection;
+                command.CommandText = text;
+                connection.Open();
+                command.ExecuteNonQuery();
+                connection.Close();
+            }
+        }
+
+        using (SqlConnection connection = new SqlConnection(sqlConnectionStringClient))
+        {
+            using (SqlCommand command = new SqlCommand())
+            {
+                string text = "Update Region Set RegionDescription = 'Eastern Client' Where RegionID = 1";
+                command.Connection = connection;
+                command.CommandText = text;
+                connection.Open();
+                command.ExecuteNonQuery();
+                connection.Close();
+            }
+        }
     }
 
     /// <summary>
@@ -219,27 +253,24 @@ class Program
     static void ApplyChangedFailed(object sender, ApplyChangeFailedEventArgs e)
     {
 
-        e.Action = ApplyAction.Continue;
-        return;
         // tables name
-        //string serverTableName = e.Conflict.RemoteChanges.TableName;
-        //string clientTableName = e.Conflict.LocalChanges.TableName;
+        string serverTableName = e.Conflict.RemoteRow.Table.TableName;
+        string clientTableName = e.Conflict.LocalRow.Table.TableName;
+        
+        // row in conflict, from both side
+        var dmRowServer = e.Conflict.RemoteRow;
+        var dmRowClient = e.Conflict.LocalRow;
 
-        //// server row in conflict
-        //var dmRowServer = e.Conflict.RemoteChanges.Rows[0];
-        //var dmRowClient = e.Conflict.LocalChanges.Rows[0];
-
-        //// Example 1 : Resolution based on rows values
+        // // Example 1 : Resolution based on rows values
         //if ((int)dmRowServer["ClientID"] == 100 && (int)dmRowClient["ClientId"] == 0)
-        //    e.Action = ApplyAction.Continue;
+        //    e.Action = ConflictAction.ServerWins;
         //else
-        //    e.Action = ApplyAction.RetryWithForceWrite;
+        //    e.Action = ConflictAction.ClientWins;
 
-        // Example 2 : resolution based on conflict type
-        // Line exist on client, not on server, force to create it
-        //if (e.Conflict.Type == ConflictType.RemoteInsertLocalNoRow || e.Conflict.Type == ConflictType.RemoteUpdateLocalNoRow)
-        //    e.Action = ApplyAction.RetryWithForceWrite;
-        //else
-        //    e.Action = ApplyAction.RetryWithForceWrite;
+
+        // // Example 2 : Merge action
+        //e.Action = ConflictAction.MergeRow;
+        //e.FinalRow["RegionDescription"] = "Eastern alone !";
+
     }
 }
