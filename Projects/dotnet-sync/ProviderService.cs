@@ -49,6 +49,8 @@ namespace Dotmim.Sync.Tools
                             providerType = ProviderType.SqlServer;
                         if (ptype == "sqlite")
                             providerType = ProviderType.Sqlite;
+                        if (ptype == "mysql")
+                            providerType = ProviderType.MySql;
                         if (ptype == "web")
                             providerType = ProviderType.Web;
 
