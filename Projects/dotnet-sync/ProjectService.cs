@@ -1,6 +1,7 @@
 ﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Data;
 using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.MySql;
 using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Web;
@@ -95,6 +96,9 @@ namespace Dotmim.Sync.Tools
                 case ProviderType.Web:
                     serverProvider = new WebProxyClientProvider(new Uri(project.ServerProvider.ConnectionString));
                     break;
+                case ProviderType.MySql:
+                    serverProvider = new MySqlSyncProvider(project.ServerProvider.ConnectionString);
+                    break;
                 case ProviderType.SqlServer:
                 default:
                     serverProvider = new SqlSyncProvider(project.ServerProvider.ConnectionString);
@@ -103,11 +107,14 @@ namespace Dotmim.Sync.Tools
 
             switch (project.ClientProvider.ProviderType)
             {
+                case ProviderType.Web:
+                    throw new Exception("Web proxy is used as a proxy server. You have to use an ASP.NET web backend. CLI uses a proxy as server provider");
                 case ProviderType.Sqlite:
                     clientprovider = new SqliteSyncProvider(project.ClientProvider.ConnectionString);
                     break;
-                case ProviderType.Web:
-                    throw new Exception("Web proxy is used as a proxy server. You have to use an ASP.NET web backend. CLI uses a proxy as server provider");
+                case ProviderType.MySql:
+                    clientprovider = new MySqlSyncProvider(project.ClientProvider.ConnectionString);
+                    break;
                 case ProviderType.SqlServer:
                 default:
                     clientprovider = new SqlSyncProvider(project.ClientProvider.ConnectionString);

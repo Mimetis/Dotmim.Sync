@@ -11,7 +11,6 @@ namespace Dotmim.Sync.Tools
     public class DataStore
     {
         public string ConnectionString { get; }
-        internal const string DEFAULT_PROJECT_NAME = "dotmim_sync_p0";
         internal const string DEFAULT_DATABASE_NAME = "dotmim_sync.db";
         internal const string PROJECT_TABLE = "ds_project";
         internal const string TABLE_TABLE = "ds_table";
@@ -324,6 +323,8 @@ namespace Dotmim.Sync.Tools
                     project.ServerProvider.ProviderType = ProviderType.SqlServer;
                 if (serverProvider == "sqlite")
                     project.ServerProvider.ProviderType = ProviderType.Sqlite;
+                if (serverProvider == "mysql")
+                    project.ServerProvider.ProviderType = ProviderType.MySql;
                 if (serverProvider == "web")
                     project.ServerProvider.ProviderType = ProviderType.Web;
 
@@ -338,6 +339,8 @@ namespace Dotmim.Sync.Tools
                     project.ClientProvider.ProviderType = ProviderType.SqlServer;
                 if (clientProvider == "sqlite")
                     project.ClientProvider.ProviderType = ProviderType.Sqlite;
+                if (clientProvider == "mysql")
+                    project.ClientProvider.ProviderType = ProviderType.MySql;
 
                 if (!String.IsNullOrEmpty(clientProviderCs))
                     project.ClientProvider.ConnectionString = clientProviderCs;

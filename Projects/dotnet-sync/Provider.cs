@@ -23,6 +23,7 @@ namespace Dotmim.Sync.Tools
     {
         SqlServer,
         Sqlite,
+        MySql,
         Web
     }
 }

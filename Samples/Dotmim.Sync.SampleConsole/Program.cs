@@ -252,25 +252,7 @@ class Program
     /// </summary>
     static void ApplyChangedFailed(object sender, ApplyChangeFailedEventArgs e)
     {
-
-        // tables name
-        string serverTableName = e.Conflict.RemoteRow.Table.TableName;
-        string clientTableName = e.Conflict.LocalRow.Table.TableName;
-        
-        // row in conflict, from both side
-        var dmRowServer = e.Conflict.RemoteRow;
-        var dmRowClient = e.Conflict.LocalRow;
-
-        // // Example 1 : Resolution based on rows values
-        //if ((int)dmRowServer["ClientID"] == 100 && (int)dmRowClient["ClientId"] == 0)
-        //    e.Action = ConflictAction.ServerWins;
-        //else
-        //    e.Action = ConflictAction.ClientWins;
-
-
-        // // Example 2 : Merge action
-        //e.Action = ConflictAction.MergeRow;
-        //e.FinalRow["RegionDescription"] = "Eastern alone !";
-
+        e.Action = ConflictAction.MergeRow;
+        e.FinalRow["RegionDescription"] = "Eastern alone !";
     }
 }
