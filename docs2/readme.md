@@ -7,15 +7,15 @@ Choose either **SQL Server**, **SQLite**, **MySQL**, and (I hope soon...) Oracle
 
 ## Documentation
 
-1. [Introduction to Domim.Sync](/Mimetis/Dotmim.Sync/docs/01-Introduction)
-2. [Get informations during the sync Progression](/Mimetis/Dotmim.Sync/docs/02-Sync-progression)
-3. [Set some usefuls configuration options](/Mimetis/Dotmim.Sync/docs/03-Configuration-options)
-4. [How to handle schemas with SQL Server](/Mimetis/Dotmim.Sync/docs/04-Handle-schemas-on-SQL-Server)
-5. [Managing sync direction on each table : Bidirectional / UploadOnly / DownloadOnly](/Mimetis/Dotmim.Sync/docs/05-Set-a-direction-on-each-table)
-6. [How to manually handle conflicts](/Mimetis/Dotmim.Sync/docs/06-Sync-conflict)
-7. [Implementing a Sync process with ASP.NET Core 2.0](/Mimetis/Dotmim.Sync/docs/07-ASP.NET-Core-2.0-Web-Proxy)
-8. [Adding a table filter](/Mimetis/Dotmim.Sync/docs/08-Filtering-tables)
-8. [Using the Dotmim.Sync CLI](/Mimetis/Dotmim.Sync/docs/09-Using-Dotmim.Sync-CLI)
+1. [Introduction to Domim.Sync](01-Introduction)
+2. [Get informations during the sync Progression](02-Sync-progression)
+3. [Set some usefuls configuration options](03-Configuration-options)
+4. [How to handle schemas with SQL Server](04-Handle-schemas-on-SQL-Server)
+5. [Managing sync direction on each table : Bidirectional / UploadOnly / DownloadOnly](05-Set-a-direction-on-each-table)
+6. [How to manually handle conflicts](06-Sync-conflict)
+7. [Implementing a Sync process with ASP.NET Core 2.0](07-ASP.NET-Core-2.0-Web-Proxy)
+8. [Adding a table filter](08-Filtering-tables)
+8. [Using the Dotmim.Sync CLI](09-Using-Dotmim.Sync-CLI)
 
 ## A few lines of codes
 
