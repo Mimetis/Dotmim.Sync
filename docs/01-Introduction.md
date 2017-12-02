@@ -10,7 +10,7 @@ Synchronizing multiples databases can be resumed like this :
 
 Here is the simplest code to synchronize two databases :  
 
-```
+``` csharp
 // Sql Server provider, the master.
 SqlSyncProvider serverProvider = new SqlSyncProvider(@"Data Source=(localdb)\MSSQLLocalDB; Initial Catalog=AdventureWorks;Integrated Security=true;");
 
