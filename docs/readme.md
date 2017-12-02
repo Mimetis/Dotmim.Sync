@@ -9,7 +9,7 @@ Choose either **SQL Server**, **SQLite**, **MySQL**, and (I hope soon...) Oracle
 
 TL,DR : Here is the most straightforward way to synchronize two relational databases:
 
-```
+``` cs
 // Sql Server provider, the master.
 SqlSyncProvider serverProvider = new SqlSyncProvider(@"Data Source=(localdb)\MSSQLLocalDB; Initial Catalog=AdventureWorks;Integrated Security=true;");
 
