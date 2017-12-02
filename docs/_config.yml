@@ -16,7 +16,6 @@
 title: Dotmim.Sync
 email: spertus@microsoft.com
 description: >- # this means to ignore newlines until "baseurl:"
-Dotmim.Sync is the easiest way to handle synchronization between one master database and multiples slaves databases.
 baseurl: "" # the subpath of your site, e.g. /blog
 url: "" # the base hostname & protocol for your site, e.g. http://example.com
 twitter_username: sebpertus
