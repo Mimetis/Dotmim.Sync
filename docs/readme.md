@@ -11,13 +11,14 @@ TL,DR : Here is the most straightforward way to synchronize two relational datab
 
 ``` cs
 // Sql Server provider, the master.
-SqlSyncProvider serverProvider = new SqlSyncProvider(@"Data Source=(localdb)\MSSQLLocalDB; Initial Catalog=AdventureWorks;Integrated Security=true;");
+SqlSyncProvider serverProvider = new SqlSyncProvider(
+    @"Data Source=.;Initial Catalog=AdventureWorks;Integrated Security=true;");
 
 // Sqlite Client provider for a Sql Server <=> Sqlite sync
 SQLiteSyncProvider clientProvider = new SQLiteSyncProvider("advworks.db");
 
 // Tables to be synced
-var tables = new string[] {"ProductCategory", "ProductDescription", "ProductModel", "Product", "Address", "Customer", "CustomerAddress" };
+var tables = new string[] {"ProductCategory", "Product", "Address", "Customer", "CustomerAddress" };
 
 // Sync agent, the orchestrator
 SyncAgent agent = new SyncAgent(clientProvider, serverProvider, tables);
@@ -25,6 +26,7 @@ SyncAgent agent = new SyncAgent(clientProvider, serverProvider, tables);
 do
 {
     var s = await agent.SynchronizeAsync();
+    
     Console.WriteLine($"Total Changes downloaded : {s.TotalChangesDownloaded}");
 
 } while (Console.ReadKey().Key != ConsoleKey.Escape);
