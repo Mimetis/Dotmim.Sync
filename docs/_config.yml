@@ -26,7 +26,7 @@ github_username:  mimetis
 
 # Build settings
 markdown: kramdown
-theme: minima
+theme: jekyll-theme-midnight
 plugins:
   - jekyll-feed
 
