@@ -10,21 +10,20 @@ Synchronizing multiples databases can be resumed like this :
 
 Here is the simplest code to synchronize two databases :  
 
-``` csharp
+``` cs
 // Sql Server provider, the master.
-SqlSyncProvider serverProvider = new SqlSyncProvider(@"Data Source=(localdb)\MSSQLLocalDB; Initial Catalog=AdventureWorks;Integrated Security=true;");
+SqlSyncProvider serverProvider = new SqlSyncProvider(
+    @"Data Source=.;Initial Catalog=AdventureWorks;Integrated Security=true;");
 
 // Sqlite Client provider for a Sql Server <=> Sqlite sync
 SQLiteSyncProvider clientProvider = new SQLiteSyncProvider("advworks.db");
 
 // Tables to be synced
-var tables = new string[] {"ErrorLog", "ProductCategory",
-    "ProductDescription", "ProductModel",
-    "Product", "ProductModelProductDescription",
-    "Address", "Customer", "CustomerAddress",
-    "SalesOrderHeader", "SalesOrderDetail" };
+var tables = new string[] {
+    "ProductCategory", "ProductDescription", "ProductModel",
+    "Product","Address", "Customer", "CustomerAddress"};
 
-// Agent
+// Orchestrator
 SyncAgent agent = new SyncAgent(clientProvider, serverProvider, tables);
 
 do
