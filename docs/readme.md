@@ -5,18 +5,6 @@
 Choose either **SQL Server**, **SQLite**, **MySQL**, and (I hope soon...) Oracle and PostgreSQL !
 
 
-## Documentation
-
-1. [Introduction to Domim.Sync](01-Introduction)
-2. [Get informations during the sync Progression](02-Sync-progression)
-3. [Set some usefuls configuration options](03-Configuration-options)
-4. [How to handle schemas with SQL Server](04-Handle-schemas-on-SQL-Server)
-5. [Managing sync direction on each table : Bidirectional / UploadOnly / DownloadOnly](05-Set-a-direction-on-each-table)
-6. [How to manually handle conflicts](06-Sync-conflict)
-7. [Implementing a Sync process with ASP.NET Core 2.0](07-ASP.NET-Core-2.0-Web-Proxy)
-8. [Adding a table filter](08-Filtering-tables)
-8. [Using the Dotmim.Sync CLI](09-Using-Dotmim.Sync-CLI)
-
 ## A few lines of codes
 
 TL,DR : Here is the most straightforward way to synchronize two relational databases:
