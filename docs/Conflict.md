@@ -7,7 +7,7 @@ You can choose:
 * `ConflictResolutionPolicy.ServerWins` : The server is allways the winner of any conflict. this behavior is the default behavior.
 * `ConflictResolutionPolicy.ClientWins` : The client is allways the winner of any conflict.
 
-```
+``` cs
 configuration.ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
 ``` 
 
@@ -27,7 +27,7 @@ Depending on your policy resolution, the workflow is:
 If you decide to manually resolve a conflict, the `ConflictResolutionPolicy` option will be ignored.  
 To be able to resolve a conflict, you just have to subscribe on the `ApplyChangedFailed` event and choose the correct version.  
 
-```
+``` cs
 // Subscribing to the ApplyChangedFailed event
 agent.ApplyChangedFailed += ApplyChangedFailed;
 
@@ -58,7 +58,7 @@ Eventually, the `FinalRow` property is used when you specify an Action to `Confl
 
 Manually resolving a conflict based on a column value:
 
-```
+``` cs
 private void ApplyChangedFailed(object sender, ApplyChangeFailedEventArgs e)
 {
     e.Action = (int)e.Conflict.RemoteRow["Id"] == 1 ? ConflictAction.ClientWins : ConflictAction.ServerWins;
@@ -67,7 +67,7 @@ private void ApplyChangedFailed(object sender, ApplyChangeFailedEventArgs e)
 
 Manually resolving a conflict based on the conflict type :
 
-```
+``` cs
 private void ApplyChangedFailed(object sender, ApplyChangeFailedEventArgs e)
 {
     switch (e.Conflict.Type)
@@ -91,7 +91,7 @@ private void ApplyChangedFailed(object sender, ApplyChangeFailedEventArgs e)
 
 Resolving a conflict by specifying a merged row :
 
-```
+``` cs
 static void ApplyChangedFailed(object sender, ApplyChangeFailedEventArgs e)
 {
     e.Action = ConflictAction.MergeRow;
