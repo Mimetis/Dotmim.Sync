@@ -1,14 +1,14 @@
-# SQL Server Schema
+# Schemas
 
-One great feature in SQL Server is the [schema](https://technet.microsoft.com/en-us/library/dd283095%28v=sql.100%29.aspx?f=255&MSPPError=-2147217396) option.  
-You can configure your sync tables with schema if you target the `SqlSyncProvider`
+One great feature in **SQL Server** is the [schema](https://technet.microsoft.com/en-us/library/dd283095%28v=sql.100%29.aspx?f=255&MSPPError=-2147217396) option.     
+You can configure your sync tables with schema if you target the `SqlSyncProvider`.
 
 You have two way to configure schemas :  
 
 * Directly during the tables declaration
 * On each table, from the `SyncConfiguration` object
 
-```
+``` cs
 var tables = new string[] { "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product",
                                 "Address", "Customer", "CustomerAddress"};
 

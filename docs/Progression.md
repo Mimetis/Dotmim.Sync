@@ -3,9 +3,6 @@
 Each sync step is defined by a `SyncStage` enumeration :  
 
 ``` cs
-/// <summary>
-/// Sync progress step.
-/// </summary>
 public enum SyncStage
 {
 }

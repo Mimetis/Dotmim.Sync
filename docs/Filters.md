@@ -1,4 +1,4 @@
-# Filtering tables
+# Filters
 
 You can filter datas from any tables.  
 In a nutshell, enabling filter is two steps :
@@ -11,7 +11,7 @@ First of all, you have to add all the filtered **tables** and the corresponding 
 This step is required on the **server** side, to be able to generate all required **stored procédures**.  
 
 In the `Filters` property, add a new filter, composed with **table** name and **column** name :  
-```
+``` cs
 SyncConfiguration configuration = new SyncConfiguration(new[] { "ServiceTickets" });
 
 // Add a filter
@@ -23,12 +23,11 @@ configuration.Filters.Add("ServiceTickets", "CustomerID");
 On each client, you will have to specify the **value** to provider fo filtering.  
 On the `SyncAgent` just add the corresponding parameter, with the correct value :  
 
-```
+``` cs
 SyncAgent agent = new SyncAgent(clientProvider, serverProvider, configuration);
 agent.Parameters.Add("ServiceTickets", "CustomerID", 10);
 
 var session = await agent.SynchronizeAsync();
-
 ```
 
 On this particular client, only tickets when CustomerId=10 are synchronized. 

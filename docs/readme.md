@@ -44,4 +44,4 @@ All packages are available through **nuget.org**:
 
 ## Need Help
 
-Feel free to ping me: [@sebastienpertus](http://www.twitter.com/sebastienpertus)
+Feel free to ping me: [@sebpertus](http://www.twitter.com/sebpertus)
