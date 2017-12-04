@@ -20,7 +20,7 @@ namespace Dotmim.Sync
     /// </summary>
     public abstract class DbSyncAdapter
     {
-        
+
 
         public delegate (ApplyAction, DmRow) ConflictActionDelegate(SyncConflict conflict, DbConnection connection, DbTransaction transaction = null);
 
@@ -147,7 +147,7 @@ namespace Dotmim.Sync
 
             if (row.Table != null && row.Table.Columns.Contains("sync_row_is_tombstone"))
                 isTombstone = row["sync_row_is_tombstone", version] != null && row["sync_row_is_tombstone", version] != DBNull.Value ? (bool)row["sync_row_is_tombstone", version] : false;
-            
+
             DbManager.SetParameterValue(command, "sync_row_is_tombstone", isTombstone ? 1 : 0);
 
             DbManager.SetParameterValue(command, "create_timestamp", createTimestamp);
@@ -742,24 +742,27 @@ namespace Dotmim.Sync
                 // COnflict on a line that is not present on the datasource
                 if (row == null)
                     return ChangeApplicationAction.Continue;
-                
-                if (row!= null)
+
+                if (row != null)
                 {
                     // if we have a merge action, we apply the row on the server
                     if (isMergeAction)
+                    {
                         this.ApplyUpdate(row, scope, true);
 
-                    // TODO : Différencier le timestamp de mise à jour ou de création
-                    var updateMetadataCommand = GetCommand(DbCommandType.UpdateMetadata);
+                        // TODO : Différencier le timestamp de mise à jour ou de création
+                        var updateMetadataCommand = GetCommand(DbCommandType.UpdateMetadata);
 
-                    // Deriving Parameters
-                    this.SetCommandParameters(DbCommandType.UpdateMetadata, updateMetadataCommand);
+                        // Deriving Parameters
+                        this.SetCommandParameters(DbCommandType.UpdateMetadata, updateMetadataCommand);
 
-                    // apply local row, set scope.id to null becoz applied locally
-                    var rowsApplied = this.InsertOrUpdateMetadatas(updateMetadataCommand, conflict.LocalRow, null);
+                        // apply local row, set scope.id to null becoz applied locally
+                        var rowsApplied = this.InsertOrUpdateMetadatas(updateMetadataCommand, conflict.LocalRow, null);
 
-                    if (!rowsApplied)
-                        throw new Exception("No metadatas rows found, can't update the server side");
+                        if (!rowsApplied)
+                            throw new Exception("No metadatas rows found, can't update the server side");
+
+                    }
 
                     finalRow = isMergeAction ? row : conflict.LocalRow;
 
@@ -903,7 +906,7 @@ namespace Dotmim.Sync
             }
         }
 
-        
+
     }
 
 }

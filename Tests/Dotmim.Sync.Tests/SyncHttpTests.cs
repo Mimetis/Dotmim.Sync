@@ -86,17 +86,20 @@ namespace Dotmim.Sync.Test
         private HelperDB helperDb = new HelperDB();
         private string serverDbName = "Test_SimpleHttp_Server";
         private string client1DbName = "Test_SimpleHttp_Client";
+        private string client2DbName = "Test_SimpleHttp_Client2";
 
         public string[] Tables => new string[] { "ServiceTickets" };
 
         public String ServerConnectionString => HelperDB.GetDatabaseConnectionString(serverDbName);
         public String Client1ConnectionString => HelperDB.GetDatabaseConnectionString(client1DbName);
+        public String Client2ConnectionString => HelperDB.GetDatabaseConnectionString(client2DbName);
 
         public SyncSimpleHttpFixture()
         {
             // create databases
             helperDb.CreateDatabase(serverDbName);
             helperDb.CreateDatabase(client1DbName);
+            helperDb.CreateDatabase(client2DbName);
 
             // create table
             helperDb.ExecuteScript(serverDbName, createTableScript);
@@ -108,6 +111,7 @@ namespace Dotmim.Sync.Test
         {
             helperDb.DeleteDatabase(serverDbName);
             helperDb.DeleteDatabase(client1DbName);
+            helperDb.DeleteDatabase(client2DbName);
         }
 
     }
@@ -118,7 +122,8 @@ namespace Dotmim.Sync.Test
     public class SyncHttpTests : IClassFixture<SyncSimpleHttpFixture>
     {
         SqlSyncProvider serverProvider;
-        SqlSyncProvider clientProvider;
+        SqlSyncProvider client1Provider;
+        SqlSyncProvider client2Provider;
         WebProxyServerProvider proxyServerProvider;
         WebProxyClientProvider proxyClientProvider;
         SyncConfiguration configuration;
@@ -133,34 +138,51 @@ namespace Dotmim.Sync.Test
             serverProvider = new SqlSyncProvider(fixture.ServerConnectionString);
             proxyServerProvider = new WebProxyServerProvider(serverProvider);
 
-            clientProvider = new SqlSyncProvider(fixture.Client1ConnectionString);
+            client1Provider = new SqlSyncProvider(fixture.Client1ConnectionString);
+            client2Provider = new SqlSyncProvider(fixture.Client2ConnectionString);
             proxyClientProvider = new WebProxyClientProvider();
 
             configuration = new SyncConfiguration(this.fixture.Tables);
 
-            agent = new SyncAgent(clientProvider, proxyClientProvider);
+            agent = new SyncAgent(client1Provider, proxyClientProvider);
 
         }
 
         [Fact, TestPriority(1)]
         public async Task Initialize()
         {
+            var serverHandler = new RequestDelegate(async context =>
+            {
+                //configuration.AddTable(fixture.Tables);
+                serverProvider.SetConfiguration(configuration);
+                proxyServerProvider.SerializationFormat = SerializationFormat.Json;
+
+                await proxyServerProvider.HandleRequestAsync(context);
+            });
             using (var server = new KestrellTestServer())
             {
-                var serverHandler = new RequestDelegate(async context =>
-                {
-                    //configuration.AddTable(fixture.Tables);
-                    serverProvider.SetConfiguration(configuration);
-                    proxyServerProvider.SerializationFormat = SerializationFormat.Json;
-
-                    await proxyServerProvider.HandleRequestAsync(context);
-                });
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
                     proxyClientProvider.SerializationFormat = SerializationFormat.Json;
 
-                    var session = await agent.SynchronizeAsync();
+                    var syncAgent = new SyncAgent(client1Provider, proxyClientProvider);
+                    var session = await syncAgent.SynchronizeAsync();
+
+                    Assert.Equal(50, session.TotalChangesDownloaded);
+                    Assert.Equal(0, session.TotalChangesUploaded);
+                });
+                await server.Run(serverHandler, clientHandler);
+            }
+            using (var server = new KestrellTestServer())
+            {
+                var clientHandler = new ResponseDelegate(async (serviceUri) =>
+                {
+                    proxyClientProvider.ServiceUri = new Uri(serviceUri);
+                    proxyClientProvider.SerializationFormat = SerializationFormat.Json;
+
+                    var syncAgent = new SyncAgent(client2Provider, proxyClientProvider);
+                    var session = await syncAgent.SynchronizeAsync();
 
                     Assert.Equal(50, session.TotalChangesDownloaded);
                     Assert.Equal(0, session.TotalChangesUploaded);
@@ -858,5 +880,200 @@ namespace Dotmim.Sync.Test
             Assert.Equal("Conflict Line Client", expectedRes);
         }
 
+        [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(13)]
+        public async Task ConflictUpdateUpdateDoubleBase(SyncConfiguration conf)
+        {
+            var serverHandler = new RequestDelegate(async context =>
+            {
+                conf.Add(fixture.Tables);
+                serverProvider.SetConfiguration(conf);
+                proxyServerProvider.SerializationFormat = conf.SerializationFormat;
+
+                await proxyServerProvider.HandleRequestAsync(context);
+            });
+
+            // Just be sure the bases are synced correctly
+            using (var server = new KestrellTestServer())
+            {
+                var client1Handler = new ResponseDelegate(async (serviceUri) =>
+                {
+                    proxyClientProvider.ServiceUri = new Uri(serviceUri);
+                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
+
+                    var agentSync = new SyncAgent(client1Provider, proxyClientProvider);
+
+                    var session = await agentSync.SynchronizeAsync();
+                });
+                await server.Run(serverHandler, client1Handler);
+            }
+
+            using (var server = new KestrellTestServer())
+            {
+                var client2Handler = new ResponseDelegate(async (serviceUri) =>
+                {
+                    proxyClientProvider.ServiceUri = new Uri(serviceUri);
+                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
+
+                    var agentSync = new SyncAgent(client2Provider, proxyClientProvider);
+
+                    var session = await agentSync.SynchronizeAsync();
+                });
+                await server.Run(serverHandler, client2Handler);
+            }
+
+
+            var id = Guid.NewGuid().ToString();
+
+            using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
+            {
+                var script = $@"INSERT [ServiceTickets] 
+                            ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
+                            VALUES 
+                            (N'{id}', N'Line Client', N'Description Server', 1, 0, getdate(), NULL, 1)";
+
+                using (var sqlCmd = new SqlCommand(script, sqlConnection))
+                {
+                    sqlConnection.Open();
+                    sqlCmd.ExecuteNonQuery();
+                    sqlConnection.Close();
+                }
+            }
+
+            using (var server = new KestrellTestServer())
+            {
+                var client1Handler = new ResponseDelegate(async (serviceUri) =>
+                {
+                    proxyClientProvider.ServiceUri = new Uri(serviceUri);
+                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
+
+                    var agentSync = new SyncAgent(client1Provider, proxyClientProvider);
+
+                    var session = await agentSync.SynchronizeAsync();
+
+                    // check statistics
+                    Assert.Equal(1, session.TotalChangesDownloaded);
+                    Assert.Equal(0, session.TotalChangesUploaded);
+                    Assert.Equal(0, session.TotalSyncConflicts);
+                });
+                await server.Run(serverHandler, client1Handler);
+            }
+
+            using (var server = new KestrellTestServer())
+            {
+                var client2Handler = new ResponseDelegate(async (serviceUri) =>
+                {
+                    proxyClientProvider.ServiceUri = new Uri(serviceUri);
+                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
+
+                    var agentSync = new SyncAgent(client2Provider, proxyClientProvider);
+
+                    var session = await agentSync.SynchronizeAsync();
+
+                    // check statistics
+                    Assert.Equal(1, session.TotalChangesDownloaded);
+                    Assert.Equal(0, session.TotalChangesUploaded);
+                    Assert.Equal(0, session.TotalSyncConflicts);
+                });
+                await server.Run(serverHandler, client2Handler);
+            }
+
+            // Generating double conflicts
+            using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
+            {
+                var script = $@"Update [ServiceTickets] 
+                                Set Title = 'Updated from Client 1'
+                                Where ServiceTicketId = '{id}'";
+
+                using (var sqlCmd = new SqlCommand(script, sqlConnection))
+                {
+                    sqlConnection.Open();
+                    sqlCmd.ExecuteNonQuery();
+                    sqlConnection.Close();
+                }
+            }
+
+            using (var sqlConnection = new SqlConnection(fixture.Client2ConnectionString))
+            {
+                var script = $@"Update [ServiceTickets] 
+                                Set Title = 'Updated from Client 2'
+                                Where ServiceTicketId = '{id}'";
+
+                using (var sqlCmd = new SqlCommand(script, sqlConnection))
+                {
+                    sqlConnection.Open();
+                    sqlCmd.ExecuteNonQuery();
+                    sqlConnection.Close();
+                }
+            }
+
+            using (var server = new KestrellTestServer())
+            {
+                var client1Handler = new ResponseDelegate(async (serviceUri) =>
+                {
+                    proxyClientProvider.ServiceUri = new Uri(serviceUri);
+                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
+
+                    var agentSync = new SyncAgent(client1Provider, proxyClientProvider);
+
+                    var session = await agentSync.SynchronizeAsync();
+
+                    // check statistics
+                    Assert.Equal(0, session.TotalChangesDownloaded);
+                    Assert.Equal(1, session.TotalChangesUploaded);
+                    Assert.Equal(0, session.TotalSyncConflicts);
+                });
+                await server.Run(serverHandler, client1Handler);
+            }
+            using (var server = new KestrellTestServer())
+            {
+                var client2Handler = new ResponseDelegate(async (serviceUri) =>
+                {
+                    proxyClientProvider.ServiceUri = new Uri(serviceUri);
+                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
+
+                    var agentSync = new SyncAgent(client2Provider, proxyClientProvider);
+
+                    var session = await agentSync.SynchronizeAsync();
+
+                    // check statistics
+                    Assert.Equal(1, session.TotalChangesDownloaded);
+                    Assert.Equal(1, session.TotalChangesUploaded);
+                    Assert.Equal(1, session.TotalSyncConflicts);
+                });
+                await server.Run(serverHandler, client2Handler);
+            }
+
+            string expectedRes = string.Empty;
+            using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
+            {
+                var script = $@"Select Title from [ServiceTickets] Where ServiceTicketID='{id}'";
+
+                using (var sqlCmd = new SqlCommand(script, sqlConnection))
+                {
+                    sqlConnection.Open();
+                    expectedRes = sqlCmd.ExecuteScalar() as string;
+                    sqlConnection.Close();
+                }
+            }
+
+            // check good title on client
+            Assert.Equal("Updated from Client 1", expectedRes);
+
+            expectedRes = string.Empty;
+            using (var sqlConnection = new SqlConnection(fixture.Client2ConnectionString))
+            {
+                var script = $@"Select Title from [ServiceTickets] Where ServiceTicketID='{id}'";
+
+                using (var sqlCmd = new SqlCommand(script, sqlConnection))
+                {
+                    sqlConnection.Open();
+                    expectedRes = sqlCmd.ExecuteScalar() as string;
+                    sqlConnection.Close();
+                }
+            }
+
+            // check good title on client
+            Assert.Equal("Updated from Client 1", expectedRes);
+        }
     }
 }
