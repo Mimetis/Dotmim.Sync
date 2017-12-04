@@ -88,8 +88,10 @@ namespace UWPSyncSample.Helpers
         public void CreateDatabase(string dbName, bool recreateDb = true)
         {
 
-            var builder = new SqlConnectionStringBuilder(this.connectionStrings[ConnectionType.Server_SqlServer]);
-            builder.InitialCatalog = "master";
+            var builder = new SqlConnectionStringBuilder(this.connectionStrings[ConnectionType.Server_SqlServer])
+            {
+                InitialCatalog = "master"
+            };
 
             SqlConnection masterConnection = null;
             SqlCommand cmdDb = null;
