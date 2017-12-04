@@ -1,6 +1,6 @@
 ## Dotmim.Sync
 
-**DotMim.Sync** is a straightforward SDK for syncing relational databases, developed on top of Net Standard 2.0 and **available and ready for **IOT**, **Xamarin**, **.NET**, and so on :)  
+**DotMim.Sync** is a straightforward SDK for syncing relational databases, developed on top of **.Net Standard 2.0**, available and ready to use within  **IOT**, **Xamarin**, **.NET**, **UWP** and so on :)  
 
 **The full documentation** is available here : [https://mimetis.github.io/Dotmim.Sync/](https://mimetis.github.io/Dotmim.Sync/)  
 
