@@ -80,7 +80,6 @@ Global
 		{F8C90F8B-6A00-4A03-A74D-5703860EF406}.Debug|x86.ActiveCfg = Debug|Any CPU
 		{F8C90F8B-6A00-4A03-A74D-5703860EF406}.Debug|x86.Build.0 = Debug|Any CPU
 		{F8C90F8B-6A00-4A03-A74D-5703860EF406}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{F8C90F8B-6A00-4A03-A74D-5703860EF406}.Release|Any CPU.Build.0 = Release|Any CPU
 		{F8C90F8B-6A00-4A03-A74D-5703860EF406}.Release|ARM.ActiveCfg = Release|Any CPU
 		{F8C90F8B-6A00-4A03-A74D-5703860EF406}.Release|ARM.Build.0 = Release|Any CPU
 		{F8C90F8B-6A00-4A03-A74D-5703860EF406}.Release|x64.ActiveCfg = Release|Any CPU
@@ -144,7 +143,6 @@ Global
 		{3AEABB50-D3EA-428B-BF01-06CA578EDA73}.Debug|x86.ActiveCfg = Debug|Any CPU
 		{3AEABB50-D3EA-428B-BF01-06CA578EDA73}.Debug|x86.Build.0 = Debug|Any CPU
 		{3AEABB50-D3EA-428B-BF01-06CA578EDA73}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{3AEABB50-D3EA-428B-BF01-06CA578EDA73}.Release|Any CPU.Build.0 = Release|Any CPU
 		{3AEABB50-D3EA-428B-BF01-06CA578EDA73}.Release|ARM.ActiveCfg = Release|Any CPU
 		{3AEABB50-D3EA-428B-BF01-06CA578EDA73}.Release|ARM.Build.0 = Release|Any CPU
 		{3AEABB50-D3EA-428B-BF01-06CA578EDA73}.Release|x64.ActiveCfg = Release|Any CPU
@@ -198,7 +196,6 @@ Global
 		{E623BBA6-322B-4968-8DA2-A1DDD49C709F}.Debug|x86.ActiveCfg = Debug|Any CPU
 		{E623BBA6-322B-4968-8DA2-A1DDD49C709F}.Debug|x86.Build.0 = Debug|Any CPU
 		{E623BBA6-322B-4968-8DA2-A1DDD49C709F}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{E623BBA6-322B-4968-8DA2-A1DDD49C709F}.Release|Any CPU.Build.0 = Release|Any CPU
 		{E623BBA6-322B-4968-8DA2-A1DDD49C709F}.Release|ARM.ActiveCfg = Release|Any CPU
 		{E623BBA6-322B-4968-8DA2-A1DDD49C709F}.Release|ARM.Build.0 = Release|Any CPU
 		{E623BBA6-322B-4968-8DA2-A1DDD49C709F}.Release|x64.ActiveCfg = Release|Any CPU
@@ -216,8 +213,8 @@ Global
 		{E623BBA6-322B-4968-8DA2-A1DDD49C709F} = {437F3541-AAFA-4369-953E-4643660EEBC4}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		BuildVersion_StartDate = 2000/1/1
 		SolutionGuid = {348020ED-748B-4CC8-AA1D-9F7D36E2AC12}
+		BuildVersion_StartDate = 2000/1/1
 	EndGlobalSection
 	GlobalSection(Performance) = preSolution
 		HasPerformanceSessions = true

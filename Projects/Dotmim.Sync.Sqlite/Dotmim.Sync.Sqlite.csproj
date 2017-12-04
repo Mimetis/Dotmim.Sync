@@ -3,13 +3,13 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <Version>0.1.6</Version>
+    <Version>0.1.7</Version>
     <Authors>Sébastien Pertus</Authors>
     <Company>Microsoft</Company>
     <Title>Dotmim.Sync.Sqlite</Title>
     <Description>SQLite Sync Provider. Actually can be used as Client provider (Don't use it as a Server provider)</Description>
-    <PackageProjectUrl>https://github.com/Mimetis/Dotmim.Sync</PackageProjectUrl>
-    <PackageTags>Dotmim.Sync,Sync, SQLite Sync Provider, .Net Standard 2.0</PackageTags>
+    <PackageProjectUrl>https://mimetis.github.io/Dotmim.Sync/</PackageProjectUrl>
+    <PackageTags>Dotmim.Sync, SQLite Sync Core Provider, SQLite Sync, .Net Standard 2.0, Sync, Synchronization, Sync Framework</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>
