@@ -333,7 +333,7 @@ namespace Dotmim.Sync.Data
 
             // Create PrimaryKey
             DmColumn[] pkey = PrimaryKey.Columns;
-            if (pkey.Length > 0)
+            if (pkey != null && pkey.Length > 0)
             {
                 DmColumn[] key = new DmColumn[pkey.Length];
 
@@ -595,7 +595,7 @@ namespace Dotmim.Sync.Data
         }
 
 
-        public override string ToString() => this.TableName;
+        public override string ToString() => $"{this.TableName} ({this.Rows.ToString()})";
 
         /// <summary>
         /// Merge a dmTable in this dmTable without perserving changes

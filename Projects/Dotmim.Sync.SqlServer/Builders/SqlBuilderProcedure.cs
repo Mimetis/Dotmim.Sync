@@ -365,16 +365,66 @@ namespace Dotmim.Sync.SqlServer.Builders
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
+
+
+
         public void CreateBulkDelete()
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkDeleteRows);
             CreateProcedureCommand(this.BuildBulkDeleteCommand, commandName);
         }
+
+
         public string CreateBulkDeleteScriptText()
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkDeleteRows);
             return CreateProcedureCommandScriptText(this.BuildBulkDeleteCommand, commandName);
         }
+
+        public void DropBulkDelete()
+        {
+            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+
+            try
+            {
+                using (var command = new SqlCommand())
+                {
+                    if (!alreadyOpened)
+                        this.connection.Open();
+
+                    if (this.transaction != null)
+                        command.Transaction = this.transaction;
+
+                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkDeleteRows);
+
+                    command.CommandText = $"DROP PROCEDURE {commandName};";
+                    command.Connection = this.connection;
+                    command.ExecuteNonQuery();
+
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error during DropBulkDelete : {ex}");
+                throw;
+
+            }
+            finally
+            {
+                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
+                    this.connection.Close();
+
+            }
+
+        }
+
+        public string DropBulkDeleteScriptText()
+        {
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkDeleteRows);
+
+            return $"DROP PROCEDURE {commandName};";
+        }
+
 
         //------------------------------------------------------------------
         // Bulk Insert command
@@ -537,6 +587,48 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkInsertRows);
             return CreateProcedureCommandScriptText(BuildBulkInsertCommand, commandName);
+        }
+        public void DropBulkInsert()
+        {
+            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+
+            try
+            {
+                using (var command = new SqlCommand())
+                {
+                    if (!alreadyOpened)
+                        this.connection.Open();
+
+                    if (this.transaction != null)
+                        command.Transaction = this.transaction;
+
+                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkInsertRows);
+
+                    command.CommandText = $"DROP PROCEDURE {commandName};";
+                    command.Connection = this.connection;
+                    command.ExecuteNonQuery();
+
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error during DropBulkDelete : {ex}");
+                throw;
+
+            }
+            finally
+            {
+                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
+                    this.connection.Close();
+
+            }
+
+        }
+        public string DropBulkInsertScriptText()
+        {
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkInsertRows);
+
+            return $"DROP PROCEDURE {commandName};";
         }
 
         //------------------------------------------------------------------
@@ -702,6 +794,48 @@ namespace Dotmim.Sync.SqlServer.Builders
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkUpdateRows);
             return CreateProcedureCommandScriptText(BuildBulkUpdateCommand, commandName);
         }
+        public void DropBulkUpdate()
+        {
+            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+
+            try
+            {
+                using (var command = new SqlCommand())
+                {
+                    if (!alreadyOpened)
+                        this.connection.Open();
+
+                    if (this.transaction != null)
+                        command.Transaction = this.transaction;
+
+                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkUpdateRows);
+
+                    command.CommandText = $"DROP PROCEDURE {commandName};";
+                    command.Connection = this.connection;
+                    command.ExecuteNonQuery();
+
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error during Drop BulkUpdate : {ex}");
+                throw;
+
+            }
+            finally
+            {
+                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
+                    this.connection.Close();
+
+            }
+
+        }
+        public string DropBulkUpdateScriptText()
+        {
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkUpdateRows);
+
+            return $"DROP PROCEDURE {commandName};";
+        }
 
 
         //------------------------------------------------------------------
@@ -749,6 +883,48 @@ namespace Dotmim.Sync.SqlServer.Builders
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.Reset);
             return CreateProcedureCommandScriptText(BuildResetCommand, commandName);
         }
+        public void DropReset()
+        {
+            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+
+            try
+            {
+                using (var command = new SqlCommand())
+                {
+                    if (!alreadyOpened)
+                        this.connection.Open();
+
+                    if (this.transaction != null)
+                        command.Transaction = this.transaction;
+
+                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.Reset);
+
+                    command.CommandText = $"DROP PROCEDURE {commandName};";
+                    command.Connection = this.connection;
+                    command.ExecuteNonQuery();
+
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error during Drop Reset : {ex}");
+                throw;
+
+            }
+            finally
+            {
+                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
+                    this.connection.Close();
+
+            }
+
+        }
+        public string DropResetScriptText()
+        {
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.Reset);
+
+            return $"DROP PROCEDURE {commandName};";
+        }
 
 
         //------------------------------------------------------------------
@@ -793,6 +969,48 @@ namespace Dotmim.Sync.SqlServer.Builders
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteRow);
             return CreateProcedureCommandScriptText(BuildDeleteCommand, commandName);
         }
+        public void DropDelete()
+        {
+            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+
+            try
+            {
+                using (var command = new SqlCommand())
+                {
+                    if (!alreadyOpened)
+                        this.connection.Open();
+
+                    if (this.transaction != null)
+                        command.Transaction = this.transaction;
+
+                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteRow);
+
+                    command.CommandText = $"DROP PROCEDURE {commandName};";
+                    command.Connection = this.connection;
+                    command.ExecuteNonQuery();
+
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error during Drop DeleteRow : {ex}");
+                throw;
+
+            }
+            finally
+            {
+                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
+                    this.connection.Close();
+
+            }
+
+        }
+        public string DropDeleteScriptText()
+        {
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteRow);
+
+            return $"DROP PROCEDURE {commandName};";
+        }
 
 
         //------------------------------------------------------------------
@@ -829,6 +1047,48 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata);
             return CreateProcedureCommandScriptText(BuildDeleteMetadataCommand, commandName);
+        }
+        public void DropDeleteMetadata()
+        {
+            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+
+            try
+            {
+                using (var command = new SqlCommand())
+                {
+                    if (!alreadyOpened)
+                        this.connection.Open();
+
+                    if (this.transaction != null)
+                        command.Transaction = this.transaction;
+
+                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata);
+
+                    command.CommandText = $"DROP PROCEDURE {commandName};";
+                    command.Connection = this.connection;
+                    command.ExecuteNonQuery();
+
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error during Drop DeleteMetadata : {ex}");
+                throw;
+
+            }
+            finally
+            {
+                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
+                    this.connection.Close();
+
+            }
+
+        }
+        public string DropDeleteMetadataScriptText()
+        {
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata);
+
+            return $"DROP PROCEDURE {commandName};";
         }
 
 
@@ -902,6 +1162,48 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertRow);
             return CreateProcedureCommandScriptText(BuildInsertCommand, commandName);
+        }
+        public void DropInsert()
+        {
+            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+
+            try
+            {
+                using (var command = new SqlCommand())
+                {
+                    if (!alreadyOpened)
+                        this.connection.Open();
+
+                    if (this.transaction != null)
+                        command.Transaction = this.transaction;
+
+                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertRow);
+
+                    command.CommandText = $"DROP PROCEDURE {commandName};";
+                    command.Connection = this.connection;
+                    command.ExecuteNonQuery();
+
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error during Drop InsertRow : {ex}");
+                throw;
+
+            }
+            finally
+            {
+                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
+                    this.connection.Close();
+
+            }
+
+        }
+        public string DropInsertScriptText()
+        {
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertRow);
+
+            return $"DROP PROCEDURE {commandName};";
         }
 
         //------------------------------------------------------------------
@@ -978,6 +1280,48 @@ namespace Dotmim.Sync.SqlServer.Builders
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertMetadata);
             return CreateProcedureCommandScriptText(BuildInsertMetadataCommand, commandName);
         }
+        public void DropInsertMetadata()
+        {
+            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+
+            try
+            {
+                using (var command = new SqlCommand())
+                {
+                    if (!alreadyOpened)
+                        this.connection.Open();
+
+                    if (this.transaction != null)
+                        command.Transaction = this.transaction;
+
+                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertMetadata);
+
+                    command.CommandText = $"DROP PROCEDURE {commandName};";
+                    command.Connection = this.connection;
+                    command.ExecuteNonQuery();
+
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error during Drop InsertMetadata : {ex}");
+                throw;
+
+            }
+            finally
+            {
+                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
+                    this.connection.Close();
+
+            }
+
+        }
+        public string DropInsertMetadataScriptText()
+        {
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertMetadata);
+
+            return $"DROP PROCEDURE {commandName};";
+        }
 
 
         //------------------------------------------------------------------
@@ -1036,6 +1380,48 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectRow);
             return CreateProcedureCommandScriptText(BuildSelectRowCommand, commandName);
+        }
+        public void DropSelectRow()
+        {
+            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+
+            try
+            {
+                using (var command = new SqlCommand())
+                {
+                    if (!alreadyOpened)
+                        this.connection.Open();
+
+                    if (this.transaction != null)
+                        command.Transaction = this.transaction;
+
+                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectRow);
+
+                    command.CommandText = $"DROP PROCEDURE {commandName};";
+                    command.Connection = this.connection;
+                    command.ExecuteNonQuery();
+
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error during Drop SelectRow : {ex}");
+                throw;
+
+            }
+            finally
+            {
+                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
+                    this.connection.Close();
+
+            }
+
+        }
+        public string DropSelectRowScriptText()
+        {
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectRow);
+
+            return $"DROP PROCEDURE {commandName};";
         }
 
         //------------------------------------------------------------------
@@ -1113,6 +1499,48 @@ namespace Dotmim.Sync.SqlServer.Builders
             string str = string.Concat("Create TVP Type on table ", tableName.QuotedString);
             return SqlBuilder.WrapScriptTextWithComments(this.CreateTVPTypeCommandText(), str);
         }
+        public void DropTVPType()
+        {
+            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+
+            try
+            {
+                using (var command = new SqlCommand())
+                {
+                    if (!alreadyOpened)
+                        this.connection.Open();
+
+                    if (this.transaction != null)
+                        command.Transaction = this.transaction;
+
+                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkTableType);
+
+                    command.CommandText = $"DROP TYPE {commandName};";
+                    command.Connection = this.connection;
+                    command.ExecuteNonQuery();
+
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error during Drop TVPType : {ex}");
+                throw;
+
+            }
+            finally
+            {
+                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
+                    this.connection.Close();
+
+            }
+
+        }
+        public string DropTVPTypeScriptText()
+        {
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkTableType);
+
+            return $"DROP TYPE {commandName};";
+        }
 
         //------------------------------------------------------------------
         // Update command
@@ -1158,6 +1586,48 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateRow);
             return CreateProcedureCommandScriptText(BuildUpdateCommand, commandName);
+        }
+        public void DropUpdate()
+        {
+            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+
+            try
+            {
+                using (var command = new SqlCommand())
+                {
+                    if (!alreadyOpened)
+                        this.connection.Open();
+
+                    if (this.transaction != null)
+                        command.Transaction = this.transaction;
+
+                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateRow);
+
+                    command.CommandText = $"DROP PROCEDURE {commandName};";
+                    command.Connection = this.connection;
+                    command.ExecuteNonQuery();
+
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error during Drop Update : {ex}");
+                throw;
+
+            }
+            finally
+            {
+                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
+                    this.connection.Close();
+
+            }
+
+        }
+        public string DropUpdateScriptText()
+        {
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateRow);
+
+            return $"DROP PROCEDURE {commandName};";
         }
 
         //------------------------------------------------------------------
@@ -1223,6 +1693,48 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata);
             return CreateProcedureCommandScriptText(BuildUpdateMetadataCommand, commandName);
+        }
+        public void DropUpdateMetadata()
+        {
+            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+
+            try
+            {
+                using (var command = new SqlCommand())
+                {
+                    if (!alreadyOpened)
+                        this.connection.Open();
+
+                    if (this.transaction != null)
+                        command.Transaction = this.transaction;
+
+                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata);
+
+                    command.CommandText = $"DROP PROCEDURE {commandName};";
+                    command.Connection = this.connection;
+                    command.ExecuteNonQuery();
+
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error during Drop UpdateMetadata : {ex}");
+                throw;
+
+            }
+            finally
+            {
+                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
+                    this.connection.Close();
+
+            }
+
+        }
+        public string DropUpdateMetadataScriptText()
+        {
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata);
+
+            return $"DROP PROCEDURE {commandName};";
         }
 
 
@@ -1425,6 +1937,102 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             return sbSelecteChanges.ToString();
         }
+        public void DropSelectIncrementalChanges()
+        {
+            bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
+            try
+            {
+                using (var command = new SqlCommand())
+                {
+                    if (!alreadyOpened)
+                        this.connection.Open();
+
+                    if (this.transaction != null)
+                        command.Transaction = this.transaction;
+
+                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChanges);
+
+                    command.CommandText = $"DROP PROCEDURE {commandName};";
+                    command.Connection = this.connection;
+                    command.ExecuteNonQuery();
+
+                }
+
+                if (this.Filters != null && this.Filters.Count > 0)
+                {
+
+                    using (var command = new SqlCommand())
+                    {
+                        if (!alreadyOpened)
+                            this.connection.Open();
+
+                        if (this.transaction != null)
+                            command.Transaction = this.transaction;
+
+                        foreach (var c in this.Filters)
+                        {
+                            var columnFilter = this.tableDescription.Columns[c.ColumnName];
+
+                            if (columnFilter == null)
+                                throw new InvalidExpressionException($"Column {c.ColumnName} does not exist in Table {this.tableDescription.TableName}");
+                        }
+
+                        var filtersName = this.Filters.Select(f => f.ColumnName);
+                        var commandNameWithFilter = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWitFilters, filtersName);
+
+                        command.CommandText = $"DROP PROCEDURE {commandNameWithFilter};";
+                        command.Connection = this.connection;
+                        command.ExecuteNonQuery();
+
+                    }
+
+
+                }
+
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error during DropBulkDelete : {ex}");
+                throw;
+
+            }
+            finally
+            {
+                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
+                    this.connection.Close();
+
+            }
+
+        }
+        public string DropSelectIncrementalChangesScriptText()
+        {
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChanges);
+
+            string dropProcedure = $"DROP PROCEDURE {commandName};";
+
+            if (this.Filters != null && this.Filters.Count > 0)
+            {
+
+                using (var command = new SqlCommand())
+                {
+
+                    foreach (var c in this.Filters)
+                    {
+                        var columnFilter = this.tableDescription.Columns[c.ColumnName];
+
+                        if (columnFilter == null)
+                            throw new InvalidExpressionException($"Column {c.ColumnName} does not exist in Table {this.tableDescription.TableName}");
+                    }
+
+                    var filtersName = this.Filters.Select(f => f.ColumnName);
+                    var commandNameWithFilter = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWitFilters, filtersName);
+
+                    dropProcedure += Environment.NewLine + $"DROP PROCEDURE {commandNameWithFilter};";
+
+                }
+            }
+            return dropProcedure;
+        }
     }
 }

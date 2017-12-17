@@ -68,7 +68,7 @@ namespace Dotmim.Sync.Web
         public Boolean InMemory { get; set; }
         public BatchPartInfo BatchPartInfo { get; set; }
         public DmSetSurrogate Set { get; set; }
-        public ChangesStatistics ChangesStatistics { get; set; }
+        public ChangesSelected ChangesSelected { get; set; }
     }
     [Serializable]
     public class HttpGetLocalTimestampMessage
@@ -84,7 +84,7 @@ namespace Dotmim.Sync.Web
         public int BatchIndex { get; set; }
         public BatchPartInfo BatchPartInfo { get; set; }
         public DmSetSurrogate Set { get; set; }
-        public ChangesStatistics ChangesStatistics { get; set; }
+        public ChangesApplied ChangesApplied { get; set; }
 
     }
 

@@ -13,12 +13,18 @@ namespace Dotmim.Sync
 
         }
 
+
         public SyncException(string message, SyncStage stage,  SyncExceptionType type = SyncExceptionType.Unknown) : base(message)
         {
             this.SyncStage = stage;
             this.ExceptionType = type;
         }
 
+        public SyncException(string message, SyncExceptionType type = SyncExceptionType.Unknown) : base(message)
+        {
+            this.ExceptionType = type;
+            this.SyncStage = SyncStage.None;
+        }
 
         public SyncException(string message, SyncStage stage, Exception exception, SyncExceptionType type = SyncExceptionType.Unknown) : base(message, exception)
         {

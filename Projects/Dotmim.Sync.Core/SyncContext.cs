@@ -74,7 +74,27 @@ namespace Dotmim.Sync
             this.SessionId = sessionId;
         }
 
-     
+        public override string ToString()
+        {
+            if (this.CompleteTime != this.StartTime && this.CompleteTime > this.StartTime)
+            {
+                var tsEnded = TimeSpan.FromTicks(CompleteTime.Ticks);
+                var tsStarted = TimeSpan.FromTicks(StartTime.Ticks);
 
+                var durationTs = tsEnded.Subtract(tsStarted);
+                var durationstr = $"{durationTs.Hours}:{durationTs.Minutes}:{durationTs.Seconds}.{durationTs.Milliseconds}";
+
+                return ($"Synchronization done. " + Environment.NewLine +
+                        $"\tTotal changes downloaded: {TotalChangesDownloaded} " + Environment.NewLine +
+                        $"\tTotal changes uploaded: {TotalChangesUploaded}" + Environment.NewLine +
+                        $"\tTotal conflicts: {TotalSyncConflicts}" + Environment.NewLine +
+                        $"\tTotal duration :{durationstr} ");
+
+            }
+            else
+            {
+                return base.ToString();
+            }
+        }
     }
 }

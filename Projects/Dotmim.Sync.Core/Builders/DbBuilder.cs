@@ -72,7 +72,7 @@ namespace Dotmim.Sync.Builders
         {
             if (!TableDescription.PrimaryKey.HasValue)
                 throw new Exception($"Table {TableDescription.TableName} must have at least one dmColumn as Primary key");
-
+            
             var alreadyOpened = connection.State != ConnectionState.Closed;
 
             try
@@ -107,11 +107,7 @@ namespace Dotmim.Sync.Builders
 
         }
 
-        /// <summary>
-        /// Apply the config.
-        /// Create the table if needed
-        /// </summary>
-        public void CreateTable(DbConnection connection, DbTransaction transaction = null)
+        public void CreateTrackingTable(DbConnection connection, DbTransaction transaction = null)
         {
             if (!TableDescription.PrimaryKey.HasValue)
                 throw new Exception($"Table {TableDescription.TableName} must have at least one dmColumn as Primary key");
@@ -120,21 +116,6 @@ namespace Dotmim.Sync.Builders
 
             try
             {
-                if (!alreadyOpened)
-                    connection.Open();
-
-                var tableBuilder = CreateTableBuilder(connection, transaction);
-
-                // Check if we need to create the tables
-                if (tableBuilder.NeedToCreateTable())
-                {
-                    if (tableBuilder.NeedToCreateSchema())
-                        tableBuilder.CreateSchema();
-
-                    tableBuilder.CreateTable();
-                    tableBuilder.CreatePrimaryKey();
-                }
-
                 var trackingTableBuilder = CreateTrackingTableBuilder(connection, transaction);
                 trackingTableBuilder.Filters = this.FilterColumns;
 
@@ -147,7 +128,29 @@ namespace Dotmim.Sync.Builders
                     // Fill the tracking table with actual rows from base table
                     trackingTableBuilder.PopulateFromBaseTable();
                 }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex.Message);
+                throw;
+            }
+            finally
+            {
+                if (!alreadyOpened)
+                    connection.Close();
+            }
+        }
 
+
+        public void CreateTriggers(DbConnection connection, DbTransaction transaction = null)
+        {
+            if (!TableDescription.PrimaryKey.HasValue)
+                throw new Exception($"Table {TableDescription.TableName} must have at least one dmColumn as Primary key");
+
+            var alreadyOpened = connection.State != ConnectionState.Closed;
+
+            try
+            {
                 var triggerBuilder = CreateTriggerBuilder(connection, transaction);
                 triggerBuilder.Filters = this.FilterColumns;
 
@@ -157,7 +160,28 @@ namespace Dotmim.Sync.Builders
                     triggerBuilder.CreateUpdateTrigger();
                 if (triggerBuilder.NeedToCreateTrigger(DbTriggerType.Delete))
                     triggerBuilder.CreateDeleteTrigger();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex.Message);
+                throw;
+            }
+            finally
+            {
+                if (!alreadyOpened)
+                    connection.Close();
+            }
+        }
 
+        public void CreateStoredProcedures(DbConnection connection, DbTransaction transaction = null)
+        {
+            if (!TableDescription.PrimaryKey.HasValue)
+                throw new Exception($"Table {TableDescription.TableName} must have at least one dmColumn as Primary key");
+
+            var alreadyOpened = connection.State != ConnectionState.Closed;
+
+            try
+            {
                 // could be null
                 var procBuilder = CreateProcBuilder(connection, transaction);
                 if (procBuilder == null)
@@ -191,7 +215,263 @@ namespace Dotmim.Sync.Builders
                     procBuilder.CreateBulkUpdate();
                     procBuilder.CreateBulkDelete();
                 }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex.Message);
+                throw;
+            }
+            finally
+            {
+                if (!alreadyOpened)
+                    connection.Close();
+            }
+        }
 
+
+        public void CreateTable(DbConnection connection, DbTransaction transaction = null)
+        {
+            if (!TableDescription.PrimaryKey.HasValue)
+                throw new Exception($"Table {TableDescription.TableName} must have at least one dmColumn as Primary key");
+
+            var tableBuilder = CreateTableBuilder(connection, transaction);
+
+            var alreadyOpened = connection.State != ConnectionState.Closed;
+
+            try
+            {
+                // Check if we need to create the tables
+                if (tableBuilder.NeedToCreateTable())
+                {
+                    if (tableBuilder.NeedToCreateSchema())
+                        tableBuilder.CreateSchema();
+
+                    tableBuilder.CreateTable();
+                    tableBuilder.CreatePrimaryKey();
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex.Message);
+                throw;
+            }
+            finally
+            {
+                if (!alreadyOpened)
+                    connection.Close();
+            }
+        }
+
+        /// <summary>
+        /// Apply the config.
+        /// Create the table if needed
+        /// </summary>
+        public void Create(DbConnection connection, DbTransaction transaction = null)
+        {
+            if (!TableDescription.PrimaryKey.HasValue)
+                throw new Exception($"Table {TableDescription.TableName} must have at least one dmColumn as Primary key");
+
+            var alreadyOpened = connection.State != ConnectionState.Closed;
+
+            try
+            {
+                if (!alreadyOpened)
+                    connection.Open();
+
+                this.CreateTable(connection, transaction);
+
+                this.CreateTrackingTable(connection, transaction);
+
+                this.CreateTriggers(connection, transaction);
+
+                this.CreateStoredProcedures(connection, transaction);
+
+
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex.Message);
+                throw;
+            }
+            finally
+            {
+                if (!alreadyOpened)
+                    connection.Close();
+            }
+
+
+        }
+
+
+
+        public void DropProcedures(DbConnection connection, DbTransaction transaction = null)
+        {
+            var alreadyOpened = connection.State != ConnectionState.Closed;
+
+            try
+            {
+                if (!alreadyOpened)
+                    connection.Open();
+
+                var procBuilder = CreateProcBuilder(connection, transaction);
+
+                // Could be null
+                if (procBuilder == null)
+                    return;
+
+                procBuilder.Filters = this.FilterColumns;
+
+                if (!procBuilder.NeedToCreateProcedure(DbCommandType.SelectChanges))
+                    procBuilder.DropSelectIncrementalChanges();
+                if (!procBuilder.NeedToCreateProcedure(DbCommandType.SelectRow))
+                    procBuilder.DropSelectRow();
+                if (!procBuilder.NeedToCreateProcedure(DbCommandType.InsertRow))
+                    procBuilder.DropInsert();
+                if (!procBuilder.NeedToCreateProcedure(DbCommandType.UpdateRow))
+                    procBuilder.DropUpdate();
+                if (!procBuilder.NeedToCreateProcedure(DbCommandType.DeleteRow))
+                    procBuilder.DropDelete();
+                if (!procBuilder.NeedToCreateProcedure(DbCommandType.InsertMetadata))
+                    procBuilder.DropInsertMetadata();
+                if (!procBuilder.NeedToCreateProcedure(DbCommandType.UpdateMetadata))
+                    procBuilder.DropUpdateMetadata();
+                if (!procBuilder.NeedToCreateProcedure(DbCommandType.DeleteMetadata))
+                    procBuilder.DropDeleteMetadata();
+                if (!procBuilder.NeedToCreateProcedure(DbCommandType.Reset))
+                    procBuilder.DropReset();
+
+                if (this.useBulkProcedures && !procBuilder.NeedToCreateType(DbCommandType.BulkTableType))
+                {
+                    procBuilder.DropBulkInsert();
+                    procBuilder.DropBulkUpdate();
+                    procBuilder.DropBulkDelete();
+                    procBuilder.DropTVPType();
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex.Message);
+                throw;
+            }
+            finally
+            {
+                if (!alreadyOpened)
+                    connection.Close();
+            }
+        }
+
+        public void DropTriggers(DbConnection connection, DbTransaction transaction = null)
+        {
+            var alreadyOpened = connection.State != ConnectionState.Closed;
+
+            try
+            {
+                if (!alreadyOpened)
+                    connection.Open();
+
+                var triggerBuilder = CreateTriggerBuilder(connection, transaction);
+                triggerBuilder.Filters = this.FilterColumns;
+
+                if (!triggerBuilder.NeedToCreateTrigger(DbTriggerType.Insert))
+                    triggerBuilder.DropInsertTrigger();
+                if (!triggerBuilder.NeedToCreateTrigger(DbTriggerType.Update))
+                    triggerBuilder.DropUpdateTrigger();
+                if (!triggerBuilder.NeedToCreateTrigger(DbTriggerType.Delete))
+                    triggerBuilder.DropDeleteTrigger();
+
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex.Message);
+                throw;
+            }
+            finally
+            {
+                if (!alreadyOpened)
+                    connection.Close();
+            }
+        }
+
+        public void DropTrackingTable(DbConnection connection, DbTransaction transaction = null)
+        {
+            var alreadyOpened = connection.State != ConnectionState.Closed;
+
+            try
+            {
+                if (!alreadyOpened)
+                    connection.Open();
+
+
+                var trackingTableBuilder = CreateTrackingTableBuilder(connection, transaction);
+                trackingTableBuilder.Filters = this.FilterColumns;
+
+                if (!trackingTableBuilder.NeedToCreateTrackingTable())
+                    trackingTableBuilder.DropTable();
+
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex.Message);
+                throw;
+            }
+            finally
+            {
+                if (!alreadyOpened)
+                    connection.Close();
+            }
+        }
+
+        /// <summary>
+        /// Deprovision table
+        /// </summary>
+        public void DropTable(DbConnection connection, DbTransaction transaction = null)
+        {
+            var alreadyOpened = connection.State != ConnectionState.Closed;
+
+            try
+            {
+                if (!alreadyOpened)
+                    connection.Open();
+
+                var tableBuilder = CreateTableBuilder(connection, transaction);
+
+                if (!tableBuilder.NeedToCreateTable())
+                    tableBuilder.DropTable();
+
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex.Message);
+                throw;
+            }
+            finally
+            {
+                if (!alreadyOpened)
+                    connection.Close();
+            }
+
+
+        }
+
+        /// <summary>
+        /// Deprovision table
+        /// </summary>
+        public void Drop(DbConnection connection, DbTransaction transaction = null)
+        {
+            var alreadyOpened = connection.State != ConnectionState.Closed;
+
+            try
+            {
+                if (!alreadyOpened)
+                    connection.Open();
+
+                this.DropProcedures(connection, transaction);
+
+                this.DropTriggers(connection, transaction);
+
+                this.DropTrackingTable(connection, transaction);
+
+                this.DropTable(connection, transaction);
 
             }
             catch (Exception ex)

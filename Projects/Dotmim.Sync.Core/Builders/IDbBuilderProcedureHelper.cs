@@ -29,6 +29,19 @@ namespace Dotmim.Sync.Builders
         void CreateBulkUpdate();
         void CreateBulkDelete();
         void CreateReset();
+        void DropSelectRow();
+        void DropSelectIncrementalChanges();
+        void DropInsert();
+        void DropUpdate();
+        void DropDelete();
+        void DropInsertMetadata();
+        void DropUpdateMetadata();
+        void DropDeleteMetadata();
+        void DropTVPType();
+        void DropBulkInsert();
+        void DropBulkUpdate();
+        void DropBulkDelete();
+        void DropReset();
         String CreateSelectRowScriptText();
         String CreateSelectIncrementalChangesScriptText();
         String CreateInsertScriptText();
@@ -42,6 +55,19 @@ namespace Dotmim.Sync.Builders
         String CreateBulkUpdateScriptText();
         String CreateBulkDeleteScriptText();
         String CreateResetScriptText();
+        String DropSelectRowScriptText();
+        String DropSelectIncrementalChangesScriptText();
+        String DropInsertScriptText();
+        String DropUpdateScriptText();
+        String DropDeleteScriptText();
+        String DropInsertMetadataScriptText();
+        String DropUpdateMetadataScriptText();
+        String DropDeleteMetadataScriptText();
+        String DropTVPTypeScriptText();
+        String DropBulkInsertScriptText();
+        String DropBulkUpdateScriptText();
+        String DropBulkDeleteScriptText();
+        String DropResetScriptText();
 
     }
 }

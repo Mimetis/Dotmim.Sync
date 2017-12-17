@@ -159,10 +159,15 @@ namespace Dotmim.Sync.Tools
                 agent = new SyncAgent(clientprovider, serverProvider);
             }
 
-            agent.SyncProgress += SyncProgress;
+
+            agent.ChangesSelected += (sender, a) =>
+                    Console.WriteLine($"Changes selected for table {a.TableChangesSelected.TableName}: {a.TableChangesSelected.TotalChanges}");
+
+            agent.ChangesApplied += (sender, a) =>
+                    Console.WriteLine($"Changes applied for table {a.TableChangesApplied.TableName}: [{a.TableChangesApplied.State}] {a.TableChangesApplied.Applied}");
+
             // synchronous call
             var syncContext = agent.SynchronizeAsync().GetAwaiter().GetResult();
-            agent.SyncProgress -= SyncProgress;
 
             var tsEnded = TimeSpan.FromTicks(syncContext.CompleteTime.Ticks);
             var tsStarted = TimeSpan.FromTicks(syncContext.StartTime.Ticks);
@@ -184,63 +189,6 @@ namespace Dotmim.Sync.Tools
 
         }
 
-
-        private static void SyncProgress(object sender, SyncProgressEventArgs e)
-        {
-            var sessionId = e.Context.SessionId.ToString();
-
-            switch (e.Context.SyncStage)
-            {
-                case SyncStage.BeginSession:
-                    Console.WriteLine($"Begin Session.");
-                    break;
-                case SyncStage.EndSession:
-                    Console.WriteLine($"End Session.");
-                    break;
-                case SyncStage.EnsureScopes:
-                    Console.WriteLine($"Ensure Scopes");
-                    break;
-                case SyncStage.EnsureConfiguration:
-                    Console.WriteLine($"Ensure Configuration");
-                    if (e.Configuration != null)
-                        Console.WriteLine($"\tConfiguration readed. {e.Configuration.ScopeSet.Tables.Count} table(s) involved.");
-                    break;
-                case SyncStage.EnsureDatabase:
-                    Console.WriteLine($"Ensure Database");
-                    break;
-                case SyncStage.SelectingChanges:
-                    Console.WriteLine($"Selecting changes...");
-                    break;
-                case SyncStage.SelectedChanges:
-                    Console.WriteLine($"Changes selected : {e.ChangesStatistics.TotalSelectedChanges}");
-                    break;
-                case SyncStage.ApplyingChanges:
-                    Console.WriteLine($"Applying changes...");
-                    break;
-                case SyncStage.ApplyingInserts:
-                    Console.WriteLine($"\tApplying Inserts : {e.ChangesStatistics.AppliedChanges.Where(ac => ac.State == DmRowState.Added).Sum(ac => ac.ChangesApplied) }");
-                    break;
-                case SyncStage.ApplyingDeletes:
-                    Console.WriteLine($"\tApplying Deletes : {e.ChangesStatistics.AppliedChanges.Where(ac => ac.State == DmRowState.Deleted).Sum(ac => ac.ChangesApplied) }");
-                    break;
-                case SyncStage.ApplyingUpdates:
-                    Console.WriteLine($"\tApplying Updates : {e.ChangesStatistics.AppliedChanges.Where(ac => ac.State == DmRowState.Modified).Sum(ac => ac.ChangesApplied) }");
-                    break;
-                case SyncStage.AppliedChanges:
-                    Console.WriteLine($"Changes applied : {e.ChangesStatistics.TotalAppliedChanges}");
-                    break;
-                case SyncStage.WriteMetadata:
-                    if (e.Scopes != null)
-                    {
-                        Console.WriteLine($"Writing Scopes : ");
-                        e.Scopes.ForEach(sc => Console.WriteLine($"\t{sc.Id} synced at {sc.LastSync}. "));
-                    }
-                    break;
-                case SyncStage.CleanupMetadata:
-                    Console.WriteLine($"CleanupMetadata");
-                    break;
-            }
-        }
 
 
         /// <summary>

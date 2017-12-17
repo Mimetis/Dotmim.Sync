@@ -34,7 +34,9 @@ namespace Dotmim.Sync.Test.SqlUtils
             sysConnection = new MySqlConnection(HelperDB.GetMySqlDatabaseConnectionString("sys"));
 
             sysConnection.Open();
-            cmdDb = new MySqlCommand($"create schema if not exists {dbName};", sysConnection);
+            cmdDb = new MySqlCommand($"Drop schema if exists  {dbName};", sysConnection);
+            cmdDb.ExecuteNonQuery();
+            cmdDb = new MySqlCommand($"create schema {dbName};", sysConnection);
             cmdDb.ExecuteNonQuery();
             sysConnection.Close();
 

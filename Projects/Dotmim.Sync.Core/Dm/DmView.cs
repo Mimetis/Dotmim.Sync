@@ -11,18 +11,18 @@ namespace Dotmim.Sync.Data
 
     public class DmView : ICollection<DmRow>, IDisposable
     {
-        List<DmRow> internalRows { get; } = new List<DmRow>();
-    
-        public DmTable Table { get; }
+        private List<DmRow> internalRows = new List<DmRow>();
+        public DmTable Table { get; private set; }
 
         public DmView(DmTable table, DmRowState state)
         {
             if (table == null)
                 return;
 
-            this.Table = table;
             Predicate<DmRow> filter = new Predicate<DmRow>(r => r.RowState == state);
-            this.internalFilter(filter, this.Table.Rows);
+            this.internalFilter(filter, table.Rows);
+
+            this.Table = table.Clone();
         }
 
         public DmView(DmTable table, Predicate<DmRow> filter = null)
@@ -30,8 +30,8 @@ namespace Dotmim.Sync.Data
             if (table == null)
                 return;
 
-            this.Table = table;
-            this.internalFilter(filter, this.Table.Rows);
+            this.internalFilter(filter, table.Rows);
+            this.Table = table.Clone();
         }
 
         public DmView(DmView view, Predicate<DmRow> filter = null)
@@ -41,6 +41,29 @@ namespace Dotmim.Sync.Data
 
             this.Table = view.Table;
             this.internalFilter(filter, view);
+        }
+
+        public DmView(DmTable table, IEnumerable<DmRow> rows)
+        {
+            if (table == null)
+                return;
+
+            this.Table = table.Clone();
+            this.internalFilter(null, rows);
+        }
+
+        public DmView Take(int skip, int take)
+        {
+            if (this.Count == 0)
+                return this;
+
+            if (skip > this.internalRows.Count)
+                throw new Exception("You can't skip more rows than the DmView contains");
+
+            var upperBound = skip + take;
+            if (upperBound > this.internalRows.Count)
+                take = this.internalRows.Count - skip;
+            return new DmView(this.Table, this.internalRows.Skip(skip).Take(take));
         }
 
 
@@ -54,11 +77,11 @@ namespace Dotmim.Sync.Data
             return this;
         }
 
-        void internalFilter(Predicate<DmRow> filter, ICollection<DmRow> rows)
+        void internalFilter(Predicate<DmRow> filter, IEnumerable<DmRow> rows)
         {
             this.Clear();
 
-            if (rows.Count == 0)
+            if (rows == null)
                 return;
 
             if (filter == null)
@@ -114,7 +137,8 @@ namespace Dotmim.Sync.Data
         public void Dispose()
         {
             internalRows.Clear();
-
+            internalRows = null;
+            this.Table = null;
         }
     }
 }

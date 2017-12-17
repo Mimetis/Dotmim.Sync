@@ -109,14 +109,14 @@ namespace Dotmim.Sync.SqlServer.Builders
         /// <param name="applyTable">the table rows to apply</param>
         /// <param name="failedRows">the failed rows dmTable to store failed rows</param>
         /// <param name="scope">the current scope</param>
-        public override void ExecuteBatchCommand(DbCommand cmd, DmTable applyTable, DmTable failedRows, ScopeInfo scope)
+        public override void ExecuteBatchCommand(DbCommand cmd, DmView applyTable, DmTable failedRows, ScopeInfo scope)
         {
-            if (applyTable.Rows.Count <= 0)
+            if (applyTable.Count <= 0)
                 return;
 
-            var lstMutableColumns = applyTable.Columns.Where(c => !c.ReadOnly).ToList();
+            var lstMutableColumns = applyTable.Table.Columns.Where(c => !c.ReadOnly).ToList();
 
-            List<SqlDataRecord> records = new List<SqlDataRecord>(applyTable.Rows.Count);
+            List<SqlDataRecord> records = new List<SqlDataRecord>(applyTable.Count);
             SqlMetaData[] metadatas = new SqlMetaData[lstMutableColumns.Count];
 
             for (int i = 0; i < lstMutableColumns.Count; i++)
@@ -128,7 +128,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             try
             {
-                foreach (var dmRow in applyTable.Rows)
+                foreach (var dmRow in applyTable)
                 {
                     SqlDataRecord record = new SqlDataRecord(metadatas);
 
@@ -136,14 +136,14 @@ namespace Dotmim.Sync.SqlServer.Builders
                     for (int i = 0; i < dmRow.ItemArray.Length; i++)
                     {
                         // check if it's readonly
-                        if (applyTable.Columns[i].ReadOnly)
+                        if (applyTable.Table.Columns[i].ReadOnly)
                             continue;
 
                         // Get the default value
                         // Since we have the readonly values in ItemArray, get the value from original column
-                        dynamic defaultValue = applyTable.Columns[i].DefaultValue;
+                        dynamic defaultValue = applyTable.Table.Columns[i].DefaultValue;
                         dynamic rowValue = dmRow[i];
-                        var columnType = applyTable.Columns[i].DataType;
+                        var columnType = applyTable.Table.Columns[i].DataType;
 
                         // metadatas don't have readonly values, so get from sqlMetadataIndex
                         var sqlMetadataType = metadatas[sqlMetadataIndex].SqlDbType;
@@ -156,14 +156,14 @@ namespace Dotmim.Sync.SqlServer.Builders
                                         if (Int64.TryParse(rowValue.ToString(), out Int64 v))
                                             rowValue = v;
                                         else
-                                            throw new SyncException($"Can't convert value {rowValue} to Int64", Enumerations.SyncStage.ApplyingChanges, SyncExceptionType.NotSupported);
+                                            throw new SyncException($"Can't convert value {rowValue} to Int64");
                                     break;
                                 case SqlDbType.Bit:
                                     if (columnType != typeof(bool))
                                         if (Boolean.TryParse(rowValue.ToString(), out Boolean v))
                                             rowValue = v;
                                         else
-                                            throw new SyncException($"Can't convert value {rowValue} to Boolean", Enumerations.SyncStage.ApplyingChanges, SyncExceptionType.NotSupported);
+                                            throw new SyncException($"Can't convert value {rowValue} to Boolean");
                                     break;
                                 case SqlDbType.Date:
                                 case SqlDbType.DateTime:
@@ -173,7 +173,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                                         if (DateTime.TryParse(rowValue.ToString(), out DateTime v))
                                             rowValue = v;
                                         else
-                                            throw new SyncException($"Can't convert value {rowValue} to DateTime", Enumerations.SyncStage.ApplyingChanges, SyncExceptionType.NotSupported);
+                                            throw new SyncException($"Can't convert value {rowValue} to DateTime");
                                     break;
                                 case SqlDbType.DateTimeOffset:
                                     if (columnType != typeof(DateTimeOffset))
@@ -181,7 +181,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                                         if (DateTimeOffset.TryParse(rowValue.ToString(), out DateTimeOffset dt))
                                             rowValue = dt;
                                         else
-                                            throw new SyncException($"Can't convert value {rowValue} to DateTimeOffset", Enumerations.SyncStage.ApplyingChanges, SyncExceptionType.NotSupported);
+                                            throw new SyncException($"Can't convert value {rowValue} to DateTimeOffset");
                                     }
                                     break;
                                 case SqlDbType.Decimal:
@@ -189,21 +189,21 @@ namespace Dotmim.Sync.SqlServer.Builders
                                         if (Decimal.TryParse(rowValue.ToString(), out decimal v))
                                             rowValue = v;
                                         else
-                                            throw new SyncException($"Can't convert value {rowValue} to Decimal", Enumerations.SyncStage.ApplyingChanges, SyncExceptionType.NotSupported);
+                                            throw new SyncException($"Can't convert value {rowValue} to Decimal");
                                     break;
                                 case SqlDbType.Float:
                                     if (columnType != typeof(Double))
                                         if (Double.TryParse(rowValue.ToString(), out Double v))
                                             rowValue = v;
                                         else
-                                            throw new SyncException($"Can't convert value {rowValue} to Double", Enumerations.SyncStage.ApplyingChanges, SyncExceptionType.NotSupported);
+                                            throw new SyncException($"Can't convert value {rowValue} to Double");
                                     break;
                                 case SqlDbType.Real:
                                     if (columnType != typeof(float))
                                         if (float.TryParse(rowValue.ToString(), out float v))
                                             rowValue = v;
                                         else
-                                            throw new SyncException($"Can't convert value {rowValue} to Double", Enumerations.SyncStage.ApplyingChanges, SyncExceptionType.NotSupported);
+                                            throw new SyncException($"Can't convert value {rowValue} to Double");
                                     break;
                                 case SqlDbType.Image:
                                 case SqlDbType.Binary:
@@ -218,7 +218,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                                         if (Int32.TryParse(rowValue.ToString(), out int v))
                                             rowValue = v;
                                         else
-                                            throw new SyncException($"Can't convert value {rowValue} to Int32", Enumerations.SyncStage.ApplyingChanges, SyncExceptionType.NotSupported);
+                                            throw new SyncException($"Can't convert value {rowValue} to Int32");
                                     break;
                                 case SqlDbType.Money:
                                 case SqlDbType.SmallMoney:
@@ -226,7 +226,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                                         if (Decimal.TryParse(rowValue.ToString(), out Decimal v))
                                             rowValue = v;
                                         else
-                                            throw new SyncException($"Can't convert value {rowValue} to Decimal", Enumerations.SyncStage.ApplyingChanges, SyncExceptionType.NotSupported);
+                                            throw new SyncException($"Can't convert value {rowValue} to Decimal");
                                     break;
                                 case SqlDbType.NChar:
                                 case SqlDbType.NText:
@@ -244,14 +244,14 @@ namespace Dotmim.Sync.SqlServer.Builders
                                         if (Int16.TryParse(rowValue.ToString(), out Int16 v))
                                             rowValue = v;
                                         else
-                                            throw new SyncException($"Can't convert value {rowValue} to Int16", Enumerations.SyncStage.ApplyingChanges, SyncExceptionType.NotSupported);
+                                            throw new SyncException($"Can't convert value {rowValue} to Int16");
                                     break;
                                 case SqlDbType.Time:
                                     if (columnType != typeof(TimeSpan))
                                         if (TimeSpan.TryParse(rowValue.ToString(), out TimeSpan v))
                                             rowValue = v;
                                         else
-                                            throw new SyncException($"Can't convert value {rowValue} to TimeSpan", Enumerations.SyncStage.ApplyingChanges, SyncExceptionType.NotSupported);
+                                            throw new SyncException($"Can't convert value {rowValue} to TimeSpan");
                                     break;
                                 case SqlDbType.Timestamp:
                                     break;
@@ -260,21 +260,21 @@ namespace Dotmim.Sync.SqlServer.Builders
                                         if (Byte.TryParse(rowValue.ToString(), out byte v))
                                             rowValue = v;
                                         else
-                                            throw new SyncException($"Can't convert value {rowValue} to Byte", Enumerations.SyncStage.ApplyingChanges, SyncExceptionType.NotSupported);
+                                            throw new SyncException($"Can't convert value {rowValue} to Byte");
                                     break;
                                 case SqlDbType.Udt:
-                                    throw new SyncException($"Can't use UDT as SQL Type", Enumerations.SyncStage.ApplyingChanges, SyncExceptionType.NotSupported);
+                                    throw new SyncException($"Can't use UDT as SQL Type");
                                 case SqlDbType.UniqueIdentifier:
                                     if (columnType != typeof(Guid))
                                         if (Guid.TryParse(rowValue.ToString(), out Guid v))
                                             rowValue = v;
                                         else
-                                            throw new SyncException($"Can't convert value {rowValue} to Guid", Enumerations.SyncStage.ApplyingChanges, SyncExceptionType.NotSupported);
+                                            throw new SyncException($"Can't convert value {rowValue} to Guid");
                                     break;
                             }
                         }
 
-                        if (applyTable.Columns[i].AllowDBNull && rowValue == null)
+                        if (applyTable.Table.Columns[i].AllowDBNull && rowValue == null)
                             rowValue = DBNull.Value;
                         else if (rowValue == null)
                             rowValue = defaultValue;
@@ -287,7 +287,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             catch (Exception ex)
             {
-                throw new SyncException($"Can't create a SqlRecord based on the rows we have: {ex.Message}", Enumerations.SyncStage.ApplyingChanges, SyncExceptionType.NotSupported);
+                throw new SyncException($"Can't create a SqlRecord based on the rows we have: {ex.Message}");
             }
 
 

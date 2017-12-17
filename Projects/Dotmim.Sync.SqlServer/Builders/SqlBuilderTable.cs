@@ -219,8 +219,6 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         private SqlCommand BuildTableCommand()
         {
-            SqlCommand command = new SqlCommand();
-
             StringBuilder stringBuilder = new StringBuilder($"CREATE TABLE {tableName.QuotedString} (");
             string empty = string.Empty;
             stringBuilder.AppendLine();
@@ -249,6 +247,11 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             stringBuilder.Append(")");
             return new SqlCommand(stringBuilder.ToString());
+        }
+
+        private SqlCommand BuildDeleteTableCommand()
+        {
+            return new SqlCommand($"DROP TABLE {tableName.QuotedString};");
         }
 
         public void CreateSchema()
@@ -323,10 +326,54 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         }
 
+        public void DropTable()
+        {
+            bool alreadyOpened = connection.State == ConnectionState.Open;
+
+            try
+            {
+                using (var command = BuildDeleteTableCommand())
+                {
+                    if (!alreadyOpened)
+                        connection.Open();
+
+                    if (transaction != null)
+                        command.Transaction = transaction;
+
+                    command.Connection = connection;
+                    command.ExecuteNonQuery();
+
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error during DeleteTable : {ex}");
+                throw;
+
+            }
+            finally
+            {
+                if (!alreadyOpened && connection.State != ConnectionState.Closed)
+                    connection.Close();
+
+            }
+
+        }
+
         public string CreateTableScriptText()
         {
             StringBuilder stringBuilder = new StringBuilder();
             var tableNameScript = $"Create Table {tableName.QuotedString}";
+            var tableScript = BuildTableCommand().CommandText;
+            stringBuilder.Append(SqlBuilder.WrapScriptTextWithComments(tableScript, tableNameScript));
+            stringBuilder.AppendLine();
+            return stringBuilder.ToString();
+        }
+
+        public string DropTableScriptText()
+        {
+            StringBuilder stringBuilder = new StringBuilder();
+            var tableNameScript = $"Drop Table {tableName.QuotedString}";
             var tableScript = BuildTableCommand().CommandText;
             stringBuilder.Append(SqlBuilder.WrapScriptTextWithComments(tableScript, tableNameScript));
             stringBuilder.AppendLine();

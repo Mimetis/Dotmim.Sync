@@ -54,7 +54,7 @@ namespace Dotmim.Sync.MySql
         {
             var commandRelations = @"Select CONSTRAINT_NAME as ForeignKey,
 		                                    TABLE_NAME as TableName,
-                                            COLUMN_NAME as ColumName,
+                                            COLUMN_NAME as ColumnName,
                                             REFERENCED_TABLE_NAME as ReferenceTableName,
                                             REFERENCED_COLUMN_NAME as ReferenceColumnName
                                     from INFORMATION_SCHEMA.KEY_COLUMN_USAGE

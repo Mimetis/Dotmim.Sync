@@ -140,7 +140,7 @@ namespace UWPSyncSample.ViewModels
                 // all config are applied on server side if http is enabled
                 if (!this.UseHttp)
                 {
-                    agent.Configuration.OverwriteConfiguration = this.Overwrite;
+                    //agent.Configuration.OverwriteConfiguration = this.Overwrite;
 
                     if (this.SyncDirection == SyncDirection.DownloadOnly || this.SyncDirection == SyncDirection.UploadOnly)
                     {
@@ -243,61 +243,9 @@ namespace UWPSyncSample.ViewModels
             DispatcherHelper.ExecuteOnUIThreadAsync(() => Steps.Add(str));
         }
 
-        private void SyncProgress(object sender, SyncProgressEventArgs e)
+        private void SyncProgress(object sender, ProgressEventArgs e)
         {
-            var sessionId = e.Context.SessionId.ToString();
-
-            switch (e.Context.SyncStage)
-            {
-                //case SyncStage.BeginSession:
-                //    Output($"Begin Session.");
-                //    break;
-                //case SyncStage.EndSession:
-                //    Output($"End Session.");
-                //    break;
-                //case SyncStage.EnsureScopes:
-                //    Output($"Ensure Scopes");
-                //    break;
-                //case SyncStage.EnsureConfiguration:
-                //    Output($"Configuration readed. {e.Configuration.ScopeSet.Tables.Count} table(s) involved.");
-                //    break;
-                //case SyncStage.EnsureDatabase:
-                //    Output($"Ensure Database");
-                //    break;
-                //case SyncStage.SelectingChanges:
-                //    Output($"Selecting changes...");
-                //    break;
-                case SyncStage.SelectedChanges:
-                    Output($"Upload Changes: {e.ChangesStatistics.TotalSelectedChanges}");
-                    break;
-                //case SyncStage.ApplyingChanges:
-                //    Output($"Applying changes...");
-                //    break;
-                //case SyncStage.ApplyingInserts:
-                //    Output($"\tApplying Inserts : {e.ChangesStatistics.AppliedChanges.Where(ac => ac.State == DmRowState.Added).Sum(ac => ac.ChangesApplied) }");
-                //    break;
-                //case SyncStage.ApplyingDeletes:
-                //    Output($"\tApplying Deletes : {e.ChangesStatistics.AppliedChanges.Where(ac => ac.State == DmRowState.Deleted).Sum(ac => ac.ChangesApplied) }");
-                //    break;
-                //case SyncStage.ApplyingUpdates:
-                //    Output($"\tApplying Updates : {e.ChangesStatistics.AppliedChanges.Where(ac => ac.State == DmRowState.Modified).Sum(ac => ac.ChangesApplied) }");
-                //    break;
-                case SyncStage.AppliedChanges:
-                    Output($"Downloaded Changes: {e.ChangesStatistics.TotalAppliedChanges}");
-                    break;
-                //case SyncStage.WriteMetadata:
-                //    if (e.Scopes != null)
-                //    {
-                //        Output($"Writing Scopes : ");
-                //        e.Scopes.ForEach(sc => Output($"\t{sc.Id} synced at {sc.LastSync}. "));
-                //    }
-                //    break;
-                //case SyncStage.CleanupMetadata:
-                //    Output($"CleanupMetadata");
-                //    break;
-            }
-
-            Console.ResetColor();
+            Output(e.Message + " " + e.PropertiesMessage);
         }
 
 

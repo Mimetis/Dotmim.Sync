@@ -19,9 +19,11 @@ namespace Dotmim.Sync.Builders
         void CreateTable();
         void CreatePrimaryKey();
         void CreateForeignKeyConstraints(DmRelation constraint);
+        void DropTable();
         string CreateSchemaScriptText();
         string CreateTableScriptText();
         string CreatePrimaryKeyScriptText();
         string CreateForeignKeyConstraintsScriptText(DmRelation constraint);
+        string DropTableScriptText();
     }
 }
