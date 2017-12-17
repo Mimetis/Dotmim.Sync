@@ -346,9 +346,10 @@ namespace Dotmim.Sync.MySql.Builders
                 case MySqlDbType.JSON:
                 case MySqlDbType.VarChar:
                 case MySqlDbType.VarString:
-                case MySqlDbType.String:
                 case MySqlDbType.Guid:
                     return "VARCHAR";
+                case MySqlDbType.String:
+                    return "CHAR";
                 case MySqlDbType.Set:
                     return "SET";
                 case MySqlDbType.Timestamp:
@@ -578,6 +579,7 @@ namespace Dotmim.Sync.MySql.Builders
             switch (typeName.ToUpperInvariant())
             {
                 case "CHAR":
+                case "STRING":
                     return MySqlDbType.String;
                 case "VARCHAR":
                     return MySqlDbType.VarChar;

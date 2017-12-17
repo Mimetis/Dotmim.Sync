@@ -69,6 +69,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "[side]", "[d]"));
             return stringBuilder.ToString();
         }
+
         public void CreateDeleteTrigger()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
@@ -109,6 +110,42 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             }
         }
+        public void DropDeleteTrigger()
+        {
+            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+
+            try
+            {
+                using (var command = new SqlCommand())
+                {
+                    if (!alreadyOpened)
+                        this.connection.Open();
+
+                    if (this.transaction != null)
+                        command.Transaction = this.transaction;
+
+                    var delTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger);
+
+                    command.CommandText = $"DROP TRIGGER {delTriggerName};";
+                    command.Connection = this.connection;
+                    command.ExecuteNonQuery();
+
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error during DropDeleteTrigger : {ex}");
+                throw;
+
+            }
+            finally
+            {
+                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
+                    this.connection.Close();
+
+            }
+        }
+
         public string CreateDeleteTriggerScriptText()
         {
 
@@ -120,6 +157,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             string str = $"Delete Trigger for table {tableName.QuotedString}";
             return SqlBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
         }
+
         public void AlterDeleteTrigger()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
@@ -160,6 +198,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
 
         }
+
         public string AlterDeleteTriggerScriptText()
         {
             (var tableName, var trackingName) = SqlBuilder.GetParsers(this.tableDescription);
@@ -170,6 +209,14 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             string str = $"ALTER Trigger Delete for table {tableName.QuotedString}";
             return SqlBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
+        }
+
+        public string DropDeleteTriggerScriptText()
+        {
+            var triggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger);
+            var trigger = $"DELETE TRIGGER {triggerName};";
+            var str = $"Drop Delete Trigger for table {tableName.QuotedString}";
+            return SqlBuilder.WrapScriptTextWithComments(trigger, str);
         }
 
         private string InsertTriggerBodyText()
@@ -308,6 +355,44 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             }
         }
+
+        public void DropInsertTrigger()
+        {
+            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+
+            try
+            {
+                using (var command = new SqlCommand())
+                {
+                    if (!alreadyOpened)
+                        this.connection.Open();
+
+                    if (this.transaction != null)
+                        command.Transaction = this.transaction;
+
+                    var triggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger);
+
+                    command.CommandText = $"DROP TRIGGER {triggerName};";
+                    command.Connection = this.connection;
+                    command.ExecuteNonQuery();
+
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error during DropDeleteTrigger : {ex}");
+                throw;
+
+            }
+            finally
+            {
+                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
+                    this.connection.Close();
+
+            }
+        }
+
+
         public string CreateInsertTriggerScriptText()
         {
             var insTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger);
@@ -368,7 +453,13 @@ namespace Dotmim.Sync.SqlServer.Builders
             return SqlBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
         }
 
-
+        public string DropInsertTriggerScriptText()
+        {
+            var triggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger);
+            var trigger = $"DELETE TRIGGER {triggerName};";
+            var str = $"Drop Insert Trigger for table {tableName.QuotedString}";
+            return SqlBuilder.WrapScriptTextWithComments(trigger, str);
+        }
         private string UpdateTriggerBodyText()
         {
             StringBuilder stringBuilder = new StringBuilder();
@@ -438,6 +529,43 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             }
         }
+
+        public void DropUpdateTrigger()
+        {
+            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+
+            try
+            {
+                using (var command = new SqlCommand())
+                {
+                    if (!alreadyOpened)
+                        this.connection.Open();
+
+                    if (this.transaction != null)
+                        command.Transaction = this.transaction;
+
+                    var triggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger);
+
+                    command.CommandText = $"DROP TRIGGER {triggerName};";
+                    command.Connection = this.connection;
+                    command.ExecuteNonQuery();
+
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error during DropDeleteTrigger : {ex}");
+                throw;
+
+            }
+            finally
+            {
+                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
+                    this.connection.Close();
+
+            }
+        }
+
         public string CreateUpdateTriggerScriptText()
         {
             var updTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger);
@@ -448,6 +576,15 @@ namespace Dotmim.Sync.SqlServer.Builders
             string str = $"Update Trigger for table {tableName.QuotedString}";
             return SqlBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
         }
+
+        public string DropUpdateTriggerScriptText()
+        {
+            var triggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger);
+            var trigger = $"DELETE TRIGGER {triggerName};";
+            var str = $"Drop Update Trigger for table {tableName.QuotedString}";
+            return SqlBuilder.WrapScriptTextWithComments(trigger, str);
+        }
+
         public void AlterUpdateTrigger()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;

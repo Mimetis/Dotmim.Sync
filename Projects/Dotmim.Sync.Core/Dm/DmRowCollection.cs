@@ -79,7 +79,7 @@ namespace Dotmim.Sync.Data
                 throw new Exception("RowAlreadyInTheCollection");
 
             this.internalRows.Add(row);
-            row.RowId = this.internalRows.IndexOf(row);
+            row.RowId = this.internalRows.Count - 1; //.IndexOf(row);
 
             // Since we adding this row to the collection, we set the temporary record as the current record
             if (row.tempRecord != -1)
@@ -185,6 +185,10 @@ namespace Dotmim.Sync.Data
             return internalRows.GetEnumerator();
         }
 
+        public override string ToString()
+        {
+            return this.internalRows.Count.ToString();
+        }
     }
 
 }

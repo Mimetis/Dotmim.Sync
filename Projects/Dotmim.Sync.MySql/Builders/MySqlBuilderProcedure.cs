@@ -862,6 +862,216 @@ namespace Dotmim.Sync.MySql
             throw new NotImplementedException();
         }
 
-       
+
+        private string DropProcedureText(DbCommandType procType)
+        {
+            var commandName = this.sqlObjectNames.GetCommandName(procType);
+            var commandText = $"drop procedure if exists {commandName}";
+
+            var str1 = $"Drop procedure {commandName} for table {tableName.QuotedString}";
+            return MySqlBuilder.WrapScriptTextWithComments(commandText, str1);
+
+        }
+        private void DropProcedure(DbCommandType procType)
+        {
+            var commandName = this.sqlObjectNames.GetCommandName(procType);
+            var commandText = $"drop procedure if exists {commandName}";
+
+            bool alreadyOpened = connection.State == ConnectionState.Open;
+
+            try
+            {
+                if (!alreadyOpened)
+                    connection.Open();
+
+                using (var command = new MySqlCommand(commandText, connection))
+                {
+                    if (transaction != null)
+                        command.Transaction = transaction;
+
+                    command.ExecuteNonQuery();
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error during DropProcedureCommand : {ex}");
+                throw;
+            }
+            finally
+            {
+                if (!alreadyOpened && connection.State != ConnectionState.Closed)
+                    connection.Close();
+
+            }
+
+        }
+
+        public void DropSelectRow()
+        {
+            DropProcedure(DbCommandType.SelectRow);
+        }
+
+        public void DropSelectIncrementalChanges()
+        {
+            DropProcedure(DbCommandType.SelectChanges);
+
+            // filtered 
+            if (this.Filters != null && this.Filters.Count > 0)
+            {
+                bool alreadyOpened = this.connection.State == ConnectionState.Open;
+
+                using (var command = new MySqlCommand())
+                {
+                    if (!alreadyOpened)
+                        this.connection.Open();
+
+                    if (this.transaction != null)
+                        command.Transaction = this.transaction;
+
+                    foreach (var c in this.Filters)
+                    {
+                        var columnFilter = this.tableDescription.Columns[c.ColumnName];
+
+                        if (columnFilter == null)
+                            throw new InvalidExpressionException($"Column {c.ColumnName} does not exist in Table {this.tableDescription.TableName}");
+                    }
+
+                    var filtersName = this.Filters.Select(f => f.ColumnName);
+                    var commandNameWithFilter = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWitFilters, filtersName);
+
+                    command.CommandText = $"DROP PROCEDURE IF EXISTS {commandNameWithFilter};";
+                    command.Connection = this.connection;
+                    command.ExecuteNonQuery();
+
+                }
+
+                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
+                    this.connection.Close();
+
+            }
+
+        }
+
+        public void DropInsert()
+        {
+            DropProcedure(DbCommandType.InsertRow);
+        }
+
+        public void DropUpdate()
+        {
+            DropProcedure(DbCommandType.UpdateRow);
+        }
+
+        public void DropDelete()
+        {
+            DropProcedure(DbCommandType.DeleteRow);
+        }
+
+        public void DropInsertMetadata()
+        {
+            DropProcedure(DbCommandType.InsertMetadata);
+        }
+
+        public void DropUpdateMetadata()
+        {
+            DropProcedure(DbCommandType.UpdateMetadata);
+        }
+
+        public void DropDeleteMetadata()
+        {
+            DropProcedure(DbCommandType.DeleteMetadata);
+        }
+
+        public void DropTVPType()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void DropBulkInsert()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void DropBulkUpdate()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void DropBulkDelete()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void DropReset()
+        {
+            DropProcedure(DbCommandType.Reset);
+        }
+
+        public string DropSelectRowScriptText()
+        {
+            return DropProcedureText(DbCommandType.SelectRow);
+        }
+
+        public string DropSelectIncrementalChangesScriptText()
+        {
+            return DropProcedureText(DbCommandType.SelectChanges);
+        }
+
+        public string DropInsertScriptText()
+        {
+            return DropProcedureText(DbCommandType.InsertRow);
+
+        }
+
+        public string DropUpdateScriptText()
+        {
+            return DropProcedureText(DbCommandType.UpdateRow);
+        }
+
+        public string DropDeleteScriptText()
+        {
+            return DropProcedureText(DbCommandType.DeleteRow);
+        }
+
+        public string DropInsertMetadataScriptText()
+        {
+            return DropProcedureText(DbCommandType.InsertMetadata);
+
+        }
+
+        public string DropUpdateMetadataScriptText()
+        {
+            return DropProcedureText(DbCommandType.UpdateMetadata);
+        }
+
+        public string DropDeleteMetadataScriptText()
+        {
+            return DropProcedureText(DbCommandType.DeleteMetadata);
+        }
+
+        public string DropTVPTypeScriptText()
+        {
+            throw new NotImplementedException();
+        }
+
+        public string DropBulkInsertScriptText()
+        {
+            throw new NotImplementedException();
+        }
+
+        public string DropBulkUpdateScriptText()
+        {
+            throw new NotImplementedException();
+        }
+
+        public string DropBulkDeleteScriptText()
+        {
+            throw new NotImplementedException();
+        }
+
+        public string DropResetScriptText()
+        {
+            return DropProcedureText(DbCommandType.Reset);
+        }
     }
 }

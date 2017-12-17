@@ -69,12 +69,16 @@ namespace Dotmim.Sync.Batch
                         batchPartinInfo.Set = batchPart.DmSetSurrogate.ConvertToDmSet();
 
                         isSerialized = true;
+
+                        batchPart.Clear();
+                        batchPart = null;
                     }
 
                     // return the table
                     if (batchPartinInfo.Set.Tables.Contains(tableName))
                     {
                         yield return batchPartinInfo.Set.Tables[tableName];
+
                         if (isSerialized)
                         {
                             batchPartinInfo.Set.Clear();

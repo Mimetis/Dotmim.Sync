@@ -6,49 +6,38 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Enumerations
 {
-/// <summary>
-/// Sync progress step. Used for the user feedback
-/// </summary>
-public enum SyncStage
-{
-    /// <summary>Begin a new sync session</summary>
-    BeginSession,
+    /// <summary>
+    /// Sync progress step. Used for the user feedback
+    /// </summary>
+    public enum SyncStage
+    {
+        /// <summary>No Sync Stage involved</summary>
+        None,
 
-    /// <summary>Ensure scopes</summary>
-    EnsureScopes,
+        BeginSession,
 
-    /// <summary>Ensure configuration and tables</summary>
-    EnsureConfiguration,
+        ScopeLoading,
+        ScopeSaved,
 
-    /// <summary>Ensure database and tables</summary>
-    EnsureDatabase,
+        ConfigurationApplying,
+        ConfigurationApplied,
 
-    /// <summary>Occurs before changes are selected from datastore</summary>
-    SelectingChanges,
+        DatabaseApplying,
+        DatabaseApplied,
 
-    /// <summary>Occurs after changes are selected from datastore</summary>
-    SelectedChanges,
+        DatabaseTableApplying,
+        DatabaseTableApplied,
 
-    /// <summary>Occurs before applying changes</summary>
-    ApplyingChanges,
-    /// <summary>Occurs afeter changes are applied</summary>
-    AppliedChanges,
+        ChangesSelecting,
+        ChangesSelected,
 
-    /// <summary>Occurs before applying inserts </summary>
-    ApplyingInserts,
-    /// <summary>Occurs before applying updates </summary>
-    ApplyingUpdates,
-    /// <summary>Occurs before applying deletes </summary>
-    ApplyingDeletes,
+        ChangesApplying,
+        ChangesApplied,
 
-    /// <summary>Writes scopes</summary>
-    WriteMetadata,
+        EndSession,
 
-    /// <summary>End the current sync session</summary>
-    EndSession,
+        /// <summary>Cleanup metadata from tracking tables.</summary>
+        CleanupMetadata
 
-    /// <summary>Cleanup metadata from tracking tables.</summary>
-    CleanupMetadata
-
-}
+    }
 }

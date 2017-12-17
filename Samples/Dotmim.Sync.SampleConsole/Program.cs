@@ -15,23 +15,27 @@ class Program
 {
     static void Main(string[] args)
     {
+        Console.ReadLine();
 
-        TestSync().GetAwaiter().GetResult();
+        //// Reset DB
+        //CreateDatabase("NW1", true);
+
+        //// Make a first sync
+        //TestSync().GetAwaiter().GetResult();
+
+        //// Alter the server / client schemas
+        //AlterSchemasAsync().GetAwaiter().GetResult();
+
+        //// make another sync
+        //TestSync().GetAwaiter().GetResult();
+
+        SynchronizeAdventureWorksAsync().GetAwaiter().GetResult();
 
         Console.ReadLine();
     }
 
-    public static String GetDatabaseConnectionString(string dbName) => 
+    public static String GetDatabaseConnectionString(string dbName) =>
         $"Data Source=.\\SQLEXPRESS; Initial Catalog={dbName}; Integrated Security=true;";
-
-    //private static string sqlConnectionStringServer = 
-    //    "Data Source=.\\SQLEXPRESS; Initial Catalog=Northwind; Integrated Security=true;";
-
-    //private static string sqlConnectionStringClient1 =
-    //    "Data Source=.\\SQLEXPRESS; Initial Catalog=NW1; Integrated Security=true;";
-
-    //private static string sqlConnectionStringClient2 =
-    //    "Data Source=.\\SQLEXPRESS; Initial Catalog=NW2; Integrated Security=true;";
 
     /// <summary>
     /// Test a client syncing through a web api
@@ -45,7 +49,6 @@ class Program
 
         var agent = new SyncAgent(clientProvider, proxyClientProvider);
 
-        agent.SyncProgress += SyncProgress;
         agent.ApplyChangedFailed += ApplyChangedFailed;
 
         Console.WriteLine("Press a key to start...");
@@ -58,7 +61,7 @@ class Program
             {
                 var s = await agent.SynchronizeAsync();
 
-                Console.WriteLine(GetResultString(s));
+                Console.WriteLine(s);
 
             }
             catch (SyncException e)
@@ -77,11 +80,136 @@ class Program
         Console.WriteLine("End");
 
     }
-    
+
+
+    private static async Task AlterSchemasAsync()
+    {
+        SqlSyncProvider serverProvider = new SqlSyncProvider(GetDatabaseConnectionString("Northwind"));
+        SqlSyncProvider clientProvider = new SqlSyncProvider(GetDatabaseConnectionString("NW1"));
+
+        // tables to edit
+        var tables = new string[] { "Customers" };
+
+        // delete triggers and sp
+        await serverProvider.DeprovisionAsync(tables, SyncProvision.StoredProcedures | SyncProvision.Triggers);
+
+
+        await clientProvider.DeprovisionAsync(tables, SyncProvision.StoredProcedures | SyncProvision.Triggers);
+
+        // use whatever you want to edit your schema
+        // add column on server
+        using (SqlConnection cs = serverProvider.CreateConnection() as SqlConnection)
+        {
+            cs.Open();
+            SqlCommand cmd = new SqlCommand("ALTER TABLE dbo.Customers ADD Comments nvarchar(50) NULL", cs);
+            cmd.ExecuteNonQuery();
+            cs.Close();
+        }
+        // add column on client
+        using (SqlConnection cs = clientProvider.CreateConnection() as SqlConnection)
+        {
+            cs.Open();
+            SqlCommand cmd = new SqlCommand("ALTER TABLE dbo.Customers ADD Comments nvarchar(50) NULL", cs);
+            cmd.ExecuteNonQuery();
+            cs.Close();
+        }
+
+        // re apply server conf
+        await serverProvider.ProvisionAsync(tables, SyncProvision.StoredProcedures | SyncProvision.Triggers);
+        await clientProvider.ProvisionAsync(tables, SyncProvision.StoredProcedures | SyncProvision.Triggers);
+
+    }
+
+    public static async Task SynchronizeAdventureWorksAsync()
+    {
+        CreateDatabase("Adv", true);
+        SqlSyncProvider serverProvider = new SqlSyncProvider(GetDatabaseConnectionString("AdventureWorks"));
+        SqlSyncProvider client1Provider = new SqlSyncProvider(GetDatabaseConnectionString("Adv"));
+
+        // "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail"
+
+        SyncConfiguration configuration = new SyncConfiguration(new string[] {
+        "ProductDescription", "ProductModel",
+        "ProductModelProductDescription", "ProductCategory", "Product", "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail"});
+
+        configuration.DownloadBatchSizeInKB = 5000;
+
+        SyncAgent syncAgent = new SyncAgent(client1Provider, serverProvider, configuration);
+        syncAgent.SyncProgress += (s, a) => Console.WriteLine($"Progress: {a.Message} {a.PropertiesMessage}");
+
+        //syncAgent.BeginSession += (s, a) => Console.WriteLine("Begin session");
+        //syncAgent.ScopeLoading += (s, a) => Console.WriteLine("Scope loading");
+        //syncAgent.ConfigurationApplying += (s, a) => Console.WriteLine("Applying configuration");
+        //syncAgent.ConfigurationApplied += (s, a) => Console.WriteLine("Configuration applied");
+        //syncAgent.DatabaseApplying += (s, a) => a.GenerateScript = false;
+        //syncAgent.DatabaseApplied += (s, a) => Console.WriteLine("Database schemas applied");
+        //syncAgent.ChangesSelecting+= (s, a) => Console.WriteLine($"Selecting changes for table {a.TableName}");
+        //syncAgent.ChangesSelected += (s, a) => Console.WriteLine($"Changes selected for table {a.TableChangesSelected.TableName}: {a.TableChangesSelected.TotalChanges}");
+        //serverProvider.TableChangesSelected += (s, a) => Console.WriteLine($"SERVER Changes selected for table {a.TableChangesSelected.TableName}: {a.TableChangesSelected.TotalChanges}");
+        //syncAgent.ChangesApplying += (s, a) => Console.WriteLine($"Applying changes for table {a.TableName}");
+        //syncAgent.ChangesApplied += (s, a) => Console.WriteLine($"Changes applied for table {a.TableChangesApplied.TableName}: [{a.TableChangesApplied.State}] {a.TableChangesApplied.Applied}");
+        //serverProvider.TableChangesApplied += (s, a) => Console.WriteLine($"SERVER Changes applied for table {a.TableChangesApplied.TableName}: [{a.TableChangesApplied.State}] {a.TableChangesApplied.Applied}");
+        //syncAgent.EndSession += (s, a) => Console.WriteLine("end session");
+        
+        var context = await syncAgent.SynchronizeAsync();
+
+        Console.WriteLine(context);
+        // do stuff ..
+    }
+
+    private static async Task TestSync()
+    {
+        SqlSyncProvider serverProvider = new SqlSyncProvider(GetDatabaseConnectionString("Northwind"));
+        SqlSyncProvider client1Provider = new SqlSyncProvider(GetDatabaseConnectionString("NW1"));
+
+        // With a config when we are in local mode (no proxy)
+        SyncConfiguration configuration = new SyncConfiguration(new string[] {
+        "Customers", "Region"});
+
+        SyncAgent agent1 = new SyncAgent(client1Provider, serverProvider, configuration);
+
+        do
+        {
+            Console.Clear();
+            Console.WriteLine("Sync Start");
+            try
+            {
+                CancellationTokenSource cts = new CancellationTokenSource();
+                CancellationToken token = cts.Token;
+
+                void selected(object s, TableChangesSelectedEventArgs a) => Console.WriteLine($"Changes selected for table {a.TableChangesSelected.TableName}: {a.TableChangesSelected.TotalChanges}");
+                void applied(object s, TableChangesAppliedEventArgs a) => Console.WriteLine($"Changes applied for table {a.TableChangesApplied.TableName}: [{a.TableChangesApplied.State}] {a.TableChangesApplied.Applied}");
+
+                agent1.ChangesSelected += selected;
+                agent1.ChangesApplied += applied;
+
+                var s1 = await agent1.SynchronizeAsync(token);
+
+                Console.WriteLine(s1);
+
+                agent1.ChangesSelected -= selected;
+                agent1.ChangesApplied -= applied;
+            }
+            catch (SyncException e)
+            {
+                Console.WriteLine(e.ToString());
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+            }
+
+
+            Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+        Console.WriteLine("End");
+    }
+
     /// <summary>
     /// Simple Sync test
     /// </summary>
-    private static async Task TestSync()
+    private static async Task TestMultipleSync()
     {
         SqlSyncProvider serverProvider = new SqlSyncProvider(GetDatabaseConnectionString("Northwind"));
         SqlSyncProvider client1Provider = new SqlSyncProvider(GetDatabaseConnectionString("NW1"));
@@ -209,13 +337,12 @@ class Program
                 command.Connection = connection;
                 command.CommandText = text;
                 connection.Open();
-                res  = (string)command.ExecuteScalar();
+                res = (string)command.ExecuteScalar();
                 connection.Close();
             }
         }
         return res;
     }
-
 
     public static void DeleteDatabase(string dbName)
     {
@@ -264,6 +391,7 @@ class Program
         cmdDb.ExecuteNonQuery();
         masterConnection.Close();
     }
+
     private static void GenerateConflict()
     {
         using (SqlConnection connection = new SqlConnection(GetDatabaseConnectionString("Northwind")))
@@ -293,102 +421,6 @@ class Program
         }
     }
 
-    /// <summary>
-    /// Write results
-    /// </summary>
-    private static string GetResultString(SyncContext s)
-    {
-        var tsEnded = TimeSpan.FromTicks(s.CompleteTime.Ticks);
-        var tsStarted = TimeSpan.FromTicks(s.StartTime.Ticks);
-
-        var durationTs = tsEnded.Subtract(tsStarted);
-        var durationstr = $"{durationTs.Hours}:{durationTs.Minutes}:{durationTs.Seconds}.{durationTs.Milliseconds}";
-
-        return ($"Synchronization done. " + Environment.NewLine +
-                $"\tTotal changes downloaded: {s.TotalChangesDownloaded} " + Environment.NewLine +
-                $"\tTotal changes uploaded: {s.TotalChangesUploaded}" + Environment.NewLine +
-                $"\tTotal duration :{durationstr} ");
-    }
-
-    /// <summary>
-    /// Sync progression
-    /// </summary>
-    private static void SyncProgress(object sender, SyncProgressEventArgs e)
-    {
-        var sessionId = e.Context.SessionId.ToString();
-
-        switch (e.Context.SyncStage)
-        {
-            case SyncStage.BeginSession:
-                Console.WriteLine($"Begin Session.");
-                break;
-            case SyncStage.EndSession:
-                Console.WriteLine($"End Session.");
-                break;
-            case SyncStage.EnsureScopes:
-                Console.WriteLine($"Ensure Scopes");
-                break;
-            case SyncStage.EnsureConfiguration:
-                Console.WriteLine($"Ensure Configuration");
-                if (e.Configuration != null)
-                {
-                    var ds = e.Configuration.ScopeSet;
-
-                    Console.WriteLine($"Configuration readed. {ds.Tables.Count} table(s) involved.");
-
-                    Func<JsonSerializerSettings> settings = new Func<JsonSerializerSettings>(() =>
-                    {
-                        var s = new JsonSerializerSettings
-                        {
-                            Formatting = Formatting.Indented,
-                            StringEscapeHandling = StringEscapeHandling.Default
-                        };
-                        return s;
-                    });
-                    JsonConvert.DefaultSettings = settings;
-                    var dsString = JsonConvert.SerializeObject(new DmSetSurrogate(ds));
-
-                    //Console.WriteLine(dsString);
-                }
-                break;
-            case SyncStage.EnsureDatabase:
-                Console.WriteLine($"Ensure Database");
-                break;
-            case SyncStage.SelectingChanges:
-                Console.WriteLine($"Selecting changes...");
-                break;
-            case SyncStage.SelectedChanges:
-                Console.WriteLine($"Changes selected : {e.ChangesStatistics.TotalSelectedChanges}");
-                break;
-            case SyncStage.ApplyingChanges:
-                Console.WriteLine($"Applying changes...");
-                break;
-            case SyncStage.ApplyingInserts:
-                Console.WriteLine($"\tApplying Inserts : {e.ChangesStatistics.AppliedChanges.Where(ac => ac.State == DmRowState.Added).Sum(ac => ac.ChangesApplied) }");
-                break;
-            case SyncStage.ApplyingDeletes:
-                Console.WriteLine($"\tApplying Deletes : {e.ChangesStatistics.AppliedChanges.Where(ac => ac.State == DmRowState.Deleted).Sum(ac => ac.ChangesApplied) }");
-                break;
-            case SyncStage.ApplyingUpdates:
-                Console.WriteLine($"\tApplying Updates : {e.ChangesStatistics.AppliedChanges.Where(ac => ac.State == DmRowState.Modified).Sum(ac => ac.ChangesApplied) }");
-                break;
-            case SyncStage.AppliedChanges:
-                Console.WriteLine($"Changes applied : {e.ChangesStatistics.TotalAppliedChanges}");
-                break;
-            case SyncStage.WriteMetadata:
-                if (e.Scopes != null)
-                {
-                    Console.WriteLine($"Writing Scopes : ");
-                    e.Scopes.ForEach(sc => Console.WriteLine($"\t{sc.Id} synced at {sc.LastSync}. "));
-                }
-                break;
-            case SyncStage.CleanupMetadata:
-                Console.WriteLine($"CleanupMetadata");
-                break;
-        }
-
-        Console.ResetColor();
-    }
 
     /// <summary>
     /// Sync apply changed, deciding who win

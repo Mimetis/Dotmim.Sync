@@ -390,5 +390,82 @@ namespace Dotmim.Sync.Sqlite
         }
 
 
+        private void DropTrigger(DbCommandType triggerType)
+        {
+            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+
+            try
+            {
+                using (var command = new SqliteCommand())
+                {
+                    if (!alreadyOpened)
+                        this.connection.Open();
+
+                    if (this.transaction != null)
+                        command.Transaction = this.transaction;
+
+                    var triggerName = string.Format(this.sqliteObjectNames.GetCommandName(triggerType), tableName.UnquotedStringWithUnderScore);
+
+                    String dropTrigger = $"DROP TRIGGER IF EXISTS {triggerName}";
+
+                    command.CommandText = dropTrigger;
+                    command.Connection = this.connection;
+                    command.ExecuteNonQuery();
+
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error during DropTrigger : {ex}");
+                throw;
+
+            }
+            finally
+            {
+                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
+                    this.connection.Close();
+
+            }
+        }
+
+
+        public string CreateDropTriggerScriptText(DbCommandType triggerType)
+        {
+            var triggerName = string.Format(this.sqliteObjectNames.GetCommandName(triggerType), tableName.UnquotedStringWithUnderScore);
+            string dropTrigger = $"DROP TRIGGER IF EXISTS {triggerName}";
+            string str = $"Drop Trigger {triggerName} for table {tableName.QuotedString}";
+            return SqliteBuilder.WrapScriptTextWithComments(dropTrigger, str);
+        }
+
+
+        public void DropInsertTrigger()
+        {
+            DropTrigger(DbCommandType.InsertTrigger);
+        }
+
+        public void DropUpdateTrigger()
+        {
+            DropTrigger(DbCommandType.UpdateTrigger);
+        }
+
+        public void DropDeleteTrigger()
+        {
+            DropTrigger(DbCommandType.DeleteTrigger);
+        }
+
+        public string DropInsertTriggerScriptText()
+        {
+            return CreateDropTriggerScriptText(DbCommandType.InsertTrigger);
+        }
+
+        public string DropUpdateTriggerScriptText()
+        {
+            return CreateDropTriggerScriptText(DbCommandType.UpdateTrigger);
+        }
+
+        public string DropDeleteTriggerScriptText()
+        {
+            return CreateDropTriggerScriptText(DbCommandType.DeleteTrigger);
+        }
     }
 }

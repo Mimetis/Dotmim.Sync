@@ -68,6 +68,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
 
         }
+
         private string CreateIndexCommandText()
         {
             StringBuilder stringBuilder = new StringBuilder();
@@ -139,6 +140,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
 
         }
+
         public string CreatePkScriptText()
         {
             string str = string.Concat("Create Primary Key on Tracking Table ", trackingName.QuotedString);
@@ -201,13 +203,59 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         }
 
+        public void DropTable()
+        {
+            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+
+            try
+            {
+                using (var command = new SqlCommand())
+                {
+                    if (!alreadyOpened)
+                        this.connection.Open();
+
+                    if (this.transaction != null)
+                        command.Transaction = this.transaction;
+
+                    command.CommandText = this.CreateDropTableCommandText();
+                    command.Connection = this.connection;
+                    command.ExecuteNonQuery();
+
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error during DropTable : {ex}");
+                throw;
+
+            }
+            finally
+            {
+                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
+                    this.connection.Close();
+
+            }
+
+
+        }
+
         public string CreateTableScriptText()
         {
             string str = string.Concat("Create Tracking Table ", trackingName.QuotedString);
             return SqlBuilder.WrapScriptTextWithComments(this.CreateTableCommandText(), str);
         }
+        public string DropTableScriptText()
+        {
+            string str = string.Concat("Droping Tracking Table ", trackingName.QuotedString);
+            return SqlBuilder.WrapScriptTextWithComments(this.CreateTableCommandText(), str);
+        }
 
-        public string CreateTableCommandText()
+        private string CreateDropTableCommandText()
+        {
+            return $"DROP TABLE {trackingName.QuotedString};";
+        }
+
+        private string CreateTableCommandText()
         {
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.AppendLine($"CREATE TABLE {trackingName.QuotedString} (");

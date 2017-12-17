@@ -73,11 +73,6 @@ namespace Dotmim.Sync
         /// </summary>
         public bool UseBulkOperations { get; set; } = true;
 
-        /// <summary>
-        /// Get or Sets if the coded configuration should override the database configuration. 
-        /// Default false
-        /// </summary>
-        public bool OverwriteConfiguration { get; set; } = false;
 
         /// <summary>
         /// Filters applied on tables
@@ -136,7 +131,7 @@ namespace Dotmim.Sync
             syncConfiguration.UseBulkOperations = this.UseBulkOperations;
             syncConfiguration.UseVerboseErrors = this.UseVerboseErrors;
             syncConfiguration.SerializationFormat = this.SerializationFormat;
-            syncConfiguration.OverwriteConfiguration = this.OverwriteConfiguration;
+            //syncConfiguration.OverwriteConfiguration = this.OverwriteConfiguration;
 
             if (this.Filters != null)
                 foreach (var p in this.Filters)
@@ -161,7 +156,7 @@ namespace Dotmim.Sync
             configuration.DownloadBatchSizeInKB = (int)dmRowConfiguration["DownloadBatchSizeInKB"];
             configuration.UseBulkOperations = (bool)dmRowConfiguration["UseBulkOperations"];
             configuration.UseVerboseErrors = (bool)dmRowConfiguration["UseVerboseErrors"];
-            configuration.OverwriteConfiguration = (bool)dmRowConfiguration["OverwriteConfiguration"];
+            //configuration.OverwriteConfiguration = (bool)dmRowConfiguration["OverwriteConfiguration"];
             configuration.SerializationFormat = (SerializationFormat)dmRowConfiguration["SerializationConverter"];
 
             if (set.Tables.Contains("DotmimSync__Filters"))
@@ -235,7 +230,7 @@ namespace Dotmim.Sync
             dmTableConfiguration.Columns.Add<Boolean>("EnableDiagnosticPage");
             dmTableConfiguration.Columns.Add<Boolean>("UseBulkOperations");
             dmTableConfiguration.Columns.Add<Boolean>("UseVerboseErrors");
-            dmTableConfiguration.Columns.Add<Boolean>("OverwriteConfiguration");
+            //dmTableConfiguration.Columns.Add<Boolean>("OverwriteConfiguration");
             dmTableConfiguration.Columns.Add<Int32>("SerializationConverter");
 
             var dmRowConfiguration = dmTableConfiguration.NewRow();
@@ -244,7 +239,7 @@ namespace Dotmim.Sync
             dmRowConfiguration["DownloadBatchSizeInKB"] = configuration.DownloadBatchSizeInKB;
             dmRowConfiguration["UseBulkOperations"] = configuration.UseBulkOperations;
             dmRowConfiguration["UseVerboseErrors"] = configuration.UseVerboseErrors;
-            dmRowConfiguration["OverwriteConfiguration"] = configuration.OverwriteConfiguration;
+            //dmRowConfiguration["OverwriteConfiguration"] = configuration.OverwriteConfiguration;
             dmRowConfiguration["SerializationConverter"] = configuration.SerializationFormat;
             dmTableConfiguration.Rows.Add(dmRowConfiguration);
 
@@ -337,7 +332,7 @@ namespace Dotmim.Sync
         public void Add(string table)
         {
             if (this.ScopeSet == null || this.ScopeSet.Tables == null)
-                throw new SyncException($"Can't add new table {table} in Configuration, ScopeSet is null", SyncStage.EnsureConfiguration, SyncExceptionType.Argument);
+                throw new SyncException($"Can't add new table {table} in Configuration, ScopeSet is null", SyncStage.ConfigurationApplied, SyncExceptionType.Argument);
 
             // Potentially user can pass something like [SalesLT].[Product]
             // or SalesLT.Product or Product. ObjectNameParser will handle it
@@ -362,7 +357,7 @@ namespace Dotmim.Sync
         public void Add(DmTable item)
         {
             if (this.ScopeSet == null || this.ScopeSet.Tables == null)
-                throw new SyncException("Can't add a dmTable in Configuration, ScopeSet is null", SyncStage.EnsureConfiguration, SyncExceptionType.Argument);
+                throw new SyncException("Can't add a dmTable in Configuration, ScopeSet is null", SyncStage.ConfigurationApplied, SyncExceptionType.Argument);
 
             this.ScopeSet.Tables.Add(item);
         }

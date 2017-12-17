@@ -384,6 +384,46 @@ namespace Dotmim.Sync.MySql
             return MySqlBuilder.WrapScriptTextWithComments(this.AddFilterColumnCommandText(filterColumn), str);
         }
 
+        public void DropTable()
+        {
+            var commandText = $"drop table if exists {trackingName.QuotedString}";
+
+            bool alreadyOpened = connection.State == ConnectionState.Open;
+
+            try
+            {
+                if (!alreadyOpened)
+                    connection.Open();
+
+                using (var command = new MySqlCommand(commandText, connection))
+                {
+                    if (transaction != null)
+                        command.Transaction = transaction;
+
+                    command.ExecuteNonQuery();
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error during DropTableCommand : {ex}");
+                throw;
+            }
+            finally
+            {
+                if (!alreadyOpened && connection.State != ConnectionState.Closed)
+                    connection.Close();
+
+            }
+
+        }
+
+        public string DropTableScriptText()
+        {
+            var commandText = $"drop table if exists {trackingName.QuotedString}";
+
+            var str1 = $"Drop table {trackingName.QuotedString}";
+            return MySqlBuilder.WrapScriptTextWithComments(commandText, str1);
+        }
 
     }
 }

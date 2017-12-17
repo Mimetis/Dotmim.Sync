@@ -71,9 +71,36 @@ namespace Dotmim.Sync.MySql
             return sqlCommand;
         }
 
-        public bool NeedToCreateForeignKeyConstraints(DmRelation constraint)
+        public bool NeedToCreateForeignKeyConstraints(DmRelation foreignKey)
         {
-            throw new NotImplementedException();
+            string parentTable = foreignKey.ParentTable.TableName;
+            string parentSchema = foreignKey.ParentTable.Schema;
+            string parentFullName = String.IsNullOrEmpty(parentSchema) ? parentTable : $"{parentSchema}.{parentTable}";
+
+            bool alreadyOpened = connection.State == ConnectionState.Open;
+
+            try
+            {
+                if (!alreadyOpened)
+                    connection.Open();
+
+                var dmTable = MySqlManagementUtils.RelationsForTable(connection, transaction, parentFullName);
+
+                var foreignKeyExist = dmTable.Rows.Any(r =>
+                   dmTable.IsEqual(r["ForeignKey"].ToString(), foreignKey.RelationName));
+
+                return !foreignKeyExist;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error during checking foreign keys: {ex}");
+                throw;
+            }
+            finally
+            {
+                if (!alreadyOpened && connection.State != ConnectionState.Closed)
+                    connection.Close();
+            }
         }
 
 
@@ -313,6 +340,45 @@ namespace Dotmim.Sync.MySql
             return string.Empty;
         }
 
+        public void DropTable()
+        {
+            var commandText = $"drop table if exists {tableName.QuotedString}";
 
+            bool alreadyOpened = connection.State == ConnectionState.Open;
+
+            try
+            {
+                if (!alreadyOpened)
+                    connection.Open();
+
+                using (var command = new MySqlCommand(commandText, connection))
+                {
+                    if (transaction != null)
+                        command.Transaction = transaction;
+
+                    command.ExecuteNonQuery();
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error during DropTableCommand : {ex}");
+                throw;
+            }
+            finally
+            {
+                if (!alreadyOpened && connection.State != ConnectionState.Closed)
+                    connection.Close();
+
+            }
+
+        }
+
+        public string DropTableScriptText()
+        {
+            var commandText = $"drop table if exists {tableName.QuotedString}";
+
+            var str1 = $"Drop table {tableName.QuotedString}";
+            return MySqlBuilder.WrapScriptTextWithComments(commandText, str1);
+        }
     }
 }

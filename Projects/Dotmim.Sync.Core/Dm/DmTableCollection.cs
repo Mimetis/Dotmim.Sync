@@ -168,5 +168,9 @@ namespace Dotmim.Sync.Data
             return collection.GetEnumerator();
         }
 
+        public override string ToString()
+        {
+            return this.collection.Count.ToString();
+        }
     }
 }

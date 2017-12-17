@@ -18,14 +18,20 @@ namespace Dotmim.Sync.Builders
         void CreateInsertTrigger();
         void CreateUpdateTrigger();
         void CreateDeleteTrigger();
-        string AlterInsertTriggerScriptText();
-        string AlterUpdateTriggerScriptText();
-        string AlterDeleteTriggerScriptText();
         string CreateInsertTriggerScriptText();
         string CreateUpdateTriggerScriptText();
         string CreateDeleteTriggerScriptText();
+        void DropInsertTrigger();
+        void DropUpdateTrigger();
+        void DropDeleteTrigger();
+        string DropInsertTriggerScriptText();
+        string DropUpdateTriggerScriptText();
+        string DropDeleteTriggerScriptText();
         void AlterInsertTrigger();
         void AlterUpdateTrigger();
         void AlterDeleteTrigger();
+        string AlterInsertTriggerScriptText();
+        string AlterUpdateTriggerScriptText();
+        string AlterDeleteTriggerScriptText();
     }
 }
