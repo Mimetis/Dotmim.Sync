@@ -282,5 +282,50 @@ namespace Dotmim.Sync.Test
 
 
         }
+
+        [Fact]
+        private void DmView_Skip()
+        {
+            var view = new DmView(set.Tables["ServiceTickets"]);
+            view = view.Order((r1, r2) => string.Compare(((string)r1["Title"]), (string)r2["Title"], StringComparison.Ordinal));
+            Assert.Equal(17, view.Count);
+
+            var view2 = view.Take(0, 2);
+            Assert.Equal(2, view2.Count);
+            Assert.Equal("Titre AC", (string)view2[0]["Title"]);
+            Assert.Equal("Titre ADFVB", (string)view2[1]["Title"]);
+
+
+            var view3 = view.Take(2, 2);
+            Assert.Equal(2, view3.Count);
+            Assert.Equal("Titre AEEE", (string)view3[0]["Title"]);
+            Assert.Equal("Titre AER", (string)view3[1]["Title"]);
+
+            var view4 = view.Take(4, 1);
+            Assert.Equal(1, view4.Count);
+            Assert.Equal("Titre AFBBB", (string)view4[0]["Title"]);
+
+            var view5 = view.Take(5, 12);
+            Assert.Equal(12, view5.Count);
+
+            var view6 = view.Take(5, 13);
+            Assert.Equal(12, view6.Count);
+
+            var view7 = view.Take(12, 0);
+            Assert.Equal(0, view7.Count);
+
+            var view8 = view.Take(17, 0);
+            Assert.Equal(0, view8.Count);
+
+            Assert.Throws<Exception>(() =>
+            {
+                var view9 = view.Take(18, 0);
+            });
+            Assert.Throws<Exception>(() =>
+            {
+                var view10 = view.Take(18, 2);
+            });
+
+        }
     }
 }

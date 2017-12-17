@@ -14,13 +14,14 @@ using System.Diagnostics;
 namespace Dotmim.Sync
 {
 
+
     /// <summary>
     /// The SyncAdapter is the datasource manager for ONE table
     /// Should be implemented by every database provider and provide every SQL action
     /// </summary>
     public abstract class DbSyncAdapter
     {
-
+        private const int BATCH_SIZE = 1000;
 
         public delegate (ApplyAction, DmRow) ConflictActionDelegate(SyncConflict conflict, DbConnection connection, DbTransaction transaction = null);
 
@@ -54,7 +55,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Execute a batch command
         /// </summary>
-        public abstract void ExecuteBatchCommand(DbCommand cmd, DmTable applyTable, DmTable failedRows, ScopeInfo scope);
+        public abstract void ExecuteBatchCommand(DbCommand cmd, DmView applyTable, DmTable failedRows, ScopeInfo scope);
 
         /// <summary>
         /// Gets the current connection. could be opened
@@ -264,57 +265,80 @@ namespace Dotmim.Sync
             if (Transaction != null && Transaction.Connection != null)
                 bulkCommand.Transaction = Transaction;
 
-            DmTable batchDmTable = dmChanges.Table.Clone();
+            //DmTable batchDmTable = dmChanges.Table.Clone();
             DmTable failedDmtable = new DmTable { Culture = CultureInfo.InvariantCulture };
 
             // Create the schema for failed rows (just add the Primary keys)
-            this.AddSchemaForFailedRowsTable(batchDmTable, failedDmtable);
+            this.AddSchemaForFailedRowsTable(failedDmtable);
 
-            int batchCount = 0;
-            int rowCount = 0;
+            //int batchCount = 0;
+            //int rowCount = 0;
 
-            foreach (var dmRow in dmChanges)
+            // Since the update and create timestamp come from remote, change name for the bulk operations
+            var update_timestamp_column = dmChanges.Table.Columns["update_timestamp"].ColumnName;
+            dmChanges.Table.Columns["update_timestamp"].ColumnName = "update_timestamp";
+            var create_timestamp_column = dmChanges.Table.Columns["create_timestamp"].ColumnName;
+            dmChanges.Table.Columns["create_timestamp"].ColumnName = "create_timestamp";
+
+            // Make some parts of BATCH_SIZE 
+            for (int step = 0; step < dmChanges.Count; step += BATCH_SIZE)
             {
-                // Cancel the delete state to be able to get the row, more simplier
-                if (applyType == DmRowState.Deleted)
-                    dmRow.RejectChanges();
+                // get upper bound max value
+                var taken = step + BATCH_SIZE >= dmChanges.Count ? dmChanges.Count - step: BATCH_SIZE;
 
-                // Load the datarow
-                DmRow dataRow = batchDmTable.LoadDataRow(dmRow.ItemArray, false);
+                using (var dmStepChanges = dmChanges.Take(step, taken))
+                {
+                    // execute the batch, through the provider
+                    ExecuteBatchCommand(bulkCommand, dmStepChanges, failedDmtable, fromScope);
+                }
 
-                // Apply the delete
-                // is it mandatory ?
-                if (applyType == DmRowState.Deleted)
-                    dmRow.Delete();
-
-                batchCount++;
-                rowCount++;
-
-                if (batchCount != 500 && rowCount != dmChanges.Count)
-                    continue;
-
-                // Since the update and create timestamp come from remote, change name for the bulk operations
-                batchDmTable.Columns["update_timestamp"].ColumnName = "update_timestamp";
-                batchDmTable.Columns["create_timestamp"].ColumnName = "create_timestamp";
-
-                // execute the batch, through the provider
-                ExecuteBatchCommand(bulkCommand, batchDmTable, failedDmtable, fromScope);
-
-                // Clear the batch
-                batchDmTable.Clear();
-
-                // Recreate a Clone
-                // TODO : Evaluate if it's necessary
-                batchDmTable = dmChanges.Table.Clone();
-                batchCount = 0;
             }
+
+            // Since the update and create timestamp come from remote, change name for the bulk operations
+            dmChanges.Table.Columns["update_timestamp"].ColumnName = update_timestamp_column;
+            dmChanges.Table.Columns["create_timestamp"].ColumnName = create_timestamp_column;
+
+            //foreach (var dmRow in dmChanges)
+            //{
+            //    // Cancel the delete state to be able to get the row, more simplier
+            //    if (applyType == DmRowState.Deleted)
+            //        dmRow.RejectChanges();
+
+            //    // Load the datarow
+            //    DmRow dataRow = batchDmTable.LoadDataRow(dmRow.ItemArray, false);
+
+            //    // Apply the delete
+            //    // is it mandatory ?
+            //    if (applyType == DmRowState.Deleted)
+            //        dmRow.Delete();
+
+            //    batchCount++;
+            //    rowCount++;
+
+            //    if (batchCount < BATCH_SIZE && rowCount < dmChanges.Count)
+            //        continue;
+
+            //    // Since the update and create timestamp come from remote, change name for the bulk operations
+            //    batchDmTable.Columns["update_timestamp"].ColumnName = "update_timestamp";
+            //    batchDmTable.Columns["create_timestamp"].ColumnName = "create_timestamp";
+
+            //    // execute the batch, through the provider
+            //    ExecuteBatchCommand(bulkCommand, batchDmTable, failedDmtable, fromScope);
+
+            //    // Clear the batch
+            //    batchDmTable.Clear();
+
+            //    // Recreate a Clone
+            //    // TODO : Evaluate if it's necessary
+            //    batchDmTable = dmChanges.Table.Clone();
+            //    batchCount = 0;
+            //}
 
             // Update table progress 
             //tableProgress.ChangesApplied = dmChanges.Count - failedDmtable.Rows.Count;
 
             if (failedDmtable.Rows.Count == 0)
                 return dmChanges.Count;
-
 
             // Check all conflicts raised
             var failedFilter = new Predicate<DmRow>(row =>
@@ -324,8 +348,6 @@ namespace Dotmim.Sync
                 else
                     return failedDmtable.FindByKey(row.GetKeyValues()) != null;
             });
-
-
 
             // New View
             var dmFailedRows = new DmView(dmChanges, failedFilter);
@@ -338,6 +360,9 @@ namespace Dotmim.Sync
 
             // Dispose the failed view
             dmFailedRows.Dispose();
+            dmFailedRows = null;
+            //batchDmTable.Clear();
+            //batchDmTable = null;
 
             // return applied rows - failed rows (generating a conflict)
             return dmChanges.Count - failedRows;
@@ -506,6 +531,9 @@ namespace Dotmim.Sync
 
         }
 
+        /// <summary>
+        /// Reset a table, deleting rows from table and tracking_table
+        /// </summary>
         internal bool ResetTable(DmTable tableDescription)
         {
             var command = this.GetCommand(DbCommandType.Reset);
@@ -692,7 +720,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Adding failed rows when used by a bulk operation
         /// </summary>
-        private void AddSchemaForFailedRowsTable(DmTable applyTable, DmTable failedRows)
+        private void AddSchemaForFailedRowsTable(DmTable failedRows)
         {
             if (failedRows.Columns.Count == 0)
             {

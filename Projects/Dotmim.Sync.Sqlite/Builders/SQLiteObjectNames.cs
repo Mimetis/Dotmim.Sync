@@ -68,7 +68,7 @@ namespace Dotmim.Sync.Sqlite
 
         private void CreateResetCommandText()
         {
-            StringBuilder stringBuilder = new StringBuilder("SELECT ");
+            StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($"DELETE FROM {tableName.QuotedString};");
             stringBuilder.AppendLine($"DELETE FROM {trackingName.QuotedString};");

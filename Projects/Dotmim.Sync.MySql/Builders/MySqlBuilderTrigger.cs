@@ -19,7 +19,7 @@ namespace Dotmim.Sync.MySql
         private DmTable tableDescription;
         private MySqlConnection connection;
         private MySqlTransaction transaction;
-        private MySqlObjectNames sqliteObjectNames;
+        private MySqlObjectNames mySqlObjectNames;
 
         public FilterClauseCollection Filters { get; set; }
 
@@ -31,7 +31,7 @@ namespace Dotmim.Sync.MySql
             this.transaction = transaction as MySqlTransaction;
             this.tableDescription = tableDescription;
             (this.tableName, this.trackingName) = MySqlBuilder.GetParsers(this.tableDescription);
-            this.sqliteObjectNames = new MySqlObjectNames(this.tableDescription);
+            this.mySqlObjectNames = new MySqlObjectNames(this.tableDescription);
         }
 
         private string DeleteTriggerBodyText()
@@ -84,7 +84,7 @@ namespace Dotmim.Sync.MySql
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
 
-                    var delTriggerName = this.sqliteObjectNames.GetCommandName(DbCommandType.DeleteTrigger);
+                    var delTriggerName = this.mySqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger);
                     StringBuilder createTrigger = new StringBuilder();
                     createTrigger.AppendLine($"CREATE TRIGGER {delTriggerName} AFTER DELETE ON {tableName.QuotedString} FOR EACH ROW ");
                     createTrigger.AppendLine();
@@ -112,7 +112,7 @@ namespace Dotmim.Sync.MySql
         public string CreateDeleteTriggerScriptText()
         {
 
-            var delTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.DeleteTrigger), tableName.UnquotedStringWithUnderScore);
+            var delTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger), tableName.UnquotedStringWithUnderScore);
             StringBuilder createTrigger = new StringBuilder();
             createTrigger.AppendLine($"CREATE TRIGGER {delTriggerName} AFTER DELETE ON {tableName.QuotedString} FOR EACH ROW ");
             createTrigger.AppendLine();
@@ -232,7 +232,7 @@ namespace Dotmim.Sync.MySql
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
 
-                    var insTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.InsertTrigger), tableName.UnquotedStringWithUnderScore);
+                    var insTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.InsertTrigger), tableName.UnquotedStringWithUnderScore);
 
                     StringBuilder createTrigger = new StringBuilder();
                     createTrigger.AppendLine($"CREATE TRIGGER {insTriggerName} AFTER INSERT ON {tableName.QuotedString} FOR EACH ROW ");
@@ -260,7 +260,7 @@ namespace Dotmim.Sync.MySql
         }
         public string CreateInsertTriggerScriptText()
         {
-            var insTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.InsertTrigger), tableName.UnquotedStringWithUnderScore);
+            var insTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.InsertTrigger), tableName.UnquotedStringWithUnderScore);
             StringBuilder createTrigger = new StringBuilder();
             createTrigger.AppendLine($"CREATE TRIGGER {insTriggerName} AFTER INSERT ON {tableName.QuotedString} FOR EACH ROW ");
             createTrigger.AppendLine();
@@ -326,7 +326,7 @@ namespace Dotmim.Sync.MySql
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
 
-                    var updTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.UpdateTrigger), tableName.UnquotedStringWithUnderScore);
+                    var updTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger), tableName.UnquotedStringWithUnderScore);
                     StringBuilder createTrigger = new StringBuilder();
                     createTrigger.AppendLine($"CREATE TRIGGER {updTriggerName} AFTER UPDATE ON {tableName.QuotedString} FOR EACH ROW ");
                     createTrigger.AppendLine();
@@ -353,7 +353,7 @@ namespace Dotmim.Sync.MySql
         }
         public string CreateUpdateTriggerScriptText()
         {
-            var updTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.UpdateTrigger), tableName.UnquotedStringWithUnderScore);
+            var updTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger), tableName.UnquotedStringWithUnderScore);
             StringBuilder createTrigger = new StringBuilder();
             createTrigger.AppendLine($"CREATE TRIGGER {updTriggerName} AFTER UPDATE ON {tableName.QuotedString} FOR EACH ROW ");
             createTrigger.AppendLine();
@@ -372,9 +372,9 @@ namespace Dotmim.Sync.MySql
         }
         public bool NeedToCreateTrigger(DbTriggerType type)
         {
-            var updTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.UpdateTrigger), tableName.UnquotedStringWithUnderScore);
-            var delTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.DeleteTrigger), tableName.UnquotedStringWithUnderScore);
-            var insTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.InsertTrigger), tableName.UnquotedStringWithUnderScore);
+            var updTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger), tableName.UnquotedStringWithUnderScore);
+            var delTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger), tableName.UnquotedStringWithUnderScore);
+            var insTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.InsertTrigger), tableName.UnquotedStringWithUnderScore);
 
             string triggerName = string.Empty;
             switch (type)
@@ -400,6 +400,79 @@ namespace Dotmim.Sync.MySql
 
         }
 
+        public void DropTrigger(DbCommandType triggerType)
+        {
+            var triggerName = string.Format(this.mySqlObjectNames.GetCommandName(triggerType), tableName.UnquotedStringWithUnderScore);
+            var commandText = $"drop trigger if exists {triggerName}";
 
+            bool alreadyOpened = connection.State == ConnectionState.Open;
+
+            try
+            {
+                if (!alreadyOpened)
+                    connection.Open();
+
+                using (var command = new MySqlCommand(commandText, connection))
+                {
+                    if (transaction != null)
+                        command.Transaction = transaction;
+
+                    command.ExecuteNonQuery();
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error during DropTriggerCommand : {ex}");
+                throw;
+            }
+            finally
+            {
+                if (!alreadyOpened && connection.State != ConnectionState.Closed)
+                    connection.Close();
+
+            }
+
+        }
+
+
+        public void DropInsertTrigger()
+        {
+            DropTrigger(DbCommandType.InsertTrigger);
+        }
+
+        public void DropUpdateTrigger()
+        {
+            DropTrigger(DbCommandType.UpdateTrigger);
+        }
+
+        public void DropDeleteTrigger()
+        {
+            DropTrigger(DbCommandType.DeleteTrigger);
+        }
+
+        private string DropTriggerText(DbCommandType triggerType)
+        {
+            var commandName = this.mySqlObjectNames.GetCommandName(triggerType);
+            var commandText = $"drop trigger if exists {commandName}";
+
+            var str1 = $"Drop trigger {commandName} for table {tableName.QuotedString}";
+            return MySqlBuilder.WrapScriptTextWithComments(commandText, str1);
+
+        }
+
+        public string DropInsertTriggerScriptText()
+        {
+            return DropTriggerText(DbCommandType.InsertTrigger);
+        }
+
+        public string DropUpdateTriggerScriptText()
+        {
+            return DropTriggerText(DbCommandType.UpdateTrigger);
+        }
+
+        public string DropDeleteTriggerScriptText()
+        {
+            return DropTriggerText(DbCommandType.DeleteTrigger);
+        }
     }
 }

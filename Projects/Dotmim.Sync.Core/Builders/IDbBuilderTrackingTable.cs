@@ -15,10 +15,12 @@ namespace Dotmim.Sync.Builders
         FilterClauseCollection Filters { get; set; }
         bool NeedToCreateTrackingTable();
         void CreateTable();
+        void DropTable();
         void CreatePk();
         void CreateIndex();
         void PopulateFromBaseTable();
         string CreateTableScriptText();
+        string DropTableScriptText();
         string CreatePkScriptText();
         string CreateIndexScriptText();
         string ScriptAddFilterColumn(DmColumn filterColumn);

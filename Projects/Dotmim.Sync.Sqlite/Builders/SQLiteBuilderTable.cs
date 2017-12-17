@@ -28,8 +28,6 @@ namespace Dotmim.Sync.Sqlite
             (this.tableName, this.trackingName) = SqliteBuilder.GetParsers(this.tableDescription);
             this.sqliteDbMetadata = new SqliteDbMetadata();
         }
-
-
         private SqliteCommand BuildForeignKeyConstraintsCommand(DmRelation foreignKey)
         {
             SqliteCommand sqlCommand = new SqliteCommand();
@@ -302,6 +300,50 @@ namespace Dotmim.Sync.Sqlite
         public string CreateForeignKeyConstraintsScriptText(DmRelation constraint)
         {
             return string.Empty;
+        }
+
+        public void DropTable()
+        {
+            bool alreadyOpened = connection.State == ConnectionState.Open;
+
+            try
+            {
+                using (var command = new SqliteCommand($"DROP TABLE IF EXISTS {tableName.QuotedString}", connection)) 
+                {
+                    if (!alreadyOpened)
+                        connection.Open();
+
+                    if (transaction != null)
+                        command.Transaction = transaction;
+
+                    command.Connection = connection;
+                    command.ExecuteNonQuery();
+
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error during DropTable : {ex}");
+                throw;
+
+            }
+            finally
+            {
+                if (!alreadyOpened && connection.State != ConnectionState.Closed)
+                    connection.Close();
+
+            }
+
+        }
+
+        public string DropTableScriptText()
+        {
+            StringBuilder stringBuilder = new StringBuilder();
+            var tableNameScript = $"Drop Table {tableName.QuotedString}";
+            var tableScript = $"DROP TABLE IF EXISTS {tableName.QuotedString}";
+            stringBuilder.Append(SqliteBuilder.WrapScriptTextWithComments(tableScript, tableNameScript));
+            stringBuilder.AppendLine();
+            return stringBuilder.ToString();
         }
     }
 }

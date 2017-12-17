@@ -1,8 +1,5 @@
 ﻿using Dotmim.Sync.Batch;
-using Dotmim.Sync.Builders;
 using Dotmim.Sync.Filter;
-using Dotmim.Sync.Log;
-
 using Dotmim.Sync.Enumerations;
 using System;
 using System.Collections.Generic;
@@ -48,10 +45,21 @@ namespace Dotmim.Sync
         /// </summary>
         public SyncParameterCollection Parameters { get; set; } = new SyncParameterCollection();
 
-        /// <summary>
-        /// Occurs during progress
-        /// </summary>
-        public event EventHandler<SyncProgressEventArgs> SyncProgress = null;
+
+        public event EventHandler<ProgressEventArgs> SyncProgress = null;
+        public event EventHandler<BeginSessionEventArgs> BeginSession = null;
+        public event EventHandler<EndSessionEventArgs> EndSession = null;
+        public event EventHandler<ScopeEventArgs> ScopeLoading = null;
+        public event EventHandler<ScopeEventArgs> ScopeSaved = null;
+        public event EventHandler<DatabaseApplyingEventArgs> DatabaseApplying = null;
+        public event EventHandler<DatabaseAppliedEventArgs> DatabaseApplied = null;
+        public event EventHandler<ConfigurationApplyingEventArgs> ConfigurationApplying = null;
+        public event EventHandler<ConfigurationAppliedEventArgs> ConfigurationApplied = null;
+        public event EventHandler<TableChangesSelectingEventArgs> ChangesSelecting = null;
+        public event EventHandler<TableChangesSelectedEventArgs> ChangesSelected = null;
+        public event EventHandler<TableChangesApplyingEventArgs> ChangesApplying = null;
+        public event EventHandler<TableChangesAppliedEventArgs> ChangesApplied = null;
+
 
         /// <summary>
         /// Occurs when a conflict is raised on the server side
@@ -95,7 +103,19 @@ namespace Dotmim.Sync
             //if (p != null && !p.CanBeServerProvider)
             //    throw new NotSupportedException();
 
-            this.LocalProvider.SyncProgress += ClientProvider_SyncProgress;
+            this.LocalProvider.SyncProgress += (s, e) => this.SyncProgress?.Invoke(s, e);
+            this.LocalProvider.BeginSession += (s, e) => this.BeginSession?.Invoke(s, e);
+            this.LocalProvider.EndSession += (s, e) => this.EndSession?.Invoke(s, e);
+            this.LocalProvider.TableChangesApplied += (s, e) => this.ChangesApplied?.Invoke(s, e);
+            this.LocalProvider.TableChangesApplying += (s, e) => this.ChangesApplying?.Invoke(s, e);
+            this.LocalProvider.TableChangesSelected += (s, e) => this.ChangesSelected?.Invoke(s, e);
+            this.LocalProvider.TableChangesSelecting += (s, e) => this.ChangesSelecting?.Invoke(s, e);
+            this.LocalProvider.ConfigurationApplied += (s, e) => this.ConfigurationApplied?.Invoke(s, e);
+            this.LocalProvider.ConfigurationApplying += (s, e) => this.ConfigurationApplying?.Invoke(s, e);
+            this.LocalProvider.DatabaseApplied += (s, e) => this.DatabaseApplied?.Invoke(s, e);
+            this.LocalProvider.DatabaseApplying += (s, e) => this.DatabaseApplying?.Invoke(s, e);
+            this.LocalProvider.ScopeLoading += (s, e) => this.ScopeLoading?.Invoke(s, e);
+            this.LocalProvider.ScopeSaved += (s, e) => this.ScopeSaved?.Invoke(s, e);
             this.RemoteProvider.ApplyChangedFailed += RemoteProvider_ApplyChangedFailed;
         }
 
@@ -194,6 +214,14 @@ namespace Dotmim.Sync
         /// <summary>
         /// Launch a synchronization with the specified mode
         /// </summary>
+        public async Task<SyncContext> SynchronizeAsync(SyncType syncType)
+        {
+            return await this.SynchronizeAsync(syncType, CancellationToken.None);
+
+        }
+        /// <summary>
+        /// Launch a synchronization with the specified mode
+        /// </summary>
         public async Task<SyncContext> SynchronizeAsync(SyncType syncType, CancellationToken cancellationToken)
         {
 
@@ -218,9 +246,6 @@ namespace Dotmim.Sync
             Guid fromId = Guid.Empty;
             long lastSyncTS = 0L;
             bool isNew = true;
-
-            // Stats computed
-            ChangesStatistics changesStatistics = new ChangesStatistics();
 
             // tmp check error
             bool hasErrors = false;
@@ -316,10 +341,11 @@ namespace Dotmim.Sync
                 // ----------------------------------------
                 BatchInfo clientBatchInfo;
                 BatchInfo serverBatchInfo;
-                ChangesStatistics clientStatistics = null;
-                ChangesStatistics serverStatistics = null;
-                ChangesStatistics tmpClientStatistics = null;
-                ChangesStatistics tmpServerStatistics = null;
+
+                ChangesSelected clientChangesSelected = null;
+                ChangesSelected serverChangesSelected = null;
+                ChangesApplied clientChangesApplied = null;
+                ChangesApplied serverChangesApplied = null;
 
                 // fromId : not really needed on this case, since updated / inserted / deleted row has marked null
                 // otherwise, lines updated by server or others clients are already syncked
@@ -332,7 +358,7 @@ namespace Dotmim.Sync
                 context.SyncWay = SyncWay.Upload;
 
                 scope = new ScopeInfo { Id = fromId, IsNewScope = isNew, LastTimestamp = lastSyncTS };
-                (context, clientBatchInfo, clientStatistics) = await this.LocalProvider.GetChangeBatchAsync(context, scope);
+                (context, clientBatchInfo, clientChangesSelected) = await this.LocalProvider.GetChangeBatchAsync(context, scope);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -349,7 +375,7 @@ namespace Dotmim.Sync
                 isNew = false;
                 scope = new ScopeInfo { Id = fromId, IsNewScope = isNew, LastTimestamp = lastSyncTS };
 
-                (context, serverStatistics) = await this.RemoteProvider.ApplyChangesAsync(context, scope, clientBatchInfo);
+                (context, serverChangesApplied) = await this.RemoteProvider.ApplyChangesAsync(context, scope, clientBatchInfo);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -365,16 +391,16 @@ namespace Dotmim.Sync
                 //Direction set to Download
                 context.SyncWay = SyncWay.Download;
 
-                (context, serverBatchInfo, tmpServerStatistics) = await this.RemoteProvider.GetChangeBatchAsync(context, scope);
+                (context, serverBatchInfo, serverChangesSelected) = await this.RemoteProvider.GetChangeBatchAsync(context, scope);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
-                // Update server stats
-                if (serverStatistics == null)
-                    serverStatistics = tmpServerStatistics;
-                else
-                    clientStatistics.SelectedChanges = tmpServerStatistics.SelectedChanges;
+                //// Update server stats
+                //if (serverStatistics == null)
+                //    serverStatistics = tmpServerStatistics;
+                //else
+                //    clientStatistics.SelectedChanges = tmpServerStatistics.SelectedChanges;
 
                 // Apply local changes
 
@@ -386,16 +412,11 @@ namespace Dotmim.Sync
                 isNew = localScopeInfo.IsNewScope;
                 scope = new ScopeInfo { Id = fromId, IsNewScope = isNew, LastTimestamp = lastSyncTS };
 
-                (context, tmpClientStatistics) = await this.LocalProvider.ApplyChangesAsync(context, scope, serverBatchInfo);
+                (context, clientChangesApplied) = await this.LocalProvider.ApplyChangesAsync(context, scope, serverBatchInfo);
 
-                if (clientStatistics == null)
-                    clientStatistics = tmpClientStatistics;
-                else
-                    clientStatistics.AppliedChanges = tmpClientStatistics.AppliedChanges;
-
-                context.TotalChangesDownloaded = clientStatistics.TotalAppliedChanges;
-                context.TotalChangesUploaded = serverStatistics.TotalAppliedChanges;
-                context.TotalSyncErrors = clientStatistics.TotalAppliedChangesFailed;
+                context.TotalChangesDownloaded = clientChangesApplied.TotalAppliedChanges ;
+                context.TotalChangesUploaded = clientChangesSelected.TotalChangesSelected;
+                context.TotalSyncErrors = clientChangesApplied.TotalAppliedChangesFailed;
 
                 long serverTimestamp, clientTimestamp;
 
@@ -445,20 +466,17 @@ namespace Dotmim.Sync
             catch (OperationCanceledException oce)
             {
                 var error = SyncException.CreateOperationCanceledException(context.SyncStage, oce);
-                HandleSyncError(error);
                 hasErrors = true;
                 throw;
             }
             catch (SyncException sex)
             {
-                HandleSyncError(sex);
                 hasErrors = true;
                 throw;
             }
             catch (Exception ex)
             {
                 var error = SyncException.CreateUnknowException(context.SyncStage, ex);
-                HandleSyncError(error);
                 hasErrors = true;
                 throw;
             }
@@ -489,45 +507,7 @@ namespace Dotmim.Sync
 
 
 
-        private static void HandleSyncError(SyncException sex)
-        {
-            switch (sex.SyncStage)
-            {
-                case SyncStage.BeginSession:
-                    break;
-                case SyncStage.EnsureConfiguration:
-                    break;
-                case SyncStage.SelectedChanges:
-                    break;
-                case SyncStage.ApplyingChanges:
-                    break;
-                case SyncStage.AppliedChanges:
-                    break;
-                case SyncStage.ApplyingInserts:
-                    break;
-                case SyncStage.ApplyingUpdates:
-                    break;
-                case SyncStage.ApplyingDeletes:
-                    break;
-                case SyncStage.WriteMetadata:
-                    break;
-                case SyncStage.EndSession:
-                    break;
-                case SyncStage.CleanupMetadata:
-                    break;
-                default:
-                    break;
-            }
-
-            // try to end sessions on both
-
-
-        }
-
-        void ClientProvider_SyncProgress(object sender, SyncProgressEventArgs e)
-        {
-            this.SyncProgress?.Invoke(this, e);
-        }
+       
 
         private void RemoteProvider_ApplyChangedFailed(object sender, ApplyChangeFailedEventArgs e)
         {
@@ -554,10 +534,20 @@ namespace Dotmim.Sync
         /// </summary>
         protected virtual void Dispose(bool cleanup)
         {
-            this.LocalProvider.SyncProgress -= ClientProvider_SyncProgress;
+            this.LocalProvider.BeginSession -= (s, e) => this.BeginSession?.Invoke(s, e);
+            this.LocalProvider.EndSession -= (s, e) => this.EndSession?.Invoke(s, e);
+            this.LocalProvider.TableChangesApplied -= (s, e) => this.ChangesApplied?.Invoke(s, e);
+            this.LocalProvider.TableChangesApplying -= (s, e) => this.ChangesApplying?.Invoke(s, e);
+            this.LocalProvider.TableChangesSelected -= (s, e) => this.ChangesSelected?.Invoke(s, e);
+            this.LocalProvider.TableChangesSelecting -= (s, e) => this.ChangesSelecting?.Invoke(s, e);
+            this.LocalProvider.ConfigurationApplied -= (s, e) => this.ConfigurationApplied?.Invoke(s, e);
+            this.LocalProvider.ConfigurationApplying -= (s, e) => this.ConfigurationApplying?.Invoke(s, e);
+            this.LocalProvider.DatabaseApplied -= (s, e) => this.DatabaseApplied?.Invoke(s, e);
+            this.LocalProvider.DatabaseApplying -= (s, e) => this.DatabaseApplying?.Invoke(s, e);
+            this.LocalProvider.ScopeLoading -= (s, e) => this.ScopeLoading?.Invoke(s, e);
+            this.LocalProvider.ScopeSaved -= (s, e) => this.ScopeSaved?.Invoke(s, e);
+
             this.RemoteProvider.ApplyChangedFailed -= RemoteProvider_ApplyChangedFailed;
-
-
         }
     }
 }

@@ -151,13 +151,17 @@ namespace Dotmim.Sync.Data
                 this.Relations.Clear();
         }
 
+        /// <summary>
+        /// Clone the current DmSet schema. No rows are imported
+        /// </summary>
         public virtual DmSet Clone()
         {
-            DmSet ds = new DmSet();
-
-            ds.DmSetName = this.DmSetName;
-            ds.CaseSensitive = this.CaseSensitive;
-            ds.Culture = this.Culture;
+            DmSet ds = new DmSet
+            {
+                DmSetName = this.DmSetName,
+                CaseSensitive = this.CaseSensitive,
+                Culture = this.Culture
+            };
 
             for (int i = 0; i < Tables.Count; i++)
             {

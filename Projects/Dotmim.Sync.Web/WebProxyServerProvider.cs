@@ -50,8 +50,22 @@ namespace Dotmim.Sync.Web
 
         private BaseConverter<HttpMessage> serializer;
 
-        public event EventHandler<SyncProgressEventArgs> SyncProgress;
+        public event EventHandler<ProgressEventArgs> SyncProgress;
         public event EventHandler<ApplyChangeFailedEventArgs> ApplyChangedFailed;
+        public event EventHandler<BeginSessionEventArgs> BeginSession;
+        public event EventHandler<EndSessionEventArgs> EndSession;
+        public event EventHandler<ScopeEventArgs> ScopeLoading;
+        public event EventHandler<ScopeEventArgs> ScopeSaved;
+        public event EventHandler<DatabaseApplyingEventArgs> DatabaseApplying;
+        public event EventHandler<DatabaseAppliedEventArgs> DatabaseApplied;
+        public event EventHandler<DatabaseTableApplyingEventArgs> DatabaseTableApplying;
+        public event EventHandler<DatabaseTableAppliedEventArgs> DatabaseTableApplied;
+        public event EventHandler<ConfigurationApplyingEventArgs> ConfigurationApplying;
+        public event EventHandler<ConfigurationAppliedEventArgs> ConfigurationApplied;
+        public event EventHandler<TableChangesSelectingEventArgs> TableChangesSelecting;
+        public event EventHandler<TableChangesSelectedEventArgs> TableChangesSelected;
+        public event EventHandler<TableChangesApplyingEventArgs> TableChangesApplying;
+        public event EventHandler<TableChangesAppliedEventArgs> TableChangesApplied;
 
         /// <summary>
         /// Use this constructor when you are on the Remote Side, only
@@ -163,25 +177,16 @@ namespace Dotmim.Sync.Web
 
         private async Task<HttpMessage> EnsureScopesAsync(HttpMessage httpMessage)
         {
-            try
-            {
+            if (httpMessage.EnsureScopes == null)
+                throw new ArgumentException("EnsureScopeMessage could not be null");
 
-                if (httpMessage.EnsureScopes == null)
-                    throw new ArgumentException("EnsureScopeMessage could not be null");
+            var (syncContext, lstScopes) = await this.EnsureScopesAsync(httpMessage.SyncContext, httpMessage.EnsureScopes.ScopeName, httpMessage.EnsureScopes.ClientReferenceId);
 
-                var (syncContext, lstScopes) = await this.EnsureScopesAsync(httpMessage.SyncContext, httpMessage.EnsureScopes.ScopeName, httpMessage.EnsureScopes.ClientReferenceId);
+            // Local scope is the server scope here
+            httpMessage.EnsureScopes.Scopes = lstScopes;
+            httpMessage.SyncContext = syncContext;
 
-                // Local scope is the server scope here
-                httpMessage.EnsureScopes.Scopes = lstScopes;
-                httpMessage.SyncContext = syncContext;
-
-                return httpMessage;
-            }
-            catch (Exception ex)
-            {
-
-                throw;
-            }
+            return httpMessage;
         }
 
         private async Task<HttpMessage> EnsureConfigurationAsync(HttpMessage httpMessage)
@@ -237,7 +242,7 @@ namespace Dotmim.Sync.Web
             // Server is able to define if it's in memory or not
             if (httpMessage.GetChangeBatch.BatchIndexRequested == 0)
             {
-                var (syncContext, bi, s) = await this.GetChangeBatchAsync(httpMessage.SyncContext, scopeInfo);
+                var (syncContext, bi, changesSelected) = await this.GetChangeBatchAsync(httpMessage.SyncContext, scopeInfo);
 
                 // Select the first bpi needed (index == 0)
                 if (bi.BatchPartsInfo.Count > 0)
@@ -245,7 +250,7 @@ namespace Dotmim.Sync.Web
 
                 httpMessage.SyncContext = syncContext;
                 httpMessage.GetChangeBatch.InMemory = bi.InMemory;
-                httpMessage.GetChangeBatch.ChangesStatistics = s;
+                httpMessage.GetChangeBatch.ChangesSelected = changesSelected;
 
                 // if no changes, return
                 if (httpMessage.GetChangeBatch.BatchPartInfo == null)
@@ -256,7 +261,7 @@ namespace Dotmim.Sync.Web
                 {
                     // Save the BatchInfo
                     this.LocalProvider.CacheManager.Set("GetChangeBatch_BatchInfo", bi);
-                    this.LocalProvider.CacheManager.Set("GetChangeBatch_ChangesStatistics", s);
+                    this.LocalProvider.CacheManager.Set("GetChangeBatch_ChangesSelected", changesSelected);
 
                     // load the batchpart set directly, to be able to send it back
                     var batchPart = httpMessage.GetChangeBatch.BatchPartInfo.GetBatch();
@@ -278,12 +283,12 @@ namespace Dotmim.Sync.Web
 
             // We are in batch mode here
             var batchInfo = this.LocalProvider.CacheManager.GetValue<BatchInfo>("GetChangeBatch_BatchInfo");
-            var stats = this.LocalProvider.CacheManager.GetValue<ChangesStatistics>("GetChangeBatch_ChangesStatistics");
+            var stats = this.LocalProvider.CacheManager.GetValue<ChangesSelected>("GetChangeBatch_ChangesSelected");
 
             if (batchInfo == null)
                 throw new ArgumentNullException("batchInfo stored in session can't be null if request more batch part info.");
 
-            httpMessage.GetChangeBatch.ChangesStatistics = stats;
+            httpMessage.GetChangeBatch.ChangesSelected = stats;
             httpMessage.GetChangeBatch.InMemory = batchInfo.InMemory;
 
             var batchPartInfo = batchInfo.BatchPartsInfo.FirstOrDefault(bpi => bpi.Index == httpMessage.GetChangeBatch.BatchIndexRequested);
@@ -296,7 +301,7 @@ namespace Dotmim.Sync.Web
             if (httpMessage.GetChangeBatch.BatchPartInfo.IsLastBatch)
             {
                 this.LocalProvider.CacheManager.Remove("GetChangeBatch_BatchInfo");
-                this.LocalProvider.CacheManager.Remove("GetChangeBatch_ChangesStatistics");
+                this.LocalProvider.CacheManager.Remove("GetChangeBatch_ChangesSelected");
             }
 
             return httpMessage;
@@ -332,7 +337,7 @@ namespace Dotmim.Sync.Web
                 var (c, s) = await this.ApplyChangesAsync(httpMessage.SyncContext, scopeInfo, batchInfo);
 
                 httpMessage.SyncContext = c;
-                httpMessage.ApplyChanges.ChangesStatistics = s;
+                httpMessage.ApplyChanges.ChangesApplied = s;
 
                 httpMessage.ApplyChanges.BatchPartInfo.Clear();
                 httpMessage.ApplyChanges.BatchPartInfo.FileName = null;
@@ -379,7 +384,7 @@ namespace Dotmim.Sync.Web
                 var (c, s) = await this.ApplyChangesAsync(httpMessage.SyncContext, scopeInfo, batchInfo);
                 this.LocalProvider.CacheManager.Remove("ApplyChanges_BatchInfo");
                 httpMessage.SyncContext = c;
-                httpMessage.ApplyChanges.ChangesStatistics = s;
+                httpMessage.ApplyChanges.ChangesApplied = s;
             }
 
             httpMessage.ApplyChanges.BatchPartInfo.Clear();
@@ -451,7 +456,7 @@ namespace Dotmim.Sync.Web
 
         }
 
-        public async Task<(SyncContext, ChangesStatistics)> ApplyChangesAsync(SyncContext ctx, ScopeInfo fromScope, BatchInfo changes)
+        public async Task<(SyncContext, ChangesApplied)> ApplyChangesAsync(SyncContext ctx, ScopeInfo fromScope, BatchInfo changes)
             => await this.LocalProvider.ApplyChangesAsync(ctx, fromScope, changes);
         public async Task<SyncContext> BeginSessionAsync(SyncContext ctx)
             => await this.LocalProvider.BeginSessionAsync(ctx);
@@ -461,7 +466,7 @@ namespace Dotmim.Sync.Web
             => await this.LocalProvider.EnsureDatabaseAsync(ctx, scopeInfo);
         public async Task<(SyncContext, List<ScopeInfo>)> EnsureScopesAsync(SyncContext ctx, string scopeName, Guid? clientReferenceId = null)
             => await this.LocalProvider.EnsureScopesAsync(ctx, scopeName, clientReferenceId);
-        public async Task<(SyncContext, BatchInfo, ChangesStatistics)> GetChangeBatchAsync(SyncContext ctx, ScopeInfo scopeInfo)
+        public async Task<(SyncContext, BatchInfo, ChangesSelected)> GetChangeBatchAsync(SyncContext ctx, ScopeInfo scopeInfo)
             => await this.LocalProvider.GetChangeBatchAsync(ctx, scopeInfo);
         public async Task<(SyncContext, Int64)> GetLocalTimestampAsync(SyncContext ctx)
             => await this.LocalProvider.GetLocalTimestampAsync(ctx);

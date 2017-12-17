@@ -9,7 +9,9 @@ namespace Dotmim.Sync.Enumerations
 
     public enum ChangeApplicationAction
     {
-        // Normal action
+        /// <summary>
+        /// Continue Action
+        /// </summary>
         Continue,
 
         /// <summary>

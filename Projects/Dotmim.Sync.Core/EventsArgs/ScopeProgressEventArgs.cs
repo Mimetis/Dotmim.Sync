@@ -2,33 +2,17 @@
 using Dotmim.Sync.Enumerations;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Dotmim.Sync
 {
-    /// <summary>
-    /// Event args during a sync progress
-    /// </summary>
-    public class SyncProgressEventArgs
+
+    public abstract class BaseProgressEventArgs
     {
         /// <summary>
-        /// Get the provider type name which raised the event
+        /// Gets the current stage
         /// </summary>
-        public string ProviderTypeName { get;  set; }
-
-        /// <summary>
-        /// When check if database exist, we generate a script
-        /// </summary>
-        public String DatabaseScript { get; set; }
-
-        /// <summary>
-        /// Gets the configuration used for this sync
-        /// </summary>
-        public SyncConfiguration Configuration { get;  set; }
-
-        /// <summary>
-        /// Gets or Sets the scopes info during WriteScopes event
-        /// </summary>
-        public List<ScopeInfo> Scopes { get;  set; }
+        public SyncStage Stage { get; }
 
         /// <summary>
         /// Gets or Sets the action to be taken : Could eventually Rollback the current processus
@@ -36,191 +20,193 @@ namespace Dotmim.Sync
         public ChangeApplicationAction Action { get; set; }
 
         /// <summary>
-        /// Statistics
+        /// Gets the provider type name which raised the event
         /// </summary>
-        public ChangesStatistics ChangesStatistics { get; set; }
+        public string ProviderTypeName { get; }
 
         /// <summary>
-        /// Current sync context
+        /// Constructor
         /// </summary>
-        public SyncContext Context { get;  set; }
-
+        public BaseProgressEventArgs(string providerTypeName, SyncStage stage)
+        {
+            this.ProviderTypeName = providerTypeName;
+            this.Stage = stage;
+        }
 
     }
 
     /// <summary>
-    /// Changes statistics on a data store
+    /// General sync progress. Only return a full string line
     /// </summary>
-    [Serializable]
-    public class ChangesStatistics
+    public class ProgressEventArgs : BaseProgressEventArgs
     {
-        /// <summary>
-        /// Get the changes selected to be applied
-        /// </summary>
-        public List<SelectedChanges> SelectedChanges { get;  set; } = new List<SelectedChanges>();
+        public ProgressEventArgs(string providerTypeName, SyncStage stage, string message) : base(providerTypeName, stage)
+        {
+            this.Message = message;
+        }
 
-        /// <summary>
-        /// Get the view to be applied 
-        /// </summary>
-        public List<AppliedChanges> AppliedChanges { get;  set; } = new List<AppliedChanges>();
+        public Dictionary<String, String> Properties { get; set; } = new Dictionary<string, string>();
 
-        /// <summary>
-        /// Gets the total number of changes that are to be applied during the synchronization session.
-        /// </summary>
-        public int TotalSelectedChanges
+        public String PropertiesMessage
         {
             get
             {
-                int totalChanges = 0;
+                if (Properties != null && Properties.Count > 0)
+                    return String.Join(" ", Properties.Where(kvp => !String.IsNullOrEmpty(kvp.Value))
+                                                      .Select((kvp) => $"{kvp.Key}: {kvp.Value}"));
 
-                foreach (var tableProgress in this.SelectedChanges)
-                    totalChanges = totalChanges + tableProgress.TotalChanges;
-
-                return totalChanges;
+                return string.Empty;
             }
         }
 
-        /// <summary>
-        /// Gets the total number of changes that have been applied during the synchronization session.
-        /// </summary>
-        public int TotalAppliedChanges
-        {
-            get
-            {
-                int changesApplied = 0;
-                foreach (var tableProgress in this.AppliedChanges)
-                {
-                    changesApplied = changesApplied + tableProgress.ChangesApplied;
-                }
-                return changesApplied;
-            }
-        }
-
-        /// <summary>
-        /// Gets the total number of changes that have failed to be applied during the synchronization session.
-        /// </summary>
-        public int TotalAppliedChangesFailed
-        {
-            get
-            {
-                int changesFailed = 0;
-                foreach (var tableProgress in this.AppliedChanges)
-                    changesFailed = changesFailed + tableProgress.ChangesFailed;
-
-                return changesFailed;
-            }
-        }
-
-        /// <summary>
-        /// Gets the total number of deletes that are to be applied during the synchronization session.
-        /// </summary>
-        public int TotalSelectedChangesDeletes
-        {
-            get
-            {
-                int deletes = 0;
-                foreach (var tableProgress in this.SelectedChanges)
-                    deletes = deletes + tableProgress.Deletes;
-
-                return deletes;
-            }
-        }
-
-        /// <summary>
-        /// Gets the total number of inserts that are to be applied during the synchronization session.
-        /// </summary>
-        public int TotalSelectedChangesInserts
-        {
-            get
-            {
-                int inserts = 0;
-                foreach (var tableProgress in this.SelectedChanges)
-                    inserts = inserts + tableProgress.Inserts;
-
-                return inserts;
-            }
-        }
-
-        /// <summary>
-        /// Gets the total number of updates that are to be applied during the synchronization session.
-        /// </summary>
-        public int TotalSelectedChangesUpdates
-        {
-            get
-            {
-                int updates = 0;
-                foreach (var tableProgress in this.SelectedChanges)
-                    updates = updates + tableProgress.Updates;
-
-                return updates;
-            }
-        }
+        public String Message { get; set; }
     }
 
-
     /// <summary>
-    /// Args for applied changed on a source, for each kind of DmRowState (Update / Delete / Insert)
+    /// Event args generated during BeginSession stage
     /// </summary>
-    [Serializable]
-    public class AppliedChanges
+    public class BeginSessionEventArgs : BaseProgressEventArgs
     {
-        /// <summary>
-        /// Gets the table where changes were applied
-        /// </summary>
-        public string TableName { get;  set; }
-
-        /// <summary>
-        /// Gets the RowState of the applied rows
-        /// </summary>
-        public DmRowState State { get;  set; }
-
-        /// <summary>
-        /// Gets the rows changes applied count
-        /// </summary>
-        public int ChangesApplied { get; set; }
-
-        /// <summary>
-        /// Gets the rows changes failed count
-        /// </summary>
-        public int ChangesFailed { get; set; }
-
-         void Cleanup()
+        public BeginSessionEventArgs(string providerTypeName, SyncStage stage) : base(providerTypeName, stage)
+        {
+        }
+    }
+    /// <summary>
+    /// Event args generated during EndSession stage
+    /// </summary>
+    public class EndSessionEventArgs : BaseProgressEventArgs
+    {
+        public EndSessionEventArgs(string providerTypeName, SyncStage stage) : base(providerTypeName, stage)
         {
         }
     }
 
     /// <summary>
-    /// Get changes to be applied (contains Deletes AND Inserts AND Updates)
+    /// Events args generated after database configuration has been applied
     /// </summary>
-    [Serializable]
-    public class SelectedChanges
+    public class DatabaseAppliedEventArgs : BaseProgressEventArgs
     {
-        /// <summary>
-        /// Gets the table name
-        /// </summary>
-        public string TableName { get;  set; }
+
+        public DatabaseAppliedEventArgs(string providerTypeName, SyncStage stage, string script) : base(providerTypeName, stage)
+        {
+            this.Script = script;
+        }
 
         /// <summary>
-        /// Gets or sets the number of deletes that should be applied to a table during the synchronization session.
+        /// Gets the script generated before applying on database
         /// </summary>
-        public int Deletes { get;  set; }
-
-        /// <summary>
-        /// Gets or sets the number of inserts that should be applied to a table during the synchronization session.
-        /// </summary>
-        public int Inserts { get;  set; }
-
-        /// <summary>
-        /// Gets or sets the number of updates that should be applied to a table during the synchronization session.
-        /// </summary>
-        public int Updates { get;  set; }
-
-        /// <summary>
-        /// Gets the total number of changes that are applied to a table during the synchronization session.
-        /// TODO : DEBUG TIME : To be sure we have the correct number, I set this value from CoreProvider
-        /// </summary>
-        public int TotalChanges { get;  set; } // => this.Inserts + this.Updates + this.Deletes;
+        public String Script { get; }
     }
+
+    /// <summary>
+    /// Event args generated before databas
+    /// </summary>
+    public class DatabaseApplyingEventArgs : BaseProgressEventArgs
+    {
+        public DatabaseApplyingEventArgs(string providerTypeName, SyncStage stage, SyncConfiguration configuration) : base(providerTypeName, stage)
+        {
+            this.Configuration = configuration;
+        }
+
+        /// <summary>
+        /// Configuration used for the current database to be applied
+        /// </summary>
+        public SyncConfiguration Configuration { get; set; }
+        /// <summary>
+        /// Gets or Sets a boolean for overwriting the current configuration. If True, all scripts are generated and applied
+        /// </summary>
+        public Boolean OverwriteConfiguration { get; set; }
+
+        /// <summary>
+        /// Gets or Sets a boolean value to specify if scripts should be generated, before applied.
+        /// </summary>
+        public Boolean GenerateScript { get; set; }
+
+    }
+
+
+    /// <summary>
+    /// Events args generated after database configuration has been applied
+    /// </summary>
+    public class DatabaseTableAppliedEventArgs : BaseProgressEventArgs
+    {
+
+        public DatabaseTableAppliedEventArgs(string providerTypeName, SyncStage stage, string tableName, string script) : base(providerTypeName, stage)
+        {
+            TableName = tableName;
+            this.Script = script;
+        }
+        /// <summary>
+        /// Gets the table name where schema has been applied
+        /// </summary>
+        public string TableName { get; }
+
+        /// <summary>
+        /// Gets the script generated before if option is enabled
+        /// </summary>
+        public String Script { get; }
+    }
+
+    /// <summary>
+    /// Event args generated before databas
+    /// </summary>
+    public class DatabaseTableApplyingEventArgs : BaseProgressEventArgs
+    {
+        public DatabaseTableApplyingEventArgs(string providerTypeName, SyncStage stage, string tableName) : base(providerTypeName, stage)
+        {
+            TableName = tableName;
+        }
+
+        /// <summary>
+        /// Gets the table name where schema has been applied
+        /// </summary>
+        public string TableName { get; }
+    }
+    /// <summary>
+    /// Events args generated after scope has been applied
+    /// </summary>
+    public class ScopeEventArgs : BaseProgressEventArgs
+    {
+        public ScopeEventArgs(string providerTypeName, SyncStage stage, ScopeInfo scope) : base(providerTypeName, stage)
+        {
+            this.ScopeInfo = scope;
+        }
+
+        /// <summary>
+        /// Gets the current scope from the local database
+        /// </summary>
+        public ScopeInfo ScopeInfo { get; }
+    }
+
+    public class ConfigurationApplyingEventArgs : BaseProgressEventArgs
+    {
+        public ConfigurationApplyingEventArgs(string providerTypeName, SyncStage stage) : base(providerTypeName, stage)
+        {
+        }
+
+        /// <summary>
+        /// Gets or Sets a boolean for overwriting the current configuration. If True, all scripts are generated and applied
+        /// </summary>
+        public Boolean OverwriteConfiguration { get; set; }
+
+        /// <summary>
+        /// Configuration
+        /// </summary>
+        public SyncConfiguration Configuration { get; }
+    }
+
+    public class ConfigurationAppliedEventArgs : BaseProgressEventArgs
+    {
+        public ConfigurationAppliedEventArgs(string providerTypeName, SyncStage stage, SyncConfiguration configuration) : base(providerTypeName, stage)
+        {
+            this.Configuration = configuration;
+        }
+        /// <summary>
+        /// Configuration
+        /// </summary>
+        public SyncConfiguration Configuration { get; }
+    }
+
 
 
 }

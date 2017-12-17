@@ -21,8 +21,24 @@ namespace Dotmim.Sync.Web
         private HttpRequestHandler httpRequestHandler;
         private CancellationToken cancellationToken;
         private SyncConfiguration syncConfiguration;
-        public event EventHandler<SyncProgressEventArgs> SyncProgress;
+
+        public event EventHandler<ProgressEventArgs> SyncProgress;
         public event EventHandler<ApplyChangeFailedEventArgs> ApplyChangedFailed;
+        public event EventHandler<BeginSessionEventArgs> BeginSession;
+        public event EventHandler<EndSessionEventArgs> EndSession;
+        public event EventHandler<ScopeEventArgs> ScopeLoading;
+        public event EventHandler<ScopeEventArgs> ScopeSaved;
+        public event EventHandler<DatabaseApplyingEventArgs> DatabaseApplying;
+        public event EventHandler<DatabaseAppliedEventArgs> DatabaseApplied;
+        public event EventHandler<DatabaseTableApplyingEventArgs> DatabaseTableApplying;
+        public event EventHandler<DatabaseTableAppliedEventArgs> DatabaseTableApplied;
+        public event EventHandler<ConfigurationApplyingEventArgs> ConfigurationApplying;
+        public event EventHandler<ConfigurationAppliedEventArgs> ConfigurationApplied;
+        public event EventHandler<TableChangesSelectingEventArgs> TableChangesSelecting;
+        public event EventHandler<TableChangesSelectedEventArgs> TableChangesSelected;
+        public event EventHandler<TableChangesApplyingEventArgs> TableChangesApplying;
+        public event EventHandler<TableChangesAppliedEventArgs> TableChangesApplied;
+
         private Uri serviceUri;
         private SerializationFormat serializationFormat;
 
@@ -195,7 +211,7 @@ namespace Dotmim.Sync.Web
 
 
 
-        public async Task<(SyncContext, BatchInfo, ChangesStatistics)> GetChangeBatchAsync(SyncContext context, ScopeInfo scopeInfo)
+        public async Task<(SyncContext, BatchInfo, ChangesSelected)> GetChangeBatchAsync(SyncContext context, ScopeInfo scopeInfo)
         {
             // While we have an other batch to process
             var isLastBatch = false;
@@ -204,7 +220,7 @@ namespace Dotmim.Sync.Web
             BatchInfo changes = new BatchInfo();
             changes.Directory = BatchInfo.GenerateNewDirectoryName();
             SyncContext syncContext = null;
-            ChangesStatistics changesStatistics = null;
+            ChangesSelected changesSelected = null;
 
             while (!isLastBatch)
             {
@@ -227,7 +243,7 @@ namespace Dotmim.Sync.Web
                     throw new Exception("Can't have an empty GetChangeBatch");
 
 
-                changesStatistics = httpMessageResponse.GetChangeBatch.ChangesStatistics;
+                changesSelected = httpMessageResponse.GetChangeBatch.ChangesSelected;
                 changes.InMemory = httpMessageResponse.GetChangeBatch.InMemory;
                 syncContext = httpMessageResponse.SyncContext;
 
@@ -277,19 +293,19 @@ namespace Dotmim.Sync.Web
 
             }
 
-            return (syncContext, changes, changesStatistics);
+            return (syncContext, changes, changesSelected);
         }
 
         /// <summary>
         /// Send changes to server
         /// </summary>
-        public async Task<(SyncContext, ChangesStatistics)> ApplyChangesAsync(SyncContext context, ScopeInfo fromScope, BatchInfo changes)
+        public async Task<(SyncContext, ChangesApplied)> ApplyChangesAsync(SyncContext context, ScopeInfo fromScope, BatchInfo changes)
         {
             if (changes == null || changes.BatchPartsInfo.Count == 0)
-                return (context, new ChangesStatistics());
+                return (context, new ChangesApplied());
 
             SyncContext syncContext = null;
-            ChangesStatistics changesStatistics = null;
+            ChangesApplied changesApplied = null;
 
             // Foreach part, will have to send them to the remote
             // once finished, return context
@@ -301,7 +317,6 @@ namespace Dotmim.Sync.Web
 
                 httpMessage.ApplyChanges = new HttpApplyChangesMessage();
                 httpMessage.ApplyChanges.ScopeInfo = fromScope;
-
 
                 // If BPI is InMempory, no need to deserialize from disk
                 // Set already contained in part.Set
@@ -344,10 +359,10 @@ namespace Dotmim.Sync.Web
                     throw new Exception("Can't have an empty body");
 
                 syncContext = httpMessageResponse.SyncContext;
-                changesStatistics = httpMessageResponse.ApplyChanges.ChangesStatistics;
+                changesApplied = httpMessageResponse.ApplyChanges.ChangesApplied;
             }
 
-            return (syncContext, changesStatistics);
+            return (syncContext, changesApplied);
 
         }
 
