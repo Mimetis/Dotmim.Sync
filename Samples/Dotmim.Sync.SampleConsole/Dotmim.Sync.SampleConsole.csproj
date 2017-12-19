@@ -14,7 +14,7 @@
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="2.0.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="2.0.0" />
     <PackageReference Include="MySqlConnector">
-      <Version>0.33.0</Version>
+      <Version>0.33.1</Version>
     </PackageReference>
     <PackageReference Include="Newtonsoft.Json" Version="10.0.3" />
     <PackageReference Include="System.Security.Permissions" Version="4.5.0-preview1-25914-04" />

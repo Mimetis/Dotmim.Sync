@@ -267,7 +267,17 @@ namespace Dotmim.Sync
                 // if we dont have already read the tables || we want to overwrite the current config
                 if ((configuration.HasTables && !configuration.HasColumns))
                 {
-                    var conf = await this.ReadConfigurationAsync(configuration.Select(c => c.TableName).ToArray());
+                    string[] tables = new string[configuration.Count];
+
+                    for (int i = 0; i < configuration.Count; i++)
+                    {
+                        // just check if we have a schema
+                        var dmTable = configuration[i];
+                        var tableName = String.IsNullOrEmpty(dmTable.Schema) ? dmTable.TableName : $"[{dmTable.Schema}].[{dmTable.TableName}]";
+                        tables[i] = tableName;
+                    }
+
+                    var conf = await this.ReadConfigurationAsync(tables);
                     configuration.ScopeSet = conf.ScopeSet.Clone();
                 }
 

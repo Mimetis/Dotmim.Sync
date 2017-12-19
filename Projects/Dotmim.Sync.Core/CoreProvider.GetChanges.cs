@@ -279,8 +279,6 @@ namespace Dotmim.Sync
                                     // get if the current row is inserted, modified, deleted
                                     state = GetStateFromDmRow(dataRow, scopeInfo);
 
-                                    state = DmRowState.Added;
-
                                     if (state != DmRowState.Deleted && state != DmRowState.Modified && state != DmRowState.Added)
                                         continue;
 
@@ -288,23 +286,23 @@ namespace Dotmim.Sync
                                     dmTableChanges.Rows.Add(dataRow);
 
                                     // acceptchanges before modifying 
-                                    //dataRow.AcceptChanges();
+                                    dataRow.AcceptChanges();
                                     tableSelectedChanges.TotalChanges++;
 
                                     // Set the correct state to be applied
                                     if (state == DmRowState.Deleted)
                                     {
-                                        //dataRow.Delete();
+                                        dataRow.Delete();
                                         tableSelectedChanges.Deletes++;
                                     }
                                     else if (state == DmRowState.Added)
                                     {
-                                        //dataRow.SetAdded();
+                                        dataRow.SetAdded();
                                         tableSelectedChanges.Inserts++;
                                     }
                                     else if (state == DmRowState.Modified)
                                     {
-                                        //dataRow.SetModified();
+                                        dataRow.SetModified();
                                         tableSelectedChanges.Updates++;
                                     }
                                 }

@@ -133,6 +133,15 @@ namespace Dotmim.Sync.SqlServer.Builders
                     SqlDataRecord record = new SqlDataRecord(metadatas);
 
                     int sqlMetadataIndex = 0;
+                    bool isDeleted = false;
+
+                    // Cancel the delete state to be able to get the row, more simplier
+                    if (dmRow.RowState == DmRowState.Deleted)
+                    {
+                        isDeleted = true;
+                        dmRow.RejectChanges();
+                    }
+
                     for (int i = 0; i < dmRow.ItemArray.Length; i++)
                     {
                         // check if it's readonly
@@ -283,6 +292,12 @@ namespace Dotmim.Sync.SqlServer.Builders
                         sqlMetadataIndex++;
                     }
                     records.Add(record);
+
+                    // Apply the delete
+                    // is it mandatory ?
+                    if (isDeleted)
+                        dmRow.Delete();
+
                 }
             }
             catch (Exception ex)
