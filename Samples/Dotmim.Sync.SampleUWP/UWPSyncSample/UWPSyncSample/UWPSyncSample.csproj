@@ -201,19 +201,19 @@
       <Version>2.0.1</Version>
     </PackageReference>
     <PackageReference Include="Microsoft.NETCore.UniversalWindowsPlatform">
-      <Version>6.0.1</Version>
+      <Version>6.0.5</Version>
     </PackageReference>
     <PackageReference Include="Microsoft.Toolkit.Uwp.UI.Controls">
-      <Version>2.0.0</Version>
+      <Version>2.1.1</Version>
     </PackageReference>
     <PackageReference Include="MySqlConnector">
-      <Version>0.32.0</Version>
+      <Version>0.33.1</Version>
     </PackageReference>
     <PackageReference Include="Pomelo.EntityFrameworkCore.MySql">
       <Version>2.0.1</Version>
     </PackageReference>
     <PackageReference Include="System.Data.SqlClient">
-      <Version>4.4.0</Version>
+      <Version>4.4.2</Version>
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
