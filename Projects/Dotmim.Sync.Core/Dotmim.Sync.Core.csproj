@@ -10,7 +10,7 @@
 Can't be used alone. Choose a server and a client provider such as Dotmim.Sync.SqlServerProvider or Dotmim.Sync.SqliteProvider</Description>
     <PackageProjectUrl>https://mimetis.github.io/Dotmim.Sync/</PackageProjectUrl>
     <PackageTags>Dotmim.Sync, Sync Core Provider, .Net Standard 2.0, Sync, Synchronization, Sync Framework</PackageTags>
-    <Version>0.1.7</Version>
+    <Version>0.1.8</Version>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.CSharp" Version="4.4.1" />
