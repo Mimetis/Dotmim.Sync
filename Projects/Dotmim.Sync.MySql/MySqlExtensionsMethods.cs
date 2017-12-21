@@ -307,7 +307,7 @@ namespace Dotmim.Sync.MySql
 
             MySqlParameter sqlParameter = new MySqlParameter
             {
-                ParameterName = $"in{column.ColumnName}",
+                ParameterName = $"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{column.ColumnName}",
                 DbType = column.DbType,
                 IsNullable = column.AllowDBNull
             };

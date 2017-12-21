@@ -189,50 +189,52 @@ namespace Dotmim.Sync
         private DmTable GetRow(DmRow sourceRow)
         {
             // Get the row in the local repository
-            DbCommand selectCommand = GetCommand(DbCommandType.SelectRow);
-
-            // Deriving Parameters
-            this.SetCommandParameters(DbCommandType.SelectRow, selectCommand);
-
-            this.SetColumnParametersValues(selectCommand, sourceRow);
-
-            var alreadyOpened = Connection.State == ConnectionState.Open;
-
-            // Open Connection
-            if (!alreadyOpened)
-                Connection.Open();
-
-            if (Transaction != null)
-                selectCommand.Transaction = Transaction;
-
-            var dmTableSelected = new DmTable(this.TableDescription.TableName);
-            try
+            using (DbCommand selectCommand = GetCommand(DbCommandType.SelectRow))
             {
-                using (var reader = selectCommand.ExecuteReader())
-                    dmTableSelected.Fill(reader);
+                // Deriving Parameters
+                this.SetCommandParameters(DbCommandType.SelectRow, selectCommand);
 
-                // set the pkey since we will need them later
-                var pkeys = new DmColumn[this.TableDescription.PrimaryKey.Columns.Length];
-                for (int i = 0; i < pkeys.Length; i++)
-                {
-                    var pkName = this.TableDescription.PrimaryKey.Columns[i].ColumnName;
-                    pkeys[i] = dmTableSelected.Columns.First(dm => this.TableDescription.IsEqual(dm.ColumnName, pkName));
-                }
-                dmTableSelected.PrimaryKey = new DmKey(pkeys);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine("Server Error on Getting a row : " + ex.Message);
-                throw;
-            }
-            finally
-            {
-                // Close Connection
+                this.SetColumnParametersValues(selectCommand, sourceRow);
+
+                var alreadyOpened = Connection.State == ConnectionState.Open;
+
+                // Open Connection
                 if (!alreadyOpened)
-                    Connection.Close();
+                    Connection.Open();
+
+                if (Transaction != null)
+                    selectCommand.Transaction = Transaction;
+
+                var dmTableSelected = new DmTable(this.TableDescription.TableName);
+                try
+                {
+                    using (var reader = selectCommand.ExecuteReader())
+                        dmTableSelected.Fill(reader);
+
+                    // set the pkey since we will need them later
+                    var pkeys = new DmColumn[this.TableDescription.PrimaryKey.Columns.Length];
+                    for (int i = 0; i < pkeys.Length; i++)
+                    {
+                        var pkName = this.TableDescription.PrimaryKey.Columns[i].ColumnName;
+                        pkeys[i] = dmTableSelected.Columns.First(dm => this.TableDescription.IsEqual(dm.ColumnName, pkName));
+                    }
+                    dmTableSelected.PrimaryKey = new DmKey(pkeys);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine("Server Error on Getting a row : " + ex.Message);
+                    throw;
+                }
+                finally
+                {
+                    // Close Connection
+                    if (!alreadyOpened)
+                        Connection.Close();
+                }
+
+                return dmTableSelected;
             }
 
-            return dmTableSelected;
         }
 
         /// <summary>
@@ -271,9 +273,6 @@ namespace Dotmim.Sync
             // Create the schema for failed rows (just add the Primary keys)
             this.AddSchemaForFailedRowsTable(failedDmtable);
 
-            //int batchCount = 0;
-            //int rowCount = 0;
-
             // Since the update and create timestamp come from remote, change name for the bulk operations
             var update_timestamp_column = dmChanges.Table.Columns["update_timestamp"].ColumnName;
             dmChanges.Table.Columns["update_timestamp"].ColumnName = "update_timestamp";
@@ -284,7 +283,7 @@ namespace Dotmim.Sync
             for (int step = 0; step < dmChanges.Count; step += BATCH_SIZE)
             {
                 // get upper bound max value
-                var taken = step + BATCH_SIZE >= dmChanges.Count ? dmChanges.Count - step: BATCH_SIZE;
+                var taken = step + BATCH_SIZE >= dmChanges.Count ? dmChanges.Count - step : BATCH_SIZE;
 
                 using (var dmStepChanges = dmChanges.Take(step, taken))
                 {
@@ -292,6 +291,13 @@ namespace Dotmim.Sync
                     ExecuteBatchCommand(bulkCommand, dmStepChanges, failedDmtable, fromScope);
                 }
 
+            }
+
+            // Disposing command
+            if (bulkCommand != null)
+            {
+                bulkCommand.Dispose();
+                bulkCommand = null;
             }
 
             // Since the update and create timestamp come from remote, change name for the bulk operations
@@ -361,8 +367,6 @@ namespace Dotmim.Sync
             // Dispose the failed view
             dmFailedRows.Dispose();
             dmFailedRows = null;
-            //batchDmTable.Clear();
-            //batchDmTable = null;
 
             // return applied rows - failed rows (generating a conflict)
             return dmChanges.Count - failedRows;
@@ -387,11 +391,11 @@ namespace Dotmim.Sync
                     operationComplete = this.ApplyInsert(dmRow, scope, false);
                     if (operationComplete)
                     {
-                        dbCommand = this.GetCommand(DbCommandType.InsertMetadata);
-                        this.SetCommandParameters(DbCommandType.InsertMetadata, dbCommand);
-
-                        this.InsertOrUpdateMetadatas(dbCommand, dmRow, scope.Id);
-
+                        using (dbCommand = this.GetCommand(DbCommandType.InsertMetadata))
+                        {
+                            this.SetCommandParameters(DbCommandType.InsertMetadata, dbCommand);
+                            this.InsertOrUpdateMetadatas(dbCommand, dmRow, scope.Id);
+                        }
                     }
                 }
                 else if (applyType == DmRowState.Modified)
@@ -399,10 +403,12 @@ namespace Dotmim.Sync
                     operationComplete = this.ApplyUpdate(dmRow, scope, false);
                     if (operationComplete)
                     {
-                        dbCommand = this.GetCommand(DbCommandType.UpdateMetadata);
+                        using (dbCommand = this.GetCommand(DbCommandType.UpdateMetadata))
+                        {
+                            this.SetCommandParameters(DbCommandType.UpdateMetadata, dbCommand);
+                            this.InsertOrUpdateMetadatas(dbCommand, dmRow, scope.Id);
+                        }
 
-                        this.SetCommandParameters(DbCommandType.UpdateMetadata, dbCommand);
-                        this.InsertOrUpdateMetadatas(dbCommand, dmRow, scope.Id);
                     }
                 }
                 else if (applyType == DmRowState.Deleted)
@@ -410,9 +416,11 @@ namespace Dotmim.Sync
                     operationComplete = this.ApplyDelete(dmRow, scope, false);
                     if (operationComplete)
                     {
-                        dbCommand = this.GetCommand(DbCommandType.UpdateMetadata);
-                        this.SetCommandParameters(DbCommandType.UpdateMetadata, dbCommand);
-                        this.InsertOrUpdateMetadatas(dbCommand, dmRow, scope.Id);
+                        using (dbCommand = this.GetCommand(DbCommandType.UpdateMetadata))
+                        {
+                            this.SetCommandParameters(DbCommandType.UpdateMetadata, dbCommand);
+                            this.InsertOrUpdateMetadatas(dbCommand, dmRow, scope.Id);
+                        }
                     }
                 }
 
@@ -433,51 +441,52 @@ namespace Dotmim.Sync
         /// </summary>
         internal bool ApplyInsert(DmRow remoteRow, ScopeInfo scope, bool forceWrite)
         {
-            var command = this.GetCommand(DbCommandType.InsertRow);
-
-            // Deriving Parameters
-            this.SetCommandParameters(DbCommandType.InsertRow, command);
-
-            // Set the parameters value from row
-            this.SetColumnParametersValues(command, remoteRow);
-
-            // Set the special parameters for insert
-            AddCommonParametersValues(command, scope.Id, scope.LastTimestamp, false, forceWrite);
-
-            var alreadyOpened = Connection.State == ConnectionState.Open;
-
-            // Open Connection
-            if (!alreadyOpened)
-                Connection.Open();
-
-            int rowInsertedCount = 0;
-            try
+            using (var command = this.GetCommand(DbCommandType.InsertRow))
             {
-                if (Transaction != null)
-                    command.Transaction = Transaction;
 
-                rowInsertedCount = command.ExecuteNonQuery();
-            }
-            catch (ArgumentException ex)
-            {
-                Debug.WriteLine(ex.Message);
-                throw;
-            }
-            catch (DbException ex)
-            {
-                Debug.WriteLine(ex.Message);
-                return false;
-            }
-            finally
-            {
+                // Deriving Parameters
+                this.SetCommandParameters(DbCommandType.InsertRow, command);
+
+                // Set the parameters value from row
+                this.SetColumnParametersValues(command, remoteRow);
+
+                // Set the special parameters for insert
+                AddCommonParametersValues(command, scope.Id, scope.LastTimestamp, false, forceWrite);
+
+                var alreadyOpened = Connection.State == ConnectionState.Open;
+
                 // Open Connection
                 if (!alreadyOpened)
-                    Connection.Close();
+                    Connection.Open();
 
+                int rowInsertedCount = 0;
+                try
+                {
+                    if (Transaction != null)
+                        command.Transaction = Transaction;
+
+                    rowInsertedCount = command.ExecuteNonQuery();
+                }
+                catch (ArgumentException ex)
+                {
+                    Debug.WriteLine(ex.Message);
+                    throw;
+                }
+                catch (DbException ex)
+                {
+                    Debug.WriteLine(ex.Message);
+                    return false;
+                }
+                finally
+                {
+                    // Open Connection
+                    if (!alreadyOpened)
+                        Connection.Close();
+
+                }
+
+                return rowInsertedCount > 0;
             }
-
-            return rowInsertedCount > 0;
-
         }
 
         /// <summary>
@@ -485,50 +494,53 @@ namespace Dotmim.Sync
         /// </summary>
         internal bool ApplyDelete(DmRow sourceRow, ScopeInfo scope, bool forceWrite)
         {
-            var command = this.GetCommand(DbCommandType.DeleteRow);
-
-            // Deriving Parameters
-            this.SetCommandParameters(DbCommandType.DeleteRow, command);
-
-            // Set the parameters value from row
-            this.SetColumnParametersValues(command, sourceRow);
-
-            // Set the special parameters for update
-            this.AddCommonParametersValues(command, scope.Id, scope.LastTimestamp, true, forceWrite);
-
-            var alreadyOpened = Connection.State == ConnectionState.Open;
-
-            int rowInsertedCount = 0;
-            try
+            using (var command = this.GetCommand(DbCommandType.DeleteRow))
             {
-                // OPen Connection
-                if (!alreadyOpened)
-                    Connection.Open();
 
-                if (Transaction != null)
-                    command.Transaction = Transaction;
 
-                rowInsertedCount = command.ExecuteNonQuery();
 
+                // Deriving Parameters
+                this.SetCommandParameters(DbCommandType.DeleteRow, command);
+
+                // Set the parameters value from row
+                this.SetColumnParametersValues(command, sourceRow);
+
+                // Set the special parameters for update
+                this.AddCommonParametersValues(command, scope.Id, scope.LastTimestamp, true, forceWrite);
+
+                var alreadyOpened = Connection.State == ConnectionState.Open;
+
+                int rowInsertedCount = 0;
+                try
+                {
+                    // OPen Connection
+                    if (!alreadyOpened)
+                        Connection.Open();
+
+                    if (Transaction != null)
+                        command.Transaction = Transaction;
+
+                    rowInsertedCount = command.ExecuteNonQuery();
+
+                }
+                catch (ArgumentException ex)
+                {
+                    Debug.WriteLine(ex.Message);
+                    throw;
+                }
+                catch (DbException ex)
+                {
+                    Debug.WriteLine(ex.Message);
+                    return false;
+                }
+                finally
+                {
+                    if (!alreadyOpened)
+                        Connection.Close();
+                }
+
+                return rowInsertedCount > 0;
             }
-            catch (ArgumentException ex)
-            {
-                Debug.WriteLine(ex.Message);
-                throw;
-            }
-            catch (DbException ex)
-            {
-                Debug.WriteLine(ex.Message);
-                return false;
-            }
-            finally
-            {
-                if (!alreadyOpened)
-                    Connection.Close();
-            }
-
-            return rowInsertedCount > 0;
-
         }
 
         /// <summary>
@@ -536,43 +548,44 @@ namespace Dotmim.Sync
         /// </summary>
         internal bool ResetTable(DmTable tableDescription)
         {
-            var command = this.GetCommand(DbCommandType.Reset);
-
-            // Deriving Parameters
-            this.SetCommandParameters(DbCommandType.Reset, command);
-
-            var alreadyOpened = Connection.State == ConnectionState.Open;
-
-            int rowCount = 0;
-            try
+            using (var command = this.GetCommand(DbCommandType.Reset))
             {
-                // OPen Connection
-                if (!alreadyOpened)
-                    Connection.Open();
+                // Deriving Parameters
+                this.SetCommandParameters(DbCommandType.Reset, command);
 
-                if (Transaction != null)
-                    command.Transaction = Transaction;
+                var alreadyOpened = Connection.State == ConnectionState.Open;
 
-                rowCount = command.ExecuteNonQuery();
-            }
-            catch (ArgumentException ex)
-            {
-                Debug.WriteLine(ex.Message);
-                throw;
-            }
-            catch (DbException ex)
-            {
-                Debug.WriteLine(ex.Message);
-                return false;
-            }
-            finally
-            {
-                if (!alreadyOpened)
-                    Connection.Close();
-            }
+                int rowCount = 0;
+                try
+                {
+                    // OPen Connection
+                    if (!alreadyOpened)
+                        Connection.Open();
 
-            return rowCount > 0;
+                    if (Transaction != null)
+                        command.Transaction = Transaction;
 
+                    rowCount = command.ExecuteNonQuery();
+                }
+                catch (ArgumentException ex)
+                {
+                    Debug.WriteLine(ex.Message);
+                    throw;
+                }
+                catch (DbException ex)
+                {
+                    Debug.WriteLine(ex.Message);
+                    return false;
+                }
+                finally
+                {
+                    if (!alreadyOpened)
+                        Connection.Close();
+                }
+
+                return rowCount > 0;
+
+            }
 
         }
 
@@ -581,48 +594,50 @@ namespace Dotmim.Sync
         /// </summary>
         internal bool ApplyUpdate(DmRow sourceRow, ScopeInfo scope, bool forceWrite)
         {
-            var command = this.GetCommand(DbCommandType.UpdateRow);
-
-            // Deriving Parameters
-            this.SetCommandParameters(DbCommandType.UpdateRow, command);
-
-            // Set the parameters value from row
-            this.SetColumnParametersValues(command, sourceRow);
-
-            // Set the special parameters for update
-            AddCommonParametersValues(command, scope.Id, scope.LastTimestamp, false, forceWrite);
-
-            var alreadyOpened = Connection.State == ConnectionState.Open;
-
-            int rowInsertedCount = 0;
-            try
+            using (var command = this.GetCommand(DbCommandType.UpdateRow))
             {
-                // OPen Connection
-                if (!alreadyOpened)
-                    Connection.Open();
 
-                if (Transaction != null)
-                    command.Transaction = Transaction;
+                // Deriving Parameters
+                this.SetCommandParameters(DbCommandType.UpdateRow, command);
 
-                rowInsertedCount = command.ExecuteNonQuery();
-            }
-            catch (ArgumentException ex)
-            {
-                Debug.WriteLine(ex.Message);
-                throw;
-            }
-            catch (DbException ex)
-            {
-                Debug.WriteLine(ex.Message);
-                return false;
-            }
-            finally
-            {
-                if (!alreadyOpened)
-                    Connection.Close();
-            }
+                // Set the parameters value from row
+                this.SetColumnParametersValues(command, sourceRow);
 
-            return rowInsertedCount > 0;
+                // Set the special parameters for update
+                AddCommonParametersValues(command, scope.Id, scope.LastTimestamp, false, forceWrite);
+
+                var alreadyOpened = Connection.State == ConnectionState.Open;
+
+                int rowInsertedCount = 0;
+                try
+                {
+                    // OPen Connection
+                    if (!alreadyOpened)
+                        Connection.Open();
+
+                    if (Transaction != null)
+                        command.Transaction = Transaction;
+
+                    rowInsertedCount = command.ExecuteNonQuery();
+                }
+                catch (ArgumentException ex)
+                {
+                    Debug.WriteLine(ex.Message);
+                    throw;
+                }
+                catch (DbException ex)
+                {
+                    Debug.WriteLine(ex.Message);
+                    return false;
+                }
+                finally
+                {
+                    if (!alreadyOpened)
+                        Connection.Close();
+                }
+
+                return rowInsertedCount > 0;
+            }
         }
 
 
@@ -779,16 +794,18 @@ namespace Dotmim.Sync
                         this.ApplyUpdate(row, scope, true);
 
                         // TODO : Différencier le timestamp de mise à jour ou de création
-                        var updateMetadataCommand = GetCommand(DbCommandType.UpdateMetadata);
+                        using (var updateMetadataCommand = GetCommand(DbCommandType.UpdateMetadata))
+                        {
+                            // Deriving Parameters
+                            this.SetCommandParameters(DbCommandType.UpdateMetadata, updateMetadataCommand);
 
-                        // Deriving Parameters
-                        this.SetCommandParameters(DbCommandType.UpdateMetadata, updateMetadataCommand);
+                            // apply local row, set scope.id to null becoz applied locally
+                            var rowsApplied = this.InsertOrUpdateMetadatas(updateMetadataCommand, conflict.LocalRow, null);
 
-                        // apply local row, set scope.id to null becoz applied locally
-                        var rowsApplied = this.InsertOrUpdateMetadatas(updateMetadataCommand, conflict.LocalRow, null);
+                            if (!rowsApplied)
+                                throw new Exception("No metadatas rows found, can't update the server side");
 
-                        if (!rowsApplied)
-                            throw new Exception("No metadatas rows found, can't update the server side");
+                        }
 
                     }
 
@@ -863,15 +880,16 @@ namespace Dotmim.Sync
                 }
 
 
-                var metadataCommand = GetCommand(commandType);
+                using (var metadataCommand = GetCommand(commandType))
+                {
+                    // Deriving Parameters
+                    this.SetCommandParameters(commandType, metadataCommand);
 
-                // Deriving Parameters
-                this.SetCommandParameters(commandType, metadataCommand);
-
-                // force applying client row, so apply scope.id (client scope here)
-                var rowsApplied = this.InsertOrUpdateMetadatas(metadataCommand, conflict.RemoteRow, scope.Id);
-                if (!rowsApplied)
-                    throw new Exception("No metadatas rows found, can't update the server side");
+                    // force applying client row, so apply scope.id (client scope here)
+                    var rowsApplied = this.InsertOrUpdateMetadatas(metadataCommand, conflict.RemoteRow, scope.Id);
+                    if (!rowsApplied)
+                        throw new Exception("No metadatas rows found, can't update the server side");
+                }
 
                 finalRow = conflict.RemoteRow;
 

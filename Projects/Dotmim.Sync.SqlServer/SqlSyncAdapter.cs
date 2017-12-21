@@ -337,6 +337,9 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             finally
             {
+                records.Clear();
+                records = null;
+               
                 if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
                     this.connection.Close();
 

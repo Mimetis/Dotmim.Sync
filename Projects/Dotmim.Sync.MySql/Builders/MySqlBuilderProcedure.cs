@@ -23,6 +23,7 @@ namespace Dotmim.Sync.MySql
         private DmTable tableDescription;
         private MySqlObjectNames sqlObjectNames;
         private MySqlDbMetadata mySqlDbMetadata;
+        internal const string MYSQL_PREFIX_PARAMETER = "in_";
 
         public FilterClauseCollection Filters { get; set; }
 
@@ -177,8 +178,6 @@ namespace Dotmim.Sync.MySql
             return false;
         }
 
-
-
         //------------------------------------------------------------------
         // Reset command
         //------------------------------------------------------------------
@@ -210,8 +209,7 @@ namespace Dotmim.Sync.MySql
             return CreateProcedureCommandScriptText(BuildResetCommand, commandName);
         }
 
-
-        //------------------------------------------------------------------
+       //------------------------------------------------------------------
         // Delete command
         //------------------------------------------------------------------
         private MySqlCommand BuildDeleteCommand()
@@ -314,7 +312,7 @@ namespace Dotmim.Sync.MySql
             {
                 ObjectNameParser columnName = new ObjectNameParser(mutableColumn.ColumnName, "`", "`");
                 stringBuilderArguments.Append(string.Concat(empty, columnName.QuotedString));
-                stringBuilderParameters.Append(string.Concat(empty, $"in{columnName.UnquotedString}"));
+                stringBuilderParameters.Append(string.Concat(empty, $"{MYSQL_PREFIX_PARAMETER}{columnName.UnquotedString}"));
                 empty = ", ";
             }
             stringBuilder.AppendLine($"\tINSERT INTO {tableName.QuotedString}");
@@ -378,7 +376,7 @@ namespace Dotmim.Sync.MySql
             {
                 ObjectNameParser columnName = new ObjectNameParser(pkColumn.ColumnName, "`", "`");
                 stringBuilderArguments.Append(string.Concat(empty, columnName.QuotedString.ToLowerInvariant()));
-                stringBuilderParameters.Append(string.Concat(empty, $"in{columnName.UnquotedString.ToLowerInvariant()}"));
+                stringBuilderParameters.Append(string.Concat(empty, $"{MYSQL_PREFIX_PARAMETER}{columnName.UnquotedString.ToLowerInvariant()}"));
                 empty = ", ";
             }
             stringBuilder.Append($"\t({stringBuilderArguments.ToString()}, ");
@@ -435,7 +433,7 @@ namespace Dotmim.Sync.MySql
             {
                 ObjectNameParser pkColumnName = new ObjectNameParser(pkColumn.ColumnName, "`", "`");
                 stringBuilder.AppendLine($"\t`side`.{pkColumnName.QuotedString}, ");
-                stringBuilder1.Append($"{empty}`side`.{pkColumnName.QuotedString} = in{pkColumnName.UnquotedString}");
+                stringBuilder1.Append($"{empty}`side`.{pkColumnName.QuotedString} = {MYSQL_PREFIX_PARAMETER}{pkColumnName.UnquotedString}");
                 empty = " AND ";
             }
             foreach (DmColumn nonPkMutableColumn in this.tableDescription.NonPkColumns.Where(c => !c.ReadOnly))

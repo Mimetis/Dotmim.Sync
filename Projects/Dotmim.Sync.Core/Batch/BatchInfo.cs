@@ -145,5 +145,16 @@ namespace Dotmim.Sync.Batch
             return $"{batchIndex}_{Path.GetRandomFileName().Replace(".", "_")}.batch";
         }
 
+
+        public void Clear()
+        {
+            foreach (var bpi in this.BatchPartsInfo)
+            {
+                bpi.Clear();
+            }
+
+            this.BatchPartsInfo.Clear();
+
+        }
     }
 }
