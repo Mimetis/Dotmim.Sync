@@ -93,16 +93,6 @@ namespace Dotmim.Sync
             this.RemoteProvider = remoteProvider ?? throw new ArgumentNullException("ServerProvider");
             this.scopeName = scopeName ?? throw new ArgumentNullException("scopeName");
 
-            // Todo : Check if can be server provider
-            //CoreProvider p = null;
-            //if ((remoteProvider as WebProxyServerProvider) != null)
-            //    p = ((WebProxyServerProvider)RemoteProvider).LocalProvider;
-            //else if ((remoteProvider as CoreProvider) != null)
-            //    p = (CoreProvider)remoteProvider;
-
-            //if (p != null && !p.CanBeServerProvider)
-            //    throw new NotSupportedException();
-
             this.LocalProvider.SyncProgress += (s, e) => this.SyncProgress?.Invoke(s, e);
             this.LocalProvider.BeginSession += (s, e) => this.BeginSession?.Invoke(s, e);
             this.LocalProvider.EndSession += (s, e) => this.EndSession?.Invoke(s, e);
@@ -116,14 +106,14 @@ namespace Dotmim.Sync
             this.LocalProvider.DatabaseApplying += (s, e) => this.DatabaseApplying?.Invoke(s, e);
             this.LocalProvider.ScopeLoading += (s, e) => this.ScopeLoading?.Invoke(s, e);
             this.LocalProvider.ScopeSaved += (s, e) => this.ScopeSaved?.Invoke(s, e);
+
             this.RemoteProvider.ApplyChangedFailed += RemoteProvider_ApplyChangedFailed;
         }
 
 
 
         /// <summary>
-        /// SyncAgent manage both server and client provider
-        /// It's the main object to launch the Sync process
+        /// SyncAgent used in a web proxy sync session. No need to set tables, it's done from the server web api side.
         /// </summary>
         public SyncAgent(IProvider localProvider, IProvider remoteProvider)
             : this("DefaultScope", localProvider, remoteProvider)
@@ -211,6 +201,7 @@ namespace Dotmim.Sync
         {
             return await this.SynchronizeAsync(SyncType.Normal, cancellationToken);
         }
+
         /// <summary>
         /// Launch a synchronization with the specified mode
         /// </summary>
@@ -219,6 +210,7 @@ namespace Dotmim.Sync
             return await this.SynchronizeAsync(syncType, CancellationToken.None);
 
         }
+ 
         /// <summary>
         /// Launch a synchronization with the specified mode
         /// </summary>
@@ -469,7 +461,7 @@ namespace Dotmim.Sync
                 hasErrors = true;
                 throw;
             }
-            catch (SyncException sex)
+            catch (SyncException)
             {
                 hasErrors = true;
                 throw;
@@ -505,9 +497,6 @@ namespace Dotmim.Sync
 
         }
 
-
-
-       
 
         private void RemoteProvider_ApplyChangedFailed(object sender, ApplyChangeFailedEventArgs e)
         {
