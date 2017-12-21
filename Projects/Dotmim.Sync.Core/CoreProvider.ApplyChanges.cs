@@ -107,9 +107,10 @@ namespace Dotmim.Sync
                         }
 
                         if (connection != null && connection.State == ConnectionState.Open)
-                        {
                             connection.Close();
-                        }
+
+                        if (changes != null)
+                            changes.Clear();
 
                     }
                     return (context, changesApplied);
@@ -292,6 +293,9 @@ namespace Dotmim.Sync
                             
                         }
                     }
+
+                    if (syncAdapter.ConflictActionInvoker != null)
+                        syncAdapter.ConflictActionInvoker = null;
 
                     Debug.WriteLine("");
                     Debug.WriteLine($"--- End {applyType.ToString()} for Table \"{tableDescription.TableName}\" ---");
