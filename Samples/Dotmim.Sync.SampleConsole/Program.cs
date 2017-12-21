@@ -2,10 +2,12 @@
 using Dotmim.Sync.Data;
 using Dotmim.Sync.Data.Surrogate;
 using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.MySql;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Web;
 using Newtonsoft.Json;
 using System;
+using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Linq;
 using System.Threading;
@@ -15,7 +17,7 @@ class Program
 {
     static void Main(string[] args)
     {
-        Console.ReadLine();
+        //Console.ReadLine();
 
         //// Reset DB
         //CreateDatabase("NW1", true);
@@ -29,13 +31,16 @@ class Program
         //// make another sync
         //TestSync().GetAwaiter().GetResult();
 
-        SynchronizeAdventureWorksAsync().GetAwaiter().GetResult();
+        TestMemorySync().GetAwaiter().GetResult();
 
         Console.ReadLine();
     }
 
     public static String GetDatabaseConnectionString(string dbName) =>
         $"Data Source=.\\SQLEXPRESS; Initial Catalog={dbName}; Integrated Security=true;";
+
+    public static string GetMySqlDatabaseConnectionString(string dbName) => 
+        $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=azerty31$;";
 
     /// <summary>
     /// Test a client syncing through a web api
@@ -82,6 +87,130 @@ class Program
     }
 
 
+    private static async Task TestDemo1Async()
+    {
+        SqlSyncProvider serverProvider = new SqlSyncProvider(GetDatabaseConnectionString("Demo1"));
+        SqlSyncProvider clientProvider = new SqlSyncProvider(GetDatabaseConnectionString("Demo1Client"));
+        MySqlSyncProvider mySqlSyncProvider = new MySqlSyncProvider(GetMySqlDatabaseConnectionString("Demo1Client"));
+        var lstTables = GetSyncTables(GetDatabaseConnectionString("Demo1"));
+
+        //lstTables = new string[] { "cmsbanner" };
+        SyncAgent syncAgent = new SyncAgent(mySqlSyncProvider, serverProvider, lstTables);
+        serverProvider.SyncProgress += (s, a) => Console.WriteLine($"[Server] : {a.Message} {a.PropertiesMessage}");
+        syncAgent.SyncProgress += (s, a) => Console.WriteLine($"[Client]: {a.Message} {a.PropertiesMessage}");
+
+        var context = await syncAgent.SynchronizeAsync();
+
+        Console.WriteLine(context);
+
+    }
+
+
+    private static string[] GetSyncTables(string connectionString)
+    {
+        using (var conMSSQL = new SqlConnection(connectionString))
+        {
+            conMSSQL.Open();
+
+            string sql = @"SET NOCOUNT ON;
+                            DECLARE @RITable TABLE
+                            ( object_id INT PRIMARY KEY
+                            ,SchemaName SYSNAME NOT NULL
+                            ,TableName SYSNAME NOT NULL
+                            ,RILevel INT DEFAULT 0
+                            ,IsSelfReferencing INT DEFAULT 0
+                            ,HasExcludedRelationship INT DEFAULT 0
+                            ,UpdateCount INT DEFAULT 0
+                            );
+                            INSERT @RITable
+                            ( object_id 
+                            ,SchemaName 
+                            ,TableName 
+                            ,RILevel 
+                            ,IsSelfReferencing 
+                            ,HasExcludedRelationship 
+                            ,UpdateCount 
+                            )
+                            SELECT tables.object_id
+                            ,schemas.name
+                            ,tables.name
+                            ,0 
+                            ,SUM (CASE WHEN foreign_keys.parent_object_id IS NULL THEN 0 ELSE 1 END)
+                            ,SUM (CASE WHEN foreign_keys02.referenced_object_id IS NULL THEN 0 ELSE 1 END)
+                            ,0
+                            FROM sys.tables tables
+                            JOIN sys.schemas schemas ON tables.schema_id = schemas.schema_id
+                            LEFT JOIN sys.foreign_keys foreign_keys ON tables.object_id = foreign_keys.parent_object_id
+                            AND tables.object_id = foreign_keys.referenced_object_id
+                            LEFT JOIN sys.foreign_keys foreign_keys01 ON tables.object_id = foreign_keys01.parent_object_id
+                            LEFT JOIN sys.foreign_keys foreign_keys02 ON foreign_keys01.parent_object_id = foreign_keys02.referenced_object_id
+                            AND foreign_keys01.referenced_object_id = foreign_keys02.parent_object_id
+                            AND foreign_keys01.parent_object_id <> foreign_keys01.referenced_object_id
+                            WHERE tables.name NOT IN ('sysdiagrams', 'dtproperties')
+                            GROUP BY  tables.object_id
+                            ,schemas.name
+                            ,tables.name;
+                            DECLARE @LookLevel INT;
+                            DECLARE @MyRowcount INT; 
+                            SELECT @LookLevel = 0
+                            ,@MyRowcount = -1;  
+                            WHILE (@MyRowcount <> 0)
+                            BEGIN UPDATE ChildTable
+                            SET  RILevel = @LookLevel + 1
+                            ,UpdateCount = ChildTable.UpdateCount + 1
+                            FROM @RITable ChildTable 
+                            JOIN sys.foreign_keys foreign_keys ON ChildTable.object_id = foreign_keys.parent_object_id   
+                               JOIN @RITable ParentTable ON foreign_keys.referenced_object_id = ParentTable.object_id
+                            AND ParentTable.RILevel = @LookLevel
+                            LEFT JOIN sys.foreign_keys foreign_keysEX ON foreign_keys.parent_object_id = foreign_keysEX.referenced_object_id
+                            AND foreign_keys.referenced_object_id = foreign_keysEX.parent_object_id
+                            AND foreign_keys.parent_object_id <> foreign_keys.referenced_object_id
+                            WHERE ChildTable.object_id <> ParentTable.object_id
+                             AND foreign_keysEX.referenced_object_id IS NULL; 
+                            SELECT @MyRowcount = @@ROWCOUNT; 
+                            SELECT @LookLevel = @LookLevel + 1;
+                            END;   
+                            SELECT RITable.SchemaName SchemaName
+                            ,RITable.TableName TableName
+                            ,RITable.RILevel RILevel
+                            ,CASE WHEN RITable.IsSelfReferencing > 0
+                            THEN CAST(1 AS BIT)
+                            ELSE CAST(0 AS BIT)
+                            END IsSelfReferencing
+                            ,CASE WHEN RITable.HasExcludedRelationship > 0
+                            THEN CAST(1 AS BIT)
+                            ELSE CAST(0 AS BIT)
+                            END HasExcludedRelationship
+                            FROM @RITable RITable 
+                            ORDER BY RITable.RILevel ASC, RITable.TableName ASC;";
+
+            int i = 0;
+            var tables = new string[0];
+            SqlCommand cmd = new SqlCommand(sql, conMSSQL);
+            SqlDataReader reader = cmd.ExecuteReader();
+
+            List<string> exclusionList;
+            string excludedTables = "C4ResourceGroupC4ResourceGroups_C4ResourceC4Resources;securitysystemuserc4users_c4resourcegroupc4resourcegroups;securitysystemuserc4user_criteriapropertiescriteriaproperties;securitysystemroleparentroles_securitysystemrolechildroles;securitysystemuserc4user_criteriapropertiescriteriaproperties,securitysystemroleparentroles_securitysystemrolechildroles;Log;AuditDataItemPersistent;AuditedObjectWeakReference;C4SyncLog;C4SyncState;Worker;WorkerOneEvent;WorkerPermanent;MediaOneEvent;MediaPermanent;GuestOneEvent;ContactImport;ZAdressgruppe;ZAdrToGroup;ZContact";
+            if (!string.IsNullOrEmpty(excludedTables))
+                exclusionList = excludedTables.Split(';').ToList();
+            else
+                exclusionList = new List<string>();
+
+            while (reader.Read())
+            {
+                string tableName = (string)reader["TableName"];
+                if (!tableName.StartsWith("Security") &&  !tableName.EndsWith("_tracking") && !tableName.StartsWith("scope"))
+                    if (!exclusionList.Any(t => t.ToLowerInvariant() == tableName.ToLowerInvariant()))
+                    {
+                        i++;
+                        Array.Resize(ref tables, i);
+                        tables[i - 1] = tableName;
+                    }
+            }
+            conMSSQL.Close();
+            return tables;
+        }
+    }
     private static async Task AlterSchemasAsync()
     {
         SqlSyncProvider serverProvider = new SqlSyncProvider(GetDatabaseConnectionString("Northwind"));
@@ -150,12 +279,61 @@ class Program
         //syncAgent.ChangesApplied += (s, a) => Console.WriteLine($"Changes applied for table {a.TableChangesApplied.TableName}: [{a.TableChangesApplied.State}] {a.TableChangesApplied.Applied}");
         //serverProvider.TableChangesApplied += (s, a) => Console.WriteLine($"SERVER Changes applied for table {a.TableChangesApplied.TableName}: [{a.TableChangesApplied.State}] {a.TableChangesApplied.Applied}");
         //syncAgent.EndSession += (s, a) => Console.WriteLine("end session");
-        
+
         var context = await syncAgent.SynchronizeAsync();
 
         Console.WriteLine(context);
         // do stuff ..
     }
+
+    private static async Task TestMemorySync()
+    {
+        SqlSyncProvider serverProvider = new SqlSyncProvider(GetDatabaseConnectionString("Northwind"));
+        SqlSyncProvider client1Provider = new SqlSyncProvider(GetDatabaseConnectionString("NW1"));
+
+        // With a config when we are in local mode (no proxy)
+        SyncConfiguration configuration = new SyncConfiguration(new string[] {
+        "Customers", "Region"});
+
+        SyncAgent agent1 = new SyncAgent(client1Provider, serverProvider, configuration);
+        agent1.Configuration.DownloadBatchSizeInKB = 1000;
+
+        do
+        {
+            Console.Clear();
+            Console.WriteLine("Sync Start");
+            try
+            {
+                CreateDatabase("NW1", true);
+                var s1 = await agent1.SynchronizeAsync();
+                Console.WriteLine(s1);
+
+                CreateDatabase("NW1", true);
+                s1 = await agent1.SynchronizeAsync();
+                Console.WriteLine(s1);
+
+                CreateDatabase("NW1", true);
+                s1 = await agent1.SynchronizeAsync();
+                Console.WriteLine(s1);
+
+
+            }
+            catch (SyncException e)
+            {
+                Console.WriteLine(e.ToString());
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+            }
+
+
+            Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+        Console.WriteLine("End");
+    }
+
 
     private static async Task TestSync()
     {

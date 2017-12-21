@@ -237,7 +237,7 @@ namespace Dotmim.Sync.MySql
                 stringBuilder.Append(strFromPrefix);
                 stringBuilder.Append(quotedColumn.QuotedString);
                 stringBuilder.Append(" = ");
-                stringBuilder.Append($"in{column.ColumnName}");
+                stringBuilder.Append($"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{column.ColumnName}");
                 str1 = " AND ";
             }
             return stringBuilder.ToString();
@@ -256,7 +256,7 @@ namespace Dotmim.Sync.MySql
                 stringBuilder.Append(strFromPrefix);
                 stringBuilder.Append(quotedColumn.QuotedString);
                 stringBuilder.Append(" = ");
-                stringBuilder.Append($"in{column.ColumnName}");
+                stringBuilder.Append($"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{column.ColumnName}");
                 str1 = " AND ";
             }
             return stringBuilder.ToString();
@@ -270,7 +270,7 @@ namespace Dotmim.Sync.MySql
             foreach (DmColumn column in table.NonPkColumns.Where(c => !c.ReadOnly))
             {
                 ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName, "`", "`");
-                stringBuilder.AppendLine($"{strSeparator} {strFromPrefix}{quotedColumn.QuotedString} = in{quotedColumn.UnquotedString}");
+                stringBuilder.AppendLine($"{strSeparator} {strFromPrefix}{quotedColumn.QuotedString} = {MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{quotedColumn.UnquotedString}");
                 strSeparator = ", ";
             }
             return stringBuilder.ToString();
