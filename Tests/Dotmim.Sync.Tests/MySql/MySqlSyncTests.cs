@@ -642,6 +642,80 @@ namespace Dotmim.Sync.Test
             // check good title on client
             Assert.Equal("Conflict Line Client", expectedRes);
         }
+        [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(12)]
+        public async Task InsertUpdateDeleteFromServer(SyncConfiguration conf)
+        {
+            Guid insertedId = Guid.NewGuid();
+            Guid updatedId = Guid.NewGuid();
+            Guid deletedId = Guid.NewGuid();
+
+
+            var script =
+            $@"INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
+               VALUES ('{updatedId.ToString()}', N'Updated', N'Description', 1, 0, getdate(), NULL, 1);
+               INSERT[ServiceTickets]([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
+               VALUES('{deletedId.ToString()}', N'Deleted', N'Description', 1, 0, getdate(), NULL, 1)";
+
+            using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
+            {
+                using (var sqlCmd = new SqlCommand(script, sqlConnection))
+                {
+                    sqlConnection.Open();
+                    sqlCmd.ExecuteNonQuery();
+                    sqlConnection.Close();
+                }
+            }
+            agent.Configuration = conf;
+            agent.Configuration.Add(fixture.Tables);
+            var session = await agent.SynchronizeAsync();
+
+            Assert.Equal(2, session.TotalChangesDownloaded);
+            Assert.Equal(0, session.TotalChangesUploaded);
+
+            script =
+               $@"INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
+               VALUES ('{insertedId.ToString()}', N'Inserted', N'Description', 1, 0, getdate(), NULL, 1);
+               DELETE FROM [ServiceTickets] WHERE [ServiceTicketID] = '{deletedId.ToString()}';
+               UPDATE [ServiceTickets] set [Description] = 'Updated again' WHERE  [ServiceTicketID] = '{updatedId.ToString()}';";
+
+            using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
+            {
+                using (var sqlCmd = new SqlCommand(script, sqlConnection))
+                {
+                    sqlConnection.Open();
+                    sqlCmd.ExecuteNonQuery();
+                    sqlConnection.Close();
+                }
+            }
+
+            int insertApplied = 0;
+            int updateApplied = 0;
+            int deleteApplied = 0;
+            agent.TableChangesApplied += (sender, args) =>
+            {
+                switch (args.TableChangesApplied.State)
+                {
+                    case Data.DmRowState.Added:
+                        insertApplied += args.TableChangesApplied.Applied;
+                        break;
+                    case Data.DmRowState.Modified:
+                        updateApplied += args.TableChangesApplied.Applied;
+                        break;
+                    case Data.DmRowState.Deleted:
+                        deleteApplied += args.TableChangesApplied.Applied;
+                        break;
+                }
+            };
+
+            session = await agent.SynchronizeAsync();
+
+            Assert.Equal(3, session.TotalChangesDownloaded);
+            Assert.Equal(1, insertApplied);
+            Assert.Equal(1, updateApplied);
+            Assert.Equal(1, deleteApplied);
+            Assert.Equal(0, session.TotalChangesUploaded);
+
+        }
 
     }
 }

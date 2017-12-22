@@ -193,7 +193,7 @@ namespace Dotmim.Sync
                             syncAdapter.ConflictApplyAction = configuration.GetApplyAction();
 
                             // raise before event
-                            context.SyncStage = SyncStage.ChangesSelecting;
+                            context.SyncStage = SyncStage.TableChangesSelecting;
                             var beforeArgs = new TableChangesSelectingEventArgs(this.ProviderTypeName, context.SyncStage, tableDescription.TableName);
                             this.TryRaiseProgressEvent(beforeArgs, this.TableChangesSelecting);
 
@@ -319,8 +319,8 @@ namespace Dotmim.Sync
                             changes.TableChangesSelected.Add(tableSelectedChanges);
 
                             // Raise event for this table
-                            context.SyncStage = SyncStage.ChangesSelected;
-                            var args = new TableChangesSelectedEventArgs(this.ProviderTypeName, SyncStage.ChangesSelected, tableSelectedChanges);
+                            context.SyncStage = SyncStage.TableChangesSelected;
+                            var args = new TableChangesSelectedEventArgs(this.ProviderTypeName, SyncStage.TableChangesSelected, tableSelectedChanges);
                             this.TryRaiseProgressEvent(args, this.TableChangesSelected);
 
                             Debug.WriteLine($"--- End Table \"{tableDescription.TableName}\" ---");
@@ -444,7 +444,7 @@ namespace Dotmim.Sync
                             syncAdapter.ConflictApplyAction = configuration.GetApplyAction();
 
                             // raise before event
-                            context.SyncStage = SyncStage.ChangesSelecting;
+                            context.SyncStage = SyncStage.TableChangesSelecting;
                             var beforeArgs = new TableChangesSelectingEventArgs(this.ProviderTypeName, context.SyncStage, tableDescription.TableName);
                             this.TryRaiseProgressEvent(beforeArgs, this.TableChangesSelecting);
 
@@ -614,9 +614,9 @@ namespace Dotmim.Sync
                                             //}
 
                                             // add stats for a SyncProgress event
-                                            context.SyncStage = SyncStage.ChangesSelected;
+                                            context.SyncStage = SyncStage.TableChangesSelected;
                                             var args2 = new TableChangesSelectedEventArgs
-                                                (this.ProviderTypeName, SyncStage.ChangesSelected, tableChangesSelected);
+                                                (this.ProviderTypeName, SyncStage.TableChangesSelected, tableChangesSelected);
 
                                             this.TryRaiseProgressEvent(args2, this.TableChangesSelected);
 
@@ -630,7 +630,7 @@ namespace Dotmim.Sync
                                     // Since we dont need this column anymore, remove it
                                     this.RemoveTrackingColumns(dmTable, "sync_row_is_tombstone");
 
-                                    context.SyncStage = SyncStage.ChangesSelected;
+                                    context.SyncStage = SyncStage.TableChangesSelected;
 
                                     changesSet.Tables.Add(dmTable);
 
@@ -653,8 +653,8 @@ namespace Dotmim.Sync
                                     //}
 
                                     // Event progress
-                                    context.SyncStage = SyncStage.ChangesSelected;
-                                    var args = new TableChangesSelectedEventArgs(this.ProviderTypeName, SyncStage.ChangesSelected, tableChangesSelected);
+                                    context.SyncStage = SyncStage.TableChangesSelected;
+                                    var args = new TableChangesSelectedEventArgs(this.ProviderTypeName, SyncStage.TableChangesSelected, tableChangesSelected);
                                     this.TryRaiseProgressEvent(args, this.TableChangesSelected);
                                 }
                             }
