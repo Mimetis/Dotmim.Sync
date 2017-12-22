@@ -31,7 +31,7 @@ class Program
         //// make another sync
         //TestSync().GetAwaiter().GetResult();
 
-        TestMemorySync().GetAwaiter().GetResult();
+        TestSync().GetAwaiter().GetResult();
 
         Console.ReadLine();
     }
@@ -39,7 +39,7 @@ class Program
     public static String GetDatabaseConnectionString(string dbName) =>
         $"Data Source=.\\SQLEXPRESS; Initial Catalog={dbName}; Integrated Security=true;";
 
-    public static string GetMySqlDatabaseConnectionString(string dbName) => 
+    public static string GetMySqlDatabaseConnectionString(string dbName) =>
         $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=azerty31$;";
 
     /// <summary>
@@ -199,7 +199,7 @@ class Program
             while (reader.Read())
             {
                 string tableName = (string)reader["TableName"];
-                if (!tableName.StartsWith("Security") &&  !tableName.EndsWith("_tracking") && !tableName.StartsWith("scope"))
+                if (!tableName.StartsWith("Security") && !tableName.EndsWith("_tracking") && !tableName.StartsWith("scope"))
                     if (!exclusionList.Any(t => t.ToLowerInvariant() == tableName.ToLowerInvariant()))
                     {
                         i++;
@@ -293,7 +293,7 @@ class Program
 
         // With a config when we are in local mode (no proxy)
         SyncConfiguration configuration = new SyncConfiguration(new string[] {
-        "Customers", "Region"});
+"Customers", "Region"});
 
         SyncAgent agent1 = new SyncAgent(client1Provider, serverProvider, configuration);
         agent1.Configuration.DownloadBatchSizeInKB = 1000;
@@ -334,17 +334,16 @@ class Program
         Console.WriteLine("End");
     }
 
-
     private static async Task TestSync()
     {
         SqlSyncProvider serverProvider = new SqlSyncProvider(GetDatabaseConnectionString("Northwind"));
         SqlSyncProvider client1Provider = new SqlSyncProvider(GetDatabaseConnectionString("NW1"));
-
+        //CreateDatabase("NW1", true);
         // With a config when we are in local mode (no proxy)
         SyncConfiguration configuration = new SyncConfiguration(new string[] {
         "Customers", "Region"});
 
-        SyncAgent agent1 = new SyncAgent(client1Provider, serverProvider, configuration);
+        SyncAgent agent = new SyncAgent(client1Provider, serverProvider, configuration);
 
         do
         {
@@ -358,15 +357,15 @@ class Program
                 void selected(object s, TableChangesSelectedEventArgs a) => Console.WriteLine($"Changes selected for table {a.TableChangesSelected.TableName}: {a.TableChangesSelected.TotalChanges}");
                 void applied(object s, TableChangesAppliedEventArgs a) => Console.WriteLine($"Changes applied for table {a.TableChangesApplied.TableName}: [{a.TableChangesApplied.State}] {a.TableChangesApplied.Applied}");
 
-                agent1.ChangesSelected += selected;
-                agent1.ChangesApplied += applied;
+                agent.TableChangesSelected += selected;
+                agent.TableChangesApplied += applied;
 
-                var s1 = await agent1.SynchronizeAsync(token);
+                var s1 = await agent.SynchronizeAsync(token);
 
                 Console.WriteLine(s1);
 
-                agent1.ChangesSelected -= selected;
-                agent1.ChangesApplied -= applied;
+                agent.TableChangesSelected -= selected;
+                agent.TableChangesApplied -= applied;
             }
             catch (SyncException e)
             {
@@ -378,10 +377,95 @@ class Program
             }
 
 
-            Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+            //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
         } while (Console.ReadKey().Key != ConsoleKey.Escape);
 
         Console.WriteLine("End");
+    }
+
+    private static void Agent_ChangesApplying(object sender, TableChangesApplyingEventArgs e)
+    {
+        string kind = e.State == DmRowState.Added ? "inserts" :
+                      e.State == DmRowState.Deleted ? "deletes" :
+                      e.State == DmRowState.Modified ? "updates" : "";
+
+        Console.WriteLine($"Applying {kind} for table {e.TableName}");
+    }
+    private static void Agent_ChangesApplied(object sender, TableChangesAppliedEventArgs e)
+    {
+        Console.WriteLine($"Successfuly applied : {e.TableChangesApplied.Applied}. Failed : {e.TableChangesApplied.Failed}");
+    }
+
+  
+
+    private static void Agent_ChangesSelecting(object sender, TableChangesSelectingEventArgs e)
+    {
+        Console.WriteLine($"Get changes for table {e.TableName}");
+    }
+    private static void Agent_ChangesSelected(object sender, TableChangesSelectedEventArgs e)
+    {
+        Console.WriteLine($"Changes selected from table {e.TableChangesSelected.TableName}: ");
+        Console.WriteLine($"\tInserts:{e.TableChangesSelected.Inserts}.");
+        Console.WriteLine($"\tUpdates:{e.TableChangesSelected.Updates}.");
+        Console.WriteLine($"\tDeletes:{e.TableChangesSelected.Deletes}.");
+    }
+
+
+
+    private static void Agent_DatabaseTableApplying(object sender, DatabaseTableApplyingEventArgs e)
+    {
+        Console.WriteLine($"Current table generation : {e.TableName}");
+    }
+    private static void Agent_DatabaseTableApplied(object sender, DatabaseTableAppliedEventArgs e)
+    {
+        Console.WriteLine(e.Script);
+    }
+
+
+    private static void Agent_DatabaseApplying(object sender, DatabaseApplyingEventArgs e)
+    {
+        e.OverwriteConfiguration = true;
+        e.GenerateScript = true;
+    }
+    private static void Agent_DatabaseApplied(object sender, DatabaseAppliedEventArgs e)
+    {
+        Console.WriteLine(e.Script);
+    }
+
+
+    private static void Agent_ScopeLoading(object sender, ScopeEventArgs e)
+    {
+        Console.WriteLine($"Scope loading");
+        Console.WriteLine($"Scope Name : {e.ScopeInfo.Name}");
+        Console.WriteLine($"Scope Id : {e.ScopeInfo.Id}");
+        Console.WriteLine(e.ScopeInfo.IsNewScope ? "Client is a new client" : "Client has already make a sync");
+        if (e.ScopeInfo.LastSync.HasValue)
+            Console.WriteLine($"Last sync datetime : {e.ScopeInfo.LastSync.Value}");
+    }
+
+    private static void Agent_ScopeSaved(object sender, ScopeEventArgs e)
+    {
+        Console.WriteLine($"Scope saved");
+        Console.WriteLine($"Scope Name : {e.ScopeInfo.Name}");
+        Console.WriteLine($"Scope Id : {e.ScopeInfo.Id}");
+        Console.WriteLine(e.ScopeInfo.IsNewScope ? "Client is a new client" : "Client has already make a sync");
+        if (e.ScopeInfo.LastSync.HasValue)
+            Console.WriteLine($"Last sync datetime : {e.ScopeInfo.LastSync.Value}");
+    }
+
+    private static void Agent_ConfigurationApplying(object sender, ConfigurationApplyingEventArgs e)
+    {
+        e.OverwriteConfiguration = true;
+    }
+    private static void Agent_ConfigurationApplied(object sender, ConfigurationAppliedEventArgs e)
+    {
+        var syncConfiguration = e.Configuration;
+    }
+
+
+    private static void Agent_BeginSession(object sender, BeginSessionEventArgs e)
+    {
+        e.Action = ChangeApplicationAction.Rollback;
     }
 
     /// <summary>

@@ -159,29 +159,29 @@ namespace Dotmim.Sync
                     props.Add("Script", (args as DatabaseTableAppliedEventArgs).Script);
                     this.TryRaiseProgressEvent(SyncStage.DatabaseApplied, $"Table schema applied", props);
                     break;
-                case SyncStage.ChangesSelecting:
+                case SyncStage.TableChangesSelecting:
                     props.Add("TableName", (args as TableChangesSelectingEventArgs).TableName);
-                    this.TryRaiseProgressEvent(SyncStage.ChangesSelecting, $"Selecting changes", props);
+                    this.TryRaiseProgressEvent(SyncStage.TableChangesSelecting, $"Selecting changes", props);
                     break;
-                case SyncStage.ChangesSelected:
+                case SyncStage.TableChangesSelected:
                     props.Add("TableName", (args as TableChangesSelectedEventArgs).TableChangesSelected.TableName);
                     props.Add("Deletes", (args as TableChangesSelectedEventArgs).TableChangesSelected.Deletes.ToString());
                     props.Add("Inserts", (args as TableChangesSelectedEventArgs).TableChangesSelected.Inserts.ToString());
                     props.Add("Updates", (args as TableChangesSelectedEventArgs).TableChangesSelected.Updates.ToString());
                     props.Add("TotalChanges", (args as TableChangesSelectedEventArgs).TableChangesSelected.TotalChanges.ToString());
-                    this.TryRaiseProgressEvent(SyncStage.ChangesSelected, $"Changes selected", props);
+                    this.TryRaiseProgressEvent(SyncStage.TableChangesSelected, $"Changes selected", props);
                     break;
-                case SyncStage.ChangesApplying:
+                case SyncStage.TableChangesApplying:
                     props.Add("TableName", (args as TableChangesApplyingEventArgs).TableName);
                     props.Add("State", (args as TableChangesApplyingEventArgs).State.ToString());
-                    this.TryRaiseProgressEvent(SyncStage.ChangesApplying, $"Applying changes", props);
+                    this.TryRaiseProgressEvent(SyncStage.TableChangesApplying, $"Applying changes", props);
                     break;
-                case SyncStage.ChangesApplied:
+                case SyncStage.TableChangesApplied:
                     props.Add("TableName", (args as TableChangesAppliedEventArgs).TableChangesApplied.TableName);
                     props.Add("State", (args as TableChangesAppliedEventArgs).TableChangesApplied.State.ToString());
                     props.Add("Applied", (args as TableChangesAppliedEventArgs).TableChangesApplied.Applied.ToString());
                     props.Add("Failed", (args as TableChangesAppliedEventArgs).TableChangesApplied.Failed.ToString());
-                    this.TryRaiseProgressEvent(SyncStage.ChangesApplied, $"Changes applied", props);
+                    this.TryRaiseProgressEvent(SyncStage.TableChangesApplied, $"Changes applied", props);
                     break;
                 case SyncStage.EndSession:
                     this.TryRaiseProgressEvent(SyncStage.EndSession, $"End session");

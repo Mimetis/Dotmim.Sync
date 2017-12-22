@@ -218,7 +218,7 @@ namespace Dotmim.Sync
                             List<SyncConflict> conflicts = new List<SyncConflict>();
 
                             // Raise event progress only if there are rows to be applied
-                            context.SyncStage = SyncStage.ChangesApplying;
+                            context.SyncStage = SyncStage.TableChangesApplying;
                             var args = new TableChangesApplyingEventArgs(this.ProviderTypeName, context.SyncStage, tableDescription.TableName, applyType);
                             this.TryRaiseProgressEvent(args, this.TableChangesApplying);
 
@@ -284,13 +284,10 @@ namespace Dotmim.Sync
                             }
 
                             // Event progress
-                            context.SyncStage = SyncStage.ChangesApplied;
+                            context.SyncStage = SyncStage.TableChangesApplied;
                             var progressEventArgs = new TableChangesAppliedEventArgs(this.ProviderTypeName, context.SyncStage, existAppliedChanges);
                             this.TryRaiseProgressEvent(progressEventArgs, this.TableChangesApplied);
 
-                            // clear table
-                            dmTablePart.Clear();
-                            
                         }
                     }
 
