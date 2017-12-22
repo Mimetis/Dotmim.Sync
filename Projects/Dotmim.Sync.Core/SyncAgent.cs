@@ -46,19 +46,24 @@ namespace Dotmim.Sync
         public SyncParameterCollection Parameters { get; set; } = new SyncParameterCollection();
 
 
+        // Read only SyncProgress for all SyncStage
         public event EventHandler<ProgressEventArgs> SyncProgress = null;
+
+        // Types events for each SyncStage
         public event EventHandler<BeginSessionEventArgs> BeginSession = null;
         public event EventHandler<EndSessionEventArgs> EndSession = null;
         public event EventHandler<ScopeEventArgs> ScopeLoading = null;
         public event EventHandler<ScopeEventArgs> ScopeSaved = null;
         public event EventHandler<DatabaseApplyingEventArgs> DatabaseApplying = null;
         public event EventHandler<DatabaseAppliedEventArgs> DatabaseApplied = null;
+        public event EventHandler<DatabaseTableApplyingEventArgs> DatabaseTableApplying = null;
+        public event EventHandler<DatabaseTableAppliedEventArgs> DatabaseTableApplied = null;
         public event EventHandler<ConfigurationApplyingEventArgs> ConfigurationApplying = null;
         public event EventHandler<ConfigurationAppliedEventArgs> ConfigurationApplied = null;
-        public event EventHandler<TableChangesSelectingEventArgs> ChangesSelecting = null;
-        public event EventHandler<TableChangesSelectedEventArgs> ChangesSelected = null;
-        public event EventHandler<TableChangesApplyingEventArgs> ChangesApplying = null;
-        public event EventHandler<TableChangesAppliedEventArgs> ChangesApplied = null;
+        public event EventHandler<TableChangesSelectingEventArgs> TableChangesSelecting = null;
+        public event EventHandler<TableChangesSelectedEventArgs> TableChangesSelected = null;
+        public event EventHandler<TableChangesApplyingEventArgs> TableChangesApplying = null;
+        public event EventHandler<TableChangesAppliedEventArgs> TableChangesApplied = null;
 
 
         /// <summary>
@@ -96,14 +101,16 @@ namespace Dotmim.Sync
             this.LocalProvider.SyncProgress += (s, e) => this.SyncProgress?.Invoke(s, e);
             this.LocalProvider.BeginSession += (s, e) => this.BeginSession?.Invoke(s, e);
             this.LocalProvider.EndSession += (s, e) => this.EndSession?.Invoke(s, e);
-            this.LocalProvider.TableChangesApplied += (s, e) => this.ChangesApplied?.Invoke(s, e);
-            this.LocalProvider.TableChangesApplying += (s, e) => this.ChangesApplying?.Invoke(s, e);
-            this.LocalProvider.TableChangesSelected += (s, e) => this.ChangesSelected?.Invoke(s, e);
-            this.LocalProvider.TableChangesSelecting += (s, e) => this.ChangesSelecting?.Invoke(s, e);
+            this.LocalProvider.TableChangesApplied += (s, e) => this.TableChangesApplied?.Invoke(s, e);
+            this.LocalProvider.TableChangesApplying += (s, e) => this.TableChangesApplying?.Invoke(s, e);
+            this.LocalProvider.TableChangesSelected += (s, e) => this.TableChangesSelected?.Invoke(s, e);
+            this.LocalProvider.TableChangesSelecting += (s, e) => this.TableChangesSelecting?.Invoke(s, e);
             this.LocalProvider.ConfigurationApplied += (s, e) => this.ConfigurationApplied?.Invoke(s, e);
             this.LocalProvider.ConfigurationApplying += (s, e) => this.ConfigurationApplying?.Invoke(s, e);
             this.LocalProvider.DatabaseApplied += (s, e) => this.DatabaseApplied?.Invoke(s, e);
             this.LocalProvider.DatabaseApplying += (s, e) => this.DatabaseApplying?.Invoke(s, e);
+            this.LocalProvider.DatabaseTableApplied += (s, e) => this.DatabaseTableApplied?.Invoke(s, e);
+            this.LocalProvider.DatabaseTableApplying += (s, e) => this.DatabaseTableApplying?.Invoke(s, e);
             this.LocalProvider.ScopeLoading += (s, e) => this.ScopeLoading?.Invoke(s, e);
             this.LocalProvider.ScopeSaved += (s, e) => this.ScopeSaved?.Invoke(s, e);
 
@@ -525,10 +532,10 @@ namespace Dotmim.Sync
         {
             this.LocalProvider.BeginSession -= (s, e) => this.BeginSession?.Invoke(s, e);
             this.LocalProvider.EndSession -= (s, e) => this.EndSession?.Invoke(s, e);
-            this.LocalProvider.TableChangesApplied -= (s, e) => this.ChangesApplied?.Invoke(s, e);
-            this.LocalProvider.TableChangesApplying -= (s, e) => this.ChangesApplying?.Invoke(s, e);
-            this.LocalProvider.TableChangesSelected -= (s, e) => this.ChangesSelected?.Invoke(s, e);
-            this.LocalProvider.TableChangesSelecting -= (s, e) => this.ChangesSelecting?.Invoke(s, e);
+            this.LocalProvider.TableChangesApplied -= (s, e) => this.TableChangesApplied?.Invoke(s, e);
+            this.LocalProvider.TableChangesApplying -= (s, e) => this.TableChangesApplying?.Invoke(s, e);
+            this.LocalProvider.TableChangesSelected -= (s, e) => this.TableChangesSelected?.Invoke(s, e);
+            this.LocalProvider.TableChangesSelecting -= (s, e) => this.TableChangesSelecting?.Invoke(s, e);
             this.LocalProvider.ConfigurationApplied -= (s, e) => this.ConfigurationApplied?.Invoke(s, e);
             this.LocalProvider.ConfigurationApplying -= (s, e) => this.ConfigurationApplying?.Invoke(s, e);
             this.LocalProvider.DatabaseApplied -= (s, e) => this.DatabaseApplied?.Invoke(s, e);

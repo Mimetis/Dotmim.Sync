@@ -140,16 +140,26 @@ namespace Dotmim.Sync
 
         }
 
+
         /// <summary>
-        /// update configuration object with tables desc from server database
+        /// Create a simple configuration, based on tables
         /// </summary>
         public async Task<SyncConfiguration> ReadConfigurationAsync(string[] tables)
         {
-            if (tables == null || tables.Length == 0)
+            // Load the configuration
+            var configuration = new SyncConfiguration(tables);
+            await this.ReadConfigurationAsync(configuration);
+            return configuration;
+        }
+
+        /// <summary>
+        /// update configuration object with tables desc from server database
+        /// </summary>
+        public async Task ReadConfigurationAsync(SyncConfiguration configuration)
+        {
+            if (configuration == null || configuration.Count() == 0)
                 throw new SyncException("Configuration should contains Tables, at least tables with a name",
                     SyncStage.ConfigurationApplying, SyncExceptionType.Argument);
-
-            SyncConfiguration configuration = new SyncConfiguration(tables);
 
             DbConnection connection;
             DbTransaction transaction;
@@ -216,7 +226,6 @@ namespace Dotmim.Sync
                     if (connection.State != ConnectionState.Closed)
                         connection.Close();
                 }
-                return configuration;
             }
         }
 
@@ -277,8 +286,8 @@ namespace Dotmim.Sync
                         tables[i] = tableName;
                     }
 
-                    var conf = await this.ReadConfigurationAsync(tables);
-                    configuration.ScopeSet = conf.ScopeSet.Clone();
+                    await this.ReadConfigurationAsync(configuration);
+
                 }
 
                 // save to cache

@@ -160,10 +160,10 @@ namespace Dotmim.Sync.Tools
             }
 
 
-            agent.ChangesSelected += (sender, a) =>
+            agent.TableChangesSelected += (sender, a) =>
                     Console.WriteLine($"Changes selected for table {a.TableChangesSelected.TableName}: {a.TableChangesSelected.TotalChanges}");
 
-            agent.ChangesApplied += (sender, a) =>
+            agent.TableChangesApplied += (sender, a) =>
                     Console.WriteLine($"Changes applied for table {a.TableChangesApplied.TableName}: [{a.TableChangesApplied.State}] {a.TableChangesApplied.Applied}");
 
             // synchronous call
