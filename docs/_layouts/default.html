@@ -43,7 +43,15 @@
         <h1>{{ site.title | default: site.github.repository_name }}</h1>
         <p>{{ site.description | default: site.github.project_tagline }}</p>
       </div>
-      {% include summary.html %} {{ content }}
+
+      <div id="navbar">
+        {% include summary.html %}
+      </div>
+
+      <div id="content">
+        {{ content }}
+      </div>
+
     </section>
   </div>
 
