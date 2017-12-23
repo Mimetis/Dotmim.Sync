@@ -4,6 +4,7 @@ using System.Text;
 
 namespace Dotmim.Sync.Enumerations
 {
+    [Flags]
     public enum SyncProvision
     {
         Table = 1,
@@ -11,6 +12,5 @@ namespace Dotmim.Sync.Enumerations
         StoredProcedures = 4,
         TrackingTable = 8,
         All = 16
-
     }
 }
