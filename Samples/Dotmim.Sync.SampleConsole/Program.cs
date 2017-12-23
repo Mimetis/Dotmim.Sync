@@ -52,7 +52,7 @@ class Program
         var tables = new string[] { "Customers", "Region" };
 
         // delete triggers and sp
-        await clientProvider.DeprovisionAsync(tables, SyncProvision.StoredProcedures | SyncProvision.TrackingTable | SyncProvision.Triggers);
+        await clientProvider.ProvisionAsync(tables, SyncProvision.StoredProcedures | SyncProvision.TrackingTable | SyncProvision.Triggers);
 
         Console.WriteLine("Done");
 
