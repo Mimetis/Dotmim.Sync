@@ -42,6 +42,23 @@ class Program
     public static string GetMySqlDatabaseConnectionString(string dbName) =>
         $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=azerty31$;";
 
+
+    private static async Task UnprovisionAsync()
+    {
+        SqlSyncProvider serverProvider = new SqlSyncProvider(GetDatabaseConnectionString("Northwind"));
+        SqlSyncProvider clientProvider = new SqlSyncProvider(GetDatabaseConnectionString("NW1"));
+
+        // tables to edit
+        var tables = new string[] { "Customers", "Region" };
+
+        // delete triggers and sp
+        await clientProvider.DeprovisionAsync(tables, SyncProvision.StoredProcedures | SyncProvision.TrackingTable | SyncProvision.Triggers);
+
+        Console.WriteLine("Done");
+
+    }
+
+
     /// <summary>
     /// Test a client syncing through a web api
     /// </summary>
@@ -337,13 +354,10 @@ class Program
     private static async Task TestSync()
     {
         SqlSyncProvider serverProvider = new SqlSyncProvider(GetDatabaseConnectionString("Northwind"));
-        SqlSyncProvider client1Provider = new SqlSyncProvider(GetDatabaseConnectionString("NW1"));
-        //CreateDatabase("NW1", true);
-        // With a config when we are in local mode (no proxy)
-        SyncConfiguration configuration = new SyncConfiguration(new string[] {
-        "Customers", "Region"});
+        SqlSyncProvider clientProvider = new SqlSyncProvider(GetDatabaseConnectionString("NW1"));
 
-        SyncAgent agent = new SyncAgent(client1Provider, serverProvider, configuration);
+        SyncAgent agent = new SyncAgent(clientProvider, serverProvider, new string[] {
+        "Customers", "Region"});
 
         do
         {
@@ -354,18 +368,18 @@ class Program
                 CancellationTokenSource cts = new CancellationTokenSource();
                 CancellationToken token = cts.Token;
 
-                void selected(object s, TableChangesSelectedEventArgs a) => Console.WriteLine($"Changes selected for table {a.TableChangesSelected.TableName}: {a.TableChangesSelected.TotalChanges}");
-                void applied(object s, TableChangesAppliedEventArgs a) => Console.WriteLine($"Changes applied for table {a.TableChangesApplied.TableName}: [{a.TableChangesApplied.State}] {a.TableChangesApplied.Applied}");
+                //void selected(object s, TableChangesSelectedEventArgs a) => Console.WriteLine($"Changes selected for table {a.TableChangesSelected.TableName}: {a.TableChangesSelected.TotalChanges}");
+                //void applied(object s, TableChangesAppliedEventArgs a) => Console.WriteLine($"Changes applied for table {a.TableChangesApplied.TableName}: [{a.TableChangesApplied.State}] {a.TableChangesApplied.Applied}");
 
-                agent.TableChangesSelected += selected;
-                agent.TableChangesApplied += applied;
+                //agent.TableChangesSelected += selected;
+                //agent.TableChangesApplied += applied;
 
                 var s1 = await agent.SynchronizeAsync(token);
 
                 Console.WriteLine(s1);
 
-                agent.TableChangesSelected -= selected;
-                agent.TableChangesApplied -= applied;
+                //agent.TableChangesSelected -= selected;
+                //agent.TableChangesApplied -= applied;
             }
             catch (SyncException e)
             {
