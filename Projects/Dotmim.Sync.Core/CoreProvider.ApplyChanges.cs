@@ -133,7 +133,7 @@ namespace Dotmim.Sync
             {
                 try
                 {
-                    var tableDescription = configuration[i];
+                   var tableDescription = configuration[configuration.Count - i - 1];
 
                     var builder = this.GetDatabaseBuilder(tableDescription);
                     var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
