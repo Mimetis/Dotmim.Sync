@@ -42,7 +42,7 @@ namespace UWPSyncSample
         /// will be used such as when the application is launched to open a specific file.
         /// </summary>
         /// <param name="e">Details about the launch request and process.</param>
-        protected override void OnLaunched(LaunchActivatedEventArgs e)
+        protected override async void OnLaunched(LaunchActivatedEventArgs e)
         {
             MainPage rootFrame = Window.Current.Content as MainPage;
 
@@ -74,6 +74,10 @@ namespace UWPSyncSample
                     // configuring the new page by passing required information as a navigation
                     // parameter
                     var navigationService = ContainerHelper.Current.Container.Resolve<INavigationService>();
+                    var settingsHelper = ContainerHelper.Current.Container.Resolve<SettingsHelper>();
+
+                    await settingsHelper.InitializeDatabasesAsync();
+
                     navigationService.NavigateToPage<MainPage>(ConnectionType.Client_SqlServer, e.Arguments);
                 }
                 // Ensure the current window is active

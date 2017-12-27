@@ -80,6 +80,10 @@ namespace UWPSyncSample.Helpers
                         .Named<EmployeeViewModel>(e)
                         .SingleInstance();
 
+                builder.RegisterType<SettingsViewModel>()
+                       .Named<SettingsViewModel>(e)
+                       .SingleInstance();
+
             }
 
 
