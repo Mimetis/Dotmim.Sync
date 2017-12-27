@@ -353,6 +353,7 @@ class Program
 
     private static async Task TestSync()
     {
+        //CreateDatabase("NW1", true);
         SqlSyncProvider serverProvider = new SqlSyncProvider(GetDatabaseConnectionString("Northwind"));
         SqlSyncProvider clientProvider = new SqlSyncProvider(GetDatabaseConnectionString("NW1"));
 
@@ -374,7 +375,7 @@ class Program
                 //agent.TableChangesSelected += selected;
                 //agent.TableChangesApplied += applied;
 
-                var s1 = await agent.SynchronizeAsync(token);
+                var s1 = await agent.SynchronizeAsync(SyncType.ReinitializeWithUpload, token);
 
                 Console.WriteLine(s1);
 
