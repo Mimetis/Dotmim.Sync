@@ -6,13 +6,14 @@ using System.Data.SqlClient;
 using System.IO;
 using System.Threading.Tasks;
 using Xunit;
+using Dotmim.Sync.Enumerations;
 
 namespace Dotmim.Sync.Test
 {
-    public class SyncTwoTablesFixture : IDisposable
+    public class SyncReinitializeTestsFixture : IDisposable
     {
-        public string serverDbName => "Test_TwoTables_Server";
-        public string client1DbName => "Test_TwoTables_Client";
+        public string serverDbName => "Test_Reinit_Server";
+        public string client1DbName => "Test_Reinit_Client";
         public string[] Tables => new string[] { "Customers", "ServiceTickets" };
 
         private string createTableScript =
@@ -63,7 +64,7 @@ namespace Dotmim.Sync.Test
         public String ServerConnectionString => HelperDB.GetDatabaseConnectionString(serverDbName);
         public String Client1ConnectionString => HelperDB.GetDatabaseConnectionString(client1DbName);
 
-        public SyncTwoTablesFixture()
+        public SyncReinitializeTestsFixture()
         {
             // create databases
             helperDb.CreateDatabase(serverDbName);
@@ -88,14 +89,14 @@ namespace Dotmim.Sync.Test
     }
 
     [TestCaseOrderer("Dotmim.Sync.Tests.Misc.PriorityOrderer", "Dotmim.Sync.Tests")]
-    public class SyncTwoTablesTests : IClassFixture<SyncTwoTablesFixture>
+    public class SyncReinitializeTests : IClassFixture<SyncReinitializeTestsFixture>
     {
-        SyncTwoTablesFixture fixture;
+        SyncReinitializeTestsFixture fixture;
         SqlSyncProvider serverProvider;
         SqlSyncProvider clientProvider;
         SyncAgent agent;
 
-        public SyncTwoTablesTests(SyncTwoTablesFixture fixture)
+        public SyncReinitializeTests(SyncReinitializeTestsFixture fixture)
         {
             this.fixture = fixture;
 
@@ -131,21 +132,11 @@ namespace Dotmim.Sync.Test
         }
 
         [Fact, TestPriority(2)]
-        public async Task SyncNoRows()
+        public async Task SyncReinitialize()
         {
-            var session = await agent.SynchronizeAsync();
-
-            Assert.Equal(0, session.TotalChangesDownloaded);
-            Assert.Equal(0, session.TotalChangesUploaded);
-        }
-
-
-        [Fact, TestPriority(3)]
-        public async Task CascadeDeleteServer()
-        {
-            using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
+            using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
             {
-                var script = $@"Delete from ServiceTickets; Delete from Customers";
+                var script = $@"UPDATE Customers SET LastName='DoeClient' WHERE CustomerID=1;";
 
                 using (var sqlCmd = new SqlCommand(script, sqlConnection))
                 {
@@ -154,10 +145,66 @@ namespace Dotmim.Sync.Test
                     sqlConnection.Close();
                 }
             }
-            var session = await agent.SynchronizeAsync();
+
+            var session = await agent.SynchronizeAsync(SyncType.Reinitialize);
 
             Assert.Equal(7, session.TotalChangesDownloaded);
             Assert.Equal(0, session.TotalChangesUploaded);
+
+            string lastName = null;
+            using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
+            {
+                var script = $@"SELECT LastName FROM Customers WHERE CustomerID=1;";
+
+                using (var sqlCmd = new SqlCommand(script, sqlConnection))
+                {
+                    sqlConnection.Open();
+                    lastName = (string)sqlCmd.ExecuteScalar();
+                    sqlConnection.Close();
+                }
+            }
+
+            Assert.Equal("Doe", lastName);
+
+
+        }
+
+
+        [Fact, TestPriority(3)]
+        public async Task SyncReinitializeWithUpload()
+        {
+            using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
+            {
+                var script = $@"UPDATE Customers SET LastName='DoeClient' WHERE CustomerID=1;";
+
+                using (var sqlCmd = new SqlCommand(script, sqlConnection))
+                {
+                    sqlConnection.Open();
+                    sqlCmd.ExecuteNonQuery();
+                    sqlConnection.Close();
+                }
+            }
+            var session = await agent.SynchronizeAsync(SyncType.ReinitializeWithUpload);
+
+            Assert.Equal(7, session.TotalChangesDownloaded);
+            Assert.Equal(1, session.TotalChangesUploaded);
+
+            string lastName = null;
+            using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
+            {
+                var script = $@"SELECT LastName FROM Customers WHERE CustomerID=1;";
+
+                using (var sqlCmd = new SqlCommand(script, sqlConnection))
+                {
+                    sqlConnection.Open();
+                    lastName = (string)sqlCmd.ExecuteScalar();
+                    sqlConnection.Close();
+                }
+            }
+
+            Assert.Equal("DoeClient", lastName);
+
+
         }
     }
 }
