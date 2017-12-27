@@ -166,6 +166,8 @@ Global
 		{D7483F88-D0A3-41DB-B8CE-2C92600721E8}.Release|x86.ActiveCfg = Release|Any CPU
 		{D7483F88-D0A3-41DB-B8CE-2C92600721E8}.Release|x86.Build.0 = Release|Any CPU
 		{CE2ACCDA-3BD4-41B3-B36F-AD62BCB5C55F}.Debug|Any CPU.ActiveCfg = Debug|x86
+		{CE2ACCDA-3BD4-41B3-B36F-AD62BCB5C55F}.Debug|Any CPU.Build.0 = Debug|x86
+		{CE2ACCDA-3BD4-41B3-B36F-AD62BCB5C55F}.Debug|Any CPU.Deploy.0 = Debug|x86
 		{CE2ACCDA-3BD4-41B3-B36F-AD62BCB5C55F}.Debug|ARM.ActiveCfg = Debug|ARM
 		{CE2ACCDA-3BD4-41B3-B36F-AD62BCB5C55F}.Debug|ARM.Build.0 = Debug|ARM
 		{CE2ACCDA-3BD4-41B3-B36F-AD62BCB5C55F}.Debug|ARM.Deploy.0 = Debug|ARM
@@ -186,6 +188,7 @@ Global
 		{CE2ACCDA-3BD4-41B3-B36F-AD62BCB5C55F}.Release|x86.Build.0 = Release|x86
 		{CE2ACCDA-3BD4-41B3-B36F-AD62BCB5C55F}.Release|x86.Deploy.0 = Release|x86
 		{E623BBA6-322B-4968-8DA2-A1DDD49C709F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E623BBA6-322B-4968-8DA2-A1DDD49C709F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E623BBA6-322B-4968-8DA2-A1DDD49C709F}.Debug|ARM.ActiveCfg = Debug|Any CPU
 		{E623BBA6-322B-4968-8DA2-A1DDD49C709F}.Debug|ARM.Build.0 = Debug|Any CPU
 		{E623BBA6-322B-4968-8DA2-A1DDD49C709F}.Debug|x64.ActiveCfg = Debug|Any CPU
@@ -210,8 +213,8 @@ Global
 		{E623BBA6-322B-4968-8DA2-A1DDD49C709F} = {437F3541-AAFA-4369-953E-4643660EEBC4}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {348020ED-748B-4CC8-AA1D-9F7D36E2AC12}
 		BuildVersion_StartDate = 2000/1/1
+		SolutionGuid = {348020ED-748B-4CC8-AA1D-9F7D36E2AC12}
 	EndGlobalSection
 	GlobalSection(Performance) = preSolution
 		HasPerformanceSessions = true

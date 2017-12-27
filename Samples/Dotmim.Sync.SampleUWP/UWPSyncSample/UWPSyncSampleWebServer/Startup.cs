@@ -26,6 +26,8 @@ namespace UWPSyncSampleWebServer
         {
             services.AddMvc();
 
+            // For UWP Sample
+            // Make Sure this database is created on you sqlexpress instance
             var connectionString = @"Data Source=localhost\sqlexpress; Initial Catalog=Contoso; Integrated Security=true;";
             services.AddSyncServer<SqlSyncProvider>(connectionString, configuration =>
             {
@@ -33,6 +35,17 @@ namespace UWPSyncSampleWebServer
                 configuration.Add(s);
                 configuration.DownloadBatchSizeInKB = 1000;
             });
+
+
+            // For console sample app
+            // make sure the Northwind database is up and running on your sqlexpress instance
+            //var connectionString = @"Data Source=localhost\sqlexpress; Initial Catalog=Northwind; Integrated Security=true;";
+            //services.AddSyncServer<SqlSyncProvider>(connectionString, configuration =>
+            //{
+            //    var s = new string[] { "Customers", "Region" };
+            //    configuration.Add(s);
+            //    configuration.DownloadBatchSizeInKB = 1000;
+            //});
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

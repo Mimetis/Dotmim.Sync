@@ -32,7 +32,6 @@ namespace UWPSyncSample.ViewModels
         private bool isSynchronizing;
         private SyncDirection syncDirection;
         private bool useHttp;
-        private bool overwrite;
 
         public ObservableCollection<EmployeeModel> Employees { get; set; }
         public ObservableCollection<String> Steps { get; set; }
@@ -139,22 +138,14 @@ namespace UWPSyncSample.ViewModels
 
                 // all config are applied on server side if http is enabled
                 if (!this.UseHttp)
-                {
-                    //agent.Configuration.OverwriteConfiguration = this.Overwrite;
-
                     if (this.SyncDirection == SyncDirection.DownloadOnly || this.SyncDirection == SyncDirection.UploadOnly)
-                    {
                         foreach (var t in agent.Configuration)
-                        {
                             t.SyncDirection = this.SyncDirection;
-                        }
-                    }
-                }
 
                 agent.SyncProgress += SyncProgress;
                 var s = await agent.SynchronizeAsync(syncType, CancellationToken.None);
 
-                Output($"Upload {s.TotalChangesUploaded}. Download {s.TotalChangesDownloaded}. Conflicts {s.TotalSyncConflicts}.");
+                Output(s.ToString());
 
                 if (s.TotalChangesDownloaded > 0)
                     await RefreshAsync();
@@ -186,22 +177,6 @@ namespace UWPSyncSample.ViewModels
                 {
                     this.useHttp = value;
                     RaisePropertyChanged(nameof(UseHttp));
-                }
-            }
-        }
-
-        public Boolean Overwrite
-        {
-            get
-            {
-                return this.overwrite;
-            }
-            set
-            {
-                if (value != overwrite)
-                {
-                    this.overwrite = value;
-                    RaisePropertyChanged(nameof(Overwrite));
                 }
             }
         }

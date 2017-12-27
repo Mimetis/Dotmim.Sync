@@ -334,7 +334,7 @@ namespace Dotmim.Sync.Web
                     httpMessage.ApplyChanges.Set = new DmSetSurrogate(bpi.Set);
                 }
 
-                if (httpMessage.ApplyChanges.Set == null || httpMessage.ApplyChanges.Set.Tables == null || httpMessage.ApplyChanges.Set.Tables.Count == 0)
+                if (httpMessage.ApplyChanges.Set == null || httpMessage.ApplyChanges.Set.Tables == null)
                     throw new ArgumentException("No changes to upload found.");
 
                 // no need to send filename

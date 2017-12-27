@@ -71,7 +71,7 @@
                     <TextBlock Text="Create your picture"
                                FontSize="24" />
                     
-                    <controls:XButton Text="From my Camera"
+                    <controls:XButton Text="From my Camera" IsEnabled="false"
                             Name="ButtonPictureCamera" Symbol="Camera"
                             Margin="0,20,0,0">
                     </controls:XButton>
