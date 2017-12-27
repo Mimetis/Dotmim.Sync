@@ -39,6 +39,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 IsRegisterAsSingleton = true
             };
 
+            
             serviceCollection.AddSingleton(webProvider);
 
             return serviceCollection;

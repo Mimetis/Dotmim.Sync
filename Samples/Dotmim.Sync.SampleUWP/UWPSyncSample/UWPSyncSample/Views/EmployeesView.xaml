@@ -106,10 +106,6 @@
                                TextWrapping="WrapWholeWords" />
                 </CheckBox>
 
-                <TextBlock  Text="Configuration" FontSize="22" Margin="0,10,0,0" />
-
-                <CheckBox Content="Rewrite configuration" Margin="0,5,0,0" IsChecked="{x:Bind ViewModel.Overwrite,Mode=TwoWay}"  />
-
                 <TextBlock  Text="Mode" FontSize="18" Margin="0,10,0,0" />
 
                 <ComboBox Margin="0,5,0,0" Width="300" ItemsSource="{x:Bind ViewModel.SyncDirections, Mode=OneWay}" 

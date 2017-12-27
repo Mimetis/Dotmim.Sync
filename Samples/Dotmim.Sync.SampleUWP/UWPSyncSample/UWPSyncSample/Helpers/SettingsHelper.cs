@@ -79,13 +79,18 @@ namespace UWPSyncSample.Helpers
             else
                 this.connectionStrings = Deserialize(serializedCollections);
 
-            this.CreateDatabase("Contoso", false);
-            this.CreateDatabase("ContosoClient", false);
-            this.CreateTableOnServer();
+            
         }
 
 
-        public void CreateDatabase(string dbName, bool recreateDb = true)
+        public async Task InitializeDatabasesAsync()
+        {
+            this.CreateDatabaseAsync("Contoso", false);
+            this.CreateDatabaseAsync("ContosoClient", false);
+            this.CreateTableOnServerAsync();
+        }
+
+        public async Task CreateDatabaseAsync(string dbName, bool recreateDb = true)
         {
 
             var builder = new SqlConnectionStringBuilder(this.connectionStrings[ConnectionType.Server_SqlServer])
@@ -99,12 +104,12 @@ namespace UWPSyncSample.Helpers
 
             masterConnection.Open();
             cmdDb = new SqlCommand(GetCreationDBScript(dbName, recreateDb), masterConnection);
-            cmdDb.ExecuteNonQuery();
+            await cmdDb.ExecuteNonQueryAsync();
             masterConnection.Close();
         }
 
 
-        public void CreateTableOnServer()
+        public async Task CreateTableOnServerAsync()
         {
 
             SqlConnection connection = null;
@@ -113,7 +118,7 @@ namespace UWPSyncSample.Helpers
 
             connection.Open();
             cmdDb = new SqlCommand(GetCreationTableDBScript(), connection);
-            cmdDb.ExecuteNonQuery();
+            await cmdDb.ExecuteNonQueryAsync();
             connection.Close();
         }
 
