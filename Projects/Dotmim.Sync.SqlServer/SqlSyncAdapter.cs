@@ -165,14 +165,14 @@ namespace Dotmim.Sync.SqlServer.Builders
                                         if (Int64.TryParse(rowValue.ToString(), out Int64 v))
                                             rowValue = v;
                                         else
-                                            throw new SyncException($"Can't convert value {rowValue} to Int64");
+                                            throw new InvalidCastException($"Can't convert value {rowValue} to Int64");
                                     break;
                                 case SqlDbType.Bit:
                                     if (columnType != typeof(bool))
                                         if (Boolean.TryParse(rowValue.ToString(), out Boolean v))
                                             rowValue = v;
                                         else
-                                            throw new SyncException($"Can't convert value {rowValue} to Boolean");
+                                            throw new InvalidCastException($"Can't convert value {rowValue} to Boolean");
                                     break;
                                 case SqlDbType.Date:
                                 case SqlDbType.DateTime:
@@ -182,7 +182,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                                         if (DateTime.TryParse(rowValue.ToString(), out DateTime v))
                                             rowValue = v;
                                         else
-                                            throw new SyncException($"Can't convert value {rowValue} to DateTime");
+                                            throw new InvalidCastException($"Can't convert value {rowValue} to DateTime");
                                     break;
                                 case SqlDbType.DateTimeOffset:
                                     if (columnType != typeof(DateTimeOffset))
@@ -190,7 +190,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                                         if (DateTimeOffset.TryParse(rowValue.ToString(), out DateTimeOffset dt))
                                             rowValue = dt;
                                         else
-                                            throw new SyncException($"Can't convert value {rowValue} to DateTimeOffset");
+                                            throw new InvalidCastException($"Can't convert value {rowValue} to DateTimeOffset");
                                     }
                                     break;
                                 case SqlDbType.Decimal:
@@ -198,21 +198,21 @@ namespace Dotmim.Sync.SqlServer.Builders
                                         if (Decimal.TryParse(rowValue.ToString(), out decimal v))
                                             rowValue = v;
                                         else
-                                            throw new SyncException($"Can't convert value {rowValue} to Decimal");
+                                            throw new InvalidCastException($"Can't convert value {rowValue} to Decimal");
                                     break;
                                 case SqlDbType.Float:
                                     if (columnType != typeof(Double))
                                         if (Double.TryParse(rowValue.ToString(), out Double v))
                                             rowValue = v;
                                         else
-                                            throw new SyncException($"Can't convert value {rowValue} to Double");
+                                            throw new InvalidCastException($"Can't convert value {rowValue} to Double");
                                     break;
                                 case SqlDbType.Real:
                                     if (columnType != typeof(float))
                                         if (float.TryParse(rowValue.ToString(), out float v))
                                             rowValue = v;
                                         else
-                                            throw new SyncException($"Can't convert value {rowValue} to Double");
+                                            throw new InvalidCastException($"Can't convert value {rowValue} to Double");
                                     break;
                                 case SqlDbType.Image:
                                 case SqlDbType.Binary:
@@ -227,7 +227,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                                         if (Int32.TryParse(rowValue.ToString(), out int v))
                                             rowValue = v;
                                         else
-                                            throw new SyncException($"Can't convert value {rowValue} to Int32");
+                                            throw new InvalidCastException($"Can't convert value {rowValue} to Int32");
                                     break;
                                 case SqlDbType.Money:
                                 case SqlDbType.SmallMoney:
@@ -235,7 +235,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                                         if (Decimal.TryParse(rowValue.ToString(), out Decimal v))
                                             rowValue = v;
                                         else
-                                            throw new SyncException($"Can't convert value {rowValue} to Decimal");
+                                            throw new InvalidCastException($"Can't convert value {rowValue} to Decimal");
                                     break;
                                 case SqlDbType.NChar:
                                 case SqlDbType.NText:
@@ -253,14 +253,14 @@ namespace Dotmim.Sync.SqlServer.Builders
                                         if (Int16.TryParse(rowValue.ToString(), out Int16 v))
                                             rowValue = v;
                                         else
-                                            throw new SyncException($"Can't convert value {rowValue} to Int16");
+                                            throw new InvalidCastException($"Can't convert value {rowValue} to Int16");
                                     break;
                                 case SqlDbType.Time:
                                     if (columnType != typeof(TimeSpan))
                                         if (TimeSpan.TryParse(rowValue.ToString(), out TimeSpan v))
                                             rowValue = v;
                                         else
-                                            throw new SyncException($"Can't convert value {rowValue} to TimeSpan");
+                                            throw new InvalidCastException($"Can't convert value {rowValue} to TimeSpan");
                                     break;
                                 case SqlDbType.Timestamp:
                                     break;
@@ -269,16 +269,16 @@ namespace Dotmim.Sync.SqlServer.Builders
                                         if (Byte.TryParse(rowValue.ToString(), out byte v))
                                             rowValue = v;
                                         else
-                                            throw new SyncException($"Can't convert value {rowValue} to Byte");
+                                            throw new InvalidCastException($"Can't convert value {rowValue} to Byte");
                                     break;
                                 case SqlDbType.Udt:
-                                    throw new SyncException($"Can't use UDT as SQL Type");
+                                    throw new ArgumentException($"Can't use UDT as SQL Type");
                                 case SqlDbType.UniqueIdentifier:
                                     if (columnType != typeof(Guid))
                                         if (Guid.TryParse(rowValue.ToString(), out Guid v))
                                             rowValue = v;
                                         else
-                                            throw new SyncException($"Can't convert value {rowValue} to Guid");
+                                            throw new InvalidCastException($"Can't convert value {rowValue} to Guid");
                                     break;
                             }
                         }
@@ -302,9 +302,8 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             catch (Exception ex)
             {
-                throw new SyncException($"Can't create a SqlRecord based on the rows we have: {ex.Message}");
+                throw new InvalidOperationException($"Can't create a SqlRecord based on the rows we have: {ex.Message}");
             }
-
 
             ((SqlParameterCollection)cmd.Parameters)["@changeTable"].TypeName = string.Empty;
             ((SqlParameterCollection)cmd.Parameters)["@changeTable"].Value = records;

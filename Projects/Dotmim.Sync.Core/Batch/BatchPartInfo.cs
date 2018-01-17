@@ -25,7 +25,7 @@ namespace Dotmim.Sync.Batch
                 return batch;
 
             if (String.IsNullOrEmpty(this.FileName))
-                throw new ArgumentException("Cant get a batchpart if filename is null");
+                throw new ArgumentNullException("Cant get a batchpart if filename is null");
 
             // Get a Batch part, and deserialise the file into a DmSetSurrogate
             batch = BatchPart.Deserialize(this.FileName);
@@ -97,10 +97,12 @@ namespace Dotmim.Sync.Batch
 
             var dmRow = set.Tables["DotmimSync__BatchPartsInfo"].Rows[0];
 
-            var bpi = new BatchPartInfo();
-            bpi.Index = (int)dmRow["Index"];
-            bpi.FileName = dmRow["FileName"] as string;
-            bpi.IsLastBatch = (Boolean)dmRow["IsLastBatch"];
+            var bpi = new BatchPartInfo
+            {
+                Index = (int)dmRow["Index"],
+                FileName = dmRow["FileName"] as string,
+                IsLastBatch = (Boolean)dmRow["IsLastBatch"]
+            };
 
             if (dmRow["Tables"] != null)
             {

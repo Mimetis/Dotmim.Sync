@@ -22,115 +22,100 @@ namespace Dotmim.Sync
         /// </summary>
         public virtual async Task<(SyncContext, List<ScopeInfo>)> EnsureScopesAsync(SyncContext context, string scopeName, Guid? clientReferenceId = null)
         {
+            DbConnection connection = null;
             try
             {
                 if (string.IsNullOrEmpty(scopeName))
-                    throw SyncException.CreateArgumentException(SyncStage.ScopeSaved, "ScopeName");
+                    throw new ArgumentNullException("ScopeName", "Scope name is required");
 
                 context.SyncStage = SyncStage.ScopeLoading;
 
                 List<ScopeInfo> scopes = new List<ScopeInfo>();
 
                 // Open the connection
-                using (var connection = this.CreateConnection())
+                using (connection = this.CreateConnection())
                 {
-                    try
+                    await connection.OpenAsync();
+
+                    using (var transaction = connection.BeginTransaction())
                     {
-                        await connection.OpenAsync();
+                        var scopeBuilder = this.GetScopeBuilder();
+                        var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(connection, transaction);
+                        var needToCreateScopeInfoTable = scopeInfoBuilder.NeedToCreateScopeInfoTable();
 
-                        using (var transaction = connection.BeginTransaction())
+                        // create the scope info table if needed
+                        if (needToCreateScopeInfoTable)
+                            scopeInfoBuilder.CreateScopeInfoTable();
+
+                        // not the first time we ensure scopes, so get scopes
+                        if (!needToCreateScopeInfoTable)
                         {
-                            var scopeBuilder = this.GetScopeBuilder();
-                            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(connection, transaction);
-                            var needToCreateScopeInfoTable = scopeInfoBuilder.NeedToCreateScopeInfoTable();
+                            // get all scopes shared by all (identified by scopeName)
+                            var lstScopes = scopeInfoBuilder.GetAllScopes(scopeName);
 
-                            // create the scope info table if needed
-                            if (needToCreateScopeInfoTable)
-                                scopeInfoBuilder.CreateScopeInfoTable();
+                            // try to get the scopes from database
+                            // could be two scopes if from server or a single scope if from client
+                            scopes = lstScopes.Where(s => (s.IsLocal == true || (clientReferenceId.HasValue && s.Id == clientReferenceId.Value))).ToList();
 
-                            // not the first time we ensure scopes, so get scopes
-                            if (!needToCreateScopeInfoTable)
+                        }
+
+                        // If no scope found, create it on the local provider
+                        if (scopes == null || scopes.Count <= 0)
+                        {
+                            scopes = new List<ScopeInfo>();
+
+                            // create a new scope id for the current owner (could be server or client as well)
+                            var scope = new ScopeInfo();
+                            scope.Id = Guid.NewGuid();
+                            scope.Name = scopeName;
+                            scope.IsLocal = true;
+                            scope.IsNewScope = true;
+                            scope.LastSync = null;
+
+                            scope = scopeInfoBuilder.InsertOrUpdateScopeInfo(scope);
+
+                            scopes.Add(scope);
+                        }
+                        else
+                        {
+                            //check if we have alread a good last sync. if no, treat it as new
+                            scopes.ForEach(sc => sc.IsNewScope = sc.LastSync == null);
+                        }
+
+                        // if we are not on the server, we have to check that we only have one scope
+                        if (!clientReferenceId.HasValue && scopes.Count > 1)
+                            throw new InvalidOperationException("On Local provider, we should have only one scope info");
+
+
+                        // if we have a reference in args, we need to get this specific line from database
+                        // this happen only on the server side
+                        if (clientReferenceId.HasValue)
+                        {
+                            var refScope = scopes.FirstOrDefault(s => s.Id == clientReferenceId);
+
+                            if (refScope == null)
                             {
-                                // get all scopes shared by all (identified by scopeName)
-                                var lstScopes = scopeInfoBuilder.GetAllScopes(scopeName);
+                                refScope = new ScopeInfo();
+                                refScope.Id = clientReferenceId.Value;
+                                refScope.Name = scopeName;
+                                refScope.IsLocal = false;
+                                refScope.IsNewScope = true;
+                                refScope.LastSync = null;
 
-                                // try to get the scopes from database
-                                // could be two scopes if from server or a single scope if from client
-                                scopes = lstScopes.Where(s => (s.IsLocal == true || (clientReferenceId.HasValue && s.Id == clientReferenceId.Value))).ToList();
+                                refScope = scopeInfoBuilder.InsertOrUpdateScopeInfo(refScope);
 
-                            }
-
-                            // If no scope found, create it on the local provider
-                            if (scopes == null || scopes.Count <= 0)
-                            {
-                                scopes = new List<ScopeInfo>();
-
-                                // create a new scope id for the current owner (could be server or client as well)
-                                var scope = new ScopeInfo();
-                                scope.Id = Guid.NewGuid();
-                                scope.Name = scopeName;
-                                scope.IsLocal = true;
-                                scope.IsNewScope = true;
-                                scope.LastSync = null;
-
-                                scope = scopeInfoBuilder.InsertOrUpdateScopeInfo(scope);
-
-                                scopes.Add(scope);
+                                scopes.Add(refScope);
                             }
                             else
                             {
-                                //check if we have alread a good last sync. if no, treat it as new
-                                scopes.ForEach(sc => sc.IsNewScope = sc.LastSync == null);
+                                refScope.IsNewScope = refScope.LastSync == null;
                             }
-
-                            // if we are not on the server, we have to check that we only have one scope
-                            if (!clientReferenceId.HasValue && scopes.Count > 1)
-                                throw SyncException.CreateNotSupportedException(SyncStage.ScopeSaved, "On Local provider, we should have only one scope info");
-
-
-                            // if we have a reference in args, we need to get this specific line from database
-                            // this happen only on the server side
-                            if (clientReferenceId.HasValue)
-                            {
-                                var refScope = scopes.FirstOrDefault(s => s.Id == clientReferenceId);
-
-                                if (refScope == null)
-                                {
-                                    refScope = new ScopeInfo();
-                                    refScope.Id = clientReferenceId.Value;
-                                    refScope.Name = scopeName;
-                                    refScope.IsLocal = false;
-                                    refScope.IsNewScope = true;
-                                    refScope.LastSync = null;
-
-                                    refScope = scopeInfoBuilder.InsertOrUpdateScopeInfo(refScope);
-
-                                    scopes.Add(refScope);
-                                }
-                                else
-                                {
-                                    refScope.IsNewScope = refScope.LastSync == null;
-                                }
-                            }
-
-                            transaction.Commit();
                         }
 
-                    }
-                    catch (DbException dbex)
-                    {
-                        throw SyncException.CreateDbException(context.SyncStage, dbex);
-                    }
-                    catch (Exception dbex)
-                    {
-                        throw SyncException.CreateUnknowException(context.SyncStage, dbex);
-                    }
-                    finally
-                    {
-                        if (connection.State != ConnectionState.Closed)
-                            connection.Close();
+                        transaction.Commit();
                     }
 
+                    connection.Close();
                 }
 
                 // Event progress
@@ -141,11 +126,14 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                if (ex is SyncException)
-                    throw;
-                else
-                    throw SyncException.CreateUnknowException(context.SyncStage, ex);
+                throw new SyncException(ex, SyncStage.ScopeLoading, this.ProviderTypeName);
             }
+            finally
+            {
+                if (connection != null && connection.State != ConnectionState.Closed)
+                    connection.Close();
+            }
+
         }
 
         /// <summary>
@@ -153,12 +141,14 @@ namespace Dotmim.Sync
         /// </summary>
         public virtual async Task<SyncContext> WriteScopesAsync(SyncContext context, List<ScopeInfo> scopes)
         {
-            // Open the connection
-            using (var connection = this.CreateConnection())
+            DbConnection connection = null;
+            try
             {
-                try
+                // Open the connection
+                using (connection = this.CreateConnection())
                 {
                     await connection.OpenAsync();
+
                     using (var transaction = connection.BeginTransaction())
                     {
 
@@ -179,30 +169,21 @@ namespace Dotmim.Sync
 
                         transaction.Commit();
                     }
-                }
-                catch (DbException dbex)
-                {
-                    throw SyncException.CreateDbException(context.SyncStage, dbex);
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine(ex.Message);
 
-                    if (ex is SyncException)
-                        throw;
-                    else
-                        throw SyncException.CreateUnknowException(context.SyncStage, ex);
-
-                    throw;
+                    connection.Close();
                 }
-                finally
-                {
-                    if (connection.State != ConnectionState.Closed)
-                        connection.Close();
-                }
-                return context;
-
             }
+            catch (Exception ex)
+            {
+                throw new SyncException(ex, SyncStage.ScopeSaved, this.ProviderTypeName);
+            }
+            finally
+            {
+                if (connection != null && connection.State != ConnectionState.Closed)
+                    connection.Close();
+            }
+            return context;
+
         }
 
     }

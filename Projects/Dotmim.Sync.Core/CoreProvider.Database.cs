@@ -1,20 +1,11 @@
 ﻿using Dotmim.Sync.Builders;
-using Dotmim.Sync.Cache;
 using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Log;
-using Dotmim.Sync.Manager;
 using Dotmim.Sync.Data;
-using Dotmim.Sync.Data.Surrogate;
 using System;
-using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using System.Threading;
-using Dotmim.Sync.Serialization;
-using System.Diagnostics;
 using System.Text;
 
 namespace Dotmim.Sync
@@ -29,16 +20,17 @@ namespace Dotmim.Sync
         /// </summary>
         public async Task DeprovisionAsync(string[] tables, SyncProvision provision)
         {
-            if (tables == null || tables.Length == 0)
-                throw new SyncException("You must set the tables you want to modify");
-
-            // Load the configuration
-            var configuration = await this.ReadConfigurationAsync(tables);
-
-            // Open the connection
-            using (var connection = this.CreateConnection())
+            DbConnection connection = null;
+            try
             {
-                try
+                if (tables == null || tables.Length == 0)
+                    throw new ArgumentNullException("tables", "You must set the tables you want to deprovision");
+
+                // Load the configuration
+                var configuration = await this.ReadConfigurationAsync(tables);
+
+                // Open the connection
+                using (connection = this.CreateConnection())
                 {
                     await connection.OpenAsync();
 
@@ -71,17 +63,16 @@ namespace Dotmim.Sync
 
                         transaction.Commit();
                     }
-
                 }
-                catch (Exception ex)
-                {
-                    throw SyncException.CreateUnknowException(SyncStage.BeginSession, ex);
-                }
-                finally
-                {
-                    if (connection.State != ConnectionState.Closed)
-                        connection.Close();
-                }
+            }
+            catch (Exception ex)
+            {
+                throw new SyncException(ex, SyncStage.DatabaseApplying, this.ProviderTypeName);
+            }
+            finally
+            {
+                if (connection != null && connection.State != ConnectionState.Closed)
+                    connection.Close();
             }
 
         }
@@ -91,16 +82,18 @@ namespace Dotmim.Sync
         /// </summary>
         public async Task ProvisionAsync(string[] tables, SyncProvision provision)
         {
-            if (tables == null || tables.Length == 0)
-                throw new SyncException("You must set the tables you want to modify");
+            DbConnection connection = null;
 
-            // Load the configuration
-            var configuration = await this.ReadConfigurationAsync(tables);
-
-            // Open the connection
-            using (var connection = this.CreateConnection())
+            try
             {
-                try
+                if (tables == null || tables.Length == 0)
+                    throw new ArgumentNullException("tables", "You must set the tables you want to provision");
+
+                // Load the configuration
+                var configuration = await this.ReadConfigurationAsync(tables);
+
+                // Open the connection
+                using (connection = this.CreateConnection())
                 {
                     await connection.OpenAsync();
 
@@ -133,18 +126,19 @@ namespace Dotmim.Sync
                         transaction.Commit();
                     }
 
+                    connection.Close();
                 }
-                catch (Exception ex)
-                {
-                    throw SyncException.CreateUnknowException(SyncStage.BeginSession, ex);
-                }
-                finally
-                {
-                    if (connection.State != ConnectionState.Closed)
-                        connection.Close();
-                }
-            }
 
+            }
+            catch (Exception ex)
+            {
+                throw new SyncException(ex, SyncStage.DatabaseApplying, this.ProviderTypeName);
+            }
+            finally
+            {
+                if (connection != null && connection.State != ConnectionState.Closed)
+                    connection.Close();
+            }
         }
 
         /// <summary>
@@ -153,28 +147,29 @@ namespace Dotmim.Sync
         /// </summary>
         public virtual async Task<SyncContext> EnsureDatabaseAsync(SyncContext context, ScopeInfo scopeInfo)
         {
-            var configuration = GetCacheConfiguration();
-
-            // Event progress
-            context.SyncStage = SyncStage.DatabaseApplying;
-            DatabaseApplyingEventArgs beforeArgs =
-                new DatabaseApplyingEventArgs(this.ProviderTypeName, context.SyncStage, configuration);
-            this.TryRaiseProgressEvent(beforeArgs, this.DatabaseApplying);
-
-            // if config has been editer by user in event, save again
-            this.SetCacheConfiguration(configuration);
-
-            // If scope exists and lastdatetime sync is present, so database exists
-            // Check if we don't have an OverwriteConfiguration (if true, we force the check)
-            if (scopeInfo.LastSync.HasValue && !beforeArgs.OverwriteConfiguration)
-                return context;
-
-            StringBuilder script = new StringBuilder();
-
-            // Open the connection
-            using (var connection = this.CreateConnection())
+            DbConnection connection = null;
+            try
             {
-                try
+                var configuration = GetCacheConfiguration();
+
+                // Event progress
+                context.SyncStage = SyncStage.DatabaseApplying;
+                DatabaseApplyingEventArgs beforeArgs =
+                    new DatabaseApplyingEventArgs(this.ProviderTypeName, context.SyncStage, configuration);
+                this.TryRaiseProgressEvent(beforeArgs, this.DatabaseApplying);
+
+                // if config has been editer by user in event, save again
+                this.SetCacheConfiguration(configuration);
+
+                // If scope exists and lastdatetime sync is present, so database exists
+                // Check if we don't have an OverwriteConfiguration (if true, we force the check)
+                if (scopeInfo.LastSync.HasValue && !beforeArgs.OverwriteConfiguration)
+                    return context;
+
+                StringBuilder script = new StringBuilder();
+
+                // Open the connection
+                using (connection = this.CreateConnection())
                 {
                     await connection.OpenAsync();
 
@@ -216,26 +211,21 @@ namespace Dotmim.Sync
                         transaction.Commit();
                     }
 
-                }
-                catch (DbException dbex)
-                {
-                    throw SyncException.CreateDbException(context.SyncStage, dbex);
-                }
-                catch (Exception ex)
-                {
-                    if (ex is SyncException)
-                        throw;
-                    else
-                        throw SyncException.CreateUnknowException(context.SyncStage, ex);
-                }
-                finally
-                {
-                    if (connection.State != ConnectionState.Closed)
-                        connection.Close();
-                }
-                return context;
-            }
+                    connection.Close();
 
+                    return context;
+                }
+
+            }
+            catch (Exception ex)
+            {
+                throw new SyncException(ex, SyncStage.DatabaseApplying, this.ProviderTypeName);
+            }
+            finally
+            {
+                if (connection != null && connection.State != ConnectionState.Closed)
+                    connection.Close();
+            }
         }
 
         /// <summary>

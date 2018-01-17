@@ -29,74 +29,28 @@ namespace Dotmim.Sync
             try
             {
                 if (scopeInfo == null)
-                    throw new ArgumentException("ClientScope is null");
+                    throw new ArgumentNullException("scopeInfo", "Client scope info is null");
 
                 var configuration = GetCacheConfiguration();
 
-                // check batchSize if not > then Configuration.DownloadBatchSizeInKB
-                if (configuration.DownloadBatchSizeInKB > 0)
-                    Debug.WriteLine($"Enumeration data cache size selected: {configuration.DownloadBatchSizeInKB} Kb");
-
-                // bacth info containing changes
-                BatchInfo batchInfo;
-
-                // Statistics about changes that are selected
-                ChangesSelected changesSelected;
-
-                (context, batchInfo, changesSelected) = await this.GetChanges(context, scopeInfo);
-
-                // Check if the remote is not outdated
-                var isOutdated = this.IsRemoteOutdated();
-
-                if (isOutdated)
-                    throw new Exception("OutDatedPeer");
-
-                return (context, batchInfo, changesSelected);
-            }
-            catch (DbException dbex)
-            {
-                throw SyncException.CreateDbException(context.SyncStage, dbex);
-            }
-            catch (Exception ex)
-            {
-                if (ex is SyncException)
-                    throw;
-                else
-                    throw SyncException.CreateUnknowException(context.SyncStage, ex);
-            }
-        }
-
-        internal async Task<(SyncContext, BatchInfo, ChangesSelected)> GetChanges(SyncContext context, ScopeInfo scopeInfo)
-        {
-            BatchInfo batchInfo = null;
-            try
-            {
-                Debug.WriteLine("GetChanges called: _syncBatchProducer is null");
-
-                var configuration = GetCacheConfiguration();
-
-                // Check if the remote is not outdated
+                // Check if the provider is not outdated
                 var isOutdated = this.IsRemoteOutdated();
 
                 // Get a chance to make the sync even if it's outdated
-                if (isOutdated && this.SyncOutdated != null)
-                {
-                    Debug.WriteLine("Raising Sync Remote Outdated Event");
-                    var outdatedEventArgs = new OutdatedEventArgs();
-                    this.SyncOutdated(this, outdatedEventArgs);
-                    Debug.WriteLine($"Action taken : {outdatedEventArgs.Action.ToString()}");
-
-                    if (outdatedEventArgs.Action == OutdatedSyncAction.PartialSync)
-                        Debug.WriteLine("Attempting Partial Sync");
-                }
-
-
-                // the sync is still outdated, abort it
                 if (isOutdated)
                 {
-                    Debug.WriteLine("Aborting Sync");
-                    return (context, null, null);
+                    var outdatedEventArgs = new OutdatedEventArgs();
+                    this.SyncOutdated?.Invoke(this, outdatedEventArgs);
+
+                    if (outdatedEventArgs.Action != OutdatedSyncAction.Rollback)
+                        context.SyncType = outdatedEventArgs.Action == OutdatedSyncAction.Reinitialize ? SyncType.Reinitialize : SyncType.ReinitializeWithUpload;
+
+                    if (outdatedEventArgs.Action == OutdatedSyncAction.Rollback)
+                        throw new OutOfDateException("The provider is out of date ! Try to make a Reinitialize sync");
                 }
+
+                // batch info containing changes
+                BatchInfo batchInfo;
 
                 // Statistics about changes that are selected
                 ChangesSelected changesSelected;
@@ -112,11 +66,10 @@ namespace Dotmim.Sync
 
                 return (context, batchInfo, changesSelected);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                throw;
+                throw new SyncException(ex, SyncStage.TableChangesSelecting, this.ProviderTypeName);
             }
-
         }
 
         /// <summary>

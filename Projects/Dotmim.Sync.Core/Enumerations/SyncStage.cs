@@ -9,23 +9,23 @@ namespace Dotmim.Sync.Enumerations
     /// <summary>
     /// Sync progress step. Used for the user feedback
     /// </summary>
-public enum SyncStage
-{
-    None,
-    BeginSession,
-    ScopeLoading,
-    ScopeSaved,
-    ConfigurationApplying,
-    ConfigurationApplied,
-    DatabaseApplying,
-    DatabaseApplied,
-    DatabaseTableApplying,
-    DatabaseTableApplied,
-    TableChangesSelecting,
-    TableChangesSelected,
-    TableChangesApplying,
-    TableChangesApplied,
-    EndSession,
-    CleanupMetadata
-}
+    public enum SyncStage
+    {
+        None,
+        BeginSession,
+        ScopeLoading,
+        ScopeSaved,
+        ConfigurationApplying,
+        ConfigurationApplied,
+        DatabaseApplying,
+        DatabaseApplied,
+        DatabaseTableApplying,
+        DatabaseTableApplied,
+        TableChangesSelecting,
+        TableChangesSelected,
+        TableChangesApplying,
+        TableChangesApplied,
+        EndSession,
+        CleanupMetadata
+    }
 }

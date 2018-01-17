@@ -68,12 +68,17 @@ namespace Dotmim.Sync
         /// </summary>
         public SyncParameterCollection Parameters { get; set; }
 
-
+        /// <summary>
+        /// Ctor. New sync context with a new Guid
+        /// </summary>
         public SyncContext(Guid sessionId)
         {
             this.SessionId = sessionId;
         }
 
+        /// <summary>
+        /// Get the result if sync session is ended
+        /// </summary>
         public override string ToString()
         {
             if (this.CompleteTime != this.StartTime && this.CompleteTime > this.StartTime)
@@ -91,10 +96,7 @@ namespace Dotmim.Sync
                         $"\tTotal duration :{durationstr} ");
 
             }
-            else
-            {
-                return base.ToString();
-            }
+            return base.ToString();
         }
     }
 }

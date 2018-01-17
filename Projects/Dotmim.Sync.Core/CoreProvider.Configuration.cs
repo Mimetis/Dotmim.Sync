@@ -24,7 +24,7 @@ namespace Dotmim.Sync
         public void SetConfiguration(SyncConfiguration syncConfiguration)
         {
             if (syncConfiguration == null || !syncConfiguration.HasTables)
-                throw new SyncException("Service Configuration must exists and contains at least one table to sync.", SyncStage.ConfigurationApplied, SyncExceptionType.Argument);
+                throw new ArgumentNullException("syncConfiguration", "Service Configuration must exists and contains at least one table to sync.");
 
             this.syncConfiguration = syncConfiguration;
         }
@@ -33,33 +33,32 @@ namespace Dotmim.Sync
         /// Generate the DmTable configuration from a given columns list
         /// Validate that all columns are currently supported by the provider
         /// </summary>
-        private void ValidateTableFromColumnsList(DmTable dmTable, List<DmColumn> columns, IDbManagerTable dbManagerTable)
+        private void ValidateTableFromColumns(DmTable dmTable, List<DmColumn> columns, IDbManagerTable dbManagerTable)
         {
             dmTable.OriginalProvider = this.ProviderTypeName;
 
             var ordinal = 0;
 
             if (columns == null || columns.Count <= 0)
-                throw new SyncException($"{dmTable.TableName} does not contains any columns.", SyncStage.ConfigurationApplying, SyncExceptionType.NotSupported);
+                throw new ArgumentNullException("columns", $"{dmTable.TableName} does not contains any columns.");
 
             // Get PrimaryKey
             var dmTableKeys = dbManagerTable.GetTablePrimaryKeys();
 
             if (dmTableKeys == null || dmTableKeys.Count == 0)
-                throw new SyncException($"No Primary Keys in table {dmTable.TableName}, Can't make a synchronization with a table without primary keys.", SyncStage.ConfigurationApplying, SyncExceptionType.NoPrimaryKeys);
+                throw new MissingPrimaryKeyException($"No Primary Keys in table {dmTable.TableName}, Can't make a synchronization with a table without primary keys.");
 
             // Check if we have more than one column (excepting primarykeys)
             var columnsNotPkeys = columns.Count(c => !dmTableKeys.Contains(c.ColumnName));
 
             if (columnsNotPkeys <= 0)
-                throw new SyncException($"{dmTable.TableName} does not contains any columns, excepting primary keys.", SyncStage.ConfigurationApplying, SyncExceptionType.NotSupported);
+                throw new NotSupportedException($"{dmTable.TableName} does not contains any columns, excepting primary keys.");
 
             foreach (var column in columns.OrderBy(c => c.Ordinal))
             {
                 // First of all validate if the column is currently supported
                 if (!Metadata.IsValid(column))
-                    throw SyncException.CreateNotSupportedException(
-                        SyncStage.ConfigurationApplying, $"The Column {column.ColumnName} of type {column.OriginalTypeName} from provider {this.ProviderTypeName} is not currently supported.");
+                    throw new NotSupportedException($"The Column {column.ColumnName} of type {column.OriginalTypeName} from provider {this.ProviderTypeName} is not currently supported.");
 
                 var columnNameLower = column.ColumnName.ToLowerInvariant();
                 if (columnNameLower == "sync_scope_name"
@@ -76,8 +75,7 @@ namespace Dotmim.Sync
                     || columnNameLower == "sync_scope_name"
                     || columnNameLower == "sync_scope_name"
                     )
-                    throw SyncException.CreateNotSupportedException(
-                        SyncStage.ConfigurationApplying, $"The Column name {column.ColumnName} from provider {this.ProviderTypeName} is a reserved column name. Please choose another column name.");
+                    throw new NotSupportedException($"The Column name {column.ColumnName} from provider {this.ProviderTypeName} is a reserved column name. Please choose another column name.");
 
                 dmTable.Columns.Add(column);
 
@@ -132,14 +130,12 @@ namespace Dotmim.Sync
             {
                 var rowColumn = dmTableKeys[i];
                 var columnKey = dmTable.Columns.FirstOrDefault(c => String.Equals(c.ColumnName, rowColumn, StringComparison.InvariantCultureIgnoreCase));
-                columnsForKey[i] = columnKey ?? throw new SyncException("Primary key found is not present in the columns list", SyncStage.ConfigurationApplying, SyncExceptionType.NoPrimaryKeys);
+                columnsForKey[i] = columnKey ?? throw new MissingPrimaryKeyException("Primary key found is not present in the columns list");
             }
 
             // Set the primary Key
             dmTable.PrimaryKey = new DmKey(columnsForKey);
-
         }
-
 
         /// <summary>
         /// Create a simple configuration, based on tables
@@ -155,33 +151,33 @@ namespace Dotmim.Sync
         /// <summary>
         /// update configuration object with tables desc from server database
         /// </summary>
-        public async Task ReadConfigurationAsync(SyncConfiguration configuration)
+        private async Task ReadConfigurationAsync(SyncConfiguration syncConfiguration)
         {
-            if (configuration == null || configuration.Count() == 0)
-                throw new SyncException("Configuration should contains Tables, at least tables with a name",
-                    SyncStage.ConfigurationApplying, SyncExceptionType.Argument);
+            if (syncConfiguration == null || syncConfiguration.Count() == 0)
+                throw new ArgumentNullException("syncConfiguration", "Configuration should contains Tables, at least tables with a name");
 
-            DbConnection connection;
+            DbConnection connection = null;
             DbTransaction transaction;
 
-            using (connection = this.CreateConnection())
+            try
             {
-                try
+                using (connection = this.CreateConnection())
                 {
                     await connection.OpenAsync();
 
                     using (transaction = connection.BeginTransaction())
                     {
-                        foreach (var dmTable in configuration)
+                        foreach (var dmTable in syncConfiguration)
                         {
                             var builderTable = this.GetDbManager(dmTable.TableName);
-                            var tblManager = builderTable.GetManagerTable(connection, transaction);
+                            var tblManager = builderTable.CreateManagerTable(connection, transaction);
+                            tblManager.TableName = dmTable.TableName;
 
                             // get columns list
                             var lstColumns = tblManager.GetTableDefinition();
 
                             // Validate the column list and get the dmTable configuration object.
-                            this.ValidateTableFromColumnsList(dmTable, lstColumns, tblManager);
+                            this.ValidateTableFromColumns(dmTable, lstColumns, tblManager);
 
                             var relations = tblManager.GetTableRelations();
 
@@ -191,7 +187,7 @@ namespace Dotmim.Sync
                                 {
                                     DmColumn tblColumn = dmTable.Columns[r.ColumnName];
                                     DmColumn foreignColumn = null;
-                                    var foreignTable = configuration[r.ReferenceTableName];
+                                    var foreignTable = syncConfiguration[r.ReferenceTableName];
 
                                     // Since we can have a table with a foreign key but not the parent table
                                     // It's not a problem, just forget it
@@ -201,11 +197,12 @@ namespace Dotmim.Sync
                                     foreignColumn = foreignTable.Columns[r.ReferenceColumnName];
 
                                     if (foreignColumn == null)
-                                        throw new SyncException($"Foreign column {r.ReferenceColumnName} does not exist in table {r.TableName}", SyncStage.ConfigurationApplying, SyncExceptionType.DataStore);
+                                        throw new NotSupportedException(
+                                            $"Foreign column {r.ReferenceColumnName} does not exist in table {r.TableName}");
 
                                     DmRelation dmRelation = new DmRelation(r.ForeignKey, tblColumn, foreignColumn);
 
-                                    configuration.ScopeSet.Relations.Add(dmRelation);
+                                    syncConfiguration.ScopeSet.Relations.Add(dmRelation);
                                 }
                             }
 
@@ -213,27 +210,26 @@ namespace Dotmim.Sync
 
                         transaction.Commit();
                     }
+
                     connection.Close();
                 }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Error during building BuildConfiguration : {ex.Message}");
-
-                    throw;
-                }
-                finally
-                {
-                    if (connection.State != ConnectionState.Closed)
-                        connection.Close();
-                }
+            }
+            catch (Exception ex)
+            {
+                throw new SyncException(ex, SyncStage.ConfigurationApplying, this.ProviderTypeName);
+            }
+            finally
+            {
+                if (connection != null && connection.State != ConnectionState.Closed)
+                    connection.Close();
             }
         }
 
         /// <summary>
         /// Ensure configuration is correct on both server and client side
         /// </summary>
-        public virtual async Task<(SyncContext, SyncConfiguration)> EnsureConfigurationAsync(SyncContext context,
-            SyncConfiguration configuration = null)
+        public virtual async Task<(SyncContext, SyncConfiguration)> EnsureConfigurationAsync(
+            SyncContext context, SyncConfiguration syncConfiguration = null)
         {
             try
             {
@@ -244,12 +240,12 @@ namespace Dotmim.Sync
                 var cacheConfiguration = GetCacheConfiguration();
 
                 // if we don't pass config object (configuration == null), we may be in proxy mode, so the config object is handled by a local configuration object.
-                if (configuration == null && this.syncConfiguration == null)
-                    throw SyncException.CreateArgumentException(SyncStage.ConfigurationApplied, "Configuration", "You try to set a provider with no configuration object");
+                if (syncConfiguration == null && this.syncConfiguration == null)
+                    throw new ArgumentNullException("syncConfiguration", "You try to set a provider with no configuration object");
 
                 // the configuration has been set from the proxy server itself, use it.
-                if (configuration == null && this.syncConfiguration != null)
-                    configuration = this.syncConfiguration;
+                if (syncConfiguration == null && this.syncConfiguration != null)
+                    syncConfiguration = this.syncConfiguration;
 
                 // Raise event before
                 context.SyncStage = SyncStage.ConfigurationApplying;
@@ -264,50 +260,39 @@ namespace Dotmim.Sync
                     context.SyncStage = SyncStage.ConfigurationApplied;
                     var afterArgs2 = new ConfigurationAppliedEventArgs(this.ProviderTypeName, context.SyncStage, cacheConfiguration);
                     this.TryRaiseProgressEvent(afterArgs2, this.ConfigurationApplied);
+
                     // if config has been changed by user, save it again                        
                     this.SetCacheConfiguration(cacheConfiguration);
                     return (context, cacheConfiguration);
                 }
 
                 // create local directory
-                if (!String.IsNullOrEmpty(configuration.BatchDirectory) && !Directory.Exists(configuration.BatchDirectory))
-                    Directory.CreateDirectory(configuration.BatchDirectory);
+                if (!String.IsNullOrEmpty(syncConfiguration.BatchDirectory) && !Directory.Exists(syncConfiguration.BatchDirectory))
+                    Directory.CreateDirectory(syncConfiguration.BatchDirectory);
 
                 // if we dont have already read the tables || we want to overwrite the current config
-                if ((configuration.HasTables && !configuration.HasColumns))
-                {
-                    string[] tables = new string[configuration.Count];
-
-                    for (int i = 0; i < configuration.Count; i++)
-                    {
-                        // just check if we have a schema
-                        var dmTable = configuration[i];
-                        var tableName = String.IsNullOrEmpty(dmTable.Schema) ? dmTable.TableName : $"[{dmTable.Schema}].[{dmTable.TableName}]";
-                        tables[i] = tableName;
-                    }
-
-                    await this.ReadConfigurationAsync(configuration);
-
-                }
+                if ((syncConfiguration.HasTables && !syncConfiguration.HasColumns))
+                    await this.ReadConfigurationAsync(syncConfiguration);
 
                 // save to cache
-                this.SetCacheConfiguration(configuration);
+                this.SetCacheConfiguration(syncConfiguration);
 
                 context.SyncStage = SyncStage.ConfigurationApplied;
-                var afterArgs = new ConfigurationAppliedEventArgs(this.ProviderTypeName, context.SyncStage, configuration);
+                var afterArgs = new ConfigurationAppliedEventArgs(this.ProviderTypeName, context.SyncStage, syncConfiguration);
                 this.TryRaiseProgressEvent(afterArgs, this.ConfigurationApplied);
                 // if config has been changed by user, save it again                        
-                this.SetCacheConfiguration(configuration);
-                return (context, configuration);
-
+                this.SetCacheConfiguration(syncConfiguration);
+                return (context, syncConfiguration);
+            }
+            catch (SyncException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
-                if (ex is SyncException)
-                    throw;
-                else
-                    throw SyncException.CreateUnknowException(context.SyncStage, ex);
+                throw new SyncException(ex, SyncStage.ConfigurationApplying, this.ProviderTypeName);
             }
+
         }
 
         /// <summary>
@@ -323,9 +308,7 @@ namespace Dotmim.Sync
             if (dmSet == null)
                 return null;
 
-            var conf = SyncConfiguration.DeserializeFromDmSet(dmSet);
-            return conf;
-
+            return SyncConfiguration.DeserializeFromDmSet(dmSet);
         }
 
         public void SetCacheConfiguration(SyncConfiguration configuration)
@@ -334,8 +317,6 @@ namespace Dotmim.Sync
             SyncConfiguration.SerializeInDmSet(dmSetConf, configuration);
             var dmSSetConf = new DmSetSurrogate(dmSetConf);
             this.CacheManager.Set(SYNC_CONF, dmSSetConf);
-
         }
-
     }
 }

@@ -21,11 +21,6 @@ namespace Dotmim.Sync.Builders
         public DmTable TableDescription { get; set; }
 
         /// <summary>
-        /// Specify if we have to check for recreate or not
-        /// </summary>
-        //public DbBuilderOption BuilderOption { get; set; }
-
-        /// <summary>
         /// Filtered Columns
         /// </summary>
         public FilterClauseCollection FilterColumns { get; set; } = new FilterClauseCollection();
@@ -71,7 +66,7 @@ namespace Dotmim.Sync.Builders
         public void CreateForeignKeys(DbConnection connection, DbTransaction transaction = null)
         {
             if (!TableDescription.PrimaryKey.HasValue)
-                throw new Exception($"Table {TableDescription.TableName} must have at least one dmColumn as Primary key");
+                throw new InvalidOperationException($"Table {TableDescription.TableName} must have at least one dmColumn as Primary key");
             
             var alreadyOpened = connection.State != ConnectionState.Closed;
 
@@ -94,11 +89,6 @@ namespace Dotmim.Sync.Builders
                     }
                 }
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine(ex.Message);
-                throw;
-            }
             finally
             {
                 if (!alreadyOpened)
@@ -110,7 +100,7 @@ namespace Dotmim.Sync.Builders
         public void CreateTrackingTable(DbConnection connection, DbTransaction transaction = null)
         {
             if (!TableDescription.PrimaryKey.HasValue)
-                throw new Exception($"Table {TableDescription.TableName} must have at least one dmColumn as Primary key");
+                throw new InvalidOperationException($"Table {TableDescription.TableName} must have at least one dmColumn as Primary key");
 
             var alreadyOpened = connection.State != ConnectionState.Closed;
 
@@ -129,11 +119,6 @@ namespace Dotmim.Sync.Builders
                     trackingTableBuilder.PopulateFromBaseTable();
                 }
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine(ex.Message);
-                throw;
-            }
             finally
             {
                 if (!alreadyOpened)
@@ -145,7 +130,7 @@ namespace Dotmim.Sync.Builders
         public void CreateTriggers(DbConnection connection, DbTransaction transaction = null)
         {
             if (!TableDescription.PrimaryKey.HasValue)
-                throw new Exception($"Table {TableDescription.TableName} must have at least one dmColumn as Primary key");
+                throw new InvalidOperationException($"Table {TableDescription.TableName} must have at least one dmColumn as Primary key");
 
             var alreadyOpened = connection.State != ConnectionState.Closed;
 
@@ -161,11 +146,6 @@ namespace Dotmim.Sync.Builders
                 if (triggerBuilder.NeedToCreateTrigger(DbTriggerType.Delete))
                     triggerBuilder.CreateDeleteTrigger();
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine(ex.Message);
-                throw;
-            }
             finally
             {
                 if (!alreadyOpened)
@@ -176,7 +156,7 @@ namespace Dotmim.Sync.Builders
         public void CreateStoredProcedures(DbConnection connection, DbTransaction transaction = null)
         {
             if (!TableDescription.PrimaryKey.HasValue)
-                throw new Exception($"Table {TableDescription.TableName} must have at least one dmColumn as Primary key");
+                throw new InvalidOperationException($"Table {TableDescription.TableName} must have at least one dmColumn as Primary key");
 
             var alreadyOpened = connection.State != ConnectionState.Closed;
 
@@ -216,11 +196,6 @@ namespace Dotmim.Sync.Builders
                     procBuilder.CreateBulkDelete();
                 }
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine(ex.Message);
-                throw;
-            }
             finally
             {
                 if (!alreadyOpened)
@@ -232,7 +207,7 @@ namespace Dotmim.Sync.Builders
         public void CreateTable(DbConnection connection, DbTransaction transaction = null)
         {
             if (!TableDescription.PrimaryKey.HasValue)
-                throw new Exception($"Table {TableDescription.TableName} must have at least one dmColumn as Primary key");
+                throw new InvalidOperationException($"Table {TableDescription.TableName} must have at least one dmColumn as Primary key");
 
             var tableBuilder = CreateTableBuilder(connection, transaction);
 
@@ -250,11 +225,6 @@ namespace Dotmim.Sync.Builders
                     tableBuilder.CreatePrimaryKey();
                 }
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine(ex.Message);
-                throw;
-            }
             finally
             {
                 if (!alreadyOpened)
@@ -269,7 +239,7 @@ namespace Dotmim.Sync.Builders
         public void Create(DbConnection connection, DbTransaction transaction = null)
         {
             if (!TableDescription.PrimaryKey.HasValue)
-                throw new Exception($"Table {TableDescription.TableName} must have at least one dmColumn as Primary key");
+                throw new InvalidOperationException($"Table {TableDescription.TableName} must have at least one dmColumn as Primary key");
 
             var alreadyOpened = connection.State != ConnectionState.Closed;
 
@@ -285,13 +255,6 @@ namespace Dotmim.Sync.Builders
                 this.CreateTriggers(connection, transaction);
 
                 this.CreateStoredProcedures(connection, transaction);
-
-
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine(ex.Message);
-                throw;
             }
             finally
             {
@@ -348,11 +311,6 @@ namespace Dotmim.Sync.Builders
                     procBuilder.DropTVPType();
                 }
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine(ex.Message);
-                throw;
-            }
             finally
             {
                 if (!alreadyOpened)
@@ -380,11 +338,6 @@ namespace Dotmim.Sync.Builders
                     triggerBuilder.DropDeleteTrigger();
 
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine(ex.Message);
-                throw;
-            }
             finally
             {
                 if (!alreadyOpened)
@@ -409,11 +362,6 @@ namespace Dotmim.Sync.Builders
                     trackingTableBuilder.DropTable();
 
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine(ex.Message);
-                throw;
-            }
             finally
             {
                 if (!alreadyOpened)
@@ -437,12 +385,6 @@ namespace Dotmim.Sync.Builders
 
                 if (!tableBuilder.NeedToCreateTable())
                     tableBuilder.DropTable();
-
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine(ex.Message);
-                throw;
             }
             finally
             {
@@ -472,34 +414,23 @@ namespace Dotmim.Sync.Builders
                 this.DropTrackingTable(connection, transaction);
 
                 this.DropTable(connection, transaction);
-
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine(ex.Message);
-                throw;
             }
             finally
             {
                 if (!alreadyOpened)
                     connection.Close();
             }
-
-
         }
 
 
         public string ScriptForeignKeys(DbConnection connection, DbTransaction transaction = null)
         {
-            string str = null;
             var alreadyOpened = connection.State != ConnectionState.Closed;
 
             try
             {
                 if (!alreadyOpened)
                     connection.Open();
-
-                Debug.WriteLine($"----- Scripting Provisioning of Table '{TableDescription.TableName}' -----");
 
                 StringBuilder stringBuilder = new StringBuilder();
 
@@ -514,20 +445,13 @@ namespace Dotmim.Sync.Builders
                     }
                 }
 
-                str = stringBuilder.ToString();
+                return stringBuilder.ToString();
             }
-            catch (Exception exception)
-            {
-                Debug.WriteLine(exception.Message);
-                throw;
-            }
-
             finally
             {
                 if (!alreadyOpened)
                     connection.Close();
             }
-            return str;
         }
 
         /// <summary>
@@ -543,8 +467,6 @@ namespace Dotmim.Sync.Builders
             {
                 if (!alreadyOpened)
                     connection.Open();
-
-                Debug.WriteLine($"----- Scripting Provisioning of Table '{TableDescription.TableName}' -----");
 
                 StringBuilder stringBuilder = new StringBuilder();
 
@@ -580,7 +502,6 @@ namespace Dotmim.Sync.Builders
                     stringBuilder.Append(triggerBuilder.CreateUpdateTriggerScriptText());
                 if (triggerBuilder.NeedToCreateTrigger(DbTriggerType.Delete))
                     stringBuilder.Append(triggerBuilder.CreateDeleteTriggerScriptText());
-
 
                 var procBuilder = CreateProcBuilder(connection, transaction);
 
@@ -620,14 +541,7 @@ namespace Dotmim.Sync.Builders
                     }
                 }
                 str = stringBuilder.ToString();
-
             }
-            catch (Exception exception)
-            {
-                Debug.WriteLine(exception.Message);
-                throw;
-            }
-
             finally
             {
                 if (!alreadyOpened)

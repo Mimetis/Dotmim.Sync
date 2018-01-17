@@ -14,22 +14,14 @@ namespace Dotmim.Sync
     [Serializable]
     public class SyncConfiguration : ICollection<DmTable>
     {
-
         /// <summary>
         /// Gets or Sets the default conflict resolution policy.
         /// </summary>
         public ConflictResolutionPolicy ConflictResolutionPolicy { get; set; } = ConflictResolutionPolicy.ServerWins;
 
         /// <summary>
-        /// Tables involved. Once we have completed the ScopeSet property, this property become obsolete
-        /// </summary>
-        //public string[] Tables { get; set; }
-
-        /// <summary>
         /// Gets or Sets the DmSet Schema used for synchronization
         /// </summary>
-
-
         [NonSerialized]
         private DmSet scopeSet;
 
@@ -72,7 +64,6 @@ namespace Dotmim.Sync
         /// If provider doe not support bulk operations, this option is overrided to false.
         /// </summary>
         public bool UseBulkOperations { get; set; } = true;
-
 
         /// <summary>
         /// Filters applied on tables
@@ -173,19 +164,6 @@ namespace Dotmim.Sync
                 }
             }
 
-            //if (set.Tables.Contains("DotmimSync__Table"))
-            //{
-            //    var dmTableTables = set.Tables["DotmimSync__Table"];
-            //    configuration.Tables = new string[dmTableTables.Rows.Count];
-
-            //    for (int i = 0; i < dmTableTables.Rows.Count; i++)
-            //    {
-            //        var dmRowTable = dmTableTables.Rows[i];
-            //        var tableName = dmRowTable["Name"] as String;
-            //        configuration.Tables[i] = tableName;
-            //    }
-            //}
-
             var configTables = set.Tables.Where(tbl => !tbl.TableName.StartsWith("DotmimSync__"));
 
             if (configTables != null)
@@ -200,8 +178,6 @@ namespace Dotmim.Sync
                     configuration.ScopeSet.Relations.Add(relation);
                 }
             }
-
-
             return configuration;
         }
 
@@ -280,27 +256,6 @@ namespace Dotmim.Sync
                     dmTableFilterParameters.Rows.Add(dmRowFilter);
                 }
             }
-
-            //if (configuration.Tables != null && configuration.Tables.Length > 0)
-            //{
-            //    if (!set.Tables.Contains("DotmimSync__Table"))
-            //    {
-            //        dmTableTables = new DmTable("DotmimSync__Table");
-            //        set.Tables.Add(dmTableTables);
-            //    }
-
-            //    dmTableTables = set.Tables["DotmimSync__Table"];
-            //    dmTableTables.Columns.Add<String>("Name");
-
-            //    foreach (var p in configuration.Tables)
-            //    {
-            //        var dmRowTable = dmTableTables.NewRow();
-            //        dmRowTable["Name"] = p;
-            //        dmTableTables.Rows.Add(dmRowTable);
-            //    }
-            //}
-
-
         }
 
         public int Count
@@ -332,7 +287,7 @@ namespace Dotmim.Sync
         public void Add(string table)
         {
             if (this.ScopeSet == null || this.ScopeSet.Tables == null)
-                throw new SyncException($"Can't add new table {table} in Configuration, ScopeSet is null", SyncStage.ConfigurationApplied, SyncExceptionType.Argument);
+                throw new InvalidOperationException($"Can't add new table {table} in Configuration, ScopeSet is null");
 
             // Potentially user can pass something like [SalesLT].[Product]
             // or SalesLT.Product or Product. ObjectNameParser will handle it
@@ -357,7 +312,7 @@ namespace Dotmim.Sync
         public void Add(DmTable item)
         {
             if (this.ScopeSet == null || this.ScopeSet.Tables == null)
-                throw new SyncException("Can't add a dmTable in Configuration, ScopeSet is null", SyncStage.ConfigurationApplied, SyncExceptionType.Argument);
+                throw new InvalidOperationException("Can't add a dmTable in Configuration, ScopeSet is null");
 
             this.ScopeSet.Tables.Add(item);
         }
