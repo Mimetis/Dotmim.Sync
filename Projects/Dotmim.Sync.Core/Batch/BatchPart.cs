@@ -21,10 +21,10 @@ namespace Dotmim.Sync.Batch
         public static BatchPart Deserialize(string fileName)
         {
             if (String.IsNullOrEmpty(fileName))
-                throw new ArgumentException("Cant get a Batch part if fileName doesn't exist");
+                throw new ArgumentNullException("Cant get a Batch part if fileName doesn't exist");
 
             if (!File.Exists(fileName))
-                throw new ArgumentException($"file {fileName} doesn't exist");
+                throw new ArgumentNullException($"file {fileName} doesn't exist");
 
             BatchPart bp = new BatchPart();
 

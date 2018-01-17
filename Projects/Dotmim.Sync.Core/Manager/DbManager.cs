@@ -23,15 +23,6 @@ namespace Dotmim.Sync.Manager
         /// </summary>
         public abstract IDbManagerTable CreateManagerTable(DbConnection connection, DbTransaction transaction = null);
 
-
-
-        public IDbManagerTable GetManagerTable(DbConnection connection, DbTransaction transaction = null)
-        {
-            var mgerTable = CreateManagerTable(connection, transaction);
-            mgerTable.TableName = this.TableName;
-            return mgerTable;
-        }
-
         /// <summary>
         /// Get a parameter even if it's a @param or :param or param
         /// </summary>
@@ -79,8 +70,6 @@ namespace Dotmim.Sync.Manager
         /// <summary>
         /// Parse a time stamp value
         /// </summary>
-        /// <param name="obj"></param>
-        /// <returns></returns>
         public static long ParseTimestamp(object obj)
         {
             long timestamp = 0;

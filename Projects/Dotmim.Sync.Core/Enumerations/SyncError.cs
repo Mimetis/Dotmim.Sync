@@ -19,7 +19,7 @@ namespace Dotmim.Sync.Enumerations
         RollbackAfterEnsuringConfiguration,
         RollbackBeforeEnsuringDatabase,
         RollbackAfterEnsuringDatabase,
-        RollbackBeforeelectingChanges,
+        RollbackBeforeSelectingChanges,
         RollbackAfterSelectedChanges,
         RollbackBeforeApplyingChanges,
         RollbackAfterAppliedChanges,

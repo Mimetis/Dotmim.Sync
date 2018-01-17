@@ -113,29 +113,28 @@ namespace Dotmim.Sync.Test
             helperDb.ExecuteScript(serverDbName, datas);
 
             var serverProvider = new SqlSyncProvider(ServerConnectionString);
-
-            SqliteConnection c = new SqliteConnection($"Data Source=fabrikamde.db");
-            c.StateChange += (_, e) =>
-            {
-                if (e.CurrentState == ConnectionState.Open)
-                {
-                    var cmd = c.CreateCommand();
-                    cmd.CommandText = "PRAGMA journal_mode=WAL;";
-                    var i = cmd.ExecuteScalar();
-                }
-            };
-
-            c.Open();
-
-            c.Close();
-
             var clientProvider = new SqliteSyncProvider(ClientSqliteFilePath);
 
+            //SqliteConnection c = new SqliteConnection($"Data Source=fabrikamde.db");
+            //c.StateChange += (_, e) =>
+            //{
+            //    if (e.CurrentState == ConnectionState.Open)
+            //    {
+            //        var cmd = c.CreateCommand();
+            //        cmd.CommandText = "PRAGMA journal_mode=WAL;";
+            //        var i = cmd.ExecuteScalar();
+            //    }
+            //};
 
-            var totoClientProvider = new SqliteSyncProvider(
-                @"Data Source=D:\database\myData.db;Journal Mode=WAL;Page Size=8192");
+            //c.Open();
 
-            SqliteConnectionStringBuilder sqliteConnectionStringBuilder = new SqliteConnectionStringBuilder();
+            //c.Close();
+
+
+            //var totoClientProvider = new SqliteSyncProvider(
+            //    @"Data Source=D:\database\myData.db;Journal Mode=WAL;Page Size=8192");
+
+            //SqliteConnectionStringBuilder sqliteConnectionStringBuilder = new SqliteConnectionStringBuilder();
 
 
             var simpleConfiguration = new SyncConfiguration(Tables);

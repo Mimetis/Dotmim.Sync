@@ -29,6 +29,8 @@ namespace Dotmim.Sync.SqlServer
             if (String.IsNullOrEmpty(builder.ConnectionString))
                 throw new Exception("You have to provide parameters to the Sql builder to be able to construct a valid connection string.");
 
+            
+
             this.ConnectionString = builder.ConnectionString;
         }
 
