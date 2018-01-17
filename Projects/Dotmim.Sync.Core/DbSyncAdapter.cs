@@ -27,6 +27,8 @@ namespace Dotmim.Sync
 
         public ConflictActionDelegate ConflictActionInvoker = null;
 
+        internal ApplyAction ConflictApplyAction { get; set; } = ApplyAction.Continue;
+        
         /// <summary>
         /// Gets the table description, a dmTable with no rows
         /// </summary>
@@ -115,11 +117,7 @@ namespace Dotmim.Sync
             int rowsApplied = 0;
 
             if (command == null)
-            {
-                var exc = $"Missing command for apply metadata ";
-                Debug.WriteLine(exc);
-                throw new Exception(exc);
-            }
+                throw new Exception("Missing command for apply metadata ");
 
             // Set the id parameter
             this.SetColumnParametersValues(command, row);
@@ -150,14 +148,13 @@ namespace Dotmim.Sync
                 isTombstone = row["sync_row_is_tombstone", version] != null && row["sync_row_is_tombstone", version] != DBNull.Value ? (bool)row["sync_row_is_tombstone", version] : false;
 
             DbManager.SetParameterValue(command, "sync_row_is_tombstone", isTombstone ? 1 : 0);
-
             DbManager.SetParameterValue(command, "create_timestamp", createTimestamp);
             DbManager.SetParameterValue(command, "update_timestamp", updateTimestamp);
+
             var alreadyOpened = Connection.State == ConnectionState.Open;
 
             try
             {
-                // Open Connection
                 if (!alreadyOpened)
                     Connection.Open();
 
@@ -166,19 +163,12 @@ namespace Dotmim.Sync
 
                 rowsApplied = command.ExecuteNonQuery();
             }
-            catch (DbException ex)
-            {
-                Debug.WriteLine(ex.Message);
-                throw;
-            }
             finally
             {
                 // Close Connection
                 if (!alreadyOpened)
                     Connection.Close();
-
             }
-
             return rowsApplied > 0;
         }
 
@@ -220,11 +210,6 @@ namespace Dotmim.Sync
                     }
                     dmTableSelected.PrimaryKey = new DmKey(pkeys);
                 }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine("Server Error on Getting a row : " + ex.Message);
-                    throw;
-                }
                 finally
                 {
                     // Close Connection
@@ -261,8 +246,9 @@ namespace Dotmim.Sync
                 this.SetCommandParameters(DbCommandType.BulkDeleteRows, bulkCommand);
             }
             else
+            {
                 throw new Exception("DmRowState not valid during ApplyBulkChanges operation");
-
+            }
 
             if (Transaction != null && Transaction.Connection != null)
                 bulkCommand.Transaction = Transaction;
@@ -290,7 +276,6 @@ namespace Dotmim.Sync
                     // execute the batch, through the provider
                     ExecuteBatchCommand(bulkCommand, dmStepChanges, failedDmtable, fromScope);
                 }
-
             }
 
             // Disposing command
@@ -467,16 +452,6 @@ namespace Dotmim.Sync
 
                     rowInsertedCount = command.ExecuteNonQuery();
                 }
-                catch (ArgumentException ex)
-                {
-                    Debug.WriteLine(ex.Message);
-                    throw;
-                }
-                catch (DbException ex)
-                {
-                    Debug.WriteLine(ex.Message);
-                    return false;
-                }
                 finally
                 {
                     // Open Connection
@@ -496,9 +471,6 @@ namespace Dotmim.Sync
         {
             using (var command = this.GetCommand(DbCommandType.DeleteRow))
             {
-
-
-
                 // Deriving Parameters
                 this.SetCommandParameters(DbCommandType.DeleteRow, command);
 
@@ -522,16 +494,6 @@ namespace Dotmim.Sync
 
                     rowInsertedCount = command.ExecuteNonQuery();
 
-                }
-                catch (ArgumentException ex)
-                {
-                    Debug.WriteLine(ex.Message);
-                    throw;
-                }
-                catch (DbException ex)
-                {
-                    Debug.WriteLine(ex.Message);
-                    return false;
                 }
                 finally
                 {
@@ -558,7 +520,6 @@ namespace Dotmim.Sync
                 int rowCount = 0;
                 try
                 {
-                    // OPen Connection
                     if (!alreadyOpened)
                         Connection.Open();
 
@@ -567,26 +528,13 @@ namespace Dotmim.Sync
 
                     rowCount = command.ExecuteNonQuery();
                 }
-                catch (ArgumentException ex)
-                {
-                    Debug.WriteLine(ex.Message);
-                    throw;
-                }
-                catch (DbException ex)
-                {
-                    Debug.WriteLine(ex.Message);
-                    return false;
-                }
                 finally
                 {
                     if (!alreadyOpened)
                         Connection.Close();
                 }
-
                 return rowCount > 0;
-
             }
-
         }
 
         /// <summary>
@@ -596,7 +544,6 @@ namespace Dotmim.Sync
         {
             using (var command = this.GetCommand(DbCommandType.UpdateRow))
             {
-
                 // Deriving Parameters
                 this.SetCommandParameters(DbCommandType.UpdateRow, command);
 
@@ -611,7 +558,6 @@ namespace Dotmim.Sync
                 int rowInsertedCount = 0;
                 try
                 {
-                    // OPen Connection
                     if (!alreadyOpened)
                         Connection.Open();
 
@@ -620,22 +566,11 @@ namespace Dotmim.Sync
 
                     rowInsertedCount = command.ExecuteNonQuery();
                 }
-                catch (ArgumentException ex)
-                {
-                    Debug.WriteLine(ex.Message);
-                    throw;
-                }
-                catch (DbException ex)
-                {
-                    Debug.WriteLine(ex.Message);
-                    return false;
-                }
                 finally
                 {
                     if (!alreadyOpened)
                         Connection.Close();
                 }
-
                 return rowInsertedCount > 0;
             }
         }
@@ -647,12 +582,11 @@ namespace Dotmim.Sync
         /// </summary>
         private void AddCommonParametersValues(DbCommand command, Guid id, long lastTimestamp, bool isDeleted, bool forceWrite)
         {
-            // special parameters for update
+            // Dotmim.Sync parameters
             DbManager.SetParameterValue(command, "sync_force_write", (forceWrite ? 1 : 0));
             DbManager.SetParameterValue(command, "sync_min_timestamp", lastTimestamp);
             DbManager.SetParameterValue(command, "sync_scope_id", id);
             DbManager.SetParameterValue(command, "sync_row_is_tombstone", isDeleted);
-
         }
 
         /// <summary>
@@ -717,8 +651,6 @@ namespace Dotmim.Sync
                     }
                 }
             }
-
-
             // Generate the conflict
             var conflict = new SyncConflict(dbConflictType);
             conflict.AddRemoteRow(dmRow);
@@ -751,9 +683,6 @@ namespace Dotmim.Sync
             }
         }
 
-
-        internal ApplyAction ConflictApplyAction { get; set; } = ApplyAction.Continue;
-
         /// <summary>
         /// Handle a conflict
         /// </summary>
@@ -768,21 +697,19 @@ namespace Dotmim.Sync
             // Default behavior and an error occured
             if (ConflictApplyAction == ApplyAction.Rollback)
             {
-                Debug.WriteLine("Rollback action taken on conflict");
                 conflict.ErrorMessage = "Rollback action taken on conflict";
                 conflict.Type = ConflictType.ErrorsOccurred;
 
                 return ChangeApplicationAction.Rollback;
             }
 
+            // Local provider wins, update metadata
             if (ConflictApplyAction == ApplyAction.Continue)
             {
-                Debug.WriteLine("Local Wins, update metadata");
-
                 var isMergeAction = finalRow != null;
                 var row = isMergeAction ? finalRow : conflict.LocalRow;
 
-                // COnflict on a line that is not present on the datasource
+                // Conflict on a line that is not present on the datasource
                 if (row == null)
                     return ChangeApplicationAction.Continue;
 
@@ -804,16 +731,13 @@ namespace Dotmim.Sync
 
                             if (!rowsApplied)
                                 throw new Exception("No metadatas rows found, can't update the server side");
-
                         }
-
                     }
 
                     finalRow = isMergeAction ? row : conflict.LocalRow;
 
                     return ChangeApplicationAction.Continue;
                 }
-
                 return ChangeApplicationAction.Rollback;
             }
 
@@ -822,7 +746,7 @@ namespace Dotmim.Sync
             {
                 if (conflict.RemoteRow == null)
                 {
-                    Debug.WriteLine("Cant find a remote row");
+                    // TODO : Should Raise an error ?
                     return ChangeApplicationAction.Rollback;
                 }
 
@@ -951,8 +875,5 @@ namespace Dotmim.Sync
                     }
             }
         }
-
-
     }
-
 }

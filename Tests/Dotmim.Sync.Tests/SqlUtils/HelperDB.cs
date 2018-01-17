@@ -1,4 +1,5 @@
-﻿using MySql.Data.MySqlClient;
+﻿using Microsoft.Data.Sqlite;
+using MySql.Data.MySqlClient;
 using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
@@ -90,6 +91,18 @@ namespace Dotmim.Sync.Test.SqlUtils
 
             connection.Open();
             cmdDb = new SqlCommand(script, connection);
+            cmdDb.ExecuteNonQuery();
+            connection.Close();
+        }
+
+        public void ExecuteSqliteScript(string dbName, string script)
+        {
+            SqliteConnection connection = null;
+            SqliteCommand cmdDb = null;
+            connection = new SqliteConnection(dbName);
+
+            connection.Open();
+            cmdDb = new SqliteCommand(script, connection);
             cmdDb.ExecuteNonQuery();
             connection.Close();
         }

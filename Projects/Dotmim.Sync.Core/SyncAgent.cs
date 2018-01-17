@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Diagnostics;
 
 namespace Dotmim.Sync
 {
@@ -169,12 +170,12 @@ namespace Dotmim.Sync
         : this(scopeName, clientProvider, serverProvider)
         {
             if (configuration.Count <= 0)
-                throw new SyncException("No tables specified", SyncStage.BeginSession, SyncExceptionType.Argument);
+                throw new ArgumentNullException("No tables specified");
 
             var remoteCoreProvider = this.RemoteProvider as CoreProvider;
 
             if (remoteCoreProvider == null)
-                throw new ArgumentException("Since the remote provider is a web proxy, you have to configure the server side");
+                throw new ArgumentNullException("Since the remote provider is a web proxy, you have to configure the server side");
 
             if (!remoteCoreProvider.CanBeServerProvider)
                 throw new NotSupportedException();
@@ -225,29 +226,33 @@ namespace Dotmim.Sync
         {
 
             if (string.IsNullOrEmpty(this.scopeName))
-                throw new Exception("Scope Name is mandatory");
+                throw new ArgumentNullException("scopeName", "Scope Name is mandatory");
 
             // Context, used to back and forth data between servers
-            SyncContext context = new SyncContext(Guid.NewGuid());
-            // set start time
-            context.StartTime = DateTime.Now;
+            SyncContext context = new SyncContext(Guid.NewGuid())
+            {
+                // set start time
+                StartTime = DateTime.Now,
 
-            // if any parameters, set in context
-            context.Parameters = this.Parameters;
+                // if any parameters, set in context
+                Parameters = this.Parameters,
 
-            // set sync type (Normal, Reinitialize, ReinitializeWithUpload)
-            context.SyncType = syncType;
+                // set sync type (Normal, Reinitialize, ReinitializeWithUpload)
+                SyncType = syncType
+            };
 
             this.SessionState = SyncSessionState.Synchronizing;
             this.SessionStateChanged?.Invoke(this, this.SessionState);
-            ScopeInfo localScopeInfo = null, serverScopeInfo = null, localScopeReferenceInfo = null, scope = null;
+
+            ScopeInfo localScopeInfo = null, 
+                      serverScopeInfo = null, 
+                      localScopeReferenceInfo = null, 
+                      scope = null;
 
             Guid fromId = Guid.Empty;
             long lastSyncTS = 0L;
             bool isNew = true;
 
-            // tmp check error
-            bool hasErrors = false;
             try
             {
                 if (cancellationToken.IsCancellationRequested)
@@ -275,6 +280,7 @@ namespace Dotmim.Sync
                 List<ScopeInfo> localScopes;
                 List<ScopeInfo> serverScopes;
                 (context, localScopes) = await this.LocalProvider.EnsureScopesAsync(context, scopeName);
+
                 if (localScopes.Count != 1)
                     throw new Exception("On Local provider, we should have only one scope info");
 
@@ -395,12 +401,6 @@ namespace Dotmim.Sync
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
-                //// Update server stats
-                //if (serverStatistics == null)
-                //    serverStatistics = tmpServerStatistics;
-                //else
-                //    clientStatistics.SelectedChanges = tmpServerStatistics.SelectedChanges;
-
                 // Apply local changes
 
                 // fromId : When applying rows, make sure it's identified as applied by this server scope
@@ -458,50 +458,28 @@ namespace Dotmim.Sync
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
-                // Begin Session / Read the adapters
-                context = await this.RemoteProvider.EndSessionAsync(context);
-                context = await this.LocalProvider.EndSessionAsync(context);
             }
-            catch (OperationCanceledException oce)
+            catch (SyncException se)
             {
-                var error = SyncException.CreateOperationCanceledException(context.SyncStage, oce);
-                hasErrors = true;
-                throw;
-            }
-            catch (SyncException)
-            {
-                hasErrors = true;
+                Debug.WriteLine($"Sync Exception: {se.Message}. Type:{se.Type}. On provider: {se.ProviderName}.");
                 throw;
             }
             catch (Exception ex)
             {
-                var error = SyncException.CreateUnknowException(context.SyncStage, ex);
-                hasErrors = true;
-                throw;
+                Debug.WriteLine($"Unknwon Exception: {ex.Message}.");
+                throw new SyncException(ex, SyncStage.None, string.Empty);
             }
             finally
             {
-                try
-                {
-                    if (hasErrors)
-                    {
-                        // if EndSessionAsync() was never called, try a last time
-                        context = await this.RemoteProvider.EndSessionAsync(context);
-                        context = await this.LocalProvider.EndSessionAsync(context);
-                    }
-
-                }
-                catch (Exception)
-                {
-                    // no raise
-                }
+                // End the current session
+                context = await this.RemoteProvider.EndSessionAsync(context);
+                context = await this.LocalProvider.EndSessionAsync(context);
 
                 this.SessionState = SyncSessionState.Ready;
                 this.SessionStateChanged?.Invoke(this, this.SessionState);
             }
 
             return context;
-
         }
 
 

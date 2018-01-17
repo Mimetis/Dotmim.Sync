@@ -131,6 +131,11 @@ namespace Dotmim.Sync.Batch
             return String.Concat(DateTime.UtcNow.ToString("yyyy_MM_dd_ss"), Path.GetRandomFileName().Replace(".", ""));
         }
 
+        /// <summary>
+        /// generate a batch file name
+        /// </summary>
+        /// <param name="batchIndex"></param>
+        /// <returns></returns>
         public static string GenerateNewFileName(string batchIndex)
         {
             if (batchIndex.Length == 1)

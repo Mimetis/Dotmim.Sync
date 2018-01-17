@@ -149,7 +149,7 @@ namespace Dotmim.Sync.Test
 
             var ex = await Assert.ThrowsAsync<SyncException>(async () => await agent.SynchronizeAsync());
 
-            Assert.Equal(SyncExceptionType.DataStore, ex.ExceptionType);
+            Assert.IsType(typeof(SyncException), ex);
         }
 
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(2)]

@@ -90,7 +90,7 @@ namespace Dotmim.Sync.Tests
         {
             var ex = await Assert.ThrowsAsync<SyncException>(async () => await agent.SynchronizeAsync());
 
-            Assert.Equal(SyncExceptionType.DataStore, ex.ExceptionType);
+            Assert.IsType(typeof(SyncException), ex);
         }
     }
 }

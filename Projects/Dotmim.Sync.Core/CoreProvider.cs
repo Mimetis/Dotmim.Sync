@@ -118,7 +118,7 @@ namespace Dotmim.Sync
             handler?.Invoke(this, args);
 
             if (args.Action == ChangeApplicationAction.Rollback)
-                throw SyncException.CreateRollbackException(args.Stage);
+                throw new RollbackException();
 
             var props = new Dictionary<String, String>();
 
@@ -204,7 +204,7 @@ namespace Dotmim.Sync
             SyncProgress?.Invoke(this, progressEventArgs);
 
             if (progressEventArgs.Action == ChangeApplicationAction.Rollback)
-                throw SyncException.CreateRollbackException(progressEventArgs.Stage);
+                throw new RollbackException();
         }
 
         /// <summary>
@@ -215,12 +215,10 @@ namespace Dotmim.Sync
         {
             try
             {
-                Debug.WriteLine($"BeginSession() called on Provider {this.ProviderTypeName}");
-
                 lock (this)
                 {
                     if (this.syncInProgress)
-                        throw SyncException.CreateInProgressException(context.SyncStage);
+                        throw new InProgressException("Synchronization already in progress");
 
                     this.syncInProgress = true;
                 }
@@ -232,15 +230,14 @@ namespace Dotmim.Sync
                 var progressEventArgs = new BeginSessionEventArgs(this.ProviderTypeName, context.SyncStage);
                 this.TryRaiseProgressEvent(progressEventArgs, this.BeginSession);
 
+                return Task.FromResult(context);
             }
             catch (Exception ex)
             {
-                if (ex is SyncException)
-                    throw;
-                else
-                    throw SyncException.CreateUnknowException(context.SyncStage, ex);
+                throw new SyncException(ex, SyncStage.BeginSession, this.ProviderTypeName);
             }
-            return Task.FromResult(context);
+
+            
         }
 
         /// <summary>
@@ -248,35 +245,22 @@ namespace Dotmim.Sync
         /// </summary>
         public virtual Task<SyncContext> EndSessionAsync(SyncContext context)
         {
-            try
+            // already ended
+            lock (this)
             {
-                // already ended
-                lock (this)
-                {
-                    if (!syncInProgress)
-                        return Task.FromResult(context);
-                }
-
-                Debug.WriteLine($"EndSession() called on Provider {this.ProviderTypeName}");
-
-                context.SyncStage = SyncStage.EndSession;
-
-                // Event progress
-                this.TryRaiseProgressEvent(
-                    new EndSessionEventArgs(this.ProviderTypeName, context.SyncStage), this.EndSession);
-
-            }
-            catch (Exception ex)
-            {
-                if (ex is SyncException)
-                    throw;
-                else
-                    throw SyncException.CreateUnknowException(context.SyncStage, ex);
+                if (!syncInProgress)
+                    return Task.FromResult(context);
             }
 
-            finally
+            context.SyncStage = SyncStage.EndSession;
+
+            // Event progress
+            this.TryRaiseProgressEvent(
+                new EndSessionEventArgs(this.ProviderTypeName, context.SyncStage), this.EndSession);
+
+            lock (this)
             {
-                lock (this) { this.syncInProgress = false; }
+                this.syncInProgress = false;
             }
 
             return Task.FromResult(context);
@@ -298,17 +282,6 @@ namespace Dotmim.Sync
                     var localTime = scopeInfoBuilder.GetLocalTimestamp();
                     return (context, localTime);
                 }
-                catch (DbException dbex)
-                {
-                    throw SyncException.CreateDbException(context.SyncStage, dbex);
-                }
-                catch (Exception ex)
-                {
-                    if (ex is SyncException)
-                        throw;
-                    else
-                        throw SyncException.CreateUnknowException(context.SyncStage, ex);
-                }
                 finally
                 {
                     if (connection.State != ConnectionState.Closed)
@@ -317,7 +290,7 @@ namespace Dotmim.Sync
             }
         }
 
-  
+
         /// <summary>
         /// TODO : Manager le fait qu'un scope peut être out dater, car il n'a pas synchronisé depuis assez longtemps
         /// </summary>

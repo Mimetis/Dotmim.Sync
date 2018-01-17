@@ -19,7 +19,6 @@ namespace Dotmim.Sync
 {
     public abstract partial class CoreProvider
     {
-
         /// <summary>
         /// Apply changes : Insert / Updates Delete
         /// the fromScope is local client scope when this method is called from server
@@ -27,98 +26,89 @@ namespace Dotmim.Sync
         /// </summary>
         public virtual async Task<(SyncContext, ChangesApplied)> ApplyChangesAsync(SyncContext context, ScopeInfo fromScope, BatchInfo changes)
         {
+            ChangeApplicationAction changeApplicationAction;
+            DbTransaction applyTransaction = null;
+            ChangesApplied changesApplied = new ChangesApplied();
+            DbConnection connection = null;
+
             try
             {
-                ChangeApplicationAction changeApplicationAction;
-                DbTransaction applyTransaction = null;
-                ChangesApplied changesApplied = new ChangesApplied();
-
-                using (var connection = this.CreateConnection())
+                using (connection = this.CreateConnection())
                 {
-                    try
+                    await connection.OpenAsync();
+
+                    // Create a transaction
+                    applyTransaction = connection.BeginTransaction();
+
+                    // -----------------------------------------------------
+                    // 0) Check if we are in a reinit mode
+                    // -----------------------------------------------------
+                    if (context.SyncWay == SyncWay.Download && context.SyncType != SyncType.Normal)
                     {
-                        await connection.OpenAsync();
-
-                        // Create a transaction
-                        applyTransaction = connection.BeginTransaction();
-
-                        Debug.WriteLine($"----- Applying Changes for Scope \"{fromScope.Name}\" -----");
-                        Debug.WriteLine("");
-
-                        // -----------------------------------------------------
-                        // 0) Check if we are in a reinit mode
-                        // -----------------------------------------------------
-                        if (context.SyncWay == SyncWay.Download && context.SyncType != SyncType.Normal)
-                        {
-                            changeApplicationAction = this.ResetInternal(context, connection, applyTransaction, fromScope);
-
-                            // Rollback
-                            if (changeApplicationAction == ChangeApplicationAction.Rollback)
-                                throw SyncException.CreateRollbackException(context.SyncStage);
-                        }
-
-                        // -----------------------------------------------------
-                        // 1) Applying deletes. Do not apply deletes if we are in a new database
-                        // -----------------------------------------------------
-                        if (!fromScope.IsNewScope)
-                        {
-                            changeApplicationAction = this.ApplyChangesInternal(context, connection, applyTransaction, fromScope, changes, DmRowState.Deleted, changesApplied);
-
-                            // Rollback
-                            if (changeApplicationAction == ChangeApplicationAction.Rollback)
-                                throw SyncException.CreateRollbackException(context.SyncStage);
-                        }
-
-                        // -----------------------------------------------------
-                        // 1) Applying Inserts
-                        // -----------------------------------------------------
-                        changeApplicationAction = this.ApplyChangesInternal(context, connection, applyTransaction, fromScope, changes, DmRowState.Added, changesApplied);
+                        changeApplicationAction = this.ResetInternal(context, connection, applyTransaction, fromScope);
 
                         // Rollback
                         if (changeApplicationAction == ChangeApplicationAction.Rollback)
-                            throw SyncException.CreateRollbackException(context.SyncStage);
+                            throw new SyncException("Rollback during reset tables", context.SyncStage, this.ProviderTypeName, SyncExceptionType.Rollback);
+                    }
 
-                        // -----------------------------------------------------
-                        // 1) Applying updates
-                        // -----------------------------------------------------
-                        changeApplicationAction = this.ApplyChangesInternal(context, connection, applyTransaction, fromScope, changes, DmRowState.Modified, changesApplied);
+                    // -----------------------------------------------------
+                    // 1) Applying deletes. Do not apply deletes if we are in a new database
+                    // -----------------------------------------------------
+                    if (!fromScope.IsNewScope)
+                    {
+                        changeApplicationAction = this.ApplyChangesInternal(context, connection, applyTransaction, fromScope, changes, DmRowState.Deleted, changesApplied);
 
                         // Rollback
                         if (changeApplicationAction == ChangeApplicationAction.Rollback)
-                            throw SyncException.CreateRollbackException(context.SyncStage);
-
-                        applyTransaction.Commit();
-
-                        Debug.WriteLine($"--- End Applying Changes for Scope \"{fromScope.Name}\" ---");
-                        Debug.WriteLine("");
-
+                            throw new SyncException("Rollback during applying deletes", context.SyncStage, this.ProviderTypeName, SyncExceptionType.Rollback);
                     }
-                    catch (Exception exception)
-                    {
-                        Debug.WriteLine($"Caught exception while applying changes: {exception}");
-                        throw;
-                    }
-                    finally
-                    {
-                        if (applyTransaction != null)
-                        {
-                            applyTransaction.Dispose();
-                            applyTransaction = null;
-                        }
 
-                        if (connection != null && connection.State == ConnectionState.Open)
-                            connection.Close();
+                    // -----------------------------------------------------
+                    // 1) Applying Inserts
+                    // -----------------------------------------------------
+                    changeApplicationAction = this.ApplyChangesInternal(context, connection, applyTransaction, fromScope, changes, DmRowState.Added, changesApplied);
 
-                        if (changes != null)
-                            changes.Clear();
+                    // Rollback
+                    if (changeApplicationAction == ChangeApplicationAction.Rollback)
+                        throw new SyncException("Rollback during applying inserts", context.SyncStage, this.ProviderTypeName, SyncExceptionType.Rollback);
 
-                    }
+                    // -----------------------------------------------------
+                    // 1) Applying updates
+                    // -----------------------------------------------------
+                    changeApplicationAction = this.ApplyChangesInternal(context, connection, applyTransaction, fromScope, changes, DmRowState.Modified, changesApplied);
+
+                    // Rollback
+                    if (changeApplicationAction == ChangeApplicationAction.Rollback)
+                        throw new SyncException("Rollback during applying updates", context.SyncStage, this.ProviderTypeName, SyncExceptionType.Rollback);
+
+                    applyTransaction.Commit();
+
                     return (context, changesApplied);
                 }
             }
-            catch (Exception)
+            catch(SyncException se)
             {
                 throw;
+            }
+            catch (Exception ex)
+            {
+                throw new SyncException(ex, SyncStage.TableChangesApplying, this.ProviderTypeName);
+            }
+            finally
+            {
+                if (applyTransaction != null)
+                {
+                    applyTransaction.Dispose();
+                    applyTransaction = null;
+                }
+
+                if (connection != null && connection.State == ConnectionState.Open)
+                    connection.Close();
+
+                if (changes != null)
+                    changes.Clear();
+
             }
         }
 
@@ -131,25 +121,16 @@ namespace Dotmim.Sync
 
             for (int i = 0; i < configuration.Count; i++)
             {
-                try
-                {
-                   var tableDescription = configuration[configuration.Count - i - 1];
+                var tableDescription = configuration[configuration.Count - i - 1];
 
-                    var builder = this.GetDatabaseBuilder(tableDescription);
-                    var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
+                var builder = this.GetDatabaseBuilder(tableDescription);
+                var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
 
-                    // reset table
-                    syncAdapter.ResetTable(tableDescription);
+                // reset table
+                syncAdapter.ResetTable(tableDescription);
 
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Error during ResetInternal : {ex.Message}");
-                    throw;
-                }
             }
             return ChangeApplicationAction.Continue;
-
         }
 
         /// <summary>
@@ -161,149 +142,137 @@ namespace Dotmim.Sync
 
             var configuration = GetCacheConfiguration();
 
-
             // for each adapters (Zero to End for Insert / Updates -- End to Zero for Deletes
             for (int i = 0; i < configuration.Count; i++)
             {
-                try
+                // If we have a delete we must go from Up to Down, orthewise Dow to Up index
+                var tableDescription = (applyType != DmRowState.Deleted ?
+                        configuration[i] :
+                        configuration[configuration.Count - i - 1]);
+
+                // if we are in upload stage, so check if table is not download only
+                if (context.SyncWay == SyncWay.Upload && tableDescription.SyncDirection == SyncDirection.DownloadOnly)
+                    continue;
+
+                // if we are in download stage, so check if table is not download only
+                if (context.SyncWay == SyncWay.Download && tableDescription.SyncDirection == SyncDirection.UploadOnly)
+                    continue;
+
+
+                var builder = this.GetDatabaseBuilder(tableDescription);
+                var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
+
+                syncAdapter.ConflictApplyAction = configuration.GetApplyAction();
+
+                // Set syncAdapter properties
+                syncAdapter.applyType = applyType;
+
+                // Get conflict handler resolver
+                if (syncAdapter.ConflictActionInvoker == null && this.ApplyChangedFailed != null)
+                    syncAdapter.ConflictActionInvoker = GetConflictAction;
+
+                if (changes.BatchPartsInfo != null && changes.BatchPartsInfo.Count > 0)
                 {
-                    // If we have a delete we must go from Up to Down, orthewise Dow to Up index
-                    var tableDescription = (applyType != DmRowState.Deleted ?
-                            configuration[i] :
-                            configuration[configuration.Count - i - 1]);
-
-                    // if we are in upload stage, so check if table is not download only
-                    if (context.SyncWay == SyncWay.Upload && tableDescription.SyncDirection == SyncDirection.DownloadOnly)
-                        continue;
-
-                    // if we are in download stage, so check if table is not download only
-                    if (context.SyncWay == SyncWay.Download && tableDescription.SyncDirection == SyncDirection.UploadOnly)
-                        continue;
-
-
-                    var builder = this.GetDatabaseBuilder(tableDescription);
-                    var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
-
-                    syncAdapter.ConflictApplyAction = configuration.GetApplyAction();
-
-                    // Set syncAdapter properties
-                    syncAdapter.applyType = applyType;
-
-                    if (syncAdapter.ConflictActionInvoker == null && this.ApplyChangedFailed != null)
-                        syncAdapter.ConflictActionInvoker = GetConflictAction;
-
-                    Debug.WriteLine($"----- Operation {applyType.ToString()} for Table \"{tableDescription.TableName}\" -----");
-
-                    if (changes.BatchPartsInfo != null && changes.BatchPartsInfo.Count > 0)
+                    // getting the table to be applied
+                    // we may have multiple batch files, so we can have multipe dmTable with the same Name
+                    // We can say that dmTable may be contained in several files
+                    foreach (DmTable dmTablePart in changes.GetTable(tableDescription.TableName))
                     {
-                        // getting the table to be applied
-                        // we may have multiple batch files, so we can have multipe dmTable with the same Name
-                        // We can say that dmTable may be contained in several files
-                        foreach (DmTable dmTablePart in changes.GetTable(tableDescription.TableName))
+                        if (dmTablePart == null || dmTablePart.Rows.Count == 0)
+                            continue;
+
+                        // check and filter
+                        var dmChangesView = new DmView(dmTablePart, (r) => r.RowState == applyType);
+
+                        if (dmChangesView.Count == 0)
                         {
-                            if (dmTablePart == null || dmTablePart.Rows.Count == 0)
-                                continue;
+                            dmChangesView.Dispose();
+                            dmChangesView = null;
+                            continue;
+                        }
 
-                            // check and filter
-                            var dmChangesView = new DmView(dmTablePart, (r) => r.RowState == applyType);
+                        // Conflicts occured when trying to apply rows
+                        List<SyncConflict> conflicts = new List<SyncConflict>();
 
-                            if (dmChangesView.Count == 0)
+                        // Raise event progress only if there are rows to be applied
+                        context.SyncStage = SyncStage.TableChangesApplying;
+                        var args = new TableChangesApplyingEventArgs(this.ProviderTypeName, context.SyncStage, tableDescription.TableName, applyType);
+                        this.TryRaiseProgressEvent(args, this.TableChangesApplying);
+
+                        int rowsApplied;
+                        // applying the bulkchanges command
+                        if (configuration.UseBulkOperations && this.SupportBulkOperations)
+                            rowsApplied = syncAdapter.ApplyBulkChanges(dmChangesView, fromScope, conflicts);
+                        else
+                            rowsApplied = syncAdapter.ApplyChanges(dmChangesView, fromScope, conflicts);
+
+                        // If conflicts occured
+                        // Eventuall, conflicts are resolved on server side.
+                        if (conflicts != null && conflicts.Count > 0)
+                        {
+                            foreach (var conflict in conflicts)
                             {
-                                dmChangesView.Dispose();
-                                dmChangesView = null;
-                                continue;
-                            }
+                                var scopeBuilder = this.GetScopeBuilder();
+                                var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(connection, transaction);
+                                var localTimeStamp = scopeInfoBuilder.GetLocalTimestamp();
 
-                            // Conflicts occured when trying to apply rows
-                            List<SyncConflict> conflicts = new List<SyncConflict>();
+                                changeApplicationAction = syncAdapter.HandleConflict(conflict, fromScope, localTimeStamp, out DmRow resolvedRow);
 
-                            // Raise event progress only if there are rows to be applied
-                            context.SyncStage = SyncStage.TableChangesApplying;
-                            var args = new TableChangesApplyingEventArgs(this.ProviderTypeName, context.SyncStage, tableDescription.TableName, applyType);
-                            this.TryRaiseProgressEvent(args, this.TableChangesApplying);
-
-                            int rowsApplied;
-                            // applying the bulkchanges command
-                            if (configuration.UseBulkOperations && this.SupportBulkOperations)
-                                rowsApplied = syncAdapter.ApplyBulkChanges(dmChangesView, fromScope, conflicts);
-                            else
-                                rowsApplied = syncAdapter.ApplyChanges(dmChangesView, fromScope, conflicts);
-
-                            // If conflicts occured
-                            // Eventuall, conflicts are resolved on server side.
-                            if (conflicts != null && conflicts.Count > 0)
-                            {
-                                foreach (var conflict in conflicts)
+                                if (changeApplicationAction == ChangeApplicationAction.Continue)
                                 {
-                                    DmRow resolvedRow;
-                                    var scopeBuilder = this.GetScopeBuilder();
-                                    var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(connection, transaction);
-                                    var localTimeStamp = scopeInfoBuilder.GetLocalTimestamp();
-
-                                    changeApplicationAction = syncAdapter.HandleConflict(conflict, fromScope, localTimeStamp, out resolvedRow);
-
-                                    if (changeApplicationAction == ChangeApplicationAction.Continue)
-                                    {
-                                        // row resolved
-                                        if (resolvedRow != null)
-                                            rowsApplied++;
-                                    }
-                                    else
-                                    {
-                                        context.TotalSyncErrors++;
-                                        // TODO : Should we break at the first error ?
-                                        return ChangeApplicationAction.Rollback;
-                                    }
+                                    // row resolved
+                                    if (resolvedRow != null)
+                                        rowsApplied++;
+                                }
+                                else
+                                {
+                                    context.TotalSyncErrors++;
+                                    // TODO : Should we break at the first error ?
+                                    return ChangeApplicationAction.Rollback;
                                 }
                             }
-
-                            // Get all conflicts resolved
-                            context.TotalSyncConflicts = conflicts.Where(c => c.Type != ConflictType.ErrorsOccurred).Sum(c => 1);
-
-                            // Handle sync progress for this syncadapter (so this table)
-                            var changedFailed = dmChangesView.Count - rowsApplied;
-
-                            // raise SyncProgress Event
-
-                            var existAppliedChanges = changesApplied.TableChangesApplied.FirstOrDefault(
-                                    sc => string.Equals(sc.TableName, tableDescription.TableName) && sc.State == applyType);
-
-                            if (existAppliedChanges == null)
-                            {
-                                existAppliedChanges = new TableChangesApplied();
-                                existAppliedChanges.TableName = tableDescription.TableName;
-                                existAppliedChanges.Applied = rowsApplied;
-                                existAppliedChanges.Failed = changedFailed;
-                                existAppliedChanges.State = applyType;
-                                changesApplied.TableChangesApplied.Add(existAppliedChanges);
-                            }
-                            else
-                            {
-                                existAppliedChanges.Applied += rowsApplied;
-                                existAppliedChanges.Failed += changedFailed;
-                            }
-
-                            // Event progress
-                            context.SyncStage = SyncStage.TableChangesApplied;
-                            var progressEventArgs = new TableChangesAppliedEventArgs(this.ProviderTypeName, context.SyncStage, existAppliedChanges);
-                            this.TryRaiseProgressEvent(progressEventArgs, this.TableChangesApplied);
-
                         }
+
+                        // Get all conflicts resolved
+                        context.TotalSyncConflicts = conflicts.Where(c => c.Type != ConflictType.ErrorsOccurred).Sum(c => 1);
+
+                        // Handle sync progress for this syncadapter (so this table)
+                        var changedFailed = dmChangesView.Count - rowsApplied;
+
+                        // raise SyncProgress Event
+
+                        var existAppliedChanges = changesApplied.TableChangesApplied.FirstOrDefault(
+                                sc => string.Equals(sc.TableName, tableDescription.TableName) && sc.State == applyType);
+
+                        if (existAppliedChanges == null)
+                        {
+                            existAppliedChanges = new TableChangesApplied
+                            {
+                                TableName = tableDescription.TableName,
+                                Applied = rowsApplied,
+                                Failed = changedFailed,
+                                State = applyType
+                            };
+                            changesApplied.TableChangesApplied.Add(existAppliedChanges);
+                        }
+                        else
+                        {
+                            existAppliedChanges.Applied += rowsApplied;
+                            existAppliedChanges.Failed += changedFailed;
+                        }
+
+                        // Event progress
+                        context.SyncStage = SyncStage.TableChangesApplied;
+                        var progressEventArgs = new TableChangesAppliedEventArgs(this.ProviderTypeName, context.SyncStage, existAppliedChanges);
+                        this.TryRaiseProgressEvent(progressEventArgs, this.TableChangesApplied);
+
                     }
-
-                    if (syncAdapter.ConflictActionInvoker != null)
-                        syncAdapter.ConflictActionInvoker = null;
-
-                    Debug.WriteLine("");
-                    Debug.WriteLine($"--- End {applyType.ToString()} for Table \"{tableDescription.TableName}\" ---");
-                    Debug.WriteLine("");
-
                 }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Error during ApplyInternalChanges : {ex.Message}");
-                    throw;
-                }
+
+                // Dispose conflict handler resolver
+                if (syncAdapter.ConflictActionInvoker != null)
+                    syncAdapter.ConflictActionInvoker = null;
+
             }
 
             return ChangeApplicationAction.Continue;

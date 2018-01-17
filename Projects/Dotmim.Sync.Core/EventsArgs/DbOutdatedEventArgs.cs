@@ -11,14 +11,22 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets or sets an action enumeration value for the action to handle the outdated peer.
         /// </summary>
-        public OutdatedSyncAction Action { get; set; } = OutdatedSyncAction.AbortSync;
+        public OutdatedSyncAction Action { get; set; } = OutdatedSyncAction.Rollback;
     }
 
     public enum OutdatedSyncAction
     {
-        /// <summary>Continue to synchronize, but write any issues to the metadata.</summary>
-        PartialSync,
-        /// <summary>Reject the synchronization request.</summary>
-        AbortSync
+        /// <summary>
+        /// Reinitialize the whole sync database, applying all rows from the server to the client
+        /// </summary>
+        Reinitialize,
+        /// <summary>
+        /// Reinitialize the whole sync database, applying all rows from the server to the client, after trying a client upload
+        /// </summary>
+        ReinitializeWithUpload,
+        /// <summary>
+        /// Rollback the synchronization request.
+        /// </summary>
+        Rollback
     }
 }
