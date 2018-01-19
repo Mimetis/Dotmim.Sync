@@ -60,7 +60,11 @@ namespace Dotmim.Sync
                                 builder.DropTable(connection, transaction);
                         }
 
-
+                        if (provision.HasFlag(SyncProvision.Scope) || provision == SyncProvision.All)
+                        {
+                            var scopeBuilder = GetScopeBuilder().CreateScopeInfoBuilder(connection, transaction);
+                            scopeBuilder.DropScopeInfoTable();
+                        }
                         transaction.Commit();
                     }
                 }
@@ -99,6 +103,13 @@ namespace Dotmim.Sync
 
                     using (var transaction = connection.BeginTransaction())
                     {
+
+                        if (provision.HasFlag(SyncProvision.Scope) || provision == SyncProvision.All)
+                        {
+                            var scopeBuilder = GetScopeBuilder().CreateScopeInfoBuilder(connection, transaction);
+                            scopeBuilder.CreateScopeInfoTable();
+                        }
+
                         for (int i = 0; i < configuration.Count; i++)
                         {
                             // Get the table
@@ -110,16 +121,16 @@ namespace Dotmim.Sync
                             // adding filters
                             this.AddFilters(configuration, dmTable, builder);
 
-                            if (provision.HasFlag(SyncProvision.Table))
+                            if (provision.HasFlag(SyncProvision.Table) || provision == SyncProvision.All)
                                 builder.CreateTable(connection, transaction);
 
-                            if (provision.HasFlag(SyncProvision.TrackingTable))
+                            if (provision.HasFlag(SyncProvision.TrackingTable) || provision == SyncProvision.All)
                                 builder.CreateTrackingTable(connection, transaction);
 
-                            if (provision.HasFlag(SyncProvision.Triggers))
+                            if (provision.HasFlag(SyncProvision.Triggers) || provision == SyncProvision.All)
                                 builder.CreateTriggers(connection, transaction);
 
-                            if (provision.HasFlag(SyncProvision.StoredProcedures))
+                            if (provision.HasFlag(SyncProvision.StoredProcedures) || provision == SyncProvision.All)
                                 builder.CreateStoredProcedures(connection, transaction);
 
                         }

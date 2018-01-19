@@ -61,6 +61,36 @@ namespace Dotmim.Sync.SqlServer.Scope
             }
         }
 
+        public void DropScopeInfoTable()
+        {
+            var command = connection.CreateCommand();
+            if (transaction != null)
+                command.Transaction = transaction;
+            bool alreadyOpened = connection.State == ConnectionState.Open;
+
+            try
+            {
+                if (!alreadyOpened)
+                    connection.Open();
+
+                command.CommandText ="DROP Table [dbo].[scope_info]";
+
+                command.ExecuteNonQuery();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error during DropScopeInfoTable : {ex}");
+                throw;
+            }
+            finally
+            {
+                if (!alreadyOpened && connection.State != ConnectionState.Closed)
+                    connection.Close();
+
+                if (command != null)
+                    command.Dispose();
+            }
+        }
 
         public List<ScopeInfo> GetAllScopes(string scopeName)
         {
