@@ -13,5 +13,7 @@ namespace Dotmim.Sync.Builders
         List<ScopeInfo> GetAllScopes(string scopeName);
         ScopeInfo InsertOrUpdateScopeInfo(ScopeInfo scopeInfo);
         long GetLocalTimestamp();
+        void DropScopeInfoTable();
+
     }
 }
