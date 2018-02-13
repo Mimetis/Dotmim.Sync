@@ -2,6 +2,7 @@
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Data.Surrogate;
 using Dotmim.Sync.Enumerations;
+using Microsoft.Net.Http.Headers;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -39,43 +40,80 @@ namespace Dotmim.Sync.Web
         public event EventHandler<TableChangesApplyingEventArgs> TableChangesApplying;
         public event EventHandler<TableChangesAppliedEventArgs> TableChangesApplied;
 
-        private Uri serviceUri;
-        private SerializationFormat serializationFormat;
-
-        public Uri ServiceUri
+        public Dictionary<string, string> CustomHeaders
         {
             get
             {
-                return this.serviceUri;
-            }
-            set
-            {
-                if (this.serviceUri != value)
-                {
-                    this.serviceUri = value;
-                    this.httpRequestHandler = new HttpRequestHandler(this.serviceUri, this.SerializationFormat);
-                }
+                return this.httpRequestHandler.CustomHeaders;
             }
         }
+        public Dictionary<string, string> ScopeParameters
+        {
+            get
+            {
+                return this.httpRequestHandler.ScopeParameters;
+            }
 
+        }
         public SerializationFormat SerializationFormat
         {
             get
             {
-                return this.serializationFormat;
+                return this.httpRequestHandler.SerializationFormat;
             }
             set
             {
-                if (this.serializationFormat != value)
-                {
-                    this.serializationFormat = value;
-                    this.httpRequestHandler = new HttpRequestHandler(this.ServiceUri, this.serializationFormat);
-                }
+                this.httpRequestHandler.SerializationFormat = value;
+            }
+        }
+        public Uri ServiceUri
+        {
+            get
+            {
+                return this.httpRequestHandler.BaseUri;
+            }
+            set
+            {
+                this.httpRequestHandler.BaseUri = value;
+            }
+        }
+        public CancellationToken CancellationToken
+        {
+            get
+            {
+                return this.httpRequestHandler.CancellationToken;
+            }
+            set
+            {
+                this.httpRequestHandler.CancellationToken = value;
+            }
+        }
+        public HttpClientHandler Handler
+        {
+            get
+            {
+                return this.httpRequestHandler.Handler;
+            }
+            set
+            {
+                this.httpRequestHandler.Handler = value;
+            }
+        }
+        public CookieHeaderValue Cookie
+        {
+            get
+            {
+                return this.httpRequestHandler.Cookie;
+            }
+            set
+            {
+                this.httpRequestHandler.Cookie = value;
             }
         }
 
         public WebProxyClientProvider()
         {
+            this.httpRequestHandler = new HttpRequestHandler();
 
         }
         /// <summary>
@@ -87,21 +125,44 @@ namespace Dotmim.Sync.Web
 
         public WebProxyClientProvider(Uri serviceUri, SerializationFormat serializationFormat)
         {
-            this.ServiceUri = serviceUri;
-            this.httpRequestHandler = new HttpRequestHandler(this.ServiceUri, serializationFormat);
-            this.SerializationFormat = serializationFormat;
+            this.httpRequestHandler = new HttpRequestHandler(serviceUri, serializationFormat, CancellationToken.None);
         }
+
+        public void AddScopeParameter(string key, string value)
+        {
+            if (this.httpRequestHandler.ScopeParameters.ContainsKey(key))
+                this.httpRequestHandler.ScopeParameters[key] = value;
+            else
+                this.httpRequestHandler.ScopeParameters.Add(key, value);
+
+        }
+
+        public void AddCustomHeader(string key, string value)
+        {
+            if (this.httpRequestHandler.CustomHeaders.ContainsKey(key))
+                this.httpRequestHandler.CustomHeaders[key] = value;
+            else
+                this.httpRequestHandler.CustomHeaders.Add(key, value);
+
+        }
+
 
         /// <summary>
         /// Use this constructor when you are on the Remote Side, only
         /// </summary>
-        public WebProxyClientProvider(Uri serviceUri, HttpClientHandler handler, Dictionary<string, string> scopeParameters = null, SerializationFormat serializationFormat = SerializationFormat.Json)
+        public WebProxyClientProvider(Uri serviceUri,
+                                      Dictionary<string, string> scopeParameters = null,
+                                      Dictionary<string, string> customHeaders = null,
+                                      SerializationFormat serializationFormat = SerializationFormat.Json)
         {
-            this.ServiceUri = serviceUri;
-            this.httpRequestHandler = new HttpRequestHandler(this.ServiceUri, serializationFormat, handler, scopeParameters);
-            this.SerializationFormat = serializationFormat;
-        }
+            this.httpRequestHandler = new HttpRequestHandler(serviceUri, serializationFormat, CancellationToken.None);
 
+            foreach (var sp in scopeParameters)
+                this.AddScopeParameter(sp.Key, sp.Value);
+
+            foreach (var ch in customHeaders)
+                this.AddCustomHeader(ch.Key, ch.Value);
+        }
 
         public async Task<SyncContext> BeginSessionAsync(SyncContext context)
         {
@@ -208,8 +269,6 @@ namespace Dotmim.Sync.Web
 
             return httpMessageResponse.SyncContext;
         }
-
-
 
         public async Task<(SyncContext, BatchInfo, ChangesSelected)> GetChangeBatchAsync(SyncContext context, ScopeInfo scopeInfo)
         {

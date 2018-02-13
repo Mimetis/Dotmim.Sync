@@ -1,0 +1,23 @@
+﻿<Page
+    x:Class="AuthSyncSampleAppClient.SyncWithAuth"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:AuthSyncSampleAppClient"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" Margin="10">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="0.3*" />
+            <ColumnDefinition Width="0.7*" />
+        </Grid.ColumnDefinitions>
+        <StackPanel Grid.Column="0" >
+            <Button Height="60" Margin="20" FontSize="20" HorizontalAlignment="Stretch" Content="Log in" Name="LoginButton" Click="LoginButton_Click" />
+            <Button Height="60" Margin="20" FontSize="20" HorizontalAlignment="Stretch" Content="Log out" Name="LogoutButton" Click="LogoutButton_Click" />
+            <Button Height="60" Margin="20" FontSize="20" HorizontalAlignment="Stretch" Content="Launch Sync" Name="SyncButton" Click="SyncButton_Click" />
+            <Button Height="60" Margin="20" FontSize="20" HorizontalAlignment="Stretch" Content="Reset" Name="ResetButton" Click="ResetButton_Click" />
+        </StackPanel>
+        <ListBox Name="LstResults" Grid.Column="1" Margin="20" FontSize="20" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+    </Grid>
+</Page>
