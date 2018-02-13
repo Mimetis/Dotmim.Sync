@@ -3,6 +3,7 @@ using Dotmim.Sync.Data;
 using Dotmim.Sync.Data.Surrogate;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.MySql;
+using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Web;
 using Newtonsoft.Json;
@@ -28,6 +29,7 @@ class Program
     public static string GetMySqlDatabaseConnectionString(string dbName) =>
         $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=azerty31$;";
 
+    
     /// <summary>
     /// Test a client syncing through a web api
     /// </summary>
@@ -165,5 +167,5 @@ class Program
         masterConnection.Close();
     }
 
-  
+
 }

@@ -18,39 +18,34 @@ namespace Dotmim.Sync.Web
     /// </summary>
     public class HttpRequestHandler : IDisposable
     {
-        private Uri baseUri;
-        private Dictionary<string, string> scopeParameters;
-        private CancellationToken cancellationToken;
-        private Dictionary<string, string> customHeaders;
-        private HttpClientHandler handler;
-        private SerializationFormat serializationFormat;
-        private String cookieName;
-        private String cookieValue;
         private HttpClient client;
+
+        internal Dictionary<string, string> CustomHeaders { get; } = new Dictionary<string, string>();
+
+        internal Dictionary<string, string> ScopeParameters { get; } = new Dictionary<string, string>();
+
+        internal SerializationFormat SerializationFormat { get; set; }
+
+        internal Uri BaseUri { get; set; }
+
+        internal CancellationToken CancellationToken { get; set; }
+
+        internal HttpClientHandler Handler { get; set; }
+
+        internal CookieHeaderValue Cookie { get; set; }
+
+        public HttpRequestHandler()
+        {
+            this.CancellationToken = CancellationToken.None;
+            this.SerializationFormat = SerializationFormat.Json;
+        }
 
         public HttpRequestHandler(Uri serviceUri, SerializationFormat serializationFormat, CancellationToken cancellationToken)
         {
-            this.baseUri = serviceUri;
-            this.serializationFormat = serializationFormat;
-            this.cancellationToken = cancellationToken;
+            this.BaseUri = serviceUri;
+            this.SerializationFormat = serializationFormat;
+            this.CancellationToken = cancellationToken;
         }
-        public HttpRequestHandler(Uri serviceUri, SerializationFormat serializationFormat,
-            HttpClientHandler handler,
-            Dictionary<string, string> scopeParameters,
-            Dictionary<string, string> customHeaders,
-            CancellationToken cancellationToken)
-        {
-            this.baseUri = serviceUri;
-            this.handler = handler;
-            this.scopeParameters = scopeParameters;
-            this.customHeaders = customHeaders;
-            this.cancellationToken = cancellationToken;
-            this.serializationFormat = serializationFormat;
-        }
-        public HttpRequestHandler(Uri serviceUri, SerializationFormat serializationFormat) : this(serviceUri, serializationFormat, CancellationToken.None) { }
-        public HttpRequestHandler(Uri serviceUri, SerializationFormat serializationFormat, HttpClientHandler handler) : this(serviceUri, serializationFormat, handler, null, null, CancellationToken.None) { }
-        public HttpRequestHandler(Uri serviceUri, SerializationFormat serializationFormat, HttpClientHandler handler, Dictionary<string, string> scopeParameters) : this(serviceUri, serializationFormat, handler, scopeParameters, null, CancellationToken.None) { }
-        public HttpRequestHandler(Uri serviceUri, SerializationFormat serializationFormat, HttpClientHandler handler, Dictionary<string, string> scopeParameters, Dictionary<string, string> customHeaders) : this(serviceUri, serializationFormat, handler, scopeParameters, customHeaders, CancellationToken.None) { }
 
 
         /// <summary>
@@ -58,6 +53,9 @@ namespace Dotmim.Sync.Web
         /// </summary>
         public async Task<T> ProcessRequest<T>(T content, CancellationToken cancellationToken)
         {
+            if (this.BaseUri == null)
+                throw new ArgumentException("BaseUri is not defined");
+
             HttpResponseMessage response = null;
             T dmSetResponse = default(T);
             try
@@ -66,14 +64,14 @@ namespace Dotmim.Sync.Web
                     cancellationToken.ThrowIfCancellationRequested();
 
                 var requestUri = new StringBuilder();
-                requestUri.Append(this.baseUri.ToString());
-                requestUri.Append(this.baseUri.ToString().EndsWith("/", StringComparison.CurrentCultureIgnoreCase) ? string.Empty : "/");
+                requestUri.Append(this.BaseUri.ToString());
+                requestUri.Append(this.BaseUri.ToString().EndsWith("/", StringComparison.CurrentCultureIgnoreCase) ? string.Empty : "/");
 
                 // Add params if any
-                if (scopeParameters != null)
+                if (ScopeParameters != null && ScopeParameters.Count > 0)
                 {
                     string prefix = "?";
-                    foreach (var kvp in scopeParameters)
+                    foreach (var kvp in ScopeParameters)
                     {
                         requestUri.AppendFormat("{0}{1}={2}", prefix, Uri.EscapeUriString(kvp.Key),
                                                 Uri.EscapeUriString(kvp.Value));
@@ -83,11 +81,10 @@ namespace Dotmim.Sync.Web
                 }
 
                 // default handler if no one specified
-                HttpClientHandler httpClientHandler = this.handler ?? new HttpClientHandler();
-
+                HttpClientHandler httpClientHandler = this.Handler ?? new HttpClientHandler();
 
                 // serialize dmSet content to bytearraycontent
-                var serializer = BaseConverter<T>.GetConverter(serializationFormat);
+                var serializer = BaseConverter<T>.GetConverter(SerializationFormat);
                 var binaryData = serializer.Serialize(content);
                 ByteArrayContent arrayContent = new ByteArrayContent(binaryData);
 
@@ -95,23 +92,21 @@ namespace Dotmim.Sync.Web
                 if (client == null)
                     client = new HttpClient(httpClientHandler);
 
-                if (this.cookieName != null && this.cookieValue != null)
-                {
-                    // add it to the default header
-                    client.DefaultRequestHeaders.Add("Cookie", new CookieHeaderValue(this.cookieName, this.cookieValue).ToString());
-                }
+                // add it to the default header
+                if (this.Cookie != null)
+                    client.DefaultRequestHeaders.Add("Cookie", this.Cookie.ToString());
 
                 HttpRequestMessage requestMessage = new HttpRequestMessage(HttpMethod.Post, requestUri.ToString())
                 {
                     Content = arrayContent
                 };
 
-                if (this.customHeaders != null)
-                    foreach (var kvp in this.customHeaders)
+                if (this.CustomHeaders != null && this.CustomHeaders.Count > 0)
+                    foreach (var kvp in this.CustomHeaders)
                         requestMessage.Headers.Add(kvp.Key, kvp.Value);
 
                 //request.AddHeader("content-type", "application/json");
-                if (serializationFormat == SerializationFormat.Json && !requestMessage.Content.Headers.Contains("content-type"))
+                if (SerializationFormat == SerializationFormat.Json && !requestMessage.Content.Headers.Contains("content-type"))
                     requestMessage.Content.Headers.Add("content-type", "application/json");
 
                 response = await client.SendAsync(requestMessage, cancellationToken);
@@ -130,14 +125,12 @@ namespace Dotmim.Sync.Web
                     if (headers.TryGetValues("Set-Cookie", out IEnumerable<string> tmpList))
                     {
                         var cookieList = tmpList.ToList();
+
                         // var cookieList = response.Headers.GetValues("Set-Cookie").ToList();
                         if (cookieList != null && cookieList.Count > 0)
                         {
                             // Get the first cookie
-                            var cookie = SetCookieHeaderValue.ParseList(cookieList).First();
-
-                            this.cookieName = cookie.Name.Value;
-                            this.cookieValue = cookie.Value.Value;
+                            this.Cookie = CookieHeaderValue.ParseList(cookieList).FirstOrDefault();
                         }
                     }
 
@@ -181,6 +174,7 @@ namespace Dotmim.Sync.Web
 
         #region IDisposable Support
         private bool disposedValue = false; // To detect redundant calls
+
 
         protected virtual void Dispose(bool disposing)
         {
