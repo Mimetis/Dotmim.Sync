@@ -112,7 +112,6 @@ namespace Dotmim.Sync.Web
 
             try
             {
-
                 var httpMessage = serializer.Deserialize(streamArray);
 
                 HttpMessage httpMessageResponse = null;
