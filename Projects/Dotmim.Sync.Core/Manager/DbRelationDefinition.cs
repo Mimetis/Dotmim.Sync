@@ -1,6 +1,4 @@
-﻿using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace Dotmim.Sync.Manager
 {
@@ -12,9 +10,9 @@ namespace Dotmim.Sync.Manager
     {
         public string ForeignKey { get; set; }
         public string TableName { get; set; }
-        public string ColumnName { get; set; }
+        public IEnumerable<string> KeyColumnsName { get; set; }
         public string ReferenceTableName { get; set; }
-        public string ReferenceColumnName { get; set; }
+        public IEnumerable<string> ReferenceColumnsName { get; set; }
 
     }
 }
