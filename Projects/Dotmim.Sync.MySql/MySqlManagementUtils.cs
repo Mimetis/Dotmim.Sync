@@ -1,8 +1,7 @@
-﻿using Dotmim.Sync.Data;
+using Dotmim.Sync.Data;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Text;
-using System.Linq;
 using MySql.Data.MySqlClient;
 using Dotmim.Sync.Builders;
 using System;
@@ -52,14 +51,21 @@ namespace Dotmim.Sync.MySql
 
         internal static DmTable RelationsForTable(MySqlConnection connection, MySqlTransaction transaction, string tableName)
         {
-            var commandRelations = @"Select CONSTRAINT_NAME as ForeignKey,
-		                                    TABLE_NAME as TableName,
-                                            COLUMN_NAME as ColumnName,
-                                            REFERENCED_TABLE_NAME as ReferenceTableName,
-                                            REFERENCED_COLUMN_NAME as ReferenceColumnName
-                                    from INFORMATION_SCHEMA.KEY_COLUMN_USAGE
-                                    Where TABLE_SCHEMA = schema() 
-                                    and REFERENCED_TABLE_NAME is not null and TABLE_NAME = @tableName";
+            var commandRelations = @"
+SELECT
+  ke.CONSTRAINT_NAME as ForeignKey,
+  ke.referenced_table_name as TableName,
+  ke.REFERENCED_COLUMN_NAME as ColumnName,
+  ke.table_name ReferenceTableName,
+  ke.COLUMN_NAME ReferenceColumnName
+FROM
+  information_schema.KEY_COLUMN_USAGE ke
+WHERE
+  ke.referenced_table_name IS NOT NULL
+  and ke.REFERENCED_TABLE_SCHEMA = schema()
+  AND ke.REFERENCED_TABLE_NAME = @tableName
+ORDER BY
+  ke.referenced_table_name;";
 
             ObjectNameParser tableNameParser = new ObjectNameParser(tableName, "`", "`");
             DmTable dmTable = new DmTable(tableNameParser.ObjectNameNormalized);
@@ -87,7 +93,7 @@ namespace Dotmim.Sync.MySql
                 dbCommand.CommandText = $"select * from information_schema.TABLES where table_schema = schema() and table_name = @tableName";
 
                 dbCommand.Parameters.AddWithValue("@tableName", objectNameParser.ObjectName);
-               
+
                 if (transaction != null)
                     dbCommand.Transaction = transaction;
 
@@ -122,7 +128,7 @@ namespace Dotmim.Sync.MySql
                 dbCommand.CommandText = $"drop trigger {objectNameParser.ObjectName}";
                 if (transaction != null)
                     dbCommand.Transaction = transaction;
-             
+
                 dbCommand.ExecuteNonQuery();
             }
         }
@@ -250,7 +256,7 @@ namespace Dotmim.Sync.MySql
             string str1 = "";
             foreach (DmColumn column in columns)
             {
-                ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName,"`", "`");
+                ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName, "`", "`");
 
                 stringBuilder.Append(str1);
                 stringBuilder.Append(strFromPrefix);

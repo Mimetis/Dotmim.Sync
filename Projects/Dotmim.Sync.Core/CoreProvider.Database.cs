@@ -1,4 +1,4 @@
-﻿using Dotmim.Sync.Builders;
+using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Data;
 using System;
@@ -190,7 +190,12 @@ namespace Dotmim.Sync
 
                     using (var transaction = connection.BeginTransaction())
                     {
-                        foreach (var dmTable in message.Schema.Tables)
+                        // Sorting tables based on dependencies between them
+                        var dmTables = message.Schema.Tables
+                            .SortByDependencies(tab => tab.ChildRelations
+                                .Select(r => r.ChildTable));
+
+                        foreach (var dmTable in dmTables)
                         {
                             var builder = GetDatabaseBuilder(dmTable);
 
