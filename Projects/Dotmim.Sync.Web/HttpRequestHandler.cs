@@ -143,9 +143,13 @@ namespace Dotmim.Sync.Web
                 return dmSetResponse;
 
             }
+            catch (TaskCanceledException ex)
+            {
+                throw ex;
+            }
             catch (Exception e)
             {
-                if (response.Content == null)
+                if (response == null || response.Content == null)
                     throw e;
 
                 try
@@ -161,9 +165,9 @@ namespace Dotmim.Sync.Web
                 {
                     throw;
                 }
-                catch (Exception)
+                catch (Exception )
                 {
-                    // no need to do something here, just rethrow the initial error
+                    throw;
                 }
 
                 throw e;
