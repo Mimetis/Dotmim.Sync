@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Data.Common;
 using System.Data;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
@@ -103,6 +104,10 @@ namespace Dotmim.Sync
             else if (exception is OperationCanceledException)
             {
                 this.Type = SyncExceptionType.OperationCanceled;
+            }
+            else if (exception is TaskCanceledException)
+            {
+                this.Type = SyncExceptionType.TaskCanceled;
             }
             else if (exception is OutOfDateException)
             {
@@ -208,6 +213,7 @@ namespace Dotmim.Sync
         Overflow,
         PlatformNotSupported,
         Rollback,
+        TaskCanceled,
         Timeout,
         UnauthorizedAccess,
         UriFormat,
