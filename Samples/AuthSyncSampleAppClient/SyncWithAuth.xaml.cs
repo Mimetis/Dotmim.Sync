@@ -33,7 +33,10 @@ namespace AuthSyncSampleAppClient
         // -------------------------------------------------------------------
         private string ClientId = "99362e01-d41a-4370-95ce-db9e1d51796f"; // AAD V2
         private PublicClientApplication publicClientApp;
-        private string[] scopes = new string[] { "api://99362e01-d41a-4370-95ce-db9e1d51796f/access_as_user" };
+        private string[] scopes = new string[] {
+            "api://99362e01-d41a-4370-95ce-db9e1d51796f/access_as_user",
+            "api://99362e01-d41a-4370-95ce-db9e1d51796f/access_admin"
+        };
         private AuthenticationResult authenticationResult = null;
 
         public SyncWithAuth()

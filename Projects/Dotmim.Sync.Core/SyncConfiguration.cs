@@ -43,6 +43,13 @@ namespace Dotmim.Sync
         /// </summary>
         public String BatchDirectory { get; set; }
 
+
+        /// <summary>
+        /// Gets or Sets the archive name, saved in the BatchDirectory, 
+        /// containing the zip starter for any new client
+        /// </summary>
+        public String Archive { get; set; }
+
         /// <summary>
         /// Gets or Sets the size used for downloading in batch mode. 
         /// Default is 0 (no batch mode)
@@ -65,11 +72,11 @@ namespace Dotmim.Sync
         /// </summary>
         public bool UseBulkOperations { get; set; } = true;
 
+
         /// <summary>
         /// Filters applied on tables
         /// </summary>
         public FilterClauseCollection Filters { get; set; }
-
 
         /// <summary>
         /// Get the default apply action on conflict resolution.
@@ -122,7 +129,7 @@ namespace Dotmim.Sync
             syncConfiguration.UseBulkOperations = this.UseBulkOperations;
             syncConfiguration.UseVerboseErrors = this.UseVerboseErrors;
             syncConfiguration.SerializationFormat = this.SerializationFormat;
-            //syncConfiguration.OverwriteConfiguration = this.OverwriteConfiguration;
+            syncConfiguration.Archive = this.Archive;
 
             if (this.Filters != null)
                 foreach (var p in this.Filters)
@@ -143,11 +150,11 @@ namespace Dotmim.Sync
             var dmRowConfiguration = set.Tables["DotmimSync__ServiceConfiguration"].Rows[0];
 
             configuration.BatchDirectory = dmRowConfiguration["BatchDirectory"] as String; ;
+            configuration.Archive = dmRowConfiguration["Archive"] as String; ;
             configuration.ConflictResolutionPolicy = (ConflictResolutionPolicy)dmRowConfiguration["ConflictResolutionPolicy"];
             configuration.DownloadBatchSizeInKB = (int)dmRowConfiguration["DownloadBatchSizeInKB"];
             configuration.UseBulkOperations = (bool)dmRowConfiguration["UseBulkOperations"];
             configuration.UseVerboseErrors = (bool)dmRowConfiguration["UseVerboseErrors"];
-            //configuration.OverwriteConfiguration = (bool)dmRowConfiguration["OverwriteConfiguration"];
             configuration.SerializationFormat = (SerializationFormat)dmRowConfiguration["SerializationConverter"];
 
             if (set.Tables.Contains("DotmimSync__Filters"))
@@ -201,21 +208,21 @@ namespace Dotmim.Sync
             dmTableConfiguration.Columns.Clear();
 
             dmTableConfiguration.Columns.Add<String>("BatchDirectory");
+            dmTableConfiguration.Columns.Add<String>("Archive");
             dmTableConfiguration.Columns.Add<Int32>("ConflictResolutionPolicy");
             dmTableConfiguration.Columns.Add<Int32>("DownloadBatchSizeInKB");
             dmTableConfiguration.Columns.Add<Boolean>("EnableDiagnosticPage");
             dmTableConfiguration.Columns.Add<Boolean>("UseBulkOperations");
             dmTableConfiguration.Columns.Add<Boolean>("UseVerboseErrors");
-            //dmTableConfiguration.Columns.Add<Boolean>("OverwriteConfiguration");
             dmTableConfiguration.Columns.Add<Int32>("SerializationConverter");
 
             var dmRowConfiguration = dmTableConfiguration.NewRow();
             dmRowConfiguration["BatchDirectory"] = configuration.BatchDirectory;
+            dmRowConfiguration["Archive"] = configuration.Archive;
             dmRowConfiguration["ConflictResolutionPolicy"] = configuration.ConflictResolutionPolicy;
             dmRowConfiguration["DownloadBatchSizeInKB"] = configuration.DownloadBatchSizeInKB;
             dmRowConfiguration["UseBulkOperations"] = configuration.UseBulkOperations;
             dmRowConfiguration["UseVerboseErrors"] = configuration.UseVerboseErrors;
-            //dmRowConfiguration["OverwriteConfiguration"] = configuration.OverwriteConfiguration;
             dmRowConfiguration["SerializationConverter"] = configuration.SerializationFormat;
             dmTableConfiguration.Rows.Add(dmRowConfiguration);
 

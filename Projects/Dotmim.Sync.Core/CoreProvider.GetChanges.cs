@@ -11,6 +11,7 @@ using System.Data;
 using System.Data.Common;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -71,6 +72,69 @@ namespace Dotmim.Sync
                 throw new SyncException(ex, SyncStage.TableChangesSelecting, this.ProviderTypeName);
             }
         }
+
+
+        /// <summary>
+        /// Gets a batch of changes to synchronize when given batch size, 
+        /// destination knowledge, and change data retriever parameters.
+        /// </summary>
+        /// <returns>A DbSyncContext object that will be used to retrieve the modified data.</returns>
+        public virtual async Task<TimeSpan> PrepareArchiveAsync(SyncConfiguration configuration)
+        {
+            try
+            {
+                // We need to save 
+                // the lasttimestamp when the zip generated for the client to be able to launch a sync since this ts
+
+                // IF the client is new and the SyncConfiguration object has the Archive property
+
+                Stopwatch stopwatch = new Stopwatch();
+                stopwatch.Start();
+
+                SyncContext context;
+                ScopeInfo scopeInfo;
+
+                context = new SyncContext(Guid.NewGuid())
+                {
+                    SyncType = SyncType.Normal,
+                    SyncWay = SyncWay.Download,
+
+                };
+                scopeInfo = new ScopeInfo
+                {
+                    IsNewScope = true
+                };
+
+                // Read configuration
+                await this.ReadConfigurationAsync(configuration);
+
+                // We want a batch zip
+                if (configuration.DownloadBatchSizeInKB <= 0)
+                    configuration.DownloadBatchSizeInKB = 10000;
+
+                // Save config to cache
+                this.SetCacheConfiguration(configuration);
+
+                (var batchInfo, var changesSelected) =
+                    await this.EnumerateChangesInBatchesInternal(context, scopeInfo);
+
+                var dir = Path.Combine(configuration.BatchDirectory, batchInfo.Directory);
+                var archiveFullName = String.Concat(configuration.BatchDirectory, "\\", Path.GetRandomFileName());
+
+                ZipFile.CreateFromDirectory(dir, archiveFullName, CompressionLevel.Fastest, false);
+
+                stopwatch.Stop();
+                return stopwatch.Elapsed;
+            }
+            catch (Exception ex)
+            {
+                throw new SyncException(ex, SyncStage.TableChangesSelecting, this.ProviderTypeName);
+            }
+        }
+
+
+
+
 
         /// <summary>
         /// Generate an empty BatchInfo
@@ -355,17 +419,20 @@ namespace Dotmim.Sync
             Debug.WriteLine("");
             var configuration = GetCacheConfiguration();
 
+            DmTable dmTable = null;
             // memory size total
             double memorySizeFromDmRows = 0L;
 
             int batchIndex = 0;
 
             // this batch info won't be in memory, it will be be batched
-            BatchInfo batchInfo = new BatchInfo();
-            // directory where all files will be stored
-            batchInfo.Directory = BatchInfo.GenerateNewDirectoryName();
-            // not in memory since we serialized all files in the tmp directory
-            batchInfo.InMemory = false;
+            BatchInfo batchInfo = new BatchInfo
+            {
+                // directory where all files will be stored
+                Directory = BatchInfo.GenerateNewDirectoryName(),
+                // not in memory since we serialized all files in the tmp directory
+                InMemory = false
+            };
 
             // Create stats object to store changes count
             ChangesSelected changes = new ChangesSelected();
@@ -438,7 +505,7 @@ namespace Dotmim.Sync
                                 throw new Exception(exc);
                             }
 
-                            var dmTable = BuildChangesTable(tableDescription.TableName);
+                             dmTable = BuildChangesTable(tableDescription.TableName);
 
                             try
                             {
@@ -549,33 +616,12 @@ namespace Dotmim.Sync
                                             // Init the row memory size
                                             memorySizeFromDmRows = 0L;
 
-                                            //// raise SyncProgress Event
-                                            //// in batch mode, we could have a table on mulitple batchs
-                                            //// so try to get it
-                                            //var existSelectedChanges = changes.TableChangesSelected.FirstOrDefault(sc => string.Equals(sc.TableName, tableDescription.TableName));
-                                            //if (existSelectedChanges == null)
-                                            //{
-                                            //    existSelectedChanges = tableChangesSelected;
-                                            //    changes.TableChangesSelected.Add(tableChangesSelected);
-                                            //}
-                                            //else
-                                            //{
-                                            //    existSelectedChanges.Deletes += tableChangesSelected.Deletes;
-                                            //    existSelectedChanges.Inserts += tableChangesSelected.Inserts;
-                                            //    existSelectedChanges.Updates += tableChangesSelected.Updates;
-                                            //    existSelectedChanges.TotalChanges += tableChangesSelected.TotalChanges;
-                                            //}
-
                                             // add stats for a SyncProgress event
                                             context.SyncStage = SyncStage.TableChangesSelected;
                                             var args2 = new TableChangesSelectedEventArgs
                                                 (this.ProviderTypeName, SyncStage.TableChangesSelected, tableChangesSelected);
 
                                             this.TryRaiseProgressEvent(args2, this.TableChangesSelected);
-
-                                            //// reinit stats 
-                                            //tableChangesSelected = new TableChangesSelected();
-                                            //tableChangesSelected.TableName = tableDescription.TableName;
 
                                         }
                                     }
@@ -589,21 +635,6 @@ namespace Dotmim.Sync
 
                                     // Init the row memory size
                                     memorySizeFromDmRows = 0L;
-
-                                    //// raise SyncProgress Event
-                                    //var esc = changes.TableChangesSelected.FirstOrDefault(sc => string.Equals(sc.TableName, tableDescription.TableName));
-                                    //if (esc == null)
-                                    //{
-                                    //    esc = tableChangesSelected;
-                                    //    changes.TableChangesSelected.Add(esc);
-                                    //}
-                                    //else
-                                    //{
-                                    //    esc.Deletes += tableChangesSelected.Deletes;
-                                    //    esc.Inserts += tableChangesSelected.Inserts;
-                                    //    esc.Updates += tableChangesSelected.Updates;
-                                    //    esc.TotalChanges += tableChangesSelected.TotalChanges;
-                                    //}
 
                                     // Event progress
                                     context.SyncStage = SyncStage.TableChangesSelected;
@@ -625,10 +656,14 @@ namespace Dotmim.Sync
                         }
 
                         // We are in batch mode, and we are at the last batchpart info
-                        var batchPartInfo = batchInfo.GenerateBatchInfo(batchIndex, changesSet, configuration.BatchDirectory);
+                        if (dmTable != null && dmTable.Rows.Count > 0)
+                        {
+                            var batchPartInfo = batchInfo.GenerateBatchInfo(batchIndex, changesSet, configuration.BatchDirectory);
 
-                        if (batchPartInfo != null)
-                            batchPartInfo.IsLastBatch = true;
+                            if (batchPartInfo != null)
+                                batchPartInfo.IsLastBatch = true;
+                        
+                        }
 
                         transaction.Commit();
                     }

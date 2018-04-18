@@ -14,7 +14,6 @@ namespace Dotmim.Sync.Data.Surrogate
     [Serializable]
     public class DmTableSurrogate : IDisposable
     {
-
         /// <summary>
         /// Gets or sets the locale information used to compare strings within the table.
         /// </summary>
@@ -338,14 +337,16 @@ namespace Dotmim.Sync.Data.Surrogate
             {
                 // Size for the value
                 object obj = itemArray[i];
+                Type objType = obj != null ? obj.GetType() : null;
+
 
                 if (obj == null)
                     byteCount = byteCount + 5;
                 else if (obj is DBNull)
                     byteCount = byteCount + 5;
-                else if (obj.GetType() == typeof(string))
+                else if (objType == stringType)
                     byteCount = byteCount + Encoding.UTF8.GetByteCount((string)obj);
-                else if (obj.GetType() == typeof(byte[]))
+                else if (objType == byteArrayType)
                     byteCount = byteCount + ((byte[])obj).Length;
                 else
                     byteCount = byteCount + GetSizeForType(obj.GetType());
@@ -371,6 +372,26 @@ namespace Dotmim.Sync.Data.Surrogate
             return byteCount;
         }
 
+  
+        private static Type stringType = typeof(string);
+        private static Type objectType = typeof(object);
+        private static Type byteType = typeof(Byte);
+        private static Type byteArrayType = typeof(Byte[]);
+        private static Type longType = typeof(long);
+        private static Type ulongType = typeof(ulong);
+        private static Type doubleType = typeof(double);
+        private static Type datetimeType = typeof(DateTime);
+        private static Type dbnullType = typeof(DBNull);
+        private static Type boolType = typeof(Boolean);
+        private static Type sbyteType = typeof(sbyte);
+        private static Type charType = typeof(char);
+        private static Type shortType = typeof(short);
+        private static Type ushortType = typeof(ushort);
+        private static Type intType = typeof(int);
+        private static Type uintType = typeof(uint);
+        private static Type floatType = typeof(float);
+        private static Type decimalType = typeof(decimal);
+        private static Type guidType = typeof(Guid);
 
         /// <summary>
         /// Gets a size for a given type
@@ -378,23 +399,23 @@ namespace Dotmim.Sync.Data.Surrogate
         public static long GetSizeForType(Type type)
         {
 
-            if (type == typeof(object) || type == typeof(long) || type == typeof(ulong) ||
-                type == typeof(double) || type == typeof(DateTime))
+            if (type == objectType || type == longType || type == ulongType ||
+                type == doubleType || type == datetimeType)
                 return 8L;
 
-            if (type == typeof(DBNull))
+            if (type == dbnullType)
                 return 0L;
 
-            if (type == typeof(bool) || type == typeof(sbyte) || type == typeof(byte))
+            if (type == boolType || type == sbyteType || type == byteType)
                 return 1L;
 
-            if (type == typeof(char) || type == typeof(short) || type == typeof(ushort))
+            if (type == charType || type == shortType || type == ushortType)
                 return 2L;
 
-            if (type == typeof(int) || type == typeof(uint) || type == typeof(float))
+            if (type == intType || type == uintType || type == floatType)
                 return 4L;
 
-            if (type == typeof(decimal) || type == typeof(Guid))
+            if (type == decimalType || type == guidType)
                 return 16L;
 
             return 0L;

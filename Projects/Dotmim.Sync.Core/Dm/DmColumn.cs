@@ -300,7 +300,8 @@ namespace Dotmim.Sync.Data
         /// <summary>
         /// Gets if the column could be auto increment
         /// </summary>
-        internal static bool IsAutoIncrementType(Type dataType) => (dataType == typeof(byte) || dataType == typeof(int) || dataType == typeof(long) || dataType == typeof(short) || dataType == typeof(decimal));
+        internal static bool IsAutoIncrementType(Type dataType) =>
+            (dataType == typeof(byte) || dataType == typeof(int) || dataType == typeof(long) || dataType == typeof(short) || dataType == typeof(decimal));
 
         /// <summary>
         /// Change the ordinal and reorder
@@ -444,7 +445,9 @@ namespace Dotmim.Sync.Data
                 this.AutoInc.SetCurrent(value);
             }
         }
-        internal AutoIncrement<T> AutoInc => (this.autoInc ?? (this.autoInc = new AutoIncrement<T>()));
+        internal AutoIncrement<T> AutoInc =>
+            (this.autoInc ?? (this.autoInc = new AutoIncrement<T>()));
+
         public T AutoIncrementSeed
         {
             get
@@ -645,8 +648,10 @@ namespace Dotmim.Sync.Data
 
                     var recordValue = GetValue(record);
 
-                    if (!EqualityComparer<T>.Default.Equals((T)recordValue, default(T)))
-                        this.AutoInc.SetCurrentAndIncrement((T)recordValue);
+                    this.AutoInc.SetCurrentAndIncrement(recordValue);
+
+                    //if (!EqualityComparer<T>.Default.Equals((T)recordValue, default(T)))
+                    //    this.AutoInc.SetCurrentAndIncrement((T)recordValue);
                 }
                 catch (Exception e)
                 {
@@ -863,14 +868,40 @@ namespace Dotmim.Sync.Data
             this.current = unchecked(aCurrent + aStep);
         }
 
-        internal void SetCurrent(T value)
+        internal void SetCurrent(object value)
         {
-            this.current = value;
+            this.current = (T)Parse(value);
         }
 
-        internal void SetCurrentAndIncrement(T value)
+        internal object Parse(object val)
         {
-            dynamic aValue = value;
+            var columnType = typeof(T);
+            var valType = val.GetType();
+
+            if (valType == columnType)
+                return val;
+
+            if (columnType == typeof(Int32) && valType != typeof(Int32))
+                return Convert.ToInt32(val);
+            else if (columnType == typeof(UInt32) && valType != typeof(UInt32))
+                return Convert.ToUInt32(val);
+            else if (columnType == typeof(Int16) && valType != typeof(Int16))
+                return Convert.ToInt16(val);
+            else if (columnType == typeof(UInt16) && valType != typeof(UInt16))
+                return Convert.ToUInt16(val);
+            else if (columnType == typeof(Int64) && valType != typeof(Int64))
+                return Convert.ToInt64(val);
+            else if (columnType == typeof(UInt64) && valType != typeof(UInt64))
+                return Convert.ToUInt64(val);
+            else if (columnType == typeof(Byte) && valType != typeof(Byte))
+                return Convert.ToByte(val);
+
+            return val;
+        }
+
+        internal void SetCurrentAndIncrement(object value)
+        {
+            dynamic aValue = Parse(value);
             dynamic aStep = this.step;
 
             this.current = unchecked(aValue + aStep);
