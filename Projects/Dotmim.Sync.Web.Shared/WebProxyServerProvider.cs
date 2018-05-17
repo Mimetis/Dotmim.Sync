@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Threading;
 using Newtonsoft.Json;
 using Dotmim.Sync.Enumerations;
@@ -52,6 +53,34 @@ namespace Dotmim.Sync.Web
             }
         }
 
+#if !CORE
+        private static Lazy<bool> _sessionExists = new Lazy<bool>(() =>
+        {
+            try
+            {
+                // this throws if no session is enabled! see https://stackoverflow.com/questions/1336770/determine-if-asp-net-sessions-are-enabled?utm_medium=organic&utm_source=google_rich_qa&utm_campaign=google_rich_qa
+                return HttpContext.Current?.Session != null;
+            }
+            catch
+            {
+                return false;
+            }
+        });
+
+        private bool? _isSessionEnabled;
+
+        public bool IsSessionEnabled
+        {
+            get
+            {
+                // falls back to static _sessionExists, but caches value in object instance to allow for unittests to have no sideeffects
+                if(_isSessionEnabled == null)
+                    _isSessionEnabled = _sessionExists.Value;
+                return _isSessionEnabled.Value;
+            }
+            set => _isSessionEnabled = value;
+        }
+#endif
 
         private BaseConverter<HttpMessage> serializer;
 
@@ -120,8 +149,9 @@ namespace Dotmim.Sync.Web
                 if (sessionStore != null)
                     this.LocalProvider.CacheManager = new SessionCache(context);
 #else
-                throw new NotSupportedException(
-                    "Session store is only supported by asp.net core version of Dotmim.Sync");
+
+                if(IsSessionEnabled)
+                    this.LocalProvider.CacheManager = new SessionCache(context);
 #endif
             }
 
@@ -473,9 +503,8 @@ namespace Dotmim.Sync.Web
             httpResponse.ContentLength = webXMessage.Length;
             await httpResponse.WriteAsync(webXMessage);
 #else
-            throw new NotImplementedException();
             httpResponse.StatusCode = (int)HttpStatusCode.BadRequest;
-            //httpResponse.Content.Headers.Add(@"Content-Length", webXMessage.Length);
+            httpResponse.Headers.Add("Content-Length", webXMessage.Length.ToString());
             httpResponse.Write(webx);
 #endif
         }

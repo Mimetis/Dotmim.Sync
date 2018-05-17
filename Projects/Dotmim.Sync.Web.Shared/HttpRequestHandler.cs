@@ -4,6 +4,7 @@ using Dotmim.Sync.Serialization;
 using Microsoft.Net.Http.Headers;
 #else
 using System.Net.Http.Headers;
+using System.Net;
 #endif
 using Newtonsoft.Json;
 using System;
@@ -137,7 +138,9 @@ namespace Dotmim.Sync.Web
                             // Get the first cookie
                             this.Cookie = CookieHeaderValue.ParseList(cookieList).FirstOrDefault();
 #else
-                            throw new NotSupportedException("ParseList does not exist in legacy aspnet");
+                            //try to parse the very first cookie
+                            if (CookieHeaderValue.TryParse(cookieList[0], out var cookie))
+                                this.Cookie = cookie;
 #endif
                         }
                     }
