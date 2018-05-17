@@ -2,7 +2,11 @@
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Data.Surrogate;
 using Dotmim.Sync.Enumerations;
+#if CORE
 using Microsoft.Net.Http.Headers;
+#else
+using System.Net.Http.Headers;
+#endif
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -467,7 +471,7 @@ namespace Dotmim.Sync.Web
             this.cancellationToken = token;
         }
 
-        #region IDisposable Support
+#region IDisposable Support
         private bool disposedValue = false; // To detect redundant calls
 
         protected virtual void Dispose(bool disposing)
@@ -489,6 +493,6 @@ namespace Dotmim.Sync.Web
             // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
             Dispose(true);
         }
-        #endregion
+#endregion
     }
 }

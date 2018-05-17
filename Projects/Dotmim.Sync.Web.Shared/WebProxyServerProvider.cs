@@ -3,16 +3,21 @@ using System.Collections.Generic;
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Batch;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Threading;
 using Newtonsoft.Json;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Serialization;
 using Dotmim.Sync.Data.Surrogate;
 using Dotmim.Sync.Cache;
+#if CORE
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Session;
+#else 
+using System.Web;
+#endif
 
 namespace Dotmim.Sync.Web
 {
@@ -98,16 +103,26 @@ namespace Dotmim.Sync.Web
         {
             var httpRequest = context.Request;
             var httpResponse = context.Response;
+#if CORE
             var streamArray = httpRequest.Body;
+#else
+            var streamArray = httpRequest.InputStream;
+#endif
+
 
             // Check if we should handle a session store to handle configuration
             if (!this.IsRegisterAsSingleton)
             {
+#if CORE
                 // try to get the session store service from DI
                 var sessionStore = context.RequestServices.GetService(typeof(ISessionStore));
 
                 if (sessionStore != null)
                     this.LocalProvider.CacheManager = new SessionCache(context);
+#else
+                throw new NotSupportedException(
+                    "Session store is only supported by asp.net core version of Dotmim.Sync");
+#endif
             }
 
             try
@@ -147,7 +162,11 @@ namespace Dotmim.Sync.Web
                 }
 
                 var binaryData = serializer.Serialize(httpMessageResponse);
+#if CORE
                 await httpResponse.Body.WriteAsync(binaryData, 0, binaryData.Length);
+#else
+                await httpResponse.OutputStream.WriteAsync(binaryData, 0, binaryData.Length);
+#endif
 
             }
             catch (Exception ex)
@@ -449,10 +468,16 @@ namespace Dotmim.Sync.Web
         {
             var webx = WebSyncException.GetWebSyncException(ex);
             var webXMessage = JsonConvert.SerializeObject(webx);
+#if CORE
             httpResponse.StatusCode = StatusCodes.Status400BadRequest;
             httpResponse.ContentLength = webXMessage.Length;
             await httpResponse.WriteAsync(webXMessage);
-
+#else
+            throw new NotImplementedException();
+            httpResponse.StatusCode = (int)HttpStatusCode.BadRequest;
+            //httpResponse.Content.Headers.Add(@"Content-Length", webXMessage.Length);
+            httpResponse.Write(webx);
+#endif
         }
 
         public async Task<(SyncContext, ChangesApplied)> ApplyChangesAsync(SyncContext ctx, ScopeInfo fromScope, BatchInfo changes)
@@ -480,4 +505,5 @@ namespace Dotmim.Sync.Web
             return;
         }
     }
+
 }

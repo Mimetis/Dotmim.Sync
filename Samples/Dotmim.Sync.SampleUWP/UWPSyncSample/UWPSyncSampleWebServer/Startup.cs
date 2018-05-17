@@ -28,10 +28,10 @@ namespace UWPSyncSampleWebServer
 
             // For UWP Sample
             // Make Sure this database is created on you sqlexpress instance
-            var connectionString = @"Data Source=localhost\sqlexpress; Initial Catalog=Contoso; Integrated Security=true;";
+            var connectionString = @"Data Source=localhost\mssqlexpress; Initial Catalog=AdventureWorks; Integrated Security=true;";
             services.AddSyncServer<SqlSyncProvider>(connectionString, configuration =>
             {
-                var s = new string[] { "Employees" };
+                var s = new string[] { "Customer" };
                 configuration.Add(s);
                 configuration.DownloadBatchSizeInKB = 1000;
             });
