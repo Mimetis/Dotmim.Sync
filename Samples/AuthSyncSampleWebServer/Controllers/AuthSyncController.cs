@@ -10,7 +10,6 @@ using System.Threading.Tasks;
 
 namespace AuthSyncSampleWebServer.Controllers
 {
-    [Authorize]
     [Route("api/[controller]")]
     public class AuthSyncController : Controller
     {
@@ -44,7 +43,7 @@ namespace AuthSyncSampleWebServer.Controllers
         }
 
         [HttpPost("filter")]
-        [SyncResult]
+        [SyncResult("POST")]
         public async Task PostWithFilter()
         {
             // Checking the scope is optional
