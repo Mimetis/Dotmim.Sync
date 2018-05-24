@@ -7,7 +7,7 @@ namespace Dotmim.Sync.Web
 {
     public class SyncResultAttribute : ResultFilterAttribute, IResultFilter, IAsyncResultFilter
     {
-        public string[] OnMethods { get; set; } = new[] { "POST" };
+        public string[] OnMethods { get; set; } = new[] { "*" };
 
         public override async void OnResultExecuted(ResultExecutedContext context)
         {
@@ -25,7 +25,7 @@ namespace Dotmim.Sync.Web
 
         private async Task SyncContextAsync(FilterContext context)
         {
-            if (OnMethods.Contains(context.HttpContext.Request.Method))
+            if (OnMethods.Contains(context.HttpContext.Request.Method) || OnMethods.Contains("*"))
             {
                 WebProxyServerProvider _webProxyService = (WebProxyServerProvider)context.HttpContext.RequestServices.GetService(typeof(WebProxyServerProvider));
 
