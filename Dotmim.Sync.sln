@@ -31,6 +31,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AuthSyncSampleWebServer", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AuthSyncSampleAppClient", "Samples\AuthSyncSampleAppClient\AuthSyncSampleAppClient.csproj", "{E0C5AE28-1C86-4904-9827-DBE3445F394C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dotmim.Sync.Oracle", "Dotmim.Sync.Oracle\Dotmim.Sync.Oracle.csproj", "{29D98F8C-2374-4C63-A775-C0BE38B5639E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -244,6 +246,22 @@ Global
 		{E0C5AE28-1C86-4904-9827-DBE3445F394C}.Release|x86.ActiveCfg = Release|x86
 		{E0C5AE28-1C86-4904-9827-DBE3445F394C}.Release|x86.Build.0 = Release|x86
 		{E0C5AE28-1C86-4904-9827-DBE3445F394C}.Release|x86.Deploy.0 = Release|x86
+		{29D98F8C-2374-4C63-A775-C0BE38B5639E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{29D98F8C-2374-4C63-A775-C0BE38B5639E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{29D98F8C-2374-4C63-A775-C0BE38B5639E}.Debug|ARM.ActiveCfg = Debug|Any CPU
+		{29D98F8C-2374-4C63-A775-C0BE38B5639E}.Debug|ARM.Build.0 = Debug|Any CPU
+		{29D98F8C-2374-4C63-A775-C0BE38B5639E}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{29D98F8C-2374-4C63-A775-C0BE38B5639E}.Debug|x64.Build.0 = Debug|Any CPU
+		{29D98F8C-2374-4C63-A775-C0BE38B5639E}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{29D98F8C-2374-4C63-A775-C0BE38B5639E}.Debug|x86.Build.0 = Debug|Any CPU
+		{29D98F8C-2374-4C63-A775-C0BE38B5639E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{29D98F8C-2374-4C63-A775-C0BE38B5639E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{29D98F8C-2374-4C63-A775-C0BE38B5639E}.Release|ARM.ActiveCfg = Release|Any CPU
+		{29D98F8C-2374-4C63-A775-C0BE38B5639E}.Release|ARM.Build.0 = Release|Any CPU
+		{29D98F8C-2374-4C63-A775-C0BE38B5639E}.Release|x64.ActiveCfg = Release|Any CPU
+		{29D98F8C-2374-4C63-A775-C0BE38B5639E}.Release|x64.Build.0 = Release|Any CPU
+		{29D98F8C-2374-4C63-A775-C0BE38B5639E}.Release|x86.ActiveCfg = Release|Any CPU
+		{29D98F8C-2374-4C63-A775-C0BE38B5639E}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -257,8 +275,8 @@ Global
 		{E0C5AE28-1C86-4904-9827-DBE3445F394C} = {437F3541-AAFA-4369-953E-4643660EEBC4}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		BuildVersion_StartDate = 2000/1/1
 		SolutionGuid = {348020ED-748B-4CC8-AA1D-9F7D36E2AC12}
+		BuildVersion_StartDate = 2000/1/1
 	EndGlobalSection
 	GlobalSection(Performance) = preSolution
 		HasPerformanceSessions = true
