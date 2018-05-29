@@ -31,7 +31,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AuthSyncSampleWebServer", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AuthSyncSampleAppClient", "Samples\AuthSyncSampleAppClient\AuthSyncSampleAppClient.csproj", "{E0C5AE28-1C86-4904-9827-DBE3445F394C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dotmim.Sync.Oracle", "Dotmim.Sync.Oracle\Dotmim.Sync.Oracle.csproj", "{29D98F8C-2374-4C63-A775-C0BE38B5639E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dotmim.Sync.Oracle", "Projects\Dotmim.Sync.Oracle\Dotmim.Sync.Oracle.csproj", "{29D98F8C-2374-4C63-A775-C0BE38B5639E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
