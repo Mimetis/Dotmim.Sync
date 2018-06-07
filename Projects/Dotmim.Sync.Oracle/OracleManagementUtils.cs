@@ -2,6 +2,7 @@
 using Dotmim.Sync.Data;
 using System;
 using System.Collections.Generic;
+using System.Data.Common;
 using System.Data.OracleClient;
 using System.Text;
 
@@ -90,6 +91,55 @@ namespace Dotmim.Sync.Oracle
 
             return dmTable;
 
+        }
+
+        internal static bool TriggerExists(OracleConnection connection, OracleTransaction transaction, string triggerName)
+        {
+            
+        }
+
+        public static bool TableExists(OracleConnection connection, OracleTransaction transaction, string quotedTableName)
+        {
+            bool tableExist;
+            ObjectNameParser objectNameParser = new ObjectNameParser(quotedTableName);
+            using (DbCommand dbCommand = connection.CreateCommand())
+            {
+                dbCommand.CommandText = "select count(1) from user_tables where table_name = upper(@tableName)";
+
+                OracleParameter sqlParameter = new OracleParameter() {
+                    ParameterName = "@tableName",
+                    Value = objectNameParser.ObjectName
+                };
+                dbCommand.Parameters.Add(sqlParameter);
+
+                if (transaction != null)
+                    dbCommand.Transaction = transaction;
+
+                tableExist = (int)dbCommand.ExecuteScalar() != 0;
+            }
+            return tableExist;
+        }
+
+        public static bool SchemaExists(OracleConnection connection, OracleTransaction transaction, string schemaName)
+        {
+            bool schemaExist;
+            using (DbCommand dbCommand = connection.CreateCommand())
+            {
+                dbCommand.CommandText = "SELECT COUNT(1) FROM dba_users WHERE username = @schemaName";
+
+                var sqlParameter = new OracleParameter()
+                {
+                    ParameterName = "@schemaName",
+                    Value = schemaName
+                };
+                dbCommand.Parameters.Add(sqlParameter);
+
+                if (transaction != null)
+                    dbCommand.Transaction = transaction;
+
+                schemaExist = (int)dbCommand.ExecuteScalar() != 0;
+            }
+            return schemaExist;
         }
     }
 }

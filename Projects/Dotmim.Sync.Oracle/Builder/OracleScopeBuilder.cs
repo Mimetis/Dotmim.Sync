@@ -6,9 +6,13 @@ namespace Dotmim.Sync.Oracle.Scope
 {
     public class OracleScopeBuilder : DbScopeBuilder
     {
+        public OracleScopeBuilder()
+        {
+        }
+
         public override IDbScopeInfoBuilder CreateScopeInfoBuilder(DbConnection connection, DbTransaction transaction = null)
         {
-            throw new NotImplementedException();
+            return new OracleScopeInfoBuilder(connection, transaction);
         }
     }
 }
