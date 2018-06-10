@@ -22,13 +22,13 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.SQLite">
-      <Version>2.0.0</Version>
+      <Version>2.0.1</Version>
     </PackageReference>
     <PackageReference Include="MySqlConnector">
-      <Version>0.35.0</Version>
+      <Version>0.40.3</Version>
     </PackageReference>
     <PackageReference Include="YamlDotNet">
-      <Version>4.3.0</Version>
+      <Version>4.3.1</Version>
     </PackageReference>
   </ItemGroup>
 

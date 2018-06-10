@@ -20,14 +20,12 @@ namespace Dotmim.Sync
         /// <summary>
         /// Called when the sync ensure scopes are created
         /// </summary>
-        public virtual async Task<(SyncContext, List<ScopeInfo>)> EnsureScopesAsync(SyncContext context, string scopeName, Guid? clientReferenceId = null)
+        public virtual async Task<(SyncContext, List<ScopeInfo>)> EnsureScopesAsync
+            (SyncContext context, String scopeInfoTableName, String scopeName , Guid? clientReferenceId = null)
         {
             DbConnection connection = null;
             try
             {
-                if (string.IsNullOrEmpty(scopeName))
-                    throw new ArgumentNullException("ScopeName", "Scope name is required");
-
                 context.SyncStage = SyncStage.ScopeLoading;
 
                 List<ScopeInfo> scopes = new List<ScopeInfo>();
@@ -40,7 +38,9 @@ namespace Dotmim.Sync
                     using (var transaction = connection.BeginTransaction())
                     {
                         var scopeBuilder = this.GetScopeBuilder();
-                        var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(connection, transaction);
+                        var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(
+                            scopeInfoTableName, connection, transaction);
+
                         var needToCreateScopeInfoTable = scopeInfoBuilder.NeedToCreateScopeInfoTable();
 
                         // create the scope info table if needed
@@ -139,9 +139,10 @@ namespace Dotmim.Sync
         /// <summary>
         /// Write scope in the provider datasource
         /// </summary>
-        public virtual async Task<SyncContext> WriteScopesAsync(SyncContext context, List<ScopeInfo> scopes)
+        public virtual async Task<SyncContext> WriteScopesAsync(SyncContext context, String scopeInfoTableName, List<ScopeInfo> scopes)
         {
             DbConnection connection = null;
+
             try
             {
                 // Open the connection
@@ -153,7 +154,7 @@ namespace Dotmim.Sync
                     {
 
                         var scopeBuilder = this.GetScopeBuilder();
-                        var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(connection, transaction);
+                        var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName, connection, transaction);
 
                         var lstScopes = new List<ScopeInfo>();
 

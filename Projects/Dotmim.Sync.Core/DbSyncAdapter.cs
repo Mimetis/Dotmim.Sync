@@ -23,7 +23,7 @@ namespace Dotmim.Sync
     {
         private const int BATCH_SIZE = 1000;
 
-        public delegate (ApplyAction, DmRow) ConflictActionDelegate(SyncConflict conflict, DbConnection connection, DbTransaction transaction = null);
+        public delegate (ApplyAction, DmRow) ConflictActionDelegate(SyncConflict conflict, ConflictResolutionPolicy policy, DbConnection connection, DbTransaction transaction = null);
 
         public ConflictActionDelegate ConflictActionInvoker = null;
 
@@ -686,13 +686,13 @@ namespace Dotmim.Sync
         /// <summary>
         /// Handle a conflict
         /// </summary>
-        internal ChangeApplicationAction HandleConflict(SyncConflict conflict, ScopeInfo scope, long timestamp, out DmRow finalRow)
+        internal ChangeApplicationAction HandleConflict(SyncConflict conflict, ConflictResolutionPolicy policy, ScopeInfo scope, long timestamp, out DmRow finalRow)
         {
             finalRow = null;
 
             // overwrite apply action if we handle it (ie : user wants to change the action)
             if (this.ConflictActionInvoker != null)
-                (ConflictApplyAction, finalRow) = this.ConflictActionInvoker(conflict, Connection, Transaction);
+                (ConflictApplyAction, finalRow) = this.ConflictActionInvoker(conflict, policy, Connection, Transaction);
 
             // Default behavior and an error occured
             if (ConflictApplyAction == ApplyAction.Rollback)

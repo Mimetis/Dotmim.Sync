@@ -95,21 +95,19 @@ namespace Dotmim.Sync.Test
         SqlSyncProvider serverProvider;
         SqlSyncProvider clientProvider;
         SyncAgent agent;
-        SyncConfiguration syncConfiguration;
         public SyncProvAndDeprovTests(SyncProvAndDeprovTestsFixture fixture)
         {
             this.fixture = fixture;
 
             serverProvider = new SqlSyncProvider(fixture.ServerConnectionString);
             clientProvider = new SqlSyncProvider(fixture.Client1ConnectionString);
-            syncConfiguration = new SyncConfiguration(fixture.Tables);
         }
 
 
         [Fact, TestPriority(1)]
         public async Task DeprovisionAll()
         {
-            agent = new SyncAgent(clientProvider, serverProvider, syncConfiguration);
+            agent = new SyncAgent(clientProvider, serverProvider, fixture.Tables);
 
             var session = await agent.SynchronizeAsync();
 
@@ -150,7 +148,7 @@ namespace Dotmim.Sync.Test
         [Fact, TestPriority(2)]
         public async Task DeprovisionStoredProcedures()
         {
-            agent = new SyncAgent(clientProvider, serverProvider, syncConfiguration);
+            agent = new SyncAgent(clientProvider, serverProvider, fixture.Tables);
 
             agent.DatabaseApplying += (s, e) => e.OverwriteConfiguration = true;
 
@@ -183,7 +181,7 @@ namespace Dotmim.Sync.Test
         [Fact, TestPriority(3)]
         public async Task DeprovisionTrackingTable()
         {
-            agent = new SyncAgent(clientProvider, serverProvider, syncConfiguration);
+            agent = new SyncAgent(clientProvider, serverProvider, fixture.Tables);
 
             agent.DatabaseApplying += (s, e) => e.OverwriteConfiguration = true;
 
@@ -209,7 +207,7 @@ namespace Dotmim.Sync.Test
         [Fact, TestPriority(4)]
         public async Task DeprovisionTable()
         {
-            agent = new SyncAgent(clientProvider, serverProvider, syncConfiguration);
+            agent = new SyncAgent(clientProvider, serverProvider, fixture.Tables);
 
             agent.DatabaseApplying += (s, e) => e.OverwriteConfiguration = true;
 
@@ -235,7 +233,7 @@ namespace Dotmim.Sync.Test
         [Fact, TestPriority(5)]
         public async Task DeprovisionScope()
         {
-            agent = new SyncAgent(clientProvider, serverProvider, syncConfiguration);
+            agent = new SyncAgent(clientProvider, serverProvider, fixture.Tables);
 
             agent.DatabaseApplying += (s, e) => e.OverwriteConfiguration = true;
 
@@ -261,7 +259,7 @@ namespace Dotmim.Sync.Test
         [Fact, TestPriority(6)]
         public async Task DeprovisionAllExceptTables()
         {
-            agent = new SyncAgent(clientProvider, serverProvider, syncConfiguration);
+            agent = new SyncAgent(clientProvider, serverProvider, fixture.Tables);
             agent.DatabaseApplying += (s, e) => e.OverwriteConfiguration = true;
             var session = await agent.SynchronizeAsync();
 

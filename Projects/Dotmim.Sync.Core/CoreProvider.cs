@@ -211,7 +211,7 @@ namespace Dotmim.Sync
         /// Called by the  to indicate that a 
         /// synchronization session has started.
         /// </summary>
-        public virtual Task<SyncContext> BeginSessionAsync(SyncContext context)
+        public virtual Task<(SyncContext, SyncConfiguration)> BeginSessionAsync(SyncContext context, SyncConfiguration configuration)
         {
             try
             {
@@ -227,10 +227,11 @@ namespace Dotmim.Sync
                 context.SyncStage = SyncStage.BeginSession;
 
                 // Event progress
+                // TODO : First step to edit the configuration
                 var progressEventArgs = new BeginSessionEventArgs(this.ProviderTypeName, context.SyncStage);
                 this.TryRaiseProgressEvent(progressEventArgs, this.BeginSession);
 
-                return Task.FromResult(context);
+                return Task.FromResult((context, configuration));
             }
             catch (Exception ex)
             {
@@ -269,7 +270,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Read a scope info
         /// </summary>
-        public virtual async Task<(SyncContext, long)> GetLocalTimestampAsync(SyncContext context)
+        public virtual async Task<(SyncContext, long)> GetLocalTimestampAsync(SyncContext context, string scopeInfoTableName)
         {
             // Open the connection
             using (var connection = this.CreateConnection())
@@ -278,7 +279,7 @@ namespace Dotmim.Sync
                 {
                     await connection.OpenAsync();
                     var scopeBuilder = this.GetScopeBuilder();
-                    var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(connection);
+                    var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName, connection);
                     var localTime = scopeInfoBuilder.GetLocalTimestamp();
                     return (context, localTime);
                 }
@@ -289,7 +290,6 @@ namespace Dotmim.Sync
                 }
             }
         }
-
 
         /// <summary>
         /// TODO : Manager le fait qu'un scope peut être out dater, car il n'a pas synchronisé depuis assez longtemps
@@ -302,11 +302,9 @@ namespace Dotmim.Sync
             return false;
         }
 
-
         /// <summary>
         /// Add metadata columns
         /// </summary>
-        /// <param name="table"></param>
         private void AddTrackingColumns<T>(DmTable table, string name)
         {
             if (!table.Columns.Contains(name))

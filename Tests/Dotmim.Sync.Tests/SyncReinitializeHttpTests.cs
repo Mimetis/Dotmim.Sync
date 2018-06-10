@@ -123,8 +123,8 @@ namespace Dotmim.Sync.Test
             var serverHandler = new RequestDelegate(async context =>
             {
                 //configuration.AddTable(fixture.Tables);
-                serverProvider.SetConfiguration(configuration);
-                proxyServerProvider.SerializationFormat = SerializationFormat.Json;
+                proxyServerProvider.Configuration = configuration;
+                
 
                 await proxyServerProvider.HandleRequestAsync(context);
             });
@@ -179,8 +179,8 @@ namespace Dotmim.Sync.Test
             var serverHandler = new RequestDelegate(async context =>
             {
                 //configuration.AddTable(fixture.Tables);
-                serverProvider.SetConfiguration(configuration);
-                proxyServerProvider.SerializationFormat = SerializationFormat.Json;
+                proxyServerProvider.Configuration = configuration;
+                
 
                 await proxyServerProvider.HandleRequestAsync(context);
             });
@@ -238,8 +238,8 @@ namespace Dotmim.Sync.Test
             var serverHandler = new RequestDelegate(async context =>
             {
                 //configuration.AddTable(fixture.Tables);
-                serverProvider.SetConfiguration(configuration);
-                proxyServerProvider.SerializationFormat = SerializationFormat.Json;
+                proxyServerProvider.Configuration = configuration;
+                
 
                 await proxyServerProvider.HandleRequestAsync(context);
             });

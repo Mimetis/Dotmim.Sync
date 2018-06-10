@@ -4,6 +4,7 @@ using Dotmim.Sync.Filter;
 using Dotmim.Sync.Log;
 using Dotmim.Sync.SqlServer.Manager;
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Data.SqlClient;
@@ -22,7 +23,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         private SqlTransaction transaction;
         private SqlDbMetadata sqlDbMetadata;
 
-        public FilterClauseCollection Filters { get; set; }
+        public ICollection<FilterClause> Filters { get; set; }
 
         public SqlBuilderTrackingTable(DmTable tableDescription, DbConnection connection, DbTransaction transaction = null)
         {
@@ -79,10 +80,8 @@ namespace Dotmim.Sync.SqlServer.Builders
             // Filter columns
             if (this.Filters != null && this.Filters.Count > 0)
             {
-                for (int i = 0; i < this.Filters.Count; i++)
+                foreach (var filterColumn in this.Filters)
                 {
-                    var filterColumn = this.Filters[i];
-
                     if (this.tableDescription.Columns.Any(c => c.ColumnName == filterColumn.ColumnName))
                         continue;
 

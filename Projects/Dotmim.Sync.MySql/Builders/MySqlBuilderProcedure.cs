@@ -11,6 +11,7 @@ using MySql.Data.MySqlClient;
 using Dotmim.Sync.MySql;
 using Dotmim.Sync.MySql.Builders;
 using System.Diagnostics;
+using System.Collections.Generic;
 
 namespace Dotmim.Sync.MySql
 {
@@ -25,7 +26,7 @@ namespace Dotmim.Sync.MySql
         private MySqlDbMetadata mySqlDbMetadata;
         internal const string MYSQL_PREFIX_PARAMETER = "in_";
 
-        public FilterClauseCollection Filters { get; set; }
+        public ICollection<FilterClause> Filters { get; set; }
 
         public MySqlBuilderProcedure(DmTable tableDescription, DbConnection connection, DbTransaction transaction = null)
         {
@@ -58,12 +59,8 @@ namespace Dotmim.Sync.MySql
             var sqlDbType = param.MySqlDbType;
 
             string empty = string.Empty;
-
             var stringType = this.mySqlDbMetadata.GetStringFromDbType(param.DbType);
-
             string precision = this.mySqlDbMetadata.GetPrecisionStringFromDbType(param.DbType, param.Size, param.Precision, param.Scale);
-
-
             stringBuilder3.Append($"{param.ParameterName} {stringType}{precision}");
 
             return stringBuilder3.ToString();

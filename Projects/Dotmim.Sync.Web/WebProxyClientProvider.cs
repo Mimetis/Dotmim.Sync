@@ -1,7 +1,9 @@
 ﻿using Dotmim.Sync.Batch;
 using Dotmim.Sync.Builders;
+using Dotmim.Sync.Data;
 using Dotmim.Sync.Data.Surrogate;
 using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.Filter;
 using Microsoft.Net.Http.Headers;
 using System;
 using System.Collections.Generic;
@@ -164,11 +166,20 @@ namespace Dotmim.Sync.Web
                 this.AddCustomHeader(ch.Key, ch.Value);
         }
 
-        public async Task<SyncContext> BeginSessionAsync(SyncContext context)
+        public async Task<(SyncContext, SyncConfiguration)> BeginSessionAsync(SyncContext context, SyncConfiguration configuration)
         {
-            HttpMessage message = new HttpMessage();
-            message.Step = HttpStep.BeginSession;
-            message.SyncContext = context;
+            HttpMessage message = new HttpMessage
+            {
+                Step = HttpStep.BeginSession,
+                SyncContext = context,
+            };
+
+            HttpBeginSessionMessage httpBeginSessionMessage = new HttpBeginSessionMessage
+            {
+                SyncConfiguration = configuration
+            };
+
+            message.BeginSessionMessage = httpBeginSessionMessage;
 
             //Post request and get response
             var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(message, cancellationToken);
@@ -176,15 +187,17 @@ namespace Dotmim.Sync.Web
             if (httpMessageResponse == null)
                 throw new Exception("Can't have an empty body");
 
-            return httpMessageResponse.SyncContext;
+            return (httpMessageResponse.SyncContext, httpMessageResponse.BeginSessionMessage.SyncConfiguration);
         }
 
 
         public async Task<SyncContext> EndSessionAsync(SyncContext context)
         {
-            HttpMessage message = new HttpMessage();
-            message.Step = HttpStep.EndSession;
-            message.SyncContext = context;
+            HttpMessage message = new HttpMessage
+            {
+                Step = HttpStep.EndSession,
+                SyncContext = context
+            };
 
             //Post request and get response
             var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(message, cancellationToken);
@@ -195,16 +208,20 @@ namespace Dotmim.Sync.Web
             return httpMessageResponse.SyncContext;
         }
 
-        public async Task<(SyncContext, List<ScopeInfo>)> EnsureScopesAsync(SyncContext context, string scopeName, Guid? clientReferenceId = null)
+        public async Task<(SyncContext, List<ScopeInfo>)> EnsureScopesAsync(SyncContext context,
+            String scopeInfoTableName, String scopeName, Guid? clientReferenceId = null)
         {
             HttpMessage httpMessage = new HttpMessage();
             httpMessage.Step = HttpStep.EnsureScopes;
 
+
             HttpEnsureScopesMessage ensureScopeMessage = new HttpEnsureScopesMessage
             {
                 ClientReferenceId = clientReferenceId,
+                ScopeInfoTableName = scopeInfoTableName,
                 ScopeName = scopeName
             };
+
 
             httpMessage.EnsureScopes = ensureScopeMessage;
             httpMessage.SyncContext = context;
@@ -218,11 +235,18 @@ namespace Dotmim.Sync.Web
             return (httpMessageResponse.SyncContext, httpMessageResponse.EnsureScopes.Scopes);
         }
 
-        public async Task<(SyncContext, SyncConfiguration)> EnsureConfigurationAsync(SyncContext context, SyncConfiguration configuration = null)
+        public async Task<SyncContext> EnsureSchemaAsync(SyncContext context, DmSet schema = null)
         {
-            HttpMessage httpMessage = new HttpMessage();
-            httpMessage.SyncContext = context;
-            httpMessage.Step = HttpStep.EnsureConfiguration;
+            HttpMessage httpMessage = new HttpMessage
+            {
+                SyncContext = context,
+                Step = HttpStep.EnsureConfiguration
+            };
+
+            HttpEnsureSchemaMessage httpEnsureSchema = new HttpEnsureSchemaMessage
+            {
+                Schema = new DmSetSurrogate(schema)
+            };
 
             //Post request and get response
             var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, cancellationToken);
@@ -230,34 +254,31 @@ namespace Dotmim.Sync.Web
             if (httpMessageResponse == null)
                 throw new Exception("Can't have an empty body");
 
-            if (httpMessageResponse.EnsureConfiguration == null || httpMessageResponse.EnsureConfiguration.Configuration == null || httpMessageResponse.EnsureConfiguration.ConfigurationSet == null || httpMessageResponse.EnsureConfiguration.ConfigurationSet.Tables.Count <= 0)
-                throw new ArgumentException("Configuration can't be null");
+            if (httpMessageResponse.EnsureSchema == null || httpMessageResponse.EnsureSchema.Schema == null || httpMessageResponse.EnsureSchema.Schema.Tables.Count <= 0)
+                throw new ArgumentException("Schema can't be null");
 
-            // get config & deserialize set
-            var conf = httpMessageResponse.EnsureConfiguration.Configuration;
-            var set = httpMessageResponse.EnsureConfiguration.ConfigurationSet.ConvertToDmSet();
-            httpMessageResponse.EnsureConfiguration.ConfigurationSet.Clear();
-            httpMessageResponse.EnsureConfiguration.ConfigurationSet.Dispose();
-            httpMessageResponse.EnsureConfiguration.ConfigurationSet = null;
-            conf.ScopeSet = set;
-
+            // get schema & deserialize the surrogate
+            schema = httpMessageResponse.EnsureSchema.Schema.ConvertToDmSet();
+            httpMessageResponse.EnsureSchema.Schema.Clear();
+            httpMessageResponse.EnsureSchema.Schema.Dispose();
+            httpMessageResponse.EnsureSchema.Schema = null;
+     
             // get context
             var syncContext = httpMessageResponse.SyncContext;
-
-            // because we need it after
-            this.syncConfiguration = conf;
-
-            return (syncContext, conf);
+     
+            return syncContext;
         }
 
-        public async Task<SyncContext> EnsureDatabaseAsync(SyncContext context, ScopeInfo scopeInfo)
+        public async Task<SyncContext> EnsureDatabaseAsync(SyncContext context, ScopeInfo scopeInfo, DmSet schema, ICollection<FilterClause> filters)
         {
             HttpMessage httpMessage = new HttpMessage { SyncContext = context };
             httpMessage.Step = HttpStep.EnsureDatabase;
 
             HttpEnsureDatabaseMessage ensureDatabaseMessage = new HttpEnsureDatabaseMessage
             {
-                ScopeInfo = scopeInfo
+                ScopeInfo = scopeInfo,
+                Schema = new DmSetSurrogate(schema),
+                Filters = filters
             };
             httpMessage.EnsureDatabase = ensureDatabaseMessage;
 
@@ -270,7 +291,9 @@ namespace Dotmim.Sync.Web
             return httpMessageResponse.SyncContext;
         }
 
-        public async Task<(SyncContext, BatchInfo, ChangesSelected)> GetChangeBatchAsync(SyncContext context, ScopeInfo scopeInfo)
+        public async Task<(SyncContext, BatchInfo, ChangesSelected)> GetChangeBatchAsync(
+            SyncContext context, ScopeInfo scopeInfo,
+            DmSet schema, int downloadBatchSizeInKB, string batchDirectory, ConflictResolutionPolicy policy, ICollection<FilterClause> filters)
         {
             // While we have an other batch to process
             var isLastBatch = false;
@@ -290,7 +313,13 @@ namespace Dotmim.Sync.Web
                 httpMessage.GetChangeBatch = new HttpGetChangeBatchMessage
                 {
                     ScopeInfo = scopeInfo,
-                    BatchIndexRequested = changes.BatchIndex
+                    BatchIndexRequested = changes.BatchIndex,
+
+                    DownloadBatchSizeInKB = downloadBatchSizeInKB,
+                    BatchDirectory = batchDirectory,
+                    Schema = schema,
+                    Filters = filters,
+                    Policy = policy
                 };
 
                 var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, cancellationToken);
@@ -358,7 +387,8 @@ namespace Dotmim.Sync.Web
         /// <summary>
         /// Send changes to server
         /// </summary>
-        public async Task<(SyncContext, ChangesApplied)> ApplyChangesAsync(SyncContext context, ScopeInfo fromScope, BatchInfo changes)
+        public async Task<(SyncContext, ChangesApplied)> ApplyChangesAsync(SyncContext context, ScopeInfo fromScope,
+            DmSet schema, ConflictResolutionPolicy policy, Boolean useBulkOperations, String scopeInfoTableName, BatchInfo changes)
         {
             if (changes == null || changes.BatchPartsInfo.Count == 0)
                 return (context, new ChangesApplied());
@@ -374,8 +404,15 @@ namespace Dotmim.Sync.Web
                 httpMessage.Step = HttpStep.ApplyChanges;
                 httpMessage.SyncContext = context;
 
-                httpMessage.ApplyChanges = new HttpApplyChangesMessage();
-                httpMessage.ApplyChanges.ScopeInfo = fromScope;
+
+                httpMessage.ApplyChanges = new HttpApplyChangesMessage
+                {
+                    ScopeInfo = fromScope,
+                    Schema = new DmSetSurrogate(schema),
+                    Policy = policy,
+                    UseBulkOperations = useBulkOperations,
+                    ScopeInfoTableName = scopeInfoTableName
+                };
 
                 // If BPI is InMempory, no need to deserialize from disk
                 // Set already contained in part.Set
@@ -426,11 +463,21 @@ namespace Dotmim.Sync.Web
         }
 
 
-        public async Task<(SyncContext, long)> GetLocalTimestampAsync(SyncContext context)
+        public async Task<(SyncContext, long)> GetLocalTimestampAsync(SyncContext context, string scopeInfoTableName)
         {
-            HttpMessage message = new HttpMessage();
-            message.Step = HttpStep.GetLocalTimestamp;
-            message.SyncContext = context;
+            HttpMessage message = new HttpMessage
+            {
+                Step = HttpStep.GetLocalTimestamp,
+                SyncContext = context
+            };
+
+            HttpGetLocalTimestampMessage httpLocalTimestamp = new HttpGetLocalTimestampMessage
+            {
+                ScopeInfoTableName = scopeInfoTableName,
+            };
+
+            message.GetLocalTimestamp = httpLocalTimestamp;
+
 
             //Post request and get response
             var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(message, cancellationToken);
@@ -444,12 +491,18 @@ namespace Dotmim.Sync.Web
             return (httpMessageResponse.SyncContext, httpMessageResponse.GetLocalTimestamp.LocalTimestamp);
         }
 
-        public async Task<SyncContext> WriteScopesAsync(SyncContext context, List<ScopeInfo> scopes)
+        public async Task<SyncContext> WriteScopesAsync(SyncContext context, String scopeInfoTableName, List<ScopeInfo> scopes )
         {
-            HttpMessage message = new HttpMessage();
-            message.Step = HttpStep.WriteScopes;
-            message.SyncContext = context;
-            message.WriteScopes = new HttpWriteScopesMessage();
+            HttpMessage message = new HttpMessage
+            {
+                Step = HttpStep.WriteScopes,
+                SyncContext = context,
+                WriteScopes = new HttpWriteScopesMessage
+                {
+                    ScopeInfoTableName = scopeInfoTableName,
+                    Scopes = scopes
+                }
+            };
             message.WriteScopes.Scopes = scopes;
 
             //Post request and get response

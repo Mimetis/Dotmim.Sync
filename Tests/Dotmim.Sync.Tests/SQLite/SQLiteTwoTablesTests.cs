@@ -110,9 +110,8 @@ namespace Dotmim.Sync.Test
 
             serverProvider = new SqlSyncProvider(fixture.ServerConnectionString);
             clientProvider = new SqliteSyncProvider(fixture.ClientSqliteFilePath);
-            var simpleConfiguration = new SyncConfiguration(fixture.Tables);
 
-            agent = new SyncAgent(clientProvider, serverProvider, simpleConfiguration);
+            agent = new SyncAgent(clientProvider, serverProvider, fixture.Tables);
         }
 
         [Fact, TestPriority(1)]

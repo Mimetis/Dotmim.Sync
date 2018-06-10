@@ -64,20 +64,23 @@ namespace Dotmim.Sync.MySql
         /// </summary>
         private void SetDefaultNames()
         {
+            var pref = this.TableDescription.TrackingTablesPrefix.ToLowerInvariant();
+            var suf = this.TableDescription.TrackingTablesSuffix.ToLowerInvariant();
+
             this.AddName(DbCommandType.InsertTrigger, string.Format(insertTriggerName, tableName.UnquotedStringWithUnderScore));
             this.AddName(DbCommandType.UpdateTrigger, string.Format(updateTriggerName, tableName.UnquotedStringWithUnderScore));
             this.AddName(DbCommandType.DeleteTrigger, string.Format(deleteTriggerName, tableName.UnquotedStringWithUnderScore));
 
-            this.AddName(DbCommandType.SelectChanges, string.Format(selectChangesProcName, tableName.UnquotedStringWithUnderScore));
-            this.AddName(DbCommandType.SelectChangesWitFilters, string.Format(selectChangesProcNameWithFilters, tableName.UnquotedStringWithUnderScore, "{0}"));
-            this.AddName(DbCommandType.SelectRow, string.Format(selectRowProcName, tableName.UnquotedStringWithUnderScore));
-            this.AddName(DbCommandType.InsertRow, string.Format(insertProcName, tableName.UnquotedStringWithUnderScore));
-            this.AddName(DbCommandType.UpdateRow, string.Format(updateProcName, tableName.UnquotedStringWithUnderScore));
-            this.AddName(DbCommandType.DeleteRow, string.Format(deleteProcName, tableName.UnquotedStringWithUnderScore));
-            this.AddName(DbCommandType.InsertMetadata, string.Format(insertMetadataProcName, tableName.UnquotedStringWithUnderScore));
-            this.AddName(DbCommandType.UpdateMetadata, string.Format(updateMetadataProcName, tableName.UnquotedStringWithUnderScore));
-            this.AddName(DbCommandType.DeleteMetadata, string.Format(deleteMetadataProcName, tableName.UnquotedStringWithUnderScore));
-            this.AddName(DbCommandType.Reset, string.Format(resetProcName, tableName.UnquotedStringWithUnderScore));
+            this.AddName(DbCommandType.SelectChanges, string.Format(selectChangesProcName, $"{pref}{tableName.UnquotedStringWithUnderScore}{suf}"));
+            this.AddName(DbCommandType.SelectChangesWitFilters, string.Format(selectChangesProcNameWithFilters, $"{pref}{tableName.UnquotedStringWithUnderScore}{suf}", "{0}"));
+            this.AddName(DbCommandType.SelectRow, string.Format(selectRowProcName, $"{pref}{tableName.UnquotedStringWithUnderScore}{suf}"));
+            this.AddName(DbCommandType.InsertRow, string.Format(insertProcName, $"{pref}{tableName.UnquotedStringWithUnderScore}{suf}"));
+            this.AddName(DbCommandType.UpdateRow, string.Format(updateProcName, $"{pref}{tableName.UnquotedStringWithUnderScore}{suf}"));
+            this.AddName(DbCommandType.DeleteRow, string.Format(deleteProcName, $"{pref}{tableName.UnquotedStringWithUnderScore}{suf}"));
+            this.AddName(DbCommandType.InsertMetadata, string.Format(insertMetadataProcName, $"{pref}{tableName.UnquotedStringWithUnderScore}{suf}"));
+            this.AddName(DbCommandType.UpdateMetadata, string.Format(updateMetadataProcName, $"{pref}{tableName.UnquotedStringWithUnderScore}{suf}"));
+            this.AddName(DbCommandType.DeleteMetadata, string.Format(deleteMetadataProcName, $"{pref}{tableName.UnquotedStringWithUnderScore}{suf}"));
+            this.AddName(DbCommandType.Reset, string.Format(resetProcName, $"{pref}{tableName.UnquotedStringWithUnderScore}{suf}"));
 
             //// Select changes
             //this.CreateSelectChangesCommandText();

@@ -87,9 +87,8 @@ namespace Dotmim.Sync.Tests
         {
             serverProvider = new SqlSyncProvider(fixture.ServerConnectionString);
             clientProvider = new SqlSyncProvider(fixture.Client1ConnectionString);
-            var simpleConfiguration = new SyncConfiguration(fixture.Tables);
 
-            agent = new SyncAgent(clientProvider, serverProvider, simpleConfiguration);
+            agent = new SyncAgent(clientProvider, serverProvider, fixture.Tables);
             var session = await agent.SynchronizeAsync();
 
             Assert.Equal(4276, session.TotalChangesDownloaded);
@@ -101,9 +100,8 @@ namespace Dotmim.Sync.Tests
         {
             serverProvider = new SqlSyncProvider(fixture.ServerConnectionString);
             sqliteClientProvider = new SqliteSyncProvider(fixture.ClientSqliteFilePath);
-            var simpleConfiguration = new SyncConfiguration(fixture.Tables);
 
-            agent = new SyncAgent(sqliteClientProvider, serverProvider, simpleConfiguration);
+            agent = new SyncAgent(sqliteClientProvider, serverProvider, fixture.Tables);
             var session = await agent.SynchronizeAsync();
 
             Assert.Equal(4276, session.TotalChangesDownloaded);

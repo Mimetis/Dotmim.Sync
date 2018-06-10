@@ -12,13 +12,16 @@ namespace Dotmim.Sync.SqlServer.Scope
 {
     public class SqlScopeInfoBuilder : IDbScopeInfoBuilder
     {
-        private SqlConnection connection;
-        private SqlTransaction transaction;
+        private readonly ObjectNameParser scopeTableName;
+        private readonly SqlConnection connection;
+        private readonly SqlTransaction transaction;
 
-        public SqlScopeInfoBuilder(DbConnection connection, DbTransaction transaction = null)
+        public SqlScopeInfoBuilder(string scopeTableName, DbConnection connection, DbTransaction transaction = null)
         {
             this.connection = connection as SqlConnection;
             this.transaction = transaction as SqlTransaction;
+            this.scopeTableName = new ObjectNameParser(scopeTableName, "[", "]");
+            
         }
 
 
@@ -36,13 +39,13 @@ namespace Dotmim.Sync.SqlServer.Scope
                     connection.Open();
 
                 command.CommandText =
-                    @"CREATE TABLE [dbo].[scope_info](
+                    $@"CREATE TABLE [dbo].{scopeTableName.QuotedObjectName}(
                         [sync_scope_id] [uniqueidentifier] NOT NULL,
 	                    [sync_scope_name] [nvarchar](100) NOT NULL,
 	                    [scope_timestamp] [timestamp] NULL,
                         [scope_is_local] [bit] NOT NULL DEFAULT(0), 
                         [scope_last_sync] [datetime] NULL
-                        CONSTRAINT [PK_scope_info] PRIMARY KEY CLUSTERED ([sync_scope_id] ASC)
+                        CONSTRAINT [PK_{scopeTableName.UnquotedStringWithUnderScore}] PRIMARY KEY CLUSTERED ([sync_scope_id] ASC)
                         )";
                 command.ExecuteNonQuery();
             }
@@ -73,7 +76,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                 if (!alreadyOpened)
                     connection.Open();
 
-                command.CommandText ="DROP Table [dbo].[scope_info]";
+                command.CommandText =$"DROP Table [dbo].{scopeTableName.QuotedObjectName}";
 
                 command.ExecuteNonQuery();
             }
@@ -107,12 +110,12 @@ namespace Dotmim.Sync.SqlServer.Scope
                     connection.Open();
 
                 command.CommandText =
-                    @"SELECT [sync_scope_id]
+                    $@"SELECT [sync_scope_id]
                            , [sync_scope_name]
                            , [scope_timestamp]
                            , [scope_is_local]
                            , [scope_last_sync]
-                    FROM  [scope_info] 
+                    FROM  {scopeTableName.QuotedObjectName}
                     WHERE [sync_scope_name] = @sync_scope_name";
 
                 var p = command.CreateParameter();
@@ -213,8 +216,8 @@ namespace Dotmim.Sync.SqlServer.Scope
                 if (!alreadyOpened)
                     connection.Open();
 
-                command.CommandText = @"
-                    MERGE [scope_info] AS [base] 
+                command.CommandText = $@"
+                    MERGE {scopeTableName.QuotedObjectName} AS [base] 
                     USING (
                                SELECT  @sync_scope_id AS sync_scope_id,  
 	                                   @sync_scope_name AS sync_scope_name,  
@@ -304,9 +307,9 @@ namespace Dotmim.Sync.SqlServer.Scope
                     connection.Open();
 
                 command.CommandText =
-                    @"IF EXISTS (SELECT t.name FROM sys.tables t 
+                    $@"IF EXISTS (SELECT t.name FROM sys.tables t 
                             JOIN sys.schemas s ON s.schema_id = t.schema_id 
-                            WHERE t.name = N'scope_info')
+                            WHERE t.name = N'{this.scopeTableName.UnquotedStringWithUnderScore}')
                      SELECT 1 
                      ELSE
                      SELECT 0";

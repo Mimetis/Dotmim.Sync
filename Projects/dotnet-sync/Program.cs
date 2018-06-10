@@ -12,7 +12,7 @@ namespace Dotmim.Sync.Tools
                 // From dotnet command line or debug mode
                 if (args.Length == 0)
                     //args = new string[] { "table", "northwind", "-a", "Customers" };
-                    args = new string[] {  "-ls" };
+                    args = new string[] {  "-s", "adv" };
                     
                 Runner.Execute(args);
             }
