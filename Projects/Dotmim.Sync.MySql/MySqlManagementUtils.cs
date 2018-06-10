@@ -10,10 +10,10 @@ using System.Text.RegularExpressions;
 
 namespace Dotmim.Sync.MySql
 {
-    internal static class MySqlManagementUtils
+    public static class MySqlManagementUtils
     {
 
-        internal static DmTable ColumnsForTable(MySqlConnection connection, MySqlTransaction transaction, string tableName)
+        public static DmTable ColumnsForTable(MySqlConnection connection, MySqlTransaction transaction, string tableName)
         {
             string commandColumn = "select * from information_schema.COLUMNS where table_schema = schema() and table_name = @tableName";
 

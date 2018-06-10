@@ -10,6 +10,7 @@ using Dotmim.Sync.Filter;
 using System.Linq;
 using Dotmim.Sync.MySql.Builders;
 using System.Diagnostics;
+using System.Collections.Generic;
 
 namespace Dotmim.Sync.MySql
 {
@@ -20,7 +21,7 @@ namespace Dotmim.Sync.MySql
         private DmTable tableDescription;
         private MySqlConnection connection;
         private MySqlTransaction transaction;
-        public FilterClauseCollection Filters { get; set; }
+        public ICollection<FilterClause> Filters { get; set; }
         private MySqlDbMetadata mySqlDbMetadata;
 
 

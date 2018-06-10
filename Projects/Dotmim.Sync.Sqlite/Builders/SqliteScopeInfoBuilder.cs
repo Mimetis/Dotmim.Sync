@@ -13,16 +13,16 @@ namespace Dotmim.Sync.Sqlite
     {
 
 
-        private SqliteConnection connection;
-        private SqliteTransaction transaction;
+        private readonly ObjectNameParser scopeTableName;
+        private readonly SqliteConnection connection;
+        private readonly SqliteTransaction transaction;
 
-        public SqliteScopeInfoBuilder(DbConnection connection, DbTransaction transaction = null)
+        public SqliteScopeInfoBuilder(string scopeTableName, DbConnection connection, DbTransaction transaction = null)
         {
             this.connection = connection as SqliteConnection;
             this.transaction = transaction as SqliteTransaction;
+            this.scopeTableName = new ObjectNameParser(scopeTableName, "[", "]");
         }
-
-
 
         public void CreateScopeInfoTable()
         {
@@ -37,7 +37,7 @@ namespace Dotmim.Sync.Sqlite
                     connection.Open();
 
                 command.CommandText =
-                    @"CREATE TABLE scope_info(
+                    $@"CREATE TABLE {scopeTableName.UnquotedStringWithUnderScore}(
                         sync_scope_id blob NOT NULL PRIMARY KEY,
 	                    sync_scope_name text NOT NULL,
 	                    scope_timestamp integer NULL,
@@ -75,7 +75,7 @@ namespace Dotmim.Sync.Sqlite
                 if (!alreadyOpened)
                     connection.Open();
 
-                command.CommandText = "DROP Table scope_info";
+                command.CommandText = $"DROP Table {scopeTableName.UnquotedStringWithUnderScore}";
 
                 command.ExecuteNonQuery();
             }
@@ -110,12 +110,12 @@ namespace Dotmim.Sync.Sqlite
                     connection.Open();
 
                 command.CommandText =
-                    @"SELECT sync_scope_id
+                    $@"SELECT sync_scope_id
                            , sync_scope_name
                            , scope_timestamp
                            , scope_is_local
                            , scope_last_sync
-                    FROM  scope_info
+                    FROM  {scopeTableName.UnquotedStringWithUnderScore}
                     WHERE sync_scope_name = @sync_scope_name";
 
                 var p = command.CreateParameter();
@@ -204,7 +204,7 @@ namespace Dotmim.Sync.Sqlite
                 if (!alreadyOpened)
                     connection.Open();
 
-                command.CommandText = @"Select count(*) from scope_info where sync_scope_id = @sync_scope_id";
+                command.CommandText = $@"Select count(*) from {scopeTableName.UnquotedStringWithUnderScore} where sync_scope_id = @sync_scope_id";
 
                 var p = command.CreateParameter();
                 p.ParameterName = "@sync_scope_id";
@@ -215,8 +215,8 @@ namespace Dotmim.Sync.Sqlite
                 var exist = (long)command.ExecuteScalar() > 0;
 
                 string stmtText = exist
-                    ? $"Update scope_info set sync_scope_name=@sync_scope_name, scope_timestamp={SqliteObjectNames.TimestampValue}, scope_is_local=@scope_is_local, scope_last_sync=@scope_last_sync where sync_scope_id=@sync_scope_id"
-                    : $"Insert into scope_info (sync_scope_name, scope_timestamp, scope_is_local, scope_last_sync, sync_scope_id) values (@sync_scope_name, {SqliteObjectNames.TimestampValue}, @scope_is_local, @scope_last_sync, @sync_scope_id)";
+                    ? $"Update {scopeTableName.UnquotedStringWithUnderScore} set sync_scope_name=@sync_scope_name, scope_timestamp={SqliteObjectNames.TimestampValue}, scope_is_local=@scope_is_local, scope_last_sync=@scope_last_sync where sync_scope_id=@sync_scope_id"
+                    : $"Insert into {scopeTableName.UnquotedStringWithUnderScore} (sync_scope_name, scope_timestamp, scope_is_local, scope_last_sync, sync_scope_id) values (@sync_scope_name, {SqliteObjectNames.TimestampValue}, @scope_is_local, @scope_last_sync, @sync_scope_id)";
 
                 command = connection.CreateCommand();
                 command.CommandText = stmtText;
@@ -292,7 +292,7 @@ namespace Dotmim.Sync.Sqlite
                     connection.Open();
 
                 command.CommandText =
-                    @"SELECT count(*) FROM sqlite_master WHERE type='table' AND name='scope_info'";
+                    $@"SELECT count(*) FROM sqlite_master WHERE type='table' AND name='{scopeTableName.UnquotedStringWithUnderScore}'";
 
                 return (long)command.ExecuteScalar() != 1;
 

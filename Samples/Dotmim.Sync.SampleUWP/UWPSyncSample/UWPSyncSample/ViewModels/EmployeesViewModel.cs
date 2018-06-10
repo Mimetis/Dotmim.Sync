@@ -139,7 +139,7 @@ namespace UWPSyncSample.ViewModels
                 // all config are applied on server side if http is enabled
                 if (!this.UseHttp)
                     if (this.SyncDirection == SyncDirection.DownloadOnly || this.SyncDirection == SyncDirection.UploadOnly)
-                        foreach (var t in agent.Configuration)
+                        foreach (var t in agent.Configuration.ScopeSet.Tables)
                             t.SyncDirection = this.SyncDirection;
 
                 agent.SyncProgress += SyncProgress;

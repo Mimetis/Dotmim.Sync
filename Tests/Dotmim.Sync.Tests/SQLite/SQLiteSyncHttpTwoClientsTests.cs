@@ -188,8 +188,8 @@ namespace Dotmim.Sync.Test
         {
             var serverHandler = new RequestDelegate(async context =>
             {
-                serverProvider.SetConfiguration(configuration);
-                proxyServerProvider.SerializationFormat = SerializationFormat.Json;
+                proxyServerProvider.Configuration = configuration;
+                
 
                 await proxyServerProvider.HandleRequestAsync(context);
             });
@@ -267,8 +267,8 @@ namespace Dotmim.Sync.Test
             var serverHandler = new RequestDelegate(async context =>
             {
                 conf.Add(fixture.Tables);
-                serverProvider.SetConfiguration(conf);
-                proxyServerProvider.SerializationFormat = conf.SerializationFormat;
+                proxyServerProvider.Configuration = conf;
+                
 
                 await proxyServerProvider.HandleRequestAsync(context);
             });
@@ -350,8 +350,8 @@ namespace Dotmim.Sync.Test
             var serverHandler = new RequestDelegate(async context =>
             {
                 conf.Add(fixture.Tables);
-                serverProvider.SetConfiguration(conf);
-                proxyServerProvider.SerializationFormat = conf.SerializationFormat;
+                proxyServerProvider.Configuration = conf;
+                
 
                 await proxyServerProvider.HandleRequestAsync(context);
             });
@@ -429,8 +429,8 @@ namespace Dotmim.Sync.Test
             var serverHandler = new RequestDelegate(async context =>
             {
                 conf.Add(fixture.Tables);
-                serverProvider.SetConfiguration(conf);
-                proxyServerProvider.SerializationFormat = conf.SerializationFormat;
+                proxyServerProvider.Configuration = conf;
+                
 
                 await proxyServerProvider.HandleRequestAsync(context);
             });
@@ -569,8 +569,8 @@ namespace Dotmim.Sync.Test
             var serverHandler = new RequestDelegate(async context =>
             {
                 conf.Add(fixture.Tables);
-                serverProvider.SetConfiguration(conf);
-                proxyServerProvider.SerializationFormat = conf.SerializationFormat;
+                proxyServerProvider.Configuration = conf;
+                
 
                 await proxyServerProvider.HandleRequestAsync(context);
             });
@@ -647,8 +647,8 @@ namespace Dotmim.Sync.Test
             var serverHandler = new RequestDelegate(async context =>
             {
                 conf.Add(fixture.Tables);
-                serverProvider.SetConfiguration(conf);
-                proxyServerProvider.SerializationFormat = conf.SerializationFormat;
+                proxyServerProvider.Configuration = conf;
+                
 
                 await proxyServerProvider.HandleRequestAsync(context);
             });
@@ -724,8 +724,8 @@ namespace Dotmim.Sync.Test
             var serverHandler = new RequestDelegate(async context =>
             {
                 conf.Add(fixture.Tables);
-                serverProvider.SetConfiguration(conf);
-                proxyServerProvider.SerializationFormat = conf.SerializationFormat;
+                proxyServerProvider.Configuration = conf;
+                
 
                 await proxyServerProvider.HandleRequestAsync(context);
             });
@@ -844,8 +844,8 @@ namespace Dotmim.Sync.Test
             var serverHandler = new RequestDelegate(async context =>
             {
                 conf.Add(fixture.Tables);
-                serverProvider.SetConfiguration(conf);
-                proxyServerProvider.SerializationFormat = conf.SerializationFormat;
+                proxyServerProvider.Configuration = conf;
+                
 
                 await proxyServerProvider.HandleRequestAsync(context);
             });
@@ -986,8 +986,8 @@ namespace Dotmim.Sync.Test
                 conf.Add(fixture.Tables);
                 conf.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
 
-                serverProvider.SetConfiguration(conf);
-                proxyServerProvider.SerializationFormat = conf.SerializationFormat;
+                proxyServerProvider.Configuration = conf;
+                
 
                 await proxyServerProvider.HandleRequestAsync(context);
             });

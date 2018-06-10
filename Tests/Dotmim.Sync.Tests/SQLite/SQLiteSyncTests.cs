@@ -137,9 +137,7 @@ namespace Dotmim.Sync.Test
             //SqliteConnectionStringBuilder sqliteConnectionStringBuilder = new SqliteConnectionStringBuilder();
 
 
-            var simpleConfiguration = new SyncConfiguration(Tables);
-
-            Agent = new SyncAgent(clientProvider, serverProvider, simpleConfiguration);
+            Agent = new SyncAgent(clientProvider, serverProvider, Tables);
 
         }
         public void Dispose()
@@ -179,7 +177,9 @@ namespace Dotmim.Sync.Test
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(2)]
         public async Task SyncNoRows(SyncConfiguration conf)
         {
-            agent.Configuration = conf;
+            agent.Configuration.DownloadBatchSizeInKB = conf.DownloadBatchSizeInKB;
+            agent.Configuration.UseBulkOperations = conf.UseBulkOperations;
+            agent.Configuration.SerializationFormat = conf.SerializationFormat;
             agent.Configuration.Add(fixture.Tables);
             var session = await agent.SynchronizeAsync();
 
@@ -203,7 +203,9 @@ namespace Dotmim.Sync.Test
                     sqlConnection.Close();
                 }
             }
-            agent.Configuration = conf;
+            agent.Configuration.DownloadBatchSizeInKB = conf.DownloadBatchSizeInKB;
+            agent.Configuration.UseBulkOperations = conf.UseBulkOperations;
+            agent.Configuration.SerializationFormat = conf.SerializationFormat;
             agent.Configuration.Add(fixture.Tables);
             var session = await agent.SynchronizeAsync();
 
@@ -236,7 +238,9 @@ namespace Dotmim.Sync.Test
             if (nbRowsInserted < 0)
                 throw new Exception("Row not inserted");
 
-            agent.Configuration = conf;
+            agent.Configuration.DownloadBatchSizeInKB = conf.DownloadBatchSizeInKB;
+            agent.Configuration.UseBulkOperations = conf.UseBulkOperations;
+            agent.Configuration.SerializationFormat = conf.SerializationFormat;
             agent.Configuration.Add(fixture.Tables);
             var session = await agent.SynchronizeAsync();
 
@@ -264,7 +268,9 @@ namespace Dotmim.Sync.Test
                     sqlConnection.Close();
                 }
             }
-            agent.Configuration = conf;
+            agent.Configuration.DownloadBatchSizeInKB = conf.DownloadBatchSizeInKB;
+            agent.Configuration.UseBulkOperations = conf.UseBulkOperations;
+            agent.Configuration.SerializationFormat = conf.SerializationFormat;
             agent.Configuration.Add(fixture.Tables);
             var session = await agent.SynchronizeAsync();
 
@@ -286,7 +292,9 @@ namespace Dotmim.Sync.Test
                     sqlConnection.Close();
                 }
             }
-            agent.Configuration = conf;
+            agent.Configuration.DownloadBatchSizeInKB = conf.DownloadBatchSizeInKB;
+            agent.Configuration.UseBulkOperations = conf.UseBulkOperations;
+            agent.Configuration.SerializationFormat = conf.SerializationFormat;
             agent.Configuration.Add(fixture.Tables);
             session = await agent.SynchronizeAsync();
 
@@ -311,7 +319,9 @@ namespace Dotmim.Sync.Test
                     sqlConnection.Close();
                 }
             }
-            agent.Configuration = conf;
+            agent.Configuration.DownloadBatchSizeInKB = conf.DownloadBatchSizeInKB;
+            agent.Configuration.UseBulkOperations = conf.UseBulkOperations;
+            agent.Configuration.SerializationFormat = conf.SerializationFormat;
             agent.Configuration.Add(fixture.Tables);
             var session = await agent.SynchronizeAsync();
 
@@ -336,7 +346,9 @@ namespace Dotmim.Sync.Test
                     sqlConnection.Close();
                 }
             }
-            agent.Configuration = conf;
+            agent.Configuration.DownloadBatchSizeInKB = conf.DownloadBatchSizeInKB;
+            agent.Configuration.UseBulkOperations = conf.UseBulkOperations;
+            agent.Configuration.SerializationFormat = conf.SerializationFormat;
             agent.Configuration.Add(fixture.Tables);
             var session = await agent.SynchronizeAsync();
 
@@ -361,7 +373,9 @@ namespace Dotmim.Sync.Test
                 sqlConnection.Close();
             }
 
-            agent.Configuration = conf;
+            agent.Configuration.DownloadBatchSizeInKB = conf.DownloadBatchSizeInKB;
+            agent.Configuration.UseBulkOperations = conf.UseBulkOperations;
+            agent.Configuration.SerializationFormat = conf.SerializationFormat;
             agent.Configuration.Add(fixture.Tables);
             var session = await agent.SynchronizeAsync();
 
@@ -417,7 +431,9 @@ namespace Dotmim.Sync.Test
                 }
             }
 
-            agent.Configuration = conf;
+            agent.Configuration.DownloadBatchSizeInKB = conf.DownloadBatchSizeInKB;
+            agent.Configuration.UseBulkOperations = conf.UseBulkOperations;
+            agent.Configuration.SerializationFormat = conf.SerializationFormat;
             agent.Configuration.Add(fixture.Tables);
             var session = await agent.SynchronizeAsync();
 
@@ -467,7 +483,9 @@ namespace Dotmim.Sync.Test
                 }
             }
 
-            agent.Configuration = conf;
+            agent.Configuration.DownloadBatchSizeInKB = conf.DownloadBatchSizeInKB;
+            agent.Configuration.UseBulkOperations = conf.UseBulkOperations;
+            agent.Configuration.SerializationFormat = conf.SerializationFormat;
             agent.Configuration.Add(fixture.Tables);
             var session = await agent.SynchronizeAsync();
 
@@ -559,7 +577,9 @@ namespace Dotmim.Sync.Test
                 }
             }
 
-            agent.Configuration = conf;
+            agent.Configuration.DownloadBatchSizeInKB = conf.DownloadBatchSizeInKB;
+            agent.Configuration.UseBulkOperations = conf.UseBulkOperations;
+            agent.Configuration.SerializationFormat = conf.SerializationFormat;
             agent.Configuration.Add(fixture.Tables);
             var session = await agent.SynchronizeAsync();
 
@@ -669,7 +689,9 @@ namespace Dotmim.Sync.Test
                 }
             }
 
-            agent.Configuration = conf;
+            agent.Configuration.DownloadBatchSizeInKB = conf.DownloadBatchSizeInKB;
+            agent.Configuration.UseBulkOperations = conf.UseBulkOperations;
+            agent.Configuration.SerializationFormat = conf.SerializationFormat;
             agent.Configuration.Add(fixture.Tables);
             agent.Configuration.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
             var session = await agent.SynchronizeAsync();

@@ -10,6 +10,7 @@ using System.Linq;
 using Dotmim.Sync.Filter;
 using Dotmim.Sync.SqlServer.Manager;
 using System.Diagnostics;
+using System.Collections.Generic;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
@@ -23,7 +24,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         private SqlObjectNames sqlObjectNames;
         private SqlDbMetadata sqlDbMetadata;
 
-        public FilterClauseCollection Filters { get; set; }
+        public ICollection<FilterClause> Filters { get; set; }
 
         public SqlBuilderProcedure(DmTable tableDescription, DbConnection connection, DbTransaction transaction = null)
         {

@@ -304,6 +304,7 @@ namespace Dotmim.Sync.MySql.Builders
                 case MySqlDbType.NewDecimal:
                     return "DECIMAL";
                 case MySqlDbType.Byte:
+                case MySqlDbType.Bool:
                 case MySqlDbType.UByte:
                     return "TINYINT";
                 case MySqlDbType.Int16:

@@ -13,13 +13,15 @@ namespace Dotmim.Sync.MySql
     {
 
 
-        private MySqlConnection connection;
-        private MySqlTransaction transaction;
+        private readonly ObjectNameParser scopeTableName;
+        private readonly MySqlConnection connection;
+        private readonly MySqlTransaction transaction;
 
-        public MySqlScopeInfoBuilder(DbConnection connection, DbTransaction transaction = null)
+        public MySqlScopeInfoBuilder(string scopeTableName, DbConnection connection, DbTransaction transaction = null)
         {
             this.connection = connection as MySqlConnection;
             this.transaction = transaction as MySqlTransaction;
+            this.scopeTableName = new ObjectNameParser(scopeTableName.ToLowerInvariant(), "[", "]");
         }
 
 
@@ -37,7 +39,7 @@ namespace Dotmim.Sync.MySql
                     connection.Open();
 
                 command.CommandText =
-                    @"CREATE TABLE scope_info(
+                    $@"CREATE TABLE {scopeTableName.UnquotedStringWithUnderScore}(
                         sync_scope_id varchar(36) NOT NULL,
 	                    sync_scope_name varchar(100) NOT NULL,
 	                    scope_timestamp bigint NULL,
@@ -76,7 +78,7 @@ namespace Dotmim.Sync.MySql
                 if (!alreadyOpened)
                     connection.Open();
 
-                command.CommandText = "drop table if exists scope_info";
+                command.CommandText = $"drop table if exists {scopeTableName.UnquotedStringWithUnderScore}";
 
                 command.ExecuteNonQuery();
             }
@@ -111,12 +113,12 @@ namespace Dotmim.Sync.MySql
                     connection.Open();
 
                 command.CommandText =
-                    @"SELECT sync_scope_id
+                    $@"SELECT sync_scope_id
                            , sync_scope_name
                            , scope_timestamp
                            , scope_is_local
                            , scope_last_sync
-                    FROM  scope_info
+                    FROM  {scopeTableName.UnquotedStringWithUnderScore}
                     WHERE sync_scope_name = @sync_scope_name";
 
                 var p = command.CreateParameter();
@@ -206,7 +208,7 @@ namespace Dotmim.Sync.MySql
                     if (!alreadyOpened)
                         connection.Open();
 
-                    command.CommandText = @"Select count(*) from scope_info where sync_scope_id = @sync_scope_id";
+                    command.CommandText = $@"Select count(*) from {scopeTableName.UnquotedStringWithUnderScore} where sync_scope_id = @sync_scope_id";
 
                     var p = command.CreateParameter();
                     p.ParameterName = "@sync_scope_id";
@@ -219,8 +221,8 @@ namespace Dotmim.Sync.MySql
                 }
 
                 string stmtText = exist
-                    ? $"Update scope_info set sync_scope_name=@sync_scope_name, scope_timestamp={MySqlObjectNames.TimestampValue}, scope_is_local=@scope_is_local, scope_last_sync=@scope_last_sync where sync_scope_id=@sync_scope_id"
-                    : $"Insert into scope_info (sync_scope_name, scope_timestamp, scope_is_local, scope_last_sync, sync_scope_id) values (@sync_scope_name, {MySqlObjectNames.TimestampValue}, @scope_is_local, @scope_last_sync, @sync_scope_id)";
+                    ? $"Update {scopeTableName.UnquotedStringWithUnderScore} set sync_scope_name=@sync_scope_name, scope_timestamp={MySqlObjectNames.TimestampValue}, scope_is_local=@scope_is_local, scope_last_sync=@scope_last_sync where sync_scope_id=@sync_scope_id"
+                    : $"Insert into {scopeTableName.UnquotedStringWithUnderScore} (sync_scope_name, scope_timestamp, scope_is_local, scope_last_sync, sync_scope_id) values (@sync_scope_name, {MySqlObjectNames.TimestampValue}, @scope_is_local, @scope_last_sync, @sync_scope_id)";
 
                 using (var command = connection.CreateCommand())
                 {
@@ -293,7 +295,7 @@ namespace Dotmim.Sync.MySql
                 if (!alreadyOpened)
                     connection.Open();
 
-                command.CommandText = "select count(*) from information_schema.TABLES where TABLE_NAME = 'scope_info' and TABLE_SCHEMA = schema() and TABLE_TYPE = 'BASE TABLE'";
+                command.CommandText = $"select count(*) from information_schema.TABLES where TABLE_NAME = '{scopeTableName.UnquotedStringWithUnderScore}' and TABLE_SCHEMA = schema() and TABLE_TYPE = 'BASE TABLE'";
 
                 return (long)command.ExecuteScalar() != 1;
 

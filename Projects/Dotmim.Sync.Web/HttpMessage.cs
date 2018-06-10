@@ -5,6 +5,9 @@ using Dotmim.Sync.Data.Surrogate;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using Dotmim.Sync.Data;
+using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.Filter;
 
 namespace Dotmim.Sync.Web
 {
@@ -24,10 +27,18 @@ namespace Dotmim.Sync.Web
         /// </summary>
         public HttpStep Step { get; set; }
 
+
+        /// <summary>
+        /// Gets or Sets the message used when the session begins.
+        /// Basically, exchange the configuration and check on both side
+        /// </summary>
+        public HttpBeginSessionMessage BeginSessionMessage { get; set; }
+
+
         /// <summary>
         /// Message sent during EnsureConfiguration stage
         /// </summary>
-        public HttpEnsureConfigurationMessage EnsureConfiguration { get; set; }
+        public HttpEnsureSchemaMessage EnsureSchema { get; set; }
 
         /// <summary>
         /// Message sent during EnsureScope stage
@@ -58,11 +69,26 @@ namespace Dotmim.Sync.Web
         /// Message sent during WriteScopes stage
         /// </summary>
         public HttpWriteScopesMessage WriteScopes { get; set; }
+
+      
+    }
+
+
+    [Serializable]
+    public class HttpBeginSessionMessage
+    {
+        public SyncConfiguration SyncConfiguration { get; set; }
     }
 
     [Serializable]
     public class HttpGetChangeBatchMessage
     {
+        public DmSet Schema { get; set; }
+        public int DownloadBatchSizeInKB { get; set; }
+        public string BatchDirectory { get; set; }
+        public ConflictResolutionPolicy Policy { get; set; }
+        public ICollection<FilterClause> Filters { get; set; }
+
         public ScopeInfo ScopeInfo { get; set; }
         public int BatchIndexRequested { get; set; }
         public Boolean InMemory { get; set; }
@@ -73,6 +99,7 @@ namespace Dotmim.Sync.Web
     [Serializable]
     public class HttpGetLocalTimestampMessage
     {
+        public String ScopeInfoTableName { get; set; }
         public Int64 LocalTimestamp { get; set; }
     }
 
@@ -80,47 +107,53 @@ namespace Dotmim.Sync.Web
     public class HttpApplyChangesMessage
     {
         public ScopeInfo ScopeInfo { get; set; }
+        public DmSetSurrogate Schema { get; set; }
+        public ConflictResolutionPolicy Policy { get; set; }
+        public Boolean UseBulkOperations { get; set; }
+        public String ScopeInfoTableName { get; set; }
+
         public Boolean InMemory { get; set; }
         public int BatchIndex { get; set; }
         public BatchPartInfo BatchPartInfo { get; set; }
         public DmSetSurrogate Set { get; set; }
         public ChangesApplied ChangesApplied { get; set; }
 
+
     }
 
     [Serializable]
     public class HttpEnsureScopesMessage
     {
-        public String ScopeName { get; set; }
-
         public Guid? ClientReferenceId { get; set; }
 
         public List<ScopeInfo> Scopes { get; set; }
+        public String ScopeInfoTableName { get; set; }
+        public String ScopeName { get; set; }
     }
 
     [Serializable]
     public class HttpWriteScopesMessage
     {
+        public String ScopeInfoTableName { get; set; }
         public List<ScopeInfo> Scopes { get; set; }
     }
 
     [Serializable]
-    public class HttpEnsureConfigurationMessage
+    public class HttpEnsureSchemaMessage
     {
         /// <summary>
-        /// Contains the configuration from the server, to be applied on client, without the Set tables
+        /// Gets or Sets the tables schema
         /// </summary>
-        public SyncConfiguration Configuration { get; set; }
-
-        /// <summary>
-        /// Contains the Configuration Set tables
-        /// </summary>
-        public DmSetSurrogate ConfigurationSet { get; set; }
+        public DmSetSurrogate Schema { get; set; }
     }
 
     [Serializable]
     public class HttpEnsureDatabaseMessage
     {
         public ScopeInfo ScopeInfo { get; set; }
+        public DmSetSurrogate Schema { get; set; }
+        public ICollection<FilterClause> Filters { get; set; }
     }
+
+
 }

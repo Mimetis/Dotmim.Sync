@@ -3,6 +3,7 @@ using Dotmim.Sync.Data;
 using Dotmim.Sync.Filter;
 using Dotmim.Sync.Log;
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Data.SqlClient;
@@ -20,7 +21,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         private SqlConnection connection;
         private SqlTransaction transaction;
         private SqlObjectNames sqlObjectNames;
-        public FilterClauseCollection Filters { get; set; }
+        public ICollection<FilterClause> Filters { get; set; }
 
 
         public SqlBuilderTrigger(DmTable tableDescription, DbConnection connection, DbTransaction transaction = null)

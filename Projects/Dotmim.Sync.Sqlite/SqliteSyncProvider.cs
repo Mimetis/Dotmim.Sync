@@ -115,7 +115,7 @@ namespace Dotmim.Sync.Sqlite
         {
             this.filePath = fileInfo.FullName;
             var builder = new SqliteConnectionStringBuilder { DataSource = filePath };
-
+            
             this.ConnectionString = builder.ConnectionString;
         }
 
