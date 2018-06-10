@@ -9,6 +9,7 @@ using System.Data;
 using MySql.Data.MySqlClient;
 using Dotmim.Sync.Filter;
 using System.Diagnostics;
+using System.Collections.Generic;
 
 namespace Dotmim.Sync.MySql
 {
@@ -21,7 +22,7 @@ namespace Dotmim.Sync.MySql
         private MySqlTransaction transaction;
         private MySqlObjectNames mySqlObjectNames;
 
-        public FilterClauseCollection Filters { get; set; }
+        public ICollection<FilterClause> Filters { get; set; }
 
 
 
@@ -49,10 +50,9 @@ namespace Dotmim.Sync.MySql
             // Filter columns
             if (this.Filters != null)
             {
-                for (int i = 0; i < this.Filters.Count; i++)
-                {
-                    var filterColumn = this.Filters[i];
 
+                foreach (var filterColumn in this.Filters)
+                {
                     if (this.tableDescription.PrimaryKey.Columns.Any(c => c.ColumnName.ToLowerInvariant() == filterColumn.ColumnName.ToLowerInvariant()))
                         continue;
 
@@ -174,9 +174,8 @@ namespace Dotmim.Sync.MySql
             // Filter columns
             if (this.Filters != null && this.Filters.Count > 0)
             {
-                for (int i = 0; i < this.Filters.Count; i++)
+                foreach (var filterColumn in this.Filters)
                 {
-                    var filterColumn = this.Filters[i];
                     if (this.tableDescription.PrimaryKey.Columns.Any(c => c.ColumnName.ToLowerInvariant() == filterColumn.ColumnName.ToLowerInvariant()))
                         continue;
 
@@ -293,10 +292,8 @@ namespace Dotmim.Sync.MySql
 
             if (this.Filters != null && Filters.Count > 0)
             {
-                for (int i = 0; i < this.Filters.Count; i++)
+                foreach (var filterColumn in this.Filters)
                 {
-                    var filterColumn = this.Filters[i];
-
                     if (this.tableDescription.PrimaryKey.Columns.Any(c => c.ColumnName.ToLowerInvariant() == filterColumn.ColumnName.ToLowerInvariant()))
                         continue;
 

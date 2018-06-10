@@ -7,9 +7,9 @@ namespace Dotmim.Sync.Sqlite
     {
         
 
-        public override IDbScopeInfoBuilder CreateScopeInfoBuilder(DbConnection connection, DbTransaction transaction = null)
+        public override IDbScopeInfoBuilder CreateScopeInfoBuilder(string scopeTableName, DbConnection connection, DbTransaction transaction = null)
         {
-            return new SqliteScopeInfoBuilder(connection, transaction);
+            return new SqliteScopeInfoBuilder(scopeTableName, connection, transaction);
         }
     }
 }

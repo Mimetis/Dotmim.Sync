@@ -16,18 +16,6 @@ namespace Dotmim.Sync
 {
     public abstract partial class CoreProvider
     {
-        private SyncConfiguration syncConfiguration;
-
-        /// <summary>
-        /// Gets or Sets the Server configuration. Use this property only in Proxy mode, and on server side !
-        /// </summary>
-        public void SetConfiguration(SyncConfiguration syncConfiguration)
-        {
-            if (syncConfiguration == null || !syncConfiguration.HasTables)
-                throw new ArgumentNullException("syncConfiguration", "Service Configuration must exists and contains at least one table to sync.");
-
-            this.syncConfiguration = syncConfiguration;
-        }
 
         /// <summary>
         /// Generate the DmTable configuration from a given columns list
@@ -140,20 +128,20 @@ namespace Dotmim.Sync
         /// <summary>
         /// Create a simple configuration, based on tables
         /// </summary>
-        public async Task<SyncConfiguration> ReadConfigurationAsync(string[] tables)
+        private async Task<SyncConfiguration> ReadSchemaAsync(string[] tables)
         {
             // Load the configuration
             var configuration = new SyncConfiguration(tables);
-            await this.ReadConfigurationAsync(configuration);
+            await this.ReadSchemaAsync(configuration.ScopeSet);
             return configuration;
         }
 
         /// <summary>
         /// update configuration object with tables desc from server database
         /// </summary>
-        private async Task ReadConfigurationAsync(SyncConfiguration syncConfiguration)
+        private async Task ReadSchemaAsync(DmSet schema)
         {
-            if (syncConfiguration == null || syncConfiguration.Count() == 0)
+            if (schema == null || schema.Tables.Count <= 0)
                 throw new ArgumentNullException("syncConfiguration", "Configuration should contains Tables, at least tables with a name");
 
             DbConnection connection = null;
@@ -167,7 +155,7 @@ namespace Dotmim.Sync
 
                     using (transaction = connection.BeginTransaction())
                     {
-                        foreach (var dmTable in syncConfiguration)
+                        foreach (var dmTable in schema.Tables)
                         {
                             var builderTable = this.GetDbManager(dmTable.TableName);
                             var tblManager = builderTable.CreateManagerTable(connection, transaction);
@@ -187,7 +175,7 @@ namespace Dotmim.Sync
                                 {
                                     DmColumn tblColumn = dmTable.Columns[r.ColumnName];
                                     DmColumn foreignColumn = null;
-                                    var foreignTable = syncConfiguration[r.ReferenceTableName];
+                                    var foreignTable = schema.Tables[r.ReferenceTableName];
 
                                     // Since we can have a table with a foreign key but not the parent table
                                     // It's not a problem, just forget it
@@ -202,7 +190,7 @@ namespace Dotmim.Sync
 
                                     DmRelation dmRelation = new DmRelation(r.ForeignKey, tblColumn, foreignColumn);
 
-                                    syncConfiguration.ScopeSet.Relations.Add(dmRelation);
+                                    schema.Relations.Add(dmRelation);
                                 }
                             }
 
@@ -228,61 +216,40 @@ namespace Dotmim.Sync
         /// <summary>
         /// Ensure configuration is correct on both server and client side
         /// </summary>
-        public virtual async Task<(SyncContext, SyncConfiguration)> EnsureConfigurationAsync(
-            SyncContext context, SyncConfiguration syncConfiguration = null)
+        public virtual async Task<SyncContext> EnsureSchemaAsync(SyncContext context, DmSet schema = null)
         {
             try
             {
                 context.SyncStage = SyncStage.ConfigurationApplying;
 
                 // Get cache manager and try to get configuration from cache
-                var cacheManager = this.CacheManager;
-                var cacheConfiguration = GetCacheConfiguration();
+                //var cacheManager = this.CacheManager;
 
-                // if we don't pass config object (configuration == null), we may be in proxy mode, so the config object is handled by a local configuration object.
-                if (syncConfiguration == null && this.syncConfiguration == null)
-                    throw new ArgumentNullException("syncConfiguration", "You try to set a provider with no configuration object");
+                //// if we don't pass config object (configuration == null), we may be in proxy mode, so the config object is handled by a local configuration object.
+                //if (syncConfiguration == null && this.syncConfiguration == null)
+                //    throw new ArgumentNullException("syncConfiguration", "You try to set a provider with no configuration object");
 
-                // the configuration has been set from the proxy server itself, use it.
-                if (syncConfiguration == null && this.syncConfiguration != null)
-                    syncConfiguration = this.syncConfiguration;
+                //// the configuration has been set from the proxy server itself, use it.
+                //if (syncConfiguration == null && this.syncConfiguration != null)
+                //    syncConfiguration = this.syncConfiguration;
 
                 // Raise event before
-                context.SyncStage = SyncStage.ConfigurationApplying;
-                var beforeArgs2 = new ConfigurationApplyingEventArgs(this.ProviderTypeName, context.SyncStage);
-                this.TryRaiseProgressEvent(beforeArgs2, this.ConfigurationApplying);
-                bool overWriteConfiguration = beforeArgs2.OverwriteConfiguration;
+                // TODO : Needed anymore ?
+                //context.SyncStage = SyncStage.ConfigurationApplying;
+                //var beforeArgs2 = new ConfigurationApplyingEventArgs(this.ProviderTypeName, context.SyncStage);
+                //this.TryRaiseProgressEvent(beforeArgs2, this.ConfigurationApplying);
+                //bool overWriteConfiguration = beforeArgs2.OverwriteConfiguration;
 
-                // if we have already a cache configuration, we can return, except if we should overwrite it
-                if (cacheConfiguration != null && !overWriteConfiguration)
-                {
-                    // Raise event after
-                    context.SyncStage = SyncStage.ConfigurationApplied;
-                    var afterArgs2 = new ConfigurationAppliedEventArgs(this.ProviderTypeName, context.SyncStage, cacheConfiguration);
-                    this.TryRaiseProgressEvent(afterArgs2, this.ConfigurationApplied);
-
-                    // if config has been changed by user, save it again                        
-                    this.SetCacheConfiguration(cacheConfiguration);
-                    return (context, cacheConfiguration);
-                }
-
-                // create local directory
-                if (!String.IsNullOrEmpty(syncConfiguration.BatchDirectory) && !Directory.Exists(syncConfiguration.BatchDirectory))
-                    Directory.CreateDirectory(syncConfiguration.BatchDirectory);
 
                 // if we dont have already read the tables || we want to overwrite the current config
-                if ((syncConfiguration.HasTables && !syncConfiguration.HasColumns))
-                    await this.ReadConfigurationAsync(syncConfiguration);
+                if ((schema.HasTables && !schema.HasColumns))
+                    await this.ReadSchemaAsync(schema);
 
-                // save to cache
-                this.SetCacheConfiguration(syncConfiguration);
+                //context.SyncStage = SyncStage.ConfigurationApplied;
+                //var afterArgs = new ConfigurationAppliedEventArgs(this.ProviderTypeName, context.SyncStage, syncConfiguration);
+                //this.TryRaiseProgressEvent(afterArgs, this.ConfigurationApplied);
 
-                context.SyncStage = SyncStage.ConfigurationApplied;
-                var afterArgs = new ConfigurationAppliedEventArgs(this.ProviderTypeName, context.SyncStage, syncConfiguration);
-                this.TryRaiseProgressEvent(afterArgs, this.ConfigurationApplied);
-                // if config has been changed by user, save it again                        
-                this.SetCacheConfiguration(syncConfiguration);
-                return (context, syncConfiguration);
+                return context;
             }
             catch (SyncException)
             {
@@ -295,28 +262,28 @@ namespace Dotmim.Sync
 
         }
 
-        /// <summary>
-        /// Get cached configuration (inmemory or session cache)
-        /// </summary>
-        public SyncConfiguration GetCacheConfiguration()
-        {
-            var configurationSurrogate = this.CacheManager.GetValue<DmSetSurrogate>(SYNC_CONF);
-            if (configurationSurrogate == null)
-                return null;
+        ///// <summary>
+        ///// Get cached configuration (inmemory or session cache)
+        ///// </summary>
+        //public SyncConfiguration GetCacheConfiguration()
+        //{
+        //    var configurationSurrogate = this.CacheManager.GetValue<DmSetSurrogate>(SYNC_CONF);
+        //    if (configurationSurrogate == null)
+        //        return null;
 
-            var dmSet = configurationSurrogate.ConvertToDmSet();
-            if (dmSet == null)
-                return null;
+        //    var dmSet = configurationSurrogate.ConvertToDmSet();
+        //    if (dmSet == null)
+        //        return null;
 
-            return SyncConfiguration.DeserializeFromDmSet(dmSet);
-        }
+        //    return SyncConfiguration.DeserializeFromDmSet(dmSet);
+        //}
 
-        public void SetCacheConfiguration(SyncConfiguration configuration)
-        {
-            var dmSetConf = new DmSet();
-            SyncConfiguration.SerializeInDmSet(dmSetConf, configuration);
-            var dmSSetConf = new DmSetSurrogate(dmSetConf);
-            this.CacheManager.Set(SYNC_CONF, dmSSetConf);
-        }
+        //public void SetCacheConfiguration(SyncConfiguration configuration)
+        //{
+        //    var dmSetConf = new DmSet();
+        //    SyncConfiguration.SerializeInDmSet(dmSetConf, configuration);
+        //    var dmSSetConf = new DmSetSurrogate(dmSetConf);
+        //    this.CacheManager.Set(SYNC_CONF, dmSSetConf);
+        //}
     }
 }

@@ -12,7 +12,7 @@ namespace Dotmim.Sync.Builders
     /// </summary>
     public interface IDbBuilderTriggerHelper
     {
-        FilterClauseCollection Filters { get; set; }
+        ICollection<FilterClause> Filters { get; set; }
     
         bool NeedToCreateTrigger(DbTriggerType triggerType);
         void CreateInsertTrigger();

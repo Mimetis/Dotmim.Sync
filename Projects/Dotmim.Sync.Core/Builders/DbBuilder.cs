@@ -13,8 +13,8 @@ namespace Dotmim.Sync.Builders
 {
     public abstract class DbBuilder
     {
-        private bool useBulkProcedures = true;
-
+        private readonly bool useBulkProcedures = true;
+        
         /// <summary>
         /// Gets the table description for the current DbBuilder
         /// </summary>
@@ -23,7 +23,7 @@ namespace Dotmim.Sync.Builders
         /// <summary>
         /// Filtered Columns
         /// </summary>
-        public FilterClauseCollection FilterColumns { get; set; } = new FilterClauseCollection();
+        public ICollection<FilterClause> FilterColumns { get; set; } = new List<FilterClause>();
 
         /// <summary>
         /// You have to provide a proc builder implementation for your current database

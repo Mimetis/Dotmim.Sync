@@ -55,7 +55,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
             var dbType = column.DbType;
             var precision = column.Precision;
-            long maxLength = (long)column.MaxLength;
+            long maxLength = column.MaxLength;
 
             SqlDbType sqlDbType = (SqlDbType)this.sqlMetadata.TryGetOwnerDbType(column.OriginalDbType, column.DbType, false, false, this.TableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
 
@@ -96,6 +96,15 @@ namespace Dotmim.Sync.SqlServer.Builders
                 return new SqlMetaData(column.ColumnName, sqlDbType, maxLength);
             }
 
+            if (sqlDbType == SqlDbType.Decimal)
+            {
+                if (column.PrecisionSpecified && column.ScaleSpecified)
+                    return new SqlMetaData(column.ColumnName, sqlDbType, column.Precision, column.Scale);
+
+                if (column.PrecisionSpecified)
+                    return new SqlMetaData(column.ColumnName, sqlDbType, column.Precision);
+
+            }
 
             return new SqlMetaData(column.ColumnName, sqlDbType);
 

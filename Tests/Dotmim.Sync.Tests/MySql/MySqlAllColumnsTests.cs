@@ -11,11 +11,14 @@ using Xunit;
 using System.Diagnostics;
 using Dotmim.Sync.Data;
 using System.Data.SqlTypes;
+using Dotmim.Sync.MySql;
+using MySql.Data.MySqlClient;
+using System.Data.Common;
 
-namespace Dotmim.Sync.Test
+namespace Dotmim.Sync.Test.MySql
 {
 
-    public class SyncAllColumnsFixture : IDisposable
+    public class MySqlAllColumnsFixture : IDisposable
     {
         private string createTableScript =
         $@"
@@ -192,17 +195,17 @@ namespace Dotmim.Sync.Test
         ";
 
         private HelperDB helperDb = new HelperDB();
-        private string serverDbName = "Test_AllColumns_Server";
-        private string client1DbName = "Test_AllColumns_Client";
+        private string serverDbName = "Test_AllColumns_MySql";
+        private string client1DbName = "testallcolumnsmysql";
 
         public String ServerConnectionString => HelperDB.GetDatabaseConnectionString(serverDbName);
-        public String Client1ConnectionString => HelperDB.GetDatabaseConnectionString(client1DbName);
+        public String ClientMySqlConnectionString => HelperDB.GetMySqlDatabaseConnectionString(client1DbName);
 
-        public SyncAllColumnsFixture()
+        public MySqlAllColumnsFixture()
         {
             // create databases
             helperDb.CreateDatabase(serverDbName);
-            helperDb.CreateDatabase(client1DbName);
+            helperDb.CreateMySqlDatabase(client1DbName);
 
             // create table
             helperDb.ExecuteScript(serverDbName, createTableScript);
@@ -213,16 +216,17 @@ namespace Dotmim.Sync.Test
         public void Dispose()
         {
             helperDb.DeleteDatabase(serverDbName);
-            helperDb.DeleteDatabase(client1DbName);
+            //helperDb.DropMySqlDatabase(client1DbName);
         }
 
     }
 
     [TestCaseOrderer("Dotmim.Sync.Tests.Misc.PriorityOrderer", "Dotmim.Sync.Tests")]
-    public class SyncAllColumnsTests : IClassFixture<SyncAllColumnsFixture>
+    public class MySqlAllColumnsTests : IClassFixture<MySqlAllColumnsFixture>
     {
-        private SyncAllColumnsFixture fixture;
+        private MySqlAllColumnsFixture fixture;
         private SyncAgent agent;
+        private SyncConfiguration configuration;
         private DateTime dateTimeNow = new DateTime(2010, 10, 01, 23, 10, 12, 400);
         private DateTime dateTimeNow2 = new DateTime(2010, 10, 01, 23, 10, 12, 900);
         private DateTime shortDateTimeNow = new DateTime(2010, 10, 01);
@@ -232,14 +236,15 @@ namespace Dotmim.Sync.Test
         private byte[] byteArray50 = { 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20 };
 
 
-        public SyncAllColumnsTests(SyncAllColumnsFixture fixture)
+        public MySqlAllColumnsTests(MySqlAllColumnsFixture fixture)
         {
             this.fixture = fixture;
 
             SqlSyncProvider serverProvider = new SqlSyncProvider(fixture.ServerConnectionString);
-            SqlSyncProvider clientProvider = new SqlSyncProvider(fixture.Client1ConnectionString);
+            MySqlSyncProvider clientProvider = new MySqlSyncProvider(fixture.ClientMySqlConnectionString);
 
             agent = new SyncAgent(clientProvider, serverProvider, new[] { "AllColumns" });
+
         }
 
         [Fact, TestPriority(1)]
@@ -262,11 +267,11 @@ namespace Dotmim.Sync.Test
                 dmColumnsListServer = SqlManagementUtils.ColumnsForTable(sqlConnection, null, "AllColumns");
                 sqlConnection.Close();
             }
-            using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
+            using (var mysqlConnection = new MySqlConnection(fixture.ClientMySqlConnectionString))
             {
-                sqlConnection.Open();
-                dmColumnsListClient = SqlManagementUtils.ColumnsForTable(sqlConnection, null, "AllColumns");
-                sqlConnection.Close();
+                mysqlConnection.Open();
+                dmColumnsListClient = MySqlManagementUtils.ColumnsForTable(mysqlConnection, null, "allcolumns");
+                mysqlConnection.Close();
             }
 
             // check if all columns are replicated
@@ -284,23 +289,34 @@ namespace Dotmim.Sync.Test
                 var isNullable = (bool)serverRow["is_nullable"];
                 var isIdentity = (bool)serverRow["is_identity"];
 
-                var clientRow = dmColumnsListClient.Rows.FirstOrDefault(cr => (int)cr["column_id"] == ordinal);
+                var clientRow = dmColumnsListClient.Rows.FirstOrDefault(cr => Convert.ToInt32(cr["ordinal_position"]) == ordinal);
 
                 Assert.NotNull(clientRow);
 
-                // exception on numeric, check if it could be decimal
-                var cTypeString = clientRow["type"].ToString();
-                if (typeString.ToLowerInvariant() == "numeric" && cTypeString.ToLowerInvariant() == "decimal")
-                    cTypeString = "numeric";
+                Assert.Equal(name.ToLowerInvariant(), clientRow["COLUMN_NAME"].ToString());
+                Assert.Equal(ordinal, Convert.ToInt32(clientRow["ordinal_position"]));
 
-                Assert.Equal(name, clientRow["name"].ToString());
-                Assert.Equal(ordinal, (int)clientRow["column_id"]);
-                Assert.Equal(typeString, cTypeString);
-                Assert.Equal(maxLength, (Int16)clientRow["max_length"]);
-                Assert.Equal(precision, (byte)clientRow["precision"]);
-                Assert.Equal(scale, (byte)clientRow["scale"]);
-                Assert.Equal(isNullable, (bool)clientRow["is_nullable"]);
-                Assert.Equal(isIdentity, (bool)clientRow["is_identity"]);
+                // TODO: Types can't be the same. Maybe check the types equality between providers ?
+                //Assert.Equal(typeString, cTypeString);
+
+                var maxLengthLong = clientRow["character_octet_length"] != DBNull.Value ? Convert.ToInt64(clientRow["character_octet_length"]) : 0;
+                var maxLengthMySql = maxLengthLong > Int32.MaxValue ? Int32.MaxValue : (Int32)maxLengthLong;
+
+
+                var mySqlPrecision = clientRow["numeric_precision"] != DBNull.Value ? Convert.ToByte(clientRow["numeric_precision"]) : (byte)0;
+                var mySqlScale = clientRow["numeric_scale"] != DBNull.Value ? Convert.ToByte(clientRow["numeric_scale"]) : (byte)0;
+                var mySqlAllowDBNull = (String)clientRow["is_nullable"] == "NO" ? false : true;
+                var mySqlAutoIncrement = clientRow["extra"] != DBNull.Value ? ((string)clientRow["extra"]).Contains("auto increment") : false;
+
+                // TODO : For some type (like GUID) length can't be the same
+                //Assert.Equal(maxLength, maxLengthMySql);
+
+                // for type like bit transformed to tinyint, precision can differ
+                //Assert.Equal(precision, mySqlPrecision);
+                //Assert.Equal(scale, mySqlScale);
+
+                Assert.Equal(isNullable, mySqlAllowDBNull);
+                Assert.Equal(isIdentity, mySqlAutoIncrement);
 
             }
 
@@ -371,9 +387,9 @@ namespace Dotmim.Sync.Test
             Assert.Equal(0, session.TotalChangesUploaded);
 
             // check values
-            using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
+            using (var sqlConnection = new MySqlConnection(fixture.ClientMySqlConnectionString))
             {
-                using (var sqlCmd = new SqlCommand($"Select * from AllColumns where ClientId = '{clientId.ToString()}'", sqlConnection))
+                using (var sqlCmd = new MySqlCommand($"Select * from allcolumns where clientid = '{clientId.ToString()}'", sqlConnection))
                 {
                     sqlConnection.Open();
 
@@ -390,9 +406,9 @@ namespace Dotmim.Sync.Test
             }
         }
 
-        private void AssertReader(Guid clientId, SqlDataReader dbReader)
+        private void AssertReader(Guid clientId, DbDataReader dbReader)
         {
-            Assert.Equal(clientId, (Guid)dbReader["ClientID"]);
+            Assert.Equal(clientId, Guid.Parse((String)dbReader["ClientID"]));
 
             var dbBytes = (Byte[])dbReader["CBinary"];
             Assert.Equal(byteArray50.Length, dbBytes.Length);
@@ -401,7 +417,7 @@ namespace Dotmim.Sync.Test
                 Assert.Equal(byteArray50[i], dbBytes[i]);
 
             Assert.Equal(10000000000000, (long)dbReader["CBigInt"]);
-            Assert.Equal(true, (Boolean)dbReader["CBit"]);
+            Assert.Equal(true, Convert.ToBoolean(dbReader["CBit"]));
             Assert.Equal("char10    ", (string)dbReader["CChar10"]);
             Assert.Equal(shortDateTimeNow, (DateTime)dbReader["CDate"]);
             Assert.Equal(dateTimeNow, (DateTime)dbReader["CDateTime"]);
@@ -440,36 +456,35 @@ namespace Dotmim.Sync.Test
             Assert.Equal(@"<root><client name=""Doe"">inner Doe client</client></root>", (String)dbReader["CXml"]);
         }
 
-        [Fact, TestPriority(4)]
-        public async Task OneRowFromClient()
-        {
-            var clientId = InsertARow(fixture.Client1ConnectionString);
+        //[Fact, TestPriority(4)]
+        //public async Task OneRowFromClient()
+        //{
 
 
-            var session = await agent.SynchronizeAsync();
+        //    var session = await agent.SynchronizeAsync();
 
-            Assert.Equal(0, session.TotalChangesDownloaded);
-            Assert.Equal(1, session.TotalChangesUploaded);
+        //    Assert.Equal(0, session.TotalChangesDownloaded);
+        //    Assert.Equal(1, session.TotalChangesUploaded);
 
-            // check values
-            using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
-            {
-                using (var sqlCmd = new SqlCommand($"Select * from AllColumns where ClientId = '{clientId.ToString()}'", sqlConnection))
-                {
-                    sqlConnection.Open();
+        //    // check values
+        //    using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
+        //    {
+        //        using (var sqlCmd = new SqlCommand($"Select * from AllColumns where ClientId = '{clientId.ToString()}'", sqlConnection))
+        //        {
+        //            sqlConnection.Open();
 
-                    using (var dbReader = sqlCmd.ExecuteReader())
-                    {
+        //            using (var dbReader = sqlCmd.ExecuteReader())
+        //            {
 
-                        dbReader.Read();
-                        AssertReader(clientId, dbReader);
-                    }
+        //                dbReader.Read();
+        //                AssertReader(clientId, dbReader);
+        //            }
 
 
-                    sqlConnection.Close();
-                }
-            }
-        }
+        //            sqlConnection.Close();
+        //        }
+        //    }
+        //}
 
         [Fact, TestPriority(4)]
         public async Task UpdateRowFromServer()
@@ -496,30 +511,30 @@ namespace Dotmim.Sync.Test
             Assert.Equal(0, session.TotalChangesUploaded);
         }
 
-        [Fact, TestPriority(5)]
-        public async Task UpdateRowFromClient()
-        {
-            var insertRowScript =
-                $@"
-                Declare @id uniqueidentifier;
-                select top 1 @id = ClientID from AllColumns;
-                Update [AllColumns] Set [CNVarchar50] = 'Updated Row' Where ClientID = @id";
+        //[Fact, TestPriority(5)]
+        //public async Task UpdateRowFromClient()
+        //{
+        //    var insertRowScript =
+        //        $@"
+        //        Declare @id uniqueidentifier;
+        //        select top 1 @id = ClientID from AllColumns;
+        //        Update [AllColumns] Set [CNVarchar50] = 'Updated Row' Where ClientID = @id";
 
-            using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
-            {
-                using (var sqlCmd = new SqlCommand(insertRowScript, sqlConnection))
-                {
-                    sqlConnection.Open();
-                    sqlCmd.ExecuteNonQuery();
-                    sqlConnection.Close();
-                }
-            }
+        //    using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
+        //    {
+        //        using (var sqlCmd = new SqlCommand(insertRowScript, sqlConnection))
+        //        {
+        //            sqlConnection.Open();
+        //            sqlCmd.ExecuteNonQuery();
+        //            sqlConnection.Close();
+        //        }
+        //    }
 
-            var session = await agent.SynchronizeAsync();
+        //    var session = await agent.SynchronizeAsync();
 
-            Assert.Equal(0, session.TotalChangesDownloaded);
-            Assert.Equal(1, session.TotalChangesUploaded);
-        }
+        //    Assert.Equal(0, session.TotalChangesDownloaded);
+        //    Assert.Equal(1, session.TotalChangesUploaded);
+        //}
 
 
 

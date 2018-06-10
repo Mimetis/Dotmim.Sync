@@ -64,6 +64,28 @@ namespace Dotmim.Sync.Data.Surrogate
         /// </summary>
         public SyncDirection SyncDirection { get;  set; }
 
+        /// <summary>
+        /// Specify a prefix for naming stored procedure. Default is empty string
+        /// </summary>
+        public String StoredProceduresPrefix { get; set; }
+
+        /// <summary>
+        /// Specify a suffix for naming stored procedures. Default is empty string
+        /// </summary>
+        public String StoredProceduresSuffix { get; set; }
+
+        /// <summary>
+        /// Specify a prefix for naming tracking tables. Default is empty string
+        /// </summary>
+        public String TrackingTablesPrefix { get; set; }
+
+        /// <summary>
+        /// Specify a suffix for naming tracking tables. Default is "_tracking"
+        /// </summary>
+        public String TrackingTablesSuffix { get; set; }
+
+
+
         public long GetEmptyBytesLength()
         {
             long bytesLength = String.IsNullOrEmpty(CultureInfoName) ? 1L : Encoding.UTF8.GetBytes(CultureInfoName).Length;
@@ -100,6 +122,10 @@ namespace Dotmim.Sync.Data.Surrogate
             this.Schema = dt.Schema;
             this.OriginalProvider = dt.OriginalProvider;
             this.SyncDirection = dt.SyncDirection;
+            this.TrackingTablesPrefix = dt.TrackingTablesPrefix;
+            this.TrackingTablesSuffix = dt.TrackingTablesSuffix;
+            this.StoredProceduresPrefix = dt.StoredProceduresPrefix;
+            this.StoredProceduresSuffix = dt.StoredProceduresSuffix;
 
             for (int i = 0; i < dt.Columns.Count; i++)
                 this.Columns.Add(new DmColumnSurrogate(dt.Columns[i]));
@@ -146,6 +172,10 @@ namespace Dotmim.Sync.Data.Surrogate
             dt.CaseSensitive = this.CaseSensitive;
             dt.OriginalProvider = this.OriginalProvider;
             dt.SyncDirection = this.SyncDirection;
+            dt.TrackingTablesPrefix = this.TrackingTablesPrefix;
+            dt.TrackingTablesSuffix = this.TrackingTablesSuffix;
+            dt.StoredProceduresPrefix = this.StoredProceduresPrefix;
+            dt.StoredProceduresSuffix = this.StoredProceduresSuffix;
 
             for (int i = 0; i < this.Columns.Count; i++)
             {

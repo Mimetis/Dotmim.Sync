@@ -24,7 +24,9 @@ namespace Dotmim.Sync
         /// the fromScope is local client scope when this method is called from server
         /// the fromScope is server scope when this method is called from client
         /// </summary>
-        public virtual async Task<(SyncContext, ChangesApplied)> ApplyChangesAsync(SyncContext context, ScopeInfo fromScope, BatchInfo changes)
+        public virtual async Task<(SyncContext, ChangesApplied)> ApplyChangesAsync(
+            SyncContext context, ScopeInfo fromScope, DmSet configTables, ConflictResolutionPolicy policy, 
+            Boolean useBulkOperations, String scopeInfoTableName, BatchInfo changes)
         {
             ChangeApplicationAction changeApplicationAction;
             DbTransaction applyTransaction = null;
@@ -45,7 +47,7 @@ namespace Dotmim.Sync
                     // -----------------------------------------------------
                     if (context.SyncWay == SyncWay.Download && context.SyncType != SyncType.Normal)
                     {
-                        changeApplicationAction = this.ResetInternal(context, connection, applyTransaction, fromScope);
+                        changeApplicationAction = this.ResetInternal(context, configTables, connection, applyTransaction, fromScope);
 
                         // Rollback
                         if (changeApplicationAction == ChangeApplicationAction.Rollback)
@@ -57,7 +59,7 @@ namespace Dotmim.Sync
                     // -----------------------------------------------------
                     if (!fromScope.IsNewScope)
                     {
-                        changeApplicationAction = this.ApplyChangesInternal(context, connection, applyTransaction, fromScope, changes, DmRowState.Deleted, changesApplied);
+                        changeApplicationAction = this.ApplyChangesInternal(context, configTables, policy, useBulkOperations, scopeInfoTableName, connection, applyTransaction, fromScope, changes, DmRowState.Deleted, changesApplied);
 
                         // Rollback
                         if (changeApplicationAction == ChangeApplicationAction.Rollback)
@@ -67,7 +69,7 @@ namespace Dotmim.Sync
                     // -----------------------------------------------------
                     // 1) Applying Inserts
                     // -----------------------------------------------------
-                    changeApplicationAction = this.ApplyChangesInternal(context, connection, applyTransaction, fromScope, changes, DmRowState.Added, changesApplied);
+                    changeApplicationAction = this.ApplyChangesInternal(context, configTables, policy, useBulkOperations, scopeInfoTableName, connection, applyTransaction, fromScope, changes, DmRowState.Added, changesApplied);
 
                     // Rollback
                     if (changeApplicationAction == ChangeApplicationAction.Rollback)
@@ -76,7 +78,7 @@ namespace Dotmim.Sync
                     // -----------------------------------------------------
                     // 1) Applying updates
                     // -----------------------------------------------------
-                    changeApplicationAction = this.ApplyChangesInternal(context, connection, applyTransaction, fromScope, changes, DmRowState.Modified, changesApplied);
+                    changeApplicationAction = this.ApplyChangesInternal(context, configTables, policy, useBulkOperations, scopeInfoTableName, connection, applyTransaction, fromScope, changes, DmRowState.Modified, changesApplied);
 
                     // Rollback
                     if (changeApplicationAction == ChangeApplicationAction.Rollback)
@@ -115,13 +117,14 @@ namespace Dotmim.Sync
         /// <summary>
         /// Here we are reseting all tables and tracking tables to be able to Reinitialize completely
         /// </summary>
-        private ChangeApplicationAction ResetInternal(SyncContext context, DbConnection connection, DbTransaction transaction, ScopeInfo fromScope)
+        private ChangeApplicationAction ResetInternal(SyncContext context, DmSet configTables, DbConnection connection, DbTransaction transaction, ScopeInfo fromScope)
         {
-            var configuration = GetCacheConfiguration();
+            if (configTables == null || configTables.Tables.Count <= 0)
+                return ChangeApplicationAction.Continue;
 
-            for (int i = 0; i < configuration.Count; i++)
+            for (int i = 0; i < configTables.Tables.Count; i++)
             {
-                var tableDescription = configuration[configuration.Count - i - 1];
+                var tableDescription = configTables.Tables[configTables.Tables.Count - i - 1];
 
                 var builder = this.GetDatabaseBuilder(tableDescription);
                 var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
@@ -136,19 +139,18 @@ namespace Dotmim.Sync
         /// <summary>
         /// Apply changes internal method for one Insert or Update or Delete for every dbSyncAdapter
         /// </summary>
-        internal ChangeApplicationAction ApplyChangesInternal(SyncContext context, DbConnection connection, DbTransaction transaction, ScopeInfo fromScope, BatchInfo changes, DmRowState applyType, ChangesApplied changesApplied)
+        internal ChangeApplicationAction ApplyChangesInternal(
+            SyncContext context, DmSet configTables, ConflictResolutionPolicy policy, Boolean useBulkOperations, String scopeInfoTableName, DbConnection connection, DbTransaction transaction, ScopeInfo fromScope, BatchInfo changes, DmRowState applyType, ChangesApplied changesApplied)
         {
             ChangeApplicationAction changeApplicationAction = ChangeApplicationAction.Continue;
 
-            var configuration = GetCacheConfiguration();
-
             // for each adapters (Zero to End for Insert / Updates -- End to Zero for Deletes
-            for (int i = 0; i < configuration.Count; i++)
+            for (int i = 0; i < configTables.Tables.Count; i++)
             {
                 // If we have a delete we must go from Up to Down, orthewise Dow to Up index
                 var tableDescription = (applyType != DmRowState.Deleted ?
-                        configuration[i] :
-                        configuration[configuration.Count - i - 1]);
+                        configTables.Tables[i] :
+                        configTables.Tables[configTables.Tables.Count - i - 1]);
 
                 // if we are in upload stage, so check if table is not download only
                 if (context.SyncWay == SyncWay.Upload && tableDescription.SyncDirection == SyncDirection.DownloadOnly)
@@ -162,7 +164,7 @@ namespace Dotmim.Sync
                 var builder = this.GetDatabaseBuilder(tableDescription);
                 var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
 
-                syncAdapter.ConflictApplyAction = configuration.GetApplyAction();
+                syncAdapter.ConflictApplyAction = SyncConfiguration.GetApplyAction(policy);
 
                 // Set syncAdapter properties
                 syncAdapter.applyType = applyType;
@@ -201,7 +203,7 @@ namespace Dotmim.Sync
 
                         int rowsApplied;
                         // applying the bulkchanges command
-                        if (configuration.UseBulkOperations && this.SupportBulkOperations)
+                        if (useBulkOperations && this.SupportBulkOperations)
                             rowsApplied = syncAdapter.ApplyBulkChanges(dmChangesView, fromScope, conflicts);
                         else
                             rowsApplied = syncAdapter.ApplyChanges(dmChangesView, fromScope, conflicts);
@@ -213,10 +215,10 @@ namespace Dotmim.Sync
                             foreach (var conflict in conflicts)
                             {
                                 var scopeBuilder = this.GetScopeBuilder();
-                                var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(connection, transaction);
+                                var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName, connection, transaction);
                                 var localTimeStamp = scopeInfoBuilder.GetLocalTimestamp();
 
-                                changeApplicationAction = syncAdapter.HandleConflict(conflict, fromScope, localTimeStamp, out DmRow resolvedRow);
+                                changeApplicationAction = syncAdapter.HandleConflict(conflict, policy, fromScope, localTimeStamp, out DmRow resolvedRow);
 
                                 if (changeApplicationAction == ChangeApplicationAction.Continue)
                                 {
@@ -282,16 +284,11 @@ namespace Dotmim.Sync
         /// <summary>
         /// A conflict has occured, we try to ask for the solution to the user
         /// </summary>
-        internal (ApplyAction, DmRow) GetConflictAction(SyncConflict conflict, DbConnection connection, DbTransaction transaction = null)
+        internal (ApplyAction, DmRow) GetConflictAction(SyncConflict conflict, ConflictResolutionPolicy policy, DbConnection connection, DbTransaction transaction = null)
         {
-            Debug.WriteLine("Raising Apply Change Failed Event");
-            var configuration = GetCacheConfiguration();
-
-            var configApplyAction = configuration.GetApplyAction();
-
             ConflictAction conflictAction = ConflictAction.ServerWins;
 
-            if (configuration.ConflictResolutionPolicy == ConflictResolutionPolicy.ClientWins)
+            if (policy == ConflictResolutionPolicy.ClientWins)
                 conflictAction = ConflictAction.ClientWins;
 
             var arg = new ApplyChangeFailedEventArgs(conflict, conflictAction, connection, transaction);

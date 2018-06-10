@@ -43,9 +43,8 @@ namespace Dotmim.Sync.Test
 
             var serverProvider = new MySqlSyncProvider(ServerConnectionString);
             var clientProvider = new MySqlSyncProvider(ClientMySqlConnectionString);
-            var simpleConfiguration = new SyncConfiguration(Tables);
 
-            Agent = new SyncAgent(clientProvider, serverProvider, simpleConfiguration);
+            Agent = new SyncAgent(clientProvider, serverProvider, Tables);
 
         }
         public void Dispose()

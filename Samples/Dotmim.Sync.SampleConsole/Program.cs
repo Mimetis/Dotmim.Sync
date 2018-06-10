@@ -3,9 +3,11 @@ using Dotmim.Sync.Data;
 using Dotmim.Sync.Data.Surrogate;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.MySql;
+using Dotmim.Sync.SampleConsole;
 using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Web;
+using Microsoft.AspNetCore.Http;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -18,7 +20,7 @@ class Program
 {
     static void Main(string[] args)
     {
-        TestSyncThroughWebApi().GetAwaiter().GetResult();
+        SyncHttpThroughKestellAsync().GetAwaiter().GetResult();
 
         Console.ReadLine();
     }
@@ -29,7 +31,81 @@ class Program
     public static string GetMySqlDatabaseConnectionString(string dbName) =>
         $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=azerty31$;";
 
-    
+
+
+    public async static Task SyncHttpThroughKestellAsync()
+    {
+        // server provider
+        var serverProvider = new SqlSyncProvider(GetDatabaseConnectionString("AdventureWorks"));
+        // proxy server based on server provider
+        var proxyServerProvider = new WebProxyServerProvider(serverProvider);
+
+        // client provider
+        var client1Provider = new SqlSyncProvider(GetDatabaseConnectionString("Adv"));
+        // proxy client provider 
+        var proxyClientProvider = new WebProxyClientProvider();
+
+        var tables = new string[] {"ProductCategory",
+                "ProductDescription", "ProductModel",
+                "Product", "ProductModelProductDescription",
+                "Address", "Customer", "CustomerAddress",
+                "SalesOrderHeader", "SalesOrderDetail" };
+
+        var configuration = new SyncConfiguration(tables);
+        configuration.ScopeName = "Pète";
+        configuration.ScopeInfoTableName = "Prout";
+
+
+        var serverHandler = new RequestDelegate(async context =>
+        {
+           proxyServerProvider.Configuration = configuration;
+          
+           await proxyServerProvider.HandleRequestAsync(context);
+        });
+        using (var server = new KestrellTestServer())
+        {
+            var clientHandler = new ResponseDelegate(async (serviceUri) =>
+            {
+                proxyClientProvider.ServiceUri = new Uri(serviceUri);
+                proxyClientProvider.SerializationFormat = SerializationFormat.Json;
+
+                var syncAgent = new SyncAgent(client1Provider, proxyClientProvider);
+             
+                do
+                {
+                    Console.Clear();
+                    Console.WriteLine("Sync Start");
+                    try
+                    {
+                        CancellationTokenSource cts = new CancellationTokenSource();
+                        CancellationToken token = cts.Token;
+
+                        var s1 = await syncAgent.SynchronizeAsync(token);
+
+                        Console.WriteLine(s1);
+                    }
+                    catch (SyncException e)
+                    {
+                        Console.WriteLine(e.ToString());
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+                    }
+
+
+                    //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+                } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+
+            });
+            await server.Run(serverHandler, clientHandler);
+        }
+        
+    }
+
+
+
     /// <summary>
     /// Test a client syncing through a web api
     /// </summary>
@@ -75,11 +151,21 @@ class Program
     private static async Task TestSync()
     {
         //CreateDatabase("NW1", true);
-        SqlSyncProvider serverProvider = new SqlSyncProvider(GetDatabaseConnectionString("Northwind"));
-        SqlSyncProvider clientProvider = new SqlSyncProvider(GetDatabaseConnectionString("NW1"));
+        SqlSyncProvider serverProvider = new SqlSyncProvider(GetDatabaseConnectionString("AdventureWorks"));
+        SqlSyncProvider clientProvider = new SqlSyncProvider(GetDatabaseConnectionString("Adv"));
 
-        SyncAgent agent = new SyncAgent(clientProvider, serverProvider, new string[] {
-        "Customers", "Region"});
+        // Tables involved in the sync process:
+        var tables = new string[] {"ProductCategory",
+                "ProductDescription", "ProductModel",
+                "Product", "ProductModelProductDescription",
+                "Address", "Customer", "CustomerAddress",
+                "SalesOrderHeader", "SalesOrderDetail" };
+
+        SyncAgent agent = new SyncAgent(clientProvider, serverProvider, tables);
+
+        agent.Configuration.StoredProceduresPrefix = "sp";
+        agent.Configuration.TrackingTablesPrefix = "sync";
+        agent.Configuration.ScopeInfoTableName = "syncscope";
 
         do
         {
@@ -90,18 +176,9 @@ class Program
                 CancellationTokenSource cts = new CancellationTokenSource();
                 CancellationToken token = cts.Token;
 
-                //void selected(object s, TableChangesSelectedEventArgs a) => Console.WriteLine($"Changes selected for table {a.TableChangesSelected.TableName}: {a.TableChangesSelected.TotalChanges}");
-                //void applied(object s, TableChangesAppliedEventArgs a) => Console.WriteLine($"Changes applied for table {a.TableChangesApplied.TableName}: [{a.TableChangesApplied.State}] {a.TableChangesApplied.Applied}");
-
-                //agent.TableChangesSelected += selected;
-                //agent.TableChangesApplied += applied;
-
                 var s1 = await agent.SynchronizeAsync(SyncType.ReinitializeWithUpload, token);
 
                 Console.WriteLine(s1);
-
-                //agent.TableChangesSelected -= selected;
-                //agent.TableChangesApplied -= applied;
             }
             catch (SyncException e)
             {

@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Xunit;
+using Dotmim.Sync.Filter;
 
 namespace Dotmim.Sync.Test
 {
@@ -136,12 +137,8 @@ namespace Dotmim.Sync.Test
             SqlSyncProvider serverProvider = new SqlSyncProvider(fixture.ServerConnectionString);
             SqlSyncProvider clientProvider = new SqlSyncProvider(fixture.Client1ConnectionString);
 
-            SyncConfiguration configuration = new SyncConfiguration(new[] { "ServiceTickets" });
-
-            // Add a filter
-            configuration.Filters.Add("ServiceTickets", "CustomerID");
-
-            SyncAgent agent = new SyncAgent(clientProvider, serverProvider, configuration);
+            SyncAgent agent = new SyncAgent(clientProvider, serverProvider, new[] { "ServiceTickets" });
+            agent.Configuration.Filters.Add(new FilterClause("ServiceTickets", "CustomerID"));
             agent.Parameters.Add("ServiceTickets", "CustomerID", 1);
 
             var session = await agent.SynchronizeAsync();
@@ -159,17 +156,15 @@ namespace Dotmim.Sync.Test
             var cli2Provider = new SqlSyncProvider(fixture.Client2ConnectionString);
             var cli3Provider = new SqlSyncProvider(fixture.Client3ConnectionString);
 
-            SyncConfiguration configuration = new SyncConfiguration(new[] { "ServiceTickets" });
-
-            // Add a filter
-            configuration.Filters.Add("ServiceTickets", "CustomerID");
-
+ 
             // first agent with parameter for filter
-            SyncAgent agent2 = new SyncAgent(cli2Provider, serverProvider, configuration);
+            SyncAgent agent2 = new SyncAgent(cli2Provider, serverProvider, new[] { "ServiceTickets" });
+            agent2.Configuration.Filters.Add(new FilterClause("ServiceTickets", "CustomerID"));
             agent2.Parameters.Add("ServiceTickets", "CustomerID", 1);
 
             // second agent with no parameter
-            SyncAgent agent3 = new SyncAgent(cli3Provider, serverProvider, configuration);
+            SyncAgent agent3 = new SyncAgent(cli3Provider, serverProvider, new[] { "ServiceTickets" });
+            agent3.Configuration.Filters.Add(new FilterClause("ServiceTickets", "CustomerID"));
 
             var session2 = await agent2.SynchronizeAsync();
             var session3 = await agent3.SynchronizeAsync();
@@ -227,15 +222,15 @@ namespace Dotmim.Sync.Test
 
             SyncConfiguration configuration = new SyncConfiguration(new[] { "ServiceTickets" });
 
-            // Add a filter
-            configuration.Filters.Add("ServiceTickets", "CustomerID");
 
             // first agent with parameter for filter
-            SyncAgent agent1 = new SyncAgent(cli1Provider, serverProvider, configuration);
+            SyncAgent agent1 = new SyncAgent(cli1Provider, serverProvider, new[] { "ServiceTickets" });
+            agent1.Configuration.Filters.Add(new FilterClause("ServiceTickets", "CustomerID"));
             agent1.Parameters.Add("ServiceTickets", "CustomerID", 1);
 
             // second agent with no parameter
-            SyncAgent agent2 = new SyncAgent(cli2Provider, serverProvider, configuration);
+            SyncAgent agent2 = new SyncAgent(cli2Provider, serverProvider, new[] { "ServiceTickets" });
+            agent2.Configuration.Filters.Add(new FilterClause("ServiceTickets", "CustomerID"));
 
 
             var session1 = await agent1.SynchronizeAsync();
@@ -266,17 +261,17 @@ namespace Dotmim.Sync.Test
             var cli1Provider = new SqlSyncProvider(fixture.Client2ConnectionString);
             var cli2Provider = new SqlSyncProvider(fixture.Client3ConnectionString);
 
-            SyncConfiguration configuration = new SyncConfiguration(new[] { "ServiceTickets" });
 
-            // Add a filter
-            configuration.Filters.Add("ServiceTickets", "CustomerID");
+
 
             // first agent with parameter for filter
-            SyncAgent agent1 = new SyncAgent(cli1Provider, serverProvider, configuration);
+            SyncAgent agent1 = new SyncAgent(cli1Provider, serverProvider, new[] { "ServiceTickets" });
+            agent1.Configuration.Filters.Add(new FilterClause("ServiceTickets", "CustomerID"));
             agent1.Parameters.Add("ServiceTickets", "CustomerID", 1);
 
             // second agent with no parameter
-            SyncAgent agent2 = new SyncAgent(cli2Provider, serverProvider, configuration);
+            SyncAgent agent2 = new SyncAgent(cli2Provider, serverProvider, new[] { "ServiceTickets" });
+            agent2.Configuration.Filters.Add(new FilterClause("ServiceTickets", "CustomerID"));
 
 
             var session1 = await agent1.SynchronizeAsync();
@@ -309,15 +304,16 @@ namespace Dotmim.Sync.Test
 
             SyncConfiguration configuration = new SyncConfiguration(new[] { "ServiceTickets" });
 
-            // Add a filter
-            configuration.Filters.Add("ServiceTickets", "CustomerID");
 
             // first agent with parameter for filter
-            SyncAgent agent1 = new SyncAgent(cli1Provider, serverProvider, configuration);
+            SyncAgent agent1 = new SyncAgent(cli1Provider, serverProvider, new[] { "ServiceTickets" });
+            // Add a filter
+            agent1.Configuration.Filters.Add(new FilterClause("ServiceTickets", "CustomerID"));
             agent1.Parameters.Add("ServiceTickets", "CustomerID", 1);
 
             // second agent with no parameter
-            SyncAgent agent2 = new SyncAgent(cli2Provider, serverProvider, configuration);
+            SyncAgent agent2 = new SyncAgent(cli2Provider, serverProvider, new[] { "ServiceTickets" });
+            agent2.Configuration.Filters.Add(new FilterClause("ServiceTickets", "CustomerID"));
 
 
             var session1 = await agent1.SynchronizeAsync();
@@ -328,6 +324,6 @@ namespace Dotmim.Sync.Test
 
 
         }
-       
+
     }
 }
