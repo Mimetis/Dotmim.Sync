@@ -118,7 +118,7 @@ namespace Dotmim.Sync
                     downloadBatchSizeInKB = 10000;
 
                 (var batchInfo, var changesSelected) =
-                    await this.EnumerateChangesInBatchesInternal(context, scopeInfo, downloadBatchSizeInKB, config.ScopeSet, batchDirectory, policy, filters);
+                    await this.EnumerateChangesInBatchesInternal(context, scopeInfo, downloadBatchSizeInKB, config.Schema, batchDirectory, policy, filters);
 
                 var dir = Path.Combine(batchDirectory, batchInfo.Directory);
                 var archiveFullName = String.Concat(batchDirectory, "\\", Path.GetRandomFileName());

@@ -17,6 +17,7 @@ using System.Threading;
 using Dotmim.Sync.Serialization;
 using System.Diagnostics;
 using System.Text;
+using Dotmim.Sync.Messages;
 
 namespace Dotmim.Sync
 {
@@ -211,7 +212,7 @@ namespace Dotmim.Sync
         /// Called by the  to indicate that a 
         /// synchronization session has started.
         /// </summary>
-        public virtual Task<(SyncContext, SyncConfiguration)> BeginSessionAsync(SyncContext context, SyncConfiguration configuration)
+        public virtual Task<(SyncContext, SyncConfiguration)> BeginSessionAsync(SyncContext context, MessageBeginSession message)
         {
             try
             {
@@ -231,7 +232,7 @@ namespace Dotmim.Sync
                 var progressEventArgs = new BeginSessionEventArgs(this.ProviderTypeName, context.SyncStage);
                 this.TryRaiseProgressEvent(progressEventArgs, this.BeginSession);
 
-                return Task.FromResult((context, configuration));
+                return Task.FromResult((context, message.SyncConfiguration));
             }
             catch (Exception ex)
             {

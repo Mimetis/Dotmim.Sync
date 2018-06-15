@@ -57,7 +57,7 @@ namespace Dotmim.Sync.Web
                 throw new ArgumentException("BaseUri is not defined");
 
             HttpResponseMessage response = null;
-            T dmSetResponse = default(T);
+            T responseMessage = default(T);
             try
             {
                 if (cancellationToken.IsCancellationRequested)
@@ -138,9 +138,9 @@ namespace Dotmim.Sync.Web
 
                 using (var streamResponse = await response.Content.ReadAsStreamAsync())
                     if (streamResponse.CanRead && streamResponse.Length > 0)
-                        dmSetResponse = serializer.Deserialize(streamResponse);
+                        responseMessage = serializer.Deserialize(streamResponse);
 
-                return dmSetResponse;
+                return responseMessage;
 
             }
             catch (TaskCanceledException ex)

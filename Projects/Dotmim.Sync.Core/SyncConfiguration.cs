@@ -37,7 +37,7 @@ namespace Dotmim.Sync
         /// </summary>
 
         [JsonIgnore]
-        public DmSet ScopeSet
+        public DmSet Schema
         {
             get
             {
@@ -111,9 +111,9 @@ namespace Dotmim.Sync
                 {
                     _storedProceduresPrefix = value;
 
-                    if (this.ScopeSet != null || this.ScopeSet.Tables != null)
+                    if (this.Schema != null || this.Schema.Tables != null)
                     {
-                        foreach (var tbl in this.ScopeSet.Tables)
+                        foreach (var tbl in this.Schema.Tables)
                         {
                             tbl.StoredProceduresPrefix = _storedProceduresPrefix;
                         }
@@ -135,9 +135,9 @@ namespace Dotmim.Sync
                 {
                     _storedProceduresSuffix = value;
 
-                    if (this.ScopeSet != null || this.ScopeSet.Tables != null)
+                    if (this.Schema != null || this.Schema.Tables != null)
                     {
-                        foreach (var tbl in this.ScopeSet.Tables)
+                        foreach (var tbl in this.Schema.Tables)
                         {
                             tbl.StoredProceduresSuffix = _storedProceduresSuffix;
                         }
@@ -159,9 +159,9 @@ namespace Dotmim.Sync
                 {
                     _trackingTablesPrefix = value;
 
-                    if (this.ScopeSet != null || this.ScopeSet.Tables != null)
+                    if (this.Schema != null || this.Schema.Tables != null)
                     {
-                        foreach (var tbl in this.ScopeSet.Tables)
+                        foreach (var tbl in this.Schema.Tables)
                         {
                             tbl.TrackingTablesPrefix = _trackingTablesPrefix;
                         }
@@ -183,9 +183,9 @@ namespace Dotmim.Sync
                 {
                     _trackingTablesSuffix = value;
 
-                    if (this.ScopeSet != null || this.ScopeSet.Tables != null)
+                    if (this.Schema != null || this.Schema.Tables != null)
                     {
-                        foreach (var tbl in this.ScopeSet.Tables)
+                        foreach (var tbl in this.Schema.Tables)
                         {
                             tbl.TrackingTablesSuffix = _trackingTablesSuffix;
                         }
@@ -217,7 +217,7 @@ namespace Dotmim.Sync
 
         public SyncConfiguration()
         {
-            this.ScopeSet = new DmSet(DMSET_NAME);
+            this.Schema = new DmSet(DMSET_NAME);
             this.ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
             this.DownloadBatchSizeInKB = 0;
             this.UseVerboseErrors = false;
@@ -244,7 +244,7 @@ namespace Dotmim.Sync
                 BatchDirectory = this.BatchDirectory,
                 ConflictResolutionPolicy = this.ConflictResolutionPolicy,
                 DownloadBatchSizeInKB = this.DownloadBatchSizeInKB,
-                ScopeSet = this.ScopeSet.Clone(),
+                Schema = this.Schema.Clone(),
                 UseBulkOperations = this.UseBulkOperations,
                 UseVerboseErrors = this.UseVerboseErrors,
                 SerializationFormat = this.SerializationFormat,
@@ -413,11 +413,11 @@ namespace Dotmim.Sync
         {
             get
             {
-                if (this.ScopeSet == null)
+                if (this.Schema == null)
                     return 0;
-                if (this.ScopeSet.Tables == null)
+                if (this.Schema.Tables == null)
                     return 0;
-                return this.ScopeSet.Tables.Count;
+                return this.Schema.Tables.Count;
             }
         }
 
@@ -437,7 +437,7 @@ namespace Dotmim.Sync
         /// </summary>
         public void Add(string table)
         {
-            if (this.ScopeSet == null || this.ScopeSet.Tables == null)
+            if (this.Schema == null || this.Schema.Tables == null)
                 throw new InvalidOperationException($"Can't add new table {table} in Configuration, ScopeSet is null");
 
             // Potentially user can pass something like [SalesLT].[Product]
@@ -447,7 +447,7 @@ namespace Dotmim.Sync
             var tableName = parser.ObjectName;
             var schema = parser.SchemaName;
 
-            if (!this.ScopeSet.Tables.Contains(tableName))
+            if (!this.Schema.Tables.Contains(tableName))
             {
                 var dmTable = new DmTable(tableName);
                 if (!String.IsNullOrEmpty(schema))
@@ -458,7 +458,7 @@ namespace Dotmim.Sync
                 dmTable.TrackingTablesPrefix = this.TrackingTablesPrefix;
                 dmTable.TrackingTablesSuffix = this.TrackingTablesSuffix;
 
-                this.ScopeSet.Tables.Add(dmTable);
+                this.Schema.Tables.Add(dmTable);
             }
         }
 
@@ -467,7 +467,7 @@ namespace Dotmim.Sync
         /// </summary>
         public void Add(DmTable item)
         {
-            if (this.ScopeSet == null || this.ScopeSet.Tables == null)
+            if (this.Schema == null || this.Schema.Tables == null)
                 throw new InvalidOperationException("Can't add a dmTable in Configuration, ScopeSet is null");
 
             item.StoredProceduresPrefix = this.StoredProceduresPrefix;
@@ -475,7 +475,7 @@ namespace Dotmim.Sync
             item.TrackingTablesPrefix = this.TrackingTablesPrefix;
             item.TrackingTablesSuffix = this.TrackingTablesSuffix;
 
-            this.ScopeSet.Tables.Add(item);
+            this.Schema.Tables.Add(item);
         }
 
         //public void Clear()
