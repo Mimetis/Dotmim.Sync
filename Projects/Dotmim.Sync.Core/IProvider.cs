@@ -3,6 +3,7 @@ using Dotmim.Sync.Builders;
 using Dotmim.Sync.Data;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Filter;
+using Dotmim.Sync.Messages;
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -40,7 +41,7 @@ namespace Dotmim.Sync
         /// Begin Session. if Configuration is set locally, then send it to the server
         /// On Server side, you can override Configuration and then send back the new configuration to apply on local machine
         /// </summary>
-        Task<(SyncContext, SyncConfiguration)> BeginSessionAsync(SyncContext context, SyncConfiguration configuration);
+        Task<(SyncContext, SyncConfiguration)> BeginSessionAsync(SyncContext context, MessageBeginSession message);
 
         /// <summary>
         /// Ensure scopes are created on both local and remote 
@@ -51,13 +52,13 @@ namespace Dotmim.Sync
         /// <summary>
         /// Ensure tables are get from datastore
         /// </summary>
-        Task<SyncContext> EnsureSchemaAsync(SyncContext context, DmSet schema = null);
+        Task<(SyncContext, DmSet)> EnsureSchemaAsync(SyncContext context, DmSet schema = null);
 
         /// <summary>
         /// Ensure database is ready and created
         /// </summary>
         Task<SyncContext> EnsureDatabaseAsync(SyncContext context, ScopeInfo scopeInfo, 
-            DmSet configTables, ICollection<FilterClause> filters);
+            DmSet schema, ICollection<FilterClause> filters);
 
         /// <summary>
         /// Apply changes to the local storage, coming from this scope

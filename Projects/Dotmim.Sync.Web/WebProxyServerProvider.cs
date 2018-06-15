@@ -15,6 +15,8 @@ using Dotmim.Sync.Cache;
 using Microsoft.AspNetCore.Session;
 using Dotmim.Sync.Data;
 using Dotmim.Sync.Filter;
+using Dotmim.Sync.Messages;
+using Newtonsoft.Json.Linq;
 
 namespace Dotmim.Sync.Web
 {
@@ -142,19 +144,23 @@ namespace Dotmim.Sync.Web
 
         private async Task<HttpMessage> BeginSessionAsync(HttpMessage httpMessage)
         {
+            var httpMessageBeginSession = (httpMessage.Content as JObject).ToObject<HttpMessageBeginSession>();
 
             // the Conf is hosted by the server ? if not, get the client configuration
-            var configuration = this.Configuration ?? httpMessage.BeginSessionMessage.SyncConfiguration;
+            var configuration = this.Configuration ?? httpMessageBeginSession.SyncConfiguration;
 
             // Begin the session, requesting the server for the correct configuration
             (SyncContext ctx, SyncConfiguration conf) =
-                await this.BeginSessionAsync(httpMessage.SyncContext, configuration);
+                await this.BeginSessionAsync(httpMessage.SyncContext, httpMessageBeginSession as MessageBeginSession);
 
             // One exception : don't touch the batch directory, it's very client specific and may differ from server side
-            conf.BatchDirectory = httpMessage.BeginSessionMessage.SyncConfiguration.BatchDirectory;
+            conf.BatchDirectory = httpMessageBeginSession.SyncConfiguration.BatchDirectory;
+            httpMessageBeginSession.SyncConfiguration = conf;
 
             httpMessage.SyncContext = ctx;
-            httpMessage.BeginSessionMessage.SyncConfiguration = conf;
+
+            // Dont forget to re-assign since it's a JObject, until now
+            httpMessage.Content = httpMessageBeginSession;
 
             return httpMessage;
         }
@@ -170,52 +176,62 @@ namespace Dotmim.Sync.Web
 
         private async Task<HttpMessage> EnsureScopesAsync(HttpMessage httpMessage)
         {
-            if (httpMessage.EnsureScopes == null)
+            var httpMessageEnsureScopes = (httpMessage.Content as JObject).ToObject<HttpMessageEnsureScopes>();
+
+            if (httpMessageEnsureScopes == null)
                 throw new ArgumentException("EnsureScopeMessage could not be null");
 
             var (syncContext, lstScopes) = await this.EnsureScopesAsync(
-                httpMessage.SyncContext, httpMessage.EnsureScopes.ScopeInfoTableName, httpMessage.EnsureScopes.ScopeName, httpMessage.EnsureScopes.ClientReferenceId);
+                httpMessage.SyncContext, httpMessageEnsureScopes.ScopeInfoTableName, httpMessageEnsureScopes.ScopeName,
+                httpMessageEnsureScopes.ClientReferenceId);
 
             // Local scope is the server scope here
-            httpMessage.EnsureScopes.Scopes = lstScopes;
+            httpMessageEnsureScopes.Scopes = lstScopes;
+
             httpMessage.SyncContext = syncContext;
+
+            // Dont forget to re-assign since it's a JObject, until now
+            httpMessage.Content = httpMessageEnsureScopes;
 
             return httpMessage;
         }
 
         private async Task<HttpMessage> EnsureSchemaAsync(HttpMessage httpMessage)
         {
+            var httpMessageContent = (httpMessage.Content as JObject).ToObject<HttpMessageEnsureSchema>();
 
-            var schema = httpMessage.EnsureSchema.Schema.ConvertToDmSet();
-            httpMessage.EnsureSchema.Schema.Dispose();
-            httpMessage.EnsureSchema.Schema = null;
+            if (httpMessageContent == null)
+                throw new ArgumentException("EnsureSchema message could not be null");
 
-            var syncContext = await this.EnsureSchemaAsync(httpMessage.SyncContext, schema);
+            // If the Conf is hosted by the server, we try to get the tables from it, overriding the client schema, if passed
+            var schema = this.Configuration.Schema ?? httpMessageContent.Schema.ConvertToDmSet();
 
-            httpMessage.SyncContext = syncContext;
+            httpMessageContent.Schema.Dispose();
+            httpMessageContent.Schema = null;
 
-            var schemaSurrogate = new DmSetSurrogate(schema);
+            (httpMessage.SyncContext, schema) = await this.EnsureSchemaAsync(httpMessage.SyncContext, schema);
+
+            httpMessageContent.Schema = new DmSetSurrogate(schema);
 
             schema.Clear();
             schema = null;
 
-            httpMessage.EnsureSchema = new HttpEnsureSchemaMessage
-            {
-                Schema = schemaSurrogate
-            };
+            // Dont forget to re-assign since it's a JObject, until now
+            httpMessage.Content = httpMessageContent;
 
             return httpMessage;
         }
 
         private async Task<HttpMessage> EnsureDatabaseAsync(HttpMessage httpMessage)
         {
-            if (httpMessage.EnsureDatabase == null)
+            var httpMessageContent = (httpMessage.Content as JObject).ToObject<HttpMessageEnsureDatabase>();
+
+            if (httpMessageContent == null)
                 throw new ArgumentException("EnsureDatabase message could not be null");
 
-            var schema = httpMessage.EnsureDatabase.Schema.ConvertToDmSet();
-
             httpMessage.SyncContext = await this.EnsureDatabaseAsync(
-                httpMessage.SyncContext, httpMessage.EnsureDatabase.ScopeInfo, schema, httpMessage.EnsureDatabase.Filters);
+                httpMessage.SyncContext, httpMessageContent.ScopeInfo,
+                httpMessageContent.Schema.ConvertToDmSet(), httpMessageContent.Filters);
 
             return httpMessage;
         }
@@ -228,36 +244,37 @@ namespace Dotmim.Sync.Web
         /// <returns></returns>
         private async Task<HttpMessage> GetChangeBatchAsync(HttpMessage httpMessage)
         {
-            if (httpMessage.GetChangeBatch == null)
+            var httpMessageContent = (httpMessage.Content as JObject).ToObject<HttpMessageGetChangesBatch>();
+
+            if (httpMessageContent == null)
                 throw new ArgumentException("GetChangeBatch message could not be null");
 
-            var scopeInfo = httpMessage.GetChangeBatch.ScopeInfo;
+            var scopeInfo = httpMessageContent.ScopeInfo;
 
             if (scopeInfo == null)
                 throw new ArgumentException("GetChangeBatch ScopeInfo could not be null");
 
             // if we get the first batch info request, made it.
             // Server is able to define if it's in memory or not
-            if (httpMessage.GetChangeBatch.BatchIndexRequested == 0)
+            if (httpMessageContent.BatchIndexRequested == 0)
             {
                 var (syncContext, bi, changesSelected) = await this.GetChangeBatchAsync(
                     httpMessage.SyncContext, scopeInfo,
-                    httpMessage.GetChangeBatch.Schema,
-                    httpMessage.GetChangeBatch.DownloadBatchSizeInKB,
-                    httpMessage.GetChangeBatch.BatchDirectory,
-                    httpMessage.GetChangeBatch.Policy,
-                    httpMessage.GetChangeBatch.Filters);
+                    httpMessageContent.Schema.ConvertToDmSet(),
+                    httpMessageContent.DownloadBatchSizeInKB,
+                    httpMessageContent.BatchDirectory,
+                    httpMessageContent.Policy,
+                    httpMessageContent.Filters);
 
                 // Select the first bpi needed (index == 0)
                 if (bi.BatchPartsInfo.Count > 0)
-                    httpMessage.GetChangeBatch.BatchPartInfo = bi.BatchPartsInfo.First(bpi => bpi.Index == 0);
+                    httpMessageContent.BatchPartInfo = bi.BatchPartsInfo.First(bpi => bpi.Index == 0);
 
-                httpMessage.SyncContext = syncContext;
-                httpMessage.GetChangeBatch.InMemory = bi.InMemory;
-                httpMessage.GetChangeBatch.ChangesSelected = changesSelected;
+                httpMessageContent.InMemory = bi.InMemory;
+                httpMessageContent.ChangesSelected = changesSelected;
 
                 // if no changes, return
-                if (httpMessage.GetChangeBatch.BatchPartInfo == null)
+                if (httpMessageContent.BatchPartInfo == null)
                     return httpMessage;
 
                 // if we are not in memory, we set the BI in session, to be able to get it back on next request
@@ -268,20 +285,22 @@ namespace Dotmim.Sync.Web
                     this.LocalProvider.CacheManager.Set("GetChangeBatch_ChangesSelected", changesSelected);
 
                     // load the batchpart set directly, to be able to send it back
-                    var batchPart = httpMessage.GetChangeBatch.BatchPartInfo.GetBatch();
-                    httpMessage.GetChangeBatch.Set = batchPart.DmSetSurrogate;
+                    var batchPart = httpMessageContent.BatchPartInfo.GetBatch();
+                    httpMessageContent.Set = batchPart.DmSetSurrogate;
                 }
                 else
                 {
                     // We are in memory, so generate the DmSetSurrogate to be able to send it back
-                    httpMessage.GetChangeBatch.Set = new DmSetSurrogate(httpMessage.GetChangeBatch.BatchPartInfo.Set);
-                    httpMessage.GetChangeBatch.BatchPartInfo.Set.Clear();
-                    httpMessage.GetChangeBatch.BatchPartInfo.Set = null;
+                    httpMessageContent.Set = new DmSetSurrogate(httpMessageContent.BatchPartInfo.Set);
+                    httpMessageContent.BatchPartInfo.Set.Clear();
+                    httpMessageContent.BatchPartInfo.Set = null;
                 }
 
                 // no need fileName info
-                httpMessage.GetChangeBatch.BatchPartInfo.FileName = null;
+                httpMessageContent.BatchPartInfo.FileName = null;
 
+                httpMessage.SyncContext = syncContext;
+                httpMessage.Content = httpMessageContent;
                 return httpMessage;
             }
 
@@ -292,41 +311,44 @@ namespace Dotmim.Sync.Web
             if (batchInfo == null)
                 throw new ArgumentNullException("batchInfo stored in session can't be null if request more batch part info.");
 
-            httpMessage.GetChangeBatch.ChangesSelected = stats;
-            httpMessage.GetChangeBatch.InMemory = batchInfo.InMemory;
+            httpMessageContent.ChangesSelected = stats;
+            httpMessageContent.InMemory = batchInfo.InMemory;
 
-            var batchPartInfo = batchInfo.BatchPartsInfo.FirstOrDefault(bpi => bpi.Index == httpMessage.GetChangeBatch.BatchIndexRequested);
+            var batchPartInfo = batchInfo.BatchPartsInfo.FirstOrDefault(bpi => bpi.Index == httpMessageContent.BatchIndexRequested);
 
-            httpMessage.GetChangeBatch.BatchPartInfo = batchPartInfo;
+            httpMessageContent.BatchPartInfo = batchPartInfo;
 
             // load the batchpart set directly, to be able to send it back
-            httpMessage.GetChangeBatch.Set = httpMessage.GetChangeBatch.BatchPartInfo.GetBatch().DmSetSurrogate;
+            httpMessageContent.Set = httpMessageContent.BatchPartInfo.GetBatch().DmSetSurrogate;
 
-            if (httpMessage.GetChangeBatch.BatchPartInfo.IsLastBatch)
+            if (httpMessageContent.BatchPartInfo.IsLastBatch)
             {
                 this.LocalProvider.CacheManager.Remove("GetChangeBatch_BatchInfo");
                 this.LocalProvider.CacheManager.Remove("GetChangeBatch_ChangesSelected");
             }
 
+            httpMessage.Content = httpMessageContent;
             return httpMessage;
         }
 
         private async Task<HttpMessage> ApplyChangesAsync(HttpMessage httpMessage)
         {
-            if (httpMessage.ApplyChanges == null)
+            var httpMessageContent = (httpMessage.Content as JObject).ToObject<HttpMessageApplyChanges>();
+
+            if (httpMessageContent == null)
                 throw new ArgumentException("ApplyChanges message could not be null");
 
-            var scopeInfo = httpMessage.ApplyChanges.ScopeInfo;
+            var scopeInfo = httpMessageContent.ScopeInfo;
 
             if (scopeInfo == null)
                 throw new ArgumentException("ApplyChanges ScopeInfo could not be null");
 
-            var configTables = httpMessage.ApplyChanges.Schema.ConvertToDmSet();
+            var configTables = httpMessageContent.Schema.ConvertToDmSet();
 
             BatchInfo batchInfo;
-            var bpi = httpMessage.ApplyChanges.BatchPartInfo;
+            var bpi = httpMessageContent.BatchPartInfo;
 
-            if (httpMessage.ApplyChanges.InMemory)
+            if (httpMessageContent.InMemory)
             {
                 batchInfo = new BatchInfo
                 {
@@ -335,20 +357,21 @@ namespace Dotmim.Sync.Web
                     InMemory = true
                 };
 
-                bpi.Set = httpMessage.ApplyChanges.Set.ConvertToDmSet();
+                bpi.Set = httpMessageContent.Set.ConvertToDmSet();
 
-                httpMessage.ApplyChanges.Set.Dispose();
-                httpMessage.ApplyChanges.Set = null;
+                httpMessageContent.Set.Dispose();
+                httpMessageContent.Set = null;
 
                 var (c, s) = await this.ApplyChangesAsync(httpMessage.SyncContext, scopeInfo,
-                    configTables, httpMessage.ApplyChanges.Policy, httpMessage.ApplyChanges.UseBulkOperations, httpMessage.ApplyChanges.ScopeInfoTableName, 
+                    configTables, httpMessageContent.Policy, httpMessageContent.UseBulkOperations, httpMessageContent.ScopeInfoTableName,
                     batchInfo);
 
-                httpMessage.SyncContext = c;
-                httpMessage.ApplyChanges.ChangesApplied = s;
+                httpMessageContent.ChangesApplied = s;
+                httpMessageContent.BatchPartInfo.Clear();
+                httpMessageContent.BatchPartInfo.FileName = null;
 
-                httpMessage.ApplyChanges.BatchPartInfo.Clear();
-                httpMessage.ApplyChanges.BatchPartInfo.FileName = null;
+                httpMessage.SyncContext = c;
+                httpMessage.Content = httpMessageContent;
 
                 return httpMessage;
             }
@@ -371,21 +394,21 @@ namespace Dotmim.Sync.Web
                 batchInfo.BatchPartsInfo.Add(bpi);
             }
 
-            var bpId = BatchInfo.GenerateNewFileName(httpMessage.ApplyChanges.BatchIndex.ToString());
+            var bpId = BatchInfo.GenerateNewFileName(httpMessageContent.BatchIndex.ToString());
 
             // to save the file, we should use the local configuration batch directory
             var fileName = Path.Combine(this.Configuration.BatchDirectory, batchInfo.Directory, bpId);
 
-            BatchPart.Serialize(httpMessage.ApplyChanges.Set, fileName);
+            BatchPart.Serialize(httpMessageContent.Set, fileName);
             bpi.FileName = fileName;
 
             this.LocalProvider.CacheManager.Set("ApplyChanges_BatchInfo", batchInfo);
 
             // Clear the httpMessage set
-            if (httpMessage.ApplyChanges != null)
+            if (httpMessageContent != null)
             {
-                httpMessage.ApplyChanges.Set.Dispose();
-                httpMessage.ApplyChanges.Set = null;
+                httpMessageContent.Set.Dispose();
+                httpMessageContent.Set = null;
             }
 
 
@@ -393,39 +416,50 @@ namespace Dotmim.Sync.Web
             if (bpi.IsLastBatch)
             {
                 var (c, s) = await this.ApplyChangesAsync(httpMessage.SyncContext, scopeInfo,
-                    configTables, httpMessage.ApplyChanges.Policy, httpMessage.ApplyChanges.UseBulkOperations, httpMessage.ApplyChanges.ScopeInfoTableName,
+                    configTables, httpMessageContent.Policy, httpMessageContent.UseBulkOperations, httpMessageContent.ScopeInfoTableName,
                     batchInfo);
                 this.LocalProvider.CacheManager.Remove("ApplyChanges_BatchInfo");
                 httpMessage.SyncContext = c;
-                httpMessage.ApplyChanges.ChangesApplied = s;
+                httpMessageContent.ChangesApplied = s;
             }
 
-            httpMessage.ApplyChanges.BatchPartInfo.Clear();
-            httpMessage.ApplyChanges.BatchPartInfo.FileName = null;
+            httpMessageContent.BatchPartInfo.Clear();
+            httpMessageContent.BatchPartInfo.FileName = null;
+
+            httpMessage.Content = httpMessageContent;
 
             return httpMessage;
         }
 
         private async Task<HttpMessage> GetLocalTimestampAsync(HttpMessage httpMessage)
         {
-            var (ctx, ts) = await this.GetLocalTimestampAsync(httpMessage.SyncContext, httpMessage.GetLocalTimestamp.ScopeInfoTableName);
+            var httpMessageContent = (httpMessage.Content as JObject).ToObject<HttpMessageTimestamp>();
 
-            httpMessage.GetLocalTimestamp.LocalTimestamp = ts ;
+            if (httpMessageContent == null)
+                throw new ArgumentException("Timestamp message could not be null");
+
+
+            var (ctx, ts) = await this.GetLocalTimestampAsync(httpMessage.SyncContext, httpMessageContent.ScopeInfoTableName);
+
+            httpMessageContent.LocalTimestamp = ts;
             httpMessage.SyncContext = ctx;
+            httpMessage.Content = httpMessageContent;
             return httpMessage;
         }
 
         private async Task<HttpMessage> WriteScopesAsync(HttpMessage httpMessage)
         {
-            if (httpMessage.WriteScopes == null)
+            var httpMessageContent = (httpMessage.Content as JObject).ToObject<HttpMessageWriteScopes>();
+
+            if (httpMessageContent == null)
                 throw new ArgumentException("WriteScopes message could not be null");
 
-            var scopes = httpMessage.WriteScopes.Scopes;
+            var scopes = httpMessageContent.Scopes;
 
             if (scopes == null || scopes.Count <= 0)
                 throw new ArgumentException("WriteScopes scopes could not be null and should have at least 1 scope info");
 
-            var ctx = await this.WriteScopesAsync(httpMessage.SyncContext, httpMessage.WriteScopes.ScopeInfoTableName,  scopes );
+            var ctx = await this.WriteScopesAsync(httpMessage.SyncContext, httpMessageContent.ScopeInfoTableName, scopes);
 
             httpMessage.SyncContext = ctx;
 
@@ -471,8 +505,8 @@ namespace Dotmim.Sync.Web
 
         public async Task<(SyncContext, ChangesApplied)> ApplyChangesAsync(SyncContext ctx, ScopeInfo fromScope, DmSet configTables, ConflictResolutionPolicy policy, Boolean useBulkOperations, String scopeInfoTableName, BatchInfo changes)
             => await this.LocalProvider.ApplyChangesAsync(ctx, fromScope, configTables, policy, useBulkOperations, scopeInfoTableName, changes);
-        public async Task<(SyncContext, SyncConfiguration)> BeginSessionAsync(SyncContext ctx, SyncConfiguration conf)
-            => await this.LocalProvider.BeginSessionAsync(ctx, conf);
+        public async Task<(SyncContext, SyncConfiguration)> BeginSessionAsync(SyncContext ctx, MessageBeginSession message)
+            => await this.LocalProvider.BeginSessionAsync(ctx, message);
         public async Task<SyncContext> EndSessionAsync(SyncContext ctx)
             => await this.LocalProvider.EndSessionAsync(ctx);
         public async Task<SyncContext> EnsureDatabaseAsync(SyncContext ctx, ScopeInfo scopeInfo, DmSet schema, ICollection<FilterClause> filters)
@@ -485,7 +519,7 @@ namespace Dotmim.Sync.Web
             => await this.LocalProvider.GetLocalTimestampAsync(ctx, scopeInfoTableName);
         public async Task<SyncContext> WriteScopesAsync(SyncContext ctx, String scopeInfoTableName, List<ScopeInfo> scopes)
             => await this.LocalProvider.WriteScopesAsync(ctx, scopeInfoTableName, scopes);
-        public async Task<SyncContext> EnsureSchemaAsync(SyncContext ctx, DmSet schema)
+        public async Task<(SyncContext, DmSet)> EnsureSchemaAsync(SyncContext ctx, DmSet schema)
             => await this.LocalProvider.EnsureSchemaAsync(ctx, schema);
 
         public void SetCancellationToken(CancellationToken token)

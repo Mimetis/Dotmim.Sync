@@ -1,10 +1,6 @@
 ﻿using Dotmim.Sync;
 using Dotmim.Sync.Web;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Microsoft.Extensions.DependencyInjection
 {

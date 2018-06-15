@@ -4,7 +4,9 @@ using Dotmim.Sync.Data;
 using Dotmim.Sync.Data.Surrogate;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Filter;
+using Dotmim.Sync.Messages;
 using Microsoft.Net.Http.Headers;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -166,28 +168,27 @@ namespace Dotmim.Sync.Web
                 this.AddCustomHeader(ch.Key, ch.Value);
         }
 
-        public async Task<(SyncContext, SyncConfiguration)> BeginSessionAsync(SyncContext context, SyncConfiguration configuration)
+        public async Task<(SyncContext, SyncConfiguration)> BeginSessionAsync(SyncContext context, MessageBeginSession message)
         {
-            HttpMessage message = new HttpMessage
+            HttpMessage httpMessage = new HttpMessage
             {
                 Step = HttpStep.BeginSession,
                 SyncContext = context,
+                Content = new HttpMessageBeginSession
+                {
+                    SyncConfiguration = message.SyncConfiguration
+                }
             };
-
-            HttpBeginSessionMessage httpBeginSessionMessage = new HttpBeginSessionMessage
-            {
-                SyncConfiguration = configuration
-            };
-
-            message.BeginSessionMessage = httpBeginSessionMessage;
 
             //Post request and get response
-            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(message, cancellationToken);
+            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, cancellationToken);
 
-            if (httpMessageResponse == null)
+            if (httpMessageResponse == null || httpMessageResponse.Content == null)
                 throw new Exception("Can't have an empty body");
 
-            return (httpMessageResponse.SyncContext, httpMessageResponse.BeginSessionMessage.SyncConfiguration);
+            var httpMessageContent = (httpMessageResponse.Content as JObject).ToObject<HttpMessageBeginSession>();
+
+            return (httpMessageResponse.SyncContext, httpMessageContent.SyncConfiguration);
         }
 
 
@@ -211,41 +212,39 @@ namespace Dotmim.Sync.Web
         public async Task<(SyncContext, List<ScopeInfo>)> EnsureScopesAsync(SyncContext context,
             String scopeInfoTableName, String scopeName, Guid? clientReferenceId = null)
         {
-            HttpMessage httpMessage = new HttpMessage();
-            httpMessage.Step = HttpStep.EnsureScopes;
-
-
-            HttpEnsureScopesMessage ensureScopeMessage = new HttpEnsureScopesMessage
+            HttpMessage httpMessage = new HttpMessage
             {
-                ClientReferenceId = clientReferenceId,
-                ScopeInfoTableName = scopeInfoTableName,
-                ScopeName = scopeName
+                SyncContext = context,
+                Step = HttpStep.EnsureScopes,
+                Content = new HttpMessageEnsureScopes
+                {
+                    ClientReferenceId = clientReferenceId,
+                    ScopeInfoTableName = scopeInfoTableName,
+                    ScopeName = scopeName
+                }
             };
-
-
-            httpMessage.EnsureScopes = ensureScopeMessage;
-            httpMessage.SyncContext = context;
-
+      
             //Post request and get response
             var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, cancellationToken);
 
             if (httpMessageResponse == null)
                 throw new Exception("Can't have an empty body");
 
-            return (httpMessageResponse.SyncContext, httpMessageResponse.EnsureScopes.Scopes);
+            var httpMessageContent = (httpMessageResponse.Content as JObject).ToObject<HttpMessageEnsureScopes>();
+
+            return (httpMessageResponse.SyncContext, httpMessageContent.Scopes);
         }
 
-        public async Task<SyncContext> EnsureSchemaAsync(SyncContext context, DmSet schema = null)
+        public async Task<(SyncContext, DmSet)> EnsureSchemaAsync(SyncContext context, DmSet schema = null)
         {
             HttpMessage httpMessage = new HttpMessage
             {
                 SyncContext = context,
-                Step = HttpStep.EnsureConfiguration
-            };
-
-            HttpEnsureSchemaMessage httpEnsureSchema = new HttpEnsureSchemaMessage
-            {
-                Schema = new DmSetSurrogate(schema)
+                Step = HttpStep.EnsureConfiguration,
+                Content = new HttpMessageEnsureSchema
+                {
+                    Schema = new DmSetSurrogate(schema)
+                }
             };
 
             //Post request and get response
@@ -254,33 +253,36 @@ namespace Dotmim.Sync.Web
             if (httpMessageResponse == null)
                 throw new Exception("Can't have an empty body");
 
-            if (httpMessageResponse.EnsureSchema == null || httpMessageResponse.EnsureSchema.Schema == null || httpMessageResponse.EnsureSchema.Schema.Tables.Count <= 0)
+            var httpMessageContent = (httpMessageResponse.Content as JObject).ToObject<HttpMessageEnsureSchema>();
+
+            if (httpMessageContent == null || httpMessageContent.Schema == null || httpMessageContent.Schema.Tables.Count <= 0)
                 throw new ArgumentException("Schema can't be null");
 
             // get schema & deserialize the surrogate
-            schema = httpMessageResponse.EnsureSchema.Schema.ConvertToDmSet();
-            httpMessageResponse.EnsureSchema.Schema.Clear();
-            httpMessageResponse.EnsureSchema.Schema.Dispose();
-            httpMessageResponse.EnsureSchema.Schema = null;
-     
+            schema = httpMessageContent.Schema.ConvertToDmSet();
+            httpMessageContent.Schema.Clear();
+            httpMessageContent.Schema.Dispose();
+            httpMessageContent.Schema = null;
+
             // get context
             var syncContext = httpMessageResponse.SyncContext;
-     
-            return syncContext;
+
+            return (syncContext, schema);
         }
 
         public async Task<SyncContext> EnsureDatabaseAsync(SyncContext context, ScopeInfo scopeInfo, DmSet schema, ICollection<FilterClause> filters)
         {
-            HttpMessage httpMessage = new HttpMessage { SyncContext = context };
-            httpMessage.Step = HttpStep.EnsureDatabase;
-
-            HttpEnsureDatabaseMessage ensureDatabaseMessage = new HttpEnsureDatabaseMessage
+            HttpMessage httpMessage = new HttpMessage
             {
-                ScopeInfo = scopeInfo,
-                Schema = new DmSetSurrogate(schema),
-                Filters = filters
+                SyncContext = context,
+                Step = HttpStep.EnsureDatabase,
+                Content = new HttpMessageEnsureDatabase
+                {
+                    ScopeInfo = scopeInfo,
+                    Schema = new DmSetSurrogate(schema),
+                    Filters = filters
+                }
             };
-            httpMessage.EnsureDatabase = ensureDatabaseMessage;
 
             //Post request and get response
             var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, cancellationToken);
@@ -306,20 +308,21 @@ namespace Dotmim.Sync.Web
 
             while (!isLastBatch)
             {
-                HttpMessage httpMessage = new HttpMessage();
-                httpMessage.SyncContext = context;
-                httpMessage.Step = HttpStep.GetChangeBatch;
-
-                httpMessage.GetChangeBatch = new HttpGetChangeBatchMessage
+                HttpMessage httpMessage = new HttpMessage
                 {
-                    ScopeInfo = scopeInfo,
-                    BatchIndexRequested = changes.BatchIndex,
+                    SyncContext = context,
+                    Step = HttpStep.GetChangeBatch,
 
-                    DownloadBatchSizeInKB = downloadBatchSizeInKB,
-                    BatchDirectory = batchDirectory,
-                    Schema = schema,
-                    Filters = filters,
-                    Policy = policy
+                    Content = new HttpMessageGetChangesBatch
+                    {
+                        ScopeInfo = scopeInfo,
+                        BatchIndexRequested = changes.BatchIndex,
+                        DownloadBatchSizeInKB = downloadBatchSizeInKB,
+                        BatchDirectory = batchDirectory,
+                        Schema = new DmSetSurrogate(schema),
+                        Filters = filters,
+                        Policy = policy
+                    }
                 };
 
                 var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, cancellationToken);
@@ -327,16 +330,17 @@ namespace Dotmim.Sync.Web
                 if (httpMessageResponse == null)
                     throw new Exception("Can't have an empty body");
 
-                if (httpMessageResponse.GetChangeBatch == null)
+                var httpMessageContent = (httpMessageResponse.Content as JObject).ToObject<HttpMessageGetChangesBatch>();
+
+                if (httpMessageContent == null)
                     throw new Exception("Can't have an empty GetChangeBatch");
 
-
-                changesSelected = httpMessageResponse.GetChangeBatch.ChangesSelected;
-                changes.InMemory = httpMessageResponse.GetChangeBatch.InMemory;
+                changesSelected = httpMessageContent.ChangesSelected;
+                changes.InMemory = httpMessageContent.InMemory;
                 syncContext = httpMessageResponse.SyncContext;
 
                 // get the bpi and add it to the BatchInfo
-                var bpi = httpMessageResponse.GetChangeBatch.BatchPartInfo;
+                var bpi = httpMessageContent.BatchPartInfo;
                 if (bpi != null)
                 {
                     changes.BatchIndex = bpi.Index;
@@ -355,24 +359,24 @@ namespace Dotmim.Sync.Web
                 if (changes.InMemory)
                 {
                     // load the DmSet in memory
-                    bpi.Set = httpMessageResponse.GetChangeBatch.Set.ConvertToDmSet();
+                    bpi.Set = httpMessageContent.Set.ConvertToDmSet();
                 }
                 else
                 {
                     // Serialize the file !
                     var bpId = BatchInfo.GenerateNewFileName(changes.BatchIndex.ToString());
                     var fileName = Path.Combine(this.syncConfiguration.BatchDirectory, changes.Directory, bpId);
-                    BatchPart.Serialize(httpMessageResponse.GetChangeBatch.Set, fileName);
+                    BatchPart.Serialize(httpMessageContent.Set, fileName);
                     bpi.FileName = fileName;
                     bpi.Clear();
 
                 }
 
                 // Clear the DmSetSurrogate from response, we don't need it anymore
-                if (httpMessageResponse.GetChangeBatch.Set != null)
+                if (httpMessageContent.Set != null)
                 {
-                    httpMessageResponse.GetChangeBatch.Set.Dispose();
-                    httpMessageResponse.GetChangeBatch.Set = null;
+                    httpMessageContent.Set.Dispose();
+                    httpMessageContent.Set = null;
                 }
 
                 // if not last, increment batchIndex for next request
@@ -400,18 +404,20 @@ namespace Dotmim.Sync.Web
             // once finished, return context
             foreach (var bpi in changes.BatchPartsInfo.OrderBy(bpi => bpi.Index))
             {
-                HttpMessage httpMessage = new HttpMessage();
-                httpMessage.Step = HttpStep.ApplyChanges;
-                httpMessage.SyncContext = context;
-
-
-                httpMessage.ApplyChanges = new HttpApplyChangesMessage
+                var applyChanges = new HttpMessageApplyChanges
                 {
                     ScopeInfo = fromScope,
                     Schema = new DmSetSurrogate(schema),
                     Policy = policy,
                     UseBulkOperations = useBulkOperations,
                     ScopeInfoTableName = scopeInfoTableName
+                };
+
+                HttpMessage httpMessage = new HttpMessage
+                {
+                    Step = HttpStep.ApplyChanges,
+                    SyncContext = context,
+                    Content = applyChanges
                 };
 
                 // If BPI is InMempory, no need to deserialize from disk
@@ -423,39 +429,41 @@ namespace Dotmim.Sync.Web
 
                     // get the surrogate dmSet
                     if (partBatch != null)
-                        httpMessage.ApplyChanges.Set = partBatch.DmSetSurrogate;
+                        applyChanges.Set = partBatch.DmSetSurrogate;
                 }
                 else if (bpi.Set != null)
                 {
-                    httpMessage.ApplyChanges.Set = new DmSetSurrogate(bpi.Set);
+                    applyChanges.Set = new DmSetSurrogate(bpi.Set);
                 }
 
-                if (httpMessage.ApplyChanges.Set == null || httpMessage.ApplyChanges.Set.Tables == null)
+                if (applyChanges.Set == null || applyChanges.Set.Tables == null)
                     throw new ArgumentException("No changes to upload found.");
 
                 // no need to send filename
-                httpMessage.ApplyChanges.BatchPartInfo = new BatchPartInfo
+                applyChanges.BatchPartInfo = new BatchPartInfo
                 {
                     FileName = null,
                     Index = bpi.Index,
                     IsLastBatch = bpi.IsLastBatch,
                     Tables = bpi.Tables
                 };
-                httpMessage.ApplyChanges.InMemory = changes.InMemory;
-                httpMessage.ApplyChanges.BatchIndex = bpi.Index;
+                applyChanges.InMemory = changes.InMemory;
+                applyChanges.BatchIndex = bpi.Index;
 
                 //Post request and get response
                 var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, cancellationToken);
 
                 // Clear surrogate
-                httpMessage.ApplyChanges.Set.Dispose();
-                httpMessage.ApplyChanges.Set = null;
+                applyChanges.Set.Dispose();
+                applyChanges.Set = null;
 
                 if (httpMessageResponse == null)
                     throw new Exception("Can't have an empty body");
 
+                var httpMessageContent = (httpMessageResponse.Content as JObject).ToObject<HttpMessageApplyChanges>();
+
                 syncContext = httpMessageResponse.SyncContext;
-                changesApplied = httpMessageResponse.ApplyChanges.ChangesApplied;
+                changesApplied = httpMessageContent.ChangesApplied;
             }
 
             return (syncContext, changesApplied);
@@ -468,16 +476,12 @@ namespace Dotmim.Sync.Web
             HttpMessage message = new HttpMessage
             {
                 Step = HttpStep.GetLocalTimestamp,
-                SyncContext = context
+                SyncContext = context,
+                Content = new HttpMessageTimestamp
+                {
+                    ScopeInfoTableName = scopeInfoTableName,
+                }
             };
-
-            HttpGetLocalTimestampMessage httpLocalTimestamp = new HttpGetLocalTimestampMessage
-            {
-                ScopeInfoTableName = scopeInfoTableName,
-            };
-
-            message.GetLocalTimestamp = httpLocalTimestamp;
-
 
             //Post request and get response
             var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(message, cancellationToken);
@@ -485,25 +489,26 @@ namespace Dotmim.Sync.Web
             if (httpMessageResponse == null)
                 throw new Exception("Can't have an empty body");
 
-            if (httpMessageResponse.GetLocalTimestamp == null)
+            var httpMessageContent = (httpMessageResponse.Content as JObject).ToObject<HttpMessageTimestamp>();
+
+            if (httpMessageContent == null)
                 throw new ArgumentException("Timestamp required from server");
 
-            return (httpMessageResponse.SyncContext, httpMessageResponse.GetLocalTimestamp.LocalTimestamp);
+            return (httpMessageResponse.SyncContext, httpMessageContent.LocalTimestamp);
         }
 
-        public async Task<SyncContext> WriteScopesAsync(SyncContext context, String scopeInfoTableName, List<ScopeInfo> scopes )
+        public async Task<SyncContext> WriteScopesAsync(SyncContext context, String scopeInfoTableName, List<ScopeInfo> scopes)
         {
             HttpMessage message = new HttpMessage
             {
                 Step = HttpStep.WriteScopes,
                 SyncContext = context,
-                WriteScopes = new HttpWriteScopesMessage
+                Content = new HttpMessageWriteScopes
                 {
                     ScopeInfoTableName = scopeInfoTableName,
                     Scopes = scopes
                 }
             };
-            message.WriteScopes.Scopes = scopes;
 
             //Post request and get response
             var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(message, cancellationToken);

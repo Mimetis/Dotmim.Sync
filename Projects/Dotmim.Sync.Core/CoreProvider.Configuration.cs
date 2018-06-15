@@ -132,7 +132,7 @@ namespace Dotmim.Sync
         {
             // Load the configuration
             var configuration = new SyncConfiguration(tables);
-            await this.ReadSchemaAsync(configuration.ScopeSet);
+            await this.ReadSchemaAsync(configuration.Schema);
             return configuration;
         }
 
@@ -216,7 +216,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Ensure configuration is correct on both server and client side
         /// </summary>
-        public virtual async Task<SyncContext> EnsureSchemaAsync(SyncContext context, DmSet schema = null)
+        public virtual async Task<(SyncContext, DmSet)> EnsureSchemaAsync(SyncContext context, DmSet schema = null)
         {
             try
             {
@@ -249,7 +249,7 @@ namespace Dotmim.Sync
                 //var afterArgs = new ConfigurationAppliedEventArgs(this.ProviderTypeName, context.SyncStage, syncConfiguration);
                 //this.TryRaiseProgressEvent(afterArgs, this.ConfigurationApplied);
 
-                return context;
+                return (context,schema);
             }
             catch (SyncException)
             {
