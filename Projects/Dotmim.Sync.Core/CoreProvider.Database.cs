@@ -41,7 +41,7 @@ namespace Dotmim.Sync
                         for (int i = configuration.Count - 1; i >= 0; i--)
                         {
                             // Get the table
-                            var dmTable = configuration.ScopeSet.Tables[i];
+                            var dmTable = configuration.Schema.Tables[i];
 
                             // get the builder
                             var builder = GetDatabaseBuilder(dmTable);
@@ -115,7 +115,7 @@ namespace Dotmim.Sync
                         for (int i = 0; i < configuration.Count; i++)
                         {
                             // Get the table
-                            var dmTable = configuration.ScopeSet.Tables[i];
+                            var dmTable = configuration.Schema.Tables[i];
 
                             // get the builder
                             var builder = GetDatabaseBuilder(dmTable);
