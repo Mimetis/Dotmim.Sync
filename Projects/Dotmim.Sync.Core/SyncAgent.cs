@@ -225,16 +225,15 @@ namespace Dotmim.Sync
                 // 0) Begin Session / Get the Configuration from remote provider
                 //    If the configuration object is provided by the client, the server will be updated with it.
                 // ----------------------------------------
-                var messageBeginSession = new MessageBeginSession { SyncConfiguration = this.Configuration };
-
-                (context, this.Configuration) = await this.RemoteProvider.BeginSessionAsync(context, messageBeginSession);
+                (context, this.Configuration) = await this.RemoteProvider.BeginSessionAsync(context,
+                    new MessageBeginSession { SyncConfiguration = this.Configuration });
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
-                messageBeginSession = new MessageBeginSession { SyncConfiguration = this.Configuration };
                 // Locally, nothing really special. Eventually, editing the config object
-                (context, this.Configuration) = await this.LocalProvider.BeginSessionAsync(context, messageBeginSession);
+                (context, this.Configuration) = await this.LocalProvider.BeginSessionAsync(context,
+                    new MessageBeginSession { SyncConfiguration = this.Configuration });
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -247,7 +246,11 @@ namespace Dotmim.Sync
                 List<ScopeInfo> localScopes;
                 List<ScopeInfo> serverScopes;
                 (context, localScopes) = await this.LocalProvider.EnsureScopesAsync(context,
-                    this.Configuration.ScopeInfoTableName, this.Configuration.ScopeName);
+                    new MessageEnsureScopes
+                    {
+                        ScopeInfoTableName = this.Configuration.ScopeInfoTableName,
+                        ScopeName = this.Configuration.ScopeName
+                    });
 
                 if (localScopes.Count != 1)
                     throw new Exception("On Local provider, we should have only one scope info");
@@ -258,7 +261,12 @@ namespace Dotmim.Sync
                 localScopeInfo = localScopes[0];
 
                 (context, serverScopes) = await this.RemoteProvider.EnsureScopesAsync(context,
-                    this.Configuration.ScopeInfoTableName, this.Configuration.ScopeName, localScopeInfo.Id);
+                    new MessageEnsureScopes
+                    {
+                        ScopeInfoTableName = this.Configuration.ScopeInfoTableName,
+                        ScopeName = this.Configuration.ScopeName,
+                        ClientReferenceId = localScopeInfo.Id
+                    });
 
                 if (serverScopes.Count != 2)
                     throw new Exception("On Remote provider, we should have two scopes (one for server and one for client side)");
@@ -274,13 +282,15 @@ namespace Dotmim.Sync
                 // ----------------------------------------
 
                 // Get Schema from remote provider
-                (context, this.Configuration.Schema) = await this.RemoteProvider.EnsureSchemaAsync(context, this.Configuration.Schema);
+                (context, this.Configuration.Schema) = await this.RemoteProvider.EnsureSchemaAsync(context,
+                    new MessageEnsureSchema { Schema = this.Configuration.Schema });
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
                 // Apply on local Provider
-                (context, this.Configuration.Schema) = await this.LocalProvider.EnsureSchemaAsync(context, this.Configuration.Schema);
+                (context, this.Configuration.Schema) = await this.LocalProvider.EnsureSchemaAsync(context,
+                    new MessageEnsureSchema { Schema = this.Configuration.Schema });
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -290,13 +300,25 @@ namespace Dotmim.Sync
                 // ----------------------------------------
 
                 // Server should have already the schema
-                context = await this.RemoteProvider.EnsureDatabaseAsync(context, serverScopeInfo, this.Configuration.Schema, this.Configuration.Filters);
+                context = await this.RemoteProvider.EnsureDatabaseAsync(context,
+                    new MessageEnsureDatabase
+                    {
+                        ScopeInfo = serverScopeInfo,
+                        Schema = this.Configuration.Schema,
+                        Filters = this.Configuration.Filters
+                    });
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
                 // Client could have, or not, the tables
-                context = await this.LocalProvider.EnsureDatabaseAsync(context, localScopeInfo, this.Configuration.Schema, this.Configuration.Filters);
+                context = await this.LocalProvider.EnsureDatabaseAsync(context,
+                    new MessageEnsureDatabase
+                    {
+                        ScopeInfo = localScopeInfo,
+                        Schema = this.Configuration.Schema,
+                        Filters = this.Configuration.Filters
+                    });
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -332,7 +354,16 @@ namespace Dotmim.Sync
 
                 scope = new ScopeInfo { Id = fromId, IsNewScope = isNew, LastTimestamp = lastSyncTS };
                 (context, clientBatchInfo, clientChangesSelected) =
-                    await this.LocalProvider.GetChangeBatchAsync(context, scope, this.Configuration.Schema, this.Configuration.DownloadBatchSizeInKB, this.Configuration.BatchDirectory, clientPolicy, this.Configuration.Filters);
+                    await this.LocalProvider.GetChangeBatchAsync(context,
+                        new MessageGetChangesBatch
+                        {
+                            ScopeInfo = scope,
+                            Schema = this.Configuration.Schema,
+                            DownloadBatchSizeInKB = this.Configuration.DownloadBatchSizeInKB,
+                            BatchDirectory = this.Configuration.BatchDirectory,
+                            Policy = clientPolicy,
+                            Filters = this.Configuration.Filters
+                        });
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -347,7 +378,18 @@ namespace Dotmim.Sync
                 scope = new ScopeInfo { Id = fromId, IsNewScope = isNew, LastTimestamp = lastSyncTS };
 
                 (context, serverChangesApplied) =
-                    await this.RemoteProvider.ApplyChangesAsync(context, scope, this.Configuration.Schema, serverPolicy, this.Configuration.UseBulkOperations, this.Configuration.ScopeInfoTableName, clientBatchInfo);
+                    await this.RemoteProvider.ApplyChangesAsync(context,
+                     new MessageApplyChanges
+                     {
+                         FromScope = scope,
+                         Schema = this.Configuration.Schema,
+                         Policy = serverPolicy,
+                         UseBulkOperations = this.Configuration.UseBulkOperations,
+                         ScopeInfoTableName = this.Configuration.ScopeInfoTableName,
+                         Changes = clientBatchInfo
+                     });
+
+
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -399,7 +441,16 @@ namespace Dotmim.Sync
 
 
                 (context, serverBatchInfo, serverChangesSelected) =
-                    await this.RemoteProvider.GetChangeBatchAsync(context, scope, this.Configuration.Schema, this.Configuration.DownloadBatchSizeInKB, this.Configuration.BatchDirectory, serverPolicy, this.Configuration.Filters);
+                    await this.RemoteProvider.GetChangeBatchAsync(context,
+                        new MessageGetChangesBatch
+                        {
+                            ScopeInfo = scope,
+                            Schema = this.Configuration.Schema,
+                            DownloadBatchSizeInKB = this.Configuration.DownloadBatchSizeInKB,
+                            BatchDirectory = this.Configuration.BatchDirectory,
+                            Policy = serverPolicy,
+                            Filters = this.Configuration.Filters
+                        });
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -415,7 +466,16 @@ namespace Dotmim.Sync
                 scope = new ScopeInfo { Id = fromId, IsNewScope = isNew, LastTimestamp = lastSyncTS };
 
                 (context, clientChangesApplied) =
-                    await this.LocalProvider.ApplyChangesAsync(context, scope, this.Configuration.Schema, clientPolicy, this.Configuration.UseBulkOperations, this.Configuration.ScopeInfoTableName, serverBatchInfo);
+                    await this.LocalProvider.ApplyChangesAsync(context,
+                        new MessageApplyChanges
+                        {
+                            FromScope = scope,
+                            Schema = this.Configuration.Schema,
+                            Policy = clientPolicy,
+                            UseBulkOperations = this.Configuration.UseBulkOperations,
+                            ScopeInfoTableName = this.Configuration.ScopeInfoTableName,
+                            Changes = serverBatchInfo
+                        });
 
                 context.TotalChangesDownloaded = clientChangesApplied.TotalAppliedChanges;
                 context.TotalChangesUploaded = clientChangesSelected.TotalChangesSelected;
@@ -426,12 +486,14 @@ namespace Dotmim.Sync
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
-                (context, serverTimestamp) = await this.RemoteProvider.GetLocalTimestampAsync(context, this.Configuration.ScopeInfoTableName);
+                (context, serverTimestamp) = await this.RemoteProvider.GetLocalTimestampAsync(context,
+                    new MessageTimestamp { ScopeInfoTableName = this.Configuration.ScopeInfoTableName });
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
-                (context, clientTimestamp) = await this.LocalProvider.GetLocalTimestampAsync(context, this.Configuration.ScopeInfoTableName);
+                (context, clientTimestamp) = await this.LocalProvider.GetLocalTimestampAsync(context,
+                    new MessageTimestamp { ScopeInfoTableName = this.Configuration.ScopeInfoTableName });
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -449,8 +511,13 @@ namespace Dotmim.Sync
                 serverScopeInfo.IsLocal = true;
                 localScopeReferenceInfo.IsLocal = false;
 
-                context = await this.RemoteProvider.WriteScopesAsync(context, this.Configuration.ScopeInfoTableName,
-                    new List<ScopeInfo> { serverScopeInfo, localScopeReferenceInfo });
+                context = await this.RemoteProvider.WriteScopesAsync(context,
+                        new MessageWriteScopes
+                        {
+                            ScopeInfoTableName = this.Configuration.ScopeInfoTableName,
+                            Scopes = new List<ScopeInfo> { serverScopeInfo, localScopeReferenceInfo }
+                        });
+
 
                 serverScopeInfo.IsLocal = false;
                 localScopeInfo.IsLocal = true;
@@ -458,9 +525,13 @@ namespace Dotmim.Sync
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
-                context = await this.LocalProvider.WriteScopesAsync(context, this.Configuration.ScopeInfoTableName,
-                    new List<ScopeInfo> { localScopeInfo, serverScopeInfo });
-
+                context = await this.LocalProvider.WriteScopesAsync(context,
+                        new MessageWriteScopes
+                        {
+                            ScopeInfoTableName = this.Configuration.ScopeInfoTableName,
+                            Scopes = new List<ScopeInfo> { localScopeInfo, serverScopeInfo }
+                        });
+                
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 

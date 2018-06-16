@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System.Text;
 using Dotmim.Sync.Filter;
 using System.Collections.Generic;
+using Dotmim.Sync.Messages;
 
 namespace Dotmim.Sync
 {
@@ -158,7 +159,7 @@ namespace Dotmim.Sync
         /// Be sure all tables are ready and configured for sync
         /// the ScopeSet Configuration MUST be filled by the schema form Database
         /// </summary>
-        public virtual async Task<SyncContext> EnsureDatabaseAsync(SyncContext context, ScopeInfo scopeInfo, DmSet configTables, ICollection<FilterClause> filters)
+        public virtual async Task<SyncContext> EnsureDatabaseAsync(SyncContext context, MessageEnsureDatabase message)
         {
             DbConnection connection = null;
             try
@@ -174,7 +175,7 @@ namespace Dotmim.Sync
                 // Check if we don't have an OverwriteConfiguration (if true, we force the check)
 
                 //if (scopeInfo.LastSync.HasValue && !beforeArgs.OverwriteConfiguration)
-                if (scopeInfo.LastSync.HasValue)
+                if (message.ScopeInfo.LastSync.HasValue)
                     return context;
 
                 StringBuilder script = new StringBuilder();
@@ -186,12 +187,12 @@ namespace Dotmim.Sync
 
                     using (var transaction = connection.BeginTransaction())
                     {
-                        foreach (var dmTable in configTables.Tables)
+                        foreach (var dmTable in message.Schema.Tables)
                         {
                             var builder = GetDatabaseBuilder(dmTable);
 
                             // adding filter
-                            this.AddFilters(filters, dmTable, builder);
+                            this.AddFilters(message.Filters, dmTable, builder);
 
                             context.SyncStage = SyncStage.DatabaseTableApplying;
                             DatabaseTableApplyingEventArgs beforeTableArgs =

@@ -2,6 +2,7 @@
 using Dotmim.Sync.Data.Surrogate;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Manager;
+using Dotmim.Sync.Messages;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -216,7 +217,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Ensure configuration is correct on both server and client side
         /// </summary>
-        public virtual async Task<(SyncContext, DmSet)> EnsureSchemaAsync(SyncContext context, DmSet schema = null)
+        public virtual async Task<(SyncContext, DmSet)> EnsureSchemaAsync(SyncContext context, MessageEnsureSchema message)
         {
             try
             {
@@ -242,14 +243,14 @@ namespace Dotmim.Sync
 
 
                 // if we dont have already read the tables || we want to overwrite the current config
-                if ((schema.HasTables && !schema.HasColumns))
-                    await this.ReadSchemaAsync(schema);
+                if ((message.Schema.HasTables && !message.Schema.HasColumns))
+                    await this.ReadSchemaAsync(message.Schema);
 
                 //context.SyncStage = SyncStage.ConfigurationApplied;
                 //var afterArgs = new ConfigurationAppliedEventArgs(this.ProviderTypeName, context.SyncStage, syncConfiguration);
                 //this.TryRaiseProgressEvent(afterArgs, this.ConfigurationApplied);
 
-                return (context,schema);
+                return (context, message.Schema);
             }
             catch (SyncException)
             {
