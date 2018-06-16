@@ -47,35 +47,32 @@ namespace Dotmim.Sync
         /// Ensure scopes are created on both local and remote 
         /// If clientReferenceId is specified, we are on the server side and we need the client reference scope (with server timestamp)
         /// </summary>
-        Task<(SyncContext, List<ScopeInfo>)> EnsureScopesAsync(SyncContext context, String scopeInfoTableName, String scopeName, Guid? clientReferenceId = null);
+        Task<(SyncContext, List<ScopeInfo>)> EnsureScopesAsync(SyncContext context, MessageEnsureScopes messsage);
 
         /// <summary>
         /// Ensure tables are get from datastore
         /// </summary>
-        Task<(SyncContext, DmSet)> EnsureSchemaAsync(SyncContext context, DmSet schema = null);
+        Task<(SyncContext, DmSet)> EnsureSchemaAsync(SyncContext context, MessageEnsureSchema message);
 
         /// <summary>
         /// Ensure database is ready and created
         /// </summary>
-        Task<SyncContext> EnsureDatabaseAsync(SyncContext context, ScopeInfo scopeInfo, 
-            DmSet schema, ICollection<FilterClause> filters);
+        Task<SyncContext> EnsureDatabaseAsync(SyncContext context, MessageEnsureDatabase message);
 
         /// <summary>
         /// Apply changes to the local storage, coming from this scope
         /// </summary>
-        Task<(SyncContext, ChangesApplied)> ApplyChangesAsync(SyncContext context, ScopeInfo fromScope, 
-            DmSet configTables, ConflictResolutionPolicy policy, Boolean useBulkOperations, String scopeInfoTableName, BatchInfo changes);
+        Task<(SyncContext, ChangesApplied)> ApplyChangesAsync(SyncContext context, MessageApplyChanges message);
 
         /// <summary>
         /// Get Changes to be applied 
         /// </summary>
-        Task<(SyncContext, BatchInfo, ChangesSelected)> GetChangeBatchAsync(SyncContext context, ScopeInfo scopeInfo, 
-            DmSet configTables, int downloadBatchSizeInKB, string batchDirectory, ConflictResolutionPolicy policy, ICollection<FilterClause> filters);
+        Task<(SyncContext, BatchInfo, ChangesSelected)> GetChangeBatchAsync(SyncContext context, MessageGetChangesBatch message);
 
         /// <summary>
         /// Update scope to reflect last changed timestamp
         /// </summary>
-        Task<SyncContext> WriteScopesAsync(SyncContext context, String scopeInfoTableName, List<ScopeInfo> scopes);
+        Task<SyncContext> WriteScopesAsync(SyncContext context, MessageWriteScopes message);
 
         /// <summary>
         /// End Session
@@ -85,6 +82,6 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get a local timestamp
         /// </summary>
-        Task<(SyncContext, Int64)> GetLocalTimestampAsync(SyncContext context, string scopeInfoTableName);
+        Task<(SyncContext, Int64)> GetLocalTimestampAsync(SyncContext context, MessageTimestamp message);
     }
 }

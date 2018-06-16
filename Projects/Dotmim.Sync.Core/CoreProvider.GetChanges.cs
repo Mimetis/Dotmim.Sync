@@ -5,6 +5,7 @@ using Dotmim.Sync.Data.Surrogate;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Filter;
 using Dotmim.Sync.Manager;
+using Dotmim.Sync.Messages;
 using Dotmim.Sync.Serialization;
 using System;
 using System.Collections.Generic;
@@ -27,12 +28,11 @@ namespace Dotmim.Sync
         /// </summary>
         /// <returns>A DbSyncContext object that will be used to retrieve the modified data.</returns>
         public virtual async Task<(SyncContext, BatchInfo, ChangesSelected)> GetChangeBatchAsync(
-            SyncContext context, ScopeInfo scopeInfo, DmSet configTables, 
-            int downloadBatchSizeInKB, string batchDirectory, ConflictResolutionPolicy policy, ICollection<FilterClause> filters)
+            SyncContext context, MessageGetChangesBatch message)
         {
             try
             {
-                if (scopeInfo == null)
+                if (message.ScopeInfo == null)
                     throw new ArgumentNullException("scopeInfo", "Client scope info is null");
 
                 // Check if the provider is not outdated
@@ -52,8 +52,8 @@ namespace Dotmim.Sync
                 }
 
                 // create local directory
-                if (!String.IsNullOrEmpty(batchDirectory) && !Directory.Exists(batchDirectory))
-                    Directory.CreateDirectory(batchDirectory);
+                if (!String.IsNullOrEmpty(message.BatchDirectory) && !Directory.Exists(message.BatchDirectory))
+                    Directory.CreateDirectory(message.BatchDirectory);
 
                 // batch info containing changes
                 BatchInfo batchInfo;
@@ -64,11 +64,11 @@ namespace Dotmim.Sync
                 // if we try a Reinitialize action, don't get any changes from client
                 // else get changes from batch or in memory methods
                 if (context.SyncWay == SyncWay.Upload && context.SyncType == SyncType.Reinitialize)
-                    (batchInfo, changesSelected) = this.GetEmptyChanges(context, scopeInfo, downloadBatchSizeInKB, batchDirectory);
-                else if (downloadBatchSizeInKB == 0)
-                    (batchInfo, changesSelected) = await this.EnumerateChangesInternal(context, scopeInfo, configTables, batchDirectory, policy, filters);
+                    (batchInfo, changesSelected) = this.GetEmptyChanges(context, message.ScopeInfo, message.DownloadBatchSizeInKB, message.BatchDirectory);
+                else if (message.DownloadBatchSizeInKB == 0)
+                    (batchInfo, changesSelected) = await this.EnumerateChangesInternal(context, message.ScopeInfo, message.Schema, message.BatchDirectory, message.Policy, message.Filters);
                 else
-                    (batchInfo, changesSelected) = await this.EnumerateChangesInBatchesInternal(context, scopeInfo, downloadBatchSizeInKB, configTables, batchDirectory, policy, filters);
+                    (batchInfo, changesSelected) = await this.EnumerateChangesInBatchesInternal(context, message.ScopeInfo, message.DownloadBatchSizeInKB, message.Schema, message.BatchDirectory, message.Policy, message.Filters);
 
                 return (context, batchInfo, changesSelected);
             }
