@@ -271,7 +271,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Read a scope info
         /// </summary>
-        public virtual async Task<(SyncContext, long)> GetLocalTimestampAsync(SyncContext context, string scopeInfoTableName)
+        public virtual async Task<(SyncContext, long)> GetLocalTimestampAsync(SyncContext context, MessageTimestamp message)
         {
             // Open the connection
             using (var connection = this.CreateConnection())
@@ -280,7 +280,7 @@ namespace Dotmim.Sync
                 {
                     await connection.OpenAsync();
                     var scopeBuilder = this.GetScopeBuilder();
-                    var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName, connection);
+                    var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(message.ScopeInfoTableName, connection);
                     var localTime = scopeInfoBuilder.GetLocalTimestamp();
                     return (context, localTime);
                 }

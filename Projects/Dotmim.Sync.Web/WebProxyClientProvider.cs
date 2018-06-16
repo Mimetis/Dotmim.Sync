@@ -209,8 +209,7 @@ namespace Dotmim.Sync.Web
             return httpMessageResponse.SyncContext;
         }
 
-        public async Task<(SyncContext, List<ScopeInfo>)> EnsureScopesAsync(SyncContext context,
-            String scopeInfoTableName, String scopeName, Guid? clientReferenceId = null)
+        public async Task<(SyncContext, List<ScopeInfo>)> EnsureScopesAsync(SyncContext context, MessageEnsureScopes message)
         {
             HttpMessage httpMessage = new HttpMessage
             {
@@ -218,9 +217,9 @@ namespace Dotmim.Sync.Web
                 Step = HttpStep.EnsureScopes,
                 Content = new HttpMessageEnsureScopes
                 {
-                    ClientReferenceId = clientReferenceId,
-                    ScopeInfoTableName = scopeInfoTableName,
-                    ScopeName = scopeName
+                    ClientReferenceId = message.ClientReferenceId,
+                    ScopeInfoTableName = message.ScopeInfoTableName,
+                    ScopeName = message.ScopeName
                 }
             };
       
@@ -235,7 +234,7 @@ namespace Dotmim.Sync.Web
             return (httpMessageResponse.SyncContext, httpMessageContent.Scopes);
         }
 
-        public async Task<(SyncContext, DmSet)> EnsureSchemaAsync(SyncContext context, DmSet schema = null)
+        public async Task<(SyncContext, DmSet)> EnsureSchemaAsync(SyncContext context, MessageEnsureSchema message)
         {
             HttpMessage httpMessage = new HttpMessage
             {
@@ -243,7 +242,7 @@ namespace Dotmim.Sync.Web
                 Step = HttpStep.EnsureConfiguration,
                 Content = new HttpMessageEnsureSchema
                 {
-                    Schema = new DmSetSurrogate(schema)
+                    Schema = new DmSetSurrogate(message.Schema)
                 }
             };
 
@@ -259,7 +258,7 @@ namespace Dotmim.Sync.Web
                 throw new ArgumentException("Schema can't be null");
 
             // get schema & deserialize the surrogate
-            schema = httpMessageContent.Schema.ConvertToDmSet();
+            message.Schema = httpMessageContent.Schema.ConvertToDmSet();
             httpMessageContent.Schema.Clear();
             httpMessageContent.Schema.Dispose();
             httpMessageContent.Schema = null;
@@ -267,10 +266,10 @@ namespace Dotmim.Sync.Web
             // get context
             var syncContext = httpMessageResponse.SyncContext;
 
-            return (syncContext, schema);
+            return (syncContext, message.Schema);
         }
 
-        public async Task<SyncContext> EnsureDatabaseAsync(SyncContext context, ScopeInfo scopeInfo, DmSet schema, ICollection<FilterClause> filters)
+        public async Task<SyncContext> EnsureDatabaseAsync(SyncContext context, MessageEnsureDatabase message )
         {
             HttpMessage httpMessage = new HttpMessage
             {
@@ -278,9 +277,9 @@ namespace Dotmim.Sync.Web
                 Step = HttpStep.EnsureDatabase,
                 Content = new HttpMessageEnsureDatabase
                 {
-                    ScopeInfo = scopeInfo,
-                    Schema = new DmSetSurrogate(schema),
-                    Filters = filters
+                    ScopeInfo = message.ScopeInfo,
+                    Schema = new DmSetSurrogate(message.Schema),
+                    Filters = message.Filters
                 }
             };
 
@@ -294,15 +293,16 @@ namespace Dotmim.Sync.Web
         }
 
         public async Task<(SyncContext, BatchInfo, ChangesSelected)> GetChangeBatchAsync(
-            SyncContext context, ScopeInfo scopeInfo,
-            DmSet schema, int downloadBatchSizeInKB, string batchDirectory, ConflictResolutionPolicy policy, ICollection<FilterClause> filters)
+            SyncContext context, MessageGetChangesBatch message)
         {
             // While we have an other batch to process
             var isLastBatch = false;
 
             // Create the BatchInfo and SyncContext to return at the end
-            BatchInfo changes = new BatchInfo();
-            changes.Directory = BatchInfo.GenerateNewDirectoryName();
+            BatchInfo changes = new BatchInfo
+            {
+                Directory = BatchInfo.GenerateNewDirectoryName()
+            };
             SyncContext syncContext = null;
             ChangesSelected changesSelected = null;
 
@@ -315,13 +315,13 @@ namespace Dotmim.Sync.Web
 
                     Content = new HttpMessageGetChangesBatch
                     {
-                        ScopeInfo = scopeInfo,
+                        ScopeInfo = message.ScopeInfo,
                         BatchIndexRequested = changes.BatchIndex,
-                        DownloadBatchSizeInKB = downloadBatchSizeInKB,
-                        BatchDirectory = batchDirectory,
-                        Schema = new DmSetSurrogate(schema),
-                        Filters = filters,
-                        Policy = policy
+                        DownloadBatchSizeInKB = message.DownloadBatchSizeInKB,
+                        BatchDirectory = message.BatchDirectory,
+                        Schema = new DmSetSurrogate(message.Schema),
+                        Filters = message.Filters,
+                        Policy = message.Policy
                     }
                 };
 
@@ -391,10 +391,9 @@ namespace Dotmim.Sync.Web
         /// <summary>
         /// Send changes to server
         /// </summary>
-        public async Task<(SyncContext, ChangesApplied)> ApplyChangesAsync(SyncContext context, ScopeInfo fromScope,
-            DmSet schema, ConflictResolutionPolicy policy, Boolean useBulkOperations, String scopeInfoTableName, BatchInfo changes)
+        public async Task<(SyncContext, ChangesApplied)> ApplyChangesAsync(SyncContext context, MessageApplyChanges message)
         {
-            if (changes == null || changes.BatchPartsInfo.Count == 0)
+            if (message.Changes == null || message.Changes.BatchPartsInfo.Count == 0)
                 return (context, new ChangesApplied());
 
             SyncContext syncContext = null;
@@ -402,15 +401,15 @@ namespace Dotmim.Sync.Web
 
             // Foreach part, will have to send them to the remote
             // once finished, return context
-            foreach (var bpi in changes.BatchPartsInfo.OrderBy(bpi => bpi.Index))
+            foreach (var bpi in message.Changes.BatchPartsInfo.OrderBy(bpi => bpi.Index))
             {
                 var applyChanges = new HttpMessageApplyChanges
                 {
-                    ScopeInfo = fromScope,
-                    Schema = new DmSetSurrogate(schema),
-                    Policy = policy,
-                    UseBulkOperations = useBulkOperations,
-                    ScopeInfoTableName = scopeInfoTableName
+                    FromScope = message.FromScope,
+                    Schema = new DmSetSurrogate(message.Schema),
+                    Policy = message.Policy,
+                    UseBulkOperations = message.UseBulkOperations,
+                    ScopeInfoTableName = message.ScopeInfoTableName
                 };
 
                 HttpMessage httpMessage = new HttpMessage
@@ -422,7 +421,7 @@ namespace Dotmim.Sync.Web
 
                 // If BPI is InMempory, no need to deserialize from disk
                 // Set already contained in part.Set
-                if (!changes.InMemory)
+                if (!message.Changes.InMemory)
                 {
                     // get the batch
                     var partBatch = bpi.GetBatch();
@@ -447,7 +446,7 @@ namespace Dotmim.Sync.Web
                     IsLastBatch = bpi.IsLastBatch,
                     Tables = bpi.Tables
                 };
-                applyChanges.InMemory = changes.InMemory;
+                applyChanges.InMemory = message.Changes.InMemory;
                 applyChanges.BatchIndex = bpi.Index;
 
                 //Post request and get response
@@ -471,20 +470,20 @@ namespace Dotmim.Sync.Web
         }
 
 
-        public async Task<(SyncContext, long)> GetLocalTimestampAsync(SyncContext context, string scopeInfoTableName)
+        public async Task<(SyncContext, long)> GetLocalTimestampAsync(SyncContext context, MessageTimestamp message)
         {
-            HttpMessage message = new HttpMessage
+            HttpMessage httpMessage = new HttpMessage
             {
                 Step = HttpStep.GetLocalTimestamp,
                 SyncContext = context,
                 Content = new HttpMessageTimestamp
                 {
-                    ScopeInfoTableName = scopeInfoTableName,
+                    ScopeInfoTableName = message.ScopeInfoTableName,
                 }
             };
 
             //Post request and get response
-            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(message, cancellationToken);
+            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, cancellationToken);
 
             if (httpMessageResponse == null)
                 throw new Exception("Can't have an empty body");
@@ -497,21 +496,21 @@ namespace Dotmim.Sync.Web
             return (httpMessageResponse.SyncContext, httpMessageContent.LocalTimestamp);
         }
 
-        public async Task<SyncContext> WriteScopesAsync(SyncContext context, String scopeInfoTableName, List<ScopeInfo> scopes)
+        public async Task<SyncContext> WriteScopesAsync(SyncContext context, MessageWriteScopes message)
         {
-            HttpMessage message = new HttpMessage
+            HttpMessage httpMessage = new HttpMessage
             {
                 Step = HttpStep.WriteScopes,
                 SyncContext = context,
                 Content = new HttpMessageWriteScopes
                 {
-                    ScopeInfoTableName = scopeInfoTableName,
-                    Scopes = scopes
+                    ScopeInfoTableName = message.ScopeInfoTableName,
+                    Scopes = message.Scopes
                 }
             };
 
             //Post request and get response
-            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(message, cancellationToken);
+            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, cancellationToken);
 
             if (httpMessageResponse == null)
                 throw new Exception("Can't have an empty body");

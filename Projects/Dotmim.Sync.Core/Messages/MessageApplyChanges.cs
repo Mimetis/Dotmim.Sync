@@ -15,7 +15,7 @@ namespace Dotmim.Sync.Messages
         /// <summary>
         /// Gets or Sets the scope info for the current sync
         /// </summary>
-        public ScopeInfo ScopeInfo { get; set; }
+        public ScopeInfo FromScope { get; set; }
 
         /// <summary>
         /// Gets or Sets the schema used for this sync
@@ -40,7 +40,7 @@ namespace Dotmim.Sync.Messages
         /// <summary>
         /// Gets or Sets the Batch Info used for this sync session
         /// </summary>
-        public BatchInfo BatchInfo { get; set; }
+        public BatchInfo Changes { get; set; }
 
     }
 }
