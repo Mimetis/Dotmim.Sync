@@ -164,7 +164,6 @@ namespace Dotmim.Sync.Test
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = SerializationFormat.Json;
 
                     var syncAgent = new SyncAgent(client1Provider, proxyClientProvider);
                     var session = await syncAgent.SynchronizeAsync();
@@ -179,7 +178,6 @@ namespace Dotmim.Sync.Test
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = SerializationFormat.Json;
 
                     var syncAgent = new SyncAgent(client2Provider, proxyClientProvider);
                     var session = await syncAgent.SynchronizeAsync();
@@ -207,7 +205,6 @@ namespace Dotmim.Sync.Test
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     var session = await agent.SynchronizeAsync();
 
@@ -249,7 +246,6 @@ namespace Dotmim.Sync.Test
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     var session = await agent.SynchronizeAsync();
 
@@ -289,7 +285,6 @@ namespace Dotmim.Sync.Test
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     var session = await agent.SynchronizeAsync();
 
@@ -332,7 +327,6 @@ namespace Dotmim.Sync.Test
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     var session = await agent.SynchronizeAsync();
 
@@ -375,7 +369,6 @@ namespace Dotmim.Sync.Test
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     var session = await agent.SynchronizeAsync();
 
@@ -416,7 +409,6 @@ namespace Dotmim.Sync.Test
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     var session = await agent.SynchronizeAsync();
 
@@ -457,7 +449,6 @@ namespace Dotmim.Sync.Test
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     var session = await agent.SynchronizeAsync();
 
@@ -525,7 +516,6 @@ namespace Dotmim.Sync.Test
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     var session = await agent.SynchronizeAsync();
 
@@ -586,7 +576,6 @@ namespace Dotmim.Sync.Test
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     var session = await agent.SynchronizeAsync();
 
@@ -640,7 +629,6 @@ namespace Dotmim.Sync.Test
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     var session = await agent.SynchronizeAsync();
 
@@ -702,7 +690,6 @@ namespace Dotmim.Sync.Test
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     var session = await agent.SynchronizeAsync();
 
@@ -764,7 +751,6 @@ namespace Dotmim.Sync.Test
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     SyncContext session = null;
                     await Assert.RaisesAsync<ApplyChangeFailedEventArgs>(
@@ -850,7 +836,6 @@ namespace Dotmim.Sync.Test
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     var session = await agent.SynchronizeAsync();
 
@@ -898,7 +883,6 @@ namespace Dotmim.Sync.Test
                 var client1Handler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     var agentSync = new SyncAgent(client1Provider, proxyClientProvider);
 
@@ -912,7 +896,6 @@ namespace Dotmim.Sync.Test
                 var client2Handler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     var agentSync = new SyncAgent(client2Provider, proxyClientProvider);
 
@@ -944,7 +927,6 @@ namespace Dotmim.Sync.Test
                 var client1Handler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     var agentSync = new SyncAgent(client1Provider, proxyClientProvider);
 
@@ -963,7 +945,6 @@ namespace Dotmim.Sync.Test
                 var client2Handler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     var agentSync = new SyncAgent(client2Provider, proxyClientProvider);
 
@@ -1011,7 +992,6 @@ namespace Dotmim.Sync.Test
                 var client1Handler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     var agentSync = new SyncAgent(client1Provider, proxyClientProvider);
 
@@ -1029,7 +1009,6 @@ namespace Dotmim.Sync.Test
                 var client2Handler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     var agentSync = new SyncAgent(client2Provider, proxyClientProvider);
 

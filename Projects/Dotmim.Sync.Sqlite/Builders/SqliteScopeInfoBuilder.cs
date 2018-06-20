@@ -132,7 +132,7 @@ namespace Dotmim.Sync.Sqlite
                         ScopeInfo scopeInfo = new ScopeInfo();
                         scopeInfo.Name = reader["sync_scope_name"] as String;
                         scopeInfo.Id = reader.GetGuid(reader.GetOrdinal("sync_scope_id"));
-                        scopeInfo.LastTimestamp = SqliteManager.ParseTimestamp(reader["scope_timestamp"]);
+                        scopeInfo.Timestamp = SqliteManager.ParseTimestamp(reader["scope_timestamp"]);
                         scopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value
                                         ? (DateTime?)reader.GetDateTime(reader.GetOrdinal("scope_last_sync"))
                                         : null;
@@ -252,7 +252,7 @@ namespace Dotmim.Sync.Sqlite
                         
                         scopeInfo.Name = reader["sync_scope_name"] as String;
                         scopeInfo.Id = reader.GetGuid(reader.GetOrdinal("sync_scope_id"));
-                        scopeInfo.LastTimestamp = SqliteManager.ParseTimestamp(reader["scope_timestamp"]);
+                        scopeInfo.Timestamp = SqliteManager.ParseTimestamp(reader["scope_timestamp"]);
                         scopeInfo.IsLocal = (bool)reader["scope_is_local"];
                         scopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value
                                     ? (DateTime?)reader.GetDateTime(reader.GetOrdinal("scope_last_sync"))

@@ -115,7 +115,7 @@ namespace Dotmim.Sync.Test
 
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
-                    var proxyProvider = new WebProxyClientProvider(new Uri(serviceUri), SerializationFormat.Json);
+                    var proxyProvider = new WebProxyClientProvider(new Uri(serviceUri));
                     var clientProvider = new SqlSyncProvider(this.fixture.Client1ConnectionString);
 
                     SyncAgent agent = new SyncAgent(clientProvider, proxyProvider);

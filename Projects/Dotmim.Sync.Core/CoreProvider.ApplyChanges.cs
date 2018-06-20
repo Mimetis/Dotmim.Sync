@@ -29,8 +29,8 @@ namespace Dotmim.Sync
         {
             ChangeApplicationAction changeApplicationAction;
             DbTransaction applyTransaction = null;
-            ChangesApplied changesApplied = new ChangesApplied();
             DbConnection connection = null;
+            ChangesApplied changesApplied = new ChangesApplied();
 
             try
             {
@@ -64,9 +64,17 @@ namespace Dotmim.Sync
                         if (changeApplicationAction == ChangeApplicationAction.Rollback)
                             throw new SyncException("Rollback during applying deletes", context.SyncStage, this.ProviderTypeName, SyncExceptionType.Rollback);
                     }
+                    // -----------------------------------------------------
+                    // 2) Applying updates
+                    // -----------------------------------------------------
+                    changeApplicationAction = this.ApplyChangesInternal(context, message, connection, applyTransaction, DmRowState.Modified, changesApplied);
+
+                    // Rollback
+                    if (changeApplicationAction == ChangeApplicationAction.Rollback)
+                        throw new SyncException("Rollback during applying updates", context.SyncStage, this.ProviderTypeName, SyncExceptionType.Rollback);
 
                     // -----------------------------------------------------
-                    // 1) Applying Inserts
+                    // 3) Applying Inserts
                     // -----------------------------------------------------
                     changeApplicationAction = this.ApplyChangesInternal(context, message, connection, applyTransaction, DmRowState.Added, changesApplied);
 
@@ -74,14 +82,6 @@ namespace Dotmim.Sync
                     if (changeApplicationAction == ChangeApplicationAction.Rollback)
                         throw new SyncException("Rollback during applying inserts", context.SyncStage, this.ProviderTypeName, SyncExceptionType.Rollback);
 
-                    // -----------------------------------------------------
-                    // 1) Applying updates
-                    // -----------------------------------------------------
-                    changeApplicationAction = this.ApplyChangesInternal(context, message, connection, applyTransaction, DmRowState.Modified, changesApplied);
-
-                    // Rollback
-                    if (changeApplicationAction == ChangeApplicationAction.Rollback)
-                        throw new SyncException("Rollback during applying updates", context.SyncStage, this.ProviderTypeName, SyncExceptionType.Rollback);
 
                     applyTransaction.Commit();
 
@@ -218,11 +218,12 @@ namespace Dotmim.Sync
                         {
                             foreach (var conflict in conflicts)
                             {
-                                var scopeBuilder = this.GetScopeBuilder();
-                                var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(message.ScopeInfoTableName, connection, transaction);
-                                var localTimeStamp = scopeInfoBuilder.GetLocalTimestamp();
+                                //var scopeBuilder = this.GetScopeBuilder();
+                                //var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(message.ScopeInfoTableName, connection, transaction);
+                                //var localTimeStamp = scopeInfoBuilder.GetLocalTimestamp();
+                                var fromScopeLocalTimeStamp = message.FromScope.Timestamp;
 
-                                changeApplicationAction = syncAdapter.HandleConflict(conflict, message.Policy, message.FromScope, localTimeStamp, out DmRow resolvedRow);
+                                changeApplicationAction = syncAdapter.HandleConflict(conflict, message.Policy, message.FromScope, fromScopeLocalTimeStamp, out DmRow resolvedRow);
 
                                 if (changeApplicationAction == ChangeApplicationAction.Continue)
                                 {

@@ -310,5 +310,10 @@ namespace Dotmim.Sync.Sqlite
         {
             throw new NotImplementedException();
         }
+
+        public override bool IsUniqueKeyViolation(Exception exception)
+        {
+            return false;
+        }
     }
 }

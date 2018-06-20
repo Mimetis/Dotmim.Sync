@@ -172,9 +172,6 @@ namespace Dotmim.Sync
         internal async Task<(BatchInfo, ChangesSelected)> EnumerateChangesInternal(
             SyncContext context, ScopeInfo scopeInfo, DmSet configTables, string batchDirectory, ConflictResolutionPolicy policy, ICollection<FilterClause> filters)
         {
-            Debug.WriteLine($"----- Enumerating Changes for Scope \"{scopeInfo.Name}\" -----");
-            Debug.WriteLine("");
-            Debug.WriteLine("");
 
             // create the in memory changes set
             DmSet changesSet = new DmSet(SyncConfiguration.DMSET_NAME);
@@ -250,7 +247,6 @@ namespace Dotmim.Sync
                             if (selectIncrementalChangesCommand == null)
                             {
                                 var exc = "Missing command 'SelectIncrementalChangesCommand' ";
-                                Debug.WriteLine(exc);
                                 throw new Exception(exc);
                             }
 
@@ -339,9 +335,6 @@ namespace Dotmim.Sync
                             context.SyncStage = SyncStage.TableChangesSelected;
                             var args = new TableChangesSelectedEventArgs(this.ProviderTypeName, SyncStage.TableChangesSelected, tableSelectedChanges);
                             this.TryRaiseProgressEvent(args, this.TableChangesSelected);
-
-                            Debug.WriteLine($"--- End Table \"{tableDescription.TableName}\" ---");
-                            Debug.WriteLine("");
                         }
 
 
@@ -356,7 +349,6 @@ namespace Dotmim.Sync
                     }
                     catch (Exception dbException)
                     {
-                        Debug.WriteLine($"Caught exception while enumerating changes\n{dbException}\n");
                         throw;
                     }
                     finally
@@ -377,7 +369,7 @@ namespace Dotmim.Sync
         {
             // Generate the isNewScope Flag.
             var isNewScope = scopeInfo.IsNewScope ? 1 : 0;
-            var lastTimeStamp = scopeInfo.LastTimestamp;
+            var lastTimeStamp = scopeInfo.Timestamp;
             int isReinit = context.SyncType == SyncType.Reinitialize ? 1 : 0;
 
             switch (context.SyncWay)
@@ -405,7 +397,7 @@ namespace Dotmim.Sync
             DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_is_reinit", isReinit);
 
             scopeInfo.IsNewScope = isNewScope == 1 ? true : false;
-            scopeInfo.LastTimestamp = lastTimeStamp;
+            scopeInfo.Timestamp = lastTimeStamp;
 
         }
 
@@ -498,7 +490,6 @@ namespace Dotmim.Sync
                             if (selectIncrementalChangesCommand == null)
                             {
                                 var exc = "Missing command 'SelectIncrementalChangesCommand' ";
-                                Debug.WriteLine(exc);
                                 throw new Exception(exc);
                             }
 
@@ -558,7 +549,6 @@ namespace Dotmim.Sync
                                         if (dmRowSize > downloadBatchSizeInKB)
                                         {
                                             var exc = $"Row is too big ({dmRowSize} kb.) for the current Configuration.DownloadBatchSizeInKB ({downloadBatchSizeInKB} kb.) Aborting Sync...";
-                                            Debug.WriteLine(exc);
                                             throw new Exception(exc);
                                         }
 
@@ -641,19 +631,15 @@ namespace Dotmim.Sync
                             }
                             catch (Exception dbException)
                             {
-                                Debug.WriteLine($"Caught exception while enumerating changes\n{dbException}\n");
                                 throw;
                             }
                             finally
                             {
-
-                                Debug.WriteLine($"--- End Table \"{tableDescription.TableName}\" ---");
-                                Debug.WriteLine("");
                             }
                         }
 
                         // We are in batch mode, and we are at the last batchpart info
-                        if (dmTable != null && dmTable.Rows.Count > 0)
+                        if (changesSet != null && changesSet.HasTables && changesSet.HasChanges())
                         {
                             var batchPartInfo = batchInfo.GenerateBatchInfo(batchIndex, changesSet, batchDirectory);
 
@@ -678,8 +664,6 @@ namespace Dotmim.Sync
 
 
             }
-            Debug.WriteLine($"--- End Enumerating Changes for Scope \"{scopeInfo.Name}\" ---");
-            Debug.WriteLine("");
 
             return (batchInfo, changes);
         }
@@ -811,9 +795,9 @@ namespace Dotmim.Sync
                 // 1) Row is not new
                 // 2) Row update is AFTER last sync of asker
                 // 3) Row insert is BEFORE last sync of asker (if insert is after last sync, it's not an update, it's an insert)
-                if (!scopeInfo.IsNewScope && islocallyUpdated && updatedTimeStamp > scopeInfo.LastTimestamp && (createdTimeStamp < scopeInfo.LastTimestamp || !isLocallyCreated))
+                if (!scopeInfo.IsNewScope && islocallyUpdated && updatedTimeStamp > scopeInfo.Timestamp && (createdTimeStamp < scopeInfo.Timestamp || !isLocallyCreated))
                     dmRowState = DmRowState.Modified;
-                else if (scopeInfo.IsNewScope || (isLocallyCreated && createdTimeStamp > scopeInfo.LastTimestamp))
+                else if (scopeInfo.IsNewScope || (isLocallyCreated && createdTimeStamp > scopeInfo.Timestamp))
                     dmRowState = DmRowState.Added;
                 // The line has been updated from an other host
                 else if (islocallyUpdated && updateScopeId.HasValue && updateScopeId.Value != scopeInfo.Id)
@@ -822,7 +806,7 @@ namespace Dotmim.Sync
                 {
                     dmRowState = DmRowState.Unchanged;
                     Debug.WriteLine($"Row is in Unchanegd state. " +
-                        $"\tscopeInfo.Id:{scopeInfo.Id}, scopeInfo.IsNewScope :{scopeInfo.IsNewScope}, scopeInfo.LastTimestamp:{scopeInfo.LastTimestamp}" +
+                        $"\tscopeInfo.Id:{scopeInfo.Id}, scopeInfo.IsNewScope :{scopeInfo.IsNewScope}, scopeInfo.LastTimestamp:{scopeInfo.Timestamp}" +
                         $"\tcreateScopeId:{createScopeId}, updateScopeId:{updateScopeId}, createdTimeStamp:{createdTimeStamp}, updatedTimeStamp:{updatedTimeStamp}.");
                 }
             }

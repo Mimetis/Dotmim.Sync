@@ -252,8 +252,6 @@ namespace Dotmim.Sync.Test.MySql
         {
             var session = await agent.SynchronizeAsync();
 
-            Debug.WriteLine(session.TotalChangesDownloaded);
-
             Assert.Equal(10, session.TotalChangesDownloaded);
             Assert.Equal(0, session.TotalChangesUploaded);
 
