@@ -12,6 +12,7 @@ namespace Dotmim.Sync.Test.SqlUtils
         public InlineConfigurations()
         {
             confs.Add(new object[] { new SyncConfiguration{
+                
                 DownloadBatchSizeInKB = 100,
                 UseBulkOperations = true,
                 SerializationFormat= Enumerations.SerializationFormat.Json

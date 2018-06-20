@@ -166,16 +166,15 @@ namespace Dotmim.Sync
             {
                 // Event progress
                 context.SyncStage = SyncStage.DatabaseApplying;
-                //DatabaseApplyingEventArgs beforeArgs =
-                //    new DatabaseApplyingEventArgs(this.ProviderTypeName, context.SyncStage, configuration);
-                //this.TryRaiseProgressEvent(beforeArgs, this.DatabaseApplying);
 
+                DatabaseApplyingEventArgs beforeArgs =
+                    new DatabaseApplyingEventArgs(this.ProviderTypeName, context.SyncStage, message.Schema);
+                this.TryRaiseProgressEvent(beforeArgs, this.DatabaseApplying);
 
                 // If scope exists and lastdatetime sync is present, so database exists
                 // Check if we don't have an OverwriteConfiguration (if true, we force the check)
 
-                //if (scopeInfo.LastSync.HasValue && !beforeArgs.OverwriteConfiguration)
-                if (message.ScopeInfo.LastSync.HasValue)
+                if (message.ScopeInfo.LastSync.HasValue && !beforeArgs.OverwriteSchema)
                     return context;
 
                 StringBuilder script = new StringBuilder();
@@ -200,12 +199,12 @@ namespace Dotmim.Sync
                             this.TryRaiseProgressEvent(beforeTableArgs, this.DatabaseTableApplying);
 
                             string currentScript = null;
-                            //if (beforeArgs.GenerateScript)
-                            //{
-                            //    currentScript = builder.ScriptTable(connection, transaction);
-                            //    currentScript += builder.ScriptForeignKeys(connection, transaction);
-                            //    script.Append(currentScript);
-                            //}
+                            if (beforeArgs.GenerateScript)
+                            {
+                                currentScript = builder.ScriptTable(connection, transaction);
+                                currentScript += builder.ScriptForeignKeys(connection, transaction);
+                                script.Append(currentScript);
+                            }
 
                             builder.Create(connection, transaction);
                             builder.CreateForeignKeys(connection, transaction);

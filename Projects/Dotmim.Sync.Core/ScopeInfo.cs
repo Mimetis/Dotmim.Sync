@@ -25,10 +25,11 @@ namespace Dotmim.Sync
         public Boolean IsLocal { get; set; }
 
         /// <summary>
-        /// Last time the remote has done a good sync
+        /// Gets or Sets the Timestamp. basically the timestamp "AFTER" the sync has occured
         /// IF it's a new scope force to Zero to be sure, the first sync will get all datas
         /// </summary>
-        public long LastTimestamp { get; set; }
+        public long Timestamp { get; set; }
+
 
 
         /// <summary>
@@ -37,11 +38,20 @@ namespace Dotmim.Sync
         /// </summary>
         public Boolean IsNewScope { get; set; }
 
-
         /// <summary>
         /// Gets or Sets the last datetime when a sync has successfully ended.
         /// </summary>
         public DateTime? LastSync { get; set; }
+
+        /// <summary>
+        /// Gets or Sets the last timestamp a sync has occured. This timestamp is set just 'before' sync start.
+        /// </summary>
+        public long LastSyncTimestamp { get; set; }
+
+        /// <summary>
+        /// Gets or Sets the last duration a sync has occured. 
+        /// </summary>
+        public long LastSyncDuration { get; set; }
 
         /// <summary>
         /// Gets or sets the last time we apply a clean up on metadata

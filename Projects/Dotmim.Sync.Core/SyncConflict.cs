@@ -25,12 +25,34 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the DmRow row that contains the conflicting row from the local database.
         /// </summary>
-        public DmRow LocalRow => this.localRows?.Rows?[0];
+        public DmRow LocalRow
+        {
+            get
+            {
+                var rows = this.localRows?.Rows;
+
+                if (rows != null && rows.Count > 0)
+                    return rows[0];
+
+                return null;
+            }
+        }
 
         /// <summary>
         /// Gets the DmRow row that contains the conflicting row from the remote database.
         /// </summary>
-        public DmRow RemoteRow => this.remoteRows?.Rows?[0];
+        public DmRow RemoteRow
+        {
+            get
+            {
+                var rows = this.remoteRows?.Rows;
+
+                if (rows != null && rows.Count > 0)
+                    return rows[0];
+
+                return null;
+            }
+        }
 
         /// <summary>
         /// Gets or sets the ConflictType enumeration value that represents the type of synchronization conflict.

@@ -205,7 +205,7 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw new SyncException(ex, SyncStage.ConfigurationApplying, this.ProviderTypeName);
+                throw new SyncException(ex, SyncStage.SchemaApplying, this.ProviderTypeName);
             }
             finally
             {
@@ -221,7 +221,7 @@ namespace Dotmim.Sync
         {
             try
             {
-                context.SyncStage = SyncStage.ConfigurationApplying;
+                context.SyncStage = SyncStage.SchemaApplying;
 
                 // Get cache manager and try to get configuration from cache
                 //var cacheManager = this.CacheManager;
@@ -235,20 +235,19 @@ namespace Dotmim.Sync
                 //    syncConfiguration = this.syncConfiguration;
 
                 // Raise event before
-                // TODO : Needed anymore ?
-                //context.SyncStage = SyncStage.ConfigurationApplying;
-                //var beforeArgs2 = new ConfigurationApplyingEventArgs(this.ProviderTypeName, context.SyncStage);
-                //this.TryRaiseProgressEvent(beforeArgs2, this.ConfigurationApplying);
-                //bool overWriteConfiguration = beforeArgs2.OverwriteConfiguration;
+                context.SyncStage = SyncStage.SchemaApplying;
+                var beforeArgs2 = new SchemaApplyingEventArgs(this.ProviderTypeName, context.SyncStage, message.Schema);
+                this.TryRaiseProgressEvent(beforeArgs2, this.SchemaApplying);
+                bool overWriteConfiguration = beforeArgs2.OverwriteConfiguration;
 
 
                 // if we dont have already read the tables || we want to overwrite the current config
                 if ((message.Schema.HasTables && !message.Schema.HasColumns))
                     await this.ReadSchemaAsync(message.Schema);
 
-                //context.SyncStage = SyncStage.ConfigurationApplied;
-                //var afterArgs = new ConfigurationAppliedEventArgs(this.ProviderTypeName, context.SyncStage, syncConfiguration);
-                //this.TryRaiseProgressEvent(afterArgs, this.ConfigurationApplied);
+                context.SyncStage = SyncStage.SchemaApplied;
+                var afterArgs = new SchemaAppliedEventArgs(this.ProviderTypeName, context.SyncStage, message.Schema);
+                this.TryRaiseProgressEvent(afterArgs, this.SchemaApplied);
 
                 return (context, message.Schema);
             }
@@ -258,7 +257,7 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw new SyncException(ex, SyncStage.ConfigurationApplying, this.ProviderTypeName);
+                throw new SyncException(ex, SyncStage.SchemaApplying, this.ProviderTypeName);
             }
 
         }

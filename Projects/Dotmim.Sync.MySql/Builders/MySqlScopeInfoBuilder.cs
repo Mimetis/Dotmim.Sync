@@ -135,7 +135,7 @@ namespace Dotmim.Sync.MySql
                         ScopeInfo scopeInfo = new ScopeInfo();
                         scopeInfo.Name = reader["sync_scope_name"] as String;
                         scopeInfo.Id = new Guid((String)reader["sync_scope_id"]);
-                        scopeInfo.LastTimestamp = MySqlManager.ParseTimestamp(reader["scope_timestamp"]);
+                        scopeInfo.Timestamp = MySqlManager.ParseTimestamp(reader["scope_timestamp"]);
                         scopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value ? (DateTime?)reader["scope_last_sync"] : null;
                         scopeInfo.IsLocal = reader.GetBoolean(reader.GetOrdinal("scope_is_local"));
                         scopes.Add(scopeInfo);
@@ -261,7 +261,7 @@ namespace Dotmim.Sync.MySql
                         {
                             scopeInfo.Name = reader["sync_scope_name"] as String;
                             scopeInfo.Id = new Guid((string)reader["sync_scope_id"]);
-                            scopeInfo.LastTimestamp = MySqlManager.ParseTimestamp(reader["scope_timestamp"]);
+                            scopeInfo.Timestamp = MySqlManager.ParseTimestamp(reader["scope_timestamp"]);
                             scopeInfo.IsLocal = (bool)reader["scope_is_local"];
                             scopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value ? (DateTime?)reader["scope_last_sync"] : null;
                         }

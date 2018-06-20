@@ -63,8 +63,8 @@ namespace Dotmim.Sync
         public event EventHandler<DatabaseAppliedEventArgs> DatabaseApplied = null;
         public event EventHandler<DatabaseTableApplyingEventArgs> DatabaseTableApplying = null;
         public event EventHandler<DatabaseTableAppliedEventArgs> DatabaseTableApplied = null;
-        public event EventHandler<ConfigurationApplyingEventArgs> ConfigurationApplying = null;
-        public event EventHandler<ConfigurationAppliedEventArgs> ConfigurationApplied = null;
+        public event EventHandler<SchemaApplyingEventArgs> SchemaApplying = null;
+        public event EventHandler<SchemaAppliedEventArgs> SchemaApplied = null;
         public event EventHandler<TableChangesSelectingEventArgs> TableChangesSelecting = null;
         public event EventHandler<TableChangesSelectedEventArgs> TableChangesSelected = null;
         public event EventHandler<TableChangesApplyingEventArgs> TableChangesApplying = null;
@@ -104,8 +104,8 @@ namespace Dotmim.Sync
             this.LocalProvider.TableChangesApplying += (s, e) => this.TableChangesApplying?.Invoke(s, e);
             this.LocalProvider.TableChangesSelected += (s, e) => this.TableChangesSelected?.Invoke(s, e);
             this.LocalProvider.TableChangesSelecting += (s, e) => this.TableChangesSelecting?.Invoke(s, e);
-            this.LocalProvider.ConfigurationApplied += (s, e) => this.ConfigurationApplied?.Invoke(s, e);
-            this.LocalProvider.ConfigurationApplying += (s, e) => this.ConfigurationApplying?.Invoke(s, e);
+            this.LocalProvider.SchemaApplied += (s, e) => this.SchemaApplied?.Invoke(s, e);
+            this.LocalProvider.SchemaApplying += (s, e) => this.SchemaApplying?.Invoke(s, e);
             this.LocalProvider.DatabaseApplied += (s, e) => this.DatabaseApplied?.Invoke(s, e);
             this.LocalProvider.DatabaseApplying += (s, e) => this.DatabaseApplying?.Invoke(s, e);
             this.LocalProvider.DatabaseTableApplied += (s, e) => this.DatabaseTableApplied?.Invoke(s, e);
@@ -249,7 +249,8 @@ namespace Dotmim.Sync
                     new MessageEnsureScopes
                     {
                         ScopeInfoTableName = this.Configuration.ScopeInfoTableName,
-                        ScopeName = this.Configuration.ScopeName
+                        ScopeName = this.Configuration.ScopeName,
+                        SerializationFormat = this.Configuration.SerializationFormat
                     });
 
                 if (localScopes.Count != 1)
@@ -265,7 +266,8 @@ namespace Dotmim.Sync
                     {
                         ScopeInfoTableName = this.Configuration.ScopeInfoTableName,
                         ScopeName = this.Configuration.ScopeName,
-                        ClientReferenceId = localScopeInfo.Id
+                        ClientReferenceId = localScopeInfo.Id,
+                        SerializationFormat = this.Configuration.SerializationFormat
                     });
 
                 if (serverScopes.Count != 2)
@@ -277,20 +279,29 @@ namespace Dotmim.Sync
                 serverScopeInfo = serverScopes.First(s => s.Id != localScopeInfo.Id);
                 localScopeReferenceInfo = serverScopes.First(s => s.Id == localScopeInfo.Id);
 
+
                 // ----------------------------------------
                 // 2) Build Configuration Object
                 // ----------------------------------------
 
                 // Get Schema from remote provider
                 (context, this.Configuration.Schema) = await this.RemoteProvider.EnsureSchemaAsync(context,
-                    new MessageEnsureSchema { Schema = this.Configuration.Schema });
+                    new MessageEnsureSchema
+                    {
+                        Schema = this.Configuration.Schema,
+                        SerializationFormat = this.Configuration.SerializationFormat
+                    });
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
                 // Apply on local Provider
                 (context, this.Configuration.Schema) = await this.LocalProvider.EnsureSchemaAsync(context,
-                    new MessageEnsureSchema { Schema = this.Configuration.Schema });
+                    new MessageEnsureSchema
+                    {
+                        Schema = this.Configuration.Schema,
+                        SerializationFormat = this.Configuration.SerializationFormat
+                    });
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -305,7 +316,8 @@ namespace Dotmim.Sync
                     {
                         ScopeInfo = serverScopeInfo,
                         Schema = this.Configuration.Schema,
-                        Filters = this.Configuration.Filters
+                        Filters = this.Configuration.Filters,
+                        SerializationFormat = this.Configuration.SerializationFormat
                     });
 
                 if (cancellationToken.IsCancellationRequested)
@@ -317,7 +329,8 @@ namespace Dotmim.Sync
                     {
                         ScopeInfo = localScopeInfo,
                         Schema = this.Configuration.Schema,
-                        Filters = this.Configuration.Filters
+                        Filters = this.Configuration.Filters,
+                        SerializationFormat = this.Configuration.SerializationFormat
                     });
 
                 if (cancellationToken.IsCancellationRequested)
@@ -334,16 +347,31 @@ namespace Dotmim.Sync
                 ChangesApplied clientChangesApplied = null;
                 ChangesApplied serverChangesApplied = null;
 
-                // fromId : not really needed on this case, since updated / inserted / deleted row has marked null
-                // otherwise, lines updated by server or others clients are already syncked
-                fromId = localScopeInfo.Id;
-                // lastSyncTS : get lines inserted / updated / deteleted after the last sync commited
-                lastSyncTS = localScopeInfo.LastTimestamp;
-                // isNew : If isNew, lasttimestamp is not correct, so grab all
-                isNew = localScopeInfo.IsNewScope;
-                //Direction set to Upload
-                context.SyncWay = SyncWay.Upload;
+                // those timestamps will be registered as the "timestamp just before launch the sync"
+                long serverTimestamp, clientTimestamp;
 
+                if (cancellationToken.IsCancellationRequested)
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                (context, serverTimestamp) = await this.RemoteProvider.GetLocalTimestampAsync(context,
+                    new MessageTimestamp
+                    {
+                        ScopeInfoTableName = this.Configuration.ScopeInfoTableName,
+                        SerializationFormat = this.Configuration.SerializationFormat
+                    });
+
+                if (cancellationToken.IsCancellationRequested)
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                (context, clientTimestamp) = await this.LocalProvider.GetLocalTimestampAsync(context,
+                    new MessageTimestamp
+                    {
+                        ScopeInfoTableName = this.Configuration.ScopeInfoTableName,
+                        SerializationFormat = this.Configuration.SerializationFormat
+                    });
+
+                if (cancellationToken.IsCancellationRequested)
+                    cancellationToken.ThrowIfCancellationRequested();
 
                 // Apply on the Server Side
                 // Since we are on the server, 
@@ -351,8 +379,19 @@ namespace Dotmim.Sync
                 ConflictResolutionPolicy serverPolicy = this.Configuration.ConflictResolutionPolicy;
                 ConflictResolutionPolicy clientPolicy = serverPolicy == ConflictResolutionPolicy.ServerWins ? ConflictResolutionPolicy.ClientWins : ConflictResolutionPolicy.ServerWins;
 
+                // fromId : not really needed on this case, since updated / inserted / deleted row has marked null
+                // otherwise, lines updated by server or others clients are already syncked
+                fromId = localScopeInfo.Id;
+                // lastSyncTS : get lines inserted / updated / deteleted after the last sync commited
+                lastSyncTS = localScopeInfo.LastSyncTimestamp;
+                // isNew : If isNew, lasttimestamp is not correct, so grab all
+                isNew = localScopeInfo.IsNewScope;
+                //Direction set to Upload
+                context.SyncWay = SyncWay.Upload;
 
-                scope = new ScopeInfo { Id = fromId, IsNewScope = isNew, LastTimestamp = lastSyncTS };
+
+
+                scope = new ScopeInfo { Id = fromId, IsNewScope = isNew, Timestamp = lastSyncTS };
                 (context, clientBatchInfo, clientChangesSelected) =
                     await this.LocalProvider.GetChangeBatchAsync(context,
                         new MessageGetChangesBatch
@@ -362,7 +401,8 @@ namespace Dotmim.Sync
                             DownloadBatchSizeInKB = this.Configuration.DownloadBatchSizeInKB,
                             BatchDirectory = this.Configuration.BatchDirectory,
                             Policy = clientPolicy,
-                            Filters = this.Configuration.Filters
+                            Filters = this.Configuration.Filters,
+                            SerializationFormat = this.Configuration.SerializationFormat
                         });
 
                 if (cancellationToken.IsCancellationRequested)
@@ -372,10 +412,10 @@ namespace Dotmim.Sync
                 // fromId : When applying rows, make sure it's identified as applied by this client scope
                 fromId = localScopeInfo.Id;
                 // lastSyncTS : apply lines only if thye are not modified since last client sync
-                lastSyncTS = localScopeReferenceInfo.LastTimestamp;
+                lastSyncTS = localScopeReferenceInfo.LastSyncTimestamp;
                 // isNew : not needed
                 isNew = false;
-                scope = new ScopeInfo { Id = fromId, IsNewScope = isNew, LastTimestamp = lastSyncTS };
+                scope = new ScopeInfo { Id = fromId, IsNewScope = isNew, Timestamp = lastSyncTS };
 
                 (context, serverChangesApplied) =
                     await this.RemoteProvider.ApplyChangesAsync(context,
@@ -386,7 +426,8 @@ namespace Dotmim.Sync
                          Policy = serverPolicy,
                          UseBulkOperations = this.Configuration.UseBulkOperations,
                          ScopeInfoTableName = this.Configuration.ScopeInfoTableName,
-                         Changes = clientBatchInfo
+                         Changes = clientBatchInfo,
+                         SerializationFormat = this.Configuration.SerializationFormat
                      });
 
 
@@ -432,10 +473,10 @@ namespace Dotmim.Sync
                 // fromId : Make sure we don't select lines on server that has been already updated by the client
                 fromId = localScopeInfo.Id;
                 // lastSyncTS : apply lines only if thye are not modified since last client sync
-                lastSyncTS = localScopeReferenceInfo.LastTimestamp;
+                lastSyncTS = localScopeReferenceInfo.LastSyncTimestamp;
                 // isNew : make sure we take all lines if it's the first time we get 
                 isNew = localScopeReferenceInfo.IsNewScope;
-                scope = new ScopeInfo { Id = fromId, IsNewScope = isNew, LastTimestamp = lastSyncTS };
+                scope = new ScopeInfo { Id = fromId, IsNewScope = isNew, Timestamp = lastSyncTS };
                 //Direction set to Download
                 context.SyncWay = SyncWay.Download;
 
@@ -449,7 +490,8 @@ namespace Dotmim.Sync
                             DownloadBatchSizeInKB = this.Configuration.DownloadBatchSizeInKB,
                             BatchDirectory = this.Configuration.BatchDirectory,
                             Policy = serverPolicy,
-                            Filters = this.Configuration.Filters
+                            Filters = this.Configuration.Filters,
+                            SerializationFormat = this.Configuration.SerializationFormat
                         });
 
                 if (cancellationToken.IsCancellationRequested)
@@ -460,10 +502,10 @@ namespace Dotmim.Sync
                 // fromId : When applying rows, make sure it's identified as applied by this server scope
                 fromId = serverScopeInfo.Id;
                 // lastSyncTS : apply lines only if they are not modified since last client sync
-                lastSyncTS = localScopeInfo.LastTimestamp;
+                lastSyncTS = localScopeInfo.LastSyncTimestamp;
                 // isNew : if IsNew, don't apply deleted rows from server
                 isNew = localScopeInfo.IsNewScope;
-                scope = new ScopeInfo { Id = fromId, IsNewScope = isNew, LastTimestamp = lastSyncTS };
+                scope = new ScopeInfo { Id = fromId, IsNewScope = isNew, Timestamp = lastSyncTS };
 
                 (context, clientChangesApplied) =
                     await this.LocalProvider.ApplyChangesAsync(context,
@@ -474,29 +516,13 @@ namespace Dotmim.Sync
                             Policy = clientPolicy,
                             UseBulkOperations = this.Configuration.UseBulkOperations,
                             ScopeInfoTableName = this.Configuration.ScopeInfoTableName,
-                            Changes = serverBatchInfo
+                            Changes = serverBatchInfo,
+                            SerializationFormat = this.Configuration.SerializationFormat
                         });
 
                 context.TotalChangesDownloaded = clientChangesApplied.TotalAppliedChanges;
                 context.TotalChangesUploaded = clientChangesSelected.TotalChangesSelected;
                 context.TotalSyncErrors = clientChangesApplied.TotalAppliedChangesFailed;
-
-                long serverTimestamp, clientTimestamp;
-
-                if (cancellationToken.IsCancellationRequested)
-                    cancellationToken.ThrowIfCancellationRequested();
-
-                (context, serverTimestamp) = await this.RemoteProvider.GetLocalTimestampAsync(context,
-                    new MessageTimestamp { ScopeInfoTableName = this.Configuration.ScopeInfoTableName });
-
-                if (cancellationToken.IsCancellationRequested)
-                    cancellationToken.ThrowIfCancellationRequested();
-
-                (context, clientTimestamp) = await this.LocalProvider.GetLocalTimestampAsync(context,
-                    new MessageTimestamp { ScopeInfoTableName = this.Configuration.ScopeInfoTableName });
-
-                if (cancellationToken.IsCancellationRequested)
-                    cancellationToken.ThrowIfCancellationRequested();
 
                 context.CompleteTime = DateTime.Now;
 
@@ -508,6 +534,15 @@ namespace Dotmim.Sync
                 localScopeReferenceInfo.LastSync = context.CompleteTime;
                 localScopeInfo.LastSync = context.CompleteTime;
 
+                serverScopeInfo.LastSyncTimestamp = serverTimestamp;
+                localScopeReferenceInfo.LastSyncTimestamp = serverTimestamp;
+                localScopeInfo.LastSyncTimestamp = clientTimestamp;
+
+                var duration = context.CompleteTime.Subtract(context.StartTime);
+                serverScopeInfo.LastSyncDuration = duration.Ticks;
+                localScopeReferenceInfo.LastSyncDuration = duration.Ticks;
+                localScopeInfo.LastSyncDuration = duration.Ticks;
+
                 serverScopeInfo.IsLocal = true;
                 localScopeReferenceInfo.IsLocal = false;
 
@@ -515,7 +550,8 @@ namespace Dotmim.Sync
                         new MessageWriteScopes
                         {
                             ScopeInfoTableName = this.Configuration.ScopeInfoTableName,
-                            Scopes = new List<ScopeInfo> { serverScopeInfo, localScopeReferenceInfo }
+                            Scopes = new List<ScopeInfo> { serverScopeInfo, localScopeReferenceInfo },
+                            SerializationFormat = this.Configuration.SerializationFormat
                         });
 
 
@@ -529,9 +565,10 @@ namespace Dotmim.Sync
                         new MessageWriteScopes
                         {
                             ScopeInfoTableName = this.Configuration.ScopeInfoTableName,
-                            Scopes = new List<ScopeInfo> { localScopeInfo, serverScopeInfo }
+                            Scopes = new List<ScopeInfo> { localScopeInfo, serverScopeInfo },
+                            SerializationFormat = this.Configuration.SerializationFormat
                         });
-                
+
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
@@ -591,8 +628,8 @@ namespace Dotmim.Sync
             this.LocalProvider.TableChangesApplying -= (s, e) => this.TableChangesApplying?.Invoke(s, e);
             this.LocalProvider.TableChangesSelected -= (s, e) => this.TableChangesSelected?.Invoke(s, e);
             this.LocalProvider.TableChangesSelecting -= (s, e) => this.TableChangesSelecting?.Invoke(s, e);
-            this.LocalProvider.ConfigurationApplied -= (s, e) => this.ConfigurationApplied?.Invoke(s, e);
-            this.LocalProvider.ConfigurationApplying -= (s, e) => this.ConfigurationApplying?.Invoke(s, e);
+            this.LocalProvider.SchemaApplied -= (s, e) => this.SchemaApplied?.Invoke(s, e);
+            this.LocalProvider.SchemaApplying -= (s, e) => this.SchemaApplying?.Invoke(s, e);
             this.LocalProvider.DatabaseApplied -= (s, e) => this.DatabaseApplied?.Invoke(s, e);
             this.LocalProvider.DatabaseApplying -= (s, e) => this.DatabaseApplying?.Invoke(s, e);
             this.LocalProvider.ScopeLoading -= (s, e) => this.ScopeLoading?.Invoke(s, e);

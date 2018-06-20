@@ -150,7 +150,8 @@ namespace Dotmim.Sync.Test
         {
             agent = new SyncAgent(clientProvider, serverProvider, fixture.Tables);
 
-            agent.DatabaseApplying += (s, e) => e.OverwriteConfiguration = true;
+            // Overwrite configuration to apply the schem on the database, even if we have already made a sync before
+            agent.DatabaseApplying += (s, e) => e.OverwriteSchema = true;
 
             var session = await agent.SynchronizeAsync();
 
@@ -183,7 +184,8 @@ namespace Dotmim.Sync.Test
         {
             agent = new SyncAgent(clientProvider, serverProvider, fixture.Tables);
 
-            agent.DatabaseApplying += (s, e) => e.OverwriteConfiguration = true;
+            // Overwrite configuration to apply the schem on the database, even if we have already made a sync before
+            agent.DatabaseApplying += (s, e) => e.OverwriteSchema = true;
 
             var session = await agent.SynchronizeAsync();
 
@@ -209,7 +211,7 @@ namespace Dotmim.Sync.Test
         {
             agent = new SyncAgent(clientProvider, serverProvider, fixture.Tables);
 
-            agent.DatabaseApplying += (s, e) => e.OverwriteConfiguration = true;
+            agent.DatabaseApplying += (s, e) => e.OverwriteSchema = true;
 
             var session = await agent.SynchronizeAsync();
 
@@ -235,7 +237,7 @@ namespace Dotmim.Sync.Test
         {
             agent = new SyncAgent(clientProvider, serverProvider, fixture.Tables);
 
-            agent.DatabaseApplying += (s, e) => e.OverwriteConfiguration = true;
+            agent.DatabaseApplying += (s, e) => e.OverwriteSchema = true;
 
             var session = await agent.SynchronizeAsync();
 
@@ -260,7 +262,7 @@ namespace Dotmim.Sync.Test
         public async Task DeprovisionAllExceptTables()
         {
             agent = new SyncAgent(clientProvider, serverProvider, fixture.Tables);
-            agent.DatabaseApplying += (s, e) => e.OverwriteConfiguration = true;
+            agent.DatabaseApplying += (s, e) => e.OverwriteSchema = true;
             var session = await agent.SynchronizeAsync();
 
             await clientProvider.DeprovisionAsync(fixture.Tables, 

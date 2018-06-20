@@ -86,7 +86,7 @@ namespace Dotmim.Sync.Test
           ";
 
         private HelperDB helperDb = new HelperDB();
-        private string serverDbName = "Test_Sqlite_Http_Server";
+        private readonly string serverDbName = "Test_Sqlite_Http_Server";
 
         public string[] Tables => new string[] { "ServiceTickets" };
 
@@ -110,9 +110,6 @@ namespace Dotmim.Sync.Test
             // insert table
             helperDb.ExecuteScript(serverDbName, datas);
 
-            var serverProvider = new SqlSyncProvider(ServerConnectionString);
-            var clientProvider = new SqliteSyncProvider(ClientSqliteFilePath);
-            var simpleConfiguration = new SyncConfiguration(Tables);
 
         }
         public void Dispose()
@@ -137,7 +134,6 @@ namespace Dotmim.Sync.Test
         SqliteSyncHttpFixture fixture;
         WebProxyServerProvider proxyServerProvider;
         WebProxyClientProvider proxyClientProvider;
-        SyncConfiguration configuration;
         SyncAgent agent;
 
         public SqliteSyncHttpTests(SqliteSyncHttpFixture fixture)
@@ -150,8 +146,7 @@ namespace Dotmim.Sync.Test
             clientProvider = new SqliteSyncProvider(fixture.ClientSqliteFilePath);
             proxyClientProvider = new WebProxyClientProvider();
 
-            configuration = new SyncConfiguration(this.fixture.Tables);
-
+       
             agent = new SyncAgent(clientProvider, proxyClientProvider);
 
         }
@@ -163,6 +158,8 @@ namespace Dotmim.Sync.Test
             {
                 var serverHandler = new RequestDelegate(async context =>
                 {
+                    var configuration = new SyncConfiguration(this.fixture.Tables);
+
                     proxyServerProvider.Configuration = configuration;
 
                     await proxyServerProvider.HandleRequestAsync(context);
@@ -170,7 +167,6 @@ namespace Dotmim.Sync.Test
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = SerializationFormat.Json;
 
                     var session = await agent.SynchronizeAsync();
 
@@ -189,7 +185,7 @@ namespace Dotmim.Sync.Test
                 var serverHandler = new RequestDelegate(async context =>
                 {
                     conf.Add(fixture.Tables);
-                    proxyServerProvider.Configuration = configuration;
+                    proxyServerProvider.Configuration = conf;
                     
 
                     await proxyServerProvider.HandleRequestAsync(context);
@@ -197,7 +193,6 @@ namespace Dotmim.Sync.Test
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     var session = await agent.SynchronizeAsync();
 
@@ -229,7 +224,7 @@ namespace Dotmim.Sync.Test
                 var serverHandler = new RequestDelegate(async context =>
                 {
                     conf.Add(fixture.Tables);
-                    proxyServerProvider.Configuration = configuration;
+                    proxyServerProvider.Configuration = conf;
                     
 
                     await proxyServerProvider.HandleRequestAsync(context);
@@ -237,7 +232,6 @@ namespace Dotmim.Sync.Test
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     var session = await agent.SynchronizeAsync();
 
@@ -278,7 +272,7 @@ namespace Dotmim.Sync.Test
                 var serverHandler = new RequestDelegate(async context =>
                 {
                     conf.Add(fixture.Tables);
-                    proxyServerProvider.Configuration = configuration;
+                    proxyServerProvider.Configuration = conf;
                     
 
                     await proxyServerProvider.HandleRequestAsync(context);
@@ -286,7 +280,6 @@ namespace Dotmim.Sync.Test
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     var session = await agent.SynchronizeAsync();
 
@@ -322,7 +315,7 @@ namespace Dotmim.Sync.Test
                 var serverHandler = new RequestDelegate(async context =>
                 {
                     conf.Add(fixture.Tables);
-                    proxyServerProvider.Configuration = configuration;
+                    proxyServerProvider.Configuration = conf;
                     
 
                     await proxyServerProvider.HandleRequestAsync(context);
@@ -330,7 +323,6 @@ namespace Dotmim.Sync.Test
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     var session = await agent.SynchronizeAsync();
 
@@ -360,7 +352,7 @@ namespace Dotmim.Sync.Test
                 var serverHandler = new RequestDelegate(async context =>
                 {
                     conf.Add(fixture.Tables);
-                    proxyServerProvider.Configuration = configuration;
+                    proxyServerProvider.Configuration = conf;
                     
 
                     await proxyServerProvider.HandleRequestAsync(context);
@@ -368,7 +360,6 @@ namespace Dotmim.Sync.Test
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     var session = await agent.SynchronizeAsync();
 
@@ -401,7 +392,7 @@ namespace Dotmim.Sync.Test
                 var serverHandler = new RequestDelegate(async context =>
                 {
                     conf.Add(fixture.Tables);
-                    proxyServerProvider.Configuration = configuration;
+                    proxyServerProvider.Configuration = conf;
                     
 
                     await proxyServerProvider.HandleRequestAsync(context);
@@ -409,7 +400,6 @@ namespace Dotmim.Sync.Test
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     var session = await agent.SynchronizeAsync();
 
@@ -442,7 +432,7 @@ namespace Dotmim.Sync.Test
                 var serverHandler = new RequestDelegate(async context =>
                 {
                     conf.Add(fixture.Tables);
-                    proxyServerProvider.Configuration = configuration;
+                    proxyServerProvider.Configuration = conf;
                     
 
                     await proxyServerProvider.HandleRequestAsync(context);
@@ -450,7 +440,6 @@ namespace Dotmim.Sync.Test
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     var session = await agent.SynchronizeAsync();
 
@@ -483,7 +472,7 @@ namespace Dotmim.Sync.Test
                 var serverHandler = new RequestDelegate(async context =>
                 {
                     conf.Add(fixture.Tables);
-                    proxyServerProvider.Configuration = configuration;
+                    proxyServerProvider.Configuration = conf;
                     
 
                     await proxyServerProvider.HandleRequestAsync(context);
@@ -491,7 +480,6 @@ namespace Dotmim.Sync.Test
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     var session = await agent.SynchronizeAsync();
 
@@ -554,7 +542,7 @@ namespace Dotmim.Sync.Test
                 var serverHandler = new RequestDelegate(async context =>
                 {
                     conf.Add(fixture.Tables);
-                    proxyServerProvider.Configuration = configuration;
+                    proxyServerProvider.Configuration = conf;
                     
 
                     await proxyServerProvider.HandleRequestAsync(context);
@@ -562,7 +550,6 @@ namespace Dotmim.Sync.Test
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     var session = await agent.SynchronizeAsync();
 
@@ -620,7 +607,7 @@ namespace Dotmim.Sync.Test
                 var serverHandler = new RequestDelegate(async context =>
                 {
                     conf.Add(fixture.Tables);
-                    proxyServerProvider.Configuration = configuration;
+                    proxyServerProvider.Configuration = conf;
                     
 
                     await proxyServerProvider.HandleRequestAsync(context);
@@ -628,7 +615,6 @@ namespace Dotmim.Sync.Test
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     var session = await agent.SynchronizeAsync();
 
@@ -675,7 +661,7 @@ namespace Dotmim.Sync.Test
                 var serverHandler = new RequestDelegate(async context =>
                 {
                     conf.Add(fixture.Tables);
-                    proxyServerProvider.Configuration = configuration;
+                    proxyServerProvider.Configuration = conf;
                     
 
                     await proxyServerProvider.HandleRequestAsync(context);
@@ -683,7 +669,6 @@ namespace Dotmim.Sync.Test
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     var session = await agent.SynchronizeAsync();
 
@@ -742,7 +727,7 @@ namespace Dotmim.Sync.Test
                 var serverHandler = new RequestDelegate(async context =>
                 {
                     conf.Add(fixture.Tables);
-                    proxyServerProvider.Configuration = configuration;
+                    proxyServerProvider.Configuration = conf;
                     
 
                     await proxyServerProvider.HandleRequestAsync(context);
@@ -750,7 +735,6 @@ namespace Dotmim.Sync.Test
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     var session = await agent.SynchronizeAsync();
 
@@ -797,7 +781,7 @@ namespace Dotmim.Sync.Test
                 var serverHandler = new RequestDelegate(async context =>
                 {
                     conf.Add(fixture.Tables);
-                    proxyServerProvider.Configuration = configuration;
+                    proxyServerProvider.Configuration = conf;
                     
 
                     // Since we move to server side, it's server to handle errors
@@ -811,7 +795,6 @@ namespace Dotmim.Sync.Test
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     SyncContext session = null;
                     await Assert.RaisesAsync<ApplyChangeFailedEventArgs>(
@@ -891,7 +874,7 @@ namespace Dotmim.Sync.Test
                     conf.Add(fixture.Tables);
                     conf.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
 
-                    proxyServerProvider.Configuration = configuration;
+                    proxyServerProvider.Configuration = conf;
                     
 
                     await proxyServerProvider.HandleRequestAsync(context);
@@ -899,7 +882,6 @@ namespace Dotmim.Sync.Test
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = conf.SerializationFormat;
 
                     var session = await agent.SynchronizeAsync();
 

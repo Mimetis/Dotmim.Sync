@@ -144,7 +144,7 @@ namespace Dotmim.Sync.Test
         }
 
 
-        [Theory, TestPriority(1)]
+        [Fact, TestPriority(1)]
         public async Task SyncNoRows()
         {
             var session = await agent.SynchronizeAsync();
@@ -153,7 +153,7 @@ namespace Dotmim.Sync.Test
             Assert.Equal(0, session.TotalChangesUploaded);
         }
 
-        [Theory, TestPriority(2)]
+        [Fact, TestPriority(2)]
         public async Task InsertFromServer()
         {
             var insertRowScript =
@@ -175,7 +175,7 @@ namespace Dotmim.Sync.Test
             Assert.Equal(0, session.TotalChangesUploaded);
         }
 
-        [Theory, TestPriority(3)]
+        [Fact, TestPriority(3)]
         public async Task InsertFromClient()
         {
             var insertRowScript =
@@ -197,7 +197,7 @@ namespace Dotmim.Sync.Test
             Assert.Equal(1, session.TotalChangesUploaded);
         }
 
-        [Theory, TestPriority(4)]
+        [Fact, TestPriority(4)]
         public async Task UpdateFromClient()
         {
             string title = $"Update from client at {DateTime.Now.Ticks.ToString()}";
@@ -222,7 +222,7 @@ namespace Dotmim.Sync.Test
             Assert.Equal(1, session.TotalChangesUploaded);
         }
 
-        [Theory, TestPriority(5)]
+        [Fact, TestPriority(5)]
         public async Task UpdateFromServer()
         {
             string title = $"Update from server at {DateTime.Now.Ticks.ToString()}"; 
@@ -246,7 +246,7 @@ namespace Dotmim.Sync.Test
             Assert.Equal(0, session.TotalChangesUploaded);
         }
 
-        [Theory, TestPriority(6)]
+        [Fact, TestPriority(6)]
         public async Task DeleteFromServer()
         {
 
@@ -270,7 +270,7 @@ namespace Dotmim.Sync.Test
             Assert.Equal(0, session.TotalChangesUploaded);
         }
 
-        [Theory, TestPriority(7)]
+        [Fact, TestPriority(7)]
         public async Task DeleteFromClient()
         {
             int count;
@@ -302,7 +302,7 @@ namespace Dotmim.Sync.Test
             Assert.Equal(0, count);
         }
 
-        [Theory, TestPriority(8)]
+        [Fact, TestPriority(8)]
         public async Task ConflictInsertInsertServerWins()
         {
             Guid id = Guid.NewGuid();
@@ -361,7 +361,7 @@ namespace Dotmim.Sync.Test
             Assert.Equal("Conflict Line Server", expectedRes);
         }
 
-        [Theory, TestPriority(9)]
+        [Fact, TestPriority(9)]
         public async Task ConflictUpdateUpdateServerWins()
         {
             var id = Guid.NewGuid().ToString();
@@ -446,7 +446,7 @@ namespace Dotmim.Sync.Test
             Assert.Equal(expectedString, resultString);
         }
 
-        [Theory, TestPriority(10)]
+        [Fact, TestPriority(10)]
         public async Task ConflictUpdateUpdateClientWins()
         {
             var id = Guid.NewGuid().ToString();
@@ -538,7 +538,7 @@ namespace Dotmim.Sync.Test
             Assert.Equal(expectedString, resultString);
         }
 
-        [Theory, TestPriority(11)]
+        [Fact, TestPriority(11)]
         public async Task ConflictInsertInsertConfigurationClientWins()
         {
 
@@ -599,7 +599,7 @@ namespace Dotmim.Sync.Test
             Assert.Equal("Conflict Line Client", expectedRes);
         }
 
-        [Theory, TestPriority(12)]
+        [Fact, TestPriority(12)]
         public async Task ConflictUpdateUpdateMerge()
         {
             var id = Guid.NewGuid().ToString();
@@ -714,7 +714,7 @@ namespace Dotmim.Sync.Test
             Assert.Equal(expectedString, resultString);
         }
 
-        [Theory, TestPriority(13)]
+        [Fact, TestPriority(13)]
         public async Task InsertUpdateDeleteFromServer()
         {
             Guid insertedId = Guid.NewGuid();

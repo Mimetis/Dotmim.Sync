@@ -7,6 +7,7 @@ namespace Dotmim.Sync.Messages
     /// <summary>
     /// Message exchanged during the Begin session sync stage
     /// </summary>
+    [Serializable]
     public class MessageBeginSession
     {
 

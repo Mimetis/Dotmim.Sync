@@ -134,7 +134,6 @@ namespace Dotmim.Sync.Test
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = SerializationFormat.Json;
 
                     var syncAgent = new SyncAgent(clientProvider, proxyClientProvider);
                     var session = await syncAgent.SynchronizeAsync();
@@ -190,7 +189,6 @@ namespace Dotmim.Sync.Test
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = SerializationFormat.Json;
 
                     var syncAgent = new SyncAgent(clientProvider, proxyClientProvider);
                     var session = await syncAgent.SynchronizeAsync(SyncType.Reinitialize);
@@ -249,7 +247,6 @@ namespace Dotmim.Sync.Test
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
                     proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                    proxyClientProvider.SerializationFormat = SerializationFormat.Json;
 
                     var syncAgent = new SyncAgent(clientProvider, proxyClientProvider);
                     var session = await syncAgent.SynchronizeAsync(SyncType.ReinitializeWithUpload);

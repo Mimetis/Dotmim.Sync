@@ -46,8 +46,8 @@ namespace Dotmim.Sync
         public event EventHandler<DatabaseAppliedEventArgs> DatabaseApplied = null;
         public event EventHandler<DatabaseTableApplyingEventArgs> DatabaseTableApplying = null;
         public event EventHandler<DatabaseTableAppliedEventArgs> DatabaseTableApplied = null;
-        public event EventHandler<ConfigurationApplyingEventArgs> ConfigurationApplying = null;
-        public event EventHandler<ConfigurationAppliedEventArgs> ConfigurationApplied = null;
+        public event EventHandler<SchemaApplyingEventArgs> SchemaApplying = null;
+        public event EventHandler<SchemaAppliedEventArgs> SchemaApplied = null;
         public event EventHandler<TableChangesSelectingEventArgs> TableChangesSelecting = null;
         public event EventHandler<TableChangesSelectedEventArgs> TableChangesSelected = null;
         public event EventHandler<TableChangesApplyingEventArgs> TableChangesApplying = null;
@@ -138,11 +138,11 @@ namespace Dotmim.Sync
                     props.Add("ScopeId", (args as ScopeEventArgs).ScopeInfo.Id.ToString());
                     this.TryRaiseProgressEvent(SyncStage.ScopeLoading, $"Scope saved", props);
                     break;
-                case SyncStage.ConfigurationApplying:
-                    this.TryRaiseProgressEvent(SyncStage.ConfigurationApplying, $"Applying configuration");
+                case SyncStage.SchemaApplying:
+                    this.TryRaiseProgressEvent(SyncStage.SchemaApplying, $"Applying configuration");
                     break;
-                case SyncStage.ConfigurationApplied:
-                    this.TryRaiseProgressEvent(SyncStage.ConfigurationApplied, $"Configuration applied");
+                case SyncStage.SchemaApplied:
+                    this.TryRaiseProgressEvent(SyncStage.SchemaApplied, $"Configuration applied");
                     break;
                 case SyncStage.DatabaseApplying:
                     this.TryRaiseProgressEvent(SyncStage.DatabaseApplying, $"Applying database schemas");

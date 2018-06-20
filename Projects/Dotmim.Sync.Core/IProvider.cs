@@ -23,8 +23,8 @@ namespace Dotmim.Sync
         event EventHandler<DatabaseAppliedEventArgs> DatabaseApplied;
         event EventHandler<DatabaseTableApplyingEventArgs> DatabaseTableApplying;
         event EventHandler<DatabaseTableAppliedEventArgs> DatabaseTableApplied;
-        event EventHandler<ConfigurationApplyingEventArgs> ConfigurationApplying;
-        event EventHandler<ConfigurationAppliedEventArgs> ConfigurationApplied;
+        event EventHandler<SchemaApplyingEventArgs> SchemaApplying;
+        event EventHandler<SchemaAppliedEventArgs> SchemaApplied;
         event EventHandler<TableChangesSelectingEventArgs> TableChangesSelecting;
         event EventHandler<TableChangesSelectedEventArgs> TableChangesSelected;
         event EventHandler<TableChangesApplyingEventArgs> TableChangesApplying;
