@@ -17,6 +17,7 @@ using Dotmim.Sync.Data;
 using Dotmim.Sync.Filter;
 using Dotmim.Sync.Messages;
 using Newtonsoft.Json.Linq;
+using Microsoft.Extensions.Primitives;
 
 namespace Dotmim.Sync.Web
 {
@@ -44,8 +45,8 @@ namespace Dotmim.Sync.Web
         public event EventHandler<DatabaseAppliedEventArgs> DatabaseApplied;
         public event EventHandler<DatabaseTableApplyingEventArgs> DatabaseTableApplying;
         public event EventHandler<DatabaseTableAppliedEventArgs> DatabaseTableApplied;
-        public event EventHandler<ConfigurationApplyingEventArgs> ConfigurationApplying;
-        public event EventHandler<ConfigurationAppliedEventArgs> ConfigurationApplied;
+        public event EventHandler<SchemaApplyingEventArgs> SchemaApplying;
+        public event EventHandler<SchemaAppliedEventArgs> SchemaApplied;
         public event EventHandler<TableChangesSelectingEventArgs> TableChangesSelecting;
         public event EventHandler<TableChangesSelectedEventArgs> TableChangesSelected;
         public event EventHandler<TableChangesApplyingEventArgs> TableChangesApplying;
@@ -83,6 +84,11 @@ namespace Dotmim.Sync.Web
             var httpResponse = context.Response;
             var streamArray = httpRequest.Body;
 
+            SerializationFormat serializationFormat = SerializationFormat.Json;
+            // Get the serialization format
+            if (context.Request.Headers.TryGetValue("dotmim-sync-serialization-format", out StringValues vs))
+                serializationFormat = vs[0].ToLowerInvariant() == "json" ? SerializationFormat.Json : SerializationFormat.Binary;
+
             // Check if we should handle a session store to handle configuration
             if (!this.IsRegisterAsSingleton)
             {
@@ -95,7 +101,8 @@ namespace Dotmim.Sync.Web
 
             try
             {
-                var serializer = BaseConverter<HttpMessage>.GetConverter(this.Configuration.SerializationFormat);
+                var serializer = BaseConverter<HttpMessage>.GetConverter(serializationFormat);
+
                 var httpMessage = serializer.Deserialize(streamArray);
 
                 HttpMessage httpMessageResponse = null;
@@ -144,14 +151,20 @@ namespace Dotmim.Sync.Web
 
         private async Task<HttpMessage> BeginSessionAsync(HttpMessage httpMessage)
         {
-            var httpMessageBeginSession = (httpMessage.Content as JObject).ToObject<HttpMessageBeginSession>();
+            HttpMessageBeginSession httpMessageBeginSession;
+            if (httpMessage.Content is HttpMessageBeginSession)
+                httpMessageBeginSession = httpMessage.Content as HttpMessageBeginSession;
+            else
+                httpMessageBeginSession = (httpMessage.Content as JObject).ToObject<HttpMessageBeginSession>();
 
             // the Conf is hosted by the server ? if not, get the client configuration
-            var configuration = this.Configuration ?? httpMessageBeginSession.SyncConfiguration;
+            httpMessageBeginSession.SyncConfiguration = 
+                this.Configuration ?? httpMessageBeginSession.SyncConfiguration;
 
             // Begin the session, requesting the server for the correct configuration
             (SyncContext ctx, SyncConfiguration conf) =
-                await this.BeginSessionAsync(httpMessage.SyncContext, httpMessageBeginSession as MessageBeginSession);
+                await this.BeginSessionAsync(httpMessage.SyncContext, 
+                        httpMessageBeginSession as MessageBeginSession);
 
             // One exception : don't touch the batch directory, it's very client specific and may differ from server side
             conf.BatchDirectory = httpMessageBeginSession.SyncConfiguration.BatchDirectory;
@@ -176,7 +189,11 @@ namespace Dotmim.Sync.Web
 
         private async Task<HttpMessage> EnsureScopesAsync(HttpMessage httpMessage)
         {
-            var httpMessageEnsureScopes = (httpMessage.Content as JObject).ToObject<HttpMessageEnsureScopes>();
+            HttpMessageEnsureScopes httpMessageEnsureScopes;
+            if (httpMessage.Content is HttpMessageEnsureScopes)
+                httpMessageEnsureScopes = httpMessage.Content as HttpMessageEnsureScopes;
+            else
+                httpMessageEnsureScopes = (httpMessage.Content as JObject).ToObject<HttpMessageEnsureScopes>();
 
             if (httpMessageEnsureScopes == null)
                 throw new ArgumentException("EnsureScopeMessage could not be null");
@@ -197,18 +214,29 @@ namespace Dotmim.Sync.Web
 
         private async Task<HttpMessage> EnsureSchemaAsync(HttpMessage httpMessage)
         {
-            var httpMessageContent = (httpMessage.Content as JObject).ToObject<HttpMessageEnsureSchema>();
+            HttpMessageEnsureSchema httpMessageContent;
+            if (httpMessage.Content is HttpMessageEnsureSchema)
+                httpMessageContent = httpMessage.Content as HttpMessageEnsureSchema;
+            else
+                httpMessageContent = (httpMessage.Content as JObject).ToObject<HttpMessageEnsureSchema>();
 
             if (httpMessageContent == null)
                 throw new ArgumentException("EnsureSchema message could not be null");
 
             // If the Conf is hosted by the server, we try to get the tables from it, overriding the client schema, if passed
-            var schema = this.Configuration.Schema ?? httpMessageContent.Schema.ConvertToDmSet();
+            DmSet schema = null;
+            if (this.Configuration.Schema != null)
+                schema = this.Configuration.Schema;
+            else if (httpMessageContent.Schema != null)
+                schema = httpMessageContent.Schema.ConvertToDmSet();
 
-            httpMessageContent.Schema.Dispose();
-            httpMessageContent.Schema = null;
+            if (httpMessageContent.Schema != null)
+            {
+                httpMessageContent.Schema.Dispose();
+                httpMessageContent.Schema = null;
+            }
 
-            (httpMessage.SyncContext, schema) = await this.EnsureSchemaAsync(httpMessage.SyncContext, 
+            (httpMessage.SyncContext, schema) = await this.EnsureSchemaAsync(httpMessage.SyncContext,
                 new MessageEnsureSchema { Schema = schema });
 
             httpMessageContent.Schema = new DmSetSurrogate(schema);
@@ -224,7 +252,11 @@ namespace Dotmim.Sync.Web
 
         private async Task<HttpMessage> EnsureDatabaseAsync(HttpMessage httpMessage)
         {
-            var httpMessageContent = (httpMessage.Content as JObject).ToObject<HttpMessageEnsureDatabase>();
+            HttpMessageEnsureDatabase httpMessageContent;
+            if (httpMessage.Content is HttpMessageEnsureDatabase)
+                httpMessageContent = httpMessage.Content as HttpMessageEnsureDatabase;
+            else
+                httpMessageContent = (httpMessage.Content as JObject).ToObject<HttpMessageEnsureDatabase>();
 
             if (httpMessageContent == null)
                 throw new ArgumentException("EnsureDatabase message could not be null");
@@ -249,7 +281,11 @@ namespace Dotmim.Sync.Web
         /// <returns></returns>
         private async Task<HttpMessage> GetChangeBatchAsync(HttpMessage httpMessage)
         {
-            var httpMessageContent = (httpMessage.Content as JObject).ToObject<HttpMessageGetChangesBatch>();
+            HttpMessageGetChangesBatch httpMessageContent;
+            if (httpMessage.Content is HttpMessageGetChangesBatch)
+                httpMessageContent = httpMessage.Content as HttpMessageGetChangesBatch;
+            else
+                httpMessageContent = (httpMessage.Content as JObject).ToObject<HttpMessageGetChangesBatch>();
 
             if (httpMessageContent == null)
                 throw new ArgumentException("GetChangeBatch message could not be null");
@@ -267,7 +303,7 @@ namespace Dotmim.Sync.Web
                     httpMessage.SyncContext,
                     new MessageGetChangesBatch
                     {
-                        ScopeInfo =scopeInfo,
+                        ScopeInfo = scopeInfo,
                         Schema = httpMessageContent.Schema.ConvertToDmSet(),
                         DownloadBatchSizeInKB = httpMessageContent.DownloadBatchSizeInKB,
                         BatchDirectory = httpMessageContent.BatchDirectory,
@@ -342,7 +378,11 @@ namespace Dotmim.Sync.Web
 
         private async Task<HttpMessage> ApplyChangesAsync(HttpMessage httpMessage)
         {
-            var httpMessageContent = (httpMessage.Content as JObject).ToObject<HttpMessageApplyChanges>();
+            HttpMessageApplyChanges httpMessageContent;
+            if (httpMessage.Content is HttpMessageApplyChanges)
+                httpMessageContent = httpMessage.Content as HttpMessageApplyChanges;
+            else
+                httpMessageContent = (httpMessage.Content as JObject).ToObject<HttpMessageApplyChanges>();
 
             if (httpMessageContent == null)
                 throw new ArgumentException("ApplyChanges message could not be null");
@@ -458,7 +498,11 @@ namespace Dotmim.Sync.Web
 
         private async Task<HttpMessage> GetLocalTimestampAsync(HttpMessage httpMessage)
         {
-            var httpMessageContent = (httpMessage.Content as JObject).ToObject<HttpMessageTimestamp>();
+            HttpMessageTimestamp httpMessageContent;
+            if (httpMessage.Content is HttpMessageTimestamp)
+                httpMessageContent = httpMessage.Content as HttpMessageTimestamp;
+            else
+                httpMessageContent = (httpMessage.Content as JObject).ToObject<HttpMessageTimestamp>();
 
             if (httpMessageContent == null)
                 throw new ArgumentException("Timestamp message could not be null");
@@ -475,7 +519,11 @@ namespace Dotmim.Sync.Web
 
         private async Task<HttpMessage> WriteScopesAsync(HttpMessage httpMessage)
         {
-            var httpMessageContent = (httpMessage.Content as JObject).ToObject<HttpMessageWriteScopes>();
+            HttpMessageWriteScopes httpMessageContent;
+            if (httpMessage.Content is HttpMessageWriteScopes)
+                httpMessageContent = httpMessage.Content as HttpMessageWriteScopes;
+            else
+                httpMessageContent = (httpMessage.Content as JObject).ToObject<HttpMessageWriteScopes>();
 
             if (httpMessageContent == null)
                 throw new ArgumentException("WriteScopes message could not be null");

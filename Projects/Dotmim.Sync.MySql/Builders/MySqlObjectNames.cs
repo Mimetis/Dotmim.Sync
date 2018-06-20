@@ -64,8 +64,8 @@ namespace Dotmim.Sync.MySql
         /// </summary>
         private void SetDefaultNames()
         {
-            var pref = this.TableDescription.TrackingTablesPrefix.ToLowerInvariant();
-            var suf = this.TableDescription.TrackingTablesSuffix.ToLowerInvariant();
+            var pref = this.TableDescription.TrackingTablesPrefix != null ?  this.TableDescription.TrackingTablesPrefix.ToLowerInvariant() : "";
+            var suf = this.TableDescription.TrackingTablesSuffix != null ? this.TableDescription.TrackingTablesSuffix.ToLowerInvariant() : "";
 
             this.AddName(DbCommandType.InsertTrigger, string.Format(insertTriggerName, tableName.UnquotedStringWithUnderScore));
             this.AddName(DbCommandType.UpdateTrigger, string.Format(updateTriggerName, tableName.UnquotedStringWithUnderScore));

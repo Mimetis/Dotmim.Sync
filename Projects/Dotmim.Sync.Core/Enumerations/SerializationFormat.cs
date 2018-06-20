@@ -7,7 +7,6 @@ namespace Dotmim.Sync.Enumerations
     public enum SerializationFormat
     {
         Json,
-        Binary,
-        Custom
+        Binary
     }
 }

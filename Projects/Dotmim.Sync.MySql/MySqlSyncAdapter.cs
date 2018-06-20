@@ -47,6 +47,11 @@ namespace Dotmim.Sync.MySql
         {
             return false;
         }
+        public override bool IsUniqueKeyViolation(Exception exception)
+        {
+            return false;
+        }
+
 
         public override DbCommand GetCommand(DbCommandType commandType, IEnumerable<string> additionals = null)
         {
@@ -330,5 +335,6 @@ namespace Dotmim.Sync.MySql
         {
             throw new NotImplementedException();
         }
+
     }
 }

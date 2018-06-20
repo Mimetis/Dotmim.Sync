@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Dotmim.Sync.Enumerations;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -7,6 +8,7 @@ namespace Dotmim.Sync.Messages
     /// <summary>
     /// Message exchanged during the Ensure scopes sync stage
     /// </summary>
+    [Serializable]
     public class MessageEnsureScopes
     {
         /// <summary>
@@ -24,5 +26,9 @@ namespace Dotmim.Sync.Messages
         /// </summary>
         public String ScopeName { get; set; }
 
+        /// <summary>
+        /// Gets or Sets the Serialization format used during the sync
+        /// </summary>
+        public SerializationFormat SerializationFormat { get; set; }
     }
 }

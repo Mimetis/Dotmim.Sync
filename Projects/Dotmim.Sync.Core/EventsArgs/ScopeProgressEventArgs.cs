@@ -103,19 +103,20 @@ namespace Dotmim.Sync
     /// </summary>
     public class DatabaseApplyingEventArgs : BaseProgressEventArgs
     {
-        public DatabaseApplyingEventArgs(string providerTypeName, SyncStage stage, SyncConfiguration configuration) : base(providerTypeName, stage)
+        public DatabaseApplyingEventArgs(string providerTypeName, SyncStage stage, DmSet schema) : base(providerTypeName, stage)
         {
-            this.Configuration = configuration;
+            this.Schema = schema;
         }
 
         /// <summary>
-        /// Configuration used for the current database to be applied
+        /// Gets the schema to be applied in the database
         /// </summary>
-        public SyncConfiguration Configuration { get; set; }
+        public DmSet Schema{ get; private set; }
+
         /// <summary>
-        /// Gets or Sets a boolean for overwriting the current configuration. If True, all scripts are generated and applied
+        /// Gets or Sets a boolean for overwriting the current schema. If True, all scripts are generated and applied
         /// </summary>
-        public Boolean OverwriteConfiguration { get; set; }
+        public Boolean OverwriteSchema { get; set; }
 
         /// <summary>
         /// Gets or Sets a boolean value to specify if scripts should be generated, before applied.
@@ -178,10 +179,11 @@ namespace Dotmim.Sync
         public ScopeInfo ScopeInfo { get; }
     }
 
-    public class ConfigurationApplyingEventArgs : BaseProgressEventArgs
+    public class SchemaApplyingEventArgs : BaseProgressEventArgs
     {
-        public ConfigurationApplyingEventArgs(string providerTypeName, SyncStage stage) : base(providerTypeName, stage)
+        public SchemaApplyingEventArgs(string providerTypeName, SyncStage stage, DmSet schema) : base(providerTypeName, stage)
         {
+            this.Schema = schema;
         }
 
         /// <summary>
@@ -190,21 +192,21 @@ namespace Dotmim.Sync
         public Boolean OverwriteConfiguration { get; set; }
 
         /// <summary>
-        /// Configuration
+        /// Gets the schema to be applied. If no tables are filled, the schema will be read.
         /// </summary>
-        public SyncConfiguration Configuration { get; }
+        public DmSet Schema{ get; }
     }
 
-    public class ConfigurationAppliedEventArgs : BaseProgressEventArgs
+    public class SchemaAppliedEventArgs : BaseProgressEventArgs
     {
-        public ConfigurationAppliedEventArgs(string providerTypeName, SyncStage stage, SyncConfiguration configuration) : base(providerTypeName, stage)
+        public SchemaAppliedEventArgs(string providerTypeName, SyncStage stage, DmSet schema) : base(providerTypeName, stage)
         {
-            this.Configuration = configuration;
+            this.Schema= schema;
         }
         /// <summary>
-        /// Configuration
+        /// Get the schema applied
         /// </summary>
-        public SyncConfiguration Configuration { get; }
+        public DmSet Schema{ get; }
     }
 
 

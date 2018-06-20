@@ -51,9 +51,17 @@ class Program
                 "Address", "Customer", "CustomerAddress",
                 "SalesOrderHeader", "SalesOrderDetail" };
 
-        var configuration = new SyncConfiguration(tables);
-        configuration.ScopeName = "Pète";
-        configuration.ScopeInfoTableName = "Prout";
+        var configuration = new SyncConfiguration(tables)
+        {
+            ScopeName = "Pète",
+            ScopeInfoTableName = "Prout",
+            SerializationFormat = SerializationFormat.Binary,
+            DownloadBatchSizeInKB = 400,
+            StoredProceduresPrefix = "s",
+            StoredProceduresSuffix = "",
+            TrackingTablesPrefix = "t",
+            TrackingTablesSuffix = "",
+        };
 
 
         var serverHandler = new RequestDelegate(async context =>
@@ -67,7 +75,6 @@ class Program
             var clientHandler = new ResponseDelegate(async (serviceUri) =>
             {
                 proxyClientProvider.ServiceUri = new Uri(serviceUri);
-                proxyClientProvider.SerializationFormat = SerializationFormat.Json;
 
                 var syncAgent = new SyncAgent(client1Provider, proxyClientProvider);
              

@@ -1,10 +1,13 @@
 ﻿using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Test.SqlUtils;
 using Dotmim.Sync.Tests.Misc;
+using Microsoft.Data.Sqlite;
 using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
+using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using Xunit;
@@ -34,17 +37,29 @@ namespace Dotmim.Sync.Tests
         private HelperDB helperDb = new HelperDB();
         private string serverDbName = "Test_Conflict_Server";
         private string client1DbName = "Test_Conflict_Client";
+        //private string client1SqliteName = "Test_Conflict_Client";
 
         public string[] Tables => new string[] { "ServiceTickets" };
 
         public String ServerConnectionString => HelperDB.GetDatabaseConnectionString(serverDbName);
         public String Client1ConnectionString => HelperDB.GetDatabaseConnectionString(client1DbName);
+        //public String ClientSqliteConnectionString { get; set; }
+        //public string ClientSqliteFilePath => Path.Combine(Directory.GetCurrentDirectory(), "sqliteTmpDb.db");
 
         public SyncConflictFixture()
         {
             // create databases
             helperDb.CreateDatabase(serverDbName);
             helperDb.CreateDatabase(client1DbName);
+
+            //var builder = new SqliteConnectionStringBuilder
+            //{
+            //    DataSource = ClientSqliteFilePath
+            //};
+            //this.ClientSqliteConnectionString = builder.ConnectionString;
+
+            //if (File.Exists(ClientSqliteFilePath))
+            //    File.Delete(ClientSqliteFilePath);
 
             // create table on server
             helperDb.ExecuteScript(serverDbName, createTableScript);
@@ -58,6 +73,13 @@ namespace Dotmim.Sync.Tests
         {
             helperDb.DeleteDatabase(serverDbName);
             helperDb.DeleteDatabase(client1DbName);
+
+            //GC.Collect();
+            //GC.WaitForPendingFinalizers();
+
+            //if (File.Exists(ClientSqliteFilePath))
+            //    File.Delete(ClientSqliteFilePath);
+
         }
 
     }
@@ -69,6 +91,7 @@ namespace Dotmim.Sync.Tests
     {
         SqlSyncProvider serverProvider;
         SqlSyncProvider clientProvider;
+        //SqliteSyncProvider sqliteSyncProvider;
         SyncConflictFixture fixture;
         SyncAgent agent;
 
@@ -78,6 +101,7 @@ namespace Dotmim.Sync.Tests
 
             serverProvider = new SqlSyncProvider(fixture.ServerConnectionString);
             clientProvider = new SqlSyncProvider(fixture.Client1ConnectionString);
+            //sqliteSyncProvider = new SqliteSyncProvider(fixture.ClientSqliteFilePath);
 
             agent = new SyncAgent(clientProvider, serverProvider, fixture.Tables);
 
@@ -113,6 +137,25 @@ namespace Dotmim.Sync.Tests
                 }
             }
 
+            //using (var sqliteConnection = new SqliteConnection(fixture.ClientSqliteConnectionString))
+            //{
+            //    var newId = Guid.NewGuid();
+            //    var script = $@"INSERT INTO [ServiceTickets] 
+            //                ([ServiceTicketID], [UniqueID], [Title], [Description]) 
+            //                VALUES 
+            //                (@newId, 99, 'Title client 99', 'Description client 99')";
+
+            //    using (var sqlCmd = new SqliteCommand(script, sqliteConnection))
+            //    {
+            //        SqliteParameter p = new SqliteParameter("@newId", SqliteType.Blob);
+            //        p.Value = newId;
+            //        sqlCmd.Parameters.Add(p);
+            //        sqliteConnection.Open();
+            //        sqlCmd.ExecuteNonQuery();
+            //        sqliteConnection.Close();
+            //    }
+            //}
+
             using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
             {
                 var script = $@"INSERT INTO [ServiceTickets] 
@@ -128,23 +171,13 @@ namespace Dotmim.Sync.Tests
                 }
             }
 
-
-            // Disable batch mode
-            agent.ConfigurationApplying += (sn, an) =>
-            {
-                an.OverwriteConfiguration = true;
-
-            };
-            agent.ConfigurationApplied += (sn, an) =>
-            {
-                an.Configuration.UseBulkOperations = false;
-            };
+            // Since the line will be in error
+            // The only way to make it working as expected
+            // is to disabled the bulk mode
+            agent.Configuration.UseBulkOperations = false;
 
             agent.ApplyChangedFailed += (s, args) =>
             {
-                var serverRow = args.Conflict.LocalRow;
-                var clientRow = args.Conflict.RemoteRow;
-
                 args.Action = ConflictAction.MergeRow;
                 args.FinalRow["UniqueID"] = 101;
 
@@ -158,9 +191,9 @@ namespace Dotmim.Sync.Tests
                 });
 
             // check statistics
-            Assert.Equal(1, session.TotalChangesDownloaded);
+            Assert.Equal(2, session.TotalChangesDownloaded);
             Assert.Equal(1, session.TotalChangesUploaded);
-            Assert.Equal(1, session.TotalSyncConflicts);
+            Assert.Equal(0, session.TotalSyncConflicts);
 
 
         }
