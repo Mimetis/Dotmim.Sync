@@ -43,8 +43,6 @@ namespace Dotmim.Sync.Tests
 
         public String ServerConnectionString => HelperDB.GetDatabaseConnectionString(serverDbName);
         public String Client1ConnectionString => HelperDB.GetDatabaseConnectionString(client1DbName);
-        //public String ClientSqliteConnectionString { get; set; }
-        //public string ClientSqliteFilePath => Path.Combine(Directory.GetCurrentDirectory(), "sqliteTmpDb.db");
 
         public SyncConflictFixture()
         {

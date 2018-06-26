@@ -21,16 +21,16 @@ namespace Dotmim.Sync
         /// <summary>
         /// Deprovision a database. You have to passe a configuration object, containing at least the dmTables
         /// </summary>
-        public async Task DeprovisionAsync(string[] tables, SyncProvision provision, ICollection<FilterClause> filters = null)
+        public async Task DeprovisionAsync(SyncConfiguration configuration, SyncProvision provision)
         {
             DbConnection connection = null;
             try
             {
-                if (tables == null || tables.Length == 0)
-                    throw new ArgumentNullException("tables", "You must set the tables you want to deprovision");
+                if (configuration.Schema == null || !configuration.Schema.HasTables)
+                    throw new ArgumentNullException("tables", "You must set the tables you want to provision");
 
                 // Load the configuration
-                var configuration = await this.ReadSchemaAsync(tables);
+                await this.ReadSchemaAsync(configuration.Schema);
 
                 // Open the connection
                 using (connection = this.CreateConnection())
@@ -48,25 +48,27 @@ namespace Dotmim.Sync
                             var builder = GetDatabaseBuilder(dmTable);
 
                             // adding filters
-                            this.AddFilters(filters, dmTable, builder);
+                            this.AddFilters(configuration.Filters, dmTable, builder);
 
-                            if (provision.HasFlag(SyncProvision.TrackingTable) || provision == SyncProvision.All)
+                            if (provision.HasFlag(SyncProvision.TrackingTable) || provision.HasFlag(SyncProvision.All))
                                 builder.DropTrackingTable(connection, transaction);
 
-                            if (provision.HasFlag(SyncProvision.StoredProcedures) || provision == SyncProvision.All)
+                            if (provision.HasFlag(SyncProvision.StoredProcedures) || provision.HasFlag(SyncProvision.All))
                                 builder.DropProcedures(connection, transaction);
 
-                            if (provision.HasFlag(SyncProvision.Triggers) || provision == SyncProvision.All)
+                            if (provision.HasFlag(SyncProvision.Triggers) || provision.HasFlag(SyncProvision.All))
                                 builder.DropTriggers(connection, transaction);
 
-                            if (provision.HasFlag(SyncProvision.Table) || provision == SyncProvision.All)
+                            // On purpose, the flag SyncProvision.All does not include the SyncProvision.Table, too dangerous...
+                            if (provision.HasFlag(SyncProvision.Table))
                                 builder.DropTable(connection, transaction);
                         }
 
-                        if (provision.HasFlag(SyncProvision.Scope) || provision == SyncProvision.All)
+                        if (provision.HasFlag(SyncProvision.Scope) || provision.HasFlag(SyncProvision.All))
                         {
                             var scopeBuilder = GetScopeBuilder().CreateScopeInfoBuilder(configuration.ScopeInfoTableName, connection, transaction);
-                            scopeBuilder.DropScopeInfoTable();
+                            if (!scopeBuilder.NeedToCreateScopeInfoTable())
+                                scopeBuilder.DropScopeInfoTable();
                         }
                         transaction.Commit();
                     }
@@ -87,17 +89,17 @@ namespace Dotmim.Sync
         /// <summary>
         /// Deprovision a database
         /// </summary>
-        public async Task ProvisionAsync(string[] tables, SyncProvision provision, ICollection<FilterClause> filters = null)
+        public async Task ProvisionAsync(SyncConfiguration configuration, SyncProvision provision)
         {
             DbConnection connection = null;
 
             try
             {
-                if (tables == null || tables.Length == 0)
+                if (configuration.Schema == null || !configuration.Schema.HasTables)
                     throw new ArgumentNullException("tables", "You must set the tables you want to provision");
 
                 // Load the configuration
-                var configuration = await this.ReadSchemaAsync(tables);
+                await this.ReadSchemaAsync(configuration.Schema);
 
                 // Open the connection
                 using (connection = this.CreateConnection())
@@ -107,10 +109,11 @@ namespace Dotmim.Sync
                     using (var transaction = connection.BeginTransaction())
                     {
 
-                        if (provision.HasFlag(SyncProvision.Scope) || provision == SyncProvision.All)
+                        if (provision.HasFlag(SyncProvision.Scope) || provision.HasFlag(SyncProvision.All))
                         {
                             var scopeBuilder = GetScopeBuilder().CreateScopeInfoBuilder(configuration.ScopeInfoTableName, connection, transaction);
-                            scopeBuilder.CreateScopeInfoTable();
+                            if (scopeBuilder.NeedToCreateScopeInfoTable())
+                                scopeBuilder.CreateScopeInfoTable();
                         }
 
                         for (int i = 0; i < configuration.Count; i++)
@@ -122,18 +125,19 @@ namespace Dotmim.Sync
                             var builder = GetDatabaseBuilder(dmTable);
 
                             // adding filters
-                            this.AddFilters(filters, dmTable, builder);
+                            this.AddFilters(configuration.Filters, dmTable, builder);
 
-                            if (provision.HasFlag(SyncProvision.Table) || provision == SyncProvision.All)
+                            // On purpose, the flag SyncProvision.All does not include the SyncProvision.Table, too dangerous...
+                            if (provision.HasFlag(SyncProvision.Table))
                                 builder.CreateTable(connection, transaction);
 
-                            if (provision.HasFlag(SyncProvision.TrackingTable) || provision == SyncProvision.All)
+                            if (provision.HasFlag(SyncProvision.TrackingTable) || provision.HasFlag(SyncProvision.All))
                                 builder.CreateTrackingTable(connection, transaction);
 
-                            if (provision.HasFlag(SyncProvision.Triggers) || provision == SyncProvision.All)
+                            if (provision.HasFlag(SyncProvision.Triggers) || provision.HasFlag(SyncProvision.All))
                                 builder.CreateTriggers(connection, transaction);
 
-                            if (provision.HasFlag(SyncProvision.StoredProcedures) || provision == SyncProvision.All)
+                            if (provision.HasFlag(SyncProvision.StoredProcedures) || provision.HasFlag(SyncProvision.All))
                                 builder.CreateStoredProcedures(connection, transaction);
 
                         }

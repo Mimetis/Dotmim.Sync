@@ -14,8 +14,8 @@ namespace Dotmim.Sync.Test
     public class WordPressFixture : IDisposable
     {
         private HelperDB helperDb = new HelperDB();
-        private string serverDbName = "mysqldatabase165";
-        private string clientDbName = "mysqldatabase165client";
+        private string serverDbName = "wordpress";
+        private string clientDbName = "wordpress_client";
 
         public string[] Tables => new string[] { "wp_users", "wp_usermeta", "wp_terms", "wp_termmeta", "wp_term_taxonomy",
                                         "wp_term_relationships", "wp_posts", "wp_postmeta", "wp_options", "wp_links",
@@ -35,11 +35,13 @@ namespace Dotmim.Sync.Test
             helperDb.CreateMySqlDatabase(clientDbName);
 
             helperDb.DropMySqlDatabase(serverDbName);
+            helperDb.CreateMySqlDatabase(serverDbName);
+
             // restore server database
             var wordpressscript = Path.Combine(Directory.GetCurrentDirectory(), "Backup", "Wordpress.sql");
             var fs = File.OpenText(wordpressscript);
             var script = fs.ReadToEnd();
-            helperDb.ExecuteMySqlScript("sys", script);
+            helperDb.ExecuteMySqlScript(serverDbName, script);
 
             var serverProvider = new MySqlSyncProvider(ServerConnectionString);
             var clientProvider = new MySqlSyncProvider(ClientMySqlConnectionString);
