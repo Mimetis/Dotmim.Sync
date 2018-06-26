@@ -31,8 +31,6 @@ class Program
     public static string GetMySqlDatabaseConnectionString(string dbName) =>
         $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=azerty31$;";
 
-
-
     public async static Task SyncHttpThroughKestellAsync()
     {
         // server provider
@@ -53,8 +51,8 @@ class Program
 
         var configuration = new SyncConfiguration(tables)
         {
-            ScopeName = "Pète",
-            ScopeInfoTableName = "Prout",
+            ScopeName = "AdventureWorks",
+            ScopeInfoTableName = "tscopeinfo",
             SerializationFormat = SerializationFormat.Binary,
             DownloadBatchSizeInKB = 400,
             StoredProceduresPrefix = "s",
@@ -85,11 +83,75 @@ class Program
                     try
                     {
                         CancellationTokenSource cts = new CancellationTokenSource();
-                        CancellationToken token = cts.Token;
 
-                        var s1 = await syncAgent.SynchronizeAsync(token);
+                        Console.WriteLine("--------------------------------------------------");
+                        Console.WriteLine("1 : Normal synchronization.");
+                        Console.WriteLine("2 : Fill configuration from server side");
+                        Console.WriteLine("3 : Synchronization with reinitialize");
+                        Console.WriteLine("4 : Synchronization with upload and reinitialize");
+                        Console.WriteLine("5 : Deprovision everything from client side (tables included)");
+                        Console.WriteLine("6 : Deprovision everything from server side (tables not included)");
+                        Console.WriteLine("7 : Provision everything on the client side (tables included)");
+                        Console.WriteLine("8 : Provision everything on the server side (tables not included)");
+                        Console.WriteLine("--------------------------------------------------");
+                        Console.WriteLine("What's your choice ? ");
+                        Console.WriteLine("--------------------------------------------------");
+                        var choice = Console.ReadLine();
+               
+                        if (int.TryParse(choice, out int choiceNumber))
+                        {
+                            Console.WriteLine($"You choose {choice}. Start operation....");
+                            switch (choiceNumber)
+                            {
+                                case 1:
+                                    var s1 = await syncAgent.SynchronizeAsync(cts.Token);
+                                    Console.WriteLine(s1);
+                                    break;
+                                case 2:
+                                    SyncContext ctx = new SyncContext(Guid.NewGuid());
+                                    SqlSyncProvider syncConfigProvider = new SqlSyncProvider(GetDatabaseConnectionString("AdventureWorks"));
+                                    (ctx, configuration.Schema) = await syncConfigProvider.EnsureSchemaAsync(ctx, new Dotmim.Sync.Messages.MessageEnsureSchema
+                                    {
+                                        Schema = configuration.Schema,
+                                        SerializationFormat = SerializationFormat.Json
+                                    });
+                                    break;
+                                case 3:
+                                    s1 = await syncAgent.SynchronizeAsync(SyncType.Reinitialize, cts.Token);
+                                    Console.WriteLine(s1);
+                                    break;
+                                case 4:
+                                    s1 = await syncAgent.SynchronizeAsync(SyncType.ReinitializeWithUpload, cts.Token);
+                                    Console.WriteLine(s1);
+                                    break;
+                                case 5:
+                                    SqlSyncProvider clientSyncProvider = syncAgent.LocalProvider as SqlSyncProvider;
+                                    await clientSyncProvider.DeprovisionAsync(configuration, SyncProvision.All | SyncProvision.Table);
+                                    Console.WriteLine("Deprovision complete on client");
+                                    break;
+                                case 6:
+                                    SqlSyncProvider remoteSyncProvider = new SqlSyncProvider(GetDatabaseConnectionString("AdventureWorks"));
+                                    await remoteSyncProvider.DeprovisionAsync(configuration, SyncProvision.All);
+                                    Console.WriteLine("Deprovision complete on remote");
+                                    break;
 
-                        Console.WriteLine(s1);
+                                case 7:
+                                    SqlSyncProvider clientSyncProvider2 = syncAgent.LocalProvider as SqlSyncProvider;
+                                    await clientSyncProvider2.ProvisionAsync(configuration, SyncProvision.All | SyncProvision.Table);
+                                    Console.WriteLine("Provision complete on client");
+                                    break;
+                                case 8:
+                                    SqlSyncProvider remoteSyncProvider2 = new SqlSyncProvider(GetDatabaseConnectionString("AdventureWorks"));
+                                    await remoteSyncProvider2.ProvisionAsync(configuration, SyncProvision.All);
+                                    Console.WriteLine("Provision complete on remote");
+                                    break;
+                                default:
+                                    break;
+
+                            }
+                        }
+
+
                     }
                     catch (SyncException e)
                     {
@@ -101,7 +163,9 @@ class Program
                     }
 
 
-                    //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+                    Console.WriteLine("--------------------------------------------------");
+                    Console.WriteLine("Press a key to choose again, or Escapte to end");
+
                 } while (Console.ReadKey().Key != ConsoleKey.Escape);
 
 
@@ -110,8 +174,6 @@ class Program
         }
         
     }
-
-
 
     /// <summary>
     /// Test a client syncing through a web api

@@ -236,6 +236,9 @@ namespace Dotmim.Sync.Data
 
                 primaryKey = value;
 
+                if (primaryKey == DmKey.Empty)
+                    return;
+
                 for (int i = 0; i < primaryKey.Columns.Length; i++)
                     primaryKey.Columns[i].AllowDBNull = false;
 

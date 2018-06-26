@@ -48,6 +48,15 @@ namespace Dotmim.Sync
         /// </summary>
         public long LastSyncTimestamp { get; set; }
 
+        ///// <summary>
+        ///// Gets or Sets an excluded range of ts
+        ///// </summary>
+        //public long LastSyncTimestampExcludedBegin { get; set; }
+        ///// <summary>
+        ///// Gets or Sets an excluded range of ts
+        ///// </summary>
+        //public long LastSyncTimestampExcludedEnd { get; set; }
+
         /// <summary>
         /// Gets or Sets the last duration a sync has occured. 
         /// </summary>

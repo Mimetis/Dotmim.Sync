@@ -11,8 +11,6 @@ namespace Dotmim.Sync.MySql
 {
     public class MySqlScopeInfoBuilder : IDbScopeInfoBuilder
     {
-
-
         private readonly ObjectNameParser scopeTableName;
         private readonly MySqlConnection connection;
         private readonly MySqlTransaction transaction;
@@ -45,6 +43,8 @@ namespace Dotmim.Sync.MySql
 	                    scope_timestamp bigint NULL,
                         scope_is_local int NOT NULL DEFAULT 0, 
                         scope_last_sync datetime NULL,
+                        scope_last_sync_timestamp bigint NULL,
+                        scope_last_sync_duration bigint NULL,
                         PRIMARY KEY (sync_scope_id)
                         )";
                 command.ExecuteNonQuery();
@@ -118,6 +118,8 @@ namespace Dotmim.Sync.MySql
                            , scope_timestamp
                            , scope_is_local
                            , scope_last_sync
+                           , scope_last_sync_timestamp
+                           , scope_last_sync_duration
                     FROM  {scopeTableName.UnquotedStringWithUnderScore}
                     WHERE sync_scope_name = @sync_scope_name";
 
@@ -137,6 +139,8 @@ namespace Dotmim.Sync.MySql
                         scopeInfo.Id = new Guid((String)reader["sync_scope_id"]);
                         scopeInfo.Timestamp = MySqlManager.ParseTimestamp(reader["scope_timestamp"]);
                         scopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value ? (DateTime?)reader["scope_last_sync"] : null;
+                        scopeInfo.LastSyncDuration = reader["scope_last_sync_duration"] != DBNull.Value ? (long)reader["scope_last_sync_duration"] : 0L;
+                        scopeInfo.LastSyncTimestamp = reader["scope_last_sync_timestamp"] != DBNull.Value ? (long)reader["scope_last_sync_timestamp"] : 0L;
                         scopeInfo.IsLocal = reader.GetBoolean(reader.GetOrdinal("scope_is_local"));
                         scopes.Add(scopeInfo);
                     }
@@ -221,8 +225,8 @@ namespace Dotmim.Sync.MySql
                 }
 
                 string stmtText = exist
-                    ? $"Update {scopeTableName.UnquotedStringWithUnderScore} set sync_scope_name=@sync_scope_name, scope_timestamp={MySqlObjectNames.TimestampValue}, scope_is_local=@scope_is_local, scope_last_sync=@scope_last_sync where sync_scope_id=@sync_scope_id"
-                    : $"Insert into {scopeTableName.UnquotedStringWithUnderScore} (sync_scope_name, scope_timestamp, scope_is_local, scope_last_sync, sync_scope_id) values (@sync_scope_name, {MySqlObjectNames.TimestampValue}, @scope_is_local, @scope_last_sync, @sync_scope_id)";
+                    ? $"Update {scopeTableName.UnquotedStringWithUnderScore} set sync_scope_name=@sync_scope_name, scope_timestamp={MySqlObjectNames.TimestampValue}, scope_is_local=@scope_is_local, scope_last_sync=@scope_last_sync, scope_last_sync_timestamp=@scope_last_sync_timestamp, scope_last_sync_duration=@scope_last_sync_duration  where sync_scope_id=@sync_scope_id"
+                    : $"Insert into {scopeTableName.UnquotedStringWithUnderScore} (sync_scope_name, scope_timestamp, scope_is_local, scope_last_sync, sync_scope_id, scope_last_sync_timestamp, scope_last_sync_duration) values (@sync_scope_name, {MySqlObjectNames.TimestampValue}, @scope_is_local, @scope_last_sync, @sync_scope_id, @scope_last_sync_timestamp, @scope_last_sync_duration)";
 
                 using (var command = connection.CreateCommand())
                 {
@@ -250,6 +254,18 @@ namespace Dotmim.Sync.MySql
                     command.Parameters.Add(p);
 
                     p = command.CreateParameter();
+                    p.ParameterName = "@scope_last_sync_timestamp";
+                    p.Value = scopeInfo.LastSyncTimestamp;
+                    p.DbType = DbType.Int64;
+                    command.Parameters.Add(p);
+
+                    p = command.CreateParameter();
+                    p.ParameterName = "@scope_last_sync_duration";
+                    p.Value = scopeInfo.LastSyncDuration;
+                    p.DbType = DbType.Int64;
+                    command.Parameters.Add(p);
+
+                    p = command.CreateParameter();
                     p.ParameterName = "@sync_scope_id";
                     p.Value = scopeInfo.Id.ToString();
                     p.DbType = DbType.String;
@@ -263,6 +279,8 @@ namespace Dotmim.Sync.MySql
                             scopeInfo.Id = new Guid((string)reader["sync_scope_id"]);
                             scopeInfo.Timestamp = MySqlManager.ParseTimestamp(reader["scope_timestamp"]);
                             scopeInfo.IsLocal = (bool)reader["scope_is_local"];
+                            scopeInfo.LastSyncDuration = reader["scope_last_sync_duration"] != DBNull.Value ? (long)reader["scope_last_sync_duration"] : 0L;
+                            scopeInfo.LastSyncTimestamp = reader["scope_last_sync_timestamp"] != DBNull.Value ? (long)reader["scope_last_sync_timestamp"] : 0L;
                             scopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value ? (DateTime?)reader["scope_last_sync"] : null;
                         }
                     }

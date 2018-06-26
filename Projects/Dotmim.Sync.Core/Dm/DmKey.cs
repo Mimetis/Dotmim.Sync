@@ -9,7 +9,15 @@ namespace Dotmim.Sync.Data
     public struct DmKey
     {
         const int maxColumns = 32;
-        readonly DmColumn[] columns;
+        private readonly DmColumn[] columns;
+        private static readonly DmKey emptyKey;
+        public static DmKey Empty
+        {
+            get
+            {
+                return emptyKey;
+            }
+        }
 
         public DmKey(DmColumn[] columns)
         {
@@ -33,7 +41,7 @@ namespace Dotmim.Sync.Data
         {
             get
             {
-                return (null != columns);
+                return (null != Columns);
             }
         }
 
@@ -41,7 +49,7 @@ namespace Dotmim.Sync.Data
         {
             get
             {
-                return columns[0].Table;
+                return Columns[0].Table;
             }
         }
 
@@ -65,10 +73,10 @@ namespace Dotmim.Sync.Data
         //check to see if this.columns && key2's columns are equal regardless of order
         internal bool ColumnsEqual(DmKey key)
         {
-            return ColumnsEqual(this.columns, ((DmKey)key).columns);
+            return ColumnsEqual(this.Columns, ((DmKey)key).Columns);
         }
 
-        //check to see if columns1 && columns2 are equal regardless of order
+        //check to see if Columns && columns2 are equal regardless of order
         internal static bool ColumnsEqual(DmColumn[] column1, DmColumn[] column2)
         {
 
@@ -109,9 +117,9 @@ namespace Dotmim.Sync.Data
 
         internal bool ContainsColumn(DmColumn column)
         {
-            for (int i = 0; i < columns.Length; i++)
+            for (int i = 0; i < Columns.Length; i++)
             {
-                if (column == columns[i])
+                if (column == Columns[i])
                 {
                     return true;
                 }
@@ -142,8 +150,8 @@ namespace Dotmim.Sync.Data
         internal bool Equals(DmKey value)
         {
             //check to see if this.columns && key2's columns are equal...
-            DmColumn[] column1 = this.columns;
-            DmColumn[] column2 = value.columns;
+            DmColumn[] column1 = this.Columns;
+            DmColumn[] column2 = value.Columns;
 
             if (column1 == column2)
             {
@@ -172,20 +180,20 @@ namespace Dotmim.Sync.Data
 
         internal string[] GetColumnNames()
         {
-            string[] values = new string[columns.Length];
-            for (int i = 0; i < columns.Length; ++i)
+            string[] values = new string[Columns.Length];
+            for (int i = 0; i < Columns.Length; ++i)
             {
-                values[i] = columns[i].ColumnName;
+                values[i] = Columns[i].ColumnName;
             }
             return values;
         }
 
         internal object[] GetKeyValues(int record)
         {
-            object[] values = new object[columns.Length];
-            for (int i = 0; i < columns.Length; i++)
+            object[] values = new object[Columns.Length];
+            for (int i = 0; i < Columns.Length; i++)
             {
-                values[i] = columns[i][record];
+                values[i] = Columns[i][record];
             }
             return values;
         }
@@ -197,14 +205,14 @@ namespace Dotmim.Sync.Data
         }
         internal bool ValuesAreEqual(int record, object[] comparables)
         {
-            object[] values = new object[columns.Length];
+            object[] values = new object[Columns.Length];
 
             if (values.Length != comparables.Length)
                 return false;
 
-            for (int i = 0; i < columns.Length; i ++)
+            for (int i = 0; i < Columns.Length; i ++)
             {
-                if (columns[i].CompareValueTo(record, comparables[i]) != 0)
+                if (Columns[i].CompareValueTo(record, comparables[i]) != 0)
                     return false;
             }
 
@@ -213,9 +221,9 @@ namespace Dotmim.Sync.Data
 
         internal bool RecordsEqual(int record1, int record2)
         {
-            for (int i = 0; i < columns.Length; i++)
+            for (int i = 0; i < Columns.Length; i++)
             {
-                if (columns[i].Compare(record1, record2) != 0)
+                if (Columns[i].Compare(record1, record2) != 0)
                 {
                     return false;
                 }
@@ -225,10 +233,10 @@ namespace Dotmim.Sync.Data
 
         internal DmColumn[] ToArray()
         {
-            DmColumn[] values = new DmColumn[columns.Length];
-            for (int i = 0; i < columns.Length; ++i)
+            DmColumn[] values = new DmColumn[Columns.Length];
+            for (int i = 0; i < Columns.Length; ++i)
             {
-                values[i] = columns[i];
+                values[i] = Columns[i];
             }
             return values;
         }

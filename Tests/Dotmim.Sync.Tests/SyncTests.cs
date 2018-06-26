@@ -86,8 +86,10 @@ namespace Dotmim.Sync.Test
 
         public string[] Tables => new string[] { "ServiceTickets" };
 
-        public String ServerConnectionString => HelperDB.GetDatabaseConnectionString(serverDbName);
-        public String Client1ConnectionString => HelperDB.GetDatabaseConnectionString(client1DbName);
+        public String ServerConnectionString => 
+            HelperDB.GetDatabaseConnectionString(serverDbName);
+        public String Client1ConnectionString => 
+            HelperDB.GetDatabaseConnectionString(client1DbName);
 
         public SyncSimpleFixture()
         {
@@ -468,8 +470,13 @@ namespace Dotmim.Sync.Test
             session = await agent.SynchronizeAsync();
 
             // check statistics
-            Assert.Equal(1, session.TotalChangesDownloaded);
+            // Upload one update. seems legit
             Assert.Equal(1, session.TotalChangesUploaded);
+
+            // download the correct version overrided by the server
+            Assert.Equal(1, session.TotalChangesDownloaded);
+
+            // we resolved 1 conflict
             Assert.Equal(1, session.TotalSyncConflicts);
 
             string resultString = string.Empty;
@@ -650,7 +657,7 @@ namespace Dotmim.Sync.Test
             Assert.Equal("Conflict Line Client", expectedRes);
         }
 
-        [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(11)]
+        [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(13)]
         public async Task ConflictUpdateUpdateMerge(SyncConfiguration conf)
         {
             var id = Guid.NewGuid().ToString();
@@ -769,7 +776,7 @@ namespace Dotmim.Sync.Test
             Assert.Equal(expectedString, resultString);
         }
 
-        [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(12)]
+        [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(14)]
         public async Task InsertUpdateDeleteFromServer(SyncConfiguration conf)
         {
             Guid insertedId = Guid.NewGuid();

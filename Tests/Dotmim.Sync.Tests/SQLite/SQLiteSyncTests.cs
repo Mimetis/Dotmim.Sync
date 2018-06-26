@@ -89,11 +89,13 @@ namespace Dotmim.Sync.Test
 
         public string[] Tables => new string[] { "ServiceTickets" };
 
-        public String ServerConnectionString => HelperDB.GetDatabaseConnectionString(serverDbName);
+        public String ServerConnectionString => 
+            HelperDB.GetDatabaseConnectionString(serverDbName);
         public SyncAgent Agent { get; set; }
 
         public String ClientSqliteConnectionString { get; set; }
-        public string ClientSqliteFilePath => Path.Combine(Directory.GetCurrentDirectory(), "sqliteTmpDb.db");
+        public string ClientSqliteFilePath => 
+            Path.Combine(Directory.GetCurrentDirectory(), "sqliteTmpDb.db");
 
         public SqliteSyncSimpleFixture()
         {
