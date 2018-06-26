@@ -9,21 +9,27 @@ namespace Dotmim.Sync.Serialization
 {
     public class BinaryConverter<T> : BaseConverter<T>
     {
-        BinaryFormatter binaryFormatter = new BinaryFormatter();
 
         public BinaryConverter()
         {
-            binaryFormatter.TypeFormat = FormatterTypeStyle.TypesAlways;
         }
         public override T Deserialize(Stream ms)
         {
-            var obj = binaryFormatter.Deserialize(ms);
 
+            BinaryFormatter binaryFormatter = new BinaryFormatter
+            {
+                TypeFormat = FormatterTypeStyle.TypesAlways
+            };
+            var obj = binaryFormatter.Deserialize(ms);
             return (T)obj;
         }
 
         public override void Serialize(T obj, Stream ms)
         {
+            BinaryFormatter binaryFormatter = new BinaryFormatter
+            {
+                TypeFormat = FormatterTypeStyle.TypesAlways
+            };
             binaryFormatter.Serialize(ms, obj);
         }
 
@@ -31,6 +37,10 @@ namespace Dotmim.Sync.Serialization
         {
             using (var ms = new MemoryStream())
             {
+                BinaryFormatter binaryFormatter = new BinaryFormatter
+                {
+                    TypeFormat = FormatterTypeStyle.TypesAlways
+                };
                 binaryFormatter.Serialize(ms, obj);
 
                 ms.Seek(0, SeekOrigin.Begin);

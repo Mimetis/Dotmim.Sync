@@ -28,8 +28,9 @@ namespace Dotmim.Sync
 
             var ordinal = 0;
 
+            // Eventually, do not raise exception here, just we don't have any columns
             if (columns == null || columns.Count <= 0)
-                throw new ArgumentNullException("columns", $"{dmTable.TableName} does not contains any columns.");
+                return;
 
             // Get PrimaryKey
             var dmTableKeys = dbManagerTable.GetTablePrimaryKeys();
@@ -42,6 +43,13 @@ namespace Dotmim.Sync
 
             if (columnsNotPkeys <= 0)
                 throw new NotSupportedException($"{dmTable.TableName} does not contains any columns, excepting primary keys.");
+
+            // Delete all existing columns
+            if (dmTable.PrimaryKey != null && dmTable.PrimaryKey.Columns != null && dmTable.PrimaryKey.Columns.Length > 0)
+                dmTable.PrimaryKey = DmKey.Empty;
+
+            if (dmTable.Columns.Count > 0)
+                dmTable.Columns.Clear();
 
             foreach (var column in columns.OrderBy(c => c.Ordinal))
             {

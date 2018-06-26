@@ -114,7 +114,7 @@ namespace Dotmim.Sync.Test
             Assert.Equal(7, session.TotalChangesDownloaded);
             Assert.Equal(0, session.TotalChangesUploaded);
 
-            await clientProvider.DeprovisionAsync(fixture.Tables, SyncProvision.All);
+            await clientProvider.DeprovisionAsync(agent.Configuration, SyncProvision.All);
 
             using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
             {
@@ -155,7 +155,7 @@ namespace Dotmim.Sync.Test
 
             var session = await agent.SynchronizeAsync();
 
-            await clientProvider.DeprovisionAsync(fixture.Tables, SyncProvision.StoredProcedures);
+            await clientProvider.DeprovisionAsync(agent.Configuration, SyncProvision.StoredProcedures);
 
             using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
             {
@@ -189,7 +189,7 @@ namespace Dotmim.Sync.Test
 
             var session = await agent.SynchronizeAsync();
 
-            await clientProvider.DeprovisionAsync(fixture.Tables, SyncProvision.TrackingTable);
+            await clientProvider.DeprovisionAsync(agent.Configuration, SyncProvision.TrackingTable);
 
             using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
             {
@@ -215,7 +215,7 @@ namespace Dotmim.Sync.Test
 
             var session = await agent.SynchronizeAsync();
 
-            await clientProvider.DeprovisionAsync(fixture.Tables, SyncProvision.Table);
+            await clientProvider.DeprovisionAsync(agent.Configuration, SyncProvision.Table);
 
             using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
             {
@@ -241,7 +241,7 @@ namespace Dotmim.Sync.Test
 
             var session = await agent.SynchronizeAsync();
 
-            await clientProvider.DeprovisionAsync(fixture.Tables, SyncProvision.Scope);
+            await clientProvider.DeprovisionAsync(agent.Configuration, SyncProvision.Scope);
 
             using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
             {
@@ -265,7 +265,7 @@ namespace Dotmim.Sync.Test
             agent.DatabaseApplying += (s, e) => e.OverwriteSchema = true;
             var session = await agent.SynchronizeAsync();
 
-            await clientProvider.DeprovisionAsync(fixture.Tables, 
+            await clientProvider.DeprovisionAsync(agent.Configuration, 
                     SyncProvision.Scope | SyncProvision.StoredProcedures | SyncProvision.TrackingTable | SyncProvision.Triggers );
 
             using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))

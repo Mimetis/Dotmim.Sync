@@ -154,7 +154,7 @@ namespace Dotmim.Sync
             var batchInfo = new BatchInfo();
             batchInfo.InMemory = !isBatched;
 
-            if (!isBatched)
+            if (isBatched)
                 batchInfo.Directory = BatchInfo.GenerateNewDirectoryName();
 
             // generate the batchpartinfo
@@ -370,6 +370,8 @@ namespace Dotmim.Sync
             // Generate the isNewScope Flag.
             var isNewScope = scopeInfo.IsNewScope ? 1 : 0;
             var lastTimeStamp = scopeInfo.Timestamp;
+            //var lastTimeStampExcludedBegin = scopeInfo.LastSyncTimestampExcludedBegin;
+            //var lastTimeStampExcludedEnd = scopeInfo.LastSyncTimestampExcludedEnd;
             int isReinit = context.SyncType == SyncType.Reinitialize ? 1 : 0;
 
             switch (context.SyncWay)
@@ -378,12 +380,16 @@ namespace Dotmim.Sync
                     // Overwrite if we are in Reinitialize mode (not RenitializeWithUpload)
                     isNewScope = context.SyncType == SyncType.Reinitialize ? 1 : isNewScope;
                     lastTimeStamp = context.SyncType == SyncType.Reinitialize ? 0 : lastTimeStamp;
+                    //lastTimeStampExcludedBegin = context.SyncType == SyncType.Reinitialize ? 0 : lastTimeStampExcludedBegin;
+                    //lastTimeStampExcludedEnd = context.SyncType == SyncType.Reinitialize ? 0 : lastTimeStampExcludedEnd;
                     isReinit = context.SyncType == SyncType.Reinitialize ? 1 : 0;
                     break;
                 case SyncWay.Download:
                     // Ovewrite on bot Reinitialize and ReinitializeWithUpload
                     isNewScope = context.SyncType != SyncType.Normal ? 1 : isNewScope;
                     lastTimeStamp = context.SyncType != SyncType.Normal ? 0 : lastTimeStamp;
+                    //lastTimeStampExcludedBegin = context.SyncType != SyncType.Normal ? 0 : lastTimeStampExcludedBegin;
+                    //lastTimeStampExcludedEnd = context.SyncType != SyncType.Normal ? 0 : lastTimeStampExcludedEnd;
                     isReinit = context.SyncType != SyncType.Normal ? 1 : 0;
                     break;
                 default:
@@ -392,6 +398,8 @@ namespace Dotmim.Sync
 
             // Set the parameters
             DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_min_timestamp", lastTimeStamp);
+            //DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_min_timestamp_exclude_begin", lastTimeStampExcludedBegin);
+            //DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_min_timestamp_exclude_end", lastTimeStampExcludedEnd);
             DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_id", scopeInfo.Id);
             DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_is_new", isNewScope);
             DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_is_reinit", isReinit);
@@ -795,9 +803,9 @@ namespace Dotmim.Sync
                 // 1) Row is not new
                 // 2) Row update is AFTER last sync of asker
                 // 3) Row insert is BEFORE last sync of asker (if insert is after last sync, it's not an update, it's an insert)
-                if (!scopeInfo.IsNewScope && islocallyUpdated && updatedTimeStamp > scopeInfo.Timestamp && (createdTimeStamp < scopeInfo.Timestamp || !isLocallyCreated))
+                if (!scopeInfo.IsNewScope && islocallyUpdated && updatedTimeStamp > scopeInfo.Timestamp && (createdTimeStamp <= scopeInfo.Timestamp || !isLocallyCreated))
                     dmRowState = DmRowState.Modified;
-                else if (scopeInfo.IsNewScope || (isLocallyCreated && createdTimeStamp > scopeInfo.Timestamp))
+                else if (scopeInfo.IsNewScope || (isLocallyCreated && createdTimeStamp >= scopeInfo.Timestamp))
                     dmRowState = DmRowState.Added;
                 // The line has been updated from an other host
                 else if (islocallyUpdated && updateScopeId.HasValue && updateScopeId.Value != scopeInfo.Id)
