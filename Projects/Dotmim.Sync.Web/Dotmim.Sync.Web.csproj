@@ -16,6 +16,7 @@ Can't work without a Server provider, you have to choose an existing one to be a
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore" Version="2.1.1" />
     <PackageReference Include="Microsoft.AspNetCore.Session" Version="2.1.1" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Core" Version="2.1.1" />
   </ItemGroup>
 
   <ItemGroup>
