@@ -2,11 +2,14 @@
 using System.Data;
 using System.Data.Common;
 using System.Data.OracleClient;
+using System.Diagnostics;
 using System.Text;
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Data;
 using Dotmim.Sync.Filter;
 using Dotmim.Sync.Oracle.Manager;
+using System.Linq;
+using System.Collections.Generic;
 
 namespace Dotmim.Sync.Oracle.Builder
 {
@@ -34,9 +37,49 @@ namespace Dotmim.Sync.Oracle.Builder
 
         public FilterClauseCollection Filters { get; set; }
 
+        private void AddPkColumnParametersToCommand(OracleCommand sqlCommand)
+        {
+            foreach (DmColumn pkColumn in this.tableDescription.PrimaryKey.Columns)
+                sqlCommand.Parameters.Add(GetSqlParameter(pkColumn));
+        }
+
+        private void AddColumnParametersToCommand(OracleCommand sqlCommand)
+        {
+            foreach (DmColumn column in this.tableDescription.Columns.Where(c => !c.ReadOnly))
+                sqlCommand.Parameters.Add(GetSqlParameter(column));
+        }
+
+        private OracleParameter GetSqlParameter(DmColumn column)
+        {
+            OracleParameter sqlParameter = new OracleParameter();
+            sqlParameter.ParameterName = $"{column.ColumnName}";
+
+            // Get the good SqlDbType (even if we are not from Sql Server def)
+            OracleType sqlDbType = (OracleType)this.oracleDbMetadata.TryGetOwnerDbType(column.OriginalDbType, column.DbType, false, false, this.tableDescription.OriginalProvider, OracleSyncProvider.ProviderType);
+
+            sqlParameter.OracleType = sqlDbType;
+            sqlParameter.IsNullable = column.AllowDBNull;
+
+            var (p, s) = this.oracleDbMetadata.TryGetOwnerPrecisionAndScale(column.OriginalDbType, column.DbType, false, false, column.Precision, column.Scale, this.tableDescription.OriginalProvider, OracleSyncProvider.ProviderType);
+
+            if (p > 0)
+            {
+                sqlParameter.Precision = p;
+                if (s > 0)
+                    sqlParameter.Scale = s;
+            }
+
+            var m = this.oracleDbMetadata.TryGetOwnerMaxLength(column.OriginalDbType, column.DbType, false, false, column.MaxLength, this.tableDescription.OriginalProvider, OracleSyncProvider.ProviderType);
+
+            if (m > 0)
+                sqlParameter.Size = m;
+
+            return sqlParameter;
+        }
+
         #region Private Methods
 
-        private void CreateProcedureCommand(Func<OracleCommand> BuildCommand, string procName)
+        private void CreateProcedureCommand(Func<OracleCommand> BuildCommand, string procName, List<string> parameters = null)
         {
 
             bool alreadyOpened = connection.State == ConnectionState.Open;
@@ -46,8 +89,8 @@ namespace Dotmim.Sync.Oracle.Builder
                 if (!alreadyOpened)
                     connection.Open();
 
-                var str = CreateProcedureCommandText(BuildCommand(), procName);
-                using (var command = new SqlCommand(str, connection))
+                var str = CreateProcedureCommandText(BuildCommand(), procName, parameters);
+                using (var command = new OracleCommand(str, connection))
                 {
                     if (transaction != null)
                         command.Transaction = transaction;
@@ -69,7 +112,7 @@ namespace Dotmim.Sync.Oracle.Builder
 
         }
 
-        private string CreateProcedureCommandScriptText(Func<OracleCommand> BuildCommand, string procName)
+        private string CreateProcedureCommandScriptText(Func<OracleCommand> BuildCommand, string procName, List<string> parameters = null)
         {
 
             bool alreadyOpened = connection.State == ConnectionState.Open;
@@ -80,8 +123,8 @@ namespace Dotmim.Sync.Oracle.Builder
                     connection.Open();
 
                 var str1 = $"Command {procName} for table {tableName.QuotedString}";
-                var str = CreateProcedureCommandText(BuildCommand(), procName);
-                return SqlBuilder.WrapScriptTextWithComments(str, str1);
+                var str = CreateProcedureCommandText(BuildCommand(), procName, parameters);
+                return OracleBuilder.WrapScriptTextWithComments(str, str1);
             }
             catch (Exception ex)
             {
@@ -95,48 +138,92 @@ namespace Dotmim.Sync.Oracle.Builder
             }
         }
 
-        private string CreateProcedureCommandText(OracleCommand cmd, string procName)
+        private string CreateProcedureCommandText(OracleCommand cmd, string procName, List<string> parameters = null)
         {
-            StringBuilder stringBuilder = new StringBuilder(string.Concat("CREATE PROCEDURE ", procName));
+            StringBuilder stringBuilder = new StringBuilder(string.Concat("CREATE OR REPLACE PROCEDURE (", procName));
             string str = "\n\t";
             foreach (OracleParameter parameter in cmd.Parameters)
             {
                 stringBuilder.Append(string.Concat(str, CreateParameterDeclaration(parameter)));
                 str = ",\n\t";
             }
-            stringBuilder.Append("\nAS\nBEGIN\n");
+            stringBuilder.AppendLine(")");
+            stringBuilder.AppendLine("AS");
+            if(parameters != null)
+                foreach(string parameter in parameters)
+                    stringBuilder.AppendLine(parameter);
+            stringBuilder.AppendLine("BEGIN");
             stringBuilder.Append(cmd.CommandText);
-            stringBuilder.Append("\nEND");
+            stringBuilder.AppendLine("\nEND;");
             return stringBuilder.ToString();
         }
 
         internal string CreateParameterDeclaration(OracleParameter param)
         {
             StringBuilder stringBuilder3 = new StringBuilder();
-            SqlDbType sqlDbType = param.SqlDbType;
+            OracleType sqlDbType = param.OracleType;
 
-            string empty = this.sqlDbMetadata.GetPrecisionStringFromOwnerDbType(sqlDbType, param.Size, param.Precision, param.Scale);
+            string empty = this.oracleDbMetadata.GetPrecisionStringFromOwnerDbType(sqlDbType, param.Size, param.Precision, param.Scale);
 
-            if (sqlDbType == SqlDbType.Structured)
-            {
-                stringBuilder3.Append(string.Concat(param.ParameterName, " ", param.TypeName, " READONLY"));
-            }
+            var sqlDbTypeString = this.oracleDbMetadata.GetStringFromOwnerDbType(sqlDbType);
+            string direction = "";
+
+            if (param.Direction == ParameterDirection.Output)
+                direction = "OUT";
+            else if (param.Direction == ParameterDirection.InputOutput)
+                direction = "IN OUT";
             else
-            {
-                var sqlDbTypeString = this.sqlDbMetadata.GetStringFromOwnerDbType(sqlDbType);
+                direction = "IN";
 
-                stringBuilder3.Append(string.Concat(param.ParameterName, " ", sqlDbTypeString, empty));
-
-                if (param.Direction == ParameterDirection.Output || param.Direction == ParameterDirection.InputOutput)
-                    stringBuilder3.Append(" OUTPUT");
-            }
-
+            stringBuilder3.Append($"{param.ParameterName} {direction} {sqlDbTypeString}{empty}");
             return stringBuilder3.ToString();
         }
 
         #endregion
 
         #region Private Method Build
+
+        #region Bulk Not Used in Oracle for Moment
+
+        //------------------------------------------------------------------
+        // Create TVP command : NOT USED => FOR BULK
+        //------------------------------------------------------------------
+        private string CreateTVPTypeCommandText()
+        {
+            StringBuilder stringBuilder = new StringBuilder();
+            var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.BulkTableType);
+            stringBuilder.AppendLine($"CREATE TYPE {commandName} AS TABLE (");
+            string str = "";
+            foreach (var c in this.tableDescription.Columns.Where(col => !col.ReadOnly))
+            {
+                var isPrimaryKey = this.tableDescription.PrimaryKey.Columns.Any(cc => this.tableDescription.IsEqual(cc.ColumnName, c.ColumnName));
+                var columnName = new ObjectNameParser(c.ColumnName);
+                var nullString = isPrimaryKey ? "NOT NULL" : "NULL";
+
+                // Get the good SqlDbType (even if we are not from Sql Server def)
+                var sqlDbTypeString = this.oracleDbMetadata.TryGetOwnerDbTypeString(c.OriginalDbType, c.DbType, false, false, this.tableDescription.OriginalProvider, OracleSyncProvider.ProviderType);
+                var quotedColumnType = new ObjectNameParser(sqlDbTypeString, "", "").QuotedString;
+                quotedColumnType += this.oracleDbMetadata.TryGetOwnerDbTypePrecision(c.OriginalDbType, c.DbType, false, false, c.MaxLength, c.Precision, c.Scale, this.tableDescription.OriginalProvider, OracleSyncProvider.ProviderType);
+
+                stringBuilder.AppendLine($"{str}{columnName.QuotedString} {quotedColumnType} {nullString}");
+                str = ", ";
+            }
+            stringBuilder.AppendLine(", create_scope_id uniqueidentifier NULL");
+            stringBuilder.AppendLine(", create_timestamp bigint NULL");
+            stringBuilder.AppendLine(", update_scope_id uniqueidentifier NULL");
+            stringBuilder.AppendLine(", update_timestamp bigint NULL");
+            stringBuilder.Append(string.Concat(str, "PRIMARY KEY ("));
+            str = "";
+            foreach (var c in this.tableDescription.PrimaryKey.Columns)
+            {
+                var columnName = new ObjectNameParser(c.ColumnName);
+                stringBuilder.Append($"{str}{columnName.QuotedString} ASC");
+                str = ", ";
+            }
+
+            stringBuilder.Append("))");
+            return stringBuilder.ToString();
+        }
 
         //------------------------------------------------------------------
         // Bulk Insert command
@@ -145,18 +232,18 @@ namespace Dotmim.Sync.Oracle.Builder
         {
             OracleCommand sqlCommand = new OracleCommand();
 
-            OracleParameter sqlParameter = new OracleParameter("@sync_min_timestamp", OracleType.BigInt);
+            OracleParameter sqlParameter = new OracleParameter("@sync_min_timestamp", OracleType.UInt32);
             sqlCommand.Parameters.Add(sqlParameter);
-            OracleParameter sqlParameter1 = new OracleParameter("@sync_scope_id", OracleType.UniqueIdentifier);
+            OracleParameter sqlParameter1 = new OracleParameter("@sync_scope_id", OracleType.LongVarChar);
             sqlCommand.Parameters.Add(sqlParameter1);
-            OracleParameter sqlParameter2 = new OracleParameter("@changeTable", OracleType.Structured);
-            sqlParameter2.TypeName = this.oracleObjectNames.GetCommandName(DbCommandType.BulkTableType);
+            OracleParameter sqlParameter2 = new OracleParameter("@changeTable", OracleType.NVarChar);
+            sqlParameter2.Value = this.oracleObjectNames.GetCommandName(DbCommandType.BulkTableType);
             sqlCommand.Parameters.Add(sqlParameter2);
 
 
-            string str4 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "[p]", "[t]");
-            string str5 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "[changes]", "[base]");
-            string str6 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "[changes]", "[side]");
+            string str4 = OracleManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "p", "t");
+            string str5 = OracleManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "changes", "base");
+            string str6 = OracleManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "changes", "side");
 
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.AppendLine("-- use a temp table to store the list of PKs that successfully got updated/inserted");
@@ -166,9 +253,9 @@ namespace Dotmim.Sync.Oracle.Builder
                 var cc = new ObjectNameParser(c.ColumnName);
 
                 // Get the good SqlDbType (even if we are not from Sql Server def)
-                var sqlDbTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(c.OriginalDbType, c.DbType, false, false, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-                var quotedColumnType = new ObjectNameParser(sqlDbTypeString, "[", "]").QuotedString;
-                quotedColumnType += this.sqlDbMetadata.TryGetOwnerDbTypePrecision(c.OriginalDbType, c.DbType, false, false, c.MaxLength, c.Precision, c.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+                var sqlDbTypeString = this.oracleDbMetadata.TryGetOwnerDbTypeString(c.OriginalDbType, c.DbType, false, false, this.tableDescription.OriginalProvider, OracleSyncProvider.ProviderType);
+                var quotedColumnType = new ObjectNameParser(sqlDbTypeString, "", "").QuotedString;
+                quotedColumnType += this.oracleDbMetadata.TryGetOwnerDbTypePrecision(c.OriginalDbType, c.DbType, false, false, c.MaxLength, c.Precision, c.Scale, this.tableDescription.OriginalProvider, OracleSyncProvider.ProviderType);
 
                 stringBuilder.Append($"{cc.QuotedString} {quotedColumnType}, ");
             }
@@ -212,11 +299,11 @@ namespace Dotmim.Sync.Oracle.Builder
             foreach (var c in this.tableDescription.Columns.Where(col => !col.ReadOnly))
             {
                 var columnName = new ObjectNameParser(c.ColumnName);
-                stringBuilder.Append($"{str}[p].{columnName.QuotedString}");
+                stringBuilder.Append($"{str}p.{columnName.QuotedString}");
                 str = ", ";
             }
-            stringBuilder.AppendLine("\t, [p].[create_timestamp], [p].[update_timestamp]");
-            stringBuilder.AppendLine("\t, [t].[update_scope_id], [t].[timestamp]");
+            stringBuilder.AppendLine("\t, p.create_timestamp, p.update_timestamp");
+            stringBuilder.AppendLine("\t, t.update_scope_id, t.timestamp");
 
             stringBuilder.AppendLine($"\tFROM @changeTable p ");
 
@@ -226,7 +313,7 @@ namespace Dotmim.Sync.Oracle.Builder
             stringBuilder.AppendLine($"\t) AS changes ON {str5}");
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("-- Si la ligne n'existe pas en local et qu'elle a été créé avant le timestamp de référence");
-            stringBuilder.Append("WHEN NOT MATCHED BY TARGET AND (changes.[timestamp] <= @sync_min_timestamp OR changes.[timestamp] IS NULL) THEN");
+            stringBuilder.Append("WHEN NOT MATCHED BY TARGET AND (changes.timestamp <= @sync_min_timestamp OR changes.timestamp IS NULL) THEN");
 
             StringBuilder stringBuilderArguments = new StringBuilder();
             StringBuilder stringBuilderParameters = new StringBuilder();
@@ -282,7 +369,7 @@ namespace Dotmim.Sync.Oracle.Builder
             stringBuilder.AppendLine("\tFROM @changed t");
             stringBuilder.AppendLine("\tJOIN @changeTable p ON ");
             stringBuilder.Append(str4);
-            stringBuilder.AppendLine(") AS [changes] ON ");
+            stringBuilder.AppendLine(") AS changes ON ");
             stringBuilder.AppendLine(str6);
             stringBuilder.Append(BulkSelectUnsuccessfulRows());
 
@@ -296,20 +383,20 @@ namespace Dotmim.Sync.Oracle.Builder
         //------------------------------------------------------------------
         private OracleCommand BuildBulkDeleteCommand()
         {
-            SqlCommand sqlCommand = new SqlCommand();
+            OracleCommand sqlCommand = new OracleCommand();
 
-            SqlParameter sqlParameter = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt);
+            OracleParameter sqlParameter = new OracleParameter("@sync_min_timestamp", SqlDbType.BigInt);
             sqlCommand.Parameters.Add(sqlParameter);
-            SqlParameter sqlParameter1 = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
+            OracleParameter sqlParameter1 = new OracleParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
             sqlCommand.Parameters.Add(sqlParameter1);
-            SqlParameter sqlParameter2 = new SqlParameter("@changeTable", SqlDbType.Structured);
-            sqlParameter2.TypeName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkTableType);
+            OracleParameter sqlParameter2 = new OracleParameter("@changeTable", SqlDbType.Structured);
+            sqlParameter2.Value = this.oracleObjectNames.GetCommandName(DbCommandType.BulkTableType);
             sqlCommand.Parameters.Add(sqlParameter2);
 
 
-            string str4 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "p", "t");
-            string str5 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "changes", "base");
-            string str6 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "changes", "side");
+            string str4 = OracleManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "p", "t");
+            string str5 = OracleManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "changes", "base");
+            string str6 = OracleManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "changes", "side");
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.AppendLine("-- use a temp table to store the list of PKs that successfully got updated/inserted");
             stringBuilder.Append("declare @changed TABLE (");
@@ -318,9 +405,9 @@ namespace Dotmim.Sync.Oracle.Builder
                 var cc = new ObjectNameParser(c.ColumnName);
 
                 // Get the good SqlDbType (even if we are not from Sql Server def)
-                var sqlDbTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(c.OriginalDbType, c.DbType, false, false, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-                var quotedColumnType = new ObjectNameParser(sqlDbTypeString, "[", "]").QuotedString;
-                quotedColumnType += this.sqlDbMetadata.TryGetOwnerDbTypePrecision(c.OriginalDbType, c.DbType, false, false, c.MaxLength, c.Precision, c.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+                var sqlDbTypeString = this.oracleDbMetadata.TryGetOwnerDbTypeString(c.OriginalDbType, c.DbType, false, false, this.tableDescription.OriginalProvider, OracleSyncProvider.ProviderType);
+                var quotedColumnType = new ObjectNameParser(sqlDbTypeString, "", "").QuotedString;
+                quotedColumnType += this.oracleDbMetadata.TryGetOwnerDbTypePrecision(c.OriginalDbType, c.DbType, false, false, c.MaxLength, c.Precision, c.Scale, this.tableDescription.OriginalProvider, OracleSyncProvider.ProviderType);
 
                 stringBuilder.Append($"{cc.QuotedString} {quotedColumnType}, ");
             }
@@ -348,7 +435,7 @@ namespace Dotmim.Sync.Oracle.Builder
                     stringBuilder.AppendLine();
             }
             stringBuilder.AppendLine($"INTO @changed ");
-            stringBuilder.AppendLine($"FROM {tableName.QuotedString} [base]");
+            stringBuilder.AppendLine($"FROM {tableName.QuotedString} base");
             stringBuilder.AppendLine("JOIN (");
 
 
@@ -358,11 +445,11 @@ namespace Dotmim.Sync.Oracle.Builder
             foreach (var c in this.tableDescription.Columns.Where(col => !col.ReadOnly))
             {
                 var columnName = new ObjectNameParser(c.ColumnName);
-                stringBuilder.Append($"{str}[p].{columnName.QuotedString}");
+                stringBuilder.Append($"{str}p.{columnName.QuotedString}");
                 str = ", ";
             }
-            stringBuilder.AppendLine("\t, [p].[create_timestamp], [p].[update_timestamp]");
-            stringBuilder.AppendLine("\t, [t].[update_scope_id], [t].[timestamp]");
+            stringBuilder.AppendLine("\t, p.create_timestamp, p.update_timestamp");
+            stringBuilder.AppendLine("\t, t.update_scope_id, t.timestamp");
 
             stringBuilder.AppendLine($"\tFROM @changeTable p ");
 
@@ -378,13 +465,13 @@ namespace Dotmim.Sync.Oracle.Builder
             stringBuilder.AppendLine("-- Last changes was from the current scope, so we can delete it since we are sure no one else edit it ");
             stringBuilder.AppendLine("changes.update_scope_id = @sync_scope_id");
             stringBuilder.AppendLine("-- no change since the last time the current scope has sync (so no one has update the row)");
-            stringBuilder.AppendLine("OR [changes].[timestamp] <= @sync_min_timestamp;");
+            stringBuilder.AppendLine("OR changes.timestamp <= @sync_min_timestamp;");
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("-- Since the delete trigger is passed, we update the tracking table to reflect the real scope deleter");
-            stringBuilder.AppendLine("UPDATE [side] SET");
+            stringBuilder.AppendLine("UPDATE side SET");
             stringBuilder.AppendLine("\tsync_row_is_tombstone = 1, ");
             stringBuilder.AppendLine("\tupdate_scope_id = @sync_scope_id,");
-            stringBuilder.AppendLine("\tupdate_timestamp = [changes].update_timestamp");
+            stringBuilder.AppendLine("\tupdate_timestamp = changes.update_timestamp");
             stringBuilder.AppendLine($"FROM {trackingName.QuotedString} side");
             stringBuilder.AppendLine("JOIN (");
             stringBuilder.Append("\tSELECT ");
@@ -410,20 +497,20 @@ namespace Dotmim.Sync.Oracle.Builder
         //------------------------------------------------------------------
         private OracleCommand BuildBulkUpdateCommand()
         {
-            SqlCommand sqlCommand = new SqlCommand();
+            OracleCommand sqlCommand = new OracleCommand();
 
-            SqlParameter sqlParameter = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt);
+            OracleParameter sqlParameter = new OracleParameter("@sync_min_timestamp", SqlDbType.BigInt);
             sqlCommand.Parameters.Add(sqlParameter);
-            SqlParameter sqlParameter1 = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
+            OracleParameter sqlParameter1 = new OracleParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
             sqlCommand.Parameters.Add(sqlParameter1);
-            SqlParameter sqlParameter2 = new SqlParameter("@changeTable", SqlDbType.Structured);
-            sqlParameter2.TypeName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkTableType);
+            OracleParameter sqlParameter2 = new OracleParameter("@changeTable", SqlDbType.Structured);
+            sqlParameter2.Value = this.oracleObjectNames.GetCommandName(DbCommandType.BulkTableType);
             sqlCommand.Parameters.Add(sqlParameter2);
 
 
-            string str4 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "[p]", "[t]");
-            string str5 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "[changes]", "[base]");
-            string str6 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "[changes]", "[side]");
+            string str4 = OracleManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "p", "t");
+            string str5 = OracleManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "changes", "base");
+            string str6 = OracleManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "changes", "side");
 
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.AppendLine("-- use a temp table to store the list of PKs that successfully got updated/inserted");
@@ -433,9 +520,9 @@ namespace Dotmim.Sync.Oracle.Builder
                 var cc = new ObjectNameParser(c.ColumnName);
 
                 // Get the good SqlDbType (even if we are not from Sql Server def)
-                var sqlDbTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(c.OriginalDbType, c.DbType, false, false, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-                var quotedColumnType = new ObjectNameParser(sqlDbTypeString, "[", "]").QuotedString;
-                quotedColumnType += this.sqlDbMetadata.TryGetOwnerDbTypePrecision(c.OriginalDbType, c.DbType, false, false, c.MaxLength, c.Precision, c.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+                var sqlDbTypeString = this.oracleDbMetadata.TryGetOwnerDbTypeString(c.OriginalDbType, c.DbType, false, false, this.tableDescription.OriginalProvider, OracleSyncProvider.ProviderType);
+                var quotedColumnType = new ObjectNameParser(sqlDbTypeString, "", "").QuotedString;
+                quotedColumnType += this.oracleDbMetadata.TryGetOwnerDbTypePrecision(c.OriginalDbType, c.DbType, false, false, c.MaxLength, c.Precision, c.Scale, this.tableDescription.OriginalProvider, OracleSyncProvider.ProviderType);
 
                 stringBuilder.Append($"{cc.QuotedString} {quotedColumnType}, ");
             }
@@ -478,11 +565,11 @@ namespace Dotmim.Sync.Oracle.Builder
             foreach (var c in this.tableDescription.Columns.Where(col => !col.ReadOnly))
             {
                 var columnName = new ObjectNameParser(c.ColumnName);
-                stringBuilder.Append($"{str}[p].{columnName.QuotedString}");
+                stringBuilder.Append($"{str}p.{columnName.QuotedString}");
                 str = ", ";
             }
-            stringBuilder.AppendLine("\t, [p].[create_timestamp], [p].[update_timestamp]");
-            stringBuilder.AppendLine("\t, [t].[update_scope_id], [t].[timestamp]");
+            stringBuilder.AppendLine("\t, p.create_timestamp, p.update_timestamp");
+            stringBuilder.AppendLine("\t, t.update_scope_id, t.timestamp");
 
             stringBuilder.AppendLine($"\tFROM @changeTable p ");
             stringBuilder.Append($"\tLEFT JOIN {trackingName.QuotedString} t ON ");
@@ -490,7 +577,7 @@ namespace Dotmim.Sync.Oracle.Builder
             stringBuilder.AppendLine($"\t) AS changes ON {str5}");
             stringBuilder.AppendLine();
 
-            stringBuilder.AppendLine("WHEN MATCHED AND ([changes].[update_scope_id] = @sync_scope_id OR [changes].[timestamp] <= @sync_min_timestamp) THEN");
+            stringBuilder.AppendLine("WHEN MATCHED AND (changes.update_scope_id = @sync_scope_id OR changes.timestamp <= @sync_min_timestamp) THEN");
 
             StringBuilder stringBuilderArguments = new StringBuilder();
             StringBuilder stringBuilderParameters = new StringBuilder();
@@ -510,7 +597,7 @@ namespace Dotmim.Sync.Oracle.Builder
             foreach (DmColumn column in this.tableDescription.NonPkColumns.Where(col => !col.ReadOnly))
             {
                 ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
-                stringBuilder.AppendLine($"\t{strSeparator}{quotedColumn.QuotedString} = [changes].{quotedColumn.QuotedString}");
+                stringBuilder.AppendLine($"\t{strSeparator}{quotedColumn.QuotedString} = changes.{quotedColumn.QuotedString}");
                 strSeparator = ", ";
             }
             stringBuilder.Append($"\tOUTPUT ");
@@ -550,13 +637,553 @@ namespace Dotmim.Sync.Oracle.Builder
             stringBuilder.AppendLine("\tFROM @changed t");
             stringBuilder.AppendLine("\tJOIN @changeTable p ON ");
             stringBuilder.AppendLine($"\t{str4}");
-            stringBuilder.AppendLine(") AS [changes] ON ");
+            stringBuilder.AppendLine(") AS changes ON ");
             stringBuilder.AppendLine($"\t{str6}");
             stringBuilder.AppendLine();
             stringBuilder.Append(BulkSelectUnsuccessfulRows());
 
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
+        }
+
+        #endregion
+
+        //------------------------------------------------------------------
+        // Update Metadata command
+        //------------------------------------------------------------------
+        private OracleCommand BuildUpdateMetadataCommand()
+        {
+            OracleCommand sqlCommand = new OracleCommand();
+            StringBuilder stringBuilder = new StringBuilder();
+            this.AddPkColumnParametersToCommand(sqlCommand);
+            OracleParameter sqlParameter = new OracleParameter("sync_scope_id", SqlDbType.NVarChar);
+            sqlCommand.Parameters.Add(sqlParameter);
+            OracleParameter sqlParameter1 = new OracleParameter("sync_row_is_tombstone", SqlDbType.Int);
+            sqlCommand.Parameters.Add(sqlParameter1);
+            OracleParameter sqlParameter3 = new OracleParameter("create_timestamp", SqlDbType.BigInt);
+            sqlCommand.Parameters.Add(sqlParameter3);
+            OracleParameter sqlParameter5 = new OracleParameter("update_timestamp", SqlDbType.BigInt);
+            sqlCommand.Parameters.Add(sqlParameter5);
+            OracleParameter sqlParameter8 = new OracleParameter("sync_row_count", SqlDbType.Int);
+            sqlParameter8.Direction = ParameterDirection.Output;
+            sqlCommand.Parameters.Add(sqlParameter8);
+
+            string str1 = OracleManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKey.Columns, "");
+
+            stringBuilder.AppendLine($"{sqlParameter8.ParameterName} := 0;");
+            stringBuilder.AppendLine();
+
+            stringBuilder.AppendLine($"SELECT sync_row_is_tombstone into was_tombstone");
+            stringBuilder.AppendLine($"FROM {trackingName.QuotedString}");
+            stringBuilder.AppendLine($"WHERE ({str1})");
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine("IF (was_tombstone IS NOT NULL AND was_tombstone = 1 AND :sync_row_is_tombstone = 0)");
+            stringBuilder.AppendLine("BEGIN ");
+            stringBuilder.AppendLine($"UPDATE {trackingName.QuotedString} SET ");
+            stringBuilder.AppendLine("\t create_scope_id = :sync_scope_id, ");
+            stringBuilder.AppendLine("\t update_scope_id = :sync_scope_id, ");
+            stringBuilder.AppendLine("\t create_timestamp = :create_timestamp, ");
+            stringBuilder.AppendLine("\t update_timestamp = :update_timestamp, ");
+            stringBuilder.AppendLine("\t sync_row_is_tombstone = :sync_row_is_tombstone ");
+            stringBuilder.AppendLine($"WHERE ({str1})");
+            stringBuilder.AppendLine("END");
+            stringBuilder.AppendLine("ELSE");
+            stringBuilder.AppendLine("BEGIN ");
+            stringBuilder.AppendLine($"UPDATE {trackingName.QuotedString} SET ");
+            stringBuilder.AppendLine("\t update_scope_id = :sync_scope_id, ");
+            stringBuilder.AppendLine("\t update_timestamp = :update_timestamp, ");
+            stringBuilder.AppendLine("\t sync_row_is_tombstone = :sync_row_is_tombstone ");
+            stringBuilder.AppendLine($"WHERE ({str1})");
+            stringBuilder.AppendLine("END IF;");
+            stringBuilder.AppendLine();
+            stringBuilder.Append($" {sqlParameter8.ParameterName} := SQL%ROWCOUNT;");
+            sqlCommand.CommandText = stringBuilder.ToString();
+            return sqlCommand;
+        }
+
+        //------------------------------------------------------------------
+        // Select changes command : OK
+        //------------------------------------------------------------------
+        private OracleCommand BuildSelectIncrementalChangesCommand(bool withFilter = false)
+        {
+            OracleCommand sqlCommand = new OracleCommand();
+            OracleParameter sqlParameter1 = new OracleParameter("sync_min_timestamp", SqlDbType.BigInt);
+            OracleParameter sqlParameter3 = new OracleParameter("sync_scope_id", SqlDbType.UniqueIdentifier);
+            OracleParameter sqlParameter4 = new OracleParameter("sync_scope_is_new", SqlDbType.Bit);
+            OracleParameter sqlParameter5 = new OracleParameter("sync_scope_is_reinit", SqlDbType.Bit);
+            sqlCommand.Parameters.Add(sqlParameter1);
+            sqlCommand.Parameters.Add(sqlParameter3);
+            sqlCommand.Parameters.Add(sqlParameter4);
+            sqlCommand.Parameters.Add(sqlParameter5);
+
+            if (withFilter && this.Filters != null && this.Filters.Count > 0)
+            {
+                foreach (var c in this.Filters)
+                {
+                    var columnFilter = this.tableDescription.Columns[c.ColumnName];
+
+                    if (columnFilter == null)
+                        throw new InvalidExpressionException($"Column {c.ColumnName} does not exist in Table {this.tableDescription.TableName}");
+
+                    var columnFilterName = new ObjectNameParser(columnFilter.ColumnName, "", "");
+
+                    // Get the good SqlDbType (even if we are not from Sql Server def)
+
+                    SqlDbType sqlDbType = (SqlDbType)this.oracleDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.DbType, false, false, this.tableDescription.OriginalProvider, OracleSyncProvider.ProviderType);
+                    OracleParameter sqlParamFilter = new OracleParameter($"{columnFilterName.UnquotedString}", sqlDbType);
+                    sqlCommand.Parameters.Add(sqlParamFilter);
+                }
+            }
+
+            StringBuilder stringBuilder = new StringBuilder("SELECT ");
+            foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
+            {
+                var pkColumnName = new ObjectNameParser(pkColumn.ColumnName);
+                stringBuilder.AppendLine($"\t side.{pkColumnName.QuotedString}, ");
+            }
+            foreach (var column in this.tableDescription.NonPkColumns.Where(col => !col.ReadOnly))
+            {
+                var columnName = new ObjectNameParser(column.ColumnName);
+                stringBuilder.AppendLine($"\t base.{columnName.QuotedString}, ");
+            }
+            stringBuilder.AppendLine($"\t side.sync_row_is_tombstone, ");
+            stringBuilder.AppendLine($"\t side.create_scope_id, ");
+            stringBuilder.AppendLine($"\t side.create_timestamp, ");
+            stringBuilder.AppendLine($"\t side.update_scope_id, ");
+            stringBuilder.AppendLine($"\t side.update_timestamp ");
+            stringBuilder.AppendLine($"FROM {tableName.QuotedString} base");
+            stringBuilder.AppendLine($"RIGHT JOIN {trackingName.QuotedString} side");
+            stringBuilder.Append($"ON ");
+
+            string empty = "";
+            foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
+            {
+                var pkColumnName = new ObjectNameParser(pkColumn.ColumnName);
+                stringBuilder.Append($"{empty} base.{pkColumnName.QuotedString} = side.{pkColumnName.QuotedString}");
+                empty = " AND ";
+            }
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine("WHERE (");
+            string str = string.Empty;
+
+            if (withFilter && this.Filters != null && this.Filters.Count > 0)
+            {
+                StringBuilder builderFilter = new StringBuilder();
+                builderFilter.Append("\t(");
+                string filterSeparationString = "";
+                foreach (var c in this.Filters)
+                {
+                    var columnFilter = this.tableDescription.Columns[c.ColumnName];
+
+                    if (columnFilter == null)
+                        throw new InvalidExpressionException($"Column {c.ColumnName} does not exist in Table {this.tableDescription.TableName}");
+
+                    var columnFilterName = new ObjectNameParser(columnFilter.ColumnName, "", "");
+
+                    builderFilter.Append($"side.{columnFilterName.QuotedObjectName} = :{columnFilterName.UnquotedString}{filterSeparationString}");
+                    filterSeparationString = " AND ";
+                }
+                builderFilter.AppendLine(")");
+                builderFilter.Append("\tOR (");
+                builderFilter.AppendLine("(side.update_scope_id = :sync_scope_id or side.update_scope_id IS NULL)");
+                builderFilter.Append("\t\tAND (");
+
+                filterSeparationString = "";
+                foreach (var c in this.Filters)
+                {
+                    var columnFilter = this.tableDescription.Columns[c.ColumnName];
+                    var columnFilterName = new ObjectNameParser(columnFilter.ColumnName, "", "");
+
+                    builderFilter.Append($"side.{columnFilterName.QuotedObjectName} IS NULL{filterSeparationString}");
+                    filterSeparationString = " OR ";
+                }
+
+                builderFilter.AppendLine("))");
+                builderFilter.AppendLine("\t)");
+                builderFilter.AppendLine("AND (");
+                stringBuilder.Append(builderFilter.ToString());
+            }
+
+            stringBuilder.AppendLine("\t-- Update made by the local instance");
+            stringBuilder.AppendLine("\tside.update_scope_id IS NULL");
+            stringBuilder.AppendLine("\t-- Or Update different from remote");
+            stringBuilder.AppendLine("\tOR side.update_scope_id <> :sync_scope_id");
+            stringBuilder.AppendLine("\t-- Or we are in reinit mode so we take rows even thoses updated by the scope");
+            stringBuilder.AppendLine("\tOR :sync_scope_is_reinit = 1");
+            stringBuilder.AppendLine("    )");
+            stringBuilder.AppendLine("AND (");
+            stringBuilder.AppendLine("\t-- And Timestamp is > from remote timestamp");
+            stringBuilder.AppendLine("\tside.timestamp > :sync_min_timestamp");
+            stringBuilder.AppendLine("\tOR");
+            stringBuilder.AppendLine("\t-- remote instance is new, so we don't take the last timestamp");
+            stringBuilder.AppendLine("\t:sync_scope_is_new = 1");
+            stringBuilder.AppendLine("\t)");
+            stringBuilder.AppendLine("AND (");
+            stringBuilder.AppendLine("\tside.sync_row_is_tombstone = 1 ");
+            stringBuilder.AppendLine("\tOR");
+            stringBuilder.Append("\t(side.sync_row_is_tombstone = 0");
+
+            empty = " AND ";
+            foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
+            {
+                var pkColumnName = new ObjectNameParser(pkColumn.ColumnName, "", "");
+                stringBuilder.Append($"{empty}base.{pkColumnName.QuotedString} is not null");
+            }
+            stringBuilder.AppendLine("\t)");
+            stringBuilder.AppendLine(")");
+
+            sqlCommand.CommandText = stringBuilder.ToString();
+
+            //if (this._filterParameters != null)
+            //{
+            //    foreach (OracleParameter _filterParameter in this._filterParameters)
+            //    {
+            //        sqlCommand.Parameters.Add(((ICloneable)_filterParameter).Clone());
+            //    }
+            //}
+            return sqlCommand;
+        }
+
+        //------------------------------------------------------------------
+        // Update command : OK
+        //------------------------------------------------------------------
+        private OracleCommand BuildUpdateCommand()
+        {
+            OracleCommand sqlCommand = new OracleCommand();
+
+            StringBuilder stringBuilder = new StringBuilder();
+            this.AddColumnParametersToCommand(sqlCommand);
+
+            OracleParameter sqlParameter = new OracleParameter("sync_force_write", SqlDbType.Int);
+            sqlCommand.Parameters.Add(sqlParameter);
+            OracleParameter sqlParameter1 = new OracleParameter("sync_min_timestamp", SqlDbType.BigInt);
+            sqlCommand.Parameters.Add(sqlParameter1);
+            OracleParameter sqlParameter2 = new OracleParameter("sync_row_count", SqlDbType.Int);
+            sqlParameter2.Direction = ParameterDirection.Output;
+            sqlCommand.Parameters.Add(sqlParameter2);
+
+            stringBuilder.AppendLine($" {sqlParameter2.ParameterName} := 0;");
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($"UPDATE {tableName.QuotedString}");
+            stringBuilder.Append($"SET {OracleManagementUtils.CommaSeparatedUpdateFromParameters(this.tableDescription)}");
+            stringBuilder.AppendLine($"FROM {tableName.QuotedString} base");
+            stringBuilder.AppendLine($"JOIN {trackingName.QuotedString} side");
+            stringBuilder.Append($"ON ");
+            stringBuilder.AppendLine(OracleManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "base", "side"));
+            stringBuilder.AppendLine("WHERE (side.timestamp <= :sync_min_timestamp OR :sync_force_write = 1)");
+            stringBuilder.Append("AND (");
+            stringBuilder.Append(OracleManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKey.Columns, "base"));
+            stringBuilder.AppendLine(");");
+            stringBuilder.AppendLine();
+            stringBuilder.Append(string.Concat("", sqlParameter2.ParameterName, " := SQL%ROWCOUNT;"));
+            sqlCommand.CommandText = stringBuilder.ToString();
+            return sqlCommand;
+        }
+
+        //------------------------------------------------------------------
+        // Select Row command : OK
+        //------------------------------------------------------------------
+        private OracleCommand BuildSelectRowCommand()
+        {
+            OracleCommand sqlCommand = new OracleCommand();
+            this.AddPkColumnParametersToCommand(sqlCommand);
+            OracleParameter sqlParameter = new OracleParameter("sync_scope_id", SqlDbType.UniqueIdentifier);
+            sqlCommand.Parameters.Add(sqlParameter);
+
+            StringBuilder stringBuilder = new StringBuilder("SELECT ");
+            stringBuilder.AppendLine();
+            StringBuilder stringBuilder1 = new StringBuilder();
+            string empty = string.Empty;
+            foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
+            {
+                ObjectNameParser pkColumnName = new ObjectNameParser(pkColumn.ColumnName);
+                stringBuilder.AppendLine($"\t side.{pkColumnName.QuotedString}, ");
+                stringBuilder1.Append($"{empty} side.{pkColumnName.QuotedString} = :{pkColumnName.UnquotedString}");
+                empty = " AND ";
+            }
+            foreach (DmColumn nonPkMutableColumn in this.tableDescription.NonPkColumns.Where(c => !c.ReadOnly))
+            {
+                ObjectNameParser nonPkColumnName = new ObjectNameParser(nonPkMutableColumn.ColumnName);
+                stringBuilder.AppendLine($"\t base.{nonPkColumnName.QuotedString}, ");
+            }
+            stringBuilder.AppendLine("\t side.sync_row_is_tombstone,");
+            stringBuilder.AppendLine("\t side.create_scope_id,");
+            stringBuilder.AppendLine("\t side.create_timestamp,");
+            stringBuilder.AppendLine("\t side.update_scope_id,");
+            stringBuilder.AppendLine("\t side.update_timestamp");
+
+            stringBuilder.AppendLine($"FROM {tableName.QuotedString} base");
+            stringBuilder.AppendLine($"RIGHT JOIN {trackingName.QuotedString} side ON");
+
+            string str = string.Empty;
+            foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
+            {
+                ObjectNameParser pkColumnName = new ObjectNameParser(pkColumn.ColumnName);
+                stringBuilder.Append($"{str} base.{pkColumnName.QuotedString} = side.{pkColumnName.QuotedString}");
+                str = " AND ";
+            }
+            stringBuilder.AppendLine();
+            stringBuilder.Append(string.Concat("WHERE ", stringBuilder1.ToString()));
+            sqlCommand.CommandText = stringBuilder.ToString();
+            return sqlCommand;
+        }
+
+        //------------------------------------------------------------------
+        // Insert Metadata command : OK
+        //------------------------------------------------------------------
+        private OracleCommand BuildInsertMetadataCommand()
+        {
+            StringBuilder stringBuilderArguments = new StringBuilder();
+            StringBuilder stringBuilderParameters = new StringBuilder();
+            OracleCommand sqlCommand = new OracleCommand();
+
+            StringBuilder stringBuilder = new StringBuilder();
+            this.AddPkColumnParametersToCommand(sqlCommand);
+            OracleParameter sqlParameter = new OracleParameter("sync_scope_id", SqlDbType.UniqueIdentifier);
+            sqlCommand.Parameters.Add(sqlParameter);
+            OracleParameter sqlParameter1 = new OracleParameter("sync_row_is_tombstone", SqlDbType.Int);
+            sqlCommand.Parameters.Add(sqlParameter1);
+            OracleParameter sqlParameter3 = new OracleParameter("create_timestamp", SqlDbType.BigInt);
+            sqlCommand.Parameters.Add(sqlParameter3);
+            OracleParameter sqlParameter4 = new OracleParameter("update_timestamp", SqlDbType.BigInt);
+            sqlCommand.Parameters.Add(sqlParameter4);
+            OracleParameter sqlParameter8 = new OracleParameter("sync_row_count", SqlDbType.Int);
+            sqlParameter8.Direction = ParameterDirection.Output;
+            sqlCommand.Parameters.Add(sqlParameter8);
+
+            stringBuilder.AppendLine($" {sqlParameter8.ParameterName} = 0;");
+            stringBuilder.AppendLine();
+
+            stringBuilder.AppendLine($"UPDATE {trackingName.QuotedString} SET ");
+            stringBuilder.AppendLine("\tcreate_scope_id = :sync_scope_id, ");
+            stringBuilder.AppendLine("\tcreate_timestamp = :create_timestamp, ");
+            stringBuilder.AppendLine("\tupdate_scope_id = :sync_scope_id, ");
+            stringBuilder.AppendLine("\tupdate_timestamp = :update_timestamp, ");
+            stringBuilder.AppendLine("\tsync_row_is_tombstone = :sync_row_is_tombstone ");
+            stringBuilder.AppendLine($"WHERE ({OracleManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKey.Columns, "")})");
+            stringBuilder.AppendLine();
+
+            stringBuilder.AppendLine($" {sqlParameter8.ParameterName} := SQL%ROWCOUNT; ");
+            stringBuilder.AppendLine();
+
+            stringBuilder.AppendLine($"IF ({sqlParameter8.ParameterName} = 0)");
+            stringBuilder.AppendLine("BEGIN ");
+            stringBuilder.AppendLine($"\tINSERT INTO {trackingName.QuotedString}");
+
+            string empty = string.Empty;
+            foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
+            {
+                ObjectNameParser columnName = new ObjectNameParser(pkColumn.ColumnName);
+                stringBuilderArguments.Append(string.Concat(empty, columnName.QuotedString));
+                stringBuilderParameters.Append(string.Concat(empty, $":{columnName.UnquotedString}"));
+                empty = ", ";
+            }
+            stringBuilder.AppendLine($"\t({stringBuilderArguments.ToString()}, ");
+            stringBuilder.AppendLine($"\tcreate_scope_id, create_timestamp, update_scope_id, update_timestamp,");
+            stringBuilder.AppendLine($"\tsync_row_is_tombstone, last_change_datetime)");
+            stringBuilder.AppendLine($"\tVALUES ({stringBuilderParameters.ToString()}, ");
+            stringBuilder.AppendLine($"\t:sync_scope_id, :create_timestamp, :sync_scope_id, :update_timestamp, ");
+            stringBuilder.AppendLine($"\t:sync_row_is_tombstone, sysdate);");
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($"\t {sqlParameter8.ParameterName} := SQL%ROWCOUNT; ");
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine("END IF;");
+
+            sqlCommand.CommandText = stringBuilder.ToString();
+            return sqlCommand;
+        }
+
+        //------------------------------------------------------------------
+        // Insert command : OK
+        //------------------------------------------------------------------
+        private OracleCommand BuildInsertCommand()
+        {
+            OracleCommand sqlCommand = new OracleCommand();
+            StringBuilder stringBuilder = new StringBuilder();
+            StringBuilder stringBuilderArguments = new StringBuilder();
+            StringBuilder stringBuilderParameters = new StringBuilder();
+
+            this.AddColumnParametersToCommand(sqlCommand);
+            OracleParameter sqlParameter = new OracleParameter("sync_row_count", SqlDbType.Int);
+            sqlParameter.Direction = ParameterDirection.Output;
+            sqlCommand.Parameters.Add(sqlParameter);
+
+            //Check auto increment column
+            bool hasAutoIncColumn = false;
+            foreach (var column in this.tableDescription.Columns)
+            {
+                if (!column.AutoIncrement)
+                    continue;
+                hasAutoIncColumn = true;
+                break;
+            }
+
+            stringBuilder.AppendLine($"{sqlParameter.ParameterName} := 0;");
+
+            stringBuilder.Append(string.Concat("IF NOT EXISTS (SELECT * FROM ", trackingName.QuotedString, " WHERE "));
+            stringBuilder.Append(OracleManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKey.Columns, string.Empty));
+            stringBuilder.AppendLine(") ");
+            stringBuilder.AppendLine("BEGIN ");
+            if (hasAutoIncColumn)
+            {
+                // stringBuilder.AppendLine($"\tSET IDENTITY_INSERT {tableName.QuotedString} ON;");
+                stringBuilder.AppendLine();
+            }
+
+            string empty = string.Empty;
+            foreach (var mutableColumn in this.tableDescription.Columns.Where(c => !c.ReadOnly))
+            {
+                ObjectNameParser columnName = new ObjectNameParser(mutableColumn.ColumnName);
+                stringBuilderArguments.Append(string.Concat(empty, columnName.QuotedString));
+                stringBuilderParameters.Append(string.Concat(empty, $":{columnName.UnquotedString}"));
+                empty = ", ";
+            }
+            stringBuilder.AppendLine($"\tINSERT INTO {tableName.QuotedString}");
+            stringBuilder.AppendLine($"\t({stringBuilderArguments.ToString()})");
+            stringBuilder.AppendLine($"\tVALUES ({stringBuilderParameters.ToString()});");
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine(string.Concat("\t", sqlParameter.ParameterName, " := SQL%ROWCOUNT; "));
+
+            if (hasAutoIncColumn)
+            {
+                stringBuilder.AppendLine();
+                // stringBuilder.AppendLine($"\tSET IDENTITY_INSERT {tableName.QuotedString} OFF;");
+            }
+
+            stringBuilder.AppendLine("END IF;");
+            sqlCommand.CommandText = stringBuilder.ToString();
+            return sqlCommand;
+        }
+
+        //------------------------------------------------------------------
+        // Delete Metadata command : OK
+        //------------------------------------------------------------------
+        private OracleCommand BuildDeleteMetadataCommand()
+        {
+            OracleCommand sqlCommand = new OracleCommand();
+            this.AddPkColumnParametersToCommand(sqlCommand);
+            OracleParameter sqlParameter = new OracleParameter("sync_check_concurrency", SqlDbType.Int);
+            sqlCommand.Parameters.Add(sqlParameter);
+            OracleParameter sqlParameter1 = new OracleParameter("sync_row_timestamp", SqlDbType.BigInt);
+            sqlCommand.Parameters.Add(sqlParameter1);
+            OracleParameter sqlParameter2 = new OracleParameter("sync_row_count", SqlDbType.Int);
+            sqlParameter2.Direction = ParameterDirection.Output;
+            sqlCommand.Parameters.Add(sqlParameter2);
+            StringBuilder stringBuilder = new StringBuilder();
+            stringBuilder.AppendLine($"{sqlParameter2.ParameterName} := 0;");
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($"DELETE FROM {trackingName.QuotedString} ");
+            stringBuilder.Append($"WHERE ");
+            stringBuilder.AppendLine(OracleManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKey.Columns, ""));
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine(string.Concat("", sqlParameter2.ParameterName, " := SQL%ROWCOUNT;"));
+            sqlCommand.CommandText = stringBuilder.ToString();
+            return sqlCommand;
+        }
+
+        //------------------------------------------------------------------
+        // Delete command : OK
+        //------------------------------------------------------------------
+        private OracleCommand BuildDeleteCommand()
+        {
+            OracleCommand sqlCommand = new OracleCommand();
+            this.AddPkColumnParametersToCommand(sqlCommand);
+            OracleParameter sqlParameter = new OracleParameter("sync_force_write", SqlDbType.Int);
+            sqlCommand.Parameters.Add(sqlParameter);
+            OracleParameter sqlParameter1 = new OracleParameter("sync_min_timestamp", SqlDbType.BigInt);
+            sqlCommand.Parameters.Add(sqlParameter1);
+            OracleParameter sqlParameter2 = new OracleParameter("sync_row_count", SqlDbType.Int);
+            sqlParameter2.Direction = ParameterDirection.Output;
+            sqlCommand.Parameters.Add(sqlParameter2);
+
+            StringBuilder stringBuilder = new StringBuilder();
+            stringBuilder.AppendLine($"{sqlParameter2.ParameterName} := 0;");
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($"DELETE {tableName.QuotedString}");
+            stringBuilder.AppendLine($"FROM {tableName.QuotedString} base");
+            stringBuilder.AppendLine($"JOIN {trackingName.QuotedString} side ON ");
+
+            stringBuilder.AppendLine(OracleManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "base", "side"));
+
+            stringBuilder.AppendLine("WHERE (side.timestamp <= :sync_min_timestamp OR :sync_force_write = 1)");
+            stringBuilder.Append("AND ");
+            stringBuilder.AppendLine(string.Concat("(", OracleManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKey.Columns, "base"), ");"));
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine(string.Concat(sqlParameter2.ParameterName, " := SQL%ROWCOUNT;"));
+            sqlCommand.CommandText = stringBuilder.ToString();
+            return sqlCommand;
+        }
+
+        //------------------------------------------------------------------
+        // Reset command : OK
+        //------------------------------------------------------------------
+        private OracleCommand BuildResetCommand()
+        {
+            var updTriggerName = this.oracleObjectNames.GetCommandName(DbCommandType.UpdateTrigger);
+            var delTriggerName = this.oracleObjectNames.GetCommandName(DbCommandType.DeleteTrigger);
+            var insTriggerName = this.oracleObjectNames.GetCommandName(DbCommandType.InsertTrigger);
+
+            OracleCommand sqlCommand = new OracleCommand();
+            StringBuilder stringBuilder = new StringBuilder();
+            stringBuilder.AppendLine();
+
+            stringBuilder.AppendLine($"ALTER TRIGGER {updTriggerName} DISABLE;");
+            stringBuilder.AppendLine($"ALTER TRIGGER {insTriggerName} DISABLE;");
+            stringBuilder.AppendLine($"ALTER TRIGGER {delTriggerName} DISABLE;");
+
+            stringBuilder.AppendLine($"DELETE FROM {tableName.QuotedString};");
+            stringBuilder.AppendLine($"DELETE FROM {trackingName.QuotedString};");
+
+            stringBuilder.AppendLine($"ALTER TRIGGER {updTriggerName} ENABLE;");
+            stringBuilder.AppendLine($"ALTER TRIGGER {insTriggerName} ENABLE;");
+            stringBuilder.AppendLine($"ALTER TRIGGER {delTriggerName} ENABLE;");
+
+            stringBuilder.AppendLine();
+            sqlCommand.CommandText = stringBuilder.ToString();
+            return sqlCommand;
+        }
+
+        // NOT USED : FOR BULK
+        private string BulkSelectUnsuccessfulRows()
+        {
+            var stringBuilder = new StringBuilder();
+            stringBuilder.AppendLine("--Select all ids not deleted for conflict");
+            stringBuilder.Append("SELECT ");
+            for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
+            {
+                var cc = new ObjectNameParser(this.tableDescription.PrimaryKey.Columns[i].ColumnName);
+                stringBuilder.Append($"{cc.QuotedString}");
+                if (i < this.tableDescription.PrimaryKey.Columns.Length - 1)
+                    stringBuilder.Append(", ");
+                else
+                    stringBuilder.AppendLine();
+            }
+
+            stringBuilder.AppendLine($"FROM @changeTable t");
+            stringBuilder.AppendLine("WHERE NOT EXISTS (");
+            stringBuilder.Append("\t SELECT ");
+            for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
+            {
+                var cc = new ObjectNameParser(this.tableDescription.PrimaryKey.Columns[i].ColumnName);
+                stringBuilder.Append($"{cc.QuotedString}");
+                if (i < this.tableDescription.PrimaryKey.Columns.Length - 1)
+                    stringBuilder.Append(", ");
+                else
+                    stringBuilder.AppendLine();
+            }
+            stringBuilder.AppendLine("\t FROM @changed i");
+            stringBuilder.Append("\t WHERE ");
+            for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
+            {
+                var cc = new ObjectNameParser(this.tableDescription.PrimaryKey.Columns[i].ColumnName);
+                stringBuilder.Append($"t.{cc.QuotedString} = i.{cc.QuotedString}");
+                if (i < this.tableDescription.PrimaryKey.Columns.Length - 1)
+                    stringBuilder.Append("AND ");
+                else
+                    stringBuilder.AppendLine();
+            }
+            stringBuilder.AppendLine("\t)");
+            return stringBuilder.ToString();
         }
 
         #endregion
@@ -601,68 +1228,68 @@ namespace Dotmim.Sync.Oracle.Builder
 
         public void CreateDelete()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteRow);
+            var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.DeleteRow);
             CreateProcedureCommand(BuildDeleteCommand, commandName);
         }
 
         public void CreateDeleteMetadata()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata);
+            var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.DeleteMetadata);
             CreateProcedureCommand(BuildDeleteMetadataCommand, commandName);
         }
 
         public string CreateDeleteMetadataScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata);
+            var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.DeleteMetadata);
             return CreateProcedureCommandScriptText(BuildDeleteMetadataCommand, commandName);
         }
 
         public string CreateDeleteScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteRow);
+            var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.DeleteRow);
             return CreateProcedureCommandScriptText(BuildDeleteCommand, commandName);
         }
 
         public void CreateInsert()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertRow);
+            var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.InsertRow);
             CreateProcedureCommand(BuildInsertCommand, commandName);
         }
 
         public void CreateInsertMetadata()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertMetadata);
+            var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.InsertMetadata);
             CreateProcedureCommand(BuildInsertMetadataCommand, commandName);
         }
 
         public string CreateInsertMetadataScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertMetadata);
+            var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.InsertMetadata);
             return CreateProcedureCommandScriptText(BuildInsertMetadataCommand, commandName);
         }
 
         public string CreateInsertScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertRow);
+            var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.InsertRow);
             return CreateProcedureCommandScriptText(BuildInsertCommand, commandName);
         }
 
         public void CreateReset()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.Reset);
+            var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.Reset);
             CreateProcedureCommand(BuildResetCommand, commandName);
         }
 
         public string CreateResetScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.Reset);
+            var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.Reset);
             return CreateProcedureCommandScriptText(BuildResetCommand, commandName);
         }
 
         public void CreateSelectIncrementalChanges()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChanges);
-            Func<SqlCommand> cmdWithoutFilter = () => BuildSelectIncrementalChangesCommand(false);
+            var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.SelectChanges);
+            Func<OracleCommand> cmdWithoutFilter = () => BuildSelectIncrementalChangesCommand(false);
             CreateProcedureCommand(cmdWithoutFilter, commandName);
 
             if (this.Filters != null && this.Filters.Count > 0)
@@ -676,8 +1303,8 @@ namespace Dotmim.Sync.Oracle.Builder
                 }
 
                 var filtersName = this.Filters.Select(f => f.ColumnName);
-                commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWitFilters, filtersName);
-                Func<SqlCommand> cmdWithFilter = () => BuildSelectIncrementalChangesCommand(true);
+                commandName = this.oracleObjectNames.GetCommandName(DbCommandType.SelectChangesWitFilters, filtersName);
+                Func<OracleCommand> cmdWithFilter = () => BuildSelectIncrementalChangesCommand(true);
                 CreateProcedureCommand(cmdWithFilter, commandName);
 
             }
@@ -687,14 +1314,14 @@ namespace Dotmim.Sync.Oracle.Builder
         {
             StringBuilder sbSelecteChanges = new StringBuilder();
 
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChanges);
-            Func<SqlCommand> cmdWithoutFilter = () => BuildSelectIncrementalChangesCommand(false);
+            var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.SelectChanges);
+            Func<OracleCommand> cmdWithoutFilter = () => BuildSelectIncrementalChangesCommand(false);
             sbSelecteChanges.AppendLine(CreateProcedureCommandScriptText(cmdWithoutFilter, commandName));
 
 
             if (this.Filters != null && this.Filters.Count > 0)
             {
-                commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWitFilters);
+                commandName = this.oracleObjectNames.GetCommandName(DbCommandType.SelectChangesWitFilters);
                 string name = "";
                 string sep = "";
                 foreach (var c in this.Filters)
@@ -710,7 +1337,7 @@ namespace Dotmim.Sync.Oracle.Builder
                 }
 
                 commandName = String.Format(commandName, name);
-                Func<SqlCommand> cmdWithFilter = () => BuildSelectIncrementalChangesCommand(true);
+                Func<OracleCommand> cmdWithFilter = () => BuildSelectIncrementalChangesCommand(true);
                 sbSelecteChanges.AppendLine(CreateProcedureCommandScriptText(cmdWithFilter, commandName));
 
             }
@@ -719,13 +1346,13 @@ namespace Dotmim.Sync.Oracle.Builder
 
         public void CreateSelectRow()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectRow);
+            var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.SelectRow);
             CreateProcedureCommand(BuildSelectRowCommand, commandName);
         }
 
         public string CreateSelectRowScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectRow);
+            var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.SelectRow);
             return CreateProcedureCommandScriptText(BuildSelectRowCommand, commandName);
         }
 
@@ -738,7 +1365,7 @@ namespace Dotmim.Sync.Oracle.Builder
                 if (!alreadyOpened)
                     connection.Open();
 
-                using (SqlCommand sqlCommand = new SqlCommand(this.CreateTVPTypeCommandText(),
+                using (OracleCommand sqlCommand = new OracleCommand(this.CreateTVPTypeCommandText(),
                     connection))
                 {
                     if (transaction != null)
@@ -763,30 +1390,30 @@ namespace Dotmim.Sync.Oracle.Builder
         public string CreateTVPTypeScriptText()
         {
             string str = string.Concat("Create TVP Type on table ", tableName.QuotedString);
-            return SqlBuilder.WrapScriptTextWithComments(this.CreateTVPTypeCommandText(), str);
+            return OracleBuilder.WrapScriptTextWithComments(this.CreateTVPTypeCommandText(), str);
         }
 
         public void CreateUpdate()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateRow);
+            var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.UpdateRow);
             this.CreateProcedureCommand(BuildUpdateCommand, commandName);
         }
 
         public void CreateUpdateMetadata()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata);
-            CreateProcedureCommand(BuildUpdateMetadataCommand, commandName);
+            var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.UpdateMetadata);
+            CreateProcedureCommand(BuildUpdateMetadataCommand, commandName, new List<string> { "was_tombstone number;" });
         }
 
         public string CreateUpdateMetadataScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata);
-            return CreateProcedureCommandScriptText(BuildUpdateMetadataCommand, commandName);
+            var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.UpdateMetadata);
+            return CreateProcedureCommandScriptText(BuildUpdateMetadataCommand, commandName, new List<string> { "was_tombstone number;" });
         }
 
         public string CreateUpdateScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateRow);
+            var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.UpdateRow);
             return CreateProcedureCommandScriptText(BuildUpdateCommand, commandName);
         }
 
@@ -796,7 +1423,7 @@ namespace Dotmim.Sync.Oracle.Builder
 
             try
             {
-                using (var command = new SqlCommand())
+                using (var command = new OracleCommand())
                 {
                     if (!alreadyOpened)
                         this.connection.Open();
@@ -804,7 +1431,7 @@ namespace Dotmim.Sync.Oracle.Builder
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
 
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkDeleteRows);
+                    var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.BulkDeleteRows);
 
                     command.CommandText = $"DROP PROCEDURE {commandName};";
                     command.Connection = this.connection;
@@ -828,7 +1455,7 @@ namespace Dotmim.Sync.Oracle.Builder
 
         public string DropBulkDeleteScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkDeleteRows);
+            var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.BulkDeleteRows);
 
             return $"DROP PROCEDURE {commandName};";
         }
@@ -839,7 +1466,7 @@ namespace Dotmim.Sync.Oracle.Builder
 
             try
             {
-                using (var command = new SqlCommand())
+                using (var command = new OracleCommand())
                 {
                     if (!alreadyOpened)
                         this.connection.Open();
@@ -847,7 +1474,7 @@ namespace Dotmim.Sync.Oracle.Builder
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
 
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkInsertRows);
+                    var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.BulkInsertRows);
 
                     command.CommandText = $"DROP PROCEDURE {commandName};";
                     command.Connection = this.connection;
@@ -871,7 +1498,7 @@ namespace Dotmim.Sync.Oracle.Builder
 
         public string DropBulkInsertScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkInsertRows);
+            var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.BulkInsertRows);
 
             return $"DROP PROCEDURE {commandName};";
         }
@@ -882,7 +1509,7 @@ namespace Dotmim.Sync.Oracle.Builder
 
             try
             {
-                using (var command = new SqlCommand())
+                using (var command = new OracleCommand())
                 {
                     if (!alreadyOpened)
                         this.connection.Open();
@@ -890,7 +1517,7 @@ namespace Dotmim.Sync.Oracle.Builder
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
 
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkUpdateRows);
+                    var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.BulkUpdateRows);
 
                     command.CommandText = $"DROP PROCEDURE {commandName};";
                     command.Connection = this.connection;
@@ -914,7 +1541,7 @@ namespace Dotmim.Sync.Oracle.Builder
 
         public string DropBulkUpdateScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkUpdateRows);
+            var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.BulkUpdateRows);
 
             return $"DROP PROCEDURE {commandName};";
         }
@@ -925,7 +1552,7 @@ namespace Dotmim.Sync.Oracle.Builder
 
             try
             {
-                using (var command = new SqlCommand())
+                using (var command = new OracleCommand())
                 {
                     if (!alreadyOpened)
                         this.connection.Open();
@@ -933,7 +1560,7 @@ namespace Dotmim.Sync.Oracle.Builder
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
 
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteRow);
+                    var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.DeleteRow);
 
                     command.CommandText = $"DROP PROCEDURE {commandName};";
                     command.Connection = this.connection;
@@ -961,7 +1588,7 @@ namespace Dotmim.Sync.Oracle.Builder
 
             try
             {
-                using (var command = new SqlCommand())
+                using (var command = new OracleCommand())
                 {
                     if (!alreadyOpened)
                         this.connection.Open();
@@ -969,7 +1596,7 @@ namespace Dotmim.Sync.Oracle.Builder
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
 
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata);
+                    var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.DeleteMetadata);
 
                     command.CommandText = $"DROP PROCEDURE {commandName};";
                     command.Connection = this.connection;
@@ -994,14 +1621,14 @@ namespace Dotmim.Sync.Oracle.Builder
 
         public string DropDeleteMetadataScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata);
+            var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.DeleteMetadata);
 
             return $"DROP PROCEDURE {commandName};";
         }
 
         public string DropDeleteScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteRow);
+            var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.DeleteRow);
 
             return $"DROP PROCEDURE {commandName};";
         }
@@ -1012,7 +1639,7 @@ namespace Dotmim.Sync.Oracle.Builder
 
             try
             {
-                using (var command = new SqlCommand())
+                using (var command = new OracleCommand())
                 {
                     if (!alreadyOpened)
                         this.connection.Open();
@@ -1020,7 +1647,7 @@ namespace Dotmim.Sync.Oracle.Builder
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
 
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertRow);
+                    var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.InsertRow);
 
                     command.CommandText = $"DROP PROCEDURE {commandName};";
                     command.Connection = this.connection;
@@ -1048,7 +1675,7 @@ namespace Dotmim.Sync.Oracle.Builder
 
             try
             {
-                using (var command = new SqlCommand())
+                using (var command = new OracleCommand())
                 {
                     if (!alreadyOpened)
                         this.connection.Open();
@@ -1056,7 +1683,7 @@ namespace Dotmim.Sync.Oracle.Builder
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
 
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertMetadata);
+                    var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.InsertMetadata);
 
                     command.CommandText = $"DROP PROCEDURE {commandName};";
                     command.Connection = this.connection;
@@ -1080,14 +1707,14 @@ namespace Dotmim.Sync.Oracle.Builder
 
         public string DropInsertMetadataScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertMetadata);
+            var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.InsertMetadata);
 
             return $"DROP PROCEDURE {commandName};";
         }
 
         public string DropInsertScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertRow);
+            var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.InsertRow);
 
             return $"DROP PROCEDURE {commandName};";
         }
@@ -1098,7 +1725,7 @@ namespace Dotmim.Sync.Oracle.Builder
 
             try
             {
-                using (var command = new SqlCommand())
+                using (var command = new OracleCommand())
                 {
                     if (!alreadyOpened)
                         this.connection.Open();
@@ -1106,7 +1733,7 @@ namespace Dotmim.Sync.Oracle.Builder
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
 
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.Reset);
+                    var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.Reset);
 
                     command.CommandText = $"DROP PROCEDURE {commandName};";
                     command.Connection = this.connection;
@@ -1130,7 +1757,7 @@ namespace Dotmim.Sync.Oracle.Builder
 
         public string DropResetScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.Reset);
+            var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.Reset);
 
             return $"DROP PROCEDURE {commandName};";
         }
@@ -1141,7 +1768,7 @@ namespace Dotmim.Sync.Oracle.Builder
 
             try
             {
-                using (var command = new SqlCommand())
+                using (var command = new OracleCommand())
                 {
                     if (!alreadyOpened)
                         this.connection.Open();
@@ -1149,7 +1776,7 @@ namespace Dotmim.Sync.Oracle.Builder
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
 
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChanges);
+                    var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.SelectChanges);
 
                     command.CommandText = $"DROP PROCEDURE {commandName};";
                     command.Connection = this.connection;
@@ -1160,7 +1787,7 @@ namespace Dotmim.Sync.Oracle.Builder
                 if (this.Filters != null && this.Filters.Count > 0)
                 {
 
-                    using (var command = new SqlCommand())
+                    using (var command = new OracleCommand())
                     {
                         if (!alreadyOpened)
                             this.connection.Open();
@@ -1177,7 +1804,7 @@ namespace Dotmim.Sync.Oracle.Builder
                         }
 
                         var filtersName = this.Filters.Select(f => f.ColumnName);
-                        var commandNameWithFilter = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWitFilters, filtersName);
+                        var commandNameWithFilter = this.oracleObjectNames.GetCommandName(DbCommandType.SelectChangesWitFilters, filtersName);
 
                         command.CommandText = $"DROP PROCEDURE {commandNameWithFilter};";
                         command.Connection = this.connection;
@@ -1205,14 +1832,14 @@ namespace Dotmim.Sync.Oracle.Builder
 
         public string DropSelectIncrementalChangesScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChanges);
+            var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.SelectChanges);
 
             string dropProcedure = $"DROP PROCEDURE {commandName};";
 
             if (this.Filters != null && this.Filters.Count > 0)
             {
 
-                using (var command = new SqlCommand())
+                using (var command = new OracleCommand())
                 {
 
                     foreach (var c in this.Filters)
@@ -1224,7 +1851,7 @@ namespace Dotmim.Sync.Oracle.Builder
                     }
 
                     var filtersName = this.Filters.Select(f => f.ColumnName);
-                    var commandNameWithFilter = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWitFilters, filtersName);
+                    var commandNameWithFilter = this.oracleObjectNames.GetCommandName(DbCommandType.SelectChangesWitFilters, filtersName);
 
                     dropProcedure += Environment.NewLine + $"DROP PROCEDURE {commandNameWithFilter};";
 
@@ -1239,7 +1866,7 @@ namespace Dotmim.Sync.Oracle.Builder
 
             try
             {
-                using (var command = new SqlCommand())
+                using (var command = new OracleCommand())
                 {
                     if (!alreadyOpened)
                         this.connection.Open();
@@ -1247,7 +1874,7 @@ namespace Dotmim.Sync.Oracle.Builder
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
 
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectRow);
+                    var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.SelectRow);
 
                     command.CommandText = $"DROP PROCEDURE {commandName};";
                     command.Connection = this.connection;
@@ -1272,7 +1899,7 @@ namespace Dotmim.Sync.Oracle.Builder
 
         public string DropSelectRowScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectRow);
+            var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.SelectRow);
 
             return $"DROP PROCEDURE {commandName};";
         }
@@ -1283,7 +1910,7 @@ namespace Dotmim.Sync.Oracle.Builder
 
             try
             {
-                using (var command = new SqlCommand())
+                using (var command = new OracleCommand())
                 {
                     if (!alreadyOpened)
                         this.connection.Open();
@@ -1291,7 +1918,7 @@ namespace Dotmim.Sync.Oracle.Builder
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
 
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkTableType);
+                    var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.BulkTableType);
 
                     command.CommandText = $"DROP TYPE {commandName};";
                     command.Connection = this.connection;
@@ -1315,7 +1942,7 @@ namespace Dotmim.Sync.Oracle.Builder
 
         public string DropTVPTypeScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkTableType);
+            var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.BulkTableType);
 
             return $"DROP TYPE {commandName};";
         }
@@ -1326,7 +1953,7 @@ namespace Dotmim.Sync.Oracle.Builder
 
             try
             {
-                using (var command = new SqlCommand())
+                using (var command = new OracleCommand())
                 {
                     if (!alreadyOpened)
                         this.connection.Open();
@@ -1334,7 +1961,7 @@ namespace Dotmim.Sync.Oracle.Builder
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
 
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateRow);
+                    var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.UpdateRow);
 
                     command.CommandText = $"DROP PROCEDURE {commandName};";
                     command.Connection = this.connection;
@@ -1363,7 +1990,7 @@ namespace Dotmim.Sync.Oracle.Builder
 
             try
             {
-                using (var command = new SqlCommand())
+                using (var command = new OracleCommand())
                 {
                     if (!alreadyOpened)
                         this.connection.Open();
@@ -1371,7 +1998,7 @@ namespace Dotmim.Sync.Oracle.Builder
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
 
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata);
+                    var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.UpdateMetadata);
 
                     command.CommandText = $"DROP PROCEDURE {commandName};";
                     command.Connection = this.connection;
@@ -1395,26 +2022,26 @@ namespace Dotmim.Sync.Oracle.Builder
 
         public string DropUpdateMetadataScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata);
+            var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.UpdateMetadata);
 
             return $"DROP PROCEDURE {commandName};";
         }
 
         public string DropUpdateScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateRow);
+            var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.UpdateRow);
 
             return $"DROP PROCEDURE {commandName};";
         }
 
-        public bool NeedToCreateProcedure(DbCommandType commandName)
+        public bool NeedToCreateProcedure(DbCommandType commandType)
         {
             if (connection.State != ConnectionState.Open)
                 throw new ArgumentException("Here, we need an opened connection please");
 
-            var commandName = this.sqlObjectNames.GetCommandName(commandType);
+            var commandName = this.oracleObjectNames.GetCommandName(commandType);
 
-            return !SqlManagementUtils.ProcedureExists(connection, transaction, commandName);
+            return !OracleManagementUtils.ProcedureExists(connection, transaction, commandName);
         }
 
         public bool NeedToCreateType(DbCommandType typeName)
@@ -1422,9 +2049,9 @@ namespace Dotmim.Sync.Oracle.Builder
             if (connection.State != ConnectionState.Open)
                 throw new ArgumentException("Here, we need an opened connection please");
 
-            var commandName = this.sqlObjectNames.GetCommandName(commandType);
+            var commandName = this.oracleObjectNames.GetCommandName(typeName);
 
-            return !SqlManagementUtils.TypeExists(connection, transaction, commandName);
+            return !OracleManagementUtils.TypeExists(connection, transaction, commandName);
         }
 
         #endregion

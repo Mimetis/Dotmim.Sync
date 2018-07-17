@@ -95,7 +95,25 @@ namespace Dotmim.Sync.Oracle
 
         internal static bool TriggerExists(OracleConnection connection, OracleTransaction transaction, string triggerName)
         {
-            
+            bool triggerExist;
+            ObjectNameParser objectNameParser = new ObjectNameParser(triggerName);
+            using (DbCommand dbCommand = connection.CreateCommand())
+            {
+                dbCommand.CommandText = "select count(1) from USER_TRIGGERS where TRIGGER_NAME = upper(@triggerName)";
+
+                OracleParameter sqlParameter = new OracleParameter()
+                {
+                    ParameterName = "@triggerName",
+                    Value = objectNameParser.ObjectName
+                };
+                dbCommand.Parameters.Add(sqlParameter);
+
+                if (transaction != null)
+                    dbCommand.Transaction = transaction;
+
+                triggerExist = (int)dbCommand.ExecuteScalar() != 0;
+            }
+            return triggerExist;
         }
 
         public static bool TableExists(OracleConnection connection, OracleTransaction transaction, string quotedTableName)
@@ -140,6 +158,49 @@ namespace Dotmim.Sync.Oracle
                 schemaExist = (int)dbCommand.ExecuteScalar() != 0;
             }
             return schemaExist;
+        }
+
+        internal static string JoinTwoTablesOnClause(DmColumn[] columns, string leftName, string rightName)
+        {
+            StringBuilder stringBuilder = new StringBuilder();
+            string strRightName = (string.IsNullOrEmpty(rightName) ? string.Empty : string.Concat(rightName, "."));
+            string strLeftName = (string.IsNullOrEmpty(leftName) ? string.Empty : string.Concat(leftName, "."));
+
+            string str = "";
+            foreach (DmColumn column in columns)
+            {
+                ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
+
+                stringBuilder.Append(str);
+                stringBuilder.Append(strLeftName);
+                stringBuilder.Append(quotedColumn.QuotedString);
+                stringBuilder.Append(" = ");
+                stringBuilder.Append(strRightName);
+                stringBuilder.Append(quotedColumn.QuotedString);
+
+                str = " AND ";
+            }
+            return stringBuilder.ToString();
+        }
+
+        internal static bool ProcedureExists(OracleConnection connection, OracleTransaction transaction, string commandName)
+        {
+            throw new NotImplementedException();
+        }
+
+        internal static bool TypeExists(OracleConnection connection, OracleTransaction transaction, string commandName)
+        {
+            throw new NotImplementedException();
+        }
+
+        internal static string ColumnsAndParameters(DmColumn[] columns, string v)
+        {
+            throw new NotImplementedException();
+        }
+
+        internal static object CommaSeparatedUpdateFromParameters(DmTable tableDescription)
+        {
+            throw new NotImplementedException();
         }
     }
 }

@@ -2,6 +2,8 @@
 using System.Data;
 using System.Data.Common;
 using System.Data.OracleClient;
+using System.Diagnostics;
+using System.Linq;
 using System.Text;
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Data;
@@ -36,12 +38,13 @@ namespace Dotmim.Sync.Oracle.Builder
         private string InsertTriggerBodyText()
         {
             StringBuilder stringBuilder = new StringBuilder();
+            stringBuilder.Append(OracleBuilderTrigger.CreateBeginTrigger());
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("-- If row was deleted before, it already exists, so just make an update");
-            stringBuilder.AppendLine("UPDATE [side] ");
+            stringBuilder.AppendLine($"UPDATE {trackingName.QuotedString} ");
             stringBuilder.AppendLine("SET \t[sync_row_is_tombstone] = 0");
             stringBuilder.AppendLine("\t,[update_scope_id] = NULL -- since the update if from local, it's a NULL");
-            stringBuilder.AppendLine("\t,[last_change_datetime] = GetDate()");
+            stringBuilder.AppendLine("\t,[last_change_datetime] = sysdate");
             // Filter columns
             if (this.Filters != null && Filters.Count > 0)
             {
@@ -56,20 +59,20 @@ namespace Dotmim.Sync.Oracle.Builder
 
                     ObjectNameParser columnName = new ObjectNameParser(columnFilter.ColumnName);
 
-                    stringBuilder.AppendLine($"\t,{columnName.QuotedString} = [i].{columnName.QuotedString}");
+                    stringBuilder.AppendLine($"\t,{columnName.QuotedString} = :new.{columnName.QuotedString}");
 
                 }
                 stringBuilder.AppendLine();
             }
 
-            stringBuilder.AppendLine($"FROM {trackingName.QuotedString} [side]");
-            stringBuilder.Append($"JOIN INSERTED AS [i] ON ");
-            stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "[side]", "[i]"));
+            stringBuilder.AppendLine($"WHERE ");
+            stringBuilder.AppendLine(OracleManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, trackingName.QuotedString, ":new"));
             stringBuilder.AppendLine();
 
             stringBuilder.AppendLine($"INSERT INTO {trackingName.QuotedString} (");
 
             StringBuilder stringBuilderArguments = new StringBuilder();
+            StringBuilder stringBuilderArguments2 = new StringBuilder();
             StringBuilder stringPkAreNull = new StringBuilder();
 
             string argComma = string.Empty;
@@ -77,19 +80,21 @@ namespace Dotmim.Sync.Oracle.Builder
             foreach (var mutableColumn in this.tableDescription.PrimaryKey.Columns.Where(c => !c.ReadOnly))
             {
                 ObjectNameParser columnName = new ObjectNameParser(mutableColumn.ColumnName);
-                stringBuilderArguments.AppendLine($"\t{argComma}[i].{columnName.QuotedString}");
-                stringPkAreNull.Append($"{argAnd}[side].{columnName.QuotedString} IS NULL");
+                stringBuilderArguments.AppendLine($"\t{argComma} {trackingName.QuotedString}.{columnName.QuotedString}");
+                stringBuilderArguments2.AppendLine($"\t{argComma} :new.{columnName.QuotedString}");
+                stringPkAreNull.Append($"{argAnd} :new.{columnName.QuotedString} IS NULL");
                 argComma = ",";
                 argAnd = " AND ";
             }
 
             stringBuilder.Append(stringBuilderArguments.ToString());
-            stringBuilder.AppendLine("\t,[create_scope_id]");
-            stringBuilder.AppendLine("\t,[create_timestamp]");
-            stringBuilder.AppendLine("\t,[update_scope_id]");
-            stringBuilder.AppendLine("\t,[update_timestamp]");
-            stringBuilder.AppendLine("\t,[sync_row_is_tombstone]");
-            stringBuilder.AppendLine("\t,[last_change_datetime]");
+            stringBuilder.AppendLine("\t,create_scope_id");
+            stringBuilder.AppendLine("\t,create_timestamp");
+            stringBuilder.AppendLine("\t,update_scope_id");
+            stringBuilder.AppendLine("\t,update_timestamp");
+            stringBuilder.AppendLine("\t,timestamp");
+            stringBuilder.AppendLine("\t,sync_row_is_tombstone");
+            stringBuilder.AppendLine("\t,last_change_datetime");
 
             StringBuilder filterColumnsString = new StringBuilder();
 
@@ -106,40 +111,39 @@ namespace Dotmim.Sync.Oracle.Builder
                         continue;
 
                     ObjectNameParser columnName = new ObjectNameParser(columnFilter.ColumnName);
-                    filterColumnsString.AppendLine($"\t,[i].{columnName.QuotedString}");
+                    filterColumnsString.AppendLine($"\t, :new.{columnName.QuotedString}");
                 }
 
                 stringBuilder.AppendLine(filterColumnsString.ToString());
             }
             stringBuilder.AppendLine(") ");
-            stringBuilder.AppendLine("SELECT");
-            stringBuilder.Append(stringBuilderArguments.ToString());
+            stringBuilder.AppendLine("VALUES (");
+            stringBuilder.Append(stringBuilderArguments2.ToString());
             stringBuilder.AppendLine("\t,NULL");
-            stringBuilder.AppendLine("\t,@@DBTS+1");
+            stringBuilder.AppendLine($"\t,{OracleObjectNames.TimestampValue}");
             stringBuilder.AppendLine("\t,NULL");
             stringBuilder.AppendLine("\t,0");
+            stringBuilder.AppendLine($"\t,{OracleObjectNames.TimestampValue}");
             stringBuilder.AppendLine("\t,0");
-            stringBuilder.AppendLine("\t,GetDate()");
+            stringBuilder.AppendLine("\t,sysdate");
 
             if (Filters != null)
                 stringBuilder.AppendLine(filterColumnsString.ToString());
 
-            stringBuilder.AppendLine("FROM INSERTED [i]");
-            stringBuilder.Append($"LEFT JOIN {trackingName.QuotedString} [side] ON ");
-            stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "[i]", "[side]"));
-            stringBuilder.Append("WHERE ");
-            stringBuilder.AppendLine(stringPkAreNull.ToString());
+            stringBuilder.AppendLine("\t);");
+            stringBuilder.AppendLine(OracleBuilderTrigger.CreateEndTrigger());
             return stringBuilder.ToString();
         }
 
         private string UpdateTriggerBodyText()
         {
             StringBuilder stringBuilder = new StringBuilder();
+            stringBuilder.Append(OracleBuilderTrigger.CreateBeginTrigger());
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine("UPDATE [side] ");
+            stringBuilder.AppendLine($"UPDATE {trackingName.QuotedString} ");
             stringBuilder.AppendLine("SET \t[update_scope_id] = NULL -- since the update if from local, it's a NULL");
-            stringBuilder.AppendLine("\t,[update_timestamp] = @@DBTS+1");
-            stringBuilder.AppendLine("\t,[last_change_datetime] = GetDate()");
+            stringBuilder.AppendLine($"\t,[update_timestamp] = {OracleObjectNames.TimestampValue}");
+            stringBuilder.AppendLine("\t,[last_change_datetime] = sysdate");
             // Filter columns
             if (this.Filters != null && Filters.Count > 0)
             {
@@ -153,26 +157,28 @@ namespace Dotmim.Sync.Oracle.Builder
                         continue;
 
                     ObjectNameParser columnName = new ObjectNameParser(columnFilter.ColumnName);
-                    stringBuilder.AppendLine($"\t,{columnName.QuotedString} = [i].{columnName.QuotedString}");
+                    stringBuilder.AppendLine($"\t,{columnName.QuotedString} = :old.{columnName.QuotedString}");
                 }
                 stringBuilder.AppendLine();
             }
 
-            stringBuilder.AppendLine($"FROM {trackingName.QuotedString} [side]");
-            stringBuilder.Append($"JOIN INSERTED AS [i] ON ");
-            stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "[side]", "[i]"));
+            stringBuilder.AppendLine($"WHERE ");
+            stringBuilder.AppendLine(OracleManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, trackingName.QuotedString, ":old"));
+            stringBuilder.Append(";");
+            stringBuilder.AppendLine(OracleBuilderTrigger.CreateEndTrigger());
             return stringBuilder.ToString();
         }
 
         private string DeleteTriggerBodyText()
         {
             StringBuilder stringBuilder = new StringBuilder();
+            stringBuilder.Append(OracleBuilderTrigger.CreateBeginTrigger());
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine("UPDATE [side] ");
+            stringBuilder.AppendLine($"UPDATE {trackingName.QuotedString} ");
             stringBuilder.AppendLine("SET \t[sync_row_is_tombstone] = 1");
             stringBuilder.AppendLine("\t,[update_scope_id] = NULL -- since the update if from local, it's a NULL");
-            stringBuilder.AppendLine("\t,[update_timestamp] = @@DBTS+1");
-            stringBuilder.AppendLine("\t,[last_change_datetime] = GetDate()");
+            stringBuilder.AppendLine($"\t,[update_timestamp] = {OracleObjectNames.TimestampValue}");
+            stringBuilder.AppendLine("\t,[last_change_datetime] = sysdate");
             // Filter columns
             if (this.Filters != null && Filters.Count > 0)
             {
@@ -186,55 +192,43 @@ namespace Dotmim.Sync.Oracle.Builder
                         continue;
 
                     ObjectNameParser columnName = new ObjectNameParser(columnFilter.ColumnName);
-                    stringBuilder.AppendLine($"\t,{columnName.QuotedString} = [d].{columnName.QuotedString}");
+                    stringBuilder.AppendLine($"\t,{columnName.QuotedString} = :old.{columnName.QuotedString}");
 
                 }
                 stringBuilder.AppendLine();
             }
 
-            stringBuilder.AppendLine($"FROM {trackingName.QuotedString} [side]");
-            stringBuilder.Append($"JOIN DELETED AS [d] ON ");
-            stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "[side]", "[d]"));
+            stringBuilder.AppendLine($"WHERE ");
+            stringBuilder.AppendLine(OracleManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, trackingName.QuotedString, ":old"));
+            stringBuilder.Append(";");
+            stringBuilder.AppendLine(OracleBuilderTrigger.CreateEndTrigger());
             return stringBuilder.ToString();
         }
 
         #endregion
 
+        #region Static
 
-
-        private string DeleteTriggerBodyText()
+        private static string CreateBeginTrigger()
         {
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine("UPDATE [side] ");
-            stringBuilder.AppendLine("SET \t[sync_row_is_tombstone] = 1");
-            stringBuilder.AppendLine("\t,[update_scope_id] = NULL -- since the update if from local, it's a NULL");
-            stringBuilder.AppendLine("\t,[update_timestamp] = @@DBTS+1");
-            stringBuilder.AppendLine("\t,[last_change_datetime] = GetDate()");
-            // Filter columns
-            if (this.Filters != null && Filters.Count > 0)
-            {
-                foreach (var filter in this.Filters)
-                {
-                    var columnFilter = this.tableDescription.Columns[filter.ColumnName];
-                    if (columnFilter == null)
-                        throw new InvalidExpressionException($"Column {filter.ColumnName} does not exist in Table {this.tableDescription.TableName}");
-
-                    if (this.tableDescription.PrimaryKey.Columns.Any(c => c.ColumnName == columnFilter.ColumnName))
-                        continue;
-
-                    ObjectNameParser columnName = new ObjectNameParser(columnFilter.ColumnName);
-                    stringBuilder.AppendLine($"\t,{columnName.QuotedString} = [d].{columnName.QuotedString}");
-
-                }
-                stringBuilder.AppendLine();
-            }
-
-            stringBuilder.AppendLine($"FROM {trackingName.QuotedString} [side]");
-            stringBuilder.Append($"JOIN DELETED AS [d] ON ");
-            stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "[side]", "[d]"));
-            return stringBuilder.ToString();
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine("DECLARE");
+            sb.AppendLine("\t-- variable declarations");
+            sb.AppendLine("BEGIN");
+            sb.AppendLine("\t-- trigger code");
+            return sb.ToString();
         }
+
+        private static string CreateEndTrigger()
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine("END;");
+            return sb.ToString();
+        }
+
+        #endregion
+
+        #region Delete
 
         public void CreateDeleteTrigger()
         {
@@ -242,7 +236,7 @@ namespace Dotmim.Sync.Oracle.Builder
 
             try
             {
-                using (var command = new SqlCommand())
+                using (var command = new OracleCommand())
                 {
                     if (!alreadyOpened)
                         this.connection.Open();
@@ -250,10 +244,10 @@ namespace Dotmim.Sync.Oracle.Builder
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
 
-                    var delTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger);
+                    var delTriggerName = this.oracleObjectNames.GetCommandName(DbCommandType.DeleteTrigger);
 
 
-                    StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER {delTriggerName} ON {tableName.QuotedString} FOR DELETE AS");
+                    StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER {delTriggerName} AFTER DELETE ON {tableName.QuotedString} FOR EACH ROW ");
                     createTrigger.AppendLine();
                     createTrigger.AppendLine(this.DeleteTriggerBodyText());
 
@@ -276,13 +270,14 @@ namespace Dotmim.Sync.Oracle.Builder
 
             }
         }
+
         public void DropDeleteTrigger()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
             try
             {
-                using (var command = new SqlCommand())
+                using (var command = new OracleCommand())
                 {
                     if (!alreadyOpened)
                         this.connection.Open();
@@ -290,7 +285,7 @@ namespace Dotmim.Sync.Oracle.Builder
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
 
-                    var delTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger);
+                    var delTriggerName = this.oracleObjectNames.GetCommandName(DbCommandType.DeleteTrigger);
 
                     command.CommandText = $"DROP TRIGGER {delTriggerName};";
                     command.Connection = this.connection;
@@ -314,14 +309,13 @@ namespace Dotmim.Sync.Oracle.Builder
 
         public string CreateDeleteTriggerScriptText()
         {
-
-            var delTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger);
-            StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER {delTriggerName} ON {tableName.QuotedString} FOR DELETE AS");
+            var delTriggerName = this.oracleObjectNames.GetCommandName(DbCommandType.DeleteTrigger);
+            StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER {delTriggerName} AFTER DELETE ON {tableName.QuotedString} FOR EACH ROW ");
             createTrigger.AppendLine();
             createTrigger.AppendLine(this.DeleteTriggerBodyText());
 
             string str = $"Delete Trigger for table {tableName.QuotedString}";
-            return SqlBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
+            return OracleBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
         }
 
         public void AlterDeleteTrigger()
@@ -330,16 +324,16 @@ namespace Dotmim.Sync.Oracle.Builder
 
             try
             {
-                using (var command = new SqlCommand())
+                using (var command = new OracleCommand())
                 {
                     if (!alreadyOpened)
                         this.connection.Open();
 
                     if (this.transaction != null)
-                        command.Transaction = (SqlTransaction)this.transaction;
+                        command.Transaction = (OracleTransaction)this.transaction;
 
-                    var delTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger);
-                    StringBuilder createTrigger = new StringBuilder($"ALTER TRIGGER {delTriggerName} ON {tableName.QuotedString} FOR DELETE AS ");
+                    var delTriggerName = this.oracleObjectNames.GetCommandName(DbCommandType.DeleteTrigger);
+                    StringBuilder createTrigger = new StringBuilder($"CREATE OR REPLACE TRIGGER {delTriggerName} AFTER DELETE ON {tableName.QuotedString} FOR EACH ROW ");
                     createTrigger.AppendLine();
                     createTrigger.AppendLine(this.DeleteTriggerBodyText());
 
@@ -367,138 +361,44 @@ namespace Dotmim.Sync.Oracle.Builder
 
         public string AlterDeleteTriggerScriptText()
         {
-            (var tableName, var trackingName) = SqlBuilder.GetParsers(this.tableDescription);
-            var delTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger);
-            StringBuilder createTrigger = new StringBuilder($"ALTER TRIGGER {delTriggerName} ON {tableName.QuotedString} FOR DELETE AS");
+            (var tableName, var trackingName) = OracleBuilder.GetParsers(this.tableDescription);
+            var delTriggerName = this.oracleObjectNames.GetCommandName(DbCommandType.DeleteTrigger);
+            StringBuilder createTrigger = new StringBuilder($"CREATE OR REPLACE TRIGGER {delTriggerName} AFTER DELETE ON {tableName.QuotedString} FOR EACH ROW ");
             createTrigger.AppendLine();
             createTrigger.AppendLine(this.InsertTriggerBodyText());
 
             string str = $"ALTER Trigger Delete for table {tableName.QuotedString}";
-            return SqlBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
+            return OracleBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
         }
 
         public string DropDeleteTriggerScriptText()
         {
-            var triggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger);
+            var triggerName = this.oracleObjectNames.GetCommandName(DbCommandType.DeleteTrigger);
             var trigger = $"DELETE TRIGGER {triggerName};";
             var str = $"Drop Delete Trigger for table {tableName.QuotedString}";
-            return SqlBuilder.WrapScriptTextWithComments(trigger, str);
+            return OracleBuilder.WrapScriptTextWithComments(trigger, str);
         }
 
-        private string InsertTriggerBodyText()
-        {
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine("-- If row was deleted before, it already exists, so just make an update");
-            stringBuilder.AppendLine("UPDATE [side] ");
-            stringBuilder.AppendLine("SET \t[sync_row_is_tombstone] = 0");
-            stringBuilder.AppendLine("\t,[update_scope_id] = NULL -- since the update if from local, it's a NULL");
-            stringBuilder.AppendLine("\t,[last_change_datetime] = GetDate()");
-            // Filter columns
-            if (this.Filters != null && Filters.Count > 0)
-            {
-                foreach (var filter in Filters)
-                {
-                    var columnFilter = this.tableDescription.Columns[filter.ColumnName];
-                    if (columnFilter == null)
-                        throw new InvalidExpressionException($"Column {filter.ColumnName} does not exist in Table {this.tableDescription.TableName}");
+        #endregion
 
-                    if (this.tableDescription.PrimaryKey.Columns.Any(c => c.ColumnName == columnFilter.ColumnName))
-                        continue;
+        #region Insert
 
-                    ObjectNameParser columnName = new ObjectNameParser(columnFilter.ColumnName);
-
-                    stringBuilder.AppendLine($"\t,{columnName.QuotedString} = [i].{columnName.QuotedString}");
-
-                }
-                stringBuilder.AppendLine();
-            }
-
-            stringBuilder.AppendLine($"FROM {trackingName.QuotedString} [side]");
-            stringBuilder.Append($"JOIN INSERTED AS [i] ON ");
-            stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "[side]", "[i]"));
-            stringBuilder.AppendLine();
-
-            stringBuilder.AppendLine($"INSERT INTO {trackingName.QuotedString} (");
-
-            StringBuilder stringBuilderArguments = new StringBuilder();
-            StringBuilder stringPkAreNull = new StringBuilder();
-
-            string argComma = string.Empty;
-            string argAnd = string.Empty;
-            foreach (var mutableColumn in this.tableDescription.PrimaryKey.Columns.Where(c => !c.ReadOnly))
-            {
-                ObjectNameParser columnName = new ObjectNameParser(mutableColumn.ColumnName);
-                stringBuilderArguments.AppendLine($"\t{argComma}[i].{columnName.QuotedString}");
-                stringPkAreNull.Append($"{argAnd}[side].{columnName.QuotedString} IS NULL");
-                argComma = ",";
-                argAnd = " AND ";
-            }
-
-            stringBuilder.Append(stringBuilderArguments.ToString());
-            stringBuilder.AppendLine("\t,[create_scope_id]");
-            stringBuilder.AppendLine("\t,[create_timestamp]");
-            stringBuilder.AppendLine("\t,[update_scope_id]");
-            stringBuilder.AppendLine("\t,[update_timestamp]");
-            stringBuilder.AppendLine("\t,[sync_row_is_tombstone]");
-            stringBuilder.AppendLine("\t,[last_change_datetime]");
-
-            StringBuilder filterColumnsString = new StringBuilder();
-
-            // Filter columns
-            if (this.Filters != null && Filters.Count > 0)
-            {
-                foreach (var filter in Filters)
-                {
-                    var columnFilter = this.tableDescription.Columns[filter.ColumnName];
-                    if (columnFilter == null)
-                        throw new InvalidExpressionException($"Column {filter.ColumnName} does not exist in Table {this.tableDescription.TableName}");
-
-                    if (this.tableDescription.PrimaryKey.Columns.Any(c => c.ColumnName == columnFilter.ColumnName))
-                        continue;
-
-                    ObjectNameParser columnName = new ObjectNameParser(columnFilter.ColumnName);
-                    filterColumnsString.AppendLine($"\t,[i].{columnName.QuotedString}");
-                }
-
-                stringBuilder.AppendLine(filterColumnsString.ToString());
-            }
-            stringBuilder.AppendLine(") ");
-            stringBuilder.AppendLine("SELECT");
-            stringBuilder.Append(stringBuilderArguments.ToString());
-            stringBuilder.AppendLine("\t,NULL");
-            stringBuilder.AppendLine("\t,@@DBTS+1");
-            stringBuilder.AppendLine("\t,NULL");
-            stringBuilder.AppendLine("\t,0");
-            stringBuilder.AppendLine("\t,0");
-            stringBuilder.AppendLine("\t,GetDate()");
-
-            if (Filters != null)
-                stringBuilder.AppendLine(filterColumnsString.ToString());
-
-            stringBuilder.AppendLine("FROM INSERTED [i]");
-            stringBuilder.Append($"LEFT JOIN {trackingName.QuotedString} [side] ON ");
-            stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "[i]", "[side]"));
-            stringBuilder.Append("WHERE ");
-            stringBuilder.AppendLine(stringPkAreNull.ToString());
-            return stringBuilder.ToString();
-        }
         public void CreateInsertTrigger()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
             try
             {
-                using (var command = new SqlCommand())
+                using (var command = new OracleCommand())
                 {
                     if (!alreadyOpened)
                         this.connection.Open();
 
                     if (this.transaction != null)
-                        command.Transaction = (SqlTransaction)this.transaction;
+                        command.Transaction = (OracleTransaction)this.transaction;
 
-                    var insTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger);
-                    StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER {insTriggerName} ON {tableName.QuotedString} FOR INSERT AS");
+                    var insTriggerName = this.oracleObjectNames.GetCommandName(DbCommandType.InsertTrigger);
+                    StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER {insTriggerName} AFTER INSERT ON {tableName.QuotedString} FOR EACH ROW ");
                     createTrigger.AppendLine();
                     createTrigger.AppendLine(this.InsertTriggerBodyText());
 
@@ -528,7 +428,7 @@ namespace Dotmim.Sync.Oracle.Builder
 
             try
             {
-                using (var command = new SqlCommand())
+                using (var command = new OracleCommand())
                 {
                     if (!alreadyOpened)
                         this.connection.Open();
@@ -536,7 +436,7 @@ namespace Dotmim.Sync.Oracle.Builder
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
 
-                    var triggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger);
+                    var triggerName = this.oracleObjectNames.GetCommandName(DbCommandType.InsertTrigger);
 
                     command.CommandText = $"DROP TRIGGER {triggerName};";
                     command.Connection = this.connection;
@@ -558,34 +458,34 @@ namespace Dotmim.Sync.Oracle.Builder
             }
         }
 
-
         public string CreateInsertTriggerScriptText()
         {
-            var insTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger);
-            StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER {insTriggerName} ON {tableName.QuotedString} FOR INSERT AS");
+            var insTriggerName = this.oracleObjectNames.GetCommandName(DbCommandType.InsertTrigger);
+            StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER {insTriggerName} AFTER INSERT ON {tableName.QuotedString} FOR EACH ROW ");
             createTrigger.AppendLine();
             createTrigger.AppendLine(this.InsertTriggerBodyText());
 
             string str = $"Insert Trigger for table {tableName.QuotedString}";
-            return SqlBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
+            return OracleBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
 
         }
+
         public void AlterInsertTrigger()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
             try
             {
-                using (var command = new SqlCommand())
+                using (var command = new OracleCommand())
                 {
                     if (!alreadyOpened)
                         this.connection.Open();
 
                     if (this.transaction != null)
-                        command.Transaction = (SqlTransaction)this.transaction;
+                        command.Transaction = (OracleTransaction)this.transaction;
 
-                    var insTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger);
-                    StringBuilder createTrigger = new StringBuilder($"ALTER TRIGGER {insTriggerName} ON {tableName.QuotedString} FOR INSERT AS ");
+                    var insTriggerName = this.oracleObjectNames.GetCommandName(DbCommandType.InsertTrigger);
+                    StringBuilder createTrigger = new StringBuilder($"ALTER TRIGGER {insTriggerName} AFTER INSERT ON {tableName.QuotedString} FOR EACH ROW ");
                     createTrigger.AppendLine();
                     createTrigger.AppendLine(this.InsertTriggerBodyText());
 
@@ -608,71 +508,46 @@ namespace Dotmim.Sync.Oracle.Builder
 
             }
         }
+
         public string AlterInsertTriggerScriptText()
         {
-            var insTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger);
-            StringBuilder createTrigger = new StringBuilder($"ALTER TRIGGER {insTriggerName} ON {tableName.QuotedString} FOR INSERT AS");
+            var insTriggerName = this.oracleObjectNames.GetCommandName(DbCommandType.InsertTrigger);
+            StringBuilder createTrigger = new StringBuilder($"ALTER TRIGGER {insTriggerName} AFTER INSERT ON {tableName.QuotedString} FOR EACH ROW ");
             createTrigger.AppendLine();
             createTrigger.AppendLine(this.InsertTriggerBodyText());
 
             string str = $"ALTER Trigger Insert for table {tableName.QuotedString}";
-            return SqlBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
+            return OracleBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
         }
 
         public string DropInsertTriggerScriptText()
         {
-            var triggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger);
+            var triggerName = this.oracleObjectNames.GetCommandName(DbCommandType.InsertTrigger);
             var trigger = $"DELETE TRIGGER {triggerName};";
             var str = $"Drop Insert Trigger for table {tableName.QuotedString}";
-            return SqlBuilder.WrapScriptTextWithComments(trigger, str);
+            return OracleBuilder.WrapScriptTextWithComments(trigger, str);
         }
-        private string UpdateTriggerBodyText()
-        {
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine("UPDATE [side] ");
-            stringBuilder.AppendLine("SET \t[update_scope_id] = NULL -- since the update if from local, it's a NULL");
-            stringBuilder.AppendLine("\t,[update_timestamp] = @@DBTS+1");
-            stringBuilder.AppendLine("\t,[last_change_datetime] = GetDate()");
-            // Filter columns
-            if (this.Filters != null && Filters.Count > 0)
-            {
-                foreach (var filter in Filters)
-                {
-                    var columnFilter = this.tableDescription.Columns[filter.ColumnName];
-                    if (columnFilter == null)
-                        throw new InvalidExpressionException($"Column {filter.ColumnName} does not exist in Table {this.tableDescription.TableName}");
 
-                    if (this.tableDescription.PrimaryKey.Columns.Any(c => c.ColumnName == columnFilter.ColumnName))
-                        continue;
+        #endregion
 
-                    ObjectNameParser columnName = new ObjectNameParser(columnFilter.ColumnName);
-                    stringBuilder.AppendLine($"\t,{columnName.QuotedString} = [i].{columnName.QuotedString}");
-                }
-                stringBuilder.AppendLine();
-            }
+        #region Update
 
-            stringBuilder.AppendLine($"FROM {trackingName.QuotedString} [side]");
-            stringBuilder.Append($"JOIN INSERTED AS [i] ON ");
-            stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "[side]", "[i]"));
-            return stringBuilder.ToString();
-        }
         public void CreateUpdateTrigger()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
             try
             {
-                using (var command = new SqlCommand())
+                using (var command = new OracleCommand())
                 {
                     if (!alreadyOpened)
                         this.connection.Open();
 
                     if (this.transaction != null)
-                        command.Transaction = (SqlTransaction)this.transaction;
+                        command.Transaction = (OracleTransaction)this.transaction;
 
-                    var updTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger);
-                    StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER {updTriggerName} ON {tableName.QuotedString} FOR UPDATE AS");
+                    var updTriggerName = this.oracleObjectNames.GetCommandName(DbCommandType.UpdateTrigger);
+                    StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER {updTriggerName} ON {tableName.QuotedString} FOR EACH ROW ");
                     createTrigger.AppendLine();
                     createTrigger.AppendLine(this.UpdateTriggerBodyText());
 
@@ -702,7 +577,7 @@ namespace Dotmim.Sync.Oracle.Builder
 
             try
             {
-                using (var command = new SqlCommand())
+                using (var command = new OracleCommand())
                 {
                     if (!alreadyOpened)
                         this.connection.Open();
@@ -710,7 +585,7 @@ namespace Dotmim.Sync.Oracle.Builder
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
 
-                    var triggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger);
+                    var triggerName = this.oracleObjectNames.GetCommandName(DbCommandType.UpdateTrigger);
 
                     command.CommandText = $"DROP TRIGGER {triggerName};";
                     command.Connection = this.connection;
@@ -734,21 +609,21 @@ namespace Dotmim.Sync.Oracle.Builder
 
         public string CreateUpdateTriggerScriptText()
         {
-            var updTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger);
-            StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER {updTriggerName} ON {tableName.QuotedString} FOR UPDATE AS");
+            var updTriggerName = this.oracleObjectNames.GetCommandName(DbCommandType.UpdateTrigger);
+            StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER {updTriggerName} ON {tableName.QuotedString} FOR EACH ROW ");
             createTrigger.AppendLine();
             createTrigger.AppendLine(this.UpdateTriggerBodyText());
 
             string str = $"Update Trigger for table {tableName.QuotedString}";
-            return SqlBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
+            return OracleBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
         }
 
         public string DropUpdateTriggerScriptText()
         {
-            var triggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger);
+            var triggerName = this.oracleObjectNames.GetCommandName(DbCommandType.UpdateTrigger);
             var trigger = $"DELETE TRIGGER {triggerName};";
             var str = $"Drop Update Trigger for table {tableName.QuotedString}";
-            return SqlBuilder.WrapScriptTextWithComments(trigger, str);
+            return OracleBuilder.WrapScriptTextWithComments(trigger, str);
         }
 
         public void AlterUpdateTrigger()
@@ -757,16 +632,16 @@ namespace Dotmim.Sync.Oracle.Builder
 
             try
             {
-                using (var command = new SqlCommand())
+                using (var command = new OracleCommand())
                 {
                     if (!alreadyOpened)
                         this.connection.Open();
 
                     if (this.transaction != null)
-                        command.Transaction = (SqlTransaction)this.transaction;
+                        command.Transaction = (OracleTransaction)this.transaction;
 
-                    var updTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger);
-                    StringBuilder createTrigger = new StringBuilder($"ALTER TRIGGER {updTriggerName} ON {tableName.QuotedString} FOR UPDATE AS ");
+                    var updTriggerName = this.oracleObjectNames.GetCommandName(DbCommandType.UpdateTrigger);
+                    StringBuilder createTrigger = new StringBuilder($"ALTER TRIGGER {updTriggerName} ON {tableName.QuotedString} FOR EACH ROW ");
                     createTrigger.AppendLine();
                     createTrigger.AppendLine(this.UpdateTriggerBodyText());
 
@@ -789,25 +664,27 @@ namespace Dotmim.Sync.Oracle.Builder
 
             }
         }
+
         public string AlterUpdateTriggerScriptText()
         {
-            (var tableName, var trackingName) = SqlBuilder.GetParsers(this.tableDescription);
-            var updTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger);
+            (var tableName, var trackingName) = OracleBuilder.GetParsers(this.tableDescription);
+            var updTriggerName = this.oracleObjectNames.GetCommandName(DbCommandType.UpdateTrigger);
 
-            StringBuilder createTrigger = new StringBuilder($"ALTER TRIGGER {updTriggerName} ON {tableName.QuotedString} FOR UPDATE AS");
+            StringBuilder createTrigger = new StringBuilder($"ALTER TRIGGER {updTriggerName} ON {tableName.QuotedString} FOR EACH ROW ");
             createTrigger.AppendLine();
             createTrigger.AppendLine(this.InsertTriggerBodyText());
 
             string str = $"ALTER Trigger Update for table {tableName.QuotedString}";
-            return SqlBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
+            return OracleBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
         }
+
+        #endregion
 
         public bool NeedToCreateTrigger(DbTriggerType type)
         {
-
-            var updTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger);
-            var delTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger);
-            var insTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger);
+            var updTriggerName = this.oracleObjectNames.GetCommandName(DbCommandType.UpdateTrigger);
+            var delTriggerName = this.oracleObjectNames.GetCommandName(DbCommandType.DeleteTrigger);
+            var insTriggerName = this.oracleObjectNames.GetCommandName(DbCommandType.InsertTrigger);
 
             string triggerName = string.Empty;
             switch (type)
@@ -829,11 +706,7 @@ namespace Dotmim.Sync.Oracle.Builder
                     }
             }
 
-            return !SqlManagementUtils.TriggerExists(connection, transaction, triggerName);
-
-
+            return !OracleManagementUtils.TriggerExists(connection, transaction, triggerName);
         }
-
-
     }
 }

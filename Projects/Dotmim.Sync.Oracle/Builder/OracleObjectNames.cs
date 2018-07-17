@@ -7,6 +7,8 @@ namespace Dotmim.Sync.Oracle.Builder
 {
     internal class OracleObjectNames
     {
+        public const string TimestampValue = "to_number(to_char(systimestamp, 'YYYYMMDDHH24MISSFF3'))";
+
         internal const string insertTriggerName = "{0}.{1}_insert_trigger";
         internal const string updateTriggerName = "{0}.{1}_update_trigger";
         internal const string deleteTriggerName = "{0}.{1}_delete_trigger";
