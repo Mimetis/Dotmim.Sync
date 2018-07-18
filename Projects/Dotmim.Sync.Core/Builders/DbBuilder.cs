@@ -158,8 +158,8 @@ namespace Dotmim.Sync.Builders
             if (!TableDescription.PrimaryKey.HasValue)
                 throw new InvalidOperationException($"Table {TableDescription.TableName} must have at least one dmColumn as Primary key");
 
-            // Check if we have more than one column (excepting primarykeys)
-            var hasColumnsNotPkeys = (TableDescription.Columns.Count - TableDescription.PrimaryKey.Columns.Count()) > 0;
+            // Check if we have mutables columns
+            var hasMutableColumns = TableDescription.MutableColumnsAndNotAutoInc.Any();
 
             var alreadyOpened = connection.State != ConnectionState.Closed;
 
@@ -179,7 +179,7 @@ namespace Dotmim.Sync.Builders
                 if (procBuilder.NeedToCreateProcedure(DbCommandType.InsertRow))
                     procBuilder.CreateInsert();
 
-                if (hasColumnsNotPkeys && procBuilder.NeedToCreateProcedure(DbCommandType.UpdateRow))
+                if (hasMutableColumns && procBuilder.NeedToCreateProcedure(DbCommandType.UpdateRow))
                     procBuilder.CreateUpdate();
 
                 if (procBuilder.NeedToCreateProcedure(DbCommandType.DeleteRow))
@@ -198,7 +198,7 @@ namespace Dotmim.Sync.Builders
                     procBuilder.CreateTVPType();
                     procBuilder.CreateBulkInsert();
 
-                    if (hasColumnsNotPkeys)
+                    if (hasMutableColumns)
                         procBuilder.CreateBulkUpdate();
 
                     procBuilder.CreateBulkDelete();
@@ -279,6 +279,9 @@ namespace Dotmim.Sync.Builders
         {
             var alreadyOpened = connection.State != ConnectionState.Closed;
 
+            // Check if we have mutables columns
+            var hasMutableColumns = TableDescription.MutableColumnsAndNotAutoInc.Any();
+
             try
             {
                 if (!alreadyOpened)
@@ -298,7 +301,7 @@ namespace Dotmim.Sync.Builders
                     procBuilder.DropSelectRow();
                 if (!procBuilder.NeedToCreateProcedure(DbCommandType.InsertRow))
                     procBuilder.DropInsert();
-                if (!procBuilder.NeedToCreateProcedure(DbCommandType.UpdateRow))
+                if (hasMutableColumns && !procBuilder.NeedToCreateProcedure(DbCommandType.UpdateRow))
                     procBuilder.DropUpdate();
                 if (!procBuilder.NeedToCreateProcedure(DbCommandType.DeleteRow))
                     procBuilder.DropDelete();
@@ -314,7 +317,10 @@ namespace Dotmim.Sync.Builders
                 if (this.useBulkProcedures && !procBuilder.NeedToCreateType(DbCommandType.BulkTableType))
                 {
                     procBuilder.DropBulkInsert();
-                    procBuilder.DropBulkUpdate();
+
+                    if (hasMutableColumns)
+                        procBuilder.DropBulkUpdate();
+
                     procBuilder.DropBulkDelete();
                     procBuilder.DropTVPType();
                 }
@@ -480,6 +486,9 @@ namespace Dotmim.Sync.Builders
 
                 var tableBuilder = CreateTableBuilder(connection, transaction);
 
+                // Check if we have mutables columns
+                var hasMutableColumns = TableDescription.MutableColumnsAndNotAutoInc.Any();
+
                 // Check if we need to create the tables
                 if (tableBuilder.NeedToCreateTable())
                 {
@@ -523,7 +532,7 @@ namespace Dotmim.Sync.Builders
                         stringBuilder.Append(procBuilder.CreateSelectRowScriptText());
                     if (procBuilder.NeedToCreateProcedure(DbCommandType.InsertRow))
                         stringBuilder.Append(procBuilder.CreateInsertScriptText());
-                    if (procBuilder.NeedToCreateProcedure(DbCommandType.UpdateRow))
+                    if (hasMutableColumns && procBuilder.NeedToCreateProcedure(DbCommandType.UpdateRow))
                         stringBuilder.Append(procBuilder.CreateUpdateScriptText());
                     if (procBuilder.NeedToCreateProcedure(DbCommandType.DeleteRow))
                         stringBuilder.Append(procBuilder.CreateDeleteScriptText());
@@ -540,7 +549,10 @@ namespace Dotmim.Sync.Builders
                     {
                         stringBuilder.Append(procBuilder.CreateTVPTypeScriptText());
                         stringBuilder.Append(procBuilder.CreateBulkInsertScriptText());
-                        stringBuilder.Append(procBuilder.CreateBulkUpdateScriptText());
+
+                        if (hasMutableColumns)
+                            stringBuilder.Append(procBuilder.CreateBulkUpdateScriptText());
+
                         stringBuilder.Append(procBuilder.CreateBulkDeleteScriptText());
                     }
                     if (needToCreateTrackingTable)

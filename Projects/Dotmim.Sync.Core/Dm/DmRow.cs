@@ -182,7 +182,7 @@ namespace Dotmim.Sync.Data
             {
                 CheckColumn(column);
 
-                if (RowId != -1 && column.ReadOnly)
+                if (RowId != -1 && column.IsReadOnly)
                     throw new Exception($"ReadOnly {column.ColumnName}");
 
                 if (value == null && !column.AllowDBNull)
@@ -313,7 +313,7 @@ namespace Dotmim.Sync.Data
                         // may throw exception if user removes row from table during event
                         DmColumn column = columns[i];
 
-                        if (RowId != -1 && column.ReadOnly)
+                        if (RowId != -1 && column.IsReadOnly)
                             throw new Exception($"ReadOnly {column.ColumnName}");
 
 

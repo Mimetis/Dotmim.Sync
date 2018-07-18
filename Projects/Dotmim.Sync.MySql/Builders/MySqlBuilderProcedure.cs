@@ -46,7 +46,7 @@ namespace Dotmim.Sync.MySql
         }
         private void AddColumnParametersToCommand(MySqlCommand sqlCommand)
         {
-            foreach (DmColumn column in this.tableDescription.Columns.Where(c => !c.ReadOnly))
+            foreach (DmColumn column in this.tableDescription.Columns.Where(c => !c.IsReadOnly))
                 sqlCommand.Parameters.Add(column.GetMySqlParameter());
         }
 
@@ -305,7 +305,7 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine(") <= 0) THEN");
 
             string empty = string.Empty;
-            foreach (var mutableColumn in this.tableDescription.Columns.Where(c => !c.ReadOnly))
+            foreach (var mutableColumn in this.tableDescription.Columns.Where(c => !c.IsReadOnly))
             {
                 ObjectNameParser columnName = new ObjectNameParser(mutableColumn.ColumnName, "`", "`");
                 stringBuilderArguments.Append(string.Concat(empty, columnName.QuotedString));
@@ -433,9 +433,9 @@ namespace Dotmim.Sync.MySql
                 stringBuilder1.Append($"{empty}`side`.{pkColumnName.QuotedString} = {MYSQL_PREFIX_PARAMETER}{pkColumnName.UnquotedString}");
                 empty = " AND ";
             }
-            foreach (DmColumn nonPkMutableColumn in this.tableDescription.NonPkColumns.Where(c => !c.ReadOnly))
+            foreach (DmColumn mutableColumn in this.tableDescription.MutableColumns)
             {
-                ObjectNameParser nonPkColumnName = new ObjectNameParser(nonPkMutableColumn.ColumnName, "`", "`");
+                ObjectNameParser nonPkColumnName = new ObjectNameParser(mutableColumn.ColumnName, "`", "`");
                 stringBuilder.AppendLine($"\t`base`.{nonPkColumnName.QuotedString}, ");
             }
             stringBuilder.AppendLine("\t`side`.`sync_row_is_tombstone`,");
@@ -654,9 +654,9 @@ namespace Dotmim.Sync.MySql
                 var pkColumnName = new ObjectNameParser(pkColumn.ColumnName, "`", "`");
                 stringBuilder.AppendLine($"\t`side`.{pkColumnName.QuotedString}, ");
             }
-            foreach (var column in this.tableDescription.NonPkColumns.Where(col => !col.ReadOnly))
+            foreach (var mutableColumn in this.tableDescription.MutableColumns)
             {
-                var columnName = new ObjectNameParser(column.ColumnName, "`", "`");
+                var columnName = new ObjectNameParser(mutableColumn.ColumnName, "`", "`");
                 stringBuilder.AppendLine($"\t`base`.{columnName.QuotedString}, ");
             }
             stringBuilder.AppendLine($"\t`side`.`sync_row_is_tombstone`, ");

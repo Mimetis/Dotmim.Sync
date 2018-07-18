@@ -176,7 +176,7 @@ namespace Dotmim.Sync.MySql
             StringBuilder stringBuilderArguments = new StringBuilder();
             StringBuilder stringBuilderParameters = new StringBuilder();
             string empty = string.Empty;
-            foreach (var mutableColumn in this.TableDescription.Columns.Where(c => !c.ReadOnly))
+            foreach (var mutableColumn in this.TableDescription.Columns.Where(c => !c.IsReadOnly))
             {
                 ObjectNameParser columnName = new ObjectNameParser(mutableColumn.ColumnName, "`", "`");
                 stringBuilderArguments.Append(string.Concat(empty, columnName.QuotedString.ToLowerInvariant()));
@@ -227,9 +227,9 @@ namespace Dotmim.Sync.MySql
                 stringBuilder1.Append($"{empty}`side`.{pkColumnName.QuotedString.ToLowerInvariant()} = @{pkColumnName.UnquotedString.ToLowerInvariant()}");
                 empty = " AND ";
             }
-            foreach (DmColumn nonPkMutableColumn in this.TableDescription.NonPkColumns.Where(c => !c.ReadOnly))
+            foreach (DmColumn mutableColumn in this.TableDescription.MutableColumns)
             {
-                ObjectNameParser nonPkColumnName = new ObjectNameParser(nonPkMutableColumn.ColumnName, "`", "`");
+                ObjectNameParser nonPkColumnName = new ObjectNameParser(mutableColumn.ColumnName, "`", "`");
                 stringBuilder.AppendLine($"\t`base`.{nonPkColumnName.QuotedString}, ");
             }
             stringBuilder.AppendLine("\t`side`.`sync_row_is_tombstone`,");
@@ -262,9 +262,9 @@ namespace Dotmim.Sync.MySql
                 var pkColumnName = new ObjectNameParser(pkColumn.ColumnName, "`", "`");
                 stringBuilder.AppendLine($"\t`side`.{pkColumnName.QuotedString.ToLowerInvariant()}, ");
             }
-            foreach (var column in this.TableDescription.NonPkColumns.Where(col => !col.ReadOnly))
+            foreach (var mutableColumn in this.TableDescription.MutableColumns)
             {
-                var columnName = new ObjectNameParser(column.ColumnName, "`", "`");
+                var columnName = new ObjectNameParser(mutableColumn.ColumnName, "`", "`");
                 stringBuilder.AppendLine($"\t`base`.{columnName.QuotedString.ToLowerInvariant()}, ");
             }
             stringBuilder.AppendLine($"\t`side`.`sync_row_is_tombstone`, ");

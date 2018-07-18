@@ -255,7 +255,7 @@ namespace Dotmim.Sync.Data
         /// <summary>
         /// Gets or Sets if the column is readonly
         /// </summary>
-        public bool ReadOnly { get; set; } = false;
+        public bool IsReadOnly { get; set; } = false;
 
         /// <summary>
         /// Gets the table associated with this column
@@ -335,7 +335,7 @@ namespace Dotmim.Sync.Data
         /// <summary>
         /// Gets or sets if column is auto increment
         /// </summary>
-        public abstract bool AutoIncrement { get; set; }
+        public abstract bool IsAutoIncrement { get; set; }
 
         /// <summary>
         /// Gets or Sets if precision is specified
@@ -418,7 +418,7 @@ namespace Dotmim.Sync.Data
                 throw new ArgumentException($"This type is not authorized {DataType.FullName}");
         }
 
-        public override bool AutoIncrement
+        public override bool IsAutoIncrement
         {
             get
             {
@@ -426,7 +426,7 @@ namespace Dotmim.Sync.Data
             }
             set
             {
-                if (this.AutoIncrement == value)
+                if (this.IsAutoIncrement == value)
                     return;
 
                 var canBeAutoIncrement = IsAutoIncrementType(DataType);
@@ -544,7 +544,7 @@ namespace Dotmim.Sync.Data
         /// </summary>
         internal override void Init(int record)
         {
-            if (AutoIncrement)
+            if (IsAutoIncrement)
             {
                 T value = this.autoInc.Current;
                 this.autoInc.MoveAfter();
@@ -643,7 +643,7 @@ namespace Dotmim.Sync.Data
                 {
                     Set(record, value);
 
-                    if (!AutoIncrement)
+                    if (!IsAutoIncrement)
                         return;
 
                     var recordValue = GetValue(record);
@@ -671,7 +671,7 @@ namespace Dotmim.Sync.Data
             clone.AllowDBNull = AllowDBNull;
             clone.ColumnName = ColumnName;
             clone.DefaultValue = DefaultValue;
-            clone.ReadOnly = ReadOnly;
+            clone.IsReadOnly = IsReadOnly;
             clone.MaxLength = MaxLength;
 
             clone.dbTypeAllowed = dbTypeAllowed;
@@ -689,7 +689,7 @@ namespace Dotmim.Sync.Data
             clone.IsUnsigned = IsUnsigned;
             clone.OriginalTypeName = OriginalTypeName;
 
-            if (this.AutoIncrement && this.autoInc != null)
+            if (this.IsAutoIncrement && this.autoInc != null)
                 clone.autoInc = this.autoInc.Clone();
 
             return clone;

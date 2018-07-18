@@ -302,6 +302,9 @@ namespace Dotmim.Sync.Data
             set { schema = value ?? string.Empty; }
         }
 
+        /// <summary>
+        /// Gets all columns that are not Primary columns
+        /// </summary>
         public IEnumerable<DmColumn> NonPkColumns
         {
             get
@@ -313,6 +316,64 @@ namespace Dotmim.Sync.Data
                 }
             }
         }
+
+
+        /// <summary>
+        /// Gets all columns that can be updated and are not Primary columns
+        /// </summary>
+        public IEnumerable<DmColumn> MutableColumns
+        {
+            get
+            {
+                foreach (var column in this.Columns)
+                {
+                    if (
+                        (this.primaryKey == null || !this.primaryKey.Columns.Contains(column))
+                        &&
+                        !column.IsCompute
+                        && 
+                        !column.IsReadOnly
+                        )
+                        yield return column;
+                }
+            }
+        }
+
+
+        /// <summary>
+        /// Gets all columns that can be updated and are not Primary columns and not auto increment
+        /// </summary>
+        public IEnumerable<DmColumn> MutableColumnsAndNotAutoInc
+        {
+            get
+            {
+                foreach (var column in this.Columns)
+                {
+                    if (
+                        (this.primaryKey == null || !this.primaryKey.Columns.Contains(column))
+                        &&
+                        !column.IsCompute
+                        &&
+                        !column.IsReadOnly
+                        &&
+                        !column.IsAutoIncrement
+                        )
+                        yield return column;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets a value returning if the dmTable contains an auto increment column
+        /// </summary>
+        public bool HasAutoIncrementColumns
+        {
+            get
+            {
+                return this.Columns.Any(c => c.IsAutoIncrement);
+            }
+        }
+
 
         /// <summary>
         /// Accept all changes in every DmRow in this DmTable
@@ -567,7 +628,7 @@ namespace Dotmim.Sync.Data
             {
                 var column = columns[i];
 
-                if (column.AutoIncrement && hasLessValues)
+                if (column.IsAutoIncrement && hasLessValues)
                     continue;
 
                 dr[i] = values[j];

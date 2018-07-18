@@ -93,7 +93,7 @@ namespace Dotmim.Sync
                 column.MaxLength = Metadata.ValidateMaxLength(column.OriginalTypeName, column.IsUnsigned, column.IsUnicode, column.MaxLength);
 
                 // Validate if column should be readonly
-                column.ReadOnly = Metadata.ValidateIsReadonly(column);
+                column.IsReadOnly = Metadata.ValidateIsReadonly(column);
 
                 // set position ordinal
                 column.SetOrdinal(ordinal);

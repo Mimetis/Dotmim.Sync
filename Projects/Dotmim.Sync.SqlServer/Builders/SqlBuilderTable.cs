@@ -231,7 +231,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 var columnType = $"{columnTypeString} {columnPrecisionString}";
                 var identity = string.Empty;
 
-                if (column.AutoIncrement)
+                if (column.IsAutoIncrement)
                 {
                     var s = column.GetAutoIncrementSeedAndStep();
                     identity = $"IDENTITY({s.Step},{s.Seed})";
@@ -239,7 +239,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 var nullString = column.AllowDBNull ? "NULL" : "NOT NULL";
 
                 // if we have a computed column, we should allow null
-                if (column.ReadOnly)
+                if (column.IsReadOnly)
                     nullString = "NULL";
 
                 stringBuilder.AppendLine($"\t{empty}{columnName.QuotedString} {columnType} {identity} {nullString}");

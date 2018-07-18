@@ -23,7 +23,7 @@ namespace Dotmim.Sync.Test
             var tbl = new DmTable("ServiceTickets");
 
             var id = new DmColumn<int>("ServiceTicketID");
-            id.AutoIncrement = true;
+            id.IsAutoIncrement = true;
             id.AutoIncrementSeed = 1;
             id.AutoIncrementStep = 1;
 
@@ -44,7 +44,7 @@ namespace Dotmim.Sync.Test
                 var tbl = new DmTable("ServiceTickets");
 
                 var id = new DmColumn<Guid>("ServiceTicketID");
-                id.AutoIncrement = true;
+                id.IsAutoIncrement = true;
 
                 tbl.Columns.Add(id);
             });

@@ -74,7 +74,7 @@ namespace Dotmim.Sync.SqlServer.Manager
                 dbColumn.Precision = (byte)c["precision"];
                 dbColumn.Scale = (byte)c["scale"];
                 dbColumn.AllowDBNull = (bool)c["is_nullable"];
-                dbColumn.AutoIncrement = (bool)c["is_identity"];
+                dbColumn.IsAutoIncrement = (bool)c["is_identity"];
                 dbColumn.IsUnique = c["is_unique"] != DBNull.Value ? (bool)c["is_unique"] : false;
 
                 dbColumn.IsCompute = (bool)c["is_computed"];
