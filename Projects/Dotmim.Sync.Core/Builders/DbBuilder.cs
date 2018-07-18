@@ -14,7 +14,7 @@ namespace Dotmim.Sync.Builders
     public abstract class DbBuilder
     {
         private readonly bool useBulkProcedures = true;
-        
+
         /// <summary>
         /// Gets the table description for the current DbBuilder
         /// </summary>
@@ -67,7 +67,7 @@ namespace Dotmim.Sync.Builders
         {
             if (!TableDescription.PrimaryKey.HasValue)
                 throw new InvalidOperationException($"Table {TableDescription.TableName} must have at least one dmColumn as Primary key");
-            
+
             var alreadyOpened = connection.State != ConnectionState.Closed;
 
             try
@@ -158,6 +158,9 @@ namespace Dotmim.Sync.Builders
             if (!TableDescription.PrimaryKey.HasValue)
                 throw new InvalidOperationException($"Table {TableDescription.TableName} must have at least one dmColumn as Primary key");
 
+            // Check if we have more than one column (excepting primarykeys)
+            var hasColumnsNotPkeys = (TableDescription.Columns.Count - TableDescription.PrimaryKey.Columns.Count()) > 0;
+
             var alreadyOpened = connection.State != ConnectionState.Closed;
 
             try
@@ -175,8 +178,10 @@ namespace Dotmim.Sync.Builders
                     procBuilder.CreateSelectRow();
                 if (procBuilder.NeedToCreateProcedure(DbCommandType.InsertRow))
                     procBuilder.CreateInsert();
-                if (procBuilder.NeedToCreateProcedure(DbCommandType.UpdateRow))
+
+                if (hasColumnsNotPkeys && procBuilder.NeedToCreateProcedure(DbCommandType.UpdateRow))
                     procBuilder.CreateUpdate();
+
                 if (procBuilder.NeedToCreateProcedure(DbCommandType.DeleteRow))
                     procBuilder.CreateDelete();
                 if (procBuilder.NeedToCreateProcedure(DbCommandType.InsertMetadata))
@@ -192,7 +197,10 @@ namespace Dotmim.Sync.Builders
                 {
                     procBuilder.CreateTVPType();
                     procBuilder.CreateBulkInsert();
-                    procBuilder.CreateBulkUpdate();
+
+                    if (hasColumnsNotPkeys)
+                        procBuilder.CreateBulkUpdate();
+
                     procBuilder.CreateBulkDelete();
                 }
             }
