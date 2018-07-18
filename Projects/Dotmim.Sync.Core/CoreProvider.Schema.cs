@@ -38,11 +38,11 @@ namespace Dotmim.Sync
             if (dmTableKeys == null || dmTableKeys.Count == 0)
                 throw new MissingPrimaryKeyException($"No Primary Keys in table {dmTable.TableName}, Can't make a synchronization with a table without primary keys.");
 
-            // Check if we have more than one column (excepting primarykeys)
-            var columnsNotPkeys = columns.Count(c => !dmTableKeys.Contains(c.ColumnName));
+            //// Check if we have more than one column (excepting primarykeys)
+            //var columnsNotPkeys = columns.Count(c => !dmTableKeys.Contains(c.ColumnName));
 
-            if (columnsNotPkeys <= 0)
-                throw new NotSupportedException($"{dmTable.TableName} does not contains any columns, excepting primary keys.");
+            //if (columnsNotPkeys <= 0)
+            //    throw new NotSupportedException($"{dmTable.TableName} does not contains any columns, excepting primary keys.");
 
             // Delete all existing columns
             if (dmTable.PrimaryKey != null && dmTable.PrimaryKey.Columns != null && dmTable.PrimaryKey.Columns.Length > 0)
