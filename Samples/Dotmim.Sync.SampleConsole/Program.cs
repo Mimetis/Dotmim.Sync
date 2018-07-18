@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Http;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
 using System.Threading;
@@ -53,7 +54,7 @@ class Program
         {
             ScopeName = "AdventureWorks",
             ScopeInfoTableName = "tscopeinfo",
-            SerializationFormat = SerializationFormat.Binary,
+            SerializationFormat = Dotmim.Sync.Enumerations.SerializationFormat.Binary,
             DownloadBatchSizeInKB = 400,
             StoredProceduresPrefix = "s",
             StoredProceduresSuffix = "",
@@ -64,9 +65,9 @@ class Program
 
         var serverHandler = new RequestDelegate(async context =>
         {
-           proxyServerProvider.Configuration = configuration;
-          
-           await proxyServerProvider.HandleRequestAsync(context);
+            proxyServerProvider.Configuration = configuration;
+
+            await proxyServerProvider.HandleRequestAsync(context);
         });
         using (var server = new KestrellTestServer())
         {
@@ -75,7 +76,7 @@ class Program
                 proxyClientProvider.ServiceUri = new Uri(serviceUri);
 
                 var syncAgent = new SyncAgent(client1Provider, proxyClientProvider);
-             
+
                 do
                 {
                     Console.Clear();
@@ -90,14 +91,16 @@ class Program
                         Console.WriteLine("3 : Synchronization with reinitialize");
                         Console.WriteLine("4 : Synchronization with upload and reinitialize");
                         Console.WriteLine("5 : Deprovision everything from client side (tables included)");
-                        Console.WriteLine("6 : Deprovision everything from server side (tables not included)");
-                        Console.WriteLine("7 : Provision everything on the client side (tables included)");
-                        Console.WriteLine("8 : Provision everything on the server side (tables not included)");
+                        Console.WriteLine("6 : Deprovision everything from client side (tables not included)");
+                        Console.WriteLine("7 : Deprovision everything from server side (tables not included)");
+                        Console.WriteLine("8 : Provision everything on the client side (tables included)");
+                        Console.WriteLine("9 : Provision everything on the server side (tables not included)");
+                        Console.WriteLine("10 : Insert datas on client");
                         Console.WriteLine("--------------------------------------------------");
                         Console.WriteLine("What's your choice ? ");
                         Console.WriteLine("--------------------------------------------------");
                         var choice = Console.ReadLine();
-               
+
                         if (int.TryParse(choice, out int choiceNumber))
                         {
                             Console.WriteLine($"You choose {choice}. Start operation....");
@@ -113,7 +116,7 @@ class Program
                                     (ctx, configuration.Schema) = await syncConfigProvider.EnsureSchemaAsync(ctx, new Dotmim.Sync.Messages.MessageEnsureSchema
                                     {
                                         Schema = configuration.Schema,
-                                        SerializationFormat = SerializationFormat.Json
+                                        SerializationFormat = Dotmim.Sync.Enumerations.SerializationFormat.Json
                                     });
                                     break;
                                 case 3:
@@ -130,20 +133,32 @@ class Program
                                     Console.WriteLine("Deprovision complete on client");
                                     break;
                                 case 6:
+                                    SqlSyncProvider client2SyncProvider = syncAgent.LocalProvider as SqlSyncProvider;
+                                    await client2SyncProvider.DeprovisionAsync(configuration, SyncProvision.All);
+                                    Console.WriteLine("Deprovision complete on client");
+                                    break;
+                                case 7:
                                     SqlSyncProvider remoteSyncProvider = new SqlSyncProvider(GetDatabaseConnectionString("AdventureWorks"));
                                     await remoteSyncProvider.DeprovisionAsync(configuration, SyncProvision.All);
                                     Console.WriteLine("Deprovision complete on remote");
                                     break;
 
-                                case 7:
+                                case 8:
                                     SqlSyncProvider clientSyncProvider2 = syncAgent.LocalProvider as SqlSyncProvider;
                                     await clientSyncProvider2.ProvisionAsync(configuration, SyncProvision.All | SyncProvision.Table);
                                     Console.WriteLine("Provision complete on client");
                                     break;
-                                case 8:
+                                case 9:
                                     SqlSyncProvider remoteSyncProvider2 = new SqlSyncProvider(GetDatabaseConnectionString("AdventureWorks"));
                                     await remoteSyncProvider2.ProvisionAsync(configuration, SyncProvision.All);
                                     Console.WriteLine("Provision complete on remote");
+                                    break;
+                                case 10:
+                                    var c = GetDatabaseConnectionString("Adv");
+                                    var catId = await InsertProductCategory(c);
+                                    var modelId = await InsertProductModel(c);
+                                    await InsertProduct(c, catId, modelId);
+                                    Console.WriteLine("Inserted a model, a category and a product.");
                                     break;
                                 default:
                                     break;
@@ -172,7 +187,122 @@ class Program
             });
             await server.Run(serverHandler, clientHandler);
         }
-        
+
+    }
+
+    private static async Task<int> InsertProductModel(string connectionString)
+    {
+        string insertCategory = @"
+            INSERT INTO [dbo].[ProductModel] ([Name],[rowguid], [ModifiedDate]) VALUES (@Name, @rowguid, @ModifiedDate);
+            SELECT @@IDENTITY;
+        ";
+
+        int categoryId;
+        using (SqlConnection connection = new SqlConnection(connectionString))
+        {
+            using (SqlCommand cmd = new SqlCommand(insertCategory, connection))
+            {
+                SqlParameter p = new SqlParameter("@Name", SqlDbType.NVarChar);
+                p.Value = "Paris LL Round Bike " + Guid.NewGuid().ToString().Substring(0, 4);
+                cmd.Parameters.Add(p);
+
+                p = new SqlParameter("@rowguid", SqlDbType.UniqueIdentifier);
+                p.Value = Guid.NewGuid();
+                cmd.Parameters.Add(p);
+
+                p = new SqlParameter("@ModifiedDate", SqlDbType.DateTime);
+                p.Value = DateTime.Now;
+                cmd.Parameters.Add(p);
+
+
+                connection.Open();
+                categoryId = (int)(await cmd.ExecuteScalarAsync());
+                connection.Close();
+            }
+        }
+
+        return categoryId;
+    }
+
+    private static async Task<int> InsertProductCategory(string connectionString)
+    {
+        string insertCategory = @"
+            INSERT INTO [dbo].[ProductCategory] ([Name], [rowguid], [ModifiedDate]) VALUES (@Name, @rowguid, @ModifiedDate);
+            SELECT @@IDENTITY;
+        ";
+
+        int categoryId;
+        using (SqlConnection connection = new SqlConnection(connectionString))
+        {
+            using (SqlCommand cmd = new SqlCommand(insertCategory, connection))
+            {
+                SqlParameter p = new SqlParameter("@Name", SqlDbType.NVarChar);
+                p.Value = "Paris Bikes " + Guid.NewGuid().ToString().Substring(0, 4);
+                cmd.Parameters.Add(p);
+
+                p = new SqlParameter("@rowguid", SqlDbType.UniqueIdentifier);
+                p.Value = Guid.NewGuid();
+                cmd.Parameters.Add(p);
+
+                p = new SqlParameter("@ModifiedDate", SqlDbType.DateTime);
+                p.Value = DateTime.Now;
+                cmd.Parameters.Add(p);
+
+                connection.Open();
+                categoryId = Convert.ToInt32((await cmd.ExecuteScalarAsync()));
+                connection.Close();
+            }
+        }
+
+        return categoryId;
+    }
+    private static async Task InsertProduct(String connectionString, int categoryId, int productModelId)
+    {
+        string insertProduct = @"
+        INSERT INTO [Product]
+        ([Name] ,[ProductNumber] ,[StandardCost] ,[ListPrice]
+        ,[ProductCategoryID] ,[ProductModelID] ,[SellStartDate])
+        VALUES
+        (@Name, @ProductNumber, @StandardCost , @ListPrice
+        ,@ProductCategoryID ,@ProductModelID ,@SellStartDate)";
+
+        using (SqlConnection connection = new SqlConnection(connectionString))
+        {
+            using (SqlCommand cmd = new SqlCommand(insertProduct, connection))
+            {
+                SqlParameter p = new SqlParameter("@Name", SqlDbType.NVarChar);
+                p.Value = "Paris Road Byke";
+                cmd.Parameters.Add(p);
+
+                p = new SqlParameter("@ProductNumber", SqlDbType.NVarChar);
+                p.Value = "FR-PRB-001";
+                cmd.Parameters.Add(p);
+
+                p = new SqlParameter("@StandardCost", SqlDbType.Money);
+                p.Value = 856.45;
+                cmd.Parameters.Add(p);
+
+                p = new SqlParameter("@ListPrice", SqlDbType.Money);
+                p.Value = 912.99;
+                cmd.Parameters.Add(p);
+
+                p = new SqlParameter("@ProductCategoryID", SqlDbType.Int);
+                p.Value = categoryId;
+                cmd.Parameters.Add(p);
+
+                p = new SqlParameter("@ProductModelID", SqlDbType.Int);
+                p.Value = productModelId;
+                cmd.Parameters.Add(p);
+
+                p = new SqlParameter("@SellStartDate", SqlDbType.DateTime);
+                p.Value = DateTime.Now;
+                cmd.Parameters.Add(p);
+
+                connection.Open();
+                await cmd.ExecuteNonQueryAsync();
+                connection.Close();
+            }
+        }
     }
 
     /// <summary>
