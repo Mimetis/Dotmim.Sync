@@ -137,7 +137,7 @@ namespace Dotmim.Sync.Sqlite
             StringBuilder stringBuilderArguments = new StringBuilder();
             StringBuilder stringBuilderParameters = new StringBuilder();
             string empty = string.Empty;
-            foreach (var mutableColumn in this.TableDescription.Columns.Where(c => !c.ReadOnly))
+            foreach (var mutableColumn in this.TableDescription.Columns.Where(c => !c.IsReadOnly))
             {
                 ObjectNameParser columnName = new ObjectNameParser(mutableColumn.ColumnName);
                 stringBuilderArguments.Append(string.Concat(empty, columnName.QuotedString));
@@ -188,9 +188,9 @@ namespace Dotmim.Sync.Sqlite
                 stringBuilder1.Append($"{empty}[side].{pkColumnName.QuotedString} = @{pkColumnName.UnquotedString}");
                 empty = " AND ";
             }
-            foreach (DmColumn nonPkMutableColumn in this.TableDescription.NonPkColumns.Where(c => !c.ReadOnly))
+            foreach (DmColumn mutableColumn in this.TableDescription.MutableColumns)
             {
-                ObjectNameParser nonPkColumnName = new ObjectNameParser(nonPkMutableColumn.ColumnName);
+                ObjectNameParser nonPkColumnName = new ObjectNameParser(mutableColumn.ColumnName);
                 stringBuilder.AppendLine($"\t[base].{nonPkColumnName.QuotedString}, ");
             }
             stringBuilder.AppendLine("\t[side].[sync_row_is_tombstone],");
@@ -222,9 +222,9 @@ namespace Dotmim.Sync.Sqlite
                 var pkColumnName = new ObjectNameParser(pkColumn.ColumnName);
                 stringBuilder.AppendLine($"\t[side].{pkColumnName.QuotedString}, ");
             }
-            foreach (var column in this.TableDescription.NonPkColumns.Where(col => !col.ReadOnly))
+            foreach (var mutableColumn in this.TableDescription.MutableColumns)
             {
-                var columnName = new ObjectNameParser(column.ColumnName);
+                var columnName = new ObjectNameParser(mutableColumn.ColumnName);
                 stringBuilder.AppendLine($"\t[base].{columnName.QuotedString}, ");
             }
             stringBuilder.AppendLine($"\t[side].[sync_row_is_tombstone], ");

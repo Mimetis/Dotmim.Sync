@@ -347,7 +347,7 @@ namespace Dotmim.Sync.Test
 
             DmColumn productId = new DmColumn<Int32>("Id");
             productId.AllowDBNull = false;
-            productId.AutoIncrement = true;
+            productId.IsAutoIncrement = true;
             productId.IsCompute = false;
             productId.IsUnicode = false;
             productId.IsUnsigned = false;
@@ -457,7 +457,7 @@ namespace Dotmim.Sync.Test
         private void AssertIsEqual(DmColumn c, DmColumn d)
         {
             Assert.Equal(c.AllowDBNull, d.AllowDBNull);
-            Assert.Equal(c.AutoIncrement, d.AutoIncrement);
+            Assert.Equal(c.IsAutoIncrement, d.IsAutoIncrement);
             Assert.Equal(c.ColumnName, d.ColumnName);
             Assert.Equal(c.DataType, d.DataType);
             Assert.Equal(c.DbType, d.DbType);
@@ -467,7 +467,7 @@ namespace Dotmim.Sync.Test
             Assert.Equal(c.Ordinal, d.Ordinal);
             Assert.Equal(c.Precision, d.Precision);
             Assert.Equal(c.PrecisionSpecified, d.PrecisionSpecified);
-            Assert.Equal(c.ReadOnly, d.ReadOnly);
+            Assert.Equal(c.IsReadOnly, d.IsReadOnly);
             Assert.Equal(c.Scale, d.Scale);
             Assert.Equal(c.ScaleSpecified, d.ScaleSpecified);
             Assert.Equal(c.IsUnique, d.IsUnique);

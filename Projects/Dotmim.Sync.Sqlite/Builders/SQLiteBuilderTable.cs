@@ -107,7 +107,7 @@ namespace Dotmim.Sync.Sqlite
 
                 var identity = string.Empty;
 
-                if (column.AutoIncrement)
+                if (column.IsAutoIncrement)
                 {
                     var s = column.GetAutoIncrementSeedAndStep();
                     if (s.Seed > 1 || s.Step > 1)
@@ -120,10 +120,10 @@ namespace Dotmim.Sync.Sqlite
                 var nullString = column.AllowDBNull ? "NULL" : "NOT NULL";
 
                 // if auto inc, don't specify NOT NULL option, since we need to insert a null value to make it auto inc.
-                if (column.AutoIncrement)
+                if (column.IsAutoIncrement)
                     nullString = "";
                 // if it's a readonly column, it could be a computed column, so we need to allow null
-                else if (column.ReadOnly)
+                else if (column.IsReadOnly)
                     nullString = "NULL";
 
                 stringBuilder.AppendLine($"\t{empty}{columnName.QuotedString} {columnType} {identity} {nullString} {casesensitive}");

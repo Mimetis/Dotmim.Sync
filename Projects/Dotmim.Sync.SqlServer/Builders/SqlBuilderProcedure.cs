@@ -44,7 +44,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         }
         private void AddColumnParametersToCommand(SqlCommand sqlCommand)
         {
-            foreach (DmColumn column in this.tableDescription.Columns.Where(c => !c.ReadOnly))
+            foreach (DmColumn column in this.tableDescription.Columns.Where(c => !c.IsReadOnly))
                 sqlCommand.Parameters.Add(GetSqlParameter(column));
         }
 
@@ -317,7 +317,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"\tSELECT ");
             string str = "";
             stringBuilder.Append("\t");
-            foreach (var c in this.tableDescription.Columns.Where(col => !col.ReadOnly))
+            foreach (var c in this.tableDescription.Columns.Where(col => !col.IsReadOnly))
             {
                 var columnName = new ObjectNameParser(c.ColumnName);
                 stringBuilder.Append($"{str}[p].{columnName.QuotedString}");
@@ -473,15 +473,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine();
 
             // Check if we have auto inc column
-            bool flag = false;
-            foreach (var mutableColumn in this.tableDescription.Columns.Where(c => !c.ReadOnly))
-            {
-                if (!mutableColumn.AutoIncrement)
-                    continue;
-                flag = true;
-            }
-
-            if (flag)
+            if (this.tableDescription.HasAutoIncrementColumns)
             {
                 stringBuilder.AppendLine();
                 stringBuilder.AppendLine($"SET IDENTITY_INSERT {tableName.QuotedString} ON;");
@@ -498,7 +490,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"\t(SELECT ");
             string str = "";
             stringBuilder.Append("\t");
-            foreach (var c in this.tableDescription.Columns.Where(col => !col.ReadOnly))
+            foreach (var c in this.tableDescription.Columns.Where(col => !col.IsReadOnly))
             {
                 var columnName = new ObjectNameParser(c.ColumnName);
                 stringBuilder.Append($"{str}[p].{columnName.QuotedString}");
@@ -521,7 +513,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             StringBuilder stringBuilderParameters = new StringBuilder();
 
             string empty = string.Empty;
-            foreach (var mutableColumn in this.tableDescription.Columns.Where(c => !c.ReadOnly))
+            foreach (var mutableColumn in this.tableDescription.Columns.Where(c => !c.IsReadOnly))
             {
                 ObjectNameParser columnName = new ObjectNameParser(mutableColumn.ColumnName);
                 stringBuilderArguments.Append(string.Concat(empty, columnName.QuotedString));
@@ -545,7 +537,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"\tINTO @changed; -- populates the temp table with successful PKs");
             stringBuilder.AppendLine();
 
-            if (flag)
+            if (this.tableDescription.HasAutoIncrementColumns)
             {
                 stringBuilder.AppendLine();
                 stringBuilder.AppendLine($"SET IDENTITY_INSERT {tableName.QuotedString} OFF;");
@@ -677,21 +669,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("));");
             stringBuilder.AppendLine();
 
-            // Check if we have auto inc column
-            bool flag = false;
-            foreach (var mutableColumn in this.tableDescription.Columns.Where(c => !c.ReadOnly))
-            {
-                if (!mutableColumn.AutoIncrement)
-                    continue;
-                flag = true;
-            }
-
-            if (flag)
-            {
-                stringBuilder.AppendLine();
-                stringBuilder.AppendLine($"SET IDENTITY_INSERT {tableName.QuotedString} ON;");
-                stringBuilder.AppendLine();
-            }
 
             stringBuilder.AppendLine("-- update the base table");
             stringBuilder.AppendLine($"MERGE {tableName.QuotedString} AS base USING");
@@ -702,7 +679,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"\t(SELECT ");
             string str = "";
             stringBuilder.Append("\t");
-            foreach (var c in this.tableDescription.Columns.Where(col => !col.ReadOnly))
+            foreach (var c in this.tableDescription.Columns.Where(col => !col.IsReadOnly))
             {
                 var columnName = new ObjectNameParser(c.ColumnName);
                 stringBuilder.Append($"{str}[p].{columnName.QuotedString}");
@@ -723,7 +700,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             StringBuilder stringBuilderParameters = new StringBuilder();
 
             string empty = string.Empty;
-            foreach (var mutableColumn in this.tableDescription.Columns.Where(c => !c.ReadOnly))
+            foreach (var mutableColumn in this.tableDescription.Columns.Where(c => !c.IsReadOnly))
             {
                 ObjectNameParser columnName = new ObjectNameParser(mutableColumn.ColumnName);
                 stringBuilderArguments.Append(string.Concat(empty, columnName.QuotedString));
@@ -734,9 +711,9 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"\tUPDATE SET");
 
             string strSeparator = "";
-            foreach (DmColumn column in this.tableDescription.NonPkColumns.Where(col => !col.ReadOnly))
+            foreach (DmColumn mutableColumn in this.tableDescription.MutableColumnsAndNotAutoInc)
             {
-                ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
+                ObjectNameParser quotedColumn = new ObjectNameParser(mutableColumn.ColumnName);
                 stringBuilder.AppendLine($"\t{strSeparator}{quotedColumn.QuotedString} = [changes].{quotedColumn.QuotedString}");
                 strSeparator = ", ";
             }
@@ -753,12 +730,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"\tINTO @changed; -- populates the temp table with successful PKs");
             stringBuilder.AppendLine();
 
-            if (flag)
-            {
-                stringBuilder.AppendLine();
-                stringBuilder.AppendLine($"SET IDENTITY_INSERT {tableName.QuotedString} OFF;");
-                stringBuilder.AppendLine();
-            }
 
             stringBuilder.AppendLine("-- Since the update trigger is passed, we update the tracking table to reflect the real scope updater");
             stringBuilder.AppendLine("UPDATE side SET");
@@ -1108,30 +1079,21 @@ namespace Dotmim.Sync.SqlServer.Builders
             sqlParameter.Direction = ParameterDirection.Output;
             sqlCommand.Parameters.Add(sqlParameter);
 
-            //Check auto increment column
-            bool hasAutoIncColumn = false;
-            foreach (var column in this.tableDescription.Columns)
-            {
-                if (!column.AutoIncrement)
-                    continue;
-                hasAutoIncColumn = true;
-                break;
-            }
-
             stringBuilder.AppendLine($"SET {sqlParameter.ParameterName} = 0;");
 
             stringBuilder.Append(string.Concat("IF NOT EXISTS (SELECT * FROM ", trackingName.QuotedString, " WHERE "));
             stringBuilder.Append(SqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKey.Columns, string.Empty));
             stringBuilder.AppendLine(") ");
             stringBuilder.AppendLine("BEGIN ");
-            if (hasAutoIncColumn)
+
+            if (this.tableDescription.HasAutoIncrementColumns)
             {
                 stringBuilder.AppendLine($"\tSET IDENTITY_INSERT {tableName.QuotedString} ON;");
                 stringBuilder.AppendLine();
             }
 
             string empty = string.Empty;
-            foreach (var mutableColumn in this.tableDescription.Columns.Where(c => !c.ReadOnly))
+            foreach (var mutableColumn in this.tableDescription.Columns.Where(c => !c.IsReadOnly))
             {
                 ObjectNameParser columnName = new ObjectNameParser(mutableColumn.ColumnName);
                 stringBuilderArguments.Append(string.Concat(empty, columnName.QuotedString));
@@ -1144,7 +1106,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine();
             stringBuilder.AppendLine(string.Concat("\tSET ", sqlParameter.ParameterName, " = @@rowcount; "));
 
-            if (hasAutoIncColumn)
+            if (this.tableDescription.HasAutoIncrementColumns)
             {
                 stringBuilder.AppendLine();
                 stringBuilder.AppendLine($"\tSET IDENTITY_INSERT {tableName.QuotedString} OFF;");
@@ -1346,9 +1308,9 @@ namespace Dotmim.Sync.SqlServer.Builders
                 stringBuilder1.Append($"{empty}[side].{pkColumnName.QuotedString} = @{pkColumnName.UnquotedString}");
                 empty = " AND ";
             }
-            foreach (DmColumn nonPkMutableColumn in this.tableDescription.NonPkColumns.Where(c => !c.ReadOnly))
+            foreach (DmColumn mutableColumn in this.tableDescription.MutableColumns)
             {
-                ObjectNameParser nonPkColumnName = new ObjectNameParser(nonPkMutableColumn.ColumnName);
+                ObjectNameParser nonPkColumnName = new ObjectNameParser(mutableColumn.ColumnName);
                 stringBuilder.AppendLine($"\t[base].{nonPkColumnName.QuotedString}, ");
             }
             stringBuilder.AppendLine("\t[side].[sync_row_is_tombstone],");
@@ -1434,7 +1396,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkTableType);
             stringBuilder.AppendLine($"CREATE TYPE {commandName} AS TABLE (");
             string str = "";
-            foreach (var c in this.tableDescription.Columns.Where(col => !col.ReadOnly))
+            foreach (var c in this.tableDescription.Columns.Where(col => !col.IsReadOnly))
             {
                 var isPrimaryKey = this.tableDescription.PrimaryKey.Columns.Any(cc => this.tableDescription.IsEqual(cc.ColumnName, c.ColumnName));
                 var columnName = new ObjectNameParser(c.ColumnName);
@@ -1563,6 +1525,8 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             stringBuilder.AppendLine($"SET {sqlParameter2.ParameterName} = 0;");
             stringBuilder.AppendLine();
+
+
             stringBuilder.AppendLine($"UPDATE {tableName.QuotedString}");
             stringBuilder.Append($"SET {SqlManagementUtils.CommaSeparatedUpdateFromParameters(this.tableDescription)}");
             stringBuilder.AppendLine($"FROM {tableName.QuotedString} [base]");
@@ -1574,6 +1538,8 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.Append(SqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKey.Columns, "[base]"));
             stringBuilder.AppendLine(");");
             stringBuilder.AppendLine();
+
+
             stringBuilder.Append(string.Concat("SET ", sqlParameter2.ParameterName, " = @@ROWCOUNT;"));
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
@@ -1779,9 +1745,9 @@ namespace Dotmim.Sync.SqlServer.Builders
                 var pkColumnName = new ObjectNameParser(pkColumn.ColumnName);
                 stringBuilder.AppendLine($"\t[side].{pkColumnName.QuotedString}, ");
             }
-            foreach (var column in this.tableDescription.NonPkColumns.Where(col => !col.ReadOnly))
+            foreach (var mutableColumn in this.tableDescription.MutableColumns)
             {
-                var columnName = new ObjectNameParser(column.ColumnName);
+                var columnName = new ObjectNameParser(mutableColumn.ColumnName);
                 stringBuilder.AppendLine($"\t[base].{columnName.QuotedString}, ");
             }
             stringBuilder.AppendLine($"\t[side].[sync_row_is_tombstone], ");

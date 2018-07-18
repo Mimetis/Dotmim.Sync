@@ -497,7 +497,7 @@ namespace Dotmim.Sync.Test
             // Trying with a key Int auto incremented
             var tbl3 = new DmTable();
             var id3 = new DmColumn<Int32>("ServiceTicketID");
-            id3.AutoIncrement = true;
+            id3.IsAutoIncrement = true;
             tbl3.Columns.Add(id3);
             var key3 = new DmKey(new DmColumn[] { id3 });
             tbl3.PrimaryKey = key3;
@@ -542,7 +542,7 @@ namespace Dotmim.Sync.Test
             // Try to reject changes after creating a table, with no acceptchanges
             var tbl3 = new DmTable();
             var id3 = new DmColumn<Int32>("ServiceTicketID");
-            id3.AutoIncrement = true;
+            id3.IsAutoIncrement = true;
             tbl3.Columns.Add(id3);
             var key3 = new DmKey(new DmColumn[] { id3 });
             tbl3.PrimaryKey = key3;
