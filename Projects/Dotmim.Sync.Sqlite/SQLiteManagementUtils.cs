@@ -150,9 +150,9 @@ namespace Dotmim.Sync.Sqlite
             StringBuilder stringBuilder = new StringBuilder();
             string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));
             string strSeparator = "";
-            foreach (DmColumn column in table.NonPkColumns.Where(c => !c.ReadOnly))
+            foreach (DmColumn mutableColumn in table.MutableColumns)
             {
-                ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
+                ObjectNameParser quotedColumn = new ObjectNameParser(mutableColumn.ColumnName);
                 stringBuilder.AppendLine($"{strSeparator} {strFromPrefix}{quotedColumn.QuotedString} = @{quotedColumn.UnquotedString}");
                 strSeparator = ", ";
             }

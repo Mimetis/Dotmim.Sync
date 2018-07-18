@@ -179,7 +179,7 @@ namespace Dotmim.Sync.MySql
 
                 var identity = string.Empty;
 
-                if (column.AutoIncrement)
+                if (column.IsAutoIncrement)
                 {
                     var s = column.GetAutoIncrementSeedAndStep();
                     if (s.Seed > 1 || s.Step > 1)
@@ -190,17 +190,32 @@ namespace Dotmim.Sync.MySql
                 var nullString = column.AllowDBNull ? "NULL" : "NOT NULL";
 
                 // if we have a readonly column, we may have a computed one, so we need to allow null
-                if (column.ReadOnly)
+                if (column.IsReadOnly)
                     nullString = "NULL";
 
                 stringBuilder.AppendLine($"\t{empty}{columnName.QuotedString} {columnType} {identity} {nullString}");
                 empty = ",";
             }
+
+            if (this.tableDescription.MutableColumns.Any(mc => mc.IsAutoIncrement))
+                stringBuilder.Append("\t, KEY (");
+
+            empty = string.Empty;
+            foreach (var column in this.tableDescription.MutableColumns.Where(c => c.IsAutoIncrement))
+            {
+                var columnName = new ObjectNameParser(column.ColumnName.ToLowerInvariant(), "`", "`");
+                stringBuilder.Append($"{empty} {columnName}");
+                empty = ",";
+            }
+
+            if (this.tableDescription.MutableColumns.Any(mc => mc.IsAutoIncrement))
+                stringBuilder.AppendLine(")");
+
             stringBuilder.Append("\t,PRIMARY KEY (");
 
             int i = 0;
             // It seems we need to specify the increment column in first place
-            foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns.OrderByDescending(pk => pk.AutoIncrement))
+            foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns.OrderByDescending(pk => pk.IsAutoIncrement))
             {
                 var quotedColumnName = new ObjectNameParser(pkColumn.ColumnName.ToLowerInvariant(), "`", "`").QuotedObjectName;
 

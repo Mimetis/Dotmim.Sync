@@ -17,12 +17,12 @@ namespace Dotmim.Sync.Data.Surrogate
         public int DbType { get; set; }
         public bool AllowDBNull { get; set; } = true;
         public bool IsUnique { get; set; } = false;
-        public bool ReadOnly { get; set; } = false;
+        public bool IsReadOnly { get; set; } = false;
         public Int32 MaxLength { get;  set; }
         public int Ordinal { get;  set; }
         public bool PrecisionSpecified { get; set; }
         public bool ScaleSpecified { get; set; }
-        public Boolean AutoIncrement { get; set; }
+        public Boolean IsAutoIncrement { get; set; }
         public Byte Precision { get;  set; }
         public Byte Scale { get; set; }
         public String OriginalDbType { get; set; }
@@ -89,9 +89,9 @@ namespace Dotmim.Sync.Data.Surrogate
             this.AllowDBNull = dc.AllowDBNull;
             this.ColumnName = dc.ColumnName;
             this.TableName = dc.Table?.TableName;
-            this.ReadOnly = dc.ReadOnly;
+            this.IsReadOnly = dc.IsReadOnly;
             this.MaxLength = dc.MaxLength;
-            this.AutoIncrement = dc.AutoIncrement;
+            this.IsAutoIncrement = dc.IsAutoIncrement;
             this.Precision = dc.Precision;
             this.PrecisionSpecified = dc.PrecisionSpecified;
             this.Scale = dc.Scale;
@@ -118,9 +118,9 @@ namespace Dotmim.Sync.Data.Surrogate
                 dmColumn.DbType = (DbType)this.DbType;
 
             dmColumn.AllowDBNull = this.AllowDBNull;
-            dmColumn.ReadOnly = this.ReadOnly;
+            dmColumn.IsReadOnly = this.IsReadOnly;
             dmColumn.MaxLength = this.MaxLength;
-            dmColumn.AutoIncrement = this.AutoIncrement;
+            dmColumn.IsAutoIncrement = this.IsAutoIncrement;
             dmColumn.Precision = this.Precision;
             dmColumn.PrecisionSpecified = this.PrecisionSpecified;
             dmColumn.Scale = this.Scale;

@@ -62,7 +62,7 @@ namespace Dotmim.Sync.MySql
                 dbColumn.Precision = c["numeric_precision"] != DBNull.Value ? Convert.ToByte(c["numeric_precision"]) : (byte)0;
                 dbColumn.Scale = c["numeric_scale"] != DBNull.Value ? Convert.ToByte(c["numeric_scale"]) : (byte)0;
                 dbColumn.AllowDBNull = (String)c["is_nullable"] == "NO" ? false : true;
-                dbColumn.AutoIncrement = c["extra"] != DBNull.Value ? ((string)c["extra"]).Contains("auto increment") : false;
+                dbColumn.IsAutoIncrement = c["extra"] != DBNull.Value ? ((string)c["extra"]).Contains("auto increment") : false;
                 dbColumn.IsUnsigned = isUnsigned;
 
                 columns.Add(dbColumn);

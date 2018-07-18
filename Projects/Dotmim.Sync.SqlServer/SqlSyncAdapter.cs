@@ -123,7 +123,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             if (applyTable.Count <= 0)
                 return;
 
-            var lstMutableColumns = applyTable.Table.Columns.Where(c => !c.ReadOnly).ToList();
+            var lstMutableColumns = applyTable.Table.Columns.Where(c => !c.IsReadOnly).ToList();
 
             List<SqlDataRecord> records = new List<SqlDataRecord>(applyTable.Count);
             SqlMetaData[] metadatas = new SqlMetaData[lstMutableColumns.Count];
@@ -154,7 +154,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                     for (int i = 0; i < dmRow.ItemArray.Length; i++)
                     {
                         // check if it's readonly
-                        if (applyTable.Table.Columns[i].ReadOnly)
+                        if (applyTable.Table.Columns[i].IsReadOnly)
                             continue;
 
                         // Get the default value

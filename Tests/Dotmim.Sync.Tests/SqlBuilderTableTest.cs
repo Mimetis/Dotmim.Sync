@@ -53,7 +53,7 @@ namespace Dotmim.Sync.Test
 
             DmColumn id = new DmColumn<Int32>("Id");
             id.AllowDBNull = false;
-            id.AutoIncrement = true;
+            id.IsAutoIncrement = true;
             productsTable.Columns.Add(id);
 
             DmColumn fkClientId = new DmColumn<Guid>("clientId");

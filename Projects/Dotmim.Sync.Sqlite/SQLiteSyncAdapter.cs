@@ -125,7 +125,7 @@ namespace Dotmim.Sync.Sqlite
         {
             DbParameter p;
 
-            foreach (DmColumn column in this.TableDescription.Columns.Where(c => !c.ReadOnly))
+            foreach (DmColumn column in this.TableDescription.Columns.Where(c => !c.IsReadOnly))
             {
                 ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
                 p = command.CreateParameter();
@@ -151,7 +151,7 @@ namespace Dotmim.Sync.Sqlite
         {
             DbParameter p;
 
-            foreach (DmColumn column in this.TableDescription.PrimaryKey.Columns.Where(c => !c.ReadOnly))
+            foreach (DmColumn column in this.TableDescription.PrimaryKey.Columns.Where(c => !c.IsReadOnly))
             {
                 ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
                 p = command.CreateParameter();
@@ -181,7 +181,7 @@ namespace Dotmim.Sync.Sqlite
         {
             DbParameter p;
 
-            foreach (DmColumn column in this.TableDescription.Columns.Where(c => !c.ReadOnly))
+            foreach (DmColumn column in this.TableDescription.Columns.Where(c => !c.IsReadOnly))
             {
                 ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
                 p = command.CreateParameter();
@@ -196,7 +196,7 @@ namespace Dotmim.Sync.Sqlite
         {
             DbParameter p;
 
-            foreach (DmColumn column in this.TableDescription.PrimaryKey.Columns.Where(c => !c.ReadOnly))
+            foreach (DmColumn column in this.TableDescription.PrimaryKey.Columns.Where(c => !c.IsReadOnly))
             {
                 ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
                 p = command.CreateParameter();
@@ -236,7 +236,7 @@ namespace Dotmim.Sync.Sqlite
         {
             DbParameter p;
 
-            foreach (DmColumn column in this.TableDescription.PrimaryKey.Columns.Where(c => !c.ReadOnly))
+            foreach (DmColumn column in this.TableDescription.PrimaryKey.Columns.Where(c => !c.IsReadOnly))
             {
                 ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
                 p = command.CreateParameter();
@@ -261,7 +261,7 @@ namespace Dotmim.Sync.Sqlite
         {
             DbParameter p;
 
-            foreach (DmColumn column in this.TableDescription.PrimaryKey.Columns.Where(c => !c.ReadOnly))
+            foreach (DmColumn column in this.TableDescription.PrimaryKey.Columns.Where(c => !c.IsReadOnly))
             {
                 ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
                 p = command.CreateParameter();
