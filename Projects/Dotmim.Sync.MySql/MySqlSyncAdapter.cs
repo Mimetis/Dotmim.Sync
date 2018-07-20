@@ -124,7 +124,7 @@ namespace Dotmim.Sync.MySql
             {
                 ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
                 p = command.CreateParameter();
-                p.ParameterName = $"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{quotedColumn.UnquotedStringWithUnderScore}";
+                p.ParameterName = $"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{quotedColumn.ObjectNameNormalized}";
                 p.DbType = column.DbType;
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
@@ -150,7 +150,7 @@ namespace Dotmim.Sync.MySql
             {
                 ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
                 p = command.CreateParameter();
-                p.ParameterName = $"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{quotedColumn.UnquotedStringWithUnderScore}";
+                p.ParameterName = $"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{quotedColumn.ObjectNameNormalized}";
                 p.DbType = column.DbType;
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
@@ -185,7 +185,7 @@ namespace Dotmim.Sync.MySql
             {
                 ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
                 p = command.CreateParameter();
-                p.ParameterName = $"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{quotedColumn.UnquotedStringWithUnderScore}";
+                p.ParameterName = $"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{quotedColumn.ObjectNameNormalized}";
                 p.DbType = column.DbType;
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
@@ -200,7 +200,7 @@ namespace Dotmim.Sync.MySql
             {
                 ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
                 p = command.CreateParameter();
-                p.ParameterName = $"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{quotedColumn.UnquotedStringWithUnderScore}";
+                p.ParameterName = $"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{quotedColumn.ObjectNameNormalized}";
                 p.DbType = column.DbType;
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
@@ -235,7 +235,7 @@ namespace Dotmim.Sync.MySql
             {
                 ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
                 p = command.CreateParameter();
-                p.ParameterName = $"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{quotedColumn.UnquotedStringWithUnderScore}";
+                p.ParameterName = $"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{quotedColumn.ObjectNameNormalized}";
                 p.DbType = column.DbType;
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
@@ -260,7 +260,7 @@ namespace Dotmim.Sync.MySql
             {
                 ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
                 p = command.CreateParameter();
-                p.ParameterName = $"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{quotedColumn.UnquotedStringWithUnderScore}";
+                p.ParameterName = $"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{quotedColumn.ObjectNameNormalized}";
                 p.DbType = column.DbType;
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
@@ -281,7 +281,7 @@ namespace Dotmim.Sync.MySql
             {
                 ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
                 p = command.CreateParameter();
-                p.ParameterName = $"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{quotedColumn.UnquotedStringWithUnderScore}";
+                p.ParameterName = $"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{quotedColumn.ObjectNameNormalized}";
                 p.DbType = column.DbType;
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);

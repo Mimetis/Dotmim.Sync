@@ -67,20 +67,20 @@ namespace Dotmim.Sync.MySql
             var pref = this.TableDescription.TrackingTablesPrefix != null ?  this.TableDescription.TrackingTablesPrefix.ToLowerInvariant() : "";
             var suf = this.TableDescription.TrackingTablesSuffix != null ? this.TableDescription.TrackingTablesSuffix.ToLowerInvariant() : "";
 
-            this.AddName(DbCommandType.InsertTrigger, string.Format(insertTriggerName, tableName.UnquotedStringWithUnderScore));
-            this.AddName(DbCommandType.UpdateTrigger, string.Format(updateTriggerName, tableName.UnquotedStringWithUnderScore));
-            this.AddName(DbCommandType.DeleteTrigger, string.Format(deleteTriggerName, tableName.UnquotedStringWithUnderScore));
+            this.AddName(DbCommandType.InsertTrigger, string.Format(insertTriggerName, tableName.ObjectNameNormalized));
+            this.AddName(DbCommandType.UpdateTrigger, string.Format(updateTriggerName, tableName.ObjectNameNormalized));
+            this.AddName(DbCommandType.DeleteTrigger, string.Format(deleteTriggerName, tableName.ObjectNameNormalized));
 
-            this.AddName(DbCommandType.SelectChanges, string.Format(selectChangesProcName, $"{pref}{tableName.UnquotedStringWithUnderScore}{suf}"));
-            this.AddName(DbCommandType.SelectChangesWitFilters, string.Format(selectChangesProcNameWithFilters, $"{pref}{tableName.UnquotedStringWithUnderScore}{suf}", "{0}"));
-            this.AddName(DbCommandType.SelectRow, string.Format(selectRowProcName, $"{pref}{tableName.UnquotedStringWithUnderScore}{suf}"));
-            this.AddName(DbCommandType.InsertRow, string.Format(insertProcName, $"{pref}{tableName.UnquotedStringWithUnderScore}{suf}"));
-            this.AddName(DbCommandType.UpdateRow, string.Format(updateProcName, $"{pref}{tableName.UnquotedStringWithUnderScore}{suf}"));
-            this.AddName(DbCommandType.DeleteRow, string.Format(deleteProcName, $"{pref}{tableName.UnquotedStringWithUnderScore}{suf}"));
-            this.AddName(DbCommandType.InsertMetadata, string.Format(insertMetadataProcName, $"{pref}{tableName.UnquotedStringWithUnderScore}{suf}"));
-            this.AddName(DbCommandType.UpdateMetadata, string.Format(updateMetadataProcName, $"{pref}{tableName.UnquotedStringWithUnderScore}{suf}"));
-            this.AddName(DbCommandType.DeleteMetadata, string.Format(deleteMetadataProcName, $"{pref}{tableName.UnquotedStringWithUnderScore}{suf}"));
-            this.AddName(DbCommandType.Reset, string.Format(resetProcName, $"{pref}{tableName.UnquotedStringWithUnderScore}{suf}"));
+            this.AddName(DbCommandType.SelectChanges, string.Format(selectChangesProcName, $"{pref}{tableName.ObjectNameNormalized}{suf}"));
+            this.AddName(DbCommandType.SelectChangesWitFilters, string.Format(selectChangesProcNameWithFilters, $"{pref}{tableName.ObjectNameNormalized}{suf}", "{0}"));
+            this.AddName(DbCommandType.SelectRow, string.Format(selectRowProcName, $"{pref}{tableName.ObjectNameNormalized}{suf}"));
+            this.AddName(DbCommandType.InsertRow, string.Format(insertProcName, $"{pref}{tableName.ObjectNameNormalized}{suf}"));
+            this.AddName(DbCommandType.UpdateRow, string.Format(updateProcName, $"{pref}{tableName.ObjectNameNormalized}{suf}"));
+            this.AddName(DbCommandType.DeleteRow, string.Format(deleteProcName, $"{pref}{tableName.ObjectNameNormalized}{suf}"));
+            this.AddName(DbCommandType.InsertMetadata, string.Format(insertMetadataProcName, $"{pref}{tableName.ObjectNameNormalized}{suf}"));
+            this.AddName(DbCommandType.UpdateMetadata, string.Format(updateMetadataProcName, $"{pref}{tableName.ObjectNameNormalized}{suf}"));
+            this.AddName(DbCommandType.DeleteMetadata, string.Format(deleteMetadataProcName, $"{pref}{tableName.ObjectNameNormalized}{suf}"));
+            this.AddName(DbCommandType.Reset, string.Format(resetProcName, $"{pref}{tableName.ObjectNameNormalized}{suf}"));
 
             //// Select changes
             //this.CreateSelectChangesCommandText();
@@ -108,7 +108,7 @@ namespace Dotmim.Sync.MySql
             //stringBuilder.AppendLine($"AND (@ts <= @sync_min_timestamp OR @sync_force_write = 1);");
 
             StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"UPDATE {tableName.QuotedString}");
+            stringBuilder.AppendLine($"UPDATE {tableName.FullQuotedString}");
             stringBuilder.Append($"SET {MySqlManagementUtils.CommaSeparatedUpdateFromParameters(this.TableDescription)}");
             stringBuilder.Append($"WHERE {MySqlManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKey.Columns, "")}");
             stringBuilder.AppendLine($" AND ((SELECT `timestamp` FROM {trackingName.QuotedObjectName} ");
@@ -123,7 +123,7 @@ namespace Dotmim.Sync.MySql
         {
             StringBuilder stringBuilder = new StringBuilder();
 
-            stringBuilder.AppendLine($"UPDATE {trackingName.QuotedString}");
+            stringBuilder.AppendLine($"UPDATE {trackingName.FullQuotedString}");
             stringBuilder.AppendLine($"SET `update_scope_id` = @update_scope_id, ");
             stringBuilder.AppendLine($"\t `update_timestamp` = @update_timestamp, ");
             stringBuilder.AppendLine($"\t `sync_row_is_tombstone` = @sync_row_is_tombstone, ");
@@ -140,14 +140,14 @@ namespace Dotmim.Sync.MySql
             StringBuilder stringBuilderArguments = new StringBuilder();
             StringBuilder stringBuilderParameters = new StringBuilder();
 
-            stringBuilder.AppendLine($"\tINSERT INTO {trackingName.QuotedString}");
+            stringBuilder.AppendLine($"\tINSERT INTO {trackingName.FullQuotedString}");
 
             string empty = string.Empty;
             foreach (var pkColumn in this.TableDescription.PrimaryKey.Columns)
             {
                 ObjectNameParser columnName = new ObjectNameParser(pkColumn.ColumnName, "`", "`");
-                stringBuilderArguments.Append(string.Concat(empty, columnName.QuotedString.ToLowerInvariant()));
-                stringBuilderParameters.Append(string.Concat(empty, $"@{columnName.UnquotedString.ToLowerInvariant()}"));
+                stringBuilderArguments.Append(string.Concat(empty, columnName.FullQuotedString.ToLowerInvariant()));
+                stringBuilderParameters.Append(string.Concat(empty, $"@{columnName.FullUnquotedString.ToLowerInvariant()}"));
                 empty = ", ";
             }
             stringBuilder.Append($"\t({stringBuilderArguments.ToString()}, ");
@@ -179,11 +179,11 @@ namespace Dotmim.Sync.MySql
             foreach (var mutableColumn in this.TableDescription.Columns.Where(c => !c.IsReadOnly))
             {
                 ObjectNameParser columnName = new ObjectNameParser(mutableColumn.ColumnName, "`", "`");
-                stringBuilderArguments.Append(string.Concat(empty, columnName.QuotedString.ToLowerInvariant()));
-                stringBuilderParameters.Append(string.Concat(empty, $"@{columnName.UnquotedString.ToLowerInvariant()}"));
+                stringBuilderArguments.Append(string.Concat(empty, columnName.FullQuotedString.ToLowerInvariant()));
+                stringBuilderParameters.Append(string.Concat(empty, $"@{columnName.FullUnquotedString.ToLowerInvariant()}"));
                 empty = ", ";
             }
-            stringBuilder.AppendLine($"\tINSERT INTO {tableName.QuotedString}");
+            stringBuilder.AppendLine($"\tINSERT INTO {tableName.FullQuotedString}");
             stringBuilder.AppendLine($"\t({stringBuilderArguments.ToString()})");
             stringBuilder.AppendLine($"\tVALUES ({stringBuilderParameters.ToString()});");
 
@@ -194,7 +194,7 @@ namespace Dotmim.Sync.MySql
         {
 
             StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"DELETE FROM {trackingName.QuotedString} ");
+            stringBuilder.AppendLine($"DELETE FROM {trackingName.FullQuotedString} ");
             stringBuilder.Append($"WHERE ");
             stringBuilder.AppendLine(MySqlManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKey.Columns, ""));
             stringBuilder.Append(";");
@@ -205,7 +205,7 @@ namespace Dotmim.Sync.MySql
         {
             StringBuilder stringBuilder = new StringBuilder();
 
-            stringBuilder.AppendLine($"DELETE FROM {tableName.QuotedString} ");
+            stringBuilder.AppendLine($"DELETE FROM {tableName.FullQuotedString} ");
             stringBuilder.Append($"WHERE {MySqlManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKey.Columns, "")}");
             stringBuilder.AppendLine($" AND ((SELECT `timestamp` FROM {trackingName.QuotedObjectName} ");
             stringBuilder.AppendLine($"  WHERE {MySqlManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKey.Columns, tableName.QuotedObjectName, trackingName.QuotedObjectName)}");
@@ -223,14 +223,14 @@ namespace Dotmim.Sync.MySql
             foreach (var pkColumn in this.TableDescription.PrimaryKey.Columns)
             {
                 ObjectNameParser pkColumnName = new ObjectNameParser(pkColumn.ColumnName, "`", "`");
-                stringBuilder.AppendLine($"\t`side`.{pkColumnName.QuotedString.ToLowerInvariant()}, ");
-                stringBuilder1.Append($"{empty}`side`.{pkColumnName.QuotedString.ToLowerInvariant()} = @{pkColumnName.UnquotedString.ToLowerInvariant()}");
+                stringBuilder.AppendLine($"\t`side`.{pkColumnName.FullQuotedString.ToLowerInvariant()}, ");
+                stringBuilder1.Append($"{empty}`side`.{pkColumnName.FullQuotedString.ToLowerInvariant()} = @{pkColumnName.FullUnquotedString.ToLowerInvariant()}");
                 empty = " AND ";
             }
             foreach (DmColumn mutableColumn in this.TableDescription.MutableColumns)
             {
                 ObjectNameParser nonPkColumnName = new ObjectNameParser(mutableColumn.ColumnName, "`", "`");
-                stringBuilder.AppendLine($"\t`base`.{nonPkColumnName.QuotedString}, ");
+                stringBuilder.AppendLine($"\t`base`.{nonPkColumnName.FullQuotedString}, ");
             }
             stringBuilder.AppendLine("\t`side`.`sync_row_is_tombstone`,");
             stringBuilder.AppendLine("\t`side`.`create_scope_id`,");
@@ -238,14 +238,14 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine("\t`side`.`update_scope_id`,");
             stringBuilder.AppendLine("\t`side`.`update_timestamp`");
 
-            stringBuilder.AppendLine($"FROM {trackingName.QuotedString} `side` ");
-            stringBuilder.AppendLine($"LEFT JOIN {tableName.QuotedString} `base` ON ");
+            stringBuilder.AppendLine($"FROM {trackingName.FullQuotedString} `side` ");
+            stringBuilder.AppendLine($"LEFT JOIN {tableName.FullQuotedString} `base` ON ");
 
             string str = string.Empty;
             foreach (var pkColumn in this.TableDescription.PrimaryKey.Columns)
             {
                 ObjectNameParser pkColumnName = new ObjectNameParser(pkColumn.ColumnName, "`", "`");
-                stringBuilder.Append($"{str}`base`.{pkColumnName.QuotedString.ToLowerInvariant()} = `side`.{pkColumnName.QuotedString.ToLowerInvariant()}");
+                stringBuilder.Append($"{str}`base`.{pkColumnName.FullQuotedString.ToLowerInvariant()} = `side`.{pkColumnName.FullQuotedString.ToLowerInvariant()}");
                 str = " AND ";
             }
             stringBuilder.AppendLine();
@@ -260,27 +260,27 @@ namespace Dotmim.Sync.MySql
             foreach (var pkColumn in this.TableDescription.PrimaryKey.Columns)
             {
                 var pkColumnName = new ObjectNameParser(pkColumn.ColumnName, "`", "`");
-                stringBuilder.AppendLine($"\t`side`.{pkColumnName.QuotedString.ToLowerInvariant()}, ");
+                stringBuilder.AppendLine($"\t`side`.{pkColumnName.FullQuotedString.ToLowerInvariant()}, ");
             }
             foreach (var mutableColumn in this.TableDescription.MutableColumns)
             {
                 var columnName = new ObjectNameParser(mutableColumn.ColumnName, "`", "`");
-                stringBuilder.AppendLine($"\t`base`.{columnName.QuotedString.ToLowerInvariant()}, ");
+                stringBuilder.AppendLine($"\t`base`.{columnName.FullQuotedString.ToLowerInvariant()}, ");
             }
             stringBuilder.AppendLine($"\t`side`.`sync_row_is_tombstone`, ");
             stringBuilder.AppendLine($"\t`side`.`create_scope_id`, ");
             stringBuilder.AppendLine($"\t`side`.`create_timestamp`, ");
             stringBuilder.AppendLine($"\t`side`.`update_scope_id`, ");
             stringBuilder.AppendLine($"\t`side`.`update_timestamp` ");
-            stringBuilder.AppendLine($"FROM {trackingName.QuotedString} `side`");
-            stringBuilder.AppendLine($"LEFT JOIN {tableName.QuotedString} `base`");
+            stringBuilder.AppendLine($"FROM {trackingName.FullQuotedString} `side`");
+            stringBuilder.AppendLine($"LEFT JOIN {tableName.FullQuotedString} `base`");
             stringBuilder.Append($"ON ");
 
             string empty = "";
             foreach (var pkColumn in this.TableDescription.PrimaryKey.Columns)
             {
                 var pkColumnName = new ObjectNameParser(pkColumn.ColumnName, "`", "`");
-                stringBuilder.Append($"{empty}`base`.{pkColumnName.QuotedString.ToLowerInvariant()} = `side`.{pkColumnName.QuotedString.ToLowerInvariant()}");
+                stringBuilder.Append($"{empty}`base`.{pkColumnName.FullQuotedString.ToLowerInvariant()} = `side`.{pkColumnName.FullQuotedString.ToLowerInvariant()}");
                 empty = " AND ";
             }
             stringBuilder.AppendLine();

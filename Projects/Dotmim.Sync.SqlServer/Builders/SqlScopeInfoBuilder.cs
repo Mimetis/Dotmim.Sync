@@ -45,7 +45,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                         [scope_last_sync_timestamp] [bigint] NULL,
                         [scope_last_sync_duration] [bigint] NULL,
                         [scope_last_sync] [datetime] NULL
-                        CONSTRAINT [PK_{scopeTableName.UnquotedStringWithUnderScore}] PRIMARY KEY CLUSTERED ([sync_scope_id] ASC)
+                        CONSTRAINT [PK_{scopeTableName.ObjectNameNormalized}] PRIMARY KEY CLUSTERED ([sync_scope_id] ASC)
                         )";
                 command.ExecuteNonQuery();
             }
@@ -333,7 +333,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                 command.CommandText =
                     $@"IF EXISTS (SELECT t.name FROM sys.tables t 
                             JOIN sys.schemas s ON s.schema_id = t.schema_id 
-                            WHERE t.name = N'{this.scopeTableName.UnquotedStringWithUnderScore}')
+                            WHERE t.name = N'{this.scopeTableName.ObjectNameNormalized}')
                      SELECT 1 
                      ELSE
                      SELECT 0";

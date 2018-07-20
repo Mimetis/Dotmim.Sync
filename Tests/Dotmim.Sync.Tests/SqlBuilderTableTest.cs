@@ -125,7 +125,7 @@ namespace Dotmim.Sync.Test
                                 $"Order by col.column_id";
 
                 ObjectNameParser tableNameParser = new ObjectNameParser(table.TableName);
-                DmTable dmTable = new DmTable(tableNameParser.UnquotedStringWithUnderScore);
+                DmTable dmTable = new DmTable(tableNameParser.ObjectNameNormalized);
                 using (SqlCommand sqlCommand = new SqlCommand(commandColumn, connection))
                 {
                     sqlCommand.Parameters.AddWithValue("@tableName", tableNameParser.ObjectName);
@@ -239,7 +239,7 @@ namespace Dotmim.Sync.Test
                                 $"Order by col.column_id";
 
                 ObjectNameParser tableNameParser = new ObjectNameParser(table.TableName + "_tracking");
-                DmTable dmTable = new DmTable(tableNameParser.UnquotedStringWithUnderScore);
+                DmTable dmTable = new DmTable(tableNameParser.ObjectNameNormalized);
                 using (SqlCommand sqlCommand = new SqlCommand(commandColumn, connection))
                 {
                     sqlCommand.Parameters.AddWithValue("@tableName", tableNameParser.ObjectName);

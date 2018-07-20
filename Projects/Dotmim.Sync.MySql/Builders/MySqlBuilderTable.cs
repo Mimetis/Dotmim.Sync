@@ -45,7 +45,7 @@ namespace Dotmim.Sync.MySql
 
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.Append("ALTER TABLE ");
-            stringBuilder.AppendLine(parentTableName.QuotedString);
+            stringBuilder.AppendLine(parentTableName.FullQuotedString);
             stringBuilder.Append("ADD CONSTRAINT ");
             stringBuilder.AppendLine(relationName);
             stringBuilder.Append("FOREIGN KEY (");
@@ -54,17 +54,17 @@ namespace Dotmim.Sync.MySql
             {
                 var parentColumnName = new ObjectNameParser(parentdColumn.ColumnName.ToLowerInvariant(), "`", "`");
 
-                stringBuilder.Append($"{empty} {parentColumnName.QuotedString}");
+                stringBuilder.Append($"{empty} {parentColumnName.FullQuotedString}");
                 empty = ", ";
             }
             stringBuilder.AppendLine(" )");
             stringBuilder.Append("REFERENCES ");
-            stringBuilder.Append(childTableName.QuotedString).Append(" (");
+            stringBuilder.Append(childTableName.FullQuotedString).Append(" (");
             empty = string.Empty;
             foreach (var childColumn in foreignKey.ChildColumns)
             {
                 var childColumnName = new ObjectNameParser(childColumn.ColumnName.ToLowerInvariant(), "`", "`");
-                stringBuilder.Append($"{empty} {childColumnName.QuotedString}");
+                stringBuilder.Append($"{empty} {childColumnName.FullQuotedString}");
             }
             stringBuilder.Append(" ) ");
             sqlCommand.CommandText = stringBuilder.ToString();
@@ -167,7 +167,7 @@ namespace Dotmim.Sync.MySql
         {
             MySqlCommand command = new MySqlCommand();
 
-            StringBuilder stringBuilder = new StringBuilder($"CREATE TABLE IF NOT EXISTS {tableName.QuotedString} (");
+            StringBuilder stringBuilder = new StringBuilder($"CREATE TABLE IF NOT EXISTS {tableName.FullQuotedString} (");
             string empty = string.Empty;
             stringBuilder.AppendLine();
             foreach (var column in this.tableDescription.Columns)
@@ -193,7 +193,7 @@ namespace Dotmim.Sync.MySql
                 if (column.IsReadOnly)
                     nullString = "NULL";
 
-                stringBuilder.AppendLine($"\t{empty}{columnName.QuotedString} {columnType} {identity} {nullString}");
+                stringBuilder.AppendLine($"\t{empty}{columnName.FullQuotedString} {columnType} {identity} {nullString}");
                 empty = ",";
             }
 
@@ -277,7 +277,7 @@ namespace Dotmim.Sync.MySql
         public string CreateTableScriptText()
         {
             StringBuilder stringBuilder = new StringBuilder();
-            var tableNameScript = $"Create Table {tableName.QuotedString}";
+            var tableNameScript = $"Create Table {tableName.FullQuotedString}";
             var tableScript = BuildTableCommand().CommandText;
             stringBuilder.Append(MySqlBuilder.WrapScriptTextWithComments(tableScript, tableNameScript));
             stringBuilder.AppendLine();
@@ -336,7 +336,7 @@ namespace Dotmim.Sync.MySql
         /// </summary>
         public bool NeedToCreateTable()
         {
-            return !MySqlManagementUtils.TableExists(connection, transaction, tableName.UnquotedString);
+            return !MySqlManagementUtils.TableExists(connection, transaction, tableName.FullUnquotedString);
 
         }
 
@@ -357,7 +357,7 @@ namespace Dotmim.Sync.MySql
 
         public void DropTable()
         {
-            var commandText = $"drop table if exists {tableName.QuotedString}";
+            var commandText = $"drop table if exists {tableName.FullQuotedString}";
 
             bool alreadyOpened = connection.State == ConnectionState.Open;
 
@@ -390,9 +390,9 @@ namespace Dotmim.Sync.MySql
 
         public string DropTableScriptText()
         {
-            var commandText = $"drop table if exists {tableName.QuotedString}";
+            var commandText = $"drop table if exists {tableName.FullQuotedString}";
 
-            var str1 = $"Drop table {tableName.QuotedString}";
+            var str1 = $"Drop table {tableName.FullQuotedString}";
             return MySqlBuilder.WrapScriptTextWithComments(commandText, str1);
         }
     }

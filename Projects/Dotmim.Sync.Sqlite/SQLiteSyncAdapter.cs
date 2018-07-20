@@ -129,7 +129,7 @@ namespace Dotmim.Sync.Sqlite
             {
                 ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
                 p = command.CreateParameter();
-                p.ParameterName = $"@{quotedColumn.UnquotedStringWithUnderScore}";
+                p.ParameterName = $"@{quotedColumn.ObjectNameNormalized}";
                 p.DbType = GetValidDbType(column.DbType);
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
@@ -155,7 +155,7 @@ namespace Dotmim.Sync.Sqlite
             {
                 ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
                 p = command.CreateParameter();
-                p.ParameterName = $"@{quotedColumn.UnquotedStringWithUnderScore}";
+                p.ParameterName = $"@{quotedColumn.ObjectNameNormalized}";
                 p.DbType = GetValidDbType(column.DbType);
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
@@ -185,7 +185,7 @@ namespace Dotmim.Sync.Sqlite
             {
                 ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
                 p = command.CreateParameter();
-                p.ParameterName = $"@{quotedColumn.UnquotedStringWithUnderScore}";
+                p.ParameterName = $"@{quotedColumn.ObjectNameNormalized}";
                 p.DbType = GetValidDbType(column.DbType);
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
@@ -200,7 +200,7 @@ namespace Dotmim.Sync.Sqlite
             {
                 ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
                 p = command.CreateParameter();
-                p.ParameterName = $"@{quotedColumn.UnquotedStringWithUnderScore}";
+                p.ParameterName = $"@{quotedColumn.ObjectNameNormalized}";
                 p.DbType = column.DbType;
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
@@ -240,7 +240,7 @@ namespace Dotmim.Sync.Sqlite
             {
                 ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
                 p = command.CreateParameter();
-                p.ParameterName = $"@{quotedColumn.UnquotedStringWithUnderScore}";
+                p.ParameterName = $"@{quotedColumn.ObjectNameNormalized}";
                 p.DbType = GetValidDbType(column.DbType);
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
@@ -265,7 +265,7 @@ namespace Dotmim.Sync.Sqlite
             {
                 ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
                 p = command.CreateParameter();
-                p.ParameterName = $"@{quotedColumn.UnquotedStringWithUnderScore}";
+                p.ParameterName = $"@{quotedColumn.ObjectNameNormalized}";
                 p.DbType = GetValidDbType(column.DbType);
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
