@@ -25,10 +25,22 @@ namespace Dotmim.Sync.Builders
         public string SchemaName { get; private set; }
         public string DatabaseName { get; private set; }
         public string ObjectName { get; private set; }
+
+        /// <summary>
+        /// Get the Object name normalized. Replacing spaces and dot with underscore
+        /// </summary>
+        public string ObjectNameNormalized
+        {
+            get
+            {
+                return this.ObjectName.Replace(" ", "_").Replace(".", "_");
+
+            }
+        }
         public string QuotedDatabaseName { get; private set; }
         public string QuotedObjectName { get; private set; }
         public string QuotedSchemaName { get; private set; }
-        public string QuotedString
+        public string FullQuotedString
         {
             get
             {
@@ -58,7 +70,7 @@ namespace Dotmim.Sync.Builders
                 return stringBuilder.ToString();
             }
         }
-        public string UnquotedString
+        public string FullUnquotedString
         {
             get
             {
@@ -84,7 +96,7 @@ namespace Dotmim.Sync.Builders
                 return stringBuilder.ToString();
             }
         }
-        public string UnquotedStringWithUnderScore
+        public string FullUnquotedStringWithUnderScore
         {
             get
             {
@@ -173,10 +185,11 @@ namespace Dotmim.Sync.Builders
                 case 1:
                     {
                         this.ObjectName = strMatches[0];
+
                         if (this.ObjectName.StartsWith(this.QuotePrefix))
                             this.ObjectName = this.ObjectName.Substring(1);
                         if (this.ObjectName.EndsWith(this.QuotePrefix))
-                            this.ObjectName = this.ObjectName.Substring(0, this.ObjectName.Length -1);
+                            this.ObjectName = this.ObjectName.Substring(0, this.ObjectName.Length - 1);
 
                         this.QuotedObjectName = string.Concat(this.QuotePrefix, this.ObjectName, this.QuoteSuffix);
                         return;
@@ -231,7 +244,7 @@ namespace Dotmim.Sync.Builders
 
         public override string ToString()
         {
-            return this.QuotedString;
+            return this.FullQuotedString;
         }
     }
 }

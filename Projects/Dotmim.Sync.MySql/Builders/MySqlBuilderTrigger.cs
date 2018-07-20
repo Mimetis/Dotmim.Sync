@@ -40,7 +40,7 @@ namespace Dotmim.Sync.MySql
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("BEGIN");
-            stringBuilder.AppendLine($"UPDATE {trackingName.QuotedString} ");
+            stringBuilder.AppendLine($"UPDATE {trackingName.FullQuotedString} ");
             stringBuilder.AppendLine("SET `sync_row_is_tombstone` = 1");
             stringBuilder.AppendLine("\t,`update_scope_id` = NULL -- since the update if from local, it's a NULL");
             stringBuilder.AppendLine($"\t,`update_timestamp` = {MySqlObjectNames.TimestampValue}");
@@ -58,14 +58,14 @@ namespace Dotmim.Sync.MySql
 
                     ObjectNameParser columnName = new ObjectNameParser(filterColumn.ColumnName.ToLowerInvariant(), "`", "`");
 
-                    stringBuilder.AppendLine($"\t,{columnName.QuotedString} = `d`.{columnName.QuotedString}");
+                    stringBuilder.AppendLine($"\t,{columnName.FullQuotedString} = `d`.{columnName.FullQuotedString}");
 
                 }
                 stringBuilder.AppendLine();
             }
 
             stringBuilder.Append($"WHERE ");
-            stringBuilder.Append(MySqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, trackingName.QuotedString, "old"));
+            stringBuilder.Append(MySqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, trackingName.FullQuotedString, "old"));
             stringBuilder.AppendLine(";");
             stringBuilder.AppendLine("END;");
             return stringBuilder.ToString();
@@ -86,7 +86,7 @@ namespace Dotmim.Sync.MySql
 
                     var delTriggerName = this.mySqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger);
                     StringBuilder createTrigger = new StringBuilder();
-                    createTrigger.AppendLine($"CREATE TRIGGER {delTriggerName} AFTER DELETE ON {tableName.QuotedString} FOR EACH ROW ");
+                    createTrigger.AppendLine($"CREATE TRIGGER {delTriggerName} AFTER DELETE ON {tableName.FullQuotedString} FOR EACH ROW ");
                     createTrigger.AppendLine();
                     createTrigger.AppendLine(this.DeleteTriggerBodyText());
 
@@ -112,13 +112,13 @@ namespace Dotmim.Sync.MySql
         public string CreateDeleteTriggerScriptText()
         {
 
-            var delTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger), tableName.UnquotedStringWithUnderScore);
+            var delTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger), tableName.ObjectNameNormalized);
             StringBuilder createTrigger = new StringBuilder();
-            createTrigger.AppendLine($"CREATE TRIGGER {delTriggerName} AFTER DELETE ON {tableName.QuotedString} FOR EACH ROW ");
+            createTrigger.AppendLine($"CREATE TRIGGER {delTriggerName} AFTER DELETE ON {tableName.FullQuotedString} FOR EACH ROW ");
             createTrigger.AppendLine();
             createTrigger.AppendLine(this.DeleteTriggerBodyText());
 
-            string str = $"Delete Trigger for table {tableName.QuotedString}";
+            string str = $"Delete Trigger for table {tableName.FullQuotedString}";
             return MySqlBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
         }
         public void AlterDeleteTrigger()
@@ -142,7 +142,7 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine("-- If row was deleted before, it already exists, so just make an update");
             stringBuilder.AppendLine("BEGIN");
 
-            stringBuilder.AppendLine($"\tINSERT INTO {trackingName.QuotedString} (");
+            stringBuilder.AppendLine($"\tINSERT INTO {trackingName.FullQuotedString} (");
 
             StringBuilder stringBuilderArguments = new StringBuilder();
             StringBuilder stringBuilderArguments2 = new StringBuilder();
@@ -153,9 +153,9 @@ namespace Dotmim.Sync.MySql
             foreach (var mutableColumn in this.tableDescription.PrimaryKey.Columns.Where(c => !c.IsReadOnly))
             {
                 ObjectNameParser columnName = new ObjectNameParser(mutableColumn.ColumnName.ToLowerInvariant(), "`", "`");
-                stringBuilderArguments.AppendLine($"\t\t{argComma}{columnName.QuotedString}");
-                stringBuilderArguments2.AppendLine($"\t\t{argComma}new.{columnName.QuotedString}");
-                stringPkAreNull.Append($"{argAnd}{trackingName.QuotedString}.{columnName.QuotedString} IS NULL");
+                stringBuilderArguments.AppendLine($"\t\t{argComma}{columnName.FullQuotedString}");
+                stringBuilderArguments2.AppendLine($"\t\t{argComma}new.{columnName.FullQuotedString}");
+                stringPkAreNull.Append($"{argAnd}{trackingName.FullQuotedString}.{columnName.FullQuotedString} IS NULL");
                 argComma = ",";
                 argAnd = " AND ";
             }
@@ -180,7 +180,7 @@ namespace Dotmim.Sync.MySql
                         continue;
 
                     ObjectNameParser columnName = new ObjectNameParser(filterColumn.ColumnName.ToLowerInvariant(), "`", "`");
-                    filterColumnsString.AppendLine($"\t,{columnName.QuotedString}");
+                    filterColumnsString.AppendLine($"\t,{columnName.FullQuotedString}");
                 }
                 stringBuilder.AppendLine(filterColumnsString.ToString());
             }
@@ -231,10 +231,10 @@ namespace Dotmim.Sync.MySql
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
 
-                    var insTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.InsertTrigger), tableName.UnquotedStringWithUnderScore);
+                    var insTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.InsertTrigger), tableName.ObjectNameNormalized);
 
                     StringBuilder createTrigger = new StringBuilder();
-                    createTrigger.AppendLine($"CREATE TRIGGER {insTriggerName} AFTER INSERT ON {tableName.QuotedString} FOR EACH ROW ");
+                    createTrigger.AppendLine($"CREATE TRIGGER {insTriggerName} AFTER INSERT ON {tableName.FullQuotedString} FOR EACH ROW ");
                     createTrigger.AppendLine();
                     createTrigger.AppendLine(this.InsertTriggerBodyText());
 
@@ -259,13 +259,13 @@ namespace Dotmim.Sync.MySql
         }
         public string CreateInsertTriggerScriptText()
         {
-            var insTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.InsertTrigger), tableName.UnquotedStringWithUnderScore);
+            var insTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.InsertTrigger), tableName.ObjectNameNormalized);
             StringBuilder createTrigger = new StringBuilder();
-            createTrigger.AppendLine($"CREATE TRIGGER {insTriggerName} AFTER INSERT ON {tableName.QuotedString} FOR EACH ROW ");
+            createTrigger.AppendLine($"CREATE TRIGGER {insTriggerName} AFTER INSERT ON {tableName.FullQuotedString} FOR EACH ROW ");
             createTrigger.AppendLine();
             createTrigger.AppendLine(this.InsertTriggerBodyText());
 
-            string str = $"Insert Trigger for table {tableName.QuotedString}";
+            string str = $"Insert Trigger for table {tableName.FullQuotedString}";
             return MySqlBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
 
         }
@@ -284,7 +284,7 @@ namespace Dotmim.Sync.MySql
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($"Begin ");
-            stringBuilder.AppendLine($"\tUPDATE {trackingName.QuotedString} ");
+            stringBuilder.AppendLine($"\tUPDATE {trackingName.FullQuotedString} ");
             stringBuilder.AppendLine("\tSET `update_scope_id` = NULL -- since the update if from local, it's a NULL");
             stringBuilder.AppendLine($"\t\t,`update_timestamp` = {MySqlObjectNames.TimestampValue}");
             stringBuilder.AppendLine($"\t\t,`timestamp` = {MySqlObjectNames.TimestampValue}");
@@ -298,13 +298,13 @@ namespace Dotmim.Sync.MySql
                         continue;
 
                     ObjectNameParser columnName = new ObjectNameParser(filterColumn.ColumnName.ToLowerInvariant(), "`", "`");
-                    stringBuilder.AppendLine($"\t,{columnName.QuotedString} = `i`.{columnName.QuotedString}");
+                    stringBuilder.AppendLine($"\t,{columnName.FullQuotedString} = `i`.{columnName.FullQuotedString}");
                 }
                 stringBuilder.AppendLine();
             }
 
             stringBuilder.Append($"\tWhere ");
-            stringBuilder.Append(MySqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, trackingName.QuotedString, "new"));
+            stringBuilder.Append(MySqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, trackingName.FullQuotedString, "new"));
             stringBuilder.AppendLine($"; ");
             stringBuilder.AppendLine($"End; ");
             return stringBuilder.ToString();
@@ -323,9 +323,9 @@ namespace Dotmim.Sync.MySql
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
 
-                    var updTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger), tableName.UnquotedStringWithUnderScore);
+                    var updTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger), tableName.ObjectNameNormalized);
                     StringBuilder createTrigger = new StringBuilder();
-                    createTrigger.AppendLine($"CREATE TRIGGER {updTriggerName} AFTER UPDATE ON {tableName.QuotedString} FOR EACH ROW ");
+                    createTrigger.AppendLine($"CREATE TRIGGER {updTriggerName} AFTER UPDATE ON {tableName.FullQuotedString} FOR EACH ROW ");
                     createTrigger.AppendLine();
                     createTrigger.AppendLine(this.UpdateTriggerBodyText());
 
@@ -350,13 +350,13 @@ namespace Dotmim.Sync.MySql
         }
         public string CreateUpdateTriggerScriptText()
         {
-            var updTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger), tableName.UnquotedStringWithUnderScore);
+            var updTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger), tableName.ObjectNameNormalized);
             StringBuilder createTrigger = new StringBuilder();
-            createTrigger.AppendLine($"CREATE TRIGGER {updTriggerName} AFTER UPDATE ON {tableName.QuotedString} FOR EACH ROW ");
+            createTrigger.AppendLine($"CREATE TRIGGER {updTriggerName} AFTER UPDATE ON {tableName.FullQuotedString} FOR EACH ROW ");
             createTrigger.AppendLine();
             createTrigger.AppendLine(this.UpdateTriggerBodyText());
 
-            string str = $"Update Trigger for table {tableName.QuotedString}";
+            string str = $"Update Trigger for table {tableName.FullQuotedString}";
             return MySqlBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
         }
         public void AlterUpdateTrigger()
@@ -369,9 +369,9 @@ namespace Dotmim.Sync.MySql
         }
         public bool NeedToCreateTrigger(DbTriggerType type)
         {
-            var updTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger), tableName.UnquotedStringWithUnderScore);
-            var delTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger), tableName.UnquotedStringWithUnderScore);
-            var insTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.InsertTrigger), tableName.UnquotedStringWithUnderScore);
+            var updTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger), tableName.ObjectNameNormalized);
+            var delTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger), tableName.ObjectNameNormalized);
+            var insTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.InsertTrigger), tableName.ObjectNameNormalized);
 
             string triggerName = string.Empty;
             switch (type)
@@ -399,7 +399,7 @@ namespace Dotmim.Sync.MySql
 
         public void DropTrigger(DbCommandType triggerType)
         {
-            var triggerName = string.Format(this.mySqlObjectNames.GetCommandName(triggerType), tableName.UnquotedStringWithUnderScore);
+            var triggerName = string.Format(this.mySqlObjectNames.GetCommandName(triggerType), tableName.ObjectNameNormalized);
             var commandText = $"drop trigger if exists {triggerName}";
 
             bool alreadyOpened = connection.State == ConnectionState.Open;
@@ -452,7 +452,7 @@ namespace Dotmim.Sync.MySql
             var commandName = this.mySqlObjectNames.GetCommandName(triggerType);
             var commandText = $"drop trigger if exists {commandName}";
 
-            var str1 = $"Drop trigger {commandName} for table {tableName.QuotedString}";
+            var str1 = $"Drop trigger {commandName} for table {tableName.FullQuotedString}";
             return MySqlBuilder.WrapScriptTextWithComments(commandText, str1);
 
         }

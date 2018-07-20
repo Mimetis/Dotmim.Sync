@@ -40,7 +40,7 @@ namespace Dotmim.Sync.Sqlite
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("BEGIN");
-            stringBuilder.AppendLine($"UPDATE {trackingName.QuotedString} ");
+            stringBuilder.AppendLine($"UPDATE {trackingName.FullQuotedString} ");
             stringBuilder.AppendLine("SET [sync_row_is_tombstone] = 1");
             stringBuilder.AppendLine("\t,[update_scope_id] = NULL -- since the update if from local, it's a NULL");
             stringBuilder.AppendLine($"\t,[update_timestamp] = {SqliteObjectNames.TimestampValue}");
@@ -69,7 +69,7 @@ namespace Dotmim.Sync.Sqlite
             //}
 
             stringBuilder.Append($"WHERE ");
-            stringBuilder.Append(SqliteManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, trackingName.QuotedString, "old"));
+            stringBuilder.Append(SqliteManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, trackingName.FullQuotedString, "old"));
             stringBuilder.AppendLine(";");
             stringBuilder.AppendLine("END;");
             return stringBuilder.ToString();
@@ -89,7 +89,7 @@ namespace Dotmim.Sync.Sqlite
                         command.Transaction = this.transaction;
 
                     var delTriggerName = this.sqliteObjectNames.GetCommandName(DbCommandType.DeleteTrigger);
-                    StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER IF NOT EXISTS {delTriggerName} AFTER DELETE ON {tableName.QuotedString} ");
+                    StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER IF NOT EXISTS {delTriggerName} AFTER DELETE ON {tableName.FullQuotedString} ");
                     createTrigger.AppendLine();
                     createTrigger.AppendLine(this.DeleteTriggerBodyText());
 
@@ -115,12 +115,12 @@ namespace Dotmim.Sync.Sqlite
         public string CreateDeleteTriggerScriptText()
         {
 
-            var delTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.DeleteTrigger), tableName.UnquotedStringWithUnderScore);
-            StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER IF NOT EXISTS {delTriggerName} AFTER DELETE ON {tableName.QuotedString} ");
+            var delTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.DeleteTrigger), tableName.ObjectNameNormalized);
+            StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER IF NOT EXISTS {delTriggerName} AFTER DELETE ON {tableName.FullQuotedString} ");
             createTrigger.AppendLine();
             createTrigger.AppendLine(this.DeleteTriggerBodyText());
 
-            string str = $"Delete Trigger for table {tableName.QuotedString}";
+            string str = $"Delete Trigger for table {tableName.FullQuotedString}";
             return SqliteBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
         }
         public void AlterDeleteTrigger()
@@ -140,7 +140,7 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine("-- If row was deleted before, it already exists, so just make an update");
             stringBuilder.AppendLine("BEGIN");
 
-            stringBuilder.AppendLine($"\tINSERT OR REPLACE INTO {trackingName.QuotedString} (");
+            stringBuilder.AppendLine($"\tINSERT OR REPLACE INTO {trackingName.FullQuotedString} (");
 
             StringBuilder stringBuilderArguments = new StringBuilder();
             StringBuilder stringBuilderArguments2 = new StringBuilder();
@@ -151,9 +151,9 @@ namespace Dotmim.Sync.Sqlite
             foreach (var mutableColumn in this.tableDescription.PrimaryKey.Columns.Where(c => !c.IsReadOnly))
             {
                 ObjectNameParser columnName = new ObjectNameParser(mutableColumn.ColumnName);
-                stringBuilderArguments.AppendLine($"\t\t{argComma}{columnName.QuotedString}");
-                stringBuilderArguments2.AppendLine($"\t\t{argComma}new.{columnName.QuotedString}");
-                stringPkAreNull.Append($"{argAnd}{trackingName.QuotedString}.{columnName.QuotedString} IS NULL");
+                stringBuilderArguments.AppendLine($"\t\t{argComma}{columnName.FullQuotedString}");
+                stringBuilderArguments2.AppendLine($"\t\t{argComma}new.{columnName.FullQuotedString}");
+                stringPkAreNull.Append($"{argAnd}{trackingName.FullQuotedString}.{columnName.FullQuotedString} IS NULL");
                 argComma = ",";
                 argAnd = " AND ";
             }
@@ -219,9 +219,9 @@ namespace Dotmim.Sync.Sqlite
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
 
-                    var insTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.InsertTrigger), tableName.UnquotedStringWithUnderScore);
+                    var insTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.InsertTrigger), tableName.ObjectNameNormalized);
 
-                    StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER IF NOT EXISTS {insTriggerName} AFTER INSERT ON {tableName.QuotedString} ");
+                    StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER IF NOT EXISTS {insTriggerName} AFTER INSERT ON {tableName.FullQuotedString} ");
                     createTrigger.AppendLine();
                     createTrigger.AppendLine(this.InsertTriggerBodyText());
 
@@ -246,12 +246,12 @@ namespace Dotmim.Sync.Sqlite
         }
         public string CreateInsertTriggerScriptText()
         {
-            var insTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.InsertTrigger), tableName.UnquotedStringWithUnderScore);
-            StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER IF NOT EXISTS {insTriggerName} AFTER INSERT ON {tableName.QuotedString} ");
+            var insTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.InsertTrigger), tableName.ObjectNameNormalized);
+            StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER IF NOT EXISTS {insTriggerName} AFTER INSERT ON {tableName.FullQuotedString} ");
             createTrigger.AppendLine();
             createTrigger.AppendLine(this.InsertTriggerBodyText());
 
-            string str = $"Insert Trigger for table {tableName.QuotedString}";
+            string str = $"Insert Trigger for table {tableName.FullQuotedString}";
             return SqliteBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
 
         }
@@ -270,7 +270,7 @@ namespace Dotmim.Sync.Sqlite
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($"Begin ");
-            stringBuilder.AppendLine($"\tUPDATE {trackingName.QuotedString} ");
+            stringBuilder.AppendLine($"\tUPDATE {trackingName.FullQuotedString} ");
             stringBuilder.AppendLine("\tSET [update_scope_id] = NULL -- since the update if from local, it's a NULL");
             stringBuilder.AppendLine($"\t\t,[update_timestamp] = {SqliteObjectNames.TimestampValue}");
             stringBuilder.AppendLine($"\t\t,[timestamp] = {SqliteObjectNames.TimestampValue}");
@@ -298,7 +298,7 @@ namespace Dotmim.Sync.Sqlite
             //}
 
             stringBuilder.Append($"\tWhere ");
-            stringBuilder.Append(SqliteManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, trackingName.QuotedString, "new"));
+            stringBuilder.Append(SqliteManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, trackingName.FullQuotedString, "new"));
             stringBuilder.AppendLine($"; ");
             stringBuilder.AppendLine($"End; ");
             return stringBuilder.ToString();
@@ -317,8 +317,8 @@ namespace Dotmim.Sync.Sqlite
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
 
-                    var updTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.UpdateTrigger), tableName.UnquotedStringWithUnderScore);
-                    StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER IF NOT EXISTS {updTriggerName} AFTER UPDATE ON {tableName.QuotedString} ");
+                    var updTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.UpdateTrigger), tableName.ObjectNameNormalized);
+                    StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER IF NOT EXISTS {updTriggerName} AFTER UPDATE ON {tableName.FullQuotedString} ");
                     createTrigger.AppendLine();
                     createTrigger.AppendLine(this.UpdateTriggerBodyText());
 
@@ -343,12 +343,12 @@ namespace Dotmim.Sync.Sqlite
         }
         public string CreateUpdateTriggerScriptText()
         {
-            var updTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.UpdateTrigger), tableName.UnquotedStringWithUnderScore);
-            StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER IF NOT EXISTS {updTriggerName} AFTER UPDATE ON {tableName.QuotedString} ");
+            var updTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.UpdateTrigger), tableName.ObjectNameNormalized);
+            StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER IF NOT EXISTS {updTriggerName} AFTER UPDATE ON {tableName.FullQuotedString} ");
             createTrigger.AppendLine();
             createTrigger.AppendLine(this.UpdateTriggerBodyText());
 
-            string str = $"Update Trigger for table {tableName.QuotedString}";
+            string str = $"Update Trigger for table {tableName.FullQuotedString}";
             return SqliteBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
         }
         public void AlterUpdateTrigger()
@@ -361,9 +361,9 @@ namespace Dotmim.Sync.Sqlite
         }
         public bool NeedToCreateTrigger(DbTriggerType type)
         {
-            var updTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.UpdateTrigger), tableName.UnquotedStringWithUnderScore);
-            var delTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.DeleteTrigger), tableName.UnquotedStringWithUnderScore);
-            var insTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.InsertTrigger), tableName.UnquotedStringWithUnderScore);
+            var updTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.UpdateTrigger), tableName.ObjectNameNormalized);
+            var delTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.DeleteTrigger), tableName.ObjectNameNormalized);
+            var insTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.InsertTrigger), tableName.ObjectNameNormalized);
 
             string triggerName = string.Empty;
             switch (type)
@@ -405,7 +405,7 @@ namespace Dotmim.Sync.Sqlite
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
 
-                    var triggerName = string.Format(this.sqliteObjectNames.GetCommandName(triggerType), tableName.UnquotedStringWithUnderScore);
+                    var triggerName = string.Format(this.sqliteObjectNames.GetCommandName(triggerType), tableName.ObjectNameNormalized);
 
                     String dropTrigger = $"DROP TRIGGER IF EXISTS {triggerName}";
 
@@ -432,9 +432,9 @@ namespace Dotmim.Sync.Sqlite
 
         public string CreateDropTriggerScriptText(DbCommandType triggerType)
         {
-            var triggerName = string.Format(this.sqliteObjectNames.GetCommandName(triggerType), tableName.UnquotedStringWithUnderScore);
+            var triggerName = string.Format(this.sqliteObjectNames.GetCommandName(triggerType), tableName.ObjectNameNormalized);
             string dropTrigger = $"DROP TRIGGER IF EXISTS {triggerName}";
-            string str = $"Drop Trigger {triggerName} for table {tableName.QuotedString}";
+            string str = $"Drop Trigger {triggerName} for table {tableName.FullQuotedString}";
             return SqliteBuilder.WrapScriptTextWithComments(dropTrigger, str);
         }
 

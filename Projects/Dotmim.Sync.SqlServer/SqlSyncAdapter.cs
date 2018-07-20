@@ -418,9 +418,9 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                 var textParser = new ObjectNameParser(command.CommandText);
 
-                if (derivingParameters.ContainsKey(textParser.UnquotedString))
+                if (derivingParameters.ContainsKey(textParser.FullUnquotedString))
                 {
-                    foreach (var p in derivingParameters[textParser.UnquotedString])
+                    foreach (var p in derivingParameters[textParser.FullUnquotedString])
                         command.Parameters.Add(p.Clone());
                 }
                 else
@@ -431,7 +431,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                     foreach (var p in parameters)
                         arrayParameters.Add(p.Clone());
 
-                    derivingParameters.Add(textParser.UnquotedString, arrayParameters);
+                    derivingParameters.Add(textParser.FullUnquotedString, arrayParameters);
                 }
 
                 if (command.Parameters[0].ParameterName == "@RETURN_VALUE")

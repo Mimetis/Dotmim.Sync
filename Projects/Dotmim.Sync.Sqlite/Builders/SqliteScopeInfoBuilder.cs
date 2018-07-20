@@ -35,7 +35,7 @@ namespace Dotmim.Sync.Sqlite
                     connection.Open();
 
                 command.CommandText =
-                    $@"CREATE TABLE {scopeTableName.UnquotedStringWithUnderScore}(
+                    $@"CREATE TABLE {scopeTableName.ObjectNameNormalized}(
                         sync_scope_id blob NOT NULL PRIMARY KEY,
 	                    sync_scope_name text NOT NULL,
 	                    scope_timestamp integer NULL,
@@ -75,7 +75,7 @@ namespace Dotmim.Sync.Sqlite
                 if (!alreadyOpened)
                     connection.Open();
 
-                command.CommandText = $"DROP Table {scopeTableName.UnquotedStringWithUnderScore}";
+                command.CommandText = $"DROP Table {scopeTableName.ObjectNameNormalized}";
 
                 command.ExecuteNonQuery();
             }
@@ -117,7 +117,7 @@ namespace Dotmim.Sync.Sqlite
                            , scope_last_sync
                            , scope_last_sync_timestamp
                            , scope_last_sync_duration
-                    FROM  {scopeTableName.UnquotedStringWithUnderScore}
+                    FROM  {scopeTableName.ObjectNameNormalized}
                     WHERE sync_scope_name = @sync_scope_name";
 
                 var p = command.CreateParameter();
@@ -208,7 +208,7 @@ namespace Dotmim.Sync.Sqlite
                 if (!alreadyOpened)
                     connection.Open();
 
-                command.CommandText = $@"Select count(*) from {scopeTableName.UnquotedStringWithUnderScore} where sync_scope_id = @sync_scope_id";
+                command.CommandText = $@"Select count(*) from {scopeTableName.ObjectNameNormalized} where sync_scope_id = @sync_scope_id";
 
                 var p = command.CreateParameter();
                 p.ParameterName = "@sync_scope_id";
@@ -219,8 +219,8 @@ namespace Dotmim.Sync.Sqlite
                 var exist = (long)command.ExecuteScalar() > 0;
 
                 string stmtText = exist
-                    ? $"Update {scopeTableName.UnquotedStringWithUnderScore} set sync_scope_name=@sync_scope_name, scope_timestamp={SqliteObjectNames.TimestampValue}, scope_is_local=@scope_is_local, scope_last_sync=@scope_last_sync, scope_last_sync_timestamp=@scope_last_sync_timestamp, scope_last_sync_duration=@scope_last_sync_duration where sync_scope_id=@sync_scope_id"
-                    : $"Insert into {scopeTableName.UnquotedStringWithUnderScore} (sync_scope_name, scope_timestamp, scope_is_local, scope_last_sync, scope_last_sync_duration, scope_last_sync_timestamp, sync_scope_id) values (@sync_scope_name, {SqliteObjectNames.TimestampValue}, @scope_is_local, @scope_last_sync, @scope_last_sync_duration, @scope_last_sync_timestamp, @sync_scope_id)";
+                    ? $"Update {scopeTableName.ObjectNameNormalized} set sync_scope_name=@sync_scope_name, scope_timestamp={SqliteObjectNames.TimestampValue}, scope_is_local=@scope_is_local, scope_last_sync=@scope_last_sync, scope_last_sync_timestamp=@scope_last_sync_timestamp, scope_last_sync_duration=@scope_last_sync_duration where sync_scope_id=@sync_scope_id"
+                    : $"Insert into {scopeTableName.ObjectNameNormalized} (sync_scope_name, scope_timestamp, scope_is_local, scope_last_sync, scope_last_sync_duration, scope_last_sync_timestamp, sync_scope_id) values (@sync_scope_name, {SqliteObjectNames.TimestampValue}, @scope_is_local, @scope_last_sync, @scope_last_sync_duration, @scope_last_sync_timestamp, @sync_scope_id)";
 
                 command = connection.CreateCommand();
                 command.CommandText = stmtText;
@@ -310,7 +310,7 @@ namespace Dotmim.Sync.Sqlite
                     connection.Open();
 
                 command.CommandText =
-                    $@"SELECT count(*) FROM sqlite_master WHERE type='table' AND name='{scopeTableName.UnquotedStringWithUnderScore}'";
+                    $@"SELECT count(*) FROM sqlite_master WHERE type='table' AND name='{scopeTableName.ObjectNameNormalized}'";
 
                 return (long)command.ExecuteScalar() != 1;
 
