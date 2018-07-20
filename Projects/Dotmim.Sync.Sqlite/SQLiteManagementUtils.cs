@@ -116,10 +116,10 @@ namespace Dotmim.Sync.Sqlite
 
                 stringBuilder.Append(str);
                 stringBuilder.Append(strLeftName);
-                stringBuilder.Append(quotedColumn.QuotedString);
+                stringBuilder.Append(quotedColumn.FullQuotedString);
                 stringBuilder.Append(" = ");
                 stringBuilder.Append(strRightName);
-                stringBuilder.Append(quotedColumn.QuotedString);
+                stringBuilder.Append(quotedColumn.FullQuotedString);
 
                 str = " AND ";
             }
@@ -137,7 +137,7 @@ namespace Dotmim.Sync.Sqlite
 
                 stringBuilder.Append(str1);
                 stringBuilder.Append(strFromPrefix);
-                stringBuilder.Append(quotedColumn.QuotedString);
+                stringBuilder.Append(quotedColumn.FullQuotedString);
                 stringBuilder.Append(" = ");
                 stringBuilder.Append($"@{column.ColumnName}");
                 str1 = " AND ";
@@ -153,7 +153,7 @@ namespace Dotmim.Sync.Sqlite
             foreach (DmColumn mutableColumn in table.MutableColumns)
             {
                 ObjectNameParser quotedColumn = new ObjectNameParser(mutableColumn.ColumnName);
-                stringBuilder.AppendLine($"{strSeparator} {strFromPrefix}{quotedColumn.QuotedString} = @{quotedColumn.UnquotedString}");
+                stringBuilder.AppendLine($"{strSeparator} {strFromPrefix}{quotedColumn.FullQuotedString} = @{quotedColumn.FullUnquotedString}");
                 strSeparator = ", ";
             }
             return stringBuilder.ToString();

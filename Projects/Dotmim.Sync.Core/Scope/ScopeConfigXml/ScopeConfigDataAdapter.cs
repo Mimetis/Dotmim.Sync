@@ -156,7 +156,7 @@ namespace Dotmim.Sync.Scope
         {
             get
             {
-                return this._trackingTableName.QuotedString;
+                return this._trackingTableName.FullQuotedString;
             }
             set
             {
@@ -170,7 +170,7 @@ namespace Dotmim.Sync.Scope
         {
             get
             {
-                return this._trackingTableName.UnquotedString;
+                return this._trackingTableName.FullUnquotedString;
             }
         }
 

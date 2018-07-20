@@ -49,9 +49,9 @@ namespace Dotmim.Sync.Sqlite
         /// </summary>
         private void SetDefaultNames()
         {
-            this.AddName(DbCommandType.InsertTrigger, string.Format(insertTriggerName, tableName.UnquotedStringWithUnderScore));
-            this.AddName(DbCommandType.UpdateTrigger, string.Format(updateTriggerName, tableName.UnquotedStringWithUnderScore));
-            this.AddName(DbCommandType.DeleteTrigger, string.Format(deleteTriggerName, tableName.UnquotedStringWithUnderScore));
+            this.AddName(DbCommandType.InsertTrigger, string.Format(insertTriggerName, tableName.ObjectNameNormalized));
+            this.AddName(DbCommandType.UpdateTrigger, string.Format(updateTriggerName, tableName.ObjectNameNormalized));
+            this.AddName(DbCommandType.DeleteTrigger, string.Format(deleteTriggerName, tableName.ObjectNameNormalized));
 
             // Select changes
             this.CreateSelectChangesCommandText();
@@ -70,8 +70,8 @@ namespace Dotmim.Sync.Sqlite
         {
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"DELETE FROM {tableName.QuotedString};");
-            stringBuilder.AppendLine($"DELETE FROM {trackingName.QuotedString};");
+            stringBuilder.AppendLine($"DELETE FROM {tableName.FullQuotedString};");
+            stringBuilder.AppendLine($"DELETE FROM {trackingName.FullQuotedString};");
             this.AddName(DbCommandType.Reset, stringBuilder.ToString());
         }
 
@@ -79,7 +79,7 @@ namespace Dotmim.Sync.Sqlite
         {
 
             StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"UPDATE {tableName.QuotedString}");
+            stringBuilder.AppendLine($"UPDATE {tableName.FullQuotedString}");
             stringBuilder.Append($"SET {SqliteManagementUtils.CommaSeparatedUpdateFromParameters(this.TableDescription)}");
             stringBuilder.Append($"WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKey.Columns, "")}");
             stringBuilder.AppendLine($" AND ((SELECT [timestamp] FROM {trackingName.QuotedObjectName} ");
@@ -94,7 +94,7 @@ namespace Dotmim.Sync.Sqlite
         {
             StringBuilder stringBuilder = new StringBuilder();
 
-            stringBuilder.AppendLine($"UPDATE {trackingName.QuotedString}");
+            stringBuilder.AppendLine($"UPDATE {trackingName.FullQuotedString}");
             stringBuilder.AppendLine($"SET [update_scope_id] = @update_scope_id, ");
             stringBuilder.AppendLine($"\t [update_timestamp] = @update_timestamp, ");
             stringBuilder.AppendLine($"\t [sync_row_is_tombstone] = @sync_row_is_tombstone, ");
@@ -111,14 +111,14 @@ namespace Dotmim.Sync.Sqlite
             StringBuilder stringBuilderArguments = new StringBuilder();
             StringBuilder stringBuilderParameters = new StringBuilder();
 
-            stringBuilder.AppendLine($"\tINSERT OR REPLACE INTO {trackingName.QuotedString}");
+            stringBuilder.AppendLine($"\tINSERT OR REPLACE INTO {trackingName.FullQuotedString}");
 
             string empty = string.Empty;
             foreach (var pkColumn in this.TableDescription.PrimaryKey.Columns)
             {
                 ObjectNameParser columnName = new ObjectNameParser(pkColumn.ColumnName);
-                stringBuilderArguments.Append(string.Concat(empty, columnName.QuotedString));
-                stringBuilderParameters.Append(string.Concat(empty, $"@{columnName.UnquotedString}"));
+                stringBuilderArguments.Append(string.Concat(empty, columnName.FullQuotedString));
+                stringBuilderParameters.Append(string.Concat(empty, $"@{columnName.FullUnquotedString}"));
                 empty = ", ";
             }
             stringBuilder.AppendLine($"\t({stringBuilderArguments.ToString()}, ");
@@ -140,11 +140,11 @@ namespace Dotmim.Sync.Sqlite
             foreach (var mutableColumn in this.TableDescription.Columns.Where(c => !c.IsReadOnly))
             {
                 ObjectNameParser columnName = new ObjectNameParser(mutableColumn.ColumnName);
-                stringBuilderArguments.Append(string.Concat(empty, columnName.QuotedString));
-                stringBuilderParameters.Append(string.Concat(empty, $"@{columnName.UnquotedString}"));
+                stringBuilderArguments.Append(string.Concat(empty, columnName.FullQuotedString));
+                stringBuilderParameters.Append(string.Concat(empty, $"@{columnName.FullUnquotedString}"));
                 empty = ", ";
             }
-            stringBuilder.AppendLine($"\tINSERT OR IGNORE INTO {tableName.QuotedString}");
+            stringBuilder.AppendLine($"\tINSERT OR IGNORE INTO {tableName.FullQuotedString}");
             stringBuilder.AppendLine($"\t({stringBuilderArguments.ToString()})");
             stringBuilder.AppendLine($"\tVALUES ({stringBuilderParameters.ToString()});");
 
@@ -155,7 +155,7 @@ namespace Dotmim.Sync.Sqlite
         {
 
             StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"DELETE FROM {trackingName.QuotedString} ");
+            stringBuilder.AppendLine($"DELETE FROM {trackingName.FullQuotedString} ");
             stringBuilder.Append($"WHERE ");
             stringBuilder.AppendLine(SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKey.Columns, ""));
             stringBuilder.Append(";");
@@ -166,7 +166,7 @@ namespace Dotmim.Sync.Sqlite
         {
             StringBuilder stringBuilder = new StringBuilder();
 
-            stringBuilder.AppendLine($"DELETE FROM {tableName.QuotedString} ");
+            stringBuilder.AppendLine($"DELETE FROM {tableName.FullQuotedString} ");
             stringBuilder.Append($"WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKey.Columns, "")}");
             stringBuilder.AppendLine($" AND ((SELECT [timestamp] FROM {trackingName.QuotedObjectName} ");
             stringBuilder.AppendLine($"  WHERE {SqliteManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKey.Columns, tableName.QuotedObjectName, trackingName.QuotedObjectName)}");
@@ -184,14 +184,14 @@ namespace Dotmim.Sync.Sqlite
             foreach (var pkColumn in this.TableDescription.PrimaryKey.Columns)
             {
                 ObjectNameParser pkColumnName = new ObjectNameParser(pkColumn.ColumnName);
-                stringBuilder.AppendLine($"\t[side].{pkColumnName.QuotedString}, ");
-                stringBuilder1.Append($"{empty}[side].{pkColumnName.QuotedString} = @{pkColumnName.UnquotedString}");
+                stringBuilder.AppendLine($"\t[side].{pkColumnName.FullQuotedString}, ");
+                stringBuilder1.Append($"{empty}[side].{pkColumnName.FullQuotedString} = @{pkColumnName.FullUnquotedString}");
                 empty = " AND ";
             }
             foreach (DmColumn mutableColumn in this.TableDescription.MutableColumns)
             {
                 ObjectNameParser nonPkColumnName = new ObjectNameParser(mutableColumn.ColumnName);
-                stringBuilder.AppendLine($"\t[base].{nonPkColumnName.QuotedString}, ");
+                stringBuilder.AppendLine($"\t[base].{nonPkColumnName.FullQuotedString}, ");
             }
             stringBuilder.AppendLine("\t[side].[sync_row_is_tombstone],");
             stringBuilder.AppendLine("\t[side].[create_scope_id],");
@@ -199,14 +199,14 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine("\t[side].[update_scope_id],");
             stringBuilder.AppendLine("\t[side].[update_timestamp]");
 
-            stringBuilder.AppendLine($"FROM {trackingName.QuotedString} [side] ");
-            stringBuilder.AppendLine($"LEFT JOIN {tableName.QuotedString} [base] ON ");
+            stringBuilder.AppendLine($"FROM {trackingName.FullQuotedString} [side] ");
+            stringBuilder.AppendLine($"LEFT JOIN {tableName.FullQuotedString} [base] ON ");
 
             string str = string.Empty;
             foreach (var pkColumn in this.TableDescription.PrimaryKey.Columns)
             {
                 ObjectNameParser pkColumnName = new ObjectNameParser(pkColumn.ColumnName);
-                stringBuilder.Append($"{str}[base].{pkColumnName.QuotedString} = [side].{pkColumnName.QuotedString}");
+                stringBuilder.Append($"{str}[base].{pkColumnName.FullQuotedString} = [side].{pkColumnName.FullQuotedString}");
                 str = " AND ";
             }
             stringBuilder.AppendLine();
@@ -220,27 +220,27 @@ namespace Dotmim.Sync.Sqlite
             foreach (var pkColumn in this.TableDescription.PrimaryKey.Columns)
             {
                 var pkColumnName = new ObjectNameParser(pkColumn.ColumnName);
-                stringBuilder.AppendLine($"\t[side].{pkColumnName.QuotedString}, ");
+                stringBuilder.AppendLine($"\t[side].{pkColumnName.FullQuotedString}, ");
             }
             foreach (var mutableColumn in this.TableDescription.MutableColumns)
             {
                 var columnName = new ObjectNameParser(mutableColumn.ColumnName);
-                stringBuilder.AppendLine($"\t[base].{columnName.QuotedString}, ");
+                stringBuilder.AppendLine($"\t[base].{columnName.FullQuotedString}, ");
             }
             stringBuilder.AppendLine($"\t[side].[sync_row_is_tombstone], ");
             stringBuilder.AppendLine($"\t[side].[create_scope_id], ");
             stringBuilder.AppendLine($"\t[side].[create_timestamp], ");
             stringBuilder.AppendLine($"\t[side].[update_scope_id], ");
             stringBuilder.AppendLine($"\t[side].[update_timestamp] ");
-            stringBuilder.AppendLine($"FROM {trackingName.QuotedString} [side]");
-            stringBuilder.AppendLine($"LEFT JOIN {tableName.QuotedString} [base]");
+            stringBuilder.AppendLine($"FROM {trackingName.FullQuotedString} [side]");
+            stringBuilder.AppendLine($"LEFT JOIN {tableName.FullQuotedString} [base]");
             stringBuilder.Append($"ON ");
 
             string empty = "";
             foreach (var pkColumn in this.TableDescription.PrimaryKey.Columns)
             {
                 var pkColumnName = new ObjectNameParser(pkColumn.ColumnName);
-                stringBuilder.Append($"{empty}[base].{pkColumnName.QuotedString} = [side].{pkColumnName.QuotedString}");
+                stringBuilder.Append($"{empty}[base].{pkColumnName.FullQuotedString} = [side].{pkColumnName.FullQuotedString}");
                 empty = " AND ";
             }
             stringBuilder.AppendLine();
@@ -291,7 +291,7 @@ namespace Dotmim.Sync.Sqlite
             foreach (var pkColumn in this.TableDescription.PrimaryKey.Columns)
             {
                 var pkColumnName = new ObjectNameParser(pkColumn.ColumnName, "[", "]");
-                stringBuilder.Append($"{empty}[base].{pkColumnName.QuotedString} is not null");
+                stringBuilder.Append($"{empty}[base].{pkColumnName.FullQuotedString} is not null");
             }
             stringBuilder.AppendLine("\t)");
             stringBuilder.AppendLine(")");

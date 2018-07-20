@@ -59,13 +59,13 @@ namespace Dotmim.Sync.SqlServer.Builders
                         continue;
 
                     ObjectNameParser columnName = new ObjectNameParser(columnFilter.ColumnName);
-                    stringBuilder.AppendLine($"\t,{columnName.QuotedString} = [d].{columnName.QuotedString}");
+                    stringBuilder.AppendLine($"\t,{columnName.FullQuotedString} = [d].{columnName.FullQuotedString}");
 
                 }
                 stringBuilder.AppendLine();
             }
 
-            stringBuilder.AppendLine($"FROM {trackingName.QuotedString} [side]");
+            stringBuilder.AppendLine($"FROM {trackingName.FullQuotedString} [side]");
             stringBuilder.Append($"JOIN DELETED AS [d] ON ");
             stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "[side]", "[d]"));
             return stringBuilder.ToString();
@@ -88,7 +88,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                     var delTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger);
 
 
-                    StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER {delTriggerName} ON {tableName.QuotedString} FOR DELETE AS");
+                    StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER {delTriggerName} ON {tableName.FullQuotedString} FOR DELETE AS");
                     createTrigger.AppendLine();
                     createTrigger.AppendLine(this.DeleteTriggerBodyText());
 
@@ -151,11 +151,11 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
 
             var delTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger);
-            StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER {delTriggerName} ON {tableName.QuotedString} FOR DELETE AS");
+            StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER {delTriggerName} ON {tableName.FullQuotedString} FOR DELETE AS");
             createTrigger.AppendLine();
             createTrigger.AppendLine(this.DeleteTriggerBodyText());
 
-            string str = $"Delete Trigger for table {tableName.QuotedString}";
+            string str = $"Delete Trigger for table {tableName.FullQuotedString}";
             return SqlBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
         }
 
@@ -174,7 +174,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                         command.Transaction = (SqlTransaction)this.transaction;
 
                     var delTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger);
-                    StringBuilder createTrigger = new StringBuilder($"ALTER TRIGGER {delTriggerName} ON {tableName.QuotedString} FOR DELETE AS ");
+                    StringBuilder createTrigger = new StringBuilder($"ALTER TRIGGER {delTriggerName} ON {tableName.FullQuotedString} FOR DELETE AS ");
                     createTrigger.AppendLine();
                     createTrigger.AppendLine(this.DeleteTriggerBodyText());
 
@@ -204,11 +204,11 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
             (var tableName, var trackingName) = SqlBuilder.GetParsers(this.tableDescription);
             var delTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger);
-            StringBuilder createTrigger = new StringBuilder($"ALTER TRIGGER {delTriggerName} ON {tableName.QuotedString} FOR DELETE AS");
+            StringBuilder createTrigger = new StringBuilder($"ALTER TRIGGER {delTriggerName} ON {tableName.FullQuotedString} FOR DELETE AS");
             createTrigger.AppendLine();
             createTrigger.AppendLine(this.InsertTriggerBodyText());
 
-            string str = $"ALTER Trigger Delete for table {tableName.QuotedString}";
+            string str = $"ALTER Trigger Delete for table {tableName.FullQuotedString}";
             return SqlBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
         }
 
@@ -216,7 +216,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
             var triggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger);
             var trigger = $"DELETE TRIGGER {triggerName};";
-            var str = $"Drop Delete Trigger for table {tableName.QuotedString}";
+            var str = $"Drop Delete Trigger for table {tableName.FullQuotedString}";
             return SqlBuilder.WrapScriptTextWithComments(trigger, str);
         }
 
@@ -243,18 +243,18 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                     ObjectNameParser columnName = new ObjectNameParser(columnFilter.ColumnName);
 
-                    stringBuilder.AppendLine($"\t,{columnName.QuotedString} = [i].{columnName.QuotedString}");
+                    stringBuilder.AppendLine($"\t,{columnName.FullQuotedString} = [i].{columnName.FullQuotedString}");
 
                 }
                 stringBuilder.AppendLine();
             }
 
-            stringBuilder.AppendLine($"FROM {trackingName.QuotedString} [side]");
+            stringBuilder.AppendLine($"FROM {trackingName.FullQuotedString} [side]");
             stringBuilder.Append($"JOIN INSERTED AS [i] ON ");
             stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "[side]", "[i]"));
             stringBuilder.AppendLine();
 
-            stringBuilder.AppendLine($"INSERT INTO {trackingName.QuotedString} (");
+            stringBuilder.AppendLine($"INSERT INTO {trackingName.FullQuotedString} (");
 
             StringBuilder stringBuilderArguments = new StringBuilder();
             StringBuilder stringPkAreNull = new StringBuilder();
@@ -264,8 +264,8 @@ namespace Dotmim.Sync.SqlServer.Builders
             foreach (var mutableColumn in this.tableDescription.PrimaryKey.Columns.Where(c => !c.IsReadOnly))
             {
                 ObjectNameParser columnName = new ObjectNameParser(mutableColumn.ColumnName);
-                stringBuilderArguments.AppendLine($"\t{argComma}[i].{columnName.QuotedString}");
-                stringPkAreNull.Append($"{argAnd}[side].{columnName.QuotedString} IS NULL");
+                stringBuilderArguments.AppendLine($"\t{argComma}[i].{columnName.FullQuotedString}");
+                stringPkAreNull.Append($"{argAnd}[side].{columnName.FullQuotedString} IS NULL");
                 argComma = ",";
                 argAnd = " AND ";
             }
@@ -293,7 +293,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                         continue;
 
                     ObjectNameParser columnName = new ObjectNameParser(columnFilter.ColumnName);
-                    filterColumnsString.AppendLine($"\t,[i].{columnName.QuotedString}");
+                    filterColumnsString.AppendLine($"\t,[i].{columnName.FullQuotedString}");
                 }
 
                 stringBuilder.AppendLine(filterColumnsString.ToString());
@@ -312,7 +312,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 stringBuilder.AppendLine(filterColumnsString.ToString());
 
             stringBuilder.AppendLine("FROM INSERTED [i]");
-            stringBuilder.Append($"LEFT JOIN {trackingName.QuotedString} [side] ON ");
+            stringBuilder.Append($"LEFT JOIN {trackingName.FullQuotedString} [side] ON ");
             stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "[i]", "[side]"));
             stringBuilder.Append("WHERE ");
             stringBuilder.AppendLine(stringPkAreNull.ToString());
@@ -333,7 +333,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                         command.Transaction = (SqlTransaction)this.transaction;
 
                     var insTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger);
-                    StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER {insTriggerName} ON {tableName.QuotedString} FOR INSERT AS");
+                    StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER {insTriggerName} ON {tableName.FullQuotedString} FOR INSERT AS");
                     createTrigger.AppendLine();
                     createTrigger.AppendLine(this.InsertTriggerBodyText());
 
@@ -397,11 +397,11 @@ namespace Dotmim.Sync.SqlServer.Builders
         public string CreateInsertTriggerScriptText()
         {
             var insTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger);
-            StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER {insTriggerName} ON {tableName.QuotedString} FOR INSERT AS");
+            StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER {insTriggerName} ON {tableName.FullQuotedString} FOR INSERT AS");
             createTrigger.AppendLine();
             createTrigger.AppendLine(this.InsertTriggerBodyText());
 
-            string str = $"Insert Trigger for table {tableName.QuotedString}";
+            string str = $"Insert Trigger for table {tableName.FullQuotedString}";
             return SqlBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
 
         }
@@ -420,7 +420,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                         command.Transaction = (SqlTransaction)this.transaction;
 
                     var insTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger);
-                    StringBuilder createTrigger = new StringBuilder($"ALTER TRIGGER {insTriggerName} ON {tableName.QuotedString} FOR INSERT AS ");
+                    StringBuilder createTrigger = new StringBuilder($"ALTER TRIGGER {insTriggerName} ON {tableName.FullQuotedString} FOR INSERT AS ");
                     createTrigger.AppendLine();
                     createTrigger.AppendLine(this.InsertTriggerBodyText());
 
@@ -446,11 +446,11 @@ namespace Dotmim.Sync.SqlServer.Builders
         public string AlterInsertTriggerScriptText()
         {
             var insTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger);
-            StringBuilder createTrigger = new StringBuilder($"ALTER TRIGGER {insTriggerName} ON {tableName.QuotedString} FOR INSERT AS");
+            StringBuilder createTrigger = new StringBuilder($"ALTER TRIGGER {insTriggerName} ON {tableName.FullQuotedString} FOR INSERT AS");
             createTrigger.AppendLine();
             createTrigger.AppendLine(this.InsertTriggerBodyText());
 
-            string str = $"ALTER Trigger Insert for table {tableName.QuotedString}";
+            string str = $"ALTER Trigger Insert for table {tableName.FullQuotedString}";
             return SqlBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
         }
 
@@ -458,7 +458,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
             var triggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger);
             var trigger = $"DELETE TRIGGER {triggerName};";
-            var str = $"Drop Insert Trigger for table {tableName.QuotedString}";
+            var str = $"Drop Insert Trigger for table {tableName.FullQuotedString}";
             return SqlBuilder.WrapScriptTextWithComments(trigger, str);
         }
         private string UpdateTriggerBodyText()
@@ -482,12 +482,12 @@ namespace Dotmim.Sync.SqlServer.Builders
                         continue;
 
                     ObjectNameParser columnName = new ObjectNameParser(columnFilter.ColumnName);
-                    stringBuilder.AppendLine($"\t,{columnName.QuotedString} = [i].{columnName.QuotedString}");
+                    stringBuilder.AppendLine($"\t,{columnName.FullQuotedString} = [i].{columnName.FullQuotedString}");
                 }
                 stringBuilder.AppendLine();
             }
 
-            stringBuilder.AppendLine($"FROM {trackingName.QuotedString} [side]");
+            stringBuilder.AppendLine($"FROM {trackingName.FullQuotedString} [side]");
             stringBuilder.Append($"JOIN INSERTED AS [i] ON ");
             stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "[side]", "[i]"));
             return stringBuilder.ToString();
@@ -507,7 +507,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                         command.Transaction = (SqlTransaction)this.transaction;
 
                     var updTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger);
-                    StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER {updTriggerName} ON {tableName.QuotedString} FOR UPDATE AS");
+                    StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER {updTriggerName} ON {tableName.FullQuotedString} FOR UPDATE AS");
                     createTrigger.AppendLine();
                     createTrigger.AppendLine(this.UpdateTriggerBodyText());
 
@@ -570,11 +570,11 @@ namespace Dotmim.Sync.SqlServer.Builders
         public string CreateUpdateTriggerScriptText()
         {
             var updTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger);
-            StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER {updTriggerName} ON {tableName.QuotedString} FOR UPDATE AS");
+            StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER {updTriggerName} ON {tableName.FullQuotedString} FOR UPDATE AS");
             createTrigger.AppendLine();
             createTrigger.AppendLine(this.UpdateTriggerBodyText());
 
-            string str = $"Update Trigger for table {tableName.QuotedString}";
+            string str = $"Update Trigger for table {tableName.FullQuotedString}";
             return SqlBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
         }
 
@@ -582,7 +582,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
             var triggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger);
             var trigger = $"DELETE TRIGGER {triggerName};";
-            var str = $"Drop Update Trigger for table {tableName.QuotedString}";
+            var str = $"Drop Update Trigger for table {tableName.FullQuotedString}";
             return SqlBuilder.WrapScriptTextWithComments(trigger, str);
         }
 
@@ -601,7 +601,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                         command.Transaction = (SqlTransaction)this.transaction;
 
                     var updTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger);
-                    StringBuilder createTrigger = new StringBuilder($"ALTER TRIGGER {updTriggerName} ON {tableName.QuotedString} FOR UPDATE AS ");
+                    StringBuilder createTrigger = new StringBuilder($"ALTER TRIGGER {updTriggerName} ON {tableName.FullQuotedString} FOR UPDATE AS ");
                     createTrigger.AppendLine();
                     createTrigger.AppendLine(this.UpdateTriggerBodyText());
 
@@ -629,11 +629,11 @@ namespace Dotmim.Sync.SqlServer.Builders
             (var tableName, var trackingName) = SqlBuilder.GetParsers(this.tableDescription);
             var updTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger);
 
-            StringBuilder createTrigger = new StringBuilder($"ALTER TRIGGER {updTriggerName} ON {tableName.QuotedString} FOR UPDATE AS");
+            StringBuilder createTrigger = new StringBuilder($"ALTER TRIGGER {updTriggerName} ON {tableName.FullQuotedString} FOR UPDATE AS");
             createTrigger.AppendLine();
             createTrigger.AppendLine(this.InsertTriggerBodyText());
 
-            string str = $"ALTER Trigger Update for table {tableName.QuotedString}";
+            string str = $"ALTER Trigger Update for table {tableName.FullQuotedString}";
             return SqlBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
         }
 

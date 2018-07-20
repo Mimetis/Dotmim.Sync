@@ -28,7 +28,7 @@ namespace Dotmim.Sync.SqlServer
                                 $"Where tbl.name = @tableName";
 
             ObjectNameParser tableNameParser = new ObjectNameParser(tableName);
-            DmTable dmTable = new DmTable(tableNameParser.UnquotedStringWithUnderScore);
+            DmTable dmTable = new DmTable(tableNameParser.ObjectNameNormalized);
             using (SqlCommand sqlCommand = new SqlCommand(commandColumn, connection, transaction))
             {
                 sqlCommand.Parameters.AddWithValue("@tableName", tableNameParser.ObjectName);
@@ -56,7 +56,7 @@ namespace Dotmim.Sync.SqlServer
                                   order by ind.index_id, ind_col.key_ordinal";
 
             ObjectNameParser tableNameParser = new ObjectNameParser(tableName);
-            DmTable dmTable = new DmTable(tableNameParser.UnquotedStringWithUnderScore);
+            DmTable dmTable = new DmTable(tableNameParser.ObjectNameNormalized);
             using (SqlCommand sqlCommand = new SqlCommand(commandColumn, connection, transaction))
             {
                 sqlCommand.Parameters.AddWithValue("@tableName", tableNameParser.ObjectName);
@@ -81,7 +81,7 @@ namespace Dotmim.Sync.SqlServer
                                     WHERE OBJECT_NAME(f.parent_object_id) = @tableName";
 
             ObjectNameParser tableNameParser = new ObjectNameParser(tableName);
-            DmTable dmTable = new DmTable(tableNameParser.UnquotedStringWithUnderScore);
+            DmTable dmTable = new DmTable(tableNameParser.ObjectNameNormalized);
             using (SqlCommand sqlCommand = new SqlCommand(commandRelations, connection, transaction))
             {
                 sqlCommand.Parameters.AddWithValue("@tableName", tableNameParser.ObjectName);
@@ -322,7 +322,7 @@ namespace Dotmim.Sync.SqlServer
                 ObjectNameParser objectNameParser1 = new ObjectNameParser(string.Concat("[", strPrefix, objectNameParser.ObjectName, "]"));
                 objectNameParser = objectNameParser1;
             }
-            return objectNameParser.QuotedString;
+            return objectNameParser.FullQuotedString;
         }
 
         internal static string JoinTwoTablesOnClause(IEnumerable<DmColumn> columns, string leftName, string rightName)
@@ -338,10 +338,10 @@ namespace Dotmim.Sync.SqlServer
 
                 stringBuilder.Append(str);
                 stringBuilder.Append(strLeftName);
-                stringBuilder.Append(quotedColumn.QuotedString);
+                stringBuilder.Append(quotedColumn.FullQuotedString);
                 stringBuilder.Append(" = ");
                 stringBuilder.Append(strRightName);
-                stringBuilder.Append(quotedColumn.QuotedString);
+                stringBuilder.Append(quotedColumn.FullQuotedString);
 
                 str = " AND ";
             }
@@ -359,7 +359,7 @@ namespace Dotmim.Sync.SqlServer
 
                 stringBuilder.Append(str1);
                 stringBuilder.Append(strFromPrefix);
-                stringBuilder.Append(quotedColumn.QuotedString);
+                stringBuilder.Append(quotedColumn.FullQuotedString);
                 stringBuilder.Append(" = ");
                 stringBuilder.Append($"@{column.ColumnName}");
                 str1 = " AND ";
@@ -375,7 +375,7 @@ namespace Dotmim.Sync.SqlServer
             foreach (DmColumn mutableColumn in table.MutableColumnsAndNotAutoInc)
             {
                 ObjectNameParser quotedColumn = new ObjectNameParser(mutableColumn.ColumnName);
-                stringBuilder.AppendLine($"{strSeparator} {strFromPrefix}{quotedColumn.QuotedString} = @{quotedColumn.UnquotedString}");
+                stringBuilder.AppendLine($"{strSeparator} {strFromPrefix}{quotedColumn.FullQuotedString} = @{quotedColumn.FullUnquotedString}");
                 strSeparator = ", ";
             }
             return stringBuilder.ToString();

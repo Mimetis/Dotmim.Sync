@@ -39,7 +39,7 @@ namespace Dotmim.Sync.Sqlite
 
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.Append("ALTER TABLE ");
-            stringBuilder.AppendLine(parentTableName.QuotedString);
+            stringBuilder.AppendLine(parentTableName.FullQuotedString);
             stringBuilder.Append("ADD CONSTRAINT ");
             stringBuilder.AppendLine(foreignKey.RelationName);
             stringBuilder.Append("FOREIGN KEY (");
@@ -48,17 +48,17 @@ namespace Dotmim.Sync.Sqlite
             {
                 var parentColumnName = new ObjectNameParser(parentdColumn.ColumnName);
 
-                stringBuilder.Append($"{empty} {parentColumnName.QuotedString}");
+                stringBuilder.Append($"{empty} {parentColumnName.FullQuotedString}");
                 empty = ", ";
             }
             stringBuilder.AppendLine(" )");
             stringBuilder.Append("REFERENCES ");
-            stringBuilder.Append(childTableName.QuotedString).Append(" (");
+            stringBuilder.Append(childTableName.FullQuotedString).Append(" (");
             empty = string.Empty;
             foreach (var childColumn in foreignKey.ChildColumns)
             {
                 var childColumnName = new ObjectNameParser(childColumn.ColumnName);
-                stringBuilder.Append($"{empty} {childColumnName.QuotedString}");
+                stringBuilder.Append($"{empty} {childColumnName.FullQuotedString}");
             }
             stringBuilder.Append(" ) ");
             sqlCommand.CommandText = stringBuilder.ToString();
@@ -80,7 +80,7 @@ namespace Dotmim.Sync.Sqlite
         {
             SqliteCommand command = new SqliteCommand();
 
-            StringBuilder stringBuilder = new StringBuilder($"CREATE TABLE IF NOT EXISTS {tableName.QuotedString} (");
+            StringBuilder stringBuilder = new StringBuilder($"CREATE TABLE IF NOT EXISTS {tableName.FullQuotedString} (");
             string empty = string.Empty;
             stringBuilder.AppendLine();
             foreach (var column in this.tableDescription.Columns)
@@ -126,7 +126,7 @@ namespace Dotmim.Sync.Sqlite
                 else if (column.IsReadOnly)
                     nullString = "NULL";
 
-                stringBuilder.AppendLine($"\t{empty}{columnName.QuotedString} {columnType} {identity} {nullString} {casesensitive}");
+                stringBuilder.AppendLine($"\t{empty}{columnName.FullQuotedString} {columnType} {identity} {nullString} {casesensitive}");
                 empty = ",";
             }
             stringBuilder.Append("\t,PRIMARY KEY (");
@@ -154,17 +154,17 @@ namespace Dotmim.Sync.Sqlite
                 {
                     var columnName = new ObjectNameParser(column.ColumnName);
 
-                    stringBuilder.Append($"{empty} {columnName.QuotedString}");
+                    stringBuilder.Append($"{empty} {columnName.FullQuotedString}");
                     empty = ", ";
                 }
                 stringBuilder.Append($") ");
-                stringBuilder.Append($"REFERENCES {childTableName.QuotedString}(");
+                stringBuilder.Append($"REFERENCES {childTableName.FullQuotedString}(");
                 empty = string.Empty;
                 foreach (var column in constraint.ChildColumns)
                 {
                     var columnName = new ObjectNameParser(column.ColumnName);
 
-                    stringBuilder.Append($"{empty} {columnName.QuotedString}");
+                    stringBuilder.Append($"{empty} {columnName.FullQuotedString}");
                     empty = ", ";
                 }
                 stringBuilder.AppendLine(" )");
@@ -209,7 +209,7 @@ namespace Dotmim.Sync.Sqlite
         public string CreateTableScriptText()
         {
             StringBuilder stringBuilder = new StringBuilder();
-            var tableNameScript = $"Create Table {tableName.QuotedString}";
+            var tableNameScript = $"Create Table {tableName.FullQuotedString}";
             var tableScript = BuildTableCommand().CommandText;
             stringBuilder.Append(SqliteBuilder.WrapScriptTextWithComments(tableScript, tableNameScript));
             stringBuilder.AppendLine();
@@ -268,7 +268,7 @@ namespace Dotmim.Sync.Sqlite
         /// </summary>
         public bool NeedToCreateTable()
         {
-            return !SqliteManagementUtils.TableExists(connection, transaction, tableName.QuotedString);
+            return !SqliteManagementUtils.TableExists(connection, transaction, tableName.FullQuotedString);
 
         }
 
@@ -308,7 +308,7 @@ namespace Dotmim.Sync.Sqlite
 
             try
             {
-                using (var command = new SqliteCommand($"DROP TABLE IF EXISTS {tableName.QuotedString}", connection)) 
+                using (var command = new SqliteCommand($"DROP TABLE IF EXISTS {tableName.FullQuotedString}", connection)) 
                 {
                     if (!alreadyOpened)
                         connection.Open();
@@ -339,8 +339,8 @@ namespace Dotmim.Sync.Sqlite
         public string DropTableScriptText()
         {
             StringBuilder stringBuilder = new StringBuilder();
-            var tableNameScript = $"Drop Table {tableName.QuotedString}";
-            var tableScript = $"DROP TABLE IF EXISTS {tableName.QuotedString}";
+            var tableNameScript = $"Drop Table {tableName.FullQuotedString}";
+            var tableScript = $"DROP TABLE IF EXISTS {tableName.FullQuotedString}";
             stringBuilder.Append(SqliteBuilder.WrapScriptTextWithComments(tableScript, tableNameScript));
             stringBuilder.AppendLine();
             return stringBuilder.ToString();

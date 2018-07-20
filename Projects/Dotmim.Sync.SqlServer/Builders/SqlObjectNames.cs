@@ -56,7 +56,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 string sep = "";
                 foreach (var c in filters)
                 {
-                    var unquotedColumnName = new ObjectNameParser(c).UnquotedString;
+                    var unquotedColumnName = new ObjectNameParser(c).FullUnquotedString;
                     name += $"{unquotedColumnName}{sep}";
                     sep = "_";
                 }
@@ -84,26 +84,26 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             var schema = string.IsNullOrEmpty(tableName.SchemaName) ? "dbo" : tableName.SchemaName;
 
-            this.AddName(DbCommandType.SelectChanges, string.Format(selectChangesProcName, schema, $"{pref}{tableName.UnquotedStringWithUnderScore}{suf}"));
-            this.AddName(DbCommandType.SelectChangesWitFilters, string.Format(selectChangesProcNameWithFilters, schema, $"{pref}{tableName.UnquotedStringWithUnderScore}{suf}", "{0}"));
-            this.AddName(DbCommandType.SelectRow, string.Format(selectRowProcName, schema, $"{pref}{tableName.UnquotedStringWithUnderScore}{suf}"));
-            this.AddName(DbCommandType.InsertRow, string.Format(insertProcName, schema, $"{pref}{tableName.UnquotedStringWithUnderScore}{suf}"));
-            this.AddName(DbCommandType.UpdateRow, string.Format(updateProcName, schema, $"{pref}{tableName.UnquotedStringWithUnderScore}{suf}"));
-            this.AddName(DbCommandType.DeleteRow, string.Format(deleteProcName, schema, $"{pref}{tableName.UnquotedStringWithUnderScore}{suf}"));
-            this.AddName(DbCommandType.InsertMetadata, string.Format(insertMetadataProcName, schema, $"{pref}{tableName.UnquotedStringWithUnderScore}{suf}"));
-            this.AddName(DbCommandType.UpdateMetadata, string.Format(updateMetadataProcName, schema, $"{pref}{tableName.UnquotedStringWithUnderScore}{suf}"));
-            this.AddName(DbCommandType.DeleteMetadata, string.Format(deleteMetadataProcName, schema, $"{pref}{tableName.UnquotedStringWithUnderScore}{suf}"));
-            this.AddName(DbCommandType.Reset, string.Format(resetMetadataProcName, schema, $"{pref}{tableName.UnquotedStringWithUnderScore}{suf}"));
+            this.AddName(DbCommandType.SelectChanges, string.Format(selectChangesProcName, schema, $"{pref}{tableName.ObjectNameNormalized}{suf}"));
+            this.AddName(DbCommandType.SelectChangesWitFilters, string.Format(selectChangesProcNameWithFilters, schema, $"{pref}{tableName.ObjectNameNormalized}{suf}", "{0}"));
+            this.AddName(DbCommandType.SelectRow, string.Format(selectRowProcName, schema, $"{pref}{tableName.ObjectNameNormalized}{suf}"));
+            this.AddName(DbCommandType.InsertRow, string.Format(insertProcName, schema, $"{pref}{tableName.ObjectNameNormalized}{suf}"));
+            this.AddName(DbCommandType.UpdateRow, string.Format(updateProcName, schema, $"{pref}{tableName.ObjectNameNormalized}{suf}"));
+            this.AddName(DbCommandType.DeleteRow, string.Format(deleteProcName, schema, $"{pref}{tableName.ObjectNameNormalized}{suf}"));
+            this.AddName(DbCommandType.InsertMetadata, string.Format(insertMetadataProcName, schema, $"{pref}{tableName.ObjectNameNormalized}{suf}"));
+            this.AddName(DbCommandType.UpdateMetadata, string.Format(updateMetadataProcName, schema, $"{pref}{tableName.ObjectNameNormalized}{suf}"));
+            this.AddName(DbCommandType.DeleteMetadata, string.Format(deleteMetadataProcName, schema, $"{pref}{tableName.ObjectNameNormalized}{suf}"));
+            this.AddName(DbCommandType.Reset, string.Format(resetMetadataProcName, schema, $"{pref}{tableName.ObjectNameNormalized}{suf}"));
 
-            this.AddName(DbCommandType.InsertTrigger, string.Format(insertTriggerName, schema, $"{tableName.UnquotedStringWithUnderScore}"));
-            this.AddName(DbCommandType.UpdateTrigger, string.Format(updateTriggerName, schema, $"{tableName.UnquotedStringWithUnderScore}"));
-            this.AddName(DbCommandType.DeleteTrigger, string.Format(deleteTriggerName, schema, $"{tableName.UnquotedStringWithUnderScore}"));
+            this.AddName(DbCommandType.InsertTrigger, string.Format(insertTriggerName, schema, $"{tableName.ObjectNameNormalized}"));
+            this.AddName(DbCommandType.UpdateTrigger, string.Format(updateTriggerName, schema, $"{tableName.ObjectNameNormalized}"));
+            this.AddName(DbCommandType.DeleteTrigger, string.Format(deleteTriggerName, schema, $"{tableName.ObjectNameNormalized}"));
 
-            this.AddName(DbCommandType.BulkTableType, string.Format(bulkTableTypeName, schema, $"{pref}{tableName.UnquotedStringWithUnderScore}{suf}"));
+            this.AddName(DbCommandType.BulkTableType, string.Format(bulkTableTypeName, schema, $"{pref}{tableName.ObjectNameNormalized}{suf}"));
 
-            this.AddName(DbCommandType.BulkInsertRows, string.Format(bulkInsertProcName, schema, $"{pref}{tableName.UnquotedStringWithUnderScore}{suf}"));
-            this.AddName(DbCommandType.BulkUpdateRows, string.Format(bulkUpdateProcName, schema, $"{pref}{tableName.UnquotedStringWithUnderScore}{suf}"));
-            this.AddName(DbCommandType.BulkDeleteRows, string.Format(bulkDeleteProcName, schema, $"{pref}{tableName.UnquotedStringWithUnderScore}{suf}"));
+            this.AddName(DbCommandType.BulkInsertRows, string.Format(bulkInsertProcName, schema, $"{pref}{tableName.ObjectNameNormalized}{suf}"));
+            this.AddName(DbCommandType.BulkUpdateRows, string.Format(bulkUpdateProcName, schema, $"{pref}{tableName.ObjectNameNormalized}{suf}"));
+            this.AddName(DbCommandType.BulkDeleteRows, string.Format(bulkDeleteProcName, schema, $"{pref}{tableName.ObjectNameNormalized}{suf}"));
         }
 
     }

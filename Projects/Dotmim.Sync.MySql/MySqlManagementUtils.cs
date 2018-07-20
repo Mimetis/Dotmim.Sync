@@ -18,7 +18,7 @@ namespace Dotmim.Sync.MySql
             string commandColumn = "select * from information_schema.COLUMNS where table_schema = schema() and table_name = @tableName";
 
             ObjectNameParser tableNameParser = new ObjectNameParser(tableName, "`", "`");
-            DmTable dmTable = new DmTable(tableNameParser.UnquotedStringWithUnderScore);
+            DmTable dmTable = new DmTable(tableNameParser.ObjectNameNormalized);
             using (MySqlCommand sqlCommand = new MySqlCommand(commandColumn, connection, transaction))
             {
                 sqlCommand.Parameters.AddWithValue("@tableName", tableNameParser.ObjectName);
@@ -37,7 +37,7 @@ namespace Dotmim.Sync.MySql
             var commandColumn = @"select * from information_schema.COLUMNS where table_schema = schema() and table_name = @tableName and column_key='PRI'";
 
             ObjectNameParser tableNameParser = new ObjectNameParser(tableName, "`", "`");
-            DmTable dmTable = new DmTable(tableNameParser.UnquotedStringWithUnderScore);
+            DmTable dmTable = new DmTable(tableNameParser.ObjectNameNormalized);
             using (MySqlCommand sqlCommand = new MySqlCommand(commandColumn, connection, transaction))
             {
                 sqlCommand.Parameters.AddWithValue("@tableName", tableNameParser.ObjectName);
@@ -62,7 +62,7 @@ namespace Dotmim.Sync.MySql
                                     and REFERENCED_TABLE_NAME is not null and TABLE_NAME = @tableName";
 
             ObjectNameParser tableNameParser = new ObjectNameParser(tableName, "`", "`");
-            DmTable dmTable = new DmTable(tableNameParser.UnquotedStringWithUnderScore);
+            DmTable dmTable = new DmTable(tableNameParser.ObjectNameNormalized);
             using (MySqlCommand sqlCommand = new MySqlCommand(commandRelations, connection, transaction))
             {
                 sqlCommand.Parameters.AddWithValue("@tableName", tableNameParser.ObjectName);
@@ -147,7 +147,7 @@ namespace Dotmim.Sync.MySql
                 MySqlParameter sqlParameter = new MySqlParameter()
                 {
                     ParameterName = "@tableName",
-                    Value = tableNameParser.UnquotedString
+                    Value = tableNameParser.FullUnquotedString
                 };
 
                 dbCommand.Parameters.Add(sqlParameter);
@@ -214,10 +214,10 @@ namespace Dotmim.Sync.MySql
 
                 stringBuilder.Append(str);
                 stringBuilder.Append(strLeftName);
-                stringBuilder.Append(quotedColumn.QuotedString);
+                stringBuilder.Append(quotedColumn.FullQuotedString);
                 stringBuilder.Append(" = ");
                 stringBuilder.Append(strRightName);
-                stringBuilder.Append(quotedColumn.QuotedString);
+                stringBuilder.Append(quotedColumn.FullQuotedString);
 
                 str = " AND ";
             }
@@ -235,7 +235,7 @@ namespace Dotmim.Sync.MySql
 
                 stringBuilder.Append(str1);
                 stringBuilder.Append(strFromPrefix);
-                stringBuilder.Append(quotedColumn.QuotedString);
+                stringBuilder.Append(quotedColumn.FullQuotedString);
                 stringBuilder.Append(" = ");
                 stringBuilder.Append($"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{column.ColumnName}");
                 str1 = " AND ";
@@ -254,7 +254,7 @@ namespace Dotmim.Sync.MySql
 
                 stringBuilder.Append(str1);
                 stringBuilder.Append(strFromPrefix);
-                stringBuilder.Append(quotedColumn.QuotedString);
+                stringBuilder.Append(quotedColumn.FullQuotedString);
                 stringBuilder.Append(" = ");
                 stringBuilder.Append($"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{column.ColumnName}");
                 str1 = " AND ";
@@ -270,7 +270,7 @@ namespace Dotmim.Sync.MySql
             foreach (DmColumn mutableColumn in table.MutableColumns)
             {
                 ObjectNameParser quotedColumn = new ObjectNameParser(mutableColumn.ColumnName, "`", "`");
-                stringBuilder.AppendLine($"{strSeparator} {strFromPrefix}{quotedColumn.QuotedString} = {MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{quotedColumn.UnquotedString}");
+                stringBuilder.AppendLine($"{strSeparator} {strFromPrefix}{quotedColumn.FullQuotedString} = {MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{quotedColumn.FullUnquotedString}");
                 strSeparator = ", ";
             }
             return stringBuilder.ToString();
