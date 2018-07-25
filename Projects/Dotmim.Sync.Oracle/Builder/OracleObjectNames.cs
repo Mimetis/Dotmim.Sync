@@ -9,28 +9,28 @@ namespace Dotmim.Sync.Oracle.Builder
     {
         public const string TimestampValue = "to_number(to_char(systimestamp, 'YYYYMMDDHH24MISSFF3'))";
 
-        internal const string insertTriggerName = "{0}.{1}_insert_trigger";
-        internal const string updateTriggerName = "{0}.{1}_update_trigger";
-        internal const string deleteTriggerName = "{0}.{1}_delete_trigger";
+        internal const string insertTriggerName = "{0}{1}_insert_trigger";
+        internal const string updateTriggerName = "{0}{1}_update_trigger";
+        internal const string deleteTriggerName = "{0}{1}_delete_trigger";
 
-        internal const string selectChangesProcName = "{0}.{1}_selectchanges";
-        internal const string selectChangesProcNameWithFilters = "{0}.{1}_{2}_selectchanges";
-        internal const string selectRowProcName = "{0}.{1}_selectrow";
+        internal const string selectChangesProcName = "{0}{1}_selectchanges";
+        internal const string selectChangesProcNameWithFilters = "{0}{1}_{2}_selectchanges";
+        internal const string selectRowProcName = "{0}{1}_selectrow";
 
-        internal const string insertProcName = "{0}.{1}_insert";
-        internal const string updateProcName = "{0}.{1}_update";
-        internal const string deleteProcName = "{0}.{1}_delete";
+        internal const string insertProcName = "{0}{1}_insert";
+        internal const string updateProcName = "{0}{1}_update";
+        internal const string deleteProcName = "{0}{1}_delete";
 
-        internal const string insertMetadataProcName = "{0}.{1}_insertmetadata";
-        internal const string updateMetadataProcName = "{0}.{1}_updatemetadata";
-        internal const string deleteMetadataProcName = "{0}.{1}_deletemetadata";
+        internal const string insertMetadataProcName = "{0}{1}_insertmetadata";
+        internal const string updateMetadataProcName = "{0}{1}_updatemetadata";
+        internal const string deleteMetadataProcName = "{0}{1}_deletemetadata";
 
-        internal const string resetMetadataProcName = "{0}.{1}_reset";
+        internal const string resetMetadataProcName = "{0}{1}_reset";
 
-        internal const string bulkTableTypeName = "{0}.{1}_BulkType";
-        internal const string bulkInsertProcName = "{0}.{1}_bulkinsert";
-        internal const string bulkUpdateProcName = "{0}.{1}_bulkupdate";
-        internal const string bulkDeleteProcName = "{0}.{1}_bulkdelete";
+        internal const string bulkTableTypeName = "{0}{1}_BulkType";
+        internal const string bulkInsertProcName = "{0}{1}_bulkinsert";
+        internal const string bulkUpdateProcName = "{0}{1}_bulkupdate";
+        internal const string bulkDeleteProcName = "{0}{1}_bulkdelete";
 
         Dictionary<DbCommandType, String> names = new Dictionary<DbCommandType, string>();
 
@@ -49,7 +49,7 @@ namespace Dotmim.Sync.Oracle.Builder
         {
             (var tableName, var trackingName) = OracleBuilder.GetParsers(this.TableDescription);
 
-            var schema = string.IsNullOrEmpty(tableName.SchemaName) ? "dbo" : tableName.SchemaName;
+            var schema = string.IsNullOrEmpty(tableName.SchemaName) ? "" : tableName.SchemaName + ".";
 
             this.AddName(DbCommandType.SelectChanges, string.Format(selectChangesProcName, schema, tableName.ObjectName));
             this.AddName(DbCommandType.SelectChangesWitFilters, string.Format(selectChangesProcNameWithFilters, schema, tableName.ObjectName, "{0}"));

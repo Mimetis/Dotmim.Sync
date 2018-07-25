@@ -51,7 +51,11 @@ namespace Dotmim.Sync
         /// <summary>
         /// Total number of Sync Conflicts
         /// </summary>
-        public int TotalSyncConflicts { get; set; }
+        public int TotalSyncConflicts
+        {
+            get;
+            set;
+        }
 
         /// <summary>
         /// Total number of Sync Conflicts

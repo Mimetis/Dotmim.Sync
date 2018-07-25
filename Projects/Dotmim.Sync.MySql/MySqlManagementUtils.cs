@@ -58,14 +58,15 @@ namespace Dotmim.Sync.MySql
                                             REFERENCED_TABLE_NAME as ReferenceTableName,
                                             REFERENCED_COLUMN_NAME as ReferenceColumnName
                                     from INFORMATION_SCHEMA.KEY_COLUMN_USAGE
-                                    Where TABLE_SCHEMA = schema() 
-                                    and REFERENCED_TABLE_NAME is not null and TABLE_NAME = @tableName";
+                                    Where upper(TABLE_SCHEMA) = upper(@schema)
+                                    and REFERENCED_TABLE_NAME is not null and upper(TABLE_NAME) = upper(@tableName)";
 
             ObjectNameParser tableNameParser = new ObjectNameParser(tableName, "`", "`");
             DmTable dmTable = new DmTable(tableNameParser.UnquotedStringWithUnderScore);
             using (MySqlCommand sqlCommand = new MySqlCommand(commandRelations, connection, transaction))
             {
                 sqlCommand.Parameters.AddWithValue("@tableName", tableNameParser.ObjectName);
+                sqlCommand.Parameters.AddWithValue("@schema", connection.Database);
 
                 using (var reader = sqlCommand.ExecuteReader())
                 {

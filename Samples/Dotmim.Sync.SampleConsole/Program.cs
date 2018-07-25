@@ -3,9 +3,11 @@ using Dotmim.Sync.Data;
 using Dotmim.Sync.Data.Surrogate;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.MySql;
+using Dotmim.Sync.Oracle;
 using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Web;
+using MySql.Data.MySqlClient;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -18,7 +20,7 @@ class Program
 {
     static void Main(string[] args)
     {
-        TestSyncThroughWebApi().GetAwaiter().GetResult();
+        TestOracleSyncThroughWebApi().GetAwaiter().GetResult();
 
         Console.ReadLine();
     }
@@ -29,7 +31,62 @@ class Program
     public static string GetMySqlDatabaseConnectionString(string dbName) =>
         $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=azerty31$;";
 
-    
+    public static string GetOracleDatabaseConnectionString() =>
+        $"Data Source =(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP)(HOST=192.168.99.100)(PORT=32774)))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=xe)));User Id=test_base_personnel;Password=test_base_personnel;";
+
+    public static MySqlConnectionStringBuilder GetMySQLConnectionBuilder() => new MySqlConnectionStringBuilder()
+    {
+        Port = 32775,
+        Server = "192.168.99.100",
+        UserID = "root",
+        Password = "secret",
+        Database = "test",
+        MaximumPoolSize = 50
+    };
+
+    /// <summary>
+    /// Test a client syncing through a web api
+    /// </summary>
+    private static async Task TestOracleSyncThroughWebApi()
+    {
+        string line = "";
+        var oracleClientProvider = new OracleSyncProvider(GetOracleDatabaseConnectionString());
+        var mySqlClientProvider = new MySqlSyncProvider(GetMySQLConnectionBuilder());
+
+        var agent = new SyncAgent(mySqlClientProvider, oracleClientProvider, new string[] { "T_PERSONNE", "T_ENFANT" });
+        agent.Configuration.UseBulkOperations = false;
+
+        Console.WriteLine("Press a key to start synchronization ... ");
+        Console.ReadKey();
+        do
+        {
+            Console.Clear();
+            Console.WriteLine("Sync start");
+            try
+            {
+                var s = await agent.SynchronizeAsync();
+
+                Console.WriteLine(s);
+
+            }
+            catch (SyncException e)
+            {
+                Console.WriteLine(e.ToString());
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+            }
+
+
+            Console.WriteLine("Sync Ended. Press a key to start again, or EXIT to end");
+            line = Console.ReadLine();
+        } while (!line.ToUpper().Contains("EXIT"));
+
+        Console.WriteLine("End");
+
+    }
+
     /// <summary>
     /// Test a client syncing through a web api
     /// </summary>

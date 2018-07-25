@@ -52,7 +52,7 @@ namespace Dotmim.Sync.Oracle.Builder
         private OracleParameter GetSqlParameter(DmColumn column)
         {
             OracleParameter sqlParameter = new OracleParameter();
-            sqlParameter.ParameterName = $"{column.ColumnName}";
+            sqlParameter.ParameterName = $"{column.ColumnName}0";
 
             // Get the good SqlDbType (even if we are not from Sql Server def)
             OracleType sqlDbType = (OracleType)this.oracleDbMetadata.TryGetOwnerDbType(column.OriginalDbType, column.DbType, false, false, this.tableDescription.OriginalProvider, OracleSyncProvider.ProviderType);
@@ -122,7 +122,7 @@ namespace Dotmim.Sync.Oracle.Builder
                 if (!alreadyOpened)
                     connection.Open();
 
-                var str1 = $"Command {procName} for table {tableName.QuotedString}";
+                var str1 = $"Command {procName} for table {tableName.UnquotedString}";
                 var str = CreateProcedureCommandText(BuildCommand(), procName, parameters);
                 return OracleBuilder.WrapScriptTextWithComments(str, str1);
             }
@@ -139,15 +139,24 @@ namespace Dotmim.Sync.Oracle.Builder
         }
 
         private string CreateProcedureCommandText(OracleCommand cmd, string procName, List<string> parameters = null)
-        {
-            StringBuilder stringBuilder = new StringBuilder(string.Concat("CREATE OR REPLACE PROCEDURE (", procName));
+        { 
+            StringBuilder stringBuilder = new StringBuilder();
+
+            if (cmd.Parameters.Count > 0)
+                stringBuilder.AppendLine(string.Concat("CREATE OR REPLACE PROCEDURE ", procName, " ("));
+            else
+                stringBuilder.AppendLine(string.Concat("CREATE OR REPLACE PROCEDURE ", procName));
+
             string str = "\n\t";
             foreach (OracleParameter parameter in cmd.Parameters)
             {
                 stringBuilder.Append(string.Concat(str, CreateParameterDeclaration(parameter)));
                 str = ",\n\t";
             }
-            stringBuilder.AppendLine(")");
+
+            if (cmd.Parameters.Count > 0)
+                stringBuilder.AppendLine(")");
+
             stringBuilder.AppendLine("AS");
             if(parameters != null)
                 foreach(string parameter in parameters)
@@ -175,7 +184,10 @@ namespace Dotmim.Sync.Oracle.Builder
             else
                 direction = "IN";
 
-            stringBuilder3.Append($"{param.ParameterName} {direction} {sqlDbTypeString}{empty}");
+            if(sqlDbTypeString.Contains("varchar"))
+                stringBuilder3.Append($"{param.ParameterName} {direction} NVARCHAR2");
+            else
+                stringBuilder3.Append($"{param.ParameterName} {direction} {sqlDbTypeString}{empty}");
             return stringBuilder3.ToString();
         }
 
@@ -202,10 +214,10 @@ namespace Dotmim.Sync.Oracle.Builder
 
                 // Get the good SqlDbType (even if we are not from Sql Server def)
                 var sqlDbTypeString = this.oracleDbMetadata.TryGetOwnerDbTypeString(c.OriginalDbType, c.DbType, false, false, this.tableDescription.OriginalProvider, OracleSyncProvider.ProviderType);
-                var quotedColumnType = new ObjectNameParser(sqlDbTypeString, "", "").QuotedString;
+                var quotedColumnType = new ObjectNameParser(sqlDbTypeString, "", "").UnquotedString;
                 quotedColumnType += this.oracleDbMetadata.TryGetOwnerDbTypePrecision(c.OriginalDbType, c.DbType, false, false, c.MaxLength, c.Precision, c.Scale, this.tableDescription.OriginalProvider, OracleSyncProvider.ProviderType);
 
-                stringBuilder.AppendLine($"{str}{columnName.QuotedString} {quotedColumnType} {nullString}");
+                stringBuilder.AppendLine($"{str}{columnName.UnquotedString} {quotedColumnType} {nullString}");
                 str = ", ";
             }
             stringBuilder.AppendLine(", create_scope_id uniqueidentifier NULL");
@@ -217,7 +229,7 @@ namespace Dotmim.Sync.Oracle.Builder
             foreach (var c in this.tableDescription.PrimaryKey.Columns)
             {
                 var columnName = new ObjectNameParser(c.ColumnName);
-                stringBuilder.Append($"{str}{columnName.QuotedString} ASC");
+                stringBuilder.Append($"{str}{columnName.UnquotedString} ASC");
                 str = ", ";
             }
 
@@ -232,11 +244,11 @@ namespace Dotmim.Sync.Oracle.Builder
         {
             OracleCommand sqlCommand = new OracleCommand();
 
-            OracleParameter sqlParameter = new OracleParameter("@sync_min_timestamp", OracleType.UInt32);
+            OracleParameter sqlParameter = new OracleParameter("sync_min_timestamp", OracleType.UInt32);
             sqlCommand.Parameters.Add(sqlParameter);
-            OracleParameter sqlParameter1 = new OracleParameter("@sync_scope_id", OracleType.LongVarChar);
+            OracleParameter sqlParameter1 = new OracleParameter("sync_scope_id", OracleType.LongVarChar);
             sqlCommand.Parameters.Add(sqlParameter1);
-            OracleParameter sqlParameter2 = new OracleParameter("@changeTable", OracleType.NVarChar);
+            OracleParameter sqlParameter2 = new OracleParameter("changeTable", OracleType.NVarChar);
             sqlParameter2.Value = this.oracleObjectNames.GetCommandName(DbCommandType.BulkTableType);
             sqlCommand.Parameters.Add(sqlParameter2);
 
@@ -254,16 +266,16 @@ namespace Dotmim.Sync.Oracle.Builder
 
                 // Get the good SqlDbType (even if we are not from Sql Server def)
                 var sqlDbTypeString = this.oracleDbMetadata.TryGetOwnerDbTypeString(c.OriginalDbType, c.DbType, false, false, this.tableDescription.OriginalProvider, OracleSyncProvider.ProviderType);
-                var quotedColumnType = new ObjectNameParser(sqlDbTypeString, "", "").QuotedString;
+                var quotedColumnType = new ObjectNameParser(sqlDbTypeString, "", "").UnquotedString;
                 quotedColumnType += this.oracleDbMetadata.TryGetOwnerDbTypePrecision(c.OriginalDbType, c.DbType, false, false, c.MaxLength, c.Precision, c.Scale, this.tableDescription.OriginalProvider, OracleSyncProvider.ProviderType);
 
-                stringBuilder.Append($"{cc.QuotedString} {quotedColumnType}, ");
+                stringBuilder.Append($"{cc.UnquotedString} {quotedColumnType}, ");
             }
             stringBuilder.Append(" PRIMARY KEY (");
             for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
             {
                 var cc = new ObjectNameParser(this.tableDescription.PrimaryKey.Columns[i].ColumnName);
-                stringBuilder.Append($"{cc.QuotedString}");
+                stringBuilder.Append($"{cc.UnquotedString}");
                 if (i < this.tableDescription.PrimaryKey.Columns.Length - 1)
                     stringBuilder.Append(", ");
             }
@@ -282,12 +294,12 @@ namespace Dotmim.Sync.Oracle.Builder
             if (flag)
             {
                 stringBuilder.AppendLine();
-                stringBuilder.AppendLine($"SET IDENTITY_INSERT {tableName.QuotedString} ON;");
+                stringBuilder.AppendLine($"SET IDENTITY_INSERT {tableName.UnquotedString} ON;");
                 stringBuilder.AppendLine();
             }
 
             stringBuilder.AppendLine("-- update/insert into the base table");
-            stringBuilder.AppendLine($"MERGE {tableName.QuotedString} AS base USING");
+            stringBuilder.AppendLine($"MERGE {tableName.UnquotedString} AS base USING");
             stringBuilder.AppendLine("\t-- join done here against the side table to get the local timestamp for concurrency check\n");
 
 
@@ -299,7 +311,7 @@ namespace Dotmim.Sync.Oracle.Builder
             foreach (var c in this.tableDescription.Columns.Where(col => !col.ReadOnly))
             {
                 var columnName = new ObjectNameParser(c.ColumnName);
-                stringBuilder.Append($"{str}p.{columnName.QuotedString}");
+                stringBuilder.Append($"{str}p.{columnName.UnquotedString}");
                 str = ", ";
             }
             stringBuilder.AppendLine("\t, p.create_timestamp, p.update_timestamp");
@@ -308,7 +320,7 @@ namespace Dotmim.Sync.Oracle.Builder
             stringBuilder.AppendLine($"\tFROM @changeTable p ");
 
 
-            stringBuilder.Append($"\tLEFT JOIN {trackingName.QuotedString} t ON ");
+            stringBuilder.Append($"\tLEFT JOIN {trackingName.UnquotedString} t ON ");
             stringBuilder.AppendLine($"\t{str4}");
             stringBuilder.AppendLine($"\t) AS changes ON {str5}");
             stringBuilder.AppendLine();
@@ -322,8 +334,8 @@ namespace Dotmim.Sync.Oracle.Builder
             foreach (var mutableColumn in this.tableDescription.Columns.Where(c => !c.ReadOnly))
             {
                 ObjectNameParser columnName = new ObjectNameParser(mutableColumn.ColumnName);
-                stringBuilderArguments.Append(string.Concat(empty, columnName.QuotedString));
-                stringBuilderParameters.Append(string.Concat(empty, $"changes.{columnName.QuotedString}"));
+                stringBuilderArguments.Append(string.Concat(empty, columnName.UnquotedString));
+                stringBuilderParameters.Append(string.Concat(empty, $"changes.{columnName.UnquotedString}"));
                 empty = ", ";
             }
             stringBuilder.AppendLine();
@@ -334,7 +346,7 @@ namespace Dotmim.Sync.Oracle.Builder
             for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
             {
                 var cc = new ObjectNameParser(this.tableDescription.PrimaryKey.Columns[i].ColumnName);
-                stringBuilder.Append($"INSERTED.{cc.QuotedString}");
+                stringBuilder.Append($"INSERTED.{cc.UnquotedString}");
                 if (i < this.tableDescription.PrimaryKey.Columns.Length - 1)
                     stringBuilder.Append(", ");
                 else
@@ -346,7 +358,7 @@ namespace Dotmim.Sync.Oracle.Builder
             if (flag)
             {
                 stringBuilder.AppendLine();
-                stringBuilder.AppendLine($"SET IDENTITY_INSERT {tableName.QuotedString} OFF;");
+                stringBuilder.AppendLine($"SET IDENTITY_INSERT {tableName.UnquotedString} OFF;");
                 stringBuilder.AppendLine();
             }
 
@@ -356,13 +368,13 @@ namespace Dotmim.Sync.Oracle.Builder
             stringBuilder.AppendLine("\tcreate_scope_id = @sync_scope_id,");
             stringBuilder.AppendLine("\tupdate_timestamp = changes.update_timestamp,");
             stringBuilder.AppendLine("\tcreate_timestamp = changes.create_timestamp");
-            stringBuilder.AppendLine($"FROM {trackingName.QuotedString} side");
+            stringBuilder.AppendLine($"FROM {trackingName.UnquotedString} side");
             stringBuilder.AppendLine("JOIN (");
             stringBuilder.Append("\tSELECT ");
             for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
             {
                 var cc = new ObjectNameParser(this.tableDescription.PrimaryKey.Columns[i].ColumnName);
-                stringBuilder.Append($"p.{cc.QuotedString}, ");
+                stringBuilder.Append($"p.{cc.UnquotedString}, ");
             }
 
             stringBuilder.AppendLine(" p.update_timestamp, p.create_timestamp ");
@@ -406,16 +418,16 @@ namespace Dotmim.Sync.Oracle.Builder
 
                 // Get the good SqlDbType (even if we are not from Sql Server def)
                 var sqlDbTypeString = this.oracleDbMetadata.TryGetOwnerDbTypeString(c.OriginalDbType, c.DbType, false, false, this.tableDescription.OriginalProvider, OracleSyncProvider.ProviderType);
-                var quotedColumnType = new ObjectNameParser(sqlDbTypeString, "", "").QuotedString;
+                var quotedColumnType = new ObjectNameParser(sqlDbTypeString, "", "").UnquotedString;
                 quotedColumnType += this.oracleDbMetadata.TryGetOwnerDbTypePrecision(c.OriginalDbType, c.DbType, false, false, c.MaxLength, c.Precision, c.Scale, this.tableDescription.OriginalProvider, OracleSyncProvider.ProviderType);
 
-                stringBuilder.Append($"{cc.QuotedString} {quotedColumnType}, ");
+                stringBuilder.Append($"{cc.UnquotedString} {quotedColumnType}, ");
             }
             stringBuilder.Append(" PRIMARY KEY (");
             for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
             {
                 var cc = new ObjectNameParser(this.tableDescription.PrimaryKey.Columns[i].ColumnName);
-                stringBuilder.Append($"{cc.QuotedString}");
+                stringBuilder.Append($"{cc.UnquotedString}");
                 if (i < this.tableDescription.PrimaryKey.Columns.Length - 1)
                     stringBuilder.Append(", ");
             }
@@ -423,19 +435,19 @@ namespace Dotmim.Sync.Oracle.Builder
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($"-- delete all items where timestamp <= @sync_min_timestamp or update_scope_id = @sync_scope_id");
 
-            stringBuilder.AppendLine($"DELETE {tableName.QuotedString}");
+            stringBuilder.AppendLine($"DELETE {tableName.UnquotedString}");
             stringBuilder.Append($"OUTPUT ");
             for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
             {
                 var cc = new ObjectNameParser(this.tableDescription.PrimaryKey.Columns[i].ColumnName);
-                stringBuilder.Append($"DELETED.{cc.QuotedString}");
+                stringBuilder.Append($"DELETED.{cc.UnquotedString}");
                 if (i < this.tableDescription.PrimaryKey.Columns.Length - 1)
                     stringBuilder.Append(", ");
                 else
                     stringBuilder.AppendLine();
             }
             stringBuilder.AppendLine($"INTO @changed ");
-            stringBuilder.AppendLine($"FROM {tableName.QuotedString} base");
+            stringBuilder.AppendLine($"FROM {tableName.UnquotedString} base");
             stringBuilder.AppendLine("JOIN (");
 
 
@@ -445,7 +457,7 @@ namespace Dotmim.Sync.Oracle.Builder
             foreach (var c in this.tableDescription.Columns.Where(col => !col.ReadOnly))
             {
                 var columnName = new ObjectNameParser(c.ColumnName);
-                stringBuilder.Append($"{str}p.{columnName.QuotedString}");
+                stringBuilder.Append($"{str}p.{columnName.UnquotedString}");
                 str = ", ";
             }
             stringBuilder.AppendLine("\t, p.create_timestamp, p.update_timestamp");
@@ -456,7 +468,7 @@ namespace Dotmim.Sync.Oracle.Builder
 
             //stringBuilder.AppendLine($"\tSELECT p.*, t.update_scope_id, t.timestamp");
             //stringBuilder.AppendLine($"\tFROM @changeTable p ");
-            stringBuilder.AppendLine($"\tJOIN {trackingName.QuotedString} t ON ");
+            stringBuilder.AppendLine($"\tJOIN {trackingName.UnquotedString} t ON ");
             stringBuilder.AppendLine($"\t{str4}");
             stringBuilder.AppendLine("\t)");
             stringBuilder.AppendLine("\tAS changes ON ");
@@ -472,13 +484,13 @@ namespace Dotmim.Sync.Oracle.Builder
             stringBuilder.AppendLine("\tsync_row_is_tombstone = 1, ");
             stringBuilder.AppendLine("\tupdate_scope_id = @sync_scope_id,");
             stringBuilder.AppendLine("\tupdate_timestamp = changes.update_timestamp");
-            stringBuilder.AppendLine($"FROM {trackingName.QuotedString} side");
+            stringBuilder.AppendLine($"FROM {trackingName.UnquotedString} side");
             stringBuilder.AppendLine("JOIN (");
             stringBuilder.Append("\tSELECT ");
             for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
             {
                 var cc = new ObjectNameParser(this.tableDescription.PrimaryKey.Columns[i].ColumnName);
-                stringBuilder.Append($"p.{cc.QuotedString}, ");
+                stringBuilder.Append($"p.{cc.UnquotedString}, ");
             }
             stringBuilder.AppendLine(" p.update_timestamp, p.create_timestamp ");
             stringBuilder.AppendLine("\tFROM @changed t JOIN @changeTable p ON ");
@@ -521,16 +533,16 @@ namespace Dotmim.Sync.Oracle.Builder
 
                 // Get the good SqlDbType (even if we are not from Sql Server def)
                 var sqlDbTypeString = this.oracleDbMetadata.TryGetOwnerDbTypeString(c.OriginalDbType, c.DbType, false, false, this.tableDescription.OriginalProvider, OracleSyncProvider.ProviderType);
-                var quotedColumnType = new ObjectNameParser(sqlDbTypeString, "", "").QuotedString;
+                var quotedColumnType = new ObjectNameParser(sqlDbTypeString, "", "").UnquotedString;
                 quotedColumnType += this.oracleDbMetadata.TryGetOwnerDbTypePrecision(c.OriginalDbType, c.DbType, false, false, c.MaxLength, c.Precision, c.Scale, this.tableDescription.OriginalProvider, OracleSyncProvider.ProviderType);
 
-                stringBuilder.Append($"{cc.QuotedString} {quotedColumnType}, ");
+                stringBuilder.Append($"{cc.UnquotedString} {quotedColumnType}, ");
             }
             stringBuilder.Append(" PRIMARY KEY (");
             for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
             {
                 var cc = new ObjectNameParser(this.tableDescription.PrimaryKey.Columns[i].ColumnName);
-                stringBuilder.Append($"{cc.QuotedString}");
+                stringBuilder.Append($"{cc.UnquotedString}");
                 if (i < this.tableDescription.PrimaryKey.Columns.Length - 1)
                     stringBuilder.Append(", ");
             }
@@ -549,12 +561,12 @@ namespace Dotmim.Sync.Oracle.Builder
             if (flag)
             {
                 stringBuilder.AppendLine();
-                stringBuilder.AppendLine($"SET IDENTITY_INSERT {tableName.QuotedString} ON;");
+                stringBuilder.AppendLine($"SET IDENTITY_INSERT {tableName.UnquotedString} ON;");
                 stringBuilder.AppendLine();
             }
 
             stringBuilder.AppendLine("-- update the base table");
-            stringBuilder.AppendLine($"MERGE {tableName.QuotedString} AS base USING");
+            stringBuilder.AppendLine($"MERGE {tableName.UnquotedString} AS base USING");
             stringBuilder.AppendLine("\t-- join done here against the side table to get the local timestamp for concurrency check\n");
 
             //stringBuilder.AppendLine("\t(SELECT p.*, t.update_scope_id, t.timestamp FROM @changeTable p ");
@@ -565,14 +577,14 @@ namespace Dotmim.Sync.Oracle.Builder
             foreach (var c in this.tableDescription.Columns.Where(col => !col.ReadOnly))
             {
                 var columnName = new ObjectNameParser(c.ColumnName);
-                stringBuilder.Append($"{str}p.{columnName.QuotedString}");
+                stringBuilder.Append($"{str}p.{columnName.UnquotedString}");
                 str = ", ";
             }
             stringBuilder.AppendLine("\t, p.create_timestamp, p.update_timestamp");
             stringBuilder.AppendLine("\t, t.update_scope_id, t.timestamp");
 
             stringBuilder.AppendLine($"\tFROM @changeTable p ");
-            stringBuilder.Append($"\tLEFT JOIN {trackingName.QuotedString} t ON ");
+            stringBuilder.Append($"\tLEFT JOIN {trackingName.UnquotedString} t ON ");
             stringBuilder.AppendLine($" {str4}");
             stringBuilder.AppendLine($"\t) AS changes ON {str5}");
             stringBuilder.AppendLine();
@@ -586,8 +598,8 @@ namespace Dotmim.Sync.Oracle.Builder
             foreach (var mutableColumn in this.tableDescription.Columns.Where(c => !c.ReadOnly))
             {
                 ObjectNameParser columnName = new ObjectNameParser(mutableColumn.ColumnName);
-                stringBuilderArguments.Append(string.Concat(empty, columnName.QuotedString));
-                stringBuilderParameters.Append(string.Concat(empty, $"changes.{columnName.QuotedString}"));
+                stringBuilderArguments.Append(string.Concat(empty, columnName.UnquotedString));
+                stringBuilderParameters.Append(string.Concat(empty, $"changes.{columnName.UnquotedString}"));
                 empty = ", ";
             }
             stringBuilder.AppendLine();
@@ -597,14 +609,14 @@ namespace Dotmim.Sync.Oracle.Builder
             foreach (DmColumn column in this.tableDescription.NonPkColumns.Where(col => !col.ReadOnly))
             {
                 ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
-                stringBuilder.AppendLine($"\t{strSeparator}{quotedColumn.QuotedString} = changes.{quotedColumn.QuotedString}");
+                stringBuilder.AppendLine($"\t{strSeparator}{quotedColumn.UnquotedString} = changes.{quotedColumn.UnquotedString}");
                 strSeparator = ", ";
             }
             stringBuilder.Append($"\tOUTPUT ");
             for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
             {
                 var cc = new ObjectNameParser(this.tableDescription.PrimaryKey.Columns[i].ColumnName);
-                stringBuilder.Append($"INSERTED.{cc.QuotedString}");
+                stringBuilder.Append($"INSERTED.{cc.UnquotedString}");
                 if (i < this.tableDescription.PrimaryKey.Columns.Length - 1)
                     stringBuilder.Append(", ");
                 else
@@ -616,7 +628,7 @@ namespace Dotmim.Sync.Oracle.Builder
             if (flag)
             {
                 stringBuilder.AppendLine();
-                stringBuilder.AppendLine($"SET IDENTITY_INSERT {tableName.QuotedString} OFF;");
+                stringBuilder.AppendLine($"SET IDENTITY_INSERT {tableName.UnquotedString} OFF;");
                 stringBuilder.AppendLine();
             }
 
@@ -624,13 +636,13 @@ namespace Dotmim.Sync.Oracle.Builder
             stringBuilder.AppendLine("UPDATE side SET");
             stringBuilder.AppendLine("\tupdate_scope_id = @sync_scope_id,");
             stringBuilder.AppendLine("\tupdate_timestamp = changes.update_timestamp");
-            stringBuilder.AppendLine($"FROM {trackingName.QuotedString} side");
+            stringBuilder.AppendLine($"FROM {trackingName.UnquotedString} side");
             stringBuilder.AppendLine("JOIN (");
             stringBuilder.Append("\tSELECT ");
             for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
             {
                 var cc = new ObjectNameParser(this.tableDescription.PrimaryKey.Columns[i].ColumnName);
-                stringBuilder.Append($"p.{cc.QuotedString}, ");
+                stringBuilder.Append($"p.{cc.UnquotedString}, ");
             }
 
             stringBuilder.AppendLine(" p.update_timestamp, p.create_timestamp ");
@@ -656,44 +668,45 @@ namespace Dotmim.Sync.Oracle.Builder
             OracleCommand sqlCommand = new OracleCommand();
             StringBuilder stringBuilder = new StringBuilder();
             this.AddPkColumnParametersToCommand(sqlCommand);
-            OracleParameter sqlParameter = new OracleParameter("sync_scope_id", SqlDbType.NVarChar);
+            OracleParameter sqlParameter = new OracleParameter("sync_scope_id", OracleType.NVarChar);
             sqlCommand.Parameters.Add(sqlParameter);
-            OracleParameter sqlParameter1 = new OracleParameter("sync_row_is_tombstone", SqlDbType.Int);
+            OracleParameter sqlParameter1 = new OracleParameter("sync_row_is_tombstone", OracleType.Number);
             sqlCommand.Parameters.Add(sqlParameter1);
-            OracleParameter sqlParameter3 = new OracleParameter("create_timestamp", SqlDbType.BigInt);
+            OracleParameter sqlParameter3 = new OracleParameter("create_timestamp", OracleType.Number);
             sqlCommand.Parameters.Add(sqlParameter3);
-            OracleParameter sqlParameter5 = new OracleParameter("update_timestamp", SqlDbType.BigInt);
+            OracleParameter sqlParameter5 = new OracleParameter("update_timestamp", OracleType.Number);
             sqlCommand.Parameters.Add(sqlParameter5);
-            OracleParameter sqlParameter8 = new OracleParameter("sync_row_count", SqlDbType.Int);
+            OracleParameter sqlParameter8 = new OracleParameter("sync_row_count", OracleType.Number);
             sqlParameter8.Direction = ParameterDirection.Output;
             sqlCommand.Parameters.Add(sqlParameter8);
 
-            string str1 = OracleManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKey.Columns, "");
+            string str1 = OracleManagementUtils.ColumnsAndParametersStoredProcedure(this.tableDescription.PrimaryKey.Columns, "");
 
             stringBuilder.AppendLine($"{sqlParameter8.ParameterName} := 0;");
             stringBuilder.AppendLine();
 
             stringBuilder.AppendLine($"SELECT sync_row_is_tombstone into was_tombstone");
-            stringBuilder.AppendLine($"FROM {trackingName.QuotedString}");
-            stringBuilder.AppendLine($"WHERE ({str1})");
+            stringBuilder.AppendLine($"FROM {trackingName.UnquotedString}");
+            stringBuilder.AppendLine($"WHERE ({str1}) ;");
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine("IF (was_tombstone IS NOT NULL AND was_tombstone = 1 AND :sync_row_is_tombstone = 0)");
+            stringBuilder.AppendLine("IF (was_tombstone IS NOT NULL AND was_tombstone = 1 AND sync_row_is_tombstone = 0) THEN");
             stringBuilder.AppendLine("BEGIN ");
-            stringBuilder.AppendLine($"UPDATE {trackingName.QuotedString} SET ");
-            stringBuilder.AppendLine("\t create_scope_id = :sync_scope_id, ");
-            stringBuilder.AppendLine("\t update_scope_id = :sync_scope_id, ");
-            stringBuilder.AppendLine("\t create_timestamp = :create_timestamp, ");
-            stringBuilder.AppendLine("\t update_timestamp = :update_timestamp, ");
-            stringBuilder.AppendLine("\t sync_row_is_tombstone = :sync_row_is_tombstone ");
-            stringBuilder.AppendLine($"WHERE ({str1})");
-            stringBuilder.AppendLine("END");
+            stringBuilder.AppendLine($"UPDATE {trackingName.UnquotedString} SET ");
+            stringBuilder.AppendLine("\t create_scope_id = sync_scope_id, ");
+            stringBuilder.AppendLine("\t update_scope_id = sync_scope_id, ");
+            stringBuilder.AppendLine("\t create_timestamp = create_timestamp, ");
+            stringBuilder.AppendLine("\t update_timestamp = update_timestamp, ");
+            stringBuilder.AppendLine("\t sync_row_is_tombstone = sync_row_is_tombstone ");
+            stringBuilder.AppendLine($"WHERE ({str1}) ;");
+            stringBuilder.AppendLine("END;");
             stringBuilder.AppendLine("ELSE");
             stringBuilder.AppendLine("BEGIN ");
-            stringBuilder.AppendLine($"UPDATE {trackingName.QuotedString} SET ");
-            stringBuilder.AppendLine("\t update_scope_id = :sync_scope_id, ");
-            stringBuilder.AppendLine("\t update_timestamp = :update_timestamp, ");
-            stringBuilder.AppendLine("\t sync_row_is_tombstone = :sync_row_is_tombstone ");
-            stringBuilder.AppendLine($"WHERE ({str1})");
+            stringBuilder.AppendLine($"UPDATE {trackingName.UnquotedString} SET ");
+            stringBuilder.AppendLine("\t update_scope_id = sync_scope_id, ");
+            stringBuilder.AppendLine("\t update_timestamp = update_timestamp, ");
+            stringBuilder.AppendLine("\t sync_row_is_tombstone = sync_row_is_tombstone ");
+            stringBuilder.AppendLine($"WHERE ({str1}) ;");
+            stringBuilder.AppendLine("END;");
             stringBuilder.AppendLine("END IF;");
             stringBuilder.AppendLine();
             stringBuilder.Append($" {sqlParameter8.ParameterName} := SQL%ROWCOUNT;");
@@ -707,14 +720,17 @@ namespace Dotmim.Sync.Oracle.Builder
         private OracleCommand BuildSelectIncrementalChangesCommand(bool withFilter = false)
         {
             OracleCommand sqlCommand = new OracleCommand();
-            OracleParameter sqlParameter1 = new OracleParameter("sync_min_timestamp", SqlDbType.BigInt);
-            OracleParameter sqlParameter3 = new OracleParameter("sync_scope_id", SqlDbType.UniqueIdentifier);
-            OracleParameter sqlParameter4 = new OracleParameter("sync_scope_is_new", SqlDbType.Bit);
-            OracleParameter sqlParameter5 = new OracleParameter("sync_scope_is_reinit", SqlDbType.Bit);
+            OracleParameter sqlParameter1 = new OracleParameter("sync_min_timestamp", OracleType.Number);
+            OracleParameter sqlParameter3 = new OracleParameter("sync_scope_id", OracleType.NVarChar);
+            OracleParameter sqlParameter4 = new OracleParameter("sync_scope_is_new", OracleType.Number);
+            OracleParameter sqlParameter5 = new OracleParameter("sync_scope_is_reinit", OracleType.Number);
+            OracleParameter sqlParameter6 = new OracleParameter("cur", OracleType.Cursor);
+            sqlParameter6.Direction = ParameterDirection.Output;
             sqlCommand.Parameters.Add(sqlParameter1);
             sqlCommand.Parameters.Add(sqlParameter3);
             sqlCommand.Parameters.Add(sqlParameter4);
             sqlCommand.Parameters.Add(sqlParameter5);
+            sqlCommand.Parameters.Add(sqlParameter6);
 
             if (withFilter && this.Filters != null && this.Filters.Count > 0)
             {
@@ -729,37 +745,38 @@ namespace Dotmim.Sync.Oracle.Builder
 
                     // Get the good SqlDbType (even if we are not from Sql Server def)
 
-                    SqlDbType sqlDbType = (SqlDbType)this.oracleDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.DbType, false, false, this.tableDescription.OriginalProvider, OracleSyncProvider.ProviderType);
+                    OracleType sqlDbType = (OracleType)this.oracleDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.DbType, false, false, this.tableDescription.OriginalProvider, OracleSyncProvider.ProviderType);
                     OracleParameter sqlParamFilter = new OracleParameter($"{columnFilterName.UnquotedString}", sqlDbType);
                     sqlCommand.Parameters.Add(sqlParamFilter);
                 }
             }
 
-            StringBuilder stringBuilder = new StringBuilder("SELECT ");
+            StringBuilder stringBuilder = new StringBuilder("open cur for SELECT ");
             foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
             {
                 var pkColumnName = new ObjectNameParser(pkColumn.ColumnName);
-                stringBuilder.AppendLine($"\t side.{pkColumnName.QuotedString}, ");
+                stringBuilder.AppendLine($"\t side.{pkColumnName.UnquotedString}, ");
             }
             foreach (var column in this.tableDescription.NonPkColumns.Where(col => !col.ReadOnly))
             {
                 var columnName = new ObjectNameParser(column.ColumnName);
-                stringBuilder.AppendLine($"\t base.{columnName.QuotedString}, ");
+                stringBuilder.AppendLine($"\t base.{columnName.UnquotedString}, ");
             }
-            stringBuilder.AppendLine($"\t side.sync_row_is_tombstone, ");
+            
             stringBuilder.AppendLine($"\t side.create_scope_id, ");
             stringBuilder.AppendLine($"\t side.create_timestamp, ");
             stringBuilder.AppendLine($"\t side.update_scope_id, ");
-            stringBuilder.AppendLine($"\t side.update_timestamp ");
-            stringBuilder.AppendLine($"FROM {tableName.QuotedString} base");
-            stringBuilder.AppendLine($"RIGHT JOIN {trackingName.QuotedString} side");
+            stringBuilder.AppendLine($"\t side.update_timestamp, ");
+            stringBuilder.AppendLine($"\t side.sync_row_is_tombstone ");
+            stringBuilder.AppendLine($"FROM {tableName.UnquotedString} base");
+            stringBuilder.AppendLine($"RIGHT JOIN {trackingName.UnquotedString} side");
             stringBuilder.Append($"ON ");
 
             string empty = "";
             foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
             {
                 var pkColumnName = new ObjectNameParser(pkColumn.ColumnName);
-                stringBuilder.Append($"{empty} base.{pkColumnName.QuotedString} = side.{pkColumnName.QuotedString}");
+                stringBuilder.Append($"{empty} base.{pkColumnName.UnquotedString} = side.{pkColumnName.UnquotedString}");
                 empty = " AND ";
             }
             stringBuilder.AppendLine();
@@ -780,12 +797,12 @@ namespace Dotmim.Sync.Oracle.Builder
 
                     var columnFilterName = new ObjectNameParser(columnFilter.ColumnName, "", "");
 
-                    builderFilter.Append($"side.{columnFilterName.QuotedObjectName} = :{columnFilterName.UnquotedString}{filterSeparationString}");
+                    builderFilter.Append($"side.{columnFilterName.QuotedObjectName} = {columnFilterName.UnquotedString}{filterSeparationString}");
                     filterSeparationString = " AND ";
                 }
                 builderFilter.AppendLine(")");
                 builderFilter.Append("\tOR (");
-                builderFilter.AppendLine("(side.update_scope_id = :sync_scope_id or side.update_scope_id IS NULL)");
+                builderFilter.AppendLine("(side.update_scope_id = sync_scope_id or side.update_scope_id IS NULL)");
                 builderFilter.Append("\t\tAND (");
 
                 filterSeparationString = "";
@@ -807,16 +824,16 @@ namespace Dotmim.Sync.Oracle.Builder
             stringBuilder.AppendLine("\t-- Update made by the local instance");
             stringBuilder.AppendLine("\tside.update_scope_id IS NULL");
             stringBuilder.AppendLine("\t-- Or Update different from remote");
-            stringBuilder.AppendLine("\tOR side.update_scope_id <> :sync_scope_id");
+            stringBuilder.AppendLine("\tOR side.update_scope_id <> sync_scope_id");
             stringBuilder.AppendLine("\t-- Or we are in reinit mode so we take rows even thoses updated by the scope");
-            stringBuilder.AppendLine("\tOR :sync_scope_is_reinit = 1");
+            stringBuilder.AppendLine("\tOR sync_scope_is_reinit = 1");
             stringBuilder.AppendLine("    )");
             stringBuilder.AppendLine("AND (");
             stringBuilder.AppendLine("\t-- And Timestamp is > from remote timestamp");
-            stringBuilder.AppendLine("\tside.timestamp > :sync_min_timestamp");
+            stringBuilder.AppendLine("\tside.timestamp > sync_min_timestamp");
             stringBuilder.AppendLine("\tOR");
             stringBuilder.AppendLine("\t-- remote instance is new, so we don't take the last timestamp");
-            stringBuilder.AppendLine("\t:sync_scope_is_new = 1");
+            stringBuilder.AppendLine("\tsync_scope_is_new = 1");
             stringBuilder.AppendLine("\t)");
             stringBuilder.AppendLine("AND (");
             stringBuilder.AppendLine("\tside.sync_row_is_tombstone = 1 ");
@@ -826,11 +843,10 @@ namespace Dotmim.Sync.Oracle.Builder
             empty = " AND ";
             foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
             {
-                var pkColumnName = new ObjectNameParser(pkColumn.ColumnName, "", "");
-                stringBuilder.Append($"{empty}base.{pkColumnName.QuotedString} is not null");
+                stringBuilder.Append($"{empty}base.{pkColumn.ColumnName} is not null");
             }
             stringBuilder.AppendLine("\t)");
-            stringBuilder.AppendLine(")");
+            stringBuilder.AppendLine(");");
 
             sqlCommand.CommandText = stringBuilder.ToString();
 
@@ -854,26 +870,24 @@ namespace Dotmim.Sync.Oracle.Builder
             StringBuilder stringBuilder = new StringBuilder();
             this.AddColumnParametersToCommand(sqlCommand);
 
-            OracleParameter sqlParameter = new OracleParameter("sync_force_write", SqlDbType.Int);
+            OracleParameter sqlParameter = new OracleParameter("sync_force_write", OracleType.Number);
             sqlCommand.Parameters.Add(sqlParameter);
-            OracleParameter sqlParameter1 = new OracleParameter("sync_min_timestamp", SqlDbType.BigInt);
+            OracleParameter sqlParameter1 = new OracleParameter("sync_min_timestamp", OracleType.Number);
             sqlCommand.Parameters.Add(sqlParameter1);
-            OracleParameter sqlParameter2 = new OracleParameter("sync_row_count", SqlDbType.Int);
+            OracleParameter sqlParameter2 = new OracleParameter("sync_row_count", OracleType.Number);
             sqlParameter2.Direction = ParameterDirection.Output;
             sqlCommand.Parameters.Add(sqlParameter2);
 
             stringBuilder.AppendLine($" {sqlParameter2.ParameterName} := 0;");
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"UPDATE {tableName.QuotedString}");
-            stringBuilder.Append($"SET {OracleManagementUtils.CommaSeparatedUpdateFromParameters(this.tableDescription)}");
-            stringBuilder.AppendLine($"FROM {tableName.QuotedString} base");
-            stringBuilder.AppendLine($"JOIN {trackingName.QuotedString} side");
-            stringBuilder.Append($"ON ");
-            stringBuilder.AppendLine(OracleManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "base", "side"));
-            stringBuilder.AppendLine("WHERE (side.timestamp <= :sync_min_timestamp OR :sync_force_write = 1)");
+            stringBuilder.AppendLine($"UPDATE {tableName.UnquotedString} base");
+            stringBuilder.Append($"SET {OracleManagementUtils.CommaSeparatedUpdateFromParametersStoredProcedure(this.tableDescription)}");
+            stringBuilder.Append($"WHERE EXISTS ( SELECT 1 FROM {trackingName.UnquotedString} side WHERE ");
+            stringBuilder.Append(OracleManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "base", "side"));
+            stringBuilder.AppendLine(" AND (side.timestamp <= sync_min_timestamp OR sync_force_write = 1)");
             stringBuilder.Append("AND (");
-            stringBuilder.Append(OracleManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKey.Columns, "base"));
-            stringBuilder.AppendLine(");");
+            stringBuilder.Append(OracleManagementUtils.ColumnsAndParametersStoredProcedure(this.tableDescription.PrimaryKey.Columns, "base"));
+            stringBuilder.AppendLine("));");
             stringBuilder.AppendLine();
             stringBuilder.Append(string.Concat("", sqlParameter2.ParameterName, " := SQL%ROWCOUNT;"));
             sqlCommand.CommandText = stringBuilder.ToString();
@@ -887,24 +901,27 @@ namespace Dotmim.Sync.Oracle.Builder
         {
             OracleCommand sqlCommand = new OracleCommand();
             this.AddPkColumnParametersToCommand(sqlCommand);
-            OracleParameter sqlParameter = new OracleParameter("sync_scope_id", SqlDbType.UniqueIdentifier);
+            OracleParameter sqlParameter = new OracleParameter("sync_scope_id", OracleType.NVarChar);
+            OracleParameter sqlParameter1 = new OracleParameter("cur", OracleType.Cursor);
+            sqlParameter1.Direction = ParameterDirection.Output;
             sqlCommand.Parameters.Add(sqlParameter);
+            sqlCommand.Parameters.Add(sqlParameter1);
 
-            StringBuilder stringBuilder = new StringBuilder("SELECT ");
+            StringBuilder stringBuilder = new StringBuilder("open cur for SELECT ");
             stringBuilder.AppendLine();
             StringBuilder stringBuilder1 = new StringBuilder();
             string empty = string.Empty;
             foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
             {
                 ObjectNameParser pkColumnName = new ObjectNameParser(pkColumn.ColumnName);
-                stringBuilder.AppendLine($"\t side.{pkColumnName.QuotedString}, ");
-                stringBuilder1.Append($"{empty} side.{pkColumnName.QuotedString} = :{pkColumnName.UnquotedString}");
+                stringBuilder.AppendLine($"\t side.{pkColumnName.UnquotedString}, ");
+                stringBuilder1.Append($"{empty} side.{pkColumnName.UnquotedString} = {pkColumnName.UnquotedString}0");
                 empty = " AND ";
             }
             foreach (DmColumn nonPkMutableColumn in this.tableDescription.NonPkColumns.Where(c => !c.ReadOnly))
             {
                 ObjectNameParser nonPkColumnName = new ObjectNameParser(nonPkMutableColumn.ColumnName);
-                stringBuilder.AppendLine($"\t base.{nonPkColumnName.QuotedString}, ");
+                stringBuilder.AppendLine($"\t base.{nonPkColumnName.UnquotedString}, ");
             }
             stringBuilder.AppendLine("\t side.sync_row_is_tombstone,");
             stringBuilder.AppendLine("\t side.create_scope_id,");
@@ -912,18 +929,18 @@ namespace Dotmim.Sync.Oracle.Builder
             stringBuilder.AppendLine("\t side.update_scope_id,");
             stringBuilder.AppendLine("\t side.update_timestamp");
 
-            stringBuilder.AppendLine($"FROM {tableName.QuotedString} base");
-            stringBuilder.AppendLine($"RIGHT JOIN {trackingName.QuotedString} side ON");
+            stringBuilder.AppendLine($"FROM {tableName.UnquotedString} base");
+            stringBuilder.AppendLine($"RIGHT JOIN {trackingName.UnquotedString} side ON");
 
             string str = string.Empty;
             foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
             {
                 ObjectNameParser pkColumnName = new ObjectNameParser(pkColumn.ColumnName);
-                stringBuilder.Append($"{str} base.{pkColumnName.QuotedString} = side.{pkColumnName.QuotedString}");
+                stringBuilder.Append($"{str} base.{pkColumnName.UnquotedString} = side.{pkColumnName.UnquotedString}");
                 str = " AND ";
             }
             stringBuilder.AppendLine();
-            stringBuilder.Append(string.Concat("WHERE ", stringBuilder1.ToString()));
+            stringBuilder.Append(string.Concat("WHERE ", stringBuilder1.ToString(), " ;"));
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
@@ -939,54 +956,55 @@ namespace Dotmim.Sync.Oracle.Builder
 
             StringBuilder stringBuilder = new StringBuilder();
             this.AddPkColumnParametersToCommand(sqlCommand);
-            OracleParameter sqlParameter = new OracleParameter("sync_scope_id", SqlDbType.UniqueIdentifier);
+            OracleParameter sqlParameter = new OracleParameter("sync_scope_id", OracleType.NVarChar);
             sqlCommand.Parameters.Add(sqlParameter);
-            OracleParameter sqlParameter1 = new OracleParameter("sync_row_is_tombstone", SqlDbType.Int);
+            OracleParameter sqlParameter1 = new OracleParameter("sync_row_is_tombstone", OracleType.Number);
             sqlCommand.Parameters.Add(sqlParameter1);
-            OracleParameter sqlParameter3 = new OracleParameter("create_timestamp", SqlDbType.BigInt);
+            OracleParameter sqlParameter3 = new OracleParameter("create_timestamp", OracleType.Number);
             sqlCommand.Parameters.Add(sqlParameter3);
-            OracleParameter sqlParameter4 = new OracleParameter("update_timestamp", SqlDbType.BigInt);
+            OracleParameter sqlParameter4 = new OracleParameter("update_timestamp", OracleType.Number);
             sqlCommand.Parameters.Add(sqlParameter4);
-            OracleParameter sqlParameter8 = new OracleParameter("sync_row_count", SqlDbType.Int);
+            OracleParameter sqlParameter8 = new OracleParameter("sync_row_count", OracleType.Number);
             sqlParameter8.Direction = ParameterDirection.Output;
             sqlCommand.Parameters.Add(sqlParameter8);
 
-            stringBuilder.AppendLine($" {sqlParameter8.ParameterName} = 0;");
+            stringBuilder.AppendLine($" {sqlParameter8.ParameterName} := 0;");
             stringBuilder.AppendLine();
 
-            stringBuilder.AppendLine($"UPDATE {trackingName.QuotedString} SET ");
-            stringBuilder.AppendLine("\tcreate_scope_id = :sync_scope_id, ");
-            stringBuilder.AppendLine("\tcreate_timestamp = :create_timestamp, ");
-            stringBuilder.AppendLine("\tupdate_scope_id = :sync_scope_id, ");
-            stringBuilder.AppendLine("\tupdate_timestamp = :update_timestamp, ");
-            stringBuilder.AppendLine("\tsync_row_is_tombstone = :sync_row_is_tombstone ");
-            stringBuilder.AppendLine($"WHERE ({OracleManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKey.Columns, "")})");
+            stringBuilder.AppendLine($"UPDATE {trackingName.UnquotedString} SET ");
+            stringBuilder.AppendLine("\tcreate_scope_id = sync_scope_id, ");
+            stringBuilder.AppendLine("\tcreate_timestamp = create_timestamp, ");
+            stringBuilder.AppendLine("\tupdate_scope_id = sync_scope_id, ");
+            stringBuilder.AppendLine("\tupdate_timestamp = update_timestamp, ");
+            stringBuilder.AppendLine("\tsync_row_is_tombstone = sync_row_is_tombstone ");
+            stringBuilder.AppendLine($"WHERE ({OracleManagementUtils.ColumnsAndParametersStoredProcedure(this.tableDescription.PrimaryKey.Columns, "")});");
             stringBuilder.AppendLine();
 
             stringBuilder.AppendLine($" {sqlParameter8.ParameterName} := SQL%ROWCOUNT; ");
             stringBuilder.AppendLine();
 
-            stringBuilder.AppendLine($"IF ({sqlParameter8.ParameterName} = 0)");
+            stringBuilder.AppendLine($"IF ({sqlParameter8.ParameterName} = 0) THEN");
             stringBuilder.AppendLine("BEGIN ");
-            stringBuilder.AppendLine($"\tINSERT INTO {trackingName.QuotedString}");
+            stringBuilder.AppendLine($"\tINSERT INTO {trackingName.UnquotedString}");
 
             string empty = string.Empty;
             foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
             {
                 ObjectNameParser columnName = new ObjectNameParser(pkColumn.ColumnName);
-                stringBuilderArguments.Append(string.Concat(empty, columnName.QuotedString));
-                stringBuilderParameters.Append(string.Concat(empty, $":{columnName.UnquotedString}"));
+                stringBuilderArguments.Append(string.Concat(empty, columnName.UnquotedString));
+                stringBuilderParameters.Append(string.Concat(empty, $"{columnName.UnquotedString}0"));
                 empty = ", ";
             }
             stringBuilder.AppendLine($"\t({stringBuilderArguments.ToString()}, ");
             stringBuilder.AppendLine($"\tcreate_scope_id, create_timestamp, update_scope_id, update_timestamp,");
             stringBuilder.AppendLine($"\tsync_row_is_tombstone, last_change_datetime)");
             stringBuilder.AppendLine($"\tVALUES ({stringBuilderParameters.ToString()}, ");
-            stringBuilder.AppendLine($"\t:sync_scope_id, :create_timestamp, :sync_scope_id, :update_timestamp, ");
-            stringBuilder.AppendLine($"\t:sync_row_is_tombstone, sysdate);");
+            stringBuilder.AppendLine($"\tsync_scope_id, create_timestamp, sync_scope_id, update_timestamp, ");
+            stringBuilder.AppendLine($"\tsync_row_is_tombstone, sysdate);");
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($"\t {sqlParameter8.ParameterName} := SQL%ROWCOUNT; ");
             stringBuilder.AppendLine();
+            stringBuilder.AppendLine("END;");
             stringBuilder.AppendLine("END IF;");
 
             sqlCommand.CommandText = stringBuilder.ToString();
@@ -1004,7 +1022,7 @@ namespace Dotmim.Sync.Oracle.Builder
             StringBuilder stringBuilderParameters = new StringBuilder();
 
             this.AddColumnParametersToCommand(sqlCommand);
-            OracleParameter sqlParameter = new OracleParameter("sync_row_count", SqlDbType.Int);
+            OracleParameter sqlParameter = new OracleParameter("sync_row_count", OracleType.Number);
             sqlParameter.Direction = ParameterDirection.Output;
             sqlCommand.Parameters.Add(sqlParameter);
 
@@ -1020,13 +1038,13 @@ namespace Dotmim.Sync.Oracle.Builder
 
             stringBuilder.AppendLine($"{sqlParameter.ParameterName} := 0;");
 
-            stringBuilder.Append(string.Concat("IF NOT EXISTS (SELECT * FROM ", trackingName.QuotedString, " WHERE "));
-            stringBuilder.Append(OracleManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKey.Columns, string.Empty));
-            stringBuilder.AppendLine(") ");
-            stringBuilder.AppendLine("BEGIN ");
+            stringBuilder.Append(string.Concat("SELECT COUNT(1) into l_count FROM ", trackingName.UnquotedString, " WHERE "));
+            stringBuilder.Append(OracleManagementUtils.ColumnsAndParametersStoredProcedure(this.tableDescription.PrimaryKey.Columns, string.Empty));
+            stringBuilder.Append(";");
+            stringBuilder.AppendLine("IF l_count > 0 THEN ");
             if (hasAutoIncColumn)
             {
-                // stringBuilder.AppendLine($"\tSET IDENTITY_INSERT {tableName.QuotedString} ON;");
+                // stringBuilder.AppendLine($"\tSET IDENTITY_INSERT {tableName.UnquotedString} ON;");
                 stringBuilder.AppendLine();
             }
 
@@ -1034,11 +1052,11 @@ namespace Dotmim.Sync.Oracle.Builder
             foreach (var mutableColumn in this.tableDescription.Columns.Where(c => !c.ReadOnly))
             {
                 ObjectNameParser columnName = new ObjectNameParser(mutableColumn.ColumnName);
-                stringBuilderArguments.Append(string.Concat(empty, columnName.QuotedString));
-                stringBuilderParameters.Append(string.Concat(empty, $":{columnName.UnquotedString}"));
+                stringBuilderArguments.Append(string.Concat(empty, columnName.UnquotedString));
+                stringBuilderParameters.Append(string.Concat(empty, $"{columnName.UnquotedString}0"));
                 empty = ", ";
             }
-            stringBuilder.AppendLine($"\tINSERT INTO {tableName.QuotedString}");
+            stringBuilder.AppendLine($"\tINSERT INTO {tableName.UnquotedString}");
             stringBuilder.AppendLine($"\t({stringBuilderArguments.ToString()})");
             stringBuilder.AppendLine($"\tVALUES ({stringBuilderParameters.ToString()});");
             stringBuilder.AppendLine();
@@ -1047,7 +1065,7 @@ namespace Dotmim.Sync.Oracle.Builder
             if (hasAutoIncColumn)
             {
                 stringBuilder.AppendLine();
-                // stringBuilder.AppendLine($"\tSET IDENTITY_INSERT {tableName.QuotedString} OFF;");
+                // stringBuilder.AppendLine($"\tSET IDENTITY_INSERT {tableName.UnquotedString} OFF;");
             }
 
             stringBuilder.AppendLine("END IF;");
@@ -1062,19 +1080,19 @@ namespace Dotmim.Sync.Oracle.Builder
         {
             OracleCommand sqlCommand = new OracleCommand();
             this.AddPkColumnParametersToCommand(sqlCommand);
-            OracleParameter sqlParameter = new OracleParameter("sync_check_concurrency", SqlDbType.Int);
+            OracleParameter sqlParameter = new OracleParameter("sync_check_concurrency", OracleType.Number);
             sqlCommand.Parameters.Add(sqlParameter);
-            OracleParameter sqlParameter1 = new OracleParameter("sync_row_timestamp", SqlDbType.BigInt);
+            OracleParameter sqlParameter1 = new OracleParameter("sync_row_timestamp", OracleType.Number);
             sqlCommand.Parameters.Add(sqlParameter1);
-            OracleParameter sqlParameter2 = new OracleParameter("sync_row_count", SqlDbType.Int);
+            OracleParameter sqlParameter2 = new OracleParameter("sync_row_count", OracleType.Number);
             sqlParameter2.Direction = ParameterDirection.Output;
             sqlCommand.Parameters.Add(sqlParameter2);
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.AppendLine($"{sqlParameter2.ParameterName} := 0;");
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"DELETE FROM {trackingName.QuotedString} ");
+            stringBuilder.AppendLine($"DELETE FROM {trackingName.UnquotedString} ");
             stringBuilder.Append($"WHERE ");
-            stringBuilder.AppendLine(OracleManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKey.Columns, ""));
+            stringBuilder.AppendLine(OracleManagementUtils.ColumnsAndParametersStoredProcedure(this.tableDescription.PrimaryKey.Columns, "") + ";");
             stringBuilder.AppendLine();
             stringBuilder.AppendLine(string.Concat("", sqlParameter2.ParameterName, " := SQL%ROWCOUNT;"));
             sqlCommand.CommandText = stringBuilder.ToString();
@@ -1088,26 +1106,23 @@ namespace Dotmim.Sync.Oracle.Builder
         {
             OracleCommand sqlCommand = new OracleCommand();
             this.AddPkColumnParametersToCommand(sqlCommand);
-            OracleParameter sqlParameter = new OracleParameter("sync_force_write", SqlDbType.Int);
+            OracleParameter sqlParameter = new OracleParameter("sync_force_write", OracleType.Number);
             sqlCommand.Parameters.Add(sqlParameter);
-            OracleParameter sqlParameter1 = new OracleParameter("sync_min_timestamp", SqlDbType.BigInt);
+            OracleParameter sqlParameter1 = new OracleParameter("sync_min_timestamp", OracleType.Number);
             sqlCommand.Parameters.Add(sqlParameter1);
-            OracleParameter sqlParameter2 = new OracleParameter("sync_row_count", SqlDbType.Int);
+            OracleParameter sqlParameter2 = new OracleParameter("sync_row_count", OracleType.Number);
             sqlParameter2.Direction = ParameterDirection.Output;
             sqlCommand.Parameters.Add(sqlParameter2);
 
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.AppendLine($"{sqlParameter2.ParameterName} := 0;");
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"DELETE {tableName.QuotedString}");
-            stringBuilder.AppendLine($"FROM {tableName.QuotedString} base");
-            stringBuilder.AppendLine($"JOIN {trackingName.QuotedString} side ON ");
-
+            stringBuilder.AppendLine($"DELETE {tableName.UnquotedString} base");
+            stringBuilder.Append($"WHERE EXISTS ( SELECT 1 FROM {trackingName.UnquotedString} side WHERE ");
             stringBuilder.AppendLine(OracleManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "base", "side"));
-
-            stringBuilder.AppendLine("WHERE (side.timestamp <= :sync_min_timestamp OR :sync_force_write = 1)");
+            stringBuilder.AppendLine("AND (side.timestamp <= sync_min_timestamp OR sync_force_write = 1)");
             stringBuilder.Append("AND ");
-            stringBuilder.AppendLine(string.Concat("(", OracleManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKey.Columns, "base"), ");"));
+            stringBuilder.AppendLine(string.Concat("(", OracleManagementUtils.ColumnsAndParametersStoredProcedure(this.tableDescription.PrimaryKey.Columns, "base"), "));"));
             stringBuilder.AppendLine();
             stringBuilder.AppendLine(string.Concat(sqlParameter2.ParameterName, " := SQL%ROWCOUNT;"));
             sqlCommand.CommandText = stringBuilder.ToString();
@@ -1127,16 +1142,16 @@ namespace Dotmim.Sync.Oracle.Builder
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.AppendLine();
 
-            stringBuilder.AppendLine($"ALTER TRIGGER {updTriggerName} DISABLE;");
-            stringBuilder.AppendLine($"ALTER TRIGGER {insTriggerName} DISABLE;");
-            stringBuilder.AppendLine($"ALTER TRIGGER {delTriggerName} DISABLE;");
+            stringBuilder.AppendLine($"EXECUTE IMMEDIATE 'ALTER TRIGGER  {updTriggerName} DISABLE';");
+            stringBuilder.AppendLine($"EXECUTE IMMEDIATE 'ALTER TRIGGER  {insTriggerName} DISABLE';");
+            stringBuilder.AppendLine($"EXECUTE IMMEDIATE 'ALTER TRIGGER  {delTriggerName} DISABLE';");
 
-            stringBuilder.AppendLine($"DELETE FROM {tableName.QuotedString};");
-            stringBuilder.AppendLine($"DELETE FROM {trackingName.QuotedString};");
+            stringBuilder.AppendLine($"DELETE FROM {tableName.UnquotedString};");
+            stringBuilder.AppendLine($"DELETE FROM {trackingName.UnquotedString};");
 
-            stringBuilder.AppendLine($"ALTER TRIGGER {updTriggerName} ENABLE;");
-            stringBuilder.AppendLine($"ALTER TRIGGER {insTriggerName} ENABLE;");
-            stringBuilder.AppendLine($"ALTER TRIGGER {delTriggerName} ENABLE;");
+            stringBuilder.AppendLine($"EXECUTE IMMEDIATE 'ALTER TRIGGER  {updTriggerName} ENABLE';");
+            stringBuilder.AppendLine($"EXECUTE IMMEDIATE 'ALTER TRIGGER  {insTriggerName} ENABLE';");
+            stringBuilder.AppendLine($"EXECUTE IMMEDIATE 'ALTER TRIGGER  {delTriggerName} ENABLE';");
 
             stringBuilder.AppendLine();
             sqlCommand.CommandText = stringBuilder.ToString();
@@ -1152,7 +1167,7 @@ namespace Dotmim.Sync.Oracle.Builder
             for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
             {
                 var cc = new ObjectNameParser(this.tableDescription.PrimaryKey.Columns[i].ColumnName);
-                stringBuilder.Append($"{cc.QuotedString}");
+                stringBuilder.Append($"{cc.UnquotedString}");
                 if (i < this.tableDescription.PrimaryKey.Columns.Length - 1)
                     stringBuilder.Append(", ");
                 else
@@ -1165,7 +1180,7 @@ namespace Dotmim.Sync.Oracle.Builder
             for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
             {
                 var cc = new ObjectNameParser(this.tableDescription.PrimaryKey.Columns[i].ColumnName);
-                stringBuilder.Append($"{cc.QuotedString}");
+                stringBuilder.Append($"{cc.UnquotedString}");
                 if (i < this.tableDescription.PrimaryKey.Columns.Length - 1)
                     stringBuilder.Append(", ");
                 else
@@ -1176,7 +1191,7 @@ namespace Dotmim.Sync.Oracle.Builder
             for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
             {
                 var cc = new ObjectNameParser(this.tableDescription.PrimaryKey.Columns[i].ColumnName);
-                stringBuilder.Append($"t.{cc.QuotedString} = i.{cc.QuotedString}");
+                stringBuilder.Append($"t.{cc.UnquotedString} = i.{cc.UnquotedString}");
                 if (i < this.tableDescription.PrimaryKey.Columns.Length - 1)
                     stringBuilder.Append("AND ");
                 else
@@ -1253,7 +1268,7 @@ namespace Dotmim.Sync.Oracle.Builder
         public void CreateInsert()
         {
             var commandName = this.oracleObjectNames.GetCommandName(DbCommandType.InsertRow);
-            CreateProcedureCommand(BuildInsertCommand, commandName);
+            CreateProcedureCommand(BuildInsertCommand, commandName, new List<string> { "l_count number;" });
         }
 
         public void CreateInsertMetadata()
@@ -1389,7 +1404,7 @@ namespace Dotmim.Sync.Oracle.Builder
 
         public string CreateTVPTypeScriptText()
         {
-            string str = string.Concat("Create TVP Type on table ", tableName.QuotedString);
+            string str = string.Concat("Create TVP Type on table ", tableName.UnquotedString);
             return OracleBuilder.WrapScriptTextWithComments(this.CreateTVPTypeCommandText(), str);
         }
 

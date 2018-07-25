@@ -29,7 +29,7 @@ namespace Dotmim.Sync.Oracle.Manager
             var dmColumnsList = OracleManagementUtils.ColumnsForTable(oracleConnection, oracleTransaction, this.tableName);
             var oracleDbMetadata = new OracleDbMetadata();
 
-            foreach (var c in dmColumnsList.Rows.OrderBy(r => (int)r["column_id"]))
+            foreach (var c in dmColumnsList.Rows.OrderBy(r => Convert.ToInt32(r["column_id"])))
             {
                 var typeName = c["data_type"].ToString();
                 var name = c["name"].ToString();
@@ -41,19 +41,20 @@ namespace Dotmim.Sync.Oracle.Manager
 
                 var dbColumn = DmColumn.CreateColumn(name, columnType);
 
-                dbColumn.SetOrdinal((int)c["column_id"]);
+                dbColumn.SetOrdinal(Convert.ToInt32(c["column_id"]));
                 dbColumn.OriginalTypeName = c["data_type"].ToString();
                 var maxLengthLong = Convert.ToInt64(c["data_length"]);
 
                 dbColumn.MaxLength = maxLengthLong > Int32.MaxValue ? Int32.MaxValue : (Int32)maxLengthLong;
-                dbColumn.Precision = (byte)c["data_precision"];
-                dbColumn.Scale = (byte)c["data_scale"];
-                dbColumn.AllowDBNull = (int)c["is_nullable"] == 1 ? true : false;
+                dbColumn.Precision = c["data_precision"] is DBNull ? (byte)0 : Convert.ToByte(c["data_precision"]);
+                dbColumn.Scale = c["data_scale"] is DBNull ? (byte)0 : Convert.ToByte(c["data_scale"]);
+                dbColumn.AllowDBNull = Convert.ToInt32(c["is_nullable"]) == 1;
                 dbColumn.AutoIncrement = false;
 
                 switch (dbColumn.OriginalTypeName.ToLowerInvariant())
                 {
                     case "nchar":
+                    case "varchar2":
                     case "nvarchar":
                     case "nvarchar2":
                         dbColumn.IsUnicode = true;

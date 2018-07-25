@@ -153,7 +153,7 @@ namespace Dotmim.Sync.Oracle.Manager
                     if (maxLength > 0)
                         return $"({Math.Min(maxLength, 4000)})";
                     else
-                        return "(MAX)";
+                        return "(200)";
                 case OracleType.Blob:
                 case OracleType.VarChar:
                     if (maxLength > 0)
@@ -218,6 +218,8 @@ namespace Dotmim.Sync.Oracle.Manager
 
             switch (sqlDbType)
             {
+                case OracleType.Cursor:
+                    return "sys_refcursor";
                 case OracleType.Number:
                     return "number";
                 case OracleType.Blob:
@@ -275,6 +277,7 @@ namespace Dotmim.Sync.Oracle.Manager
                 case "nchar":
                 case "nvarchar":
                 case "nvarchar2":
+                case "varchar2":
                 case "timestamp":
                 case "blob":
                 case "clob":
@@ -301,6 +304,8 @@ namespace Dotmim.Sync.Oracle.Manager
                 case "nvarchar":
                     return DbType.String;
                 case "nvarchar2":
+                    return DbType.String;
+                case "varchar2":
                     return DbType.String;
                 case "char":
                     return DbType.AnsiStringFixedLength;
@@ -348,6 +353,8 @@ namespace Dotmim.Sync.Oracle.Manager
         {
             switch (typeName.ToLowerInvariant())
             {
+                case "number":
+                    return OracleType.Number;
                 case "bigint":
                     return OracleType.Number;
                 case "binary":
@@ -374,6 +381,10 @@ namespace Dotmim.Sync.Oracle.Manager
                     return OracleType.Float;
                 case "nvarchar":
                     return OracleType.NVarChar;
+                case "nvarchar2":
+                    return OracleType.NVarChar;
+                case "varchar2":
+                    return OracleType.VarChar;
                 case "time":
                     return OracleType.Timestamp;
                 case "timestamp":
@@ -400,6 +411,8 @@ namespace Dotmim.Sync.Oracle.Manager
 
             switch (sqlDbType)
             {
+                case OracleType.Number:
+                    return Type.GetType("System.Int32");
                 case OracleType.Int32:
                     return Type.GetType("System.Int32");
                 case OracleType.Blob:

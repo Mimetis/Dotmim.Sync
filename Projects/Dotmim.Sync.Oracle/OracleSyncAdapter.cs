@@ -57,7 +57,7 @@ namespace Dotmim.Sync.Oracle
             else
                 text = this.oracleObjectNames.GetCommandName(commandType);
 
-            command.CommandType = CommandType.Text;
+            command.CommandType = CommandType.StoredProcedure;
             command.CommandText = text;
             command.Connection = Connection;
 
@@ -102,7 +102,7 @@ namespace Dotmim.Sync.Oracle
                 }
                 else
                 {
-                    var parameters = _connection.DeriveParameters((OracleCommand)command, false, _transaction);
+                    var parameters = _connection.DeriveParameters((OracleCommand)command, true, _transaction);
 
                     var arrayParameters = new List<OracleParameter>();
                     foreach (var p in parameters)
@@ -110,10 +110,6 @@ namespace Dotmim.Sync.Oracle
 
                     derivingParameters.Add(textParser.UnquotedString, arrayParameters);
                 }
-
-                if (command.Parameters[0].ParameterName == "@RETURN_VALUE")
-                    command.Parameters.RemoveAt(0);
-
             }
             catch (Exception ex)
             {
@@ -133,6 +129,7 @@ namespace Dotmim.Sync.Oracle
 
                 // try to get the source column (from the dmTable)
                 var sqlParameterName = sqlParameter.ParameterName.Replace("@", "");
+                sqlParameterName = sqlParameterName.Remove(sqlParameterName.Length - 1, 1);
                 var colDesc = TableDescription.Columns.FirstOrDefault(c => string.Equals(c.ColumnName, sqlParameterName, StringComparison.CurrentCultureIgnoreCase));
 
                 if (colDesc != null && !string.IsNullOrEmpty(colDesc.ColumnName))

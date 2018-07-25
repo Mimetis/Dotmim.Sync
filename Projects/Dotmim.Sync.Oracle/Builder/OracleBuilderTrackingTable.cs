@@ -39,7 +39,7 @@ namespace Dotmim.Sync.Oracle.Builder
         private string CreateIndexCommandText()
         {
             StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"CREATE UNIQUE INDEX {trackingName.UnquotedStringWithUnderScore}_timestamp_index ON {trackingName.QuotedString} (");
+            stringBuilder.AppendLine($"CREATE UNIQUE INDEX {trackingName.UnquotedStringWithUnderScore}_index ON {trackingName.UnquotedString} (");
             stringBuilder.AppendLine($"\tupdate_timestamp");
             stringBuilder.AppendLine($"\t,update_scope_id");
             stringBuilder.AppendLine($"\t,sync_row_is_tombstone");
@@ -60,8 +60,7 @@ namespace Dotmim.Sync.Oracle.Builder
 
             foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
             {
-                ObjectNameParser columnName = new ObjectNameParser(pkColumn.ColumnName);
-                stringBuilder.AppendLine($"\t,{columnName.QuotedString}");
+                stringBuilder.AppendLine($"\t,{pkColumn.ColumnName}");
             }
             stringBuilder.Append(")");
             return stringBuilder.ToString();
@@ -70,12 +69,12 @@ namespace Dotmim.Sync.Oracle.Builder
         private string CreatePkCommandText()
         {
             StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.Append($"ALTER TABLE {trackingName.QuotedString} ADD CONSTRAINT PK_{trackingName.UnquotedStringWithUnderScore} PRIMARY KEY (");
+            stringBuilder.Append($"ALTER TABLE {trackingName.UnquotedString} ADD CONSTRAINT PK_{trackingName.UnquotedStringWithUnderScore} PRIMARY KEY (");
 
             for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
             {
                 DmColumn pkColumn = this.tableDescription.PrimaryKey.Columns[i];
-                var quotedColumnName = new ObjectNameParser(pkColumn.ColumnName, "", "").QuotedString;
+                var quotedColumnName = pkColumn.ColumnName;
 
                 stringBuilder.Append(quotedColumnName);
 
@@ -94,16 +93,17 @@ namespace Dotmim.Sync.Oracle.Builder
 
         private string CreateTableCommandText()
         {
+            bool isFilter = false;
             StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"CREATE TABLE {trackingName.QuotedString} (");
+            stringBuilder.AppendLine($"CREATE TABLE {trackingName.ObjectName} (");
 
             // Adding the primary key
             foreach (DmColumn pkColumn in this.tableDescription.PrimaryKey.Columns)
             {
-                var quotedColumnName = new ObjectNameParser(pkColumn.ColumnName, "", "").QuotedString;
+                var quotedColumnName = pkColumn.ColumnName;
 
                 var columnTypeString = this.oracleDbMetadata.TryGetOwnerDbTypeString(pkColumn.OriginalDbType, pkColumn.DbType, false, false, this.tableDescription.OriginalProvider, OracleSyncProvider.ProviderType);
-                var quotedColumnType = new ObjectNameParser(columnTypeString, "", "").QuotedString;
+                var quotedColumnType = columnTypeString;
                 var columnPrecisionString = this.oracleDbMetadata.TryGetOwnerDbTypePrecision(pkColumn.OriginalDbType, pkColumn.DbType, false, false, pkColumn.MaxLength, pkColumn.Precision, pkColumn.Scale, this.tableDescription.OriginalProvider, OracleSyncProvider.ProviderType);
                 var columnType = $"{quotedColumnType} {columnPrecisionString}";
 
@@ -117,11 +117,14 @@ namespace Dotmim.Sync.Oracle.Builder
             stringBuilder.AppendLine($"create_timestamp NUMBER(20) NULL, ");
             stringBuilder.AppendLine($"update_timestamp NUMBER(20) NULL, ");
             stringBuilder.AppendLine($"timestamp NUMBER(20) NULL, ");
-            stringBuilder.AppendLine($"sync_row_is_tombstone number(1) NOT NULL default(0), ");
-            stringBuilder.AppendLine($"last_change_datetime datetime NULL, ");
+            stringBuilder.AppendLine($"sync_row_is_tombstone number(1) default(0) NOT NULL , ");
+            stringBuilder.Append($"last_change_datetime date NULL");
 
             // adding the filter columns
             if (this.Filters != null && this.Filters.Count > 0)
+            {
+                isFilter = true;
+                stringBuilder.AppendLine(", ");
                 foreach (var filter in this.Filters)
                 {
                     var columnFilter = this.tableDescription.Columns[filter.ColumnName];
@@ -143,8 +146,9 @@ namespace Dotmim.Sync.Oracle.Builder
 
                     var nullableColumn = columnFilter.AllowDBNull ? "NULL" : "NOT NULL";
 
-                    stringBuilder.AppendLine($"{quotedColumnName} {columnType} {nullableColumn}, ");
+                    stringBuilder.Append($"{quotedColumnName} {columnType} {nullableColumn} ");
                 }
+            }
             stringBuilder.Append(")");
             return stringBuilder.ToString();
         }
@@ -152,7 +156,7 @@ namespace Dotmim.Sync.Oracle.Builder
         private string CreatePopulateFromBaseTableCommandText()
         {
             StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine(string.Concat("INSERT INTO ", trackingName.QuotedString, " ("));
+            stringBuilder.AppendLine(string.Concat("INSERT INTO ", trackingName.UnquotedString, " ("));
             StringBuilder stringBuilder1 = new StringBuilder();
             StringBuilder stringBuilder2 = new StringBuilder();
             string empty = string.Empty;
@@ -163,7 +167,7 @@ namespace Dotmim.Sync.Oracle.Builder
             string sideTable = "side";
             foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
             {
-                var quotedColumnName = new ObjectNameParser(pkColumn.ColumnName, "", "").QuotedString;
+                var quotedColumnName = pkColumn.ColumnName;
 
                 stringBuilder1.Append(string.Concat(empty, quotedColumnName));
 
@@ -191,7 +195,7 @@ namespace Dotmim.Sync.Oracle.Builder
                     if (isPk)
                         continue;
 
-                    var quotedColumnName = new ObjectNameParser(columnFilter.ColumnName, "", "").QuotedString;
+                    var quotedColumnName = columnFilter.ColumnName;
 
                     stringBuilder6.Append(string.Concat(empty, quotedColumnName));
                     stringBuilder5.Append(string.Concat(empty, baseTable, ".", quotedColumnName));
@@ -210,15 +214,15 @@ namespace Dotmim.Sync.Oracle.Builder
             stringBuilder.Append(string.Concat("SELECT ", stringBuilder2.ToString(), ", "));
             stringBuilder.Append("NULL, ");
             stringBuilder.Append("NULL, ");
-            stringBuilder.Append("@@DBTS+1, ");
+            stringBuilder.Append("to_number(to_char(systimestamp, 'YYYYMMDDHH24MISSFF3')), ");
             stringBuilder.Append("0, ");
             //stringBuilder.Append("@@DBTS+1, "); // timestamp is not a column we update, it's auto
             stringBuilder.Append("0");
             stringBuilder.AppendLine(string.Concat(stringBuilder5.ToString(), " "));
-            string[] localName = new string[] { "FROM ", tableName.QuotedString, " ", baseTable, " LEFT OUTER JOIN ", trackingName.QuotedString, " ", sideTable, " " };
+            string[] localName = new string[] { "FROM ", tableName.UnquotedString, " ", baseTable, " LEFT OUTER JOIN ", trackingName.UnquotedString, " ", sideTable, " " };
             stringBuilder.AppendLine(string.Concat(localName));
             stringBuilder.AppendLine(string.Concat(stringBuilderOnClause.ToString(), " "));
-            stringBuilder.AppendLine(string.Concat(stringBuilderWhereClause.ToString(), "; \n"));
+            stringBuilder.AppendLine(string.Concat(stringBuilderWhereClause.ToString(), " \n"));
             return stringBuilder.ToString();
         }
 

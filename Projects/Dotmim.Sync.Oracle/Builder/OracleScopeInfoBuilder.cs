@@ -110,10 +110,10 @@ namespace Dotmim.Sync.Oracle.Scope
                            , scope_is_local
                            , scope_last_sync
                     FROM  scope_info
-                    WHERE sync_scope_name = @sync_scope_name";
+                    WHERE sync_scope_name = :sync_scope_name";
 
                 var p = command.CreateParameter();
-                p.ParameterName = "@sync_scope_name";
+                p.ParameterName = "sync_scope_name";
                 p.Value = scopeName;
                 p.DbType = DbType.String;
                 command.Parameters.Add(p);
@@ -128,7 +128,7 @@ namespace Dotmim.Sync.Oracle.Scope
                         scopeInfo.Id = Guid.Parse(reader["sync_scope_id"] as String);
                         scopeInfo.LastTimestamp = OracleManager.ParseTimestamp(reader["scope_timestamp"]);
                         scopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value ? (DateTime?)reader["scope_last_sync"] : null;
-                        scopeInfo.IsLocal = (bool)reader["scope_is_local"];
+                        scopeInfo.IsLocal = Convert.ToInt32(reader["scope_is_local"]) == 1;
                         scopes.Add(scopeInfo);
                     }
                 }
@@ -159,7 +159,7 @@ namespace Dotmim.Sync.Oracle.Scope
             bool alreadyOpened = connection.State == ConnectionState.Open;
             try
             {
-                command.CommandText = "select to_number(to_char(systimestamp, 'YYYYMMDDHH24MISSFF3')) as currentts from dual;";
+                command.CommandText = "select to_number(to_char(systimestamp, 'YYYYMMDDHH24MISSFF3')) as currentts from dual";
 
                 if (!alreadyOpened)
                     connection.Open();
@@ -169,7 +169,7 @@ namespace Dotmim.Sync.Oracle.Scope
                 {
                     // read only the first one
                     if (reader.Read())
-                        long.TryParse(reader["currentts"] as string, out result);
+                        result = Convert.ToInt64(reader["currentts"]);
                 }
                 return result;
             }
@@ -202,70 +202,107 @@ namespace Dotmim.Sync.Oracle.Scope
                     connection.Open();
 
                 command.CommandText = @"
-                    MERGE INTO scope_info as base
+                    MERGE INTO scope_info base
                     USING (
-                               SELECT  @sync_scope_id AS sync_scope_id,  
-	                                   @sync_scope_name AS sync_scope_name,  
-                                       @scope_is_local as scope_is_local,
-                                       @scope_last_sync AS scope_last_sync
-                           ) AS changes
-                    ON base.sync_scope_id = changes.sync_scope_id
+                               SELECT  :sync_scope_id AS sync_scope_id,  
+	                                   :sync_scope_name AS sync_scope_name,  
+                                       :scope_is_local as scope_is_local,
+                                       to_date(:scope_last_sync, 'DD/MM/YYYY HH24:MI:SS') AS scope_last_sync,
+                                       to_number(to_char(systimestamp, 'YYYYMMDDHH24MISSFF3')) as scope_timestamp
+                                FROM dual
+                           ) changes
+                    ON (base.sync_scope_id = changes.sync_scope_id)
                     WHEN NOT MATCHED THEN
-	                    INSERT (sync_scope_name, sync_scope_id, scope_is_local, scope_last_sync)
-	                    VALUES (changes.sync_scope_name, changes.sync_scope_id, changes.scope_is_local, changes.scope_last_sync)
+	                    INSERT (sync_scope_name, sync_scope_id, scope_is_local, scope_last_sync, scope_timestamp)
+	                    VALUES (changes.sync_scope_name, changes.sync_scope_id, changes.scope_is_local, changes.scope_last_sync, changes.scope_timestamp)
                     WHEN MATCHED THEN
 	                    UPDATE SET sync_scope_name = changes.sync_scope_name, 
                                    scope_is_local = changes.scope_is_local, 
-                                   scope_last_sync = changes.scope_last_sync
-                    OUTPUT  INSERTED.sync_scope_name, 
-                            INSERTED.sync_scope_id, 
-                            INSERTED.scope_timestamp, 
-                            INSERTED.scope_is_local,
-                            INSERTED.scope_last_sync;
+                                   scope_last_sync = changes.scope_last_sync,
+                                   scope_timestamp = changes.scope_timestamp
                 ";
 
                 var p = command.CreateParameter();
-                p.ParameterName = "@sync_scope_name";
+                p.ParameterName = "sync_scope_name";
                 p.Value = scopeInfo.Name;
                 p.DbType = DbType.String;
                 command.Parameters.Add(p);
 
                 p = command.CreateParameter();
-                p.ParameterName = "@sync_scope_id";
-                p.Value = scopeInfo.Id;
-                p.DbType = DbType.Guid;
+                p.ParameterName = "sync_scope_id";
+                p.Value = scopeInfo.Id.ToString();
+                p.DbType = DbType.String;
                 command.Parameters.Add(p);
 
                 p = command.CreateParameter();
-                p.ParameterName = "@scope_is_local";
-                p.Value = scopeInfo.IsLocal;
-                p.DbType = DbType.Boolean;
+                p.ParameterName = "scope_is_local";
+                p.Value = scopeInfo.IsLocal ? 1 : 0;
+                p.DbType = DbType.Int32;
                 command.Parameters.Add(p);
 
                 p = command.CreateParameter();
-                p.ParameterName = "@scope_last_sync";
-                p.Value = scopeInfo.LastSync.HasValue ? (object)scopeInfo.LastSync.Value : DBNull.Value;
-                p.DbType = DbType.DateTime;
+                p.ParameterName = "scope_last_sync";
+                if (scopeInfo.LastSync.HasValue)
+                    p.Value = $"{scopeInfo.LastSync.Value.ToShortDateString()} {scopeInfo.LastSync.Value.ToLongTimeString()}";
+                else
+                    p.Value = DBNull.Value;
+                p.DbType = DbType.String;
                 command.Parameters.Add(p);
 
+                command.ExecuteNonQuery();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error during CreateTableScope : {ex}");
+                throw;
+            }
+            finally
+            {
+                if (!alreadyOpened && connection.State != ConnectionState.Closed)
+                    connection.Close();
+
+                if (command != null)
+                    command.Dispose();
+            }
+
+            command = connection.CreateCommand();
+            if (transaction != null)
+                command.Transaction = transaction;
+            alreadyOpened = connection.State == ConnectionState.Open;
+
+            try
+            {
+                if (!alreadyOpened)
+                    connection.Open();
+
+                command.CommandText = @"
+                    SELECT sync_scope_name, sync_scope_id, scope_timestamp, scope_is_local, scope_last_sync
+                    FROM SCOPE_INFO
+                    WHERE sync_scope_id = :sync_scope_id";
+
+                var p = command.CreateParameter();
+                p.ParameterName = "sync_scope_id";
+                p.Value = scopeInfo.Id.ToString();
+                p.DbType = DbType.String;
+                command.Parameters.Add(p);
 
                 using (DbDataReader reader = command.ExecuteReader())
                 {
                     while (reader.Read())
                     {
                         scopeInfo.Name = reader["sync_scope_name"] as String;
-                        scopeInfo.Id = (Guid)reader["sync_scope_id"];
+                        scopeInfo.Id = Guid.Parse(reader["sync_scope_id"].ToString());
                         scopeInfo.LastTimestamp = OracleManager.ParseTimestamp(reader["scope_timestamp"]);
-                        scopeInfo.IsLocal = (bool)reader["scope_is_local"];
+                        scopeInfo.IsLocal = Convert.ToInt32(reader["scope_is_local"]) == 1;
                         scopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value ? (DateTime?)reader["scope_last_sync"] : null;
                     }
                 }
 
                 return scopeInfo;
             }
-            catch (Exception ex)
+            catch(Exception ex)
             {
-                Debug.WriteLine($"Error during CreateTableScope : {ex}");
+                Debug.WriteLine($"Error during SelectTableScope : {ex}");
                 throw;
             }
             finally
@@ -290,9 +327,9 @@ namespace Dotmim.Sync.Oracle.Scope
                 if (!alreadyOpened)
                     connection.Open();
 
-                command.CommandText = @"SELECT COUNT(1) FROM dba_users WHERE username = 'scope_info';";
+                command.CommandText = @"SELECT count(1) FROM dba_tables WHERE UPPER(table_name) = 'SCOPE_INFO'";
 
-                return (int)command.ExecuteScalar() != 1;
+                return Convert.ToInt32(command.ExecuteScalar()) != 1;
             }
             catch (Exception ex)
             {

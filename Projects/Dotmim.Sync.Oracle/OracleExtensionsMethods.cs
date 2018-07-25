@@ -25,17 +25,31 @@ namespace Dotmim.Sync.Oracle
 
             try
             {
-                OracleCommand getParamsCommand = new OracleCommand("sp_procedure_params_rowset", connection);
-                getParamsCommand.CommandType = CommandType.StoredProcedure;
+                StringBuilder sb = new StringBuilder();
+                sb.AppendLine("SELECT args.ARGUMENT_NAME as PARAMETER_NAME,");
+                sb.AppendLine("args.DATA_LENGTH as CHARACTER_MAXIMUM_LENGTH,");
+                sb.AppendLine("args.DATA_TYPE as TYPE_NAME,");
+                sb.AppendLine("1 as IS_NULLABLE,"); 
+                sb.AppendLine("args.DATA_PRECISION as NUMERIC_PRECISION,");
+                sb.AppendLine("args.IN_OUT as PARAMETER_TYPE,");
+                sb.AppendLine("0 as NUMERIC_SCALE");
+                sb.AppendLine("FROM user_objects obj");
+                sb.AppendLine("INNER JOIN user_arguments args");
+                sb.AppendLine("ON obj.object_id = args.object_id");
+                sb.AppendLine("WHERE obj.OBJECT_TYPE IN('PROCEDURE') and UPPER(obj.object_name) = upper(:procedure)");
+                sb.AppendLine("ORDER BY args.POSITION ASC");
+
+                OracleCommand getParamsCommand = new OracleCommand(sb.ToString(), connection);
+                getParamsCommand.CommandType = CommandType.Text;
                 if (transaction != null)
                     getParamsCommand.Transaction = transaction;
 
-                OracleParameter p = new OracleParameter("@procedure_name", SqlDbType.NVarChar);
-                p.Value = spName;
-                getParamsCommand.Parameters.Add(p);
-                p = new OracleParameter("@procedure_schema", SqlDbType.NVarChar);
-                p.Value = schemaName;
-                getParamsCommand.Parameters.Add(p);
+                OracleParameter sqlParameter = new OracleParameter() {
+                    ParameterName = "procedure",
+                    Value = spName
+                };
+                getParamsCommand.Parameters.Add(sqlParameter);
+
                 OracleDataReader sdr = getParamsCommand.ExecuteReader();
 
                 // Do we have any rows?
@@ -67,36 +81,41 @@ namespace Dotmim.Sync.Oracle
                                 datatype = "Structured";
 
                             // TODO : Should we raise an error here ??
-                            if (!Enum.TryParse(datatype, true, out SqlDbType type))
-                                type = SqlDbType.Variant;
+                            if (!Enum.TryParse(datatype, true, out OracleType type))
+                                if (datatype.ToUpper().Equals("NVARCHAR2"))
+                                    type = OracleType.NVarChar;
+                                else if (datatype.ToUpper().Equals("REF CURSOR"))
+                                    type = OracleType.Cursor;
+                                else
+                                    throw new Exception($"Erreur with type {datatype} ..");
+                                
 
-                            bool Nullable = sdr.GetBoolean(ParamNullCol);
+                            int Nullable = sdr.GetInt32(ParamNullCol);
                             OracleParameter param = new OracleParameter(name, type);
 
                             // Determine parameter direction
-                            int dir = sdr.GetInt16(ParamDirCol);
+                            string dir = sdr.GetString(ParamDirCol);
                             switch (dir)
                             {
-                                case 1:
+                                case "IN":
                                     param.Direction = ParameterDirection.Input;
                                     break;
-                                case 2:
+                                case "OUT":
                                     param.Direction = ParameterDirection.Output;
                                     break;
-                                case 3:
+                                case "IN_OUT":
                                     param.Direction = ParameterDirection.InputOutput;
                                     break;
-                                case 4:
-                                    param.Direction = ParameterDirection.ReturnValue;
-                                    break;
                             }
-                            param.IsNullable = Nullable;
+
+                            param.IsNullable = Nullable == 1;
+
                             if (!sdr.IsDBNull(ParamPrecCol))
                                 param.Precision = (Byte)sdr.GetInt16(ParamPrecCol);
                             if (!sdr.IsDBNull(ParamSizeCol))
                                 param.Size = sdr.GetInt32(ParamSizeCol);
                             if (!sdr.IsDBNull(ParamScaleCol))
-                                param.Scale = (Byte)sdr.GetInt16(ParamScaleCol);
+                                param.Scale = (byte)sdr.GetInt32(ParamScaleCol);
 
                             cmd.Parameters.Add(param);
                         }
@@ -126,7 +145,7 @@ namespace Dotmim.Sync.Oracle
         internal static OracleParameter Clone(this OracleParameter param)
         {
             OracleParameter p = new OracleParameter();
-            p.DbType = param.DbType;
+           // p.DbType = param.DbType;
             p.Direction = param.Direction;
             p.IsNullable = param.IsNullable;
             p.ParameterName = param.ParameterName;

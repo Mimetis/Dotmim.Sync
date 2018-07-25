@@ -13,7 +13,7 @@ namespace Dotmim.Sync.Builders
 {
     public abstract class DbBuilder
     {
-        private bool useBulkProcedures = true;
+        protected bool useBulkProcedures = true;
 
         /// <summary>
         /// Gets the table description for the current DbBuilder

@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Data.OracleClient;
+using System.Linq;
 using System.Text;
 
 namespace Dotmim.Sync.Oracle
@@ -18,13 +19,13 @@ namespace Dotmim.Sync.Oracle
 
             var commandColumn = @"SELECT column_name AS name, column_id, data_type, data_length, data_precision, data_scale, decode(nullable, 'N', 0, 1) AS is_nullable
                                     FROM USER_TAB_COLUMNS
-                                    WHERE TABLE_NAME = @tableName";
+                                    WHERE TABLE_NAME = :tableName";
 
             ObjectNameParser tableNameParser = new ObjectNameParser(tableName);
             DmTable dmTable = new DmTable(tableNameParser.UnquotedStringWithUnderScore);
             using (OracleCommand oracleCommand = new OracleCommand(commandColumn, connection, transaction))
             {
-                oracleCommand.Parameters.Add("@tableName", tableNameParser.ObjectName);
+                oracleCommand.Parameters.Add("tableName", tableNameParser.ObjectName);
 
                 using (var reader = oracleCommand.ExecuteReader())
                 {
@@ -43,13 +44,13 @@ namespace Dotmim.Sync.Oracle
                                     FROM all_cons_columns acc
                                     INNER JOIN all_constraints ac
                                     ON acc.constraint_name = ac.constraint_name AND acc.table_name = ac.table_name
-                                    WHERE CONSTRAINT_TYPE IN ('P') AND ac.table_name = @tableName";
+                                    WHERE CONSTRAINT_TYPE IN ('P') AND ac.table_name = :tableName";
 
             ObjectNameParser tableNameParser = new ObjectNameParser(tableName);
             DmTable dmTable = new DmTable(tableNameParser.UnquotedStringWithUnderScore);
             using (OracleCommand oracleCommand = new OracleCommand(commandColumn, connection, transaction))
             {
-                oracleCommand.Parameters.Add("@tableName", tableNameParser.ObjectName);
+                oracleCommand.Parameters.Add("tableName", tableNameParser.ObjectName);
 
                 using (var reader = oracleCommand.ExecuteReader())
                 {
@@ -74,13 +75,13 @@ namespace Dotmim.Sync.Oracle
                                            AND c.r_constraint_name = c_pk.constraint_name
                                       JOIN user_cons_columns b ON C_PK.owner = b.owner
                                            AND  C_PK.CONSTRAINT_NAME = b.constraint_name AND b.POSITION = a.POSITION     
-                                     WHERE c.constraint_type = 'R' AND a.table_name = @tableName;";
+                                     WHERE c.constraint_type = 'R' AND a.table_name = :tableName";
 
             ObjectNameParser tableNameParser = new ObjectNameParser(tableName);
             DmTable dmTable = new DmTable(tableNameParser.UnquotedStringWithUnderScore);
             using (OracleCommand oracleCommand = new OracleCommand(commandRelations, connection, transaction))
             {
-                oracleCommand.Parameters.Add("@tableName", tableNameParser.ObjectName);
+                oracleCommand.Parameters.Add("tableName", tableNameParser.ObjectName);
 
                 using (var reader = oracleCommand.ExecuteReader())
                 {
@@ -99,11 +100,11 @@ namespace Dotmim.Sync.Oracle
             ObjectNameParser objectNameParser = new ObjectNameParser(triggerName);
             using (DbCommand dbCommand = connection.CreateCommand())
             {
-                dbCommand.CommandText = "select count(1) from USER_TRIGGERS where TRIGGER_NAME = upper(@triggerName)";
+                dbCommand.CommandText = "select count(1) from USER_TRIGGERS where TRIGGER_NAME = upper(:triggerName)";
 
                 OracleParameter sqlParameter = new OracleParameter()
                 {
-                    ParameterName = "@triggerName",
+                    ParameterName = "triggerName",
                     Value = objectNameParser.ObjectName
                 };
                 dbCommand.Parameters.Add(sqlParameter);
@@ -111,7 +112,7 @@ namespace Dotmim.Sync.Oracle
                 if (transaction != null)
                     dbCommand.Transaction = transaction;
 
-                triggerExist = (int)dbCommand.ExecuteScalar() != 0;
+                triggerExist = Convert.ToInt32(dbCommand.ExecuteScalar()) != 0;
             }
             return triggerExist;
         }
@@ -122,10 +123,10 @@ namespace Dotmim.Sync.Oracle
             ObjectNameParser objectNameParser = new ObjectNameParser(quotedTableName);
             using (DbCommand dbCommand = connection.CreateCommand())
             {
-                dbCommand.CommandText = "select count(1) from user_tables where table_name = upper(@tableName)";
+                dbCommand.CommandText = "select count(1) from user_tables where upper(table_name) = upper(:tableName)";
 
                 OracleParameter sqlParameter = new OracleParameter() {
-                    ParameterName = "@tableName",
+                    ParameterName = "tableName",
                     Value = objectNameParser.ObjectName
                 };
                 dbCommand.Parameters.Add(sqlParameter);
@@ -133,7 +134,7 @@ namespace Dotmim.Sync.Oracle
                 if (transaction != null)
                     dbCommand.Transaction = transaction;
 
-                tableExist = (int)dbCommand.ExecuteScalar() != 0;
+                tableExist = Convert.ToInt32(dbCommand.ExecuteScalar()) != 0;
             }
             return tableExist;
         }
@@ -173,10 +174,10 @@ namespace Dotmim.Sync.Oracle
 
                 stringBuilder.Append(str);
                 stringBuilder.Append(strLeftName);
-                stringBuilder.Append(quotedColumn.QuotedString);
+                stringBuilder.Append(quotedColumn.UnquotedString);
                 stringBuilder.Append(" = ");
                 stringBuilder.Append(strRightName);
-                stringBuilder.Append(quotedColumn.QuotedString);
+                stringBuilder.Append(quotedColumn.UnquotedString);
 
                 str = " AND ";
             }
@@ -185,22 +186,97 @@ namespace Dotmim.Sync.Oracle
 
         internal static bool ProcedureExists(OracleConnection connection, OracleTransaction transaction, string commandName)
         {
-            throw new NotImplementedException();
+            bool tableExist;
+            ObjectNameParser objectNameParser = new ObjectNameParser(commandName);
+            using (DbCommand dbCommand = connection.CreateCommand())
+            {
+                dbCommand.CommandText = "SELECT count(1) FROM user_objects WHERE OBJECT_TYPE IN ('PROCEDURE') and UPPER(object_name) = upper(:commandName)";
+
+                OracleParameter sqlParameter = new OracleParameter()
+                {
+                    ParameterName = "commandName",
+                    Value = objectNameParser.ObjectName
+                };
+                dbCommand.Parameters.Add(sqlParameter);
+
+                if (transaction != null)
+                    dbCommand.Transaction = transaction;
+
+                tableExist = Convert.ToInt32(dbCommand.ExecuteNonQuery()) != 0;
+            }
+            return tableExist;
         }
 
         internal static bool TypeExists(OracleConnection connection, OracleTransaction transaction, string commandName)
         {
-            throw new NotImplementedException();
+            // NOT USED : FOR BULK
+            return true;
         }
 
-        internal static string ColumnsAndParameters(DmColumn[] columns, string v)
+        internal static string ColumnsAndParameters(DmColumn[] columns, string fromPrefix)
         {
-            throw new NotImplementedException();
+            StringBuilder stringBuilder = new StringBuilder();
+            string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));
+            string str1 = "";
+            foreach (DmColumn column in columns)
+            {
+                ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
+
+                stringBuilder.Append(str1);
+                stringBuilder.Append(strFromPrefix);
+                stringBuilder.Append(quotedColumn.UnquotedString);
+                stringBuilder.Append(" = ");
+                stringBuilder.Append($":{column.ColumnName}");
+                str1 = " AND ";
+            }
+            return stringBuilder.ToString();
         }
 
-        internal static object CommaSeparatedUpdateFromParameters(DmTable tableDescription)
+        internal static string ColumnsAndParametersStoredProcedure(DmColumn[] columns, string fromPrefix)
         {
-            throw new NotImplementedException();
+            StringBuilder stringBuilder = new StringBuilder();
+            string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));
+            string str1 = "";
+            foreach (DmColumn column in columns)
+            {
+                ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
+
+                stringBuilder.Append(str1);
+                stringBuilder.Append(strFromPrefix);
+                stringBuilder.Append(quotedColumn.UnquotedString);
+                stringBuilder.Append(" = ");
+                stringBuilder.Append($"{column.ColumnName}0");
+                str1 = " AND ";
+            }
+            return stringBuilder.ToString();
+        }
+
+        internal static object CommaSeparatedUpdateFromParameters(DmTable table, string fromPrefix = "")
+        {
+            StringBuilder stringBuilder = new StringBuilder();
+            string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));
+            string strSeparator = "";
+            foreach (DmColumn column in table.NonPkColumns.Where(c => !c.ReadOnly))
+            {
+                ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
+                stringBuilder.AppendLine($"{strSeparator} {strFromPrefix}{quotedColumn.UnquotedString} = :{quotedColumn.UnquotedString}");
+                strSeparator = ", ";
+            }
+            return stringBuilder.ToString();
+        }
+
+        internal static object CommaSeparatedUpdateFromParametersStoredProcedure(DmTable table, string fromPrefix = "")
+        {
+            StringBuilder stringBuilder = new StringBuilder();
+            string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));
+            string strSeparator = "";
+            foreach (DmColumn column in table.NonPkColumns.Where(c => !c.ReadOnly))
+            {
+                ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
+                stringBuilder.AppendLine($"{strSeparator} {strFromPrefix}{quotedColumn.UnquotedString} = {quotedColumn.UnquotedString}0");
+                strSeparator = ", ";
+            }
+            return stringBuilder.ToString();
         }
     }
 }
