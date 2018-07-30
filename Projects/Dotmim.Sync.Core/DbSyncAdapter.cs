@@ -265,6 +265,8 @@ namespace Dotmim.Sync
             var create_timestamp_column = dmChanges.Table.Columns["create_timestamp"].ColumnName;
             dmChanges.Table.Columns["create_timestamp"].ColumnName = "create_timestamp";
 
+            PreExecuteBatchCommand();
+
             // Make some parts of BATCH_SIZE 
             for (int step = 0; step < dmChanges.Count; step += BATCH_SIZE)
             {
@@ -277,6 +279,8 @@ namespace Dotmim.Sync
                     ExecuteBatchCommand(bulkCommand, dmStepChanges, failedDmtable, fromScope);
                 }
             }
+
+            PostExecuteBatchCommand();
 
             // Disposing command
             if (bulkCommand != null)
@@ -635,8 +639,8 @@ namespace Dotmim.Sync
                 }
                 else
                 {
-                    var createTimestamp = localRow["create_timestamp"] != DBNull.Value ? (long)localRow["create_timestamp"] : 0L;
-                    var updateTimestamp = localRow["update_timestamp"] != DBNull.Value ? (long)localRow["update_timestamp"] : 0L;
+                    var createTimestamp = localRow["create_timestamp"] != DBNull.Value ? Convert.ToInt64(localRow["create_timestamp"]) : 0L;
+                    var updateTimestamp = localRow["update_timestamp"] != DBNull.Value ? Convert.ToInt64(localRow["update_timestamp"]) : 0L;
                     switch (applyType)
                     {
                         case DmRowState.Added:
@@ -875,5 +879,18 @@ namespace Dotmim.Sync
                     }
             }
         }
+
+        #region Virtual
+
+        protected virtual void PreExecuteBatchCommand()
+        {
+            Debug.WriteLine("PreExecuteBatchCommand method");
+        }
+
+        protected virtual void PostExecuteBatchCommand()
+        {
+            Debug.WriteLine("PostExecuteBatchCommand method");
+        }
+        #endregion
     }
 }

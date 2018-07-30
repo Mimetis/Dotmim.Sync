@@ -57,9 +57,8 @@ namespace Dotmim.Sync.Oracle.Builder
                     if (this.tableDescription.PrimaryKey.Columns.Any(c => c.ColumnName == columnFilter.ColumnName))
                         continue;
 
-                    ObjectNameParser columnName = new ObjectNameParser(columnFilter.ColumnName);
-
-                    stringBuilder.AppendLine($"\t,{columnName.QuotedString} = :new.{columnName.QuotedString}");
+                   
+                    stringBuilder.AppendLine($"\t,{columnFilter.ColumnName} = :new.{columnFilter.ColumnName}");
 
                 }
                 stringBuilder.AppendLine();
@@ -193,7 +192,7 @@ namespace Dotmim.Sync.Oracle.Builder
                         continue;
 
                     ObjectNameParser columnName = new ObjectNameParser(columnFilter.ColumnName);
-                    stringBuilder.AppendLine($"\t,{columnName.QuotedString} = :old.{columnName.QuotedString}");
+                    stringBuilder.AppendLine($"\t,{columnName.UnquotedString} = :old.{columnName.UnquotedString}");
 
                 }
                 stringBuilder.AppendLine();

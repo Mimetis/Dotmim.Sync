@@ -613,10 +613,10 @@ namespace Dotmim.Sync.Data
             //            value = Convert.ToBoolean(value);
             //        else if (valueType != columnType)
             //        {
-            //            var t = value.GetType();
-            //            var converter = columnType.GetConverter();
-            //            if (converter.CanConvertFrom(t))
-            //                value = converter.ConvertFrom(value);
+            //            //var t = value.GetType();
+            //            //var converter = columnType.GetConverter();
+            //            //if (converter.CanConvertFrom(t))
+            //            //    value = converter.ConvertFrom(value);
             //        }
             //    }
             //}
@@ -723,8 +723,17 @@ namespace Dotmim.Sync.Data
             if (o1 == null)
                 return -1;
 
-            T v1 = (T)o1;
-            T v2 = (T)value;
+            T v1 = default(T), v2 = default(T);
+
+            if (o1 is decimal && typeof(T) == typeof(Int32))
+                v1 = (T)(object)Convert.ToInt32(o1);
+            else
+                v1 = (T)o1;
+
+            if (value is decimal && typeof(T) == typeof(Int32))
+                v2 = (T)(object)Convert.ToInt32(value);
+            else
+                v2 = (T)value;
 
             if (typeof(T) == typeof(string))
             {

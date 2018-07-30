@@ -53,7 +53,6 @@ namespace Dotmim.Sync.Oracle
 
         public override string ProviderTypeName => ProviderType;
 
-        // TODO : A voir
         public override bool SupportBulkOperations => false;
 
         public override bool CanBeServerProvider => true;
@@ -96,7 +95,7 @@ namespace Dotmim.Sync.Oracle
 
         public override DbConnection CreateConnection() => new OracleConnection(this.ConnectionString);
 
-        public override DbBuilder GetDatabaseBuilder(DmTable tableDescription) => new OracleBuilder(tableDescription);
+        public override DbBuilder GetDatabaseBuilder(DmTable tableDescription) => new OracleBuilder(tableDescription, SupportBulkOperations);
 
         public override DbManager GetDbManager(string tableName) => new OracleManager(tableName);
 

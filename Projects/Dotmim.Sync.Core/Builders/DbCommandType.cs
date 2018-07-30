@@ -20,6 +20,8 @@ namespace Dotmim.Sync.Builders
         UpdateTrigger,
         DeleteTrigger,
         BulkTableType,
+        BulkTable,
+        BulkTemporyTable,
         BulkInsertRows,
         BulkUpdateRows,
         BulkDeleteRows,

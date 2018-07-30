@@ -9,10 +9,10 @@ namespace Dotmim.Sync.Oracle.Builder
 {
     public class OracleBuilder : DbBuilder
     {
-        public OracleBuilder(DmTable tableDescription) 
+        public OracleBuilder(DmTable tableDescription, bool useBulkProcedure = false) 
             : base(tableDescription)
         {
-            useBulkProcedures = false;
+            useBulkProcedures = useBulkProcedure;
         }
 
         internal static (ObjectNameParser tableName, ObjectNameParser trackingName) GetParsers(DmTable tableDescription)

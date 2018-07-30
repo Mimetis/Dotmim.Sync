@@ -82,7 +82,7 @@ namespace Dotmim.Sync
                     if (changeApplicationAction == ChangeApplicationAction.Rollback)
                         throw new SyncException("Rollback during applying updates", context.SyncStage, this.ProviderTypeName, SyncExceptionType.Rollback);
 
-                    applyTransaction.Commit();
+                    applyTransaction?.Commit();
 
                     return (context, changesApplied);
                 }

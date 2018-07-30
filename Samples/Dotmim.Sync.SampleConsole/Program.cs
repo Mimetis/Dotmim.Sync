@@ -54,7 +54,9 @@ class Program
         var mySqlClientProvider = new MySqlSyncProvider(GetMySQLConnectionBuilder());
 
         var agent = new SyncAgent(mySqlClientProvider, oracleClientProvider, new string[] { "T_PERSONNE", "T_ENFANT" });
-        agent.Configuration.UseBulkOperations = false;
+        agent.Configuration.UseBulkOperations = true;
+        //agent.Configuration.ScopeSet.Tables["T_PERSONNE"].SyncDirection = SyncDirection.DownloadOnly;
+
 
         Console.WriteLine("Press a key to start synchronization ... ");
         Console.ReadKey();

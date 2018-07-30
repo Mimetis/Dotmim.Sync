@@ -54,7 +54,7 @@ namespace Dotmim.Sync.Oracle.Builder
                         continue;
 
                     ObjectNameParser columnName = new ObjectNameParser(filterColumn.ColumnName);
-                    stringBuilder.AppendLine($"\t,{columnName.QuotedString}");
+                    stringBuilder.AppendLine($"\t,{columnName.UnquotedString}");
                 }
             }
 
@@ -137,10 +137,10 @@ namespace Dotmim.Sync.Oracle.Builder
                         continue;
 
 
-                    var quotedColumnName = new ObjectNameParser(columnFilter.ColumnName, "", "").QuotedString;
+                    var quotedColumnName = columnFilter.ColumnName;
 
                     var columnTypeString = this.oracleDbMetadata.TryGetOwnerDbTypeString(columnFilter.OriginalDbType, columnFilter.DbType, false, false, this.tableDescription.OriginalProvider, OracleSyncProvider.ProviderType);
-                    var quotedColumnType = new ObjectNameParser(columnTypeString, "", "").QuotedString;
+                    var quotedColumnType = columnTypeString;
                     var columnPrecisionString = this.oracleDbMetadata.TryGetOwnerDbTypePrecision(columnFilter.OriginalDbType, columnFilter.DbType, false, false, columnFilter.MaxLength, columnFilter.Precision, columnFilter.Scale, this.tableDescription.OriginalProvider, OracleSyncProvider.ProviderType);
                     var columnType = $"{quotedColumnType} {columnPrecisionString}";
 

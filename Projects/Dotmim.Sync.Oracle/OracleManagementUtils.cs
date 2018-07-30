@@ -209,10 +209,27 @@ namespace Dotmim.Sync.Oracle
 
         internal static bool TypeExists(OracleConnection connection, OracleTransaction transaction, string commandName)
         {
-            // NOT USED : FOR BULK
-            return true;
-        }
+            bool typeExist;
+            ObjectNameParser objectNameParser = new ObjectNameParser(commandName);
+            using (DbCommand dbCommand = connection.CreateCommand())
+            {
+                dbCommand.CommandText = "SELECT count(1) FROM user_types WHERE UPPER(TYPE_NAME) = upper(:commandName)";
 
+                OracleParameter sqlParameter = new OracleParameter()
+                {
+                    ParameterName = "commandName",
+                    Value = objectNameParser.ObjectName
+                };
+                dbCommand.Parameters.Add(sqlParameter);
+
+                if (transaction != null)
+                    dbCommand.Transaction = transaction;
+
+                typeExist = Convert.ToInt32(dbCommand.ExecuteNonQuery()) != 0;
+            }
+            return typeExist;
+        }
+    
         internal static string ColumnsAndParameters(DmColumn[] columns, string fromPrefix)
         {
             StringBuilder stringBuilder = new StringBuilder();

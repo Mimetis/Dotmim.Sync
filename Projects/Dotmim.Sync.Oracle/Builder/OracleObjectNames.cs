@@ -27,7 +27,9 @@ namespace Dotmim.Sync.Oracle.Builder
 
         internal const string resetMetadataProcName = "{0}{1}_reset";
 
+        internal const string bulkTemporyTableName = "{0}{1}_BULK_TEMPORY_TABLE";
         internal const string bulkTableTypeName = "{0}{1}_BulkType";
+        internal const string bulkTableName = "{0}{1}_BulkTable";
         internal const string bulkInsertProcName = "{0}{1}_bulkinsert";
         internal const string bulkUpdateProcName = "{0}{1}_bulkupdate";
         internal const string bulkDeleteProcName = "{0}{1}_bulkdelete";
@@ -67,6 +69,8 @@ namespace Dotmim.Sync.Oracle.Builder
             this.AddName(DbCommandType.DeleteTrigger, string.Format(deleteTriggerName, schema, tableName.ObjectName));
 
             this.AddName(DbCommandType.BulkTableType, string.Format(bulkTableTypeName, schema, tableName.ObjectName));
+            this.AddName(DbCommandType.BulkTemporyTable, string.Format(bulkTemporyTableName, schema, tableName.ObjectName));
+            this.AddName(DbCommandType.BulkTable, string.Format(bulkTableName, schema, tableName.ObjectName));
 
             this.AddName(DbCommandType.BulkInsertRows, string.Format(bulkInsertProcName, schema, tableName.ObjectName));
             this.AddName(DbCommandType.BulkUpdateRows, string.Format(bulkUpdateProcName, schema, tableName.ObjectName));

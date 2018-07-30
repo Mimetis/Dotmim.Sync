@@ -441,5 +441,31 @@ namespace Dotmim.Sync.Oracle.Manager
 
             throw new Exception($"this SqlDbType {ownerType.ToString()} is not supported");
         }
+
+        public OracleType ValidateOracleType(Type ownerType)
+        {
+            switch (ownerType.ToString())
+            {
+                case "System.Int16":
+                case "System.Int32":
+                case "System.Int64":
+                    return OracleType.Number;
+                case "System.Byte[]":
+                    return OracleType.Blob;
+                case "System.String":
+                case "System.Guid":
+                    return OracleType.NVarChar;
+                case "System.Boolean":
+                    return OracleType.Byte;
+                case "System.DateTime":
+                    return OracleType.DateTime;
+                case "System.Float":
+                    return OracleType.Float;
+                case "System.Double":
+                    return OracleType.Double;
+            }
+
+            throw new Exception($"this SqlDbType {ownerType.ToString()} is not supported");
+        }
     }
 }
