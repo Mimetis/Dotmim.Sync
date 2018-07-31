@@ -37,17 +37,13 @@ namespace Dotmim.Sync.Data
         readonly static Int32[] zeroIntegers = new Int32[0];
         internal readonly static DmRow[] zeroRows = new DmRow[0];
 
-        // rows collection
-        DmRowCollection rows;
-
         // primary key
         DmKey primaryKey;
-
 
         public DmTable()
         {
             this.nextRowID = 1;
-            this.rows = new DmRowCollection(this);
+            this.Rows = new DmRowCollection(this);
             this.columns = new DmColumnCollection(this);
             this.Culture = CultureInfo.CurrentCulture;
             this.CaseSensitive = false;
@@ -62,13 +58,7 @@ namespace Dotmim.Sync.Data
         /// <summary>
         /// Columns collection
         /// </summary>
-        public DmColumnCollection Columns
-        {
-            get
-            {
-                return columns;
-            }
-        }
+        public DmColumnCollection Columns => columns;
 
         public DmSet DmSet { get; internal set; }
 
@@ -107,6 +97,27 @@ namespace Dotmim.Sync.Data
         /// Default is Bidirectional
         /// </summary>
         public SyncDirection SyncDirection { get; set; } = SyncDirection.Bidirectional;
+
+        /// <summary>
+        /// Specify a prefix for naming stored procedure. Default is empty string
+        /// </summary>
+        public String StoredProceduresPrefix { get; set; }
+
+        /// <summary>
+        /// Specify a suffix for naming stored procedures. Default is empty string
+        /// </summary>
+        public String StoredProceduresSuffix { get; set; }
+
+        /// <summary>
+        /// Specify a prefix for naming tracking tables. Default is empty string
+        /// </summary>
+        public String TrackingTablesPrefix { get; set; }
+
+        /// <summary>
+        /// Specify a suffix for naming tracking tables. Default is empty string
+        /// </summary>
+        public String TrackingTablesSuffix { get; set; }
+
 
         /// <summary>
         /// Set the culture used to make comparison
@@ -225,6 +236,9 @@ namespace Dotmim.Sync.Data
 
                 primaryKey = value;
 
+                if (primaryKey == DmKey.Empty)
+                    return;
+
                 for (int i = 0; i < primaryKey.Columns.Length; i++)
                     primaryKey.Columns[i].AllowDBNull = false;
 
@@ -237,7 +251,7 @@ namespace Dotmim.Sync.Data
         /// <summary>
         /// Get the rows
         /// </summary>
-        public DmRowCollection Rows => rows;
+        public DmRowCollection Rows { get; }
 
         /// <summary>
         /// Get or Set the table name
@@ -300,7 +314,6 @@ namespace Dotmim.Sync.Data
             }
         }
 
-
         /// <summary>
         /// Accept all changes in every DmRow in this DmTable
         /// </summary>
@@ -325,6 +338,10 @@ namespace Dotmim.Sync.Data
             clone.CaseSensitive = caseSensitive;
             clone.OriginalProvider = OriginalProvider;
             clone.SyncDirection = SyncDirection;
+            clone.TrackingTablesPrefix = TrackingTablesPrefix;
+            clone.TrackingTablesSuffix = TrackingTablesSuffix;
+            clone.StoredProceduresPrefix = StoredProceduresPrefix;
+            clone.StoredProceduresSuffix = StoredProceduresSuffix;
 
             // add all columns
             var clmns = this.Columns;
@@ -570,16 +587,6 @@ namespace Dotmim.Sync.Data
         /// </summary>
         public DmRow NewRow() => new DmRow(this);
 
-
-        // public DmRow NewRow(DmRowState state) => new DmRow(this, state);
-
-
-        protected virtual Type GetRowType()
-        {
-            return typeof(DmRow);
-        }
-
-
         /// <summary>
         /// Reject every changes made since last AcceptChanges()
         /// </summary>
@@ -591,9 +598,7 @@ namespace Dotmim.Sync.Data
             for (int i = 0; i < oldRows.Length; i++)
                 oldRows[i].Rollback();
 
-
         }
-
 
         public override string ToString() => $"{this.TableName} ({this.Rows.ToString()})";
 

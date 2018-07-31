@@ -87,12 +87,10 @@ namespace Dotmim.Sync.Tests
         {
             serverProvider = new SqlSyncProvider(fixture.ServerConnectionString);
             clientProvider = new SqlSyncProvider(fixture.Client1ConnectionString);
-            var simpleConfiguration = new SyncConfiguration(fixture.Tables);
 
-            foreach (var dmTable in simpleConfiguration)
+            agent = new SyncAgent(clientProvider, serverProvider, fixture.Tables);
+            foreach (var dmTable in agent.Configuration.Schema.Tables)
                 dmTable.SyncDirection = SyncDirection.UploadOnly;
-
-            agent = new SyncAgent(clientProvider, serverProvider, simpleConfiguration);
 
             var session = await agent.SynchronizeAsync();
 

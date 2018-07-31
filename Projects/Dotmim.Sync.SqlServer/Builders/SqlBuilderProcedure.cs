@@ -10,6 +10,7 @@ using System.Linq;
 using Dotmim.Sync.Filter;
 using Dotmim.Sync.SqlServer.Manager;
 using System.Diagnostics;
+using System.Collections.Generic;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
@@ -23,7 +24,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         private SqlObjectNames sqlObjectNames;
         private SqlDbMetadata sqlDbMetadata;
 
-        public FilterClauseCollection Filters { get; set; }
+        public ICollection<FilterClause> Filters { get; set; }
 
         public SqlBuilderProcedure(DmTable tableDescription, DbConnection connection, DbTransaction transaction = null)
         {
@@ -1742,16 +1743,16 @@ namespace Dotmim.Sync.SqlServer.Builders
         // Select changes command
         //------------------------------------------------------------------
         private SqlCommand BuildSelectIncrementalChangesCommand(bool withFilter = false)
-        {
+        { 
             SqlCommand sqlCommand = new SqlCommand();
-            SqlParameter sqlParameter1 = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt);
-            SqlParameter sqlParameter3 = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
-            SqlParameter sqlParameter4 = new SqlParameter("@sync_scope_is_new", SqlDbType.Bit);
-            SqlParameter sqlParameter5 = new SqlParameter("@sync_scope_is_reinit", SqlDbType.Bit);
-            sqlCommand.Parameters.Add(sqlParameter1);
-            sqlCommand.Parameters.Add(sqlParameter3);
-            sqlCommand.Parameters.Add(sqlParameter4);
-            sqlCommand.Parameters.Add(sqlParameter5);
+            SqlParameter pTimestamp = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt);
+            SqlParameter pScopeId = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
+            SqlParameter pScopeNew = new SqlParameter("@sync_scope_is_new", SqlDbType.Bit);
+            SqlParameter pReinit = new SqlParameter("@sync_scope_is_reinit", SqlDbType.Bit);
+            sqlCommand.Parameters.Add(pTimestamp);
+            sqlCommand.Parameters.Add(pScopeId);
+            sqlCommand.Parameters.Add(pScopeNew);
+            sqlCommand.Parameters.Add(pReinit);
 
             if (withFilter && this.Filters != null && this.Filters.Count > 0)
             {

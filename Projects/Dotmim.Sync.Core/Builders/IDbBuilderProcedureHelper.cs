@@ -12,7 +12,7 @@ namespace Dotmim.Sync.Builders
     /// </summary>
     public interface IDbBuilderProcedureHelper
     {
-        FilterClauseCollection Filters { get; set; }
+        ICollection<FilterClause> Filters { get; set; }
 
         bool NeedToCreateProcedure(DbCommandType commandName);
         bool NeedToCreateType(DbCommandType typeName);

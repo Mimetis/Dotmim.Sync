@@ -14,6 +14,7 @@ using System.IO;
 using Microsoft.Data.Sqlite;
 using Dotmim.Sync.Sqlite;
 using System.ComponentModel;
+using System.Data.Common;
 
 namespace Dotmim.Sync.Test
 {
@@ -40,6 +41,7 @@ namespace Dotmim.Sync.Test
 	            [CMoney] [money] NULL,
 	            [CNChar10] [nchar](10) NULL,
 	            [CNumeric64] [numeric](6, 4) NULL,
+	            [CNumeric103] [numeric](10, 3) NULL,
 	            [CNVarchar50] [nvarchar](50) NULL,
 	            [CNVarcharMax] [nvarchar](max) NULL,
 	            [CReal] [real] NULL,
@@ -64,130 +66,130 @@ namespace Dotmim.Sync.Test
             INSERT INTO [dbo].[AllColumns]
                     ([ClientID] ,[CBinary],[CBigInt],[CBit],[CChar10],[CDate],[CDateTime]
                     ,[CDateTime2],[CDateTimeOffset],[CDecimal64],[CFloat],[CInt],[CMoney]
-                    ,[CNChar10],[CNumeric64],[CNVarchar50],[CNVarcharMax],[CReal]
+                    ,[CNChar10],[CNumeric64],[CNumeric103],[CNVarchar50],[CNVarcharMax],[CReal]
                     ,[CSmallDateTime],[CSmallInt],[CSmallMoney],[CSqlVariant],[CTime7]
                     ,[CTinyint],[CUniqueIdentifier],[CVarbinary50],[CVarbinaryMax]
                     ,[CVarchar50],[CVarcharMax],[CXml])
             VALUES
                     (newId(),12345,10000000000000,1,'char10',GETDATE(),GETDATE(),GETDATE()
-                    ,GETDATE(),23.1234,12.123,1,3148.29,'char10',23.1234
+                    ,GETDATE(),23.1234,12.123,1,3148.29,'char10',23.1234, 1.783
                     ,'nvarchar(50)','nvarchar(max)',12.34,GETDATE(),12,3148.29
                     ,GETDATE(),GETDATE(),1,NEWID(),123456,123456,'varchar(50)','varchar(max)'
                     ,'<root><client name=''Doe''>inner Doe client</client></root>')
             INSERT INTO [dbo].[AllColumns]
                     ([ClientID] ,[CBinary],[CBigInt],[CBit],[CChar10],[CDate],[CDateTime]
                     ,[CDateTime2],[CDateTimeOffset],[CDecimal64],[CFloat],[CInt],[CMoney]
-                    ,[CNChar10],[CNumeric64],[CNVarchar50],[CNVarcharMax],[CReal]
+                    ,[CNChar10],[CNumeric64],[CNumeric103],[CNVarchar50],[CNVarcharMax],[CReal]
                     ,[CSmallDateTime],[CSmallInt],[CSmallMoney],[CSqlVariant],[CTime7]
                     ,[CTinyint],[CUniqueIdentifier],[CVarbinary50],[CVarbinaryMax]
                     ,[CVarchar50],[CVarcharMax],[CXml])
             VALUES
                     (NEWID(),12345,10000000000000,1,'char10',GETDATE(),GETDATE(),GETDATE()
-                    ,GETDATE(),23.1234,12.123,1,3148.29,'char10',23.1234
+                    ,GETDATE(),23.1234,12.123,1,3148.29,'char10',23.1234, 1.783
                     ,'nvarchar(50)','nvarchar(max)',12.34,GETDATE(),12,3148.29
                     ,GETDATE(),GETDATE(),1,NEWID(),123456,123456,'varchar(50)','varchar(max)'
                     ,'<root><client name=''Doe''>inner Doe client</client></root>')
             INSERT INTO [dbo].[AllColumns]
                     ([ClientID] ,[CBinary],[CBigInt],[CBit],[CChar10],[CDate],[CDateTime]
                     ,[CDateTime2],[CDateTimeOffset],[CDecimal64],[CFloat],[CInt],[CMoney]
-                    ,[CNChar10],[CNumeric64],[CNVarchar50],[CNVarcharMax],[CReal]
+                    ,[CNChar10],[CNumeric64],[CNumeric103],[CNVarchar50],[CNVarcharMax],[CReal]
                     ,[CSmallDateTime],[CSmallInt],[CSmallMoney],[CSqlVariant],[CTime7]
                     ,[CTinyint],[CUniqueIdentifier],[CVarbinary50],[CVarbinaryMax]
                     ,[CVarchar50],[CVarcharMax],[CXml])
             VALUES
                     (NEWID(),12345,10000000000000,1,'char10',GETDATE(),GETDATE(),GETDATE()
-                    ,GETDATE(),23.1234,12.123,1,3148.29,'char10',23.1234
+                    ,GETDATE(),23.1234,12.123,1,3148.29,'char10',23.1234, 1.783
                     ,'nvarchar(50)','nvarchar(max)',12.34,GETDATE(),12,3148.29
                     ,GETDATE(),GETDATE(),1,NEWID(),123456,123456,'varchar(50)','varchar(max)'
                     ,'<root><client name=''Doe''>inner Doe client</client></root>')
             INSERT INTO [dbo].[AllColumns]
                     ([ClientID] ,[CBinary],[CBigInt],[CBit],[CChar10],[CDate],[CDateTime]
                     ,[CDateTime2],[CDateTimeOffset],[CDecimal64],[CFloat],[CInt],[CMoney]
-                    ,[CNChar10],[CNumeric64],[CNVarchar50],[CNVarcharMax],[CReal]
+                    ,[CNChar10],[CNumeric64],[CNumeric103],[CNVarchar50],[CNVarcharMax],[CReal]
                     ,[CSmallDateTime],[CSmallInt],[CSmallMoney],[CSqlVariant],[CTime7]
                     ,[CTinyint],[CUniqueIdentifier],[CVarbinary50],[CVarbinaryMax]
                     ,[CVarchar50],[CVarcharMax],[CXml])
             VALUES
                     (NEWID(),12345,10000000000000,1,'char10',GETDATE(),GETDATE(),GETDATE()
-                    ,GETDATE(),23.1234,12.123,1,3148.29,'char10',23.1234
+                    ,GETDATE(),23.1234,12.123,1,3148.29,'char10',23.1234, 1.783
                     ,'nvarchar(50)','nvarchar(max)',12.34,GETDATE(),12,3148.29
                     ,GETDATE(),GETDATE(),1,NEWID(),123456,123456,'varchar(50)','varchar(max)'
                     ,'<root><client name=''Doe''>inner Doe client</client></root>')
             INSERT INTO [dbo].[AllColumns]
                     ([ClientID] ,[CBinary],[CBigInt],[CBit],[CChar10],[CDate],[CDateTime]
                     ,[CDateTime2],[CDateTimeOffset],[CDecimal64],[CFloat],[CInt],[CMoney]
-                    ,[CNChar10],[CNumeric64],[CNVarchar50],[CNVarcharMax],[CReal]
+                    ,[CNChar10],[CNumeric64],[CNumeric103],[CNVarchar50],[CNVarcharMax],[CReal]
                     ,[CSmallDateTime],[CSmallInt],[CSmallMoney],[CSqlVariant],[CTime7]
                     ,[CTinyint],[CUniqueIdentifier],[CVarbinary50],[CVarbinaryMax]
                     ,[CVarchar50],[CVarcharMax],[CXml])
             VALUES
                     (NEWID(),12345,10000000000000,1,'char10',GETDATE(),GETDATE(),GETDATE()
-                    ,GETDATE(),23.1234,12.123,1,3148.29,'char10',23.1234
+                    ,GETDATE(),23.1234,12.123,1,3148.29,'char10',23.1234, 1.783
                     ,'nvarchar(50)','nvarchar(max)',12.34,GETDATE(),12,3148.29
                     ,GETDATE(),GETDATE(),1,NEWID(),123456,123456,'varchar(50)','varchar(max)'
                     ,'<root><client name=''Doe''>inner Doe client</client></root>')
             INSERT INTO [dbo].[AllColumns]
                     ([ClientID] ,[CBinary],[CBigInt],[CBit],[CChar10],[CDate],[CDateTime]
                     ,[CDateTime2],[CDateTimeOffset],[CDecimal64],[CFloat],[CInt],[CMoney]
-                    ,[CNChar10],[CNumeric64],[CNVarchar50],[CNVarcharMax],[CReal]
+                    ,[CNChar10],[CNumeric64],[CNumeric103],[CNVarchar50],[CNVarcharMax],[CReal]
                     ,[CSmallDateTime],[CSmallInt],[CSmallMoney],[CSqlVariant],[CTime7]
                     ,[CTinyint],[CUniqueIdentifier],[CVarbinary50],[CVarbinaryMax]
                     ,[CVarchar50],[CVarcharMax],[CXml])
             VALUES
                     (newId(),12345,10000000000000,1,'char10',GETDATE(),GETDATE(),GETDATE()
-                    ,GETDATE(),23.1234,12.123,1,3148.29,'char10',23.1234
+                    ,GETDATE(),23.1234,12.123,1,3148.29,'char10',23.1234, 1.783
                     ,'nvarchar(50)','nvarchar(max)',12.34,GETDATE(),12,3148.29
                     ,GETDATE(),GETDATE(),1,NEWID(),123456,123456,'varchar(50)','varchar(max)'
                     ,'<root><client name=''Doe''>inner Doe client</client></root>')
             INSERT INTO [dbo].[AllColumns]
                     ([ClientID] ,[CBinary],[CBigInt],[CBit],[CChar10],[CDate],[CDateTime]
                     ,[CDateTime2],[CDateTimeOffset],[CDecimal64],[CFloat],[CInt],[CMoney]
-                    ,[CNChar10],[CNumeric64],[CNVarchar50],[CNVarcharMax],[CReal]
+                    ,[CNChar10],[CNumeric64],[CNumeric103],[CNVarchar50],[CNVarcharMax],[CReal]
                     ,[CSmallDateTime],[CSmallInt],[CSmallMoney],[CSqlVariant],[CTime7]
                     ,[CTinyint],[CUniqueIdentifier],[CVarbinary50],[CVarbinaryMax]
                     ,[CVarchar50],[CVarcharMax],[CXml])
             VALUES
                     (NEWID(),12345,10000000000000,1,'char10',GETDATE(),GETDATE(),GETDATE()
-                    ,GETDATE(),23.1234,12.123,1,3148.29,'char10',23.1234
+                    ,GETDATE(),23.1234,12.123,1,3148.29,'char10',23.1234, 1.783
                     ,'nvarchar(50)','nvarchar(max)',12.34,GETDATE(),12,3148.29
                     ,GETDATE(),GETDATE(),1,NEWID(),123456,123456,'varchar(50)','varchar(max)'
                     ,'<root><client name=''Doe''>inner Doe client</client></root>')
             INSERT INTO [dbo].[AllColumns]
                     ([ClientID] ,[CBinary],[CBigInt],[CBit],[CChar10],[CDate],[CDateTime]
                     ,[CDateTime2],[CDateTimeOffset],[CDecimal64],[CFloat],[CInt],[CMoney]
-                    ,[CNChar10],[CNumeric64],[CNVarchar50],[CNVarcharMax],[CReal]
+                    ,[CNChar10],[CNumeric64],[CNumeric103],[CNVarchar50],[CNVarcharMax],[CReal]
                     ,[CSmallDateTime],[CSmallInt],[CSmallMoney],[CSqlVariant],[CTime7]
                     ,[CTinyint],[CUniqueIdentifier],[CVarbinary50],[CVarbinaryMax]
                     ,[CVarchar50],[CVarcharMax],[CXml])
             VALUES
                     (NEWID(),12345,10000000000000,1,'char10',GETDATE(),GETDATE(),GETDATE()
-                    ,GETDATE(),23.1234,12.123,1,3148.29,'char10',23.1234
+                    ,GETDATE(),23.1234,12.123,1,3148.29,'char10',23.1234, 1.783
                     ,'nvarchar(50)','nvarchar(max)',12.34,GETDATE(),12,3148.29
                     ,GETDATE(),GETDATE(),1,NEWID(),123456,123456,'varchar(50)','varchar(max)'
                     ,'<root><client name=''Doe''>inner Doe client</client></root>')
             INSERT INTO [dbo].[AllColumns]
                     ([ClientID] ,[CBinary],[CBigInt],[CBit],[CChar10],[CDate],[CDateTime]
                     ,[CDateTime2],[CDateTimeOffset],[CDecimal64],[CFloat],[CInt],[CMoney]
-                    ,[CNChar10],[CNumeric64],[CNVarchar50],[CNVarcharMax],[CReal]
+                    ,[CNChar10],[CNumeric64],[CNumeric103],[CNVarchar50],[CNVarcharMax],[CReal]
                     ,[CSmallDateTime],[CSmallInt],[CSmallMoney],[CSqlVariant],[CTime7]
                     ,[CTinyint],[CUniqueIdentifier],[CVarbinary50],[CVarbinaryMax]
                     ,[CVarchar50],[CVarcharMax],[CXml])
             VALUES
                     (NEWID(),12345,10000000000000,1,'char10',GETDATE(),GETDATE(),GETDATE()
-                    ,GETDATE(),23.1234,12.123,1,3148.29,'char10',23.1234
+                    ,GETDATE(),23.1234,12.123,1,3148.29,'char10',23.1234, 1.783
                     ,'nvarchar(50)','nvarchar(max)',12.34,GETDATE(),12,3148.29
                     ,GETDATE(),GETDATE(),1,NEWID(),123456,123456,'varchar(50)','varchar(max)'
                     ,'<root><client name=''Doe''>inner Doe client</client></root>')
             INSERT INTO [dbo].[AllColumns]
                     ([ClientID] ,[CBinary],[CBigInt],[CBit],[CChar10],[CDate],[CDateTime]
                     ,[CDateTime2],[CDateTimeOffset],[CDecimal64],[CFloat],[CInt],[CMoney]
-                    ,[CNChar10],[CNumeric64],[CNVarchar50],[CNVarcharMax],[CReal]
+                    ,[CNChar10],[CNumeric64],[CNumeric103],[CNVarchar50],[CNVarcharMax],[CReal]
                     ,[CSmallDateTime],[CSmallInt],[CSmallMoney],[CSqlVariant],[CTime7]
                     ,[CTinyint],[CUniqueIdentifier],[CVarbinary50],[CVarbinaryMax]
                     ,[CVarchar50],[CVarcharMax],[CXml])
             VALUES
                     (NEWID(),12345,10000000000000,1,'char10',GETDATE(),GETDATE(),GETDATE()
-                    ,GETDATE(),23.1234,12.123,1,3148.29,'char10',23.1234
+                    ,GETDATE(),23.1234,12.123,1,3148.29,'char10',23.1234, 1.783
                     ,'nvarchar(50)','nvarchar(max)',12.34,GETDATE(),12,3148.29
                     ,GETDATE(),GETDATE(),1,NEWID(),123456,123456,'varchar(50)','varchar(max)'
                     ,'<root><client name=''Doe''>inner Doe client</client></root>')
@@ -223,9 +225,8 @@ namespace Dotmim.Sync.Test
 
             var serverProvider = new SqlSyncProvider(ServerConnectionString);
             var clientProvider = new SqliteSyncProvider(ClientSqliteFilePath);
-            var simpleConfiguration = new SyncConfiguration(new[] { "AllColumns" });
 
-            Agent = new SyncAgent(clientProvider, serverProvider, simpleConfiguration);
+            Agent = new SyncAgent(clientProvider, serverProvider, new[] { "AllColumns" });
         }
         public void Dispose()
         {
@@ -246,6 +247,14 @@ namespace Dotmim.Sync.Test
         SqliteSyncAllColumnsFixture fixture;
         SyncAgent agent;
         //SyncConfiguration configuration;
+        private DateTime dateTimeNow = new DateTime(2010, 10, 01, 23, 10, 12, 400);
+        private DateTime dateTimeNow2 = new DateTime(2010, 10, 01, 23, 10, 12, 900);
+        private DateTime shortDateTimeNow = new DateTime(2010, 10, 01);
+        private DateTimeOffset dateTimeOffset = DateTimeOffset.Now;
+        private TimeSpan timespan = TimeSpan.FromMinutes(128);
+        private byte[] byteArray = { 2, 4, 6, 8, 10, 12, 14, 16, 18, 20 };
+        private byte[] byteArray50 = { 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20 };
+
         public SqliteSyncAllColumnsTests(SqliteSyncAllColumnsFixture fixture)
         {
             this.fixture = fixture;
@@ -256,8 +265,6 @@ namespace Dotmim.Sync.Test
         public async Task InitializeAndSync()
         {
             var session = await agent.SynchronizeAsync();
-
-            Debug.WriteLine(session.TotalChangesDownloaded);
 
             Assert.Equal(10, session.TotalChangesDownloaded);
             Assert.Equal(0, session.TotalChangesUploaded);
@@ -273,40 +280,133 @@ namespace Dotmim.Sync.Test
             Assert.Equal(0, session.TotalChangesUploaded);
         }
 
-        [Fact, TestPriority(3)]
-        public async Task OneRowFromServer()
+        private Guid InsertARow(string connectionString)
         {
+            var clientId = Guid.NewGuid();
+
+
             var insertRowScript =
             $@"
                 INSERT INTO [dbo].[AllColumns]
                         ([ClientID] ,[CBinary],[CBigInt],[CBit],[CChar10],[CDate],[CDateTime]
                         ,[CDateTime2],[CDateTimeOffset],[CDecimal64],[CFloat],[CInt],[CMoney]
-                        ,[CNChar10],[CNumeric64],[CNVarchar50],[CNVarcharMax],[CReal]
+                        ,[CNChar10],[CNumeric64],[CNumeric103],[CNVarchar50],[CNVarcharMax],[CReal]
                         ,[CSmallDateTime],[CSmallInt],[CSmallMoney],[CSqlVariant],[CTime7]
                         ,[CTinyint],[CUniqueIdentifier],[CVarbinary50],[CVarbinaryMax]
                         ,[CVarchar50],[CVarcharMax],[CXml])
                 VALUES
-                        (NEWID(),12345,10000000000000,1,'char10',GETDATE(),GETDATE(),GETDATE()
-                        ,GETDATE(),23.1234,12.123,1,3148.29,'char10',23.1234
-                        ,'nvarchar(50)','nvarchar(max)',12.34,GETDATE(),12,3148.29
-                        ,GETDATE(),GETDATE(),1,NEWID(),123456,123456,'varchar(50)','varchar(max)'
-                        ,'<root><client name=''Doe''>inner Doe client</client></root>')
+                        (@clientId,@byteArray50,10000000000000,1,'char10',@shortDateTimeNow
+                        ,@dateTimeNow,@dateTimeNow2,@dateTimeOffset
+                        ,23.1234,12.123,1,3148.29,'char10',23.1234, 1.783
+                        ,'nvarchar(50)','nvarchar(max)',12.34,@shortDateTimeNow,12,3148.29
+                        ,'variant',@timespan,1,NEWID(),@byteArray,@byteArray,'varchar(50)','varchar(max)'
+                        ,'<root><client name=""Doe"">inner Doe client</client></root>')
             ";
-            using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
+            using (var sqlConnection = new SqlConnection(connectionString))
             {
                 using (var sqlCmd = new SqlCommand(insertRowScript, sqlConnection))
                 {
+                    sqlCmd.Parameters.AddWithValue("@clientId", clientId);
+                    sqlCmd.Parameters.AddWithValue("@shortDateTimeNow", shortDateTimeNow);
+                    sqlCmd.Parameters.AddWithValue("@dateTimeOffset", dateTimeOffset);
+                    sqlCmd.Parameters.AddWithValue("@timespan", timespan);
+                    sqlCmd.Parameters.AddWithValue("@dateTimeNow", dateTimeNow);
+                    sqlCmd.Parameters.AddWithValue("@dateTimeNow2", dateTimeNow2);
+                    sqlCmd.Parameters.AddWithValue("@byteArray", byteArray);
+                    sqlCmd.Parameters.AddWithValue("@byteArray50", byteArray50);
+
                     sqlConnection.Open();
                     sqlCmd.ExecuteNonQuery();
                     sqlConnection.Close();
                 }
             }
 
+            return clientId;
+        }
+
+
+        [Fact, TestPriority(3)]
+        public async Task OneRowFromServer()
+        {
+
+            var clientId = InsertARow(fixture.ServerConnectionString);
+
             var session = await agent.SynchronizeAsync();
 
             Assert.Equal(1, session.TotalChangesDownloaded);
             Assert.Equal(0, session.TotalChangesUploaded);
+
+            // check values
+            using (var sqlConnection = new SqliteConnection(fixture.ClientSqliteConnectionString))
+            {
+                using (var sqlCmd = new SqliteCommand($"Select * from AllColumns where ClientId = @clientId", sqlConnection))
+                {
+                    sqlCmd.Parameters.AddWithValue("@clientId", clientId);
+                    sqlConnection.Open();
+
+                    using (var dbReader = sqlCmd.ExecuteReader())
+                    {
+
+                        dbReader.Read();
+                        AssertReader(clientId, dbReader);
+                    }
+
+
+                    sqlConnection.Close();
+                }
+            }
         }
+
+        private void AssertReader(Guid clientId, DbDataReader dbReader)
+        {
+            Assert.Equal(clientId, new Guid((byte[])dbReader["ClientID"]));
+
+            var dbBytes = (Byte[])dbReader["CBinary"];
+            Assert.Equal(byteArray50.Length, dbBytes.Length);
+
+            for (int i = 0; i < byteArray50.Length; i++)
+                Assert.Equal(byteArray50[i], dbBytes[i]);
+
+            Assert.Equal(10000000000000, (long)dbReader["CBigInt"]);
+            Assert.Equal(true, Convert.ToBoolean(dbReader["CBit"]));
+            Assert.Equal("char10    ", (string)dbReader["CChar10"]);
+            Assert.Equal(shortDateTimeNow, DateTime.Parse((string)dbReader["CDate"]));
+            Assert.Equal(dateTimeNow, DateTime.Parse((string)dbReader["CDateTime"]));
+            Assert.Equal(dateTimeNow2, DateTime.Parse((string)dbReader["CDateTime2"]));
+            Assert.Equal(dateTimeOffset, DateTimeOffset.Parse((string)dbReader["CDateTimeOffset"]));
+            Assert.Equal((Decimal)23.1234, Convert.ToDecimal(dbReader["CDecimal64"]));
+            Assert.Equal(12.123, dbReader["CFloat"]);
+            Assert.Equal(1, Convert.ToInt32(dbReader["CInt"]));
+            Assert.Equal((Decimal)3148.29, Convert.ToDecimal(dbReader["CMoney"]));
+            Assert.Equal("char10    ", (string)dbReader["CNChar10"]);
+            Assert.Equal((Decimal)23.1234, Convert.ToDecimal(dbReader["CNumeric64"]));
+            Assert.Equal((Decimal)1.783, Convert.ToDecimal(dbReader["CNumeric103"]));
+            Assert.Equal("nvarchar(50)", dbReader["CNVarchar50"]);
+            Assert.Equal("nvarchar(max)", dbReader["CNVarcharMax"]);
+            Assert.Equal((float)12.34, Convert.ToSingle(dbReader["CReal"]));
+            Assert.Equal(shortDateTimeNow, DateTime.Parse((string)dbReader["CSmallDateTime"]));
+            Assert.Equal((Int16)12, Convert.ToInt16(dbReader["CSmallInt"]));
+            Assert.Equal((decimal)3148.29, Convert.ToDecimal(dbReader["CSmallMoney"]));
+            Assert.Equal("variant", (String)dbReader["CSqlVariant"]);
+            Assert.Equal(timespan, TimeSpan.Parse((String)dbReader["CTime7"]));
+            Assert.Equal((byte)1, Convert.ToByte(dbReader["CTinyint"]));
+
+            var dbBytes2 = (Byte[])dbReader["CVarbinary50"];
+            Assert.Equal(byteArray.Length, dbBytes2.Length);
+            for (int i = 0; i < byteArray.Length; i++)
+                Assert.Equal(byteArray[i], dbBytes2[i]);
+
+            var dbBytes3 = (Byte[])dbReader["CVarbinaryMax"];
+            Assert.Equal(byteArray.Length, dbBytes3.Length);
+            for (int i = 0; i < byteArray.Length; i++)
+                Assert.Equal(byteArray[i], dbBytes3[i]);
+
+
+            Assert.Equal("varchar(50)", (string)dbReader["CVarchar50"]);
+            Assert.Equal("varchar(max)", (String)dbReader["CVarcharMax"]);
+            Assert.Equal(@"<root><client name=""Doe"">inner Doe client</client></root>", (String)dbReader["CXml"]);
+        }
+
 
         [Fact, TestPriority(4)]
         public async Task OneRowFromClient()

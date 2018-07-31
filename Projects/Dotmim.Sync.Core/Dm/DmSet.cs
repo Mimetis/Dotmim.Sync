@@ -289,6 +289,19 @@ namespace Dotmim.Sync.Data
             }
         }
 
+
+        /// <summary>
+        /// Gets if the current DmSet has at least one table
+        /// </summary>
+        public bool HasTables => this.Tables?.Count > 0;
+
+        /// <summary>
+        /// Gets if the DmSet has at least one column in at least one table
+        /// </summary>
+        public bool HasColumns =>
+                // using SelectMany to get DmColumns and not DmColumnCollection
+                this.Tables?.SelectMany(t => t.Columns).Count() > 0;
+
         /// <summary>
         /// Gets a value indicating whether the DmSet has changes, including new, deleted, or modified rows.
         /// </summary>

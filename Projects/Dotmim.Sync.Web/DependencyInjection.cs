@@ -1,10 +1,6 @@
 ﻿using Dotmim.Sync;
 using Dotmim.Sync.Web;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
@@ -30,11 +26,12 @@ namespace Microsoft.Extensions.DependencyInjection
             SyncConfiguration syncConfiguration = new SyncConfiguration();
             action?.Invoke(syncConfiguration);
 
-            provider.SetConfiguration(syncConfiguration);
             provider.ConnectionString = connectionString;
 
             var webProvider = new WebProxyServerProvider(provider)
             {
+                // Sets the configuration, owned by the server side.
+                Configuration = syncConfiguration,
                 // since we will register this proxy as a singleton, just signal it
                 IsRegisterAsSingleton = true
             };

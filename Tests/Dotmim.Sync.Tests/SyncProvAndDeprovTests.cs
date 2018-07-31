@@ -95,28 +95,26 @@ namespace Dotmim.Sync.Test
         SqlSyncProvider serverProvider;
         SqlSyncProvider clientProvider;
         SyncAgent agent;
-        SyncConfiguration syncConfiguration;
         public SyncProvAndDeprovTests(SyncProvAndDeprovTestsFixture fixture)
         {
             this.fixture = fixture;
 
             serverProvider = new SqlSyncProvider(fixture.ServerConnectionString);
             clientProvider = new SqlSyncProvider(fixture.Client1ConnectionString);
-            syncConfiguration = new SyncConfiguration(fixture.Tables);
         }
 
 
         [Fact, TestPriority(1)]
         public async Task DeprovisionAll()
         {
-            agent = new SyncAgent(clientProvider, serverProvider, syncConfiguration);
+            agent = new SyncAgent(clientProvider, serverProvider, fixture.Tables);
 
             var session = await agent.SynchronizeAsync();
 
             Assert.Equal(7, session.TotalChangesDownloaded);
             Assert.Equal(0, session.TotalChangesUploaded);
 
-            await clientProvider.DeprovisionAsync(fixture.Tables, SyncProvision.All);
+            await clientProvider.DeprovisionAsync(agent.Configuration, SyncProvision.All);
 
             using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
             {
@@ -150,13 +148,14 @@ namespace Dotmim.Sync.Test
         [Fact, TestPriority(2)]
         public async Task DeprovisionStoredProcedures()
         {
-            agent = new SyncAgent(clientProvider, serverProvider, syncConfiguration);
+            agent = new SyncAgent(clientProvider, serverProvider, fixture.Tables);
 
-            agent.DatabaseApplying += (s, e) => e.OverwriteConfiguration = true;
+            // Overwrite configuration to apply the schem on the database, even if we have already made a sync before
+            agent.DatabaseApplying += (s, e) => e.OverwriteSchema = true;
 
             var session = await agent.SynchronizeAsync();
 
-            await clientProvider.DeprovisionAsync(fixture.Tables, SyncProvision.StoredProcedures);
+            await clientProvider.DeprovisionAsync(agent.Configuration, SyncProvision.StoredProcedures);
 
             using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
             {
@@ -183,13 +182,14 @@ namespace Dotmim.Sync.Test
         [Fact, TestPriority(3)]
         public async Task DeprovisionTrackingTable()
         {
-            agent = new SyncAgent(clientProvider, serverProvider, syncConfiguration);
+            agent = new SyncAgent(clientProvider, serverProvider, fixture.Tables);
 
-            agent.DatabaseApplying += (s, e) => e.OverwriteConfiguration = true;
+            // Overwrite configuration to apply the schem on the database, even if we have already made a sync before
+            agent.DatabaseApplying += (s, e) => e.OverwriteSchema = true;
 
             var session = await agent.SynchronizeAsync();
 
-            await clientProvider.DeprovisionAsync(fixture.Tables, SyncProvision.TrackingTable);
+            await clientProvider.DeprovisionAsync(agent.Configuration, SyncProvision.TrackingTable);
 
             using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
             {
@@ -209,13 +209,13 @@ namespace Dotmim.Sync.Test
         [Fact, TestPriority(4)]
         public async Task DeprovisionTable()
         {
-            agent = new SyncAgent(clientProvider, serverProvider, syncConfiguration);
+            agent = new SyncAgent(clientProvider, serverProvider, fixture.Tables);
 
-            agent.DatabaseApplying += (s, e) => e.OverwriteConfiguration = true;
+            agent.DatabaseApplying += (s, e) => e.OverwriteSchema = true;
 
             var session = await agent.SynchronizeAsync();
 
-            await clientProvider.DeprovisionAsync(fixture.Tables, SyncProvision.Table);
+            await clientProvider.DeprovisionAsync(agent.Configuration, SyncProvision.Table);
 
             using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
             {
@@ -235,13 +235,13 @@ namespace Dotmim.Sync.Test
         [Fact, TestPriority(5)]
         public async Task DeprovisionScope()
         {
-            agent = new SyncAgent(clientProvider, serverProvider, syncConfiguration);
+            agent = new SyncAgent(clientProvider, serverProvider, fixture.Tables);
 
-            agent.DatabaseApplying += (s, e) => e.OverwriteConfiguration = true;
+            agent.DatabaseApplying += (s, e) => e.OverwriteSchema = true;
 
             var session = await agent.SynchronizeAsync();
 
-            await clientProvider.DeprovisionAsync(fixture.Tables, SyncProvision.Scope);
+            await clientProvider.DeprovisionAsync(agent.Configuration, SyncProvision.Scope);
 
             using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
             {
@@ -261,11 +261,11 @@ namespace Dotmim.Sync.Test
         [Fact, TestPriority(6)]
         public async Task DeprovisionAllExceptTables()
         {
-            agent = new SyncAgent(clientProvider, serverProvider, syncConfiguration);
-            agent.DatabaseApplying += (s, e) => e.OverwriteConfiguration = true;
+            agent = new SyncAgent(clientProvider, serverProvider, fixture.Tables);
+            agent.DatabaseApplying += (s, e) => e.OverwriteSchema = true;
             var session = await agent.SynchronizeAsync();
 
-            await clientProvider.DeprovisionAsync(fixture.Tables, 
+            await clientProvider.DeprovisionAsync(agent.Configuration, 
                     SyncProvision.Scope | SyncProvision.StoredProcedures | SyncProvision.TrackingTable | SyncProvision.Triggers );
 
             using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))

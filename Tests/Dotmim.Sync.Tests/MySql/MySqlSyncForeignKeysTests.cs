@@ -129,14 +129,13 @@ namespace Dotmim.Sync.Tests.MySql
         {
             serverProvider = new MySqlSyncProvider(fixture.ServerConnectionString);
             clientProvider = new MySqlSyncProvider(fixture.Client1ConnectionString);
-            var simpleConfiguration = new SyncConfiguration(new[] {
+           
+            agent = new SyncAgent(clientProvider, serverProvider, new[] {
                 "ProductCategory",
                 "ProductDescription",
                 "ProductModel",
                 "ProductModelProductDescription",
                 "Product" });
-
-            agent = new SyncAgent(clientProvider, serverProvider, simpleConfiguration);
 
             var session = await agent.SynchronizeAsync();
 
@@ -165,11 +164,10 @@ namespace Dotmim.Sync.Tests.MySql
         {
             serverProvider = new MySqlSyncProvider(fixture.ServerConnectionString);
             clientProvider = new MySqlSyncProvider(fixture.Client2ConnectionString);
-            var simpleConfiguration = new SyncConfiguration(new[] {
+            
+            agent = new SyncAgent(clientProvider, serverProvider, new[] {
                 "ProductCategory",
                 "Product" });
-
-            agent = new SyncAgent(clientProvider, serverProvider, simpleConfiguration);
 
             var session = await agent.SynchronizeAsync();
 

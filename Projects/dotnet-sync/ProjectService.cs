@@ -125,7 +125,9 @@ namespace Dotmim.Sync.Tools
 
             if (project.ServerProvider.ProviderType != ProviderType.Web)
             {
-                SyncConfiguration syncConfiguration = new SyncConfiguration();
+                agent = new SyncAgent(clientprovider, serverProvider);
+
+                SyncConfiguration syncConfiguration = agent.Configuration;
 
                 foreach (var t in project.Tables.OrderBy(tbl => tbl.Order))
                 {
@@ -152,7 +154,7 @@ namespace Dotmim.Sync.Tools
                 syncConfiguration.DownloadBatchSizeInKB = (int)Math.Min(Int32.MaxValue, project.Configuration.DownloadBatchSizeInKB);
                 syncConfiguration.ConflictResolutionPolicy = project.Configuration.ConflictResolutionPolicy;
 
-                 agent = new SyncAgent(clientprovider, serverProvider, syncConfiguration);
+
             }
             else
             {

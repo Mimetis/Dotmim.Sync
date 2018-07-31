@@ -55,7 +55,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
             var dbType = column.DbType;
             var precision = column.Precision;
-            long maxLength = (long)column.MaxLength;
+            long maxLength = column.MaxLength;
 
             SqlDbType sqlDbType = (SqlDbType)this.sqlMetadata.TryGetOwnerDbType(column.OriginalDbType, column.DbType, false, false, this.TableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
 
@@ -96,6 +96,15 @@ namespace Dotmim.Sync.SqlServer.Builders
                 return new SqlMetaData(column.ColumnName, sqlDbType, maxLength);
             }
 
+            if (sqlDbType == SqlDbType.Decimal)
+            {
+                if (column.PrecisionSpecified && column.ScaleSpecified)
+                    return new SqlMetaData(column.ColumnName, sqlDbType, column.Precision, column.Scale);
+
+                if (column.PrecisionSpecified)
+                    return new SqlMetaData(column.ColumnName, sqlDbType, column.Precision);
+
+            }
 
             return new SqlMetaData(column.ColumnName, sqlDbType);
 
@@ -308,7 +317,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             ((SqlParameterCollection)cmd.Parameters)["@changeTable"].TypeName = string.Empty;
             ((SqlParameterCollection)cmd.Parameters)["@changeTable"].Value = records;
             ((SqlParameterCollection)cmd.Parameters)["@sync_scope_id"].Value = scope.Id;
-            ((SqlParameterCollection)cmd.Parameters)["@sync_min_timestamp"].Value = scope.LastTimestamp;
+            ((SqlParameterCollection)cmd.Parameters)["@sync_min_timestamp"].Value = scope.Timestamp;
 
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
@@ -348,10 +357,18 @@ namespace Dotmim.Sync.SqlServer.Builders
         /// <summary>
         /// Check if an exception is a primary key exception
         /// </summary>
-        public override bool IsPrimaryKeyViolation(Exception Error)
+        public override bool IsPrimaryKeyViolation(Exception exception)
         {
-            SqlException error = Error as SqlException;
-            if (error != null && error.Number == 2627)
+            if (exception is SqlException error && error.Number == 2627)
+                return true;
+
+            return false;
+        }
+
+
+        public override bool IsUniqueKeyViolation(Exception exception)
+        {
+            if (exception is SqlException error && error.Number == 2627)
                 return true;
 
             return false;
@@ -445,7 +462,6 @@ namespace Dotmim.Sync.SqlServer.Builders
                     sqlParameter.SourceColumn = colDesc.ColumnName;
             }
         }
-
 
     }
 }

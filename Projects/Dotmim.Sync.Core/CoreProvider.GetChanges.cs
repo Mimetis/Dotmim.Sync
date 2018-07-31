@@ -3,7 +3,9 @@ using Dotmim.Sync.Builders;
 using Dotmim.Sync.Data;
 using Dotmim.Sync.Data.Surrogate;
 using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.Filter;
 using Dotmim.Sync.Manager;
+using Dotmim.Sync.Messages;
 using Dotmim.Sync.Serialization;
 using System;
 using System.Collections.Generic;
@@ -25,14 +27,13 @@ namespace Dotmim.Sync
         /// destination knowledge, and change data retriever parameters.
         /// </summary>
         /// <returns>A DbSyncContext object that will be used to retrieve the modified data.</returns>
-        public virtual async Task<(SyncContext, BatchInfo, ChangesSelected)> GetChangeBatchAsync(SyncContext context, ScopeInfo scopeInfo)
+        public virtual async Task<(SyncContext, BatchInfo, ChangesSelected)> GetChangeBatchAsync(
+            SyncContext context, MessageGetChangesBatch message)
         {
             try
             {
-                if (scopeInfo == null)
+                if (message.ScopeInfo == null)
                     throw new ArgumentNullException("scopeInfo", "Client scope info is null");
-
-                var configuration = GetCacheConfiguration();
 
                 // Check if the provider is not outdated
                 var isOutdated = this.IsRemoteOutdated();
@@ -50,6 +51,10 @@ namespace Dotmim.Sync
                         throw new OutOfDateException("The provider is out of date ! Try to make a Reinitialize sync");
                 }
 
+                // create local directory
+                if (!String.IsNullOrEmpty(message.BatchDirectory) && !Directory.Exists(message.BatchDirectory))
+                    Directory.CreateDirectory(message.BatchDirectory);
+
                 // batch info containing changes
                 BatchInfo batchInfo;
 
@@ -59,11 +64,11 @@ namespace Dotmim.Sync
                 // if we try a Reinitialize action, don't get any changes from client
                 // else get changes from batch or in memory methods
                 if (context.SyncWay == SyncWay.Upload && context.SyncType == SyncType.Reinitialize)
-                    (batchInfo, changesSelected) = this.GetEmptyChanges(context, scopeInfo);
-                else if (configuration.DownloadBatchSizeInKB == 0)
-                    (batchInfo, changesSelected) = await this.EnumerateChangesInternal(context, scopeInfo);
+                    (batchInfo, changesSelected) = this.GetEmptyChanges(context, message.ScopeInfo, message.DownloadBatchSizeInKB, message.BatchDirectory);
+                else if (message.DownloadBatchSizeInKB == 0)
+                    (batchInfo, changesSelected) = await this.EnumerateChangesInternal(context, message.ScopeInfo, message.Schema, message.BatchDirectory, message.Policy, message.Filters);
                 else
-                    (batchInfo, changesSelected) = await this.EnumerateChangesInBatchesInternal(context, scopeInfo);
+                    (batchInfo, changesSelected) = await this.EnumerateChangesInBatchesInternal(context, message.ScopeInfo, message.DownloadBatchSizeInKB, message.Schema, message.BatchDirectory, message.Policy, message.Filters);
 
                 return (context, batchInfo, changesSelected);
             }
@@ -79,7 +84,7 @@ namespace Dotmim.Sync
         /// destination knowledge, and change data retriever parameters.
         /// </summary>
         /// <returns>A DbSyncContext object that will be used to retrieve the modified data.</returns>
-        public virtual async Task<TimeSpan> PrepareArchiveAsync(SyncConfiguration configuration)
+        public virtual async Task<TimeSpan> PrepareArchiveAsync(string[] tables, int downloadBatchSizeInKB, string batchDirectory, ConflictResolutionPolicy policy,  ICollection<FilterClause> filters)
         {
             try
             {
@@ -106,20 +111,17 @@ namespace Dotmim.Sync
                 };
 
                 // Read configuration
-                await this.ReadConfigurationAsync(configuration);
+                var config = await this.ReadSchemaAsync(tables);
 
                 // We want a batch zip
-                if (configuration.DownloadBatchSizeInKB <= 0)
-                    configuration.DownloadBatchSizeInKB = 10000;
-
-                // Save config to cache
-                this.SetCacheConfiguration(configuration);
+                if (downloadBatchSizeInKB <= 0)
+                    downloadBatchSizeInKB = 10000;
 
                 (var batchInfo, var changesSelected) =
-                    await this.EnumerateChangesInBatchesInternal(context, scopeInfo);
+                    await this.EnumerateChangesInBatchesInternal(context, scopeInfo, downloadBatchSizeInKB, config.Schema, batchDirectory, policy, filters);
 
-                var dir = Path.Combine(configuration.BatchDirectory, batchInfo.Directory);
-                var archiveFullName = String.Concat(configuration.BatchDirectory, "\\", Path.GetRandomFileName());
+                var dir = Path.Combine(batchDirectory, batchInfo.Directory);
+                var archiveFullName = String.Concat(batchDirectory, "\\", Path.GetRandomFileName());
 
                 ZipFile.CreateFromDirectory(dir, archiveFullName, CompressionLevel.Fastest, false);
 
@@ -139,24 +141,24 @@ namespace Dotmim.Sync
         /// <summary>
         /// Generate an empty BatchInfo
         /// </summary>
-        internal (BatchInfo, ChangesSelected) GetEmptyChanges(SyncContext context, ScopeInfo scopeInfo)
+        internal (BatchInfo, ChangesSelected) GetEmptyChanges(SyncContext context, ScopeInfo scopeInfo,
+            int downloadBatchSizeInKB, string batchDirectory)
         {
             // Get config
-            var configuration = GetCacheConfiguration();
-            var isBatched = configuration.DownloadBatchSizeInKB > 0;
+            var isBatched = downloadBatchSizeInKB > 0;
 
             // create the in memory changes set
-            DmSet changesSet = new DmSet(configuration.ScopeSet.DmSetName);
+            DmSet changesSet = new DmSet(SyncConfiguration.DMSET_NAME);
 
             // Create the batch info, in memory
             var batchInfo = new BatchInfo();
             batchInfo.InMemory = !isBatched;
 
-            if (!isBatched)
+            if (isBatched)
                 batchInfo.Directory = BatchInfo.GenerateNewDirectoryName();
 
             // generate the batchpartinfo
-            var bpi = batchInfo.GenerateBatchInfo(0, changesSet, configuration.BatchDirectory);
+            var bpi = batchInfo.GenerateBatchInfo(0, changesSet, batchDirectory);
             bpi.IsLastBatch = true;
 
             // Create a new in-memory batch info with an the changes DmSet
@@ -167,17 +169,12 @@ namespace Dotmim.Sync
         /// <summary>
         /// Enumerate all internal changes, no batch mode
         /// </summary>
-        internal async Task<(BatchInfo, ChangesSelected)> EnumerateChangesInternal(SyncContext context, ScopeInfo scopeInfo)
+        internal async Task<(BatchInfo, ChangesSelected)> EnumerateChangesInternal(
+            SyncContext context, ScopeInfo scopeInfo, DmSet configTables, string batchDirectory, ConflictResolutionPolicy policy, ICollection<FilterClause> filters)
         {
-            Debug.WriteLine($"----- Enumerating Changes for Scope \"{scopeInfo.Name}\" -----");
-            Debug.WriteLine("");
-            Debug.WriteLine("");
-
-            // Get config
-            var configuration = GetCacheConfiguration();
 
             // create the in memory changes set
-            DmSet changesSet = new DmSet(configuration.ScopeSet.DmSetName);
+            DmSet changesSet = new DmSet(SyncConfiguration.DMSET_NAME);
 
             // Create the batch info, in memory
             var batchInfo = new BatchInfo();
@@ -195,7 +192,7 @@ namespace Dotmim.Sync
                         // changes that will be returned as selected changes
                         ChangesSelected changes = new ChangesSelected();
 
-                        foreach (var tableDescription in configuration)
+                        foreach (var tableDescription in configTables.Tables)
                         {
                             // if we are in upload stage, so check if table is not download only
                             if (context.SyncWay == SyncWay.Upload && tableDescription.SyncDirection == SyncDirection.DownloadOnly)
@@ -207,7 +204,7 @@ namespace Dotmim.Sync
 
                             var builder = this.GetDatabaseBuilder(tableDescription);
                             var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
-                            syncAdapter.ConflictApplyAction = configuration.GetApplyAction();
+                            syncAdapter.ConflictApplyAction = SyncConfiguration.GetApplyAction(policy);
 
                             // raise before event
                             context.SyncStage = SyncStage.TableChangesSelecting;
@@ -224,9 +221,9 @@ namespace Dotmim.Sync
                             DbCommand selectIncrementalChangesCommand;
                             DbCommandType dbCommandType;
 
-                            if (this.CanBeServerProvider && context.Parameters != null && context.Parameters.Count > 0 && configuration.Filters != null && configuration.Filters.Count > 0)
+                            if (this.CanBeServerProvider && context.Parameters != null && context.Parameters.Count > 0 && filters != null && filters.Count > 0)
                             {
-                                var filtersName = configuration.Filters
+                                var filtersName = filters
                                                 .Where(f => f.TableName.Equals(tableDescription.TableName, StringComparison.InvariantCultureIgnoreCase))
                                                 .Select(f => f.ColumnName);
 
@@ -250,7 +247,6 @@ namespace Dotmim.Sync
                             if (selectIncrementalChangesCommand == null)
                             {
                                 var exc = "Missing command 'SelectIncrementalChangesCommand' ";
-                                Debug.WriteLine(exc);
                                 throw new Exception(exc);
                             }
 
@@ -258,18 +254,18 @@ namespace Dotmim.Sync
                             syncAdapter.SetCommandParameters(dbCommandType, selectIncrementalChangesCommand);
 
                             // Get a clone of the table with tracking columns
-                            var dmTableChanges = BuildChangesTable(tableDescription.TableName);
+                            var dmTableChanges = BuildChangesTable(tableDescription.TableName, configTables);
 
                             SetSelectChangesCommonParameters(context, scopeInfo, selectIncrementalChangesCommand);
 
                             // Set filter parameters if any
-                            if (this.CanBeServerProvider && context.Parameters != null && context.Parameters.Count > 0 && configuration.Filters != null && configuration.Filters.Count > 0)
+                            if (this.CanBeServerProvider && context.Parameters != null && context.Parameters.Count > 0 && filters != null && filters.Count > 0)
                             {
-                                var filters = configuration.Filters.Where(f => f.TableName.Equals(tableDescription.TableName, StringComparison.InvariantCultureIgnoreCase)).ToList();
+                                var tableFilters = filters.Where(f => f.TableName.Equals(tableDescription.TableName, StringComparison.InvariantCultureIgnoreCase)).ToList();
 
-                                if (filters != null && filters.Count > 0)
+                                if (tableFilters != null && tableFilters.Count > 0)
                                 {
-                                    foreach (var filter in filters)
+                                    foreach (var filter in tableFilters)
                                     {
                                         var parameter = context.Parameters.FirstOrDefault(p => p.ColumnName.Equals(filter.ColumnName, StringComparison.InvariantCultureIgnoreCase) && p.TableName.Equals(filter.TableName, StringComparison.InvariantCultureIgnoreCase));
 
@@ -339,16 +335,13 @@ namespace Dotmim.Sync
                             context.SyncStage = SyncStage.TableChangesSelected;
                             var args = new TableChangesSelectedEventArgs(this.ProviderTypeName, SyncStage.TableChangesSelected, tableSelectedChanges);
                             this.TryRaiseProgressEvent(args, this.TableChangesSelected);
-
-                            Debug.WriteLine($"--- End Table \"{tableDescription.TableName}\" ---");
-                            Debug.WriteLine("");
                         }
 
 
                         transaction.Commit();
 
                         // generate the batchpartinfo
-                        batchInfo.GenerateBatchInfo(0, changesSet, configuration.BatchDirectory);
+                        batchInfo.GenerateBatchInfo(0, changesSet, batchDirectory);
 
                         // Create a new in-memory batch info with an the changes DmSet
                         return (batchInfo, changes);
@@ -356,7 +349,6 @@ namespace Dotmim.Sync
                     }
                     catch (Exception dbException)
                     {
-                        Debug.WriteLine($"Caught exception while enumerating changes\n{dbException}\n");
                         throw;
                     }
                     finally
@@ -377,7 +369,9 @@ namespace Dotmim.Sync
         {
             // Generate the isNewScope Flag.
             var isNewScope = scopeInfo.IsNewScope ? 1 : 0;
-            var lastTimeStamp = scopeInfo.LastTimestamp;
+            var lastTimeStamp = scopeInfo.Timestamp;
+            //var lastTimeStampExcludedBegin = scopeInfo.LastSyncTimestampExcludedBegin;
+            //var lastTimeStampExcludedEnd = scopeInfo.LastSyncTimestampExcludedEnd;
             int isReinit = context.SyncType == SyncType.Reinitialize ? 1 : 0;
 
             switch (context.SyncWay)
@@ -386,12 +380,16 @@ namespace Dotmim.Sync
                     // Overwrite if we are in Reinitialize mode (not RenitializeWithUpload)
                     isNewScope = context.SyncType == SyncType.Reinitialize ? 1 : isNewScope;
                     lastTimeStamp = context.SyncType == SyncType.Reinitialize ? 0 : lastTimeStamp;
+                    //lastTimeStampExcludedBegin = context.SyncType == SyncType.Reinitialize ? 0 : lastTimeStampExcludedBegin;
+                    //lastTimeStampExcludedEnd = context.SyncType == SyncType.Reinitialize ? 0 : lastTimeStampExcludedEnd;
                     isReinit = context.SyncType == SyncType.Reinitialize ? 1 : 0;
                     break;
                 case SyncWay.Download:
                     // Ovewrite on bot Reinitialize and ReinitializeWithUpload
                     isNewScope = context.SyncType != SyncType.Normal ? 1 : isNewScope;
                     lastTimeStamp = context.SyncType != SyncType.Normal ? 0 : lastTimeStamp;
+                    //lastTimeStampExcludedBegin = context.SyncType != SyncType.Normal ? 0 : lastTimeStampExcludedBegin;
+                    //lastTimeStampExcludedEnd = context.SyncType != SyncType.Normal ? 0 : lastTimeStampExcludedEnd;
                     isReinit = context.SyncType != SyncType.Normal ? 1 : 0;
                     break;
                 default:
@@ -400,24 +398,23 @@ namespace Dotmim.Sync
 
             // Set the parameters
             DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_min_timestamp", lastTimeStamp);
+            //DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_min_timestamp_exclude_begin", lastTimeStampExcludedBegin);
+            //DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_min_timestamp_exclude_end", lastTimeStampExcludedEnd);
             DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_id", scopeInfo.Id);
             DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_is_new", isNewScope);
             DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_is_reinit", isReinit);
 
             scopeInfo.IsNewScope = isNewScope == 1 ? true : false;
-            scopeInfo.LastTimestamp = lastTimeStamp;
+            scopeInfo.Timestamp = lastTimeStamp;
 
         }
 
         /// <summary>
         /// Enumerate all internal changes, no batch mode
         /// </summary>
-        internal async Task<(BatchInfo, ChangesSelected)> EnumerateChangesInBatchesInternal(SyncContext context, ScopeInfo scopeInfo)
+        internal async Task<(BatchInfo, ChangesSelected)> EnumerateChangesInBatchesInternal
+            (SyncContext context, ScopeInfo scopeInfo, int downloadBatchSizeInKB, DmSet configTables, string batchDirectory, ConflictResolutionPolicy policy, ICollection<FilterClause> filters)
         {
-            Debug.WriteLine($"----- Enumerating Changes for Scope \"{scopeInfo.Name}\" -----");
-            Debug.WriteLine("");
-            Debug.WriteLine("");
-            var configuration = GetCacheConfiguration();
 
             DmTable dmTable = null;
             // memory size total
@@ -447,9 +444,9 @@ namespace Dotmim.Sync
                     using (var transaction = connection.BeginTransaction())
                     {
                         // create the in memory changes set
-                        DmSet changesSet = new DmSet(configuration.ScopeSet.DmSetName);
+                        DmSet changesSet = new DmSet(configTables.DmSetName);
 
-                        foreach (var tableDescription in configuration)
+                        foreach (var tableDescription in configTables.Tables)
                         {
                             // if we are in upload stage, so check if table is not download only
                             if (context.SyncWay == SyncWay.Upload && tableDescription.SyncDirection == SyncDirection.DownloadOnly)
@@ -461,7 +458,7 @@ namespace Dotmim.Sync
 
                             var builder = this.GetDatabaseBuilder(tableDescription);
                             var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
-                            syncAdapter.ConflictApplyAction = configuration.GetApplyAction();
+                            syncAdapter.ConflictApplyAction = SyncConfiguration.GetApplyAction(policy);
 
                             // raise before event
                             context.SyncStage = SyncStage.TableChangesSelecting;
@@ -472,9 +469,9 @@ namespace Dotmim.Sync
                             DbCommand selectIncrementalChangesCommand;
                             DbCommandType dbCommandType;
 
-                            if (this.CanBeServerProvider && context.Parameters != null && context.Parameters.Count > 0 && configuration.Filters != null && configuration.Filters.Count > 0)
+                            if (this.CanBeServerProvider && context.Parameters != null && context.Parameters.Count > 0 && filters != null && filters.Count > 0)
                             {
-                                var filtersName = configuration.Filters
+                                var filtersName = filters
                                                 .Where(f => f.TableName.Equals(tableDescription.TableName, StringComparison.InvariantCultureIgnoreCase))
                                                 .Select(f => f.ColumnName);
 
@@ -501,11 +498,10 @@ namespace Dotmim.Sync
                             if (selectIncrementalChangesCommand == null)
                             {
                                 var exc = "Missing command 'SelectIncrementalChangesCommand' ";
-                                Debug.WriteLine(exc);
                                 throw new Exception(exc);
                             }
 
-                             dmTable = BuildChangesTable(tableDescription.TableName);
+                            dmTable = BuildChangesTable(tableDescription.TableName, configTables);
 
                             try
                             {
@@ -514,13 +510,13 @@ namespace Dotmim.Sync
 
                                 // Set filter parameters if any
                                 // Only on server side
-                                if (this.CanBeServerProvider && context.Parameters != null && context.Parameters.Count > 0 && configuration.Filters != null && configuration.Filters.Count > 0)
+                                if (this.CanBeServerProvider && context.Parameters != null && context.Parameters.Count > 0 && filters != null && filters.Count > 0)
                                 {
-                                    var filters = configuration.Filters.Where(f => f.TableName.Equals(tableDescription.TableName, StringComparison.InvariantCultureIgnoreCase)).ToList();
+                                    var filterTable = filters.Where(f => f.TableName.Equals(tableDescription.TableName, StringComparison.InvariantCultureIgnoreCase)).ToList();
 
-                                    if (filters != null && filters.Count > 0)
+                                    if (filterTable != null && filterTable.Count > 0)
                                     {
-                                        foreach (var filter in filters)
+                                        foreach (var filter in filterTable)
                                         {
                                             var parameter = context.Parameters.FirstOrDefault(p => p.ColumnName.Equals(filter.ColumnName, StringComparison.InvariantCultureIgnoreCase) && p.TableName.Equals(filter.TableName, StringComparison.InvariantCultureIgnoreCase));
 
@@ -558,10 +554,9 @@ namespace Dotmim.Sync
                                         var fieldsSize = DmTableSurrogate.GetRowSizeFromDataRow(dmRow);
                                         var dmRowSize = fieldsSize / 1024d;
 
-                                        if (dmRowSize > configuration.DownloadBatchSizeInKB)
+                                        if (dmRowSize > downloadBatchSizeInKB)
                                         {
-                                            var exc = $"Row is too big ({dmRowSize} kb.) for the current Configuration.DownloadBatchSizeInKB ({configuration.DownloadBatchSizeInKB} kb.) Aborting Sync...";
-                                            Debug.WriteLine(exc);
+                                            var exc = $"Row is too big ({dmRowSize} kb.) for the current Configuration.DownloadBatchSizeInKB ({downloadBatchSizeInKB} kb.) Aborting Sync...";
                                             throw new Exception(exc);
                                         }
 
@@ -593,7 +588,7 @@ namespace Dotmim.Sync
                                         }
 
                                         // We exceed the memorySize, so we can add it to a batch
-                                        if (memorySizeFromDmRows > configuration.DownloadBatchSizeInKB)
+                                        if (memorySizeFromDmRows > downloadBatchSizeInKB)
                                         {
                                             // Since we dont need this column anymore, remove it
                                             this.RemoveTrackingColumns(dmTable, "sync_row_is_tombstone");
@@ -601,7 +596,7 @@ namespace Dotmim.Sync
                                             changesSet.Tables.Add(dmTable);
 
                                             // generate the batch part info
-                                            batchInfo.GenerateBatchInfo(batchIndex, changesSet, configuration.BatchDirectory);
+                                            batchInfo.GenerateBatchInfo(batchIndex, changesSet, batchDirectory);
 
                                             // increment batch index
                                             batchIndex++;
@@ -609,7 +604,7 @@ namespace Dotmim.Sync
                                             changesSet.Clear();
 
                                             // Recreate an empty DmSet, then a dmTable clone
-                                            changesSet = new DmSet(configuration.ScopeSet.DmSetName);
+                                            changesSet = new DmSet(configTables.DmSetName);
                                             dmTable = dmTable.Clone();
                                             this.AddTrackingColumns<int>(dmTable, "sync_row_is_tombstone");
 
@@ -644,25 +639,21 @@ namespace Dotmim.Sync
                             }
                             catch (Exception dbException)
                             {
-                                Debug.WriteLine($"Caught exception while enumerating changes\n{dbException}\n");
                                 throw;
                             }
                             finally
                             {
-
-                                Debug.WriteLine($"--- End Table \"{tableDescription.TableName}\" ---");
-                                Debug.WriteLine("");
                             }
                         }
 
                         // We are in batch mode, and we are at the last batchpart info
-                        if (dmTable != null && dmTable.Rows.Count > 0)
+                        if (changesSet != null && changesSet.HasTables && changesSet.HasChanges())
                         {
-                            var batchPartInfo = batchInfo.GenerateBatchInfo(batchIndex, changesSet, configuration.BatchDirectory);
+                            var batchPartInfo = batchInfo.GenerateBatchInfo(batchIndex, changesSet, batchDirectory);
 
                             if (batchPartInfo != null)
                                 batchPartInfo.IsLastBatch = true;
-                        
+
                         }
 
                         transaction.Commit();
@@ -681,8 +672,6 @@ namespace Dotmim.Sync
 
 
             }
-            Debug.WriteLine($"--- End Enumerating Changes for Scope \"{scopeInfo.Name}\" ---");
-            Debug.WriteLine("");
 
             return (batchInfo, changes);
         }
@@ -760,11 +749,9 @@ namespace Dotmim.Sync
         }
 
 
-        private DmTable BuildChangesTable(string tableName)
+        private DmTable BuildChangesTable(string tableName, DmSet configTables)
         {
-            var configuration = GetCacheConfiguration();
-
-            var dmTable = configuration[tableName].Clone();
+            var dmTable = configTables.Tables[tableName].Clone();
 
             // Adding the tracking columns
             AddTrackingColumns<Guid>(dmTable, "create_scope_id");
@@ -816,9 +803,9 @@ namespace Dotmim.Sync
                 // 1) Row is not new
                 // 2) Row update is AFTER last sync of asker
                 // 3) Row insert is BEFORE last sync of asker (if insert is after last sync, it's not an update, it's an insert)
-                if (!scopeInfo.IsNewScope && islocallyUpdated && updatedTimeStamp > scopeInfo.LastTimestamp && (createdTimeStamp < scopeInfo.LastTimestamp || !isLocallyCreated))
+                if (!scopeInfo.IsNewScope && islocallyUpdated && updatedTimeStamp > scopeInfo.Timestamp && (createdTimeStamp <= scopeInfo.Timestamp || !isLocallyCreated))
                     dmRowState = DmRowState.Modified;
-                else if (scopeInfo.IsNewScope || (isLocallyCreated && createdTimeStamp > scopeInfo.LastTimestamp))
+                else if (scopeInfo.IsNewScope || (isLocallyCreated && createdTimeStamp >= scopeInfo.Timestamp))
                     dmRowState = DmRowState.Added;
                 // The line has been updated from an other host
                 else if (islocallyUpdated && updateScopeId.HasValue && updateScopeId.Value != scopeInfo.Id)
@@ -827,7 +814,7 @@ namespace Dotmim.Sync
                 {
                     dmRowState = DmRowState.Unchanged;
                     Debug.WriteLine($"Row is in Unchanegd state. " +
-                        $"\tscopeInfo.Id:{scopeInfo.Id}, scopeInfo.IsNewScope :{scopeInfo.IsNewScope}, scopeInfo.LastTimestamp:{scopeInfo.LastTimestamp}" +
+                        $"\tscopeInfo.Id:{scopeInfo.Id}, scopeInfo.IsNewScope :{scopeInfo.IsNewScope}, scopeInfo.LastTimestamp:{scopeInfo.Timestamp}" +
                         $"\tcreateScopeId:{createScopeId}, updateScopeId:{updateScopeId}, createdTimeStamp:{createdTimeStamp}, updatedTimeStamp:{updatedTimeStamp}.");
                 }
             }

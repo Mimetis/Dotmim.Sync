@@ -24,7 +24,16 @@ namespace Dotmim.Sync.MySql
         {
             string tableAndPrefixName = tableDescription.TableName;
             var originalTableName = new ObjectNameParser(tableAndPrefixName.ToLowerInvariant(), "`", "`");
-            var trackingTableName = new ObjectNameParser($"{tableAndPrefixName.ToLowerInvariant()}_tracking", "`", "`");
+
+            var pref = tableDescription.TrackingTablesPrefix != null ? tableDescription.TrackingTablesPrefix.ToLowerInvariant() : "";
+            var suf = tableDescription.TrackingTablesSuffix != null ? tableDescription.TrackingTablesSuffix.ToLowerInvariant() : "";
+
+            // be sure, at least, we have a suffix if we have empty values. 
+            // othewise, we have the same name for both table and tracking table
+            if (string.IsNullOrEmpty(pref) && string.IsNullOrEmpty(suf))
+                suf = "_tracking";
+
+            var trackingTableName = new ObjectNameParser($"{pref}{tableAndPrefixName.ToLowerInvariant()}{suf}", "`", "`");
 
             return (originalTableName, trackingTableName);
         }

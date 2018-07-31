@@ -17,6 +17,7 @@ using System.Threading;
 using Dotmim.Sync.Serialization;
 using System.Diagnostics;
 using System.Text;
+using Dotmim.Sync.Messages;
 
 namespace Dotmim.Sync
 {
@@ -45,8 +46,8 @@ namespace Dotmim.Sync
         public event EventHandler<DatabaseAppliedEventArgs> DatabaseApplied = null;
         public event EventHandler<DatabaseTableApplyingEventArgs> DatabaseTableApplying = null;
         public event EventHandler<DatabaseTableAppliedEventArgs> DatabaseTableApplied = null;
-        public event EventHandler<ConfigurationApplyingEventArgs> ConfigurationApplying = null;
-        public event EventHandler<ConfigurationAppliedEventArgs> ConfigurationApplied = null;
+        public event EventHandler<SchemaApplyingEventArgs> SchemaApplying = null;
+        public event EventHandler<SchemaAppliedEventArgs> SchemaApplied = null;
         public event EventHandler<TableChangesSelectingEventArgs> TableChangesSelecting = null;
         public event EventHandler<TableChangesSelectedEventArgs> TableChangesSelected = null;
         public event EventHandler<TableChangesApplyingEventArgs> TableChangesApplying = null;
@@ -137,11 +138,11 @@ namespace Dotmim.Sync
                     props.Add("ScopeId", (args as ScopeEventArgs).ScopeInfo.Id.ToString());
                     this.TryRaiseProgressEvent(SyncStage.ScopeLoading, $"Scope saved", props);
                     break;
-                case SyncStage.ConfigurationApplying:
-                    this.TryRaiseProgressEvent(SyncStage.ConfigurationApplying, $"Applying configuration");
+                case SyncStage.SchemaApplying:
+                    this.TryRaiseProgressEvent(SyncStage.SchemaApplying, $"Applying configuration");
                     break;
-                case SyncStage.ConfigurationApplied:
-                    this.TryRaiseProgressEvent(SyncStage.ConfigurationApplied, $"Configuration applied");
+                case SyncStage.SchemaApplied:
+                    this.TryRaiseProgressEvent(SyncStage.SchemaApplied, $"Configuration applied");
                     break;
                 case SyncStage.DatabaseApplying:
                     this.TryRaiseProgressEvent(SyncStage.DatabaseApplying, $"Applying database schemas");
@@ -211,7 +212,7 @@ namespace Dotmim.Sync
         /// Called by the  to indicate that a 
         /// synchronization session has started.
         /// </summary>
-        public virtual Task<SyncContext> BeginSessionAsync(SyncContext context)
+        public virtual Task<(SyncContext, SyncConfiguration)> BeginSessionAsync(SyncContext context, MessageBeginSession message)
         {
             try
             {
@@ -227,10 +228,11 @@ namespace Dotmim.Sync
                 context.SyncStage = SyncStage.BeginSession;
 
                 // Event progress
+                // TODO : First step to edit the configuration
                 var progressEventArgs = new BeginSessionEventArgs(this.ProviderTypeName, context.SyncStage);
                 this.TryRaiseProgressEvent(progressEventArgs, this.BeginSession);
 
-                return Task.FromResult(context);
+                return Task.FromResult((context, message.SyncConfiguration));
             }
             catch (Exception ex)
             {
@@ -269,7 +271,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Read a scope info
         /// </summary>
-        public virtual async Task<(SyncContext, long)> GetLocalTimestampAsync(SyncContext context)
+        public virtual async Task<(SyncContext, long)> GetLocalTimestampAsync(SyncContext context, MessageTimestamp message)
         {
             // Open the connection
             using (var connection = this.CreateConnection())
@@ -278,7 +280,7 @@ namespace Dotmim.Sync
                 {
                     await connection.OpenAsync();
                     var scopeBuilder = this.GetScopeBuilder();
-                    var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(connection);
+                    var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(message.ScopeInfoTableName, connection);
                     var localTime = scopeInfoBuilder.GetLocalTimestamp();
                     return (context, localTime);
                 }
@@ -289,7 +291,6 @@ namespace Dotmim.Sync
                 }
             }
         }
-
 
         /// <summary>
         /// TODO : Manager le fait qu'un scope peut être out dater, car il n'a pas synchronisé depuis assez longtemps
@@ -302,11 +303,9 @@ namespace Dotmim.Sync
             return false;
         }
 
-
         /// <summary>
         /// Add metadata columns
         /// </summary>
-        /// <param name="table"></param>
         private void AddTrackingColumns<T>(DmTable table, string name)
         {
             if (!table.Columns.Contains(name))

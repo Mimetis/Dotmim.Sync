@@ -23,12 +23,12 @@ namespace Dotmim.Sync
     {
         private const int BATCH_SIZE = 1000;
 
-        public delegate (ApplyAction, DmRow) ConflictActionDelegate(SyncConflict conflict, DbConnection connection, DbTransaction transaction = null);
+        public delegate (ApplyAction, DmRow) ConflictActionDelegate(SyncConflict conflict, ConflictResolutionPolicy policy, DbConnection connection, DbTransaction transaction = null);
 
         public ConflictActionDelegate ConflictActionInvoker = null;
 
         internal ApplyAction ConflictApplyAction { get; set; } = ApplyAction.Continue;
-        
+
         /// <summary>
         /// Gets the table description, a dmTable with no rows
         /// </summary>
@@ -42,7 +42,12 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get if the error is a primarykey exception
         /// </summary>
-        public abstract bool IsPrimaryKeyViolation(Exception Error);
+        public abstract bool IsPrimaryKeyViolation(Exception exception);
+
+        /// <summary>
+        /// Gets if the error is a unique key constraint exception
+        /// </summary>
+        public abstract bool IsUniqueKeyViolation(Exception exception);
 
         /// <summary>
         /// Gets a command from the current adapter
@@ -126,11 +131,13 @@ namespace Dotmim.Sync
 
             long createTimestamp = row["create_timestamp", version] != null ? Convert.ToInt64(row["create_timestamp", version]) : 0;
             long updateTimestamp = row["update_timestamp", version] != null ? Convert.ToInt64(row["update_timestamp", version]) : 0;
+            Guid? create_scope_id = row["create_scope_id", version] != null ? (Guid?)(row["create_scope_id", version]) : null;
+            Guid? update_scope_id = row["update_scope_id", version] != null ? (Guid?)(row["update_scope_id", version]) : null;
 
             // Override create and update scope id to reflect who change the value
             // if it's an update, the createscope is staying the same (because not present in dbCommand)
-            Guid? createScopeId = fromScopeId;
-            Guid? updateScopeId = fromScopeId;
+            Guid? createScopeId = fromScopeId.HasValue ? fromScopeId : create_scope_id;
+            Guid? updateScopeId = fromScopeId.HasValue ? fromScopeId : update_scope_id;
 
             // some proc stock does not differentiate update_scope_id and create_scope_id and use sync_scope_id
             DbManager.SetParameterValue(command, "sync_scope_id", createScopeId);
@@ -357,6 +364,16 @@ namespace Dotmim.Sync
             return dmChanges.Count - failedRows;
         }
 
+
+        private void UpdateMetadatas(DbCommandType dbCommandType, DmRow dmRow, ScopeInfo scope)
+        {
+            using (var dbCommand = this.GetCommand(dbCommandType))
+            {
+                this.SetCommandParameters(dbCommandType, dbCommand);
+                this.InsertOrUpdateMetadatas(dbCommand, dmRow, scope.Id);
+            }
+        }
+
         /// <summary>
         /// Try to apply changes on the server.
         /// Internally will call ApplyInsert / ApplyUpdate or ApplyDelete
@@ -366,56 +383,64 @@ namespace Dotmim.Sync
         internal int ApplyChanges(DmView dmChanges, ScopeInfo scope, List<SyncConflict> conflicts)
         {
             int appliedRows = 0;
-            DbCommand dbCommand;
+
             foreach (var dmRow in dmChanges)
             {
                 bool operationComplete = false;
 
-                if (applyType == DmRowState.Added)
+                try
                 {
-                    operationComplete = this.ApplyInsert(dmRow, scope, false);
-                    if (operationComplete)
+                    if (applyType == DmRowState.Added)
                     {
-                        using (dbCommand = this.GetCommand(DbCommandType.InsertMetadata))
-                        {
-                            this.SetCommandParameters(DbCommandType.InsertMetadata, dbCommand);
-                            this.InsertOrUpdateMetadatas(dbCommand, dmRow, scope.Id);
-                        }
+                        operationComplete = this.ApplyInsert(dmRow, scope, false);
+                        if (operationComplete)
+                            UpdateMetadatas(DbCommandType.InsertMetadata, dmRow, scope);
                     }
-                }
-                else if (applyType == DmRowState.Modified)
-                {
-                    operationComplete = this.ApplyUpdate(dmRow, scope, false);
-                    if (operationComplete)
+                    else if (applyType == DmRowState.Modified)
                     {
-                        using (dbCommand = this.GetCommand(DbCommandType.UpdateMetadata))
-                        {
-                            this.SetCommandParameters(DbCommandType.UpdateMetadata, dbCommand);
-                            this.InsertOrUpdateMetadatas(dbCommand, dmRow, scope.Id);
-                        }
+                        operationComplete = this.ApplyUpdate(dmRow, scope, false);
+                        if (operationComplete)
+                            UpdateMetadatas(DbCommandType.UpdateMetadata, dmRow, scope);
+                    }
+                    else if (applyType == DmRowState.Deleted)
+                    {
+                        operationComplete = this.ApplyDelete(dmRow, scope, false);
+                        if (operationComplete)
+                            UpdateMetadatas(DbCommandType.UpdateMetadata, dmRow, scope);
+                    }
+
+                    if (operationComplete)
+                        // if no pb, increment then go to next row
+                        appliedRows++;
+                    else
+                        // Generate a conflict and add it
+                        conflicts.Add(GetConflict(dmRow));
+
+                }
+                catch (Exception ex)
+                {
+                    if (this.IsUniqueKeyViolation(ex))
+                    {
+
+                        // Generate the conflict
+                        var conflict = new SyncConflict(ConflictType.UniqueKeyConstraint);
+
+                        // Add the row as Remote row
+                        conflict.AddRemoteRow(dmRow);
+
+                        // Get the local row
+                        var localTable = GetRow(dmRow);
+                        if (localTable.Rows.Count > 0)
+                            conflict.AddLocalRow(localTable.Rows[0]);
+
+                        conflicts.Add(conflict);
+
+                        localTable.Clear();
 
                     }
                 }
-                else if (applyType == DmRowState.Deleted)
-                {
-                    operationComplete = this.ApplyDelete(dmRow, scope, false);
-                    if (operationComplete)
-                    {
-                        using (dbCommand = this.GetCommand(DbCommandType.UpdateMetadata))
-                        {
-                            this.SetCommandParameters(DbCommandType.UpdateMetadata, dbCommand);
-                            this.InsertOrUpdateMetadatas(dbCommand, dmRow, scope.Id);
-                        }
-                    }
-                }
 
 
-                if (operationComplete)
-                    // if no pb, increment then go to next row
-                    appliedRows++;
-                else
-                    // Generate a conflict and add it
-                    conflicts.Add(GetConflict(dmRow));
             }
 
             return appliedRows;
@@ -424,7 +449,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Apply a single insert in the current data source
         /// </summary>
-        internal bool ApplyInsert(DmRow remoteRow, ScopeInfo scope, bool forceWrite)
+        internal bool ApplyInsert(DmRow row, ScopeInfo scope, bool forceWrite)
         {
             using (var command = this.GetCommand(DbCommandType.InsertRow))
             {
@@ -433,10 +458,10 @@ namespace Dotmim.Sync
                 this.SetCommandParameters(DbCommandType.InsertRow, command);
 
                 // Set the parameters value from row
-                this.SetColumnParametersValues(command, remoteRow);
+                this.SetColumnParametersValues(command, row);
 
                 // Set the special parameters for insert
-                AddCommonParametersValues(command, scope.Id, scope.LastTimestamp, false, forceWrite);
+                AddCommonParametersValues(command, scope.Id, scope.Timestamp, false, forceWrite);
 
                 var alreadyOpened = Connection.State == ConnectionState.Open;
 
@@ -452,6 +477,7 @@ namespace Dotmim.Sync
 
                     rowInsertedCount = command.ExecuteNonQuery();
                 }
+
                 finally
                 {
                     // Open Connection
@@ -478,7 +504,7 @@ namespace Dotmim.Sync
                 this.SetColumnParametersValues(command, sourceRow);
 
                 // Set the special parameters for update
-                this.AddCommonParametersValues(command, scope.Id, scope.LastTimestamp, true, forceWrite);
+                this.AddCommonParametersValues(command, scope.Id, scope.Timestamp, true, forceWrite);
 
                 var alreadyOpened = Connection.State == ConnectionState.Open;
 
@@ -501,6 +527,44 @@ namespace Dotmim.Sync
                         Connection.Close();
                 }
 
+                return rowInsertedCount > 0;
+            }
+        }
+
+        /// <summary>
+        /// Apply a single update in the current datasource. if forceWrite, override conflict situation and force the update
+        /// </summary>
+        internal bool ApplyUpdate(DmRow sourceRow, ScopeInfo scope, bool forceWrite)
+        {
+            using (var command = this.GetCommand(DbCommandType.UpdateRow))
+            {
+                // Deriving Parameters
+                this.SetCommandParameters(DbCommandType.UpdateRow, command);
+
+                // Set the parameters value from row
+                this.SetColumnParametersValues(command, sourceRow);
+
+                // Set the special parameters for update
+                AddCommonParametersValues(command, scope.Id, scope.Timestamp, false, forceWrite);
+
+                var alreadyOpened = Connection.State == ConnectionState.Open;
+
+                int rowInsertedCount = 0;
+                try
+                {
+                    if (!alreadyOpened)
+                        Connection.Open();
+
+                    if (Transaction != null)
+                        command.Transaction = Transaction;
+
+                    rowInsertedCount = command.ExecuteNonQuery();
+                }
+                finally
+                {
+                    if (!alreadyOpened)
+                        Connection.Close();
+                }
                 return rowInsertedCount > 0;
             }
         }
@@ -538,45 +602,6 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Apply a single update in the current datasource. if forceWrite, override conflict situation and force the update
-        /// </summary>
-        internal bool ApplyUpdate(DmRow sourceRow, ScopeInfo scope, bool forceWrite)
-        {
-            using (var command = this.GetCommand(DbCommandType.UpdateRow))
-            {
-                // Deriving Parameters
-                this.SetCommandParameters(DbCommandType.UpdateRow, command);
-
-                // Set the parameters value from row
-                this.SetColumnParametersValues(command, sourceRow);
-
-                // Set the special parameters for update
-                AddCommonParametersValues(command, scope.Id, scope.LastTimestamp, false, forceWrite);
-
-                var alreadyOpened = Connection.State == ConnectionState.Open;
-
-                int rowInsertedCount = 0;
-                try
-                {
-                    if (!alreadyOpened)
-                        Connection.Open();
-
-                    if (Transaction != null)
-                        command.Transaction = Transaction;
-
-                    rowInsertedCount = command.ExecuteNonQuery();
-                }
-                finally
-                {
-                    if (!alreadyOpened)
-                        Connection.Close();
-                }
-                return rowInsertedCount > 0;
-            }
-        }
-
-
-        /// <summary>
         /// Add common parameters which could be part of the command
         /// if not found, no set done
         /// </summary>
@@ -606,8 +631,6 @@ namespace Dotmim.Sync
             if (localTable.Rows.Count == 0)
             {
                 var errorMessage = "Change Application failed due to Row not Found on the server";
-
-                Debug.WriteLine($"Conflict detected with error: {errorMessage}");
 
                 if (applyType == DmRowState.Added)
                     dbConflictType = ConflictType.RemoteInsertLocalNoRow;
@@ -663,7 +686,6 @@ namespace Dotmim.Sync
             return conflict;
         }
 
-
         /// <summary>
         /// Adding failed rows when used by a bulk operation
         /// </summary>
@@ -683,16 +705,17 @@ namespace Dotmim.Sync
             }
         }
 
+
         /// <summary>
         /// Handle a conflict
         /// </summary>
-        internal ChangeApplicationAction HandleConflict(SyncConflict conflict, ScopeInfo scope, long timestamp, out DmRow finalRow)
+        internal ChangeApplicationAction HandleConflict(SyncConflict conflict, ConflictResolutionPolicy policy, ScopeInfo scope, long fromScopeLocalTimeStamp, out DmRow finalRow)
         {
             finalRow = null;
 
             // overwrite apply action if we handle it (ie : user wants to change the action)
             if (this.ConflictActionInvoker != null)
-                (ConflictApplyAction, finalRow) = this.ConflictActionInvoker(conflict, Connection, Transaction);
+                (ConflictApplyAction, finalRow) = this.ConflictActionInvoker(conflict, policy, Connection, Transaction);
 
             // Default behavior and an error occured
             if (ConflictApplyAction == ApplyAction.Rollback)
@@ -718,19 +741,70 @@ namespace Dotmim.Sync
                     // if we have a merge action, we apply the row on the server
                     if (isMergeAction)
                     {
-                        this.ApplyUpdate(row, scope, true);
+                        bool isUpdated = false;
+                        bool isInserted = false;
+                        // Insert metadata is a merge, actually
+                        DbCommandType commandType = DbCommandType.UpdateMetadata;
 
-                        // TODO : Différencier le timestamp de mise à jour ou de création
-                        using (var updateMetadataCommand = GetCommand(DbCommandType.UpdateMetadata))
+                        isUpdated = this.ApplyUpdate(row, scope, true);
+
+                        if (!isUpdated)
                         {
-                            // Deriving Parameters
-                            this.SetCommandParameters(DbCommandType.UpdateMetadata, updateMetadataCommand);
+                            // Insert the row
+                            isInserted = this.ApplyInsert(row, scope, true);
+                            // Then update the row to mark this row as updated from server
+                            // and get it back to client 
+                            isUpdated = this.ApplyUpdate(row, scope, true);
 
-                            // apply local row, set scope.id to null becoz applied locally
-                            var rowsApplied = this.InsertOrUpdateMetadatas(updateMetadataCommand, conflict.LocalRow, null);
+                            commandType = DbCommandType.InsertMetadata;
+                        }
 
-                            if (!rowsApplied)
-                                throw new Exception("No metadatas rows found, can't update the server side");
+                        if (!isUpdated && !isInserted)
+                            throw new Exception("Can't update the merge row.");
+
+
+                        // IF we have insert the row in the server side, to resolve the conflict
+                        // Whe should update the metadatas correctly
+                        if (isUpdated && isInserted)
+                        {
+                            using (var metadataCommand = GetCommand(commandType))
+                            {
+                                // getting the row updated from server
+                                var dmTableRow = GetRow(row);
+                                row = dmTableRow.Rows[0];
+
+                                // Deriving Parameters
+                                this.SetCommandParameters(commandType, metadataCommand);
+
+                                // Set the id parameter
+                                this.SetColumnParametersValues(metadataCommand, row);
+
+                                DmRowVersion version = row.RowState == DmRowState.Deleted ? DmRowVersion.Original : DmRowVersion.Current;
+
+                                Guid? create_scope_id = row["create_scope_id"] != DBNull.Value ? (Guid?)row["create_scope_id"] : null;
+                                long createTimestamp = row["create_timestamp", version] != DBNull.Value ? Convert.ToInt64(row["create_timestamp", version]) : 0;
+
+                                // The trick is to force the row to be "created before last sync"
+                                // Even if we just inserted it
+                                // to be able to get the row in state Updated (and not Added)
+                                row["create_scope_id"] = create_scope_id;
+                                row["create_timestamp"] = fromScopeLocalTimeStamp - 1;
+
+                                // Update scope id is set to server side
+                                Guid? update_scope_id = row["update_scope_id"] != DBNull.Value ? (Guid?)row["update_scope_id"] : null;
+                                long updateTimestamp = row["update_timestamp", version] != DBNull.Value ? Convert.ToInt64(row["update_timestamp", version]) : 0;
+
+                                row["update_scope_id"] = null;
+                                row["update_timestamp"] = updateTimestamp;
+
+
+                                // apply local row, set scope.id to null becoz applied locally
+                                var rowsApplied = this.InsertOrUpdateMetadatas(metadataCommand, row, null);
+
+                                if (!rowsApplied)
+                                    throw new Exception("No metadatas rows found, can't update the server side");
+
+                            }
                         }
                     }
 
@@ -753,7 +827,7 @@ namespace Dotmim.Sync
                 bool operationComplete = false;
 
                 // create a localscope to override values
-                var localScope = new ScopeInfo { Name = scope.Name, LastTimestamp = timestamp };
+                var localScope = new ScopeInfo { Name = scope.Name, Timestamp = fromScopeLocalTimeStamp };
 
                 DbCommandType commandType = DbCommandType.InsertMetadata;
 
@@ -821,7 +895,6 @@ namespace Dotmim.Sync
                 if (!operationComplete)
                 {
                     var ex = $"Can't force operation for applyType {applyType}";
-                    Debug.WriteLine(ex);
                     finalRow = null;
                     return ChangeApplicationAction.Continue;
                 }
@@ -833,7 +906,6 @@ namespace Dotmim.Sync
             return ChangeApplicationAction.Rollback;
 
         }
-
 
         /// <summary>
         /// Trace info

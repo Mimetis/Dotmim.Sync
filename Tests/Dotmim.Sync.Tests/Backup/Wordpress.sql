@@ -1,5 +1,3 @@
-﻿CREATE DATABASE  IF NOT EXISTS `mysqldatabase165` /*!40100 DEFAULT CHARACTER SET utf8 */;
-USE `mysqldatabase165`;
 -- MySQL dump 10.13  Distrib 5.7.17, for Win64 (x86_64)
 --
 -- Host: tlsemysql.mysql.database.azure.com    Database: mysqldatabase165

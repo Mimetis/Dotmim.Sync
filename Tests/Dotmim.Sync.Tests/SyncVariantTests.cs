@@ -83,9 +83,8 @@ namespace Dotmim.Sync.Test
 
             serverProvider = new SqlSyncProvider(fixture.ServerConnectionString);
             clientProvider = new SqlSyncProvider(fixture.Client1ConnectionString);
-            var simpleConfiguration = new SyncConfiguration(fixture.Tables);
 
-            agent = new SyncAgent(clientProvider, serverProvider, simpleConfiguration);
+            agent = new SyncAgent(clientProvider, serverProvider, fixture.Tables);
         }
 
         //[Fact, TestPriority(1)]
@@ -107,16 +106,16 @@ namespace Dotmim.Sync.Test
                     SqlSyncProvider serverProvider = new SqlSyncProvider(this.fixture.ServerConnectionString);
                     SyncConfiguration configuration = new SyncConfiguration(this.fixture.Tables);
                     configuration.DownloadBatchSizeInKB = 500;
-                    serverProvider.SetConfiguration(configuration);
 
-                    WebProxyServerProvider proxyServerProvider = new WebProxyServerProvider(serverProvider, SerializationFormat.Json);
+                    WebProxyServerProvider proxyServerProvider = new WebProxyServerProvider(serverProvider);
+                    proxyServerProvider.Configuration = configuration;
 
                     await proxyServerProvider.HandleRequestAsync(context);
                 });
 
                 var clientHandler = new ResponseDelegate(async (serviceUri) =>
                 {
-                    var proxyProvider = new WebProxyClientProvider(new Uri(serviceUri), SerializationFormat.Json);
+                    var proxyProvider = new WebProxyClientProvider(new Uri(serviceUri));
                     var clientProvider = new SqlSyncProvider(this.fixture.Client1ConnectionString);
 
                     SyncAgent agent = new SyncAgent(clientProvider, proxyProvider);

@@ -8,6 +8,6 @@ namespace Dotmim.Sync.Builders
 {
     public abstract class DbScopeBuilder 
     {
-        public abstract IDbScopeInfoBuilder CreateScopeInfoBuilder(DbConnection connection, DbTransaction transaction = null);
+        public abstract IDbScopeInfoBuilder CreateScopeInfoBuilder(string scopeTableName, DbConnection connection, DbTransaction transaction = null);
     }
 }

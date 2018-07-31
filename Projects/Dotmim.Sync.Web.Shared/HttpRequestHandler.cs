@@ -29,8 +29,6 @@ namespace Dotmim.Sync.Web
 
         internal Dictionary<string, string> ScopeParameters { get; } = new Dictionary<string, string>();
 
-        internal SerializationFormat SerializationFormat { get; set; }
-
         internal Uri BaseUri { get; set; }
 
         internal CancellationToken CancellationToken { get; set; }
@@ -42,13 +40,11 @@ namespace Dotmim.Sync.Web
         public HttpRequestHandler()
         {
             this.CancellationToken = CancellationToken.None;
-            this.SerializationFormat = SerializationFormat.Json;
         }
 
-        public HttpRequestHandler(Uri serviceUri, SerializationFormat serializationFormat, CancellationToken cancellationToken)
+        public HttpRequestHandler(Uri serviceUri, CancellationToken cancellationToken)
         {
             this.BaseUri = serviceUri;
-            this.SerializationFormat = serializationFormat;
             this.CancellationToken = cancellationToken;
         }
 
@@ -56,13 +52,13 @@ namespace Dotmim.Sync.Web
         /// <summary>
         /// Process a request message with HttpClient object. 
         /// </summary>
-        public async Task<T> ProcessRequest<T>(T content, CancellationToken cancellationToken)
+        public async Task<T> ProcessRequest<T>(T content, SerializationFormat serializationFormat,  CancellationToken cancellationToken)
         {
             if (this.BaseUri == null)
                 throw new ArgumentException("BaseUri is not defined");
 
             HttpResponseMessage response = null;
-            T dmSetResponse = default(T);
+            T responseMessage = default(T);
             try
             {
                 if (cancellationToken.IsCancellationRequested)
@@ -89,7 +85,7 @@ namespace Dotmim.Sync.Web
                 HttpClientHandler httpClientHandler = this.Handler ?? new HttpClientHandler();
 
                 // serialize dmSet content to bytearraycontent
-                var serializer = BaseConverter<T>.GetConverter(SerializationFormat);
+                var serializer = BaseConverter<T>.GetConverter(serializationFormat);
                 var binaryData = serializer.Serialize(content);
                 ByteArrayContent arrayContent = new ByteArrayContent(binaryData);
 
@@ -106,12 +102,16 @@ namespace Dotmim.Sync.Web
                     Content = arrayContent
                 };
 
+                // Adding the serialization format used
+                requestMessage.Headers.Add("dotmim-sync-serialization-format", serializationFormat.ToString());
+
+                // Adding others headers
                 if (this.CustomHeaders != null && this.CustomHeaders.Count > 0)
                     foreach (var kvp in this.CustomHeaders)
                         requestMessage.Headers.Add(kvp.Key, kvp.Value);
 
                 //request.AddHeader("content-type", "application/json");
-                if (SerializationFormat == SerializationFormat.Json && !requestMessage.Content.Headers.Contains("content-type"))
+                if (serializationFormat == SerializationFormat.Json && !requestMessage.Content.Headers.Contains("content-type"))
                     requestMessage.Content.Headers.Add("content-type", "application/json");
 
                 response = await client.SendAsync(requestMessage, cancellationToken);
@@ -149,9 +149,9 @@ namespace Dotmim.Sync.Web
 
                 using (var streamResponse = await response.Content.ReadAsStreamAsync())
                     if (streamResponse.CanRead && streamResponse.Length > 0)
-                        dmSetResponse = serializer.Deserialize(streamResponse);
+                        responseMessage = serializer.Deserialize(streamResponse);
 
-                return dmSetResponse;
+                return responseMessage;
 
             }
             catch (TaskCanceledException ex)

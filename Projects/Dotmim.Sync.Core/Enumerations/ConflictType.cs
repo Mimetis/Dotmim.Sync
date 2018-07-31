@@ -17,6 +17,11 @@ namespace Dotmim.Sync.Enumerations
         ErrorsOccurred,
 
         /// <summary>
+        /// The remote datasource raised an unique key constraint error
+        /// </summary>
+        UniqueKeyConstraint,
+
+        /// <summary>
         /// The Remote datasource update a row and the Local datasource insert a row with same key
         /// </summary>
         RemoteUpdateLocalInsert,

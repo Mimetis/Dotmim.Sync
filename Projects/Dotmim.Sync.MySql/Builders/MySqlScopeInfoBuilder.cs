@@ -11,15 +11,15 @@ namespace Dotmim.Sync.MySql
 {
     public class MySqlScopeInfoBuilder : IDbScopeInfoBuilder
     {
+        private readonly ObjectNameParser scopeTableName;
+        private readonly MySqlConnection connection;
+        private readonly MySqlTransaction transaction;
 
-
-        private MySqlConnection connection;
-        private MySqlTransaction transaction;
-
-        public MySqlScopeInfoBuilder(DbConnection connection, DbTransaction transaction = null)
+        public MySqlScopeInfoBuilder(string scopeTableName, DbConnection connection, DbTransaction transaction = null)
         {
             this.connection = connection as MySqlConnection;
             this.transaction = transaction as MySqlTransaction;
+            this.scopeTableName = new ObjectNameParser(scopeTableName.ToLowerInvariant(), "[", "]");
         }
 
 
@@ -37,12 +37,14 @@ namespace Dotmim.Sync.MySql
                     connection.Open();
 
                 command.CommandText =
-                    @"CREATE TABLE scope_info(
+                    $@"CREATE TABLE {scopeTableName.UnquotedStringWithUnderScore}(
                         sync_scope_id varchar(36) NOT NULL,
 	                    sync_scope_name varchar(100) NOT NULL,
 	                    scope_timestamp bigint NULL,
                         scope_is_local int NOT NULL DEFAULT 0, 
                         scope_last_sync datetime NULL,
+                        scope_last_sync_timestamp bigint NULL,
+                        scope_last_sync_duration bigint NULL,
                         PRIMARY KEY (sync_scope_id)
                         )";
                 command.ExecuteNonQuery();
@@ -76,7 +78,7 @@ namespace Dotmim.Sync.MySql
                 if (!alreadyOpened)
                     connection.Open();
 
-                command.CommandText = "drop table if exists scope_info";
+                command.CommandText = $"drop table if exists {scopeTableName.UnquotedStringWithUnderScore}";
 
                 command.ExecuteNonQuery();
             }
@@ -111,12 +113,14 @@ namespace Dotmim.Sync.MySql
                     connection.Open();
 
                 command.CommandText =
-                    @"SELECT sync_scope_id
+                    $@"SELECT sync_scope_id
                            , sync_scope_name
                            , scope_timestamp
                            , scope_is_local
                            , scope_last_sync
-                    FROM  scope_info
+                           , scope_last_sync_timestamp
+                           , scope_last_sync_duration
+                    FROM  {scopeTableName.UnquotedStringWithUnderScore}
                     WHERE sync_scope_name = @sync_scope_name";
 
                 var p = command.CreateParameter();
@@ -133,8 +137,10 @@ namespace Dotmim.Sync.MySql
                         ScopeInfo scopeInfo = new ScopeInfo();
                         scopeInfo.Name = reader["sync_scope_name"] as String;
                         scopeInfo.Id = new Guid((String)reader["sync_scope_id"]);
-                        scopeInfo.LastTimestamp = MySqlManager.ParseTimestamp(reader["scope_timestamp"]);
+                        scopeInfo.Timestamp = MySqlManager.ParseTimestamp(reader["scope_timestamp"]);
                         scopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value ? (DateTime?)reader["scope_last_sync"] : null;
+                        scopeInfo.LastSyncDuration = reader["scope_last_sync_duration"] != DBNull.Value ? (long)reader["scope_last_sync_duration"] : 0L;
+                        scopeInfo.LastSyncTimestamp = reader["scope_last_sync_timestamp"] != DBNull.Value ? (long)reader["scope_last_sync_timestamp"] : 0L;
                         scopeInfo.IsLocal = reader.GetBoolean(reader.GetOrdinal("scope_is_local"));
                         scopes.Add(scopeInfo);
                     }
@@ -206,7 +212,7 @@ namespace Dotmim.Sync.MySql
                     if (!alreadyOpened)
                         connection.Open();
 
-                    command.CommandText = @"Select count(*) from scope_info where sync_scope_id = @sync_scope_id";
+                    command.CommandText = $@"Select count(*) from {scopeTableName.UnquotedStringWithUnderScore} where sync_scope_id = @sync_scope_id";
 
                     var p = command.CreateParameter();
                     p.ParameterName = "@sync_scope_id";
@@ -219,8 +225,8 @@ namespace Dotmim.Sync.MySql
                 }
 
                 string stmtText = exist
-                    ? $"Update scope_info set sync_scope_name=@sync_scope_name, scope_timestamp={MySqlObjectNames.TimestampValue}, scope_is_local=@scope_is_local, scope_last_sync=@scope_last_sync where sync_scope_id=@sync_scope_id"
-                    : $"Insert into scope_info (sync_scope_name, scope_timestamp, scope_is_local, scope_last_sync, sync_scope_id) values (@sync_scope_name, {MySqlObjectNames.TimestampValue}, @scope_is_local, @scope_last_sync, @sync_scope_id)";
+                    ? $"Update {scopeTableName.UnquotedStringWithUnderScore} set sync_scope_name=@sync_scope_name, scope_timestamp={MySqlObjectNames.TimestampValue}, scope_is_local=@scope_is_local, scope_last_sync=@scope_last_sync, scope_last_sync_timestamp=@scope_last_sync_timestamp, scope_last_sync_duration=@scope_last_sync_duration  where sync_scope_id=@sync_scope_id"
+                    : $"Insert into {scopeTableName.UnquotedStringWithUnderScore} (sync_scope_name, scope_timestamp, scope_is_local, scope_last_sync, sync_scope_id, scope_last_sync_timestamp, scope_last_sync_duration) values (@sync_scope_name, {MySqlObjectNames.TimestampValue}, @scope_is_local, @scope_last_sync, @sync_scope_id, @scope_last_sync_timestamp, @scope_last_sync_duration)";
 
                 using (var command = connection.CreateCommand())
                 {
@@ -248,6 +254,18 @@ namespace Dotmim.Sync.MySql
                     command.Parameters.Add(p);
 
                     p = command.CreateParameter();
+                    p.ParameterName = "@scope_last_sync_timestamp";
+                    p.Value = scopeInfo.LastSyncTimestamp;
+                    p.DbType = DbType.Int64;
+                    command.Parameters.Add(p);
+
+                    p = command.CreateParameter();
+                    p.ParameterName = "@scope_last_sync_duration";
+                    p.Value = scopeInfo.LastSyncDuration;
+                    p.DbType = DbType.Int64;
+                    command.Parameters.Add(p);
+
+                    p = command.CreateParameter();
                     p.ParameterName = "@sync_scope_id";
                     p.Value = scopeInfo.Id.ToString();
                     p.DbType = DbType.String;
@@ -259,8 +277,10 @@ namespace Dotmim.Sync.MySql
                         {
                             scopeInfo.Name = reader["sync_scope_name"] as String;
                             scopeInfo.Id = new Guid((string)reader["sync_scope_id"]);
-                            scopeInfo.LastTimestamp = MySqlManager.ParseTimestamp(reader["scope_timestamp"]);
+                            scopeInfo.Timestamp = MySqlManager.ParseTimestamp(reader["scope_timestamp"]);
                             scopeInfo.IsLocal = (bool)reader["scope_is_local"];
+                            scopeInfo.LastSyncDuration = reader["scope_last_sync_duration"] != DBNull.Value ? (long)reader["scope_last_sync_duration"] : 0L;
+                            scopeInfo.LastSyncTimestamp = reader["scope_last_sync_timestamp"] != DBNull.Value ? (long)reader["scope_last_sync_timestamp"] : 0L;
                             scopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value ? (DateTime?)reader["scope_last_sync"] : null;
                         }
                     }
@@ -293,7 +313,7 @@ namespace Dotmim.Sync.MySql
                 if (!alreadyOpened)
                     connection.Open();
 
-                command.CommandText = "select count(*) from information_schema.TABLES where TABLE_NAME = 'scope_info' and TABLE_SCHEMA = schema() and TABLE_TYPE = 'BASE TABLE'";
+                command.CommandText = $"select count(*) from information_schema.TABLES where TABLE_NAME = '{scopeTableName.UnquotedStringWithUnderScore}' and TABLE_SCHEMA = schema() and TABLE_TYPE = 'BASE TABLE'";
 
                 return (long)command.ExecuteScalar() != 1;
 

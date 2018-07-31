@@ -62,7 +62,7 @@ namespace Dotmim.Sync.Data
             if (dataType == null)
                 throw new ArgumentNullException(nameof(dataType), "type is not defined");
 
-            if (!DmColumn.StorageClassType.ContainsKey(dataType))
+            if (!StorageClassType.ContainsKey(dataType))
                 throw new ArgumentException($"This type is not authorized {dataType.FullName}");
 
             if (dataType == typeof(bool))

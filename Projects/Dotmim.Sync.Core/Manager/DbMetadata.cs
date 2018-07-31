@@ -111,7 +111,6 @@ namespace Dotmim.Sync.Manager
         /// <returns></returns>
         public abstract bool ValidateIsReadonly(DmColumn columnDefinition);
 
-
         /// <summary>
         /// Returns the corresponding Owner DbType. Because it could be lower case, we should handle it
         /// </summary>

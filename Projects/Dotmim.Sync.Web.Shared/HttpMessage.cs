@@ -5,6 +5,10 @@ using Dotmim.Sync.Data.Surrogate;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using Dotmim.Sync.Data;
+using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.Filter;
+using Dotmim.Sync.Messages;
 
 namespace Dotmim.Sync.Web
 {
@@ -25,102 +29,172 @@ namespace Dotmim.Sync.Web
         public HttpStep Step { get; set; }
 
         /// <summary>
-        /// Message sent during EnsureConfiguration stage
+        /// Content of the message. Can represent each HttpMessage**
         /// </summary>
-        public HttpEnsureConfigurationMessage EnsureConfiguration { get; set; }
+        public Object Content { get; set; }
 
-        /// <summary>
-        /// Message sent during EnsureScope stage
-        /// </summary>
-        public HttpEnsureScopesMessage EnsureScopes { get; set; }
+        ///// <summary>
+        ///// Gets or Sets the message used when the session begins.
+        ///// Basically, exchange the configuration and check on both side
+        ///// </summary>
+        //public HttpMessageBeginSession BeginSession { get; set; }
 
-        /// <summary>
-        /// Message sent during EnsureDatabase stage
-        /// </summary>
-        public HttpEnsureDatabaseMessage EnsureDatabase { get; set; }
+        ///// <summary>
+        ///// Message sent during EnsureConfiguration stage
+        ///// </summary>
+        //public HttpEnsureSchemaMessage EnsureSchema { get; set; }
 
-        /// <summary>
-        /// Message sent during GetChangeBatch stage
-        /// </summary>
-        public HttpGetChangeBatchMessage GetChangeBatch { get; set; }
+        ///// <summary>
+        ///// Message sent during EnsureScope stage
+        ///// </summary>
+        //public HttpEnsureScopesMessage EnsureScopes { get; set; }
 
-        /// <summary>
-        /// Message sent during ApplyChanges stage
-        /// </summary>
-        public HttpApplyChangesMessage ApplyChanges { get; set; }
+        ///// <summary>
+        ///// Message sent during EnsureDatabase stage
+        ///// </summary>
+        //public HttpMessageEnsureDatabase EnsureDatabase { get; set; }
 
-        /// <summary>
-        /// Message sent during GetLocalTimestamp stage
-        /// </summary>
-        public HttpGetLocalTimestampMessage GetLocalTimestamp { get; set; }
+        ///// <summary>
+        ///// Message sent during GetChangeBatch stage
+        ///// </summary>
+        //public HttpMessageGetChangesBatch GetChangeBatch { get; set; }
 
-        /// <summary>
-        /// Message sent during WriteScopes stage
-        /// </summary>
-        public HttpWriteScopesMessage WriteScopes { get; set; }
+        ///// <summary>
+        ///// Message sent during ApplyChanges stage
+        ///// </summary>
+        //public HttpMessageApplyChanges ApplyChanges { get; set; }
+
+        ///// <summary>
+        ///// Message sent during GetLocalTimestamp stage
+        ///// </summary>
+        //public HttpMessageTimestamp GetLocalTimestamp { get; set; }
+
+        ///// <summary>
+        ///// Message sent during WriteScopes stage
+        ///// </summary>
+        //public HttpMessageWriteScopes WriteScopes { get; set; }
+
     }
 
     [Serializable]
-    public class HttpGetChangeBatchMessage
+    public class HttpMessageBeginSession : MessageBeginSession
     {
-        public ScopeInfo ScopeInfo { get; set; }
+    }
+
+
+    [Serializable]
+    public class HttpMessageGetChangesBatch: MessageGetChangesBatch
+    {
+        /// <summary>
+        /// Gets or Sets the tables schema. Overriding the default Schema DmSet property, which is not serializable
+        /// </summary>
+        public new DmSetSurrogate Schema { get; set; }
+
+        /// <summary>
+        /// Gets the output batch index, returned by the server
+        /// </summary>
         public int BatchIndexRequested { get; set; }
+
+        /// <summary>
+        /// Gets the output in memory flag from the server
+        /// </summary>
         public Boolean InMemory { get; set; }
+
+        /// <summary>
+        /// Gets the BatchParInfo returned by the server
+        /// </summary>
         public BatchPartInfo BatchPartInfo { get; set; }
+
+        /// <summary>
+        /// Gets the DmSet containing the data for the corresponding batch, returned by the server
+        /// </summary>
         public DmSetSurrogate Set { get; set; }
+
+        /// <summary>
+        /// Gets the changes statistics
+        /// </summary>
         public ChangesSelected ChangesSelected { get; set; }
     }
+
+
     [Serializable]
-    public class HttpGetLocalTimestampMessage
+    public class HttpMessageTimestamp : MessageTimestamp
     {
+        /// <summary>
+        /// Gets the output result from server : The server timestamp
+        /// </summary>
         public Int64 LocalTimestamp { get; set; }
     }
 
     [Serializable]
-    public class HttpApplyChangesMessage
+    public class HttpMessageApplyChanges : MessageApplyChanges
     {
-        public ScopeInfo ScopeInfo { get; set; }
-        public Boolean InMemory { get; set; }
+        /// <summary>
+        /// Gets or Sets the tables schema. Overriding the default Schema DmSet property, which is not serializable
+        /// </summary>
+        public new DmSetSurrogate Schema { get; set; }
+
+        /// <summary>
+        /// Gets the current batch index, exchanged between server and client
+        /// </summary>
         public int BatchIndex { get; set; }
+
+        /// <summary>
+        /// Gets the output in memory flag exchanged between server and client
+        /// </summary>
+        public Boolean InMemory { get; set; }
+
+        /// <summary>
+        /// Gets the BatchParInfo exchanged between server and client
+        /// </summary>
         public BatchPartInfo BatchPartInfo { get; set; }
+
+        /// <summary>
+        /// Gets the DmSet containing the data for the corresponding batch, returned by the server
+        /// </summary>
         public DmSetSurrogate Set { get; set; }
+
+        /// <summary>
+        /// Gets the changes applied stats from the server
+        /// </summary>
         public ChangesApplied ChangesApplied { get; set; }
 
+
     }
 
     [Serializable]
-    public class HttpEnsureScopesMessage
+    public class HttpMessageEnsureScopes : MessageEnsureScopes
     {
-        public String ScopeName { get; set; }
-
-        public Guid? ClientReferenceId { get; set; }
-
+        /// <summary>
+        /// Gets the result from server : Scopes returned.
+        /// </summary>
         public List<ScopeInfo> Scopes { get; set; }
     }
 
     [Serializable]
-    public class HttpWriteScopesMessage
+    public class HttpMessageEnsureSchema : MessageEnsureSchema
     {
-        public List<ScopeInfo> Scopes { get; set; }
+        /// <summary>
+        /// Gets or Sets the tables schema. Overriding the default Schema DmSet property, which is not serializable
+        /// </summary>
+        public new DmSetSurrogate Schema { get; set; }
     }
 
     [Serializable]
-    public class HttpEnsureConfigurationMessage
+    public class HttpMessageEnsureDatabase : MessageEnsureDatabase
     {
         /// <summary>
-        /// Contains the configuration from the server, to be applied on client, without the Set tables
+        /// Gets or Sets the tables schema. Overriding the default Schema DmSet property, which is not serializable
         /// </summary>
-        public SyncConfiguration Configuration { get; set; }
-
-        /// <summary>
-        /// Contains the Configuration Set tables
-        /// </summary>
-        public DmSetSurrogate ConfigurationSet { get; set; }
+        public new DmSetSurrogate Schema { get; set; }
+ 
     }
 
     [Serializable]
-    public class HttpEnsureDatabaseMessage
+    public class HttpMessageWriteScopes : MessageWriteScopes
     {
-        public ScopeInfo ScopeInfo { get; set; }
+
     }
+
+
 }

@@ -7,6 +7,9 @@ using System.Data.Common;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Text;
+using Dotmim.Sync.Filter;
+using System.Collections.Generic;
+using Dotmim.Sync.Messages;
 
 namespace Dotmim.Sync
 {
@@ -18,16 +21,16 @@ namespace Dotmim.Sync
         /// <summary>
         /// Deprovision a database. You have to passe a configuration object, containing at least the dmTables
         /// </summary>
-        public async Task DeprovisionAsync(string[] tables, SyncProvision provision)
+        public async Task DeprovisionAsync(SyncConfiguration configuration, SyncProvision provision)
         {
             DbConnection connection = null;
             try
             {
-                if (tables == null || tables.Length == 0)
-                    throw new ArgumentNullException("tables", "You must set the tables you want to deprovision");
+                if (configuration.Schema == null || !configuration.Schema.HasTables)
+                    throw new ArgumentNullException("tables", "You must set the tables you want to provision");
 
                 // Load the configuration
-                var configuration = await this.ReadConfigurationAsync(tables);
+                await this.ReadSchemaAsync(configuration.Schema);
 
                 // Open the connection
                 using (connection = this.CreateConnection())
@@ -39,31 +42,33 @@ namespace Dotmim.Sync
                         for (int i = configuration.Count - 1; i >= 0; i--)
                         {
                             // Get the table
-                            var dmTable = configuration[i];
+                            var dmTable = configuration.Schema.Tables[i];
 
                             // get the builder
                             var builder = GetDatabaseBuilder(dmTable);
 
                             // adding filters
-                            this.AddFilters(configuration, dmTable, builder);
+                            this.AddFilters(configuration.Filters, dmTable, builder);
 
-                            if (provision.HasFlag(SyncProvision.TrackingTable) || provision == SyncProvision.All)
+                            if (provision.HasFlag(SyncProvision.TrackingTable) || provision.HasFlag(SyncProvision.All))
                                 builder.DropTrackingTable(connection, transaction);
 
-                            if (provision.HasFlag(SyncProvision.StoredProcedures) || provision == SyncProvision.All)
+                            if (provision.HasFlag(SyncProvision.StoredProcedures) || provision.HasFlag(SyncProvision.All))
                                 builder.DropProcedures(connection, transaction);
 
-                            if (provision.HasFlag(SyncProvision.Triggers) || provision == SyncProvision.All)
+                            if (provision.HasFlag(SyncProvision.Triggers) || provision.HasFlag(SyncProvision.All))
                                 builder.DropTriggers(connection, transaction);
 
-                            if (provision.HasFlag(SyncProvision.Table) || provision == SyncProvision.All)
+                            // On purpose, the flag SyncProvision.All does not include the SyncProvision.Table, too dangerous...
+                            if (provision.HasFlag(SyncProvision.Table))
                                 builder.DropTable(connection, transaction);
                         }
 
-                        if (provision.HasFlag(SyncProvision.Scope) || provision == SyncProvision.All)
+                        if (provision.HasFlag(SyncProvision.Scope) || provision.HasFlag(SyncProvision.All))
                         {
-                            var scopeBuilder = GetScopeBuilder().CreateScopeInfoBuilder(connection, transaction);
-                            scopeBuilder.DropScopeInfoTable();
+                            var scopeBuilder = GetScopeBuilder().CreateScopeInfoBuilder(configuration.ScopeInfoTableName, connection, transaction);
+                            if (!scopeBuilder.NeedToCreateScopeInfoTable())
+                                scopeBuilder.DropScopeInfoTable();
                         }
                         transaction.Commit();
                     }
@@ -84,17 +89,17 @@ namespace Dotmim.Sync
         /// <summary>
         /// Deprovision a database
         /// </summary>
-        public async Task ProvisionAsync(string[] tables, SyncProvision provision)
+        public async Task ProvisionAsync(SyncConfiguration configuration, SyncProvision provision)
         {
             DbConnection connection = null;
 
             try
             {
-                if (tables == null || tables.Length == 0)
+                if (configuration.Schema == null || !configuration.Schema.HasTables)
                     throw new ArgumentNullException("tables", "You must set the tables you want to provision");
 
                 // Load the configuration
-                var configuration = await this.ReadConfigurationAsync(tables);
+                await this.ReadSchemaAsync(configuration.Schema);
 
                 // Open the connection
                 using (connection = this.CreateConnection())
@@ -104,33 +109,35 @@ namespace Dotmim.Sync
                     using (var transaction = connection.BeginTransaction())
                     {
 
-                        if (provision.HasFlag(SyncProvision.Scope) || provision == SyncProvision.All)
+                        if (provision.HasFlag(SyncProvision.Scope) || provision.HasFlag(SyncProvision.All))
                         {
-                            var scopeBuilder = GetScopeBuilder().CreateScopeInfoBuilder(connection, transaction);
-                            scopeBuilder.CreateScopeInfoTable();
+                            var scopeBuilder = GetScopeBuilder().CreateScopeInfoBuilder(configuration.ScopeInfoTableName, connection, transaction);
+                            if (scopeBuilder.NeedToCreateScopeInfoTable())
+                                scopeBuilder.CreateScopeInfoTable();
                         }
 
                         for (int i = 0; i < configuration.Count; i++)
                         {
                             // Get the table
-                            var dmTable = configuration[i];
+                            var dmTable = configuration.Schema.Tables[i];
 
                             // get the builder
                             var builder = GetDatabaseBuilder(dmTable);
 
                             // adding filters
-                            this.AddFilters(configuration, dmTable, builder);
+                            this.AddFilters(configuration.Filters, dmTable, builder);
 
-                            if (provision.HasFlag(SyncProvision.Table) || provision == SyncProvision.All)
+                            // On purpose, the flag SyncProvision.All does not include the SyncProvision.Table, too dangerous...
+                            if (provision.HasFlag(SyncProvision.Table))
                                 builder.CreateTable(connection, transaction);
 
-                            if (provision.HasFlag(SyncProvision.TrackingTable) || provision == SyncProvision.All)
+                            if (provision.HasFlag(SyncProvision.TrackingTable) || provision.HasFlag(SyncProvision.All))
                                 builder.CreateTrackingTable(connection, transaction);
 
-                            if (provision.HasFlag(SyncProvision.Triggers) || provision == SyncProvision.All)
+                            if (provision.HasFlag(SyncProvision.Triggers) || provision.HasFlag(SyncProvision.All))
                                 builder.CreateTriggers(connection, transaction);
 
-                            if (provision.HasFlag(SyncProvision.StoredProcedures) || provision == SyncProvision.All)
+                            if (provision.HasFlag(SyncProvision.StoredProcedures) || provision.HasFlag(SyncProvision.All))
                                 builder.CreateStoredProcedures(connection, transaction);
 
                         }
@@ -156,25 +163,22 @@ namespace Dotmim.Sync
         /// Be sure all tables are ready and configured for sync
         /// the ScopeSet Configuration MUST be filled by the schema form Database
         /// </summary>
-        public virtual async Task<SyncContext> EnsureDatabaseAsync(SyncContext context, ScopeInfo scopeInfo)
+        public virtual async Task<SyncContext> EnsureDatabaseAsync(SyncContext context, MessageEnsureDatabase message)
         {
             DbConnection connection = null;
             try
             {
-                var configuration = GetCacheConfiguration();
-
                 // Event progress
                 context.SyncStage = SyncStage.DatabaseApplying;
-                DatabaseApplyingEventArgs beforeArgs =
-                    new DatabaseApplyingEventArgs(this.ProviderTypeName, context.SyncStage, configuration);
-                this.TryRaiseProgressEvent(beforeArgs, this.DatabaseApplying);
 
-                // if config has been editer by user in event, save again
-                this.SetCacheConfiguration(configuration);
+                DatabaseApplyingEventArgs beforeArgs =
+                    new DatabaseApplyingEventArgs(this.ProviderTypeName, context.SyncStage, message.Schema);
+                this.TryRaiseProgressEvent(beforeArgs, this.DatabaseApplying);
 
                 // If scope exists and lastdatetime sync is present, so database exists
                 // Check if we don't have an OverwriteConfiguration (if true, we force the check)
-                if (scopeInfo.LastSync.HasValue && !beforeArgs.OverwriteConfiguration)
+
+                if (message.ScopeInfo.LastSync.HasValue && !beforeArgs.OverwriteSchema)
                     return context;
 
                 StringBuilder script = new StringBuilder();
@@ -186,12 +190,12 @@ namespace Dotmim.Sync
 
                     using (var transaction = connection.BeginTransaction())
                     {
-                        foreach (var dmTable in configuration)
+                        foreach (var dmTable in message.Schema.Tables)
                         {
                             var builder = GetDatabaseBuilder(dmTable);
 
                             // adding filter
-                            this.AddFilters(configuration, dmTable, builder);
+                            this.AddFilters(message.Filters, dmTable, builder);
 
                             context.SyncStage = SyncStage.DatabaseTableApplying;
                             DatabaseTableApplyingEventArgs beforeTableArgs =
@@ -242,20 +246,20 @@ namespace Dotmim.Sync
         /// <summary>
         /// Adding filters to an existing configuration
         /// </summary>
-        private void AddFilters(SyncConfiguration configuration, DmTable dmTable, DbBuilder builder)
+        private void AddFilters(ICollection<FilterClause> filters, DmTable dmTable, DbBuilder builder)
         {
-            if (configuration.Filters != null && configuration.Filters.Count > 0)
+            if (filters != null && filters.Count > 0)
             {
-                var filters = configuration.Filters.Where(f => dmTable.TableName.Equals(f.TableName, StringComparison.InvariantCultureIgnoreCase));
+                var tableFilters = filters.Where(f => dmTable.TableName.Equals(f.TableName, StringComparison.InvariantCultureIgnoreCase));
 
-                foreach (var filter in filters)
+                foreach (var filter in tableFilters)
                 {
                     var columnFilter = dmTable.Columns[filter.ColumnName];
 
                     if (columnFilter == null)
                         throw new InvalidExpressionException($"Column {filter.ColumnName} does not exist in Table {dmTable.TableName}");
 
-                    builder.FilterColumns.Add(filter.TableName, filter.ColumnName);
+                    builder.FilterColumns.Add(new FilterClause(filter.TableName, filter.ColumnName));
                 }
             }
 
