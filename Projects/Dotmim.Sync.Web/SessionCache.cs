@@ -1,11 +1,15 @@
 ﻿
 using Dotmim.Sync.Cache;
-using Dotmim.Sync.Serialization;
-using Microsoft.AspNetCore.Http;
 using Newtonsoft.Json;
 using System;
+using System.Collections.Specialized;
 using System.Linq;
-using System.Runtime.Serialization.Formatters.Binary;
+#if NETSTANDARD
+using Microsoft.AspNetCore.Http;
+#else
+using System.Web;
+using System.Web.SessionState;
+#endif
 
 namespace Dotmim.Sync.Web
 {
@@ -66,4 +70,23 @@ namespace Dotmim.Sync.Web
             this.context.Session.Clear();
         }
     }
+
+#if !NETSTANDARD
+    internal static class SessionExtensions
+    {
+        public static void SetString(this HttpSessionState session, string cacheKey, string value)
+        {
+            session.Add(cacheKey, value);
+        }
+        public static string GetString(this HttpSessionState session, string cacheKey)
+        {
+            return session[cacheKey] as string;
+        }
+
+        public static bool Any(this NameObjectCollectionBase.KeysCollection k, Func<string,bool> predicate)
+        {
+            return k.Cast<string>().Any(predicate);
+        }
+    }
+#endif
 }
