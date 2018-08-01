@@ -1,6 +1,5 @@
 ﻿using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Serialization;
-using Microsoft.Net.Http.Headers;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -9,6 +8,13 @@ using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+
+#if NETSTANDARD
+using Microsoft.Net.Http.Headers;
+#else
+using System.Net.Http.Headers;
+#endif
+
 
 
 namespace Dotmim.Sync.Web
@@ -129,8 +135,14 @@ namespace Dotmim.Sync.Web
                         // var cookieList = response.Headers.GetValues("Set-Cookie").ToList();
                         if (cookieList != null && cookieList.Count > 0)
                         {
+#if NETSTANDARD
                             // Get the first cookie
                             this.Cookie = CookieHeaderValue.ParseList(cookieList).FirstOrDefault();
+#else
+                            //try to parse the very first cookie
+                            if (CookieHeaderValue.TryParse(cookieList[0], out var cookie))
+                                this.Cookie = cookie;
+#endif
                         }
                     }
 
@@ -176,7 +188,7 @@ namespace Dotmim.Sync.Web
 
         }
 
-        #region IDisposable Support
+#region IDisposable Support
         private bool disposedValue = false; // To detect redundant calls
 
 
@@ -200,7 +212,7 @@ namespace Dotmim.Sync.Web
             // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
             Dispose(true);
         }
-        #endregion
+#endregion
 
 
     }

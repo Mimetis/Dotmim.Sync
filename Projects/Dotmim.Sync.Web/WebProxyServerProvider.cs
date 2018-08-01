@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using Dotmim.Sync.Builders;
 using Dotmim.Sync.Batch;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -11,13 +9,18 @@ using Newtonsoft.Json;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Serialization;
 using Dotmim.Sync.Data.Surrogate;
-using Dotmim.Sync.Cache;
-using Microsoft.AspNetCore.Session;
 using Dotmim.Sync.Data;
-using Dotmim.Sync.Filter;
 using Dotmim.Sync.Messages;
 using Newtonsoft.Json.Linq;
+#if NETSTANDARD
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Session;
 using Microsoft.Extensions.Primitives;
+#else
+using System.Collections.Specialized;
+using System.Net;
+using System.Web;
+#endif
 
 namespace Dotmim.Sync.Web
 {
@@ -82,20 +85,17 @@ namespace Dotmim.Sync.Web
         {
             var httpRequest = context.Request;
             var httpResponse = context.Response;
-            var streamArray = httpRequest.Body;
+            var streamArray = httpRequest.GetBody();
 
             SerializationFormat serializationFormat = SerializationFormat.Json;
             // Get the serialization format
-            if (context.Request.Headers.TryGetValue("dotmim-sync-serialization-format", out StringValues vs))
-                serializationFormat = vs[0].ToLowerInvariant() == "json" ? SerializationFormat.Json : SerializationFormat.Binary;
+            if (context.Request.Headers.TryGetHeaderValue("dotmim-sync-serialization-format", out string vs))
+                serializationFormat = vs.ToLowerInvariant() == "json" ? SerializationFormat.Json : SerializationFormat.Binary;
 
             // Check if we should handle a session store to handle configuration
             if (!this.IsRegisterAsSingleton)
             {
-                // try to get the session store service from DI
-                var sessionStore = context.RequestServices.GetService(typeof(ISessionStore));
-
-                if (sessionStore != null)
+                if (IsSessionEnabled(context))
                     this.LocalProvider.CacheManager = new SessionCache(context);
             }
 
@@ -139,7 +139,7 @@ namespace Dotmim.Sync.Web
                 }
 
                 var binaryData = serializer.Serialize(httpMessageResponse);
-                await httpResponse.Body.WriteAsync(binaryData, 0, binaryData.Length);
+                await httpResponse.GetBody().WriteAsync(binaryData, 0, binaryData.Length);
 
             }
             catch (Exception ex)
@@ -576,9 +576,15 @@ namespace Dotmim.Sync.Web
         {
             var webx = WebSyncException.GetWebSyncException(ex);
             var webXMessage = JsonConvert.SerializeObject(webx);
+#if NETSTANDARD
             httpResponse.StatusCode = StatusCodes.Status400BadRequest;
             httpResponse.ContentLength = webXMessage.Length;
             await httpResponse.WriteAsync(webXMessage);
+#else
+            httpResponse.StatusCode = (int)HttpStatusCode.BadRequest;
+            httpResponse.Headers.Add("Content-Length", webXMessage.Length.ToString());
+            httpResponse.Write(webx);
+#endif
 
         }
 
@@ -606,5 +612,91 @@ namespace Dotmim.Sync.Web
             // no need in proxy mode, since it's different token than SyncAgent
             return;
         }
+
+
+        private bool? _isSessionEnabled;
+#if NETSTANDARD
+        public bool IsSessionEnabled(HttpContext context)
+        {
+            // falls back to static _sessionExists, but caches value in object instance to allow for unittests to have no sideeffects
+            if (_isSessionEnabled == null)
+            {
+                // try to get the session store service from DI
+                var sessionStore = context.RequestServices.GetService(typeof(ISessionStore));
+
+                _isSessionEnabled = sessionStore != null;
+            }
+            return _isSessionEnabled.Value;
+        }
+#else
+        private static Lazy<bool> _sessionExists = new Lazy<bool>(() =>
+        {
+            try
+            {
+                // this throws if no session is enabled! see https://stackoverflow.com/questions/1336770/determine-if-asp-net-sessions-are-enabled?utm_medium=organic&utm_source=google_rich_qa&utm_campaign=google_rich_qa
+                return HttpContext.Current?.Session != null;
+            }
+            catch
+            {
+                return false;
+            }
+        });
+
+        public bool IsSessionEnabled(HttpContext context)
+        {
+            // falls back to static _sessionExists, but caches value in object instance to allow for unittests to have no sideeffects
+            if (_isSessionEnabled == null)
+                _isSessionEnabled = _sessionExists.Value;
+            return _isSessionEnabled.Value;
+        }
+#endif
+    }
+
+    internal static class Extensions
+    {
+#if NETSTANDARD
+        public static bool TryGetHeaderValue(this IHeaderDictionary n, string key, out string header)
+        {
+            if (n.TryGetValue(key, out StringValues vs))
+            {
+                header = vs[0];
+                return true;
+            }
+
+            header = null;
+            return false;
+        }
+
+        public static Stream GetBody(this HttpRequest r)
+        {
+            return r.Body;
+        }
+        public static Stream GetBody(this HttpResponse r)
+        {
+            return r.Body;
+        }
+#else
+        public static bool TryGetHeaderValue(this NameValueCollection n, string key, out string header)
+        {
+            if (!n.AllKeys.Contains(key))
+            {
+                header = null;
+                return false;
+            }
+
+            header = n.Get(key)?.Split(',').FirstOrDefault();
+            return header != null;
+
+        }
+
+        public static Stream GetBody(this HttpRequest r)
+        {
+            return r.InputStream;
+        }
+        public static Stream GetBody(this HttpResponse r)
+        {
+            return r.OutputStream;
+        }
+#endif
     }
 }
