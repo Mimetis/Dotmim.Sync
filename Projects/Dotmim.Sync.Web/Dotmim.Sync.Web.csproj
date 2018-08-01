@@ -1,22 +1,37 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFrameworks>netstandard2.0;net462</TargetFrameworks>
     <Version>0.2.1</Version>
     <Authors>Sébastien Pertus</Authors>
     <Company>Microsoft</Company>
     <Title>Dotmim.Sync.Web</Title>
-    <Description>Proxy to be able to Sync through an ASP.NET CORE application. 
+    <Description>Proxy to be able to Sync through an ASP.NET and ASP.NET CORE application. 
 Can't work without a Server provider, you have to choose an existing one to be able to work with the Proxy</Description>
     <PackageProjectUrl>https://mimetis.github.io/Dotmim.Sync/</PackageProjectUrl>
-    <PackageTags>Dotmim.Sync, ASP.NET Core, ASP.NET Core Web Sync Proxy, .Net Standard 2.0, Sync, Synchronization, Sync Framework</PackageTags>
+    <PackageTags>Dotmim.Sync, ASP.NET, ASP.NET Core, ASP.NET Core Web Sync Proxy, .Net Standard 2.0, Sync, Synchronization, Sync Framework</PackageTags>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
 
-  <ItemGroup>
+  <PropertyGroup Condition="'$(TargetFramework)'=='netstandard2.0'">
+    <DefineConstants>NETSTANDARD;NETSTANDARD2_0</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(TargetFramework)'=='net462'">
+    <DefineConstants>NET</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup Condition=" '$(TargetFramework)' == 'netstandard2.0' ">
     <PackageReference Include="Microsoft.AspNetCore" Version="2.1.2" />
     <PackageReference Include="Microsoft.AspNetCore.Session" Version="2.1.1" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Core" Version="2.1.1" />
+  </ItemGroup>
+  
+  <ItemGroup Condition=" '$(TargetFramework)' == 'net462' ">
+    <Reference Include="System.Web" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="1.1.0" />
+    <PackageReference Include="Microsoft.AspNet.WebApi.Core" Version="5.2.3" />
+    <PackageReference Include="Microsoft.AspNet.WebApi.Client" Version="5.2.3" />
   </ItemGroup>
 
   <ItemGroup>
