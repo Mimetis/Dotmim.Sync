@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <HasSharedItems>true</HasSharedItems>
+    <SharedGUID>1c8f6c28-d2d1-4a0d-94c5-d5ed23a0bdab</SharedGUID>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <Import_RootNamespace>Dotmim.Sync.Web.Shared</Import_RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)HttpMessage.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)HttpRequestHandler.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)HttpStep.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)SessionCache.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)SyncActionResult.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)WebProxyClientProvider.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)WebProxyServerProvider.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)WebSyncException.cs" />
+  </ItemGroup>
+</Project>

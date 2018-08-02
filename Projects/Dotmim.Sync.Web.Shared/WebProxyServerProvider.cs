@@ -3,21 +3,27 @@ using System.Collections.Generic;
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Batch;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
 using System.Threading;
 using Newtonsoft.Json;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Serialization;
 using Dotmim.Sync.Data.Surrogate;
 using Dotmim.Sync.Cache;
+#if CORE
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Session;
+using Microsoft.Extensions.Primitives;
+#else 
+using System.Web;
+#endif
 using Dotmim.Sync.Data;
 using Dotmim.Sync.Filter;
 using Dotmim.Sync.Messages;
 using Newtonsoft.Json.Linq;
-using Microsoft.Extensions.Primitives;
 
 namespace Dotmim.Sync.Web
 {
@@ -34,6 +40,39 @@ namespace Dotmim.Sync.Web
         /// if true, we don't need to use Session, if false, we will try to use session
         /// </summary>
         public Boolean IsRegisterAsSingleton { get; set; }
+
+       
+
+#if !CORE
+        private static Lazy<bool> _sessionExists = new Lazy<bool>(() =>
+        {
+            try
+            {
+                // this throws if no session is enabled! see https://stackoverflow.com/questions/1336770/determine-if-asp-net-sessions-are-enabled?utm_medium=organic&utm_source=google_rich_qa&utm_campaign=google_rich_qa
+                return HttpContext.Current?.Session != null;
+            }
+            catch
+            {
+                return false;
+            }
+        });
+
+        private bool? _isSessionEnabled;
+
+        public bool IsSessionEnabled
+        {
+            get
+            {
+                // falls back to static _sessionExists, but caches value in object instance to allow for unittests to have no sideeffects
+                if(_isSessionEnabled == null)
+                    _isSessionEnabled = _sessionExists.Value;
+                return _isSessionEnabled.Value;
+            }
+            set => _isSessionEnabled = value;
+        }
+#endif
+
+        private BaseConverter<HttpMessage> serializer;
 
         public event EventHandler<ProgressEventArgs> SyncProgress;
         public event EventHandler<ApplyChangeFailedEventArgs> ApplyChangedFailed;
@@ -82,21 +121,38 @@ namespace Dotmim.Sync.Web
         {
             var httpRequest = context.Request;
             var httpResponse = context.Response;
+#if CORE
             var streamArray = httpRequest.Body;
+#else
+            var streamArray = httpRequest.InputStream;
+#endif
+
 
             SerializationFormat serializationFormat = SerializationFormat.Json;
+
+#if CORE
             // Get the serialization format
             if (context.Request.Headers.TryGetValue("dotmim-sync-serialization-format", out StringValues vs))
                 serializationFormat = vs[0].ToLowerInvariant() == "json" ? SerializationFormat.Json : SerializationFormat.Binary;
+#else
+            if(context.Request.Headers.AllKeys.Contains("dotmim-sync-serialization-format"))
+                serializationFormat = context.Request.Headers.Get("dotmim-sync-serialization-format").ToLowerInvariant() == "json" ? SerializationFormat.Json : SerializationFormat.Binary;
+#endif
 
             // Check if we should handle a session store to handle configuration
             if (!this.IsRegisterAsSingleton)
             {
+#if CORE
                 // try to get the session store service from DI
                 var sessionStore = context.RequestServices.GetService(typeof(ISessionStore));
 
                 if (sessionStore != null)
                     this.LocalProvider.CacheManager = new SessionCache(context);
+#else
+
+                if(IsSessionEnabled)
+                    this.LocalProvider.CacheManager = new SessionCache(context);
+#endif
             }
 
             try
@@ -139,7 +195,11 @@ namespace Dotmim.Sync.Web
                 }
 
                 var binaryData = serializer.Serialize(httpMessageResponse);
+#if CORE
                 await httpResponse.Body.WriteAsync(binaryData, 0, binaryData.Length);
+#else
+                await httpResponse.OutputStream.WriteAsync(binaryData, 0, binaryData.Length);
+#endif
 
             }
             catch (Exception ex)
@@ -576,10 +636,15 @@ namespace Dotmim.Sync.Web
         {
             var webx = WebSyncException.GetWebSyncException(ex);
             var webXMessage = JsonConvert.SerializeObject(webx);
+#if CORE
             httpResponse.StatusCode = StatusCodes.Status400BadRequest;
             httpResponse.ContentLength = webXMessage.Length;
             await httpResponse.WriteAsync(webXMessage);
-
+#else
+            httpResponse.StatusCode = (int)HttpStatusCode.BadRequest;
+            httpResponse.Headers.Add("Content-Length", webXMessage.Length.ToString());
+            httpResponse.Write(webx);
+#endif
         }
 
         public async Task<(SyncContext, SyncConfiguration)> BeginSessionAsync(SyncContext ctx, MessageBeginSession message)
@@ -607,4 +672,5 @@ namespace Dotmim.Sync.Web
             return;
         }
     }
+
 }

@@ -1,11 +1,16 @@
 ﻿
 using Dotmim.Sync.Cache;
 using Dotmim.Sync.Serialization;
+#if CORE
 using Microsoft.AspNetCore.Http;
+#else
+using System.Web.SessionState;
+#endif
 using Newtonsoft.Json;
 using System;
 using System.Linq;
 using System.Runtime.Serialization.Formatters.Binary;
+using System.Web;
 
 namespace Dotmim.Sync.Web
 {
@@ -15,7 +20,6 @@ namespace Dotmim.Sync.Web
         /// The cache store. A dictionary that stores different memory caches by the type being cached.
         /// </summary>
         private HttpContext context;
-
         /// <summary>
         /// Initializes in memory cache class.
         /// </summary>
@@ -53,7 +57,7 @@ namespace Dotmim.Sync.Web
         /// </summary>
         public virtual void Remove(string key)
         {
-            if (this.context.Session.Keys.Any(k => string.Equals(k, key, StringComparison.InvariantCultureIgnoreCase)))
+            if (this.context.Session.Keys.Cast<string>().Any(k => string.Equals(k, key, StringComparison.InvariantCultureIgnoreCase)))
                 this.context.Session.Remove(key);
         }
 
@@ -66,4 +70,18 @@ namespace Dotmim.Sync.Web
             this.context.Session.Clear();
         }
     }
+
+#if !CORE
+    internal static class SessionExtensions
+    {
+        public static void SetString(this HttpSessionState session, string cacheKey, string value)
+        {
+            session.Add(cacheKey, value);
+        }
+        public static string GetString(this HttpSessionState session, string cacheKey)
+        {
+            return session[cacheKey] as string;
+        }
+    }
+#endif
 }
