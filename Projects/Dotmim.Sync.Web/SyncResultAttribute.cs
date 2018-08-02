@@ -1,8 +1,5 @@
 ﻿#if NETSTANDARD
 using Microsoft.AspNetCore.Mvc.Filters;
-#else
-using System.Web.Http.Filters;
-using System.Web;
 #endif
 using System;
 using System.Linq;
