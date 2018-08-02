@@ -31,6 +31,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AuthSyncSampleWebServer", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AuthSyncSampleAppClient", "Samples\AuthSyncSampleAppClient\AuthSyncSampleAppClient.csproj", "{E0C5AE28-1C86-4904-9827-DBE3445F394C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UWPSyncSampleWebApi2", "Samples\Dotmim.Sync.SampleUWP.WebApi2\UWPSyncSampleWebApi2.csproj", "{D25BC4DC-93D6-4EB5-84AD-30B851E397C2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -244,6 +246,22 @@ Global
 		{E0C5AE28-1C86-4904-9827-DBE3445F394C}.Release|x86.ActiveCfg = Release|x86
 		{E0C5AE28-1C86-4904-9827-DBE3445F394C}.Release|x86.Build.0 = Release|x86
 		{E0C5AE28-1C86-4904-9827-DBE3445F394C}.Release|x86.Deploy.0 = Release|x86
+		{D25BC4DC-93D6-4EB5-84AD-30B851E397C2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D25BC4DC-93D6-4EB5-84AD-30B851E397C2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D25BC4DC-93D6-4EB5-84AD-30B851E397C2}.Debug|ARM.ActiveCfg = Debug|Any CPU
+		{D25BC4DC-93D6-4EB5-84AD-30B851E397C2}.Debug|ARM.Build.0 = Debug|Any CPU
+		{D25BC4DC-93D6-4EB5-84AD-30B851E397C2}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{D25BC4DC-93D6-4EB5-84AD-30B851E397C2}.Debug|x64.Build.0 = Debug|Any CPU
+		{D25BC4DC-93D6-4EB5-84AD-30B851E397C2}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{D25BC4DC-93D6-4EB5-84AD-30B851E397C2}.Debug|x86.Build.0 = Debug|Any CPU
+		{D25BC4DC-93D6-4EB5-84AD-30B851E397C2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D25BC4DC-93D6-4EB5-84AD-30B851E397C2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D25BC4DC-93D6-4EB5-84AD-30B851E397C2}.Release|ARM.ActiveCfg = Release|Any CPU
+		{D25BC4DC-93D6-4EB5-84AD-30B851E397C2}.Release|ARM.Build.0 = Release|Any CPU
+		{D25BC4DC-93D6-4EB5-84AD-30B851E397C2}.Release|x64.ActiveCfg = Release|Any CPU
+		{D25BC4DC-93D6-4EB5-84AD-30B851E397C2}.Release|x64.Build.0 = Release|Any CPU
+		{D25BC4DC-93D6-4EB5-84AD-30B851E397C2}.Release|x86.ActiveCfg = Release|Any CPU
+		{D25BC4DC-93D6-4EB5-84AD-30B851E397C2}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -255,10 +273,11 @@ Global
 		{E623BBA6-322B-4968-8DA2-A1DDD49C709F} = {437F3541-AAFA-4369-953E-4643660EEBC4}
 		{F93E4D67-FB82-4E0C-AF28-FE9812BA6ACC} = {437F3541-AAFA-4369-953E-4643660EEBC4}
 		{E0C5AE28-1C86-4904-9827-DBE3445F394C} = {437F3541-AAFA-4369-953E-4643660EEBC4}
+		{D25BC4DC-93D6-4EB5-84AD-30B851E397C2} = {437F3541-AAFA-4369-953E-4643660EEBC4}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		BuildVersion_StartDate = 2000/1/1
 		SolutionGuid = {348020ED-748B-4CC8-AA1D-9F7D36E2AC12}
+		BuildVersion_StartDate = 2000/1/1
 	EndGlobalSection
 	GlobalSection(Performance) = preSolution
 		HasPerformanceSessions = true
