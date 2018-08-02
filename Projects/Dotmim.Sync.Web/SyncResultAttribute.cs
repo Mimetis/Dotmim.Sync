@@ -1,18 +1,11 @@
 ﻿#if NETSTANDARD
 using Microsoft.AspNetCore.Mvc.Filters;
-#else
-using System.Web.Http.Filters;
-using System.Web;
-#endif
 using System;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
-using System.Web.Http.Controllers;
 
 namespace Dotmim.Sync.Web
 {
-#if NETSTANDARD
     public class SyncResultAttribute : ResultFilterAttribute, IResultFilter, IAsyncResultFilter
     {
         /// <summary>
@@ -65,5 +58,5 @@ namespace Dotmim.Sync.Web
             }
         }
     }
-#endif
 }
+#endif
