@@ -9,7 +9,9 @@ namespace Dotmim.Sync.Test.SqlUtils
 {
     public class HelperDB
     {
-        public static String GetDatabaseConnectionString(string dbName) => $@"Data Source=(localdb)\MSSQLLocalDB; Initial Catalog={dbName}; Integrated Security=true;";
+        public static String GetDatabaseConnectionString(string dbName) =>
+            // $@"Data Source=(localdb)\MSSQLLocalDB; Initial Catalog={dbName}; Integrated Security=true;";
+            $@"Data Source=artyom.abitech.kz,1433; Database={dbName}; User=sa; Password=QWE123qwe";
 
         public static string GetMySqlDatabaseConnectionString(string dbName) => $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=azerty31$;";
         /// <summary>
