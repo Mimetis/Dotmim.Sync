@@ -20,6 +20,10 @@ using Microsoft.Extensions.Primitives;
 using System.Collections.Specialized;
 using System.Net;
 using System.Web;
+using HttpContext = System.Web.HttpContextBase;
+using HttpRequest = System.Web.HttpRequestBase;
+using HttpResponse = System.Web.HttpResponseBase;
+using System.Net.Http;
 #endif
 
 namespace Dotmim.Sync.Web
@@ -614,40 +618,25 @@ namespace Dotmim.Sync.Web
         }
 
 
-        private bool? _isSessionEnabled;
 #if NETSTANDARD
         public bool IsSessionEnabled(HttpContext context)
         {
-            // falls back to static _sessionExists, but caches value in object instance to allow for unittests to have no sideeffects
-            if (_isSessionEnabled == null)
-            {
-                // try to get the session store service from DI
-                var sessionStore = context.RequestServices.GetService(typeof(ISessionStore));
-
-                _isSessionEnabled = sessionStore != null;
-            }
-            return _isSessionEnabled.Value;
+            // try to get the session store service from DI
+            var sessionStore = context.RequestServices.GetService(typeof(ISessionStore));
+            return sessionStore != null;
         }
 #else
-        private static Lazy<bool> _sessionExists = new Lazy<bool>(() =>
+        public bool IsSessionEnabled(HttpContext context)
         {
             try
             {
-                // this throws if no session is enabled! see https://stackoverflow.com/questions/1336770/determine-if-asp-net-sessions-are-enabled?utm_medium=organic&utm_source=google_rich_qa&utm_campaign=google_rich_qa
-                return HttpContext.Current?.Session != null;
+                return context.Session != null;
             }
-            catch
+            // if httpcontextbase is called without any overload, it will throw a NotImplementedException
+            catch (NotImplementedException)
             {
                 return false;
             }
-        });
-
-        public bool IsSessionEnabled(HttpContext context)
-        {
-            // falls back to static _sessionExists, but caches value in object instance to allow for unittests to have no sideeffects
-            if (_isSessionEnabled == null)
-                _isSessionEnabled = _sessionExists.Value;
-            return _isSessionEnabled.Value;
         }
 #endif
     }
@@ -688,7 +677,7 @@ namespace Dotmim.Sync.Web
             return header != null;
 
         }
-
+        
         public static Stream GetBody(this HttpRequest r)
         {
             return r.InputStream;
