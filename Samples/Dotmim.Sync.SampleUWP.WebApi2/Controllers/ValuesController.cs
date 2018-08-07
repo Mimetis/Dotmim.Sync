@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System.Net.Http;
+using System.Threading.Tasks;
 using System.Web;
 using System.Web.Http;
 using Dotmim.Sync.Web;
@@ -21,9 +22,9 @@ namespace UWPSyncSampleWebServer.Controllers
         // POST api/values
         [HttpPost]
         [Route("")]
-        public async Task Post()
+        public async Task<HttpResponseMessage> Post()
         {
-            await webProxyServer.HandleRequestAsync(new HttpContextWrapper(HttpContext.Current));
+            return await webProxyServer.HandleRequestAsync(this.Request, new HttpContextWrapper(HttpContext.Current));
         }
 
         [HttpGet]
