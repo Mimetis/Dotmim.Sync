@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Http;
 #else
 using System.Web;
 using System.Web.SessionState;
+using HttpContext = System.Web.HttpContextBase;
 #endif
 
 namespace Dotmim.Sync.Web
@@ -74,11 +75,11 @@ namespace Dotmim.Sync.Web
 #if !NETSTANDARD
     internal static class SessionExtensions
     {
-        public static void SetString(this HttpSessionState session, string cacheKey, string value)
+        public static void SetString(this HttpSessionStateBase session, string cacheKey, string value)
         {
             session.Add(cacheKey, value);
         }
-        public static string GetString(this HttpSessionState session, string cacheKey)
+        public static string GetString(this HttpSessionStateBase session, string cacheKey)
         {
             return session[cacheKey] as string;
         }

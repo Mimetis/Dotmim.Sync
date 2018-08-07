@@ -23,7 +23,7 @@ namespace UWPSyncSampleWebServer.Controllers
         [Route("")]
         public async Task Post()
         {
-            await webProxyServer.HandleRequestAsync(HttpContext.Current);
+            await webProxyServer.HandleRequestAsync(new HttpContextWrapper(HttpContext.Current));
         }
 
         [HttpGet]
