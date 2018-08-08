@@ -6,7 +6,8 @@ using Dotmim.Sync.MySql;
 using Dotmim.Sync.SampleConsole;
 using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
-using Dotmim.Sync.Web;
+using Dotmim.Sync.Web.Client;
+using Dotmim.Sync.Web.Server;
 using Microsoft.AspNetCore.Http;
 using Newtonsoft.Json;
 using System;
@@ -27,7 +28,9 @@ class Program
     }
 
     public static String GetDatabaseConnectionString(string dbName) =>
-        $"Data Source=.\\SQLEXPRESS; Initial Catalog={dbName}; Integrated Security=true;";
+        System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows)?
+        $"Data Source=.\\SQLEXPRESS; Initial Catalog={dbName}; Integrated Security=true;" :
+        $"Data Source=localhost; Database={dbName}; User=sa; Password=QWE123qwe";
 
     public static string GetMySqlDatabaseConnectionString(string dbName) =>
         $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=azerty31$;";
