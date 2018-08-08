@@ -114,7 +114,7 @@ namespace Dotmim.Sync.Test
             Assert.Equal(7, session.TotalChangesDownloaded);
             Assert.Equal(0, session.TotalChangesUploaded);
 
-            await clientProvider.DeprovisionAsync(agent.Configuration, SyncProvision.All);
+            await clientProvider.DeprovisionAsync(agent.Configuration, SyncProvision.All | SyncProvision.Table);
 
             using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
             {

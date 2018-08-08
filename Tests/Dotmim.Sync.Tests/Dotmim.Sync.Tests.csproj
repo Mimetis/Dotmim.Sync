@@ -28,14 +28,17 @@
     <ProjectReference Include="..\..\Projects\Dotmim.Sync.Web.Server\Dotmim.Sync.Web.Server.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <None Update="Backup\AdventureWorks.bak">
+    <None Remove="Backup\AdventureWorks.bak" />
+    <Content Include="Backup\AdventureWorks.bak">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Backup\AdventureWorksLT2012.bak">
+    </Content>
+    <None Remove="Backup\AdventureWorksLT2012.bak" />
+    <Content Include="Backup\AdventureWorksLT2012.bak">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Backup\Wordpress.sql">
+    </Content>
+    <None Remove="Backup\Wordpress.sql" />
+    <Content Include="Backup\Wordpress.sql">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
+    </Content>
   </ItemGroup>
 </Project>
