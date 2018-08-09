@@ -1,6 +1,6 @@
 ﻿using Dotmim.Sync;
 using Dotmim.Sync.Sqlite;
-using Dotmim.Sync.Web;
+using Dotmim.Sync.Web.Client;
 using Microsoft.Identity.Client;
 using System;
 using System.Collections.Generic;
