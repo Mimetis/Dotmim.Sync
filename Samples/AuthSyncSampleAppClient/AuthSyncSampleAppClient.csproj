@@ -150,9 +150,9 @@
       <Project>{92259fc7-577b-4328-a336-3b0fd5e265e1}</Project>
       <Name>Dotmim.Sync.Sqlite</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\Projects\Dotmim.Sync.Web\Dotmim.Sync.Web.csproj">
-      <Project>{9ca146e6-110c-4657-920f-0affbd35a5ad}</Project>
-      <Name>Dotmim.Sync.Web</Name>
+    <ProjectReference Include="..\..\Projects\Dotmim.Sync.Web.Client\Dotmim.Sync.Web.Client.csproj">
+      <Project>{270D05BA-80DB-4C45-A19B-75309EB6B839}</Project>
+      <Name>Dotmim.Sync.Web.Client</Name>
     </ProjectReference>
   </ItemGroup>
   <PropertyGroup Condition=" '$(VisualStudioVersion)' == '' or '$(VisualStudioVersion)' &lt; '14.0' ">
