@@ -1,14 +1,15 @@
 ﻿using Dotmim.Sync;
+using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.MySql;
 using Dotmim.Sync.Sqlite;
-using Dotmim.Sync.SqlServer;
-using Dotmim.Sync.Web;
+using Dotmim.Sync.Web.Client;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using UWPSyncSample.Context;
+
 
 namespace UWPSyncSample.Helpers
 {
