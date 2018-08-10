@@ -15,7 +15,6 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-using Dotmim.Sync.Web.Core;
 
 namespace Dotmim.Sync.Web.Client
 {
