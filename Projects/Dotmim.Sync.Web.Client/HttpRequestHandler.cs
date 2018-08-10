@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 using Microsoft.Net.Http.Headers;
 
 
-namespace Dotmim.Sync.Web.Core
+namespace Dotmim.Sync.Web.Client
 {
     /// <summary>
     /// Object in charge to send requests

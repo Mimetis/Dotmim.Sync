@@ -20,6 +20,6 @@ Can't work without a Server provider, you have to choose an existing one to be a
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" />
-    <ProjectReference Include="..\Dotmim.Sync.Web.Core\Dotmim.Sync.Web.Core.csproj" />
+    <ProjectReference Include="..\Dotmim.Sync.Web.Client\Dotmim.Sync.Web.Client.csproj" />
   </ItemGroup>
 </Project>

@@ -31,8 +31,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AuthSyncSampleAppClient", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dotmim.Sync.Web.Server", "Projects\Dotmim.Sync.Web.Server\Dotmim.Sync.Web.Server.csproj", "{48DBC5C6-B339-411C-870E-76F2489120C1}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dotmim.Sync.Web.Core", "Projects\Dotmim.Sync.Web.Core\Dotmim.Sync.Web.Core.csproj", "{2C99022C-0755-45B2-A539-739DCB0CE79A}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dotmim.Sync.Web.Client", "Projects\Dotmim.Sync.Web.Client\Dotmim.Sync.Web.Client.csproj", "{270D05BA-80DB-4C45-A19B-75309EB6B839}"
 EndProject
 Global
@@ -248,22 +246,6 @@ Global
 		{48DBC5C6-B339-411C-870E-76F2489120C1}.Release|x64.Build.0 = Release|Any CPU
 		{48DBC5C6-B339-411C-870E-76F2489120C1}.Release|x86.ActiveCfg = Release|Any CPU
 		{48DBC5C6-B339-411C-870E-76F2489120C1}.Release|x86.Build.0 = Release|Any CPU
-		{2C99022C-0755-45B2-A539-739DCB0CE79A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{2C99022C-0755-45B2-A539-739DCB0CE79A}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{2C99022C-0755-45B2-A539-739DCB0CE79A}.Debug|ARM.ActiveCfg = Debug|Any CPU
-		{2C99022C-0755-45B2-A539-739DCB0CE79A}.Debug|ARM.Build.0 = Debug|Any CPU
-		{2C99022C-0755-45B2-A539-739DCB0CE79A}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{2C99022C-0755-45B2-A539-739DCB0CE79A}.Debug|x64.Build.0 = Debug|Any CPU
-		{2C99022C-0755-45B2-A539-739DCB0CE79A}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{2C99022C-0755-45B2-A539-739DCB0CE79A}.Debug|x86.Build.0 = Debug|Any CPU
-		{2C99022C-0755-45B2-A539-739DCB0CE79A}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{2C99022C-0755-45B2-A539-739DCB0CE79A}.Release|Any CPU.Build.0 = Release|Any CPU
-		{2C99022C-0755-45B2-A539-739DCB0CE79A}.Release|ARM.ActiveCfg = Release|Any CPU
-		{2C99022C-0755-45B2-A539-739DCB0CE79A}.Release|ARM.Build.0 = Release|Any CPU
-		{2C99022C-0755-45B2-A539-739DCB0CE79A}.Release|x64.ActiveCfg = Release|Any CPU
-		{2C99022C-0755-45B2-A539-739DCB0CE79A}.Release|x64.Build.0 = Release|Any CPU
-		{2C99022C-0755-45B2-A539-739DCB0CE79A}.Release|x86.ActiveCfg = Release|Any CPU
-		{2C99022C-0755-45B2-A539-739DCB0CE79A}.Release|x86.Build.0 = Release|Any CPU
 		{270D05BA-80DB-4C45-A19B-75309EB6B839}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{270D05BA-80DB-4C45-A19B-75309EB6B839}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{270D05BA-80DB-4C45-A19B-75309EB6B839}.Debug|ARM.ActiveCfg = Debug|Any CPU

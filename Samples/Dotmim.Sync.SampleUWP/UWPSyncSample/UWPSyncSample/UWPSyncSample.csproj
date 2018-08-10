@@ -240,10 +240,6 @@
       <Project>{270d05ba-80db-4c45-a19b-75309eb6b839}</Project>
       <Name>Dotmim.Sync.Web.Client</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\..\Projects\Dotmim.Sync.Web.Core\Dotmim.Sync.Web.Core.csproj">
-      <Project>{2c99022c-0755-45b2-a539-739dcb0ce79a}</Project>
-      <Name>Dotmim.Sync.Web.Core</Name>
-    </ProjectReference>
   </ItemGroup>
   <PropertyGroup Condition=" '$(VisualStudioVersion)' == '' or '$(VisualStudioVersion)' &lt; '14.0' ">
     <VisualStudioVersion>14.0</VisualStudioVersion>

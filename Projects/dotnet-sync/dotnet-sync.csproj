@@ -37,7 +37,6 @@
     <ProjectReference Include="..\Dotmim.Sync.MySql\Dotmim.Sync.MySql.csproj" />
     <ProjectReference Include="..\Dotmim.Sync.Sqlite\Dotmim.Sync.Sqlite.csproj" />
     <ProjectReference Include="..\Dotmim.Sync.SqlServer\Dotmim.Sync.SqlServer.csproj" />
-    <ProjectReference Include="..\Dotmim.Sync.Web.Core\Dotmim.Sync.Web.Core.csproj" />
     <ProjectReference Include="..\Dotmim.Sync.Web.Client\Dotmim.Sync.Web.Client.csproj" />
   </ItemGroup>
 
