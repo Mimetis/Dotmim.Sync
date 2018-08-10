@@ -3,6 +3,7 @@ using MySql.Data.MySqlClient;
 using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
+using System.IO;
 using System.Text;
 
 namespace Dotmim.Sync.Test.SqlUtils
@@ -110,12 +111,33 @@ namespace Dotmim.Sync.Test.SqlUtils
 
         public void RestoreDatabase(string dbName, string filePath)
         {
+            var dataName = Path.GetFileNameWithoutExtension(dbName) + ".mdf";
+            var logName = Path.GetFileNameWithoutExtension(dbName) + ".ldf";
             var script = $@"
                 if (exists (select * from sys.databases where name = '{dbName}'))
-                begin                
-                    ALTER DATABASE [{dbName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE
-                End
-                RESTORE DATABASE [{dbName}] FROM  DISK = N'{filePath}' WITH  RESTRICTED_USER, REPLACE
+                    begin                
+                        ALTER DATABASE [{dbName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE
+                    End
+                else
+                    begin
+                        CREATE DATABASE [{dbName}]
+                    end
+
+                -- the backup contains the full path to the database files
+                -- in order to be able to restore them on different developer machines
+                -- we retrieve the default data path from the server
+                -- and use it in RESTORE with the MOVE option
+                declare @databaseFolder as nvarchar(256);
+                set @databaseFolder = Convert(nvarchar(256), (SELECT ServerProperty(N'InstanceDefaultDataPath') AS default_file));
+
+                declare @dataFile as nvarchar(256);
+                declare @logFile as nvarchar(256);
+                set @dataFile =@databaseFolder + '{dataName}';
+                set @logFile =@databaseFolder + '{logName}';
+
+                RESTORE DATABASE [{dbName}] FROM  DISK = N'{filePath}' WITH  RESTRICTED_USER, REPLACE,
+                    MOVE '{dbName}' TO @dataFile,
+                    MOVE '{dbName}_log' TO @logFile;
                 ALTER DATABASE [{dbName}] SET MULTI_USER";
 
             SqlConnection connection = null;
