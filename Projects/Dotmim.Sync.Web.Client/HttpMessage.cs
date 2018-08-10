@@ -10,7 +10,7 @@ using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Filter;
 using Dotmim.Sync.Messages;
 
-namespace Dotmim.Sync.Web.Core
+namespace Dotmim.Sync.Web.Client
 {
     /// <summary>
     /// Message send and receieved during http call
