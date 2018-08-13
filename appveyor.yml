@@ -1,4 +1,4 @@
-version: 1.0.{build}
+version: 0.2.1.{build}
 
 image:
 - Visual Studio 2017
@@ -10,8 +10,21 @@ services:
 - mssql2017
 - mysql
 
+dotnet_csproj:
+  patch: true
+  file: '**\*.csproj'
+  version: '{version}'
+  package_version: '{version}'
+  assembly_version: '{version}'
+  file_version: '{version}'
+  informational_version: '{version}'
+
 build:
   verbosity: minimal
+  configuration: Release
+  project: Dotmim.Sync.sln
 
 test_script:
+- cd Tests/Dotmim.Sync/Tests
 - sh: dotnet test
+- cmd: dotnet test
