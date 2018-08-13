@@ -19,9 +19,10 @@ dotnet_csproj:
   file_version: '{version}'
   informational_version: '{version}'
 
+configuration: Release
+
 build:
   verbosity: minimal
-  configuration: Release
   project: Dotmim.Sync.sln
 
 test_script:
