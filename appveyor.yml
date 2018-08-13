@@ -1,0 +1,17 @@
+version: 1.0.{build}
+
+image:
+- Visual Studio 2017
+- Ubuntu
+
+platform: Any CPU
+
+services:
+- mssql2017
+- mysql
+
+build:
+  verbosity: minimal
+
+test_script:
+- sh: dotnet test
