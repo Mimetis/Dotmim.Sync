@@ -2,13 +2,12 @@ version: 0.2.1.{build}
 
 image:
 - Visual Studio 2017
-- Ubuntu
 
 platform: Any CPU
 
 services:
-- mssql2008r2sp2
 - mysql
+- mssql2016
 
 dotnet_csproj:
   patch: true
@@ -24,7 +23,11 @@ configuration: Release
 build:
   verbosity: minimal
   project: Dotmim.Sync.sln
-
+  
+before_build:
+  # Display .NET Core version
+  - cmd: dotnet --version
+  
 build_script:
 - dotnet build Projects/Dotmim.Sync.Web/Dotmim.Sync.Web.csproj
 - dotnet build Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj
