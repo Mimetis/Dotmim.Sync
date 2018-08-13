@@ -1,0 +1,35 @@
+version: 0.2.1.{build}
+
+image:
+- Visual Studio 2017
+- Ubuntu
+
+platform: Any CPU
+
+services:
+- mssql2017
+- mysql
+
+dotnet_csproj:
+  patch: true
+  file: '**\*.csproj'
+  version: '{version}'
+  package_version: '{version}'
+  assembly_version: '{version}'
+  file_version: '{version}'
+  informational_version: '{version}'
+
+configuration: Release
+
+build:
+  verbosity: minimal
+  project: Dotmim.Sync.sln
+
+build_script:
+- dotnet build Projects/Dotmim.Sync.Web/Dotmim.Sync.Web.csproj
+- dotnet build Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj
+- dotnet build Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj
+- dotnet build Projects/dotnet-sync/dotnet-sync.csproj
+
+test_script:
+- dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj
