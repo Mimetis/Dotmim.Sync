@@ -10,9 +10,21 @@ namespace Dotmim.Sync.Test.SqlUtils
 {
     public class HelperDB
     {
-        public static String GetDatabaseConnectionString(string dbName) => $@"Data Source=(localdb)\MSSQLLocalDB; Initial Catalog={dbName}; Integrated Security=true;";
+        /// <summary>
+        /// Returns the database server to be used in the untittests - note that this is the connection to appveyor SQL Server 2008 instance!
+        /// see: https://www.appveyor.com/docs/services-databases/#mysql
+        /// </summary>
+        /// <param name="dbName"></param>
+        /// <returns></returns>
+        public static String GetDatabaseConnectionString(string dbName) => $@"Server=(local)\SQL2008R2SP2;Database={dbName};UID=sa;PWD=Password12!";
+        /// <summary>
+        /// Returns the database server to be used in the untittests - note that this is the connection to appveyor MySQL 5.7 x64 instance!
+        /// see: https://www.appveyor.com/docs/services-databases/#mysql
+        /// </summary>
+        /// <param name="dbName"></param>
+        /// <returns></returns>
+        public static string GetMySqlDatabaseConnectionString(string dbName) => $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=Password12!";
 
-        public static string GetMySqlDatabaseConnectionString(string dbName) => $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=azerty31$;";
         /// <summary>
         /// Generate a database
         /// </summary>
