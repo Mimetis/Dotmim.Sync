@@ -5,4 +5,4 @@ Set-ExecutionPolicy Bypass -Scope Process -Force; iex ((New-Object System.Net.We
 cinst mysql -y
 
 #set initial root user password to be the one used by dotmim sync
-mysqladmin -u root password azerty31$
+mysqladmin -u root password Password12!
