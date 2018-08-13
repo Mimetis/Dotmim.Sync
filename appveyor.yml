@@ -32,6 +32,4 @@ build_script:
 - dotnet build Projects/dotnet-sync/dotnet-sync.csproj
 
 test_script:
-- cd Tests/Dotmim.Sync/Tests
-- sh: dotnet test
-- cmd: dotnet test
+- dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj
