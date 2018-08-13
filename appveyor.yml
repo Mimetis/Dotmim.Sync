@@ -25,6 +25,12 @@ build:
   verbosity: minimal
   project: Dotmim.Sync.sln
 
+build_script:
+- dotnet build Projects/Dotmim.Sync.Web/Dotmim.Sync.Web.csproj
+- dotnet build Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj
+- dotnet build Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj
+- dotnet build Projects/dotnet-sync/dotnet-sync.csproj
+
 test_script:
 - cd Tests/Dotmim.Sync/Tests
 - sh: dotnet test
