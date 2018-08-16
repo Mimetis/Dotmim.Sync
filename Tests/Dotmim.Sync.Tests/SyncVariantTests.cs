@@ -6,6 +6,8 @@ using Dotmim.Sync.Test.SqlUtils;
 using Microsoft.AspNetCore.Http;
 using System;
 using System.Threading.Tasks;
+using Dotmim.Sync.Web.Client;
+using Dotmim.Sync.Web.Server;
 using Xunit;
 
 namespace Dotmim.Sync.Test

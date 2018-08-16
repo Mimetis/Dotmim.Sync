@@ -7,7 +7,7 @@ using System;
 using System.Linq;
 using System.Runtime.Serialization.Formatters.Binary;
 
-namespace Dotmim.Sync.Web
+namespace Dotmim.Sync.Web.Server
 {
     public class SessionCache : ICache
     {

@@ -5,7 +5,6 @@ using Dotmim.Sync.Data.Surrogate;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Filter;
 using Dotmim.Sync.Messages;
-using Microsoft.Net.Http.Headers;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
@@ -14,8 +13,9 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Net.Http.Headers;
 
-namespace Dotmim.Sync.Web
+namespace Dotmim.Sync.Web.Client
 {
 
     /// <summary>

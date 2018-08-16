@@ -9,9 +9,14 @@ namespace Dotmim.Sync.Test.SqlUtils
 {
     public class HelperDB
     {
-        public static String GetDatabaseConnectionString(string dbName) => $@"Data Source=(localdb)\MSSQLLocalDB; Initial Catalog={dbName}; Integrated Security=true;";
+        public static String GetDatabaseConnectionString(string dbName) =>
+            System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform
+                    .Windows) ?
+            $@"Data Source=(localdb)\MSSQLLocalDB; Initial Catalog={dbName}; Integrated Security=true;" :
+            $@"Server=localhost; Database={dbName}; User=sa; Password=QWE123qwe";
 
-        public static string GetMySqlDatabaseConnectionString(string dbName) => $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=azerty31$;";
+        public static string GetMySqlDatabaseConnectionString(string dbName) =>
+            $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=azerty31$;";
         /// <summary>
         /// Generate a database
         /// </summary>
@@ -110,19 +115,50 @@ namespace Dotmim.Sync.Test.SqlUtils
 
         public void RestoreDatabase(string dbName, string filePath)
         {
+            var isWindows =
+                System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform
+                    .Windows);
+
+            SqlConnection connection = new SqlConnection(GetDatabaseConnectionString("master"));
+
+            string dataFile = null, logFile = null;
+
+            connection.Open();
+            if (!isWindows)
+            {
+                using (SqlCommand cmd = new SqlCommand($@"RESTORE FILELISTONLY from DISK = N'{filePath}'", connection))
+                {
+                    using (var rd = cmd.ExecuteReader())
+                    {
+                        while (rd.Read())
+                        {
+                            if (rd["Type"].ToString() == "D")
+                                dataFile = rd["LogicalName"].ToString();
+                            else if (rd["Type"].ToString() == "L")
+                                logFile = rd["LogicalName"].ToString();
+                        }
+                    }
+                }
+            }
+            
+            var restoreClause =
+                System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows) ?
+                    $@"RESTORE DATABASE [{dbName}] FROM  DISK = N'{filePath}' WITH  RESTRICTED_USER, REPLACE
+                       ALTER DATABASE [{dbName}] SET MULTI_USER" :
+                    $@"RESTORE DATABASE [{dbName}]
+            FROM DISK = N'{filePath}'
+            WITH
+                MOVE '{dataFile}' TO '/var/opt/mssql/data/{dbName}.mdf',
+                MOVE '{logFile}' TO '/var/opt/mssql/data/{dbName}.ldf'"; 
             var script = $@"
                 if (exists (select * from sys.databases where name = '{dbName}'))
                 begin                
                     ALTER DATABASE [{dbName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE
-                End
-                RESTORE DATABASE [{dbName}] FROM  DISK = N'{filePath}' WITH  RESTRICTED_USER, REPLACE
-                ALTER DATABASE [{dbName}] SET MULTI_USER";
+                end
+                {restoreClause}";
 
-            SqlConnection connection = null;
             SqlCommand cmdDb = null;
-            connection = new SqlConnection(GetDatabaseConnectionString("master"));
 
-            connection.Open();
             cmdDb = new SqlCommand(script, connection);
             cmdDb.ExecuteNonQuery();
             connection.Close();

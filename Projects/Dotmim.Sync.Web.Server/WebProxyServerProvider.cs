@@ -16,10 +16,11 @@ using Microsoft.AspNetCore.Session;
 using Dotmim.Sync.Data;
 using Dotmim.Sync.Filter;
 using Dotmim.Sync.Messages;
+using Dotmim.Sync.Web.Client;
 using Newtonsoft.Json.Linq;
 using Microsoft.Extensions.Primitives;
 
-namespace Dotmim.Sync.Web
+namespace Dotmim.Sync.Web.Server
 {
 
     /// <summary>
