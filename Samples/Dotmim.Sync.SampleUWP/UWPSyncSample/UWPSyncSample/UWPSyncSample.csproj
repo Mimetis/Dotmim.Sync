@@ -191,6 +191,9 @@
     <PackageReference Include="autofac">
       <Version>4.8.1</Version>
     </PackageReference>
+    <PackageReference Include="Microsoft.Azure.Management.Sql">
+      <Version>1.18.0-preview</Version>
+    </PackageReference>
     <PackageReference Include="Microsoft.Data.SQLite">
       <Version>2.1.0</Version>
     </PackageReference>
@@ -218,24 +221,24 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\..\Projects\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj">
-      <Project>{10db8e0a-456e-4ac1-9847-5202d132b066}</Project>
+      <Project>{c58c0e87-84b4-4dc7-a2f2-ccc2b9daef86}</Project>
       <Name>Dotmim.Sync.Core</Name>
     </ProjectReference>
     <ProjectReference Include="..\..\..\..\Projects\Dotmim.Sync.MySql\Dotmim.Sync.MySql.csproj">
-      <Project>{9eb37c41-ff4e-476c-a09f-06d72fbccc05}</Project>
+      <Project>{c8dd2eba-777f-498f-acda-d9966c8fd1a1}</Project>
       <Name>Dotmim.Sync.MySql</Name>
     </ProjectReference>
     <ProjectReference Include="..\..\..\..\Projects\Dotmim.Sync.Sqlite\Dotmim.Sync.Sqlite.csproj">
-      <Project>{2f38d357-f397-4c60-a611-3c7a702d7d69}</Project>
+      <Project>{92259fc7-577b-4328-a336-3b0fd5e265e1}</Project>
       <Name>Dotmim.Sync.Sqlite</Name>
     </ProjectReference>
     <ProjectReference Include="..\..\..\..\Projects\Dotmim.Sync.SqlServer\Dotmim.Sync.SqlServer.csproj">
-      <Project>{3e127627-1e28-4522-aa42-f0670f189e98}</Project>
+      <Project>{6f38701f-1dc0-4e80-ba56-29bf5a37b768}</Project>
       <Name>Dotmim.Sync.SqlServer</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\..\Projects\Dotmim.Sync.Web\Dotmim.Sync.Web.csproj">
-      <Project>{146c4337-0313-4b5d-aefa-eee54832a94c}</Project>
-      <Name>Dotmim.Sync.Web</Name>
+    <ProjectReference Include="..\..\..\..\Projects\Dotmim.Sync.Web.Client\Dotmim.Sync.Web.Client.csproj">
+      <Project>{270d05ba-80db-4c45-a19b-75309eb6b839}</Project>
+      <Name>Dotmim.Sync.Web.Client</Name>
     </ProjectReference>
   </ItemGroup>
   <PropertyGroup Condition=" '$(VisualStudioVersion)' == '' or '$(VisualStudioVersion)' &lt; '14.0' ">

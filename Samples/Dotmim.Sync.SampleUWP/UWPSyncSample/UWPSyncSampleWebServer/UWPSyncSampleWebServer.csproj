@@ -22,7 +22,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\..\..\Projects\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" />
     <ProjectReference Include="..\..\..\..\Projects\Dotmim.Sync.SqlServer\Dotmim.Sync.SqlServer.csproj" />
-    <ProjectReference Include="..\..\..\..\Projects\Dotmim.Sync.Web\Dotmim.Sync.Web.csproj" />
+    <ProjectReference Include="..\..\..\..\Projects\Dotmim.Sync.Web.Client\Dotmim.Sync.Web.Client.csproj" />
+    <ProjectReference Include="..\..\..\..\Projects\Dotmim.Sync.Web.Server\Dotmim.Sync.Web.Server.csproj" />
   </ItemGroup>
 
 </Project>
