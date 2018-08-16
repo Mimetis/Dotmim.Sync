@@ -152,12 +152,13 @@ namespace Dotmim.Sync.Test.SqlUtils
                     MOVE '{dbName}_log' TO @logFile;
                 ALTER DATABASE [{dbName}] SET MULTI_USER";
 
+            SqlConnection connection = null;
             SqlCommand cmdDb = null;
+            connection = new SqlConnection(GetDatabaseConnectionString("master"));
 
             cmdDb = new SqlCommand(script, connection);
             cmdDb.ExecuteNonQuery();
             connection.Close();
-
         }
 
 
