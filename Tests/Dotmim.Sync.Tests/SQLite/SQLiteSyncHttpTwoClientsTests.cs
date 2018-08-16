@@ -1,5 +1,6 @@
 ﻿using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Web;
+using Dotmim.Sync.Web.Client;
+using Dotmim.Sync.Web.Server;
 using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Tests.Misc;

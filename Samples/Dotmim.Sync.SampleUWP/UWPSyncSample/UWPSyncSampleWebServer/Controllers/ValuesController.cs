@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Dotmim.Sync.Web;
+using Dotmim.Sync.Web.Server;
 using Microsoft.AspNetCore.Mvc;
 
 namespace UWPSyncSampleWebServer.Controllers

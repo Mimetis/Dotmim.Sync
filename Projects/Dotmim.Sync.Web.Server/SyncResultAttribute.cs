@@ -3,7 +3,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace Dotmim.Sync.Web
+namespace Dotmim.Sync.Web.Server
 {
     public class SyncResultAttribute : ResultFilterAttribute, IResultFilter, IAsyncResultFilter
     {
