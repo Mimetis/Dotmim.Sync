@@ -3,20 +3,28 @@ using MySql.Data.MySqlClient;
 using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
+using System.IO;
 using System.Text;
 
 namespace Dotmim.Sync.Test.SqlUtils
 {
     public class HelperDB
     {
-        public static String GetDatabaseConnectionString(string dbName) =>
-            System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform
-                    .Windows) ?
-            $@"Data Source=(localdb)\MSSQLLocalDB; Initial Catalog={dbName}; Integrated Security=true;" :
-            $@"Server=localhost; Database={dbName}; User=sa; Password=QWE123qwe";
+        /// <summary>
+        /// Returns the database server to be used in the untittests - note that this is the connection to appveyor SQL Server 2016 instance!
+        /// see: https://www.appveyor.com/docs/services-databases/#mysql
+        /// </summary>
+        /// <param name="dbName"></param>
+        /// <returns></returns>
+        public static String GetDatabaseConnectionString(string dbName) => $@"Server=(localdb)\SQL2016;Database={dbName};UID=sa;PWD=Password12!";
+        /// <summary>
+        /// Returns the database server to be used in the untittests - note that this is the connection to appveyor MySQL 5.7 x64 instance!
+        /// see: https://www.appveyor.com/docs/services-databases/#mysql
+        /// </summary>
+        /// <param name="dbName"></param>
+        /// <returns></returns>
+        public static string GetMySqlDatabaseConnectionString(string dbName) => $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=Password12!";
 
-        public static string GetMySqlDatabaseConnectionString(string dbName) =>
-            $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=azerty31$;";
         /// <summary>
         /// Generate a database
         /// </summary>
@@ -115,47 +123,34 @@ namespace Dotmim.Sync.Test.SqlUtils
 
         public void RestoreDatabase(string dbName, string filePath)
         {
-            var isWindows =
-                System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform
-                    .Windows);
-
-            SqlConnection connection = new SqlConnection(GetDatabaseConnectionString("master"));
-
-            string dataFile = null, logFile = null;
-
-            connection.Open();
-            if (!isWindows)
-            {
-                using (SqlCommand cmd = new SqlCommand($@"RESTORE FILELISTONLY from DISK = N'{filePath}'", connection))
-                {
-                    using (var rd = cmd.ExecuteReader())
-                    {
-                        while (rd.Read())
-                        {
-                            if (rd["Type"].ToString() == "D")
-                                dataFile = rd["LogicalName"].ToString();
-                            else if (rd["Type"].ToString() == "L")
-                                logFile = rd["LogicalName"].ToString();
-                        }
-                    }
-                }
-            }
-            
-            var restoreClause =
-                System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows) ?
-                    $@"RESTORE DATABASE [{dbName}] FROM  DISK = N'{filePath}' WITH  RESTRICTED_USER, REPLACE
-                       ALTER DATABASE [{dbName}] SET MULTI_USER" :
-                    $@"RESTORE DATABASE [{dbName}]
-            FROM DISK = N'{filePath}'
-            WITH
-                MOVE '{dataFile}' TO '/var/opt/mssql/data/{dbName}.mdf',
-                MOVE '{logFile}' TO '/var/opt/mssql/data/{dbName}.ldf'"; 
+            var dataName = Path.GetFileNameWithoutExtension(dbName) + ".mdf";
+            var logName = Path.GetFileNameWithoutExtension(dbName) + ".ldf";
             var script = $@"
                 if (exists (select * from sys.databases where name = '{dbName}'))
-                begin                
-                    ALTER DATABASE [{dbName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE
-                end
-                {restoreClause}";
+                    begin                
+                        ALTER DATABASE [{dbName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE
+                    End
+                else
+                    begin
+                        CREATE DATABASE [{dbName}]
+                    end
+
+                -- the backup contains the full path to the database files
+                -- in order to be able to restore them on different developer machines
+                -- we retrieve the default data path from the server
+                -- and use it in RESTORE with the MOVE option
+                declare @databaseFolder as nvarchar(256);
+                set @databaseFolder = Convert(nvarchar(256), (SELECT ServerProperty(N'InstanceDefaultDataPath') AS default_file));
+
+                declare @dataFile as nvarchar(256);
+                declare @logFile as nvarchar(256);
+                set @dataFile =@databaseFolder + '{dataName}';
+                set @logFile =@databaseFolder + '{logName}';
+
+                RESTORE DATABASE [{dbName}] FROM  DISK = N'{filePath}' WITH  RESTRICTED_USER, REPLACE,
+                    MOVE '{dbName}' TO @dataFile,
+                    MOVE '{dbName}_log' TO @logFile;
+                ALTER DATABASE [{dbName}] SET MULTI_USER";
 
             SqlCommand cmdDb = null;
 
