@@ -11,7 +11,7 @@ using System.Web;
 using System.Web.SessionState;
 #endif
 
-namespace Dotmim.Sync.Web
+namespace Dotmim.Sync.Web.Server
 {
     public class SessionCache : ICache
     {

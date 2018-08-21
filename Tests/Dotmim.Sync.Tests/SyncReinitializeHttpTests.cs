@@ -8,6 +8,8 @@ using System.Threading.Tasks;
 using Xunit;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Web;
+using Dotmim.Sync.Web.Client;
+using Dotmim.Sync.Web.Server;
 using Microsoft.AspNetCore.Http;
 
 namespace Dotmim.Sync.Test

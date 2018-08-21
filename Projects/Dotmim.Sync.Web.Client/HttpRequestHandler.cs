@@ -8,6 +8,7 @@ using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Net.Http.Headers;
 
 #if NETSTANDARD
 using Microsoft.Net.Http.Headers;
@@ -17,7 +18,7 @@ using System.Net.Http.Headers;
 
 
 
-namespace Dotmim.Sync.Web
+namespace Dotmim.Sync.Web.Client
 {
     /// <summary>
     /// Object in charge to send requests

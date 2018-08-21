@@ -19,7 +19,7 @@ using Microsoft.Net.Http.Headers;
 using System.Net.Http.Headers;
 #endif
 
-namespace Dotmim.Sync.Web
+namespace Dotmim.Sync.Web.Client
 {
 
     /// <summary>

@@ -2,16 +2,30 @@
 using MySql.Data.MySqlClient;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Data.SqlClient;
+using System.IO;
 using System.Text;
 
 namespace Dotmim.Sync.Test.SqlUtils
 {
     public class HelperDB
     {
-        public static String GetDatabaseConnectionString(string dbName) => $@"Data Source=(localdb)\MSSQLLocalDB; Initial Catalog={dbName}; Integrated Security=true;";
+        /// <summary>
+        /// Returns the database server to be used in the untittests - note that this is the connection to appveyor SQL Server 2016 instance!
+        /// see: https://www.appveyor.com/docs/services-databases/#mysql
+        /// </summary>
+        /// <param name="dbName"></param>
+        /// <returns></returns>
+        public static String GetDatabaseConnectionString(string dbName) => $@"Server=(localdb)\SQL2016;Database={dbName};UID=sa;PWD=Password12!";
+        /// <summary>
+        /// Returns the database server to be used in the untittests - note that this is the connection to appveyor MySQL 5.7 x64 instance!
+        /// see: https://www.appveyor.com/docs/services-databases/#mysql
+        /// </summary>
+        /// <param name="dbName"></param>
+        /// <returns></returns>
+        public static string GetMySqlDatabaseConnectionString(string dbName) => $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=Password12!";
 
-        public static string GetMySqlDatabaseConnectionString(string dbName) => $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=azerty31$;";
         /// <summary>
         /// Generate a database
         /// </summary>
@@ -110,23 +124,45 @@ namespace Dotmim.Sync.Test.SqlUtils
 
         public void RestoreDatabase(string dbName, string filePath)
         {
+            var dataName = Path.GetFileNameWithoutExtension(dbName) + ".mdf";
+            var logName = Path.GetFileNameWithoutExtension(dbName) + ".ldf";
             var script = $@"
                 if (exists (select * from sys.databases where name = '{dbName}'))
-                begin                
-                    ALTER DATABASE [{dbName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE
-                End
-                RESTORE DATABASE [{dbName}] FROM  DISK = N'{filePath}' WITH  RESTRICTED_USER, REPLACE
+                    begin                
+                        ALTER DATABASE [{dbName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE
+                    End
+                else
+                    begin
+                        CREATE DATABASE [{dbName}]
+                    end
+
+                -- the backup contains the full path to the database files
+                -- in order to be able to restore them on different developer machines
+                -- we retrieve the default data path from the server
+                -- and use it in RESTORE with the MOVE option
+                declare @databaseFolder as nvarchar(256);
+                set @databaseFolder = Convert(nvarchar(256), (SELECT ServerProperty(N'InstanceDefaultDataPath') AS default_file));
+
+                declare @dataFile as nvarchar(256);
+                declare @logFile as nvarchar(256);
+                set @dataFile =@databaseFolder + '{dataName}';
+                set @logFile =@databaseFolder + '{logName}';
+
+                RESTORE DATABASE [{dbName}] FROM  DISK = N'{filePath}' WITH  RESTRICTED_USER, REPLACE,
+                    MOVE '{dbName}' TO @dataFile,
+                    MOVE '{dbName}_log' TO @logFile;
                 ALTER DATABASE [{dbName}] SET MULTI_USER";
 
-            SqlConnection connection = null;
-            SqlCommand cmdDb = null;
-            connection = new SqlConnection(GetDatabaseConnectionString("master"));
 
-            connection.Open();
-            cmdDb = new SqlCommand(script, connection);
-            cmdDb.ExecuteNonQuery();
-            connection.Close();
+            using (var connection = new SqlConnection(GetDatabaseConnectionString("master")))
+            {
+                if(connection.State == ConnectionState.Closed)
+                    connection.Open();
 
+                var cmdDb = new SqlCommand(script, connection);
+                cmdDb.ExecuteNonQuery();
+                connection.Close();
+            }
         }
 
 
