@@ -213,7 +213,7 @@ namespace Dotmim.Sync.Tests
     }
 
     [Collection("Http")]
-    [TestCaseOrderer("Dotmim.Sync.Tests.Misc.PriorityOrderer", "Dotmim.Sync.Tests")]
+    [TestCaseOrderer("Dotmim.Sync.Tests.Misc.PriorityOrderer", "Dotmim.Sync.WebApi2.Tests")]
     public class SqliteSyncHttpTests : IClassFixture<SqliteSyncHttpFixture>
     {
         SqlSyncProvider serverProvider;
