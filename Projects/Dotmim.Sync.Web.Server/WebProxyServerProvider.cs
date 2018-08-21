@@ -4,6 +4,7 @@ using Dotmim.Sync.Batch;
 using System.Threading.Tasks;
 using System.IO;
 using System.Linq;
+using System.Net.Http.Headers;
 using System.Threading;
 using Newtonsoft.Json;
 using Dotmim.Sync.Enumerations;
@@ -21,6 +22,10 @@ using Microsoft.Extensions.Primitives;
 using System.Collections.Specialized;
 using System.Net;
 using System.Web;
+using HttpContext = System.Web.HttpContextBase;
+using HttpRequest = System.Web.HttpRequestBase;
+using HttpResponse = System.Web.HttpResponseBase;
+using System.Net.Http;
 #endif
 
 namespace Dotmim.Sync.Web.Server
@@ -69,7 +74,7 @@ namespace Dotmim.Sync.Web.Server
         /// </summary>
         public SyncConfiguration Configuration { get; set; }
 
-
+#if NETSTANDARD
         /// <summary>
         /// Call this method to handle requests on the server, sent by the client
         /// </summary>
@@ -77,7 +82,6 @@ namespace Dotmim.Sync.Web.Server
         {
             await HandleRequestAsync(context, CancellationToken.None);
         }
-
 
         /// <summary>
         /// Call this method to handle requests on the server, sent by the client
@@ -148,6 +152,116 @@ namespace Dotmim.Sync.Web.Server
                 await this.WriteExceptionAsync(httpResponse, ex);
             }
         }
+        /// <summary>
+        /// Write exception to output message
+        /// </summary>
+        public async Task WriteExceptionAsync(HttpResponse httpResponse, Exception ex)
+        {
+            var webx = WebSyncException.GetWebSyncException(ex);
+            var webXMessage = JsonConvert.SerializeObject(webx);
+
+            httpResponse.StatusCode = StatusCodes.Status400BadRequest;
+            httpResponse.ContentLength = webXMessage.Length;
+            await httpResponse.WriteAsync(webXMessage);
+        }
+#else
+        /// <summary>
+        /// Call this method to handle requests on the server, sent by the client
+        /// </summary>
+        public async Task<HttpResponseMessage> HandleRequestAsync(HttpRequestMessage httpRequest, HttpContext context)
+        {
+            return await HandleRequestAsync(httpRequest, context, CancellationToken.None);
+        }
+
+        /// <summary>
+        /// Call this method to handle requests on the server, sent by the client
+        /// </summary>
+        public async Task<HttpResponseMessage> HandleRequestAsync(HttpRequestMessage httpRequest, HttpContext context, CancellationToken cancellationToken)
+        {
+            var streamArray = await httpRequest.Content.ReadAsStreamAsync();
+
+            SerializationFormat serializationFormat = SerializationFormat.Json;
+            // Get the serialization format
+            if (httpRequest.Headers.TryGetHeaderValue("dotmim-sync-serialization-format", out string vs))
+                serializationFormat = vs.ToLowerInvariant() == "json" ? SerializationFormat.Json : SerializationFormat.Binary;
+
+            // Check if we should handle a session store to handle configuration
+            if (!this.IsRegisterAsSingleton)
+            {
+                if (IsSessionEnabled(context))
+                    this.LocalProvider.CacheManager = new SessionCache(context);
+            }
+
+            try
+            {
+                var serializer = BaseConverter<HttpMessage>.GetConverter(serializationFormat);
+
+                var httpMessage = serializer.Deserialize(streamArray);
+
+                HttpMessage httpMessageResponse = null;
+                switch (httpMessage.Step)
+                {
+                    case HttpStep.BeginSession:
+                        // on first message, replace the Configuration with the server one !
+                        httpMessageResponse = await BeginSessionAsync(httpMessage);
+                        break;
+                    case HttpStep.EnsureScopes:
+                        httpMessageResponse = await EnsureScopesAsync(httpMessage);
+                        break;
+                    case HttpStep.EnsureConfiguration:
+                        httpMessageResponse = await EnsureSchemaAsync(httpMessage);
+                        break;
+                    case HttpStep.EnsureDatabase:
+                        httpMessageResponse = await EnsureDatabaseAsync(httpMessage);
+                        break;
+                    case HttpStep.GetChangeBatch:
+                        httpMessageResponse = await GetChangeBatchAsync(httpMessage);
+                        break;
+                    case HttpStep.ApplyChanges:
+                        httpMessageResponse = await ApplyChangesAsync(httpMessage);
+                        break;
+                    case HttpStep.GetLocalTimestamp:
+                        httpMessageResponse = await GetLocalTimestampAsync(httpMessage);
+                        break;
+                    case HttpStep.WriteScopes:
+                        httpMessageResponse = await WriteScopesAsync(httpMessage);
+                        break;
+                    case HttpStep.EndSession:
+                        httpMessageResponse = await EndSessionAsync(httpMessage);
+                        break;
+                }
+
+                var binaryData = serializer.Serialize(httpMessageResponse);
+                //await httpResponse.GetBody().WriteAsync(binaryData, 0, binaryData.Length);
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new ByteArrayContent(binaryData)
+                };
+
+            }
+            catch (Exception ex)
+            {
+                return await this.WriteExceptionAsync(ex);
+            }
+        }
+
+        /// <summary>
+        /// Write exception to output message
+        /// </summary>
+        public Task<HttpResponseMessage> WriteExceptionAsync(Exception ex)
+        {
+            var webx = WebSyncException.GetWebSyncException(ex);
+            var webXMessage = JsonConvert.SerializeObject(webx);
+
+            var response = new HttpResponseMessage(HttpStatusCode.BadRequest)
+            {
+                Content = new StringContent(webXMessage)
+            };
+
+            return Task.FromResult(response);
+        }
+
+#endif
 
 
         private async Task<HttpMessage> BeginSessionAsync(HttpMessage httpMessage)
@@ -570,25 +684,6 @@ namespace Dotmim.Sync.Web.Server
         //    return syncContext;
         //}
 
-        /// <summary>
-        /// Write exception to output message
-        /// </summary>
-        public async Task WriteExceptionAsync(HttpResponse httpResponse, Exception ex)
-        {
-            var webx = WebSyncException.GetWebSyncException(ex);
-            var webXMessage = JsonConvert.SerializeObject(webx);
-#if NETSTANDARD
-            httpResponse.StatusCode = StatusCodes.Status400BadRequest;
-            httpResponse.ContentLength = webXMessage.Length;
-            await httpResponse.WriteAsync(webXMessage);
-#else
-            httpResponse.StatusCode = (int)HttpStatusCode.BadRequest;
-            httpResponse.Headers.Add("Content-Length", webXMessage.Length.ToString());
-            httpResponse.Write(webx);
-#endif
-
-        }
-
         public async Task<(SyncContext, SyncConfiguration)> BeginSessionAsync(SyncContext ctx, MessageBeginSession message)
             => await this.LocalProvider.BeginSessionAsync(ctx, message);
         public async Task<(SyncContext, List<ScopeInfo>)> EnsureScopesAsync(SyncContext ctx, MessageEnsureScopes message)
@@ -615,40 +710,25 @@ namespace Dotmim.Sync.Web.Server
         }
 
 
-        private bool? _isSessionEnabled;
 #if NETSTANDARD
         public bool IsSessionEnabled(HttpContext context)
         {
-            // falls back to static _sessionExists, but caches value in object instance to allow for unittests to have no sideeffects
-            if (_isSessionEnabled == null)
-            {
-                // try to get the session store service from DI
-                var sessionStore = context.RequestServices.GetService(typeof(ISessionStore));
-
-                _isSessionEnabled = sessionStore != null;
-            }
-            return _isSessionEnabled.Value;
+            // try to get the session store service from DI
+            var sessionStore = context.RequestServices.GetService(typeof(ISessionStore));
+            return sessionStore != null;
         }
 #else
-        private static Lazy<bool> _sessionExists = new Lazy<bool>(() =>
+        public bool IsSessionEnabled(HttpContext context)
         {
             try
             {
-                // this throws if no session is enabled! see https://stackoverflow.com/questions/1336770/determine-if-asp-net-sessions-are-enabled?utm_medium=organic&utm_source=google_rich_qa&utm_campaign=google_rich_qa
-                return HttpContext.Current?.Session != null;
+                return context.Session != null;
             }
-            catch
+            // if httpcontextbase is called without any overload, it will throw a NotImplementedException
+            catch (NotImplementedException)
             {
                 return false;
             }
-        });
-
-        public bool IsSessionEnabled(HttpContext context)
-        {
-            // falls back to static _sessionExists, but caches value in object instance to allow for unittests to have no sideeffects
-            if (_isSessionEnabled == null)
-                _isSessionEnabled = _sessionExists.Value;
-            return _isSessionEnabled.Value;
         }
 #endif
     }
@@ -677,26 +757,16 @@ namespace Dotmim.Sync.Web.Server
             return r.Body;
         }
 #else
-        public static bool TryGetHeaderValue(this NameValueCollection n, string key, out string header)
+        public static bool TryGetHeaderValue(this HttpRequestHeaders n, string key, out string header)
         {
-            if (!n.AllKeys.Contains(key))
+            if (n.TryGetValues(key, out var vs))
             {
-                header = null;
-                return false;
+                header = vs.First();
+                return true;
             }
 
-            header = n.Get(key)?.Split(',').FirstOrDefault();
-            return header != null;
-
-        }
-
-        public static Stream GetBody(this HttpRequest r)
-        {
-            return r.InputStream;
-        }
-        public static Stream GetBody(this HttpResponse r)
-        {
-            return r.OutputStream;
+            header = null;
+            return false;
         }
 #endif
     }

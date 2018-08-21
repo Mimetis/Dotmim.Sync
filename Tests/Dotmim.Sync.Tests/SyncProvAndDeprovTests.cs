@@ -124,7 +124,7 @@ namespace Dotmim.Sync.Test
                 using (var cmd = new SqlCommand(commandText, sqlConnection))
                 {
                     int nb = (int)cmd.ExecuteScalar();
-                    Assert.Equal(2, nb); // "On purpose, the flag SyncProvision.All does not include the SyncProvision.Table, too dangerous..."
+                    Assert.Equal(0, nb); // "On purpose, the flag SyncProvision.All does not include the SyncProvision.Table, too dangerous..."
                 }
                 commandText = "Select count(*) from sys.procedures";
                 using (var cmd = new SqlCommand(commandText, sqlConnection))
