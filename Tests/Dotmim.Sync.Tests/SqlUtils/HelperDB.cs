@@ -1,11 +1,9 @@
 ﻿using Microsoft.Data.Sqlite;
 using MySql.Data.MySqlClient;
 using System;
-using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.IO;
-using System.Text;
 
 namespace Dotmim.Sync.Test.SqlUtils
 {
@@ -31,94 +29,85 @@ namespace Dotmim.Sync.Test.SqlUtils
         /// </summary>
         public void CreateDatabase(string dbName, bool recreateDb = true)
         {
-            SqlConnection masterConnection = null;
-            SqlCommand cmdDb = null;
-            masterConnection = new SqlConnection(GetDatabaseConnectionString("master"));
-
-            masterConnection.Open();
-            cmdDb = new SqlCommand(GetCreationDBScript(dbName, recreateDb), masterConnection);
-            cmdDb.ExecuteNonQuery();
-            masterConnection.Close();
+            using (var masterConnection = new SqlConnection(GetDatabaseConnectionString("master")))
+            {
+                masterConnection.Open();
+                var cmdDb = new SqlCommand(GetCreationDBScript(dbName, recreateDb), masterConnection);
+                cmdDb.ExecuteNonQuery();
+                masterConnection.Close();
+            }
         }
 
 
         public void CreateMySqlDatabase(string dbName)
         {
-            MySqlConnection sysConnection = null;
-            MySqlCommand cmdDb = null;
-            sysConnection = new MySqlConnection(HelperDB.GetMySqlDatabaseConnectionString("sys"));
-
-            sysConnection.Open();
-            cmdDb = new MySqlCommand($"Drop schema if exists  {dbName};", sysConnection);
-            cmdDb.ExecuteNonQuery();
-            cmdDb = new MySqlCommand($"create schema {dbName};", sysConnection);
-            cmdDb.ExecuteNonQuery();
-            sysConnection.Close();
-
+            using (var sysConnection = new MySqlConnection(HelperDB.GetMySqlDatabaseConnectionString("sys")))
+            {
+                sysConnection.Open();
+                var cmdDb = new MySqlCommand($"Drop schema if exists  {dbName};", sysConnection);
+                cmdDb.ExecuteNonQuery();
+                cmdDb = new MySqlCommand($"create schema {dbName};", sysConnection);
+                cmdDb.ExecuteNonQuery();
+                sysConnection.Close();
+            }
         }
 
         public void DropMySqlDatabase(string dbName)
         {
-            MySqlConnection sysConnection = null;
-            MySqlCommand cmdDb = null;
-            sysConnection = new MySqlConnection(HelperDB.GetMySqlDatabaseConnectionString("sys"));
-
-            sysConnection.Open();
-            cmdDb = new MySqlCommand($"drop database if exists {dbName};", sysConnection);
-            cmdDb.ExecuteNonQuery();
-            sysConnection.Close();
-
+            using (var sysConnection = new MySqlConnection(HelperDB.GetMySqlDatabaseConnectionString("sys")))
+            {
+                sysConnection.Open();
+                var cmdDb = new MySqlCommand($"drop database if exists {dbName};", sysConnection);
+                cmdDb.ExecuteNonQuery();
+                sysConnection.Close();
+            }
         }
 
 
         public void ExecuteMySqlScript(string dbName, string script)
         {
-            MySqlConnection connection = null;
-            MySqlCommand cmdDb = null;
-            connection = new MySqlConnection(GetMySqlDatabaseConnectionString(dbName));
-
-            connection.Open();
-            cmdDb = new MySqlCommand(script, connection);
-            cmdDb.ExecuteNonQuery();
-            connection.Close();
+            using (var connection = new MySqlConnection(GetMySqlDatabaseConnectionString(dbName)))
+            {
+                connection.Open();
+                var cmdDb = new MySqlCommand(script, connection);
+                cmdDb.ExecuteNonQuery();
+                connection.Close();
+            }
         }
         /// <summary>
         /// Delete a database
         /// </summary>
         public void DeleteDatabase(string dbName)
         {
-            SqlConnection masterConnection = null;
-            SqlCommand cmdDb = null;
-            masterConnection = new SqlConnection(GetDatabaseConnectionString("master"));
-
-            masterConnection.Open();
-            cmdDb = new SqlCommand(GetDeleteDatabaseScript(dbName), masterConnection);
-            cmdDb.ExecuteNonQuery();
-            masterConnection.Close();
+            using (var masterConnection = new SqlConnection(GetDatabaseConnectionString("master")))
+            {
+                masterConnection.Open();
+                var cmdDb = new SqlCommand(GetDeleteDatabaseScript(dbName), masterConnection);
+                cmdDb.ExecuteNonQuery();
+                masterConnection.Close();
+            }
         }
 
         public void ExecuteScript(string dbName, string script)
         {
-            SqlConnection connection = null;
-            SqlCommand cmdDb = null;
-            connection = new SqlConnection(GetDatabaseConnectionString(dbName));
-
-            connection.Open();
-            cmdDb = new SqlCommand(script, connection);
-            cmdDb.ExecuteNonQuery();
-            connection.Close();
+            using (var connection = new SqlConnection(GetDatabaseConnectionString(dbName)))
+            {
+                connection.Open();
+                var cmdDb = new SqlCommand(script, connection);
+                cmdDb.ExecuteNonQuery();
+                connection.Close();
+            }
         }
 
         public void ExecuteSqliteScript(string dbName, string script)
         {
-            SqliteConnection connection = null;
-            SqliteCommand cmdDb = null;
-            connection = new SqliteConnection(dbName);
-
-            connection.Open();
-            cmdDb = new SqliteCommand(script, connection);
-            cmdDb.ExecuteNonQuery();
-            connection.Close();
+            using (var connection = new SqliteConnection(dbName))
+            {
+                connection.Open();
+                var cmdDb = new SqliteCommand(script, connection);
+                cmdDb.ExecuteNonQuery();
+                connection.Close();
+            }
         }
 
 

@@ -60,8 +60,8 @@ namespace Dotmim.Sync
                                 builder.DropTriggers(connection, transaction);
 
                             // On purpose, the flag SyncProvision.All does not include the SyncProvision.Table, too dangerous...
-                            //if (provision.HasFlag(SyncProvision.Table))
-                            //    builder.DropTable(connection, transaction);
+                            if (provision.HasFlag(SyncProvision.Table))
+                                builder.DropTable(connection, transaction);
                         }
 
                         if (provision.HasFlag(SyncProvision.Scope) || provision.HasFlag(SyncProvision.All))
