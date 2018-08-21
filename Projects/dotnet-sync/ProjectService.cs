@@ -4,7 +4,7 @@ using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.MySql;
 using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
-using Dotmim.Sync.Web;
+using Dotmim.Sync.Web.Client;
 using System;
 using System.Collections.Generic;
 using System.Linq;

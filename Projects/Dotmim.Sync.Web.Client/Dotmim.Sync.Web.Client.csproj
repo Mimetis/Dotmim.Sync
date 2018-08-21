@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <Version>0.2.1</Version>
+    <Authors>Sébastien Pertus</Authors>
+    <Company>Microsoft</Company>
+    <Title>Dotmim.Sync.Web.Client</Title>
+    <Description>Proxy to be able to Sync through an ASP.NET CORE application. 
+Can't work without a Server provider, you have to choose an existing one to be able to work with the Proxy</Description>
+    <PackageProjectUrl>https://mimetis.github.io/Dotmim.Sync/</PackageProjectUrl>
+    <PackageTags>Dotmim.Sync, ASP.NET Core, ASP.NET Core Web Sync Proxy, .Net Standard 2.0, Sync, Synchronization, Sync Framework</PackageTags>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Net.Http.Headers" Version="2.1.1" />
+  </ItemGroup>
+</Project>

@@ -2,7 +2,7 @@
 using System.Web.Http;
 using System.Web.Http.Dispatcher;
 using Dotmim.Sync.SqlServer;
-using Dotmim.Sync.Web;
+using Dotmim.Sync.Web.Server;
 using Microsoft.Extensions.DependencyInjection;
 using UWPSyncSampleWebServer.Controllers;
 

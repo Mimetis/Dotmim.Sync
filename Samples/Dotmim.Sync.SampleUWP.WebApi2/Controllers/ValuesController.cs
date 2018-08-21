@@ -1,7 +1,7 @@
 ﻿using System.Threading.Tasks;
 using System.Web;
 using System.Web.Http;
-using Dotmim.Sync.Web;
+using Dotmim.Sync.Web.Server;
 
 namespace UWPSyncSampleWebServer.Controllers
 {

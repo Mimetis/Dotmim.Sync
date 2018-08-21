@@ -59,7 +59,6 @@ namespace Dotmim.Sync.Test.MySql
 	            [CXml] [xml] NULL,
                 CONSTRAINT [PK_AllColumns] PRIMARY KEY CLUSTERED ( [ClientID] ASC))                
             end;";
-
         private string datas =
         $@"
             INSERT INTO [dbo].[AllColumns]
@@ -194,9 +193,9 @@ namespace Dotmim.Sync.Test.MySql
                     ,'<root><client name=''Doe''>inner Doe client</client></root>')
         ";
 
-        private HelperDB helperDb = new HelperDB();
-        private string serverDbName = "Test_AllColumns_MySql";
-        private string client1DbName = "testallcolumnsmysql";
+        protected HelperDB helperDb = new HelperDB();
+        protected string serverDbName = "Test_AllColumns_MySql";
+        protected string client1DbName = "testallcolumnsmysql";
 
         public String ServerConnectionString => HelperDB.GetDatabaseConnectionString(serverDbName);
         public String ClientMySqlConnectionString => HelperDB.GetMySqlDatabaseConnectionString(client1DbName);
@@ -210,9 +209,14 @@ namespace Dotmim.Sync.Test.MySql
             // create table
             helperDb.ExecuteScript(serverDbName, createTableScript);
 
+        }
+
+        public void InsertTestData()
+        {
             // insert table
             helperDb.ExecuteScript(serverDbName, datas);
         }
+
         public void Dispose()
         {
             helperDb.DeleteDatabase(serverDbName);
@@ -220,6 +224,7 @@ namespace Dotmim.Sync.Test.MySql
         }
 
     }
+
 
     [TestCaseOrderer("Dotmim.Sync.Tests.Misc.PriorityOrderer", "Dotmim.Sync.Tests")]
     public class MySqlAllColumnsTests : IClassFixture<MySqlAllColumnsFixture>
@@ -250,8 +255,14 @@ namespace Dotmim.Sync.Test.MySql
         [Fact, TestPriority(1)]
         public async Task InitializeAndSync()
         {
-            var session = await agent.SynchronizeAsync();
+            // Arrange
+            // insert 10 test rows
+            this.fixture.InsertTestData();
 
+            // Act
+            var session = await agent.SynchronizeAsync();
+            
+            // Assert
             Assert.Equal(10, session.TotalChangesDownloaded);
             Assert.Equal(0, session.TotalChangesUploaded);
 
@@ -376,7 +387,6 @@ namespace Dotmim.Sync.Test.MySql
         [Fact, TestPriority(3)]
         public async Task OneRowFromServer()
         {
-
             var clientId = InsertARow(fixture.ServerConnectionString);
 
             var session = await agent.SynchronizeAsync();

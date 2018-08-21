@@ -11,6 +11,7 @@ using Dotmim.Sync.Serialization;
 using Dotmim.Sync.Data.Surrogate;
 using Dotmim.Sync.Data;
 using Dotmim.Sync.Messages;
+using Dotmim.Sync.Web.Client;
 using Newtonsoft.Json.Linq;
 #if NETSTANDARD
 using Microsoft.AspNetCore.Http;
@@ -22,7 +23,7 @@ using System.Net;
 using System.Web;
 #endif
 
-namespace Dotmim.Sync.Web
+namespace Dotmim.Sync.Web.Server
 {
 
     /// <summary>
