@@ -15,7 +15,7 @@ namespace Dotmim.Sync.Test.SqlUtils
         /// </summary>
         /// <param name="dbName"></param>
         /// <returns></returns>
-        public static String GetDatabaseConnectionString(string dbName) => $@"Server=(localdb)\SQL2016;Database={dbName};UID=sa;PWD=Password12!";
+        public static String GetDatabaseConnectionString(string dbName) => $@"Server=(local)\SQL2016;Database={dbName};UID=sa;PWD=Password12!";
         /// <summary>
         /// Returns the database server to be used in the untittests - note that this is the connection to appveyor MySQL 5.7 x64 instance!
         /// see: https://www.appveyor.com/docs/services-databases/#mysql
