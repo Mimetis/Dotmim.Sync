@@ -142,7 +142,12 @@ namespace Dotmim.Sync.Test
         [Fact, TestPriority(1)]
         public async Task BadServerConnection()
         {
-            SqlSyncProvider serverProvider = new SqlSyncProvider(@"Data Source=(localdb)\MSSQLLocalDB; Initial Catalog=WrongDB; Integrated Security=true;");
+            var connString =
+                System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform
+                    .Windows)
+                    ? @"Data Source=(localdb)\MSSQLLocalDB; Initial Catalog=WrongDB; Integrated Security=true;"
+                    : @"Data Source=localhost; Database=WrongDB; User=sa; Password=QWE123qwe";
+            SqlSyncProvider serverProvider = new SqlSyncProvider(connString);
             SqlSyncProvider clientProvider = new SqlSyncProvider(fixture.Client1ConnectionString);
 
             SyncAgent agent = new SyncAgent(clientProvider, serverProvider, new string[] { "ServiceTickets" });

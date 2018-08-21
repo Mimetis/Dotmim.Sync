@@ -110,9 +110,9 @@
       <Project>{6F38701F-1DC0-4E80-BA56-29BF5A37B768}</Project>
       <Name>Dotmim.Sync.SqlServer</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\Projects\Dotmim.Sync.Web\Dotmim.Sync.Web.csproj">
-      <Project>{9ca146e6-110c-4657-920f-0affbd35a5ad}</Project>
-      <Name>Dotmim.Sync.Web</Name>
+    <ProjectReference Include="..\..\Projects\Dotmim.Sync.Web.Server\Dotmim.Sync.Web.Server.csproj">
+      <Project>{48dbc5c6-b339-411c-870e-76f2489120c1}</Project>
+      <Name>Dotmim.Sync.Web.Server</Name>
     </ProjectReference>
   </ItemGroup>
   <PropertyGroup>

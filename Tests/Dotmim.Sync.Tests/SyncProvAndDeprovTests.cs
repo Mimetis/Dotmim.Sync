@@ -114,7 +114,7 @@ namespace Dotmim.Sync.Test
             Assert.Equal(7, session.TotalChangesDownloaded);
             Assert.Equal(0, session.TotalChangesUploaded);
 
-            await clientProvider.DeprovisionAsync(agent.Configuration, SyncProvision.All);
+            await clientProvider.DeprovisionAsync(agent.Configuration, SyncProvision.All | SyncProvision.Table);
 
             using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
             {
@@ -124,7 +124,7 @@ namespace Dotmim.Sync.Test
                 using (var cmd = new SqlCommand(commandText, sqlConnection))
                 {
                     int nb = (int)cmd.ExecuteScalar();
-                    Assert.Equal(0, nb);
+                    Assert.Equal(2, nb); // "On purpose, the flag SyncProvision.All does not include the SyncProvision.Table, too dangerous..."
                 }
                 commandText = "Select count(*) from sys.procedures";
                 using (var cmd = new SqlCommand(commandText, sqlConnection))

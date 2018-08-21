@@ -11,7 +11,10 @@ namespace Dotmim.Sync.Test
     public class SqlBuilderTableTest : IDisposable
     {
 
-        string connectionString = "Data Source=(localdb)\\MSSQLLocalDB; Initial Catalog={0}; Integrated Security=true;";
+        string connectionString =
+            System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows)?
+            "Data Source=(localdb)\\MSSQLLocalDB; Initial Catalog={0}; Integrated Security=true;" :
+            "Data Source=localhost; Database={0}; User=sa; Password=QWE123qwe";
         string databaseName;
         string masterConnectionString;
         string clientConnectionString;

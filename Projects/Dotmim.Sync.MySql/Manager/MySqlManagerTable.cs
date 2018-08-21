@@ -42,7 +42,7 @@ namespace Dotmim.Sync.MySql
             var dmColumnsList = MySqlManagementUtils.ColumnsForTable(sqlConnection, sqlTransaction, this.tableName);
             var mySqlDbMetadata = new MySqlDbMetadata();
 
-            foreach (var c in dmColumnsList.Rows.OrderBy(r => (UInt64)r["ordinal_position"]))
+            foreach (var c in dmColumnsList.Rows.OrderBy(r => Convert.ToUInt64(r["ordinal_position"])))
             {
                 var typeName = c["data_type"].ToString();
                 var name = c["column_name"].ToString();
