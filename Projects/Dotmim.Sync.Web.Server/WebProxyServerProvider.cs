@@ -338,6 +338,9 @@ namespace Dotmim.Sync.Web.Server
             if (httpMessageContent == null)
                 throw new ArgumentException("EnsureSchema message could not be null");
 
+            if (this.Configuration == null)
+                throw new InvalidOperationException("No sync configuration was provided. Make sure you create a SyncConfiguration object and pass it to the WebProxyServerProvider!");
+
             // If the Conf is hosted by the server, we try to get the tables from it, overriding the client schema, if passed
             DmSet schema = null;
             if (this.Configuration.Schema != null)
