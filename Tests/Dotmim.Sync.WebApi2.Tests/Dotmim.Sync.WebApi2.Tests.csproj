@@ -3,6 +3,7 @@
   <PropertyGroup>
     <TargetFramework>net462</TargetFramework>
     <IsPackable>false</IsPackable>
+    <RootNamespace>Dotmim.Sync.Tests</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System.Web" />
