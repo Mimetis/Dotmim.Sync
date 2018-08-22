@@ -26,6 +26,8 @@ namespace Dotmim.Sync
         private string _trackingTablesPrefix;
         private string _storedProceduresSuffix;
         private string _storedProceduresPrefix;
+        private string _triggersSuffix;
+        private string _triggersPrefix;
 
         /// <summary>
         /// Gets or Sets the default conflict resolution policy.
@@ -147,6 +149,56 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
+        /// Specify a prefix for naming stored procedure. Default is empty string
+        /// </summary>
+        [DataMember(Name = "TP")]
+        public String TriggersPrefix
+        {
+            get => _triggersPrefix;
+            set
+            {
+                if (_triggersPrefix != value)
+                {
+                    _triggersPrefix = value;
+
+                    if (this.Schema != null || this.Schema.Tables != null)
+                    {
+                        foreach (var tbl in this.Schema.Tables)
+                        {
+                            tbl.TriggersPrefix= _triggersPrefix;
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Specify a suffix for naming stored procedures. Default is empty string
+        /// </summary>
+        [DataMember(Name = "TS")]
+        public String TriggersSuffix
+        {
+            get => _triggersSuffix;
+            set
+            {
+                if (_triggersSuffix != value)
+                {
+                    _triggersSuffix = value;
+
+                    if (this.Schema != null || this.Schema.Tables != null)
+                    {
+                        foreach (var tbl in this.Schema.Tables)
+                        {
+                            tbl.TriggersSuffix = _triggersSuffix;
+                        }
+                    }
+                }
+            }
+        }
+
+
+
+        /// <summary>
         /// Specify a prefix for naming tracking tables. Default is empty string
         /// </summary>
         [DataMember(Name = "TTP")]
@@ -253,6 +305,8 @@ namespace Dotmim.Sync
                 TrackingTablesPrefix = this.TrackingTablesPrefix,
                 StoredProceduresPrefix = this.StoredProceduresPrefix,
                 StoredProceduresSuffix = this.StoredProceduresSuffix,
+                TriggersPrefix = this.TriggersPrefix,
+                TriggersSuffix = this.TriggersSuffix,
                 ScopeInfoTableName = this.ScopeInfoTableName,
                 ScopeName = this.ScopeName
             };

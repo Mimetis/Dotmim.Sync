@@ -73,6 +73,15 @@ namespace Dotmim.Sync.Data.Surrogate
         /// Specify a suffix for naming stored procedures. Default is empty string
         /// </summary>
         public String StoredProceduresSuffix { get; set; }
+        /// <summary>
+        /// Specify a prefix for naming stored procedure. Default is empty string
+        /// </summary>
+        public String TriggersPrefix { get; set; }
+
+        /// <summary>
+        /// Specify a suffix for naming stored procedures. Default is empty string
+        /// </summary>
+        public String TriggersSuffix { get; set; }
 
         /// <summary>
         /// Specify a prefix for naming tracking tables. Default is empty string
@@ -126,6 +135,8 @@ namespace Dotmim.Sync.Data.Surrogate
             this.TrackingTablesSuffix = dt.TrackingTablesSuffix;
             this.StoredProceduresPrefix = dt.StoredProceduresPrefix;
             this.StoredProceduresSuffix = dt.StoredProceduresSuffix;
+            this.TriggersPrefix = dt.TriggersPrefix;
+            this.TriggersSuffix = dt.TriggersSuffix;
 
             for (int i = 0; i < dt.Columns.Count; i++)
                 this.Columns.Add(new DmColumnSurrogate(dt.Columns[i]));

@@ -11,9 +11,9 @@ namespace Dotmim.Sync.Sqlite
     {
         public const string TimestampValue = "replace(strftime('%Y%m%d%H%M%f', 'now'), '.', '')";
 
-        internal const string insertTriggerName = "[{0}_insert_trigger]";
-        internal const string updateTriggerName = "[{0}_update_trigger]";
-        internal const string deleteTriggerName = "[{0}_delete_trigger]";
+        internal const string insertTriggerName = "[{0}_insert]";
+        internal const string updateTriggerName = "[{0}_update]";
+        internal const string deleteTriggerName = "[{0}_delete]";
 
         private Dictionary<DbCommandType, String> names = new Dictionary<DbCommandType, string>();
         private ObjectNameParser tableName, trackingName;
@@ -49,9 +49,12 @@ namespace Dotmim.Sync.Sqlite
         /// </summary>
         private void SetDefaultNames()
         {
-            this.AddName(DbCommandType.InsertTrigger, string.Format(insertTriggerName, tableName.ObjectNameNormalized));
-            this.AddName(DbCommandType.UpdateTrigger, string.Format(updateTriggerName, tableName.ObjectNameNormalized));
-            this.AddName(DbCommandType.DeleteTrigger, string.Format(deleteTriggerName, tableName.ObjectNameNormalized));
+            var tpref = this.TableDescription.TriggersPrefix;
+            var tsuf = this.TableDescription.TriggersSuffix;
+
+            this.AddName(DbCommandType.InsertTrigger, string.Format(insertTriggerName, $"{tpref}{tableName.ObjectNameNormalized}{tsuf}"));
+            this.AddName(DbCommandType.UpdateTrigger, string.Format(updateTriggerName, $"{tpref}{tableName.ObjectNameNormalized}{tsuf}"));
+            this.AddName(DbCommandType.DeleteTrigger, string.Format(deleteTriggerName, $"{tpref}{tableName.ObjectNameNormalized}{tsuf}"));
 
             // Select changes
             this.CreateSelectChangesCommandText();
