@@ -250,6 +250,8 @@ namespace Dotmim.Sync.Test
             agent.Configuration.StoredProceduresSuffix = "_sync";
             agent.Configuration.TrackingTablesPrefix = "sync_";
             agent.Configuration.TrackingTablesSuffix = "_tr";
+            agent.Configuration.TriggersPrefix = "t";
+            agent.Configuration.TriggersSuffix = "t";
 
         }
 
@@ -934,6 +936,8 @@ namespace Dotmim.Sync.Test
             agent.Configuration.StoredProceduresSuffix = "_sync";
             agent.Configuration.TrackingTablesPrefix = "sync_";
             agent.Configuration.TrackingTablesSuffix = "_tr";
+            agent.Configuration.TriggersPrefix = "T";
+            agent.Configuration.TriggersSuffix = "T";
 
         }
 

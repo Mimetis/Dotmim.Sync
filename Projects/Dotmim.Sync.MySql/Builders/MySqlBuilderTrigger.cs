@@ -45,7 +45,7 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine("\t,`update_scope_id` = NULL -- since the update if from local, it's a NULL");
             stringBuilder.AppendLine($"\t,`update_timestamp` = {MySqlObjectNames.TimestampValue}");
             stringBuilder.AppendLine($"\t,`timestamp` = {MySqlObjectNames.TimestampValue}");
-            stringBuilder.AppendLine("\t,`last_change_datetime` = now()");
+            stringBuilder.AppendLine("\t,`last_change_datetime` = utc_timestamp()");
 
             // Filter columns
             if (this.Filters != null)
@@ -194,7 +194,7 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine("\t\t,0");
             stringBuilder.AppendLine($"\t\t,{MySqlObjectNames.TimestampValue}");
             stringBuilder.AppendLine("\t\t,0");
-            stringBuilder.AppendLine("\t\t,now()");
+            stringBuilder.AppendLine("\t\t,utc_timestamp()");
 
             if (Filters != null && Filters.Count > 0)
                 stringBuilder.AppendLine(filterColumnsString.ToString());
@@ -208,7 +208,7 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine("\t`update_timestamp` = NULL, ");
             stringBuilder.AppendLine("\t`sync_row_is_tombstone` = 0, ");
             stringBuilder.AppendLine($"\t`timestamp` = {MySqlObjectNames.TimestampValue}, ");
-            stringBuilder.AppendLine("\t`last_change_datetime` = now()");
+            stringBuilder.AppendLine("\t`last_change_datetime` = utc_timestamp()");
 
             if (Filters != null && Filters.Count > 0)
                 stringBuilder.AppendLine(filterColumnsString.ToString());
@@ -288,7 +288,7 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine("\tSET `update_scope_id` = NULL -- since the update if from local, it's a NULL");
             stringBuilder.AppendLine($"\t\t,`update_timestamp` = {MySqlObjectNames.TimestampValue}");
             stringBuilder.AppendLine($"\t\t,`timestamp` = {MySqlObjectNames.TimestampValue}");
-            stringBuilder.AppendLine("\t\t,`last_change_datetime` = now()");
+            stringBuilder.AppendLine("\t\t,`last_change_datetime` = utc_timestamp()");
 
             if (this.Filters != null && Filters.Count > 0)
             {
