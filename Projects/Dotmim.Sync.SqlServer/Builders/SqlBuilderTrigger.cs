@@ -45,7 +45,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("SET \t[sync_row_is_tombstone] = 1");
             stringBuilder.AppendLine("\t,[update_scope_id] = NULL -- since the update if from local, it's a NULL");
             stringBuilder.AppendLine("\t,[update_timestamp] = @@DBTS+1");
-            stringBuilder.AppendLine("\t,[last_change_datetime] = GetDate()");
+            stringBuilder.AppendLine("\t,[last_change_datetime] = GetUtcDate()");
             // Filter columns
             if (this.Filters != null && Filters.Count > 0)
             {
@@ -228,7 +228,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("UPDATE [side] ");
             stringBuilder.AppendLine("SET \t[sync_row_is_tombstone] = 0");
             stringBuilder.AppendLine("\t,[update_scope_id] = NULL -- since the update if from local, it's a NULL");
-            stringBuilder.AppendLine("\t,[last_change_datetime] = GetDate()");
+            stringBuilder.AppendLine("\t,[last_change_datetime] = GetUtcDate()");
             // Filter columns
             if (this.Filters != null && Filters.Count > 0)
             {
@@ -306,7 +306,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("\t,NULL");
             stringBuilder.AppendLine("\t,0");
             stringBuilder.AppendLine("\t,0");
-            stringBuilder.AppendLine("\t,GetDate()");
+            stringBuilder.AppendLine("\t,GetUtcDate()");
 
             if (Filters != null)
                 stringBuilder.AppendLine(filterColumnsString.ToString());
@@ -468,7 +468,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("UPDATE [side] ");
             stringBuilder.AppendLine("SET \t[update_scope_id] = NULL -- since the update if from local, it's a NULL");
             stringBuilder.AppendLine("\t,[update_timestamp] = @@DBTS+1");
-            stringBuilder.AppendLine("\t,[last_change_datetime] = GetDate()");
+            stringBuilder.AppendLine("\t,[last_change_datetime] = GetUtcDate()");
             // Filter columns
             if (this.Filters != null && Filters.Count > 0)
             {

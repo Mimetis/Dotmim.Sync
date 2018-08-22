@@ -8,9 +8,9 @@ namespace Dotmim.Sync.SqlServer.Builders
 {
     public class SqlObjectNames
     {
-        internal const string insertTriggerName = "[{0}].[{1}_insert_trigger]";
-        internal const string updateTriggerName = "[{0}].[{1}_update_trigger]";
-        internal const string deleteTriggerName = "[{0}].[{1}_delete_trigger]";
+        internal const string insertTriggerName = "[{0}].[{1}_insert]";
+        internal const string updateTriggerName = "[{0}].[{1}_update]";
+        internal const string deleteTriggerName = "[{0}].[{1}_delete]";
 
         internal const string selectChangesProcName = "[{0}].[{1}_selectchanges]";
         internal const string selectChangesProcNameWithFilters = "[{0}].[{1}_{2}_selectchanges]";
@@ -81,6 +81,8 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             var pref = this.TableDescription.StoredProceduresPrefix;
             var suf = this.TableDescription.StoredProceduresSuffix;
+            var tpref = this.TableDescription.TriggersPrefix;
+            var tsuf = this.TableDescription.TriggersSuffix;
 
             var schema = string.IsNullOrEmpty(tableName.SchemaName) ? "dbo" : tableName.SchemaName;
 
@@ -95,9 +97,9 @@ namespace Dotmim.Sync.SqlServer.Builders
             this.AddName(DbCommandType.DeleteMetadata, string.Format(deleteMetadataProcName, schema, $"{pref}{tableName.ObjectNameNormalized}{suf}"));
             this.AddName(DbCommandType.Reset, string.Format(resetMetadataProcName, schema, $"{pref}{tableName.ObjectNameNormalized}{suf}"));
 
-            this.AddName(DbCommandType.InsertTrigger, string.Format(insertTriggerName, schema, $"{tableName.ObjectNameNormalized}"));
-            this.AddName(DbCommandType.UpdateTrigger, string.Format(updateTriggerName, schema, $"{tableName.ObjectNameNormalized}"));
-            this.AddName(DbCommandType.DeleteTrigger, string.Format(deleteTriggerName, schema, $"{tableName.ObjectNameNormalized}"));
+            this.AddName(DbCommandType.InsertTrigger, string.Format(insertTriggerName, schema, $"{tpref}{tableName.ObjectNameNormalized}{tsuf}"));
+            this.AddName(DbCommandType.UpdateTrigger, string.Format(updateTriggerName, schema, $"{tpref}{tableName.ObjectNameNormalized}{tsuf}"));
+            this.AddName(DbCommandType.DeleteTrigger, string.Format(deleteTriggerName, schema, $"{tpref}{tableName.ObjectNameNormalized}{tsuf}"));
 
             this.AddName(DbCommandType.BulkTableType, string.Format(bulkTableTypeName, schema, $"{pref}{tableName.ObjectNameNormalized}{suf}"));
 

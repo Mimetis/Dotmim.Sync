@@ -104,6 +104,16 @@ namespace Dotmim.Sync.Data
         public String StoredProceduresPrefix { get; set; }
 
         /// <summary>
+        /// Specify a suffix for naming triggers. Default is empty string
+        /// </summary>
+        public String TriggersSuffix { get; set; }
+
+        /// <summary>
+        /// Specify a prefix for triggers. Default is empty string
+        /// </summary>
+        public String TriggersPrefix { get; set; }
+
+        /// <summary>
         /// Specify a suffix for naming stored procedures. Default is empty string
         /// </summary>
         public String StoredProceduresSuffix { get; set; }
@@ -403,6 +413,8 @@ namespace Dotmim.Sync.Data
             clone.TrackingTablesSuffix = TrackingTablesSuffix;
             clone.StoredProceduresPrefix = StoredProceduresPrefix;
             clone.StoredProceduresSuffix = StoredProceduresSuffix;
+            clone.TriggersPrefix = TriggersPrefix;
+            clone.TriggersSuffix = TriggersSuffix;
 
             // add all columns
             var clmns = this.Columns;
