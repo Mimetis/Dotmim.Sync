@@ -121,25 +121,6 @@ namespace Dotmim.Sync.Tests
             helperDb.ExecuteScript(ServerDbName, createTableScript);
             // insert table
             helperDb.ExecuteScript(ServerDbName, datas);
-
-            //webApp = WebApp.Start(BaseAddress.OriginalString, (appBuilder) =>
-            //{
-            //    // Configure Web API for self-host. 
-            //    HttpConfiguration config = new HttpConfiguration();
-            //    config.Routes.MapHttpRoute(
-            //        name: "DefaultApi",
-            //        routeTemplate: "api/{controller}/{actionid}/{id}",
-            //        defaults: new { actionid = RouteParameter.Optional, id = RouteParameter.Optional }
-            //    );
-            //    config.Services.Replace(typeof(IHttpControllerActivator), new TestControllerActivator(
-            //        () =>
-            //        {
-            //            proxyServerProvider.Configuration = configurationProvider();
-            //            return proxyServerProvider;
-            //        }));
-            //    appBuilder.UseWebApi(config);
-            //});
-
         }
 
         public void Dispose()
@@ -153,7 +134,6 @@ namespace Dotmim.Sync.Tests
                 File.Delete(this.ClientSqliteFilePath);
 
         }
-
     }
 
     public class TestControllerActivator : IHttpControllerActivator
@@ -301,8 +281,8 @@ namespace Dotmim.Sync.Tests
         {
             conf.Add(fixture.Tables);
             configurationProvider = () => conf;
-
-            //await clientProvider.ProvisionAsync(conf, SyncProvision.Table);
+            // provision client infrastructure - otherwise this test will fail when run separately, because the sqlite db table won't yet exist
+            await agent.SynchronizeAsync();
 
             Guid newId = Guid.NewGuid();
 
@@ -339,6 +319,8 @@ namespace Dotmim.Sync.Tests
         {
             conf.Add(fixture.Tables);
             configurationProvider = () => conf;
+            // provision client infrastructure - otherwise this test will fail when run separately, because the sqlite db table won't yet exist
+            await agent.SynchronizeAsync();
 
             Guid newId = Guid.NewGuid();
 
@@ -453,6 +435,8 @@ namespace Dotmim.Sync.Tests
         {
             conf.Add(fixture.Tables);
             configurationProvider = () => conf;
+            // provision client infrastructure - otherwise this test will fail when run separately, because the sqlite db table won't yet exist
+            await agent.SynchronizeAsync();
 
             long count;
             var selectcount = $@"Select count(*) From [ServiceTickets]";
@@ -491,6 +475,8 @@ namespace Dotmim.Sync.Tests
         {
             conf.Add(fixture.Tables);
             configurationProvider = () => conf;
+            // provision client infrastructure - otherwise this test will fail when run separately, because the sqlite db table won't yet exist
+            await agent.SynchronizeAsync();
 
             Guid insertConflictId = Guid.NewGuid();
 
@@ -559,6 +545,8 @@ namespace Dotmim.Sync.Tests
         {
             conf.Add(fixture.Tables);
             configurationProvider = () => conf;
+            // provision client infrastructure - otherwise this test will fail when run separately, because the sqlite db table won't yet exist
+            await agent.SynchronizeAsync();
 
             Guid updateConflictId = Guid.NewGuid();
             using (var sqlConnection = new SqliteConnection(fixture.ClientSqliteConnectionString))
@@ -647,6 +635,8 @@ namespace Dotmim.Sync.Tests
         {
             conf.Add(fixture.Tables);
             configurationProvider = () => conf;
+            // provision client infrastructure - otherwise this test will fail when run separately, because the sqlite db table won't yet exist
+            await agent.SynchronizeAsync();
 
             var id = Guid.NewGuid().ToString();
 
@@ -747,6 +737,8 @@ namespace Dotmim.Sync.Tests
             conf.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
             conf.Add(fixture.Tables);
             configurationProvider = () => conf;
+            // provision client infrastructure - otherwise this test will fail when run separately, because the sqlite db table won't yet exist
+            await agent.SynchronizeAsync();
 
             Guid id = Guid.NewGuid();
 
