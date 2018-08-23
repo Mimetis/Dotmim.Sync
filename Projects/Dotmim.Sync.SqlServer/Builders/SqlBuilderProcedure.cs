@@ -1784,9 +1784,13 @@ namespace Dotmim.Sync.SqlServer.Builders
             {
                 StringBuilder builderFilter = new StringBuilder();
                 builderFilter.Append("\t(");
-                string filterSeparationString = "";
+                bool isFirst = true;
                 foreach (var c in columnFilters)
                 {
+                    if (!isFirst)
+                        builderFilter.Append(" AND ");
+                    isFirst = false;
+
                     var columnFilter = this.tableDescription.Columns[c.ColumnName];
 
                     if (columnFilter == null)
@@ -1794,22 +1798,25 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                     var columnFilterName = new ObjectNameParser(columnFilter.ColumnName, "[", "]");
 
-                    builderFilter.Append($"[side].{columnFilterName.QuotedObjectName} = @{columnFilterName.FullUnquotedString}{filterSeparationString}");
-                    filterSeparationString = " AND ";
+                    builderFilter.Append($"[side].{columnFilterName.QuotedObjectName} = @{columnFilterName.FullUnquotedString}");
                 }
                 builderFilter.AppendLine(")");
                 builderFilter.Append("\tOR (");
                 builderFilter.AppendLine("([side].[update_scope_id] = @sync_scope_id or [side].[update_scope_id] IS NULL)");
                 builderFilter.Append("\t\tAND (");
+                
+                isFirst = true;
 
-                filterSeparationString = "";
                 foreach (var c in columnFilters)
                 {
+                    if (!isFirst)
+                        builderFilter.Append(" OR ");
+                    isFirst = false;
+
                     var columnFilter = this.tableDescription.Columns[c.ColumnName];
                     var columnFilterName = new ObjectNameParser(columnFilter.ColumnName, "[", "]");
 
-                    builderFilter.Append($"[side].{columnFilterName.QuotedObjectName} IS NULL{filterSeparationString}");
-                    filterSeparationString = " OR ";
+                    builderFilter.Append($"[side].{columnFilterName.QuotedObjectName} IS NULL");
                 }
 
                 builderFilter.AppendLine("))");
