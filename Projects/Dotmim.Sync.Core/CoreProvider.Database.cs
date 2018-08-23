@@ -256,10 +256,10 @@ namespace Dotmim.Sync
                 {
                     var columnFilter = dmTable.Columns[filter.ColumnName];
 
-                    if (columnFilter == null)
+                    if (columnFilter == null && !filter.IsVirtual)
                         throw new InvalidExpressionException($"Column {filter.ColumnName} does not exist in Table {dmTable.TableName}");
 
-                    builder.FilterColumns.Add(new FilterClause(filter.TableName, filter.ColumnName));
+                    builder.FilterColumns.Add(new FilterClause(filter.TableName, filter.ColumnName, filter.Type));
                 }
             }
 
