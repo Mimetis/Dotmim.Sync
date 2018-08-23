@@ -11,9 +11,9 @@ namespace Dotmim.Sync.MySql
     {
         public const string TimestampValue = "ROUND(UNIX_TIMESTAMP(CURTIME(4)) * 10000)";
 
-        internal const string insertTriggerName = "`{0}_insert`";
-        internal const string updateTriggerName = "`{0}_update`";
-        internal const string deleteTriggerName = "`{0}_delete`";
+        internal const string insertTriggerName = "`{0}_insert_trigger`";
+        internal const string updateTriggerName = "`{0}_update_trigger`";
+        internal const string deleteTriggerName = "`{0}_delete_trigger`";
 
         internal const string selectChangesProcName = "`{0}_selectchanges`";
         internal const string selectChangesProcNameWithFilters = "`{0}_{1}_selectchanges`";
