@@ -11,9 +11,9 @@ namespace Dotmim.Sync.Sqlite
     {
         public const string TimestampValue = "replace(strftime('%Y%m%d%H%M%f', 'now'), '.', '')";
 
-        internal const string insertTriggerName = "[{0}_insert]";
-        internal const string updateTriggerName = "[{0}_update]";
-        internal const string deleteTriggerName = "[{0}_delete]";
+        internal const string insertTriggerName = "[{0}_insert_trigger]";
+        internal const string updateTriggerName = "[{0}_update_trigger]";
+        internal const string deleteTriggerName = "[{0}_delete_trigger]";
 
         private Dictionary<DbCommandType, String> names = new Dictionary<DbCommandType, string>();
         private ObjectNameParser tableName, trackingName;
