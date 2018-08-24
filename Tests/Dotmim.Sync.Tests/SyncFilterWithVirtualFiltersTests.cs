@@ -200,7 +200,7 @@ END";
 
             SyncAgent agent = new SyncAgent(clientProvider, serverProvider, new[] { "ServiceTickets" });
             agent.Configuration.Filters.Add(new FilterClause("ServiceTickets", "CustomerID"));
-            agent.Configuration.Filters.Add(new FilterClause("ServiceTickets", "Random", SqlDbType.BigInt));
+            agent.Configuration.Filters.Add(new FilterClause("ServiceTickets", "Random", DbType.Int64));
             agent.Parameters.Add("ServiceTickets", "CustomerID", 1);
             agent.Parameters.Add("ServiceTickets", "Random", 22);
 
@@ -233,7 +233,7 @@ END";
 
             SyncAgent agent = new SyncAgent(clientProvider, serverProvider, new[] { "ServiceTickets" });
             agent.Configuration.Filters.Add(new FilterClause("ServiceTickets", "CustomerID"));
-            agent.Configuration.Filters.Add(new FilterClause("ServiceTickets", "Random", SqlDbType.BigInt));
+            agent.Configuration.Filters.Add(new FilterClause("ServiceTickets", "Random", DbType.Int64));
             agent.Parameters.Add("ServiceTickets", "CustomerID", 1);
             agent.Parameters.Add("ServiceTickets", "Random", 3); // od nuber excludes all changes
 

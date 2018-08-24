@@ -28,7 +28,7 @@ namespace Dotmim.Sync
         /// <param name="tableName">Table name involved in the filter</param>
         /// <param name="columnName">Column name involved in the filter</param>
         /// <param name="type"></param>
-        public static void Add(this ICollection<FilterClause> list, string tableName, string columnName, SqlDbType type)
+        public static void Add(this ICollection<FilterClause> list, string tableName, string columnName, DbType type)
         {
             list.Add(new FilterClause(tableName, columnName, type));
         }
