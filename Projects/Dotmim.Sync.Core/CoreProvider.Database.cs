@@ -259,7 +259,7 @@ namespace Dotmim.Sync
                     if (columnFilter == null && !filter.IsVirtual)
                         throw new InvalidExpressionException($"Column {filter.ColumnName} does not exist in Table {dmTable.TableName}");
 
-                    builder.FilterColumns.Add(new FilterClause(filter.TableName, filter.ColumnName, filter.Type));
+                    builder.FilterColumns.Add(new FilterClause(filter.TableName, filter.ColumnName, filter.ColumnType));
                 }
             }
 

@@ -1741,8 +1741,9 @@ namespace Dotmim.Sync.SqlServer.Builders
                     }
                     else
                     {
+                        SqlDbType sqlDbType = (SqlDbType)this.sqlDbMetadata.TryGetOwnerDbType(null, c.ColumnType.Value, false, false, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
                         var columnFilterName = new ObjectNameParser(c.ColumnName, "[", "]");
-                        SqlParameter sqlParamFilter = new SqlParameter($"@{columnFilterName.FullUnquotedString}", c.Type);
+                        SqlParameter sqlParamFilter = new SqlParameter($"@{columnFilterName.FullUnquotedString}", sqlDbType);
                         sqlCommand.Parameters.Add(sqlParamFilter);
                     }
                 }
