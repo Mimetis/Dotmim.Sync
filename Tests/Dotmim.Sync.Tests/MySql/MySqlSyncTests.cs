@@ -4,6 +4,7 @@ using Dotmim.Sync.SqlServer;
 using System;
 using System.Data.SqlClient;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Xunit;
 using MySql.Data.MySqlClient;
@@ -14,7 +15,7 @@ namespace Dotmim.Sync.Test
 {
     public class MySqlSyncSimpleFixture : IDisposable
     {
-        private string createTableScript =
+        public string createTableScript =
         $@"if (not exists (select * from sys.tables where name = 'ServiceTickets'))
             begin
                 CREATE TABLE [ServiceTickets](
@@ -29,7 +30,7 @@ namespace Dotmim.Sync.Test
                 CONSTRAINT [PK_ServiceTickets] PRIMARY KEY CLUSTERED ( [ServiceTicketID] ASC ));
             end";
 
-        private string datas =
+        public string datas =
         $@"
             INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 3', 'Description 3', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
             INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 4', 'Description 4', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
@@ -83,19 +84,16 @@ namespace Dotmim.Sync.Test
             INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 7', 'Description 7', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
           ";
 
-        private HelperDB helperDb = new HelperDB();
-        private string serverDbName = "Test_MySql_Simple_Server";
-        private string clientDbName = "test_mysql_simple_client";
+        public HelperDB helperDb = new HelperDB();
+        public string serverDbName = "Test_MySql_Simple_Server";
+        public string clientDbName = "test_mysql_simple_client";
 
         public string[] Tables => new string[] { "ServiceTickets" };
 
         public String ServerConnectionString => HelperDB.GetDatabaseConnectionString(serverDbName);
-        public SyncAgent Agent { get; set; }
 
         public String ClientMySqlConnectionString => HelperDB.GetMySqlDatabaseConnectionString(clientDbName);
-
-
- 
+        
         public MySqlSyncSimpleFixture()
         {
             // create databases
@@ -106,24 +104,17 @@ namespace Dotmim.Sync.Test
             helperDb.ExecuteScript(serverDbName, datas);
 
             helperDb.CreateMySqlDatabase(clientDbName);
-
-            var serverProvider = new SqlSyncProvider(ServerConnectionString);
-            var clientProvider = new MySqlSyncProvider(ClientMySqlConnectionString);
-
-            Agent = new SyncAgent(clientProvider, serverProvider, Tables);
-
         }
+
         public void Dispose()
         {
             helperDb.DeleteDatabase(serverDbName);
             helperDb.DropMySqlDatabase(clientDbName);
-
         }
-
     }
 
     [TestCaseOrderer("Dotmim.Sync.Tests.Misc.PriorityOrderer", "Dotmim.Sync.Tests")]
-    public class MySqlSyncTests : IClassFixture<MySqlSyncSimpleFixture>
+    public class MySqlSyncTests : IClassFixture<MySqlSyncSimpleFixture>, IDisposable
     {
         MySqlSyncSimpleFixture fixture;
         SyncAgent agent;
@@ -131,7 +122,11 @@ namespace Dotmim.Sync.Test
         public MySqlSyncTests(MySqlSyncSimpleFixture fixture)
         {
             this.fixture = fixture;
-            this.agent = fixture.Agent;
+
+            var serverProvider = new SqlSyncProvider(fixture.ServerConnectionString);
+            var clientProvider = new MySqlSyncProvider(fixture.ClientMySqlConnectionString);
+
+            agent = new SyncAgent(clientProvider, serverProvider, fixture.Tables);
         }
 
         [Fact, TestPriority(1)]
@@ -146,20 +141,36 @@ namespace Dotmim.Sync.Test
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(2)]
         public async Task SyncNoRows(SyncConfiguration conf)
         {
+            agent.Configuration.BatchDirectory = GetBatchDirectory();
             agent.Configuration.DownloadBatchSizeInKB  = conf.DownloadBatchSizeInKB;
             agent.Configuration.UseBulkOperations  = conf.UseBulkOperations;
             agent.Configuration.SerializationFormat = conf.SerializationFormat;
             agent.Configuration.Add(fixture.Tables);
+            await agent.SynchronizeAsync();
+
 
             var session = await agent.SynchronizeAsync();
+
 
             Assert.Equal(0, session.TotalChangesDownloaded);
             Assert.Equal(0, session.TotalChangesUploaded);
         }
 
+        private string GetBatchDirectory([CallerMemberName] string folderName = null)
+        {
+            return Path.Combine(Environment.CurrentDirectory, "Temp", folderName);
+        }
+
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(3)]
         public async Task InsertFromServer(SyncConfiguration conf)
         {
+            agent.Configuration.BatchDirectory = GetBatchDirectory();
+            agent.Configuration.DownloadBatchSizeInKB = conf.DownloadBatchSizeInKB;
+            agent.Configuration.UseBulkOperations = conf.UseBulkOperations;
+            agent.Configuration.SerializationFormat = conf.SerializationFormat;
+            agent.Configuration.Add(fixture.Tables);
+            await agent.SynchronizeAsync();
+
             var insertRowScript =
             $@"INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
                 VALUES (newid(), 'Insert One Row', 'Description Insert One Row', 1, 0, getdate(), NULL, 1)";
@@ -173,10 +184,6 @@ namespace Dotmim.Sync.Test
                     sqlConnection.Close();
                 }
             }
-            agent.Configuration.DownloadBatchSizeInKB = conf.DownloadBatchSizeInKB;
-            agent.Configuration.UseBulkOperations = conf.UseBulkOperations;
-            agent.Configuration.SerializationFormat = conf.SerializationFormat;
-            agent.Configuration.Add(fixture.Tables);
 
             var session = await agent.SynchronizeAsync();
 
@@ -187,6 +194,13 @@ namespace Dotmim.Sync.Test
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(4)]
         public async Task InsertFromClient(SyncConfiguration conf)
         {
+            agent.Configuration.BatchDirectory = GetBatchDirectory();
+            agent.Configuration.DownloadBatchSizeInKB = conf.DownloadBatchSizeInKB;
+            agent.Configuration.UseBulkOperations = conf.UseBulkOperations;
+            agent.Configuration.SerializationFormat = conf.SerializationFormat;
+            agent.Configuration.Add(fixture.Tables);
+            await agent.SynchronizeAsync();
+
             Guid newId = Guid.NewGuid();
 
             var insertRowScript =
@@ -207,10 +221,6 @@ namespace Dotmim.Sync.Test
             if (nbRowsInserted < 0)
                 throw new Exception("Row not inserted");
 
-            agent.Configuration.DownloadBatchSizeInKB = conf.DownloadBatchSizeInKB;
-            agent.Configuration.UseBulkOperations = conf.UseBulkOperations;
-            agent.Configuration.SerializationFormat = conf.SerializationFormat;
-            agent.Configuration.Add(fixture.Tables);
             var session = await agent.SynchronizeAsync();
 
             Assert.Equal(0, session.TotalChangesDownloaded);
@@ -220,6 +230,13 @@ namespace Dotmim.Sync.Test
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(5)]
         public async Task UpdateFromClient(SyncConfiguration conf)
         {
+            agent.Configuration.BatchDirectory = GetBatchDirectory();
+            agent.Configuration.DownloadBatchSizeInKB = conf.DownloadBatchSizeInKB;
+            agent.Configuration.UseBulkOperations = conf.UseBulkOperations;
+            agent.Configuration.SerializationFormat = conf.SerializationFormat;
+            agent.Configuration.Add(fixture.Tables);
+            await agent.SynchronizeAsync();
+
             Guid newId = Guid.NewGuid();
 
             var insertRowScript =
@@ -235,10 +252,7 @@ namespace Dotmim.Sync.Test
                     sqlConnection.Close();
                 }
             }
-            agent.Configuration.DownloadBatchSizeInKB = conf.DownloadBatchSizeInKB;
-            agent.Configuration.UseBulkOperations = conf.UseBulkOperations;
-            agent.Configuration.SerializationFormat = conf.SerializationFormat;
-            agent.Configuration.Add(fixture.Tables);
+
             var session = await agent.SynchronizeAsync();
 
             Assert.Equal(0, session.TotalChangesDownloaded);
@@ -256,10 +270,6 @@ namespace Dotmim.Sync.Test
                     sqlConnection.Close();
                 }
             }
-            agent.Configuration.DownloadBatchSizeInKB = conf.DownloadBatchSizeInKB;
-            agent.Configuration.UseBulkOperations = conf.UseBulkOperations;
-            agent.Configuration.SerializationFormat = conf.SerializationFormat;
-            agent.Configuration.Add(fixture.Tables);
             session = await agent.SynchronizeAsync();
 
             Assert.Equal(0, session.TotalChangesDownloaded);
@@ -269,6 +279,13 @@ namespace Dotmim.Sync.Test
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(6)]
         public async Task UpdateFromServer(SyncConfiguration conf)
         {
+            agent.Configuration.BatchDirectory = GetBatchDirectory();
+            agent.Configuration.DownloadBatchSizeInKB = conf.DownloadBatchSizeInKB;
+            agent.Configuration.UseBulkOperations = conf.UseBulkOperations;
+            agent.Configuration.SerializationFormat = conf.SerializationFormat;
+            agent.Configuration.Add(fixture.Tables);
+            await agent.SynchronizeAsync();
+
             Guid guid = Guid.NewGuid();
             var updateRowScript =
             $@" Declare @id uniqueidentifier;
@@ -285,16 +302,12 @@ namespace Dotmim.Sync.Test
                 }
             }
 
-            var serverProvider = new SqlSyncProvider(fixture.ServerConnectionString);
-            var clientProvider = new MySqlSyncProvider(fixture.ClientMySqlConnectionString);
-            //var simpleConfiguration = new SyncConfiguration(Tables);
+            //var serverProvider = new SqlSyncProvider(fixture.ServerConnectionString);
+            //var clientProvider = new MySqlSyncProvider(fixture.ClientMySqlConnectionString);
+            ////var simpleConfiguration = new SyncConfiguration(Tables);
 
-            var agent = new SyncAgent(clientProvider, serverProvider);
+            //var agent = new SyncAgent(clientProvider, serverProvider);
 
-            agent.Configuration.DownloadBatchSizeInKB = conf.DownloadBatchSizeInKB;
-            agent.Configuration.UseBulkOperations = conf.UseBulkOperations;
-            agent.Configuration.SerializationFormat = conf.SerializationFormat;
-            agent.Configuration.Add(fixture.Tables);
             var session = await agent.SynchronizeAsync();
 
             Assert.Equal(1, session.TotalChangesDownloaded);
@@ -304,6 +317,13 @@ namespace Dotmim.Sync.Test
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(7)]
         public async Task DeleteFromServer(SyncConfiguration conf)
         {
+            agent.Configuration.BatchDirectory = GetBatchDirectory();
+            agent.Configuration.DownloadBatchSizeInKB = conf.DownloadBatchSizeInKB;
+            agent.Configuration.UseBulkOperations = conf.UseBulkOperations;
+            agent.Configuration.SerializationFormat = conf.SerializationFormat;
+            agent.Configuration.Add(fixture.Tables);
+            await agent.SynchronizeAsync();
+
             var updateRowScript =
             $@" Declare @id uniqueidentifier;
                 Select top 1 @id = ServiceTicketID from ServiceTickets;
@@ -318,10 +338,6 @@ namespace Dotmim.Sync.Test
                     sqlConnection.Close();
                 }
             }
-            agent.Configuration.DownloadBatchSizeInKB = conf.DownloadBatchSizeInKB;
-            agent.Configuration.UseBulkOperations = conf.UseBulkOperations;
-            agent.Configuration.SerializationFormat = conf.SerializationFormat;
-            agent.Configuration.Add(fixture.Tables);
             var session = await agent.SynchronizeAsync();
 
             Assert.Equal(1, session.TotalChangesDownloaded);
@@ -331,6 +347,13 @@ namespace Dotmim.Sync.Test
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(8)]
         public async Task DeleteFromClient(SyncConfiguration conf)
         {
+            agent.Configuration.BatchDirectory = GetBatchDirectory();
+            agent.Configuration.DownloadBatchSizeInKB = conf.DownloadBatchSizeInKB;
+            agent.Configuration.UseBulkOperations = conf.UseBulkOperations;
+            agent.Configuration.SerializationFormat = conf.SerializationFormat;
+            agent.Configuration.Add(fixture.Tables);
+            await agent.SynchronizeAsync();
+
             long count;
             var selectcount = $@"Select count(*) From ServiceTickets";
             var updateRowScript = $@"Delete From `ServiceTickets`";
@@ -344,11 +367,6 @@ namespace Dotmim.Sync.Test
                     sqlCmd.ExecuteNonQuery();
                 sqlConnection.Close();
             }
-
-            agent.Configuration.DownloadBatchSizeInKB = conf.DownloadBatchSizeInKB;
-            agent.Configuration.UseBulkOperations = conf.UseBulkOperations;
-            agent.Configuration.SerializationFormat = conf.SerializationFormat;
-            agent.Configuration.Add(fixture.Tables);
             var session = await agent.SynchronizeAsync();
 
             Assert.Equal(0, session.TotalChangesDownloaded);
@@ -367,6 +385,13 @@ namespace Dotmim.Sync.Test
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(9)]
         public async Task ConflictInsertInsertServerWins(SyncConfiguration conf)
         {
+            agent.Configuration.BatchDirectory = GetBatchDirectory();
+            agent.Configuration.DownloadBatchSizeInKB = conf.DownloadBatchSizeInKB;
+            agent.Configuration.UseBulkOperations = conf.UseBulkOperations;
+            agent.Configuration.SerializationFormat = conf.SerializationFormat;
+            agent.Configuration.Add(fixture.Tables);
+            await agent.SynchronizeAsync();
+
             Guid insertConflictId = Guid.NewGuid();
 
             using (var sqlConnection = new MySqlConnection(fixture.ClientMySqlConnectionString))
@@ -398,11 +423,6 @@ namespace Dotmim.Sync.Test
                     sqlConnection.Close();
                 }
             }
-
-            agent.Configuration.DownloadBatchSizeInKB = conf.DownloadBatchSizeInKB;
-            agent.Configuration.UseBulkOperations = conf.UseBulkOperations;
-            agent.Configuration.SerializationFormat = conf.SerializationFormat;
-            agent.Configuration.Add(fixture.Tables);
             var session = await agent.SynchronizeAsync();
 
             // check statistics
@@ -430,6 +450,13 @@ namespace Dotmim.Sync.Test
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(10)]
         public async Task ConflictUpdateUpdateServerWins(SyncConfiguration conf)
         {
+            agent.Configuration.BatchDirectory = GetBatchDirectory();
+            agent.Configuration.DownloadBatchSizeInKB = conf.DownloadBatchSizeInKB;
+            agent.Configuration.UseBulkOperations = conf.UseBulkOperations;
+            agent.Configuration.SerializationFormat = conf.SerializationFormat;
+            agent.Configuration.Add(fixture.Tables);
+            await agent.SynchronizeAsync();
+
             Guid updateConflictId = Guid.NewGuid();
             using (var sqlConnection = new MySqlConnection(fixture.ClientMySqlConnectionString))
             {
@@ -446,10 +473,6 @@ namespace Dotmim.Sync.Test
                 }
             }
 
-            agent.Configuration.DownloadBatchSizeInKB = conf.DownloadBatchSizeInKB;
-            agent.Configuration.UseBulkOperations = conf.UseBulkOperations;
-            agent.Configuration.SerializationFormat = conf.SerializationFormat;
-            agent.Configuration.Add(fixture.Tables);
             var session = await agent.SynchronizeAsync();
 
             //just check, even if it's not the real test :)
@@ -514,6 +537,13 @@ namespace Dotmim.Sync.Test
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(11)]
         public async Task ConflictUpdateUpdateClientWins(SyncConfiguration conf)
         {
+            agent.Configuration.BatchDirectory = GetBatchDirectory();
+            agent.Configuration.DownloadBatchSizeInKB = conf.DownloadBatchSizeInKB;
+            agent.Configuration.UseBulkOperations = conf.UseBulkOperations;
+            agent.Configuration.SerializationFormat = conf.SerializationFormat;
+            agent.Configuration.Add(fixture.Tables);
+            await agent.SynchronizeAsync();
+
             var id = Guid.NewGuid().ToString();
 
             using (var sqlConnection = new MySqlConnection(fixture.ClientMySqlConnectionString))
@@ -531,10 +561,6 @@ namespace Dotmim.Sync.Test
                 }
             }
 
-            agent.Configuration.DownloadBatchSizeInKB = conf.DownloadBatchSizeInKB;
-            agent.Configuration.UseBulkOperations = conf.UseBulkOperations;
-            agent.Configuration.SerializationFormat = conf.SerializationFormat;
-            agent.Configuration.Add(fixture.Tables);
             var session = await agent.SynchronizeAsync();
 
             //just check, even if it's not the real test :)
@@ -606,6 +632,13 @@ namespace Dotmim.Sync.Test
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(12)]
         public async Task ConflictInsertInsertConfigurationClientWins(SyncConfiguration conf)
         {
+            agent.Configuration.BatchDirectory = GetBatchDirectory();
+            agent.Configuration.DownloadBatchSizeInKB = conf.DownloadBatchSizeInKB;
+            agent.Configuration.UseBulkOperations = conf.UseBulkOperations;
+            agent.Configuration.SerializationFormat = conf.SerializationFormat;
+            agent.Configuration.Add(fixture.Tables);
+            agent.Configuration.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
+            await agent.SynchronizeAsync();
 
             Guid id = Guid.NewGuid();
 
@@ -639,11 +672,6 @@ namespace Dotmim.Sync.Test
                 }
             }
 
-            agent.Configuration.DownloadBatchSizeInKB = conf.DownloadBatchSizeInKB;
-            agent.Configuration.UseBulkOperations = conf.UseBulkOperations;
-            agent.Configuration.SerializationFormat = conf.SerializationFormat;
-            agent.Configuration.Add(fixture.Tables);
-            agent.Configuration.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
             var session = await agent.SynchronizeAsync();
 
             // check statistics
@@ -667,9 +695,17 @@ namespace Dotmim.Sync.Test
             // check good title on client
             Assert.Equal("Conflict Line Client", expectedRes);
         }
+
         [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(12)]
         public async Task InsertUpdateDeleteFromServer(SyncConfiguration conf)
         {
+            agent.Configuration.BatchDirectory = GetBatchDirectory();
+            agent.Configuration.DownloadBatchSizeInKB = conf.DownloadBatchSizeInKB;
+            agent.Configuration.UseBulkOperations = conf.UseBulkOperations;
+            agent.Configuration.SerializationFormat = conf.SerializationFormat;
+            agent.Configuration.Add(fixture.Tables);
+            await agent.SynchronizeAsync();
+
             Guid insertedId = Guid.NewGuid();
             Guid updatedId = Guid.NewGuid();
             Guid deletedId = Guid.NewGuid();
@@ -690,10 +726,7 @@ namespace Dotmim.Sync.Test
                     sqlConnection.Close();
                 }
             }
-            agent.Configuration.DownloadBatchSizeInKB = conf.DownloadBatchSizeInKB;
-            agent.Configuration.UseBulkOperations = conf.UseBulkOperations;
-            agent.Configuration.SerializationFormat = conf.SerializationFormat;
-            agent.Configuration.Add(fixture.Tables);
+
             var session = await agent.SynchronizeAsync();
 
             Assert.Equal(2, session.TotalChangesDownloaded);
@@ -744,5 +777,9 @@ namespace Dotmim.Sync.Test
 
         }
 
+        public void Dispose()
+        {
+            agent?.Dispose();
+        }
     }
 }
