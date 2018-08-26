@@ -1,21 +1,20 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Globalization;
-using System.Text;
 
 namespace Dotmim.Sync.Serialization.Converters
 {
     public abstract class ObjectConverter
     {
 
-        private static Dictionary<Type, ObjectConverter> converters = new Dictionary<Type, ObjectConverter>();
+        private static ConcurrentDictionary<Type, ObjectConverter> converters = new ConcurrentDictionary<Type, ObjectConverter>();
 
         static ObjectConverter()
         {
-            converters.Add(typeof(Type), new ObjectTypeConverter());
-            converters.Add((typeof(Type).GetType()), new ObjectTypeConverter());
-            converters.Add(typeof(CultureInfo), new CultureInfoConverter());
-            converters.Add(typeof(Version), new VersionConverter());
+            converters.TryAdd(typeof(Type), new ObjectTypeConverter());
+            converters.TryAdd((typeof(Type).GetType()), new ObjectTypeConverter());
+            converters.TryAdd(typeof(CultureInfo), new CultureInfoConverter());
+            converters.TryAdd(typeof(Version), new VersionConverter());
 
         }
         /// <summary>
@@ -26,7 +25,7 @@ namespace Dotmim.Sync.Serialization.Converters
             if (ObjectConverter.converters.ContainsKey(type))
                 throw new ArgumentException($"Converter {type.Name} already exists.");
 
-            ObjectConverter.converters.Add(type, converter);
+            ObjectConverter.converters.TryAdd(type, converter);
         }
 
         /// <summary>
