@@ -1,9 +1,9 @@
 ﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Data;
-using Dotmim.Sync.Log;
 using Dotmim.Sync.SqlServer.Manager;
 using Microsoft.SqlServer.Server;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
@@ -22,7 +22,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         private SqlDbMetadata sqlMetadata;
 
         // Derive Parameters cache
-        private static Dictionary<string, List<SqlParameter>> derivingParameters = new Dictionary<string, List<SqlParameter>>();
+        private static ConcurrentDictionary<string, List<SqlParameter>> derivingParameters = new ConcurrentDictionary<string, List<SqlParameter>>();
 
         public override DbConnection Connection
         {
@@ -431,7 +431,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                     foreach (var p in parameters)
                         arrayParameters.Add(p.Clone());
 
-                    derivingParameters.Add(textParser.FullUnquotedString, arrayParameters);
+                    derivingParameters.TryAdd(textParser.FullUnquotedString, arrayParameters);
                 }
 
                 if (command.Parameters[0].ParameterName == "@RETURN_VALUE")

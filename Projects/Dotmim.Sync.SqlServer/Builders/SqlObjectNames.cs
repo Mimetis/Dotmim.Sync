@@ -8,9 +8,9 @@ namespace Dotmim.Sync.SqlServer.Builders
 {
     public class SqlObjectNames
     {
-        internal const string insertTriggerName = "[{0}].[{1}_insert]";
-        internal const string updateTriggerName = "[{0}].[{1}_update]";
-        internal const string deleteTriggerName = "[{0}].[{1}_delete]";
+        internal const string insertTriggerName = "[{0}].[{1}_insert_trigger]";
+        internal const string updateTriggerName = "[{0}].[{1}_update_trigger]";
+        internal const string deleteTriggerName = "[{0}].[{1}_delete_trigger]";
 
         internal const string selectChangesProcName = "[{0}].[{1}_selectchanges]";
         internal const string selectChangesProcNameWithFilters = "[{0}].[{1}_{2}_selectchanges]";
