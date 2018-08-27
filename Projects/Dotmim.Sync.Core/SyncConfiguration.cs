@@ -313,7 +313,7 @@ namespace Dotmim.Sync
 
             if (this.Filters != null)
                 foreach (var p in this.Filters)
-                    syncConfiguration.Filters.Add(new FilterClause(p.TableName, p.ColumnName));
+                    syncConfiguration.Filters.Add(new FilterClause(p.TableName, p.ColumnName, p.ColumnType));
 
             return syncConfiguration;
         }
