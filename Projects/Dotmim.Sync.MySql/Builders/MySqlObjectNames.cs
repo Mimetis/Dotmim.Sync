@@ -48,7 +48,12 @@ namespace Dotmim.Sync.MySql
             if (!names.ContainsKey(objectType))
                 throw new NotSupportedException($"MySql provider does not support the command type {objectType.ToString()}");
 
-            return names[objectType];
+            var result = names[objectType];
+
+            if (adds == null || !adds.Any())
+                return result;
+
+            return string.Format(result, string.Join(string.Empty, adds));
         }
 
         public MySqlObjectNames(DmTable tableDescription)

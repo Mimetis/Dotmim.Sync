@@ -856,8 +856,7 @@ namespace Dotmim.Sync.MySql
         {
             throw new NotImplementedException();
         }
-
-
+        
         private string DropProcedureText(DbCommandType procType)
         {
             var commandName = this.sqlObjectNames.GetCommandName(procType);
@@ -867,6 +866,7 @@ namespace Dotmim.Sync.MySql
             return MySqlBuilder.WrapScriptTextWithComments(commandText, str1);
 
         }
+
         private void DropProcedure(DbCommandType procType)
         {
             var commandName = this.sqlObjectNames.GetCommandName(procType);
