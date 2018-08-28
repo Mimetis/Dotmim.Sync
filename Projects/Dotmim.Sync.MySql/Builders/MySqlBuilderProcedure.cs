@@ -632,21 +632,21 @@ namespace Dotmim.Sync.MySql
             sqlCommand.Parameters.Add(sqlParameter5);
 
 
-            //if (withFilter && this.Filters != null && this.Filters.Count > 0)
-            //{
-            //    foreach (var c in this.Filters)
-            //    {
-            //        var columnFilter = this.tableDescription.Columns[c.ColumnName];
+            if (withFilter && this.Filters != null && this.Filters.Count > 0)
+            {
+                foreach (var c in this.Filters)
+                {
+                    var columnFilter = this.tableDescription.Columns[c.ColumnName];
 
-            //        if (columnFilter == null)
-            //            throw new InvalidExpressionException($"Column {c.ColumnName} does not exist in Table {this.tableDescription.TableName}");
+                    if (columnFilter == null)
+                        throw new InvalidExpressionException($"Column {c.ColumnName} does not exist in Table {this.tableDescription.TableName}");
 
-            //        var columnFilterName = new ObjectNameParser(columnFilter.ColumnName, "`", "`");
-
-            //        MySqlParameter sqlParamFilter = new MySqlParameter($"{columnFilterName.UnquotedString}", columnFilter.GetMySqlDbType());
-            //        sqlCommand.Parameters.Add(sqlParamFilter);
-            //    }
-            //}
+                    var columnFilterName = new ObjectNameParser(columnFilter.ColumnName, "`", "`");
+                    MySqlDbType sqlDbType = (MySqlDbType)this.mySqlDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.DbType, false, false, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
+                    MySqlParameter sqlParamFilter = new MySqlParameter($"{columnFilterName.FullUnquotedString}", sqlDbType);
+                    sqlCommand.Parameters.Add(sqlParamFilter);
+                }
+            }
 
             StringBuilder stringBuilder = new StringBuilder("SELECT ");
             foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)

@@ -88,6 +88,7 @@ namespace Dotmim.Sync.MySql
             switch (commandType)
             {
                 case DbCommandType.SelectChanges:
+                case DbCommandType.SelectChangesWitFilters:
                     this.SetSelecteChangesParameters(command);
                     break;
                 case DbCommandType.SelectRow:
