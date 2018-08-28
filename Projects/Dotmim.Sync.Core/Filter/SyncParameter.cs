@@ -21,7 +21,7 @@ namespace Dotmim.Sync.Filter
         /// <summary>
         /// Gets or sets the name of the table involved in filter
         /// </summary>
-        public string TableName { get; }
+        public string TableName { get; set; }
 
         /// <summary>
         /// Gets or sets the value of the parameter.
