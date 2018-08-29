@@ -62,6 +62,8 @@ namespace Dotmim.Sync
                             // On purpose, the flag SyncProvision.All does not include the SyncProvision.Table, too dangerous...
                             if (provision.HasFlag(SyncProvision.Table))
                                 builder.DropTable(connection, transaction);
+
+                            await OnTableDeprovisionedAsync(configuration, provision, dmTable, connection, transaction);
                         }
 
                         if (provision.HasFlag(SyncProvision.Scope) || provision.HasFlag(SyncProvision.All))
@@ -70,6 +72,9 @@ namespace Dotmim.Sync
                             if (!scopeBuilder.NeedToCreateScopeInfoTable())
                                 scopeBuilder.DropScopeInfoTable();
                         }
+
+                        await OnDeprovisionedAsync(configuration, provision, connection, transaction);
+
                         transaction.Commit();
                     }
                 }
@@ -140,7 +145,12 @@ namespace Dotmim.Sync
                             if (provision.HasFlag(SyncProvision.StoredProcedures) || provision.HasFlag(SyncProvision.All))
                                 builder.CreateStoredProcedures(connection, transaction);
 
+                            await OnTableProvisionedAsync(configuration, provision, dmTable, connection, transaction);
+
                         }
+
+                        await OnProvisionedAsync(configuration, provision, connection, transaction);
+
                         transaction.Commit();
                     }
 
@@ -158,7 +168,7 @@ namespace Dotmim.Sync
                     connection.Close();
             }
         }
-
+        
         /// <summary>
         /// Be sure all tables are ready and configured for sync
         /// the ScopeSet Configuration MUST be filled by the schema form Database
@@ -244,6 +254,60 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
+        /// Called whenever a sync configuration has been deprovisioned
+        /// </summary>
+        /// <param name="configuration"></param>
+        /// <param name="provision">shows which kind of deprovisioning takes place </param>
+        /// <param name="connection">the connection used for deprovisioning</param>
+        /// <param name="transaction">the transaction used for deprovisioning</param>
+        /// <returns></returns>
+        protected virtual Task OnDeprovisionedAsync(SyncConfiguration configuration, SyncProvision provision, DbConnection connection, DbTransaction transaction)
+        {
+            return Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// Called whenever a table has been deprovisioned
+        /// </summary>
+        /// <param name="configuration"></param>
+        /// <param name="provision">shows which kind of deprovisioning takes place </param>
+        /// <param name="dmTable">the affected table</param>
+        /// <param name="connection">the connection used for deprovisioning</param>
+        /// <param name="transaction">the transaction used for deprovisioning</param>
+        /// <returns></returns>
+        protected virtual Task OnTableDeprovisionedAsync(SyncConfiguration configuration, SyncProvision provision, DmTable dmTable, DbConnection connection, DbTransaction transaction)
+        {
+            return Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// Called whenever a sync configuration has been provisioned
+        /// </summary>
+        /// <param name="configuration"></param>
+        /// <param name="provision">shows which kind of provisioning takes place </param>
+        /// <param name="connection">the connection used for provisioning</param>
+        /// <param name="transaction">the transaction used for provisioning</param>
+        /// <returns></returns>
+        protected virtual Task OnProvisionedAsync(SyncConfiguration configuration, SyncProvision provision, DbConnection connection, DbTransaction transaction)
+        {
+            return Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// Called whenever a table has been provisioned
+        /// </summary>
+        /// <param name="configuration"></param>
+        /// <param name="provision">shows which kind of provisioning takes place </param>
+        /// <param name="dmTable">the affected table</param>
+        /// <param name="connection">the connection used for provisioning</param>
+        /// <param name="transaction">the transaction used for provisioning</param>
+        /// <returns></returns>
+        protected virtual Task OnTableProvisionedAsync(SyncConfiguration configuration, SyncProvision provision, DmTable dmTable, DbConnection connection, DbTransaction transaction)
+        {
+            return Task.CompletedTask;
+        }
+
+        /// <summary>
         /// Adding filters to an existing configuration
         /// </summary>
         private void AddFilters(ICollection<FilterClause> filters, DmTable dmTable, DbBuilder builder)
@@ -264,6 +328,5 @@ namespace Dotmim.Sync
             }
 
         }
-
     }
 }
