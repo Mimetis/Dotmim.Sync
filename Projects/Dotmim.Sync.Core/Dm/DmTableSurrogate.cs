@@ -187,6 +187,8 @@ namespace Dotmim.Sync.Data.Surrogate
             dt.TrackingTablesSuffix = this.TrackingTablesSuffix;
             dt.StoredProceduresPrefix = this.StoredProceduresPrefix;
             dt.StoredProceduresSuffix = this.StoredProceduresSuffix;
+            dt.TriggersPrefix = this.TriggersPrefix;
+            dt.TriggersSuffix = this.TriggersSuffix;
 
             for (int i = 0; i < this.Columns.Count; i++)
             {
