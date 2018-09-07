@@ -10,10 +10,15 @@ namespace Dotmim.Sync.SqlServer.Manager
 {
     public class SqlDbMetadata : DbMetadata
     {
+
+        // Even if precision max can be 38 on SQL Server, prefer go for 28, to not having a truncation
+        public const Byte PRECISION_MAX = 28;
+        public const Byte SCALE_MAX = 18;
+
         /// <summary>
         /// Gets the DbType issue from the server type name
         /// </summary>
-        public override DbType ValidateDbType(string typeName, bool isUnsigned, bool isUnicode)
+        public override DbType ValidateDbType(string typeName, bool isUnsigned, bool isUnicode, long maxLength)
         {
             switch (typeName.ToLowerInvariant())
             {
@@ -47,7 +52,7 @@ namespace Dotmim.Sync.SqlServer.Manager
                 case "numeric":
                     return DbType.VarNumeric;
                 case "nvarchar":
-                    return DbType.String;
+                    return maxLength <= 0 ? DbType.String : DbType.StringFixedLength;
                 case "real":
                     return DbType.Decimal;
                 case "smalldatetime":
@@ -68,7 +73,7 @@ namespace Dotmim.Sync.SqlServer.Manager
                 case "varbinary":
                     return DbType.Binary;
                 case "varchar":
-                    return DbType.AnsiString;
+                    return maxLength <= 0 ? DbType.AnsiString : DbType.AnsiStringFixedLength;
                 case "xml":
                     return DbType.String;
             }
@@ -78,7 +83,7 @@ namespace Dotmim.Sync.SqlServer.Manager
         /// <summary>
         /// Gets the SqlDbType issued from the server type name
         /// </summary>
-        public override object ValidateOwnerDbType(string typeName, bool isUnsigned, bool isUnicode)
+        public override object ValidateOwnerDbType(string typeName, bool isUnsigned, bool isUnicode, long maxLength)
         {
             switch (typeName.ToLowerInvariant())
             {
@@ -146,7 +151,7 @@ namespace Dotmim.Sync.SqlServer.Manager
         /// </summary>
         public override int ValidateMaxLength(string typeName, bool isUnsigned, bool isUnicode, long maxLength)
         {
-            SqlDbType sqlDbType = (SqlDbType)ValidateOwnerDbType(typeName, isUnsigned, isUnicode);
+            SqlDbType sqlDbType = (SqlDbType)ValidateOwnerDbType(typeName, isUnsigned, isUnicode, maxLength);
 
             Int32 iMaxLength = maxLength > 8000 ? 8000 : Convert.ToInt32(maxLength);
 
@@ -177,7 +182,7 @@ namespace Dotmim.Sync.SqlServer.Manager
                 case DbType.Boolean:
                     return "bit";
                 case DbType.Byte:
-                    return "byte";
+                    return "tinyint";
                 case DbType.Currency:
                     return "money";
                 case DbType.Date:
@@ -290,23 +295,23 @@ namespace Dotmim.Sync.SqlServer.Manager
             switch (dbType)
             {
                 case DbType.AnsiString:
-                    if (maxLength > 0)
+                    if (maxLength > 0 && maxLength < 8000)
                         return $"({maxLength})";
                     else
                         return $"(MAX)";
                 case DbType.String:
-                    if (maxLength > 0)
-                        return $"({Math.Min(maxLength, 4000)})";
+                    if (maxLength > 0 && maxLength < 4000)
+                        return $"({maxLength})";
                     else
                         return $"(MAX)";
                 case DbType.AnsiStringFixedLength:
-                    if (maxLength > 0)
-                        return $"({Math.Min(maxLength, 4000)})";
+                    if (maxLength > 0 && maxLength < 4000)
+                        return $"({maxLength})";
                     else
                         return string.Empty;
                 case DbType.StringFixedLength:
                 case DbType.Binary:
-                    if (maxLength > 0)
+                    if (maxLength > 0 && maxLength < 4000)
                         return $"({maxLength})";
                     else
                         return string.Empty;
@@ -314,15 +319,40 @@ namespace Dotmim.Sync.SqlServer.Manager
                 case DbType.Double:
                 case DbType.Single:
                 case DbType.VarNumeric:
-                    if (precision > 0 && scale <= 0)
-                        return $"({ precision})";
-                    else if (precision > 0 && scale > 0)
-                        return $"({ precision}, {scale})";
+                    var (p, s) = CoercePrecisionAndScale(precision, scale);
+
+                    if (p > 0 && s <= 0)
+                        return $"({ p})";
+                    else if (p > 0 && s > 0)
+                        return $"({ p}, {s})";
                     else
                         return string.Empty;
             }
             return string.Empty;
 
+        }
+
+        private static (byte p, byte s) CoercePrecisionAndScale(byte precision, byte scale)
+        {
+            byte p = precision;
+            byte s = scale;
+            if (p > PRECISION_MAX)
+            {
+                p = PRECISION_MAX;
+                s = SCALE_MAX;
+            }
+
+            if (s > SCALE_MAX)
+            {
+                s = SCALE_MAX;
+            }
+            // scale should always be lesser than precision
+            if (s >= p)
+            {
+                s = (byte)(p - 1);
+            }
+
+            return (p, s);
         }
 
         /// <summary>
@@ -334,33 +364,35 @@ namespace Dotmim.Sync.SqlServer.Manager
             switch (sqlDbType)
             {
                 case SqlDbType.NVarChar:
-                    if (maxLength > 0)
-                        return $"({Math.Min(maxLength, 4000)})";
+                    if (maxLength > 0 && maxLength < 4000)
+                        return $"({maxLength})";
                     else
                         return "(MAX)";
                 case SqlDbType.VarBinary:
                 case SqlDbType.VarChar:
-                    if (maxLength > 0)
+                    if (maxLength > 0 && maxLength < 8000)
                         return $"({maxLength})";
                     else
                         return "(MAX)";
                 case SqlDbType.NChar:
-                    if (maxLength > 0)
-                        return $"({Math.Min(maxLength, 4000)})";
+                    if (maxLength > 0 && maxLength < 4000)
+                        return $"({maxLength})";
                     else
                         return string.Empty;
                 case SqlDbType.Char:
                 case SqlDbType.Binary:
-                    if (maxLength > 0)
+                    if (maxLength > 0 && maxLength < 4000)
                         return $"({maxLength})";
                     else
                         return string.Empty;
 
                 case SqlDbType.Decimal:
-                    if (precision > 0 && scale <= 0)
-                        return $"({ precision})";
-                    else if (precision > 0 && scale > 0)
-                        return $"({ precision}, {scale})";
+                    var (p, s) = CoercePrecisionAndScale(precision, scale);
+
+                    if (p > 0 && s <= 0)
+                        return $"({ p})";
+                    else if (p > 0 && s > 0)
+                        return $"({ p}, {s})";
                     else
                         return string.Empty;
                 default:
@@ -577,13 +609,15 @@ namespace Dotmim.Sync.SqlServer.Manager
 
         public override bool ValidateIsReadonly(DmColumn columnDefinition)
         {
-            return columnDefinition.OriginalTypeName.ToLowerInvariant() == "timestamp" || 
+            return columnDefinition.OriginalTypeName.ToLowerInvariant() == "timestamp" ||
                    columnDefinition.IsCompute;
         }
 
         public override byte ValidatePrecision(DmColumn columnDefinition)
         {
-            return columnDefinition.Precision;
+            var (p, s) = CoercePrecisionAndScale(columnDefinition.Precision, columnDefinition.Scale);
+            
+            return p;
         }
 
         public override (byte precision, byte scale) GetPrecisionFromOwnerDbType(object ownerDbType, byte precision, byte scale)
@@ -592,7 +626,7 @@ namespace Dotmim.Sync.SqlServer.Manager
             switch (sqlDbType)
             {
                 case SqlDbType.Decimal:
-                    return (precision, scale);
+                    return CoercePrecisionAndScale(precision, scale);
             }
             return (0, 0);
         }
@@ -605,7 +639,7 @@ namespace Dotmim.Sync.SqlServer.Manager
                 case DbType.Double:
                 case DbType.Single:
                 case DbType.VarNumeric:
-                    return (precision, scale);
+                    return CoercePrecisionAndScale(precision, scale);
             }
             return (0, 0);
         }
@@ -642,7 +676,7 @@ namespace Dotmim.Sync.SqlServer.Manager
 
         public override (byte precision, byte scale) ValidatePrecisionAndScale(DmColumn columnDefinition)
         {
-            return (columnDefinition.Precision, columnDefinition.Scale);
+            return CoercePrecisionAndScale(columnDefinition.Precision, columnDefinition.Scale);
         }
     }
 

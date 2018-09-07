@@ -35,7 +35,8 @@ namespace Dotmim.Sync.Data.Surrogate
         /// Gets or sets the dm type of the column that the DmColumnSurrogate object represents.
         /// </summary>
         public String DataType { get; set; }
-        internal bool dbTypeAllowed;
+
+        public bool DbTypeAllowed { get; set; }
 
         /// <summary>
         /// Only used for Serialization
@@ -82,9 +83,9 @@ namespace Dotmim.Sync.Data.Surrogate
                 throw new ArgumentNullException("dc", "DmColumn");
 
 
-            this.dbTypeAllowed = dc.dbTypeAllowed;
+            this.DbTypeAllowed = dc.dbTypeAllowed;
             if (dc.dbTypeAllowed)
-                this.DbType = (int)dc.DbType;
+                this.DbType = (int)dc.dbType;
 
             this.AllowDBNull = dc.AllowDBNull;
             this.ColumnName = dc.ColumnName;
@@ -113,7 +114,7 @@ namespace Dotmim.Sync.Data.Surrogate
         {
             DmColumn dmColumn = DmColumn.CreateColumn(this.ColumnName, DmUtils.GetTypeFromAssemblyQualifiedName(this.DataType));
 
-            dmColumn.dbTypeAllowed = this.dbTypeAllowed;
+            dmColumn.dbTypeAllowed = this.DbTypeAllowed;
             if (dmColumn.dbTypeAllowed)
                 dmColumn.DbType = (DbType)this.DbType;
 

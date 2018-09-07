@@ -157,8 +157,12 @@ namespace Dotmim.Sync.Web.Server
         /// </summary>
         public async Task WriteExceptionAsync(HttpResponse httpResponse, Exception ex)
         {
-            var webx = WebSyncException.GetWebSyncException(ex);
-            var webXMessage = JsonConvert.SerializeObject(webx);
+
+            // Check if it's an unknwon error, not managed (yet)
+            if (!(ex is SyncException syncException))
+                syncException = new SyncException(ex.Message, SyncStage.None, this.LocalProvider.ProviderTypeName, SyncExceptionType.Unknown);
+
+            var webXMessage = JsonConvert.SerializeObject(syncException);
 
             httpResponse.StatusCode = StatusCodes.Status400BadRequest;
             httpResponse.ContentLength = webXMessage.Length;
@@ -250,8 +254,12 @@ namespace Dotmim.Sync.Web.Server
         /// </summary>
         public Task<HttpResponseMessage> WriteExceptionAsync(Exception ex)
         {
-            var webx = WebSyncException.GetWebSyncException(ex);
-            var webXMessage = JsonConvert.SerializeObject(webx);
+
+            // Check if it's an unknwon error, not managed (yet)
+            if (!(ex is SyncException syncException))
+                syncException = new SyncException(ex.Message, SyncStage.None, this.LocalProvider.ProviderTypeName, SyncExceptionType.Unknown);
+
+            var webXMessage = JsonConvert.SerializeObject(syncException);
 
             var response = new HttpResponseMessage(HttpStatusCode.BadRequest)
             {

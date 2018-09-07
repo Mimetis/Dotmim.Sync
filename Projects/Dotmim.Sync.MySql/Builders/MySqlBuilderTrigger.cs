@@ -56,7 +56,7 @@ namespace Dotmim.Sync.MySql
                     if (this.tableDescription.PrimaryKey.Columns.Any(c => c.ColumnName.ToLowerInvariant() == filterColumn.ColumnName.ToLowerInvariant()))
                         continue;
 
-                    ObjectNameParser columnName = new ObjectNameParser(filterColumn.ColumnName.ToLowerInvariant(), "`", "`");
+                    ObjectNameParser columnName = new ObjectNameParser(filterColumn.ColumnName, "`", "`");
 
                     stringBuilder.AppendLine($"\t,{columnName.FullQuotedString} = `d`.{columnName.FullQuotedString}");
 
@@ -152,7 +152,7 @@ namespace Dotmim.Sync.MySql
             string argAnd = string.Empty;
             foreach (var mutableColumn in this.tableDescription.PrimaryKey.Columns.Where(c => !c.IsReadOnly))
             {
-                ObjectNameParser columnName = new ObjectNameParser(mutableColumn.ColumnName.ToLowerInvariant(), "`", "`");
+                ObjectNameParser columnName = new ObjectNameParser(mutableColumn.ColumnName, "`", "`");
                 stringBuilderArguments.AppendLine($"\t\t{argComma}{columnName.FullQuotedString}");
                 stringBuilderArguments2.AppendLine($"\t\t{argComma}new.{columnName.FullQuotedString}");
                 stringPkAreNull.Append($"{argAnd}{trackingName.FullQuotedString}.{columnName.FullQuotedString} IS NULL");
@@ -179,7 +179,7 @@ namespace Dotmim.Sync.MySql
                     if (this.tableDescription.PrimaryKey.Columns.Any(c => c.ColumnName.ToLowerInvariant() == filterColumn.ColumnName.ToLowerInvariant()))
                         continue;
 
-                    ObjectNameParser columnName = new ObjectNameParser(filterColumn.ColumnName.ToLowerInvariant(), "`", "`");
+                    ObjectNameParser columnName = new ObjectNameParser(filterColumn.ColumnName, "`", "`");
                     filterColumnsString.AppendLine($"\t,{columnName.FullQuotedString}");
                 }
                 stringBuilder.AppendLine(filterColumnsString.ToString());
@@ -297,7 +297,7 @@ namespace Dotmim.Sync.MySql
                     if (this.tableDescription.PrimaryKey.Columns.Any(c => c.ColumnName.ToLowerInvariant() == filterColumn.ColumnName.ToLowerInvariant()))
                         continue;
 
-                    ObjectNameParser columnName = new ObjectNameParser(filterColumn.ColumnName.ToLowerInvariant(), "`", "`");
+                    ObjectNameParser columnName = new ObjectNameParser(filterColumn.ColumnName, "`", "`");
                     stringBuilder.AppendLine($"\t,{columnName.FullQuotedString} = `i`.{columnName.FullQuotedString}");
                 }
                 stringBuilder.AppendLine();

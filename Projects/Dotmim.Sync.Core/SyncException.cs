@@ -5,6 +5,8 @@ using System.Text;
 using System.Data.Common;
 using System.Data;
 using System.Threading.Tasks;
+using System.Security.Permissions;
+using System.Runtime.Serialization;
 
 namespace Dotmim.Sync
 {
@@ -12,11 +14,17 @@ namespace Dotmim.Sync
     /// <summary>
     /// Exception
     /// </summary>
+    [Serializable()]
     public class SyncException : Exception
     {
+
         public SyncException(string message, SyncStage stage) : base(message)
         {
             this.SyncStage = stage;
+        }
+        public SyncException(string message) : base(message)
+        {
+            this.SyncStage = SyncStage.None;
         }
         public SyncException(String message, SyncStage stage, string providerName, SyncExceptionType type = SyncExceptionType.Unknown, int errorCode = -1) : base(message)
         {
@@ -33,15 +41,14 @@ namespace Dotmim.Sync
             this.ProviderName = providerName;
             if (exception is SyncException)
             {
-                this.ErrorCode = ((SyncException)exception).ErrorCode;
-                this.Type = ((SyncException)exception).Type;
+                return;
             }
-            if (exception is DbException)
+            else if (exception is DbException)
             {
                 this.ErrorCode = ((DbException)exception).ErrorCode;
                 this.Type = SyncExceptionType.Data;
             }
-            if (exception is DataException)
+            else if (exception is DataException)
             {
                 this.Type = SyncExceptionType.Data;
             }
@@ -162,6 +169,35 @@ namespace Dotmim.Sync
         /// Sync stage when exception occured
         /// </summary>
         public SyncStage SyncStage { get; }
+
+
+        // Constructor should be protected for unsealed classes, private for sealed classes.
+        [SecurityPermission(SecurityAction.Demand, SerializationFormatter = true)]
+        protected SyncException(SerializationInfo info, StreamingContext context): base(info, context)
+        {
+
+            this.Type = (SyncExceptionType)info.GetInt32("SyncType");
+            this.SyncStage = (SyncStage)info.GetInt32("SyncStage");
+            this.ErrorCode = info.GetInt32("ErrorCode");
+            this.ProviderName = info.GetString("ProviderName");
+        }
+
+
+        [SecurityPermissionAttribute(SecurityAction.Demand, SerializationFormatter = true)]
+        public override void GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            if (info == null)
+                throw new ArgumentNullException("info");
+
+            info.AddValue("SyncType", this.Type);
+            info.AddValue("SyncStage", this.SyncStage);
+            info.AddValue("ErrorCode", this.ErrorCode);
+            info.AddValue("ProviderName", this.ProviderName);
+
+            // MUST call through to the base class to let it save its own state
+            base.GetObjectData(info, context);
+        }
+
     }
 
     /// <summary>

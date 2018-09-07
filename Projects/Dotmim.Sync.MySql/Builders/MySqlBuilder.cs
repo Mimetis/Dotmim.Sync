@@ -23,7 +23,7 @@ namespace Dotmim.Sync.MySql
         internal static (ObjectNameParser tableName, ObjectNameParser trackingName) GetParsers(DmTable tableDescription)
         {
             string tableAndPrefixName = tableDescription.TableName;
-            var originalTableName = new ObjectNameParser(tableAndPrefixName.ToLowerInvariant(), "`", "`");
+            var originalTableName = new ObjectNameParser(tableAndPrefixName, "`", "`");
 
             var pref = tableDescription.TrackingTablesPrefix != null ? tableDescription.TrackingTablesPrefix.ToLowerInvariant() : "";
             var suf = tableDescription.TrackingTablesSuffix != null ? tableDescription.TrackingTablesSuffix.ToLowerInvariant() : "";
