@@ -21,10 +21,10 @@ namespace Dotmim.Sync.Tests.SqlServer
 
         public override bool EnableSqlServerClientOnTcp => true;
         public override bool EnableSqlServerClientOnHttp => false;
-        public override bool EnableMySqlClientOnTcp => false;
+        public override bool EnableMySqlClientOnTcp => true;
         public override bool EnableMySqlClientOnHttp => false;
         public override bool EnableSqliteClientOnTcp => false;
-        public override bool EnableSqliteClientOnHttp => false;
+        public override bool EnableSqliteClientOnHttp => true;
 
         // for debugging
         //public override bool DeleteAllDatabasesOnDispose => false;

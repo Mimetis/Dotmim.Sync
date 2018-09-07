@@ -8,7 +8,6 @@ using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Net.Http.Headers;
 
 #if NETSTANDARD
 using Microsoft.Net.Http.Headers;

@@ -38,7 +38,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get or Set the current step (could be only Added, Modified, Deleted)
         /// </summary>
-        internal DmRowState applyType { get; set; }
+        internal DmRowState ApplyType { get; set; }
 
         /// <summary>
         /// Get if the error is a primarykey exception
@@ -279,17 +279,17 @@ namespace Dotmim.Sync
         {
             DbCommand bulkCommand = null;
 
-            if (this.applyType == DmRowState.Added)
+            if (this.ApplyType == DmRowState.Added)
             {
                 bulkCommand = this.GetCommand(DbCommandType.BulkInsertRows);
                 this.SetCommandParameters(DbCommandType.BulkInsertRows, bulkCommand);
             }
-            else if (this.applyType == DmRowState.Modified)
+            else if (this.ApplyType == DmRowState.Modified)
             {
                 bulkCommand = this.GetCommand(DbCommandType.BulkUpdateRows);
                 this.SetCommandParameters(DbCommandType.BulkUpdateRows, bulkCommand);
             }
-            else if (this.applyType == DmRowState.Deleted)
+            else if (this.ApplyType == DmRowState.Deleted)
             {
                 bulkCommand = this.GetCommand(DbCommandType.BulkDeleteRows);
                 this.SetCommandParameters(DbCommandType.BulkDeleteRows, bulkCommand);
@@ -432,19 +432,19 @@ namespace Dotmim.Sync
 
                 try
                 {
-                    if (applyType == DmRowState.Added)
+                    if (ApplyType == DmRowState.Added)
                     {
                         operationComplete = this.ApplyInsert(dmRow, scope, false);
                         if (operationComplete)
                             UpdateMetadatas(DbCommandType.InsertMetadata, dmRow, scope);
                     }
-                    else if (applyType == DmRowState.Modified)
+                    else if (ApplyType == DmRowState.Modified)
                     {
                         operationComplete = this.ApplyUpdate(dmRow, scope, false);
                         if (operationComplete)
                             UpdateMetadatas(DbCommandType.UpdateMetadata, dmRow, scope);
                     }
-                    else if (applyType == DmRowState.Deleted)
+                    else if (ApplyType == DmRowState.Deleted)
                     {
                         operationComplete = this.ApplyDelete(dmRow, scope, false);
                         if (operationComplete)
@@ -672,13 +672,11 @@ namespace Dotmim.Sync
             // Can't find the row on the server datastore
             if (localTable.Rows.Count == 0)
             {
-                var errorMessage = "Change Application failed due to Row not Found on the server";
-
-                if (applyType == DmRowState.Added)
+                if (ApplyType == DmRowState.Added)
                     dbConflictType = ConflictType.RemoteInsertLocalNoRow;
-                else if (applyType == DmRowState.Modified)
+                else if (ApplyType == DmRowState.Modified)
                     dbConflictType = ConflictType.RemoteUpdateLocalNoRow;
-                else if (applyType == DmRowState.Deleted)
+                else if (ApplyType == DmRowState.Deleted)
                     dbConflictType = ConflictType.RemoteDeleteLocalNoRow;
             }
             else
@@ -691,18 +689,18 @@ namespace Dotmim.Sync
                 // the row on local is deleted
                 if (isTombstone)
                 {
-                    if (applyType == DmRowState.Added)
+                    if (ApplyType == DmRowState.Added)
                         dbConflictType = ConflictType.RemoteInsertLocalDelete;
-                    else if (applyType == DmRowState.Modified)
+                    else if (ApplyType == DmRowState.Modified)
                         dbConflictType = ConflictType.RemoteUpdateLocalDelete;
-                    else if (applyType == DmRowState.Deleted)
+                    else if (ApplyType == DmRowState.Deleted)
                         dbConflictType = ConflictType.RemoteDeleteLocalDelete;
                 }
                 else
                 {
                     var createTimestamp = localRow["create_timestamp"] != DBNull.Value ? (long)localRow["create_timestamp"] : 0L;
                     var updateTimestamp = localRow["update_timestamp"] != DBNull.Value ? (long)localRow["update_timestamp"] : 0L;
-                    switch (applyType)
+                    switch (ApplyType)
                     {
                         case DmRowState.Added:
                             dbConflictType = updateTimestamp == 0 ? ConflictType.RemoteInsertLocalInsert : ConflictType.RemoteInsertLocalUpdate;
@@ -942,7 +940,7 @@ namespace Dotmim.Sync
                 //After a force update, there is a problem, so raise exception
                 if (!operationComplete)
                 {
-                    var ex = $"Can't force operation for applyType {applyType}";
+                    var ex = $"Can't force operation for applyType {ApplyType}";
                     finalRow = null;
                     return (ChangeApplicationAction.Continue, 0);
                 }
@@ -969,7 +967,7 @@ namespace Dotmim.Sync
             }
 
             string empty = string.Empty;
-            switch (applyType)
+            switch (ApplyType)
             {
                 case DmRowState.Added:
                     {

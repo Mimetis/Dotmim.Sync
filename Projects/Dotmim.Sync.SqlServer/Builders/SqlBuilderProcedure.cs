@@ -19,10 +19,10 @@ namespace Dotmim.Sync.SqlServer.Builders
         private ObjectNameParser tableName;
         private ObjectNameParser trackingName;
         private SqlConnection connection;
-        private SqlTransaction transaction;
-        private DmTable tableDescription;
-        private SqlObjectNames sqlObjectNames;
-        private SqlDbMetadata sqlDbMetadata;
+        private readonly SqlTransaction transaction;
+        private readonly DmTable tableDescription;
+        private readonly SqlObjectNames sqlObjectNames;
+        private readonly SqlDbMetadata sqlDbMetadata;
 
         public ICollection<FilterClause> Filters { get; set; }
 
@@ -50,8 +50,10 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         private SqlParameter GetSqlParameter(DmColumn column)
         {
-            SqlParameter sqlParameter = new SqlParameter();
-            sqlParameter.ParameterName = $"@{column.ColumnName}";
+            SqlParameter sqlParameter = new SqlParameter
+            {
+                ParameterName = $"@{column.ColumnName}"
+            };
 
             // Get the good SqlDbType (even if we are not from Sql Server def)
             SqlDbType sqlDbType = (SqlDbType)this.sqlDbMetadata.TryGetOwnerDbType(column.OriginalDbType, column.DbType, false, false, column.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
@@ -264,8 +266,10 @@ namespace Dotmim.Sync.SqlServer.Builders
             sqlCommand.Parameters.Add(sqlParameter);
             SqlParameter sqlParameter1 = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
             sqlCommand.Parameters.Add(sqlParameter1);
-            SqlParameter sqlParameter2 = new SqlParameter("@changeTable", SqlDbType.Structured);
-            sqlParameter2.TypeName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkTableType);
+            SqlParameter sqlParameter2 = new SqlParameter("@changeTable", SqlDbType.Structured)
+            {
+                TypeName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkTableType)
+            };
             sqlCommand.Parameters.Add(sqlParameter2);
 
 
@@ -438,8 +442,10 @@ namespace Dotmim.Sync.SqlServer.Builders
             sqlCommand.Parameters.Add(sqlParameter);
             SqlParameter sqlParameter1 = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
             sqlCommand.Parameters.Add(sqlParameter1);
-            SqlParameter sqlParameter2 = new SqlParameter("@changeTable", SqlDbType.Structured);
-            sqlParameter2.TypeName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkTableType);
+            SqlParameter sqlParameter2 = new SqlParameter("@changeTable", SqlDbType.Structured)
+            {
+                TypeName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkTableType)
+            };
             sqlCommand.Parameters.Add(sqlParameter2);
 
 
@@ -635,8 +641,10 @@ namespace Dotmim.Sync.SqlServer.Builders
             sqlCommand.Parameters.Add(sqlParameter);
             SqlParameter sqlParameter1 = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
             sqlCommand.Parameters.Add(sqlParameter1);
-            SqlParameter sqlParameter2 = new SqlParameter("@changeTable", SqlDbType.Structured);
-            sqlParameter2.TypeName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkTableType);
+            SqlParameter sqlParameter2 = new SqlParameter("@changeTable", SqlDbType.Structured)
+            {
+                TypeName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkTableType)
+            };
             sqlCommand.Parameters.Add(sqlParameter2);
 
 
@@ -820,8 +828,10 @@ namespace Dotmim.Sync.SqlServer.Builders
             var insTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger);
 
             SqlCommand sqlCommand = new SqlCommand();
-            SqlParameter sqlParameter2 = new SqlParameter("@sync_row_count", SqlDbType.Int);
-            sqlParameter2.Direction = ParameterDirection.Output;
+            SqlParameter sqlParameter2 = new SqlParameter("@sync_row_count", SqlDbType.Int)
+            {
+                Direction = ParameterDirection.Output
+            };
             sqlCommand.Parameters.Add(sqlParameter2);
 
             StringBuilder stringBuilder = new StringBuilder();
@@ -910,8 +920,10 @@ namespace Dotmim.Sync.SqlServer.Builders
             sqlCommand.Parameters.Add(sqlParameter);
             SqlParameter sqlParameter1 = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt);
             sqlCommand.Parameters.Add(sqlParameter1);
-            SqlParameter sqlParameter2 = new SqlParameter("@sync_row_count", SqlDbType.Int);
-            sqlParameter2.Direction = ParameterDirection.Output;
+            SqlParameter sqlParameter2 = new SqlParameter("@sync_row_count", SqlDbType.Int)
+            {
+                Direction = ParameterDirection.Output
+            };
             sqlCommand.Parameters.Add(sqlParameter2);
 
             StringBuilder stringBuilder = new StringBuilder();
@@ -996,8 +1008,10 @@ namespace Dotmim.Sync.SqlServer.Builders
             sqlCommand.Parameters.Add(sqlParameter);
             SqlParameter sqlParameter1 = new SqlParameter("@sync_row_timestamp", SqlDbType.BigInt);
             sqlCommand.Parameters.Add(sqlParameter1);
-            SqlParameter sqlParameter2 = new SqlParameter("@sync_row_count", SqlDbType.Int);
-            sqlParameter2.Direction = ParameterDirection.Output;
+            SqlParameter sqlParameter2 = new SqlParameter("@sync_row_count", SqlDbType.Int)
+            {
+                Direction = ParameterDirection.Output
+            };
             sqlCommand.Parameters.Add(sqlParameter2);
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.AppendLine($"SET {sqlParameter2.ParameterName} = 0;");
@@ -1075,8 +1089,10 @@ namespace Dotmim.Sync.SqlServer.Builders
             StringBuilder stringBuilderParameters = new StringBuilder();
 
             this.AddColumnParametersToCommand(sqlCommand);
-            SqlParameter sqlParameter = new SqlParameter("@sync_row_count", SqlDbType.Int);
-            sqlParameter.Direction = ParameterDirection.Output;
+            SqlParameter sqlParameter = new SqlParameter("@sync_row_count", SqlDbType.Int)
+            {
+                Direction = ParameterDirection.Output
+            };
             sqlCommand.Parameters.Add(sqlParameter);
 
             stringBuilder.AppendLine($"SET {sqlParameter.ParameterName} = 0;");
@@ -1188,8 +1204,10 @@ namespace Dotmim.Sync.SqlServer.Builders
             sqlCommand.Parameters.Add(sqlParameter3);
             SqlParameter sqlParameter4 = new SqlParameter("@update_timestamp", SqlDbType.BigInt);
             sqlCommand.Parameters.Add(sqlParameter4);
-            SqlParameter sqlParameter8 = new SqlParameter("@sync_row_count", SqlDbType.Int);
-            sqlParameter8.Direction = ParameterDirection.Output;
+            SqlParameter sqlParameter8 = new SqlParameter("@sync_row_count", SqlDbType.Int)
+            {
+                Direction = ParameterDirection.Output
+            };
             sqlCommand.Parameters.Add(sqlParameter8);
 
             stringBuilder.AppendLine($"SET {sqlParameter8.ParameterName} = 0;");
@@ -1519,8 +1537,10 @@ namespace Dotmim.Sync.SqlServer.Builders
             sqlCommand.Parameters.Add(sqlParameter);
             SqlParameter sqlParameter1 = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt);
             sqlCommand.Parameters.Add(sqlParameter1);
-            SqlParameter sqlParameter2 = new SqlParameter("@sync_row_count", SqlDbType.Int);
-            sqlParameter2.Direction = ParameterDirection.Output;
+            SqlParameter sqlParameter2 = new SqlParameter("@sync_row_count", SqlDbType.Int)
+            {
+                Direction = ParameterDirection.Output
+            };
             sqlCommand.Parameters.Add(sqlParameter2);
 
             stringBuilder.AppendLine($"SET {sqlParameter2.ParameterName} = 0;");
@@ -1613,8 +1633,10 @@ namespace Dotmim.Sync.SqlServer.Builders
             sqlCommand.Parameters.Add(sqlParameter3);
             SqlParameter sqlParameter5 = new SqlParameter("@update_timestamp", SqlDbType.BigInt);
             sqlCommand.Parameters.Add(sqlParameter5);
-            SqlParameter sqlParameter8 = new SqlParameter("@sync_row_count", SqlDbType.Int);
-            sqlParameter8.Direction = ParameterDirection.Output;
+            SqlParameter sqlParameter8 = new SqlParameter("@sync_row_count", SqlDbType.Int)
+            {
+                Direction = ParameterDirection.Output
+            };
             sqlCommand.Parameters.Add(sqlParameter8);
 
             string str1 = SqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKey.Columns, "");
@@ -1868,7 +1890,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         public void CreateSelectIncrementalChanges()
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChanges);
-            Func<SqlCommand> cmdWithoutFilter = () => BuildSelectIncrementalChangesCommand(false);
+            SqlCommand cmdWithoutFilter() => BuildSelectIncrementalChangesCommand(false);
             CreateProcedureCommand(cmdWithoutFilter, commandName);
 
             if (this.Filters != null && this.Filters.Count > 0)
@@ -1877,7 +1899,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                 var filtersName = this.Filters.Select(f => f.ColumnName);
                 commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWitFilters, filtersName);
-                Func<SqlCommand> cmdWithFilter = () => BuildSelectIncrementalChangesCommand(true);
+                SqlCommand cmdWithFilter() => BuildSelectIncrementalChangesCommand(true);
                 CreateProcedureCommand(cmdWithFilter, commandName);
 
             }
@@ -1888,7 +1910,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             StringBuilder sbSelecteChanges = new StringBuilder();
 
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChanges);
-            Func<SqlCommand> cmdWithoutFilter = () => BuildSelectIncrementalChangesCommand(false);
+            SqlCommand cmdWithoutFilter() => BuildSelectIncrementalChangesCommand(false);
             sbSelecteChanges.AppendLine(CreateProcedureCommandScriptText(cmdWithoutFilter, commandName));
 
 
@@ -1921,7 +1943,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 }
 
                 commandName = String.Format(commandName, name);
-                Func<SqlCommand> cmdWithFilter = () => BuildSelectIncrementalChangesCommand(true);
+                SqlCommand cmdWithFilter() => BuildSelectIncrementalChangesCommand(true);
                 sbSelecteChanges.AppendLine(CreateProcedureCommandScriptText(cmdWithFilter, commandName));
 
             }

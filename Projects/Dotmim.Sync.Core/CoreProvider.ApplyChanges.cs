@@ -171,7 +171,7 @@ namespace Dotmim.Sync
                 syncAdapter.ConflictApplyAction = SyncConfiguration.GetApplyAction(message.Policy);
 
                 // Set syncAdapter properties
-                syncAdapter.applyType = applyType;
+                syncAdapter.ApplyType = applyType;
 
                 // Get conflict handler resolver
                 if (syncAdapter.ConflictActionInvoker == null && this.ApplyChangedFailed != null)

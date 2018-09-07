@@ -151,8 +151,10 @@ namespace Dotmim.Sync
             DmSet changesSet = new DmSet(SyncConfiguration.DMSET_NAME);
 
             // Create the batch info, in memory
-            var batchInfo = new BatchInfo();
-            batchInfo.InMemory = !isBatched;
+            var batchInfo = new BatchInfo
+            {
+                InMemory = !isBatched
+            };
 
             if (isBatched)
                 batchInfo.Directory = BatchInfo.GenerateNewDirectoryName();
@@ -176,8 +178,10 @@ namespace Dotmim.Sync
             DmSet changesSet = new DmSet(SyncConfiguration.DMSET_NAME);
 
             // Create the batch info, in memory
-            var batchInfo = new BatchInfo();
-            batchInfo.InMemory = true;
+            var batchInfo = new BatchInfo
+            {
+                InMemory = true
+            };
 
             using (var connection = this.CreateConnection())
             {
@@ -346,7 +350,7 @@ namespace Dotmim.Sync
                         return (batchInfo, changes);
 
                     }
-                    catch (Exception dbException)
+                    catch (Exception)
                     {
                         throw;
                     }
@@ -636,7 +640,7 @@ namespace Dotmim.Sync
                                     this.TryRaiseProgressEvent(args, this.TableChangesSelected);
                                 }
                             }
-                            catch (Exception dbException)
+                            catch (Exception)
                             {
                                 throw;
                             }

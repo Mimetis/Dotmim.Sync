@@ -46,7 +46,7 @@ namespace Dotmim.Sync
 
             // Delete all existing columns
             if (dmTable.PrimaryKey != null && dmTable.PrimaryKey.Columns != null && dmTable.PrimaryKey.Columns.Length > 0)
-                dmTable.PrimaryKey = DmKey.Empty;
+                dmTable.PrimaryKey = new DmKey();
 
             if (dmTable.Columns.Count > 0)
                 dmTable.Columns.Clear();
