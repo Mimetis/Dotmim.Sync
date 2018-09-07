@@ -23,13 +23,15 @@ namespace Dotmim.Sync.EventsArgs
     public class DatabaseProvisionedEventArgs
     {
         public SyncProvision Provision { get; }
+        public DmSet Schema { get; }
         public DbConnection Connection { get; }
         public DbTransaction Transaction { get; }
 
-        public DatabaseProvisionedEventArgs(SyncProvision provision, DmSet messageSchema, DbConnection connection,
+        public DatabaseProvisionedEventArgs(SyncProvision provision, DmSet schema, DbConnection connection,
             DbTransaction transaction)
         {
             Provision = provision;
+            Schema = schema;
             Connection = connection;
             Transaction = transaction;
         }
