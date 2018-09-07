@@ -1724,18 +1724,28 @@ namespace Dotmim.Sync.SqlServer.Builders
             {
                 foreach (var c in this.Filters)
                 {
-                    var columnFilter = this.tableDescription.Columns[c.ColumnName];
+                    if (!c.IsVirtual)
+                    {
+                        var columnFilter = this.tableDescription.Columns[c.ColumnName];
 
-                    if (columnFilter == null)
-                        throw new InvalidExpressionException($"Column {c.ColumnName} does not exist in Table {this.tableDescription.TableName}");
+                        if (columnFilter == null)
+                            throw new InvalidExpressionException($"Column {c.ColumnName} does not exist in Table {this.tableDescription.TableName}");
 
-                    var columnFilterName = new ObjectNameParser(columnFilter.ColumnName, "[", "]");
+                        var columnFilterName = new ObjectNameParser(columnFilter.ColumnName, "[", "]");
 
-                    // Get the good SqlDbType (even if we are not from Sql Server def)
+                        // Get the good SqlDbType (even if we are not from Sql Server def)
 
-                    SqlDbType sqlDbType = (SqlDbType)this.sqlDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.DbType, false, false, columnFilter.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-                    SqlParameter sqlParamFilter = new SqlParameter($"@{columnFilterName.FullUnquotedString}", sqlDbType);
-                    sqlCommand.Parameters.Add(sqlParamFilter);
+                        SqlDbType sqlDbType = (SqlDbType)this.sqlDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.DbType, false, false, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+                        SqlParameter sqlParamFilter = new SqlParameter($"@{columnFilterName.FullUnquotedString}", sqlDbType);
+                        sqlCommand.Parameters.Add(sqlParamFilter);
+                    }
+                    else
+                    {
+                        SqlDbType sqlDbType = (SqlDbType)this.sqlDbMetadata.TryGetOwnerDbType(null, c.ColumnType.Value, false, false, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+                        var columnFilterName = new ObjectNameParser(c.ColumnName, "[", "]");
+                        SqlParameter sqlParamFilter = new SqlParameter($"@{columnFilterName.FullUnquotedString}", sqlDbType);
+                        sqlCommand.Parameters.Add(sqlParamFilter);
+                    }
                 }
             }
 
@@ -1770,13 +1780,18 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("WHERE (");
             string str = string.Empty;
 
-            if (withFilter && this.Filters != null && this.Filters.Count > 0)
+            var columnFilters = this.Filters.GetColumnFilters();
+            if (withFilter && columnFilters.Count != 0)
             {
                 StringBuilder builderFilter = new StringBuilder();
                 builderFilter.Append("\t(");
-                string filterSeparationString = "";
-                foreach (var c in this.Filters)
+                bool isFirst = true;
+                foreach (var c in columnFilters)
                 {
+                    if (!isFirst)
+                        builderFilter.Append(" AND ");
+                    isFirst = false;
+
                     var columnFilter = this.tableDescription.Columns[c.ColumnName];
 
                     if (columnFilter == null)
@@ -1784,22 +1799,25 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                     var columnFilterName = new ObjectNameParser(columnFilter.ColumnName, "[", "]");
 
-                    builderFilter.Append($"[side].{columnFilterName.QuotedObjectName} = @{columnFilterName.FullUnquotedString}{filterSeparationString}");
-                    filterSeparationString = " AND ";
+                    builderFilter.Append($"[side].{columnFilterName.QuotedObjectName} = @{columnFilterName.FullUnquotedString}");
                 }
                 builderFilter.AppendLine(")");
                 builderFilter.Append("\tOR (");
                 builderFilter.AppendLine("([side].[update_scope_id] = @sync_scope_id or [side].[update_scope_id] IS NULL)");
                 builderFilter.Append("\t\tAND (");
+                
+                isFirst = true;
 
-                filterSeparationString = "";
-                foreach (var c in this.Filters)
+                foreach (var c in columnFilters)
                 {
+                    if (!isFirst)
+                        builderFilter.Append(" OR ");
+                    isFirst = false;
+
                     var columnFilter = this.tableDescription.Columns[c.ColumnName];
                     var columnFilterName = new ObjectNameParser(columnFilter.ColumnName, "[", "]");
 
-                    builderFilter.Append($"[side].{columnFilterName.QuotedObjectName} IS NULL{filterSeparationString}");
-                    filterSeparationString = " OR ";
+                    builderFilter.Append($"[side].{columnFilterName.QuotedObjectName} IS NULL");
                 }
 
                 builderFilter.AppendLine("))");
@@ -1855,13 +1873,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             if (this.Filters != null && this.Filters.Count > 0)
             {
-                foreach (var c in this.Filters)
-                {
-                    var columnFilter = this.tableDescription.Columns[c.ColumnName];
-
-                    if (columnFilter == null)
-                        throw new InvalidExpressionException($"Column {c.ColumnName} does not exist in Table {this.tableDescription.TableName}");
-                }
+                this.Filters.ValidateColumnFilters(this.tableDescription);
 
                 var filtersName = this.Filters.Select(f => f.ColumnName);
                 commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWitFilters, filtersName);
@@ -1885,14 +1897,25 @@ namespace Dotmim.Sync.SqlServer.Builders
                 commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWitFilters);
                 string name = "";
                 string sep = "";
+                
                 foreach (var c in this.Filters)
                 {
-                    var columnFilter = this.tableDescription.Columns[c.ColumnName];
+                    string unquotedColumnName;
+                    if (!c.IsVirtual)
+                    {
+                        var columnFilter = this.tableDescription.Columns[c.ColumnName];
 
-                    if (columnFilter == null)
-                        throw new InvalidExpressionException($"Column {c.ColumnName} does not exist in Table {this.tableDescription.TableName}");
+                        if (columnFilter == null)
+                            throw new InvalidExpressionException(
+                                $"Column {c.ColumnName} does not exist in Table {this.tableDescription.TableName}");
 
-                    var unquotedColumnName = new ObjectNameParser(columnFilter.ColumnName).FullUnquotedString;
+                        unquotedColumnName = new ObjectNameParser(columnFilter.ColumnName).FullUnquotedString;
+                    }
+                    else
+                    {
+                        unquotedColumnName = new ObjectNameParser(c.ColumnName).FullUnquotedString;
+                    }
+
                     name += $"{unquotedColumnName}{sep}";
                     sep = "_";
                 }
@@ -1937,13 +1960,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                         if (this.transaction != null)
                             command.Transaction = this.transaction;
 
-                        foreach (var c in this.Filters)
-                        {
-                            var columnFilter = this.tableDescription.Columns[c.ColumnName];
-
-                            if (columnFilter == null)
-                                throw new InvalidExpressionException($"Column {c.ColumnName} does not exist in Table {this.tableDescription.TableName}");
-                        }
+                        this.Filters.ValidateColumnFilters(this.tableDescription);
 
                         var filtersName = this.Filters.Select(f => f.ColumnName);
                         var commandNameWithFilter = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWitFilters, filtersName);
@@ -1983,14 +2000,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                 using (var command = new SqlCommand())
                 {
-
-                    foreach (var c in this.Filters)
-                    {
-                        var columnFilter = this.tableDescription.Columns[c.ColumnName];
-
-                        if (columnFilter == null)
-                            throw new InvalidExpressionException($"Column {c.ColumnName} does not exist in Table {this.tableDescription.TableName}");
-                    }
+                    this.Filters.ValidateColumnFilters(this.tableDescription);
 
                     var filtersName = this.Filters.Select(f => f.ColumnName);
                     var commandNameWithFilter = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWitFilters, filtersName);

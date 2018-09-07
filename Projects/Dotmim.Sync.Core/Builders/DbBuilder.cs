@@ -107,7 +107,7 @@ namespace Dotmim.Sync.Builders
             try
             {
                 var trackingTableBuilder = CreateTrackingTableBuilder(connection, transaction);
-                trackingTableBuilder.Filters = this.FilterColumns;
+                trackingTableBuilder.Filters = this.FilterColumns.GetColumnFilters();
 
                 if (trackingTableBuilder.NeedToCreateTrackingTable())
                 {
@@ -137,7 +137,7 @@ namespace Dotmim.Sync.Builders
             try
             {
                 var triggerBuilder = CreateTriggerBuilder(connection, transaction);
-                triggerBuilder.Filters = this.FilterColumns;
+                triggerBuilder.Filters = this.FilterColumns.GetColumnFilters();
 
                 if (triggerBuilder.NeedToCreateTrigger(DbTriggerType.Insert))
                     triggerBuilder.CreateInsertTrigger();
@@ -342,7 +342,7 @@ namespace Dotmim.Sync.Builders
                     connection.Open();
 
                 var triggerBuilder = CreateTriggerBuilder(connection, transaction);
-                triggerBuilder.Filters = this.FilterColumns;
+                triggerBuilder.Filters = this.FilterColumns.GetColumnFilters();
 
                 if (!triggerBuilder.NeedToCreateTrigger(DbTriggerType.Insert))
                     triggerBuilder.DropInsertTrigger();
@@ -370,7 +370,7 @@ namespace Dotmim.Sync.Builders
 
 
                 var trackingTableBuilder = CreateTrackingTableBuilder(connection, transaction);
-                trackingTableBuilder.Filters = this.FilterColumns;
+                trackingTableBuilder.Filters = this.FilterColumns.GetColumnFilters();
 
                 if (!trackingTableBuilder.NeedToCreateTrackingTable())
                     trackingTableBuilder.DropTable();
@@ -500,7 +500,7 @@ namespace Dotmim.Sync.Builders
                 }
 
                 var trackingTableBuilder = CreateTrackingTableBuilder(connection, transaction);
-                trackingTableBuilder.Filters = this.FilterColumns;
+                trackingTableBuilder.Filters = this.FilterColumns.GetColumnFilters();
 
                 if (trackingTableBuilder.NeedToCreateTrackingTable())
                 {
@@ -511,7 +511,7 @@ namespace Dotmim.Sync.Builders
                     needToCreateTrackingTable = true;
                 }
                 var triggerBuilder = CreateTriggerBuilder(connection, transaction);
-                triggerBuilder.Filters = this.FilterColumns;
+                triggerBuilder.Filters = this.FilterColumns.GetColumnFilters();
 
                 if (triggerBuilder.NeedToCreateTrigger(DbTriggerType.Insert))
                     stringBuilder.Append(triggerBuilder.CreateInsertTriggerScriptText());
