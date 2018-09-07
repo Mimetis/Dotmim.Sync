@@ -56,12 +56,12 @@ namespace Dotmim.Sync.Manager
         /// <summary>
         /// Get a DbType from a datastore type name
         /// </summary>
-        public abstract DbType ValidateDbType(string typeName, bool isUnsigned, bool isUnicode);
+        public abstract DbType ValidateDbType(string typeName, bool isUnsigned, bool isUnicode, long maxLength);
 
         /// <summary>
         /// Get a datastore DbType from a datastore type name
         /// </summary>
-        public abstract object ValidateOwnerDbType(string typeName, bool isUnsigned, bool isUnicode);
+        public abstract object ValidateOwnerDbType(string typeName, bool isUnsigned, bool isUnicode, long maxLength);
 
         /// <summary>
         /// Gets and validate a max length issued from the database definition
@@ -114,23 +114,23 @@ namespace Dotmim.Sync.Manager
         /// <summary>
         /// Returns the corresponding Owner DbType. Because it could be lower case, we should handle it
         /// </summary>
-        public Object TryGetOwnerDbType(string ownerDbType, DbType fallbackDbType, bool isUnsigned, bool isUnicode, string fromProviderType, string ownerProviderType)
+        public Object TryGetOwnerDbType(string ownerDbType, DbType fallbackDbType, bool isUnsigned, bool isUnicode, long maxLength, string fromProviderType, string ownerProviderType)
         {
             // We MUST check if we are from the same provider (if it's mysql or oracle, we fallback on dbtype
             if (!String.IsNullOrEmpty(ownerDbType) && fromProviderType == ownerProviderType)
-                return (SqlDbType)ValidateOwnerDbType(ownerDbType, isUnsigned, isUnicode);
+                return ValidateOwnerDbType(ownerDbType, isUnsigned, isUnicode, maxLength);
 
             // if it's not the same provider, fallback on DbType instead.
             return GetOwnerDbTypeFromDbType(fallbackDbType);
         }
 
-        public string TryGetOwnerDbTypeString(string originalDbType, DbType fallbackDbType, bool isUnsigned, bool isUnicode, string fromProviderType, string ownerProviderType)
+        public string TryGetOwnerDbTypeString(string originalDbType, DbType fallbackDbType, bool isUnsigned, bool isUnicode, long maxLength, string fromProviderType, string ownerProviderType)
         {
             // We MUST check if we are from the same provider (if it's mysql or oracle, we fallback on dbtype
             if (!String.IsNullOrEmpty(originalDbType) && fromProviderType == ownerProviderType)
             {
-                SqlDbType sqlDbType = (SqlDbType)ValidateOwnerDbType(originalDbType, isUnsigned, isUnicode);
-                return GetStringFromOwnerDbType(sqlDbType);
+                Object ownedDbType = ValidateOwnerDbType(originalDbType, isUnsigned, isUnicode, maxLength);
+                return GetStringFromOwnerDbType(ownedDbType);
             }
 
             // if it's not the same provider, fallback on DbType instead.
@@ -142,21 +142,21 @@ namespace Dotmim.Sync.Manager
             // We MUST check if we are from the same provider (if it's mysql or oracle, we fallback on dbtype
             if (!String.IsNullOrEmpty(originalDbType) && fromProviderType == ownerProviderType)
             {
-                SqlDbType sqlDbType = (SqlDbType)ValidateOwnerDbType(originalDbType, isUnsigned, isUnicode);
-                return GetPrecisionStringFromOwnerDbType(sqlDbType, maxLength, precision, scale);
+                object ownedDbType = ValidateOwnerDbType(originalDbType, isUnsigned, isUnicode, maxLength);
+                return GetPrecisionStringFromOwnerDbType(ownedDbType, maxLength, precision, scale);
             }
 
             // if it's not the same provider, fallback on DbType instead.
             return GetPrecisionStringFromDbType(fallbackDbType, maxLength, precision, scale);
         }
 
-        public (byte precision, byte scale) TryGetOwnerPrecisionAndScale(string originalDbType, DbType fallbackDbType, bool isUnsigned, bool isUnicode, byte precision, byte scale, string fromProviderType, string ownerProviderType)
+        public (byte precision, byte scale) TryGetOwnerPrecisionAndScale(string originalDbType, DbType fallbackDbType, bool isUnsigned, bool isUnicode, long maxLength, byte precision, byte scale, string fromProviderType, string ownerProviderType)
         {
             // We MUST check if we are from the same provider (if it's mysql or oracle, we fallback on dbtype
             if (!String.IsNullOrEmpty(originalDbType) && fromProviderType == ownerProviderType)
             {
-                SqlDbType sqlDbType = (SqlDbType)ValidateOwnerDbType(originalDbType, isUnsigned, isUnicode);
-                return GetPrecisionFromOwnerDbType(sqlDbType, precision, scale);
+                Object ownedDbType = ValidateOwnerDbType(originalDbType, isUnsigned, isUnicode, maxLength);
+                return GetPrecisionFromOwnerDbType(ownedDbType, precision, scale);
             }
 
             // if it's not the same provider, fallback on DbType instead.
@@ -169,8 +169,8 @@ namespace Dotmim.Sync.Manager
             // We MUST check if we are from the same provider (if it's mysql or oracle, we fallback on dbtype
             if (!String.IsNullOrEmpty(originalDbType) && fromProviderType == ownerProviderType)
             {
-                SqlDbType sqlDbType = (SqlDbType)ValidateOwnerDbType(originalDbType, isUnsigned, isUnicode);
-                return GetMaxLengthFromOwnerDbType(sqlDbType, maxLength);
+                Object ownedDbType = ValidateOwnerDbType(originalDbType, isUnsigned, isUnicode, maxLength);
+                return GetMaxLengthFromOwnerDbType(ownedDbType, maxLength);
             }
 
             // if it's not the same provider, fallback on DbType instead.

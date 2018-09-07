@@ -95,6 +95,9 @@ namespace Dotmim.Sync.Web.Client
                 if (client == null)
                     client = new HttpClient(httpClientHandler);
 
+                // reinit client
+                client.DefaultRequestHeaders.Clear();
+
                 // add it to the default header
                 if (this.Cookie != null)
                     client.DefaultRequestHeaders.Add("Cookie", this.Cookie.ToString());
@@ -110,7 +113,8 @@ namespace Dotmim.Sync.Web.Client
                 // Adding others headers
                 if (this.CustomHeaders != null && this.CustomHeaders.Count > 0)
                     foreach (var kvp in this.CustomHeaders)
-                        requestMessage.Headers.Add(kvp.Key, kvp.Value);
+                        if (!requestMessage.Headers.Contains(kvp.Key))
+                            requestMessage.Headers.Add(kvp.Key, kvp.Value);
 
                 //request.AddHeader("content-type", "application/json");
                 if (serializationFormat == SerializationFormat.Json && !requestMessage.Content.Headers.Contains("content-type"))
@@ -122,8 +126,14 @@ namespace Dotmim.Sync.Web.Client
                     cancellationToken.ThrowIfCancellationRequested();
 
                 // get response from server
-                if (!response.IsSuccessStatusCode)
-                    throw new Exception(response.ReasonPhrase);
+                if (!response.IsSuccessStatusCode && response.Content != null)
+                {
+                    var exrror = await response.Content.ReadAsStringAsync();
+                    SyncException syncException = JsonConvert.DeserializeObject<SyncException>(exrror);
+
+                    if (syncException != null)
+                        throw syncException;
+                }
 
                 // try to set the cookie for http session
                 var headers = response?.Headers;
@@ -156,35 +166,21 @@ namespace Dotmim.Sync.Web.Client
                 return responseMessage;
 
             }
-            catch (TaskCanceledException ex)
+            catch (TaskCanceledException)
             {
-                throw ex;
+                throw;
+            }
+            catch (SyncException)
+            {
+                throw;
             }
             catch (Exception e)
             {
                 if (response == null || response.Content == null)
                     throw e;
 
-                try
-                {
-                    var exrror = await response.Content.ReadAsStringAsync();
-                    WebSyncException webSyncException = JsonConvert.DeserializeObject<WebSyncException>(exrror);
-
-                    if (webSyncException != null)
-                        throw webSyncException;
-
-                }
-                catch (WebSyncException)
-                {
-                    throw;
-                }
-                catch (Exception )
-                {
-                    throw;
-                }
-
-                throw e;
-
+                var exrror = await response.Content.ReadAsStringAsync();
+                throw new SyncException(exrror);
             }
 
         }

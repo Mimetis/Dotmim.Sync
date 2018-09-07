@@ -10,7 +10,7 @@ namespace Dotmim.Sync
 {
     /// <summary>
     /// Represents a synchronization conflict at the row level.
-    /// Conflict could be resolved only on server side
+    /// Conflict rule resolution is set on the server side
     /// </summary>
     public class SyncConflict
     {

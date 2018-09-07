@@ -5,6 +5,7 @@ using Microsoft.SqlServer.Server;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Data;
 using System.Data.Common;
 using System.Data.SqlClient;
@@ -54,10 +55,9 @@ namespace Dotmim.Sync.SqlServer.Builders
         private SqlMetaData GetSqlMetadaFromType(DmColumn column)
         {
             var dbType = column.DbType;
-            var precision = column.Precision;
             long maxLength = column.MaxLength;
 
-            SqlDbType sqlDbType = (SqlDbType)this.sqlMetadata.TryGetOwnerDbType(column.OriginalDbType, column.DbType, false, false, this.TableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+            SqlDbType sqlDbType = (SqlDbType)this.sqlMetadata.TryGetOwnerDbType(column.OriginalDbType, column.DbType, false, false, column.MaxLength, this.TableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
 
             // TODO : Since we validate length before, is it mandatory here ?
 
@@ -99,10 +99,17 @@ namespace Dotmim.Sync.SqlServer.Builders
             if (sqlDbType == SqlDbType.Decimal)
             {
                 if (column.PrecisionSpecified && column.ScaleSpecified)
-                    return new SqlMetaData(column.ColumnName, sqlDbType, column.Precision, column.Scale);
+                {
+                    var (p, s) = this.sqlMetadata.ValidatePrecisionAndScale(column);
+                    return new SqlMetaData(column.ColumnName, sqlDbType, p, s);
+
+                }
 
                 if (column.PrecisionSpecified)
-                    return new SqlMetaData(column.ColumnName, sqlDbType, column.Precision);
+                {
+                    var p = this.sqlMetadata.ValidatePrecision(column);
+                    return new SqlMetaData(column.ColumnName, sqlDbType, p);
+                }
 
             }
 
@@ -178,10 +185,35 @@ namespace Dotmim.Sync.SqlServer.Builders
                                     break;
                                 case SqlDbType.Bit:
                                     if (columnType != typeof(bool))
-                                        if (Boolean.TryParse(rowValue.ToString(), out Boolean v))
+                                    {
+                                        string rowValueString = rowValue.ToString();
+                                        if (Boolean.TryParse(rowValueString.Trim(), out Boolean v))
+                                        {
                                             rowValue = v;
-                                        else
-                                            throw new InvalidCastException($"Can't convert value {rowValue} to Boolean");
+                                            break;
+                                        }
+
+                                        if (rowValueString.Trim() == "0")
+                                        {
+                                            rowValue = false;
+                                            break;
+                                        }
+
+                                        if (rowValueString.Trim() == "1")
+                                        {
+                                            rowValue = true;
+                                            break;
+                                        }
+
+                                        var converter = TypeDescriptor.GetConverter(typeof(bool));
+                                        if (converter.CanConvertFrom(columnType))
+                                        {
+                                            rowValue = converter.ConvertFrom(rowValue);
+                                            break;
+                                        }
+
+                                        throw new InvalidCastException($"Can't convert value {rowValue} to Boolean");
+                                    }
                                     break;
                                 case SqlDbType.Date:
                                 case SqlDbType.DateTime:
@@ -347,7 +379,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             {
                 records.Clear();
                 records = null;
-               
+
                 if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
                     this.connection.Close();
 

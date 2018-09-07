@@ -172,7 +172,6 @@ namespace Dotmim.Sync
         internal async Task<(BatchInfo, ChangesSelected)> EnumerateChangesInternal(
             SyncContext context, ScopeInfo scopeInfo, DmSet configTables, string batchDirectory, ConflictResolutionPolicy policy, ICollection<FilterClause> filters)
         {
-
             // create the in memory changes set
             DmSet changesSet = new DmSet(SyncConfiguration.DMSET_NAME);
 

@@ -28,7 +28,7 @@ namespace Dotmim.Sync.MySql
             this.mySqlDbMetadata = new MySqlDbMetadata();
         }
 
-   
+
         public DmTable GetTableRelations()
         {
             return MySqlManagementUtils.RelationsForTable(sqlConnection, sqlTransaction, tableName);
@@ -48,8 +48,11 @@ namespace Dotmim.Sync.MySql
                 var name = c["column_name"].ToString();
                 var isUnsigned = c["column_type"] != DBNull.Value ? ((string)c["column_type"]).Contains("unsigned") : false;
 
+                var maxLengthLong = c["character_maximum_length"] != DBNull.Value ? Convert.ToInt64(c["character_maximum_length"]) : 0;
+
                 // Gets the datastore owner dbType 
-                MySqlDbType datastoreDbType = (MySqlDbType)mySqlDbMetadata.ValidateOwnerDbType(typeName, isUnsigned, false);
+                MySqlDbType datastoreDbType = (MySqlDbType)mySqlDbMetadata.ValidateOwnerDbType(typeName, isUnsigned, false, maxLengthLong);
+      
                 // once we have the datastore type, we can have the managed type
                 Type columnType = mySqlDbMetadata.ValidateType(datastoreDbType);
 
@@ -57,13 +60,20 @@ namespace Dotmim.Sync.MySql
                 dbColumn.OriginalTypeName = typeName;
                 dbColumn.SetOrdinal(Convert.ToInt32(c["ordinal_position"]));
 
-                var maxLengthLong = c["character_octet_length"] != DBNull.Value ? Convert.ToInt64(c["character_octet_length"]) : 0; 
                 dbColumn.MaxLength = maxLengthLong > Int32.MaxValue ? Int32.MaxValue : (Int32)maxLengthLong;
                 dbColumn.Precision = c["numeric_precision"] != DBNull.Value ? Convert.ToByte(c["numeric_precision"]) : (byte)0;
                 dbColumn.Scale = c["numeric_scale"] != DBNull.Value ? Convert.ToByte(c["numeric_scale"]) : (byte)0;
                 dbColumn.AllowDBNull = (String)c["is_nullable"] == "NO" ? false : true;
-                dbColumn.IsAutoIncrement = c["extra"] != DBNull.Value ? ((string)c["extra"]).Contains("auto increment") : false;
+
+                String extra = c["extra"] != DBNull.Value ? ((string)c["extra"]).ToLowerInvariant() : null;
+
+                if (!string.IsNullOrEmpty(extra) && (extra.Contains("auto increment") || extra.Contains("auto_increment")))
+                    dbColumn.IsAutoIncrement = true;
+
                 dbColumn.IsUnsigned = isUnsigned;
+                dbColumn.IsUnique = c["column_key"] != DBNull.Value ? ((string)c["column_key"]).ToLowerInvariant().Contains("uni") : false;
+
+
 
                 columns.Add(dbColumn);
 

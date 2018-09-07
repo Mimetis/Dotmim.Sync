@@ -43,13 +43,22 @@ namespace Dotmim.Sync.MySql.Builders
                 string lowerType = typeName.ToLowerInvariant();
                 switch (lowerType)
                 {
-                    case "varchar":
-                    case "char":
-                    case "text":
-                    case "nchar":
-                    case "nvarchar":
-                    case "enum":
-                    case "set":
+                    case "MEDIUMTEXT":
+                    case "LONGTEXT":
+                    case "TINYBLOB":
+                    case "MEDIUMBLOB":
+                    case "LONGBLOB":
+                    case "BLOB":
+                    case "JSON":
+                    case "TINYTEXT":
+                        return 0;
+                    case "TEXT":
+                    case "NCHAR":
+                    case "NVARCHAR":
+                    case "VARCHAR":
+                    case "CHAR":
+                    case "ENUM":
+                    case "SET":
                         if (maxLength > 0)
                             return maxLength;
                         else
@@ -65,6 +74,8 @@ namespace Dotmim.Sync.MySql.Builders
             switch (dbType)
             {
                 case DbType.AnsiString:
+                case DbType.Xml:
+                case DbType.String:
                     return MySqlDbType.LongText;
                 case DbType.StringFixedLength:
                 case DbType.AnsiStringFixedLength:
@@ -74,7 +85,7 @@ namespace Dotmim.Sync.MySql.Builders
                 case DbType.Boolean:
                     return MySqlDbType.Bit;
                 case DbType.Byte:
-                    return MySqlDbType.Byte;
+                    return MySqlDbType.UByte;
                 case DbType.Currency:
                     return MySqlDbType.Decimal;
                 case DbType.Date:
@@ -82,7 +93,7 @@ namespace Dotmim.Sync.MySql.Builders
                 case DbType.DateTime:
                 case DbType.DateTime2:
                 case DbType.DateTimeOffset:
-                    return MySqlDbType.DateTime ;
+                    return MySqlDbType.DateTime;
                 case DbType.Decimal:
                     return MySqlDbType.Decimal;
                 case DbType.Double:
@@ -101,8 +112,6 @@ namespace Dotmim.Sync.MySql.Builders
                     return MySqlDbType.Byte;
                 case DbType.Single:
                     return MySqlDbType.Float;
-                case DbType.String:
-                    return MySqlDbType.LongText;
                 case DbType.Time:
                     return MySqlDbType.Time;
                 case DbType.UInt16:
@@ -113,8 +122,6 @@ namespace Dotmim.Sync.MySql.Builders
                     return MySqlDbType.UInt64;
                 case DbType.VarNumeric:
                     return MySqlDbType.Decimal;
-                case DbType.Xml:
-                    return MySqlDbType.LongText;
             }
             throw new Exception($"this type {dbType} is not supported");
         }
@@ -155,16 +162,26 @@ namespace Dotmim.Sync.MySql.Builders
             var typeName = GetStringFromDbType(dbType);
             if (IsTextType(typeName))
             {
-                string lowerType = typeName.ToLowerInvariant();
+                string lowerType = typeName.ToUpperInvariant();
                 switch (lowerType)
                 {
-                    case "varchar":
-                    case "char":
-                    case "text":
-                    case "nchar":
-                    case "nvarchar":
-                    case "enum":
-                    case "set":
+
+                    case "MEDIUMTEXT":
+                    case "LONGTEXT":
+                    case "TINYBLOB":
+                    case "MEDIUMBLOB":
+                    case "LONGBLOB":
+                    case "BLOB":
+                    case "JSON":
+                    case "TINYTEXT":
+                        return string.Empty; ;
+                    case "TEXT":
+                    case "NCHAR":
+                    case "NVARCHAR":
+                    case "VARCHAR":
+                    case "CHAR":
+                    case "ENUM":
+                    case "SET":
                         if (maxLength > 0)
                             return $"({maxLength})";
                         else
@@ -198,20 +215,31 @@ namespace Dotmim.Sync.MySql.Builders
 
             if (IsTextType(typeName))
             {
-                string lowerType = typeName.ToLowerInvariant();
+                string lowerType = typeName.ToUpperInvariant();
                 switch (lowerType)
                 {
-                    case "varchar":
-                    case "char":
-                    case "text":
-                    case "nchar":
-                    case "nvarchar":
-                    case "enum":
-                    case "set":
+
+                    case "MEDIUMTEXT":
+                    case "LONGTEXT":
+                    case "TINYBLOB":
+                    case "MEDIUMBLOB":
+                    case "LONGBLOB":
+                    case "BLOB":
+                    case "JSON":
+                    case "TINYTEXT":
+                        return string.Empty; ;
+                    case "TEXT":
+                    case "NCHAR":
+                    case "NVARCHAR":
+                    case "VARCHAR":
+                    case "CHAR":
+                    case "ENUM":
+                    case "SET":
                         if (maxLength > 0)
                             return $"({maxLength})";
                         else
                             return string.Empty;
+
                 }
                 return string.Empty;
             }
@@ -280,8 +308,10 @@ namespace Dotmim.Sync.MySql.Builders
                     break;
                 case DbType.StringFixedLength:
                 case DbType.AnsiStringFixedLength:
-                case DbType.Guid:
                     mySqlType = "VARCHAR";
+                    break;
+                case DbType.Guid:
+                    mySqlType = "CHAR";
                     break;
                 case DbType.Object:
                     mySqlType = "LONGBLOB";
@@ -347,9 +377,9 @@ namespace Dotmim.Sync.MySql.Builders
                 case MySqlDbType.JSON:
                 case MySqlDbType.VarChar:
                 case MySqlDbType.VarString:
-                case MySqlDbType.Guid:
                     return "VARCHAR";
                 case MySqlDbType.String:
+                case MySqlDbType.Guid:
                     return "CHAR";
                 case MySqlDbType.Set:
                     return "SET";
@@ -489,7 +519,7 @@ namespace Dotmim.Sync.MySql.Builders
             return false;
         }
 
-        public override DbType ValidateDbType(string typeName, bool isUnsigned, bool isUnicode)
+        public override DbType ValidateDbType(string typeName, bool isUnsigned, bool isUnicode, long maxLength)
         {
             switch (typeName.ToLowerInvariant())
             {
@@ -523,25 +553,37 @@ namespace Dotmim.Sync.MySql.Builders
                 case "float":
                     return DbType.Decimal;
                 case "tinyint":
-                    return DbType.Byte;
+                    return isUnsigned ? DbType.Byte : DbType.SByte;
                 case "bigint":
-                    return isUnsigned ? DbType.UInt64: DbType.Int64;
+                    return isUnsigned ? DbType.UInt64 : DbType.Int64;
                 case "serial":
                     return DbType.UInt64;
                 case "smallint":
                     return isUnsigned ? DbType.UInt16 : DbType.Int16;
-                case "varchar":
-                case "tinytext":
+
                 case "mediumtext":
-                case "enum":
-                case "set":
-                    return isUnicode ? DbType.String : DbType.AnsiString;
+                case "longtext":
+                case "json":
+                case "tinytext":
+                        return isUnicode ? DbType.String : DbType.AnsiString;
+                case "text":
                 case "nchar":
                 case "nvarchar":
+                case "varchar":
+                case "enum":
+                case "set":
+                    if (isUnicode)
+                        return maxLength <= 0 ? DbType.String : DbType.StringFixedLength;
+                    else
+                        return maxLength <= 0 ? DbType.AnsiString : DbType.AnsiStringFixedLength;
                 case "char":
-                case "text":
-                case "longtext":
-                    return DbType.String;
+                    if (maxLength == 36)
+                        return DbType.Guid;
+                    else if (isUnicode)
+                        return maxLength <= 0 ? DbType.String : DbType.StringFixedLength;
+                    else
+                        return maxLength <= 0 ? DbType.AnsiString : DbType.AnsiStringFixedLength;
+
                 case "date":
                     return DbType.Date;
                 case "datetime":
@@ -557,7 +599,7 @@ namespace Dotmim.Sync.MySql.Builders
                 case "year":
                     return DbType.Int32;
                 case "time":
-                    return DbType.Time ;
+                    return DbType.Time;
                 case "timestamp":
                     return DbType.UInt64;
             }
@@ -575,11 +617,17 @@ namespace Dotmim.Sync.MySql.Builders
             return iMaxLength;
         }
 
-        public override object ValidateOwnerDbType(string typeName, bool isUnsigned, bool isUnicode)
+        public override object ValidateOwnerDbType(string typeName, bool isUnsigned, bool isUnicode, long maxLength)
         {
             switch (typeName.ToUpperInvariant())
             {
                 case "CHAR":
+                    if (maxLength == 36)
+                        return MySqlDbType.Guid;
+                    else
+                        return MySqlDbType.String;
+                case "GUID":
+                    return MySqlDbType.Guid;
                 case "STRING":
                     return MySqlDbType.String;
                 case "VARCHAR":
@@ -605,6 +653,10 @@ namespace Dotmim.Sync.MySql.Builders
                     return MySqlDbType.Enum;
                 case "BIT":
                     return MySqlDbType.Bit;
+                case "BYTE":
+                    return MySqlDbType.Byte;
+                case "UBYTE":
+                    return MySqlDbType.UByte;
                 case "TINYINT":
                     return isUnsigned ? MySqlDbType.UByte : MySqlDbType.Byte;
                 case "BOOL":

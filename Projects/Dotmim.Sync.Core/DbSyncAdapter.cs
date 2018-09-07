@@ -10,6 +10,7 @@ using System.Globalization;
 using System.Linq;
 using Dotmim.Sync.Builders;
 using System.Diagnostics;
+using System.ComponentModel;
 
 namespace Dotmim.Sync
 {
@@ -152,7 +153,48 @@ namespace Dotmim.Sync
                 isTombstone = true;
 
             if (row.Table != null && row.Table.Columns.Contains("sync_row_is_tombstone"))
-                isTombstone = row["sync_row_is_tombstone", version] != null && row["sync_row_is_tombstone", version] != DBNull.Value ? (bool)row["sync_row_is_tombstone", version] : false;
+            {
+
+                var rowValue = row["sync_row_is_tombstone", version] != null && row["sync_row_is_tombstone", version] != DBNull.Value ? row["sync_row_is_tombstone", version] : false;
+
+                if (rowValue.GetType() == typeof(bool))
+                {
+                    isTombstone = (bool)rowValue;
+                }
+                else
+                {
+                    isTombstone = Convert.ToInt64(rowValue) > 0;
+                }
+                //else
+                //{
+                //    string rowValueString = rowValue.ToString();
+                //    if (Boolean.TryParse(rowValueString.Trim(), out Boolean v))
+                //    {
+                //        isTombstone = v;
+                //    }
+                //    else if (rowValueString.Trim() == "0")
+                //    {
+                //        isTombstone = false;
+                //    }
+                //    else if (rowValueString.Trim() == "1")
+                //    {
+                //        isTombstone = true;
+                //    }
+                //    else
+                //    {
+                //        var converter = TypeDescriptor.GetConverter(typeof(bool));
+                //        if (converter.CanConvertFrom(rowValue.GetType()))
+                //        {
+                //            isTombstone = (bool)converter.ConvertFrom(rowValue);
+                //        }
+                //        else
+                //        {
+                //            isTombstone = false;
+                //        }
+
+                //    }
+                //}
+            }
 
             DbManager.SetParameterValue(command, "sync_row_is_tombstone", isTombstone ? 1 : 0);
             DbManager.SetParameterValue(command, "create_timestamp", createTimestamp);
@@ -708,8 +750,9 @@ namespace Dotmim.Sync
 
         /// <summary>
         /// Handle a conflict
+        /// The int returned is the conflict count I need 
         /// </summary>
-        internal ChangeApplicationAction HandleConflict(SyncConflict conflict, ConflictResolutionPolicy policy, ScopeInfo scope, long fromScopeLocalTimeStamp, out DmRow finalRow)
+        internal (ChangeApplicationAction, int) HandleConflict(SyncConflict conflict, ConflictResolutionPolicy policy, ScopeInfo scope, long fromScopeLocalTimeStamp, out DmRow finalRow)
         {
             finalRow = null;
 
@@ -723,7 +766,7 @@ namespace Dotmim.Sync
                 conflict.ErrorMessage = "Rollback action taken on conflict";
                 conflict.Type = ConflictType.ErrorsOccurred;
 
-                return ChangeApplicationAction.Rollback;
+                return (ChangeApplicationAction.Rollback, 0);
             }
 
             // Local provider wins, update metadata
@@ -734,7 +777,7 @@ namespace Dotmim.Sync
 
                 // Conflict on a line that is not present on the datasource
                 if (row == null)
-                    return ChangeApplicationAction.Continue;
+                    return (ChangeApplicationAction.Continue, 0);
 
                 if (row != null)
                 {
@@ -765,7 +808,7 @@ namespace Dotmim.Sync
 
                         // IF we have insert the row in the server side, to resolve the conflict
                         // Whe should update the metadatas correctly
-                        if (isUpdated && isInserted)
+                        if (isUpdated || isInserted)
                         {
                             using (var metadataCommand = GetCommand(commandType))
                             {
@@ -810,9 +853,10 @@ namespace Dotmim.Sync
 
                     finalRow = isMergeAction ? row : conflict.LocalRow;
 
-                    return ChangeApplicationAction.Continue;
+                    // We don't do anything on the local provider, so we do not need to return a +1 on syncConflicts count
+                    return (ChangeApplicationAction.Continue, 0);
                 }
-                return ChangeApplicationAction.Rollback;
+                return (ChangeApplicationAction.Rollback, 0);
             }
 
             // We gonna apply with force the line
@@ -821,7 +865,7 @@ namespace Dotmim.Sync
                 if (conflict.RemoteRow == null)
                 {
                     // TODO : Should Raise an error ?
-                    return ChangeApplicationAction.Rollback;
+                    return (ChangeApplicationAction.Rollback, 0);
                 }
 
                 bool operationComplete = false;
@@ -830,6 +874,7 @@ namespace Dotmim.Sync
                 var localScope = new ScopeInfo { Name = scope.Name, Timestamp = fromScopeLocalTimeStamp };
 
                 DbCommandType commandType = DbCommandType.InsertMetadata;
+                bool needToUpdateMetadata = true;
 
                 switch (conflict.Type)
                 {
@@ -844,6 +889,7 @@ namespace Dotmim.Sync
                     case ConflictType.RemoteDeleteLocalDelete:
                     case ConflictType.RemoteDeleteLocalNoRow:
                         operationComplete = true;
+                        needToUpdateMetadata = false;
                         break;
 
                     // The remote has delete the row, and local has insert or update it
@@ -874,19 +920,21 @@ namespace Dotmim.Sync
 
                     case ConflictType.RemoteCleanedupDeleteLocalUpdate:
                     case ConflictType.ErrorsOccurred:
-                        return ChangeApplicationAction.Rollback;
+                        return (ChangeApplicationAction.Rollback, 0);
                 }
 
-
-                using (var metadataCommand = GetCommand(commandType))
+                if (needToUpdateMetadata)
                 {
-                    // Deriving Parameters
-                    this.SetCommandParameters(commandType, metadataCommand);
+                    using (var metadataCommand = GetCommand(commandType))
+                    {
+                        // Deriving Parameters
+                        this.SetCommandParameters(commandType, metadataCommand);
 
-                    // force applying client row, so apply scope.id (client scope here)
-                    var rowsApplied = this.InsertOrUpdateMetadatas(metadataCommand, conflict.RemoteRow, scope.Id);
-                    if (!rowsApplied)
-                        throw new Exception("No metadatas rows found, can't update the server side");
+                        // force applying client row, so apply scope.id (client scope here)
+                        var rowsApplied = this.InsertOrUpdateMetadatas(metadataCommand, conflict.RemoteRow, scope.Id);
+                        if (!rowsApplied)
+                            throw new Exception("No metadatas rows found, can't update the server side");
+                    }
                 }
 
                 finalRow = conflict.RemoteRow;
@@ -896,14 +944,14 @@ namespace Dotmim.Sync
                 {
                     var ex = $"Can't force operation for applyType {applyType}";
                     finalRow = null;
-                    return ChangeApplicationAction.Continue;
+                    return (ChangeApplicationAction.Continue, 0);
                 }
 
                 // tableProgress.ChangesApplied += 1;
-                return ChangeApplicationAction.Continue;
+                return (ChangeApplicationAction.Continue, 1);
             }
 
-            return ChangeApplicationAction.Rollback;
+            return (ChangeApplicationAction.Rollback, 0);
 
         }
 

@@ -279,7 +279,7 @@ namespace Dotmim.Sync.Manager
             var sqlColumn = mySqlColumn.Clone();
 
             sqlColumn.MaxLength = -1;
-            sqlColumn.Precision = Math.Min((byte)65, mySqlColumn.Precision);
+            sqlColumn.Precision = Math.Min((byte)38, mySqlColumn.Precision);
             sqlColumn.Scale = Math.Min((byte)30, mySqlColumn.Scale);
             sqlColumn.DbType = DbType.Decimal;
             sqlColumn.OriginalDbType = "SqlDbType.Decimal";

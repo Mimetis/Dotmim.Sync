@@ -312,7 +312,7 @@ namespace Dotmim.Sync.MySql
                 IsNullable = column.AllowDBNull
             };
 
-            (byte precision, byte scale) = mySqlDbMetadata.TryGetOwnerPrecisionAndScale(column.OriginalDbType, column.DbType, false, false, column.Precision, column.Scale, column.Table.OriginalProvider, MySqlSyncProvider.ProviderType);
+            (byte precision, byte scale) = mySqlDbMetadata.TryGetOwnerPrecisionAndScale(column.OriginalDbType, column.DbType, false, false, column.MaxLength, column.Precision, column.Scale, column.Table.OriginalProvider, MySqlSyncProvider.ProviderType);
 
             if ((sqlParameter.DbType == DbType.Decimal || sqlParameter.DbType == DbType.Double
                  || sqlParameter.DbType == DbType.Single || sqlParameter.DbType == DbType.VarNumeric) && precision > 0)

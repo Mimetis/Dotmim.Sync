@@ -132,7 +132,7 @@ namespace Dotmim.Sync.Sqlite
             return typeName.ToLowerInvariant() == "numeric";
         }
 
-        public override DbType ValidateDbType(string typeName, bool isUnsigned, bool isUnicode)
+        public override DbType ValidateDbType(string typeName, bool isUnsigned, bool isUnicode, long maxLength)
         {
             switch (typeName.ToLowerInvariant())
             {
@@ -162,9 +162,9 @@ namespace Dotmim.Sync.Sqlite
             return iMaxLength;
         }
 
-        public override object ValidateOwnerDbType(string typeName, bool isUnsigned, bool isUnicode)
+        public override object ValidateOwnerDbType(string typeName, bool isUnsigned, bool isUnicode, long maxLength)
         {
-            return ValidateDbType(typeName, isUnsigned, isUnicode);
+            return ValidateDbType(typeName, isUnsigned, isUnicode, maxLength);
         }
 
         public override byte ValidatePrecision(DmColumn columnDefinition)

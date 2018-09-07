@@ -52,7 +52,7 @@ namespace Dotmim.Sync.MySql
             string empty = string.Empty;
             foreach (var parentdColumn in foreignKey.ParentColumns)
             {
-                var parentColumnName = new ObjectNameParser(parentdColumn.ColumnName.ToLowerInvariant(), "`", "`");
+                var parentColumnName = new ObjectNameParser(parentdColumn.ColumnName, "`", "`");
 
                 stringBuilder.Append($"{empty} {parentColumnName.FullQuotedString}");
                 empty = ", ";
@@ -63,7 +63,7 @@ namespace Dotmim.Sync.MySql
             empty = string.Empty;
             foreach (var childColumn in foreignKey.ChildColumns)
             {
-                var childColumnName = new ObjectNameParser(childColumn.ColumnName.ToLowerInvariant(), "`", "`");
+                var childColumnName = new ObjectNameParser(childColumn.ColumnName, "`", "`");
                 stringBuilder.Append($"{empty} {childColumnName.FullQuotedString}");
             }
             stringBuilder.Append(" ) ");
@@ -78,6 +78,11 @@ namespace Dotmim.Sync.MySql
             string parentFullName = String.IsNullOrEmpty(parentSchema) ? parentTable : $"{parentSchema}.{parentTable}";
 
             bool alreadyOpened = connection.State == ConnectionState.Open;
+
+            // Don't want foreign key on same table since it could be a problem on first 
+            // sync. We are not sure that parent row will be inserted in first position
+            if (String.Equals(parentTable, foreignKey.ChildTable.TableName, StringComparison.CurrentCultureIgnoreCase))
+                return false;
 
             try
             {
@@ -172,8 +177,8 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine();
             foreach (var column in this.tableDescription.Columns)
             {
-                var columnName = new ObjectNameParser(column.ColumnName.ToLowerInvariant(), "`", "`");
-                var stringType = this.mySqlDbMetadata.TryGetOwnerDbTypeString(column.OriginalDbType, column.DbType, false, false, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
+                var columnName = new ObjectNameParser(column.ColumnName, "`", "`");
+                var stringType = this.mySqlDbMetadata.TryGetOwnerDbTypeString(column.OriginalDbType, column.DbType, false, false, column.MaxLength, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
                 var stringPrecision = this.mySqlDbMetadata.TryGetOwnerDbTypePrecision(column.OriginalDbType, column.DbType, false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
                 var columnType = $"{stringType} {stringPrecision}";
 
@@ -203,7 +208,7 @@ namespace Dotmim.Sync.MySql
             empty = string.Empty;
             foreach (var column in this.tableDescription.MutableColumns.Where(c => c.IsAutoIncrement))
             {
-                var columnName = new ObjectNameParser(column.ColumnName.ToLowerInvariant(), "`", "`");
+                var columnName = new ObjectNameParser(column.ColumnName, "`", "`");
                 stringBuilder.Append($"{empty} {columnName}");
                 empty = ",";
             }
@@ -217,7 +222,7 @@ namespace Dotmim.Sync.MySql
             // It seems we need to specify the increment column in first place
             foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns.OrderByDescending(pk => pk.IsAutoIncrement))
             {
-                var quotedColumnName = new ObjectNameParser(pkColumn.ColumnName.ToLowerInvariant(), "`", "`").QuotedObjectName;
+                var quotedColumnName = new ObjectNameParser(pkColumn.ColumnName, "`", "`").QuotedObjectName;
 
                 stringBuilder.Append(quotedColumnName);
 
@@ -229,7 +234,7 @@ namespace Dotmim.Sync.MySql
             //for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
             //{
             //    DmColumn pkColumn = this.tableDescription.PrimaryKey.Columns[i];
-            //    var quotedColumnName = new ObjectNameParser(pkColumn.ColumnName.ToLowerInvariant(), "`", "`").QuotedObjectName;
+            //    var quotedColumnName = new ObjectNameParser(pkColumn.ColumnName., "`", "`").QuotedObjectName;
 
             //    stringBuilder.Append(quotedColumnName);
 

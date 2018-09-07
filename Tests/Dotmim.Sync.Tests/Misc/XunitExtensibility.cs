@@ -28,28 +28,34 @@ namespace Dotmim.Sync.Tests.Misc
             {
                 int priority = 0;
 
+                // get the attribute priority
                 foreach (IAttributeInfo attr in testCase.TestMethod.Method.GetCustomAttributes((typeof(TestPriorityAttribute).AssemblyQualifiedName)))
                     priority = attr.GetNamedArgument<int>("Priority");
 
-                GetOrCreate(sortedMethods, priority).Add(testCase);
+                // get the all the tests marked with this priority
+                // we could potentially have multiple tests with same priority
+                sortedMethods.TryGetValue(priority, out List<TTestCase> lstTestsForPriority);
+
+                // if new priority with no test for this priority, just add it to my sorted list
+                if (lstTestsForPriority == null)
+                {
+                    lstTestsForPriority = new List<TTestCase>();
+                    sortedMethods.Add(priority, lstTestsForPriority);
+                }
+
+                // add the test case to the list, already part of the sortedMethods list
+                lstTestsForPriority.Add(testCase);
             }
 
             foreach (var list in sortedMethods.Keys.Select(priority => sortedMethods[priority]))
             {
+                // potentially we could have multiple tests with same priority
+                // yield ordererd by name so
                 list.Sort((x, y) => StringComparer.OrdinalIgnoreCase.Compare(x.TestMethod.Method.Name, y.TestMethod.Method.Name));
                 foreach (TTestCase testCase in list)
                     yield return testCase;
             }
         }
 
-        static TValue GetOrCreate<TKey, TValue>(IDictionary<TKey, TValue> dictionary, TKey key) where TValue : new()
-        {
-            if (dictionary.TryGetValue(key, out TValue result)) return result;
-
-            result = new TValue();
-            dictionary[key] = result;
-
-            return result;
-        }
     }
 }

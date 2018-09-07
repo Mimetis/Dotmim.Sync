@@ -87,7 +87,7 @@ namespace Dotmim.Sync.Sqlite
             {
                 var columnName = new ObjectNameParser(column.ColumnName);
 
-                var columnTypeString = this.sqliteDbMetadata.TryGetOwnerDbTypeString(column.OriginalDbType, column.DbType, false, false, this.tableDescription.OriginalProvider, SqliteSyncProvider.ProviderType);
+                var columnTypeString = this.sqliteDbMetadata.TryGetOwnerDbTypeString(column.OriginalDbType, column.DbType, false, false, column.MaxLength, this.tableDescription.OriginalProvider, SqliteSyncProvider.ProviderType);
                 var columnPrecisionString = this.sqliteDbMetadata.TryGetOwnerDbTypePrecision(column.OriginalDbType, column.DbType, false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, SqliteSyncProvider.ProviderType);
                 var columnType = $"{columnTypeString} {columnPrecisionString}";
 
@@ -145,6 +145,12 @@ namespace Dotmim.Sync.Sqlite
             // Constraints
             foreach (DmRelation constraint in this.tableDescription.ChildRelations)
             {
+
+                // Don't want foreign key on same table since it could be a problem on first 
+                // sync. We are not sure that parent row will be inserted in first position
+                if (String.Equals(constraint.ParentTable.TableName, constraint.ChildTable.TableName, StringComparison.CurrentCultureIgnoreCase))
+                    continue;
+
                 var childTable = constraint.ChildTable;
                 var childTableName = new ObjectNameParser(childTable.TableName);
                 stringBuilder.AppendLine();

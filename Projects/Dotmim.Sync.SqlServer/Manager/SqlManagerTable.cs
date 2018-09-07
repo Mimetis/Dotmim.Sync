@@ -58,9 +58,10 @@ namespace Dotmim.Sync.SqlServer.Manager
             {
                 var typeName = c["type"].ToString();
                 var name = c["name"].ToString();
+                var maxLengthLong = Convert.ToInt64(c["max_length"]);
 
                 // Gets the datastore owner dbType 
-                SqlDbType datastoreDbType = (SqlDbType)sqlDbMetadata.ValidateOwnerDbType(typeName, false, false);
+                SqlDbType datastoreDbType = (SqlDbType)sqlDbMetadata.ValidateOwnerDbType(typeName, false, false, maxLengthLong);
                 // once we have the datastore type, we can have the managed type
                 Type columnType = sqlDbMetadata.ValidateType(datastoreDbType);
 
@@ -68,7 +69,6 @@ namespace Dotmim.Sync.SqlServer.Manager
 
                 dbColumn.SetOrdinal((int)c["column_id"]);
                 dbColumn.OriginalTypeName = c["type"].ToString();
-                var maxLengthLong = Convert.ToInt64(c["max_length"]);
 
                 dbColumn.MaxLength = maxLengthLong > Int32.MaxValue ? Int32.MaxValue : (Int32)maxLengthLong;
                 dbColumn.Precision = (byte)c["precision"];
