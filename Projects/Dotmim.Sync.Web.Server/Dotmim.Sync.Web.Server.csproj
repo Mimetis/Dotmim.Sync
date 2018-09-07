@@ -14,6 +14,13 @@ Can't work without a Server provider, you have to choose an existing one to be a
     <RootNamespace>Dotmim.Sync.Web.Server</RootNamespace>
   </PropertyGroup>
 
+  <!--generate NUGET package including symbols ans source on each release build -->
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <IncludeSource>True</IncludeSource>
+    <IncludeSymbols>True</IncludeSymbols>
+  </PropertyGroup>
+
   <PropertyGroup Condition="'$(TargetFramework)'=='netstandard2.0'">
     <DefineConstants>NETSTANDARD;NETSTANDARD2_0</DefineConstants>
   </PropertyGroup>
