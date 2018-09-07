@@ -78,11 +78,11 @@ namespace Dotmim.Sync.Tests.Core
         public Action<IProvider> BeginRun { get; set; }
         public Action<IProvider> EndRun { get; set; }
 
-        public async Task<ProviderRun> RunAsync(ProviderFixture<CoreProvider> serverFixture, string scopeName = null, string[] tables = null, SyncConfiguration conf = null,
+        public async Task<ProviderRun> RunAsync(CoreProvider serverProvider, ProviderFixture<CoreProvider> serverFixture, string scopeName = null, string[] tables = null, SyncConfiguration conf = null,
         bool reuseAgent = true)
         {
             // server proxy
-            var proxyServerProvider = new WebProxyServerProvider(serverFixture.ServerProvider);
+            var proxyServerProvider = new WebProxyServerProvider(serverProvider);
             var proxyClientProvider = new WebProxyClientProvider();
 
             var syncTables = tables ?? serverFixture.Tables;
@@ -92,7 +92,7 @@ namespace Dotmim.Sync.Tests.Core
             {
                 // create agent
                 if (this.Agent == null || !reuseAgent)
-                    this.Agent = new SyncAgent(Provider, serverFixture.ServerProvider, syncTables);
+                    this.Agent = new SyncAgent(Provider, serverProvider, syncTables);
 
                 // copy conf settings
                 if (conf != null)
