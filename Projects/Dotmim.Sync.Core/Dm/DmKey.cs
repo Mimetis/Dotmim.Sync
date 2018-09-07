@@ -9,39 +9,25 @@ namespace Dotmim.Sync.Data
     public struct DmKey
     {
         const int maxColumns = 32;
-        private readonly DmColumn[] columns;
-        private static readonly DmKey emptyKey;
-        public static DmKey Empty
-        {
-            get
-            {
-                return emptyKey;
-            }
-        }
+
 
         public DmKey(DmColumn[] columns)
         {
-            this.columns = columns;
+            this.Columns = columns;
         }
 
         public DmKey(DmColumn column)
         {
-            this.columns = new[] { column };
+            this.Columns = new[] { column };
         }
 
-        public DmColumn[] Columns
-        {
-            get
-            {
-                return columns;
-            }
-        }
+        public DmColumn[] Columns { get; set; }
 
         internal bool HasValue
         {
             get
             {
-                return (null != Columns);
+                return (null != Columns && Columns.Length > 0);
             }
         }
 
@@ -240,5 +226,7 @@ namespace Dotmim.Sync.Data
             }
             return values;
         }
+
+
     }
 }

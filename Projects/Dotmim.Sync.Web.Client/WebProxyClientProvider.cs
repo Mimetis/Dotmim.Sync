@@ -25,9 +25,10 @@ namespace Dotmim.Sync.Web.Client
     /// <summary>
     /// Class used when you have to deal with a Web Server
     /// </summary>
+#pragma warning disable CS0067
     public class WebProxyClientProvider : IProvider, IDisposable
     {
-        private HttpRequestHandler httpRequestHandler;
+        private readonly HttpRequestHandler httpRequestHandler;
         private CancellationToken cancellationToken;
 
         public event EventHandler<ProgressEventArgs> SyncProgress;

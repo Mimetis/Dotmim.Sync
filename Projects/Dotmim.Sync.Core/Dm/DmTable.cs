@@ -246,7 +246,7 @@ namespace Dotmim.Sync.Data
 
                 primaryKey = value;
 
-                if (primaryKey == DmKey.Empty)
+                if (!primaryKey.HasValue)
                     return;
 
                 for (int i = 0; i < primaryKey.Columns.Length; i++)
@@ -400,21 +400,23 @@ namespace Dotmim.Sync.Data
         /// </summary>
         public DmTable Clone()
         {
-            DmTable clone = new DmTable();
+            DmTable clone = new DmTable
+            {
 
-            // Set All properties
-            clone.TableName = tableName;
-            clone.Schema = schema;
-            clone.Culture = culture;
-            clone.CaseSensitive = caseSensitive;
-            clone.OriginalProvider = OriginalProvider;
-            clone.SyncDirection = SyncDirection;
-            clone.TrackingTablesPrefix = TrackingTablesPrefix;
-            clone.TrackingTablesSuffix = TrackingTablesSuffix;
-            clone.StoredProceduresPrefix = StoredProceduresPrefix;
-            clone.StoredProceduresSuffix = StoredProceduresSuffix;
-            clone.TriggersPrefix = TriggersPrefix;
-            clone.TriggersSuffix = TriggersSuffix;
+                // Set All properties
+                TableName = tableName,
+                Schema = schema,
+                Culture = culture,
+                CaseSensitive = caseSensitive,
+                OriginalProvider = OriginalProvider,
+                SyncDirection = SyncDirection,
+                TrackingTablesPrefix = TrackingTablesPrefix,
+                TrackingTablesSuffix = TrackingTablesSuffix,
+                StoredProceduresPrefix = StoredProceduresPrefix,
+                StoredProceduresSuffix = StoredProceduresSuffix,
+                TriggersPrefix = TriggersPrefix,
+                TriggersSuffix = TriggersSuffix
+            };
 
             // add all columns
             var clmns = this.Columns;
@@ -536,8 +538,7 @@ namespace Dotmim.Sync.Data
                     continue;
                 }
 
-                ICloneable cloneable = srcColumn[srcRecord] as ICloneable;
-                if (cloneable != null)
+                if (srcColumn[srcRecord] is ICloneable cloneable)
                 {
                     dstColumn[newRecord] = ((ICloneable)srcColumn[srcRecord]).Clone();
                     continue;
@@ -611,9 +612,11 @@ namespace Dotmim.Sync.Data
             }
 
             // Don't init columns since we already have them
-            var r = new DmRow(this, false);
-            r.oldRecord = oldRecord;
-            r.newRecord = newRecord;
+            var r = new DmRow(this, false)
+            {
+                oldRecord = oldRecord,
+                newRecord = newRecord
+            };
 
             // Si la ligne n'est pas detached
             if (oldRecord != -1 || newRecord != -1)

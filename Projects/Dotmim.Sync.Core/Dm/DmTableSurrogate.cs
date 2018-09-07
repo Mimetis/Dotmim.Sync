@@ -380,7 +380,7 @@ namespace Dotmim.Sync.Data.Surrogate
             {
                 // Size for the value
                 object obj = itemArray[i];
-                Type objType = obj != null ? obj.GetType() : null;
+                Type objType = obj?.GetType();
 
 
                 if (obj == null)
@@ -416,25 +416,25 @@ namespace Dotmim.Sync.Data.Surrogate
         }
 
   
-        private static Type stringType = typeof(string);
-        private static Type objectType = typeof(object);
-        private static Type byteType = typeof(Byte);
-        private static Type byteArrayType = typeof(Byte[]);
-        private static Type longType = typeof(long);
-        private static Type ulongType = typeof(ulong);
-        private static Type doubleType = typeof(double);
-        private static Type datetimeType = typeof(DateTime);
-        private static Type dbnullType = typeof(DBNull);
-        private static Type boolType = typeof(Boolean);
-        private static Type sbyteType = typeof(sbyte);
-        private static Type charType = typeof(char);
-        private static Type shortType = typeof(short);
-        private static Type ushortType = typeof(ushort);
-        private static Type intType = typeof(int);
-        private static Type uintType = typeof(uint);
-        private static Type floatType = typeof(float);
-        private static Type decimalType = typeof(decimal);
-        private static Type guidType = typeof(Guid);
+        private static readonly Type stringType = typeof(string);
+        private static readonly Type objectType = typeof(object);
+        private static readonly Type byteType = typeof(Byte);
+        private static readonly Type byteArrayType = typeof(Byte[]);
+        private static readonly Type longType = typeof(long);
+        private static readonly Type ulongType = typeof(ulong);
+        private static readonly Type doubleType = typeof(double);
+        private static readonly Type datetimeType = typeof(DateTime);
+        private static readonly Type dbnullType = typeof(DBNull);
+        private static readonly Type boolType = typeof(Boolean);
+        private static readonly Type sbyteType = typeof(sbyte);
+        private static readonly Type charType = typeof(char);
+        private static readonly Type shortType = typeof(short);
+        private static readonly Type ushortType = typeof(ushort);
+        private static readonly Type intType = typeof(int);
+        private static readonly Type uintType = typeof(uint);
+        private static readonly Type floatType = typeof(float);
+        private static readonly Type decimalType = typeof(decimal);
+        private static readonly Type guidType = typeof(Guid);
 
         /// <summary>
         /// Gets a size for a given type

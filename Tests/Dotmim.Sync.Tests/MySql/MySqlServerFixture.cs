@@ -20,12 +20,12 @@ namespace Dotmim.Sync.Tests.MySql
         public override CoreProvider ServerProvider => new MySqlSyncProvider(
             HelperDB.GetMySqlDatabaseConnectionString(DatabaseName));
 
-        public override bool EnableSqlServerClientOnTcp => false;
+        public override bool EnableSqlServerClientOnTcp => true;
         public override bool EnableSqlServerClientOnHttp => false;
         public override bool EnableMySqlClientOnTcp => true;
         public override bool EnableMySqlClientOnHttp => false;
         public override bool EnableSqliteClientOnTcp => false;
-        public override bool EnableSqliteClientOnHttp => false;
+        public override bool EnableSqliteClientOnHttp => true;
 
         // for debugging
         //public override bool DeleteAllDatabasesOnDispose => false;

@@ -39,4 +39,3 @@ build_script:
 
 test_script:
 - dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj 
-- dotnet test Tests/Dotmim.Sync.WebApi2.Tests/Dotmim.Sync.WebApi2.Tests.csproj

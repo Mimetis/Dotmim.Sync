@@ -44,7 +44,7 @@ namespace AuthSyncSampleWebServer.Controllers
 
         [HttpPost("filter")]
         [SyncResult("POST")]
-        public async Task PostWithFilter()
+        public void PostWithFilter()
         {
             // Checking the scope is optional
             // The [Authorize] class attribute is enough, since it prevents anyone to access
