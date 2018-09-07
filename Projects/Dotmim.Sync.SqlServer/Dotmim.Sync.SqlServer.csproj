@@ -10,10 +10,18 @@
     <PackageTags>Dotmim.Sync,Sync, Sql Server Provider, .Net Standard 2.0</PackageTags>
     <PackageProjectUrl>https://mimetis.github.io/Dotmim.Sync/</PackageProjectUrl>
   </PropertyGroup>
+
+  <!--generate NUGET package including symbols ans source on each release build -->
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <IncludeSource>True</IncludeSource>
+    <IncludeSymbols>True</IncludeSymbols>
+  </PropertyGroup>
+
+
   <ItemGroup>
     <PackageReference Include="Microsoft.CSharp" Version="4.5.0" />
     <PackageReference Include="System.Data.SqlClient" Version="4.5.1" />
-
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" />
