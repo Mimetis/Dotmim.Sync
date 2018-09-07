@@ -20,11 +20,11 @@ namespace Dotmim.Sync.Tests.SqlServer
             HelperDB.GetSqlDatabaseConnectionString(DatabaseName));
 
         public override bool EnableSqlServerClientOnTcp => true;
-        public override bool EnableSqlServerClientOnHttp => true;
-        public override bool EnableMySqlClientOnTcp => true;
-        public override bool EnableMySqlClientOnHttp => true;
-        public override bool EnableSqliteClientOnTcp => true;
-        public override bool EnableSqliteClientOnHttp => true;
+        public override bool EnableSqlServerClientOnHttp => false;
+        public override bool EnableMySqlClientOnTcp => false;
+        public override bool EnableMySqlClientOnHttp => false;
+        public override bool EnableSqliteClientOnTcp => false;
+        public override bool EnableSqliteClientOnHttp => false;
 
         // for debugging
         //public override bool DeleteAllDatabasesOnDispose => false;
