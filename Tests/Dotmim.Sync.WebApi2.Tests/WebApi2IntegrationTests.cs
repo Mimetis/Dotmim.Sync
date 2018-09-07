@@ -1,810 +1,810 @@
-﻿using System;
-using System.Data.SqlClient;
-using System.IO;
-using System.Net.Http;
-using System.Threading.Tasks;
-using System.Web;
-using System.Web.Http;
-using System.Web.Http.Controllers;
-using System.Web.Http.Dispatcher;
-using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Sqlite;
-using Dotmim.Sync.SqlServer;
-using Dotmim.Sync.Test.SqlUtils;
-using Dotmim.Sync.Tests.Misc;
-using Dotmim.Sync.Web.Client;
-using Dotmim.Sync.Web.Server;
-using Microsoft.Data.Sqlite;
-using Microsoft.Owin.Hosting;
-using Owin;
-using Xunit;
+﻿//using System;
+//using System.Data.SqlClient;
+//using System.IO;
+//using System.Net.Http;
+//using System.Threading.Tasks;
+//using System.Web;
+//using System.Web.Http;
+//using System.Web.Http.Controllers;
+//using System.Web.Http.Dispatcher;
+//using Dotmim.Sync.Enumerations;
+//using Dotmim.Sync.Sqlite;
+//using Dotmim.Sync.SqlServer;
+//using Dotmim.Sync.Test.SqlUtils;
+//using Dotmim.Sync.Tests.Misc;
+//using Dotmim.Sync.Web.Client;
+//using Dotmim.Sync.Web.Server;
+//using Microsoft.Data.Sqlite;
+//using Microsoft.Owin.Hosting;
+//using Owin;
+//using Xunit;
 
-namespace Dotmim.Sync.Tests
-{
-    public class SqliteSyncHttpFixture : IDisposable
-    {
-        public string createTableScript =
-        $@"if (not exists (select * from sys.tables where name = 'ServiceTickets'))
-            begin
-                CREATE TABLE [ServiceTickets](
-	            [ServiceTicketID] [uniqueidentifier] NOT NULL,
-	            [Title] [nvarchar](max) NOT NULL,
-	            [Description] [nvarchar](max) NULL,
-	            [StatusValue] [int] NOT NULL,
-	            [EscalationLevel] [int] NOT NULL,
-	            [Opened] [datetime] NULL,
-	            [Closed] [datetime] NULL,
-	            [CustomerID] [int] NULL,
-                CONSTRAINT [PK_ServiceTickets] PRIMARY KEY CLUSTERED ( [ServiceTicketID] ASC ));
-            end";
+//namespace Dotmim.Sync.Tests
+//{
+//    public class SqliteSyncHttpFixture : IDisposable
+//    {
+//        public string createTableScript =
+//        $@"if (not exists (select * from sys.tables where name = 'ServiceTickets'))
+//            begin
+//                CREATE TABLE [ServiceTickets](
+//	            [ServiceTicketID] [uniqueidentifier] NOT NULL,
+//	            [Title] [nvarchar](max) NOT NULL,
+//	            [Description] [nvarchar](max) NULL,
+//	            [StatusValue] [int] NOT NULL,
+//	            [EscalationLevel] [int] NOT NULL,
+//	            [Opened] [datetime] NULL,
+//	            [Closed] [datetime] NULL,
+//	            [CustomerID] [int] NULL,
+//                CONSTRAINT [PK_ServiceTickets] PRIMARY KEY CLUSTERED ( [ServiceTicketID] ASC ));
+//            end";
 
-        public string datas =
-        $@"
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 3', 'Description 3', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 4', 'Description 4', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre Client 1', 'Description Client 1', 1, 0, CAST('2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 6', 'Description 6', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 7', 'Description 7', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 3', 'Description 3', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 4', 'Description 4', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre Client 1', 'Description Client 1', 1, 0, CAST('2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 6', 'Description 6', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 7', 'Description 7', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 3', 'Description 3', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 4', 'Description 4', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre Client 1', 'Description Client 1', 1, 0, CAST('2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 6', 'Description 6', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 7', 'Description 7', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 3', 'Description 3', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 4', 'Description 4', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre Client 1', 'Description Client 1', 1, 0, CAST('2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 6', 'Description 6', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 7', 'Description 7', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 3', 'Description 3', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 4', 'Description 4', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre Client 1', 'Description Client 1', 1, 0, CAST('2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 6', 'Description 6', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 7', 'Description 7', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 3', 'Description 3', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 4', 'Description 4', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre Client 1', 'Description Client 1', 1, 0, CAST('2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 6', 'Description 6', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 7', 'Description 7', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 3', 'Description 3', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 4', 'Description 4', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre Client 1', 'Description Client 1', 1, 0, CAST('2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 6', 'Description 6', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 7', 'Description 7', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 3', 'Description 3', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 4', 'Description 4', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre Client 1', 'Description Client 1', 1, 0, CAST('2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 6', 'Description 6', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 7', 'Description 7', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 3', 'Description 3', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 4', 'Description 4', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre Client 1', 'Description Client 1', 1, 0, CAST('2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 6', 'Description 6', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 7', 'Description 7', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 3', 'Description 3', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 4', 'Description 4', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre Client 1', 'Description Client 1', 1, 0, CAST('2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 6', 'Description 6', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
-            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 7', 'Description 7', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
-          ";
-        private readonly string baseAddress;
+//        public string datas =
+//        $@"
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 3', 'Description 3', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 4', 'Description 4', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre Client 1', 'Description Client 1', 1, 0, CAST('2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 6', 'Description 6', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 7', 'Description 7', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 3', 'Description 3', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 4', 'Description 4', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre Client 1', 'Description Client 1', 1, 0, CAST('2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 6', 'Description 6', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 7', 'Description 7', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 3', 'Description 3', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 4', 'Description 4', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre Client 1', 'Description Client 1', 1, 0, CAST('2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 6', 'Description 6', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 7', 'Description 7', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 3', 'Description 3', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 4', 'Description 4', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre Client 1', 'Description Client 1', 1, 0, CAST('2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 6', 'Description 6', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 7', 'Description 7', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 3', 'Description 3', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 4', 'Description 4', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre Client 1', 'Description Client 1', 1, 0, CAST('2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 6', 'Description 6', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 7', 'Description 7', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 3', 'Description 3', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 4', 'Description 4', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre Client 1', 'Description Client 1', 1, 0, CAST('2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 6', 'Description 6', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 7', 'Description 7', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 3', 'Description 3', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 4', 'Description 4', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre Client 1', 'Description Client 1', 1, 0, CAST('2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 6', 'Description 6', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 7', 'Description 7', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 3', 'Description 3', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 4', 'Description 4', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre Client 1', 'Description Client 1', 1, 0, CAST('2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 6', 'Description 6', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 7', 'Description 7', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 3', 'Description 3', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 4', 'Description 4', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre Client 1', 'Description Client 1', 1, 0, CAST('2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 6', 'Description 6', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 7', 'Description 7', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 3', 'Description 3', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 4', 'Description 4', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre Client 1', 'Description Client 1', 1, 0, CAST('2016-07-29T17:26:20.720' AS DateTime), NULL, 1)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 6', 'Description 6', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 1)
+//            INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) VALUES (newid(), 'Titre 7', 'Description 7', 1, 0, CAST('2016-07-29T16:36:41.733' AS DateTime), NULL, 10)
+//          ";
+//        private readonly string baseAddress;
 
-        public string[] Tables => new string[] { "ServiceTickets" };
+//        public string[] Tables => new string[] { "ServiceTickets" };
 
-        public String ServerConnectionString => HelperDB.GetDatabaseConnectionString(ServerDbName);
-        public String ClientSqliteConnectionString { get; set; }
-        public string ClientSqliteFilePath => Path.Combine(Directory.GetCurrentDirectory(), "sqliteHttpTmpDb_webApi2.db");
+//        public String ServerConnectionString => HelperDB.GetDatabaseConnectionString(ServerDbName);
+//        public String ClientSqliteConnectionString { get; set; }
+//        public string ClientSqliteFilePath => Path.Combine(Directory.GetCurrentDirectory(), "sqliteHttpTmpDb_webApi2.db");
 
-        public Uri BaseAddress => new Uri(baseAddress);
+//        public Uri BaseAddress => new Uri(baseAddress);
 
-        public string ServerDbName { get; } = "Test_Sqlite_Http_Server_WebApi2";
-        private HelperDB helperDb = new HelperDB();
+//        public string ServerDbName { get; } = "Test_Sqlite_Http_Server_WebApi2";
+//        private HelperDB helperDb = new HelperDB();
 
-        public SqliteSyncHttpFixture()
-        {
-            baseAddress = "http://localhost:9902";
+//        public SqliteSyncHttpFixture()
+//        {
+//            baseAddress = "http://localhost:9902";
 
-            var builder = new SqliteConnectionStringBuilder { DataSource = ClientSqliteFilePath };
-            this.ClientSqliteConnectionString = builder.ConnectionString;
+//            var builder = new SqliteConnectionStringBuilder { DataSource = ClientSqliteFilePath };
+//            this.ClientSqliteConnectionString = builder.ConnectionString;
 
 
-            if (File.Exists(ClientSqliteFilePath))
-                File.Delete(ClientSqliteFilePath);
+//            if (File.Exists(ClientSqliteFilePath))
+//                File.Delete(ClientSqliteFilePath);
 
-            // create databases
-            helperDb.CreateDatabase(ServerDbName);
-            // create table
-            helperDb.ExecuteScript(ServerDbName, createTableScript);
-            // insert table
-            helperDb.ExecuteScript(ServerDbName, datas);
-        }
+//            // create databases
+//            helperDb.CreateDatabase(ServerDbName);
+//            // create table
+//            helperDb.ExecuteScript(ServerDbName, createTableScript);
+//            // insert table
+//            helperDb.ExecuteScript(ServerDbName, datas);
+//        }
 
-        public void Dispose()
-        {
-            helperDb.DeleteDatabase(this.ServerDbName);
+//        public void Dispose()
+//        {
+//            helperDb.DeleteDatabase(this.ServerDbName);
 
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
+//            GC.Collect();
+//            GC.WaitForPendingFinalizers();
 
-            if (File.Exists(this.ClientSqliteFilePath))
-                File.Delete(this.ClientSqliteFilePath);
+//            if (File.Exists(this.ClientSqliteFilePath))
+//                File.Delete(this.ClientSqliteFilePath);
 
-        }
-    }
+//        }
+//    }
 
-    public class TestControllerActivator : IHttpControllerActivator
-    {
-        private readonly Func<WebProxyServerProvider> _factory;
+//    public class TestControllerActivator : IHttpControllerActivator
+//    {
+//        private readonly Func<WebProxyServerProvider> _factory;
 
-        public TestControllerActivator(Func<WebProxyServerProvider> factory)
-        {
-            this._factory = factory;
-        }
+//        public TestControllerActivator(Func<WebProxyServerProvider> factory)
+//        {
+//            this._factory = factory;
+//        }
 
-        public IHttpController Create(HttpRequestMessage request, HttpControllerDescriptor controllerDescriptor, Type controllerType)
-        {
-            return new ValuesController(_factory());
-        }
-    }
+//        public IHttpController Create(HttpRequestMessage request, HttpControllerDescriptor controllerDescriptor, Type controllerType)
+//        {
+//            return new ValuesController(_factory());
+//        }
+//    }
 
-    [RoutePrefix("api/values")]
-    public class ValuesController : ApiController
-    {
-        // proxy to handle requests and send them to SqlSyncProvider
-        private readonly WebProxyServerProvider webProxyServer;
+//    [RoutePrefix("api/values")]
+//    public class ValuesController : ApiController
+//    {
+//        // proxy to handle requests and send them to SqlSyncProvider
+//        private readonly WebProxyServerProvider webProxyServer;
 
-        // Injected thanks to Dependency Injection
-        public ValuesController(WebProxyServerProvider proxy)
-        {
-            webProxyServer = proxy;
-        }
+//        // Injected thanks to Dependency Injection
+//        public ValuesController(WebProxyServerProvider proxy)
+//        {
+//            webProxyServer = proxy;
+//        }
 
-        // POST api/values
-        [HttpPost]
-        [Route("")]
-        public async Task<HttpResponseMessage> Post()
-        {
-            return await webProxyServer.HandleRequestAsync(this.Request, new NullHttpContext());
-        }
+//        // POST api/values
+//        [HttpPost]
+//        [Route("")]
+//        public async Task<HttpResponseMessage> Post()
+//        {
+//            return await webProxyServer.HandleRequestAsync(this.Request, new NullHttpContext());
+//        }
         
-        public class NullHttpContext : HttpContextBase
-        {
-        }
-    }
+//        public class NullHttpContext : HttpContextBase
+//        {
+//        }
+//    }
 
-    [Collection("Http")]
-    [TestCaseOrderer("Dotmim.Sync.Tests.Misc.PriorityOrderer", "Dotmim.Sync.WebApi2.Tests")]
-    public class SqliteSyncHttpTests : IClassFixture<SqliteSyncHttpFixture>, IDisposable
-    {
-        SqlSyncProvider serverProvider;
-        SqliteSyncProvider clientProvider;
-        SqliteSyncHttpFixture fixture;
-        WebProxyServerProvider proxyServerProvider;
-        WebProxyClientProvider proxyClientProvider;
-        SyncAgent agent;
-        private Func<SyncConfiguration> configurationProvider;
-        private IDisposable webApp;
+//    [Collection("Http")]
+//    [TestCaseOrderer("Dotmim.Sync.Tests.Misc.PriorityOrderer", "Dotmim.Sync.WebApi2.Tests")]
+//    public class SqliteSyncHttpTests : IClassFixture<SqliteSyncHttpFixture>, IDisposable
+//    {
+//        SqlSyncProvider serverProvider;
+//        SqliteSyncProvider clientProvider;
+//        SqliteSyncHttpFixture fixture;
+//        WebProxyServerProvider proxyServerProvider;
+//        WebProxyClientProvider proxyClientProvider;
+//        SyncAgent agent;
+//        private Func<SyncConfiguration> configurationProvider;
+//        private IDisposable webApp;
         
-        public SqliteSyncHttpTests(SqliteSyncHttpFixture fixture)
-        {
-            this.fixture = fixture;
+//        public SqliteSyncHttpTests(SqliteSyncHttpFixture fixture)
+//        {
+//            this.fixture = fixture;
             
-            configurationProvider = () => new SyncConfiguration(fixture.Tables);
+//            configurationProvider = () => new SyncConfiguration(fixture.Tables);
 
-            serverProvider = new SqlSyncProvider(fixture.ServerConnectionString);
-            proxyServerProvider = new WebProxyServerProvider(serverProvider);
+//            serverProvider = new SqlSyncProvider(fixture.ServerConnectionString);
+//            proxyServerProvider = new WebProxyServerProvider(serverProvider);
 
-            webApp = WebApp.Start(fixture.BaseAddress.OriginalString, (appBuilder) =>
-            {
-                // Configure Web API for self-host. 
-                HttpConfiguration config = new HttpConfiguration();
-                config.Routes.MapHttpRoute(
-                    name: "DefaultApi",
-                    routeTemplate: "api/{controller}/{actionid}/{id}",
-                    defaults: new { actionid = RouteParameter.Optional, id = RouteParameter.Optional }
-                );
-                config.Services.Replace(typeof(IHttpControllerActivator), new TestControllerActivator(
-                    () =>
-                    {
-                        proxyServerProvider.Configuration = configurationProvider();
-                        return proxyServerProvider;
-                    }));
-                appBuilder.UseWebApi(config);
-            });
+//            webApp = WebApp.Start(fixture.BaseAddress.OriginalString, (appBuilder) =>
+//            {
+//                // Configure Web API for self-host. 
+//                HttpConfiguration config = new HttpConfiguration();
+//                config.Routes.MapHttpRoute(
+//                    name: "DefaultApi",
+//                    routeTemplate: "api/{controller}/{actionid}/{id}",
+//                    defaults: new { actionid = RouteParameter.Optional, id = RouteParameter.Optional }
+//                );
+//                config.Services.Replace(typeof(IHttpControllerActivator), new TestControllerActivator(
+//                    () =>
+//                    {
+//                        proxyServerProvider.Configuration = configurationProvider();
+//                        return proxyServerProvider;
+//                    }));
+//                appBuilder.UseWebApi(config);
+//            });
 
-            clientProvider = new SqliteSyncProvider(fixture.ClientSqliteFilePath);
-            proxyClientProvider = new WebProxyClientProvider(new Uri(fixture.BaseAddress, "api/values"));
+//            clientProvider = new SqliteSyncProvider(fixture.ClientSqliteFilePath);
+//            proxyClientProvider = new WebProxyClientProvider(new Uri(fixture.BaseAddress, "api/values"));
 
-            agent = new SyncAgent(clientProvider, proxyClientProvider);
+//            agent = new SyncAgent(clientProvider, proxyClientProvider);
 
-        }
+//        }
 
-        [Fact, TestPriority(1)]
-        public async Task Initialize()
-        {
-            // Act
-            var session = await agent.SynchronizeAsync();
+//        [Fact, TestPriority(1)]
+//        public async Task Initialize()
+//        {
+//            // Act
+//            var session = await agent.SynchronizeAsync();
 
-            // Assert
-            Assert.Equal(50, session.TotalChangesDownloaded);
-            Assert.Equal(0, session.TotalChangesUploaded);
-        }
+//            // Assert
+//            Assert.Equal(50, session.TotalChangesDownloaded);
+//            Assert.Equal(0, session.TotalChangesUploaded);
+//        }
 
-        [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(2)]
-        public async Task SyncNoRows(SyncConfiguration conf)
-        {
-            conf.Add(fixture.Tables);
-            configurationProvider = () => conf;
+//        [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(2)]
+//        public async Task SyncNoRows(SyncConfiguration conf)
+//        {
+//            conf.Add(fixture.Tables);
+//            configurationProvider = () => conf;
 
-            // Act
-            var session = await agent.SynchronizeAsync();
+//            // Act
+//            var session = await agent.SynchronizeAsync();
 
-            // Assert
-            Assert.Equal(0, session.TotalChangesDownloaded);
-            Assert.Equal(0, session.TotalChangesUploaded);
-        }
+//            // Assert
+//            Assert.Equal(0, session.TotalChangesDownloaded);
+//            Assert.Equal(0, session.TotalChangesUploaded);
+//        }
 
-        [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(3)]
-        public async Task InsertFromServer(SyncConfiguration conf)
-        {
-            conf.Add(fixture.Tables);
-            configurationProvider = () => conf;
+//        [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(3)]
+//        public async Task InsertFromServer(SyncConfiguration conf)
+//        {
+//            conf.Add(fixture.Tables);
+//            configurationProvider = () => conf;
 
-            var insertRowScript =
-            $@"INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
-                VALUES (newid(), 'Insert One Row', 'Description Insert One Row', 1, 0, getdate(), NULL, 1)";
+//            var insertRowScript =
+//            $@"INSERT [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
+//                VALUES (newid(), 'Insert One Row', 'Description Insert One Row', 1, 0, getdate(), NULL, 1)";
 
-            // Act
-            using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
-            {
-                using (var sqlCmd = new SqlCommand(insertRowScript, sqlConnection))
-                {
-                    sqlConnection.Open();
-                    sqlCmd.ExecuteNonQuery();
-                    sqlConnection.Close();
-                }
-            }
+//            // Act
+//            using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
+//            {
+//                using (var sqlCmd = new SqlCommand(insertRowScript, sqlConnection))
+//                {
+//                    sqlConnection.Open();
+//                    sqlCmd.ExecuteNonQuery();
+//                    sqlConnection.Close();
+//                }
+//            }
 
-            // Assert
-            var session = await agent.SynchronizeAsync();
+//            // Assert
+//            var session = await agent.SynchronizeAsync();
             
-            Assert.Equal(1, session.TotalChangesDownloaded);
-            Assert.Equal(0, session.TotalChangesUploaded);
-        }
+//            Assert.Equal(1, session.TotalChangesDownloaded);
+//            Assert.Equal(0, session.TotalChangesUploaded);
+//        }
 
-        [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(4)]
-        public async Task InsertFromClient(SyncConfiguration conf)
-        {
-            conf.Add(fixture.Tables);
-            configurationProvider = () => conf;
-            // provision client infrastructure - otherwise this test will fail when run separately, because the sqlite db table won't yet exist
-            await agent.SynchronizeAsync();
+//        [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(4)]
+//        public async Task InsertFromClient(SyncConfiguration conf)
+//        {
+//            conf.Add(fixture.Tables);
+//            configurationProvider = () => conf;
+//            // provision client infrastructure - otherwise this test will fail when run separately, because the sqlite db table won't yet exist
+//            await agent.SynchronizeAsync();
 
-            Guid newId = Guid.NewGuid();
+//            Guid newId = Guid.NewGuid();
 
-            var insertRowScript =
-            $@"INSERT INTO [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
-                VALUES (@id, 'Insert One Row in Sqlite client', 'Description Insert One Row', 1, 0, datetime('now'), NULL, 1)";
+//            var insertRowScript =
+//            $@"INSERT INTO [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
+//                VALUES (@id, 'Insert One Row in Sqlite client', 'Description Insert One Row', 1, 0, datetime('now'), NULL, 1)";
 
-            int nbRowsInserted = 0;
+//            int nbRowsInserted = 0;
 
-            using (var sqlConnection = new SqliteConnection(fixture.ClientSqliteConnectionString))
-            {
-                using (var sqlCmd = new SqliteCommand(insertRowScript, sqlConnection))
-                {
-                    sqlCmd.Parameters.AddWithValue("@id", newId);
+//            using (var sqlConnection = new SqliteConnection(fixture.ClientSqliteConnectionString))
+//            {
+//                using (var sqlCmd = new SqliteCommand(insertRowScript, sqlConnection))
+//                {
+//                    sqlCmd.Parameters.AddWithValue("@id", newId);
 
-                    sqlConnection.Open();
-                    nbRowsInserted = sqlCmd.ExecuteNonQuery();
-                    sqlConnection.Close();
-                }
-            }
-            if (nbRowsInserted < 0)
-                throw new Exception("Row not inserted");
-
-
-            // Assert
-            var session = await agent.SynchronizeAsync();
-
-            Assert.Equal(0, session.TotalChangesDownloaded);
-            Assert.Equal(1, session.TotalChangesUploaded);
-        }
-
-        [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(5)]
-        public async Task UpdateFromClient(SyncConfiguration conf)
-        {
-            conf.Add(fixture.Tables);
-            configurationProvider = () => conf;
-            // provision client infrastructure - otherwise this test will fail when run separately, because the sqlite db table won't yet exist
-            await agent.SynchronizeAsync();
-
-            Guid newId = Guid.NewGuid();
-
-            var insertRowScript =
-            $@"INSERT INTO [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
-                VALUES (@id, 'Insert One Row in Sqlite client', 'Description Insert One Row', 1, 0, datetime('now'), NULL, 1)";
-
-            // Act 1
-            using (var sqlConnection = new SqliteConnection(fixture.ClientSqliteConnectionString))
-            {
-                using (var sqlCmd = new SqliteCommand(insertRowScript, sqlConnection))
-                {
-                    sqlCmd.Parameters.AddWithValue("@id", newId);
-
-                    sqlConnection.Open();
-                    sqlCmd.ExecuteNonQuery();
-                    sqlConnection.Close();
-                }
-            }
-
-            // Assert 1
-            var session1 = await agent.SynchronizeAsync();
+//                    sqlConnection.Open();
+//                    nbRowsInserted = sqlCmd.ExecuteNonQuery();
+//                    sqlConnection.Close();
+//                }
+//            }
+//            if (nbRowsInserted < 0)
+//                throw new Exception("Row not inserted");
 
 
-            Assert.Equal(0, session1.TotalChangesDownloaded);
-            Assert.Equal(1, session1.TotalChangesUploaded);
+//            // Assert
+//            var session = await agent.SynchronizeAsync();
 
-            var updateRowScript =
-            $@" Update [ServiceTickets] Set [Title] = 'Updated from Sqlite Client side !' 
-                Where ServiceTicketId = @id";
+//            Assert.Equal(0, session.TotalChangesDownloaded);
+//            Assert.Equal(1, session.TotalChangesUploaded);
+//        }
 
-            // Act 2
-            using (var sqlConnection = new SqliteConnection(fixture.ClientSqliteConnectionString))
-            {
-                using (var sqlCmd = new SqliteCommand(updateRowScript, sqlConnection))
-                {
-                    sqlCmd.Parameters.AddWithValue("@id", newId);
+//        [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(5)]
+//        public async Task UpdateFromClient(SyncConfiguration conf)
+//        {
+//            conf.Add(fixture.Tables);
+//            configurationProvider = () => conf;
+//            // provision client infrastructure - otherwise this test will fail when run separately, because the sqlite db table won't yet exist
+//            await agent.SynchronizeAsync();
 
-                    sqlConnection.Open();
-                    sqlCmd.ExecuteNonQuery();
-                    sqlConnection.Close();
-                }
-            }
+//            Guid newId = Guid.NewGuid();
+
+//            var insertRowScript =
+//            $@"INSERT INTO [ServiceTickets] ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
+//                VALUES (@id, 'Insert One Row in Sqlite client', 'Description Insert One Row', 1, 0, datetime('now'), NULL, 1)";
+
+//            // Act 1
+//            using (var sqlConnection = new SqliteConnection(fixture.ClientSqliteConnectionString))
+//            {
+//                using (var sqlCmd = new SqliteCommand(insertRowScript, sqlConnection))
+//                {
+//                    sqlCmd.Parameters.AddWithValue("@id", newId);
+
+//                    sqlConnection.Open();
+//                    sqlCmd.ExecuteNonQuery();
+//                    sqlConnection.Close();
+//                }
+//            }
+
+//            // Assert 1
+//            var session1 = await agent.SynchronizeAsync();
 
 
-            // Assert 2
-            var session2 = await agent.SynchronizeAsync();
+//            Assert.Equal(0, session1.TotalChangesDownloaded);
+//            Assert.Equal(1, session1.TotalChangesUploaded);
+
+//            var updateRowScript =
+//            $@" Update [ServiceTickets] Set [Title] = 'Updated from Sqlite Client side !' 
+//                Where ServiceTicketId = @id";
+
+//            // Act 2
+//            using (var sqlConnection = new SqliteConnection(fixture.ClientSqliteConnectionString))
+//            {
+//                using (var sqlCmd = new SqliteCommand(updateRowScript, sqlConnection))
+//                {
+//                    sqlCmd.Parameters.AddWithValue("@id", newId);
+
+//                    sqlConnection.Open();
+//                    sqlCmd.ExecuteNonQuery();
+//                    sqlConnection.Close();
+//                }
+//            }
 
 
-            Assert.Equal(0, session2.TotalChangesDownloaded);
-            Assert.Equal(1, session2.TotalChangesUploaded);
-        }
+//            // Assert 2
+//            var session2 = await agent.SynchronizeAsync();
 
-        [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(6)]
-        public async Task UpdateFromServer(SyncConfiguration conf)
-        {
-            conf.Add(fixture.Tables);
-            configurationProvider = () => conf;
 
-            var updateRowScript =
-            $@" Declare @id uniqueidentifier;
-                Select top 1 @id = ServiceTicketID from ServiceTickets;
-                Update [ServiceTickets] Set [Title] = 'Updated from server' Where ServiceTicketId = @id";
+//            Assert.Equal(0, session2.TotalChangesDownloaded);
+//            Assert.Equal(1, session2.TotalChangesUploaded);
+//        }
 
-            using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
-            {
-                using (var sqlCmd = new SqlCommand(updateRowScript, sqlConnection))
-                {
-                    sqlConnection.Open();
-                    sqlCmd.ExecuteNonQuery();
-                    sqlConnection.Close();
-                }
-            }
+//        [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(6)]
+//        public async Task UpdateFromServer(SyncConfiguration conf)
+//        {
+//            conf.Add(fixture.Tables);
+//            configurationProvider = () => conf;
+
+//            var updateRowScript =
+//            $@" Declare @id uniqueidentifier;
+//                Select top 1 @id = ServiceTicketID from ServiceTickets;
+//                Update [ServiceTickets] Set [Title] = 'Updated from server' Where ServiceTicketId = @id";
+
+//            using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
+//            {
+//                using (var sqlCmd = new SqlCommand(updateRowScript, sqlConnection))
+//                {
+//                    sqlConnection.Open();
+//                    sqlCmd.ExecuteNonQuery();
+//                    sqlConnection.Close();
+//                }
+//            }
             
-            // Assert
-            var session = await agent.SynchronizeAsync();
+//            // Assert
+//            var session = await agent.SynchronizeAsync();
             
-            Assert.Equal(1, session.TotalChangesDownloaded);
-            Assert.Equal(0, session.TotalChangesUploaded);
-        }
+//            Assert.Equal(1, session.TotalChangesDownloaded);
+//            Assert.Equal(0, session.TotalChangesUploaded);
+//        }
 
-        [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(7)]
-        public async Task DeleteFromServer(SyncConfiguration conf)
-        {
-            conf.Add(fixture.Tables);
-            configurationProvider = () => conf;
+//        [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(7)]
+//        public async Task DeleteFromServer(SyncConfiguration conf)
+//        {
+//            conf.Add(fixture.Tables);
+//            configurationProvider = () => conf;
 
-            var updateRowScript =
-            $@" Declare @id uniqueidentifier;
-                Select top 1 @id = ServiceTicketID from ServiceTickets;
-                Delete From [ServiceTickets] Where ServiceTicketId = @id";
+//            var updateRowScript =
+//            $@" Declare @id uniqueidentifier;
+//                Select top 1 @id = ServiceTicketID from ServiceTickets;
+//                Delete From [ServiceTickets] Where ServiceTicketId = @id";
 
-            using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
-            {
-                using (var sqlCmd = new SqlCommand(updateRowScript, sqlConnection))
-                {
-                    sqlConnection.Open();
-                    sqlCmd.ExecuteNonQuery();
-                    sqlConnection.Close();
-                }
-            }
+//            using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
+//            {
+//                using (var sqlCmd = new SqlCommand(updateRowScript, sqlConnection))
+//                {
+//                    sqlConnection.Open();
+//                    sqlCmd.ExecuteNonQuery();
+//                    sqlConnection.Close();
+//                }
+//            }
 
-            // Assert
-            var session = await agent.SynchronizeAsync();
+//            // Assert
+//            var session = await agent.SynchronizeAsync();
 
-            Assert.Equal(1, session.TotalChangesDownloaded);
-            Assert.Equal(0, session.TotalChangesUploaded);
-        }
+//            Assert.Equal(1, session.TotalChangesDownloaded);
+//            Assert.Equal(0, session.TotalChangesUploaded);
+//        }
 
-        [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(8)]
-        public async Task DeleteFromClient(SyncConfiguration conf)
-        {
-            conf.Add(fixture.Tables);
-            configurationProvider = () => conf;
-            // provision client infrastructure - otherwise this test will fail when run separately, because the sqlite db table won't yet exist
-            await agent.SynchronizeAsync();
+//        [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(8)]
+//        public async Task DeleteFromClient(SyncConfiguration conf)
+//        {
+//            conf.Add(fixture.Tables);
+//            configurationProvider = () => conf;
+//            // provision client infrastructure - otherwise this test will fail when run separately, because the sqlite db table won't yet exist
+//            await agent.SynchronizeAsync();
 
-            long count;
-            var selectcount = $@"Select count(*) From [ServiceTickets]";
-            var updateRowScript = $@"Delete From [ServiceTickets]";
+//            long count;
+//            var selectcount = $@"Select count(*) From [ServiceTickets]";
+//            var updateRowScript = $@"Delete From [ServiceTickets]";
 
-            using (var sqlConnection = new SqliteConnection(fixture.ClientSqliteConnectionString))
-            {
-                sqlConnection.Open();
-                using (var sqlCmd = new SqliteCommand(selectcount, sqlConnection))
-                    count = (long)sqlCmd.ExecuteScalar();
-                using (var sqlCmd = new SqliteCommand(updateRowScript, sqlConnection))
-                    sqlCmd.ExecuteNonQuery();
-                sqlConnection.Close();
-            }
-
-
-            // Assert
-            var session = await agent.SynchronizeAsync();
+//            using (var sqlConnection = new SqliteConnection(fixture.ClientSqliteConnectionString))
+//            {
+//                sqlConnection.Open();
+//                using (var sqlCmd = new SqliteCommand(selectcount, sqlConnection))
+//                    count = (long)sqlCmd.ExecuteScalar();
+//                using (var sqlCmd = new SqliteCommand(updateRowScript, sqlConnection))
+//                    sqlCmd.ExecuteNonQuery();
+//                sqlConnection.Close();
+//            }
 
 
-            Assert.Equal(0, session.TotalChangesDownloaded);
-            Assert.Equal(count, session.TotalChangesUploaded);
+//            // Assert
+//            var session = await agent.SynchronizeAsync();
 
-            // check all rows deleted on server side
-            using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
-            {
-                sqlConnection.Open();
-                using (var sqlCmd = new SqlCommand(selectcount, sqlConnection))
-                    count = (int)sqlCmd.ExecuteScalar();
-            }
-            Assert.Equal(0, count);
-        }
 
-        [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(9)]
-        public async Task ConflictInsertInsertServerWins(SyncConfiguration conf)
-        {
-            conf.Add(fixture.Tables);
-            configurationProvider = () => conf;
-            // provision client infrastructure - otherwise this test will fail when run separately, because the sqlite db table won't yet exist
-            await agent.SynchronizeAsync();
+//            Assert.Equal(0, session.TotalChangesDownloaded);
+//            Assert.Equal(count, session.TotalChangesUploaded);
 
-            Guid insertConflictId = Guid.NewGuid();
+//            // check all rows deleted on server side
+//            using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
+//            {
+//                sqlConnection.Open();
+//                using (var sqlCmd = new SqlCommand(selectcount, sqlConnection))
+//                    count = (int)sqlCmd.ExecuteScalar();
+//            }
+//            Assert.Equal(0, count);
+//        }
 
-            using (var sqlConnection = new SqliteConnection(fixture.ClientSqliteConnectionString))
-            {
-                var script = $@"INSERT INTO [ServiceTickets] 
-                            ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
-                            VALUES 
-                            (@id, 'Conflict Line Client', 'Description client', 1, 0, datetime('now'), NULL, 1)";
+//        [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(9)]
+//        public async Task ConflictInsertInsertServerWins(SyncConfiguration conf)
+//        {
+//            conf.Add(fixture.Tables);
+//            configurationProvider = () => conf;
+//            // provision client infrastructure - otherwise this test will fail when run separately, because the sqlite db table won't yet exist
+//            await agent.SynchronizeAsync();
 
-                using (var sqlCmd = new SqliteCommand(script, sqlConnection))
-                {
-                    sqlCmd.Parameters.AddWithValue("@id", insertConflictId);
+//            Guid insertConflictId = Guid.NewGuid();
 
-                    sqlConnection.Open();
-                    sqlCmd.ExecuteNonQuery();
-                    sqlConnection.Close();
-                }
-            }
+//            using (var sqlConnection = new SqliteConnection(fixture.ClientSqliteConnectionString))
+//            {
+//                var script = $@"INSERT INTO [ServiceTickets] 
+//                            ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
+//                            VALUES 
+//                            (@id, 'Conflict Line Client', 'Description client', 1, 0, datetime('now'), NULL, 1)";
+
+//                using (var sqlCmd = new SqliteCommand(script, sqlConnection))
+//                {
+//                    sqlCmd.Parameters.AddWithValue("@id", insertConflictId);
+
+//                    sqlConnection.Open();
+//                    sqlCmd.ExecuteNonQuery();
+//                    sqlConnection.Close();
+//                }
+//            }
             
-            using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
-            {
-                // TODO : Convert to @parameter
-                var script = $@"INSERT [ServiceTickets] 
-                            ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
-                            VALUES 
-                            ('{insertConflictId.ToString()}', 'Conflict Line Server', 'Description client', 1, 0, getdate(), NULL, 1)";
+//            using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
+//            {
+//                // TODO : Convert to @parameter
+//                var script = $@"INSERT [ServiceTickets] 
+//                            ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
+//                            VALUES 
+//                            ('{insertConflictId.ToString()}', 'Conflict Line Server', 'Description client', 1, 0, getdate(), NULL, 1)";
 
-                using (var sqlCmd = new SqlCommand(script, sqlConnection))
-                {
-                    sqlConnection.Open();
-                    sqlCmd.ExecuteNonQuery();
-                    sqlConnection.Close();
-                }
-            }
+//                using (var sqlCmd = new SqlCommand(script, sqlConnection))
+//                {
+//                    sqlConnection.Open();
+//                    sqlCmd.ExecuteNonQuery();
+//                    sqlConnection.Close();
+//                }
+//            }
             
-            var session = await agent.SynchronizeAsync();
+//            var session = await agent.SynchronizeAsync();
 
-            // check statistics
-            Assert.Equal(1, session.TotalChangesDownloaded);
-            Assert.Equal(1, session.TotalChangesUploaded);
-            Assert.Equal(1, session.TotalSyncConflicts);
+//            // check statistics
+//            Assert.Equal(1, session.TotalChangesDownloaded);
+//            Assert.Equal(1, session.TotalChangesUploaded);
+//            Assert.Equal(1, session.TotalSyncConflicts);
 
-            string expectedRes = string.Empty;
-            using (var sqlConnection = new SqliteConnection(fixture.ClientSqliteConnectionString))
-            {
-                var script = $@"Select Title from [ServiceTickets] 
-                             Where ServiceTicketID=@id";
+//            string expectedRes = string.Empty;
+//            using (var sqlConnection = new SqliteConnection(fixture.ClientSqliteConnectionString))
+//            {
+//                var script = $@"Select Title from [ServiceTickets] 
+//                             Where ServiceTicketID=@id";
 
-                using (var sqlCmd = new SqliteCommand(script, sqlConnection))
-                {
-                    sqlCmd.Parameters.AddWithValue("@id", insertConflictId);
+//                using (var sqlCmd = new SqliteCommand(script, sqlConnection))
+//                {
+//                    sqlCmd.Parameters.AddWithValue("@id", insertConflictId);
 
-                    sqlConnection.Open();
-                    expectedRes = sqlCmd.ExecuteScalar() as string;
-                    sqlConnection.Close();
-                }
-            }
+//                    sqlConnection.Open();
+//                    expectedRes = sqlCmd.ExecuteScalar() as string;
+//                    sqlConnection.Close();
+//                }
+//            }
 
-            // check good title on client
-            Assert.Equal("Conflict Line Server", expectedRes);
-        }
+//            // check good title on client
+//            Assert.Equal("Conflict Line Server", expectedRes);
+//        }
 
-        [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(10)]
-        public async Task ConflictUpdateUpdateServerWins(SyncConfiguration conf)
-        {
-            conf.Add(fixture.Tables);
-            configurationProvider = () => conf;
-            // provision client infrastructure - otherwise this test will fail when run separately, because the sqlite db table won't yet exist
-            await agent.SynchronizeAsync();
+//        [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(10)]
+//        public async Task ConflictUpdateUpdateServerWins(SyncConfiguration conf)
+//        {
+//            conf.Add(fixture.Tables);
+//            configurationProvider = () => conf;
+//            // provision client infrastructure - otherwise this test will fail when run separately, because the sqlite db table won't yet exist
+//            await agent.SynchronizeAsync();
 
-            Guid updateConflictId = Guid.NewGuid();
-            using (var sqlConnection = new SqliteConnection(fixture.ClientSqliteConnectionString))
-            {
-                var script = $@"INSERT INTO [ServiceTickets] 
-                            ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
-                            VALUES 
-                            (@id, 'Line Client', 'Description client', 1, 0, datetime('now'), NULL, 1)";
+//            Guid updateConflictId = Guid.NewGuid();
+//            using (var sqlConnection = new SqliteConnection(fixture.ClientSqliteConnectionString))
+//            {
+//                var script = $@"INSERT INTO [ServiceTickets] 
+//                            ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
+//                            VALUES 
+//                            (@id, 'Line Client', 'Description client', 1, 0, datetime('now'), NULL, 1)";
 
-                using (var sqlCmd = new SqliteCommand(script, sqlConnection))
-                {
-                    sqlCmd.Parameters.AddWithValue("@id", updateConflictId);
+//                using (var sqlCmd = new SqliteCommand(script, sqlConnection))
+//                {
+//                    sqlCmd.Parameters.AddWithValue("@id", updateConflictId);
 
-                    sqlConnection.Open();
-                    sqlCmd.ExecuteNonQuery();
-                    sqlConnection.Close();
-                }
-            }
+//                    sqlConnection.Open();
+//                    sqlCmd.ExecuteNonQuery();
+//                    sqlConnection.Close();
+//                }
+//            }
 
-            var session = await agent.SynchronizeAsync();
+//            var session = await agent.SynchronizeAsync();
 
-            // check statistics
-            Assert.Equal(0, session.TotalChangesDownloaded);
-            Assert.Equal(1, session.TotalChangesUploaded);
-            Assert.Equal(0, session.TotalSyncConflicts);
+//            // check statistics
+//            Assert.Equal(0, session.TotalChangesDownloaded);
+//            Assert.Equal(1, session.TotalChangesUploaded);
+//            Assert.Equal(0, session.TotalSyncConflicts);
 
-            using (var sqlConnection = new SqliteConnection(fixture.ClientSqliteConnectionString))
-            {
-                var script = $@"Update [ServiceTickets] 
-                                Set Title = 'Updated from Client'
-                                Where ServiceTicketId = @id";
+//            using (var sqlConnection = new SqliteConnection(fixture.ClientSqliteConnectionString))
+//            {
+//                var script = $@"Update [ServiceTickets] 
+//                                Set Title = 'Updated from Client'
+//                                Where ServiceTicketId = @id";
 
-                using (var sqlCmd = new SqliteCommand(script, sqlConnection))
-                {
-                    sqlCmd.Parameters.AddWithValue("@id", updateConflictId);
+//                using (var sqlCmd = new SqliteCommand(script, sqlConnection))
+//                {
+//                    sqlCmd.Parameters.AddWithValue("@id", updateConflictId);
 
-                    sqlConnection.Open();
-                    sqlCmd.ExecuteNonQuery();
-                    sqlConnection.Close();
-                }
-            }
+//                    sqlConnection.Open();
+//                    sqlCmd.ExecuteNonQuery();
+//                    sqlConnection.Close();
+//                }
+//            }
 
-            using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
-            {
-                var script = $@"Update [ServiceTickets] 
-                                Set Title = 'Updated from Server'
-                                Where ServiceTicketId = '{updateConflictId.ToString()}'";
+//            using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
+//            {
+//                var script = $@"Update [ServiceTickets] 
+//                                Set Title = 'Updated from Server'
+//                                Where ServiceTicketId = '{updateConflictId.ToString()}'";
 
-                using (var sqlCmd = new SqlCommand(script, sqlConnection))
-                {
-                    sqlConnection.Open();
-                    sqlCmd.ExecuteNonQuery();
-                    sqlConnection.Close();
-                }
-            }
+//                using (var sqlCmd = new SqlCommand(script, sqlConnection))
+//                {
+//                    sqlConnection.Open();
+//                    sqlCmd.ExecuteNonQuery();
+//                    sqlConnection.Close();
+//                }
+//            }
 
-            var session2 = await agent.SynchronizeAsync();
+//            var session2 = await agent.SynchronizeAsync();
 
-            // check statistics
-            Assert.Equal(1, session2.TotalChangesDownloaded);
-            Assert.Equal(1, session2.TotalChangesUploaded);
-            Assert.Equal(1, session2.TotalSyncConflicts);
+//            // check statistics
+//            Assert.Equal(1, session2.TotalChangesDownloaded);
+//            Assert.Equal(1, session2.TotalChangesUploaded);
+//            Assert.Equal(1, session2.TotalSyncConflicts);
 
-            string expectedRes = string.Empty;
-            using (var sqlConnection = new SqliteConnection(fixture.ClientSqliteConnectionString))
-            {
-                var script = $@"Select Title from [ServiceTickets] 
-                            Where ServiceTicketID=@id";
+//            string expectedRes = string.Empty;
+//            using (var sqlConnection = new SqliteConnection(fixture.ClientSqliteConnectionString))
+//            {
+//                var script = $@"Select Title from [ServiceTickets] 
+//                            Where ServiceTicketID=@id";
 
-                using (var sqlCmd = new SqliteCommand(script, sqlConnection))
-                {
-                    sqlCmd.Parameters.AddWithValue("@id", updateConflictId);
+//                using (var sqlCmd = new SqliteCommand(script, sqlConnection))
+//                {
+//                    sqlCmd.Parameters.AddWithValue("@id", updateConflictId);
 
-                    sqlConnection.Open();
-                    expectedRes = sqlCmd.ExecuteScalar() as string;
-                    sqlConnection.Close();
-                }
-            }
+//                    sqlConnection.Open();
+//                    expectedRes = sqlCmd.ExecuteScalar() as string;
+//                    sqlConnection.Close();
+//                }
+//            }
 
-            // check good title on client
-            Assert.Equal("Updated from Server", expectedRes);
-        }
+//            // check good title on client
+//            Assert.Equal("Updated from Server", expectedRes);
+//        }
 
-        [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(11)]
-        public async Task ConflictUpdateUpdateClientWins(SyncConfiguration conf)
-        {
-            conf.Add(fixture.Tables);
-            configurationProvider = () => conf;
-            // provision client infrastructure - otherwise this test will fail when run separately, because the sqlite db table won't yet exist
-            await agent.SynchronizeAsync();
+//        [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(11)]
+//        public async Task ConflictUpdateUpdateClientWins(SyncConfiguration conf)
+//        {
+//            conf.Add(fixture.Tables);
+//            configurationProvider = () => conf;
+//            // provision client infrastructure - otherwise this test will fail when run separately, because the sqlite db table won't yet exist
+//            await agent.SynchronizeAsync();
 
-            var id = Guid.NewGuid().ToString();
+//            var id = Guid.NewGuid().ToString();
 
-            using (var sqlConnection = new SqliteConnection(fixture.ClientSqliteConnectionString))
-            {
-                var script = $@"INSERT INTO [ServiceTickets] 
-                            ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
-                            VALUES 
-                            (@id, 'Line for conflict', 'Description client', 1, 0, datetime('now'), NULL, 1)";
+//            using (var sqlConnection = new SqliteConnection(fixture.ClientSqliteConnectionString))
+//            {
+//                var script = $@"INSERT INTO [ServiceTickets] 
+//                            ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
+//                            VALUES 
+//                            (@id, 'Line for conflict', 'Description client', 1, 0, datetime('now'), NULL, 1)";
 
-                using (var sqlCmd = new SqliteCommand(script, sqlConnection))
-                {
-                    sqlCmd.Parameters.AddWithValue("@id", id);
+//                using (var sqlCmd = new SqliteCommand(script, sqlConnection))
+//                {
+//                    sqlCmd.Parameters.AddWithValue("@id", id);
 
-                    sqlConnection.Open();
-                    sqlCmd.ExecuteNonQuery();
-                    sqlConnection.Close();
-                }
-            }
+//                    sqlConnection.Open();
+//                    sqlCmd.ExecuteNonQuery();
+//                    sqlConnection.Close();
+//                }
+//            }
 
-            var session = await agent.SynchronizeAsync();
+//            var session = await agent.SynchronizeAsync();
 
-            // check statistics
-            Assert.Equal(0, session.TotalChangesDownloaded);
-            Assert.Equal(1, session.TotalChangesUploaded);
-            Assert.Equal(0, session.TotalSyncConflicts);
+//            // check statistics
+//            Assert.Equal(0, session.TotalChangesDownloaded);
+//            Assert.Equal(1, session.TotalChangesUploaded);
+//            Assert.Equal(0, session.TotalSyncConflicts);
 
-            using (var sqlConnection = new SqliteConnection(fixture.ClientSqliteConnectionString))
-            {
-                var script = $@"Update [ServiceTickets] 
-                                Set Title = 'Updated from Client'
-                                Where ServiceTicketId = @id";
+//            using (var sqlConnection = new SqliteConnection(fixture.ClientSqliteConnectionString))
+//            {
+//                var script = $@"Update [ServiceTickets] 
+//                                Set Title = 'Updated from Client'
+//                                Where ServiceTicketId = @id";
 
-                using (var sqlCmd = new SqliteCommand(script, sqlConnection))
-                {
-                    sqlCmd.Parameters.AddWithValue("@id", id);
+//                using (var sqlCmd = new SqliteCommand(script, sqlConnection))
+//                {
+//                    sqlCmd.Parameters.AddWithValue("@id", id);
 
-                    sqlConnection.Open();
-                    sqlCmd.ExecuteNonQuery();
-                    sqlConnection.Close();
-                }
-            }
+//                    sqlConnection.Open();
+//                    sqlCmd.ExecuteNonQuery();
+//                    sqlConnection.Close();
+//                }
+//            }
 
-            using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
-            {
-                var script = $@"Update [ServiceTickets] 
-                                Set Title = 'Updated from Server'
-                                Where ServiceTicketId = '{id}'";
+//            using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
+//            {
+//                var script = $@"Update [ServiceTickets] 
+//                                Set Title = 'Updated from Server'
+//                                Where ServiceTicketId = '{id}'";
 
-                using (var sqlCmd = new SqlCommand(script, sqlConnection))
-                {
-                    sqlConnection.Open();
-                    sqlCmd.ExecuteNonQuery();
-                    sqlConnection.Close();
-                }
-            }
+//                using (var sqlCmd = new SqlCommand(script, sqlConnection))
+//                {
+//                    sqlConnection.Open();
+//                    sqlCmd.ExecuteNonQuery();
+//                    sqlConnection.Close();
+//                }
+//            }
 
-            // Since we move to server side, it's server to handle errors
-            serverProvider.ApplyChangedFailed += (s, args) =>
-            {
-                args.Action = ConflictAction.ClientWins;
-            };
+//            // Since we move to server side, it's server to handle errors
+//            serverProvider.ApplyChangedFailed += (s, args) =>
+//            {
+//                args.Action = ConflictAction.ClientWins;
+//            };
 
 
-            SyncContext session2 = null;
-            await Assert.RaisesAsync<ApplyChangeFailedEventArgs>(
-                h => serverProvider.ApplyChangedFailed += h,
-                h => serverProvider.ApplyChangedFailed -= h, async () =>
-                {
-                    session2 = await agent.SynchronizeAsync();
-                });
+//            SyncContext session2 = null;
+//            await Assert.RaisesAsync<ApplyChangeFailedEventArgs>(
+//                h => serverProvider.ApplyChangedFailed += h,
+//                h => serverProvider.ApplyChangedFailed -= h, async () =>
+//                {
+//                    session2 = await agent.SynchronizeAsync();
+//                });
 
-            // check statistics
-            Assert.Equal(0, session2.TotalChangesDownloaded);
-            Assert.Equal(1, session2.TotalChangesUploaded);
-            Assert.Equal(1, session2.TotalSyncConflicts);
+//            // check statistics
+//            Assert.Equal(0, session2.TotalChangesDownloaded);
+//            Assert.Equal(1, session2.TotalChangesUploaded);
+//            Assert.Equal(1, session2.TotalSyncConflicts);
 
-            string expectedRes = string.Empty;
-            using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
-            {
-                var script = $@"Select Title from [ServiceTickets] Where ServiceTicketID='{id}'";
+//            string expectedRes = string.Empty;
+//            using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
+//            {
+//                var script = $@"Select Title from [ServiceTickets] Where ServiceTicketID='{id}'";
 
-                using (var sqlCmd = new SqlCommand(script, sqlConnection))
-                {
-                    sqlConnection.Open();
-                    expectedRes = sqlCmd.ExecuteScalar() as string;
-                    sqlConnection.Close();
-                }
-            }
+//                using (var sqlCmd = new SqlCommand(script, sqlConnection))
+//                {
+//                    sqlConnection.Open();
+//                    expectedRes = sqlCmd.ExecuteScalar() as string;
+//                    sqlConnection.Close();
+//                }
+//            }
 
-            // check good title on client
-            Assert.Equal("Updated from Client", expectedRes);
-        }
+//            // check good title on client
+//            Assert.Equal("Updated from Client", expectedRes);
+//        }
 
-        [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(12)]
-        public async Task ConflictInsertInsertConfigurationClientWins(SyncConfiguration conf)
-        {
-            conf.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
-            conf.Add(fixture.Tables);
-            configurationProvider = () => conf;
-            // provision client infrastructure - otherwise this test will fail when run separately, because the sqlite db table won't yet exist
-            await agent.SynchronizeAsync();
+//        [Theory, ClassData(typeof(InlineConfigurations)), TestPriority(12)]
+//        public async Task ConflictInsertInsertConfigurationClientWins(SyncConfiguration conf)
+//        {
+//            conf.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
+//            conf.Add(fixture.Tables);
+//            configurationProvider = () => conf;
+//            // provision client infrastructure - otherwise this test will fail when run separately, because the sqlite db table won't yet exist
+//            await agent.SynchronizeAsync();
 
-            Guid id = Guid.NewGuid();
+//            Guid id = Guid.NewGuid();
 
-            using (var sqlConnection = new SqliteConnection(fixture.ClientSqliteConnectionString))
-            {
-                var script = $@"INSERT INTO [ServiceTickets] 
-                            ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
-                            VALUES 
-                            (@id, 'Conflict Line Client', 'Description client', 1, 0, datetime('now'), NULL, 1)";
+//            using (var sqlConnection = new SqliteConnection(fixture.ClientSqliteConnectionString))
+//            {
+//                var script = $@"INSERT INTO [ServiceTickets] 
+//                            ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
+//                            VALUES 
+//                            (@id, 'Conflict Line Client', 'Description client', 1, 0, datetime('now'), NULL, 1)";
 
-                using (var sqlCmd = new SqliteCommand(script, sqlConnection))
-                {
-                    sqlCmd.Parameters.AddWithValue("@id", id);
+//                using (var sqlCmd = new SqliteCommand(script, sqlConnection))
+//                {
+//                    sqlCmd.Parameters.AddWithValue("@id", id);
 
-                    sqlConnection.Open();
-                    sqlCmd.ExecuteNonQuery();
-                    sqlConnection.Close();
-                }
-            }
+//                    sqlConnection.Open();
+//                    sqlCmd.ExecuteNonQuery();
+//                    sqlConnection.Close();
+//                }
+//            }
 
-            using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
-            {
-                var script = $@"INSERT [ServiceTickets] 
-                            ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
-                            VALUES 
-                            ('{id.ToString()}', 'Conflict Line Server', 'Description client', 1, 0, getdate(), NULL, 1)";
+//            using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
+//            {
+//                var script = $@"INSERT [ServiceTickets] 
+//                            ([ServiceTicketID], [Title], [Description], [StatusValue], [EscalationLevel], [Opened], [Closed], [CustomerID]) 
+//                            VALUES 
+//                            ('{id.ToString()}', 'Conflict Line Server', 'Description client', 1, 0, getdate(), NULL, 1)";
 
-                using (var sqlCmd = new SqlCommand(script, sqlConnection))
-                {
-                    sqlConnection.Open();
-                    sqlCmd.ExecuteNonQuery();
-                    sqlConnection.Close();
-                }
-            }
+//                using (var sqlCmd = new SqlCommand(script, sqlConnection))
+//                {
+//                    sqlConnection.Open();
+//                    sqlCmd.ExecuteNonQuery();
+//                    sqlConnection.Close();
+//                }
+//            }
 
-            // Act
-            var session = await agent.SynchronizeAsync();
+//            // Act
+//            var session = await agent.SynchronizeAsync();
 
-            // check statistics
-            Assert.Equal(0, session.TotalChangesDownloaded);
-            Assert.Equal(1, session.TotalChangesUploaded);
-            Assert.Equal(1, session.TotalSyncConflicts);
+//            // check statistics
+//            Assert.Equal(0, session.TotalChangesDownloaded);
+//            Assert.Equal(1, session.TotalChangesUploaded);
+//            Assert.Equal(1, session.TotalSyncConflicts);
 
-            string expectedRes = string.Empty;
-            using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
-            {
-                var script = $@"Select Title from [ServiceTickets] Where ServiceTicketID='{id.ToString()}'";
+//            string expectedRes = string.Empty;
+//            using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
+//            {
+//                var script = $@"Select Title from [ServiceTickets] Where ServiceTicketID='{id.ToString()}'";
 
-                using (var sqlCmd = new SqlCommand(script, sqlConnection))
-                {
-                    sqlConnection.Open();
-                    expectedRes = sqlCmd.ExecuteScalar() as string;
-                    sqlConnection.Close();
-                }
-            }
+//                using (var sqlCmd = new SqlCommand(script, sqlConnection))
+//                {
+//                    sqlConnection.Open();
+//                    expectedRes = sqlCmd.ExecuteScalar() as string;
+//                    sqlConnection.Close();
+//                }
+//            }
 
-            // check good title on client
-            Assert.Equal("Conflict Line Client", expectedRes);
-        }
+//            // check good title on client
+//            Assert.Equal("Conflict Line Client", expectedRes);
+//        }
 
-        public void Dispose()
-        {
-            proxyClientProvider?.Dispose();
-            agent?.Dispose();
-            webApp?.Dispose();
-        }
-    }
-}
+//        public void Dispose()
+//        {
+//            proxyClientProvider?.Dispose();
+//            agent?.Dispose();
+//            webApp?.Dispose();
+//        }
+//    }
+//}
 

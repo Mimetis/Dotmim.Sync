@@ -419,7 +419,11 @@ namespace Dotmim.Sync
                          SerializationFormat = this.Configuration.SerializationFormat
                      });
 
-
+                // if ConflictResolutionPolicy.ClientWins or Handler set to Client wins
+                // Conflict occurs here and server loose. 
+                // Conflicts count should be temp saved because applychanges on client side won't raise any conflicts (and so property Context.TotalSyncConflicts will be reset to 0)
+                var conflictsOnRemoteCount = context.TotalSyncConflicts;
+                
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -525,6 +529,9 @@ namespace Dotmim.Sync
                 context.TotalChangesDownloaded = clientChangesApplied.TotalAppliedChanges;
                 context.TotalChangesUploaded = clientChangesSelected.TotalChangesSelected;
                 context.TotalSyncErrors = clientChangesApplied.TotalAppliedChangesFailed;
+
+                // add conflicts occured on server side if policy is set to ClientWins
+                //context.TotalSyncConflicts += conflictsOnRemoteCount;
 
                 context.CompleteTime = DateTime.Now;
 

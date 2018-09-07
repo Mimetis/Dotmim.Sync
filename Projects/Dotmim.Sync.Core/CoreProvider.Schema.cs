@@ -76,21 +76,21 @@ namespace Dotmim.Sync
 
                 dmTable.Columns.Add(column);
 
+                // Validate max length
+                column.MaxLength = Metadata.ValidateMaxLength(column.OriginalTypeName, column.IsUnsigned, column.IsUnicode, column.MaxLength);
+
                 // Gets the datastore owner dbType (could be SqlDbtype, MySqlDbType, SqliteDbType, NpgsqlDbType & so on ...)
-                object datastoreDbType = Metadata.ValidateOwnerDbType(column.OriginalTypeName, column.IsUnsigned, column.IsUnicode);
+                object datastoreDbType = Metadata.ValidateOwnerDbType(column.OriginalTypeName, column.IsUnsigned, column.IsUnicode, column.MaxLength);
 
                 // once we have the datastore type, we can have the managed type
                 Type columnType = Metadata.ValidateType(datastoreDbType);
 
                 // and the DbType
-                column.DbType = Metadata.ValidateDbType(column.OriginalTypeName, column.IsUnsigned, column.IsUnicode);
+                column.DbType = Metadata.ValidateDbType(column.OriginalTypeName, column.IsUnsigned, column.IsUnicode, column.MaxLength);
 
                 // Gets the owner dbtype (SqlDbType, OracleDbType, MySqlDbType, NpsqlDbType & so on ...)
                 // Sqlite does not have it's own type, so it's DbType too
                 column.OriginalDbType = datastoreDbType.ToString();
-
-                // Validate max length
-                column.MaxLength = Metadata.ValidateMaxLength(column.OriginalTypeName, column.IsUnsigned, column.IsUnicode, column.MaxLength);
 
                 // Validate if column should be readonly
                 column.IsReadOnly = Metadata.ValidateIsReadonly(column);

@@ -147,7 +147,7 @@ namespace Dotmim.Sync.Sqlite
             {
                 var quotedColumnName = new ObjectNameParser(pkColumn.ColumnName, "[", "]").FullQuotedString;
 
-                var columnTypeString = this.sqliteDbMetadata.TryGetOwnerDbTypeString(pkColumn.OriginalDbType, pkColumn.DbType, false, false, this.tableDescription.OriginalProvider, SqliteSyncProvider.ProviderType);
+                var columnTypeString = this.sqliteDbMetadata.TryGetOwnerDbTypeString(pkColumn.OriginalDbType, pkColumn.DbType, false, false, pkColumn.MaxLength, this.tableDescription.OriginalProvider, SqliteSyncProvider.ProviderType);
                 var columnPrecisionString = this.sqliteDbMetadata.TryGetOwnerDbTypePrecision(pkColumn.OriginalDbType, pkColumn.DbType, false, false, pkColumn.MaxLength, pkColumn.Precision, pkColumn.Scale, this.tableDescription.OriginalProvider, SqliteSyncProvider.ProviderType);
                 var quotedColumnType = new ObjectNameParser(columnTypeString, "[", "]").FullQuotedString;
                 quotedColumnType += columnPrecisionString;
@@ -367,7 +367,7 @@ namespace Dotmim.Sync.Sqlite
         private string AddFilterColumnCommandText(DmColumn col)
         {
             var quotedColumnName = new ObjectNameParser(col.ColumnName, "[", "]").FullQuotedString;
-            var columnTypeString = this.sqliteDbMetadata.TryGetOwnerDbTypeString(col.OriginalDbType, col.DbType, false, false, this.tableDescription.OriginalProvider, SqliteSyncProvider.ProviderType);
+            var columnTypeString = this.sqliteDbMetadata.TryGetOwnerDbTypeString(col.OriginalDbType, col.DbType, false, false, col.MaxLength, this.tableDescription.OriginalProvider, SqliteSyncProvider.ProviderType);
             var columnPrecisionString = this.sqliteDbMetadata.TryGetOwnerDbTypePrecision(col.OriginalDbType, col.DbType, false, false, col.MaxLength, col.Precision, col.Scale, this.tableDescription.OriginalProvider, SqliteSyncProvider.ProviderType);
             var quotedColumnType = new ObjectNameParser(columnTypeString, "[", "]").FullQuotedString;
             quotedColumnType += columnPrecisionString;

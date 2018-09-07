@@ -88,7 +88,7 @@ namespace Dotmim.Sync
                     return (context, changesApplied);
                 }
             }
-            catch(SyncException)
+            catch (SyncException)
             {
                 throw;
             }
@@ -139,11 +139,11 @@ namespace Dotmim.Sync
         /// Apply changes internal method for one Insert or Update or Delete for every dbSyncAdapter
         /// </summary>
         internal ChangeApplicationAction ApplyChangesInternal(
-            SyncContext context, 
+            SyncContext context,
             MessageApplyChanges message,
-            DbConnection connection, 
-            DbTransaction transaction, 
-            DmRowState applyType, 
+            DbConnection connection,
+            DbTransaction transaction,
+            DmRowState applyType,
             ChangesApplied changesApplied)
         {
             ChangeApplicationAction changeApplicationAction = ChangeApplicationAction.Continue;
@@ -223,13 +223,20 @@ namespace Dotmim.Sync
                                 //var localTimeStamp = scopeInfoBuilder.GetLocalTimestamp();
                                 var fromScopeLocalTimeStamp = message.FromScope.Timestamp;
 
-                                changeApplicationAction = syncAdapter.HandleConflict(conflict, message.Policy, message.FromScope, fromScopeLocalTimeStamp, out DmRow resolvedRow);
+                                var conflictCount = 0;
+                                (changeApplicationAction, conflictCount) = syncAdapter.HandleConflict(conflict, message.Policy, message.FromScope, fromScopeLocalTimeStamp, out DmRow resolvedRow);
+
+
 
                                 if (changeApplicationAction == ChangeApplicationAction.Continue)
                                 {
                                     // row resolved
                                     if (resolvedRow != null)
+                                    {
+                                        context.TotalSyncConflicts += conflictCount;
                                         rowsApplied++;
+
+                                    }
                                 }
                                 else
                                 {
@@ -240,8 +247,9 @@ namespace Dotmim.Sync
                             }
                         }
 
-                        // Get all conflicts resolved
-                        context.TotalSyncConflicts = conflicts.Where(c => c.Type != ConflictType.ErrorsOccurred).Sum(c => 1);
+                        //// Get all conflicts resolved
+                        //context.TotalSyncConflicts += conflicts.Where(
+                        //        c => c.Type != ConflictType.ErrorsOccurred).Sum(c => 1);
 
                         // Handle sync progress for this syncadapter (so this table)
                         var changedFailed = dmChangesView.Count - rowsApplied;

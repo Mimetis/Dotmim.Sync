@@ -41,6 +41,11 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             bool alreadyOpened = connection.State == ConnectionState.Open;
 
+            // Don't want foreign key on same table since it could be a problem on first 
+            // sync. We are not sure that parent row will be inserted in first position
+            if (String.Equals(parentTable, foreignKey.ChildTable.TableName, StringComparison.CurrentCultureIgnoreCase))
+                return false;
+
             try
             {
                 if (!alreadyOpened)
@@ -226,7 +231,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             {
                 var columnName = new ObjectNameParser(column.ColumnName);
 
-                var columnTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(column.OriginalDbType, column.DbType, false, false, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+                var columnTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(column.OriginalDbType, column.DbType, false, false, column.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
                 var columnPrecisionString = this.sqlDbMetadata.TryGetOwnerDbTypePrecision(column.OriginalDbType, column.DbType, false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
                 var columnType = $"{columnTypeString} {columnPrecisionString}";
                 var identity = string.Empty;
@@ -246,7 +251,8 @@ namespace Dotmim.Sync.SqlServer.Builders
                 empty = ",";
             }
             stringBuilder.Append(")");
-            return new SqlCommand(stringBuilder.ToString());
+            string createTableCommandString = stringBuilder.ToString();
+            return new SqlCommand(createTableCommandString);
         }
 
         private SqlCommand BuildDeleteTableCommand()

@@ -372,8 +372,8 @@ namespace Dotmim.Sync.MySql
             foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
             {
                 ObjectNameParser columnName = new ObjectNameParser(pkColumn.ColumnName, "`", "`");
-                stringBuilderArguments.Append(string.Concat(empty, columnName.FullQuotedString.ToLowerInvariant()));
-                stringBuilderParameters.Append(string.Concat(empty, $"{MYSQL_PREFIX_PARAMETER}{columnName.FullUnquotedString.ToLowerInvariant()}"));
+                stringBuilderArguments.Append(string.Concat(empty, columnName.FullQuotedString));
+                stringBuilderParameters.Append(string.Concat(empty, $"{MYSQL_PREFIX_PARAMETER}{columnName.FullUnquotedString}"));
                 empty = ", ";
             }
             stringBuilder.Append($"\t({stringBuilderArguments.ToString()}, ");
