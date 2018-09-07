@@ -85,9 +85,9 @@ namespace UWPSyncSample.Helpers
 
         public async Task InitializeDatabasesAsync()
         {
-            this.CreateDatabaseAsync("Contoso", false);
-            this.CreateDatabaseAsync("ContosoClient", false);
-            this.CreateTableOnServerAsync();
+            await this.CreateDatabaseAsync("Contoso", false);
+            await this.CreateDatabaseAsync("ContosoClient", false);
+            await this.CreateTableOnServerAsync();
         }
 
         public async Task CreateDatabaseAsync(string dbName, bool recreateDb = true)

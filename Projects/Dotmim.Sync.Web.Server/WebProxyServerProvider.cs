@@ -34,7 +34,7 @@ namespace Dotmim.Sync.Web.Server
     /// <summary>
     /// Class used when you have to deal with a Web Server
     /// </summary>
-    public class WebProxyServerProvider : IProvider
+    public class WebProxyServerProvider : IProvider, IDisposable
     {
         public CoreProvider LocalProvider { get; private set; }
 
@@ -44,7 +44,7 @@ namespace Dotmim.Sync.Web.Server
         /// </summary>
         public Boolean IsRegisterAsSingleton { get; set; }
 
-        public event EventHandler<ProgressEventArgs> SyncProgress;
+        public event EventHandler<ProgressEventArgs> SyncProgress = null;
         public event EventHandler<ApplyChangeFailedEventArgs> ApplyChangedFailed;
         public event EventHandler<BeginSessionEventArgs> BeginSession;
         public event EventHandler<EndSessionEventArgs> EndSession;
@@ -67,6 +67,23 @@ namespace Dotmim.Sync.Web.Server
         public WebProxyServerProvider(CoreProvider localProvider)
         {
             this.LocalProvider = localProvider;
+
+            this.LocalProvider.SyncProgress += (s, e) => this.SyncProgress?.Invoke(s, e);
+            this.LocalProvider.BeginSession += (s, e) => this.BeginSession?.Invoke(s, e);
+            this.LocalProvider.EndSession += (s, e) => this.EndSession?.Invoke(s, e);
+            this.LocalProvider.TableChangesApplied += (s, e) => this.TableChangesApplied?.Invoke(s, e);
+            this.LocalProvider.TableChangesApplying += (s, e) => this.TableChangesApplying?.Invoke(s, e);
+            this.LocalProvider.TableChangesSelected += (s, e) => this.TableChangesSelected?.Invoke(s, e);
+            this.LocalProvider.TableChangesSelecting += (s, e) => this.TableChangesSelecting?.Invoke(s, e);
+            this.LocalProvider.SchemaApplied += (s, e) => this.SchemaApplied?.Invoke(s, e);
+            this.LocalProvider.SchemaApplying += (s, e) => this.SchemaApplying?.Invoke(s, e);
+            this.LocalProvider.DatabaseApplied += (s, e) => this.DatabaseApplied?.Invoke(s, e);
+            this.LocalProvider.DatabaseApplying += (s, e) => this.DatabaseApplying?.Invoke(s, e);
+            this.LocalProvider.DatabaseTableApplied += (s, e) => this.DatabaseTableApplied?.Invoke(s, e);
+            this.LocalProvider.DatabaseTableApplying += (s, e) => this.DatabaseTableApplying?.Invoke(s, e);
+            this.LocalProvider.ScopeLoading += (s, e) => this.ScopeLoading?.Invoke(s, e);
+            this.LocalProvider.ScopeSaved += (s, e) => this.ScopeSaved?.Invoke(s, e);
+            this.LocalProvider.ApplyChangedFailed += (s, e) => this.ApplyChangedFailed?.Invoke(s, e);
         }
 
         /// <summary>
@@ -742,6 +759,40 @@ namespace Dotmim.Sync.Web.Server
             }
         }
 #endif
+
+        // --------------------------------------------------------------------
+        // Dispose
+        // --------------------------------------------------------------------
+
+        /// <summary>
+        /// Releases all resources used by the <see cref="T:Microsoft.Synchronization.Data.DbSyncBatchInfo" />.
+        /// </summary>
+        public void Dispose()
+        {
+            this.Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Releases the unmanaged resources used 
+        /// by the <see cref="T:Microsoft.Synchronization.Data.DbSyncBatchInfo" /> and optionally releases the managed resources.
+        /// </summary>
+        protected virtual void Dispose(bool cleanup)
+        {
+            this.LocalProvider.BeginSession -= (s, e) => this.BeginSession?.Invoke(s, e);
+            this.LocalProvider.EndSession -= (s, e) => this.EndSession?.Invoke(s, e);
+            this.LocalProvider.TableChangesApplied -= (s, e) => this.TableChangesApplied?.Invoke(s, e);
+            this.LocalProvider.TableChangesApplying -= (s, e) => this.TableChangesApplying?.Invoke(s, e);
+            this.LocalProvider.TableChangesSelected -= (s, e) => this.TableChangesSelected?.Invoke(s, e);
+            this.LocalProvider.TableChangesSelecting -= (s, e) => this.TableChangesSelecting?.Invoke(s, e);
+            this.LocalProvider.SchemaApplied -= (s, e) => this.SchemaApplied?.Invoke(s, e);
+            this.LocalProvider.SchemaApplying -= (s, e) => this.SchemaApplying?.Invoke(s, e);
+            this.LocalProvider.DatabaseApplied -= (s, e) => this.DatabaseApplied?.Invoke(s, e);
+            this.LocalProvider.DatabaseApplying -= (s, e) => this.DatabaseApplying?.Invoke(s, e);
+            this.LocalProvider.ScopeLoading -= (s, e) => this.ScopeLoading?.Invoke(s, e);
+            this.LocalProvider.ScopeSaved -= (s, e) => this.ScopeSaved?.Invoke(s, e);
+            this.LocalProvider.ApplyChangedFailed -= (s, e) => this.ApplyChangedFailed?.Invoke(s, e);
+        }
     }
 
     internal static class Extensions
