@@ -17,9 +17,6 @@ namespace Dotmim.Sync.Tests.MySql
 
         public override ProviderType ProviderType => ProviderType.MySql;
 
-        public override CoreProvider ServerProvider => new MySqlSyncProvider(
-            HelperDB.GetMySqlDatabaseConnectionString(DatabaseName));
-
         public override bool EnableSqlServerClientOnTcp => true;
         public override bool EnableSqlServerClientOnHttp => false;
         public override bool EnableMySqlClientOnTcp => true;
@@ -30,6 +27,10 @@ namespace Dotmim.Sync.Tests.MySql
         // for debugging
         //public override bool DeleteAllDatabasesOnDispose => false;
 
+        public override CoreProvider NewServerProvider(string connectionString)
+        {
+            return new MySqlSyncProvider(connectionString);
+        }
         public override void ServerDatabaseEnsureCreated()
         {
             using (AdventureWorksContext ctx =

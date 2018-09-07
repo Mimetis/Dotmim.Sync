@@ -16,15 +16,22 @@ namespace Dotmim.Sync.Tests.SqlServer
 
         public override ProviderType ProviderType => ProviderType.Sql;
 
-        public override CoreProvider ServerProvider => new SqlSyncProvider(
-            HelperDB.GetSqlDatabaseConnectionString(DatabaseName));
-
+     
         public override bool EnableSqlServerClientOnTcp => true;
         public override bool EnableSqlServerClientOnHttp => false;
         public override bool EnableMySqlClientOnTcp => true;
         public override bool EnableMySqlClientOnHttp => false;
         public override bool EnableSqliteClientOnTcp => false;
         public override bool EnableSqliteClientOnHttp => true;
+
+        public SqlServerFixture()
+        {
+        }
+
+        public override CoreProvider NewServerProvider(string connectionString)
+        {
+            return new SqlSyncProvider(connectionString);
+        }
 
         // for debugging
         //public override bool DeleteAllDatabasesOnDispose => false;

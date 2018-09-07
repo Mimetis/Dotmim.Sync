@@ -103,9 +103,9 @@ namespace Dotmim.Sync.Tests.Core
         public abstract ProviderType ProviderType { get; }
 
         /// <summary>
-        /// gets or sets the provider we want to test
+        /// Gets a new instance of the CoreProvider we want to test
         /// </summary>
-        public abstract CoreProvider ServerProvider { get; }
+        public abstract CoreProvider NewServerProvider(string connectionString);
 
         /// <summary>
         /// Ensure provider server database is correctly created
@@ -128,21 +128,7 @@ namespace Dotmim.Sync.Tests.Core
         public void ClientDatabasesEnsureDeleted()
         {
             foreach (var tr in ClientRuns)
-            {
-                if (tr.ProviderType == ProviderType.Sql)
-                    HelperDB.DropSqlDatabase(tr.DatabaseName);
-                else if (tr.ProviderType == ProviderType.MySql)
-                    HelperDB.DropMySqlDatabase(tr.DatabaseName);
-                else if (tr.ProviderType == ProviderType.Sqlite)
-                {
-                    GC.Collect();
-                    GC.WaitForPendingFinalizers();
-
-                    if (File.Exists(tr.ConnectionString))
-                        File.Delete(tr.ConnectionString);
-
-                }
-            }
+                HelperDB.DropDatabase(tr.ProviderType, tr.DatabaseName);
 
             ClientRuns.Clear();
 
@@ -152,9 +138,9 @@ namespace Dotmim.Sync.Tests.Core
             // Add filled client tcp providers
             if (this.EnableSqlServerClientOnTcp && !ClientRuns.Any(tr => !tr.IsHttp && tr.ProviderType == ProviderType.Sql))
             {
-                var dbName = this.GetRandomDatabaseName();
+                var dbName = GetRandomDatabaseName();
                 var connectionString = HelperDB.GetSqlDatabaseConnectionString(dbName);
-                HelperDB.CreateDatabase(dbName);
+                HelperDB.CreateSqlServerDatabase(dbName);
                 ClientRuns.Add(new ProviderRun(
                     dbName, new SqlSyncProvider(connectionString), false, ProviderType.Sql)
                 );
@@ -162,7 +148,7 @@ namespace Dotmim.Sync.Tests.Core
 
             if (this.EnableMySqlClientOnTcp && !ClientRuns.Any(tr => !tr.IsHttp && tr.ProviderType == ProviderType.MySql))
             {
-                var dbName = this.GetRandomDatabaseName();
+                var dbName = GetRandomDatabaseName();
                 var connectionString = HelperDB.GetMySqlDatabaseConnectionString(dbName);
                 HelperDB.CreateMySqlDatabase(dbName);
 
@@ -173,7 +159,7 @@ namespace Dotmim.Sync.Tests.Core
 
             if (this.EnableSqliteClientOnTcp && !ClientRuns.Any(tr => !tr.IsHttp && tr.ProviderType == ProviderType.Sqlite))
             {
-                var dbName = this.GetRandomDatabaseName();
+                var dbName = GetRandomDatabaseName();
                 var connectionString = HelperDB.GetSqliteDatabaseConnectionString(dbName);
 
                 ClientRuns.Add(new ProviderRun(
@@ -184,9 +170,9 @@ namespace Dotmim.Sync.Tests.Core
 
             if (this.EnableSqlServerClientOnHttp && !ClientRuns.Any(tr => tr.IsHttp && tr.ProviderType == ProviderType.Sql))
             {
-                var dbName = this.GetRandomDatabaseName();
+                var dbName = GetRandomDatabaseName();
                 var connectionString = HelperDB.GetSqlDatabaseConnectionString(dbName);
-                HelperDB.CreateDatabase(dbName);
+                HelperDB.CreateSqlServerDatabase(dbName);
 
                 ClientRuns.Add(new ProviderRun(
                     dbName, new SqlSyncProvider(connectionString), true, ProviderType.Sql)
@@ -197,7 +183,7 @@ namespace Dotmim.Sync.Tests.Core
 
             if (this.EnableMySqlClientOnHttp && !ClientRuns.Any(tr => tr.IsHttp && tr.ProviderType == ProviderType.MySql))
             {
-                var dbName = this.GetRandomDatabaseName();
+                var dbName = GetRandomDatabaseName();
                 var connectionString = HelperDB.GetMySqlDatabaseConnectionString(dbName);
                 HelperDB.CreateMySqlDatabase(dbName);
 
@@ -208,7 +194,7 @@ namespace Dotmim.Sync.Tests.Core
 
             if (this.EnableSqliteClientOnHttp && !ClientRuns.Any(tr => tr.IsHttp && tr.ProviderType == ProviderType.Sqlite))
             {
-                var dbName = this.GetRandomDatabaseName();
+                var dbName = GetRandomDatabaseName();
                 var connectionString = HelperDB.GetSqliteDatabaseConnectionString(dbName);
 
                 ClientRuns.Add(new ProviderRun(

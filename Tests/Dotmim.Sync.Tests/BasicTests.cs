@@ -30,9 +30,12 @@ namespace Dotmim.Sync.Tests
         // abstract fixture used to run the tests
         protected readonly ProviderFixture<CoreProvider> fixture;
 
+        // the server provider
+        protected readonly CoreProvider ServerProvider;
+
         protected virtual AdventureWorksContext GetServerDbContext()
         {
-            return new AdventureWorksContext(fixture.ProviderType, fixture.ServerProvider.ConnectionString);
+            return new AdventureWorksContext(fixture.ProviderType, ServerProvider.ConnectionString);
         }
 
         protected virtual AdventureWorksContext GetClientDbContext(ProviderRun providerRun)
@@ -47,9 +50,11 @@ namespace Dotmim.Sync.Tests
         {
             this.fixture = fixture;
 
+            // gets the server provider
+            this.ServerProvider = this.fixture.NewServerProvider(HelperDB.GetConnectionString(this.fixture.ProviderType, this.fixture.DatabaseName));
 
             // create a test runner based on my server fixture
-            this.testRunner = new TestRunner(fixture);
+            this.testRunner = new TestRunner(fixture, this.ServerProvider);
         }
 
 
@@ -70,14 +75,89 @@ namespace Dotmim.Sync.Tests
         }
 
         /// <summary>
+        /// Should be able to Deprovision a whole database
+        /// </summary>
+        public async virtual Task Provision()
+        {
+            // Generate a new temp database and a local provider
+            var dbName = fixture.GetRandomDatabaseName();
+            var connectionString = HelperDB.GetConnectionString(fixture.ProviderType, dbName);
+
+            // create a local provider (the provider we want to test, obviously)
+            var localProvider = fixture.NewServerProvider(connectionString);
+
+            try
+            {
+                // ensure database is created and filled with some data
+                using (var ctx = new AdventureWorksContext(fixture.ProviderType, connectionString))
+                {
+                    await ctx.Database.EnsureCreatedAsync();
+                }
+
+                // generate a sync conf to host the schema
+                var conf = new SyncConfiguration(fixture.Tables);
+
+                // Provision the database with all tracking tables, stored procedures, triggers and scope
+                await localProvider.ProvisionAsync(conf, SyncProvision.All);
+
+                // check if scope table is correctly created
+                var scopeBuilderFactory = localProvider.GetScopeBuilder();
+
+                using (var dbConnection = localProvider.CreateConnection())
+                {
+                    var scopeBuilder = scopeBuilderFactory.CreateScopeInfoBuilder(conf.ScopeInfoTableName, dbConnection);
+                    Assert.Equal(false, scopeBuilder.NeedToCreateScopeInfoTable());
+                }
+
+
+                // get the db manager
+                foreach (var dmTable in conf.Schema.Tables)
+                {
+                    var tableName = dmTable.TableName;
+                    using (var dbConnection = localProvider.CreateConnection())
+                    {
+                        // get the database manager factory then the db manager itself
+                        var dbTableBuilder = localProvider.GetDatabaseBuilder(dmTable);
+
+                        var trackingTablesBuilder = dbTableBuilder.CreateTrackingTableBuilder(dbConnection);
+                        var triggersBuilder = dbTableBuilder.CreateTriggerBuilder(dbConnection);
+                        var spBuider = dbTableBuilder.CreateProcBuilder(dbConnection);
+
+                        await dbConnection.OpenAsync();
+                        Assert.Equal(false, trackingTablesBuilder.NeedToCreateTrackingTable());
+                        Assert.Equal(false, triggersBuilder.NeedToCreateTrigger(Builders.DbTriggerType.Insert));
+                        Assert.Equal(false, triggersBuilder.NeedToCreateTrigger(Builders.DbTriggerType.Delete));
+                        Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.InsertMetadata));
+                        Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.InsertRow));
+                        Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.Reset));
+                        Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.SelectChanges));
+                        Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.SelectRow));
+                        Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.DeleteMetadata));
+                        Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.DeleteRow));
+                    }
+                }
+            }
+            finally
+            {
+                // ensure database is created and filled with some data
+                using (var ctx = new AdventureWorksContext(fixture.ProviderType, connectionString))
+                {
+                    await ctx.Database.EnsureDeletedAsync();
+                }
+
+            }
+        }
+
+        /// <summary>
         /// Should raise a correct error when a bad connection is defined
         /// </summary>
         public async virtual Task Bad_Server_Connection_Should_Raise_Error()
         {
-            // simulate a bad connectionstring
-            this.fixture.ServerProvider.ConnectionString = $@"Server=unknown;Database=unknown;UID=sa;PWD=unknown";
+            var provider = this.fixture.NewServerProvider($@"Server=unknown;Database=unknown;UID=sa;PWD=unknown");
+            // create a new runner with a provider with bad connection string
+            var tempTestRunner = new TestRunner(fixture, this.ServerProvider);
 
-            var results = await this.testRunner.RunTestsAsync(false);
+            var results = await tempTestRunner.RunTestsAsync(false);
 
             foreach (var trr in results)
             {
@@ -94,7 +174,7 @@ namespace Dotmim.Sync.Tests
         public async virtual Task Bad_Client_Connection_Should_Raise_Error()
         {
             // set a bad connection string
-            this.fixture.ClientRuns.ForEach(tr => tr.ConnectionString = "bad connection string, wooooaaa");
+            this.fixture.ClientRuns.ForEach(tr => tr.ConnectionString = $@"Server=unknown;Database=unknown;UID=sa;PWD=unknown");
 
             var results = await this.testRunner.RunTestsAsync(false);
 
