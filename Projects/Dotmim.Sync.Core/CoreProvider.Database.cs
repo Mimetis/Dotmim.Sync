@@ -150,7 +150,7 @@ namespace Dotmim.Sync
 
                         }
 
-                        await OnProvisionedAsync(new DatabaseProvisionedEventArgs(provision, connection, transaction));
+                        await OnProvisionedAsync(new DatabaseProvisionedEventArgs(provision, configuration.Schema, connection, transaction));
 
                         transaction.Commit();
                     }
@@ -236,7 +236,7 @@ namespace Dotmim.Sync
                         var afterArgs = new DatabaseAppliedEventArgs(this.ProviderTypeName, context.SyncStage, script.ToString());
                         this.TryRaiseProgressEvent(afterArgs, this.DatabaseApplied);
 
-                        await OnProvisionedAsync(new DatabaseProvisionedEventArgs(SyncProvision.All, connection, transaction));
+                        await OnProvisionedAsync(new DatabaseProvisionedEventArgs(SyncProvision.All, message.Schema, connection, transaction));
 
                         transaction.Commit();
                     }
