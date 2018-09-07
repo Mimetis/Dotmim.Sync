@@ -156,5 +156,11 @@ namespace Dotmim.Sync.Tests.SqlServer
         {
             return base.Insert_Then_Update_From_Server_Then_Sync();
         }
+
+        [Fact, TestPriority(20)]
+        public override Task Provision()
+        {
+            return base.Provision();
+        }
     }
 }

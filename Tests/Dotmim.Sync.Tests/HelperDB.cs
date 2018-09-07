@@ -5,6 +5,7 @@ using MySql.Data.MySqlClient;
 using System;
 using System.Data;
 using System.Data.SqlClient;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 
@@ -54,13 +55,25 @@ namespace Dotmim.Sync.Tests
 
         }
 
+
+        /// <summary>
+        /// Get the Sqlite file path (ie: /Dir/mydatabase.db)
+        /// </summary>
+        public static string GetSqliteFilePath(string dbName)
+        {
+            return Path.Combine(Directory.GetCurrentDirectory(), $"{dbName}.db");
+
+        }
+
+        /// <summary>
+        /// Gets the connection string used to open a sqlite database
+        /// </summary>
         public static string GetSqliteDatabaseConnectionString(string dbName)
         {
             // check if we are running on appveyor or not
             var isOnAppVeyor = Environment.GetEnvironmentVariable("APPVEYOR");
 
-            var clientSqliteFilePath = Path.Combine(Directory.GetCurrentDirectory(), $"{dbName}.db");
-            var builder = new SqliteConnectionStringBuilder { DataSource = clientSqliteFilePath };
+            var builder = new SqliteConnectionStringBuilder { DataSource = GetSqliteFilePath(dbName) };
 
             return builder.ConnectionString;
         }
@@ -86,31 +99,84 @@ namespace Dotmim.Sync.Tests
         }
 
         /// <summary>
-        /// Generate a database
+        /// Create a database, depending the Provider type
         /// </summary>
-        public static void CreateDatabase(string dbName, bool recreateDb = true)
+        public static void CreateDatabase(ProviderType providerType, string dbName, bool recreateDb = true)
+        {
+            switch (providerType)
+            {
+                case ProviderType.Sql:
+                    CreateSqlServerDatabase(dbName, recreateDb);
+                    break;
+                case ProviderType.MySql:
+                    CreateMySqlDatabase(dbName, recreateDb);
+                    break;
+            }
+
+            // default 
+            CreateSqlServerDatabase(dbName, recreateDb);
+        }
+
+        /// <summary>
+        /// Create a new Sql Server database
+        /// </summary>
+        public static void CreateSqlServerDatabase(string dbName, bool recreateDb = true)
         {
             using (var masterConnection = new SqlConnection(GetSqlDatabaseConnectionString("master")))
             {
                 masterConnection.Open();
-                var cmdDb = new SqlCommand(GetCreationDBScript(dbName, recreateDb), masterConnection);
+                var cmdDb = new SqlCommand(GetSqlCreationScript(dbName, recreateDb), masterConnection);
                 cmdDb.ExecuteNonQuery();
                 masterConnection.Close();
             }
         }
-        public static void CreateMySqlDatabase(string dbName)
+
+        /// <summary>
+        /// Create a new MySql Server database
+        /// </summary>
+        public static void CreateMySqlDatabase(string dbName, bool recreateDb = true)
         {
             using (var sysConnection = new MySqlConnection(HelperDB.GetMySqlDatabaseConnectionString("sys")))
             {
                 sysConnection.Open();
-                var cmdDb = new MySqlCommand($"Drop schema if exists  {dbName};", sysConnection);
-                cmdDb.ExecuteNonQuery();
-                cmdDb = new MySqlCommand($"create schema {dbName};", sysConnection);
+                if (recreateDb)
+                {
+                    var cmdDrop = new MySqlCommand($"Drop schema if exists  {dbName};", sysConnection);
+                    cmdDrop.ExecuteNonQuery();
+                }
+
+                var cmdDb = new MySqlCommand($"create schema {dbName};", sysConnection);
                 cmdDb.ExecuteNonQuery();
                 sysConnection.Close();
             }
         }
 
+
+        /// <summary>
+        /// Drop a database, depending the Provider type
+        /// </summary>
+        public static void DropDatabase(ProviderType providerType, string dbName)
+        {
+            switch (providerType)
+            {
+                case ProviderType.Sql:
+                    DropSqlDatabase(dbName);
+                    break;
+                case ProviderType.MySql:
+                    DropMySqlDatabase(dbName);
+                    break;
+                case ProviderType.Sqlite:
+                    DropSqliteDatabase(dbName);
+                    break;
+            }
+
+            // default 
+            DropSqlDatabase(dbName);
+        }
+
+        /// <summary>
+        /// Drop a mysql database
+        /// </summary>
         public static void DropMySqlDatabase(string dbName)
         {
             using (var sysConnection = new MySqlConnection(HelperDB.GetMySqlDatabaseConnectionString("sys")))
@@ -119,6 +185,43 @@ namespace Dotmim.Sync.Tests
                 var cmdDb = new MySqlCommand($"drop database if exists {dbName};", sysConnection);
                 cmdDb.ExecuteNonQuery();
                 sysConnection.Close();
+            }
+        }
+
+        /// <summary>
+        /// Drop a sqlite database
+        /// </summary>
+        public static void DropSqliteDatabase(string dbName)
+        {
+            string filePath=null;
+            try
+            {
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                filePath = GetSqliteFilePath(dbName);
+
+                if (File.Exists(filePath))
+                    File.Delete(filePath);
+
+            }
+            catch (Exception)
+            {
+
+                Debug.WriteLine($"Sqlite file seems loked. ({filePath})");
+            }
+        }
+
+        /// <summary>
+        /// Delete a database
+        /// </summary>
+        public static void DropSqlDatabase(string dbName)
+        {
+            using (var masterConnection = new SqlConnection(GetSqlDatabaseConnectionString("master")))
+            {
+                masterConnection.Open();
+                var cmdDb = new SqlCommand(GetSqlDropDatabaseScript(dbName), masterConnection);
+                cmdDb.ExecuteNonQuery();
+                masterConnection.Close();
             }
         }
 
@@ -133,21 +236,6 @@ namespace Dotmim.Sync.Tests
                 connection.Close();
             }
         }
-
-        /// <summary>
-        /// Delete a database
-        /// </summary>
-        public static void DropSqlDatabase(string dbName)
-        {
-            using (var masterConnection = new SqlConnection(GetSqlDatabaseConnectionString("master")))
-            {
-                masterConnection.Open();
-                var cmdDb = new SqlCommand(GetDeleteDatabaseScript(dbName), masterConnection);
-                cmdDb.ExecuteNonQuery();
-                masterConnection.Close();
-            }
-        }
-
         public static void ExecuteSqlScript(string dbName, string script)
         {
             using (var connection = new SqlConnection(GetSqlDatabaseConnectionString(dbName)))
@@ -166,7 +254,6 @@ namespace Dotmim.Sync.Tests
                 connection.Close();
             }
         }
-
         public static void ExecuteSqliteScript(string dbName, string script)
         {
             using (var connection = new SqliteConnection(dbName))
@@ -178,7 +265,10 @@ namespace Dotmim.Sync.Tests
             }
         }
 
-        public static void RestoreDatabase(string dbName, string filePath)
+        /// <summary>
+        /// Restore a sql backup file
+        /// </summary>
+        public static void RestoreSqlDatabase(string dbName, string filePath)
         {
             var dataName = Path.GetFileNameWithoutExtension(dbName) + ".mdf";
             var logName = Path.GetFileNameWithoutExtension(dbName) + ".ldf";
@@ -224,7 +314,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Gets the Create or Re-create a database script text
         /// </summary>
-        private static string GetCreationDBScript(string dbName, Boolean recreateDb = true)
+        private static string GetSqlCreationScript(string dbName, Boolean recreateDb = true)
         {
             if (recreateDb)
                 return $@"if (exists (Select * from sys.databases where name = '{dbName}'))
@@ -239,7 +329,10 @@ namespace Dotmim.Sync.Tests
 
         }
 
-        private static string GetDeleteDatabaseScript(string dbName)
+        /// <summary>
+        /// Gets the drop sql database script
+        /// </summary>
+        private static string GetSqlDropDatabaseScript(string dbName)
         {
             return $@"if (exists (Select * from sys.databases where name = '{dbName}'))
                     begin

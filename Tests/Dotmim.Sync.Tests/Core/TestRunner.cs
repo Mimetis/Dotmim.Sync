@@ -20,13 +20,16 @@ namespace Dotmim.Sync.Tests.Core
     public class TestRunner
     {
         private readonly ProviderFixture<CoreProvider> providerFixture;
+        private readonly CoreProvider serverProvider;
 
         public Action<IProvider> BeginRun { get; set; }
         public Action<IProvider> EndRun { get; set; }
 
-        public TestRunner(ProviderFixture<CoreProvider> providerFixture)
+
+        public TestRunner(ProviderFixture<CoreProvider> providerFixture, CoreProvider serverProvider) 
         {
             this.providerFixture = providerFixture;
+            this.serverProvider = serverProvider;
         }
 
         public async Task<List<ProviderRun>> RunTestsAsync()
@@ -53,7 +56,7 @@ namespace Dotmim.Sync.Tests.Core
                     tra.BeginRun = this.BeginRun;
                     tra.EndRun = this.EndRun;
 
-                    await tra.RunAsync(this.providerFixture, scopeName, tables, conf, reuseAgent);
+                    await tra.RunAsync(this.serverProvider, this.providerFixture, scopeName, tables, conf, reuseAgent);
                 }
                 finally
                 {
