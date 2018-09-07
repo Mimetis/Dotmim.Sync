@@ -1735,13 +1735,13 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                         // Get the good SqlDbType (even if we are not from Sql Server def)
 
-                        SqlDbType sqlDbType = (SqlDbType)this.sqlDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.DbType, false, false, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+                        SqlDbType sqlDbType = (SqlDbType)this.sqlDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.DbType, false, false, columnFilter.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
                         SqlParameter sqlParamFilter = new SqlParameter($"@{columnFilterName.FullUnquotedString}", sqlDbType);
                         sqlCommand.Parameters.Add(sqlParamFilter);
                     }
                     else
                     {
-                        SqlDbType sqlDbType = (SqlDbType)this.sqlDbMetadata.TryGetOwnerDbType(null, c.ColumnType.Value, false, false, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+                        SqlDbType sqlDbType = (SqlDbType)this.sqlDbMetadata.TryGetOwnerDbType(null, c.ColumnType.Value, false, false, 0, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
                         var columnFilterName = new ObjectNameParser(c.ColumnName, "[", "]");
                         SqlParameter sqlParamFilter = new SqlParameter($"@{columnFilterName.FullUnquotedString}", sqlDbType);
                         sqlCommand.Parameters.Add(sqlParamFilter);
