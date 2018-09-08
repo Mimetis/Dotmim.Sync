@@ -8,6 +8,11 @@ namespace Dotmim.Sync.Tests.Core
     {
         Sql,
         MySql,
+        Oracle,
+        PostgreSql,
+        MariaDB,
+        DB2,
+        Firebird,
         Sqlite
     }
 }

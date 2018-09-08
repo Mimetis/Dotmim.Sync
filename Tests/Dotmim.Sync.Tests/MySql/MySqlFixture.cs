@@ -11,7 +11,7 @@ namespace Dotmim.Sync.Tests.MySql
     /// <summary>
     /// Fixture used to test the SqlSyncProvider
     /// </summary>
-    public class MySqlServerFixture : ProviderFixture<CoreProvider>
+    public class MySqlFixture : ProviderFixture<CoreProvider>
     {
         public override string DatabaseName => "mysqladventureworks";
 
@@ -19,6 +19,8 @@ namespace Dotmim.Sync.Tests.MySql
 
         public override bool EnableSqlServerClientOnTcp => true;
         public override bool EnableSqlServerClientOnHttp => false;
+        public override bool EnableOracleClientOnTcp => false;
+        public override bool EnableOracleClientOnHttp => false;
         public override bool EnableMySqlClientOnTcp => true;
         public override bool EnableMySqlClientOnHttp => false;
         public override bool EnableSqliteClientOnTcp => false;
@@ -31,23 +33,6 @@ namespace Dotmim.Sync.Tests.MySql
         {
             return new MySqlSyncProvider(connectionString);
         }
-        public override void ServerDatabaseEnsureCreated()
-        {
-            using (AdventureWorksContext ctx =
-                new AdventureWorksContext(ProviderType, HelperDB.GetConnectionString(ProviderType, DatabaseName)))
-            {
-                ctx.Database.EnsureDeleted();
-                ctx.Database.EnsureCreated();
-            }
-        }
-
-        public override void ServerDatabaseEnsureDeleted()
-        {
-            using (AdventureWorksContext ctx =
-                new AdventureWorksContext(ProviderType, HelperDB.GetConnectionString(ProviderType, DatabaseName)))
-            {
-                ctx.Database.EnsureDeleted();
-            }
-        }
+        
     }
 }
