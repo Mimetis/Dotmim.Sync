@@ -19,22 +19,6 @@ namespace Dotmim.Sync.Tests.SqlServer
     {
         public SqlServerBasicTests(SqlServerFixture fixture) : base(fixture)
         {
-            // Mix of dbo, SalesLT and no schema provided in string array
-            this.fixture.Tables = new string[]
-                    {
-                        "SalesLT.ProductCategory",
-                        "SalesLT.ProductModel",
-                        "SalesLT.Product",
-                        "Customer",
-                        "Address",
-                        "CustomerAddress",
-                        "SalesLT.SalesOrderHeader",
-                        "SalesLT.SalesOrderDetail",
-                        "dbo.Sql",
-                        "Posts",
-                        "Tags",
-                        "PostTag"
-                    };
         }
 
         [Fact, TestPriority(0)]

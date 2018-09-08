@@ -13,47 +13,8 @@ namespace Dotmim.Sync.Tests
 {
     public static class HelperDB
     {
-        /// <summary>
-        /// Returns the database server to be used in the untittests - note that this is the connection to appveyor SQL Server 2016 instance!
-        /// see: https://www.appveyor.com/docs/services-databases/#mysql
-        /// </summary>
-        /// <param name="dbName"></param>
-        /// <returns></returns>
-        public static String GetSqlDatabaseConnectionString(string dbName)
-        {
 
-            // check if we are running on appveyor or not
-            string isOnAppVeyor = Environment.GetEnvironmentVariable("APPVEYOR");
-
-            // check if we are running localy on windows or linux
-            bool isWindowsRuntime = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
-
-            if (!String.IsNullOrEmpty(isOnAppVeyor) && isOnAppVeyor.ToLowerInvariant() == "true")
-                return $@"Server=(local)\SQL2016;Database={dbName};UID=sa;PWD=Password12!";
-            else if (isWindowsRuntime)
-                return $@"Data Source=(localdb)\MSSQLLocalDB;Initial Catalog={dbName};Integrated Security=true;";
-            else
-                return $@"Data Source=localhost; Database={dbName}; User=sa; Password=QWE123qwe";
-        }
-
-
-        /// <summary>
-        /// Returns the database server to be used in the untittests - note that this is the connection to appveyor MySQL 5.7 x64 instance!
-        /// see: https://www.appveyor.com/docs/services-databases/#mysql
-        /// </summary>
-        /// <param name="dbName"></param>
-        /// <returns></returns>
-        public static string GetMySqlDatabaseConnectionString(string dbName)
-        {
-            // check if we are running on appveyor or not
-            string isOnAppVeyor = Environment.GetEnvironmentVariable("APPVEYOR");
-
-            if (!String.IsNullOrEmpty(isOnAppVeyor) && isOnAppVeyor.ToLowerInvariant() == "true")
-                return $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=Password12!";
-            else
-                return $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=azerty31$;";
-
-        }
+        public static Func<String, String> GetSqlConnectionString;
 
 
         /// <summary>
@@ -70,9 +31,6 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         public static string GetSqliteDatabaseConnectionString(string dbName)
         {
-            // check if we are running on appveyor or not
-            var isOnAppVeyor = Environment.GetEnvironmentVariable("APPVEYOR");
-
             var builder = new SqliteConnectionStringBuilder { DataSource = GetSqliteFilePath(dbName) };
 
             return builder.ConnectionString;
@@ -87,9 +45,9 @@ namespace Dotmim.Sync.Tests
             switch (providerType)
             {
                 case ProviderType.Sql:
-                    return GetSqlDatabaseConnectionString(dbName);
+                    return Setup.GetSqlDatabaseConnectionString(dbName);
                 case ProviderType.MySql:
-                    return GetMySqlDatabaseConnectionString(dbName);
+                    return Setup.GetMySqlDatabaseConnectionString(dbName);
                 case ProviderType.Sqlite:
                     return GetSqliteDatabaseConnectionString(dbName);
             }
@@ -122,7 +80,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         public static void CreateSqlServerDatabase(string dbName, bool recreateDb = true)
         {
-            using (var masterConnection = new SqlConnection(GetSqlDatabaseConnectionString("master")))
+            using (var masterConnection = new SqlConnection(Setup.GetSqlDatabaseConnectionString("master")))
             {
                 masterConnection.Open();
                 var cmdDb = new SqlCommand(GetSqlCreationScript(dbName, recreateDb), masterConnection);
@@ -136,7 +94,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         public static void CreateMySqlDatabase(string dbName, bool recreateDb = true)
         {
-            using (var sysConnection = new MySqlConnection(HelperDB.GetMySqlDatabaseConnectionString("sys")))
+            using (var sysConnection = new MySqlConnection(Setup.GetMySqlDatabaseConnectionString("sys")))
             {
                 sysConnection.Open();
                 if (recreateDb)
@@ -179,7 +137,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         public static void DropMySqlDatabase(string dbName)
         {
-            using (var sysConnection = new MySqlConnection(HelperDB.GetMySqlDatabaseConnectionString("sys")))
+            using (var sysConnection = new MySqlConnection(Setup.GetMySqlDatabaseConnectionString("sys")))
             {
                 sysConnection.Open();
                 var cmdDb = new MySqlCommand($"drop database if exists {dbName};", sysConnection);
@@ -216,7 +174,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         public static void DropSqlDatabase(string dbName)
         {
-            using (var masterConnection = new SqlConnection(GetSqlDatabaseConnectionString("master")))
+            using (var masterConnection = new SqlConnection(Setup.GetSqlDatabaseConnectionString("master")))
             {
                 masterConnection.Open();
                 var cmdDb = new SqlCommand(GetSqlDropDatabaseScript(dbName), masterConnection);
@@ -228,7 +186,7 @@ namespace Dotmim.Sync.Tests
 
         public static void ExecuteMySqlScript(string dbName, string script)
         {
-            using (var connection = new MySqlConnection(GetMySqlDatabaseConnectionString(dbName)))
+            using (var connection = new MySqlConnection(Setup.GetMySqlDatabaseConnectionString(dbName)))
             {
                 connection.Open();
                 var cmdDb = new MySqlCommand(script, connection);
@@ -238,7 +196,7 @@ namespace Dotmim.Sync.Tests
         }
         public static void ExecuteSqlScript(string dbName, string script)
         {
-            using (var connection = new SqlConnection(GetSqlDatabaseConnectionString(dbName)))
+            using (var connection = new SqlConnection(Setup.GetSqlDatabaseConnectionString(dbName)))
             {
                 connection.Open();
 
@@ -300,7 +258,7 @@ namespace Dotmim.Sync.Tests
                 ALTER DATABASE [{dbName}] SET MULTI_USER";
 
 
-            using (var connection = new SqlConnection(GetSqlDatabaseConnectionString("master")))
+            using (var connection = new SqlConnection(Setup.GetSqlDatabaseConnectionString("master")))
             {
                 if (connection.State == ConnectionState.Closed)
                     connection.Open();

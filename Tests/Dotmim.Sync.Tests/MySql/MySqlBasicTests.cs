@@ -22,7 +22,7 @@ namespace Dotmim.Sync.Tests.MySql
 
         /// <summary>
         /// because schemas are not replicate on SQL Server, from MySQL
-        /// Override get context to set "don't use schema on Sql childs "
+        /// Override get context to set "don't use schema on Sql client childs "
         /// </summary>
         protected override AdventureWorksContext GetClientDbContext(ProviderRun providerRun)
         {
@@ -32,26 +32,6 @@ namespace Dotmim.Sync.Tests.MySql
 
         public MySqlBasicTests(MySqlFixture fixture) : base(fixture)
         {
-            // Mix of dbo, SalesLT and no schema provided in string array
-            this.fixture.Tables = new string[]
-            {
-                "productcategory",
-                "productmodel",
-                "product",
-                "customer",
-                "address",
-                "customeraddress",
-                "salesorderheader",
-                "salesorderdetail",
-                "sql",
-                "posts",
-                "tags",
-                "posttag"
-            };
-            //this.fixture.Tables = new string[]
-            //{
-            //    "productmodel",
-            //};
         }
 
         [Fact, TestPriority(0)]

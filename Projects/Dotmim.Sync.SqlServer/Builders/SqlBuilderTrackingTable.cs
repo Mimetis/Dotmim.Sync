@@ -18,10 +18,10 @@ namespace Dotmim.Sync.SqlServer.Builders
     {
         private ObjectNameParser tableName;
         private ObjectNameParser trackingName;
-        private DmTable tableDescription;
-        private SqlConnection connection;
-        private SqlTransaction transaction;
-        private SqlDbMetadata sqlDbMetadata;
+        private readonly DmTable tableDescription;
+        private readonly SqlConnection connection;
+        private readonly SqlTransaction transaction;
+        private readonly SqlDbMetadata sqlDbMetadata;
 
         public ICollection<FilterClause> Filters { get; set; }
 
