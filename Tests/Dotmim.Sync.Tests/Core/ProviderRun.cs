@@ -129,15 +129,15 @@ namespace Dotmim.Sync.Tests.Core
                     {
                         SyncConfiguration syncConfiguration = new SyncConfiguration(syncHttpTables);
 
-            // copy conf settings
-            if (conf != null)
+                        // copy conf settings
+                        if (conf != null)
                             serverFixture.CopyConfiguration(syncConfiguration, conf);
 
-            // set proxy conf
-            proxyServerProvider.Configuration = syncConfiguration;
+                        // set proxy conf
+                        proxyServerProvider.Configuration = syncConfiguration;
 
-            // sync
-            try
+                        // sync
+                        try
                         {
                             BeginRun?.Invoke(proxyServerProvider.LocalProvider);
                             await proxyServerProvider.HandleRequestAsync(context);
