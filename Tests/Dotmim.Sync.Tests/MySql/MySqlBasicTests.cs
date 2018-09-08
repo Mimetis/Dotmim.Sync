@@ -155,9 +155,9 @@ namespace Dotmim.Sync.Tests.MySql
         }
 
         [Fact, TestPriority(20)]
-        public override Task Provision()
+        public override Task Use_Existing_Client_Database_Provision_Deprosivion()
         {
-            return base.Provision();
+            return base.Use_Existing_Client_Database_Provision_Deprosivion();
         }
     }
 }

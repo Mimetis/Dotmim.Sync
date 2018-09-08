@@ -80,7 +80,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Should be able to Deprovision a whole database
         /// </summary>
-        public async virtual Task Provision()
+        public async virtual Task Use_Existing_Client_Database_Provision_Deprosivion()
         {
             // Generate a new temp database and a local provider
             var dbName = fixture.GetRandomDatabaseName();
@@ -91,17 +91,19 @@ namespace Dotmim.Sync.Tests
 
             try
             {
-                // ensure database is created and filled with some data
-                using (var ctx = new AdventureWorksContext(fixture.ProviderType, connectionString))
-                {
+                // create an empty AdventureWorks client database
+                using (var ctx = new AdventureWorksContext(fixture.ProviderType, connectionString, (fixture.ProviderType == ProviderType.Sql), false))
                     await ctx.Database.EnsureCreatedAsync();
-                }
 
                 // generate a sync conf to host the schema
                 var conf = new SyncConfiguration(fixture.Tables);
 
                 // Provision the database with all tracking tables, stored procedures, triggers and scope
                 await localProvider.ProvisionAsync(conf, SyncProvision.All);
+
+                //--------------------------
+                // ASSERTION
+                //--------------------------
 
                 // check if scope table is correctly created
                 var scopeBuilderFactory = localProvider.GetScopeBuilder();
@@ -112,7 +114,6 @@ namespace Dotmim.Sync.Tests
                     Assert.Equal(false, scopeBuilder.NeedToCreateScopeInfoTable());
                 }
 
-
                 // get the db manager
                 foreach (var dmTable in conf.Schema.Tables)
                 {
@@ -122,14 +123,19 @@ namespace Dotmim.Sync.Tests
                         // get the database manager factory then the db manager itself
                         var dbTableBuilder = localProvider.GetDatabaseBuilder(dmTable);
 
+                        // get builders
                         var trackingTablesBuilder = dbTableBuilder.CreateTrackingTableBuilder(dbConnection);
                         var triggersBuilder = dbTableBuilder.CreateTriggerBuilder(dbConnection);
                         var spBuider = dbTableBuilder.CreateProcBuilder(dbConnection);
 
                         await dbConnection.OpenAsync();
+
                         Assert.Equal(false, trackingTablesBuilder.NeedToCreateTrackingTable());
+
                         Assert.Equal(false, triggersBuilder.NeedToCreateTrigger(Builders.DbTriggerType.Insert));
                         Assert.Equal(false, triggersBuilder.NeedToCreateTrigger(Builders.DbTriggerType.Delete));
+                        Assert.Equal(false, triggersBuilder.NeedToCreateTrigger(Builders.DbTriggerType.Update));
+
                         Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.InsertMetadata));
                         Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.InsertRow));
                         Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.Reset));
@@ -137,8 +143,34 @@ namespace Dotmim.Sync.Tests
                         Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.SelectRow));
                         Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.DeleteMetadata));
                         Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.DeleteRow));
+
+                        // Check if we have mutables columns to see if the update row / metadata have been generated
+                        if (dbTableBuilder.TableDescription.MutableColumnsAndNotAutoInc.Any())
+                        {
+                            Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.UpdateRow));
+                            Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.UpdateMetadata));
+                        }
+
+                        if (this.fixture.ProviderType == ProviderType.Sql)
+                        {
+                            Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.BulkDeleteRows));
+                            Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.BulkInsertRows));
+                            Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.BulkInsertRows));
+                        }
+
+                        dbConnection.Close();
+
                     }
                 }
+
+                // Try to make a sync 
+
+                var syncAgent = new SyncAgent(localProvider, this.ServerProvider, this.fixture.Tables);
+                var results = await syncAgent.SynchronizeAsync();
+                Assert.Equal(82, results.TotalChangesDownloaded);
+
+
+
             }
             finally
             {

@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Dotmim.Sync.Tests.Core;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -11,23 +13,25 @@ namespace Dotmim.Sync.Tests.Models
     public partial class AdventureWorksContext : DbContext
     {
         internal bool useSchema = false;
+        internal bool useSeeding = false;
         public ProviderType ProviderType { get; }
         public string ConnectionString { get; }
 
-        public AdventureWorksContext(ProviderType providerType, string connectionString, bool fallbackUseSchema = true) : this()
+        public AdventureWorksContext(ProviderType providerType, string connectionString, bool fallbackUseSchema = true, bool useSeeding = true) : this()
         {
             ProviderType = providerType;
             ConnectionString = connectionString;
-
-            useSchema = ProviderType == ProviderType.Sql && fallbackUseSchema;
+            this.useSeeding = useSeeding;
+            this.useSchema = ProviderType == ProviderType.Sql && fallbackUseSchema;
         }
-        public AdventureWorksContext(ProviderRun providerRun, bool fallbackUseSchema = true) : this()
+        public AdventureWorksContext(ProviderRun providerRun, bool fallbackUseSchema = true, bool useSeeding = true) : this()
         {
 
             ProviderType = providerRun.ClientProviderType;
             ConnectionString = providerRun.ConnectionString;
 
-            useSchema = ProviderType == ProviderType.Sql && fallbackUseSchema;
+            this.useSchema = ProviderType == ProviderType.Sql && fallbackUseSchema;
+            this.useSeeding = useSeeding;
         }
 
         public AdventureWorksContext(DbContextOptions<AdventureWorksContext> options)
@@ -160,20 +164,20 @@ namespace Dotmim.Sync.Tests.Models
 
 
                 entity.Property(e => e.PasswordHash)
-        .IsRequired()
-        .HasMaxLength(128)
-        .IsUnicode(false);
+                    .IsRequired()
+                    .HasMaxLength(128)
+                    .IsUnicode(false);
 
                 entity.Property(e => e.PasswordSalt)
-        .IsRequired()
-        .HasMaxLength(10)
-        .IsUnicode(false);
+                    .IsRequired()
+                    .HasMaxLength(10)
+                    .IsUnicode(false);
 
                 entity.Property(e => e.Phone).HasMaxLength(25);
 
                 entity.Property(e => e.Rowguid)
-        .HasColumnName("rowguid")
-        .ValueGeneratedOnAdd();
+                    .HasColumnName("rowguid")
+                    .ValueGeneratedOnAdd();
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.Rowguid).HasDefaultValueSql("(newid())");
@@ -351,10 +355,10 @@ namespace Dotmim.Sync.Tests.Models
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.Rowguid).HasDefaultValueSql("(newid())");
 
-                entity.HasOne(d => d.ParentProductCategory)
-                    .WithMany(p => p.InverseParentProductCategory)
-                    .HasForeignKey(d => d.ParentProductCategoryId)
-                    .HasConstraintName("FK_ProductCategory_ProductCategory_ParentProductCategoryID_ProductCategoryID");
+                //entity.HasOne(d => d.ParentProductCategory)
+                //    .WithMany(p => p.InverseParentProductCategory)
+                //    .HasForeignKey(d => d.ParentProductCategoryId)
+                //    .HasConstraintName("FK_ProductCategory_ProductCategory_ParentProductCategoryID_ProductCategoryID");
             });
 
             modelBuilder.Entity<ProductModel>(entity =>
@@ -615,73 +619,74 @@ namespace Dotmim.Sync.Tests.Models
                 entity.HasKey(e => e.TagId);
             });
 
-            this.OnSeeding(modelBuilder);
+            if (this.useSeeding)
+                this.OnSeeding(modelBuilder);
         }
 
         /// <summary>
         /// Need to specify all default values
         /// See https://github.com/aspnet/EntityFrameworkCore/issues/13206 for current issue
         /// </summary>
-protected void OnSeeding(ModelBuilder modelBuilder)
-{
-    modelBuilder.Entity<Address>().HasData(
-        new Address { AddressId = 1, AddressLine1 = "8713 Yosemite Ct.", City = "Bothell", StateProvince = "Washington", CountryRegion = "United States", PostalCode = "98011" },
-        new Address { AddressId = 2, AddressLine1 = "1318 Lasalle Street", City = "Bothell", StateProvince = "Washington", CountryRegion = "United States", PostalCode = "98011" },
-        new Address { AddressId = 3, AddressLine1 = "9178 Jumping St.", City = "Dallas", StateProvince = "Texas", CountryRegion = "United States", PostalCode = "75201" },
-        new Address { AddressId = 4, AddressLine1 = "9228 Via Del Sol", City = "Phoenix", StateProvince = "Arizona", CountryRegion = "United States", PostalCode = "85004" },
-        new Address { AddressId = 5, AddressLine1 = "26910 Indela Road", City = "Montreal", StateProvince = "Quebec", CountryRegion = "Canada", PostalCode = "H1Y 2H5" },
-        new Address { AddressId = 6, AddressLine1 = "2681 Eagle Peak", City = "Bellevue", StateProvince = "Washington", CountryRegion = "United States", PostalCode = "98004" },
-        new Address { AddressId = 7, AddressLine1 = "7943 Walnut Ave", City = "Renton", StateProvince = "Washington", CountryRegion = "United States", PostalCode = "98055" },
-        new Address { AddressId = 8, AddressLine1 = "6388 Lake City Way", City = "Burnaby", StateProvince = "British Columbia", CountryRegion = "Canada", PostalCode = "V5A 3A6" },
-        new Address { AddressId = 9, AddressLine1 = "52560 Free Street", City = "Toronto", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "M4B 1V7" },
-        new Address { AddressId = 10, AddressLine1 = "22580 Free Street", City = "Toronto", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "M4B 1V7" },
-        new Address { AddressId = 11, AddressLine1 = "2575 Bloor Street East", City = "Toronto", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "M4B 1V6" },
-        new Address { AddressId = 12, AddressLine1 = "Station E", City = "Chalk Riber", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "K0J 1J0" },
-        new Address { AddressId = 13, AddressLine1 = "575 Rue St Amable", City = "Quebec", StateProvince = "Quebec", CountryRegion = "Canada", PostalCode = "G1R" },
-        new Address { AddressId = 14, AddressLine1 = "2512-4th Ave Sw", City = "Calgary", StateProvince = "Alberta", CountryRegion = "Canada", PostalCode = "T2P 2G8" },
-        new Address { AddressId = 15, AddressLine1 = "55 Lakeshore Blvd East", City = "Toronto", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "M4B 1V6" },
-        new Address { AddressId = 16, AddressLine1 = "6333 Cote Vertu", City = "Montreal", StateProvince = "Quebec", CountryRegion = "Canada", PostalCode = "H1Y 2H5" },
-        new Address { AddressId = 17, AddressLine1 = "3255 Front Street West", City = "Toronto", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "H1Y 2H5" },
-        new Address { AddressId = 18, AddressLine1 = "2550 Signet Drive", City = "Weston", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "H1Y 2H7" },
-        new Address { AddressId = 19, AddressLine1 = "6777 Kingsway", City = "Burnaby", StateProvince = "British Columbia", CountryRegion = "Canada", PostalCode = "H1Y 2H8" },
-        new Address { AddressId = 20, AddressLine1 = "5250-505 Burning St", City = "Vancouver", StateProvince = "British Columbia", CountryRegion = "Canada", PostalCode = "H1Y 2H9" },
-        new Address { AddressId = 21, AddressLine1 = "600 Slater Street", City = "Ottawa", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "M9V 4W3" }
-    );
+        protected void OnSeeding(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<Address>().HasData(
+                new Address { AddressId = 1, AddressLine1 = "8713 Yosemite Ct.", City = "Bothell", StateProvince = "Washington", CountryRegion = "United States", PostalCode = "98011" },
+                new Address { AddressId = 2, AddressLine1 = "1318 Lasalle Street", City = "Bothell", StateProvince = "Washington", CountryRegion = "United States", PostalCode = "98011" },
+                new Address { AddressId = 3, AddressLine1 = "9178 Jumping St.", City = "Dallas", StateProvince = "Texas", CountryRegion = "United States", PostalCode = "75201" },
+                new Address { AddressId = 4, AddressLine1 = "9228 Via Del Sol", City = "Phoenix", StateProvince = "Arizona", CountryRegion = "United States", PostalCode = "85004" },
+                new Address { AddressId = 5, AddressLine1 = "26910 Indela Road", City = "Montreal", StateProvince = "Quebec", CountryRegion = "Canada", PostalCode = "H1Y 2H5" },
+                new Address { AddressId = 6, AddressLine1 = "2681 Eagle Peak", City = "Bellevue", StateProvince = "Washington", CountryRegion = "United States", PostalCode = "98004" },
+                new Address { AddressId = 7, AddressLine1 = "7943 Walnut Ave", City = "Renton", StateProvince = "Washington", CountryRegion = "United States", PostalCode = "98055" },
+                new Address { AddressId = 8, AddressLine1 = "6388 Lake City Way", City = "Burnaby", StateProvince = "British Columbia", CountryRegion = "Canada", PostalCode = "V5A 3A6" },
+                new Address { AddressId = 9, AddressLine1 = "52560 Free Street", City = "Toronto", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "M4B 1V7" },
+                new Address { AddressId = 10, AddressLine1 = "22580 Free Street", City = "Toronto", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "M4B 1V7" },
+                new Address { AddressId = 11, AddressLine1 = "2575 Bloor Street East", City = "Toronto", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "M4B 1V6" },
+                new Address { AddressId = 12, AddressLine1 = "Station E", City = "Chalk Riber", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "K0J 1J0" },
+                new Address { AddressId = 13, AddressLine1 = "575 Rue St Amable", City = "Quebec", StateProvince = "Quebec", CountryRegion = "Canada", PostalCode = "G1R" },
+                new Address { AddressId = 14, AddressLine1 = "2512-4th Ave Sw", City = "Calgary", StateProvince = "Alberta", CountryRegion = "Canada", PostalCode = "T2P 2G8" },
+                new Address { AddressId = 15, AddressLine1 = "55 Lakeshore Blvd East", City = "Toronto", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "M4B 1V6" },
+                new Address { AddressId = 16, AddressLine1 = "6333 Cote Vertu", City = "Montreal", StateProvince = "Quebec", CountryRegion = "Canada", PostalCode = "H1Y 2H5" },
+                new Address { AddressId = 17, AddressLine1 = "3255 Front Street West", City = "Toronto", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "H1Y 2H5" },
+                new Address { AddressId = 18, AddressLine1 = "2550 Signet Drive", City = "Weston", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "H1Y 2H7" },
+                new Address { AddressId = 19, AddressLine1 = "6777 Kingsway", City = "Burnaby", StateProvince = "British Columbia", CountryRegion = "Canada", PostalCode = "H1Y 2H8" },
+                new Address { AddressId = 20, AddressLine1 = "5250-505 Burning St", City = "Vancouver", StateProvince = "British Columbia", CountryRegion = "Canada", PostalCode = "H1Y 2H9" },
+                new Address { AddressId = 21, AddressLine1 = "600 Slater Street", City = "Ottawa", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "M9V 4W3" }
+            );
 
-    Guid customerId1 = Guid.NewGuid();
-    Guid customerId2 = Guid.NewGuid();
-    Guid customerId3 = Guid.NewGuid();
-    Guid customerId4 = Guid.NewGuid();
+            Guid customerId1 = Guid.NewGuid();
+            Guid customerId2 = Guid.NewGuid();
+            Guid customerId3 = Guid.NewGuid();
+            Guid customerId4 = Guid.NewGuid();
 
-    modelBuilder.Entity<Customer>().HasData(
-        new Customer { CustomerId = customerId1, NameStyle = false, Title = "Mr.", FirstName = "Orlando", MiddleName = "N.", LastName = "Gee", CompanyName = "A Bike Store", SalesPerson = @"adventure-works\pamela0", EmailAddress = "orlando0@adventure-works.com", Phone = "245-555-0173", PasswordHash = "L/Rlwxzp4w7RWmEgXX+/A7cXaePEPcp+KwQhl2fJL7w=", PasswordSalt = "1KjXYs4=" },
-        new Customer { CustomerId = customerId2, NameStyle = false, Title = "Mr.", FirstName = "Keith", MiddleName = "N.", LastName = "Harris", CompanyName = "Progressive Sports", SalesPerson = @"adventure-works\david8", EmailAddress = "keith0@adventure-works.com", Phone = "170-555-0127", PasswordHash = "YPdtRdvqeAhj6wyxEsFdshBDNXxkCXn+CRgbvJItknw=", PasswordSalt = "fs1ZGhY=" },
-        new Customer { CustomerId = customerId3, NameStyle = false, Title = "Ms.", FirstName = "Donna", MiddleName = "F.", LastName = "Carreras", CompanyName = "Advanced Bike Components", SalesPerson = @"adventure-works\jillian0", EmailAddress = "donna0@adventure-works.com", Phone = "279-555-0130", PasswordHash = "LNoK27abGQo48gGue3EBV/UrlYSToV0/s87dCRV7uJk=", PasswordSalt = "YTNH5Rw=" },
-        new Customer { CustomerId = customerId4, NameStyle = false, Title = "Ms.", FirstName = "Janet", MiddleName = "M.", LastName = "Gates", CompanyName = "Modular Cycle Systems", SalesPerson = @"adventure-works\jillian0", EmailAddress = "janet1@adventure-works.com", Phone = "710-555-0173", PasswordHash = "ElzTpSNbUW1Ut+L5cWlfR7MF6nBZia8WpmGaQPjLOJA=", PasswordSalt = "nm7D5e4=" }
-    );
+            modelBuilder.Entity<Customer>().HasData(
+                new Customer { CustomerId = customerId1, NameStyle = false, Title = "Mr.", FirstName = "Orlando", MiddleName = "N.", LastName = "Gee", CompanyName = "A Bike Store", SalesPerson = @"adventure-works\pamela0", EmailAddress = "orlando0@adventure-works.com", Phone = "245-555-0173", PasswordHash = "L/Rlwxzp4w7RWmEgXX+/A7cXaePEPcp+KwQhl2fJL7w=", PasswordSalt = "1KjXYs4=" },
+                new Customer { CustomerId = customerId2, NameStyle = false, Title = "Mr.", FirstName = "Keith", MiddleName = "N.", LastName = "Harris", CompanyName = "Progressive Sports", SalesPerson = @"adventure-works\david8", EmailAddress = "keith0@adventure-works.com", Phone = "170-555-0127", PasswordHash = "YPdtRdvqeAhj6wyxEsFdshBDNXxkCXn+CRgbvJItknw=", PasswordSalt = "fs1ZGhY=" },
+                new Customer { CustomerId = customerId3, NameStyle = false, Title = "Ms.", FirstName = "Donna", MiddleName = "F.", LastName = "Carreras", CompanyName = "Advanced Bike Components", SalesPerson = @"adventure-works\jillian0", EmailAddress = "donna0@adventure-works.com", Phone = "279-555-0130", PasswordHash = "LNoK27abGQo48gGue3EBV/UrlYSToV0/s87dCRV7uJk=", PasswordSalt = "YTNH5Rw=" },
+                new Customer { CustomerId = customerId4, NameStyle = false, Title = "Ms.", FirstName = "Janet", MiddleName = "M.", LastName = "Gates", CompanyName = "Modular Cycle Systems", SalesPerson = @"adventure-works\jillian0", EmailAddress = "janet1@adventure-works.com", Phone = "710-555-0173", PasswordHash = "ElzTpSNbUW1Ut+L5cWlfR7MF6nBZia8WpmGaQPjLOJA=", PasswordSalt = "nm7D5e4=" }
+            );
 
-    modelBuilder.Entity<CustomerAddress>().HasData(
-        new CustomerAddress { CustomerId = customerId1, AddressId = 4, AddressType = "Main Office" },
-        new CustomerAddress { CustomerId = customerId1, AddressId = 5, AddressType = "Office Depot" },
-        new CustomerAddress { CustomerId = customerId2, AddressId = 3, AddressType = "Main Office" },
-        new CustomerAddress { CustomerId = customerId3, AddressId = 2, AddressType = "Main Office" },
-        new CustomerAddress { CustomerId = customerId4, AddressId = 1, AddressType = "Main Office" }
-    );
+            modelBuilder.Entity<CustomerAddress>().HasData(
+                new CustomerAddress { CustomerId = customerId1, AddressId = 4, AddressType = "Main Office" },
+                new CustomerAddress { CustomerId = customerId1, AddressId = 5, AddressType = "Office Depot" },
+                new CustomerAddress { CustomerId = customerId2, AddressId = 3, AddressType = "Main Office" },
+                new CustomerAddress { CustomerId = customerId3, AddressId = 2, AddressType = "Main Office" },
+                new CustomerAddress { CustomerId = customerId4, AddressId = 1, AddressType = "Main Office" }
+            );
 
-    modelBuilder.Entity<ProductCategory>().HasData(
-        new ProductCategory { ProductCategoryId = "BIKES", Name = "Bikes" },
-        new ProductCategory { ProductCategoryId = "COMPT", Name = "Components" },
-        new ProductCategory { ProductCategoryId = "CLOTHE", Name = "Clothing" },
-        new ProductCategory { ProductCategoryId = "ACCESS", Name = "Accessories" },
-        new ProductCategory { ProductCategoryId = "MOUNTB", Name = "Mountain Bikes", ParentProductCategoryId = "BIKES" },
-        new ProductCategory { ProductCategoryId = "ROADB", Name = "Road Bikes", ParentProductCategoryId = "BIKES" },
-        new ProductCategory { ProductCategoryId = "ROADFR", Name = "Road Frames", ParentProductCategoryId = "COMPT" },
-        new ProductCategory { ProductCategoryId = "TOURB", Name = "Touring Bikes", ParentProductCategoryId = "BIKES" },
-        new ProductCategory { ProductCategoryId = "HANDLB", Name = "Handlebars", ParentProductCategoryId = "COMPT" },
-        new ProductCategory { ProductCategoryId = "BRACK", Name = "Bottom Brackets", ParentProductCategoryId = "COMPT" },
-        new ProductCategory { ProductCategoryId = "BRAKES", Name = "Brakes", ParentProductCategoryId = "COMPT" }
+            modelBuilder.Entity<ProductCategory>().HasData(
+                new ProductCategory { ProductCategoryId = "BIKES", Name = "Bikes" },
+                new ProductCategory { ProductCategoryId = "COMPT", Name = "Components" },
+                new ProductCategory { ProductCategoryId = "CLOTHE", Name = "Clothing" },
+                new ProductCategory { ProductCategoryId = "ACCESS", Name = "Accessories" },
+                new ProductCategory { ProductCategoryId = "MOUNTB", Name = "Mountain Bikes", ParentProductCategoryId = "BIKES" },
+                new ProductCategory { ProductCategoryId = "ROADB", Name = "Road Bikes", ParentProductCategoryId = "BIKES" },
+                new ProductCategory { ProductCategoryId = "ROADFR", Name = "Road Frames", ParentProductCategoryId = "COMPT" },
+                new ProductCategory { ProductCategoryId = "TOURB", Name = "Touring Bikes", ParentProductCategoryId = "BIKES" },
+                new ProductCategory { ProductCategoryId = "HANDLB", Name = "Handlebars", ParentProductCategoryId = "COMPT" },
+                new ProductCategory { ProductCategoryId = "BRACK", Name = "Bottom Brackets", ParentProductCategoryId = "COMPT" },
+                new ProductCategory { ProductCategoryId = "BRAKES", Name = "Brakes", ParentProductCategoryId = "COMPT" }
 
-    );
+            );
 
             modelBuilder.Entity<ProductModel>().HasData(
                 new ProductModel { ProductModelId = 6, Name = "HL Road Frame" },
@@ -789,16 +794,18 @@ protected void OnSeeding(ModelBuilder modelBuilder)
 
     }
 
-    class MyModelCacheKeyFactory : IModelCacheKeyFactory
+
+    internal class MyModelCacheKeyFactory : IModelCacheKeyFactory
     {
         public object Create(DbContext context)
             => new MyModelCacheKey(context);
     }
 
-    class MyModelCacheKey : ModelCacheKey
+    internal class MyModelCacheKey : ModelCacheKey
     {
         ProviderType providerType;
         bool useSchema;
+        bool useSeeding;
 
         public MyModelCacheKey(DbContext context)
             : base(context)
@@ -808,18 +815,21 @@ protected void OnSeeding(ModelBuilder modelBuilder)
 
             providerType = adventureWorksContext.ProviderType;
             useSchema = adventureWorksContext.useSchema;
+            useSeeding = adventureWorksContext.useSeeding;
         }
 
         protected override bool Equals(ModelCacheKey other)
             => base.Equals(other)
                 && (other as MyModelCacheKey)?.providerType == providerType
-                && (other as MyModelCacheKey)?.useSchema == useSchema;
+                && (other as MyModelCacheKey)?.useSchema == useSchema
+                && (other as MyModelCacheKey)?.useSeeding == useSeeding;
 
         public override int GetHashCode()
         {
             var hashCode = base.GetHashCode() * 397;
             hashCode ^= useSchema.GetHashCode();
             hashCode ^= providerType.GetHashCode();
+            hashCode ^= useSeeding.GetHashCode();
 
             return hashCode;
         }
