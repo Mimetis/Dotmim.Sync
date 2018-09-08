@@ -11,8 +11,10 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Data.SqlClient;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Tests.Core
@@ -25,46 +27,14 @@ namespace Dotmim.Sync.Tests.Core
     /// <typeparam name="T">The provider we want to test</typeparam>
     public abstract class ProviderFixture<T> : IDisposable where T : CoreProvider
     {
-        /// <summary>
-        /// Gets if the tests should run on a tcp sql server client
-        /// </summary>
-        public abstract bool EnableSqlServerClientOnTcp { get; }
 
-        /// <summary>
-        /// Gets if the tests should run on a htt sql server client
-        /// </summary>
-        public abstract bool EnableSqlServerClientOnHttp { get; }
+        private bool isConfigured = false;
 
-        /// <summary>
-        /// Gets if the tests should run on a tcp sql server client
-        /// </summary>
-        public abstract bool EnableOracleClientOnTcp { get; }
+        // list of client providers we want to create
+        private readonly Dictionary<(ProviderType ServerType, NetworkType NetworkType), ProviderType> lstClientsType = new Dictionary<(ProviderType, NetworkType), ProviderType>();
 
-        /// <summary>
-        /// Gets if the tests should run on a htt sql server client
-        /// </summary>
-        public abstract bool EnableOracleClientOnHttp { get; }
-
-
-        /// <summary>
-        /// Gets if the tests should run on a tcp mysql client
-        /// </summary>
-        public abstract bool EnableMySqlClientOnTcp { get; }
-
-        /// <summary>
-        /// Gets if the tests should run on a http mysql client
-        /// </summary>
-        public abstract bool EnableMySqlClientOnHttp { get; }
-
-        /// <summary>
-        /// Gets if the tests should run on a tcp sqlite client
-        /// </summary>
-        public abstract bool EnableSqliteClientOnTcp { get; }
-
-        /// <summary>
-        /// Gets if the tests should run on a http sqlite client
-        /// </summary>
-        public abstract bool EnableSqliteClientOnHttp { get; }
+        // internal static list of registered providers
+        static Dictionary<ProviderType, ProviderFixture<CoreProvider>> registeredProviders = new Dictionary<ProviderType, ProviderFixture<CoreProvider>>();
 
         /// <summary>
         /// All clients providers registerd to run. Depends on "Enable..." properities
@@ -77,19 +47,105 @@ namespace Dotmim.Sync.Tests.Core
         public String[] Tables { get; set; }
 
         /// <summary>
+        /// Sets the tables used for this server provider
+        /// </summary>
+        internal void AddTables(ProviderType providerType, string[] tables)
+        {
+            if (providerType == this.ProviderType)
+                this.Tables = tables;
+        }
+
+        /// <summary>
+        /// Will configure the fixture on first test launch
+        /// </summary>
+        internal void Configure()
+        {
+            if (!isConfigured)
+            {
+                // get database name, tables and clients we want to register
+                Setup.OnConfiguring(this);
+
+                // create the server database
+                this.ServerDatabaseEnsureCreated();
+
+
+                var listOfBs = (from assemblyType in typeof(ProviderFixture<T>).Assembly.DefinedTypes
+                                where typeof(ProviderFixture<T>).IsAssignableFrom(assemblyType)
+                                select assemblyType).ToArray();
+
+                Debug.WriteLine(listOfBs);
+
+                foreach(var t in listOfBs)
+                {
+                    var c = GetDefaultConstructor(t);
+                    ProviderFixture<CoreProvider> instance = c.Invoke(null) as ProviderFixture<CoreProvider>;
+                    RegisterProvider(instance.ProviderType, instance);
+                }
+
+
+                // create the clients database
+                this.ClientDatabasesEnsureCreated();
+
+                isConfigured = true;
+            }
+        }
+
+        public static ConstructorInfo GetDefaultConstructor(Type t, bool nonPublic = true)
+        {
+            BindingFlags bindingFlags = BindingFlags.Instance | BindingFlags.Public;
+
+            if (nonPublic)
+                bindingFlags = bindingFlags | BindingFlags.NonPublic;
+
+            var gtcs = t.GetConstructors(bindingFlags);
+
+            return gtcs.SingleOrDefault(c => !c.GetParameters().Any());
+        }
+
+        /// <summary>
         /// Gets or Sets if we should delete all the databases. 
         /// Useful for debug purpose. Do not forget to set to false when commit
         /// </summary>
-        public virtual bool DeleteAllDatabasesOnDispose { get; } = true;
+        internal virtual bool DeleteAllDatabasesOnDispose { get; } = true;
+
 
         /// <summary>
-        /// On ctor, ensure the server database is ready.
+        /// register all Provider fixture to be able to call them when we need to create a client provider
         /// </summary>
+        internal static void RegisterProvider(ProviderType providerType, ProviderFixture<CoreProvider> providerFixture)
+        {
+            // Register the provider to be able to call it for create some client provider
+            if (!registeredProviders.ContainsKey(providerType))
+                registeredProviders.Add(providerType, providerFixture);
+
+        }
+
         public ProviderFixture()
         {
-            this.ServerDatabaseEnsureCreated();
-            this.ClientDatabasesEnsureCreated();
         }
+
+        /// <summary>
+        /// Add a run. A run is all the clients you want to test for one server provider on one network type
+        /// </summary>
+        /// <param name="key">The server provider type and the network (http / tcp) you want to test</param>
+        /// <param name="clientsType">a flags enum of all client you want to create</param>
+        internal ProviderFixture<T> AddRun((ProviderType ServerType, NetworkType NetworkType) key, ProviderType clientsType)
+        {
+            if (!lstClientsType.ContainsKey(key))
+                lstClientsType.Add(key, clientsType);
+
+            return this;
+        }
+
+        /// <summary>
+        /// Add the database name used for the server provider
+        /// </summary>
+        internal void AddDatabaseName(ProviderType providerType, string databaseName)
+        {
+            if (providerType == this.ProviderType)
+                this.DatabaseName = databaseName;
+        }
+
 
         /// <summary>
         /// On dispose, ensure all databases are cleaned and deleted
@@ -106,7 +162,7 @@ namespace Dotmim.Sync.Tests.Core
         /// <summary>
         /// gets or sets the database name used for server database
         /// </summary>
-        public abstract string DatabaseName { get; }
+        public string DatabaseName { get; private set; }
 
         /// <summary>
         /// gets or sets the provider type we are going to test
@@ -121,7 +177,7 @@ namespace Dotmim.Sync.Tests.Core
         /// <summary>
         /// Ensure provider server database is correctly created
         /// </summary>
-        public virtual void ServerDatabaseEnsureCreated()
+        internal virtual void ServerDatabaseEnsureCreated()
         {
             using (AdventureWorksContext ctx =
                 new AdventureWorksContext(ProviderType, HelperDB.GetConnectionString(ProviderType, DatabaseName)))
@@ -134,7 +190,7 @@ namespace Dotmim.Sync.Tests.Core
         /// <summary>
         /// Ensure provider server database is correctly droped at the end of tests
         /// </summary>
-        public virtual void ServerDatabaseEnsureDeleted()
+        internal virtual void ServerDatabaseEnsureDeleted()
         {
             using (AdventureWorksContext ctx =
                 new AdventureWorksContext(ProviderType, HelperDB.GetConnectionString(ProviderType, DatabaseName)))
@@ -143,93 +199,136 @@ namespace Dotmim.Sync.Tests.Core
             }
         }
 
-
         /// <summary>
         /// Used to generate client databases
         /// </summary>
-        public string GetRandomDatabaseName()
+        internal virtual string GetRandomDatabaseName()
         {
             var str1 = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
             return $"st_{str1}";
         }
-        public void ClientDatabasesEnsureDeleted()
+
+        internal virtual void ClientDatabasesEnsureDeleted()
         {
             foreach (var tr in ClientRuns)
-                HelperDB.DropDatabase(tr.ProviderType, tr.DatabaseName);
+                HelperDB.DropDatabase(tr.ClientProviderType, tr.DatabaseName);
 
             ClientRuns.Clear();
 
         }
-        public void ClientDatabasesEnsureCreated()
+
+        internal virtual void ClientDatabasesEnsureCreated()
         {
-            // Add filled client tcp providers
-            if (this.EnableSqlServerClientOnTcp && !ClientRuns.Any(tr => !tr.IsHttp && tr.ProviderType == ProviderType.Sql))
+            // foreach server provider to test, there is a list of client / network
+            foreach(var serverKey in lstClientsType)
             {
-                var dbName = GetRandomDatabaseName();
-                var connectionString = HelperDB.GetSqlDatabaseConnectionString(dbName);
-                HelperDB.CreateSqlServerDatabase(dbName);
-                ClientRuns.Add(new ProviderRun(
-                    dbName, new SqlSyncProvider(connectionString), false, ProviderType.Sql)
-                );
-            }
+                // get the server provider type and the network we want to use
+                (ProviderType serverType, NetworkType networkType) = serverKey.Key;
 
-            if (this.EnableMySqlClientOnTcp && !ClientRuns.Any(tr => !tr.IsHttp && tr.ProviderType == ProviderType.MySql))
-            {
-                var dbName = GetRandomDatabaseName();
-                var connectionString = HelperDB.GetMySqlDatabaseConnectionString(dbName);
-                HelperDB.CreateMySqlDatabase(dbName);
+                if (serverType != this.ProviderType)
+                    continue;
 
-                ClientRuns.Add(new ProviderRun(
-                    dbName, new MySqlSyncProvider(connectionString), false, ProviderType.MySql)
-                );
-            }
+                // create all the client databases based in the flags we set
+                foreach(var cpt in serverKey.Value.GetFlags())
+                {
+                    // cast (wait for C# 7.3 to be able to set an extension method where a generic T can be marked as Enum compliant :)
+                    ProviderType clientProviderType = (ProviderType)cpt;
 
-            if (this.EnableSqliteClientOnTcp && !ClientRuns.Any(tr => !tr.IsHttp && tr.ProviderType == ProviderType.Sqlite))
-            {
-                var dbName = GetRandomDatabaseName();
-                var connectionString = HelperDB.GetSqliteDatabaseConnectionString(dbName);
+                    // check if we have the fixture provider to be able to create a client provider
+                    if (!registeredProviders.ContainsKey(clientProviderType))
+                        continue;
 
-                ClientRuns.Add(new ProviderRun(
-                    dbName, new SqliteSyncProvider(connectionString), false, ProviderType.Sqlite)
-                );
 
-            }
+                    // generate a new database name
+                    var dbName = GetRandomDatabaseName();
+                    
+                    // get the connection string
+                    var connectionString = HelperDB.GetConnectionString(clientProviderType, dbName);
 
-            if (this.EnableSqlServerClientOnHttp && !ClientRuns.Any(tr => tr.IsHttp && tr.ProviderType == ProviderType.Sql))
-            {
-                var dbName = GetRandomDatabaseName();
-                var connectionString = HelperDB.GetSqlDatabaseConnectionString(dbName);
-                HelperDB.CreateSqlServerDatabase(dbName);
+                    // create the database on the client provider
+                    HelperDB.CreateDatabase(clientProviderType, dbName);
 
-                ClientRuns.Add(new ProviderRun(
-                    dbName, new SqlSyncProvider(connectionString), true, ProviderType.Sql)
-                );
+                    // generate the client provider
+                    var clientProvider = registeredProviders[clientProviderType].NewServerProvider(connectionString);
+
+
+                    // then add the run 
+                    ClientRuns.Add(new ProviderRun(dbName, clientProvider, clientProviderType, networkType));
+                }
 
 
             }
 
-            if (this.EnableMySqlClientOnHttp && !ClientRuns.Any(tr => tr.IsHttp && tr.ProviderType == ProviderType.MySql))
-            {
-                var dbName = GetRandomDatabaseName();
-                var connectionString = HelperDB.GetMySqlDatabaseConnectionString(dbName);
-                HelperDB.CreateMySqlDatabase(dbName);
 
-                ClientRuns.Add(new ProviderRun(
-                    dbName, new MySqlSyncProvider(connectionString), true, ProviderType.MySql)
-                );
-            }
+            //// Add filled client tcp providers
+            //if (this.EnableSqlServerClientOnTcp && !ClientRuns.Any(tr => !tr.IsHttp && tr.ClientProviderType == ProviderType.Sql))
+            //{
+            //    var dbName = GetRandomDatabaseName();
+            //    var connectionString = HelperDB.GetConnectionString(ProviderType.Sql, dbName);
+            //    HelperDB.CreateSqlServerDatabase(dbName);
+            //    ClientRuns.Add(new ProviderRun(
+            //        dbName, new SqlSyncProvider(connectionString), false, ProviderType.Sql)
+            //    );
+            //}
 
-            if (this.EnableSqliteClientOnHttp && !ClientRuns.Any(tr => tr.IsHttp && tr.ProviderType == ProviderType.Sqlite))
-            {
-                var dbName = GetRandomDatabaseName();
-                var connectionString = HelperDB.GetSqliteDatabaseConnectionString(dbName);
+            //if (this.enableMySqlClientOnTcp && !ClientRuns.Any(tr => !tr.IsHttp && tr.ClientProviderType == ProviderType.MySql))
+            //{
+            //    var dbName = GetRandomDatabaseName();
+            //    var connectionString = HelperDB.GetConnectionString(ProviderType.MySql, dbName);
+            //    HelperDB.CreateMySqlDatabase(dbName);
 
-                ClientRuns.Add(new ProviderRun(
-                    dbName, new SqliteSyncProvider(connectionString), true, ProviderType.Sqlite)
-                );
+            //    ClientRuns.Add(new ProviderRun(
+            //        dbName, new MySqlSyncProvider(connectionString), false, ProviderType.MySql)
+            //    );
+            //}
 
-            }
+            //if (this.enableSqliteClientOnTcp && !ClientRuns.Any(tr => !tr.IsHttp && tr.ClientProviderType == ProviderType.Sqlite))
+            //{
+            //    var dbName = GetRandomDatabaseName();
+            //    var connectionString = HelperDB.GetSqliteDatabaseConnectionString(dbName);
+
+            //    ClientRuns.Add(new ProviderRun(
+            //        dbName, new SqliteSyncProvider(connectionString), false, ProviderType.Sqlite)
+            //    );
+
+            //}
+
+            //if (this.enableSqlServerClientOnHttp && !ClientRuns.Any(tr => tr.IsHttp && tr.ClientProviderType == ProviderType.Sql))
+            //{
+            //    var dbName = GetRandomDatabaseName();
+            //    var connectionString = HelperDB.GetConnectionString(ProviderType.Sql, dbName);
+            //    HelperDB.CreateSqlServerDatabase(dbName);
+
+            //    ClientRuns.Add(new ProviderRun(
+            //        dbName, new SqlSyncProvider(connectionString), true, ProviderType.Sql)
+            //    );
+
+
+            //}
+
+            //if (this.enableMySqlClientOnHttp && !ClientRuns.Any(tr => tr.IsHttp && tr.ClientProviderType == ProviderType.MySql))
+            //{
+            //    var dbName = GetRandomDatabaseName();
+            //    var connectionString = HelperDB.GetConnectionString(ProviderType.MySql, dbName);
+            //    HelperDB.CreateMySqlDatabase(dbName);
+
+            //    ClientRuns.Add(new ProviderRun(
+            //        dbName, new MySqlSyncProvider(connectionString), true, ProviderType.MySql)
+            //    );
+            //}
+
+            //if (this.enableSqliteClientOnHttp && !ClientRuns.Any(tr => tr.IsHttp && tr.ClientProviderType == ProviderType.Sqlite))
+            //{
+            //    var dbName = GetRandomDatabaseName();
+            //    var connectionString = HelperDB.GetSqliteDatabaseConnectionString(dbName);
+
+            //    ClientRuns.Add(new ProviderRun(
+            //        dbName, new SqliteSyncProvider(connectionString), true, ProviderType.Sqlite)
+            //    );
+
+            //}
         }
+
 
         internal void CopyConfiguration(SyncConfiguration agentConfiguration, SyncConfiguration conf)
         {

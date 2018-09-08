@@ -50,6 +50,9 @@ namespace Dotmim.Sync.Tests
         {
             this.fixture = fixture;
 
+            // launc fixture configuration on first launch
+            this.fixture.Configure();
+
             // gets the server provider
             this.ServerProvider = this.fixture.NewServerProvider(HelperDB.GetConnectionString(this.fixture.ProviderType, this.fixture.DatabaseName));
 
@@ -709,7 +712,6 @@ namespace Dotmim.Sync.Tests
 
                 foreach (var testRunner in this.fixture.ClientRuns)
                 {
-                    Debug.WriteLine(testRunner.ProviderType + " " + testRunner.IsHttp + " " + testRunner.Provider);
                     Assert.Equal(1, testRunner.Results.TotalChangesUploaded);
                     Assert.Equal(1, testRunner.Results.TotalSyncConflicts);
                 }

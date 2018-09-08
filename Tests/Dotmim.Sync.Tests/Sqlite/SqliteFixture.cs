@@ -1,22 +1,21 @@
-﻿using Dotmim.Sync.SqlServer;
+﻿using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.Tests.Core;
-using Dotmim.Sync.Tests.Models;
 using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Dotmim.Sync.Tests.SqlServer
+namespace Dotmim.Sync.Tests.Sqlite
 {
     /// <summary>
     /// Fixture used to test the SqlSyncProvider
     /// </summary>
-    public class SqlServerFixture : ProviderFixture<CoreProvider>
+    public class SqliteFixture : ProviderFixture<CoreProvider>
     {
-        public override ProviderType ProviderType => ProviderType.Sql;
+        public override ProviderType ProviderType => ProviderType.Sqlite;
 
         public override CoreProvider NewServerProvider(string connectionString)
         {
-            return new SqlSyncProvider(connectionString);
+            return new SqliteSyncProvider(connectionString);
         }
 
     }
