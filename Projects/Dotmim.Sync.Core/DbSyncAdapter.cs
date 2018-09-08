@@ -578,6 +578,15 @@ namespace Dotmim.Sync
         /// </summary>
         internal bool ApplyUpdate(DmRow sourceRow, ScopeInfo scope, bool forceWrite)
         {
+
+            bool hasUpdatableColumns = true;
+
+            if (sourceRow.Table != null)
+                hasUpdatableColumns = sourceRow.Table.MutableColumnsAndNotAutoInc.Any( c => c.ColumnName.ToLowerInvariant() != "create_timestamp" && c.ColumnName.ToLowerInvariant() != "update_timestamp" && c.ColumnName.ToLowerInvariant() != "create_scope_id" && c.ColumnName.ToLowerInvariant() != "update_scope_id");
+
+            if (!hasUpdatableColumns)
+                return false;
+
             using (var command = this.GetCommand(DbCommandType.UpdateRow))
             {
                 // Deriving Parameters

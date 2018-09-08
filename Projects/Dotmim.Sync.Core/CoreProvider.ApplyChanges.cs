@@ -226,8 +226,6 @@ namespace Dotmim.Sync
                                 var conflictCount = 0;
                                 (changeApplicationAction, conflictCount) = syncAdapter.HandleConflict(conflict, message.Policy, message.FromScope, fromScopeLocalTimeStamp, out DmRow resolvedRow);
 
-
-
                                 if (changeApplicationAction == ChangeApplicationAction.Continue)
                                 {
                                     // row resolved
@@ -235,7 +233,6 @@ namespace Dotmim.Sync
                                     {
                                         context.TotalSyncConflicts += conflictCount;
                                         rowsApplied++;
-
                                     }
                                 }
                                 else
@@ -247,15 +244,10 @@ namespace Dotmim.Sync
                             }
                         }
 
-                        //// Get all conflicts resolved
-                        //context.TotalSyncConflicts += conflicts.Where(
-                        //        c => c.Type != ConflictType.ErrorsOccurred).Sum(c => 1);
-
                         // Handle sync progress for this syncadapter (so this table)
                         var changedFailed = dmChangesView.Count - rowsApplied;
 
                         // raise SyncProgress Event
-
                         var existAppliedChanges = changesApplied.TableChangesApplied.FirstOrDefault(
                                 sc => string.Equals(sc.TableName, tableDescription.TableName) && sc.State == applyType);
 
