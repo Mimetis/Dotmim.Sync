@@ -78,112 +78,6 @@ namespace Dotmim.Sync.Tests
         }
 
         /// <summary>
-        /// Should be able to Deprovision a whole database
-        /// </summary>
-        public async virtual Task Use_Existing_Client_Database_Provision_Deprosivion()
-        {
-            // Generate a new temp database and a local provider
-            var dbName = fixture.GetRandomDatabaseName();
-            var connectionString = HelperDB.GetConnectionString(fixture.ProviderType, dbName);
-
-            // create a local provider (the provider we want to test, obviously)
-            var localProvider = fixture.NewServerProvider(connectionString);
-
-            try
-            {
-                // create an empty AdventureWorks client database
-                using (var ctx = new AdventureWorksContext(fixture.ProviderType, connectionString, (fixture.ProviderType == ProviderType.Sql), false))
-                    await ctx.Database.EnsureCreatedAsync();
-
-                // generate a sync conf to host the schema
-                var conf = new SyncConfiguration(fixture.Tables);
-
-                // Provision the database with all tracking tables, stored procedures, triggers and scope
-                await localProvider.ProvisionAsync(conf, SyncProvision.All);
-
-                //--------------------------
-                // ASSERTION
-                //--------------------------
-
-                // check if scope table is correctly created
-                var scopeBuilderFactory = localProvider.GetScopeBuilder();
-
-                using (var dbConnection = localProvider.CreateConnection())
-                {
-                    var scopeBuilder = scopeBuilderFactory.CreateScopeInfoBuilder(conf.ScopeInfoTableName, dbConnection);
-                    Assert.Equal(false, scopeBuilder.NeedToCreateScopeInfoTable());
-                }
-
-                // get the db manager
-                foreach (var dmTable in conf.Schema.Tables)
-                {
-                    var tableName = dmTable.TableName;
-                    using (var dbConnection = localProvider.CreateConnection())
-                    {
-                        // get the database manager factory then the db manager itself
-                        var dbTableBuilder = localProvider.GetDatabaseBuilder(dmTable);
-
-                        // get builders
-                        var trackingTablesBuilder = dbTableBuilder.CreateTrackingTableBuilder(dbConnection);
-                        var triggersBuilder = dbTableBuilder.CreateTriggerBuilder(dbConnection);
-                        var spBuider = dbTableBuilder.CreateProcBuilder(dbConnection);
-
-                        await dbConnection.OpenAsync();
-
-                        Assert.Equal(false, trackingTablesBuilder.NeedToCreateTrackingTable());
-
-                        Assert.Equal(false, triggersBuilder.NeedToCreateTrigger(Builders.DbTriggerType.Insert));
-                        Assert.Equal(false, triggersBuilder.NeedToCreateTrigger(Builders.DbTriggerType.Delete));
-                        Assert.Equal(false, triggersBuilder.NeedToCreateTrigger(Builders.DbTriggerType.Update));
-
-                        Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.InsertMetadata));
-                        Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.InsertRow));
-                        Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.Reset));
-                        Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.SelectChanges));
-                        Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.SelectRow));
-                        Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.DeleteMetadata));
-                        Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.DeleteRow));
-
-                        // Check if we have mutables columns to see if the update row / metadata have been generated
-                        if (dbTableBuilder.TableDescription.MutableColumnsAndNotAutoInc.Any())
-                        {
-                            Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.UpdateRow));
-                            Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.UpdateMetadata));
-                        }
-
-                        if (this.fixture.ProviderType == ProviderType.Sql)
-                        {
-                            Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.BulkDeleteRows));
-                            Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.BulkInsertRows));
-                            Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.BulkInsertRows));
-                        }
-
-                        dbConnection.Close();
-
-                    }
-                }
-
-                // Try to make a sync 
-
-                var syncAgent = new SyncAgent(localProvider, this.ServerProvider, this.fixture.Tables);
-                var results = await syncAgent.SynchronizeAsync();
-                Assert.Equal(82, results.TotalChangesDownloaded);
-
-
-
-            }
-            finally
-            {
-                // ensure database is created and filled with some data
-                using (var ctx = new AdventureWorksContext(fixture.ProviderType, connectionString))
-                {
-                    await ctx.Database.EnsureDeletedAsync();
-                }
-
-            }
-        }
-
-        /// <summary>
         /// Should raise a correct error when a bad connection is defined
         /// </summary>
         public async virtual Task Bad_Server_Connection_Should_Raise_Error()
@@ -1345,6 +1239,104 @@ namespace Dotmim.Sync.Tests
         public Task Update_Multiple_Rows_From_Server()
         {
             throw new NotImplementedException();
+        }
+
+        /// <summary>
+        /// Should be able to Deprovision a whole database
+        /// </summary>
+        public async virtual Task Use_Existing_Client_Database_Provision_Deprosivion()
+        {
+            // Generate a new temp database and a local provider
+            var dbName = fixture.GetRandomDatabaseName();
+            var connectionString = HelperDB.GetConnectionString(fixture.ProviderType, dbName);
+
+            // create a local provider (the provider we want to test, obviously)
+            var localProvider = fixture.NewServerProvider(connectionString);
+
+            try
+            {
+                // create an empty AdventureWorks client database
+                using (var ctx = new AdventureWorksContext(fixture.ProviderType, connectionString, (fixture.ProviderType == ProviderType.Sql), false))
+                    await ctx.Database.EnsureCreatedAsync();
+
+                // generate a sync conf to host the schema
+                var conf = new SyncConfiguration(fixture.Tables);
+
+                // Provision the database with all tracking tables, stored procedures, triggers and scope
+                await localProvider.ProvisionAsync(conf, SyncProvision.All);
+
+                //--------------------------
+                // ASSERTION
+                //--------------------------
+
+                // check if scope table is correctly created
+                var scopeBuilderFactory = localProvider.GetScopeBuilder();
+
+                using (var dbConnection = localProvider.CreateConnection())
+                {
+                    var scopeBuilder = scopeBuilderFactory.CreateScopeInfoBuilder(conf.ScopeInfoTableName, dbConnection);
+                    Assert.Equal(false, scopeBuilder.NeedToCreateScopeInfoTable());
+                }
+
+                // get the db manager
+                foreach (var dmTable in conf.Schema.Tables)
+                {
+                    var tableName = dmTable.TableName;
+                    using (var dbConnection = localProvider.CreateConnection())
+                    {
+                        // get the database manager factory then the db manager itself
+                        var dbTableBuilder = localProvider.GetDatabaseBuilder(dmTable);
+
+                        // get builders
+                        var trackingTablesBuilder = dbTableBuilder.CreateTrackingTableBuilder(dbConnection);
+                        var triggersBuilder = dbTableBuilder.CreateTriggerBuilder(dbConnection);
+                        var spBuider = dbTableBuilder.CreateProcBuilder(dbConnection);
+
+                        await dbConnection.OpenAsync();
+
+                        Assert.Equal(false, trackingTablesBuilder.NeedToCreateTrackingTable());
+
+                        Assert.Equal(false, triggersBuilder.NeedToCreateTrigger(Builders.DbTriggerType.Insert));
+                        Assert.Equal(false, triggersBuilder.NeedToCreateTrigger(Builders.DbTriggerType.Delete));
+                        Assert.Equal(false, triggersBuilder.NeedToCreateTrigger(Builders.DbTriggerType.Update));
+
+                        Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.InsertMetadata));
+                        Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.InsertRow));
+                        Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.Reset));
+                        Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.SelectChanges));
+                        Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.SelectRow));
+                        Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.DeleteMetadata));
+                        Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.DeleteRow));
+
+                        // Check if we have mutables columns to see if the update row / metadata have been generated
+                        if (dbTableBuilder.TableDescription.MutableColumnsAndNotAutoInc.Any())
+                        {
+                            Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.UpdateRow));
+                            Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.UpdateMetadata));
+                        }
+
+                        if (this.fixture.ProviderType == ProviderType.Sql)
+                        {
+                            Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.BulkDeleteRows));
+                            Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.BulkInsertRows));
+                            Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.BulkInsertRows));
+                        }
+
+                        dbConnection.Close();
+
+                    }
+                }
+
+            }
+            finally
+            {
+                // ensure database is created and filled with some data
+                using (var ctx = new AdventureWorksContext(fixture.ProviderType, connectionString))
+                {
+                    await ctx.Database.EnsureDeletedAsync();
+                }
+
+            }
         }
 
         //[Fact, TestPriority(99)]
