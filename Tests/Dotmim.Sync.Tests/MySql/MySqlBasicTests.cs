@@ -17,7 +17,7 @@ namespace Dotmim.Sync.Tests.MySql
     /// </summary>
     [Collection("MySql")]
     [TestCaseOrderer("Dotmim.Sync.Tests.Misc.PriorityOrderer", "Dotmim.Sync.Tests")]
-    public class MySqlServerBasicTests : BasicTestsBase, IClassFixture<MySqlServerFixture>
+    public class MySqlBasicTests : BasicTestsBase, IClassFixture<MySqlFixture>
     {
 
         /// <summary>
@@ -30,7 +30,7 @@ namespace Dotmim.Sync.Tests.MySql
         }
 
 
-        public MySqlServerBasicTests(MySqlServerFixture fixture) : base(fixture)
+        public MySqlBasicTests(MySqlFixture fixture) : base(fixture)
         {
             // Mix of dbo, SalesLT and no schema provided in string array
             this.fixture.Tables = new string[]

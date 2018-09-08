@@ -16,9 +16,11 @@ namespace Dotmim.Sync.Tests.SqlServer
 
         public override ProviderType ProviderType => ProviderType.Sql;
 
-     
+
         public override bool EnableSqlServerClientOnTcp => true;
         public override bool EnableSqlServerClientOnHttp => false;
+        public override bool EnableOracleClientOnTcp => false;
+        public override bool EnableOracleClientOnHttp => false;
         public override bool EnableMySqlClientOnTcp => true;
         public override bool EnableMySqlClientOnHttp => false;
         public override bool EnableSqliteClientOnTcp => false;
@@ -33,25 +35,5 @@ namespace Dotmim.Sync.Tests.SqlServer
             return new SqlSyncProvider(connectionString);
         }
 
-        // for debugging
-        //public override bool DeleteAllDatabasesOnDispose => false;
-        public override void ServerDatabaseEnsureCreated()
-        {
-            using (AdventureWorksContext ctx =
-                new AdventureWorksContext(ProviderType, HelperDB.GetConnectionString(ProviderType, DatabaseName)))
-            {
-                ctx.Database.EnsureDeleted();
-                ctx.Database.EnsureCreated();
-            }
-        }
-
-        public override void ServerDatabaseEnsureDeleted()
-        {
-            using (AdventureWorksContext ctx =
-                new AdventureWorksContext(ProviderType, HelperDB.GetConnectionString(ProviderType, DatabaseName)))
-            {
-                ctx.Database.EnsureDeleted();
-            }
-        }
     }
 }

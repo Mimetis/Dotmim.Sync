@@ -36,6 +36,17 @@ namespace Dotmim.Sync.Tests.Core
         public abstract bool EnableSqlServerClientOnHttp { get; }
 
         /// <summary>
+        /// Gets if the tests should run on a tcp sql server client
+        /// </summary>
+        public abstract bool EnableOracleClientOnTcp { get; }
+
+        /// <summary>
+        /// Gets if the tests should run on a htt sql server client
+        /// </summary>
+        public abstract bool EnableOracleClientOnHttp { get; }
+
+
+        /// <summary>
         /// Gets if the tests should run on a tcp mysql client
         /// </summary>
         public abstract bool EnableMySqlClientOnTcp { get; }
@@ -110,12 +121,28 @@ namespace Dotmim.Sync.Tests.Core
         /// <summary>
         /// Ensure provider server database is correctly created
         /// </summary>
-        public abstract void ServerDatabaseEnsureCreated();
+        public virtual void ServerDatabaseEnsureCreated()
+        {
+            using (AdventureWorksContext ctx =
+                new AdventureWorksContext(ProviderType, HelperDB.GetConnectionString(ProviderType, DatabaseName)))
+            {
+                ctx.Database.EnsureDeleted();
+                ctx.Database.EnsureCreated();
+            }
+        }
 
         /// <summary>
         /// Ensure provider server database is correctly droped at the end of tests
         /// </summary>
-        public abstract void ServerDatabaseEnsureDeleted();
+        public virtual void ServerDatabaseEnsureDeleted()
+        {
+            using (AdventureWorksContext ctx =
+                new AdventureWorksContext(ProviderType, HelperDB.GetConnectionString(ProviderType, DatabaseName)))
+            {
+                ctx.Database.EnsureDeleted();
+            }
+        }
+
 
         /// <summary>
         /// Used to generate client databases
