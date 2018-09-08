@@ -26,50 +26,50 @@ namespace Dotmim.Sync.Tests.Core
         {
             get
             {
-                switch (ProviderType)
+                switch (ClientProviderType)
                 {
                     case ProviderType.Sql:
-                        return ((SqlSyncProvider)Provider)?.ConnectionString;
+                        return ((SqlSyncProvider)ClientProvider)?.ConnectionString;
                     case ProviderType.MySql:
-                        return ((MySqlSyncProvider)Provider)?.ConnectionString;
+                        return ((MySqlSyncProvider)ClientProvider)?.ConnectionString;
                     case ProviderType.Sqlite:
-                        return ((SqliteSyncProvider)Provider)?.ConnectionString;
+                        return ((SqliteSyncProvider)ClientProvider)?.ConnectionString;
                 }
 
                 return null;
             }
             set
             {
-                switch (ProviderType)
+                switch (ClientProviderType)
                 {
                     case ProviderType.Sql:
-                        ((SqlSyncProvider)Provider).ConnectionString = value;
+                        ((SqlSyncProvider)ClientProvider).ConnectionString = value;
                         break;
                     case ProviderType.MySql:
-                        ((MySqlSyncProvider)Provider).ConnectionString = value;
+                        ((MySqlSyncProvider)ClientProvider).ConnectionString = value;
                         break;
                     case ProviderType.Sqlite:
-                        ((SqliteSyncProvider)Provider).ConnectionString = value;
+                        ((SqliteSyncProvider)ClientProvider).ConnectionString = value;
                         break;
                 }
             }
         }
-        public ProviderType ProviderType { get; set; }
-        public IProvider Provider { get; set; }
-        public Boolean IsHttp { get; set; }
+        public ProviderType ClientProviderType { get; set; }
+        public IProvider ClientProvider { get; set; }
+        public NetworkType NetworkType { get; set; }
         public SyncContext Results { get; set; }
         public SyncAgent Agent { get; set; }
         public Exception Exception { get; set; }
 
-        public ProviderRun(string databaseName, IProvider clientProvider, bool isHttp, ProviderType providerType)
+        public ProviderRun(string databaseName, IProvider clientProvider, ProviderType clientProviderType, NetworkType networkType)
         {
             if (string.IsNullOrEmpty(databaseName))
                 throw new ArgumentNullException(nameof(databaseName));
 
             this.DatabaseName = databaseName;
-            this.Provider = clientProvider ?? throw new ArgumentNullException(nameof(clientProvider));
-            this.IsHttp = isHttp;
-            this.ProviderType = providerType;
+            this.ClientProvider = clientProvider ?? throw new ArgumentNullException(nameof(clientProvider));
+            this.NetworkType = networkType;
+            this.ClientProviderType = clientProviderType;
         }
 
 
@@ -88,11 +88,11 @@ namespace Dotmim.Sync.Tests.Core
             var syncTables = tables ?? serverFixture.Tables;
 
             // local test, through tcp
-            if (!IsHttp)
+            if (NetworkType == NetworkType.Tcp)
             {
                 // create agent
                 if (this.Agent == null || !reuseAgent)
-                    this.Agent = new SyncAgent(Provider, serverProvider, syncTables);
+                    this.Agent = new SyncAgent(ClientProvider, serverProvider, syncTables);
 
                 // copy conf settings
                 if (conf != null)
@@ -117,7 +117,7 @@ namespace Dotmim.Sync.Tests.Core
             // -----------------------------------------------------------------------
 
             // tests through http proxy
-            if (IsHttp)
+            if (NetworkType == NetworkType.Http)
             {
                 var syncHttpTables = tables ?? serverFixture.Tables;
 
@@ -154,7 +154,7 @@ namespace Dotmim.Sync.Tests.Core
                     {
                         // create agent
                         if (this.Agent == null || !reuseAgent)
-                            this.Agent = new SyncAgent(Provider, proxyClientProvider);
+                            this.Agent = new SyncAgent(ClientProvider, proxyClientProvider);
 
                         ((WebProxyClientProvider)this.Agent.RemoteProvider).ServiceUri = new Uri(serviceUri);
 

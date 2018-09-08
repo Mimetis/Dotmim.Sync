@@ -14,18 +14,11 @@ namespace Dotmim.Sync.SqlServer.Builders
     public class SqlBuilder : DbBuilder
     {
 
-        SqlObjectNames sqlObjectNames;
-        public SqlObjectNames ObjectNames
-        {
-            get
-            {
-                return sqlObjectNames;
-            }
-        }
+        public SqlObjectNames ObjectNames { get; private set; }
 
         public SqlBuilder(DmTable tableDescription) : base(tableDescription)
         {
-            sqlObjectNames = new SqlObjectNames(tableDescription);
+            ObjectNames = new SqlObjectNames(tableDescription);
         }
 
         internal static (ObjectNameParser tableName, ObjectNameParser trackingName) GetParsers(DmTable tableDescription)

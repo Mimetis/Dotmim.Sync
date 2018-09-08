@@ -55,7 +55,7 @@ namespace Dotmim.Sync.Manager
             if (parameter == null)
                 return;
 
-            parameter.Value = value == null ? DBNull.Value : value;
+            parameter.Value = value ?? DBNull.Value;
         }
 
         public static int GetSyncIntOutParameter(string parameter, DbCommand command)
@@ -80,15 +80,13 @@ namespace Dotmim.Sync.Manager
             if (obj is long || obj is int || obj is ulong || obj is uint || obj is decimal)
                 return Convert.ToInt64(obj, NumberFormatInfo.InvariantInfo);
 
-            string str = obj as string;
-            if (str != null)
+            if (obj is string str)
             {
                 long.TryParse(str, NumberStyles.HexNumber, CultureInfo.InvariantCulture.NumberFormat, out timestamp);
                 return timestamp;
             }
 
-            byte[] numArray = obj as byte[];
-            if (numArray == null)
+            if (!(obj is byte[] numArray))
                 return 0;
 
             StringBuilder stringBuilder = new StringBuilder();

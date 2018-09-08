@@ -24,7 +24,7 @@ namespace Dotmim.Sync.Tests.Models
         public AdventureWorksContext(ProviderRun providerRun, bool fallbackUseSchema = true) : this()
         {
 
-            ProviderType = providerRun.ProviderType;
+            ProviderType = providerRun.ClientProviderType;
             ConnectionString = providerRun.ConnectionString;
 
             useSchema = ProviderType == ProviderType.Sql && fallbackUseSchema;
