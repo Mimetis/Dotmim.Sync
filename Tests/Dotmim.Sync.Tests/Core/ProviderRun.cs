@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -78,6 +79,7 @@ namespace Dotmim.Sync.Tests.Core
         public Action<IProvider> BeginRun { get; set; }
         public Action<IProvider> EndRun { get; set; }
 
+
         public async Task<ProviderRun> RunAsync(CoreProvider serverProvider, ProviderFixture<CoreProvider> serverFixture, string scopeName = null, string[] tables = null, SyncConfiguration conf = null,
         bool reuseAgent = true)
         {
@@ -97,6 +99,19 @@ namespace Dotmim.Sync.Tests.Core
                 // copy conf settings
                 if (conf != null)
                     serverFixture.CopyConfiguration(this.Agent.Configuration, conf);
+
+                // Add Filers
+                if (serverFixture.Filters != null && serverFixture.Filters.Count > 0)
+                    serverFixture.Filters.ForEach(f => {
+                        if (!Agent.Configuration.Filters.Contains(f))
+                            Agent.Configuration.Filters.Add(f);
+                    });
+
+                // Add Filers values
+                if (serverFixture.FilterParameters != null && serverFixture.FilterParameters.Count > 0)
+                    foreach(var syncParam in serverFixture.FilterParameters)
+                        if (!this.Agent.Parameters.Contains(syncParam))
+                            this.Agent.Parameters.Add(syncParam);
 
                 // sync
                 try
@@ -119,7 +134,6 @@ namespace Dotmim.Sync.Tests.Core
             // tests through http proxy
             if (NetworkType == NetworkType.Http)
             {
-                var syncHttpTables = tables ?? serverFixture.Tables;
 
                 // client handler
                 using (var server = new KestrellTestServer())
@@ -127,14 +141,16 @@ namespace Dotmim.Sync.Tests.Core
                     // server handler
                     var serverHandler = new RequestDelegate(async context =>
                     {
-                        SyncConfiguration syncConfiguration = new SyncConfiguration(syncHttpTables);
-
-                        // copy conf settings
-                        if (conf != null)
-                            serverFixture.CopyConfiguration(syncConfiguration, conf);
-
                         // set proxy conf
-                        proxyServerProvider.Configuration = syncConfiguration;
+                        proxyServerProvider.Configuration = conf;
+
+                        // Add Filers
+                        if (serverFixture.Filters != null && serverFixture.Filters.Count > 0)
+                            serverFixture.Filters.ForEach(f => {
+                                if (!proxyServerProvider.Configuration.Filters.Contains(f))
+                                    proxyServerProvider.Configuration.Filters.Add(f);
+                            });
+
 
                         // sync
                         try
@@ -155,6 +171,11 @@ namespace Dotmim.Sync.Tests.Core
                         // create agent
                         if (this.Agent == null || !reuseAgent)
                             this.Agent = new SyncAgent(ClientProvider, proxyClientProvider);
+
+                        if (serverFixture.FilterParameters != null && serverFixture.FilterParameters.Count > 0)
+                            foreach (var syncParam in serverFixture.FilterParameters)
+                                if (!this.Agent.Parameters.Contains(syncParam))
+                                    this.Agent.Parameters.Add(syncParam);
 
                         ((WebProxyClientProvider)this.Agent.RemoteProvider).ServiceUri = new Uri(serviceUri);
 

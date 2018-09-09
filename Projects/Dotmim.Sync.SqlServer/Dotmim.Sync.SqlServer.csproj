@@ -1,14 +1,13 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <Version>0.2.1</Version>
     <Authors>Sébastien Pertus</Authors>
     <Company>Microsoft</Company>
     <Title>Dotmim.Sync.SqlServer</Title>
     <Description>Sql Server Sync Provider. Can be used as Client or Server provider. Compatible with .Net Standard 2.0</Description>
     <PackageTags>Dotmim.Sync,Sync, Sql Server Provider, .Net Standard 2.0</PackageTags>
     <PackageProjectUrl>https://mimetis.github.io/Dotmim.Sync/</PackageProjectUrl>
+    <Version>0.3.0</Version>
   </PropertyGroup>
 
   <!--generate NUGET package including symbols ans source on each release build -->

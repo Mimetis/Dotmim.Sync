@@ -1,6 +1,9 @@
-﻿using Dotmim.Sync.Tests.Core;
+﻿using Dotmim.Sync.Data;
+using Dotmim.Sync.Filter;
+using Dotmim.Sync.Tests.Core;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -19,13 +22,13 @@ namespace Dotmim.Sync.Tests
             // Set tables to be used for your provider
             var sqlTables = new string[]
             {
-                "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "Customer", "Address", "CustomerAddress",
+                "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "Employee", "Customer", "Address", "CustomerAddress", "EmployeeAddress",
                 "SalesLT.SalesOrderHeader", "SalesLT.SalesOrderDetail", "dbo.Sql", "Posts", "Tags", "PostTag"
             };
 
             var mySqlTables = new string[]
             {
-                "productcategory", "productmodel", "product", "customer", "address","customeraddress",
+                "productcategory", "productmodel", "product", "employee", "customer", "address","customeraddress", "employeeaddress", 
                 "salesorderheader", "salesorderdetail", "sql", "posts", "tags", "posttag"
             };
 
@@ -37,6 +40,19 @@ namespace Dotmim.Sync.Tests
             providerFixture.AddTables(ProviderType.Sql, sqlTables);
             providerFixture.AddTables(ProviderType.MySql, mySqlTables);
 
+
+            //// 3) Add filters
+            //providerFixture.AddFilter(ProviderType.Sql,
+            //    new FilterClause("Employee", "EmployeeID"));
+            //providerFixture.AddFilter(ProviderType.Sql,
+            //    new FilterClause("Customer", "EmployeeID"));
+
+            //providerFixture.AddFilterParameter(ProviderType.Sql,
+            //    new SyncParameter("Employee", "EmployeeID", 1));
+
+            //providerFixture.AddFilterParameter(ProviderType.Sql,
+            //    new SyncParameter("Customer", "EmployeeID", 1));
+
             // 3) Add runs
 
             // Enable the test to run on TCP / HTTP and on various client
@@ -45,23 +61,30 @@ namespace Dotmim.Sync.Tests
             // 2nd arg : ProviderType.Sql | ProviderType.MySql | ProviderType.Sqlite : Enable tests on clients of type Sql, MySql and Sqlite
 
             // SQL Server provider
+            if (!IsOnAppVeyor)
+            {
+                providerFixture.AddRun((ProviderType.Sql, NetworkType.Tcp),
+                        ProviderType.Sql );
+            }
+            else
+            {
+                providerFixture.AddRun((ProviderType.Sql, NetworkType.Tcp),
+                        ProviderType.Sql |
+                        ProviderType.Sqlite);
 
-            providerFixture.AddRun((ProviderType.Sql, NetworkType.Tcp),
-                    ProviderType.Sql |
-                    ProviderType.Sqlite);
+                providerFixture.AddRun((ProviderType.Sql, NetworkType.Http),
+                        ProviderType.MySql |
+                        ProviderType.Sqlite);
 
-            providerFixture.AddRun((ProviderType.Sql, NetworkType.Http),
-                    ProviderType.MySql |
-                    ProviderType.Sqlite);
+                // My SQL (disable http to go faster on app veyor)
+                providerFixture.AddRun((ProviderType.MySql, NetworkType.Tcp),
+                        ProviderType.MySql |
+                        ProviderType.Sqlite);
 
-            // My SQL (disable http to go faster on app veyor)
-            providerFixture.AddRun((ProviderType.MySql, NetworkType.Tcp),
-                    ProviderType.MySql |
-                    ProviderType.Sqlite);
-
-            providerFixture.AddRun((ProviderType.MySql, NetworkType.Http),
-                    ProviderType.Sql |
-                    ProviderType.Sqlite);
+                providerFixture.AddRun((ProviderType.MySql, NetworkType.Http),
+                        ProviderType.Sql |
+                        ProviderType.Sqlite);
+            }
         }
 
         /// <summary>
