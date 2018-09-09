@@ -8,6 +8,7 @@ namespace Dotmim.Sync.Tests.Models
         public Address()
         {
             CustomerAddress = new HashSet<CustomerAddress>();
+            EmployeeAddress = new HashSet<EmployeeAddress>();
             SalesOrderHeaderBillToAddress = new HashSet<SalesOrderHeader>();
             SalesOrderHeaderShipToAddress = new HashSet<SalesOrderHeader>();
         }
@@ -23,6 +24,7 @@ namespace Dotmim.Sync.Tests.Models
         public DateTime? ModifiedDate { get; set; }
 
         public ICollection<CustomerAddress> CustomerAddress { get; set; }
+        public ICollection<EmployeeAddress> EmployeeAddress { get; set; }
         public ICollection<SalesOrderHeader> SalesOrderHeaderBillToAddress { get; set; }
         public ICollection<SalesOrderHeader> SalesOrderHeaderShipToAddress { get; set; }
     }

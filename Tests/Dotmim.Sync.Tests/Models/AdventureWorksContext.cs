@@ -137,6 +137,9 @@ namespace Dotmim.Sync.Tests.Models
                 entity.Property(e => e.CustomerId)
                     .HasColumnName("CustomerID");
 
+                entity.Property(e => e.EmployeeId)
+                    .HasColumnName("EmployeeID");
+
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.CustomerId).HasDefaultValueSql("(newid())");
 
@@ -187,6 +190,37 @@ namespace Dotmim.Sync.Tests.Models
                 entity.Property(e => e.Suffix).HasMaxLength(10);
 
                 entity.Property(e => e.Title).HasMaxLength(8);
+
+                entity.HasOne(d => d.Employee)
+                    .WithMany(p => p.Customer)
+                    .HasForeignKey(d => d.EmployeeId)
+                    .OnDelete(DeleteBehavior.ClientSetNull);
+
+            });
+
+            modelBuilder.Entity<Employee>(entity =>
+            {
+                entity.Property(e => e.FirstName)
+                    .IsRequired()
+                    .HasMaxLength(50);
+
+                entity.Property(e => e.LastName)
+                    .IsRequired()
+                    .HasMaxLength(50);
+
+                if (this.ProviderType == ProviderType.Sql)
+                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
+                else if (this.ProviderType == ProviderType.MySql)
+                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
+
+                entity.Property(e => e.Rowguid)
+                    .HasColumnName("rowguid")
+                    .ValueGeneratedOnAdd();
+
+                if (this.ProviderType == ProviderType.Sql)
+                    entity.Property(e => e.Rowguid).HasDefaultValueSql("(newid())");
+
+
             });
 
             modelBuilder.Entity<CustomerAddress>(entity =>
@@ -224,6 +258,44 @@ namespace Dotmim.Sync.Tests.Models
                 entity.HasOne(d => d.Customer)
                     .WithMany(p => p.CustomerAddress)
                     .HasForeignKey(d => d.CustomerId)
+                    .OnDelete(DeleteBehavior.ClientSetNull);
+            });
+
+            modelBuilder.Entity<EmployeeAddress>(entity =>
+            {
+                entity.HasKey(e => new { e.EmployeeId, e.AddressId });
+
+                entity.Property(e => e.EmployeeId)
+                    .HasColumnName("EmployeeID");
+
+                entity.Property(e => e.AddressId).HasColumnName("AddressID");
+
+                entity.Property(e => e.AddressType)
+                    .IsRequired()
+                    .HasMaxLength(50);
+
+                entity.Property(e => e.ModifiedDate)
+                    .HasColumnType("datetime");
+
+                if (this.ProviderType == ProviderType.Sql)
+                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
+                else if (this.ProviderType == ProviderType.MySql)
+                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
+
+                entity.Property(e => e.Rowguid)
+                    .HasColumnName("rowguid");
+
+                if (this.ProviderType == ProviderType.Sql)
+                    entity.Property(e => e.Rowguid).HasDefaultValueSql("(newid())");
+
+                entity.HasOne(d => d.Address)
+                    .WithMany(p => p.EmployeeAddress)
+                    .HasForeignKey(d => d.AddressId)
+                    .OnDelete(DeleteBehavior.ClientSetNull);
+
+                entity.HasOne(d => d.Employee)
+                    .WithMany(p => p.EmployeeAddress)
+                    .HasForeignKey(d => d.EmployeeId)
                     .OnDelete(DeleteBehavior.ClientSetNull);
             });
 
@@ -653,16 +725,28 @@ namespace Dotmim.Sync.Tests.Models
                 new Address { AddressId = 21, AddressLine1 = "600 Slater Street", City = "Ottawa", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "M9V 4W3" }
             );
 
+            modelBuilder.Entity<Employee>().HasData(
+                new Employee { EmployeeId = 1, FirstName = "Pamela", LastName = "Orson" },
+                new Employee { EmployeeId = 2, FirstName = "David", LastName = "Kandle" },
+                new Employee { EmployeeId = 3, FirstName = "Jillian", LastName = "Jon" }
+            );
+
             Guid customerId1 = Guid.NewGuid();
             Guid customerId2 = Guid.NewGuid();
             Guid customerId3 = Guid.NewGuid();
             Guid customerId4 = Guid.NewGuid();
 
             modelBuilder.Entity<Customer>().HasData(
-                new Customer { CustomerId = customerId1, NameStyle = false, Title = "Mr.", FirstName = "Orlando", MiddleName = "N.", LastName = "Gee", CompanyName = "A Bike Store", SalesPerson = @"adventure-works\pamela0", EmailAddress = "orlando0@adventure-works.com", Phone = "245-555-0173", PasswordHash = "L/Rlwxzp4w7RWmEgXX+/A7cXaePEPcp+KwQhl2fJL7w=", PasswordSalt = "1KjXYs4=" },
-                new Customer { CustomerId = customerId2, NameStyle = false, Title = "Mr.", FirstName = "Keith", MiddleName = "N.", LastName = "Harris", CompanyName = "Progressive Sports", SalesPerson = @"adventure-works\david8", EmailAddress = "keith0@adventure-works.com", Phone = "170-555-0127", PasswordHash = "YPdtRdvqeAhj6wyxEsFdshBDNXxkCXn+CRgbvJItknw=", PasswordSalt = "fs1ZGhY=" },
-                new Customer { CustomerId = customerId3, NameStyle = false, Title = "Ms.", FirstName = "Donna", MiddleName = "F.", LastName = "Carreras", CompanyName = "Advanced Bike Components", SalesPerson = @"adventure-works\jillian0", EmailAddress = "donna0@adventure-works.com", Phone = "279-555-0130", PasswordHash = "LNoK27abGQo48gGue3EBV/UrlYSToV0/s87dCRV7uJk=", PasswordSalt = "YTNH5Rw=" },
-                new Customer { CustomerId = customerId4, NameStyle = false, Title = "Ms.", FirstName = "Janet", MiddleName = "M.", LastName = "Gates", CompanyName = "Modular Cycle Systems", SalesPerson = @"adventure-works\jillian0", EmailAddress = "janet1@adventure-works.com", Phone = "710-555-0173", PasswordHash = "ElzTpSNbUW1Ut+L5cWlfR7MF6nBZia8WpmGaQPjLOJA=", PasswordSalt = "nm7D5e4=" }
+                new Customer { CustomerId = customerId1, EmployeeId = 1, NameStyle = false, Title = "Mr.", FirstName = "Orlando", MiddleName = "N.", LastName = "Gee", CompanyName = "A Bike Store", SalesPerson = @"adventure-works\pamela0", EmailAddress = "orlando0@adventure-works.com", Phone = "245-555-0173", PasswordHash = "L/Rlwxzp4w7RWmEgXX+/A7cXaePEPcp+KwQhl2fJL7w=", PasswordSalt = "1KjXYs4=" },
+                new Customer { CustomerId = customerId2, EmployeeId = 1, NameStyle = false, Title = "Mr.", FirstName = "Keith", MiddleName = "N.", LastName = "Harris", CompanyName = "Progressive Sports", SalesPerson = @"adventure-works\david8", EmailAddress = "keith0@adventure-works.com", Phone = "170-555-0127", PasswordHash = "YPdtRdvqeAhj6wyxEsFdshBDNXxkCXn+CRgbvJItknw=", PasswordSalt = "fs1ZGhY=" },
+                new Customer { CustomerId = customerId3, EmployeeId = 2, NameStyle = false, Title = "Ms.", FirstName = "Donna", MiddleName = "F.", LastName = "Carreras", CompanyName = "Advanced Bike Components", SalesPerson = @"adventure-works\jillian0", EmailAddress = "donna0@adventure-works.com", Phone = "279-555-0130", PasswordHash = "LNoK27abGQo48gGue3EBV/UrlYSToV0/s87dCRV7uJk=", PasswordSalt = "YTNH5Rw=" },
+                new Customer { CustomerId = customerId4, EmployeeId = 3, NameStyle = false, Title = "Ms.", FirstName = "Janet", MiddleName = "M.", LastName = "Gates", CompanyName = "Modular Cycle Systems", SalesPerson = @"adventure-works\jillian0", EmailAddress = "janet1@adventure-works.com", Phone = "710-555-0173", PasswordHash = "ElzTpSNbUW1Ut+L5cWlfR7MF6nBZia8WpmGaQPjLOJA=", PasswordSalt = "nm7D5e4=" }
+            );
+
+            modelBuilder.Entity<EmployeeAddress>().HasData(
+                new EmployeeAddress { EmployeeId = 1, AddressId = 6, AddressType = "Home" },
+                new EmployeeAddress { EmployeeId = 2, AddressId = 7, AddressType = "Home" },
+                new EmployeeAddress { EmployeeId = 3, AddressId = 8, AddressType = "Home" }
             );
 
             modelBuilder.Entity<CustomerAddress>().HasData(

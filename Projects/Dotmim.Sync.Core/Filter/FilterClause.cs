@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Dotmim.Sync.Data;
+using System;
 using System.Data;
 
 namespace Dotmim.Sync.Filter
@@ -19,7 +20,7 @@ namespace Dotmim.Sync.Filter
         /// Gets whether the filter is targeting an existing column of the target table (not virtual) or it is only used as a parameter in the selectchanges stored procedure (virtual)
         /// </summary>
         public bool IsVirtual => ColumnType.HasValue;
-        
+
         /// <summary>
         /// Creates a filterclause allowing to specify a DbType.
         /// If you specify the columnType, Dotmim.Sync will expect that the column does not exist on the table, and the filter is only
@@ -43,5 +44,58 @@ namespace Dotmim.Sync.Filter
         public FilterClause()
         {
         }
+
+
+        /// <summary>
+        /// Column on which you want to filter
+        /// </summary>
+        /// <param name="columnName"></param>
+        public void AddColumnName(string columnName)
+        {
+
+        }
+
+
+        /// <summary>
+        /// Will add the parameter used in the filter.
+        /// A DmColumn like 
+        /// new DmColumn("empId")
+        /// {
+        ///        AllowDBNull = true,
+        ///        DbType = DbType.Int32
+        ///};
+        /// will generate something like "@empId int = null" in the stored procedure parameters
+        /// </summary>
+        /// <param name="parameter">parameter type, name, length, precision, scale</param>
+        public void AddParameter(DmColumn parameter)
+        {
+
+        }
+
+        /// <summary>
+        /// Add a join instruction.
+        /// Will generate something like
+        /// LEFT JOIN [Customer] [fj1] ON  [base].[CustomerID] = [fj1].[CustomerID]
+        /// AND 
+        /// WHERE  [fj1].[EmployeeID] = @empId OR [fj1].[EmployeeID] IS NULL Or @empId is null
+        /// </summary>
+        /// <param name="joinTable">the table we want to join from the current table</param>
+        /// <param name="columName">the current table </param>
+        public void AddJoin((string TableName, string ColumnName) joinTable, string columName)
+        {
+
+        }
+
+
+        /// <summary>
+        /// Add a custom sql code to join what you want with the where clause you want, too
+        /// </summary>
+        public void AddCustomClause(string joinClause, string whereClause)
+        {
+
+        }
+
+
+
     }
 }

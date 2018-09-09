@@ -1,7 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>netstandard2.0;net462</TargetFrameworks>
-    <Version>0.2.2</Version>
     <Authors>Sébastien Pertus, Gentledepp</Authors>
     <Company>Microsoft</Company>
     <Title>Dotmim.Sync.Web.Server</Title>
@@ -9,9 +8,9 @@
 Can't work without a Server provider, you have to choose an existing one to be able to work with the Proxy</Description>
     <PackageProjectUrl>https://mimetis.github.io/Dotmim.Sync/</PackageProjectUrl>
     <PackageTags>Dotmim.Sync, ASP.NET, ASP.NET Core, ASP.NET Core Web Sync Proxy, .Net Standard 2.0, Sync, Synchronization, Sync Framework</PackageTags>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <AssemblyName>Dotmim.Sync.Web.Server</AssemblyName>
     <RootNamespace>Dotmim.Sync.Web.Server</RootNamespace>
+    <Version>0.3.0</Version>
   </PropertyGroup>
 
   <!--generate NUGET package including symbols ans source on each release build -->
@@ -30,9 +29,9 @@ Can't work without a Server provider, you have to choose an existing one to be a
   </PropertyGroup>
 
   <ItemGroup Condition=" '$(TargetFramework)' == 'netstandard2.0' ">
-    <PackageReference Include="Microsoft.AspNetCore" Version="2.1.2" />
+    <PackageReference Include="Microsoft.AspNetCore" Version="2.1.3" />
     <PackageReference Include="Microsoft.AspNetCore.Session" Version="2.1.1" />
-    <PackageReference Include="Microsoft.AspNetCore.Mvc.Core" Version="2.1.1" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Core" Version="2.1.2" />
   </ItemGroup>
   
   <ItemGroup Condition=" '$(TargetFramework)' == 'net462' ">
@@ -40,6 +39,11 @@ Can't work without a Server provider, you have to choose an existing one to be a
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="2.1.1" />
     <PackageReference Include="Microsoft.AspNet.WebApi.Core" Version="5.2.3" />
     <PackageReference Include="Microsoft.AspNet.WebApi.Client" Version="5.2.3" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNet.WebApi.Client" Version="5.2.6" />
+    <PackageReference Include="Microsoft.AspNet.WebApi.Core" Version="5.2.6" />
   </ItemGroup>
 
   <ItemGroup>
