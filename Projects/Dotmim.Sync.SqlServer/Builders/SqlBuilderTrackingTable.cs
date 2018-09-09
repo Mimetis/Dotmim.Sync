@@ -82,7 +82,12 @@ namespace Dotmim.Sync.SqlServer.Builders
             {
                 foreach (var filterColumn in this.Filters)
                 {
-                    if (this.tableDescription.Columns.Any(c => c.ColumnName == filterColumn.ColumnName))
+                    // check if the filter column is already a primary key.
+                    // in this case, we will add it as an index in the next foreach
+                    if (this.tableDescription.PrimaryKey.Columns.Any(c => c.ColumnName.ToLowerInvariant() == filterColumn.ColumnName.ToLowerInvariant()))
+                        continue;
+
+                    if (!this.tableDescription.Columns.Any(c => c.ColumnName.ToLowerInvariant() == filterColumn.ColumnName.ToLowerInvariant()))
                         continue;
 
                     ObjectNameParser columnName = new ObjectNameParser(filterColumn.ColumnName);

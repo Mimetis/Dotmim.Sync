@@ -8,10 +8,9 @@
     <Description>MySql Sync Provider. Able to be Server and Client. Use with Dotmim.Sync.Core
 Actually MySql Sync Provider requires ADO.NET Provider MySql.Data, which IS NOT .Net Standard 2.0 compatible.
 So you must use it on classic .NET Framework ( &gt; 4.5)</Description>
-    <Version>0.2.1</Version>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageTags>Dotmim.Sync, MySQL Sync Core Provider, .Net Standard 2.0</PackageTags>
     <PackageProjectUrl>https://github.com/Mimetis/Dotmim.Sync</PackageProjectUrl>
+    <Version>0.3.0</Version>
   </PropertyGroup>
 
   <!--generate NUGET package including symbols ans source on each release build -->
@@ -23,7 +22,7 @@ So you must use it on classic .NET Framework ( &gt; 4.5)</Description>
 
   <ItemGroup>
     <PackageReference Include="MySqlConnector">
-      <Version>0.42.1</Version>
+      <Version>0.44.1</Version>
     </PackageReference>
   </ItemGroup>  
   

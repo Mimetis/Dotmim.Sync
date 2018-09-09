@@ -1,4 +1,5 @@
 ﻿
+using Dotmim.Sync.Filter;
 using Dotmim.Sync.MySql;
 using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
@@ -54,6 +55,23 @@ namespace Dotmim.Sync.Tests.Core
             if (providerType == this.ProviderType)
                 this.Tables = tables;
         }
+
+        internal void AddFilter(ProviderType providerType, FilterClause filter)
+        {
+            if (providerType == this.ProviderType)
+            {
+                this.Filters.Add(filter);
+            }
+        }
+
+        internal void AddFilterParameter(ProviderType providerType, SyncParameter param)
+        {
+            if (providerType == this.ProviderType)
+            {
+                this.FilterParameters.Add(param);
+            }
+        }
+
 
         /// <summary>
         /// Will configure the fixture on first test launch
@@ -169,6 +187,17 @@ namespace Dotmim.Sync.Tests.Core
         /// </summary>
         public abstract ProviderType ProviderType { get; }
 
+  
+        /// <summary>
+        /// Get the filters parameters
+        /// </summary>
+        public List<FilterClause> Filters { get; private set; } = new List<FilterClause>();
+
+        /// <summary>
+        /// Get the filters parameters values 
+        /// </summary>
+        public List<SyncParameter> FilterParameters { get; private set; } = new List<SyncParameter>();
+
         /// <summary>
         /// Gets a new instance of the CoreProvider we want to test
         /// </summary>
@@ -238,7 +267,6 @@ namespace Dotmim.Sync.Tests.Core
                     if (!registeredProviders.ContainsKey(clientProviderType))
                         continue;
 
-
                     // generate a new database name
                     var dbName = GetRandomDatabaseName();
                     
@@ -259,74 +287,6 @@ namespace Dotmim.Sync.Tests.Core
 
             }
 
-
-            //// Add filled client tcp providers
-            //if (this.EnableSqlServerClientOnTcp && !ClientRuns.Any(tr => !tr.IsHttp && tr.ClientProviderType == ProviderType.Sql))
-            //{
-            //    var dbName = GetRandomDatabaseName();
-            //    var connectionString = HelperDB.GetConnectionString(ProviderType.Sql, dbName);
-            //    HelperDB.CreateSqlServerDatabase(dbName);
-            //    ClientRuns.Add(new ProviderRun(
-            //        dbName, new SqlSyncProvider(connectionString), false, ProviderType.Sql)
-            //    );
-            //}
-
-            //if (this.enableMySqlClientOnTcp && !ClientRuns.Any(tr => !tr.IsHttp && tr.ClientProviderType == ProviderType.MySql))
-            //{
-            //    var dbName = GetRandomDatabaseName();
-            //    var connectionString = HelperDB.GetConnectionString(ProviderType.MySql, dbName);
-            //    HelperDB.CreateMySqlDatabase(dbName);
-
-            //    ClientRuns.Add(new ProviderRun(
-            //        dbName, new MySqlSyncProvider(connectionString), false, ProviderType.MySql)
-            //    );
-            //}
-
-            //if (this.enableSqliteClientOnTcp && !ClientRuns.Any(tr => !tr.IsHttp && tr.ClientProviderType == ProviderType.Sqlite))
-            //{
-            //    var dbName = GetRandomDatabaseName();
-            //    var connectionString = HelperDB.GetSqliteDatabaseConnectionString(dbName);
-
-            //    ClientRuns.Add(new ProviderRun(
-            //        dbName, new SqliteSyncProvider(connectionString), false, ProviderType.Sqlite)
-            //    );
-
-            //}
-
-            //if (this.enableSqlServerClientOnHttp && !ClientRuns.Any(tr => tr.IsHttp && tr.ClientProviderType == ProviderType.Sql))
-            //{
-            //    var dbName = GetRandomDatabaseName();
-            //    var connectionString = HelperDB.GetConnectionString(ProviderType.Sql, dbName);
-            //    HelperDB.CreateSqlServerDatabase(dbName);
-
-            //    ClientRuns.Add(new ProviderRun(
-            //        dbName, new SqlSyncProvider(connectionString), true, ProviderType.Sql)
-            //    );
-
-
-            //}
-
-            //if (this.enableMySqlClientOnHttp && !ClientRuns.Any(tr => tr.IsHttp && tr.ClientProviderType == ProviderType.MySql))
-            //{
-            //    var dbName = GetRandomDatabaseName();
-            //    var connectionString = HelperDB.GetConnectionString(ProviderType.MySql, dbName);
-            //    HelperDB.CreateMySqlDatabase(dbName);
-
-            //    ClientRuns.Add(new ProviderRun(
-            //        dbName, new MySqlSyncProvider(connectionString), true, ProviderType.MySql)
-            //    );
-            //}
-
-            //if (this.enableSqliteClientOnHttp && !ClientRuns.Any(tr => tr.IsHttp && tr.ClientProviderType == ProviderType.Sqlite))
-            //{
-            //    var dbName = GetRandomDatabaseName();
-            //    var connectionString = HelperDB.GetSqliteDatabaseConnectionString(dbName);
-
-            //    ClientRuns.Add(new ProviderRun(
-            //        dbName, new SqliteSyncProvider(connectionString), true, ProviderType.Sqlite)
-            //    );
-
-            //}
         }
 
 
@@ -347,6 +307,14 @@ namespace Dotmim.Sync.Tests.Core
             agentConfiguration.TriggersPrefix = conf.TriggersPrefix;
             agentConfiguration.TriggersSuffix = conf.TriggersSuffix;
             agentConfiguration.UseVerboseErrors = conf.UseVerboseErrors;
+
+            if (conf.Filters != null && conf.Filters.Count > 0)
+            {
+                agentConfiguration.Filters.Clear();
+
+                foreach(var f in conf.Filters)
+                    agentConfiguration.Filters.Add(f.TableName, f.ColumnName);
+            }
 
         }
 
