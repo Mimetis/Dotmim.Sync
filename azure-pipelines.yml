@@ -30,6 +30,9 @@ steps:
     action: 'Run an image'
     imageName: microsoft/mssql-server-linux:2017-latest
     command: 'run'
+    envVars: 'ACCEPT_EULA=Y'
+             'SA_PASSWORD=Password12!'
+    ports:1433:1433
 
 #- task: VSTest@2
 #  inputs:
