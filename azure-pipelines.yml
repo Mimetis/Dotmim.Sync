@@ -3,15 +3,46 @@
 # Add steps that publish symbols, save build artifacts, and more:
 # https://docs.microsoft.com/vsts/pipelines/apps/windows/dot-net
 
-pool:
-  vmImage: 'Ubuntu 16.04' # 'VS2017-Win2016'
+jobs:
 
-variables:
-  solution: '**/*.sln'
-  buildPlatform: 'Any CPU'
-  buildConfiguration: 'Release'
+- job: Linux
+  pool:
+    vmImage: 'Ubuntu 16.04'
+  steps:
+  - task: Docker@0
+    displayName: 'Start SQL Server 2017'
+    inputs:
+      action: 'Run an image'
+      imageName: microsoft/mssql-server-linux:2017-latest
+      command: 'run'
+      ports: '1433:1433'
+      envVars: 'ACCEPT_EULA=Y SA_PASSWORD=yourStrong(!)Password'
 
-steps:
+- job: Win2016
+  pool:
+    vmImage: 'VS2017-Win2016'
+  steps:
+  - script: dotnet build Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj
+  - script: dotnet build Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj
+  - script: dotnet build Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj
+  - script: dotnet build Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj
+  - script: dotnet build Projects/Dotmim.Sync.Web.Client/Dotmim.Sync.Web.Client.csproj
+  - script: dotnet build Projects/Dotmim.Sync.Web.Server/Dotmim.Sync.Web.Server.csproj
+  - script: dotnet build Projects/dotnet-sync/dotnet-sync.csproj
+
+
+
+
+
+#pool:
+#  vmImage: 'Ubuntu 16.04' # 'VS2017-Win2016'
+#
+#variables:
+#  solution: '**/*.sln'
+#  buildPlatform: 'Any CPU'
+#  buildConfiguration: 'Release'
+#
+#steps:
 #- task: NuGetToolInstaller@0
 #
 #- task: NuGetCommand@2
@@ -24,22 +55,22 @@ steps:
 #    platform: '$(buildPlatform)'
 #    configuration: '$(buildConfiguration)'
 
-- task: Docker@0
-  displayName: 'Start SQL Server 2017'
-  inputs:
-    action: 'Run an image'
-    imageName: microsoft/mssql-server-linux:2017-latest
-    command: 'run'
-    ports: '1433:1433'
-    envVars: 'ACCEPT_EULA=Y SA_PASSWORD=yourStrong(!)Password'
-    
-- script: dotnet build Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj
-- script: dotnet build Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj
-- script: dotnet build Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj
-- script: dotnet build Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj
-- script: dotnet build Projects/Dotmim.Sync.Web.Client/Dotmim.Sync.Web.Client.csproj
-- script: dotnet build Projects/Dotmim.Sync.Web.Server/Dotmim.Sync.Web.Server.csproj
-- script: dotnet build Projects/dotnet-sync/dotnet-sync.csproj
+#- task: Docker@0
+#  displayName: 'Start SQL Server 2017'
+#  inputs:
+#    action: 'Run an image'
+#    imageName: microsoft/mssql-server-linux:2017-latest
+#    command: 'run'
+#    ports: '1433:1433'
+#    envVars: 'ACCEPT_EULA=Y SA_PASSWORD=yourStrong(!)Password'
+#    
+#- script: dotnet build Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj
+#- script: dotnet build Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj
+#- script: dotnet build Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj
+#- script: dotnet build Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj
+#- script: dotnet build Projects/Dotmim.Sync.Web.Client/Dotmim.Sync.Web.Client.csproj
+#- script: dotnet build Projects/Dotmim.Sync.Web.Server/Dotmim.Sync.Web.Server.csproj
+#- script: dotnet build Projects/dotnet-sync/dotnet-sync.csproj
 
 #- task: VSTest@2
 #  inputs:
