@@ -95,11 +95,16 @@ namespace Dotmim.Sync
         [DataMember(Name = "SN")]
         public String ScopeName { get; set; }
 
-        /// <summary>
-        /// Filters applied on tables
-        /// </summary>
-        [DataMember(Name = "F")]
-        public ICollection<FilterClause> Filters { get; set; }
+        ///// <summary>
+        ///// Filters applied on tables
+        ///// </summary>
+        //[DataMember(Name = "F")]
+        //public ICollection<FilterClause> Filters { get; set; }
+
+
+        //[JsonIgnore]
+        [DataMember(Name="F")]
+        public List<FilterClause2> Filters { get; set; } 
 
         /// <summary>
         /// Specify a prefix for naming stored procedure. Default is empty string
@@ -196,8 +201,6 @@ namespace Dotmim.Sync
             }
         }
 
-
-
         /// <summary>
         /// Specify a prefix for naming tracking tables. Default is empty string
         /// </summary>
@@ -254,7 +257,6 @@ namespace Dotmim.Sync
         [DataMember(Name = "SIT")]
         public String ScopeInfoTableName { get; set; }
 
-
         /// <summary>
         /// Get the default apply action on conflict resolution.
         /// Default is ServerWins
@@ -263,19 +265,15 @@ namespace Dotmim.Sync
              ApplyAction.Continue :
              ApplyAction.RetryWithForceWrite;
 
-
-
-
-
         public SyncConfiguration()
         {
             this.Schema = new DmSet(DMSET_NAME);
+            this.Filters = new List<FilterClause2>();
             this.ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
             this.DownloadBatchSizeInKB = 0;
             this.UseVerboseErrors = false;
             this.BatchDirectory = Path.Combine(Path.GetTempPath(), "DotmimSync");
             this.SerializationFormat = SerializationFormat.Json;
-            this.Filters = new List<FilterClause>();
             this.ScopeInfoTableName = "scope_info";
             this.ScopeName = "DefaultScope";
         }
@@ -289,34 +287,34 @@ namespace Dotmim.Sync
                 this.Add(table);
         }
 
-        public SyncConfiguration Clone()
-        {
-            SyncConfiguration syncConfiguration = new SyncConfiguration
-            {
-                BatchDirectory = this.BatchDirectory,
-                ConflictResolutionPolicy = this.ConflictResolutionPolicy,
-                DownloadBatchSizeInKB = this.DownloadBatchSizeInKB,
-                Schema = this.Schema.Clone(),
-                UseBulkOperations = this.UseBulkOperations,
-                UseVerboseErrors = this.UseVerboseErrors,
-                SerializationFormat = this.SerializationFormat,
-                Archive = this.Archive,
-                TrackingTablesSuffix = this.TrackingTablesSuffix,
-                TrackingTablesPrefix = this.TrackingTablesPrefix,
-                StoredProceduresPrefix = this.StoredProceduresPrefix,
-                StoredProceduresSuffix = this.StoredProceduresSuffix,
-                TriggersPrefix = this.TriggersPrefix,
-                TriggersSuffix = this.TriggersSuffix,
-                ScopeInfoTableName = this.ScopeInfoTableName,
-                ScopeName = this.ScopeName
-            };
+        ///// <summary>
+        ///// Clone everything from SyncConf, except Filters
+        ///// </summary>
+        ///// <returns></returns>
+        //public SyncConfiguration Clone()
+        //{
+        //    SyncConfiguration syncConfiguration = new SyncConfiguration
+        //    {
+        //        BatchDirectory = this.BatchDirectory,
+        //        ConflictResolutionPolicy = this.ConflictResolutionPolicy,
+        //        DownloadBatchSizeInKB = this.DownloadBatchSizeInKB,
+        //        Schema = this.Schema.Clone(),
+        //        UseBulkOperations = this.UseBulkOperations,
+        //        UseVerboseErrors = this.UseVerboseErrors,
+        //        SerializationFormat = this.SerializationFormat,
+        //        Archive = this.Archive,
+        //        TrackingTablesSuffix = this.TrackingTablesSuffix,
+        //        TrackingTablesPrefix = this.TrackingTablesPrefix,
+        //        StoredProceduresPrefix = this.StoredProceduresPrefix,
+        //        StoredProceduresSuffix = this.StoredProceduresSuffix,
+        //        TriggersPrefix = this.TriggersPrefix,
+        //        TriggersSuffix = this.TriggersSuffix,
+        //        ScopeInfoTableName = this.ScopeInfoTableName,
+        //        ScopeName = this.ScopeName
+        //    };
 
-            if (this.Filters != null)
-                foreach (var p in this.Filters)
-                    syncConfiguration.Filters.Add(new FilterClause(p.TableName, p.ColumnName, p.ColumnType));
-
-            return syncConfiguration;
-        }
+        //    return syncConfiguration;
+        //}
 
 
         public int Count
@@ -388,72 +386,6 @@ namespace Dotmim.Sync
             this.Schema.Tables.Add(item);
         }
 
-        //public void Clear()
-        //{
-        //    if (this.ScopeSet == null || this.ScopeSet.Tables == null)
-        //        return;
-
-        //    this.ScopeSet.Tables.Clear();
-        //}
-
-        //public DmTable this[int index]
-        //{
-        //    get
-        //    {
-        //        if (this.ScopeSet == null || this.ScopeSet.Tables == null)
-        //            return null;
-
-        //        return this.ScopeSet.Tables[index];
-        //    }
-        //}
-        //public DmTable this[string name]
-        //{
-        //    get
-        //    {
-        //        if (string.IsNullOrEmpty(name))
-        //            throw new ArgumentNullException("name");
-
-        //        if (this.ScopeSet == null || this.ScopeSet.Tables == null)
-        //            return null;
-
-        //        return this.ScopeSet.Tables[name];
-        //    }
-        //}
-        //public bool Contains(DmTable item)
-        //{
-        //    if (this.ScopeSet == null || this.ScopeSet.Tables == null)
-        //        return false;
-
-        //    return this.ScopeSet.Tables.Contains(item);
-        //}
-        //public void CopyTo(DmTable[] array, int arrayIndex)
-        //{
-        //    if (this.ScopeSet == null || this.ScopeSet.Tables == null)
-        //        return;
-
-        //    for (int i = 0; i < this.ScopeSet.Tables.Count; ++i)
-        //        array[arrayIndex + i] = this.ScopeSet.Tables[i];
-        //}
-        //public bool Remove(DmTable item)
-        //{
-        //    if (this.ScopeSet == null || this.ScopeSet.Tables == null)
-        //        return false;
-
-        //    return this.ScopeSet.Tables.Remove(item);
-        //}
-        //public IEnumerator<DmTable> GetEnumerator()
-        //{
-        //    if (this.ScopeSet == null || this.ScopeSet.Tables == null)
-        //        return null;
-
-        //    return this.ScopeSet.Tables.GetEnumerator();
-        //}
-        //IEnumerator IEnumerable.GetEnumerator()
-        //{
-        //    if (this.ScopeSet == null || this.ScopeSet.Tables == null)
-        //        yield break;
-
-        //    yield return this.ScopeSet.Tables.GetEnumerator();
-        //}
+     
     }
 }

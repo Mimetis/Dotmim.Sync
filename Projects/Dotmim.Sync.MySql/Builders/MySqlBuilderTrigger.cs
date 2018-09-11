@@ -22,10 +22,7 @@ namespace Dotmim.Sync.MySql
         private MySqlTransaction transaction;
         private MySqlObjectNames mySqlObjectNames;
 
-        public ICollection<FilterClause> Filters { get; set; }
-
-
-
+        public IList<FilterClause2> Filters { get; set; }
         public MySqlBuilderTrigger(DmTable tableDescription, DbConnection connection, DbTransaction transaction = null)
         {
             this.connection = connection as MySqlConnection;
@@ -37,37 +34,70 @@ namespace Dotmim.Sync.MySql
 
         private string DeleteTriggerBodyText()
         {
+            List<DmColumn> addedColumns = new List<DmColumn>();
+
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine("BEGIN");
-            stringBuilder.AppendLine($"UPDATE {trackingName.FullQuotedString} ");
-            stringBuilder.AppendLine("SET `sync_row_is_tombstone` = 1");
-            stringBuilder.AppendLine("\t,`update_scope_id` = NULL -- since the update if from local, it's a NULL");
-            stringBuilder.AppendLine($"\t,`update_timestamp` = {MySqlObjectNames.TimestampValue}");
-            stringBuilder.AppendLine($"\t,`timestamp` = {MySqlObjectNames.TimestampValue}");
-            stringBuilder.AppendLine("\t,`last_change_datetime` = utc_timestamp()");
+            stringBuilder.AppendLine($"BEGIN");
+            stringBuilder.AppendLine($"\tUPDATE {trackingName.FullQuotedString} ");
+            stringBuilder.AppendLine($"\tSET");
+            stringBuilder.AppendLine($"\t\t`sync_row_is_tombstone` = 1");
+            stringBuilder.AppendLine($"\t\t,`update_scope_id` = NULL -- since the update if from local, it's a NULL");
+            stringBuilder.AppendLine($"\t\t,`update_timestamp` = {MySqlObjectNames.TimestampValue}");
+            stringBuilder.AppendLine($"\t\t,`timestamp` = {MySqlObjectNames.TimestampValue}");
+            stringBuilder.AppendLine($"\t\t,`last_change_datetime` = utc_timestamp()");
 
-            // Filter columns
-            if (this.Filters != null)
+            //-----------------------------------------------------------
+            // Adding the foreign keys
+            //-----------------------------------------------------------
+            foreach (var pr in this.tableDescription.ChildRelations)
             {
-
-                foreach (var filterColumn in this.Filters)
+                // get the parent columns to have the correct name of the column (if we have mulitple columns who is bind to same child table)
+                // ie : AddressBillId and AddressInvoiceId
+                foreach (var c in pr.ParentColumns)
                 {
-                    if (this.tableDescription.PrimaryKey.Columns.Any(c => c.ColumnName.ToLowerInvariant() == filterColumn.ColumnName.ToLowerInvariant()))
+                    // dont add doublons
+                    if (this.tableDescription.PrimaryKey.Columns.Any(col => col.ColumnName.ToLowerInvariant() == c.ColumnName.ToLowerInvariant()))
                         continue;
 
-                    ObjectNameParser columnName = new ObjectNameParser(filterColumn.ColumnName, "`", "`");
+                    var quotedColumnName = new ObjectNameParser(c.ColumnName, "`", "`").FullQuotedString;
+                    stringBuilder.AppendLine($"\t\t,{quotedColumnName} = old.{quotedColumnName}");
 
-                    stringBuilder.AppendLine($"\t,{columnName.FullQuotedString} = `d`.{columnName.FullQuotedString}");
-
+                    addedColumns.Add(c);
                 }
-                stringBuilder.AppendLine();
+            }
+
+            // ---------------------------------------------------------------------
+            // Add the filter columns if needed, and if not already added from Pkeys or Fkeys
+            // ---------------------------------------------------------------------
+            if (this.Filters != null && this.Filters.Count > 0)
+            {
+                foreach (var filter in this.Filters)
+                {
+                    // if column is null, we are in a table that need a relation before
+                    if (string.IsNullOrEmpty(filter.FilterTable.ColumnName))
+                        continue;
+
+                    var columnFilter = this.tableDescription.Columns[filter.FilterTable.ColumnName];
+
+                    if (columnFilter == null)
+                        throw new InvalidExpressionException($"Column {filter.FilterTable.ColumnName} does not exist in Table {this.tableDescription.TableName}");
+
+                    if (addedColumns.Any(ac => ac.ColumnName.ToLowerInvariant() == columnFilter.ColumnName.ToLowerInvariant()))
+                        continue;
+
+                    var quotedColumnName = new ObjectNameParser(columnFilter.ColumnName, "`", "`").FullQuotedString;
+                    stringBuilder.AppendLine($"\t\t,{quotedColumnName} = old.{quotedColumnName}");
+
+                    addedColumns.Add(columnFilter);
+                }
             }
 
             stringBuilder.Append($"WHERE ");
             stringBuilder.Append(MySqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, trackingName.FullQuotedString, "old"));
             stringBuilder.AppendLine(";");
             stringBuilder.AppendLine("END;");
+            addedColumns.Clear();
             return stringBuilder.ToString();
         }
         public void CreateDeleteTrigger()
@@ -137,6 +167,8 @@ namespace Dotmim.Sync.MySql
         /// <returns></returns>
         private string InsertTriggerBodyText()
         {
+            List<DmColumn> addedColumns = new List<DmColumn>();
+
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("-- If row was deleted before, it already exists, so just make an update");
@@ -144,23 +176,20 @@ namespace Dotmim.Sync.MySql
 
             stringBuilder.AppendLine($"\tINSERT INTO {trackingName.FullQuotedString} (");
 
-            StringBuilder stringBuilderArguments = new StringBuilder();
-            StringBuilder stringBuilderArguments2 = new StringBuilder();
-            StringBuilder stringPkAreNull = new StringBuilder();
+            StringBuilder columnsString = new StringBuilder();
+            StringBuilder valuesString = new StringBuilder();
 
             string argComma = string.Empty;
-            string argAnd = string.Empty;
             foreach (var mutableColumn in this.tableDescription.PrimaryKey.Columns.Where(c => !c.IsReadOnly))
             {
                 ObjectNameParser columnName = new ObjectNameParser(mutableColumn.ColumnName, "`", "`");
-                stringBuilderArguments.AppendLine($"\t\t{argComma}{columnName.FullQuotedString}");
-                stringBuilderArguments2.AppendLine($"\t\t{argComma}new.{columnName.FullQuotedString}");
-                stringPkAreNull.Append($"{argAnd}{trackingName.FullQuotedString}.{columnName.FullQuotedString} IS NULL");
+                columnsString.AppendLine($"\t\t{argComma}{columnName.FullQuotedString}");
+                valuesString.AppendLine($"\t\t{argComma}new.{columnName.FullQuotedString}");
+
                 argComma = ",";
-                argAnd = " AND ";
             }
 
-            stringBuilder.Append(stringBuilderArguments.ToString());
+            stringBuilder.Append(columnsString.ToString());
             stringBuilder.AppendLine("\t\t,`create_scope_id`");
             stringBuilder.AppendLine("\t\t,`create_timestamp`");
             stringBuilder.AppendLine("\t\t,`update_scope_id`");
@@ -169,25 +198,74 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine("\t\t,`sync_row_is_tombstone`");
             stringBuilder.AppendLine("\t\t,`last_change_datetime`");
 
-            StringBuilder filterColumnsString = new StringBuilder();
 
-            // Filter columns
-            if (this.Filters != null && this.Filters.Count > 0)
+
+            //-----------------------------------------------------------
+            // Adding the foreign keys
+            //-----------------------------------------------------------
+
+            // supports all ",`CustomerId`"
+            StringBuilder columnsfiltersString = new StringBuilder();
+            // supports all ",new.`CustomerId`"
+            StringBuilder valuesfiltersString = new StringBuilder();
+            // supports all ",`CustomerId` = new.`CustomerId`
+            StringBuilder bothfiltersString = new StringBuilder();
+
+            foreach (var pkey in this.tableDescription.PrimaryKey.Columns)
+                addedColumns.Add(pkey);
+
+            foreach (var pr in this.tableDescription.ChildRelations)
             {
-                foreach (var filterColumn in this.Filters)
+                // get the parent columns to have the correct name of the column (if we have mulitple columns who is bind to same child table)
+                // ie : AddressBillId and AddressInvoiceId
+                foreach (var c in pr.ParentColumns)
                 {
-                    if (this.tableDescription.PrimaryKey.Columns.Any(c => c.ColumnName.ToLowerInvariant() == filterColumn.ColumnName.ToLowerInvariant()))
+                    // dont add doublons
+                    if (addedColumns.Any(col => col.ColumnName.ToLowerInvariant() == c.ColumnName.ToLowerInvariant()))
                         continue;
 
-                    ObjectNameParser columnName = new ObjectNameParser(filterColumn.ColumnName, "`", "`");
-                    filterColumnsString.AppendLine($"\t,{columnName.FullQuotedString}");
+                    var quotedColumnName = new ObjectNameParser(c.ColumnName, "`", "`").FullQuotedString;
+                    columnsfiltersString.AppendLine($"\t\t,{quotedColumnName}");
+                    valuesfiltersString.AppendLine($"\t\t,new.{quotedColumnName}");
+                    bothfiltersString.AppendLine($"\t\t,{quotedColumnName} = new.{quotedColumnName}");
+                    addedColumns.Add(c);
                 }
-                stringBuilder.AppendLine(filterColumnsString.ToString());
             }
 
+            // ---------------------------------------------------------------------
+            // Add the filter columns if needed, and if not already added from Pkeys or Fkeys
+            // ---------------------------------------------------------------------
+            if (this.Filters != null && this.Filters.Count > 0)
+            {
+                foreach (var filter in this.Filters)
+                {
+                    // if column is null, we are in a table that need a relation before
+                    if (string.IsNullOrEmpty(filter.FilterTable.ColumnName))
+                        continue;
+
+                    var columnFilter = this.tableDescription.Columns[filter.FilterTable.ColumnName];
+
+                    if (columnFilter == null)
+                        throw new InvalidExpressionException($"Column {filter.FilterTable.ColumnName} does not exist in Table {this.tableDescription.TableName}");
+
+                    if (addedColumns.Any(ac => ac.ColumnName.ToLowerInvariant() == columnFilter.ColumnName.ToLowerInvariant()))
+                        continue;
+
+                    var quotedColumnName = new ObjectNameParser(columnFilter.ColumnName, "`", "`").FullQuotedString;
+                    columnsfiltersString.AppendLine($"\t\t,{quotedColumnName}");
+                    valuesfiltersString.AppendLine($"\t\t,new.{quotedColumnName}");
+                    bothfiltersString.AppendLine($"\t\t,{quotedColumnName} = new.{quotedColumnName}");
+
+                    addedColumns.Add(columnFilter);
+                }
+            }
+
+            addedColumns.Clear();
+
+            stringBuilder.AppendLine(columnsfiltersString.ToString());
             stringBuilder.AppendLine("\t) ");
             stringBuilder.AppendLine("\tVALUES (");
-            stringBuilder.Append(stringBuilderArguments2.ToString());
+            stringBuilder.Append(valuesString.ToString());
             stringBuilder.AppendLine("\t\t,NULL");
             stringBuilder.AppendLine($"\t\t,{MySqlObjectNames.TimestampValue}");
             stringBuilder.AppendLine("\t\t,NULL");
@@ -195,26 +273,22 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine($"\t\t,{MySqlObjectNames.TimestampValue}");
             stringBuilder.AppendLine("\t\t,0");
             stringBuilder.AppendLine("\t\t,utc_timestamp()");
-
-            if (Filters != null && Filters.Count > 0)
-                stringBuilder.AppendLine(filterColumnsString.ToString());
+            stringBuilder.AppendLine(valuesfiltersString.ToString());
 
             stringBuilder.AppendLine("\t)");
-            stringBuilder.AppendLine("ON DUPLICATE KEY UPDATE");
-            stringBuilder.AppendLine("\t`sync_row_is_tombstone` = 0, ");
-            stringBuilder.AppendLine("\t`create_scope_id` = NULL, ");
-            stringBuilder.AppendLine("\t`update_scope_id` = NULL, ");
-            stringBuilder.AppendLine($"\t`create_timestamp` = {MySqlObjectNames.TimestampValue}, ");
-            stringBuilder.AppendLine("\t`update_timestamp` = NULL, ");
-            stringBuilder.AppendLine("\t`sync_row_is_tombstone` = 0, ");
-            stringBuilder.AppendLine($"\t`timestamp` = {MySqlObjectNames.TimestampValue}, ");
-            stringBuilder.AppendLine("\t`last_change_datetime` = utc_timestamp()");
+            stringBuilder.AppendLine($"ON DUPLICATE KEY UPDATE");
+            stringBuilder.AppendLine($"\t\t`sync_row_is_tombstone` = 0 ");
+            stringBuilder.AppendLine($"\t\t,`create_scope_id` = NULL ");
+            stringBuilder.AppendLine($"\t\t,`update_scope_id` = NULL ");
+            stringBuilder.AppendLine($"\t\t,`create_timestamp` = {MySqlObjectNames.TimestampValue} ");
+            stringBuilder.AppendLine($"\t\t,`update_timestamp` = NULL ");
+            stringBuilder.AppendLine($"\t\t,`sync_row_is_tombstone` = 0 ");
+            stringBuilder.AppendLine($"\t\t,`timestamp` = {MySqlObjectNames.TimestampValue} ");
+            stringBuilder.AppendLine($"\t\t,`last_change_datetime` = utc_timestamp()");
+            stringBuilder.AppendLine(bothfiltersString.ToString());
+            stringBuilder.AppendLine($"\t\t;");
 
-            if (Filters != null && Filters.Count > 0)
-                stringBuilder.AppendLine(filterColumnsString.ToString());
-
-            stringBuilder.Append(";");
-            stringBuilder.AppendLine("END");
+            stringBuilder.AppendLine("END;");
             return stringBuilder.ToString();
         }
         public void CreateInsertTrigger()
@@ -281,26 +355,65 @@ namespace Dotmim.Sync.MySql
 
         private string UpdateTriggerBodyText()
         {
+            var addedColumns = new List<DmColumn>();
+
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($"Begin ");
             stringBuilder.AppendLine($"\tUPDATE {trackingName.FullQuotedString} ");
-            stringBuilder.AppendLine("\tSET `update_scope_id` = NULL -- since the update if from local, it's a NULL");
+            stringBuilder.AppendLine($"\tSET");
+            stringBuilder.AppendLine($"\t\t`update_scope_id` = NULL -- since the update if from local, it's a NULL");
             stringBuilder.AppendLine($"\t\t,`update_timestamp` = {MySqlObjectNames.TimestampValue}");
             stringBuilder.AppendLine($"\t\t,`timestamp` = {MySqlObjectNames.TimestampValue}");
-            stringBuilder.AppendLine("\t\t,`last_change_datetime` = utc_timestamp()");
+            stringBuilder.AppendLine($"\t\t,`last_change_datetime` = utc_timestamp()");
 
-            if (this.Filters != null && Filters.Count > 0)
+            //-----------------------------------------------------------
+            // Adding the foreign keys
+            //-----------------------------------------------------------
+            foreach (var pkey in this.tableDescription.PrimaryKey.Columns)
+                addedColumns.Add(pkey);
+
+            foreach (var pr in this.tableDescription.ChildRelations)
             {
-                foreach (var filterColumn in this.Filters)
+                // get the parent columns to have the correct name of the column (if we have mulitple columns who is bind to same child table)
+                // ie : AddressBillId and AddressInvoiceId
+                foreach (var c in pr.ParentColumns)
                 {
-                    if (this.tableDescription.PrimaryKey.Columns.Any(c => c.ColumnName.ToLowerInvariant() == filterColumn.ColumnName.ToLowerInvariant()))
+                    // dont add doublons
+                    if (this.tableDescription.PrimaryKey.Columns.Any(col => col.ColumnName.ToLowerInvariant() == c.ColumnName.ToLowerInvariant()))
                         continue;
 
-                    ObjectNameParser columnName = new ObjectNameParser(filterColumn.ColumnName, "`", "`");
-                    stringBuilder.AppendLine($"\t,{columnName.FullQuotedString} = `i`.{columnName.FullQuotedString}");
+                    var quotedColumnName = new ObjectNameParser(c.ColumnName, "`", "`").FullQuotedString;
+                    stringBuilder.AppendLine($"\t\t,{quotedColumnName} = new.{quotedColumnName}"); ;
+
+                    addedColumns.Add(c);
                 }
-                stringBuilder.AppendLine();
+            }
+
+            // ---------------------------------------------------------------------
+            // Add the filter columns if needed, and if not already added from Pkeys or Fkeys
+            // ---------------------------------------------------------------------
+            if (this.Filters != null && this.Filters.Count > 0)
+            {
+                foreach (var filter in this.Filters)
+                {
+                    // if column is null, we are in a table that need a relation before
+                    if (string.IsNullOrEmpty(filter.FilterTable.ColumnName))
+                        continue;
+
+                    var columnFilter = this.tableDescription.Columns[filter.FilterTable.ColumnName];
+
+                    if (columnFilter == null)
+                        throw new InvalidExpressionException($"Column {filter.FilterTable.ColumnName} does not exist in Table {this.tableDescription.TableName}");
+
+                    if (addedColumns.Any(ac => ac.ColumnName.ToLowerInvariant() == columnFilter.ColumnName.ToLowerInvariant()))
+                        continue;
+
+                    var quotedColumnName = new ObjectNameParser(columnFilter.ColumnName, "`", "`").FullQuotedString;
+                    stringBuilder.AppendLine($"\t\t,{quotedColumnName} = new.{quotedColumnName}"); ;
+
+                    addedColumns.Add(columnFilter);
+                }
             }
 
             stringBuilder.Append($"\tWhere ");

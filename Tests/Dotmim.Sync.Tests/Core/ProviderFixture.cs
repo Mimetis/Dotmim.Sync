@@ -56,7 +56,7 @@ namespace Dotmim.Sync.Tests.Core
                 this.Tables = tables;
         }
 
-        internal void AddFilter(ProviderType providerType, FilterClause filter)
+        internal void AddFilter(ProviderType providerType, FilterClause2 filter)
         {
             if (providerType == this.ProviderType)
             {
@@ -191,7 +191,7 @@ namespace Dotmim.Sync.Tests.Core
         /// <summary>
         /// Get the filters parameters
         /// </summary>
-        public List<FilterClause> Filters { get; private set; } = new List<FilterClause>();
+        public List<FilterClause2> Filters { get; private set; } = new List<FilterClause2>();
 
         /// <summary>
         /// Get the filters parameters values 
@@ -313,7 +313,7 @@ namespace Dotmim.Sync.Tests.Core
                 agentConfiguration.Filters.Clear();
 
                 foreach(var f in conf.Filters)
-                    agentConfiguration.Filters.Add(f.TableName, f.ColumnName);
+                    agentConfiguration.Filters.Add(f);
             }
 
         }

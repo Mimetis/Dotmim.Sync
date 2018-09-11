@@ -246,24 +246,27 @@ namespace Dotmim.Sync
         /// <summary>
         /// Adding filters to an existing configuration
         /// </summary>
-        private void AddFilters(ICollection<FilterClause> filters, DmTable dmTable, DbBuilder builder)
+        private void AddFilters(List<FilterClause2> filters, DmTable dmTable, DbBuilder builder)
         {
             if (filters != null && filters.Count > 0)
             {
-                var tableFilters = filters.Where(f => dmTable.TableName.Equals(f.TableName, StringComparison.InvariantCultureIgnoreCase));
-
-                foreach (var filter in tableFilters)
+                // Get the filters for the current table
+                var tableFilters = filters.Where(f =>
                 {
-                    var columnFilter = dmTable.Columns[filter.ColumnName];
+                    // Could be a schema table name
+                    var filterTableName = f.FilterTable.TableName;
 
-                    if (columnFilter == null && !filter.IsVirtual)
-                        throw new InvalidExpressionException($"Column {filter.ColumnName} does not exist in Table {dmTable.TableName}");
+                    var isSameTableName = dmTable.TableName.Equals(filterTableName.ObjectNameNormalized, StringComparison.InvariantCultureIgnoreCase);
 
-                    builder.FilterColumns.Add(new FilterClause(filter.TableName, filter.ColumnName, filter.ColumnType));
-                }
-            }
+                    var isSameSchema = dmTable.Schema.Equals(filterTableName.SchemaName);
+
+                    return isSameTableName && isSameSchema;
+                });
+
+            foreach (var filter in tableFilters)
+                builder.Filters.Add(filter);
 
         }
-
     }
+}
 }

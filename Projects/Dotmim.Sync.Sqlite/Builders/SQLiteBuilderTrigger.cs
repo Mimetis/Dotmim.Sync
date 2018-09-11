@@ -22,7 +22,7 @@ namespace Dotmim.Sync.Sqlite
         private SqliteTransaction transaction;
         private SqliteObjectNames sqliteObjectNames;
 
-        public ICollection<FilterClause> Filters { get; set; }
+        public IList<FilterClause2> Filters { get; set; }
 
 
 
@@ -198,8 +198,8 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine("\t\t,0");
             stringBuilder.AppendLine("\t\t,datetime('now')");
 
-            if (Filters != null && Filters.Count > 0)
-                stringBuilder.AppendLine(filterColumnsString.ToString());
+            //if (Filters != null && Filters.Count > 0)
+            //    stringBuilder.AppendLine(filterColumnsString.ToString());
 
             stringBuilder.AppendLine("\t);");
             stringBuilder.AppendLine("END;");

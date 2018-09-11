@@ -46,7 +46,7 @@ namespace Dotmim.Sync.Messages
         /// <summary>
         /// Gets or Sets the Batch Info used for this sync session
         /// </summary>
-        public ICollection<FilterClause> Filters { get; set; }
+        public List<FilterClause2> Filters { get; set; }
 
         /// <summary>
         /// Gets or Sets the Serialization format used during the sync

@@ -40,22 +40,12 @@ namespace Dotmim.Sync
         /// <param name="tableName">Table name involved in the filter</param>
         /// <param name="columnName">Column name involved in the filter</param>
         /// <param name="value">Parameter value</param>
-        public static void Add<T>(this ICollection<SyncParameter> paramsList, string tableName, string columnName, T value)
+        public static void Add<T>(this ICollection<SyncParameter> paramsList, string parameterName, T value)
         {
-            paramsList.Add(new SyncParameter(tableName, columnName, value));
+            paramsList.Add(new SyncParameter(parameterName, value));
         }
 
-        /// <summary>
-        ///  Shortcut to add a new parameter value to a filter
-        /// </summary>
-        /// <typeparam name="T">Parameter type</typeparam>
-        /// <param name="filterClause">Filter clause, containing the table name and the column name</param>
-        /// <param name="value">Parameter value</param>
-        public static void Add<T>(this ICollection<SyncParameter> paramsList, FilterClause filterClause, T value)
-        {
-            paramsList.Add(new SyncParameter(filterClause.TableName, filterClause.ColumnName, value));
-        }
-
+ 
         /// <summary>
         /// Returns a collection containing only FilterClauses which are not virtual (that are backed by a real table column)
         /// </summary>

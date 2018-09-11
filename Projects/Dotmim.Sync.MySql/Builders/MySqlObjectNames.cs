@@ -43,12 +43,28 @@ namespace Dotmim.Sync.MySql
 
             names.Add(objectType, name);
         }
-        public string GetCommandName(DbCommandType objectType, IEnumerable<string> adds = null)
+        public string GetCommandName(DbCommandType objectType, IEnumerable<string> filters = null)
         {
             if (!names.ContainsKey(objectType))
                 throw new NotSupportedException($"MySql provider does not support the command type {objectType.ToString()}");
 
-            return names[objectType];
+            var commandName = names[objectType];
+
+            if (filters != null)
+            {
+                string name = "";
+                string sep = "";
+                foreach (var c in filters)
+                {
+                    var unquotedColumnName = new ObjectNameParser(c).FullUnquotedString;
+                    name += $"{unquotedColumnName}{sep}";
+                    sep = "_";
+                }
+
+                commandName = String.Format(commandName, name);
+            }
+
+            return commandName;
         }
 
         public MySqlObjectNames(DmTable tableDescription)

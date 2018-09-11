@@ -68,11 +68,14 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         public async virtual Task Initialize()
         {
+
             var results = await this.testRunner.RunTestsAsync();
 
             foreach (var trr in results)
             {
-                Assert.Equal(82, trr.Results.TotalChangesDownloaded);
+                // filtered : 63
+                // not filtered : 82
+                Assert.Equal(63, trr.Results.TotalChangesDownloaded);
                 Assert.Equal(0, trr.Results.TotalChangesUploaded);
             }
         }
@@ -115,92 +118,10 @@ namespace Dotmim.Sync.Tests
         }
 
         /// <summary>
-        /// Insert one row on server, should be correctly sync on all clients
+        /// Insert several rows on server, with a foreign key involved, 
+        /// Should be correctly sync on all clients
         /// </summary>
-        public async virtual Task Insert_One_Table_From_Server()
-        {
-            foreach (var conf in TestConfigurations.GetConfigurations())
-            {
-                var name = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
-                var productNumber = Path.GetRandomFileName().Replace(".", "").ToUpperInvariant().Substring(0, 10);
-
-                Product product = new Product { ProductId = Guid.NewGuid(), Name = name, ProductNumber = productNumber };
-
-                using (var serverDbCtx = GetServerDbContext())
-                {
-                    serverDbCtx.Product.Add(product);
-                    await serverDbCtx.SaveChangesAsync();
-                }
-
-                var results = await this.testRunner.RunTestsAsync(conf);
-
-                foreach (var trr in results)
-                {
-                    Assert.Equal(1, trr.Results.TotalChangesDownloaded);
-                    Assert.Equal(0, trr.Results.TotalChangesUploaded);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Insert one row on each client, should be correctly sync on server and all clients
-        /// </summary>
-        public async virtual Task Insert_One_Table_From_Client()
-        {
-            foreach (var conf in TestConfigurations.GetConfigurations())
-            {
-                foreach (var clientRun in this.fixture.ClientRuns)
-                {
-                    var name = Path.GetRandomFileName().Replace(".", "");
-                    var id = name.ToUpperInvariant().Substring(0, 6);
-
-                    using (var ctx = GetClientDbContext(clientRun))
-                    {
-                        ProductCategory pc = new ProductCategory { Name = name, ProductCategoryId = id };
-                        ctx.ProductCategory.Add(pc);
-                        await ctx.SaveChangesAsync();
-                    }
-                }
-
-                // first sync. each client will send its own row to the server
-                // so the first client won't get anything from the second
-                // the last one will have all the rows, as well as the server
-                var results = await this.testRunner.RunTestsAsync(conf);
-
-                for (int i = 0; i < this.fixture.ClientRuns.Count; i++)
-                {
-                    var testRunner = this.fixture.ClientRuns[i];
-
-                    Assert.Equal(0 + i, testRunner.Results.TotalChangesDownloaded);
-                    Assert.Equal(1, testRunner.Results.TotalChangesUploaded);
-                }
-
-                // now a last sync to be sure all clients have all rows
-                var results2 = await this.testRunner.RunTestsAsync(conf);
-
-                // check rows count on server
-                int productCategoryRowCount = 0;
-                using (var serverDbCtx = GetServerDbContext())
-                {
-                    productCategoryRowCount = await serverDbCtx.ProductCategory.AsNoTracking().CountAsync();
-                }
-
-                // check rows number on all product category table
-                foreach (var clientRun in this.fixture.ClientRuns)
-                {
-                    using (var ctx = GetClientDbContext(clientRun))
-                    {
-                        var rowCount = await ctx.ProductCategory.AsNoTracking().CountAsync();
-                        Assert.Equal(productCategoryRowCount, rowCount);
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Insert several rows on server, with a foreign key involved, should be correctly sync on all clients
-        /// </summary>
-        public async virtual Task Insert_Multiple_Tables_From_Server()
+        public async virtual Task Insert_From_Server()
         {
             foreach (var conf in TestConfigurations.GetConfigurations())
             {
@@ -237,9 +158,10 @@ namespace Dotmim.Sync.Tests
         }
 
         /// <summary>
-        /// Insert several rows on each client, with a foreign key involved, should be correctly sync on server and all clients
+        /// Insert several rows on each client, with a foreign key involved, 
+        /// Should be correctly sync on server and all clients
         /// </summary>
-        public async virtual Task Insert_Multiple_Tables_From_Client()
+        public async virtual Task Insert_From_Client()
         {
             foreach (var conf in TestConfigurations.GetConfigurations())
             {
@@ -303,10 +225,14 @@ namespace Dotmim.Sync.Tests
         }
 
         /// <summary>
-        /// Update one row from server. Should be updated on each client
+        /// Update at least 2 tables (with foreign key constraint) from server. 
+        /// Should be updated on each client
+        /// Work on Address. Part of the filter
         /// </summary>
-        public async virtual Task Update_One_Table_From_Server()
+        public async virtual Task Update_From_Server()
         {
+            int addressId = 3;
+
             foreach (var conf in TestConfigurations.GetConfigurations())
             {
                 string randomAddressLine;
@@ -316,7 +242,7 @@ namespace Dotmim.Sync.Tests
                 // get the first address with ID=1
                 using (var serverDbCtx = GetServerDbContext())
                 {
-                    Address address = await serverDbCtx.Address.SingleAsync(a => a.AddressId == 1);
+                    Address address = await serverDbCtx.Address.SingleAsync(a => a.AddressId == addressId);
 
                     // Update at least two properties
                     // Use a random string for each configuration
@@ -342,7 +268,7 @@ namespace Dotmim.Sync.Tests
                     // check row updated values
                     using (var ctx = GetClientDbContext(trr))
                     {
-                        var cliAddress = await ctx.Address.AsNoTracking().SingleAsync(a => a.AddressId == 1);
+                        var cliAddress = await ctx.Address.AsNoTracking().SingleAsync(a => a.AddressId == addressId);
                         Assert.Equal(city, cliAddress.City);
                         Assert.Equal(stateProvince, cliAddress.StateProvince);
                         Assert.Equal(randomAddressLine, cliAddress.AddressLine2);
@@ -353,22 +279,25 @@ namespace Dotmim.Sync.Tests
         }
 
         /// <summary>
-        /// Update one row from client. Should be update on server and on each client
-        /// To avoid conflicts, each client should update a different row
+        /// Update at least 2 tables (with foreign key constraint) from client.
+        /// Should be update on server and on each client
+        /// Work on Address. Part of the filter
         /// </summary>
-        public async virtual Task Update_One_Table_From_Client()
+        public async virtual Task Update_From_Client()
         {
+            int addressId = 3;
+
             foreach (var conf in TestConfigurations.GetConfigurations())
             {
                 // get a for instead of foreach to have an index corresponding to the Address pkeyid, ensuring I won't have conflicts beetween clients
                 // start on "Index-Base-1"
-                for (int i = 1; i <= fixture.ClientRuns.Count; i++)
+                foreach (var testRun in this.fixture.ClientRuns)
                 {
-                    ProviderRun testRun = this.fixture.ClientRuns[i - 1];
+                    // Update on client
                     using (var ctx = GetClientDbContext(testRun))
                     {
                         // get the client address with ID=i
-                        Address address = await ctx.Address.SingleAsync(a => a.AddressId == i);
+                        Address address = await ctx.Address.SingleAsync(a => a.AddressId == addressId);
 
                         // Update at least two properties
                         // Use a random string for each configuration
@@ -379,59 +308,224 @@ namespace Dotmim.Sync.Tests
                         address.AddressLine2 = randomAddressLine;
 
                         await ctx.SaveChangesAsync();
-
                     }
-                }
 
-                // Each client will update its own row. Server will so update multiples lines
-                // First    client will have 1 upload and then 0 download
-                // Second   client will have 1 upload and then 1 download
-                // Third    client will have 1 upload and then 2 downloads
-                // and so on ...
-                var results = await this.testRunner.RunTestsAsync(conf);
+                    // test
+                    var resultsUpdates = await testRun.RunAsync(ServerProvider, this.fixture, null, this.fixture.Tables, conf);
 
-                for (int i = 0; i < this.fixture.ClientRuns.Count; i++)
-                {
-                    var testRunner = this.fixture.ClientRuns[i];
+                    Assert.Equal(0, resultsUpdates.Results.TotalChangesDownloaded);
+                    Assert.Equal(1, resultsUpdates.Results.TotalChangesUploaded);
 
-                    Assert.Equal(0 + i, testRunner.Results.TotalChangesDownloaded);
-                    Assert.Equal(1, testRunner.Results.TotalChangesUploaded);
-                }
-
-                // Sync again to be sure all clients have the exact same lines
-                await this.testRunner.RunTestsAsync(conf);
-
-                // get all address from server
-                using (var serverDbCtx = GetServerDbContext())
-                {
-                    var serverAddresses = await serverDbCtx.Address.AsNoTracking().ToListAsync();
-
-                    for (int i = 0; i < this.fixture.ClientRuns.Count; i++)
+                    // check server value
+                    using (var ctx = GetClientDbContext(testRun))
                     {
-                        var clientRun = this.fixture.ClientRuns[i];
+                        // getl all addresses we have on client
+                        var clientAddresses = await ctx.Address.AsNoTracking().ToListAsync();
 
-                        using (var ctx = GetClientDbContext(clientRun))
+                        foreach (var clientAddress in clientAddresses)
                         {
-                            var clientAddresses = await ctx.Address.AsNoTracking().ToListAsync();
-
-                            // check row count
-                            Assert.Equal(serverAddresses.Count, clientAddresses.Count);
-
-                            foreach (var clientAddress in clientAddresses)
+                            using (var serverDbCtx = GetServerDbContext())
                             {
-                                var serverAddress = serverAddresses.First(a => a.AddressId == clientAddress.AddressId);
+                                var serverAddress = await serverDbCtx.Address.AsNoTracking()
+                                           .SingleOrDefaultAsync(sa => sa.AddressId == clientAddress.AddressId);
 
                                 // check column value
                                 Assert.Equal(serverAddress.StateProvince, clientAddress.StateProvince);
                                 Assert.Equal(serverAddress.AddressLine2, clientAddress.AddressLine2);
+
                             }
                         }
                     }
+                    
+                    // Sync again to be sure all clients have the exact same lines
+                    await this.testRunner.RunTestsAsync(conf);
+
                 }
+
+
             }
 
             // launch a last sync to be sure everything is up to date for next test
             var endOfTestResults = await this.testRunner.RunTestsAsync();
+        }
+
+        /// <summary>
+        /// Delete rows from at least 2 tables (with foreign key constraint) from server.
+        /// Should be deleted as well on all clients
+        /// To be consistent, this method will 
+        /// - First insert rows on the server side.
+        /// - Then sync to initialize both the server and client with those new rows
+        /// - Then delete them on server 
+        /// - Check if the rows are correctly deleted on client
+        /// </summary>
+        public async virtual Task Delete_From_Server()
+        {
+            var configurations = TestConfigurations.GetConfigurations();
+
+            // part of the filter
+            var employeeId = 1;
+            // will be defined when address is inserted
+            var addressId = 0;
+
+            for (int i = 0; i < configurations.Count; i++)
+            {
+                SyncConfiguration conf = configurations[i];
+                // insert in db server
+                // first of all, delete the line from server
+                using (var serverDbCtx = GetServerDbContext())
+                {
+
+                    // Insert a new address for employee 1
+                    var city = "Paris " + Path.GetRandomFileName().Replace(".", "");
+                    var addressline1 = "Rue Monthieu " + Path.GetRandomFileName().Replace(".", "");
+                    var stateProvince = "Ile de France";
+                    var countryRegion = "France";
+                    var postalCode = "75001";
+
+                    Address address = new Address
+                    {
+                        AddressLine1 = addressline1,
+                        City = city,
+                        StateProvince = stateProvince,
+                        CountryRegion = countryRegion,
+                        PostalCode = postalCode
+
+                    };
+
+                    serverDbCtx.Add(address);
+                    await serverDbCtx.SaveChangesAsync();
+                    addressId = address.AddressId;
+
+                    EmployeeAddress employeeAddress = new EmployeeAddress
+                    {
+                        EmployeeId = employeeId,
+                        AddressId = address.AddressId,
+                        AddressType = "SERVER"
+                    };
+
+                    serverDbCtx.Add(employeeAddress);
+                    await serverDbCtx.SaveChangesAsync();
+
+                }
+
+                // Upload this new address / employee address
+                var resultsInsertServer = await this.testRunner.RunTestsAsync(conf);
+
+                // check the download to client
+                foreach (var trr in resultsInsertServer)
+                {
+                    Assert.Equal(2, trr.Results.TotalChangesDownloaded);
+                    Assert.Equal(0, trr.Results.TotalChangesUploaded);
+                }
+
+                // Delete those lines from server
+                using (var serverDbCtx = GetServerDbContext())
+                {
+                    // Get the addresses query
+                    var address = await serverDbCtx.Address.SingleAsync(a => a.AddressId == addressId);
+                    var empAddress = await serverDbCtx.EmployeeAddress.SingleAsync(a => a.AddressId == addressId && a.EmployeeId == employeeId);
+
+                    // remove them
+                    serverDbCtx.EmployeeAddress.Remove(empAddress);
+                    serverDbCtx.Address.Remove(address);
+
+                    // Execute query
+                    await serverDbCtx.SaveChangesAsync();
+                }
+
+                var resultsDeleteOnServer = await this.testRunner.RunTestsAsync(conf);
+
+                foreach (var trr in resultsDeleteOnServer)
+                {
+                    Assert.Equal(2, trr.Results.TotalChangesDownloaded);
+                    Assert.Equal(0, trr.Results.TotalChangesUploaded);
+
+                    // check row deleted on client values
+                    using (var ctx = GetClientDbContext(trr))
+                    {
+                        var finalAddressesCount = await ctx.Address.AsNoTracking().CountAsync(a => a.AddressId == addressId);
+                        var finalEmployeeAddressesCount = await ctx.EmployeeAddress.AsNoTracking().CountAsync(a => a.AddressId == addressId && a.EmployeeId == employeeId);
+                        Assert.Equal(0, finalAddressesCount);
+                        Assert.Equal(0, finalEmployeeAddressesCount);
+                    }
+                }
+
+                // reset all clients
+                await this.testRunner.RunTestsAsync(conf);
+            }
+        }
+
+        /// <summary>
+        /// Delete rows from at least 2 tables (with foreign key constraint) from client.
+        /// Should be deleted as well on server
+        /// To be consistent, this method will 
+        /// - First insert rows on the client side, 
+        /// - Then sync to initialize both the server and client with those new rows
+        /// - Then delete them on client 
+        /// - Check if the rows are correctly deleted on server
+        /// </summary>
+        public async virtual Task Delete_From_Client()
+        {
+            foreach (SyncConfiguration conf in TestConfigurations.GetConfigurations())
+            {
+                foreach (var testRun in this.fixture.ClientRuns)
+                {
+                    var productCategoryName = Path.GetRandomFileName().Replace(".", "");
+                    var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
+
+                    var productId = Guid.NewGuid();
+                    var productName = Path.GetRandomFileName().Replace(".", "");
+                    var productNumber = productName.ToUpperInvariant().Substring(0, 10);
+
+                    using (var ctx = GetClientDbContext(testRun))
+                    {
+                        ProductCategory pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
+                        ctx.Add(pc);
+                        Product product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber, ProductCategoryId = productCategoryId };
+                        ctx.Add(product);
+
+                        await ctx.SaveChangesAsync();
+                    }
+
+                    // Inser this product / productcategory on server with sync
+                    var resultsInsertServer = await testRun.RunAsync(ServerProvider, this.fixture, null, this.fixture.Tables, conf);
+
+                    Assert.Equal(0, resultsInsertServer.Results.TotalChangesDownloaded);
+                    Assert.Equal(2, resultsInsertServer.Results.TotalChangesUploaded);
+
+                    // now delete them
+                    using (var ctx = GetClientDbContext(testRun))
+                    {
+                        var prodCat = await ctx.ProductCategory.SingleAsync(pc => pc.ProductCategoryId == productCategoryId);
+                        var prod = await ctx.Product.SingleAsync(pc => pc.ProductId == productId);
+
+                        ctx.Remove(prod);
+                        ctx.Remove(prodCat);
+
+                        await ctx.SaveChangesAsync();
+                    }
+
+                    // Inser this product / productcategory on server with sync
+                    var resultsDeleteServer = await testRun.RunAsync(ServerProvider, this.fixture, null, this.fixture.Tables, conf);
+
+                    Assert.Equal(0, resultsInsertServer.Results.TotalChangesDownloaded);
+                    Assert.Equal(2, resultsInsertServer.Results.TotalChangesUploaded);
+
+                    // check row deleted on server values
+                    using (var ctx = GetServerDbContext())
+                    {
+                        var serverProdCatCount = await ctx.ProductCategory.AsNoTracking().CountAsync(a => a.ProductCategoryId == productCategoryId);
+                        var serverProdCount = await ctx.Product.AsNoTracking().CountAsync(a => a.ProductId == productId);
+                        Assert.Equal(0, serverProdCatCount);
+                        Assert.Equal(0, serverProdCount);
+                    }
+
+                    // reset all clients
+                    await this.testRunner.RunTestsAsync(conf);
+
+                }
+
+            }
         }
 
         /// <summary>
@@ -981,142 +1075,6 @@ namespace Dotmim.Sync.Tests
             }
         }
 
-        /// <summary>
-        /// Delete some rows from one table. Address from primary key 6 and +, are not used
-        /// </summary>
-        /// <returns></returns>
-        public async virtual Task Delete_One_Table_From_Server()
-        {
-            var configurations = TestConfigurations.GetConfigurations();
-
-            for (int i = 0; i < configurations.Count; i++)
-            {
-                SyncConfiguration conf = configurations[i];
-
-                // get a new item to delete
-                var id = 6 + i;
-
-                // first of all, delete the line from server
-                using (var serverDbCtx = GetServerDbContext())
-                {
-                    // Get the addresses query
-                    var address = await serverDbCtx.Address.SingleAsync(a => a.AddressId == id);
-
-                    // remove them
-                    serverDbCtx.Address.Remove(address);
-
-                    // Execute query
-                    await serverDbCtx.SaveChangesAsync();
-                }
-
-                var results = await this.testRunner.RunTestsAsync(conf);
-
-                int finalServerAddressesCount = 0;
-                using (var serverDbCtx = GetServerDbContext())
-                {
-                    finalServerAddressesCount = await serverDbCtx.Address.AsNoTracking().CountAsync();
-                }
-
-                foreach (var trr in results)
-                {
-                    Assert.Equal(1, trr.Results.TotalChangesDownloaded);
-                    Assert.Equal(0, trr.Results.TotalChangesUploaded);
-
-                    int finalClientAddressesCount = 0;
-
-                    // check row updated values
-                    using (var ctx = GetClientDbContext(trr))
-                    {
-                        finalClientAddressesCount = await ctx.Address.AsNoTracking().CountAsync();
-                    }
-
-                    Assert.Equal(finalServerAddressesCount, finalClientAddressesCount);
-
-                }
-            }
-        }
-
-        /// <summary>
-        /// Delete some rows in multiple tables. Choose rows in table with foreign key constraint
-        /// </summary>
-        public async virtual Task Delete_Multiple_Tables_From_Server()
-        {
-            var configurations = TestConfigurations.GetConfigurations();
-
-            for (int i = 0; i < configurations.Count; i++)
-            {
-                SyncConfiguration conf = configurations[i];
-
-                // first of all, insert a product category and a product
-                var productId = Guid.NewGuid();
-                var productName = Path.GetRandomFileName().Replace(".", "");
-                var productNumber = productName.ToUpperInvariant().Substring(0, 10);
-
-                var productCategoryName = Path.GetRandomFileName().Replace(".", "");
-                var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
-
-                // insert 2 rows
-                using (var serverDbCtx = GetServerDbContext())
-                {
-                    ProductCategory pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
-                    serverDbCtx.Add(pc);
-
-                    Product product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber };
-                    serverDbCtx.Add(product);
-
-                    await serverDbCtx.SaveChangesAsync();
-                }
-
-                // Sync to be sure everything is correct on both side
-                await this.testRunner.RunTestsAsync(conf);
-
-                // Then delete these lines from server
-                using (var serverDbCtx = GetServerDbContext())
-                {
-                    // Get the lines
-                    var sproduct = await serverDbCtx.Product.SingleAsync(p => p.ProductId == productId);
-                    var sproductCat = await serverDbCtx.ProductCategory.SingleAsync(pc => pc.ProductCategoryId == productCategoryId);
-
-                    // remove them
-                    serverDbCtx.Remove(sproduct);
-                    serverDbCtx.Remove(sproductCat);
-
-                    // Execute query
-                    await serverDbCtx.SaveChangesAsync();
-                }
-
-                var results = await this.testRunner.RunTestsAsync(conf);
-
-                int finalServerProductCount = 0;
-                int finalServerProductCategoryCount = 0;
-
-                using (var serverDbCtx = GetServerDbContext())
-                {
-                    finalServerProductCount = await serverDbCtx.Product.AsNoTracking().CountAsync();
-                    finalServerProductCategoryCount = await serverDbCtx.ProductCategory.AsNoTracking().CountAsync();
-                }
-
-                foreach (var trr in results)
-                {
-                    Assert.Equal(2, trr.Results.TotalChangesDownloaded);
-                    Assert.Equal(0, trr.Results.TotalChangesUploaded);
-
-                    int finalClientProductCount = 0;
-                    int finalClientProductCategoryCount = 0;
-
-                    // check row updated values
-                    using (var ctx = GetClientDbContext(trr))
-                    {
-                        finalClientProductCount = await ctx.Product.AsNoTracking().CountAsync();
-                        finalClientProductCategoryCount = await ctx.ProductCategory.AsNoTracking().CountAsync();
-                    }
-
-                    Assert.Equal(finalServerProductCount, finalClientProductCount);
-                    Assert.Equal(finalServerProductCategoryCount, finalClientProductCategoryCount);
-
-                }
-            }
-        }
 
         /// <summary>
         /// The idea is to insert an item, then delete it, then sync.
@@ -1215,14 +1173,6 @@ namespace Dotmim.Sync.Tests
         }
 
 
-        public Task Delete_One_Table_From_Client()
-        {
-            throw new NotImplementedException();
-        }
-        public Task Delete_Multiple_Tables_From_Client()
-        {
-            throw new NotImplementedException();
-        }
 
         public Task Insert_Update_Delete_From_Server()
         {
@@ -1232,14 +1182,7 @@ namespace Dotmim.Sync.Tests
         {
             throw new NotImplementedException();
         }
-        public Task Update_Multiple_Rows_From_Client()
-        {
-            throw new NotImplementedException();
-        }
-        public Task Update_Multiple_Rows_From_Server()
-        {
-            throw new NotImplementedException();
-        }
+
 
         /// <summary>
         /// Should be able to Deprovision a whole database

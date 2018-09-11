@@ -11,9 +11,9 @@ namespace Dotmim.Sync.Filter
         {
 
         }
-        public void Add<T>(string tableName, string columnName, T value)
+        public void Add<T>(string parameterName, T value)
         {
-            this.Add(new SyncParameter(tableName, columnName, value));
+            this.Add(new SyncParameter(parameterName, value));
         }
 
     }

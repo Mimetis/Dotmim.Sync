@@ -23,7 +23,7 @@ namespace Dotmim.Sync.Builders
         /// <summary>
         /// Filtered Columns
         /// </summary>
-        public ICollection<FilterClause> FilterColumns { get; set; } = new List<FilterClause>();
+        public List<FilterClause2> Filters { get; set; } = new List<FilterClause2>();
 
         /// <summary>
         /// You have to provide a proc builder implementation for your current database
@@ -107,7 +107,7 @@ namespace Dotmim.Sync.Builders
             try
             {
                 var trackingTableBuilder = CreateTrackingTableBuilder(connection, transaction);
-                trackingTableBuilder.Filters = this.FilterColumns.GetColumnFilters();
+                trackingTableBuilder.Filters = this.Filters;
 
                 if (trackingTableBuilder.NeedToCreateTrackingTable())
                 {
@@ -137,7 +137,7 @@ namespace Dotmim.Sync.Builders
             try
             {
                 var triggerBuilder = CreateTriggerBuilder(connection, transaction);
-                triggerBuilder.Filters = this.FilterColumns.GetColumnFilters();
+                triggerBuilder.Filters = this.Filters;
 
                 if (triggerBuilder.NeedToCreateTrigger(DbTriggerType.Insert))
                     triggerBuilder.CreateInsertTrigger();
@@ -170,7 +170,7 @@ namespace Dotmim.Sync.Builders
                 if (procBuilder == null)
                     return;
 
-                procBuilder.Filters = this.FilterColumns;
+                procBuilder.Filters = this.Filters;
 
                 if (procBuilder.NeedToCreateProcedure(DbCommandType.SelectChanges))
                     procBuilder.CreateSelectIncrementalChanges();
@@ -293,7 +293,7 @@ namespace Dotmim.Sync.Builders
                 if (procBuilder == null)
                     return;
 
-                procBuilder.Filters = this.FilterColumns;
+                procBuilder.Filters = this.Filters;
 
                 if (!procBuilder.NeedToCreateProcedure(DbCommandType.SelectChanges))
                     procBuilder.DropSelectIncrementalChanges();
@@ -342,7 +342,7 @@ namespace Dotmim.Sync.Builders
                     connection.Open();
 
                 var triggerBuilder = CreateTriggerBuilder(connection, transaction);
-                triggerBuilder.Filters = this.FilterColumns.GetColumnFilters();
+                triggerBuilder.Filters = this.Filters;
 
                 if (!triggerBuilder.NeedToCreateTrigger(DbTriggerType.Insert))
                     triggerBuilder.DropInsertTrigger();
@@ -370,7 +370,7 @@ namespace Dotmim.Sync.Builders
 
 
                 var trackingTableBuilder = CreateTrackingTableBuilder(connection, transaction);
-                trackingTableBuilder.Filters = this.FilterColumns.GetColumnFilters();
+                trackingTableBuilder.Filters = this.Filters;
 
                 if (!trackingTableBuilder.NeedToCreateTrackingTable())
                     trackingTableBuilder.DropTable();
@@ -500,7 +500,7 @@ namespace Dotmim.Sync.Builders
                 }
 
                 var trackingTableBuilder = CreateTrackingTableBuilder(connection, transaction);
-                trackingTableBuilder.Filters = this.FilterColumns.GetColumnFilters();
+                trackingTableBuilder.Filters = this.Filters;
 
                 if (trackingTableBuilder.NeedToCreateTrackingTable())
                 {
@@ -511,7 +511,7 @@ namespace Dotmim.Sync.Builders
                     needToCreateTrackingTable = true;
                 }
                 var triggerBuilder = CreateTriggerBuilder(connection, transaction);
-                triggerBuilder.Filters = this.FilterColumns.GetColumnFilters();
+                triggerBuilder.Filters = this.Filters;
 
                 if (triggerBuilder.NeedToCreateTrigger(DbTriggerType.Insert))
                     stringBuilder.Append(triggerBuilder.CreateInsertTriggerScriptText());
@@ -524,7 +524,7 @@ namespace Dotmim.Sync.Builders
 
                 if (procBuilder != null)
                 {
-                    procBuilder.Filters = this.FilterColumns;
+                    procBuilder.Filters = this.Filters;
 
                     if (procBuilder.NeedToCreateProcedure(DbCommandType.SelectChanges))
                         stringBuilder.Append(procBuilder.CreateSelectIncrementalChangesScriptText());

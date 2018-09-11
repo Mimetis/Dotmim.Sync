@@ -70,6 +70,8 @@ namespace Dotmim.Sync.Tests.Models
         public virtual DbSet<Address> Address { get; set; }
         public virtual DbSet<Customer> Customer { get; set; }
         public virtual DbSet<CustomerAddress> CustomerAddress { get; set; }
+        public virtual DbSet<EmployeeAddress> EmployeeAddress { get; set; }
+        public virtual DbSet<Employee> Employee { get; set; }
         public virtual DbSet<Log> Log { get; set; }
         public virtual DbSet<Product> Product { get; set; }
         public virtual DbSet<ProductCategory> ProductCategory { get; set; }
@@ -110,8 +112,8 @@ namespace Dotmim.Sync.Tests.Models
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
-                else if (this.ProviderType == ProviderType.MySql)
-                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
+                //else if (this.ProviderType == ProviderType.MySql)
+                //    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
 
                 entity.Property(e => e.PostalCode)
                     .IsRequired()
@@ -162,8 +164,8 @@ namespace Dotmim.Sync.Tests.Models
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
-                else if (this.ProviderType == ProviderType.MySql)
-                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
+                //else if (this.ProviderType == ProviderType.MySql)
+                //    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
 
 
                 entity.Property(e => e.PasswordHash)
@@ -210,8 +212,8 @@ namespace Dotmim.Sync.Tests.Models
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
-                else if (this.ProviderType == ProviderType.MySql)
-                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
+                //else if (this.ProviderType == ProviderType.MySql)
+                //    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
 
                 entity.Property(e => e.Rowguid)
                     .HasColumnName("rowguid")
@@ -241,8 +243,8 @@ namespace Dotmim.Sync.Tests.Models
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
-                else if (this.ProviderType == ProviderType.MySql)
-                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
+                //else if (this.ProviderType == ProviderType.MySql)
+                //    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
 
                 entity.Property(e => e.Rowguid)
                     .HasColumnName("rowguid");
@@ -279,8 +281,8 @@ namespace Dotmim.Sync.Tests.Models
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
-                else if (this.ProviderType == ProviderType.MySql)
-                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
+                //else if (this.ProviderType == ProviderType.MySql)
+                //    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
 
                 entity.Property(e => e.Rowguid)
                     .HasColumnName("rowguid");
@@ -344,8 +346,8 @@ namespace Dotmim.Sync.Tests.Models
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
-                else if (this.ProviderType == ProviderType.MySql)
-                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
+                //else if (this.ProviderType == ProviderType.MySql)
+                //    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
 
 
                 entity.Property(e => e.Name)
@@ -409,8 +411,8 @@ namespace Dotmim.Sync.Tests.Models
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
-                else if (this.ProviderType == ProviderType.MySql)
-                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
+                //else if (this.ProviderType == ProviderType.MySql)
+                //    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
 
                 entity.Property(e => e.Name)
                     .IsRequired()
@@ -452,8 +454,8 @@ namespace Dotmim.Sync.Tests.Models
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
-                else if (this.ProviderType == ProviderType.MySql)
-                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
+                //else if (this.ProviderType == ProviderType.MySql)
+                //    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
 
                 entity.Property(e => e.Name)
                     .IsRequired()
@@ -491,8 +493,8 @@ namespace Dotmim.Sync.Tests.Models
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
-                else if (this.ProviderType == ProviderType.MySql)
-                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
+                //else if (this.ProviderType == ProviderType.MySql)
+                //    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
 
                 entity.Property(e => e.ProductId)
                     .HasColumnName("ProductID")
@@ -558,8 +560,8 @@ namespace Dotmim.Sync.Tests.Models
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
-                else if (this.ProviderType == ProviderType.MySql)
-                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
+                //else if (this.ProviderType == ProviderType.MySql)
+                //    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
 
                 entity.Property(e => e.OnlineOrderFlag)
                     .IsRequired()
@@ -806,6 +808,8 @@ namespace Dotmim.Sync.Tests.Models
             var p1 = Guid.NewGuid();
             var p2 = Guid.NewGuid();
             var p3 = Guid.NewGuid();
+            var p4 = Guid.NewGuid();
+            var p5 = Guid.NewGuid();
 
 
             modelBuilder.Entity<Product>().HasData(
@@ -813,7 +817,7 @@ namespace Dotmim.Sync.Tests.Models
                 new Product { ProductId = p1, Name = "HL Road Frame - Red, 58", ProductNumber = "FR-R92R-58", Color = "Red", StandardCost = 1059.3100M, ListPrice = 1431.5000M, Size = "58", Weight = 1016.04M, ProductCategoryId = "ROADFR", ProductModelId = 6 },
                 new Product { ProductId = p2, Name = "Road-150 Red, 62", ProductNumber = "BK-R93R-62", Color = "Red", StandardCost = 2171.2942M, ListPrice = 3578.2700M, Size = "62", Weight = 6803.85M, ProductCategoryId = "ROADB", ProductModelId = 25 },
                 new Product { ProductId = Guid.NewGuid(), Name = "Road-650 Black, 58", ProductNumber = "BK-R50B-58", Color = "Black", StandardCost = 486.7066M, ListPrice = 782.9900M, Size = "58", Weight = 8976.55M, ProductCategoryId = "ROADB", ProductModelId = 30 },
-                new Product { ProductId = Guid.NewGuid(), Name = "Mountain-100 Silver, 38", ProductNumber = "BK-M82S-38", Color = "Silver", StandardCost = 1912.1544M, ListPrice = 3399.9900M, Size = "38", Weight = 9230.56M, ProductCategoryId = "MOUNTB", ProductModelId = 19 },
+                new Product { ProductId = p5, Name = "Mountain-100 Silver, 38", ProductNumber = "BK-M82S-38", Color = "Silver", StandardCost = 1912.1544M, ListPrice = 3400M, Size = "38", Weight = 9230.56M, ProductCategoryId = "MOUNTB", ProductModelId = 19 },
                 new Product { ProductId = Guid.NewGuid(), Name = "Mountain-100 Black, 38", ProductNumber = "BK-M82B-38", Color = "Black", StandardCost = 1898.0944M, ListPrice = 3374.9900M, Size = "38", Weight = 9230.56M, ProductCategoryId = "MOUNTB", ProductModelId = 19 },
                 new Product { ProductId = Guid.NewGuid(), Name = "Mountain-200 Silver, 38", ProductNumber = "BK-M68S-38", Color = "Silver", StandardCost = 1265.6195M, ListPrice = 2319.9900M, Size = "38", Weight = 10591.33M, ProductCategoryId = "MOUNTB", ProductModelId = 20 },
                 new Product { ProductId = Guid.NewGuid(), Name = "Mountain-200 Black, 38", ProductNumber = "BK-M68B-38", Color = "Black", StandardCost = 1251.9813M, ListPrice = 2294.9900M, Size = "38", Weight = 10591.33M, ProductCategoryId = "MOUNTB", ProductModelId = 20 },
@@ -821,7 +825,7 @@ namespace Dotmim.Sync.Tests.Models
                 new Product { ProductId = Guid.NewGuid(), Name = "Mountain-200 Black, 46", ProductNumber = "BK-M68B-46", Color = "Black", StandardCost = 1251.9813M, ListPrice = 2294.9900M, Size = "46", Weight = 10945.13M, ProductCategoryId = "MOUNTB", ProductModelId = 20 },
                 new Product { ProductId = Guid.NewGuid(), Name = "Mountain-300 Black, 38", ProductNumber = "BK-M47B-38", Color = "Black", StandardCost = 598.4354M, ListPrice = 1079.9900M, Size = "38", Weight = 11498.51M, ProductCategoryId = "MOUNTB", ProductModelId = 21 },
                 new Product { ProductId = p3, Name = "LL Mountain Handlebars", ProductNumber = "HB-M243", StandardCost = 19.7758M, ListPrice = 44.5400M, ProductCategoryId = "HANDLB", ProductModelId = 52 },
-                new Product { ProductId = Guid.NewGuid(), Name = "ML Mountain Handlebars", ProductNumber = "HB-M763", StandardCost = 27.4925M, ListPrice = 61.9200M, ProductCategoryId = "HANDLB", ProductModelId = 54 },
+                new Product { ProductId = p4, Name = "ML Mountain Handlebars", ProductNumber = "HB-M763", StandardCost = 27.4925M, ListPrice = 61.9200M, ProductCategoryId = "HANDLB", ProductModelId = 54 },
                 new Product { ProductId = Guid.NewGuid(), Name = "HL Mountain Handlebars", ProductNumber = "HB-M918", StandardCost = 53.3999M, ListPrice = 120.2700M, ProductCategoryId = "HANDLB", ProductModelId = 55 }
               );
 
@@ -838,18 +842,37 @@ namespace Dotmim.Sync.Tests.Models
                     CustomerId = customerId1,
                     ShipToAddressId = 4,
                     BillToAddressId = 5,
-                    ShipMethod = "CAR TRANSPORTATION",
+                    ShipMethod = "PLANE",
                     SubTotal = 6530.35M,
                     TaxAmt = 70.4279M,
                     Freight = 22.0087M,
                     TotalDue = (6530.35M + 70.4279M + 22.0087M)
+                },
+                new SalesOrderHeader
+                {
+                    SalesOrderId = 1001,
+                    SalesOrderNumber = "SO-1001",
+                    RevisionNumber = 1,
+                    Status = 5,
+                    OnlineOrderFlag = false,
+                    PurchaseOrderNumber = "PO971282501",
+                    AccountNumber = "15-9128-102304",
+                    CustomerId = customerId3,
+                    ShipToAddressId = 2,
+                    BillToAddressId = 2,
+                    ShipMethod = "RAIL",
+                    SubTotal = 3400M,
+                    TaxAmt = 350.500M,
+                    Freight = 30M,
+                    TotalDue = (3400M + 350.500M + 30M)
                 }
             );
 
             modelBuilder.Entity<SalesOrderDetail>().HasData(
                 new SalesOrderDetail { SalesOrderId = 1000, SalesOrderDetailId = 110562, OrderQty = 1, ProductId = p2, UnitPrice = 3578.2700M },
                 new SalesOrderDetail { SalesOrderId = 1000, SalesOrderDetailId = 110563, OrderQty = 2, ProductId = p3, UnitPrice = 44.5400M },
-                new SalesOrderDetail { SalesOrderId = 1000, SalesOrderDetailId = 110564, OrderQty = 2, ProductId = p1, UnitPrice = 1431.5000M }
+                new SalesOrderDetail { SalesOrderId = 1000, SalesOrderDetailId = 110564, OrderQty = 2, ProductId = p1, UnitPrice = 1431.5000M },
+                new SalesOrderDetail { SalesOrderId = 1001, SalesOrderDetailId = 110565, OrderQty = 1, ProductId = p5, UnitPrice = 3400M }
             );
 
             modelBuilder.Entity<Posts>().HasData(

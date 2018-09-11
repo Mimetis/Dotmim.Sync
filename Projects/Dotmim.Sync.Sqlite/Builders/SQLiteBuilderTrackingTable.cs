@@ -21,7 +21,7 @@ namespace Dotmim.Sync.Sqlite
         private SqliteTransaction transaction;
         private SqliteDbMetadata sqliteDbMetadata;
 
-        public ICollection<FilterClause> Filters { get; set; }
+        public IList<FilterClause2> Filters { get; set; }
 
 
         public SqliteBuilderTrackingTable(DmTable tableDescription, DbConnection connection, DbTransaction transaction = null)

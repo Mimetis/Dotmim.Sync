@@ -19,6 +19,10 @@ namespace Dotmim.Sync.MySql
             MySqlTransaction transaction = null)
         {
 
+            //var commandBuilder = new MySqlCommandBuilder();
+            //MySqlCommandBuilder.DeriveParameters(cmd);
+
+
             throw new NotImplementedException("Implementation in progress");
 
             //if (cmd == null) throw new ArgumentNullException("SqlCommand");

@@ -21,7 +21,7 @@ namespace Dotmim.Sync.MySql
         private DmTable tableDescription;
         private MySqlConnection connection;
         private MySqlTransaction transaction;
-        public ICollection<FilterClause> Filters { get; set; }
+        public IList<FilterClause2> Filters { get; set; }
         private MySqlDbMetadata mySqlDbMetadata;
 
 
@@ -144,6 +144,8 @@ namespace Dotmim.Sync.MySql
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.AppendLine($"CREATE TABLE {trackingName.FullQuotedString} (");
 
+            List<DmColumn> addedColumns = new List<DmColumn>();
+
             // Adding the primary key
             foreach (DmColumn pkColumn in this.tableDescription.PrimaryKey.Columns)
             {
@@ -155,6 +157,8 @@ namespace Dotmim.Sync.MySql
                 var columnType = $"{unQuotedColumnType} {columnPrecisionString}";
 
                 stringBuilder.AppendLine($"{quotedColumnName} {columnType} NOT NULL, ");
+
+                addedColumns.Add(pkColumn);
             }
 
             // adding the tracking columns
@@ -166,30 +170,69 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine($"`sync_row_is_tombstone` BIT NOT NULL default 0 , ");
             stringBuilder.AppendLine($"`last_change_datetime` DATETIME NULL, ");
 
-            if (this.Filters != null && this.Filters.Count > 0)
-                foreach (var filter in this.Filters)
+            //-----------------------------------------------------------
+            // Adding the foreign keys
+            //-----------------------------------------------------------
+            foreach (var pr in this.tableDescription.ChildRelations)
+            {
+                // get the parent columns to have the correct name of the column (if we have mulitple columns who is bind to same child table)
+                // ie : AddressBillId and AddressInvoiceId
+                foreach (var c in pr.ParentColumns)
                 {
-                    var columnFilter = this.tableDescription.Columns[filter.ColumnName];
-
-                    if (columnFilter == null)
-                        throw new InvalidExpressionException($"Column {filter.ColumnName} does not exist in Table {this.tableDescription.TableName.ToLowerInvariant()}");
-
-                    var isPk = this.tableDescription.PrimaryKey.Columns.Any(dm => this.tableDescription.IsEqual(dm.ColumnName, filter.ColumnName));
-                    if (isPk)
+                    // dont add doublons
+                    if (addedColumns.Any(col => col.ColumnName.ToLowerInvariant() == c.ColumnName.ToLowerInvariant()))
                         continue;
 
+                    var quotedColumnName = new ObjectNameParser(c.ColumnName, "`", "`").FullQuotedString;
 
-                    var quotedColumnName = new ObjectNameParser(columnFilter.ColumnName, "`", "`").FullQuotedString;
-
-                    var columnTypeString = this.mySqlDbMetadata.TryGetOwnerDbTypeString(columnFilter.OriginalDbType, columnFilter.DbType, false, false, columnFilter.MaxLength, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
+                    var columnTypeString = this.mySqlDbMetadata.TryGetOwnerDbTypeString(c.OriginalDbType, c.DbType, c.IsUnsigned, c.IsUnicode, c.MaxLength, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
                     var unQuotedColumnType = new ObjectNameParser(columnTypeString, "`", "`").FullUnquotedString;
-                    var columnPrecisionString = this.mySqlDbMetadata.TryGetOwnerDbTypePrecision(columnFilter.OriginalDbType, columnFilter.DbType, false, false, columnFilter.MaxLength, columnFilter.Precision, columnFilter.Scale, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
+                    var columnPrecisionString = this.mySqlDbMetadata.TryGetOwnerDbTypePrecision(c.OriginalDbType, c.DbType, c.IsUnsigned, c.IsUnicode, c.MaxLength, c.Precision, c.Scale, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
                     var columnType = $"{unQuotedColumnType} {columnPrecisionString}";
-
-                    var nullableColumn = columnFilter.AllowDBNull ? "NULL" : "NOT NULL";
+                    var nullableColumn = "NULL";
 
                     stringBuilder.AppendLine($"{quotedColumnName} {columnType} {nullableColumn}, ");
+
+                    addedColumns.Add(c);
+
                 }
+            }
+
+            // ---------------------------------------------------------------------
+            // Add the filter columns if needed, and if not already added from Pkeys or Fkeys
+            // ---------------------------------------------------------------------
+            if (this.Filters != null && this.Filters.Count > 0)
+            {
+                foreach (var filter in this.Filters)
+                {
+                    // if column is null, we are in a table that need a relation before
+                    if (string.IsNullOrEmpty(filter.FilterTable.ColumnName))
+                        continue;
+
+                    var columnFilter = this.tableDescription.Columns[filter.FilterTable.ColumnName];
+
+                    if (columnFilter == null)
+                        throw new InvalidExpressionException($"Column {filter.FilterTable.ColumnName} does not exist in Table {this.tableDescription.TableName}");
+
+                    if (addedColumns.Any(ac => ac.ColumnName.ToLowerInvariant() == columnFilter.ColumnName.ToLowerInvariant()))
+                        continue;
+
+                    var quotedColumnName = new ObjectNameParser(columnFilter.ColumnName, "[", "]").FullQuotedString;
+
+                    var columnTypeString = this.mySqlDbMetadata.TryGetOwnerDbTypeString(columnFilter.OriginalDbType, columnFilter.DbType, columnFilter.IsUnsigned, columnFilter.IsUnicode, columnFilter.MaxLength, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
+                    var unQuotedColumnType = new ObjectNameParser(columnTypeString, "[", "]").FullUnquotedString;
+                    var columnPrecisionString = this.mySqlDbMetadata.TryGetOwnerDbTypePrecision(columnFilter.OriginalDbType, columnFilter.DbType, columnFilter.IsUnsigned, columnFilter.IsUnicode, columnFilter.MaxLength, columnFilter.Precision, columnFilter.Scale, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
+                    var columnType = $"{unQuotedColumnType} {columnPrecisionString}";
+
+                    var nullableColumn = "NULL";
+
+                    stringBuilder.AppendLine($"{quotedColumnName} {columnType} {nullableColumn}, ");
+
+                    addedColumns.Add(columnFilter);
+                }
+            }
+
+            addedColumns.Clear();
 
             stringBuilder.Append(" PRIMARY KEY (");
             for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
@@ -250,6 +293,7 @@ namespace Dotmim.Sync.MySql
 
         private string CreatePopulateFromBaseTableCommandText()
         {
+            var addedColumns = new List<DmColumn>();
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.AppendLine(string.Concat("INSERT INTO ", trackingName.FullQuotedString, " ("));
             StringBuilder stringBuilder1 = new StringBuilder();
@@ -274,22 +318,75 @@ namespace Dotmim.Sync.MySql
                 stringBuilderWhereClause.Append(string.Concat(strArrays));
                 empty = ", ";
                 str = " AND ";
+
+                addedColumns.Add(pkColumn);
             }
             StringBuilder stringBuilder5 = new StringBuilder();
             StringBuilder stringBuilder6 = new StringBuilder();
 
-            if (Filters != null)
-                foreach (var filterColumn in this.Filters)
+            //-----------------------------------------------------------
+            // Adding the foreign keys
+            //-----------------------------------------------------------
+            foreach (var pr in this.tableDescription.ChildRelations)
+            {
+                // get the parent columns to have the correct name of the column (if we have mulitple columns who is bind to same child table)
+                // ie : AddressBillId and AddressInvoiceId
+                foreach (var c in pr.ParentColumns)
                 {
-                    var isPk = this.tableDescription.PrimaryKey.Columns.Any(dm => this.tableDescription.IsEqual(dm.ColumnName, filterColumn.ColumnName));
-                    if (isPk)
+                    // dont add doublons
+                    if (addedColumns.Any(col => col.ColumnName.ToLowerInvariant() == c.ColumnName.ToLowerInvariant()))
                         continue;
 
-                    var quotedColumnName = new ObjectNameParser(filterColumn.ColumnName, "`", "`").FullQuotedString;
+                    var quotedColumnName = new ObjectNameParser(c.ColumnName, "`", "`").FullQuotedString;
 
                     stringBuilder6.Append(string.Concat(empty, quotedColumnName));
                     stringBuilder5.Append(string.Concat(empty, baseTable, ".", quotedColumnName));
+
+                    addedColumns.Add(c);
+
                 }
+            }
+
+            // ---------------------------------------------------------------------
+            // Add the filter columns if needed, and if not already added from Pkeys or Fkeys
+            // ---------------------------------------------------------------------
+            if (this.Filters != null && this.Filters.Count > 0)
+            {
+                foreach (var filter in this.Filters)
+                {
+                    // if column is null, we are in a table that need a relation before
+                    if (string.IsNullOrEmpty(filter.FilterTable.ColumnName))
+                        continue;
+
+                    var columnFilter = this.tableDescription.Columns[filter.FilterTable.ColumnName];
+
+                    if (columnFilter == null)
+                        throw new InvalidExpressionException($"Column {filter.FilterTable.ColumnName} does not exist in Table {this.tableDescription.TableName}");
+
+                    if (addedColumns.Any(ac => ac.ColumnName.ToLowerInvariant() == columnFilter.ColumnName.ToLowerInvariant()))
+                        continue;
+
+                    var quotedColumnName = new ObjectNameParser(columnFilter.ColumnName, "`", "`").FullQuotedString;
+
+                    stringBuilder6.Append(string.Concat(empty, quotedColumnName));
+                    stringBuilder5.Append(string.Concat(empty, baseTable, ".", quotedColumnName));
+
+                    addedColumns.Add(columnFilter);
+                }
+            }
+
+            //if (Filters != null)
+            //    foreach (var filterColumn in this.Filters)
+            //    {
+            //        var isPk = this.tableDescription.PrimaryKey.Columns.Any(dm => this.tableDescription.IsEqual(dm.ColumnName, filterColumn.ColumnName));
+            //        if (isPk)
+            //            continue;
+
+            //        var quotedColumnName = new ObjectNameParser(filterColumn.ColumnName, "`", "`").FullQuotedString;
+
+            //        stringBuilder6.Append(string.Concat(empty, quotedColumnName));
+            //        stringBuilder5.Append(string.Concat(empty, baseTable, ".", quotedColumnName));
+            //    }
 
             // (list of pkeys)
             stringBuilder.Append(string.Concat(stringBuilder1.ToString(), ", "));
@@ -313,7 +410,10 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine(string.Concat(localName));
             stringBuilder.AppendLine(string.Concat(stringBuilderOnClause.ToString(), " "));
             stringBuilder.AppendLine(string.Concat(stringBuilderWhereClause.ToString(), "; \n"));
-            return stringBuilder.ToString();
+
+            var scriptInsertTrackingTableData = stringBuilder.ToString();
+
+            return scriptInsertTrackingTableData;
         }
 
         public string CreatePopulateFromBaseTableScriptText()

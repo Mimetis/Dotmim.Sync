@@ -16,12 +16,7 @@ namespace Dotmim.Sync.Filter
         /// <summary>
         /// Gets or sets the name of the column from the table involved in filter.
         /// </summary>
-        public string ColumnName { get; set; }
-
-        /// <summary>
-        /// Gets or sets the name of the table involved in filter
-        /// </summary>
-        public string TableName { get; set; }
+        public string ParameterName { get; set; }
 
         /// <summary>
         /// Gets or sets the value of the parameter.
@@ -36,13 +31,12 @@ namespace Dotmim.Sync.Filter
         }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="T:Microsoft.Synchronization.Data.SyncParameter" /> class by 
+        /// Initializes a new instance of the SyncParameter class by 
         /// using name and value parameters.
         /// </summary>
-        public SyncParameter(string tableName, string columnName, Object value)
+        public SyncParameter(string parameterName, Object value)
         {
-            this.ColumnName = columnName;
-            this.TableName = tableName;
+            this.ParameterName = parameterName;
             this.Value = value;
         }
 

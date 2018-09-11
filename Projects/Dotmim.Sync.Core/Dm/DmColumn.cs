@@ -281,7 +281,7 @@ namespace Dotmim.Sync.Data
         /// <summary>
         /// Gets the column position (use SetOrdinal method to set the position)
         /// </summary>
-        public int Ordinal { get; internal set; } = -1;
+        public int Ordinal { get; internal set; } = 0;
 
         /// <summary>
         /// Gets if the column type is a value type

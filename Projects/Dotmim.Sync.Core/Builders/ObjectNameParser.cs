@@ -11,6 +11,7 @@ namespace Dotmim.Sync.Builders
     /// <summary>
     /// Parse a database object (like Fabrikam.dbo.Client or dbo.Client or [dbo].[Client] etc ...
     /// </summary>
+    [Serializable]
     public class ObjectNameParser
     {
         /// <summary>

@@ -12,7 +12,7 @@ namespace Dotmim.Sync.Builders
     /// </summary>
     public interface IDbBuilderTrackingTableHelper
     {
-        ICollection<FilterClause> Filters { get; set; }
+        IList<FilterClause2> Filters { get; set; }
         bool NeedToCreateTrackingTable();
         void CreateTable();
         void DropTable();

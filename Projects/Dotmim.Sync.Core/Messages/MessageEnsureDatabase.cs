@@ -30,8 +30,9 @@ namespace Dotmim.Sync.Messages
 
         /// <summary>
         /// Gets or Sets the filters used during the sync, to be applied on the database
+        /// On client side, Filters are always null
         /// </summary>
-        public ICollection<FilterClause> Filters { get; set; }
+        public List<FilterClause2> Filters { get; set; }
 
         /// <summary>
         /// Gets or Sets the Serialization format used during the sync

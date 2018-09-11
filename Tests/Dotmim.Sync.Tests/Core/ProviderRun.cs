@@ -141,8 +141,16 @@ namespace Dotmim.Sync.Tests.Core
                     // server handler
                     var serverHandler = new RequestDelegate(async context =>
                     {
+                        SyncConfiguration syncConfiguration = new SyncConfiguration(syncTables);// set proxy conf
+
+                        // copy conf settings
+
+                        if (conf != null)
+                            serverFixture.CopyConfiguration(syncConfiguration, conf);
+
+
                         // set proxy conf
-                        proxyServerProvider.Configuration = conf;
+                        proxyServerProvider.Configuration = syncConfiguration;
 
                         // Add Filers
                         if (serverFixture.Filters != null && serverFixture.Filters.Count > 0)

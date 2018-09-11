@@ -84,7 +84,7 @@ namespace Dotmim.Sync
         /// destination knowledge, and change data retriever parameters.
         /// </summary>
         /// <returns>A DbSyncContext object that will be used to retrieve the modified data.</returns>
-        public virtual async Task<TimeSpan> PrepareArchiveAsync(string[] tables, int downloadBatchSizeInKB, string batchDirectory, ConflictResolutionPolicy policy,  ICollection<FilterClause> filters)
+        public virtual async Task<TimeSpan> PrepareArchiveAsync(string[] tables, int downloadBatchSizeInKB, string batchDirectory, ConflictResolutionPolicy policy,  List<FilterClause2> filters)
         {
             try
             {
@@ -172,7 +172,7 @@ namespace Dotmim.Sync
         /// Enumerate all internal changes, no batch mode
         /// </summary>
         internal async Task<(BatchInfo, ChangesSelected)> EnumerateChangesInternal(
-            SyncContext context, ScopeInfo scopeInfo, DmSet configTables, string batchDirectory, ConflictResolutionPolicy policy, ICollection<FilterClause> filters)
+            SyncContext context, ScopeInfo scopeInfo, DmSet configTables, string batchDirectory, ConflictResolutionPolicy policy, List<FilterClause2> filters)
         {
             // create the in memory changes set
             DmSet changesSet = new DmSet(SyncConfiguration.DMSET_NAME);
@@ -227,9 +227,10 @@ namespace Dotmim.Sync
                             if (this.CanBeServerProvider && context.Parameters != null && context.Parameters.Count > 0 && filters != null && filters.Count > 0)
                             {
                                 var filtersName = filters
-                                                .Where(f => f.TableName.Equals(tableDescription.TableName, StringComparison.InvariantCultureIgnoreCase))
-                                                .Select(f => f.ColumnName);
-
+                                                .Where(f => f.FilterTable.TableName.ObjectNameNormalized.Equals(tableDescription.TableName, StringComparison.InvariantCultureIgnoreCase))
+                                                .GroupBy(fc => fc.InParameter.ColumnName)
+                                                .Select(f => f.Key);
+                                                
                                 if (filtersName != null && filtersName.Count() > 0)
                                 {
                                     dbCommandType = DbCommandType.SelectChangesWitFilters;
@@ -264,16 +265,17 @@ namespace Dotmim.Sync
                             // Set filter parameters if any
                             if (this.CanBeServerProvider && context.Parameters != null && context.Parameters.Count > 0 && filters != null && filters.Count > 0)
                             {
-                                var tableFilters = filters.Where(f => f.TableName.Equals(tableDescription.TableName, StringComparison.InvariantCultureIgnoreCase)).ToList();
+                                var tableFilters = filters.Where(f => f.FilterTable.TableName.ObjectNameNormalized.Equals(tableDescription.TableName, StringComparison.InvariantCultureIgnoreCase)).ToList();
 
                                 if (tableFilters != null && tableFilters.Count > 0)
                                 {
                                     foreach (var filter in tableFilters)
                                     {
-                                        var parameter = context.Parameters.FirstOrDefault(p => p.ColumnName.Equals(filter.ColumnName, StringComparison.InvariantCultureIgnoreCase) && p.TableName.Equals(filter.TableName, StringComparison.InvariantCultureIgnoreCase));
+                                        // Get the parameter from my context and its value
+                                        var parameter = context.Parameters.FirstOrDefault(p => p.ParameterName.Equals(filter.InParameter.ColumnName, StringComparison.InvariantCultureIgnoreCase));
 
                                         if (parameter != null)
-                                            DbManager.SetParameterValue(selectIncrementalChangesCommand, parameter.ColumnName, parameter.Value);
+                                            DbManager.SetParameterValue(selectIncrementalChangesCommand, parameter.ParameterName, parameter.Value);
                                     }
                                 }
                             }
@@ -416,7 +418,7 @@ namespace Dotmim.Sync
         /// Enumerate all internal changes, no batch mode
         /// </summary>
         internal async Task<(BatchInfo, ChangesSelected)> EnumerateChangesInBatchesInternal
-            (SyncContext context, ScopeInfo scopeInfo, int downloadBatchSizeInKB, DmSet configTables, string batchDirectory, ConflictResolutionPolicy policy, ICollection<FilterClause> filters)
+            (SyncContext context, ScopeInfo scopeInfo, int downloadBatchSizeInKB, DmSet configTables, string batchDirectory, ConflictResolutionPolicy policy, List<FilterClause2> filters)
         {
 
             DmTable dmTable = null;
@@ -475,9 +477,10 @@ namespace Dotmim.Sync
                             if (this.CanBeServerProvider && context.Parameters != null && context.Parameters.Count > 0 && filters != null && filters.Count > 0)
                             {
                                 var filtersName = filters
-                                                .Where(f => f.TableName.Equals(tableDescription.TableName, StringComparison.InvariantCultureIgnoreCase))
-                                                .Select(f => f.ColumnName);
-
+                                                .Where(f => f.FilterTable.TableName.ObjectNameNormalized.Equals(tableDescription.TableName, StringComparison.InvariantCultureIgnoreCase))
+                                                .GroupBy(fc => fc.InParameter.ColumnName)
+                                                .Select(f => f.Key);
+                                                
                                 if (filtersName != null && filtersName.Count() > 0)
                                 {
                                     dbCommandType = DbCommandType.SelectChangesWitFilters;
@@ -515,16 +518,16 @@ namespace Dotmim.Sync
                                 // Only on server side
                                 if (this.CanBeServerProvider && context.Parameters != null && context.Parameters.Count > 0 && filters != null && filters.Count > 0)
                                 {
-                                    var filterTable = filters.Where(f => f.TableName.Equals(tableDescription.TableName, StringComparison.InvariantCultureIgnoreCase)).ToList();
+                                    var filterTable = filters.Where(f => f.FilterTable.TableName.ObjectNameNormalized.Equals(tableDescription.TableName, StringComparison.InvariantCultureIgnoreCase)).ToList();
 
                                     if (filterTable != null && filterTable.Count > 0)
                                     {
                                         foreach (var filter in filterTable)
                                         {
-                                            var parameter = context.Parameters.FirstOrDefault(p => p.ColumnName.Equals(filter.ColumnName, StringComparison.InvariantCultureIgnoreCase) && p.TableName.Equals(filter.TableName, StringComparison.InvariantCultureIgnoreCase));
+                                            var parameter = context.Parameters.FirstOrDefault(p => p.ParameterName.Equals(filter.InParameter.ColumnName, StringComparison.InvariantCultureIgnoreCase));
 
                                             if (parameter != null)
-                                                DbManager.SetParameterValue(selectIncrementalChangesCommand, parameter.ColumnName, parameter.Value);
+                                                DbManager.SetParameterValue(selectIncrementalChangesCommand, parameter.ParameterName, parameter.Value);
                                         }
                                     }
                                 }

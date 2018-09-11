@@ -35,9 +35,9 @@ namespace Dotmim.Sync.Tests.MySql
         }
 
         [Fact, TestPriority(0)]
-        public override async Task Initialize()
+        public override Task Initialize()
         {
-            await base.Initialize();
+            return base.Initialize();
         }
 
         //[Fact, TestPriority(1)]
@@ -53,57 +53,58 @@ namespace Dotmim.Sync.Tests.MySql
         //}
 
         [Fact, TestPriority(3)]
-        public override async Task Insert_One_Table_From_Server()
+        public override Task Insert_From_Server()
         {
-            await base.Insert_One_Table_From_Server();
+            return base.Insert_From_Server();
         }
 
         [Fact, TestPriority(4)]
-        public override async Task Insert_One_Table_From_Client()
+        public override Task Insert_From_Client()
         {
-            await base.Insert_One_Table_From_Client();
+            return base.Insert_From_Client();
         }
 
         [Fact, TestPriority(5)]
-        public override async Task Insert_Multiple_Tables_From_Server()
+        public override Task Update_From_Server()
         {
-            await base.Insert_Multiple_Tables_From_Server();
+            return base.Update_From_Server();
         }
 
         [Fact, TestPriority(6)]
-        public override async Task Insert_Multiple_Tables_From_Client()
+        public override Task Update_From_Client()
         {
-            await base.Insert_Multiple_Tables_From_Client();
+            return base.Update_From_Client();
         }
 
         [Fact, TestPriority(7)]
-        public override async Task Update_One_Table_From_Server()
+        public override Task Delete_From_Server()
         {
-            await base.Update_One_Table_From_Server();
+            return base.Delete_From_Server();
         }
 
+
         [Fact, TestPriority(8)]
-        public override async Task Update_One_Table_From_Client()
+        public override Task Delete_From_Client()
         {
-            await base.Update_One_Table_From_Client();
+            return base.Delete_From_Client();
         }
 
         [Fact, TestPriority(9)]
-        public override async Task Conflict_Insert_Insert_Server_Should_Wins()
+        public override Task Conflict_Insert_Insert_Server_Should_Wins()
         {
-            await base.Conflict_Insert_Insert_Server_Should_Wins();
+            return base.Conflict_Insert_Insert_Server_Should_Wins();
         }
 
         [Fact, TestPriority(10)]
-        public override async Task Conflict_Insert_Insert_Client_Should_Wins_Coz_Configuration()
+        public override Task Conflict_Insert_Insert_Client_Should_Wins_Coz_Configuration()
         {
-            await base.Conflict_Insert_Insert_Client_Should_Wins_Coz_Configuration();
+            return base.Conflict_Insert_Insert_Client_Should_Wins_Coz_Configuration();
         }
 
         [Fact, TestPriority(11)]
-        public override async Task Conflict_Insert_Insert_Client_Should_Wins_Coz_Handler_Raised()
+        public override Task Conflict_Insert_Insert_Client_Should_Wins_Coz_Handler_Raised()
         {
-            await base.Conflict_Insert_Insert_Client_Should_Wins_Coz_Handler_Raised();
+            return base.Conflict_Insert_Insert_Client_Should_Wins_Coz_Handler_Raised();
         }
 
         [Fact, TestPriority(12)]
@@ -131,30 +132,18 @@ namespace Dotmim.Sync.Tests.MySql
         }
 
         [Fact, TestPriority(16)]
-        public override Task Delete_One_Table_From_Server()
-        {
-            return base.Delete_One_Table_From_Server();
-        }
-
-        [Fact, TestPriority(17)]
-        public override Task Delete_Multiple_Tables_From_Server()
-        {
-            return base.Delete_Multiple_Tables_From_Server();
-        }
-
-        [Fact, TestPriority(18)]
         public override Task Insert_Then_Delete_From_Server_Then_Sync()
         {
             return base.Insert_Then_Delete_From_Server_Then_Sync();
         }
 
-        [Fact, TestPriority(19)]
+        [Fact, TestPriority(17)]
         public override Task Insert_Then_Update_From_Server_Then_Sync()
         {
             return base.Insert_Then_Update_From_Server_Then_Sync();
         }
 
-        [Fact, TestPriority(20)]
+        [Fact, TestPriority(18)]
         public override Task Use_Existing_Client_Database_Provision_Deprosivion()
         {
             return base.Use_Existing_Client_Database_Provision_Deprosivion();

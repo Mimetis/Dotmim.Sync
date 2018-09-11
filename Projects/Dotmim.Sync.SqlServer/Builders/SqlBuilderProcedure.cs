@@ -11,6 +11,7 @@ using Dotmim.Sync.Filter;
 using Dotmim.Sync.SqlServer.Manager;
 using System.Diagnostics;
 using System.Collections.Generic;
+using Dotmim.Sync.Data.Surrogate;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
@@ -24,7 +25,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         private readonly SqlObjectNames sqlObjectNames;
         private readonly SqlDbMetadata sqlDbMetadata;
 
-        public ICollection<FilterClause> Filters { get; set; }
+        public IList<FilterClause2> Filters { get; set; }
 
         public SqlBuilderProcedure(DmTable tableDescription, DbConnection connection, DbTransaction transaction = null)
         {
@@ -48,6 +49,11 @@ namespace Dotmim.Sync.SqlServer.Builders
                 sqlCommand.Parameters.Add(GetSqlParameter(column));
         }
 
+        private SqlParameter GetSqlParameter(DmColumnSurrogate column)
+        {
+            return GetSqlParameter(column.ConvertToDmColumn());
+        }
+
         private SqlParameter GetSqlParameter(DmColumn column)
         {
             SqlParameter sqlParameter = new SqlParameter
@@ -56,12 +62,16 @@ namespace Dotmim.Sync.SqlServer.Builders
             };
 
             // Get the good SqlDbType (even if we are not from Sql Server def)
-            SqlDbType sqlDbType = (SqlDbType)this.sqlDbMetadata.TryGetOwnerDbType(column.OriginalDbType, column.DbType, false, false, column.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+            SqlDbType sqlDbType = (SqlDbType)this.sqlDbMetadata.TryGetOwnerDbType(column.OriginalDbType, column.DbType, column.IsUnsigned, column.IsUnicode, column.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
 
             sqlParameter.SqlDbType = sqlDbType;
             sqlParameter.IsNullable = column.AllowDBNull;
 
-            var (p, s) = this.sqlDbMetadata.TryGetOwnerPrecisionAndScale(column.OriginalDbType, column.DbType, false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+            if (column.DefaultValue != null)
+                sqlParameter.Value = column.DefaultValue;
+
+
+            var (p, s) = this.sqlDbMetadata.TryGetOwnerPrecisionAndScale(column.OriginalDbType, column.DbType, column.IsUnsigned, column.IsUnicode, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
 
             if (p > 0)
             {
@@ -83,26 +93,29 @@ namespace Dotmim.Sync.SqlServer.Builders
         /// </summary>
         internal string CreateParameterDeclaration(SqlParameter param)
         {
-            StringBuilder stringBuilder3 = new StringBuilder();
+            StringBuilder stringBuilder = new StringBuilder();
             SqlDbType sqlDbType = param.SqlDbType;
 
             string empty = this.sqlDbMetadata.GetPrecisionStringFromOwnerDbType(sqlDbType, param.Size, param.Precision, param.Scale);
 
             if (sqlDbType == SqlDbType.Structured)
             {
-                stringBuilder3.Append(string.Concat(param.ParameterName, " ", param.TypeName, " READONLY"));
+                stringBuilder.Append(string.Concat(param.ParameterName, " ", param.TypeName, " READONLY"));
             }
             else
             {
                 var sqlDbTypeString = this.sqlDbMetadata.GetStringFromOwnerDbType(sqlDbType);
 
-                stringBuilder3.Append(string.Concat(param.ParameterName, " ", sqlDbTypeString, empty));
+                stringBuilder.Append(string.Concat(param.ParameterName, " ", sqlDbTypeString, empty));
+
+                if (param.IsNullable)
+                    stringBuilder.Append(" NULL");
 
                 if (param.Direction == ParameterDirection.Output || param.Direction == ParameterDirection.InputOutput)
-                    stringBuilder3.Append(" OUTPUT");
+                    stringBuilder.Append(" OUTPUT");
             }
 
-            return stringBuilder3.ToString();
+            return stringBuilder.ToString();
         }
 
         /// <summary>
@@ -1727,51 +1740,13 @@ namespace Dotmim.Sync.SqlServer.Builders
         }
 
 
-        //------------------------------------------------------------------
-        // Select changes command
-        //------------------------------------------------------------------
-        private SqlCommand BuildSelectIncrementalChangesCommand(bool withFilter = false)
-        { 
-            SqlCommand sqlCommand = new SqlCommand();
-            SqlParameter pTimestamp = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt);
-            SqlParameter pScopeId = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
-            SqlParameter pScopeNew = new SqlParameter("@sync_scope_is_new", SqlDbType.Bit);
-            SqlParameter pReinit = new SqlParameter("@sync_scope_is_reinit", SqlDbType.Bit);
-            sqlCommand.Parameters.Add(pTimestamp);
-            sqlCommand.Parameters.Add(pScopeId);
-            sqlCommand.Parameters.Add(pScopeNew);
-            sqlCommand.Parameters.Add(pReinit);
-
-            if (withFilter && this.Filters != null && this.Filters.Count > 0)
-            {
-                foreach (var c in this.Filters)
-                {
-                    if (!c.IsVirtual)
-                    {
-                        var columnFilter = this.tableDescription.Columns[c.ColumnName];
-
-                        if (columnFilter == null)
-                            throw new InvalidExpressionException($"Column {c.ColumnName} does not exist in Table {this.tableDescription.TableName}");
-
-                        var columnFilterName = new ObjectNameParser(columnFilter.ColumnName, "[", "]");
-
-                        // Get the good SqlDbType (even if we are not from Sql Server def)
-
-                        SqlDbType sqlDbType = (SqlDbType)this.sqlDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.DbType, false, false, columnFilter.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-                        SqlParameter sqlParamFilter = new SqlParameter($"@{columnFilterName.FullUnquotedString}", sqlDbType);
-                        sqlCommand.Parameters.Add(sqlParamFilter);
-                    }
-                    else
-                    {
-                        SqlDbType sqlDbType = (SqlDbType)this.sqlDbMetadata.TryGetOwnerDbType(null, c.ColumnType.Value, false, false, 0, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-                        var columnFilterName = new ObjectNameParser(c.ColumnName, "[", "]");
-                        SqlParameter sqlParamFilter = new SqlParameter($"@{columnFilterName.FullUnquotedString}", sqlDbType);
-                        sqlCommand.Parameters.Add(sqlParamFilter);
-                    }
-                }
-            }
-
-            StringBuilder stringBuilder = new StringBuilder("SELECT ");
+        /// <summary>
+        /// Get the list of all columns to select
+        /// </summary>
+        /// <returns></returns>
+        private string GetSICStandardColumns()
+        {
+            StringBuilder stringBuilder = new StringBuilder();
             foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
             {
                 var pkColumnName = new ObjectNameParser(pkColumn.ColumnName);
@@ -1787,6 +1762,80 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"\t[side].[create_timestamp], ");
             stringBuilder.AppendLine($"\t[side].[update_scope_id], ");
             stringBuilder.AppendLine($"\t[side].[update_timestamp] ");
+            return stringBuilder.ToString();
+        }
+
+        private string GetSICSelect(bool withFilter)
+        {
+            if (!withFilter || this.Filters.Count <= 0)
+                return "SELECT";
+
+            int joinLevel = 0, lastJoinLevel = 0;
+            FilterJoinReference2 lastJoinReference = null;
+
+            // Search for a 1:Many relations
+            for (int i = 0; i < Filters.Count; i++)
+            {
+                FilterClause2 filter = Filters[i];
+                // get the first ref
+                FilterJoinReference2 refJoin = filter.FilterTable;
+                FilterJoinReference2 levelBeforeRefJoin = null;
+
+                DmTable dmTable = null;
+                // while we have a refjoin
+                while (refJoin != null)
+                {
+                    // save the last join reference for later use
+                    lastJoinReference = refJoin;
+                    lastJoinLevel = joinLevel;
+
+                    // get the dmTable
+                    dmTable = this.tableDescription.DmSet.Tables[refJoin.TableName.ObjectNameNormalized];
+
+                    // if we are at level 0, we should have the table itself, no need to do nothing here
+                    if (refJoin.TableName.ObjectNameNormalized.ToLowerInvariant() == this.tableDescription.TableName.ToLowerInvariant())
+                    {
+                        levelBeforeRefJoin = refJoin;
+                        refJoin = refJoin.FilterTable;
+                        continue;
+                    }
+
+                    if (levelBeforeRefJoin == null)
+                        throw new ArgumentException("Level before should exist");
+
+                    // Get the foreign table if exists
+                    var dmForeignTable = dmTable.ChildRelations.FirstOrDefault
+                            (pr => pr.ChildTable.TableName.ToLowerInvariant() == levelBeforeRefJoin.TableName.ObjectNameNormalized.ToLowerInvariant());
+
+                    if (dmForeignTable == null)
+                    {
+                        // Search 1:Many relationship
+                        dmForeignTable = dmTable.ParentRelations.FirstOrDefault
+                            (pr => pr.ParentTable.TableName.ToLowerInvariant() == levelBeforeRefJoin.TableName.ObjectNameNormalized.ToLowerInvariant());
+
+                        if (dmForeignTable != null)
+                        {
+                            return "SELECT DISTINCT ";
+                        }
+                    }
+
+                    // go next
+                    // get the current ref join that will become the ancestor
+                    levelBeforeRefJoin = refJoin;
+                    // get the next ref join
+                    refJoin = refJoin.FilterTable;
+                    joinLevel++;
+                }
+
+            }
+
+            return "SELECT";
+
+        }
+
+        private string GetSICFirstLevelFrom()
+        {
+            var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine($"FROM {tableName.FullQuotedString} [base]");
             stringBuilder.AppendLine($"RIGHT JOIN {trackingName.FullQuotedString} [side]");
             stringBuilder.Append($"ON ");
@@ -1798,56 +1847,14 @@ namespace Dotmim.Sync.SqlServer.Builders
                 stringBuilder.Append($"{empty}[base].{pkColumnName.FullQuotedString} = [side].{pkColumnName.FullQuotedString}");
                 empty = " AND ";
             }
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine("WHERE (");
-            string str = string.Empty;
 
-            var columnFilters = this.Filters.GetColumnFilters();
-            if (withFilter && columnFilters.Count != 0)
-            {
-                StringBuilder builderFilter = new StringBuilder();
-                builderFilter.Append("\t(");
-                bool isFirst = true;
-                foreach (var c in columnFilters)
-                {
-                    if (!isFirst)
-                        builderFilter.Append(" AND ");
-                    isFirst = false;
+            return stringBuilder.ToString();
+        }
 
-                    var columnFilter = this.tableDescription.Columns[c.ColumnName];
-
-                    if (columnFilter == null)
-                        throw new InvalidExpressionException($"Column {c.ColumnName} does not exist in Table {this.tableDescription.TableName}");
-
-                    var columnFilterName = new ObjectNameParser(columnFilter.ColumnName, "[", "]");
-
-                    builderFilter.Append($"[side].{columnFilterName.QuotedObjectName} = @{columnFilterName.FullUnquotedString}");
-                }
-                builderFilter.AppendLine(")");
-                builderFilter.Append("\tOR (");
-                builderFilter.AppendLine("([side].[update_scope_id] = @sync_scope_id or [side].[update_scope_id] IS NULL)");
-                builderFilter.Append("\t\tAND (");
-                
-                isFirst = true;
-
-                foreach (var c in columnFilters)
-                {
-                    if (!isFirst)
-                        builderFilter.Append(" OR ");
-                    isFirst = false;
-
-                    var columnFilter = this.tableDescription.Columns[c.ColumnName];
-                    var columnFilterName = new ObjectNameParser(columnFilter.ColumnName, "[", "]");
-
-                    builderFilter.Append($"[side].{columnFilterName.QuotedObjectName} IS NULL");
-                }
-
-                builderFilter.AppendLine("))");
-                builderFilter.AppendLine("\t)");
-                builderFilter.AppendLine("AND (");
-                stringBuilder.Append(builderFilter.ToString());
-            }
-
+        private string GetSICStandardClause()
+        {
+            var stringBuilder = new StringBuilder();
+            stringBuilder.AppendLine("(");
             stringBuilder.AppendLine("\t-- Update made by the local instance");
             stringBuilder.AppendLine("\t[side].[update_scope_id] IS NULL");
             stringBuilder.AppendLine("\t-- Or Update different from remote");
@@ -1867,7 +1874,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("\tOR");
             stringBuilder.Append("\t([side].[sync_row_is_tombstone] = 0");
 
-            empty = " AND ";
+            var empty = " AND ";
             foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
             {
                 var pkColumnName = new ObjectNameParser(pkColumn.ColumnName, "[", "]");
@@ -1876,17 +1883,334 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("\t)");
             stringBuilder.AppendLine(")");
 
+            return stringBuilder.ToString();
+        }
+
+        private List<SqlParameter> GetSICAdditionalParameter()
+        {
+            var lstParams = new List<SqlParameter>();
+
+            if (this.Filters != null && this.Filters.Count > 0)
+            {
+                foreach (var f in this.Filters)
+                {
+                    if (f.InParameter == null)
+                        throw new InvalidExpressionException($"filter parameter has not been set for table {this.tableDescription.TableName}");
+
+                    // parse it
+                    var columnFilterName = new ObjectNameParser(f.InParameter.ColumnName, "[", "]");
+
+                    // generate the param declaration
+                    SqlParameter sqlParamFilter = GetSqlParameter(f.InParameter);
+                    if (!lstParams.Any(pf => pf.ParameterName == sqlParamFilter.ParameterName))
+                        lstParams.Add(sqlParamFilter);
+                }
+            }
+
+            return lstParams;
+        }
+
+        private string GetSICFiltersRightJoinClause(FilterClause2 filter)
+        {
+
+            var stringBuilder = new StringBuilder();
+            int joinLevel = 0, lastJoinLevel = 0;
+            FilterJoinReference2 lastJoinReference = null;
+
+            // get the first ref
+            FilterJoinReference2 refJoin = filter.FilterTable;
+            FilterJoinReference2 levelBeforeRefJoin = null;
+
+            DmTable dmTable = null;
+            // while we have a refjoin
+            while (refJoin != null)
+            {
+                // save the last join reference for later use
+                lastJoinReference = refJoin;
+                lastJoinLevel = joinLevel;
+
+
+                // get the dmTable
+                dmTable = this.tableDescription.DmSet.Tables[refJoin.TableName.ObjectNameNormalized];
+
+                // if we are at level 0, we should have the table itself, no need to do nothing here
+                if (refJoin.TableName.ObjectNameNormalized.ToLowerInvariant() == this.tableDescription.TableName.ToLowerInvariant())
+                {
+                    levelBeforeRefJoin = refJoin;
+                    refJoin = refJoin.FilterTable;
+                    continue;
+                }
+
+                if (levelBeforeRefJoin == null)
+                    throw new ArgumentException("Level before should exist");
+
+                // get the correct name of tracking table
+                (ObjectNameParser refTableName, ObjectNameParser refTrackingName) refNames = (null, null);
+
+                // Get the foreign table if exists
+                var dmForeignTable = dmTable.ChildRelations.FirstOrDefault
+                        (pr => pr.ChildTable.TableName.ToLowerInvariant() == levelBeforeRefJoin.TableName.ObjectNameNormalized.ToLowerInvariant());
+
+                if (dmForeignTable != null)
+                    refNames = SqlBuilder.GetParsers(dmForeignTable.ParentTable);
+
+                if (dmForeignTable == null)
+                {
+                    // Search 1:Many relationship
+                    dmForeignTable = dmTable.ParentRelations.FirstOrDefault
+                        (pr => pr.ParentTable.TableName.ToLowerInvariant() == levelBeforeRefJoin.TableName.ObjectNameNormalized.ToLowerInvariant());
+
+                    if (dmForeignTable != null)
+                    {
+                        refNames = SqlBuilder.GetParsers(dmForeignTable.ChildTable);
+                    }
+                }
+
+                if (dmForeignTable == null)
+                    throw new Exception($"Table {refJoin.TableName} is not a foreign key for {dmTable.TableName}");
+
+                stringBuilder.AppendLine($"RIGHT JOIN {refNames.refTrackingName.FullQuotedString} [ref{joinLevel.ToString()}_side]");
+                stringBuilder.Append($"ON ");
+
+                var and = "";
+                foreach (var col in dmForeignTable.ParentColumns)
+                {
+                    var side1 = levelBeforeRefJoin.TableName.ObjectNameNormalized.ToLowerInvariant() == this.tableDescription.TableName.ToLowerInvariant() ? "[side]" : $"[ref{(lastJoinLevel - 1)}_side]";
+
+                    // parse it
+                    var columnName2 = new ObjectNameParser(col.ColumnName, "[", "]");
+                    stringBuilder.AppendLine($"{and}[ref{joinLevel.ToString()}_side].{columnName2} = {side1}.{columnName2}");
+                    and = " AND ";
+                }
+
+                // go next
+                // get the current ref join that will become the ancestor
+                levelBeforeRefJoin = refJoin;
+                // get the next ref join
+                refJoin = refJoin.FilterTable;
+                joinLevel++;
+            }
+
+            return stringBuilder.ToString();
+
+        }
+
+        private string GetSICWhereConditionForFilter(FilterClause2 filter)
+        {
+
+            StringBuilder whereFilterBuilder = new StringBuilder();
+            // get the first ref
+            int joinLevel = 0, lastJoinLevel = 0;
+            FilterJoinReference2 refJoin = filter.FilterTable;
+            FilterJoinReference2 levelBeforeRefJoin = null;
+            FilterJoinReference2 lastJoinReference = null;
+            bool hasSubLevel = false;
+
+            DmTable dmTable = null;
+            // while we have a refjoin
+            while (refJoin != null)
+            {
+                // save the last join reference for later use
+                lastJoinReference = refJoin;
+                lastJoinLevel = joinLevel;
+
+                // get the dmTable
+                dmTable = this.tableDescription.DmSet.Tables[refJoin.TableName.ObjectNameNormalized];
+
+                // if we are at level 0, we should have the table itself, no need to do nothing here
+                if (refJoin.TableName.ObjectNameNormalized.ToLowerInvariant() == this.tableDescription.TableName.ToLowerInvariant())
+                {
+                    levelBeforeRefJoin = refJoin;
+                    refJoin = refJoin.FilterTable;
+                    continue;
+                }
+
+                if (levelBeforeRefJoin == null)
+                    throw new ArgumentException("Level before should exist");
+
+                // get the correct name of tracking table
+                (ObjectNameParser refTableName, ObjectNameParser refTrackingName) refNames = (null, null);
+
+                // Get the foreign table if exists
+                var dmForeignTable = dmTable.ChildRelations.FirstOrDefault
+                        (pr => pr.ChildTable.TableName.ToLowerInvariant() == levelBeforeRefJoin.TableName.ObjectNameNormalized.ToLowerInvariant());
+
+                if (dmForeignTable != null)
+                    refNames = SqlBuilder.GetParsers(dmForeignTable.ParentTable);
+
+                if (dmForeignTable == null)
+                {
+                    // Search 1:Many relationship
+                    dmForeignTable = dmTable.ParentRelations.FirstOrDefault
+                        (pr => pr.ParentTable.TableName.ToLowerInvariant() == levelBeforeRefJoin.TableName.ObjectNameNormalized.ToLowerInvariant());
+
+                    if (dmForeignTable != null)
+                        refNames = SqlBuilder.GetParsers(dmForeignTable.ChildTable);
+                }
+
+                if (dmForeignTable == null)
+                    throw new Exception($"Table {refJoin.TableName} is not a foreign key for {dmTable.TableName}");
+
+                hasSubLevel = true;
+
+                // go next
+                // get the current ref join that will become the ancestor
+                levelBeforeRefJoin = refJoin;
+                // get the next ref join
+                refJoin = refJoin.FilterTable;
+                joinLevel++;
+            }
+
+            // Setting the Where Part
+            if (!string.IsNullOrEmpty(lastJoinReference.ColumnName))
+            {
+
+                var filterParameterName = filter.InParameter.ColumnName;
+                var columnName = new ObjectNameParser(lastJoinReference.ColumnName, "[", "]");
+
+                // filter is on the same table
+                if (!hasSubLevel)
+                {
+                    // ([side].[EmployeeID] = @empID) OR [side].[EmployeeID] IS NULL)
+                    whereFilterBuilder.AppendLine("(");
+                    whereFilterBuilder.Append($"\t[side].{columnName.FullUnquotedString} = @{filterParameterName} OR [side].{columnName.FullUnquotedString} IS NULL ");
+
+                    if (filter.InParameter.AllowDBNull)
+                        whereFilterBuilder.Append($"OR @{filterParameterName} IS NULL ");
+
+                    whereFilterBuilder.AppendLine();
+                    whereFilterBuilder.AppendLine(")");
+
+                }
+                else
+                {
+                    // ([ref0_side].[EmployeeID] = @empId OR [ref0_side].[EmployeeID] IS NULL OR @empId IS NULL)
+                    whereFilterBuilder.AppendLine("(");
+                    whereFilterBuilder.Append($"\t[ref{lastJoinLevel.ToString()}_side].{columnName.FullQuotedString} = @{filterParameterName} ");
+                    whereFilterBuilder.Append($"OR [ref{lastJoinLevel.ToString()}_side].{columnName.FullQuotedString} IS NULL ");
+
+                    if (filter.InParameter.AllowDBNull)
+                        whereFilterBuilder.Append($"OR @{filterParameterName} IS NULL ");
+
+                    whereFilterBuilder.AppendLine($"OR @{filterParameterName} IS NULL ");
+                    whereFilterBuilder.AppendLine(")");
+                }
+
+                whereFilterBuilder.AppendLine("AND ");
+            }
+
+            return whereFilterBuilder.ToString();
+
+        }
+
+
+        private SqlCommand BuildSICWithFilter()
+        {
+            SqlCommand sqlCommand = new SqlCommand();
+
+            SqlParameter pTimestamp = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt);
+            SqlParameter pScopeId = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
+            SqlParameter pScopeNew = new SqlParameter("@sync_scope_is_new", SqlDbType.Bit);
+            SqlParameter pReinit = new SqlParameter("@sync_scope_is_reinit", SqlDbType.Bit);
+            sqlCommand.Parameters.Add(pTimestamp);
+            sqlCommand.Parameters.Add(pScopeId);
+            sqlCommand.Parameters.Add(pScopeNew);
+            sqlCommand.Parameters.Add(pReinit);
+
+            // add In params if any (for filters)
+            var lstInParams = GetSICAdditionalParameter();
+            lstInParams.ForEach(p => sqlCommand.Parameters.Add(p));
+
+            StringBuilder stringBuilder = new StringBuilder();
+
+            // we will have to make UNION of all filters
+            for (int filterIndex = 0; filterIndex < Filters.Count; filterIndex++)
+            {
+                var filter = Filters[filterIndex];
+
+                // append the correct SELECT (DISTINCT or NOT)
+                stringBuilder.AppendLine(GetSICSelect(true));
+
+                // Get all the Columns from table
+                stringBuilder.AppendLine(GetSICStandardColumns());
+
+                // get the first FROM on the inner table 
+                stringBuilder.AppendLine(GetSICFirstLevelFrom());
+
+                // get the RIGHT Joins from current filter
+                stringBuilder.AppendLine(GetSICFiltersRightJoinClause(filter));
+
+                // add Where
+                stringBuilder.AppendLine("WHERE ");
+
+                // add condition for current filter
+                stringBuilder.AppendLine(GetSICWhereConditionForFilter(filter));
+
+                // append all clauses (timestamp, reinit, and so on)
+                stringBuilder.AppendLine(GetSICStandardClause());
+
+                // make the UNION
+                if (filterIndex < Filters.Count - 1)
+                    stringBuilder.AppendLine("UNION");
+            }
+
             sqlCommand.CommandText = stringBuilder.ToString();
 
-            //if (this._filterParameters != null)
-            //{
-            //    foreach (SqlParameter _filterParameter in this._filterParameters)
-            //    {
-            //        sqlCommand.Parameters.Add(((ICloneable)_filterParameter).Clone());
-            //    }
-            //}
+
             return sqlCommand;
         }
+
+
+        private SqlCommand BuildSICWithoutFilter()
+        {
+            SqlCommand sqlCommand = new SqlCommand();
+
+            SqlParameter pTimestamp = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt);
+            SqlParameter pScopeId = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
+            SqlParameter pScopeNew = new SqlParameter("@sync_scope_is_new", SqlDbType.Bit);
+            SqlParameter pReinit = new SqlParameter("@sync_scope_is_reinit", SqlDbType.Bit);
+            sqlCommand.Parameters.Add(pTimestamp);
+            sqlCommand.Parameters.Add(pScopeId);
+            sqlCommand.Parameters.Add(pScopeNew);
+            sqlCommand.Parameters.Add(pReinit);
+
+            StringBuilder stringBuilder = new StringBuilder();
+
+            stringBuilder.AppendLine("SELECT ");
+
+            // Get all the Columns from table
+            stringBuilder.AppendLine(GetSICStandardColumns());
+
+            // get the first FROM on the inner table 
+            stringBuilder.AppendLine(GetSICFirstLevelFrom());
+
+            // add Where
+            stringBuilder.AppendLine("WHERE ");
+
+
+            // append all clauses (timestamp, reinit, and so on)
+            stringBuilder.AppendLine(GetSICStandardClause());
+
+            // make the UNION
+
+
+            sqlCommand.CommandText = stringBuilder.ToString();
+
+
+            return sqlCommand;
+        }
+
+
+
+        //------------------------------------------------------------------
+        // Select changes command
+        //------------------------------------------------------------------
+
+        private SqlCommand BuildSelectIncrementalChangesCommand(bool withFilter = false)
+        {
+            return withFilter ? BuildSICWithFilter() : BuildSICWithoutFilter();
+        }
+
         public void CreateSelectIncrementalChanges()
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChanges);
@@ -1895,9 +2219,8 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             if (this.Filters != null && this.Filters.Count > 0)
             {
-                this.Filters.ValidateColumnFilters(this.tableDescription);
+                var filtersName = this.Filters.GroupBy(fc => fc.InParameter.ColumnName).Select(f => f.Key);
 
-                var filtersName = this.Filters.Select(f => f.ColumnName);
                 commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWitFilters, filtersName);
                 SqlCommand cmdWithFilter() => BuildSelectIncrementalChangesCommand(true);
                 CreateProcedureCommand(cmdWithFilter, commandName);
@@ -1917,32 +2240,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             if (this.Filters != null && this.Filters.Count > 0)
             {
                 commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWitFilters);
-                string name = "";
-                string sep = "";
-                
-                foreach (var c in this.Filters)
-                {
-                    string unquotedColumnName;
-                    if (!c.IsVirtual)
-                    {
-                        var columnFilter = this.tableDescription.Columns[c.ColumnName];
-
-                        if (columnFilter == null)
-                            throw new InvalidExpressionException(
-                                $"Column {c.ColumnName} does not exist in Table {this.tableDescription.TableName}");
-
-                        unquotedColumnName = new ObjectNameParser(columnFilter.ColumnName).FullUnquotedString;
-                    }
-                    else
-                    {
-                        unquotedColumnName = new ObjectNameParser(c.ColumnName).FullUnquotedString;
-                    }
-
-                    name += $"{unquotedColumnName}{sep}";
-                    sep = "_";
-                }
-
-                commandName = String.Format(commandName, name);
                 SqlCommand cmdWithFilter() => BuildSelectIncrementalChangesCommand(true);
                 sbSelecteChanges.AppendLine(CreateProcedureCommandScriptText(cmdWithFilter, commandName));
 
@@ -1982,9 +2279,9 @@ namespace Dotmim.Sync.SqlServer.Builders
                         if (this.transaction != null)
                             command.Transaction = this.transaction;
 
-                        this.Filters.ValidateColumnFilters(this.tableDescription);
+                        //this.Filters.ValidateColumnFilters(this.tableDescription);
 
-                        var filtersName = this.Filters.Select(f => f.ColumnName);
+                        var filtersName = this.Filters.GroupBy(fc => fc.InParameter.ColumnName).Select(f => f.Key);
                         var commandNameWithFilter = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWitFilters, filtersName);
 
                         command.CommandText = $"DROP PROCEDURE {commandNameWithFilter};";
@@ -2022,9 +2319,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                 using (var command = new SqlCommand())
                 {
-                    this.Filters.ValidateColumnFilters(this.tableDescription);
-
-                    var filtersName = this.Filters.Select(f => f.ColumnName);
+                    var filtersName = this.Filters.GroupBy(fc => fc.InParameter.ColumnName).Select(f => f.Key);
                     var commandNameWithFilter = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWitFilters, filtersName);
 
                     dropProcedure += Environment.NewLine + $"DROP PROCEDURE {commandNameWithFilter};";

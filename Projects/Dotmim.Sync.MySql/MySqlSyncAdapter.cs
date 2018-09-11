@@ -6,6 +6,7 @@ using System.Data.Common;
 using System.Data;
 using Dotmim.Sync.Builders;
 using MySql.Data.MySqlClient;
+using System.Diagnostics;
 
 namespace Dotmim.Sync.MySql
 {
@@ -85,35 +86,101 @@ namespace Dotmim.Sync.MySql
 
         public override void SetCommandParameters(DbCommandType commandType, DbCommand command)
         {
-            switch (commandType)
+            if (command == null)
+                return;
+
+            if (command.Parameters != null && command.Parameters.Count > 0)
+                return;
+
+            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+
+            try
             {
-                case DbCommandType.SelectChanges:
-                    this.SetSelecteChangesParameters(command);
-                    break;
-                case DbCommandType.SelectRow:
-                    this.SetSelectRowParameters(command);
-                    break;
-                case DbCommandType.DeleteMetadata:
-                    this.SetDeleteMetadataParameters(command);
-                    break;
-                case DbCommandType.DeleteRow:
-                    this.SetDeleteRowParameters(command);
-                    break;
-                case DbCommandType.InsertMetadata:
-                    this.SetInsertMetadataParameters(command);
-                    break;
-                case DbCommandType.InsertRow:
-                    this.SetInsertRowParameters(command);
-                    break;
-                case DbCommandType.UpdateMetadata:
-                    this.SetUpdateMetadataParameters(command);
-                    break;
-                case DbCommandType.UpdateRow:
-                    this.SetUpdateRowParameters(command);
-                    break;
-                default:
-                    break;
+                if (!alreadyOpened)
+                    this.connection.Open();
+
+                if (this.transaction != null)
+                    command.Transaction = this.transaction;
+
+
+                MySqlCommandBuilder.DeriveParameters((MySqlCommand)command);
             }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"DeriveParameters failed : {ex}");
+                throw;
+            }
+            finally
+            {
+                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
+                    this.connection.Close();
+            }
+
+
+            foreach (var parameter in command.Parameters)
+            {
+                var sqlParameter = (MySqlParameter)parameter;
+
+                // try to get the source column (from the dmTable)
+                var sqlParameterName = sqlParameter.ParameterName.Replace("@", "");
+
+                if (sqlParameterName.StartsWith(MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER))
+                    sqlParameterName = sqlParameterName.Substring(MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER.Length);
+
+                var colDesc = TableDescription.Columns.FirstOrDefault(c => string.Equals(c.ColumnName, sqlParameterName, StringComparison.CurrentCultureIgnoreCase));
+
+                if (colDesc != null && !string.IsNullOrEmpty(colDesc.ColumnName))
+                    sqlParameter.SourceColumn = colDesc.ColumnName;
+
+                if (colDesc != null)
+                    sqlParameter.IsNullable = colDesc.AllowDBNull;
+            }
+
+
+            //switch (commandType)
+            //{
+            //    case DbCommandType.SelectChanges:
+            //        this.SetSelecteChangesParameters(command);
+            //        break;
+            //    case DbCommandType.SelectChangesWitFilters:
+
+            //        try
+            //        {
+            //            MySqlCommandBuilder.DeriveParameters((MySqlCommand)command);
+
+            //        }
+            //        catch (Exception ex)
+            //        {
+
+            //            throw ex;
+            //        }
+
+            //        this.SetSelecteChangesParameters(command);
+            //        break;
+            //    case DbCommandType.SelectRow:
+            //        this.SetSelectRowParameters(command);
+            //        break;
+            //    case DbCommandType.DeleteMetadata:
+            //        this.SetDeleteMetadataParameters(command);
+            //        break;
+            //    case DbCommandType.DeleteRow:
+            //        this.SetDeleteRowParameters(command);
+            //        break;
+            //    case DbCommandType.InsertMetadata:
+            //        this.SetInsertMetadataParameters(command);
+            //        break;
+            //    case DbCommandType.InsertRow:
+            //        this.SetInsertRowParameters(command);
+            //        break;
+            //    case DbCommandType.UpdateMetadata:
+            //        this.SetUpdateMetadataParameters(command);
+            //        break;
+            //    case DbCommandType.UpdateRow:
+            //        this.SetUpdateRowParameters(command);
+            //        break;
+            //    default:
+            //        break;
+            //}
         }
 
         private void SetUpdateRowParameters(DbCommand command)
