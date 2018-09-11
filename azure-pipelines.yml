@@ -3,41 +3,35 @@
 # Add steps that publish symbols, save build artifacts, and more:
 # https://docs.microsoft.com/vsts/pipelines/apps/windows/dot-net
 
-resources:
-  containers:
-  - container: mssql2017
-    image: microsoft/mssql-server-linux:2017-latest
-    env: { 'ACCEPT_EULA': 'Y' }
-
 pool:
-  container: mssql2017
-  vmImage: 'Ubuntu 16.04'
+  vmImage: 'VS2017-Win2016'
+
+variables:
+  solution: '**/*.sln'
+  buildPlatform: 'Any CPU'
+  buildConfiguration: 'Release'
+
 steps:
-- script: printenv
+#- task: NuGetToolInstaller@0
+#
+#- task: NuGetCommand@2
+#  inputs:
+#    restoreSolution: '$(solution)'
+#
+#- task: VSBuild@1
+#  inputs:
+#    solution: '$(solution)'
+#    platform: '$(buildPlatform)'
+#    configuration: '$(buildConfiguration)'
 
+- task: Docker@0
+  displayName: 'Start SQL Server 2017'
+  inputs:
+    action: 'Run an image'
+    imageName: microsoft/mssql-server-linux:2017-latest
+    command: 'run'
 
-##pool:
-##  vmImage: 'VS2017-Win2016'
-##
-##variables:
-##  solution: '**/*.sln'
-##  buildPlatform: 'Any CPU'
-##  buildConfiguration: 'Release'
-##
-##steps:
-##- task: NuGetToolInstaller@0
-##
-##- task: NuGetCommand@2
-##  inputs:
-##    restoreSolution: '$(solution)'
-##
-##- task: VSBuild@1
-##  inputs:
-##    solution: '$(solution)'
-##    platform: '$(buildPlatform)'
-##    configuration: '$(buildConfiguration)'
-##
-##- task: VSTest@2
-##  inputs:
-##    platform: '$(buildPlatform)'
-##    configuration: '$(buildConfiguration)'
+#- task: VSTest@2
+#  inputs:
+#    platform: '$(buildPlatform)'
+#    configuration: '$(buildConfiguration)'
