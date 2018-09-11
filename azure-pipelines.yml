@@ -10,13 +10,6 @@ resources:
     env: { 'ACCEPT_EULA': 'Y' }
     
 pool:
-  name: 'SQL Server 2017 on Linux'
-  container: mssql2017
-steps:
-  - script: pandoc -v
-
-
-pool:
   vmImage: 'VS2017-Win2016'
 
 variables:
