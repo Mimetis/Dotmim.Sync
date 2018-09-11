@@ -3,6 +3,19 @@
 # Add steps that publish symbols, save build artifacts, and more:
 # https://docs.microsoft.com/vsts/pipelines/apps/windows/dot-net
 
+resources:
+  containers:
+  - container: mssql2017
+    image: microsoft/mssql-server-linux:2017-latest
+    env: { 'ACCEPT_EULA': 'Y' }
+    
+pool:
+  name: 'SQL Server 2017 on Linux'
+  container: mssql2017
+steps:
+  - script: pandoc -v
+
+
 pool:
   vmImage: 'VS2017-Win2016'
 
