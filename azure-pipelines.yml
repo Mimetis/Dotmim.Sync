@@ -41,5 +41,6 @@ jobs:
   - script: dotnet build Projects/dotnet-sync/dotnet-sync.csproj
     displayName: 'dotnet-sync'
 
-  - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj
+  - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj  
+    displayName: 'Tests'
     
