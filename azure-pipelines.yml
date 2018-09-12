@@ -1,0 +1,50 @@
+jobs:
+
+- job: Ubuntu
+
+  pool:
+    vmImage: 'Ubuntu 16.04' # 'VS2017-Win2016'
+  steps:
+#  - task: Docker@0
+#    displayName: 'Start SQL Server 2017'
+#    inputs:
+#      action: 'Run an image'
+#      imageName: microsoft/mssql-server-windows-developer
+#      command: 'run'
+#      ports: '1433:1433'
+#      envVars: 'ACCEPT_EULA=Y SA_PASSWORD=yourStrong(!)Password'
+  
+  - script: docker run -e 'ACCEPT_EULA=Y' -e 'SA_PASSWORD=Password12!' -p 1433:1433  -d microsoft/mssql-server-linux:2017-latest
+    displayName: 'Run SQL 2017 on Linux container'
+
+  - script: docker run -e 'MYSQL_ROOT_PASSWORD=Password12!' -d mysql:latest
+    displayName: 'Run MySql on Linux container'
+    
+  - script: |
+      sqlcmd -S localhost -U SA -P 'Password12!' -Q 'select @@VERSION'
+      exit
+    displayName: 'Run SQLCMD'
+
+  - script: dotnet build Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj
+    displayName: 'Dotmim.Sync.Core'
+  - script: dotnet build Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj
+    displayName: 'Dotmim.Sync.SqlServer'
+  - script: dotnet build Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj
+    displayName: 'Dotmim.Sync.Sqlite'
+  - script: dotnet build Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj
+    displayName: 'Dotmim.Sync.MySql'
+  - script: dotnet build Projects/Dotmim.Sync.Web.Client/Dotmim.Sync.Web.Client.csproj
+    displayName: 'Dotmim.Sync.Web.Client'
+ 
+  # Because we habe a build on both .Net Standard 2.0 AND .Net 4.6, We just make the build on .Net Standard 2.0
+  - script: dotnet build Projects/Dotmim.Sync.Web.Server/Dotmim.Sync.Web.Server.csproj -f netstandard2.0
+    displayName: 'Build Dotmim.Sync.Web.Server for .Net Standard 2.0' 
+  
+  - script: dotnet build Projects/dotnet-sync/dotnet-sync.csproj
+    displayName: 'dotnet-sync'
+
+
+#- task: VSTest@2
+#  inputs:
+#    platform: '$(buildPlatform)'
+#    configuration: '$(buildConfiguration)'
