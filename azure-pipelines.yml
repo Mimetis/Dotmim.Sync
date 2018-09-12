@@ -44,7 +44,7 @@ jobs:
   - task: VSTest@2
     inputs:
       testSelector: 'testAssemblies'
-      testAssemblyVer2: '\Tests\Dotmim.Sync.Tests\**\*Tests*.dll
+      testAssemblyVer2: '\Tests\Dotmim.Sync.Tests\**\*Tests*.dll'
       platform: '$(buildPlatform)'
       configuration: '$(buildConfiguration)'
     
