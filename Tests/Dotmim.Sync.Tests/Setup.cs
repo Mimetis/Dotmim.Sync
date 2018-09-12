@@ -78,7 +78,7 @@ namespace Dotmim.Sync.Tests
             else if (isWindowsRuntime)
                 return $@"Data Source=(localdb)\MSSQLLocalDB;Initial Catalog={dbName};Integrated Security=true;";
             else
-                return $@"Data Source=localhost; Database={dbName}; User=sa; Password=QWE123qwe";
+                return $@"Data Source=localhost; Database={dbName}; User=sa; Password=Password12!";
         }
 
         /// <summary>
@@ -90,7 +90,7 @@ namespace Dotmim.Sync.Tests
             if (IsOnAppVeyor)
                 return $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=Password12!";
             else
-                return $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=azerty31$;";
+                return $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=Password12!";
         }
 
         /// <summary>
