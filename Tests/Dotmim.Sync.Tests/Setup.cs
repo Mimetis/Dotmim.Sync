@@ -90,7 +90,7 @@ namespace Dotmim.Sync.Tests
             if (IsOnAppVeyor)
                 return $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=Password12!";
             else
-                return $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=Password12!";
+                return $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=azerty31$;";
         }
 
         /// <summary>
