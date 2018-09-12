@@ -20,7 +20,8 @@ jobs:
     
   - script: |
       docker inspect mysql
-      docker inspect sqlserver      
+      docker inspect sqlserver  
+    displayName: 'Inspect docker'
 
   - script: |
       sqlcmd -S localhost -U SA -P 'Password12!' -Q 'select @@VERSION'
