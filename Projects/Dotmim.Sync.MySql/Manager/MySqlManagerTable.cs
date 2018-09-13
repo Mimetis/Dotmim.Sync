@@ -39,14 +39,25 @@ namespace Dotmim.Sync.MySql
             List<DmColumn> columns = new List<DmColumn>();
 
             // Get the columns definition
+            Console.WriteLine("Getting table from " + sqlConnection.ConnectionString);
+
             var dmColumnsList = MySqlManagementUtils.ColumnsForTable(sqlConnection, sqlTransaction, this.tableName);
             var mySqlDbMetadata = new MySqlDbMetadata();
+
+            foreach (var row in dmColumnsList.Rows)
+            {
+                Console.WriteLine(row);
+            }
 
             foreach (var c in dmColumnsList.Rows.OrderBy(r => Convert.ToUInt64(r["ordinal_position"])))
             {
                 var typeName = c["data_type"].ToString();
                 var name = c["column_name"].ToString();
                 var isUnsigned = c["column_type"] != DBNull.Value ? ((string)c["column_type"]).Contains("unsigned") : false;
+
+
+                Console.WriteLine("Name : " + name + " " + typeName);
+
 
                 var maxLengthLong = c["character_maximum_length"] != DBNull.Value ? Convert.ToInt64(c["character_maximum_length"]) : 0;
 
