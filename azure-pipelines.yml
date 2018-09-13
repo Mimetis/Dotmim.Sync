@@ -23,11 +23,11 @@ jobs:
   - script: docker run --name sqlserver -e 'ACCEPT_EULA=Y' -e 'SA_PASSWORD=Password12!' -p 1433:1433  -d microsoft/mssql-server-linux:2017-latest
     displayName: 'Run SQL 2017 on Linux container'
 
-  - script: |
-      sqlcmd -S localhost -U sa -P 'Password12!' -Q 'select @@VERSION'
-      exit
-    continueOnError: 'true'
-    displayName: 'Run SQLCMD, Continue if any error'
+  #- script: |
+  #    sqlcmd -S localhost -U sa -P 'Password12!' -Q 'select @@VERSION'
+  #    exit
+  #  continueOnError: 'true'
+  #  displayName: 'Run SQLCMD, Continue if any error'
 
   - script: dotnet build Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj
     displayName: 'Dotmim.Sync.Core'
@@ -47,6 +47,8 @@ jobs:
   - script: dotnet build Projects/dotnet-sync/dotnet-sync.csproj
     displayName: 'dotnet-sync'
 
+  # Dont need anymore to pass the MySQL Ip Address, just let it here for memory
+  # --logger trx;logfilename=TEST.xml : Unexplained arg to publish tests resuls
   - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --logger trx;logfilename=TEST.xml
     displayName: 'Tests'
     env: 
@@ -55,5 +57,5 @@ jobs:
 
   - task: PublishTestResults@2
     inputs:
-      testRunner: XUnit
+      testRunner: VSTest
       testResultsFiles: '**/*.trx'
