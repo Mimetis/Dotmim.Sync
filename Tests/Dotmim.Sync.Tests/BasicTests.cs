@@ -1,4 +1,4 @@
-﻿using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Test.Misc;
 using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Tests.Misc;
@@ -76,7 +76,7 @@ namespace Dotmim.Sync.Tests
 
                 foreach (var trr in results)
                 {
-                    Assert.Equal(82, trr.Results.TotalChangesDownloaded);
+                    Assert.Equal(103, trr.Results.TotalChangesDownloaded);
                     Assert.Equal(0, trr.Results.TotalChangesUploaded);
                 }
 
