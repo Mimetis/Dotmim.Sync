@@ -58,6 +58,10 @@ namespace Dotmim.Sync.Tests.Core
 
                     await tra.RunAsync(this.serverProvider, this.providerFixture, scopeName, tables, conf, reuseAgent);
                 }
+                catch(Exception ex)
+                {
+                    Console.WriteLine(ex);
+                }
                 finally
                 {
                     tra.BeginRun = null;
