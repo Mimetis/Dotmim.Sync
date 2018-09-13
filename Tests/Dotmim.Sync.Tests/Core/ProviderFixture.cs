@@ -179,11 +179,21 @@ namespace Dotmim.Sync.Tests.Core
         /// </summary>
         internal virtual void ServerDatabaseEnsureCreated()
         {
+
+            try
+            {
             using (AdventureWorksContext ctx =
                 new AdventureWorksContext(ProviderType, HelperDB.GetConnectionString(ProviderType, DatabaseName)))
             {
                 ctx.Database.EnsureDeleted();
                 ctx.Database.EnsureCreated();
+            }
+
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                throw ex;
             }
         }
 
