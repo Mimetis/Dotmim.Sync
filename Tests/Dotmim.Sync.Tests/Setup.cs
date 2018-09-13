@@ -106,6 +106,18 @@ namespace Dotmim.Sync.Tests
             }
         }
 
+        /// <summary>
+        /// Gets if the tests are running on Azure Dev
+        /// </summary>
+        internal static bool IsOnAzureDev
+        {
+            get
+            {
+                // check if we are running on appveyor or not
+                string isOnAppVeyor = Environment.GetEnvironmentVariable("AZUREDEV");
+                return !String.IsNullOrEmpty(isOnAppVeyor) && isOnAppVeyor.ToLowerInvariant() == "true";
+            }
+        }
 
     }
 }
