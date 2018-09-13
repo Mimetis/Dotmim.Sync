@@ -68,6 +68,8 @@ namespace Dotmim.Sync.MySql
             }
             stringBuilder.Append(" ) ");
             sqlCommand.CommandText = stringBuilder.ToString();
+
+            Console.WriteLine(sqlCommand.CommandText);
             return sqlCommand;
         }
 
@@ -243,6 +245,7 @@ namespace Dotmim.Sync.MySql
             //}
             stringBuilder.Append(")");
             stringBuilder.Append(")");
+            Console.WriteLine(stringBuilder.ToString());
             return new MySqlCommand(stringBuilder.ToString());
         }
 
