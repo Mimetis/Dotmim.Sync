@@ -51,22 +51,20 @@ namespace Dotmim.Sync.Tests
 
             // SQL Server provider
 
-            providerFixture.AddRun((ProviderType.Sql, NetworkType.Tcp),
-                    ProviderType.Sql |
-                    ProviderType.Sqlite);
+            //providerFixture.AddRun((ProviderType.Sql, NetworkType.Tcp),
+            //        ProviderType.Sql |
+            //        ProviderType.Sqlite);
 
-            providerFixture.AddRun((ProviderType.Sql, NetworkType.Http),
-                    ProviderType.MySql |
-                    ProviderType.Sqlite);
+            //providerFixture.AddRun((ProviderType.Sql, NetworkType.Http),
+            //        ProviderType.MySql |
+            //        ProviderType.Sqlite);
 
             // My SQL (disable http to go faster on app veyor)
             providerFixture.AddRun((ProviderType.MySql, NetworkType.Tcp),
-                    ProviderType.MySql |
-                    ProviderType.Sqlite);
+                    ProviderType.MySql );
 
             providerFixture.AddRun((ProviderType.MySql, NetworkType.Http),
-                    ProviderType.Sql |
-                    ProviderType.Sqlite);
+                    ProviderType.MySql);
         }
 
         /// <summary>
