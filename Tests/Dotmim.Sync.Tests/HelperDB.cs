@@ -67,8 +67,6 @@ namespace Dotmim.Sync.Tests
                     CreateSqlServerDatabase(dbName, recreateDb);
                     break;
                 case ProviderType.MySql:
-                    Console.WriteLine($"CreateMySqlDatabase {dbName}, {recreateDb}");
-
                     CreateMySqlDatabase(dbName, recreateDb);
                     break;
             }
@@ -100,11 +98,7 @@ namespace Dotmim.Sync.Tests
             {
                 try
                 {
-                    Console.WriteLine("Open Connection : " + sysConnection.ConnectionString);
-
                     sysConnection.Open();
-
-                    Console.WriteLine("Connection opened : " + sysConnection.ConnectionString);
 
                     if (recreateDb)
                     {
@@ -113,9 +107,6 @@ namespace Dotmim.Sync.Tests
                     }
 
                     var cmdDb = new MySqlCommand($"create schema {dbName};", sysConnection);
-
-                    Console.WriteLine("MySqlCommand : " + cmdDb.CommandText);
-                    Console.WriteLine("MySqlConnectionString " + cmdDb.Connection.ConnectionString);
 
                     cmdDb.ExecuteNonQuery();
                     sysConnection.Close();

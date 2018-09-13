@@ -37,9 +37,9 @@ namespace Dotmim.Sync.MySql
             MySqlCommand sqlCommand = new MySqlCommand();
 
             var childTable = foreignKey.ChildTable;
-            var childTableName = new ObjectNameParser(childTable.TableName.ToLowerInvariant(), "`", "`");
+            var childTableName = new ObjectNameParser(childTable.TableName, "`", "`");
             var parentTable = foreignKey.ParentTable;
-            var parentTableName = new ObjectNameParser(parentTable.TableName.ToLowerInvariant(), "`", "`"); ;
+            var parentTableName = new ObjectNameParser(parentTable.TableName, "`", "`"); ;
 
             var relationName = foreignKey.RelationName.Length > 50 ? foreignKey.RelationName.Substring(0, 50) : foreignKey.RelationName;
 
@@ -69,7 +69,6 @@ namespace Dotmim.Sync.MySql
             stringBuilder.Append(" ) ");
             sqlCommand.CommandText = stringBuilder.ToString();
 
-            Console.WriteLine(sqlCommand.CommandText);
             return sqlCommand;
         }
 
@@ -150,7 +149,7 @@ namespace Dotmim.Sync.MySql
         {
             StringBuilder stringBuilder = new StringBuilder();
 
-            var constraintName = $"Create Constraint {constraint.RelationName} between parent {constraint.ParentTable.TableName.ToLowerInvariant()} and child {constraint.ChildTable.TableName.ToLowerInvariant()}";
+            var constraintName = $"Create Constraint {constraint.RelationName} between parent {constraint.ParentTable.TableName} and child {constraint.ChildTable.TableName}";
             var constraintScript = BuildForeignKeyConstraintsCommand(constraint).CommandText;
             stringBuilder.Append(MySqlBuilder.WrapScriptTextWithComments(constraintScript, constraintName));
             stringBuilder.AppendLine();
@@ -245,7 +244,6 @@ namespace Dotmim.Sync.MySql
             //}
             stringBuilder.Append(")");
             stringBuilder.Append(")");
-            Console.WriteLine(stringBuilder.ToString());
             return new MySqlCommand(stringBuilder.ToString());
         }
 
@@ -320,7 +318,7 @@ namespace Dotmim.Sync.MySql
                 if (!alreadyOpened)
                     connection.Open();
 
-                return MySqlManagementUtils.TableExists(connection, transaction, parentTable.TableName.ToLowerInvariant());
+                return MySqlManagementUtils.TableExists(connection, transaction, parentTable.TableName);
 
             }
             catch (Exception ex)

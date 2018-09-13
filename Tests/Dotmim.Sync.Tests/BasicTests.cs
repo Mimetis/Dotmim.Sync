@@ -72,32 +72,6 @@ namespace Dotmim.Sync.Tests
             try
             {
 
-                //SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA 
-
-                if (this.fixture.ProviderType == ProviderType.MySql)
-                {
-                    MySqlConnection mySqlConnection = new MySqlConnection(
-                        HelperDB.GetConnectionString(this.fixture.ProviderType, "sys"));
-
-
-                    string commandLIne = "SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA";
-                    using (MySqlCommand sqlCommand = new MySqlCommand(commandLIne, mySqlConnection))
-                    {
-                        mySqlConnection.Open();
-                        using (var reader = sqlCommand.ExecuteReader())
-                        {
-                            while (reader.Read())
-                            {
-                                Console.WriteLine(reader["SCHEMA_NAME"]);
-                            }
-                        }
-                        mySqlConnection.Close();
-
-                    }
-
-                }
-
-
                 var results = await this.testRunner.RunTestsAsync();
 
                 foreach (var trr in results)
@@ -110,7 +84,6 @@ namespace Dotmim.Sync.Tests
             catch (Exception ex)
             {
                 Console.WriteLine(ex);
-                Console.WriteLine(ex.StackTrace);
                 throw;
             }
 
