@@ -18,13 +18,10 @@ jobs:
     
   - script: echo "##vso[task.setvariable variable=mySQLIP;isOutput=true]$(docker inspect -f "{{ .NetworkSettings.IPAddress }}" mysql)"
     name: setvarStep
-    displayName: 'Get Ip from MySql container'
+    displayName: '[obsolete] Get Ip from MySql container'
 
   - script: docker run --name sqlserver -e 'ACCEPT_EULA=Y' -e 'SA_PASSWORD=Password12!' -p 1433:1433  -d microsoft/mssql-server-linux:2017-latest
     displayName: 'Run SQL 2017 on Linux container'
-
-  - script: docker logs mysql  
-    displayName: 'Logs from MYSql'
 
   - script: |
       sqlcmd -S localhost -U sa -P 'Password12!' -Q 'select @@VERSION'
@@ -50,8 +47,13 @@ jobs:
   - script: dotnet build Projects/dotnet-sync/dotnet-sync.csproj
     displayName: 'dotnet-sync'
 
-  - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj
+  - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --logger trx;logfilename=TEST.xml
     displayName: 'Tests'
     env: 
       'MYSQLIP' : $(setvarStep.mySQLIP)
       'AZUREDEV' : 'true'
+
+  - task: PublishTestResults@2
+    inputs:
+      testRunner: XUnit
+      testResultsFiles: '**/*.trx'

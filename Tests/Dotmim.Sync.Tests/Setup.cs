@@ -97,8 +97,8 @@ namespace Dotmim.Sync.Tests
             else if (IsOnAzureDev)
                 cs = $@"Server=127.0.0.1; Port=3307; Database={dbName}; Uid=root; Pwd=Password12!";
             else
-                cs = $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=Password12!";
-                //cs = $@"Server=127.0.0.1; Port=3307; Database={dbName}; Uid=root; Pwd=azerty31$;";
+                cs = $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=azerty31$";
+            //cs = $@"Server=127.0.0.1; Port=3307; Database={dbName}; Uid=root; Pwd=Password12!";
 
             return cs;
         }
