@@ -96,7 +96,7 @@ namespace Dotmim.Sync.Tests
             if (IsOnAppVeyor)
                 cs = $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=Password12!";
             else if (IsOnAzureDev)
-                cs = $@"Server={Environment.GetEnvironmentVariable("MYSQLIP")}; Port=3307; Database={dbName}; Uid=root; Pwd=Password12!";
+                cs = $@"Server={Environment.GetEnvironmentVariable("MYSQLIP")}; Port=3306; Database={dbName}; Uid=root; Pwd=Password12!";
             else
                 cs = $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=azerty31$;";
 
