@@ -50,4 +50,5 @@ jobs:
   - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj
     displayName: 'Tests'
     env: 
-      'MYSQLIP' : MYSQLIP
+      'MYSQLIP' : $(docker inspect -f "{{ .NetworkSettings.IPAddress }}" mysql)
+      'AZUREDEV' : 'true'
