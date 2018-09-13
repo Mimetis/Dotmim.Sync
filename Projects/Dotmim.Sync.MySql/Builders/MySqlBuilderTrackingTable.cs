@@ -172,7 +172,7 @@ namespace Dotmim.Sync.MySql
                     var columnFilter = this.tableDescription.Columns[filter.ColumnName];
 
                     if (columnFilter == null)
-                        throw new InvalidExpressionException($"Column {filter.ColumnName} does not exist in Table {this.tableDescription.TableName.ToLowerInvariant()}");
+                        throw new InvalidExpressionException($"Column {filter.ColumnName} does not exist in Table {this.tableDescription.TableName}");
 
                     var isPk = this.tableDescription.PrimaryKey.Columns.Any(dm => this.tableDescription.IsEqual(dm.ColumnName, filter.ColumnName));
                     if (isPk)
