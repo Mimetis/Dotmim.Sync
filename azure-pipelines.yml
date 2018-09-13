@@ -17,7 +17,7 @@ jobs:
     
   - script: |
       export AZUREDEV="true"
-      export MYSQLIP=(docker inspect -f "{{ .NetworkSettings.IPAddress }}" mysql)
+      export MYSQLIP=docker inspect -f "{{ .NetworkSettings.IPAddress }}" mysql
       printenv
     displayName: 'Inspect docker'
 
