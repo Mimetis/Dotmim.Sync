@@ -14,12 +14,9 @@ namespace Dotmim.Sync.Tests
     /// </summary>
     public class Setup
     {
-        /// <summary>
-        /// Configure a provider fixture
-        /// </summary>
-        internal static void OnConfiguring<T>(ProviderFixture<T> providerFixture) where T : CoreProvider
-        {
 
+        static Setup()
+        {
             Console.WriteLine("-------------------------------------------------------------------");
             Dictionary<object, object> envVars = new Dictionary<object, object>();
             foreach (DictionaryEntry envVar in Environment.GetEnvironmentVariables())
@@ -29,6 +26,14 @@ namespace Dotmim.Sync.Tests
                 Console.WriteLine($"- {envVar.Key}: {envVar.Value}");
 
             Console.WriteLine("-------------------------------------------------------------------");
+
+        }
+        /// <summary>
+        /// Configure a provider fixture
+        /// </summary>
+        internal static void OnConfiguring<T>(ProviderFixture<T> providerFixture) where T : CoreProvider
+        {
+
 
 
             // Set tables to be used for your provider
