@@ -257,6 +257,8 @@ namespace Dotmim.Sync.Tests.Core
                     // get the connection string
                     var connectionString = HelperDB.GetConnectionString(clientProviderType, dbName);
 
+                    Console.WriteLine("Create a database Connection String : " + connectionString);
+
                     // create the database on the client provider
                     HelperDB.CreateDatabase(clientProviderType, dbName);
 
