@@ -18,8 +18,9 @@ jobs:
   - script: |
       export AZUREDEV="true"
       export MYSQLIP=docker inspect -f "{{ .NetworkSettings.IPAddress }}" mysql
-      printenv
-    displayName: 'Inspect docker'
+      AZUREDEV
+      MYSQLIP
+    displayName: 'Get Ip'
 
   #- script: |
   #    docker inspect mysql
@@ -34,8 +35,8 @@ jobs:
   #    exit
   #  displayName: 'Run SQLCMD'
 
-  - script: dotnet build Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj
-    displayName: 'Dotmim.Sync.Core'
+  #- script: dotnet build Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj
+  #  displayName: 'Dotmim.Sync.Core'
   #- script: dotnet build Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj
   #  displayName: 'Dotmim.Sync.SqlServer'
   #- script: dotnet build Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj
