@@ -52,7 +52,7 @@ namespace Dotmim.Sync.Tests
             // SQL Server provider
 
             providerFixture.AddRun((ProviderType.Sql, NetworkType.Tcp),
-                    ProviderType.Sql);
+                    ProviderType.Sql | ProviderType.Sqlite);
 
             //providerFixture.AddRun((ProviderType.Sql, NetworkType.Http),
             //        ProviderType.MySql |
