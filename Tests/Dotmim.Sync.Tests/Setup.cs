@@ -1,5 +1,6 @@
 ﻿using Dotmim.Sync.Tests.Core;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
@@ -17,6 +18,13 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         internal static void OnConfiguring<T>(ProviderFixture<T> providerFixture) where T : CoreProvider
         {
+
+            foreach (DictionaryEntry envVar in Environment.GetEnvironmentVariables())
+            {
+                Console.WriteLine($"- {envVar.Key}: {envVar.Value}");
+            }
+
+
             // Set tables to be used for your provider
             var sqlTables = new string[]
             {
@@ -96,7 +104,7 @@ namespace Dotmim.Sync.Tests
             else if (IsOnAzureDev)
                 cs = $@"Server={Environment.GetEnvironmentVariable("MYSQLIP")}; Port=3306; Database={dbName}; Uid=root; Pwd=Password12!";
             else
-            cs = $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=azerty31$;";
+            cs = $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=Password12!";
 
             Console.WriteLine("On Console : " + cs);
             Debug.WriteLine("On Debug : " + cs);
