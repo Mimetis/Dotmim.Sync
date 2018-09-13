@@ -96,16 +96,27 @@ namespace Dotmim.Sync.Tests
         {
             using (var sysConnection = new MySqlConnection(Setup.GetMySqlDatabaseConnectionString("sys")))
             {
-                sysConnection.Open();
-                if (recreateDb)
+                try
                 {
-                    var cmdDrop = new MySqlCommand($"Drop schema if exists  {dbName};", sysConnection);
-                    cmdDrop.ExecuteNonQuery();
+                    sysConnection.Open();
+
+                    if (recreateDb)
+                    {
+                        var cmdDrop = new MySqlCommand($"Drop schema if exists  {dbName};", sysConnection);
+                        cmdDrop.ExecuteNonQuery();
+                    }
+
+                    var cmdDb = new MySqlCommand($"create schema {dbName};", sysConnection);
+
+                    cmdDb.ExecuteNonQuery();
+                    sysConnection.Close();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex);
+                    throw;
                 }
 
-                var cmdDb = new MySqlCommand($"create schema {dbName};", sysConnection);
-                cmdDb.ExecuteNonQuery();
-                sysConnection.Close();
             }
         }
 

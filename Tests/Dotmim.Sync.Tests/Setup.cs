@@ -1,8 +1,11 @@
 ﻿using Dotmim.Sync.Tests.Core;
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Linq;
 
 namespace Dotmim.Sync.Tests
 {
@@ -11,11 +14,13 @@ namespace Dotmim.Sync.Tests
     /// </summary>
     public class Setup
     {
+
         /// <summary>
         /// Configure a provider fixture
         /// </summary>
         internal static void OnConfiguring<T>(ProviderFixture<T> providerFixture) where T : CoreProvider
         {
+
             // Set tables to be used for your provider
             var sqlTables = new string[]
             {
@@ -25,8 +30,8 @@ namespace Dotmim.Sync.Tests
 
             var mySqlTables = new string[]
             {
-                "productcategory", "productmodel", "product", "customer", "address","customeraddress",
-                "salesorderheader", "salesorderdetail", "sql", "posts", "tags", "posttag"
+                "ProductCategory", "ProductModel", "Product", "Customer", "Address", "CustomerAddress",
+                "SalesOrderHeader", "SalesOrderDetail", "Sql", "Posts", "Tags", "PostTag"
             };
 
             // 1) Add database name
@@ -39,29 +44,24 @@ namespace Dotmim.Sync.Tests
 
             // 3) Add runs
 
-            // Enable the test to run on TCP / HTTP and on various client
-            // Example : EnableClientType((ProviderType.Sql, NetworkType.Tcp), ProviderType.Sql | ProviderType.MySql | ProviderType.Sqlite)
-            // 1st arg : (NetworkType.Tcp, ProviderType.Sql) : For a server provider SQL and on TCP
-            // 2nd arg : ProviderType.Sql | ProviderType.MySql | ProviderType.Sqlite : Enable tests on clients of type Sql, MySql and Sqlite
-
             // SQL Server provider
 
-            providerFixture.AddRun((ProviderType.Sql, NetworkType.Tcp),
-                    ProviderType.Sql |
-                    ProviderType.Sqlite);
+            if (IsOnAzureDev)
+            {
+                providerFixture.AddRun((ProviderType.Sql, NetworkType.Tcp),
+                        ProviderType.Sql | ProviderType.Sqlite);
 
-            providerFixture.AddRun((ProviderType.Sql, NetworkType.Http),
-                    ProviderType.MySql |
-                    ProviderType.Sqlite);
+                providerFixture.AddRun((ProviderType.Sql, NetworkType.Http),
+                        ProviderType.MySql |
+                        ProviderType.Sqlite);
 
-            // My SQL (disable http to go faster on app veyor)
-            providerFixture.AddRun((ProviderType.MySql, NetworkType.Tcp),
-                    ProviderType.MySql |
-                    ProviderType.Sqlite);
+                // My SQL (disable http to go faster on app veyor)
+                providerFixture.AddRun((ProviderType.MySql, NetworkType.Tcp),
+                        ProviderType.MySql);
 
-            providerFixture.AddRun((ProviderType.MySql, NetworkType.Http),
-                    ProviderType.Sql |
-                    ProviderType.Sqlite);
+                providerFixture.AddRun((ProviderType.MySql, NetworkType.Http),
+                        ProviderType.MySql);
+            }
         }
 
         /// <summary>
@@ -75,10 +75,12 @@ namespace Dotmim.Sync.Tests
 
             if (IsOnAppVeyor)
                 return $@"Server=(local)\SQL2016;Database={dbName};UID=sa;PWD=Password12!";
+            else if (IsOnAzureDev)
+                return $@"Data Source=localhost;Initial Catalog={dbName};User Id=SA;Password=Password12!";
             else if (isWindowsRuntime)
                 return $@"Data Source=(localdb)\MSSQLLocalDB;Initial Catalog={dbName};Integrated Security=true;";
             else
-                return $@"Data Source=localhost; Database={dbName}; User=sa; Password=QWE123qwe";
+                return $@"Data Source=localhost; Database={dbName}; User=sa; Password=Password12!";
         }
 
         /// <summary>
@@ -87,10 +89,16 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         internal static string GetMySqlDatabaseConnectionString(string dbName)
         {
+            var cs = "";
             if (IsOnAppVeyor)
-                return $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=Password12!";
+                cs = $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=Password12!";
+            else if (IsOnAzureDev)
+                cs = $@"Server=127.0.0.1; Port=3307; Database={dbName}; Uid=root; Pwd=Password12!";
             else
-                return $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=azerty31$;";
+                cs = $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=azerty31$";
+            //cs = $@"Server=127.0.0.1; Port=3307; Database={dbName}; Uid=root; Pwd=Password12!";
+
+            return cs;
         }
 
         /// <summary>
@@ -106,6 +114,18 @@ namespace Dotmim.Sync.Tests
             }
         }
 
+        /// <summary>
+        /// Gets if the tests are running on Azure Dev
+        /// </summary>
+        internal static bool IsOnAzureDev
+        {
+            get
+            {
+                // check if we are running on appveyor or not
+                string isOnAzureDev = Environment.GetEnvironmentVariable("AZUREDEV");
+                return !String.IsNullOrEmpty(isOnAzureDev) && isOnAzureDev.ToLowerInvariant() == "true";
+            }
+        }
 
     }
 }
