@@ -4,6 +4,7 @@ using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Tests.Misc;
 using Dotmim.Sync.Tests.Models;
 using Microsoft.EntityFrameworkCore;
+using MySql.Data.MySqlClient;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -68,13 +69,24 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         public async virtual Task Initialize()
         {
-            var results = await this.testRunner.RunTestsAsync();
-
-            foreach (var trr in results)
+            try
             {
-                Assert.Equal(82, trr.Results.TotalChangesDownloaded);
-                Assert.Equal(0, trr.Results.TotalChangesUploaded);
+
+                var results = await this.testRunner.RunTestsAsync();
+
+                foreach (var trr in results)
+                {
+                    Assert.Equal(82, trr.Results.TotalChangesDownloaded);
+                    Assert.Equal(0, trr.Results.TotalChangesUploaded);
+                }
+
             }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                throw;
+            }
+
         }
 
         /// <summary>
