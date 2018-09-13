@@ -44,26 +44,24 @@ namespace Dotmim.Sync.Tests
 
             // 3) Add runs
 
-            // Enable the test to run on TCP / HTTP and on various client
-            // Example : EnableClientType((ProviderType.Sql, NetworkType.Tcp), ProviderType.Sql | ProviderType.MySql | ProviderType.Sqlite)
-            // 1st arg : (NetworkType.Tcp, ProviderType.Sql) : For a server provider SQL and on TCP
-            // 2nd arg : ProviderType.Sql | ProviderType.MySql | ProviderType.Sqlite : Enable tests on clients of type Sql, MySql and Sqlite
-
             // SQL Server provider
 
-            providerFixture.AddRun((ProviderType.Sql, NetworkType.Tcp),
-                    ProviderType.Sql | ProviderType.Sqlite);
+            if (IsOnAzureDev)
+            {
+                providerFixture.AddRun((ProviderType.Sql, NetworkType.Tcp),
+                        ProviderType.Sql | ProviderType.Sqlite);
 
-            //providerFixture.AddRun((ProviderType.Sql, NetworkType.Http),
-            //        ProviderType.MySql |
-            //        ProviderType.Sqlite);
+                providerFixture.AddRun((ProviderType.Sql, NetworkType.Http),
+                        ProviderType.MySql |
+                        ProviderType.Sqlite);
 
-            // My SQL (disable http to go faster on app veyor)
-            providerFixture.AddRun((ProviderType.MySql, NetworkType.Tcp),
-                    ProviderType.MySql );
+                // My SQL (disable http to go faster on app veyor)
+                providerFixture.AddRun((ProviderType.MySql, NetworkType.Tcp),
+                        ProviderType.MySql);
 
-            //providerFixture.AddRun((ProviderType.MySql, NetworkType.Http),
-            //        ProviderType.MySql);
+                providerFixture.AddRun((ProviderType.MySql, NetworkType.Http),
+                        ProviderType.MySql);
+            }
         }
 
         /// <summary>
