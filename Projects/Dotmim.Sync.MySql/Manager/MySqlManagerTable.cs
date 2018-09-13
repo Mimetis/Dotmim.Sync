@@ -49,10 +49,6 @@ namespace Dotmim.Sync.MySql
                 var name = c["column_name"].ToString();
                 var isUnsigned = c["column_type"] != DBNull.Value ? ((string)c["column_type"]).Contains("unsigned") : false;
 
-
-                Console.WriteLine("Name : " + name + " " + typeName);
-
-
                 var maxLengthLong = c["character_maximum_length"] != DBNull.Value ? Convert.ToInt64(c["character_maximum_length"]) : 0;
 
                 // Gets the datastore owner dbType 
