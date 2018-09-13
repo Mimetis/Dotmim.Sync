@@ -81,12 +81,15 @@ namespace Dotmim.Sync.Tests
 
 
                     string commandLIne = "SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA";
-                    using (MySqlCommand sqlCommand = new MySqlCommand(commandLIne,mySqlConnection))
+                    using (MySqlCommand sqlCommand = new MySqlCommand(commandLIne, mySqlConnection))
                     {
                         mySqlConnection.Open();
                         using (var reader = sqlCommand.ExecuteReader())
                         {
-                            Console.WriteLine(reader["SCHEMA_NAME"]);
+                            while (reader.Read())
+                            {
+                                Console.WriteLine(reader["SCHEMA_NAME"]);
+                            }
                         }
                         mySqlConnection.Close();
 
@@ -110,7 +113,7 @@ namespace Dotmim.Sync.Tests
                 Console.WriteLine(ex.StackTrace);
                 throw;
             }
-            
+
         }
 
         /// <summary>
