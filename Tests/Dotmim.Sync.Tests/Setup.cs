@@ -17,15 +17,15 @@ namespace Dotmim.Sync.Tests
 
         static Setup()
         {
-            Console.WriteLine("-------------------------------------------------------------------");
-            Dictionary<object, object> envVars = new Dictionary<object, object>();
-            foreach (DictionaryEntry envVar in Environment.GetEnvironmentVariables())
-                envVars.Add(envVar.Key, envVar.Value);
+            //Console.WriteLine("-------------------------------------------------------------------");
+            //Dictionary<object, object> envVars = new Dictionary<object, object>();
+            //foreach (DictionaryEntry envVar in Environment.GetEnvironmentVariables())
+            //    envVars.Add(envVar.Key, envVar.Value);
 
-            foreach (var envVar in envVars.OrderBy(k => k.Key.ToString()))
-                Console.WriteLine($"- {envVar.Key}: {envVar.Value}");
+            //foreach (var envVar in envVars.OrderBy(k => k.Key.ToString()))
+            //    Console.WriteLine($"- {envVar.Key}: {envVar.Value}");
 
-            Console.WriteLine("-------------------------------------------------------------------");
+            //Console.WriteLine("-------------------------------------------------------------------");
 
         }
         /// <summary>
@@ -38,10 +38,10 @@ namespace Dotmim.Sync.Tests
 
             // Set tables to be used for your provider
             var sqlTables = new string[]
-        {
+            {
                 "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "Customer", "Address", "CustomerAddress",
                 "SalesLT.SalesOrderHeader", "SalesLT.SalesOrderDetail", "dbo.Sql", "Posts", "Tags", "PostTag"
-        };
+            };
 
             var mySqlTables = new string[]
             {
@@ -115,7 +115,7 @@ namespace Dotmim.Sync.Tests
             else if (IsOnAzureDev)
                 cs = $@"Server={Environment.GetEnvironmentVariable("MYSQLIP")}; Port=3306; Database={dbName}; Uid=root; Pwd=Password12!";
             else
-                cs = $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=Password12!";
+                cs = $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=azerty31$;";
 
             Console.WriteLine("On Console : " + cs);
             Debug.WriteLine("On Debug : " + cs);
