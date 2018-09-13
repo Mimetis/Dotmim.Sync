@@ -1,6 +1,7 @@
 ﻿using Dotmim.Sync.Tests.Core;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -89,12 +90,18 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         internal static string GetMySqlDatabaseConnectionString(string dbName)
         {
+            var cs = "";
             if (IsOnAppVeyor)
-                return $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=Password12!";
+                cs = $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=Password12!";
             else if (IsOnAzureDev)
-                return $@"Server={Environment.GetEnvironmentVariable("MYSQLIP")}; Port=3306; Database={dbName}; Uid=root; Pwd=Password12!";
+                cs = $@"Server={Environment.GetEnvironmentVariable("MYSQLIP")}; Port=3306; Database={dbName}; Uid=root; Pwd=Password12!";
             else
-            return $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=azerty31$;";
+            cs = $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=azerty31$;";
+
+            Console.WriteLine("On Console : " + cs);
+            Debug.WriteLine("On Debug : " + cs);
+
+            return cs;
         }
 
         /// <summary>
