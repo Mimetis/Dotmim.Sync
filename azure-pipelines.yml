@@ -24,7 +24,7 @@ jobs:
     displayName: 'Run SQL 2017 on Linux container'
 
   - script: |
-      sqlcmd -S localhost -U SA -P 'Password12!' -Q 'select @@VERSION'
+      sqlcmd -S localhost -U sa -P 'Password12!' -Q 'select @@VERSION'
       exit
     displayName: 'Run SQLCMD'
 
