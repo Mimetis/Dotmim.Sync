@@ -12,12 +12,19 @@ jobs:
 
   steps:
  
-  - script: docker run -e 'ACCEPT_EULA=Y' -e 'SA_PASSWORD=Password12!' -p 1433:1433  -d microsoft/mssql-server-linux:2017-latest --name sqlserver
-    displayName: 'Run SQL 2017 on Linux container'
+  - script: |
+      export AZUREDEV="true"
+      printenv
 
-  - script: docker run -e 'MYSQL_ROOT_PASSWORD=Password12!' -d mysql:latest --name mysql
+  - script: docker run --name mysql -e 'MYSQL_ROOT_PASSWORD=Password12!' -d mysql:latest
     displayName: 'Run MySql on Linux container'
     
+  - script: docker inspect mysql
+    displayName: 'Inspect docker'
+
+  - script: docker run --name sqlserver -e 'ACCEPT_EULA=Y' -e 'SA_PASSWORD=Password12!' -p 1433:1433  -d microsoft/mssql-server-linux:2017-latest
+    displayName: 'Run SQL 2017 on Linux container'
+
   - script: |
       docker inspect mysql
       docker inspect sqlserver  
