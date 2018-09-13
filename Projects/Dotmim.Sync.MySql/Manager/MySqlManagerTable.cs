@@ -39,15 +39,9 @@ namespace Dotmim.Sync.MySql
             List<DmColumn> columns = new List<DmColumn>();
 
             // Get the columns definition
-            Console.WriteLine("Getting table from " + sqlConnection.ConnectionString);
 
             var dmColumnsList = MySqlManagementUtils.ColumnsForTable(sqlConnection, sqlTransaction, this.tableName);
             var mySqlDbMetadata = new MySqlDbMetadata();
-
-            foreach (var row in dmColumnsList.Rows)
-            {
-                Console.WriteLine(row);
-            }
 
             foreach (var c in dmColumnsList.Rows.OrderBy(r => Convert.ToUInt64(r["ordinal_position"])))
             {
@@ -63,7 +57,7 @@ namespace Dotmim.Sync.MySql
 
                 // Gets the datastore owner dbType 
                 MySqlDbType datastoreDbType = (MySqlDbType)mySqlDbMetadata.ValidateOwnerDbType(typeName, isUnsigned, false, maxLengthLong);
-      
+
                 // once we have the datastore type, we can have the managed type
                 Type columnType = mySqlDbMetadata.ValidateType(datastoreDbType);
 

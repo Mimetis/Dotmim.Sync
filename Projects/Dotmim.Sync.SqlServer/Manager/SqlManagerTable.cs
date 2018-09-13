@@ -54,8 +54,6 @@ namespace Dotmim.Sync.SqlServer.Manager
             var dmColumnsList = SqlManagementUtils.ColumnsForTable(sqlConnection, sqlTransaction, this.tableName);
             var sqlDbMetadata = new SqlDbMetadata();
 
-            Console.WriteLine("Getting columns definition");
-
             foreach (var c in dmColumnsList.Rows.OrderBy(r => (int)r["column_id"]))
             {
                 var typeName = c["type"].ToString();

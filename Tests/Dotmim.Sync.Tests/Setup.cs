@@ -30,8 +30,8 @@ namespace Dotmim.Sync.Tests
 
             var mySqlTables = new string[]
             {
-                "productcategory", "productmodel", "product", "customer", "address","customeraddress",
-                "salesorderheader", "salesorderdetail", "sql", "posts", "tags", "posttag"
+                "ProductCategory", "ProductModel", "Product", "Customer", "Address", "CustomerAddress",
+                "SalesOrderHeader", "SalesOrderDetail", "Sql", "Posts", "Tags", "PostTag"
             };
 
             // 1) Add database name
@@ -51,9 +51,8 @@ namespace Dotmim.Sync.Tests
 
             // SQL Server provider
 
-            //providerFixture.AddRun((ProviderType.Sql, NetworkType.Tcp),
-            //        ProviderType.Sql |
-            //        ProviderType.Sqlite);
+            providerFixture.AddRun((ProviderType.Sql, NetworkType.Tcp),
+                    ProviderType.Sql);
 
             //providerFixture.AddRun((ProviderType.Sql, NetworkType.Http),
             //        ProviderType.MySql |
@@ -96,12 +95,10 @@ namespace Dotmim.Sync.Tests
             if (IsOnAppVeyor)
                 cs = $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=Password12!";
             else if (IsOnAzureDev)
-            {
-                //cs = $@"Server={Environment.GetEnvironmentVariable("MYSQLIP")}; Port=3306; Database={dbName}; Uid=root; Pwd=Password12!";
                 cs = $@"Server=127.0.0.1; Port=3307; Database={dbName}; Uid=root; Pwd=Password12!";
-            }
             else
-                cs = $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=azerty31$;";
+                cs = $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=Password12!";
+                //cs = $@"Server=127.0.0.1; Port=3307; Database={dbName}; Uid=root; Pwd=azerty31$;";
 
             return cs;
         }
