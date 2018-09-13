@@ -39,6 +39,7 @@ namespace Dotmim.Sync.MySql
             List<DmColumn> columns = new List<DmColumn>();
 
             // Get the columns definition
+
             var dmColumnsList = MySqlManagementUtils.ColumnsForTable(sqlConnection, sqlTransaction, this.tableName);
             var mySqlDbMetadata = new MySqlDbMetadata();
 
@@ -52,7 +53,7 @@ namespace Dotmim.Sync.MySql
 
                 // Gets the datastore owner dbType 
                 MySqlDbType datastoreDbType = (MySqlDbType)mySqlDbMetadata.ValidateOwnerDbType(typeName, isUnsigned, false, maxLengthLong);
-      
+
                 // once we have the datastore type, we can have the managed type
                 Type columnType = mySqlDbMetadata.ValidateType(datastoreDbType);
 
