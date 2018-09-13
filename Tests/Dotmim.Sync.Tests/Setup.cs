@@ -75,10 +75,12 @@ namespace Dotmim.Sync.Tests
 
             if (IsOnAppVeyor)
                 return $@"Server=(local)\SQL2016;Database={dbName};UID=sa;PWD=Password12!";
+            else if (IsOnAzureDev)
+                return $@"Data Source=localhost;Initial Catalog={dbName};User Id=SA;Password=Password12!";
             else if (isWindowsRuntime)
                 return $@"Data Source=(localdb)\MSSQLLocalDB;Initial Catalog={dbName};Integrated Security=true;";
             else
-                return $@"Data Source=localhost; Database={dbName}; User=sa; Password=QWE123qwe";
+                return $@"Data Source=localhost; Database={dbName}; User=sa; Password=Password12!";
         }
 
         /// <summary>
@@ -89,8 +91,10 @@ namespace Dotmim.Sync.Tests
         {
             if (IsOnAppVeyor)
                 return $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=Password12!";
+            else if (IsOnAzureDev)
+                return $@"Server={Environment.GetEnvironmentVariable("MYSQLIP")}; Port=3306; Database={dbName}; Uid=root; Pwd=Password12!";
             else
-                return $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=azerty31$;";
+            return $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=azerty31$;";
         }
 
         /// <summary>
@@ -114,8 +118,8 @@ namespace Dotmim.Sync.Tests
             get
             {
                 // check if we are running on appveyor or not
-                string isOnAppVeyor = Environment.GetEnvironmentVariable("AZUREDEV");
-                return !String.IsNullOrEmpty(isOnAppVeyor) && isOnAppVeyor.ToLowerInvariant() == "true";
+                string isOnAzureDev = Environment.GetEnvironmentVariable("AZUREDEV");
+                return !String.IsNullOrEmpty(isOnAzureDev) && isOnAzureDev.ToLowerInvariant() == "true";
             }
         }
 
