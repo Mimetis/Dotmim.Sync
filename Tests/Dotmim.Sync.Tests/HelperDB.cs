@@ -107,6 +107,10 @@ namespace Dotmim.Sync.Tests
                     }
 
                     var cmdDb = new MySqlCommand($"create schema {dbName};", sysConnection);
+
+                    Console.WriteLine("MySqlCommand : " + cmdDb.CommandText);
+                    Console.WriteLine("MySqlConnectionString " + cmdDb.Connection.ConnectionString);
+
                     cmdDb.ExecuteNonQuery();
                     sysConnection.Close();
                 }
