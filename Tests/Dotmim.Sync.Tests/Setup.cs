@@ -15,26 +15,11 @@ namespace Dotmim.Sync.Tests
     public class Setup
     {
 
-        static Setup()
-        {
-            //Console.WriteLine("-------------------------------------------------------------------");
-            //Dictionary<object, object> envVars = new Dictionary<object, object>();
-            //foreach (DictionaryEntry envVar in Environment.GetEnvironmentVariables())
-            //    envVars.Add(envVar.Key, envVar.Value);
-
-            //foreach (var envVar in envVars.OrderBy(k => k.Key.ToString()))
-            //    Console.WriteLine($"- {envVar.Key}: {envVar.Value}");
-
-            //Console.WriteLine("-------------------------------------------------------------------");
-
-        }
         /// <summary>
         /// Configure a provider fixture
         /// </summary>
         internal static void OnConfiguring<T>(ProviderFixture<T> providerFixture) where T : CoreProvider
         {
-
-
 
             // Set tables to be used for your provider
             var sqlTables = new string[]
@@ -116,9 +101,6 @@ namespace Dotmim.Sync.Tests
                 cs = $@"Server={Environment.GetEnvironmentVariable("MYSQLIP")}; Port=3306; Database={dbName}; Uid=root; Pwd=Password12!";
             else
                 cs = $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=azerty31$;";
-
-            Console.WriteLine("On Console : " + cs);
-            Debug.WriteLine("On Debug : " + cs);
 
             return cs;
         }
