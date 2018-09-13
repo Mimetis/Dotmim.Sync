@@ -584,12 +584,12 @@ namespace Dotmim.Sync
             }
             catch (SyncException se)
             {
-                Debug.WriteLine($"Sync Exception: {se.Message}. Type:{se.Type}. On provider: {se.ProviderName}.");
+                Console.WriteLine($"Sync Exception: {se.Message}. Type:{se.Type}. On provider: {se.ProviderName}.");
                 throw;
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Unknwon Exception: {ex.Message}.");
+                Console.WriteLine($"Unknwon Exception: {ex.Message}.");
                 throw new SyncException(ex, SyncStage.None, string.Empty);
             }
             finally
