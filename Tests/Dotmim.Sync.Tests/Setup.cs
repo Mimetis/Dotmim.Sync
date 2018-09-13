@@ -63,8 +63,8 @@ namespace Dotmim.Sync.Tests
             providerFixture.AddRun((ProviderType.MySql, NetworkType.Tcp),
                     ProviderType.MySql );
 
-            providerFixture.AddRun((ProviderType.MySql, NetworkType.Http),
-                    ProviderType.MySql);
+            //providerFixture.AddRun((ProviderType.MySql, NetworkType.Http),
+            //        ProviderType.MySql);
         }
 
         /// <summary>
