@@ -1,4 +1,4 @@
-﻿using Dotmim.Sync.Tests.Core;
+using Dotmim.Sync.Tests.Core;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -45,20 +45,20 @@ namespace Dotmim.Sync.Tests
             // 3) Add runs
 
             // SQL Server provider
-
-            if (IsOnAzureDev)
-            {
-                providerFixture.AddRun((ProviderType.Sql, NetworkType.Tcp),
+            
+            providerFixture.AddRun((ProviderType.Sql, NetworkType.Tcp),
                         ProviderType.Sql | ProviderType.Sqlite);
 
-                providerFixture.AddRun((ProviderType.Sql, NetworkType.Http),
+            providerFixture.AddRun((ProviderType.Sql, NetworkType.Http),
                         ProviderType.MySql |
                         ProviderType.Sqlite);
 
-                // My SQL (disable http to go faster on app veyor)
-                providerFixture.AddRun((ProviderType.MySql, NetworkType.Tcp),
+            
+            providerFixture.AddRun((ProviderType.MySql, NetworkType.Tcp),
                         ProviderType.MySql);
 
+            // My SQL (disable http to go faster on app veyor)
+            if (IsOnAppVeyor == false) {
                 providerFixture.AddRun((ProviderType.MySql, NetworkType.Http),
                         ProviderType.MySql);
             }
