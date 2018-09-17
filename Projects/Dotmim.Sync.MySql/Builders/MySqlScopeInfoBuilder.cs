@@ -19,7 +19,7 @@ namespace Dotmim.Sync.MySql
         {
             this.connection = connection as MySqlConnection;
             this.transaction = transaction as MySqlTransaction;
-            this.scopeTableName = new ObjectNameParser(scopeTableName.ToLowerInvariant(), "[", "]");
+            this.scopeTableName = new ObjectNameParser(scopeTableName, "`", "`");
         }
 
 

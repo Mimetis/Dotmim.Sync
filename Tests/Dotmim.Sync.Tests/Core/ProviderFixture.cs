@@ -208,11 +208,21 @@ namespace Dotmim.Sync.Tests.Core
         /// </summary>
         internal virtual void ServerDatabaseEnsureCreated()
         {
+
+            try
+            {
             using (AdventureWorksContext ctx =
                 new AdventureWorksContext(ProviderType, HelperDB.GetConnectionString(ProviderType, DatabaseName)))
             {
                 ctx.Database.EnsureDeleted();
                 ctx.Database.EnsureCreated();
+            }
+
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                throw ex;
             }
         }
 
@@ -269,9 +279,13 @@ namespace Dotmim.Sync.Tests.Core
 
                     // generate a new database name
                     var dbName = GetRandomDatabaseName();
+
+                    Console.WriteLine("Create a database called " + dbName + " for provider " + clientProviderType);
                     
                     // get the connection string
                     var connectionString = HelperDB.GetConnectionString(clientProviderType, dbName);
+
+                    Console.WriteLine("Connection String : " + connectionString);
 
                     // create the database on the client provider
                     HelperDB.CreateDatabase(clientProviderType, dbName);
