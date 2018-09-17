@@ -45,38 +45,11 @@ namespace Dotmim.Sync.Tests
             providerFixture.AddTables(ProviderType.Sql, sqlTables);
             providerFixture.AddTables(ProviderType.MySql, mySqlTables);
 
-
-            //// 3) Add filters
-            //providerFixture.AddFilter(ProviderType.Sql,
-            //    new FilterClause("Employee", "EmployeeID"));
-            //providerFixture.AddFilter(ProviderType.Sql,
-            //    new FilterClause("Customer", "EmployeeID"));
-
-            //providerFixture.AddFilterParameter(ProviderType.Sql,
-            //    new SyncParameter("Employee", "EmployeeID", 1));
-
-            //providerFixture.AddFilterParameter(ProviderType.Sql,
-            //    new SyncParameter("Customer", "EmployeeID", 1));
-
-            // 3) Add runs
-
-            // SQL Server provider
+           // SQL Server provider
 
             if (IsOnAzureDev)
             {
-                providerFixture.AddRun((ProviderType.Sql, NetworkType.Tcp),
-                        ProviderType.Sql | ProviderType.Sqlite);
-
-                providerFixture.AddRun((ProviderType.Sql, NetworkType.Http),
-                        ProviderType.MySql |
-                        ProviderType.Sqlite);
-
-                // My SQL (disable http to go faster on app veyor)
-                providerFixture.AddRun((ProviderType.MySql, NetworkType.Tcp),
-                        ProviderType.MySql);
-
-                providerFixture.AddRun((ProviderType.MySql, NetworkType.Http),
-                        ProviderType.MySql);
+                providerFixture.AddRun((ProviderType.Sql, NetworkType.Tcp), ProviderType.Sql);
             }
         }
 
