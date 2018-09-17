@@ -30,14 +30,14 @@ jobs:
   #  displayName: 'Run SQLCMD, Continue if any error'
 
   - script: | 
-      dotnet publish Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj -c Release -o $(Build.ArtifactStagingDirectory)
-      dotnet publish Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj -c Release -o $(Build.ArtifactStagingDirectory)
-      dotnet publish Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj -c Release -o $(Build.ArtifactStagingDirectory)
-      dotnet publish Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj -c Release -o $(Build.ArtifactStagingDirectory)
-      dotnet publish Projects/Dotmim.Sync.Web.Client/Dotmim.Sync.Web.Client.csproj -c Release -o $(Build.ArtifactStagingDirectory)
-      dotnet publish Projects/Dotmim.Sync.Web.Server/Dotmim.Sync.Web.Server.csproj -f netstandard2.0 -c Release -o $(Build.ArtifactStagingDirectory)
-      dotnet publish Projects/dotnet-sync/dotnet-sync.csproj -c Release -o $(Build.ArtifactStagingDirectory)
-    displayName: 'publish artifacts'
+      dotnet publish Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj -c Release -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Core
+      dotnet publish Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj -c Release -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServer
+      dotnet publish Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj -c Release -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Sqlite
+      dotnet publish Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj -c Release -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MySql
+      dotnet publish Projects/Dotmim.Sync.Web.Client/Dotmim.Sync.Web.Client.csproj -c Release -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Client
+      dotnet publish Projects/Dotmim.Sync.Web.Server/Dotmim.Sync.Web.Server.csproj -f netstandard2.0 -c Release -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Server
+      dotnet publish Projects/dotnet-sync/dotnet-sync.csproj -c Release -o $(Build.ArtifactStagingDirectory)/dotnet-sync
+    displayName: 'Publish artifacts'
 
   # Dont need anymore to pass the MySQL Ip Address, just let it here for memory
   # --logger trx;logfilename=TEST.xml : Unexplained arg to publish tests resuls
