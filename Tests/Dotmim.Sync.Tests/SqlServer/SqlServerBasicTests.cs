@@ -1,4 +1,4 @@
-﻿
+
 using Dotmim.Sync.Test.Misc;
 using Dotmim.Sync.Tests.Misc;
 using System;
@@ -145,6 +145,12 @@ public class SqlServerBasicTests : BasicTestsBase, IClassFixture<SqlServerFixtur
         public override Task Use_Existing_Client_Database_Provision_Deprosivion()
         {
             return base.Use_Existing_Client_Database_Provision_Deprosivion();
+        }
+
+        [Fact, TestPriority(21)]
+        public override Task Check_Composite_ForeignKey_Existence()
+        {
+            return base.Check_Composite_ForeignKey_Existence();
         }
     }
 }

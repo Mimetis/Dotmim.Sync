@@ -1366,6 +1366,28 @@ namespace Dotmim.Sync.Tests
 
         //}
 
+        public virtual async Task Check_Composite_ForeignKey_Existence()
+        {
+            var runners = await this.testRunner.RunTestsAsync();
+            foreach (var runner in runners)
+            {
+                var provider = runner.ClientProvider as CoreProvider;
+                var connection = provider.CreateConnection();
+                using (connection)
+                {
+                    connection.Open();
+                    var tableManger = provider
+                        .GetDbManager("PriceListCategory")
+                        ?.CreateManagerTable(connection);
+
+                    var relations = tableManger.GetTableRelations();
+                    Assert.Equal(1, relations.Count);
+                    Assert.Equal("FK_PriceListDetail_PriceListCategory_PriceListId_PriceCategoryId", relations[0].ForeignKey);
+                    Assert.Equal(2, relations[0].KeyColumnsName.Count());
+                }
+            }
+        }
+
     }
 
 
