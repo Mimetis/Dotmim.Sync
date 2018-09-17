@@ -123,7 +123,7 @@ namespace Dotmim.Sync.Tests.Core
                 catch (Exception ex)
                 {
                     Exception = ex;
-
+                    Console.WriteLine(ex);
                 }
             }
 
@@ -162,7 +162,7 @@ namespace Dotmim.Sync.Tests.Core
                         }
                         catch (Exception ew)
                         {
-                            Debug.WriteLine(ew);
+                            Console.WriteLine(ew);
                         }
                     });
 
@@ -186,6 +186,7 @@ namespace Dotmim.Sync.Tests.Core
                         catch (Exception ew)
                         {
                             Exception = ew;
+                            Console.WriteLine(ew);
                         }
                     });
                     await server.Run(serverHandler, clientHandler);
