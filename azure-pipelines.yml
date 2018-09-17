@@ -62,7 +62,7 @@ jobs:
 
   # Publish Build Artifacts
   - task: PublishBuildArtifacts@1
-    inputs:
-      pathtoPublish: '**/$(Build.SourcesDirectory)/**/?(*.nupkg)' 
-      artifactName: 'drop' 
-      publishLocation: 'Container' # Options: container, filePath
+   #inputs:
+   #  pathtoPublish: '**/$(Build.SourcesDirectory)/**/?(*.nupkg)' 
+   #  artifactName: 'drop' 
+   #  publishLocation: 'Container' # Options: container, filePath
