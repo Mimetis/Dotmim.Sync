@@ -59,3 +59,10 @@ jobs:
     inputs:
       testRunner: VSTest
       testResultsFiles: '**/*.trx'
+
+  # Publish Build Artifacts
+  - task: PublishBuildArtifacts@1
+    inputs:
+      pathtoPublish: '$(Build.SourcesDirectory)/Projects/**/*.nupkg' 
+      artifactName: 'drop' 
+      publishLocation: 'Container' # Options: container, filePath
