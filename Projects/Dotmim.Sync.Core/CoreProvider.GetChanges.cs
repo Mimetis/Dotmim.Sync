@@ -52,7 +52,7 @@ namespace Dotmim.Sync
                 }
 
                 // create local directory
-                if (!String.IsNullOrEmpty(message.BatchDirectory) && !Directory.Exists(message.BatchDirectory))
+                if (message.DownloadBatchSizeInKB > 0 && !String.IsNullOrEmpty(message.BatchDirectory) && !Directory.Exists(message.BatchDirectory))
                     Directory.CreateDirectory(message.BatchDirectory);
 
                 // batch info containing changes
