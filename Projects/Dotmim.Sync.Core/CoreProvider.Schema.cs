@@ -195,8 +195,7 @@ namespace Dotmim.Sync
                         // Since we can have a table with a foreign key but not the parent table
                         // It's not a problem, just forget it
                         if (foreignTable == null || foreignTable.Columns.Count == 0)
-                            throw new SyncException($"Invalid configuration. Failed to retrieve the configuration of the {r.ReferenceTableName} table or missing columns."
-                                , SyncStage.None);
+                            continue;
 
                         var foreignColumns = r.ReferenceColumnsName
                              .Select(fc => foreignTable.Columns[fc])
