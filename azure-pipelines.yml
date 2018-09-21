@@ -13,7 +13,7 @@ jobs:
   steps:
  
   # Seems the 3306 is already in use on the machine used by Azure Devops, so redirect to 3307
-  - script: docker run --name mysql -e MYSQL_ROOT_PASSWORD=Password12! -p 3307:3306 -d mysql:5.7 
+  - script: docker run --name mysql -e MYSQL_ROOT_PASSWORD=Password12! -p 3307:3306 -d mysql
     displayName: 'Run MySql on Linux container'
     
   - script: echo "##vso[task.setvariable variable=mySQLIP;isOutput=true]$(docker inspect -f "{{ .NetworkSettings.IPAddress }}" mysql)"
@@ -41,7 +41,7 @@ jobs:
 
   # Dont need anymore to pass the MySQL Ip Address, just let it here for memory
   # --logger trx;logfilename=TEST.xml : Unexplained arg to publish tests resuls
-  - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --logger trx;logfilename=TEST.xml
+  - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --logger trx
     displayName: 'Tests'
     env: 
       'MYSQLIP' : $(setvarStep.mySQLIP)
