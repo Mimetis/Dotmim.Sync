@@ -23,7 +23,7 @@ namespace Dotmim.Sync.SqlServer.Manager
             this.sqlTransaction = transaction as SqlTransaction;
         }
 
-        public List<DbRelationDefinition> GetTableRelations()
+        public IEnumerable<DbRelationDefinition> GetTableRelations()
         {
             List<DbRelationDefinition> relations = new List<DbRelationDefinition>();
             var dmRelations = SqlManagementUtils.RelationsForTable(sqlConnection, sqlTransaction, tableName);
