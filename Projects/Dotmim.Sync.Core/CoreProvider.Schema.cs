@@ -1,5 +1,4 @@
-﻿using Dotmim.Sync.Data;
-using Dotmim.Sync.Data.Surrogate;
+using Dotmim.Sync.Data;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Manager;
 using Dotmim.Sync.Messages;
@@ -7,10 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
-using System.Diagnostics;
-using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync
@@ -22,20 +18,20 @@ namespace Dotmim.Sync
         /// Generate the DmTable configuration from a given columns list
         /// Validate that all columns are currently supported by the provider
         /// </summary>
-        private void ValidateTableFromColumns(DmTable dmTable, List<DmColumn> columns, IDbManagerTable dbManagerTable)
+        private void ValidateTableFromColumns(DmTable dmTable, IEnumerable<DmColumn> columns, IDbManagerTable dbManagerTable)
         {
             dmTable.OriginalProvider = this.ProviderTypeName;
 
             var ordinal = 0;
 
             // Eventually, do not raise exception here, just we don't have any columns
-            if (columns == null || columns.Count <= 0)
+            if (columns == null || columns.Any() == false)
                 return;
 
             // Get PrimaryKey
             var dmTableKeys = dbManagerTable.GetTablePrimaryKeys();
 
-            if (dmTableKeys == null || dmTableKeys.Count == 0)
+            if (dmTableKeys == null || dmTableKeys.Any() == false)
                 throw new MissingPrimaryKeyException($"No Primary Keys in table {dmTable.TableName}, Can't make a synchronization with a table without primary keys.");
 
             //// Check if we have more than one column (excepting primarykeys)
@@ -121,13 +117,13 @@ namespace Dotmim.Sync
 
             }
 
-            DmColumn[] columnsForKey = new DmColumn[dmTableKeys.Count];
+            DmColumn[] columnsForKey = new DmColumn[dmTableKeys.Count()];
 
-            for (int i = 0; i < dmTableKeys.Count; i++)
+            int i = 0;
+            foreach (var rowColumn in dmTableKeys)
             {
-                var rowColumn = dmTableKeys[i];
                 var columnKey = dmTable.Columns.FirstOrDefault(c => String.Equals(c.ColumnName, rowColumn, StringComparison.InvariantCultureIgnoreCase));
-                columnsForKey[i] = columnKey ?? throw new MissingPrimaryKeyException("Primary key found is not present in the columns list");
+                columnsForKey[i++] = columnKey ?? throw new MissingPrimaryKeyException("Primary key found is not present in the columns list");
             }
 
             // Set the primary Key

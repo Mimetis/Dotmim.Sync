@@ -1,8 +1,5 @@
-﻿using Dotmim.Sync.Data;
-using System;
+using Dotmim.Sync.Data;
 using System.Collections.Generic;
-using System.Data.Common;
-using System.Text;
 
 namespace Dotmim.Sync.Manager
 {
@@ -16,15 +13,15 @@ namespace Dotmim.Sync.Manager
         /// <summary>
         /// Gets a columns list from the datastore
         /// </summary>
-        List<DmColumn> GetTableDefinition();
+        IEnumerable<DmColumn> GetTableDefinition();
 
         /// <summary>
         /// Gets all relations from a current table
         /// </summary>
-        List<DbRelationDefinition> GetTableRelations();
+        IEnumerable<DbRelationDefinition> GetTableRelations();
 
 
-        List<string> GetTablePrimaryKeys();
+        IEnumerable<string> GetTablePrimaryKeys();
 
     }
 }
