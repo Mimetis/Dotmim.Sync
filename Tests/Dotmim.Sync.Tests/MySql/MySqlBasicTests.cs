@@ -1,4 +1,4 @@
-﻿
+
 using Dotmim.Sync.Test.Misc;
 using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Tests.Misc;
@@ -158,6 +158,12 @@ namespace Dotmim.Sync.Tests.MySql
         public override Task Use_Existing_Client_Database_Provision_Deprosivion()
         {
             return base.Use_Existing_Client_Database_Provision_Deprosivion();
+        }
+
+        [Fact, TestPriority(21)]
+        public override Task Check_Composite_ForeignKey_Existence()
+        {
+            return base.Check_Composite_ForeignKey_Existence();
         }
     }
 }
