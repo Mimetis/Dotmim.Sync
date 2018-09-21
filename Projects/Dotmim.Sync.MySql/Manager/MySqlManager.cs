@@ -1,7 +1,4 @@
-﻿using Dotmim.Sync.Manager;
-using System;
-using System.Collections.Generic;
-using System.Text;
+using Dotmim.Sync.Manager;
 using System.Data.Common;
 
 
@@ -16,7 +13,10 @@ namespace Dotmim.Sync.MySql
 
         public override IDbManagerTable CreateManagerTable(DbConnection connection, DbTransaction transaction = null)
         {
-            return new MySqlManagerTable(connection, transaction);
+            return new MySqlManagerTable(connection, transaction)
+            {
+                TableName = this.TableName,
+            };
         }
 
 

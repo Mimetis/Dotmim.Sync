@@ -29,12 +29,14 @@ namespace Dotmim.Sync.Tests
             {
                 "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "Employee", "Customer", "Address", "CustomerAddress", "EmployeeAddress",
                 "SalesLT.SalesOrderHeader", "SalesLT.SalesOrderDetail", "dbo.Sql", "Posts", "Tags", "PostTag"
+                ,"PricesList", "PriceListCategory", "PriceListDetail"
             };
 
             var mySqlTables = new string[]
             {
                 "ProductCategory", "ProductModel", "Product", "Customer", "Address", "CustomerAddress",
                 "SalesOrderHeader", "SalesOrderDetail", "Sql", "Posts", "Tags", "PostTag"
+                ,"PricesList", "PriceListCategory", "PriceListDetail"
             };
 
             // 1) Add database name

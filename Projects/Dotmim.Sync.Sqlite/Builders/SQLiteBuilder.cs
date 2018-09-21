@@ -1,4 +1,4 @@
-﻿using Dotmim.Sync.Builders;
+using Dotmim.Sync.Builders;
 using System.Text;
 using Dotmim.Sync.Data;
 using System.Data.Common;
@@ -15,7 +15,7 @@ namespace Dotmim.Sync.Sqlite
     {
 
         SqliteObjectNames sqlObjectNames;
-       
+
         public SqliteBuilder(DmTable tableDescription) : base(tableDescription)
         {
             sqlObjectNames = new SqliteObjectNames(tableDescription);
