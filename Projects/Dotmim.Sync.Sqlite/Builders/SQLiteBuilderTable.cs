@@ -1,11 +1,10 @@
-﻿using Dotmim.Sync.Builders;
+using Dotmim.Sync.Builders;
 using System;
 using System.Text;
 using Dotmim.Sync.Data;
 using System.Data.Common;
 using System.Linq;
 using System.Data;
-using Dotmim.Sync.Log;
 using Microsoft.Data.Sqlite;
 using System.Diagnostics;
 
@@ -39,26 +38,26 @@ namespace Dotmim.Sync.Sqlite
 
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.Append("ALTER TABLE ");
-            stringBuilder.AppendLine(parentTableName.FullQuotedString);
+            stringBuilder.AppendLine(childTableName.FullQuotedString);
             stringBuilder.Append("ADD CONSTRAINT ");
             stringBuilder.AppendLine(foreignKey.RelationName);
             stringBuilder.Append("FOREIGN KEY (");
             string empty = string.Empty;
+            foreach (var childColumn in foreignKey.ChildColumns)
+            {
+                var childColumnName = new ObjectNameParser(childColumn.ColumnName);
+                stringBuilder.Append($"{empty} {childColumnName.FullQuotedString}");
+            }
+            stringBuilder.AppendLine(" )");
+            stringBuilder.Append("REFERENCES ");
+            stringBuilder.Append(parentTableName.FullQuotedString).Append(" (");
+            empty = string.Empty;
             foreach (var parentdColumn in foreignKey.ParentColumns)
             {
                 var parentColumnName = new ObjectNameParser(parentdColumn.ColumnName);
 
                 stringBuilder.Append($"{empty} {parentColumnName.FullQuotedString}");
                 empty = ", ";
-            }
-            stringBuilder.AppendLine(" )");
-            stringBuilder.Append("REFERENCES ");
-            stringBuilder.Append(childTableName.FullQuotedString).Append(" (");
-            empty = string.Empty;
-            foreach (var childColumn in foreignKey.ChildColumns)
-            {
-                var childColumnName = new ObjectNameParser(childColumn.ColumnName);
-                stringBuilder.Append($"{empty} {childColumnName.FullQuotedString}");
             }
             stringBuilder.Append(" ) ");
             sqlCommand.CommandText = stringBuilder.ToString();
@@ -143,7 +142,7 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.Append(")");
 
             // Constraints
-            foreach (DmRelation constraint in this.tableDescription.ChildRelations)
+            foreach (DmRelation constraint in this.tableDescription.ParentRelations)
             {
 
                 // Don't want foreign key on same table since it could be a problem on first 
@@ -151,12 +150,12 @@ namespace Dotmim.Sync.Sqlite
                 if (String.Equals(constraint.ParentTable.TableName, constraint.ChildTable.TableName, StringComparison.CurrentCultureIgnoreCase))
                     continue;
 
-                var childTable = constraint.ChildTable;
-                var childTableName = new ObjectNameParser(childTable.TableName);
+                var parentTable = constraint.ParentTable;
+                var parentTableName = new ObjectNameParser(parentTable.TableName);
                 stringBuilder.AppendLine();
                 stringBuilder.Append($"\tFOREIGN KEY (");
                 empty = string.Empty;
-                foreach (var column in constraint.ParentColumns)
+                foreach (var column in constraint.ChildColumns)
                 {
                     var columnName = new ObjectNameParser(column.ColumnName);
 
@@ -164,9 +163,9 @@ namespace Dotmim.Sync.Sqlite
                     empty = ", ";
                 }
                 stringBuilder.Append($") ");
-                stringBuilder.Append($"REFERENCES {childTableName.FullQuotedString}(");
+                stringBuilder.Append($"REFERENCES {parentTableName.FullQuotedString}(");
                 empty = string.Empty;
-                foreach (var column in constraint.ChildColumns)
+                foreach (var column in constraint.ParentColumns)
                 {
                     var columnName = new ObjectNameParser(column.ColumnName);
 
@@ -314,7 +313,7 @@ namespace Dotmim.Sync.Sqlite
 
             try
             {
-                using (var command = new SqliteCommand($"DROP TABLE IF EXISTS {tableName.FullQuotedString}", connection)) 
+                using (var command = new SqliteCommand($"DROP TABLE IF EXISTS {tableName.FullQuotedString}", connection))
                 {
                     if (!alreadyOpened)
                         connection.Open();
