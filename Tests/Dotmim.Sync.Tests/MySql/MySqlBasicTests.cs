@@ -131,15 +131,9 @@ namespace Dotmim.Sync.Tests.MySql
         }
 
         [Fact, TestPriority(16)]
-        public override Task Delete_One_Table_From_Server()
+        public override Task Delete_From_Server()
         {
-            return base.Delete_One_Table_From_Server();
-        }
-
-        [Fact, TestPriority(17)]
-        public override Task Delete_Multiple_Tables_From_Server()
-        {
-            return base.Delete_Multiple_Tables_From_Server();
+            return base.Delete_From_Server();
         }
 
         [Fact, TestPriority(18)]
