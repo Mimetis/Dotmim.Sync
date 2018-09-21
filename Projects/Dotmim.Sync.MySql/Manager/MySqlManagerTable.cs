@@ -1,4 +1,4 @@
-﻿using Dotmim.Sync.Data;
+using Dotmim.Sync.Data;
 using Dotmim.Sync.Manager;
 using Dotmim.Sync.MySql;
 using MySql.Data.MySqlClient;
@@ -34,7 +34,7 @@ namespace Dotmim.Sync.MySql
             return MySqlManagementUtils.RelationsForTable(sqlConnection, sqlTransaction, tableName);
         }
 
-        List<DmColumn> IDbManagerTable.GetTableDefinition()
+        IEnumerable<DmColumn> IDbManagerTable.GetTableDefinition()
         {
             List<DmColumn> columns = new List<DmColumn>();
 
@@ -80,10 +80,10 @@ namespace Dotmim.Sync.MySql
 
             }
 
-            return columns;
+            return columns.ToArray();
         }
 
-        List<DbRelationDefinition> IDbManagerTable.GetTableRelations()
+        IEnumerable<DbRelationDefinition> IDbManagerTable.GetTableRelations()
         {
 
             var dmRelations = MySqlManagementUtils.RelationsForTable(sqlConnection, sqlTransaction, tableName);
@@ -105,10 +105,10 @@ namespace Dotmim.Sync.MySql
                 relations.Add(relationDefinition);
             }
 
-            return relations;
+            return relations.ToArray();
         }
 
-        public List<string> GetTablePrimaryKeys()
+        public IEnumerable<string> GetTablePrimaryKeys()
         {
             // Get PrimaryKey
             var dmTableKeys = MySqlManagementUtils.PrimaryKeysForTable(sqlConnection, sqlTransaction, tableName);
@@ -121,7 +121,7 @@ namespace Dotmim.Sync.MySql
             foreach (var dmKey in dmTableKeys.Rows)
                 lstKeys.Add((string)dmKey["COLUMN_NAME"]);
 
-            return lstKeys;
+            return lstKeys.ToArray();
 
         }
     }

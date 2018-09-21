@@ -1,4 +1,4 @@
-﻿using Dotmim.Sync.Data;
+using Dotmim.Sync.Data;
 using Dotmim.Sync.Manager;
 using System;
 using System.Data;
@@ -23,7 +23,7 @@ namespace Dotmim.Sync.SqlServer.Manager
             this.sqlTransaction = transaction as SqlTransaction;
         }
   
-        public List<DbRelationDefinition> GetTableRelations()
+        public IEnumerable<DbRelationDefinition> GetTableRelations()
         {
             var dmRelations = SqlManagementUtils.RelationsForTable(sqlConnection, sqlTransaction, tableName);
 
@@ -44,10 +44,10 @@ namespace Dotmim.Sync.SqlServer.Manager
                 relations.Add(relationDefinition);
             }
 
-            return relations;
+            return relations.ToArray();
         }
 
-        public List<DmColumn> GetTableDefinition()
+        public IEnumerable<DmColumn> GetTableDefinition()
         {
             List<DmColumn> columns = new List<DmColumn>();
             // Get the columns definition
@@ -96,10 +96,10 @@ namespace Dotmim.Sync.SqlServer.Manager
                 columns.Add(dbColumn);
 
             }
-            return columns;
+            return columns.ToArray();
         }
         
-        public List<string> GetTablePrimaryKeys()
+        public IEnumerable<string> GetTablePrimaryKeys()
         {
             var dmTableKeys = SqlManagementUtils.PrimaryKeysForTable(sqlConnection, sqlTransaction, tableName);
             var lstKeys = new List<String>();
@@ -107,7 +107,7 @@ namespace Dotmim.Sync.SqlServer.Manager
             foreach(var dmKey in dmTableKeys.Rows)
                 lstKeys.Add((string)dmKey["columnName"]);
 
-            return lstKeys;
+            return lstKeys.ToArray();
         }
     }
 }
