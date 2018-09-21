@@ -76,7 +76,7 @@ namespace Dotmim.Sync.Tests
 
                 foreach (var trr in results)
                 {
-                    Assert.Equal(103, trr.Results.TotalChangesDownloaded);
+                    Assert.Equal(this.fixture.RowsCount, trr.Results.TotalChangesDownloaded);
                     Assert.Equal(0, trr.Results.TotalChangesUploaded);
                 }
 
@@ -997,137 +997,102 @@ namespace Dotmim.Sync.Tests
         /// Delete some rows from one table. Address from primary key 6 and +, are not used
         /// </summary>
         /// <returns></returns>
-        public async virtual Task Delete_One_Table_From_Server()
+        public async virtual Task Delete_From_Server()
         {
             var configurations = TestConfigurations.GetConfigurations();
+
+            // part of the filter
+            var employeeId = 1;
+            // will be defined when address is inserted
+            var addressId = 0;
 
             for (int i = 0; i < configurations.Count; i++)
             {
                 SyncConfiguration conf = configurations[i];
-
-                // get a new item to delete
-                var id = 6 + i;
-
+                // insert in db server
                 // first of all, delete the line from server
                 using (var serverDbCtx = GetServerDbContext())
                 {
+
+                    // Insert a new address for employee 1
+                    var city = "Paris " + Path.GetRandomFileName().Replace(".", "");
+                    var addressline1 = "Rue Monthieu " + Path.GetRandomFileName().Replace(".", "");
+                    var stateProvince = "Ile de France";
+                    var countryRegion = "France";
+                    var postalCode = "75001";
+
+                    Address address = new Address
+                    {
+                        AddressLine1 = addressline1,
+                        City = city,
+                        StateProvince = stateProvince,
+                        CountryRegion = countryRegion,
+                        PostalCode = postalCode
+
+                    };
+
+                    serverDbCtx.Add(address);
+                    await serverDbCtx.SaveChangesAsync();
+                    addressId = address.AddressId;
+
+                    EmployeeAddress employeeAddress = new EmployeeAddress
+                    {
+                        EmployeeId = employeeId,
+                        AddressId = address.AddressId,
+                        AddressType = "SERVER"
+                    };
+
+                    var ea = serverDbCtx.EmployeeAddress.Add(employeeAddress);
+                    await serverDbCtx.SaveChangesAsync();
+
+                }
+
+                // Upload this new address / employee address
+                var resultsInsertServer = await this.testRunner.RunTestsAsync(conf);
+
+                // check the download to client
+                foreach (var trr in resultsInsertServer)
+                {
+                    Assert.Equal(2, trr.Results.TotalChangesDownloaded);
+                    Assert.Equal(0, trr.Results.TotalChangesUploaded);
+                }
+
+                // Delete those lines from server
+                using (var serverDbCtx = GetServerDbContext())
+                {
                     // Get the addresses query
-                    var address = await serverDbCtx.Address.SingleAsync(a => a.AddressId == id);
+                    var address = await serverDbCtx.Address.SingleAsync(a => a.AddressId == addressId);
+                    var empAddress = await serverDbCtx.EmployeeAddress.SingleAsync(a => a.AddressId == addressId && a.EmployeeId == employeeId);
 
                     // remove them
+                    serverDbCtx.EmployeeAddress.Remove(empAddress);
                     serverDbCtx.Address.Remove(address);
 
                     // Execute query
                     await serverDbCtx.SaveChangesAsync();
                 }
 
-                var results = await this.testRunner.RunTestsAsync(conf);
+                var resultsDeleteOnServer = await this.testRunner.RunTestsAsync(conf);
 
-                int finalServerAddressesCount = 0;
-                using (var serverDbCtx = GetServerDbContext())
-                {
-                    finalServerAddressesCount = await serverDbCtx.Address.AsNoTracking().CountAsync();
-                }
-
-                foreach (var trr in results)
-                {
-                    Assert.Equal(1, trr.Results.TotalChangesDownloaded);
-                    Assert.Equal(0, trr.Results.TotalChangesUploaded);
-
-                    int finalClientAddressesCount = 0;
-
-                    // check row updated values
-                    using (var ctx = GetClientDbContext(trr))
-                    {
-                        finalClientAddressesCount = await ctx.Address.AsNoTracking().CountAsync();
-                    }
-
-                    Assert.Equal(finalServerAddressesCount, finalClientAddressesCount);
-
-                }
-            }
-        }
-
-        /// <summary>
-        /// Delete some rows in multiple tables. Choose rows in table with foreign key constraint
-        /// </summary>
-        public async virtual Task Delete_Multiple_Tables_From_Server()
-        {
-            var configurations = TestConfigurations.GetConfigurations();
-
-            for (int i = 0; i < configurations.Count; i++)
-            {
-                SyncConfiguration conf = configurations[i];
-
-                // first of all, insert a product category and a product
-                var productId = Guid.NewGuid();
-                var productName = Path.GetRandomFileName().Replace(".", "");
-                var productNumber = productName.ToUpperInvariant().Substring(0, 10);
-
-                var productCategoryName = Path.GetRandomFileName().Replace(".", "");
-                var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
-
-                // insert 2 rows
-                using (var serverDbCtx = GetServerDbContext())
-                {
-                    ProductCategory pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
-                    serverDbCtx.Add(pc);
-
-                    Product product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber };
-                    serverDbCtx.Add(product);
-
-                    await serverDbCtx.SaveChangesAsync();
-                }
-
-                // Sync to be sure everything is correct on both side
-                await this.testRunner.RunTestsAsync(conf);
-
-                // Then delete these lines from server
-                using (var serverDbCtx = GetServerDbContext())
-                {
-                    // Get the lines
-                    var sproduct = await serverDbCtx.Product.SingleAsync(p => p.ProductId == productId);
-                    var sproductCat = await serverDbCtx.ProductCategory.SingleAsync(pc => pc.ProductCategoryId == productCategoryId);
-
-                    // remove them
-                    serverDbCtx.Remove(sproduct);
-                    serverDbCtx.Remove(sproductCat);
-
-                    // Execute query
-                    await serverDbCtx.SaveChangesAsync();
-                }
-
-                var results = await this.testRunner.RunTestsAsync(conf);
-
-                int finalServerProductCount = 0;
-                int finalServerProductCategoryCount = 0;
-
-                using (var serverDbCtx = GetServerDbContext())
-                {
-                    finalServerProductCount = await serverDbCtx.Product.AsNoTracking().CountAsync();
-                    finalServerProductCategoryCount = await serverDbCtx.ProductCategory.AsNoTracking().CountAsync();
-                }
-
-                foreach (var trr in results)
+                foreach (var trr in resultsDeleteOnServer)
                 {
                     Assert.Equal(2, trr.Results.TotalChangesDownloaded);
                     Assert.Equal(0, trr.Results.TotalChangesUploaded);
 
-                    int finalClientProductCount = 0;
-                    int finalClientProductCategoryCount = 0;
-
-                    // check row updated values
+                    // check row deleted on client values
                     using (var ctx = GetClientDbContext(trr))
                     {
-                        finalClientProductCount = await ctx.Product.AsNoTracking().CountAsync();
-                        finalClientProductCategoryCount = await ctx.ProductCategory.AsNoTracking().CountAsync();
+                        var finalAddressesCount = await ctx.Address.AsNoTracking().CountAsync(a => a.AddressId == addressId);
+                        var finalEmployeeAddressesCount = await ctx.EmployeeAddress.AsNoTracking().CountAsync(a => a.AddressId == addressId && a.EmployeeId == employeeId);
+                        Assert.Equal(0, finalAddressesCount);
+                        Assert.Equal(0, finalEmployeeAddressesCount);
                     }
-
-                    Assert.Equal(finalServerProductCount, finalClientProductCount);
-                    Assert.Equal(finalServerProductCategoryCount, finalClientProductCategoryCount);
-
                 }
+
+                // reset all clients
+                await this.testRunner.RunTestsAsync(conf);
             }
+
         }
 
         /// <summary>
