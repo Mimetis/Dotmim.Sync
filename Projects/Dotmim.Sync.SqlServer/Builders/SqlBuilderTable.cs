@@ -86,27 +86,27 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.Append("ALTER TABLE ");
-            stringBuilder.AppendLine(parentTableName.FullQuotedString);
+            stringBuilder.AppendLine(childTableName.FullQuotedString);
             stringBuilder.Append("ADD CONSTRAINT ");
             stringBuilder.AppendLine(foreignKey.RelationName);
             stringBuilder.Append("FOREIGN KEY (");
             string empty = string.Empty;
-            foreach (var parentdColumn in foreignKey.ParentColumns)
-            {
-                var parentColumnName = new ObjectNameParser(parentdColumn.ColumnName);
-
-                stringBuilder.Append($"{empty} {parentColumnName.FullQuotedString}");
-                empty = ", ";
-            }
+			foreach (var childColumn in foreignKey.ChildColumns)
+			{
+				var childColumnName = new ObjectNameParser(childColumn.ColumnName);
+				stringBuilder.Append($"{empty} {childColumnName.FullQuotedString}");
+				empty = ", ";
+			}
             stringBuilder.AppendLine(" )");
             stringBuilder.Append("REFERENCES ");
-            stringBuilder.Append(childTableName.FullQuotedString).Append(" (");
+            stringBuilder.Append(parentTableName.FullQuotedString).Append(" (");
             empty = string.Empty;
-            foreach (var childColumn in foreignKey.ChildColumns)
-            {
-                var childColumnName = new ObjectNameParser(childColumn.ColumnName);
-                stringBuilder.Append($"{empty} {childColumnName.FullQuotedString}");
-            }
+			foreach (var parentdColumn in foreignKey.ParentColumns)
+			{
+				var parentColumnName = new ObjectNameParser(parentdColumn.ColumnName);
+				stringBuilder.Append($"{empty} {parentColumnName.FullQuotedString}");
+				empty = ", ";
+			}
             stringBuilder.Append(" ) ");
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;

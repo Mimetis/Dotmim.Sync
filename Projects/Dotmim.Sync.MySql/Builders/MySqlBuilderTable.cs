@@ -1,11 +1,10 @@
-﻿using Dotmim.Sync.Builders;
+using Dotmim.Sync.Builders;
 using System;
 using System.Text;
 using Dotmim.Sync.Data;
 using System.Data.Common;
 using System.Linq;
 using System.Data;
-using Dotmim.Sync.Log;
 using MySql.Data.MySqlClient;
 using Dotmim.Sync.MySql.Builders;
 using System.Diagnostics;
@@ -41,30 +40,33 @@ namespace Dotmim.Sync.MySql
             var parentTable = foreignKey.ParentTable;
             var parentTableName = new ObjectNameParser(parentTable.TableName, "`", "`"); ;
 
-            var relationName = foreignKey.RelationName.Length > 50 ? foreignKey.RelationName.Substring(0, 50) : foreignKey.RelationName;
+            var relationName = foreignKey.RelationName;
+
+            DmColumn[] foreignKeyColumns = foreignKey.ChildColumns;
+            DmColumn[] referencesColumns = foreignKey.ParentColumns;
 
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.Append("ALTER TABLE ");
-            stringBuilder.AppendLine(parentTableName.FullQuotedString);
+            stringBuilder.AppendLine(childTableName.FullQuotedString);
             stringBuilder.Append("ADD CONSTRAINT ");
             stringBuilder.AppendLine(relationName);
             stringBuilder.Append("FOREIGN KEY (");
             string empty = string.Empty;
-            foreach (var parentdColumn in foreignKey.ParentColumns)
+            foreach (var foreignKeyColumn in foreignKeyColumns)
             {
-                var parentColumnName = new ObjectNameParser(parentdColumn.ColumnName, "`", "`");
-
-                stringBuilder.Append($"{empty} {parentColumnName.FullQuotedString}");
+                var foreignKeyColumnName = new ObjectNameParser(foreignKeyColumn.ColumnName.ToLowerInvariant(), "`", "`");
+                stringBuilder.Append($"{empty} {foreignKeyColumnName.FullQuotedString}");
                 empty = ", ";
             }
             stringBuilder.AppendLine(" )");
             stringBuilder.Append("REFERENCES ");
-            stringBuilder.Append(childTableName.FullQuotedString).Append(" (");
+            stringBuilder.Append(parentTableName.FullQuotedString).Append(" (");
             empty = string.Empty;
-            foreach (var childColumn in foreignKey.ChildColumns)
+            foreach (var referencesColumn in referencesColumns)
             {
-                var childColumnName = new ObjectNameParser(childColumn.ColumnName, "`", "`");
-                stringBuilder.Append($"{empty} {childColumnName.FullQuotedString}");
+                var referencesColumnName = new ObjectNameParser(referencesColumn.ColumnName.ToLowerInvariant(), "`", "`");
+                stringBuilder.Append($"{empty} {referencesColumnName.FullQuotedString}");
+                empty = ", ";
             }
             stringBuilder.Append(" ) ");
             sqlCommand.CommandText = stringBuilder.ToString();
