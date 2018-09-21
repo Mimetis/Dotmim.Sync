@@ -1345,6 +1345,9 @@ namespace Dotmim.Sync.Tests
                         .GetDbManager("PriceListCategory")
                         ?.CreateManagerTable(connection);
 
+                    if (tableManger == null)
+                        continue;
+
                     var relations = tableManger.GetTableRelations().ToArray();
                     Assert.Equal(1, relations.Count());
                     Assert.Equal("FK_PriceListDetail_PriceListCategory_PriceListId_PriceCategoryId", relations[0].ForeignKey);
