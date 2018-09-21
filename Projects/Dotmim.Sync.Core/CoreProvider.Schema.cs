@@ -1,5 +1,4 @@
 ﻿using Dotmim.Sync.Data;
-using Dotmim.Sync.Data.Surrogate;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Manager;
 using Dotmim.Sync.Messages;
@@ -7,10 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
-using System.Diagnostics;
-using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync
@@ -158,17 +154,18 @@ namespace Dotmim.Sync
 
             try
             {
+                var relations = new List<DbRelationDefinition>(20);
+                var syncConfiguration = schema.Tables;
                 using (connection = this.CreateConnection())
                 {
                     await connection.OpenAsync();
 
                     using (transaction = connection.BeginTransaction())
                     {
-                        foreach (var dmTable in schema.Tables)
+                        foreach (var dmTable in syncConfiguration)
                         {
                             var builderTable = this.GetDbManager(dmTable.TableName);
                             var tblManager = builderTable.CreateManagerTable(connection, transaction);
-                            tblManager.TableName = dmTable.TableName;
 
                             // get columns list
                             var lstColumns = tblManager.GetTableDefinition();
@@ -176,39 +173,42 @@ namespace Dotmim.Sync
                             // Validate the column list and get the dmTable configuration object.
                             this.ValidateTableFromColumns(dmTable, lstColumns, tblManager);
 
-                            var relations = tblManager.GetTableRelations();
-
-                            if (relations != null)
-                            {
-                                foreach (var r in relations)
-                                {
-                                    DmColumn tblColumn = dmTable.Columns[r.ColumnName];
-                                    DmColumn foreignColumn = null;
-                                    var foreignTable = schema.Tables[r.ReferenceTableName];
-
-                                    // Since we can have a table with a foreign key but not the parent table
-                                    // It's not a problem, just forget it
-                                    if (foreignTable == null)
-                                        continue;
-
-                                    foreignColumn = foreignTable.Columns[r.ReferenceColumnName];
-
-                                    if (foreignColumn == null)
-                                        throw new NotSupportedException(
-                                            $"Foreign column {r.ReferenceColumnName} does not exist in table {r.TableName}");
-
-                                    DmRelation dmRelation = new DmRelation(r.ForeignKey, tblColumn, foreignColumn);
-
-                                    schema.Relations.Add(dmRelation);
-                                }
-                            }
-
+                            relations.AddRange(tblManager.GetTableRelations());
                         }
 
                         transaction.Commit();
                     }
 
                     connection.Close();
+                }
+                if (relations.Any())
+                {
+                    foreach (var r in relations)
+                    {
+                        var dmTable = schema.Tables[r.TableName];
+                        var tblColumns = r.KeyColumnsName
+                            .Select(kc => dmTable.Columns[kc])
+                            .ToArray();
+
+                        var foreignTable = syncConfiguration[r.ReferenceTableName];
+
+                        // Since we can have a table with a foreign key but not the parent table
+                        // It's not a problem, just forget it
+                        if (foreignTable == null || foreignTable.Columns.Count == 0)
+                            continue;
+
+                        var foreignColumns = r.ReferenceColumnsName
+                             .Select(fc => foreignTable.Columns[fc])
+                             .ToArray();
+
+                        if (foreignColumns == null || foreignColumns.Any(c => c == null))
+                            throw new NotSupportedException(
+                                $"Foreign columns {string.Join(",", r.ReferenceColumnsName)} does not exist in table {r.ReferenceTableName}");
+
+                        var dmRelation = new DmRelation(r.ForeignKey, tblColumns, foreignColumns);
+
+                        schema.Relations.Add(dmRelation);
+                    }
                 }
             }
             catch (Exception ex)

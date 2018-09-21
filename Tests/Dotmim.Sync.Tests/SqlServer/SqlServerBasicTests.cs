@@ -1,4 +1,4 @@
-﻿
+
 using Dotmim.Sync.Test.Misc;
 using Dotmim.Sync.Tests.Misc;
 using System;
@@ -82,16 +82,11 @@ public class SqlServerBasicTests : BasicTestsBase, IClassFixture<SqlServerFixtur
         }
 
         [Fact, TestPriority(10)]
-        public override Task Delete_One_Table_From_Server()
+        public override Task Delete_From_Server()
         {
-            return base.Delete_One_Table_From_Server();
+            return base.Delete_From_Server();
         }
 
-        [Fact, TestPriority(11)]
-        public override Task Delete_Multiple_Tables_From_Server()
-        {
-            return base.Delete_Multiple_Tables_From_Server();
-        }
 
         [Fact, TestPriority(12)]
         public override Task Conflict_Insert_Insert_Client_Should_Wins_Coz_Configuration()
@@ -145,6 +140,12 @@ public class SqlServerBasicTests : BasicTestsBase, IClassFixture<SqlServerFixtur
         public override Task Use_Existing_Client_Database_Provision_Deprosivion()
         {
             return base.Use_Existing_Client_Database_Provision_Deprosivion();
+        }
+
+        [Fact, TestPriority(21)]
+        public override Task Check_Composite_ForeignKey_Existence()
+        {
+            return base.Check_Composite_ForeignKey_Existence();
         }
     }
 }

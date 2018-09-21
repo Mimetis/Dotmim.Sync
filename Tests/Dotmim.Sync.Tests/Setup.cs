@@ -1,14 +1,6 @@
-﻿using Dotmim.Sync.Data;
-using Dotmim.Sync.Filter;
-using Dotmim.Sync.Tests.Core;
+﻿using Dotmim.Sync.Tests.Core;
 using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Data;
-using System.Diagnostics;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Linq;
 
 namespace Dotmim.Sync.Tests
 {
@@ -29,12 +21,14 @@ namespace Dotmim.Sync.Tests
             {
                 "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "Employee", "Customer", "Address", "CustomerAddress", "EmployeeAddress",
                 "SalesLT.SalesOrderHeader", "SalesLT.SalesOrderDetail", "dbo.Sql", "Posts", "Tags", "PostTag"
+                ,"PricesList", "PriceListCategory", "PriceListDetail"
             };
 
             var mySqlTables = new string[]
             {
-                "ProductCategory", "ProductModel", "Product", "Customer", "Address", "CustomerAddress",
+                "ProductCategory", "ProductModel", "Product", "Employee", "Customer", "Address", "CustomerAddress","EmployeeAddress",
                 "SalesOrderHeader", "SalesOrderDetail", "Sql", "Posts", "Tags", "PostTag"
+                ,"PricesList", "PriceListCategory", "PriceListDetail"
             };
 
             // 1) Add database name
@@ -42,15 +36,25 @@ namespace Dotmim.Sync.Tests
             providerFixture.AddDatabaseName(ProviderType.MySql, "mysqladventureworks");
 
             // 2) Add tables
-            providerFixture.AddTables(ProviderType.Sql, sqlTables);
-            providerFixture.AddTables(ProviderType.MySql, mySqlTables);
+            providerFixture.AddTables(ProviderType.Sql, sqlTables, 109);
+            providerFixture.AddTables(ProviderType.MySql, mySqlTables, 109);
 
-           // SQL Server provider
+            // SQL Server provider
 
-            if (IsOnAzureDev)
+            if (!IsOnAzureDev)
             {
                 providerFixture.AddRun((ProviderType.Sql, NetworkType.Tcp), ProviderType.Sql);
+                providerFixture.AddRun((ProviderType.MySql, NetworkType.Tcp), ProviderType.MySql);
+                return;
             }
+
+            providerFixture.AddRun((ProviderType.Sql, NetworkType.Tcp), ProviderType.Sql);
+            providerFixture.AddRun((ProviderType.Sql, NetworkType.Tcp), ProviderType.MySql);
+            providerFixture.AddRun((ProviderType.Sql, NetworkType.Http), ProviderType.Sqlite);
+            providerFixture.AddRun((ProviderType.MySql, NetworkType.Tcp), ProviderType.Sql);
+            providerFixture.AddRun((ProviderType.MySql, NetworkType.Tcp), ProviderType.MySql);
+            providerFixture.AddRun((ProviderType.MySql, NetworkType.Http), ProviderType.Sqlite);
+
         }
 
         /// <summary>
@@ -84,7 +88,7 @@ namespace Dotmim.Sync.Tests
             else if (IsOnAzureDev)
                 cs = $@"Server=127.0.0.1; Port=3307; Database={dbName}; Uid=root; Pwd=Password12!";
             else
-                cs = $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=azerty31$";
+                cs = $@"Server=127.0.0.1; Port=3306; Database={dbName}; Uid=root; Pwd=Password12!";
             //cs = $@"Server=127.0.0.1; Port=3307; Database={dbName}; Uid=root; Pwd=Password12!";
 
             return cs;
