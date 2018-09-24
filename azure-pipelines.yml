@@ -64,15 +64,15 @@ jobs:
 
   - bash: |
       if [$(Build.BuildId) -lt 10]; then
-        echo "##vso[task.setvariable variable=buildIdString]000$(Build.BuildId)"
+        echo "##vso[task.setvariable variable=buildIdString]'000$(Build.BuildId)'"
       elif [$(Build.BuildId) -ge 10 && $(Build.BuildId) -lt 100]; then
-        echo "##vso[task.setvariable variable=buildIdString]00$(Build.BuildId)"
+        echo "##vso[task.setvariable variable=buildIdString]'00$(Build.BuildId)'"
       elif [$(Build.BuildId) -ge 100 && $(Build.BuildId) -lt 1000]; then
-        echo "##vso[task.setvariable variable=buildIdString]$0(Build.BuildId)"
+        echo "##vso[task.setvariable variable=buildIdString]'$0(Build.BuildId)'"
       else
-        echo "##vso[task.setvariable variable=buildIdString]$(Build.BuildId)"
+        echo "##vso[task.setvariable variable=buildIdString]'$(Build.BuildId)'"
       fi
-      echo "##vso[task.setvariable variable=buildBetaId]$($buildBetaId)$(Build.BuildId))"
+      echo "##vso[task.setvariable variable=buildBetaId]$($(buildBetaId)$(buildIdString))"
 
   - script: |
       echo '$(buildIdString)'
