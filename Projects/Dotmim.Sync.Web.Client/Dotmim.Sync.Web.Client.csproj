@@ -8,7 +8,9 @@
 Can't work without a Server provider, you have to choose an existing one to be able to work with the Proxy</Description>
     <PackageProjectUrl>https://mimetis.github.io/Dotmim.Sync/</PackageProjectUrl>
     <PackageTags>Dotmim.Sync, ASP.NET Core, ASP.NET Core Web Sync Proxy, .Net Standard 2.0, Sync, Synchronization, Sync Framework</PackageTags>
+    <VersionSuffix>$(VersionSuffix)</VersionSuffix>
     <Version>0.3.0</Version>
+    <Version Condition=" '$(VersionSuffix)' != '' ">$(Version)-$(VersionSuffix)</Version>
   </PropertyGroup>
 
   <!--generate NUGET package including symbols ans source on each release build -->
