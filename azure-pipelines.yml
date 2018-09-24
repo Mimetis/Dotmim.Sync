@@ -63,6 +63,7 @@ jobs:
   steps:
 
   - bash: |
+      #!/bin/bash
       build=$(Build.BuildId)
       lenbuild=${#build}
       if [lenbuild -eq 1]; then
