@@ -9,11 +9,11 @@ jobs:
      solution: '**/*.sln' 
      buildPlatform: 'Any CPU' 
      buildConfiguration: 'Release' 
-     buildBetaId: beta-$(Build.BuildID)-$(Build.Rev:.r)
+     buildBetaId: beta-$(Build.BuildId)-$(Build.BuildNumber)
 
   steps:
  
-  - script: echo "$(buildBetaId)"
+  - script: echo "$(Build.DefinitionName)_$(Build.DefinitionVersion)_$(Build.BuildId)_$(Build.BuildNumber)"
     displayName: Get build id
 
   # Seems the 3306 is already in use on the machine used by Azure Devops, so redirect to 3307
