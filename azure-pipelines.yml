@@ -53,11 +53,12 @@ jobs:
 
 - job: Beta
 
-  dependsOn: Tests
-  condition: succeeded('Tests')
+  # dependsOn: Tests
+  # condition: succeeded('Tests')
 
+  # Pool on a VS 2017 image to be able to compile for .Net 4.6
   pool:
-    vmImage: 'Ubuntu 16.04' # 'VS2017-Win2016'
+    vmImage: 'VS2017-Win2016'
 
   variables: 
      buildConfiguration: 'Release' 
@@ -71,7 +72,7 @@ jobs:
      dotnet build Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Sqlite --version-suffix $(buildBetaId)
      dotnet build Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MySql --version-suffix $(buildBetaId)
      dotnet build Projects/Dotmim.Sync.Web.Client/Dotmim.Sync.Web.Client.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Client --version-suffix $(buildBetaId)
-     dotnet build Projects/Dotmim.Sync.Web.Server/Dotmim.Sync.Web.Server.csproj -f netstandard2.0 -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Server --version-suffix $(buildBetaId)
+     dotnet build Projects/Dotmim.Sync.Web.Server/Dotmim.Sync.Web.Server.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Server --version-suffix $(buildBetaId)
      dotnet build Projects/dotnet-sync/dotnet-sync.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/dotnet-sync --version-suffix $(buildBetaId)
     displayName: 'Compile binaries and get beta nuget packages'      
 
