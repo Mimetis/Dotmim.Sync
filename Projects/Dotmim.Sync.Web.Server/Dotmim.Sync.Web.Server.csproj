@@ -42,21 +42,12 @@ Can't work without a Server provider, you have to choose an existing one to be a
     <PackageReference Include="Microsoft.AspNet.WebApi.Core" Version="5.2.3" />
     <PackageReference Include="Microsoft.AspNet.WebApi.Client" Version="5.2.3" />
   </ItemGroup>
-  
-  <ItemGroup>
-    <PackageReference Include="Microsoft.AspNet.WebApi.Client" Version="5.2.6" />
-    <PackageReference Include="Microsoft.AspNet.WebApi.Core" Version="5.2.6" />
-  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" />
     <ProjectReference Include="..\Dotmim.Sync.Web.Client\Dotmim.Sync.Web.Client.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Reference Include="System.Net.Http.Formatting">
-      <HintPath>C:\Program Files\dotnet\sdk\NuGetFallbackFolder\microsoft.aspnet.webapi.client\5.2.6\lib\netstandard2.0\System.Net.Http.Formatting.dll</HintPath>
-    </Reference>
-  </ItemGroup>
+
 
 </Project>
