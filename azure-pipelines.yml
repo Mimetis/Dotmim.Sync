@@ -13,15 +13,15 @@ jobs:
   steps:
  
   # Seems the 3306 is already in use on the machine used by Azure Devops, so redirect to 3307
-  - script: docker run --name mysql -e MYSQL_ROOT_PASSWORD=Password12! -p 3307:3306 -d mysql
-    displayName: 'Run MySql on Linux container'
+  # - script: docker run --name mysql -e MYSQL_ROOT_PASSWORD=Password12! -p 3307:3306 -d mysql
+  #   displayName: 'Run MySql on Linux container'
     
-  - script: echo "##vso[task.setvariable variable=mySQLIP;isOutput=true]$(docker inspect -f "{{ .NetworkSettings.IPAddress }}" mysql)"
-    name: setvarStep
-    displayName: '[obsolete] Get Ip from MySql container'
+  # - script: echo "##vso[task.setvariable variable=mySQLIP;isOutput=true]$(docker inspect -f "{{ .NetworkSettings.IPAddress }}" mysql)"
+  #   name: setvarStep
+  #   displayName: '[obsolete] Get Ip from MySql container'
 
-  - script: docker run --name sqlserver -e 'ACCEPT_EULA=Y' -e 'SA_PASSWORD=Password12!' -p 1433:1433  -d microsoft/mssql-server-linux:2017-latest
-    displayName: 'Run SQL 2017 on Linux container'
+  # - script: docker run --name sqlserver -e 'ACCEPT_EULA=Y' -e 'SA_PASSWORD=Password12!' -p 1433:1433  -d microsoft/mssql-server-linux:2017-latest
+  #   displayName: 'Run SQL 2017 on Linux container'
 
   #- script: |
   #    sqlcmd -S localhost -U sa -P 'Password12!' -Q 'select @@VERSION'
@@ -29,32 +29,34 @@ jobs:
   #  continueOnError: 'true'
   #  displayName: 'Run SQLCMD, Continue if any error'
 
-  #- script: | 
-  #    dotnet publish Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj -c Release -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Core
-  #    dotnet publish Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj -c Release -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServer
-  #    dotnet publish Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj -c Release -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Sqlite
-  #    dotnet publish Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj -c Release -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MySql
-  #    dotnet publish Projects/Dotmim.Sync.Web.Client/Dotmim.Sync.Web.Client.csproj -c Release -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Client
-  #    dotnet publish Projects/Dotmim.Sync.Web.Server/Dotmim.Sync.Web.Server.csproj -f netstandard2.0 -c Release -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Server
-  #    dotnet publish Projects/dotnet-sync/dotnet-sync.csproj -c Release -o $(Build.ArtifactStagingDirectory)/dotnet-sync
-  #  displayName: 'Publish artifacts'
 
   # Dont need anymore to pass the MySQL Ip Address, just let it here for memory
   # --logger trx;logfilename=TEST.xml : Unexplained arg to publish tests resuls
-  - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --logger trx
-    displayName: 'Tests'
-    env: 
-      'MYSQLIP' : $(setvarStep.mySQLIP)
-      'AZUREDEV' : 'true'
 
-  - task: PublishTestResults@2
-    inputs:
-      testRunner: VSTest
-      testResultsFiles: '**/*.trx'
+  # - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --logger trx
+  #   displayName: 'Tests'
+  #   env: 
+  #     'MYSQLIP' : $(setvarStep.mySQLIP)
+  #     'AZUREDEV' : 'true'
+
+  # - task: PublishTestResults@2
+  #   inputs:
+  #     testRunner: VSTest
+  #     testResultsFiles: '**/*.trx'
+
+  - script: | 
+     dotnet build Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj -c Release -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Core
+     dotnet build Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj -c Release -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServer
+     dotnet build Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj -c Release -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Sqlite
+     dotnet build Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj -c Release -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MySql
+     dotnet build Projects/Dotmim.Sync.Web.Client/Dotmim.Sync.Web.Client.csproj -c Release -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Client
+     dotnet build Projects/Dotmim.Sync.Web.Server/Dotmim.Sync.Web.Server.csproj -f netstandard2.0 -c Release -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Server
+     dotnet build Projects/dotnet-sync/dotnet-sync.csproj -c Release -o $(Build.ArtifactStagingDirectory)/dotnet-sync
+   displayName: 'Publish artifacts'      
 
   # Publish Build Artifacts
-  #- task: PublishBuildArtifacts@1
-   #inputs:
-   #  pathtoPublish: '**/$(Build.SourcesDirectory)/**/?(*.nupkg)' 
-   #  artifactName: 'drop' 
-   #  publishLocation: 'Container' # Options: container, filePath
+  - task: PublishBuildArtifacts@1
+    inputs:
+      pathtoPublish: '**/$(Build.SourcesDirectory)/**/?(*.nupkg)' 
+      artifactName: 'drop' 
+      publishLocation: 'Container' # Options: container, filePath
