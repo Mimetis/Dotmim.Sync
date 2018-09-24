@@ -16,7 +16,9 @@
     <PackageTags>Dotmim.Sync, Dotmim.Sync.Tools, Sync CLI, .Net Standard 2.0, Sync, Synchronization, Sync Framework</PackageTags>
     <PackageType>DotnetCliTool</PackageType>
     <PackageId>Dotmim.Sync.Tools</PackageId>
+    <VersionSuffix>$(VersionSuffix)</VersionSuffix>
     <Version>0.3.0</Version>
+    <Version Condition=" '$(VersionSuffix)' != '' ">$(Version)-$(VersionSuffix)</Version>
   </PropertyGroup>
 
   <ItemGroup>
