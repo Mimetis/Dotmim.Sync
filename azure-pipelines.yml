@@ -66,19 +66,17 @@ jobs:
       build=$(Build.BuildId)
       lenbuild=${#build}
       if [ $lenbuild -eq 1 ]; then
-        echo "##vso[task.setvariable variable=buildIdString]000$(Build.BuildId)"
+        build="000$build"
       elif [ $lenbuild -eq 2 ]; then
-        echo "##vso[task.setvariable variable=buildIdString]00$(Build.BuildId)"
+        build="00$build"
       elif [ $lenbuild -eq 3 ]; then
-        echo "##vso[task.setvariable variable=buildIdString]0$(Build.BuildId)"
-      else
-        echo "##vso[task.setvariable variable=buildIdString]$(Build.BuildId)"
+        build="0$build"
       fi
-      echo "##vso[task.setvariable variable=buildBetaId]$(buildBetaId)$(buildIdString)"
+      echo "##vso[task.setvariable variable=buildBetaId]$(buildBetaId)$build"
 
   - script: |
-      echo '$(buildIdString)'
-      echo '$(buildBetaId)'
+      echo $(buildIdString)
+      echo $(buildBetaId)
       dotnet --version
     displayName: Get dotnet version
 
