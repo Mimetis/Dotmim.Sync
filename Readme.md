@@ -3,15 +3,7 @@
 See the Azure Devops CI : [https://dev.azure.com/dotmim/Dotmim.Sync](https://dev.azure.com/dotmim/Dotmim.Sync)
 
 ## Sources
-**Release version 0.2.1** is hosted on [nuget.org](https://www.nuget.org) : [https://www.nuget.org/packages?q=dotmim.sync](https://www.nuget.org/packages?q=dotmim.sync)
-
-**Beta version 0.3.0** is hosted on [myget.org](https://www.myget.org): 
-- [https://www.myget.org/feed/dotmimsync/package/nuget/Dotmim.Sync.SqlServer](https://www.myget.org/feed/dotmimsync/package/nuget/Dotmim.Sync.SqlServer)
-- [https://www.myget.org/feed/dotmimsync/package/nuget/Dotmim.Sync.MySql](https://www.myget.org/feed/dotmimsync/package/nuget/Dotmim.Sync.MySql)
-- [https://www.myget.org/feed/dotmimsync/package/nuget/Dotmim.Sync.Sqlite](https://www.myget.org/feed/dotmimsync/package/nuget/Dotmim.Sync.Sqlite)
-- [https://www.myget.org/feed/dotmimsync/package/nuget/Dotmim.Sync.Web.Client](https://www.myget.org/feed/dotmimsync/package/nuget/Dotmim.Sync.Web.Client)
-- [https://www.myget.org/feed/dotmimsync/package/nuget/Dotmim.Sync.Web.Server](https://www.myget.org/feed/dotmimsync/package/nuget/Dotmim.Sync.Web.Server)
-
+**Release version 0.2.1 and pre-release 0.3.0** are hosted on [nuget.org](https://www.nuget.org) : [https://www.nuget.org/packages?q=dotmim.sync](https://www.nuget.org/packages?q=dotmim.sync)
 
 ## Dotmim.Sync
 
