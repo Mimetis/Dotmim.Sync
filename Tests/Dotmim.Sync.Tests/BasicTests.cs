@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using MySql.Data.MySqlClient;
 using System;
 using System.Collections.Generic;
+using System.Data.SqlClient;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -61,6 +62,45 @@ namespace Dotmim.Sync.Tests
             this.testRunner = new TestRunner(fixture, this.ServerProvider);
         }
 
+
+        public async virtual Task CheckHealthDatabase()
+        {
+            if (this.fixture.ProviderType == ProviderType.Sql)
+            {
+                var serverDbConnectioString = HelperDB.GetConnectionString(this.fixture.ProviderType, this.fixture.DatabaseName);
+
+                using (var sqlConnection = new SqlConnection(serverDbConnectioString))
+                {
+                    using (var sqlCommand = new SqlCommand())
+                    {
+                        string commandText =
+                                $"Select tbl.name as tableName,  col.name as columnName, typ.name as [type], col.max_length " +
+                                $"from sys.columns as col " +
+                                $"Inner join sys.tables as tbl on tbl.object_id = col.object_id " +
+                                $"Inner Join sys.systypes typ on typ.xusertype = col.system_type_id " +
+                                $"Left outer join sys.indexes ind on ind.object_id = col.object_id and ind.index_id = col.column_id";
+
+                        sqlCommand.Connection = sqlConnection;
+                        sqlCommand.CommandText = commandText;
+
+                        sqlConnection.Open();
+                        var dbReader = sqlCommand.ExecuteReader();
+                        while (dbReader.Read())
+                        {
+                            string debugLine = $"{(string)dbReader["tableName"]}\t\t{(string)dbReader["columnName"]}\t{(string)dbReader["type"]}";
+
+                            Console.WriteLine(debugLine);
+                            Debug.WriteLine(debugLine);
+                        }
+                        sqlConnection.Close();
+                    }
+                }
+
+            }
+
+            Assert.Equal(0, 0);
+
+        }
 
         /// <summary>
         /// Initialize should be always called.
