@@ -1,9 +1,4 @@
-
-using Dotmim.Sync.Test.Misc;
 using Dotmim.Sync.Tests.Misc;
-using System;
-using System.Collections.Generic;
-using System.Text;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -13,37 +8,43 @@ namespace Dotmim.Sync.Tests.SqlServer
     /// this is the class which implements concret fixture with SqlSyncProviderFixture 
     /// and will call all the base tests
     /// </summary>
-[TestCaseOrderer("Dotmim.Sync.Tests.Misc.PriorityOrderer", "Dotmim.Sync.Tests")]
-[Collection("SqlServer")]
-public class SqlServerBasicTests : BasicTestsBase, IClassFixture<SqlServerFixture>
-{
-    public SqlServerBasicTests(SqlServerFixture fixture) : base(fixture)
+    [TestCaseOrderer("Dotmim.Sync.Tests.Misc.PriorityOrderer", "Dotmim.Sync.Tests")]
+    [Collection("SqlServer")]
+    public class SqlServerBasicTests : BasicTestsBase, IClassFixture<SqlServerFixture>
     {
-    }
+        public SqlServerBasicTests(SqlServerFixture fixture) : base(fixture)
+        {
+        }
 
-    [Fact, TestPriority(0)]
-    public override Task Initialize()
-    {
-        return base.Initialize();
-    }
+        [Fact, TestPriority(1)]
+        public override Task CheckHealthDatabase()
+        {
+            return base.CheckHealthDatabase();
+        }
 
-    //[Fact, TestPriority(1)]
-    //public override Task Bad_Server_Connection_Should_Raise_Error()
-    //{
-    //    return base.Bad_Server_Connection_Should_Raise_Error();
-    //}
+        [Fact, TestPriority(2)]
+        public override Task Initialize()
+        {
+            return base.Initialize();
+        }
 
-    //[Fact, TestPriority(2)]
-    //public override Task Bad_Client_Connection_Should_Raise_Error()
-    //{
-    //    return base.Bad_Client_Connection_Should_Raise_Error();
-    //}
+        //[Fact, TestPriority(1)]
+        //public override Task Bad_Server_Connection_Should_Raise_Error()
+        //{
+        //    return base.Bad_Server_Connection_Should_Raise_Error();
+        //}
 
-    [Fact, TestPriority(3)]
-    public override Task Insert_One_Table_From_Server()
-    {
-        return base.Insert_One_Table_From_Server();
-    }
+        //[Fact, TestPriority(2)]
+        //public override Task Bad_Client_Connection_Should_Raise_Error()
+        //{
+        //    return base.Bad_Client_Connection_Should_Raise_Error();
+        //}
+
+        [Fact, TestPriority(3)]
+        public override Task Insert_One_Table_From_Server()
+        {
+            return base.Insert_One_Table_From_Server();
+        }
 
         [Fact, TestPriority(4)]
         public override Task Insert_One_Table_From_Client()
