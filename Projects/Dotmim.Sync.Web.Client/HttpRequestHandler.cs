@@ -92,7 +92,12 @@ namespace Dotmim.Sync.Web.Client
 
                 // do not dispose HttpClient for performance issue
                 if (client == null)
-                    client = new HttpClient(httpClientHandler);
+                {
+                    client = new HttpClient(httpClientHandler)
+                    {
+                        Timeout = TimeSpan.FromSeconds(60 * 5)
+                    };
+                }
 
                 // reinit client
                 client.DefaultRequestHeaders.Clear();

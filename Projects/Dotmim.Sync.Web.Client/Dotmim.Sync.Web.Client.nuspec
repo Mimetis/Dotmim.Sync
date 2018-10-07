@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+  <metadata>
+    <!-- The identifier that must be unique within the hosting gallery -->
+    <id>$id$</id>
+    <version>0.3.0-beta-tsu</version>
+    <title>$title$</title>
+    <authors>Sebastien Pertus</authors>
+    <owners>Sebastien Pertus</owners>
+    <licenseUrl>http://opensource.org/licenses/MS-PL</licenseUrl>
+    <projectUrl>https://github.com/vic-ffm/Dotmim.Sync</projectUrl>
+    <!--<iconUrl></iconUrl>-->
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <releaseNotes>5min web client timeout</releaseNotes>
+    <description>A web client that can synchronise with a remote database. Uses .NET Standard 2.0</description>
+    <copyright>Copyright 2018</copyright>
+    <tags>sync database sqlite SQL Server</tags>
+  </metadata>
+</package>
