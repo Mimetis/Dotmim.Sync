@@ -1,15 +1,15 @@
 ﻿using Dotmim.Sync.Builders;
-using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Data;
+using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.Filter;
+using Dotmim.Sync.Messages;
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Linq;
-using System.Threading.Tasks;
 using System.Text;
-using Dotmim.Sync.Filter;
-using System.Collections.Generic;
-using Dotmim.Sync.Messages;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
@@ -30,10 +30,10 @@ namespace Dotmim.Sync
                     throw new ArgumentNullException("tables", "You must set the tables you want to provision");
 
                 // Load the configuration
-                await this.ReadSchemaAsync(configuration.Schema);
+                await ReadSchemaAsync(configuration.Schema);
 
                 // Open the connection
-                using (connection = this.CreateConnection())
+                using (connection = CreateConnection())
                 {
                     await connection.OpenAsync();
 
@@ -48,7 +48,7 @@ namespace Dotmim.Sync
                             var builder = GetDatabaseBuilder(dmTable);
 
                             // adding filters
-                            this.AddFilters(configuration.Filters, dmTable, builder);
+                            AddFilters(configuration.Filters, dmTable, builder);
 
                             if (provision.HasFlag(SyncProvision.TrackingTable) || provision.HasFlag(SyncProvision.All))
                                 builder.DropTrackingTable(connection, transaction);
@@ -76,7 +76,7 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw new SyncException(ex, SyncStage.DatabaseApplying, this.ProviderTypeName);
+                throw new SyncException(ex, SyncStage.DatabaseApplying, ProviderTypeName);
             }
             finally
             {
@@ -99,10 +99,10 @@ namespace Dotmim.Sync
                     throw new ArgumentNullException("tables", "You must set the tables you want to provision");
 
                 // Load the configuration
-                await this.ReadSchemaAsync(configuration.Schema);
+                await ReadSchemaAsync(configuration.Schema);
 
                 // Open the connection
-                using (connection = this.CreateConnection())
+                using (connection = CreateConnection())
                 {
                     await connection.OpenAsync();
 
@@ -125,7 +125,7 @@ namespace Dotmim.Sync
                             var builder = GetDatabaseBuilder(dmTable);
 
                             // adding filters
-                            this.AddFilters(configuration.Filters, dmTable, builder);
+                            AddFilters(configuration.Filters, dmTable, builder);
 
                             // On purpose, the flag SyncProvision.All does not include the SyncProvision.Table, too dangerous...
                             if (provision.HasFlag(SyncProvision.Table))
@@ -150,7 +150,7 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw new SyncException(ex, SyncStage.DatabaseApplying, this.ProviderTypeName);
+                throw new SyncException(ex, SyncStage.DatabaseApplying, ProviderTypeName);
             }
             finally
             {
@@ -172,8 +172,8 @@ namespace Dotmim.Sync
                 context.SyncStage = SyncStage.DatabaseApplying;
 
                 DatabaseApplyingEventArgs beforeArgs =
-                    new DatabaseApplyingEventArgs(this.ProviderTypeName, context.SyncStage, message.Schema);
-                this.TryRaiseProgressEvent(beforeArgs, this.DatabaseApplying);
+                    new DatabaseApplyingEventArgs(ProviderTypeName, context.SyncStage, message.Schema);
+                TryRaiseProgressEvent(beforeArgs, DatabaseApplying);
 
                 // If scope exists and lastdatetime sync is present, so database exists
                 // Check if we don't have an OverwriteConfiguration (if true, we force the check)
@@ -184,7 +184,7 @@ namespace Dotmim.Sync
                 StringBuilder script = new StringBuilder();
 
                 // Open the connection
-                using (connection = this.CreateConnection())
+                using (connection = CreateConnection())
                 {
                     await connection.OpenAsync();
 
@@ -195,12 +195,12 @@ namespace Dotmim.Sync
                             var builder = GetDatabaseBuilder(dmTable);
 
                             // adding filter
-                            this.AddFilters(message.Filters, dmTable, builder);
+                            AddFilters(message.Filters, dmTable, builder);
 
                             context.SyncStage = SyncStage.DatabaseTableApplying;
                             DatabaseTableApplyingEventArgs beforeTableArgs =
-                                new DatabaseTableApplyingEventArgs(this.ProviderTypeName, context.SyncStage, dmTable.TableName);
-                            this.TryRaiseProgressEvent(beforeTableArgs, this.DatabaseTableApplying);
+                                new DatabaseTableApplyingEventArgs(ProviderTypeName, context.SyncStage, dmTable.TableName);
+                            TryRaiseProgressEvent(beforeTableArgs, DatabaseTableApplying);
 
                             string currentScript = null;
                             if (beforeArgs.GenerateScript)
@@ -215,13 +215,13 @@ namespace Dotmim.Sync
 
                             context.SyncStage = SyncStage.DatabaseTableApplied;
                             DatabaseTableAppliedEventArgs afterTableArgs =
-                                new DatabaseTableAppliedEventArgs(this.ProviderTypeName, context.SyncStage, dmTable.TableName, currentScript);
-                            this.TryRaiseProgressEvent(afterTableArgs, this.DatabaseTableApplied);
+                                new DatabaseTableAppliedEventArgs(ProviderTypeName, context.SyncStage, dmTable.TableName, currentScript);
+                            TryRaiseProgressEvent(afterTableArgs, DatabaseTableApplied);
                         }
 
                         context.SyncStage = SyncStage.DatabaseApplied;
-                        var afterArgs = new DatabaseAppliedEventArgs(this.ProviderTypeName, context.SyncStage, script.ToString());
-                        this.TryRaiseProgressEvent(afterArgs, this.DatabaseApplied);
+                        var afterArgs = new DatabaseAppliedEventArgs(ProviderTypeName, context.SyncStage, script.ToString());
+                        TryRaiseProgressEvent(afterArgs, DatabaseApplied);
 
                         transaction.Commit();
                     }
@@ -234,7 +234,7 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw new SyncException(ex, SyncStage.DatabaseApplying, this.ProviderTypeName);
+                throw new SyncException(ex, SyncStage.DatabaseApplying, ProviderTypeName);
             }
             finally
             {
@@ -263,10 +263,10 @@ namespace Dotmim.Sync
                     return isSameTableName && isSameSchema;
                 });
 
-            foreach (var filter in tableFilters)
-                builder.Filters.Add(filter);
+                foreach (var filter in tableFilters)
+                    builder.Filters.Add(filter);
 
+            }
         }
     }
-}
 }

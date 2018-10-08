@@ -113,6 +113,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         public void CreatePk()
         {
+            return;
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
             try
@@ -152,22 +153,28 @@ namespace Dotmim.Sync.SqlServer.Builders
             return SqlBuilder.WrapScriptTextWithComments(this.CreatePkCommandText(), str);
         }
 
+        /// <summary>
+        /// The primary key will regroup primary keys columns + filtered columns
+        /// </summary>
         public string CreatePkCommandText()
         {
             StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.Append($"ALTER TABLE {trackingName.FullQuotedString} ADD CONSTRAINT [PK_{trackingName.ObjectNameNormalized}] PRIMARY KEY (");
+            //stringBuilder.Append($"ALTER TABLE {trackingName.FullQuotedString} ADD CONSTRAINT [PK_{trackingName.ObjectNameNormalized}] PRIMARY KEY (");
 
-            for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
-            {
-                DmColumn pkColumn = this.tableDescription.PrimaryKey.Columns[i];
-                var quotedColumnName = new ObjectNameParser(pkColumn.ColumnName, "[", "]").FullQuotedString;
 
-                stringBuilder.Append(quotedColumnName);
+            //for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
+            //{
+            //    DmColumn pkColumn = this.tableDescription.PrimaryKey.Columns[i];
+            //    var quotedColumnName = new ObjectNameParser(pkColumn.ColumnName, "[", "]").FullQuotedString;
 
-                if (i < this.tableDescription.PrimaryKey.Columns.Length - 1)
-                    stringBuilder.Append(", ");
-            }
-            stringBuilder.Append(")");
+            //    stringBuilder.Append(quotedColumnName);
+
+            //    if (i < this.tableDescription.PrimaryKey.Columns.Length - 1)
+            //        stringBuilder.Append(", ");
+            //}
+
+
+            //stringBuilder.Append(")");
 
             return stringBuilder.ToString();
         }
@@ -266,6 +273,9 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"CREATE TABLE {trackingName.FullQuotedString} (");
 
             List<DmColumn> addedColumns = new List<DmColumn>();
+
+            stringBuilder.AppendLine($"[id] [bigint] NOT NULL IDENTITY(1,1) PRIMARY KEY, ");
+
 
             // Adding the primary key
             foreach (DmColumn pkColumn in this.tableDescription.PrimaryKey.Columns)
