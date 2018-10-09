@@ -46,17 +46,26 @@ namespace Dotmim.Sync.Tests.Core
         /// Gets or Sets the sync tables involved in the tests
         /// </summary>
         public String[] Tables { get; set; }
+        
+        /// <summary>
+        /// Gets or Sets the rows count for the tables & filters selected
+        /// </summary>
+        public int RowsCount { get; set; }
 
         /// <summary>
         /// Sets the tables used for this server provider
         /// </summary>
-        internal void AddTables(ProviderType providerType, string[] tables)
+        internal void AddTables(ProviderType providerType, string[] tables, int rowsCount)
         {
             if (providerType == this.ProviderType)
+            {
                 this.Tables = tables;
+                this.RowsCount = rowsCount;
+            }
+
         }
 
-        internal void AddFilter(ProviderType providerType, FilterClause2 filter)
+        internal void AddFilter(ProviderType providerType, FilterClause filter)
         {
             if (providerType == this.ProviderType)
             {
@@ -304,30 +313,30 @@ namespace Dotmim.Sync.Tests.Core
         }
 
 
-        internal void CopyConfiguration(SyncConfiguration agentConfiguration, SyncConfiguration conf)
+        internal void CopyConfiguration(SyncConfiguration to, SyncConfiguration from)
         {
-            agentConfiguration.DownloadBatchSizeInKB = conf.DownloadBatchSizeInKB;
-            agentConfiguration.UseBulkOperations = conf.UseBulkOperations;
-            agentConfiguration.SerializationFormat = conf.SerializationFormat;
-            agentConfiguration.Archive = conf.Archive;
-            agentConfiguration.BatchDirectory = conf.BatchDirectory;
-            agentConfiguration.ConflictResolutionPolicy = conf.ConflictResolutionPolicy;
-            agentConfiguration.DownloadBatchSizeInKB = conf.DownloadBatchSizeInKB;
-            agentConfiguration.SerializationFormat = conf.SerializationFormat;
-            agentConfiguration.StoredProceduresPrefix = conf.StoredProceduresPrefix;
-            agentConfiguration.StoredProceduresSuffix = conf.StoredProceduresSuffix;
-            agentConfiguration.TrackingTablesPrefix = conf.TrackingTablesPrefix;
-            agentConfiguration.TrackingTablesSuffix = conf.TrackingTablesSuffix;
-            agentConfiguration.TriggersPrefix = conf.TriggersPrefix;
-            agentConfiguration.TriggersSuffix = conf.TriggersSuffix;
-            agentConfiguration.UseVerboseErrors = conf.UseVerboseErrors;
+            to.DownloadBatchSizeInKB = from.DownloadBatchSizeInKB;
+            to.UseBulkOperations = from.UseBulkOperations;
+            to.SerializationFormat = from.SerializationFormat;
+            to.Archive = from.Archive;
+            to.BatchDirectory = from.BatchDirectory;
+            to.ConflictResolutionPolicy = from.ConflictResolutionPolicy;
+            to.DownloadBatchSizeInKB = from.DownloadBatchSizeInKB;
+            to.SerializationFormat = from.SerializationFormat;
+            to.StoredProceduresPrefix = from.StoredProceduresPrefix;
+            to.StoredProceduresSuffix = from.StoredProceduresSuffix;
+            to.TrackingTablesPrefix = from.TrackingTablesPrefix;
+            to.TrackingTablesSuffix = from.TrackingTablesSuffix;
+            to.TriggersPrefix = from.TriggersPrefix;
+            to.TriggersSuffix = from.TriggersSuffix;
+            to.UseVerboseErrors = from.UseVerboseErrors;
 
-            if (conf.Filters != null && conf.Filters.Count > 0)
+            if (from.Filters != null && from.Filters.Count > 0)
             {
-                agentConfiguration.Filters.Clear();
+                to.Filters.Clear();
 
-                foreach(var f in conf.Filters)
-                    agentConfiguration.Filters.Add(f);
+                foreach(var f in from.Filters)
+                    to.Filters.Add(f.TableName, f.ColumnName);
             }
 
         }

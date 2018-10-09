@@ -2,6 +2,9 @@
 
 See the Azure Devops CI : [https://dev.azure.com/dotmim/Dotmim.Sync](https://dev.azure.com/dotmim/Dotmim.Sync)
 
+## Sources
+**Release version 0.2.1 and pre-release 0.3.0** are hosted on [nuget.org](https://www.nuget.org) : [https://www.nuget.org/packages?q=dotmim.sync](https://www.nuget.org/packages?q=dotmim.sync)
+
 ## Dotmim.Sync
 
 **DotMim.Sync** is a straightforward SDK for syncing relational databases, developed on top of **.Net Standard 2.0**, available and ready to use within  **IOT**, **Xamarin**, **.NET**, **UWP** and so on :)  

@@ -1,4 +1,4 @@
-﻿using Dotmim.Sync.Data;
+using Dotmim.Sync.Data;
 using Dotmim.Sync.Manager;
 using System;
 using System.Data;
@@ -22,32 +22,34 @@ namespace Dotmim.Sync.SqlServer.Manager
             this.sqlConnection = connection as SqlConnection;
             this.sqlTransaction = transaction as SqlTransaction;
         }
-  
-        public List<DbRelationDefinition> GetTableRelations()
+
+        public IEnumerable<DbRelationDefinition> GetTableRelations()
         {
+            List<DbRelationDefinition> relations = new List<DbRelationDefinition>();
             var dmRelations = SqlManagementUtils.RelationsForTable(sqlConnection, sqlTransaction, tableName);
 
-            if (dmRelations == null || dmRelations.Rows.Count == 0)
-                return null;
 
-            List<DbRelationDefinition> relations = new List<DbRelationDefinition>();
 
-            foreach (var dmRow in dmRelations.Rows)
-            {
-                DbRelationDefinition relationDefinition = new DbRelationDefinition();
-                relationDefinition.ForeignKey = (string)dmRow["ForeignKey"];
-                relationDefinition.ColumnName = (string)dmRow["ColumnName"];
-                relationDefinition.ReferenceColumnName = (string)dmRow["ReferenceColumnName"];
-                relationDefinition.ReferenceTableName = (string)dmRow["ReferenceTableName"];
-                relationDefinition.TableName = (string)dmRow["TableName"];
+            if (dmRelations != null && dmRelations.Rows.Count > 0)
+                foreach (var fk in dmRelations.Rows.GroupBy(row => new { Name = (string)row["ForeignKey"], TableName = (string)row["TableName"], ReferenceTableName = (string)row["ReferenceTableName"] }))
+                {
+                    var relationDefinition = new DbRelationDefinition()
+                    {
+                        ForeignKey = fk.Key.Name,
+                        TableName = fk.Key.TableName,
+                        ReferenceTableName = fk.Key.ReferenceTableName,
+                    };
 
-                relations.Add(relationDefinition);
-            }
+                    relationDefinition.KeyColumnsName = fk.Select(dmRow => (string)dmRow["ColumnName"]).ToArray();
+                    relationDefinition.ReferenceColumnsName = fk.Select(dmRow => (string)dmRow["ReferenceColumnName"]).ToArray();
 
-            return relations;
+                    relations.Add(relationDefinition);
+                }
+
+            return relations.ToArray();
         }
 
-        public List<DmColumn> GetTableDefinition()
+        public IEnumerable<DmColumn> GetTableDefinition()
         {
             List<DmColumn> columns = new List<DmColumn>();
             // Get the columns definition
@@ -78,7 +80,7 @@ namespace Dotmim.Sync.SqlServer.Manager
                 dbColumn.IsUnique = c["is_unique"] != DBNull.Value ? (bool)c["is_unique"] : false;
 
                 dbColumn.IsCompute = (bool)c["is_computed"];
-                
+
                 switch (dbColumn.OriginalTypeName.ToLowerInvariant())
                 {
                     case "nchar":
@@ -96,18 +98,18 @@ namespace Dotmim.Sync.SqlServer.Manager
                 columns.Add(dbColumn);
 
             }
-            return columns;
+            return columns.ToArray();
         }
         
-        public List<string> GetTablePrimaryKeys()
+        public IEnumerable<string> GetTablePrimaryKeys()
         {
             var dmTableKeys = SqlManagementUtils.PrimaryKeysForTable(sqlConnection, sqlTransaction, tableName);
             var lstKeys = new List<String>();
 
-            foreach(var dmKey in dmTableKeys.Rows)
+            foreach (var dmKey in dmTableKeys.Rows)
                 lstKeys.Add((string)dmKey["columnName"]);
 
-            return lstKeys;
+            return lstKeys.ToArray();
         }
     }
 }

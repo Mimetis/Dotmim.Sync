@@ -1,11 +1,10 @@
-﻿using Dotmim.Sync.Builders;
+using Dotmim.Sync.Builders;
 using Dotmim.Sync.Data;
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Data.SqlClient;
 using System.Globalization;
-using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -72,13 +71,13 @@ namespace Dotmim.Sync.SqlServer
         internal static DmTable RelationsForTable(SqlConnection connection, SqlTransaction transaction, string tableName)
         {
             var commandRelations = @"SELECT f.name AS ForeignKey,
-                                        OBJECT_NAME(f.parent_object_id) AS TableName,
-                                        COL_NAME(fc.parent_object_id, fc.parent_column_id) AS ColumnName,
-                                        OBJECT_NAME (f.referenced_object_id) AS ReferenceTableName,
-                                        COL_NAME(fc.referenced_object_id, fc.referenced_column_id) AS ReferenceColumnName
+                                        OBJECT_NAME (f.referenced_object_id)  AS TableName,
+                                        COL_NAME(fc.referenced_object_id, fc.referenced_column_id) AS ColumnName,
+                                        OBJECT_NAME(f.parent_object_id) AS ReferenceTableName,
+                                        COL_NAME(fc.parent_object_id, fc.parent_column_id) AS ReferenceColumnName
                                     FROM sys.foreign_keys AS f
                                     INNER JOIN sys.foreign_key_columns AS fc ON f.OBJECT_ID = fc.constraint_object_id
-                                    WHERE OBJECT_NAME(f.parent_object_id) = @tableName";
+                                    WHERE OBJECT_NAME(f.referenced_object_id) = @tableName";
 
             ObjectNameParser tableNameParser = new ObjectNameParser(tableName);
             DmTable dmTable = new DmTable(tableNameParser.ObjectNameNormalized);
@@ -94,7 +93,6 @@ namespace Dotmim.Sync.SqlServer
 
 
             return dmTable;
-           
         }
 
         public static void DropProcedureIfExists(SqlConnection connection, SqlTransaction transaction, int commandTimout, string quotedProcedureName)

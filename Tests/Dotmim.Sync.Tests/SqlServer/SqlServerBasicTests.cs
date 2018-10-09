@@ -1,9 +1,4 @@
-﻿
-using Dotmim.Sync.Test.Misc;
 using Dotmim.Sync.Tests.Misc;
-using System;
-using System.Collections.Generic;
-using System.Text;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -21,7 +16,13 @@ namespace Dotmim.Sync.Tests.SqlServer
         {
         }
 
-        [Fact, TestPriority(0)]
+        [Fact, TestPriority(1)]
+        public override Task CheckHealthDatabase()
+        {
+            return base.CheckHealthDatabase();
+        }
+
+        [Fact, TestPriority(2)]
         public override Task Initialize()
         {
             return base.Initialize();
@@ -83,6 +84,13 @@ namespace Dotmim.Sync.Tests.SqlServer
         }
 
         [Fact, TestPriority(10)]
+        public override Task Delete_From_Server()
+        {
+            return base.Delete_From_Server();
+        }
+
+
+        [Fact, TestPriority(12)]
         public override Task Conflict_Insert_Insert_Client_Should_Wins_Coz_Configuration()
         {
             return base.Conflict_Insert_Insert_Client_Should_Wins_Coz_Configuration();
@@ -134,6 +142,12 @@ namespace Dotmim.Sync.Tests.SqlServer
         public override Task Use_Existing_Client_Database_Provision_Deprosivion()
         {
             return base.Use_Existing_Client_Database_Provision_Deprosivion();
+        }
+
+        [Fact, TestPriority(21)]
+        public override Task Check_Composite_ForeignKey_Existence()
+        {
+            return base.Check_Composite_ForeignKey_Existence();
         }
     }
 }

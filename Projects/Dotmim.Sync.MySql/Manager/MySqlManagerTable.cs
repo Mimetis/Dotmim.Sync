@@ -1,11 +1,9 @@
-﻿using Dotmim.Sync.Data;
+using Dotmim.Sync.Data;
 using Dotmim.Sync.Manager;
-using Dotmim.Sync.MySql;
 using MySql.Data.MySqlClient;
 using System;
 using System.Data;
 using System.Data.Common;
-
 using System.Linq;
 using System.Collections.Generic;
 using Dotmim.Sync.MySql.Builders;
@@ -34,7 +32,7 @@ namespace Dotmim.Sync.MySql
             return MySqlManagementUtils.RelationsForTable(sqlConnection, sqlTransaction, tableName);
         }
 
-        List<DmColumn> IDbManagerTable.GetTableDefinition()
+        IEnumerable<DmColumn> IDbManagerTable.GetTableDefinition()
         {
             List<DmColumn> columns = new List<DmColumn>();
 
@@ -60,7 +58,6 @@ namespace Dotmim.Sync.MySql
                 var dbColumn = DmColumn.CreateColumn(name, columnType);
                 dbColumn.OriginalTypeName = typeName;
                 dbColumn.SetOrdinal(Convert.ToInt32(c["ordinal_position"]));
-
                 dbColumn.MaxLength = maxLengthLong > Int32.MaxValue ? Int32.MaxValue : (Int32)maxLengthLong;
                 dbColumn.Precision = c["numeric_precision"] != DBNull.Value ? Convert.ToByte(c["numeric_precision"]) : (byte)0;
                 dbColumn.Scale = c["numeric_scale"] != DBNull.Value ? Convert.ToByte(c["numeric_scale"]) : (byte)0;
@@ -80,35 +77,37 @@ namespace Dotmim.Sync.MySql
 
             }
 
-            return columns;
+            return columns.ToArray();
         }
 
-        List<DbRelationDefinition> IDbManagerTable.GetTableRelations()
+        IEnumerable<DbRelationDefinition> IDbManagerTable.GetTableRelations()
         {
+            List<DbRelationDefinition> relations = new List<DbRelationDefinition>();
 
             var dmRelations = MySqlManagementUtils.RelationsForTable(sqlConnection, sqlTransaction, tableName);
 
-            if (dmRelations == null || dmRelations.Rows.Count == 0)
-                return null;
-
-            List<DbRelationDefinition> relations = new List<DbRelationDefinition>();
-
-            foreach (var dmRow in dmRelations.Rows)
+            if (dmRelations != null && dmRelations.Rows.Count > 0)
             {
-                DbRelationDefinition relationDefinition = new DbRelationDefinition();
-                relationDefinition.ForeignKey = (string)dmRow["ForeignKey"];
-                relationDefinition.ColumnName = (string)dmRow["ColumnName"];
-                relationDefinition.ReferenceColumnName = (string)dmRow["ReferenceColumnName"];
-                relationDefinition.ReferenceTableName = (string)dmRow["ReferenceTableName"];
-                relationDefinition.TableName = (string)dmRow["TableName"];
+                foreach (var fk in dmRelations.Rows.GroupBy(row => new { Name = (string)row["ForeignKey"], TableName = (string)row["TableName"], ReferenceTableName = (string)row["ReferenceTableName"] }))
+                {
+                    var relationDefinition = new DbRelationDefinition()
+                    {
+                        ForeignKey = fk.Key.Name,
+                        TableName = fk.Key.TableName,
+                        ReferenceTableName = fk.Key.ReferenceTableName,
+                    };
 
-                relations.Add(relationDefinition);
+                    relationDefinition.KeyColumnsName = fk.Select(dmRow => (string)dmRow["ColumnName"]).ToArray();
+                    relationDefinition.ReferenceColumnsName = fk.Select(dmRow => (string)dmRow["ReferenceColumnName"]).ToArray();
+
+                    relations.Add(relationDefinition);
+                }
             }
 
-            return relations;
+            return relations.ToArray();
         }
 
-        public List<string> GetTablePrimaryKeys()
+        public IEnumerable<string> GetTablePrimaryKeys()
         {
             // Get PrimaryKey
             var dmTableKeys = MySqlManagementUtils.PrimaryKeysForTable(sqlConnection, sqlTransaction, tableName);
@@ -121,7 +120,7 @@ namespace Dotmim.Sync.MySql
             foreach (var dmKey in dmTableKeys.Rows)
                 lstKeys.Add((string)dmKey["COLUMN_NAME"]);
 
-            return lstKeys;
+            return lstKeys.ToArray();
 
         }
     }

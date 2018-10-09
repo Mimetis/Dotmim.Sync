@@ -1,10 +1,8 @@
-﻿using System;
-using System.Threading;
-using System.Threading.Tasks;
+using System;
+using System.Linq;
 using Dotmim.Sync.Tests.Core;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace Dotmim.Sync.Tests.Models
 {
@@ -70,8 +68,8 @@ namespace Dotmim.Sync.Tests.Models
         public virtual DbSet<Address> Address { get; set; }
         public virtual DbSet<Customer> Customer { get; set; }
         public virtual DbSet<CustomerAddress> CustomerAddress { get; set; }
-        public virtual DbSet<EmployeeAddress> EmployeeAddress { get; set; }
         public virtual DbSet<Employee> Employee { get; set; }
+        public virtual DbSet<EmployeeAddress> EmployeeAddress { get; set; }
         public virtual DbSet<Log> Log { get; set; }
         public virtual DbSet<Product> Product { get; set; }
         public virtual DbSet<ProductCategory> ProductCategory { get; set; }
@@ -82,9 +80,10 @@ namespace Dotmim.Sync.Tests.Models
         public virtual DbSet<Posts> Posts { get; set; }
         public virtual DbSet<PostTag> PostTag { get; set; }
         public virtual DbSet<Tags> Tags { get; set; }
+        public virtual DbSet<PriceList> PricesList { get; set; }
 
 
-        protected override void OnModelCreating(ModelBuilder modelBuilder)
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Address>(entity =>
             {
@@ -209,6 +208,9 @@ namespace Dotmim.Sync.Tests.Models
                 entity.Property(e => e.LastName)
                     .IsRequired()
                     .HasMaxLength(50);
+
+                entity.Property(e => e.ModifiedDate)
+                    .HasColumnType("datetime");
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
@@ -693,6 +695,45 @@ namespace Dotmim.Sync.Tests.Models
                 entity.HasKey(e => e.TagId);
             });
 
+            modelBuilder.Entity<PriceListDetail>(entity =>
+            {
+                entity.HasKey(d => new
+                {
+                    d.PriceListId,
+                    d.PriceCategoryId,
+                    d.PriceListDettailId,
+                });
+
+                entity.HasOne(d => d.Category)
+                    .WithMany(c => c.Details);
+
+                entity.Property(d => d.ProductId)
+                    .IsRequired();
+
+                entity.Property(d => d.ProductDescription)
+                    .HasMaxLength(50)
+                    .IsUnicode()
+                    .IsRequired();
+            });
+
+            modelBuilder.Entity<PriceListCategory>(entity =>
+            {
+                entity.HasKey(c => new { c.PriceListId, c.PriceCategoryId });
+
+                entity.HasOne(c => c.PriceList)
+                    .WithMany(p => p.Categories);
+            });
+
+            modelBuilder.Entity<PriceList>(entity =>
+            {
+                entity.HasKey(p => p.PriceListId);
+
+                entity.Property(p => p.Description)
+                    .IsRequired()
+                    .IsUnicode()
+                    .HasMaxLength(50);
+            });
+
             if (this.useSeeding)
                 this.OnSeeding(modelBuilder);
         }
@@ -811,8 +852,7 @@ namespace Dotmim.Sync.Tests.Models
             var p4 = Guid.NewGuid();
             var p5 = Guid.NewGuid();
 
-
-            modelBuilder.Entity<Product>().HasData(
+            var products = new[] {
                 new Product { ProductId = Guid.NewGuid(), Name = "HL Road Frame - Black, 58", ProductNumber = "FR-R92B-58", Color = "Black", StandardCost = 1059.3100M, ListPrice = 1431.5000M, Size = "58", Weight = 1016.04M, ProductCategoryId = "ROADFR", ProductModelId = 6 },
                 new Product { ProductId = p1, Name = "HL Road Frame - Red, 58", ProductNumber = "FR-R92R-58", Color = "Red", StandardCost = 1059.3100M, ListPrice = 1431.5000M, Size = "58", Weight = 1016.04M, ProductCategoryId = "ROADFR", ProductModelId = 6 },
                 new Product { ProductId = p2, Name = "Road-150 Red, 62", ProductNumber = "BK-R93R-62", Color = "Red", StandardCost = 2171.2942M, ListPrice = 3578.2700M, Size = "62", Weight = 6803.85M, ProductCategoryId = "ROADB", ProductModelId = 25 },
@@ -827,7 +867,10 @@ namespace Dotmim.Sync.Tests.Models
                 new Product { ProductId = p3, Name = "LL Mountain Handlebars", ProductNumber = "HB-M243", StandardCost = 19.7758M, ListPrice = 44.5400M, ProductCategoryId = "HANDLB", ProductModelId = 52 },
                 new Product { ProductId = p4, Name = "ML Mountain Handlebars", ProductNumber = "HB-M763", StandardCost = 27.4925M, ListPrice = 61.9200M, ProductCategoryId = "HANDLB", ProductModelId = 54 },
                 new Product { ProductId = Guid.NewGuid(), Name = "HL Mountain Handlebars", ProductNumber = "HB-M918", StandardCost = 53.3999M, ListPrice = 120.2700M, ProductCategoryId = "HANDLB", ProductModelId = 55 }
-              );
+            }.ToArray();
+
+            modelBuilder.Entity<Product>()
+                .HasData(products);
 
             modelBuilder.Entity<SalesOrderHeader>().HasData(
                 new SalesOrderHeader
@@ -897,6 +940,89 @@ namespace Dotmim.Sync.Tests.Models
                 new PostTag { PostId = 3, TagId = 3 },
                 new PostTag { PostId = 3, TagId = 4 }
             );
+
+            var hollydayPriceListId = new Guid("944563b4-1f40-4218-b896-7fcb71674f43");
+            var dalyPriceListId = new Guid("de60f9fb-7d4f-489a-9aae-2a7f7e4a5f0a");
+            decimal[] discountlist = { 5, 10, 30, 50 };
+
+            modelBuilder.Entity<PriceList>(entity =>
+            {
+                entity.HasData(
+                    new PriceList() { PriceListId = dalyPriceListId, Description = "Daly price list" },
+                    new PriceList() { PriceListId = hollydayPriceListId, Description = "Hollyday price list" }
+                    );
+
+            });
+
+            modelBuilder.Entity<PriceListCategory>()
+                .HasData(new PriceListCategory() { PriceListId = hollydayPriceListId, PriceCategoryId = "BIKES"}
+                    , new PriceListCategory() { PriceListId = hollydayPriceListId, PriceCategoryId = "CLOTHE", }
+                    , new PriceListCategory() { PriceListId = dalyPriceListId, PriceCategoryId = "BIKES", }
+                    , new PriceListCategory() { PriceListId = dalyPriceListId, PriceCategoryId = "CLOTHE", }
+                    , new PriceListCategory() { PriceListId = dalyPriceListId, PriceCategoryId = "COMPT", }
+                    );
+
+            
+            var dettails = new System.Collections.Generic.List<PriceListDetail>();
+            var generator = new Random((int)DateTime.Now.Ticks);
+            //Add hollyday price list
+            dettails.AddRange(products
+                .Where(p => p.ProductCategoryId == "MOUNTB")
+                .Select(item => new PriceListDetail()
+                {
+                    PriceListId = hollydayPriceListId,
+                    PriceCategoryId = "BIKES",
+                    PriceListDettailId = Guid.NewGuid(),
+                    ProductId = item.ProductId,
+                    ProductDescription = $"{item.Name}(Easter {DateTime.Now.Year})",
+                    MinQuantity = generator.Next(0, 5),
+                    Amount = item.ListPrice,
+                    Discount = discountlist[generator.Next(0, discountlist.Length - 1)],
+                }));
+
+            dettails.AddRange(products
+                .Where(p => p.ProductCategoryId == "CLOTHE")
+                .Select(item => new PriceListDetail()
+                {
+                    PriceListId = hollydayPriceListId,
+                    PriceCategoryId = "CLOTHE",
+                    PriceListDettailId = Guid.NewGuid(),
+                    ProductId = item.ProductId,
+                    ProductDescription = $"{item.Name}(Easter {DateTime.Now.Year})",
+                    MinQuantity = generator.Next(0, 5),
+                    Amount = item.ListPrice,
+                    Discount = discountlist[generator.Next(0, discountlist.Length - 1)],
+                }));
+
+            //Add standard price list
+            dettails.AddRange(products
+                .Where(p => p.ProductCategoryId == "MOUNTB")
+                .Select(item => new PriceListDetail()
+                {
+                    PriceListId = dalyPriceListId,
+                    PriceCategoryId = "BIKES",
+                    PriceListDettailId = Guid.NewGuid(),
+                    ProductId = item.ProductId,
+                    ProductDescription = item.Name,
+                    MinQuantity = generator.Next(0, 5),
+                    Amount = item.ListPrice,
+                }));
+
+            dettails.AddRange(products
+                .Where(p => p.ProductCategoryId == "CLOTHE")
+                .Select(item => new PriceListDetail()
+                {
+                    PriceListId = dalyPriceListId,
+                    PriceCategoryId = "CLOTHE",
+                    PriceListDettailId = Guid.NewGuid(),
+                    ProductId = item.ProductId,
+                    ProductDescription = item.Name,
+                    MinQuantity = generator.Next(0, 5),
+                    Amount = item.ListPrice,
+                }));
+
+            modelBuilder.Entity<PriceListDetail>().HasData(dettails.ToArray());
+
         }
 
     }

@@ -1,4 +1,4 @@
-﻿using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Test.Misc;
 using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Tests.Misc;
@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using MySql.Data.MySqlClient;
 using System;
 using System.Collections.Generic;
+using System.Data.SqlClient;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -61,6 +62,45 @@ namespace Dotmim.Sync.Tests
             this.testRunner = new TestRunner(fixture, this.ServerProvider);
         }
 
+
+        public async virtual Task CheckHealthDatabase()
+        {
+            if (this.fixture.ProviderType == ProviderType.Sql)
+            {
+                var serverDbConnectioString = HelperDB.GetConnectionString(this.fixture.ProviderType, this.fixture.DatabaseName);
+
+                using (var sqlConnection = new SqlConnection(serverDbConnectioString))
+                {
+                    using (var sqlCommand = new SqlCommand())
+                    {
+                        string commandText =
+                                $"Select tbl.name as tableName,  col.name as columnName, typ.name as [type], col.max_length " +
+                                $"from sys.columns as col " +
+                                $"Inner join sys.tables as tbl on tbl.object_id = col.object_id " +
+                                $"Inner Join sys.systypes typ on typ.xusertype = col.system_type_id " +
+                                $"Left outer join sys.indexes ind on ind.object_id = col.object_id and ind.index_id = col.column_id";
+
+                        sqlCommand.Connection = sqlConnection;
+                        sqlCommand.CommandText = commandText;
+
+                        sqlConnection.Open();
+                        var dbReader = sqlCommand.ExecuteReader();
+                        while (dbReader.Read())
+                        {
+                            string debugLine = $"{(string)dbReader["tableName"]}\t\t{(string)dbReader["columnName"]}\t{(string)dbReader["type"]}";
+
+                            Console.WriteLine(debugLine);
+                            Debug.WriteLine(debugLine);
+                        }
+                        sqlConnection.Close();
+                    }
+                }
+
+            }
+
+            Assert.Equal(0, 0);
+
+        }
 
         /// <summary>
         /// Initialize should be always called.
@@ -1076,6 +1116,107 @@ namespace Dotmim.Sync.Tests
             }
         }
 
+        /// <summary>
+        /// Delete some rows from one table. Address from primary key 6 and +, are not used
+        /// </summary>
+        /// <returns></returns>
+        public async virtual Task Delete_From_Server()
+        {
+            var configurations = TestConfigurations.GetConfigurations();
+
+            // part of the filter
+            var employeeId = 1;
+            // will be defined when address is inserted
+            var addressId = 0;
+
+            for (int i = 0; i < configurations.Count; i++)
+            {
+                SyncConfiguration conf = configurations[i];
+                // insert in db server
+                // first of all, delete the line from server
+                using (var serverDbCtx = GetServerDbContext())
+                {
+
+                    // Insert a new address for employee 1
+                    var city = "Paris " + Path.GetRandomFileName().Replace(".", "");
+                    var addressline1 = "Rue Monthieu " + Path.GetRandomFileName().Replace(".", "");
+                    var stateProvince = "Ile de France";
+                    var countryRegion = "France";
+                    var postalCode = "75001";
+
+                    Address address = new Address
+                    {
+                        AddressLine1 = addressline1,
+                        City = city,
+                        StateProvince = stateProvince,
+                        CountryRegion = countryRegion,
+                        PostalCode = postalCode
+
+                    };
+
+                    serverDbCtx.Add(address);
+                    await serverDbCtx.SaveChangesAsync();
+                    addressId = address.AddressId;
+
+                    EmployeeAddress employeeAddress = new EmployeeAddress
+                    {
+                        EmployeeId = employeeId,
+                        AddressId = address.AddressId,
+                        AddressType = "SERVER"
+                    };
+
+                    var ea = serverDbCtx.EmployeeAddress.Add(employeeAddress);
+                    await serverDbCtx.SaveChangesAsync();
+
+                }
+
+                // Upload this new address / employee address
+                var resultsInsertServer = await this.testRunner.RunTestsAsync(conf);
+
+                // check the download to client
+                foreach (var trr in resultsInsertServer)
+                {
+                    Assert.Equal(2, trr.Results.TotalChangesDownloaded);
+                    Assert.Equal(0, trr.Results.TotalChangesUploaded);
+                }
+
+                // Delete those lines from server
+                using (var serverDbCtx = GetServerDbContext())
+                {
+                    // Get the addresses query
+                    var address = await serverDbCtx.Address.SingleAsync(a => a.AddressId == addressId);
+                    var empAddress = await serverDbCtx.EmployeeAddress.SingleAsync(a => a.AddressId == addressId && a.EmployeeId == employeeId);
+
+                    // remove them
+                    serverDbCtx.EmployeeAddress.Remove(empAddress);
+                    serverDbCtx.Address.Remove(address);
+
+                    // Execute query
+                    await serverDbCtx.SaveChangesAsync();
+                }
+
+                var resultsDeleteOnServer = await this.testRunner.RunTestsAsync(conf);
+
+                foreach (var trr in resultsDeleteOnServer)
+                {
+                    Assert.Equal(2, trr.Results.TotalChangesDownloaded);
+                    Assert.Equal(0, trr.Results.TotalChangesUploaded);
+
+                    // check row deleted on client values
+                    using (var ctx = GetClientDbContext(trr))
+                    {
+                        var finalAddressesCount = await ctx.Address.AsNoTracking().CountAsync(a => a.AddressId == addressId);
+                        var finalEmployeeAddressesCount = await ctx.EmployeeAddress.AsNoTracking().CountAsync(a => a.AddressId == addressId && a.EmployeeId == employeeId);
+                        Assert.Equal(0, finalAddressesCount);
+                        Assert.Equal(0, finalEmployeeAddressesCount);
+                    }
+                }
+
+                // reset all clients
+                await this.testRunner.RunTestsAsync(conf);
+            }
+
+        }
 
         /// <summary>
         /// The idea is to insert an item, then delete it, then sync.
@@ -1297,6 +1438,31 @@ namespace Dotmim.Sync.Tests
         //    }
 
         //}
+
+        public virtual async Task Check_Composite_ForeignKey_Existence()
+        {
+            var runners = await this.testRunner.RunTestsAsync();
+            foreach (var runner in runners)
+            {
+                var provider = runner.ClientProvider as CoreProvider;
+                var connection = provider.CreateConnection();
+                using (connection)
+                {
+                    connection.Open();
+                    var tableManger = provider
+                        .GetDbManager("PriceListCategory")
+                        ?.CreateManagerTable(connection);
+
+                    if (tableManger == null)
+                        continue;
+
+                    var relations = tableManger.GetTableRelations().ToArray();
+                    Assert.Equal(1, relations.Count());
+                    Assert.Equal("FK_PriceListDetail_PriceListCategory_PriceListId_PriceCategoryId", relations[0].ForeignKey);
+                    Assert.Equal(2, relations[0].KeyColumnsName.Count());
+                }
+            }
+        }
 
     }
 

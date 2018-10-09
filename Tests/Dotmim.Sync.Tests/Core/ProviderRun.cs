@@ -141,8 +141,8 @@ namespace Dotmim.Sync.Tests.Core
                     // server handler
                     var serverHandler = new RequestDelegate(async context =>
                     {
-                        SyncConfiguration syncConfiguration = new SyncConfiguration(syncTables);// set proxy conf
 
+                        SyncConfiguration syncConfiguration = new SyncConfiguration(syncTables);// set proxy conf
                         // copy conf settings
 
                         if (conf != null)
