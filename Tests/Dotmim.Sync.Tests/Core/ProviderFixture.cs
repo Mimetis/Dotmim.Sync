@@ -1,22 +1,12 @@
 ﻿
 using Dotmim.Sync.Filter;
-using Dotmim.Sync.MySql;
-using Dotmim.Sync.Sqlite;
-using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Tests.Models;
-using Microsoft.Data.Sqlite;
-using MySql.Data.MySqlClient;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
-using System.Data;
-using System.Data.Common;
-using System.Data.SqlClient;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Tests.Core
 {
@@ -35,7 +25,7 @@ namespace Dotmim.Sync.Tests.Core
         private readonly Dictionary<(ProviderType ServerType, NetworkType NetworkType), ProviderType> lstClientsType = new Dictionary<(ProviderType, NetworkType), ProviderType>();
 
         // internal static list of registered providers
-        static Dictionary<ProviderType, ProviderFixture<CoreProvider>> registeredProviders = new Dictionary<ProviderType, ProviderFixture<CoreProvider>>();
+        private static Dictionary<ProviderType, ProviderFixture<CoreProvider>> registeredProviders = new Dictionary<ProviderType, ProviderFixture<CoreProvider>>();
 
         /// <summary>
         /// All clients providers registerd to run. Depends on "Enable..." properities
@@ -45,8 +35,8 @@ namespace Dotmim.Sync.Tests.Core
         /// <summary>
         /// Gets or Sets the sync tables involved in the tests
         /// </summary>
-        public String[] Tables { get; set; }
-        
+        public string[] Tables { get; set; }
+
         /// <summary>
         /// Gets or Sets the rows count for the tables & filters selected
         /// </summary>
@@ -65,7 +55,7 @@ namespace Dotmim.Sync.Tests.Core
 
         }
 
-        internal void AddFilter(ProviderType providerType, FilterClause filter)
+        internal void AddFilter(ProviderType providerType, FilterClause2 filter)
         {
             if (providerType == this.ProviderType)
             {
@@ -87,7 +77,7 @@ namespace Dotmim.Sync.Tests.Core
         /// </summary>
         internal void Configure()
         {
-            if (!isConfigured)
+            if (!this.isConfigured)
             {
                 // get database name, tables and clients we want to register
                 Setup.OnConfiguring(this);
@@ -102,10 +92,10 @@ namespace Dotmim.Sync.Tests.Core
 
                 Debug.WriteLine(listOfBs);
 
-                foreach(var t in listOfBs)
+                foreach (var t in listOfBs)
                 {
                     var c = GetDefaultConstructor(t);
-                    ProviderFixture<CoreProvider> instance = c.Invoke(null) as ProviderFixture<CoreProvider>;
+                    var instance = c.Invoke(null) as ProviderFixture<CoreProvider>;
                     RegisterProvider(instance.ProviderType, instance);
                 }
 
@@ -113,13 +103,13 @@ namespace Dotmim.Sync.Tests.Core
                 // create the clients database
                 this.ClientDatabasesEnsureCreated();
 
-                isConfigured = true;
+                this.isConfigured = true;
             }
         }
 
         public static ConstructorInfo GetDefaultConstructor(Type t, bool nonPublic = true)
         {
-            BindingFlags bindingFlags = BindingFlags.Instance | BindingFlags.Public;
+            var bindingFlags = BindingFlags.Instance | BindingFlags.Public;
 
             if (nonPublic)
                 bindingFlags = bindingFlags | BindingFlags.NonPublic;
@@ -158,8 +148,8 @@ namespace Dotmim.Sync.Tests.Core
         /// <param name="clientsType">a flags enum of all client you want to create</param>
         internal ProviderFixture<T> AddRun((ProviderType ServerType, NetworkType NetworkType) key, ProviderType clientsType)
         {
-            if (!lstClientsType.ContainsKey(key))
-                lstClientsType.Add(key, clientsType);
+            if (!this.lstClientsType.ContainsKey(key))
+                this.lstClientsType.Add(key, clientsType);
 
             return this;
         }
@@ -179,7 +169,7 @@ namespace Dotmim.Sync.Tests.Core
         /// </summary>
         public void Dispose()
         {
-            if (DeleteAllDatabasesOnDispose)
+            if (this.DeleteAllDatabasesOnDispose)
             {
                 this.ClientDatabasesEnsureDeleted();
                 this.ServerDatabaseEnsureDeleted();
@@ -196,7 +186,7 @@ namespace Dotmim.Sync.Tests.Core
         /// </summary>
         public abstract ProviderType ProviderType { get; }
 
-  
+
         /// <summary>
         /// Get the filters parameters
         /// </summary>
@@ -220,12 +210,12 @@ namespace Dotmim.Sync.Tests.Core
 
             try
             {
-            using (AdventureWorksContext ctx =
-                new AdventureWorksContext(ProviderType, HelperDB.GetConnectionString(ProviderType, DatabaseName)))
-            {
-                ctx.Database.EnsureDeleted();
-                ctx.Database.EnsureCreated();
-            }
+                using (var ctx =
+                    new AdventureWorksContext(this.ProviderType, HelperDB.GetConnectionString(this.ProviderType, this.DatabaseName)))
+                {
+                    ctx.Database.EnsureDeleted();
+                    ctx.Database.EnsureCreated();
+                }
 
             }
             catch (Exception ex)
@@ -240,8 +230,8 @@ namespace Dotmim.Sync.Tests.Core
         /// </summary>
         internal virtual void ServerDatabaseEnsureDeleted()
         {
-            using (AdventureWorksContext ctx =
-                new AdventureWorksContext(ProviderType, HelperDB.GetConnectionString(ProviderType, DatabaseName)))
+            using (var ctx =
+                new AdventureWorksContext(this.ProviderType, HelperDB.GetConnectionString(this.ProviderType, this.DatabaseName)))
             {
                 ctx.Database.EnsureDeleted();
             }
@@ -258,39 +248,39 @@ namespace Dotmim.Sync.Tests.Core
 
         internal virtual void ClientDatabasesEnsureDeleted()
         {
-            foreach (var tr in ClientRuns)
+            foreach (var tr in this.ClientRuns)
                 HelperDB.DropDatabase(tr.ClientProviderType, tr.DatabaseName);
 
-            ClientRuns.Clear();
+            this.ClientRuns.Clear();
 
         }
 
         internal virtual void ClientDatabasesEnsureCreated()
         {
             // foreach server provider to test, there is a list of client / network
-            foreach(var serverKey in lstClientsType)
+            foreach (var serverKey in this.lstClientsType)
             {
                 // get the server provider type and the network we want to use
-                (ProviderType serverType, NetworkType networkType) = serverKey.Key;
+                (var serverType, var networkType) = serverKey.Key;
 
                 if (serverType != this.ProviderType)
                     continue;
 
                 // create all the client databases based in the flags we set
-                foreach(var cpt in serverKey.Value.GetFlags())
+                foreach (var cpt in serverKey.Value.GetFlags())
                 {
                     // cast (wait for C# 7.3 to be able to set an extension method where a generic T can be marked as Enum compliant :)
-                    ProviderType clientProviderType = (ProviderType)cpt;
+                    var clientProviderType = (ProviderType)cpt;
 
                     // check if we have the fixture provider to be able to create a client provider
                     if (!registeredProviders.ContainsKey(clientProviderType))
                         continue;
 
                     // generate a new database name
-                    var dbName = GetRandomDatabaseName();
+                    var dbName = this.GetRandomDatabaseName();
 
                     Console.WriteLine("Create a database called " + dbName + " for provider " + clientProviderType);
-                    
+
                     // get the connection string
                     var connectionString = HelperDB.GetConnectionString(clientProviderType, dbName);
 
@@ -304,7 +294,7 @@ namespace Dotmim.Sync.Tests.Core
 
 
                     // then add the run 
-                    ClientRuns.Add(new ProviderRun(dbName, clientProvider, clientProviderType, networkType));
+                    this.ClientRuns.Add(new ProviderRun(dbName, clientProvider, clientProviderType, networkType));
                 }
 
 
@@ -335,8 +325,8 @@ namespace Dotmim.Sync.Tests.Core
             {
                 to.Filters.Clear();
 
-                foreach(var f in from.Filters)
-                    to.Filters.Add(f.TableName, f.ColumnName);
+                foreach (var f in from.Filters)
+                    to.Filters.Add(f);
             }
 
         }

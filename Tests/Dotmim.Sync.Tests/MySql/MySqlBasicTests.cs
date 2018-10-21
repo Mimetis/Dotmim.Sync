@@ -131,12 +131,6 @@ namespace Dotmim.Sync.Tests.MySql
             return base.Conflict_Update_Update_Server_Should_Wins();
         }
 
-        [Fact, TestPriority(16)]
-        public override Task Delete_From_Server()
-        {
-            return base.Delete_From_Server();
-        }
-
         [Fact, TestPriority(18)]
         public override Task Insert_Then_Delete_From_Server_Then_Sync()
         {

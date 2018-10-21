@@ -77,9 +77,9 @@ namespace Dotmim.Sync.Builders
 
                 var tableBuilder = CreateTableBuilder(connection, transaction);
 
-                if (this.TableDescription.ChildRelations != null && this.TableDescription.ChildRelations.Count > 0)
+                if (this.TableDescription.ParentRelations != null && this.TableDescription.ParentRelations.Count > 0)
                 {
-                    foreach (DmRelation constraint in this.TableDescription.ChildRelations)
+                    foreach (DmRelation constraint in this.TableDescription.ParentRelations)
                     {
                         // Check if we need to create the foreign key constraint
                         if (tableBuilder.NeedToCreateForeignKeyConstraints(constraint))

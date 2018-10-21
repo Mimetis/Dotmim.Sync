@@ -1,17 +1,16 @@
 ﻿using Dotmim.Sync.Builders;
-using System;
-using System.Text;
 using Dotmim.Sync.Data;
-using System.Data.Common;
-using System.Data.SqlClient;
-using System.Data;
-using Dotmim.Sync.Log;
-using System.Linq;
+using Dotmim.Sync.Data.Surrogate;
 using Dotmim.Sync.Filter;
 using Dotmim.Sync.SqlServer.Manager;
-using System.Diagnostics;
+using System;
 using System.Collections.Generic;
-using Dotmim.Sync.Data.Surrogate;
+using System.Data;
+using System.Data.Common;
+using System.Data.SqlClient;
+using System.Diagnostics;
+using System.Linq;
+using System.Text;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
@@ -33,19 +32,19 @@ namespace Dotmim.Sync.SqlServer.Builders
             this.transaction = transaction as SqlTransaction;
 
             this.tableDescription = tableDescription;
-            (this.tableName, this.trackingName) = SqlBuilder.GetParsers(tableDescription);
-            this.sqlObjectNames = new SqlObjectNames(this.tableDescription);
-            this.sqlDbMetadata = new SqlDbMetadata();
+            (tableName, trackingName) = SqlBuilder.GetParsers(tableDescription);
+            sqlObjectNames = new SqlObjectNames(this.tableDescription);
+            sqlDbMetadata = new SqlDbMetadata();
         }
 
         private void AddPkColumnParametersToCommand(SqlCommand sqlCommand)
         {
-            foreach (DmColumn pkColumn in this.tableDescription.PrimaryKey.Columns)
+            foreach (DmColumn pkColumn in tableDescription.PrimaryKey.Columns)
                 sqlCommand.Parameters.Add(GetSqlParameter(pkColumn));
         }
         private void AddColumnParametersToCommand(SqlCommand sqlCommand)
         {
-            foreach (DmColumn column in this.tableDescription.Columns.Where(c => !c.IsReadOnly))
+            foreach (DmColumn column in tableDescription.Columns.Where(c => !c.IsReadOnly))
                 sqlCommand.Parameters.Add(GetSqlParameter(column));
         }
 
@@ -62,7 +61,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             };
 
             // Get the good SqlDbType (even if we are not from Sql Server def)
-            SqlDbType sqlDbType = (SqlDbType)this.sqlDbMetadata.TryGetOwnerDbType(column.OriginalDbType, column.DbType, column.IsUnsigned, column.IsUnicode, column.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+            SqlDbType sqlDbType = (SqlDbType)sqlDbMetadata.TryGetOwnerDbType(column.OriginalDbType, column.DbType, column.IsUnsigned, column.IsUnicode, column.MaxLength, tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
 
             sqlParameter.SqlDbType = sqlDbType;
             sqlParameter.IsNullable = column.AllowDBNull;
@@ -71,7 +70,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 sqlParameter.Value = column.DefaultValue;
 
 
-            var (p, s) = this.sqlDbMetadata.TryGetOwnerPrecisionAndScale(column.OriginalDbType, column.DbType, column.IsUnsigned, column.IsUnicode, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+            var (p, s) = sqlDbMetadata.TryGetOwnerPrecisionAndScale(column.OriginalDbType, column.DbType, column.IsUnsigned, column.IsUnicode, column.MaxLength, column.Precision, column.Scale, tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
 
             if (p > 0)
             {
@@ -80,7 +79,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                     sqlParameter.Scale = s;
             }
 
-            var m = this.sqlDbMetadata.TryGetOwnerMaxLength(column.OriginalDbType, column.DbType, false, false, column.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+            var m = sqlDbMetadata.TryGetOwnerMaxLength(column.OriginalDbType, column.DbType, false, false, column.MaxLength, tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
 
             if (m > 0)
                 sqlParameter.Size = m;
@@ -96,7 +95,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             StringBuilder stringBuilder = new StringBuilder();
             SqlDbType sqlDbType = param.SqlDbType;
 
-            string empty = this.sqlDbMetadata.GetPrecisionStringFromOwnerDbType(sqlDbType, param.Size, param.Precision, param.Scale);
+            string empty = sqlDbMetadata.GetPrecisionStringFromOwnerDbType(sqlDbType, param.Size, param.Precision, param.Scale);
 
             if (sqlDbType == SqlDbType.Structured)
             {
@@ -104,7 +103,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             else
             {
-                var sqlDbTypeString = this.sqlDbMetadata.GetStringFromOwnerDbType(sqlDbType);
+                var sqlDbTypeString = sqlDbMetadata.GetStringFromOwnerDbType(sqlDbType);
 
                 stringBuilder.Append(string.Concat(param.ParameterName, " ", sqlDbTypeString, empty));
 
@@ -206,7 +205,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             if (connection.State != ConnectionState.Open)
                 throw new ArgumentException("Here, we need an opened connection please");
 
-            var commandName = this.sqlObjectNames.GetCommandName(commandType);
+            var commandName = sqlObjectNames.GetCommandName(commandType);
 
             return !SqlManagementUtils.ProcedureExists(connection, transaction, commandName);
         }
@@ -219,7 +218,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             if (connection.State != ConnectionState.Open)
                 throw new ArgumentException("Here, we need an opened connection please");
 
-            var commandName = this.sqlObjectNames.GetCommandName(commandType);
+            var commandName = sqlObjectNames.GetCommandName(commandType);
 
             return !SqlManagementUtils.TypeExists(connection, transaction, commandName);
 
@@ -230,11 +229,11 @@ namespace Dotmim.Sync.SqlServer.Builders
             var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine("--Select all ids not deleted for conflict");
             stringBuilder.Append("SELECT ");
-            for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
+            for (int i = 0; i < tableDescription.PrimaryKey.Columns.Length; i++)
             {
-                var cc = new ObjectNameParser(this.tableDescription.PrimaryKey.Columns[i].ColumnName);
+                var cc = new ObjectNameParser(tableDescription.PrimaryKey.Columns[i].ColumnName);
                 stringBuilder.Append($"{cc.FullQuotedString}");
-                if (i < this.tableDescription.PrimaryKey.Columns.Length - 1)
+                if (i < tableDescription.PrimaryKey.Columns.Length - 1)
                     stringBuilder.Append(", ");
                 else
                     stringBuilder.AppendLine();
@@ -243,22 +242,22 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"FROM @changeTable t");
             stringBuilder.AppendLine("WHERE NOT EXISTS (");
             stringBuilder.Append("\t SELECT ");
-            for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
+            for (int i = 0; i < tableDescription.PrimaryKey.Columns.Length; i++)
             {
-                var cc = new ObjectNameParser(this.tableDescription.PrimaryKey.Columns[i].ColumnName);
+                var cc = new ObjectNameParser(tableDescription.PrimaryKey.Columns[i].ColumnName);
                 stringBuilder.Append($"{cc.FullQuotedString}");
-                if (i < this.tableDescription.PrimaryKey.Columns.Length - 1)
+                if (i < tableDescription.PrimaryKey.Columns.Length - 1)
                     stringBuilder.Append(", ");
                 else
                     stringBuilder.AppendLine();
             }
             stringBuilder.AppendLine("\t FROM @changed i");
             stringBuilder.Append("\t WHERE ");
-            for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
+            for (int i = 0; i < tableDescription.PrimaryKey.Columns.Length; i++)
             {
-                var cc = new ObjectNameParser(this.tableDescription.PrimaryKey.Columns[i].ColumnName);
+                var cc = new ObjectNameParser(tableDescription.PrimaryKey.Columns[i].ColumnName);
                 stringBuilder.Append($"t.{cc.FullQuotedString} = i.{cc.FullQuotedString}");
-                if (i < this.tableDescription.PrimaryKey.Columns.Length - 1)
+                if (i < tableDescription.PrimaryKey.Columns.Length - 1)
                     stringBuilder.Append("AND ");
                 else
                     stringBuilder.AppendLine();
@@ -281,34 +280,34 @@ namespace Dotmim.Sync.SqlServer.Builders
             sqlCommand.Parameters.Add(sqlParameter1);
             SqlParameter sqlParameter2 = new SqlParameter("@changeTable", SqlDbType.Structured)
             {
-                TypeName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkTableType)
+                TypeName = sqlObjectNames.GetCommandName(DbCommandType.BulkTableType)
             };
             sqlCommand.Parameters.Add(sqlParameter2);
 
 
-            string str4 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "p", "t");
-            string str5 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "changes", "base");
-            string str6 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "changes", "side");
+            string str4 = SqlManagementUtils.JoinTwoTablesOnClause(tableDescription.PrimaryKey.Columns, "p", "t");
+            string str5 = SqlManagementUtils.JoinTwoTablesOnClause(tableDescription.PrimaryKey.Columns, "changes", "base");
+            string str6 = SqlManagementUtils.JoinTwoTablesOnClause(tableDescription.PrimaryKey.Columns, "changes", "side");
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.AppendLine("-- use a temp table to store the list of PKs that successfully got updated/inserted");
             stringBuilder.Append("declare @changed TABLE (");
-            foreach (var c in this.tableDescription.PrimaryKey.Columns)
+            foreach (var c in tableDescription.PrimaryKey.Columns)
             {
                 var cc = new ObjectNameParser(c.ColumnName);
 
                 // Get the good SqlDbType (even if we are not from Sql Server def)
-                var sqlDbTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(c.OriginalDbType, c.DbType, false, false, c.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+                var sqlDbTypeString = sqlDbMetadata.TryGetOwnerDbTypeString(c.OriginalDbType, c.DbType, false, false, c.MaxLength, tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
                 var quotedColumnType = new ObjectNameParser(sqlDbTypeString, "[", "]").FullQuotedString;
-                quotedColumnType += this.sqlDbMetadata.TryGetOwnerDbTypePrecision(c.OriginalDbType, c.DbType, false, false, c.MaxLength, c.Precision, c.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+                quotedColumnType += sqlDbMetadata.TryGetOwnerDbTypePrecision(c.OriginalDbType, c.DbType, false, false, c.MaxLength, c.Precision, c.Scale, tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
 
                 stringBuilder.Append($"{cc.FullQuotedString} {quotedColumnType}, ");
             }
             stringBuilder.Append(" PRIMARY KEY (");
-            for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
+            for (int i = 0; i < tableDescription.PrimaryKey.Columns.Length; i++)
             {
-                var cc = new ObjectNameParser(this.tableDescription.PrimaryKey.Columns[i].ColumnName);
+                var cc = new ObjectNameParser(tableDescription.PrimaryKey.Columns[i].ColumnName);
                 stringBuilder.Append($"{cc.FullQuotedString}");
-                if (i < this.tableDescription.PrimaryKey.Columns.Length - 1)
+                if (i < tableDescription.PrimaryKey.Columns.Length - 1)
                     stringBuilder.Append(", ");
             }
             stringBuilder.AppendLine("));");
@@ -317,11 +316,11 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             stringBuilder.AppendLine($"DELETE {tableName.FullQuotedString}");
             stringBuilder.Append($"OUTPUT ");
-            for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
+            for (int i = 0; i < tableDescription.PrimaryKey.Columns.Length; i++)
             {
-                var cc = new ObjectNameParser(this.tableDescription.PrimaryKey.Columns[i].ColumnName);
+                var cc = new ObjectNameParser(tableDescription.PrimaryKey.Columns[i].ColumnName);
                 stringBuilder.Append($"DELETED.{cc.FullQuotedString}");
-                if (i < this.tableDescription.PrimaryKey.Columns.Length - 1)
+                if (i < tableDescription.PrimaryKey.Columns.Length - 1)
                     stringBuilder.Append(", ");
                 else
                     stringBuilder.AppendLine();
@@ -334,7 +333,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"\tSELECT ");
             string str = "";
             stringBuilder.Append("\t");
-            foreach (var c in this.tableDescription.Columns.Where(col => !col.IsReadOnly))
+            foreach (var c in tableDescription.Columns.Where(col => !col.IsReadOnly))
             {
                 var columnName = new ObjectNameParser(c.ColumnName);
                 stringBuilder.Append($"{str}[p].{columnName.FullQuotedString}");
@@ -367,9 +366,9 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"FROM {trackingName.FullQuotedString} side");
             stringBuilder.AppendLine("JOIN (");
             stringBuilder.Append("\tSELECT ");
-            for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
+            for (int i = 0; i < tableDescription.PrimaryKey.Columns.Length; i++)
             {
-                var cc = new ObjectNameParser(this.tableDescription.PrimaryKey.Columns[i].ColumnName);
+                var cc = new ObjectNameParser(tableDescription.PrimaryKey.Columns[i].ColumnName);
                 stringBuilder.Append($"p.{cc.FullQuotedString}, ");
             }
             stringBuilder.AppendLine(" p.update_timestamp, p.create_timestamp ");
@@ -388,35 +387,35 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         public void CreateBulkDelete()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkDeleteRows);
-            CreateProcedureCommand(this.BuildBulkDeleteCommand, commandName);
+            var commandName = sqlObjectNames.GetCommandName(DbCommandType.BulkDeleteRows);
+            CreateProcedureCommand(BuildBulkDeleteCommand, commandName);
         }
 
 
         public string CreateBulkDeleteScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkDeleteRows);
-            return CreateProcedureCommandScriptText(this.BuildBulkDeleteCommand, commandName);
+            var commandName = sqlObjectNames.GetCommandName(DbCommandType.BulkDeleteRows);
+            return CreateProcedureCommandScriptText(BuildBulkDeleteCommand, commandName);
         }
 
         public void DropBulkDelete()
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            bool alreadyOpened = connection.State == ConnectionState.Open;
 
             try
             {
                 using (var command = new SqlCommand())
                 {
                     if (!alreadyOpened)
-                        this.connection.Open();
+                        connection.Open();
 
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
+                    if (transaction != null)
+                        command.Transaction = transaction;
 
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkDeleteRows);
+                    var commandName = sqlObjectNames.GetCommandName(DbCommandType.BulkDeleteRows);
 
                     command.CommandText = $"DROP PROCEDURE {commandName};";
-                    command.Connection = this.connection;
+                    command.Connection = connection;
                     command.ExecuteNonQuery();
 
                 }
@@ -429,8 +428,8 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             finally
             {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
+                if (!alreadyOpened && connection.State != ConnectionState.Closed)
+                    connection.Close();
 
             }
 
@@ -438,7 +437,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         public string DropBulkDeleteScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkDeleteRows);
+            var commandName = sqlObjectNames.GetCommandName(DbCommandType.BulkDeleteRows);
 
             return $"DROP PROCEDURE {commandName};";
         }
@@ -457,42 +456,42 @@ namespace Dotmim.Sync.SqlServer.Builders
             sqlCommand.Parameters.Add(sqlParameter1);
             SqlParameter sqlParameter2 = new SqlParameter("@changeTable", SqlDbType.Structured)
             {
-                TypeName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkTableType)
+                TypeName = sqlObjectNames.GetCommandName(DbCommandType.BulkTableType)
             };
             sqlCommand.Parameters.Add(sqlParameter2);
 
 
-            string str4 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "[p]", "[t]");
-            string str5 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "[changes]", "[base]");
-            string str6 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "[changes]", "[side]");
+            string str4 = SqlManagementUtils.JoinTwoTablesOnClause(tableDescription.PrimaryKey.Columns, "[p]", "[t]");
+            string str5 = SqlManagementUtils.JoinTwoTablesOnClause(tableDescription.PrimaryKey.Columns, "[changes]", "[base]");
+            string str6 = SqlManagementUtils.JoinTwoTablesOnClause(tableDescription.PrimaryKey.Columns, "[changes]", "[side]");
 
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.AppendLine("-- use a temp table to store the list of PKs that successfully got updated/inserted");
             stringBuilder.Append("declare @changed TABLE (");
-            foreach (var c in this.tableDescription.PrimaryKey.Columns)
+            foreach (var c in tableDescription.PrimaryKey.Columns)
             {
                 var cc = new ObjectNameParser(c.ColumnName);
 
                 // Get the good SqlDbType (even if we are not from Sql Server def)
-                var sqlDbTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(c.OriginalDbType, c.DbType, false, false, c.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+                var sqlDbTypeString = sqlDbMetadata.TryGetOwnerDbTypeString(c.OriginalDbType, c.DbType, false, false, c.MaxLength, tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
                 var quotedColumnType = new ObjectNameParser(sqlDbTypeString, "[", "]").FullQuotedString;
-                quotedColumnType += this.sqlDbMetadata.TryGetOwnerDbTypePrecision(c.OriginalDbType, c.DbType, false, false, c.MaxLength, c.Precision, c.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+                quotedColumnType += sqlDbMetadata.TryGetOwnerDbTypePrecision(c.OriginalDbType, c.DbType, false, false, c.MaxLength, c.Precision, c.Scale, tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
 
                 stringBuilder.Append($"{cc.FullQuotedString} {quotedColumnType}, ");
             }
             stringBuilder.Append(" PRIMARY KEY (");
-            for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
+            for (int i = 0; i < tableDescription.PrimaryKey.Columns.Length; i++)
             {
-                var cc = new ObjectNameParser(this.tableDescription.PrimaryKey.Columns[i].ColumnName);
+                var cc = new ObjectNameParser(tableDescription.PrimaryKey.Columns[i].ColumnName);
                 stringBuilder.Append($"{cc.FullQuotedString}");
-                if (i < this.tableDescription.PrimaryKey.Columns.Length - 1)
+                if (i < tableDescription.PrimaryKey.Columns.Length - 1)
                     stringBuilder.Append(", ");
             }
             stringBuilder.AppendLine("));");
             stringBuilder.AppendLine();
 
             // Check if we have auto inc column
-            if (this.tableDescription.HasAutoIncrementColumns)
+            if (tableDescription.HasAutoIncrementColumns)
             {
                 stringBuilder.AppendLine();
                 stringBuilder.AppendLine($"SET IDENTITY_INSERT {tableName.FullQuotedString} ON;");
@@ -509,7 +508,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"\t(SELECT ");
             string str = "";
             stringBuilder.Append("\t");
-            foreach (var c in this.tableDescription.Columns.Where(col => !col.IsReadOnly))
+            foreach (var c in tableDescription.Columns.Where(col => !col.IsReadOnly))
             {
                 var columnName = new ObjectNameParser(c.ColumnName);
                 stringBuilder.Append($"{str}[p].{columnName.FullQuotedString}");
@@ -532,7 +531,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             StringBuilder stringBuilderParameters = new StringBuilder();
 
             string empty = string.Empty;
-            foreach (var mutableColumn in this.tableDescription.Columns.Where(c => !c.IsReadOnly))
+            foreach (var mutableColumn in tableDescription.Columns.Where(c => !c.IsReadOnly))
             {
                 ObjectNameParser columnName = new ObjectNameParser(mutableColumn.ColumnName);
                 stringBuilderArguments.Append(string.Concat(empty, columnName.FullQuotedString));
@@ -544,11 +543,11 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"\t({stringBuilderArguments.ToString()})");
             stringBuilder.AppendLine($"\tVALUES ({stringBuilderParameters.ToString()})");
             stringBuilder.Append($"\tOUTPUT ");
-            for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
+            for (int i = 0; i < tableDescription.PrimaryKey.Columns.Length; i++)
             {
-                var cc = new ObjectNameParser(this.tableDescription.PrimaryKey.Columns[i].ColumnName);
+                var cc = new ObjectNameParser(tableDescription.PrimaryKey.Columns[i].ColumnName);
                 stringBuilder.Append($"INSERTED.{cc.FullQuotedString}");
-                if (i < this.tableDescription.PrimaryKey.Columns.Length - 1)
+                if (i < tableDescription.PrimaryKey.Columns.Length - 1)
                     stringBuilder.Append(", ");
                 else
                     stringBuilder.AppendLine();
@@ -556,7 +555,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"\tINTO @changed; -- populates the temp table with successful PKs");
             stringBuilder.AppendLine();
 
-            if (this.tableDescription.HasAutoIncrementColumns)
+            if (tableDescription.HasAutoIncrementColumns)
             {
                 stringBuilder.AppendLine();
                 stringBuilder.AppendLine($"SET IDENTITY_INSERT {tableName.FullQuotedString} OFF;");
@@ -572,9 +571,9 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"FROM {trackingName.FullQuotedString} side");
             stringBuilder.AppendLine("JOIN (");
             stringBuilder.Append("\tSELECT ");
-            for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
+            for (int i = 0; i < tableDescription.PrimaryKey.Columns.Length; i++)
             {
-                var cc = new ObjectNameParser(this.tableDescription.PrimaryKey.Columns[i].ColumnName);
+                var cc = new ObjectNameParser(tableDescription.PrimaryKey.Columns[i].ColumnName);
                 stringBuilder.Append($"p.{cc.FullQuotedString}, ");
             }
 
@@ -592,32 +591,32 @@ namespace Dotmim.Sync.SqlServer.Builders
         }
         public void CreateBulkInsert()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkInsertRows);
+            var commandName = sqlObjectNames.GetCommandName(DbCommandType.BulkInsertRows);
             CreateProcedureCommand(BuildBulkInsertCommand, commandName);
         }
         public string CreateBulkInsertScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkInsertRows);
+            var commandName = sqlObjectNames.GetCommandName(DbCommandType.BulkInsertRows);
             return CreateProcedureCommandScriptText(BuildBulkInsertCommand, commandName);
         }
         public void DropBulkInsert()
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            bool alreadyOpened = connection.State == ConnectionState.Open;
 
             try
             {
                 using (var command = new SqlCommand())
                 {
                     if (!alreadyOpened)
-                        this.connection.Open();
+                        connection.Open();
 
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
+                    if (transaction != null)
+                        command.Transaction = transaction;
 
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkInsertRows);
+                    var commandName = sqlObjectNames.GetCommandName(DbCommandType.BulkInsertRows);
 
                     command.CommandText = $"DROP PROCEDURE {commandName};";
-                    command.Connection = this.connection;
+                    command.Connection = connection;
                     command.ExecuteNonQuery();
 
                 }
@@ -630,15 +629,15 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             finally
             {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
+                if (!alreadyOpened && connection.State != ConnectionState.Closed)
+                    connection.Close();
 
             }
 
         }
         public string DropBulkInsertScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkInsertRows);
+            var commandName = sqlObjectNames.GetCommandName(DbCommandType.BulkInsertRows);
 
             return $"DROP PROCEDURE {commandName};";
         }
@@ -656,35 +655,35 @@ namespace Dotmim.Sync.SqlServer.Builders
             sqlCommand.Parameters.Add(sqlParameter1);
             SqlParameter sqlParameter2 = new SqlParameter("@changeTable", SqlDbType.Structured)
             {
-                TypeName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkTableType)
+                TypeName = sqlObjectNames.GetCommandName(DbCommandType.BulkTableType)
             };
             sqlCommand.Parameters.Add(sqlParameter2);
 
 
-            string str4 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "[p]", "[t]");
-            string str5 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "[changes]", "[base]");
-            string str6 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "[changes]", "[side]");
+            string str4 = SqlManagementUtils.JoinTwoTablesOnClause(tableDescription.PrimaryKey.Columns, "[p]", "[t]");
+            string str5 = SqlManagementUtils.JoinTwoTablesOnClause(tableDescription.PrimaryKey.Columns, "[changes]", "[base]");
+            string str6 = SqlManagementUtils.JoinTwoTablesOnClause(tableDescription.PrimaryKey.Columns, "[changes]", "[side]");
 
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.AppendLine("-- use a temp table to store the list of PKs that successfully got updated/inserted");
             stringBuilder.Append("declare @changed TABLE (");
-            foreach (var c in this.tableDescription.PrimaryKey.Columns)
+            foreach (var c in tableDescription.PrimaryKey.Columns)
             {
                 var cc = new ObjectNameParser(c.ColumnName);
 
                 // Get the good SqlDbType (even if we are not from Sql Server def)
-                var sqlDbTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(c.OriginalDbType, c.DbType, false, false, c.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+                var sqlDbTypeString = sqlDbMetadata.TryGetOwnerDbTypeString(c.OriginalDbType, c.DbType, false, false, c.MaxLength, tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
                 var quotedColumnType = new ObjectNameParser(sqlDbTypeString, "[", "]").FullQuotedString;
-                quotedColumnType += this.sqlDbMetadata.TryGetOwnerDbTypePrecision(c.OriginalDbType, c.DbType, false, false, c.MaxLength, c.Precision, c.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+                quotedColumnType += sqlDbMetadata.TryGetOwnerDbTypePrecision(c.OriginalDbType, c.DbType, false, false, c.MaxLength, c.Precision, c.Scale, tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
 
                 stringBuilder.Append($"{cc.FullQuotedString} {quotedColumnType}, ");
             }
             stringBuilder.Append(" PRIMARY KEY (");
-            for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
+            for (int i = 0; i < tableDescription.PrimaryKey.Columns.Length; i++)
             {
-                var cc = new ObjectNameParser(this.tableDescription.PrimaryKey.Columns[i].ColumnName);
+                var cc = new ObjectNameParser(tableDescription.PrimaryKey.Columns[i].ColumnName);
                 stringBuilder.Append($"{cc.FullQuotedString}");
-                if (i < this.tableDescription.PrimaryKey.Columns.Length - 1)
+                if (i < tableDescription.PrimaryKey.Columns.Length - 1)
                     stringBuilder.Append(", ");
             }
             stringBuilder.AppendLine("));");
@@ -700,7 +699,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"\t(SELECT ");
             string str = "";
             stringBuilder.Append("\t");
-            foreach (var c in this.tableDescription.Columns.Where(col => !col.IsReadOnly))
+            foreach (var c in tableDescription.Columns.Where(col => !col.IsReadOnly))
             {
                 var columnName = new ObjectNameParser(c.ColumnName);
                 stringBuilder.Append($"{str}[p].{columnName.FullQuotedString}");
@@ -721,7 +720,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             StringBuilder stringBuilderParameters = new StringBuilder();
 
             string empty = string.Empty;
-            foreach (var mutableColumn in this.tableDescription.Columns.Where(c => !c.IsReadOnly))
+            foreach (var mutableColumn in tableDescription.Columns.Where(c => !c.IsReadOnly))
             {
                 ObjectNameParser columnName = new ObjectNameParser(mutableColumn.ColumnName);
                 stringBuilderArguments.Append(string.Concat(empty, columnName.FullQuotedString));
@@ -732,18 +731,18 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"\tUPDATE SET");
 
             string strSeparator = "";
-            foreach (DmColumn mutableColumn in this.tableDescription.MutableColumnsAndNotAutoInc)
+            foreach (DmColumn mutableColumn in tableDescription.MutableColumnsAndNotAutoInc)
             {
                 ObjectNameParser quotedColumn = new ObjectNameParser(mutableColumn.ColumnName);
                 stringBuilder.AppendLine($"\t{strSeparator}{quotedColumn.FullQuotedString} = [changes].{quotedColumn.FullQuotedString}");
                 strSeparator = ", ";
             }
             stringBuilder.Append($"\tOUTPUT ");
-            for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
+            for (int i = 0; i < tableDescription.PrimaryKey.Columns.Length; i++)
             {
-                var cc = new ObjectNameParser(this.tableDescription.PrimaryKey.Columns[i].ColumnName);
+                var cc = new ObjectNameParser(tableDescription.PrimaryKey.Columns[i].ColumnName);
                 stringBuilder.Append($"INSERTED.{cc.FullQuotedString}");
-                if (i < this.tableDescription.PrimaryKey.Columns.Length - 1)
+                if (i < tableDescription.PrimaryKey.Columns.Length - 1)
                     stringBuilder.Append(", ");
                 else
                     stringBuilder.AppendLine();
@@ -759,9 +758,9 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"FROM {trackingName.FullQuotedString} side");
             stringBuilder.AppendLine("JOIN (");
             stringBuilder.Append("\tSELECT ");
-            for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
+            for (int i = 0; i < tableDescription.PrimaryKey.Columns.Length; i++)
             {
-                var cc = new ObjectNameParser(this.tableDescription.PrimaryKey.Columns[i].ColumnName);
+                var cc = new ObjectNameParser(tableDescription.PrimaryKey.Columns[i].ColumnName);
                 stringBuilder.Append($"p.{cc.FullQuotedString}, ");
             }
 
@@ -779,32 +778,32 @@ namespace Dotmim.Sync.SqlServer.Builders
         }
         public void CreateBulkUpdate()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkUpdateRows);
+            var commandName = sqlObjectNames.GetCommandName(DbCommandType.BulkUpdateRows);
             CreateProcedureCommand(BuildBulkUpdateCommand, commandName);
         }
         public string CreateBulkUpdateScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkUpdateRows);
+            var commandName = sqlObjectNames.GetCommandName(DbCommandType.BulkUpdateRows);
             return CreateProcedureCommandScriptText(BuildBulkUpdateCommand, commandName);
         }
         public void DropBulkUpdate()
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            bool alreadyOpened = connection.State == ConnectionState.Open;
 
             try
             {
                 using (var command = new SqlCommand())
                 {
                     if (!alreadyOpened)
-                        this.connection.Open();
+                        connection.Open();
 
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
+                    if (transaction != null)
+                        command.Transaction = transaction;
 
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkUpdateRows);
+                    var commandName = sqlObjectNames.GetCommandName(DbCommandType.BulkUpdateRows);
 
                     command.CommandText = $"DROP PROCEDURE {commandName};";
-                    command.Connection = this.connection;
+                    command.Connection = connection;
                     command.ExecuteNonQuery();
 
                 }
@@ -817,15 +816,15 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             finally
             {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
+                if (!alreadyOpened && connection.State != ConnectionState.Closed)
+                    connection.Close();
 
             }
 
         }
         public string DropBulkUpdateScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkUpdateRows);
+            var commandName = sqlObjectNames.GetCommandName(DbCommandType.BulkUpdateRows);
 
             return $"DROP PROCEDURE {commandName};";
         }
@@ -836,9 +835,9 @@ namespace Dotmim.Sync.SqlServer.Builders
         //------------------------------------------------------------------
         private SqlCommand BuildResetCommand()
         {
-            var updTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger);
-            var delTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger);
-            var insTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger);
+            var updTriggerName = sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger);
+            var delTriggerName = sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger);
+            var insTriggerName = sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger);
 
             SqlCommand sqlCommand = new SqlCommand();
             SqlParameter sqlParameter2 = new SqlParameter("@sync_row_count", SqlDbType.Int)
@@ -870,32 +869,32 @@ namespace Dotmim.Sync.SqlServer.Builders
         }
         public void CreateReset()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.Reset);
+            var commandName = sqlObjectNames.GetCommandName(DbCommandType.Reset);
             CreateProcedureCommand(BuildResetCommand, commandName);
         }
         public string CreateResetScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.Reset);
+            var commandName = sqlObjectNames.GetCommandName(DbCommandType.Reset);
             return CreateProcedureCommandScriptText(BuildResetCommand, commandName);
         }
         public void DropReset()
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            bool alreadyOpened = connection.State == ConnectionState.Open;
 
             try
             {
                 using (var command = new SqlCommand())
                 {
                     if (!alreadyOpened)
-                        this.connection.Open();
+                        connection.Open();
 
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
+                    if (transaction != null)
+                        command.Transaction = transaction;
 
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.Reset);
+                    var commandName = sqlObjectNames.GetCommandName(DbCommandType.Reset);
 
                     command.CommandText = $"DROP PROCEDURE {commandName};";
-                    command.Connection = this.connection;
+                    command.Connection = connection;
                     command.ExecuteNonQuery();
 
                 }
@@ -908,15 +907,15 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             finally
             {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
+                if (!alreadyOpened && connection.State != ConnectionState.Closed)
+                    connection.Close();
 
             }
 
         }
         public string DropResetScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.Reset);
+            var commandName = sqlObjectNames.GetCommandName(DbCommandType.Reset);
 
             return $"DROP PROCEDURE {commandName};";
         }
@@ -928,7 +927,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         private SqlCommand BuildDeleteCommand()
         {
             SqlCommand sqlCommand = new SqlCommand();
-            this.AddPkColumnParametersToCommand(sqlCommand);
+            AddPkColumnParametersToCommand(sqlCommand);
             SqlParameter sqlParameter = new SqlParameter("@sync_force_write", SqlDbType.Int);
             sqlCommand.Parameters.Add(sqlParameter);
             SqlParameter sqlParameter1 = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt);
@@ -946,11 +945,11 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"FROM {tableName.FullQuotedString} [base]");
             stringBuilder.AppendLine($"JOIN {trackingName.FullQuotedString} [side] ON ");
 
-            stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "[base]", "[side]"));
+            stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(tableDescription.PrimaryKey.Columns, "[base]", "[side]"));
 
             stringBuilder.AppendLine("WHERE ([side].[timestamp] <= @sync_min_timestamp  OR @sync_force_write = 1)");
             stringBuilder.Append("AND ");
-            stringBuilder.AppendLine(string.Concat("(", SqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKey.Columns, "[base]"), ");"));
+            stringBuilder.AppendLine(string.Concat("(", SqlManagementUtils.ColumnsAndParameters(tableDescription.PrimaryKey.Columns, "[base]"), ");"));
             stringBuilder.AppendLine();
             stringBuilder.AppendLine(string.Concat("SET ", sqlParameter2.ParameterName, " = @@ROWCOUNT;"));
             sqlCommand.CommandText = stringBuilder.ToString();
@@ -958,32 +957,32 @@ namespace Dotmim.Sync.SqlServer.Builders
         }
         public void CreateDelete()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteRow);
+            var commandName = sqlObjectNames.GetCommandName(DbCommandType.DeleteRow);
             CreateProcedureCommand(BuildDeleteCommand, commandName);
         }
         public string CreateDeleteScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteRow);
+            var commandName = sqlObjectNames.GetCommandName(DbCommandType.DeleteRow);
             return CreateProcedureCommandScriptText(BuildDeleteCommand, commandName);
         }
         public void DropDelete()
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            bool alreadyOpened = connection.State == ConnectionState.Open;
 
             try
             {
                 using (var command = new SqlCommand())
                 {
                     if (!alreadyOpened)
-                        this.connection.Open();
+                        connection.Open();
 
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
+                    if (transaction != null)
+                        command.Transaction = transaction;
 
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteRow);
+                    var commandName = sqlObjectNames.GetCommandName(DbCommandType.DeleteRow);
 
                     command.CommandText = $"DROP PROCEDURE {commandName};";
-                    command.Connection = this.connection;
+                    command.Connection = connection;
                     command.ExecuteNonQuery();
 
                 }
@@ -996,15 +995,15 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             finally
             {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
+                if (!alreadyOpened && connection.State != ConnectionState.Closed)
+                    connection.Close();
 
             }
 
         }
         public string DropDeleteScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteRow);
+            var commandName = sqlObjectNames.GetCommandName(DbCommandType.DeleteRow);
 
             return $"DROP PROCEDURE {commandName};";
         }
@@ -1016,7 +1015,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         private SqlCommand BuildDeleteMetadataCommand()
         {
             SqlCommand sqlCommand = new SqlCommand();
-            this.AddPkColumnParametersToCommand(sqlCommand);
+            AddPkColumnParametersToCommand(sqlCommand);
             SqlParameter sqlParameter = new SqlParameter("@sync_check_concurrency", SqlDbType.Int);
             sqlCommand.Parameters.Add(sqlParameter);
             SqlParameter sqlParameter1 = new SqlParameter("@sync_row_timestamp", SqlDbType.BigInt);
@@ -1031,7 +1030,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($"DELETE [side] FROM {trackingName.FullQuotedString} [side]");
             stringBuilder.Append($"WHERE ");
-            stringBuilder.AppendLine(SqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKey.Columns, ""));
+            stringBuilder.AppendLine(SqlManagementUtils.ColumnsAndParameters(tableDescription.PrimaryKey.Columns, ""));
             stringBuilder.AppendLine();
             stringBuilder.AppendLine(string.Concat("SET ", sqlParameter2.ParameterName, " = @@ROWCOUNT;"));
             sqlCommand.CommandText = stringBuilder.ToString();
@@ -1039,32 +1038,32 @@ namespace Dotmim.Sync.SqlServer.Builders
         }
         public void CreateDeleteMetadata()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata);
+            var commandName = sqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata);
             CreateProcedureCommand(BuildDeleteMetadataCommand, commandName);
         }
         public string CreateDeleteMetadataScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata);
+            var commandName = sqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata);
             return CreateProcedureCommandScriptText(BuildDeleteMetadataCommand, commandName);
         }
         public void DropDeleteMetadata()
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            bool alreadyOpened = connection.State == ConnectionState.Open;
 
             try
             {
                 using (var command = new SqlCommand())
                 {
                     if (!alreadyOpened)
-                        this.connection.Open();
+                        connection.Open();
 
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
+                    if (transaction != null)
+                        command.Transaction = transaction;
 
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata);
+                    var commandName = sqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata);
 
                     command.CommandText = $"DROP PROCEDURE {commandName};";
-                    command.Connection = this.connection;
+                    command.Connection = connection;
                     command.ExecuteNonQuery();
 
                 }
@@ -1077,15 +1076,15 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             finally
             {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
+                if (!alreadyOpened && connection.State != ConnectionState.Closed)
+                    connection.Close();
 
             }
 
         }
         public string DropDeleteMetadataScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata);
+            var commandName = sqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata);
 
             return $"DROP PROCEDURE {commandName};";
         }
@@ -1101,7 +1100,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             StringBuilder stringBuilderArguments = new StringBuilder();
             StringBuilder stringBuilderParameters = new StringBuilder();
 
-            this.AddColumnParametersToCommand(sqlCommand);
+            AddColumnParametersToCommand(sqlCommand);
             SqlParameter sqlParameter = new SqlParameter("@sync_row_count", SqlDbType.Int)
             {
                 Direction = ParameterDirection.Output
@@ -1111,18 +1110,18 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"SET {sqlParameter.ParameterName} = 0;");
 
             stringBuilder.Append(string.Concat("IF NOT EXISTS (SELECT * FROM ", trackingName.FullQuotedString, " WHERE "));
-            stringBuilder.Append(SqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKey.Columns, string.Empty));
+            stringBuilder.Append(SqlManagementUtils.ColumnsAndParameters(tableDescription.PrimaryKey.Columns, string.Empty));
             stringBuilder.AppendLine(") ");
             stringBuilder.AppendLine("BEGIN ");
 
-            if (this.tableDescription.HasAutoIncrementColumns)
+            if (tableDescription.HasAutoIncrementColumns)
             {
                 stringBuilder.AppendLine($"\tSET IDENTITY_INSERT {tableName.FullQuotedString} ON;");
                 stringBuilder.AppendLine();
             }
 
             string empty = string.Empty;
-            foreach (var mutableColumn in this.tableDescription.Columns.Where(c => !c.IsReadOnly))
+            foreach (var mutableColumn in tableDescription.Columns.Where(c => !c.IsReadOnly))
             {
                 ObjectNameParser columnName = new ObjectNameParser(mutableColumn.ColumnName);
                 stringBuilderArguments.Append(string.Concat(empty, columnName.FullQuotedString));
@@ -1135,7 +1134,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine();
             stringBuilder.AppendLine(string.Concat("\tSET ", sqlParameter.ParameterName, " = @@rowcount; "));
 
-            if (this.tableDescription.HasAutoIncrementColumns)
+            if (tableDescription.HasAutoIncrementColumns)
             {
                 stringBuilder.AppendLine();
                 stringBuilder.AppendLine($"\tSET IDENTITY_INSERT {tableName.FullQuotedString} OFF;");
@@ -1147,32 +1146,32 @@ namespace Dotmim.Sync.SqlServer.Builders
         }
         public void CreateInsert()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertRow);
+            var commandName = sqlObjectNames.GetCommandName(DbCommandType.InsertRow);
             CreateProcedureCommand(BuildInsertCommand, commandName);
         }
         public string CreateInsertScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertRow);
+            var commandName = sqlObjectNames.GetCommandName(DbCommandType.InsertRow);
             return CreateProcedureCommandScriptText(BuildInsertCommand, commandName);
         }
         public void DropInsert()
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            bool alreadyOpened = connection.State == ConnectionState.Open;
 
             try
             {
                 using (var command = new SqlCommand())
                 {
                     if (!alreadyOpened)
-                        this.connection.Open();
+                        connection.Open();
 
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
+                    if (transaction != null)
+                        command.Transaction = transaction;
 
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertRow);
+                    var commandName = sqlObjectNames.GetCommandName(DbCommandType.InsertRow);
 
                     command.CommandText = $"DROP PROCEDURE {commandName};";
-                    command.Connection = this.connection;
+                    command.Connection = connection;
                     command.ExecuteNonQuery();
 
                 }
@@ -1185,15 +1184,15 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             finally
             {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
+                if (!alreadyOpened && connection.State != ConnectionState.Closed)
+                    connection.Close();
 
             }
 
         }
         public string DropInsertScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertRow);
+            var commandName = sqlObjectNames.GetCommandName(DbCommandType.InsertRow);
 
             return $"DROP PROCEDURE {commandName};";
         }
@@ -1208,7 +1207,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             SqlCommand sqlCommand = new SqlCommand();
 
             StringBuilder stringBuilder = new StringBuilder();
-            this.AddPkColumnParametersToCommand(sqlCommand);
+            AddPkColumnParametersToCommand(sqlCommand);
             SqlParameter sqlParameter = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
             sqlCommand.Parameters.Add(sqlParameter);
             SqlParameter sqlParameter1 = new SqlParameter("@sync_row_is_tombstone", SqlDbType.Int);
@@ -1232,7 +1231,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("\t[update_scope_id] = @sync_scope_id, ");
             stringBuilder.AppendLine("\t[update_timestamp] = @update_timestamp, ");
             stringBuilder.AppendLine("\t[sync_row_is_tombstone] = @sync_row_is_tombstone ");
-            stringBuilder.AppendLine($"WHERE ({SqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKey.Columns, "")})");
+            stringBuilder.AppendLine($"WHERE ({SqlManagementUtils.ColumnsAndParameters(tableDescription.PrimaryKey.Columns, "")})");
             stringBuilder.AppendLine();
 
             stringBuilder.AppendLine($"SET {sqlParameter8.ParameterName} = @@rowcount; ");
@@ -1243,7 +1242,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"\tINSERT INTO {trackingName.FullQuotedString}");
 
             string empty = string.Empty;
-            foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
+            foreach (var pkColumn in tableDescription.PrimaryKey.Columns)
             {
                 ObjectNameParser columnName = new ObjectNameParser(pkColumn.ColumnName);
                 stringBuilderArguments.Append(string.Concat(empty, columnName.FullQuotedString));
@@ -1266,32 +1265,32 @@ namespace Dotmim.Sync.SqlServer.Builders
         }
         public void CreateInsertMetadata()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertMetadata);
+            var commandName = sqlObjectNames.GetCommandName(DbCommandType.InsertMetadata);
             CreateProcedureCommand(BuildInsertMetadataCommand, commandName);
         }
         public string CreateInsertMetadataScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertMetadata);
+            var commandName = sqlObjectNames.GetCommandName(DbCommandType.InsertMetadata);
             return CreateProcedureCommandScriptText(BuildInsertMetadataCommand, commandName);
         }
         public void DropInsertMetadata()
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            bool alreadyOpened = connection.State == ConnectionState.Open;
 
             try
             {
                 using (var command = new SqlCommand())
                 {
                     if (!alreadyOpened)
-                        this.connection.Open();
+                        connection.Open();
 
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
+                    if (transaction != null)
+                        command.Transaction = transaction;
 
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertMetadata);
+                    var commandName = sqlObjectNames.GetCommandName(DbCommandType.InsertMetadata);
 
                     command.CommandText = $"DROP PROCEDURE {commandName};";
-                    command.Connection = this.connection;
+                    command.Connection = connection;
                     command.ExecuteNonQuery();
 
                 }
@@ -1304,15 +1303,15 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             finally
             {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
+                if (!alreadyOpened && connection.State != ConnectionState.Closed)
+                    connection.Close();
 
             }
 
         }
         public string DropInsertMetadataScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertMetadata);
+            var commandName = sqlObjectNames.GetCommandName(DbCommandType.InsertMetadata);
 
             return $"DROP PROCEDURE {commandName};";
         }
@@ -1324,7 +1323,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         private SqlCommand BuildSelectRowCommand()
         {
             SqlCommand sqlCommand = new SqlCommand();
-            this.AddPkColumnParametersToCommand(sqlCommand);
+            AddPkColumnParametersToCommand(sqlCommand);
             SqlParameter sqlParameter = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
             sqlCommand.Parameters.Add(sqlParameter);
 
@@ -1332,14 +1331,14 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine();
             StringBuilder stringBuilder1 = new StringBuilder();
             string empty = string.Empty;
-            foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
+            foreach (var pkColumn in tableDescription.PrimaryKey.Columns)
             {
                 ObjectNameParser pkColumnName = new ObjectNameParser(pkColumn.ColumnName);
                 stringBuilder.AppendLine($"\t[side].{pkColumnName.FullQuotedString}, ");
                 stringBuilder1.Append($"{empty}[side].{pkColumnName.FullQuotedString} = @{pkColumnName.FullUnquotedString}");
                 empty = " AND ";
             }
-            foreach (DmColumn mutableColumn in this.tableDescription.MutableColumns)
+            foreach (DmColumn mutableColumn in tableDescription.MutableColumns)
             {
                 ObjectNameParser nonPkColumnName = new ObjectNameParser(mutableColumn.ColumnName);
                 stringBuilder.AppendLine($"\t[base].{nonPkColumnName.FullQuotedString}, ");
@@ -1354,7 +1353,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"RIGHT JOIN {trackingName.FullQuotedString} [side] ON");
 
             string str = string.Empty;
-            foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
+            foreach (var pkColumn in tableDescription.PrimaryKey.Columns)
             {
                 ObjectNameParser pkColumnName = new ObjectNameParser(pkColumn.ColumnName);
                 stringBuilder.Append($"{str}[base].{pkColumnName.FullQuotedString} = [side].{pkColumnName.FullQuotedString}");
@@ -1367,32 +1366,32 @@ namespace Dotmim.Sync.SqlServer.Builders
         }
         public void CreateSelectRow()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectRow);
+            var commandName = sqlObjectNames.GetCommandName(DbCommandType.SelectRow);
             CreateProcedureCommand(BuildSelectRowCommand, commandName);
         }
         public string CreateSelectRowScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectRow);
+            var commandName = sqlObjectNames.GetCommandName(DbCommandType.SelectRow);
             return CreateProcedureCommandScriptText(BuildSelectRowCommand, commandName);
         }
         public void DropSelectRow()
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            bool alreadyOpened = connection.State == ConnectionState.Open;
 
             try
             {
                 using (var command = new SqlCommand())
                 {
                     if (!alreadyOpened)
-                        this.connection.Open();
+                        connection.Open();
 
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
+                    if (transaction != null)
+                        command.Transaction = transaction;
 
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectRow);
+                    var commandName = sqlObjectNames.GetCommandName(DbCommandType.SelectRow);
 
                     command.CommandText = $"DROP PROCEDURE {commandName};";
-                    command.Connection = this.connection;
+                    command.Connection = connection;
                     command.ExecuteNonQuery();
 
                 }
@@ -1405,15 +1404,15 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             finally
             {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
+                if (!alreadyOpened && connection.State != ConnectionState.Closed)
+                    connection.Close();
 
             }
 
         }
         public string DropSelectRowScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectRow);
+            var commandName = sqlObjectNames.GetCommandName(DbCommandType.SelectRow);
 
             return $"DROP PROCEDURE {commandName};";
         }
@@ -1424,19 +1423,19 @@ namespace Dotmim.Sync.SqlServer.Builders
         private string CreateTVPTypeCommandText()
         {
             StringBuilder stringBuilder = new StringBuilder();
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkTableType);
+            var commandName = sqlObjectNames.GetCommandName(DbCommandType.BulkTableType);
             stringBuilder.AppendLine($"CREATE TYPE {commandName} AS TABLE (");
             string str = "";
-            foreach (var c in this.tableDescription.Columns.Where(col => !col.IsReadOnly))
+            foreach (var c in tableDescription.Columns.Where(col => !col.IsReadOnly))
             {
-                var isPrimaryKey = this.tableDescription.PrimaryKey.Columns.Any(cc => this.tableDescription.IsEqual(cc.ColumnName, c.ColumnName));
+                var isPrimaryKey = tableDescription.PrimaryKey.Columns.Any(cc => tableDescription.IsEqual(cc.ColumnName, c.ColumnName));
                 var columnName = new ObjectNameParser(c.ColumnName);
                 var nullString = isPrimaryKey ? "NOT NULL" : "NULL";
 
                 // Get the good SqlDbType (even if we are not from Sql Server def)
-                var sqlDbTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(c.OriginalDbType, c.DbType, false, false, c.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+                var sqlDbTypeString = sqlDbMetadata.TryGetOwnerDbTypeString(c.OriginalDbType, c.DbType, false, false, c.MaxLength, tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
                 var quotedColumnType = new ObjectNameParser(sqlDbTypeString, "[", "]").FullQuotedString;
-                quotedColumnType += this.sqlDbMetadata.TryGetOwnerDbTypePrecision(c.OriginalDbType, c.DbType, false, false, c.MaxLength, c.Precision, c.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+                quotedColumnType += sqlDbMetadata.TryGetOwnerDbTypePrecision(c.OriginalDbType, c.DbType, false, false, c.MaxLength, c.Precision, c.Scale, tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
 
                 stringBuilder.AppendLine($"{str}{columnName.FullQuotedString} {quotedColumnType} {nullString}");
                 str = ", ";
@@ -1447,7 +1446,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine(", [update_timestamp] [bigint] NULL");
             stringBuilder.Append(string.Concat(str, "PRIMARY KEY ("));
             str = "";
-            foreach (var c in this.tableDescription.PrimaryKey.Columns)
+            foreach (var c in tableDescription.PrimaryKey.Columns)
             {
                 var columnName = new ObjectNameParser(c.ColumnName);
                 stringBuilder.Append($"{str}{columnName.FullQuotedString} ASC");
@@ -1466,7 +1465,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 if (!alreadyOpened)
                     connection.Open();
 
-                using (SqlCommand sqlCommand = new SqlCommand(this.CreateTVPTypeCommandText(),
+                using (SqlCommand sqlCommand = new SqlCommand(CreateTVPTypeCommandText(),
                     connection))
                 {
                     if (transaction != null)
@@ -1491,26 +1490,26 @@ namespace Dotmim.Sync.SqlServer.Builders
         public string CreateTVPTypeScriptText()
         {
             string str = string.Concat("Create TVP Type on table ", tableName.FullQuotedString);
-            return SqlBuilder.WrapScriptTextWithComments(this.CreateTVPTypeCommandText(), str);
+            return SqlBuilder.WrapScriptTextWithComments(CreateTVPTypeCommandText(), str);
         }
         public void DropTVPType()
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            bool alreadyOpened = connection.State == ConnectionState.Open;
 
             try
             {
                 using (var command = new SqlCommand())
                 {
                     if (!alreadyOpened)
-                        this.connection.Open();
+                        connection.Open();
 
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
+                    if (transaction != null)
+                        command.Transaction = transaction;
 
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkTableType);
+                    var commandName = sqlObjectNames.GetCommandName(DbCommandType.BulkTableType);
 
                     command.CommandText = $"DROP TYPE {commandName};";
-                    command.Connection = this.connection;
+                    command.Connection = connection;
                     command.ExecuteNonQuery();
 
                 }
@@ -1523,15 +1522,15 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             finally
             {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
+                if (!alreadyOpened && connection.State != ConnectionState.Closed)
+                    connection.Close();
 
             }
 
         }
         public string DropTVPTypeScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkTableType);
+            var commandName = sqlObjectNames.GetCommandName(DbCommandType.BulkTableType);
 
             return $"DROP TYPE {commandName};";
         }
@@ -1544,7 +1543,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             SqlCommand sqlCommand = new SqlCommand();
 
             StringBuilder stringBuilder = new StringBuilder();
-            this.AddColumnParametersToCommand(sqlCommand);
+            AddColumnParametersToCommand(sqlCommand);
 
             SqlParameter sqlParameter = new SqlParameter("@sync_force_write", SqlDbType.Int);
             sqlCommand.Parameters.Add(sqlParameter);
@@ -1561,14 +1560,14 @@ namespace Dotmim.Sync.SqlServer.Builders
 
 
             stringBuilder.AppendLine($"UPDATE {tableName.FullQuotedString}");
-            stringBuilder.Append($"SET {SqlManagementUtils.CommaSeparatedUpdateFromParameters(this.tableDescription)}");
+            stringBuilder.Append($"SET {SqlManagementUtils.CommaSeparatedUpdateFromParameters(tableDescription)}");
             stringBuilder.AppendLine($"FROM {tableName.FullQuotedString} [base]");
             stringBuilder.AppendLine($"JOIN {trackingName.FullQuotedString} [side]");
             stringBuilder.Append($"ON ");
-            stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "[base]", "[side]"));
+            stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(tableDescription.PrimaryKey.Columns, "[base]", "[side]"));
             stringBuilder.AppendLine("WHERE ([side].[timestamp] <= @sync_min_timestamp OR @sync_force_write = 1)");
             stringBuilder.Append("AND (");
-            stringBuilder.Append(SqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKey.Columns, "[base]"));
+            stringBuilder.Append(SqlManagementUtils.ColumnsAndParameters(tableDescription.PrimaryKey.Columns, "[base]"));
             stringBuilder.AppendLine(");");
             stringBuilder.AppendLine();
 
@@ -1579,32 +1578,32 @@ namespace Dotmim.Sync.SqlServer.Builders
         }
         public void CreateUpdate()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateRow);
-            this.CreateProcedureCommand(BuildUpdateCommand, commandName);
+            var commandName = sqlObjectNames.GetCommandName(DbCommandType.UpdateRow);
+            CreateProcedureCommand(BuildUpdateCommand, commandName);
         }
         public string CreateUpdateScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateRow);
+            var commandName = sqlObjectNames.GetCommandName(DbCommandType.UpdateRow);
             return CreateProcedureCommandScriptText(BuildUpdateCommand, commandName);
         }
         public void DropUpdate()
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            bool alreadyOpened = connection.State == ConnectionState.Open;
 
             try
             {
                 using (var command = new SqlCommand())
                 {
                     if (!alreadyOpened)
-                        this.connection.Open();
+                        connection.Open();
 
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
+                    if (transaction != null)
+                        command.Transaction = transaction;
 
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateRow);
+                    var commandName = sqlObjectNames.GetCommandName(DbCommandType.UpdateRow);
 
                     command.CommandText = $"DROP PROCEDURE {commandName};";
-                    command.Connection = this.connection;
+                    command.Connection = connection;
                     command.ExecuteNonQuery();
 
                 }
@@ -1617,15 +1616,15 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             finally
             {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
+                if (!alreadyOpened && connection.State != ConnectionState.Closed)
+                    connection.Close();
 
             }
 
         }
         public string DropUpdateScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateRow);
+            var commandName = sqlObjectNames.GetCommandName(DbCommandType.UpdateRow);
 
             return $"DROP PROCEDURE {commandName};";
         }
@@ -1637,7 +1636,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
             SqlCommand sqlCommand = new SqlCommand();
             StringBuilder stringBuilder = new StringBuilder();
-            this.AddPkColumnParametersToCommand(sqlCommand);
+            AddPkColumnParametersToCommand(sqlCommand);
             SqlParameter sqlParameter = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
             sqlCommand.Parameters.Add(sqlParameter);
             SqlParameter sqlParameter1 = new SqlParameter("@sync_row_is_tombstone", SqlDbType.Int);
@@ -1652,7 +1651,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             };
             sqlCommand.Parameters.Add(sqlParameter8);
 
-            string str1 = SqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKey.Columns, "");
+            string str1 = SqlManagementUtils.ColumnsAndParameters(tableDescription.PrimaryKey.Columns, "");
 
             stringBuilder.AppendLine($"SET {sqlParameter8.ParameterName} = 0;");
             stringBuilder.AppendLine();
@@ -1688,32 +1687,32 @@ namespace Dotmim.Sync.SqlServer.Builders
         }
         public void CreateUpdateMetadata()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata);
+            var commandName = sqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata);
             CreateProcedureCommand(BuildUpdateMetadataCommand, commandName);
         }
         public string CreateUpdateMetadataScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata);
+            var commandName = sqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata);
             return CreateProcedureCommandScriptText(BuildUpdateMetadataCommand, commandName);
         }
         public void DropUpdateMetadata()
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            bool alreadyOpened = connection.State == ConnectionState.Open;
 
             try
             {
                 using (var command = new SqlCommand())
                 {
                     if (!alreadyOpened)
-                        this.connection.Open();
+                        connection.Open();
 
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
+                    if (transaction != null)
+                        command.Transaction = transaction;
 
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata);
+                    var commandName = sqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata);
 
                     command.CommandText = $"DROP PROCEDURE {commandName};";
-                    command.Connection = this.connection;
+                    command.Connection = connection;
                     command.ExecuteNonQuery();
 
                 }
@@ -1726,15 +1725,15 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             finally
             {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
+                if (!alreadyOpened && connection.State != ConnectionState.Closed)
+                    connection.Close();
 
             }
 
         }
         public string DropUpdateMetadataScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata);
+            var commandName = sqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata);
 
             return $"DROP PROCEDURE {commandName};";
         }
@@ -1747,12 +1746,12 @@ namespace Dotmim.Sync.SqlServer.Builders
         private string GetSICStandardColumns()
         {
             StringBuilder stringBuilder = new StringBuilder();
-            foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
+            foreach (var pkColumn in tableDescription.PrimaryKey.Columns)
             {
                 var pkColumnName = new ObjectNameParser(pkColumn.ColumnName);
                 stringBuilder.AppendLine($"\t[side].{pkColumnName.FullQuotedString}, ");
             }
-            foreach (var mutableColumn in this.tableDescription.MutableColumns)
+            foreach (var mutableColumn in tableDescription.MutableColumns)
             {
                 var columnName = new ObjectNameParser(mutableColumn.ColumnName);
                 stringBuilder.AppendLine($"\t[base].{columnName.FullQuotedString}, ");
@@ -1765,74 +1764,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             return stringBuilder.ToString();
         }
 
-        private string GetSICSelect(bool withFilter)
-        {
-            if (!withFilter || this.Filters.Count <= 0)
-                return "SELECT";
-
-            int joinLevel = 0, lastJoinLevel = 0;
-            FilterJoinReference2 lastJoinReference = null;
-
-            // Search for a 1:Many relations
-            for (int i = 0; i < Filters.Count; i++)
-            {
-                FilterClause2 filter = Filters[i];
-                // get the first ref
-                FilterJoinReference2 refJoin = filter.FilterTable;
-                FilterJoinReference2 levelBeforeRefJoin = null;
-
-                DmTable dmTable = null;
-                // while we have a refjoin
-                while (refJoin != null)
-                {
-                    // save the last join reference for later use
-                    lastJoinReference = refJoin;
-                    lastJoinLevel = joinLevel;
-
-                    // get the dmTable
-                    dmTable = this.tableDescription.DmSet.Tables[refJoin.TableName.ObjectNameNormalized];
-
-                    // if we are at level 0, we should have the table itself, no need to do nothing here
-                    if (refJoin.TableName.ObjectNameNormalized.ToLowerInvariant() == this.tableDescription.TableName.ToLowerInvariant())
-                    {
-                        levelBeforeRefJoin = refJoin;
-                        refJoin = refJoin.FilterTable;
-                        continue;
-                    }
-
-                    if (levelBeforeRefJoin == null)
-                        throw new ArgumentException("Level before should exist");
-
-                    // Get the foreign table if exists
-                    var dmForeignTable = dmTable.ChildRelations.FirstOrDefault
-                            (pr => pr.ChildTable.TableName.ToLowerInvariant() == levelBeforeRefJoin.TableName.ObjectNameNormalized.ToLowerInvariant());
-
-                    if (dmForeignTable == null)
-                    {
-                        // Search 1:Many relationship
-                        dmForeignTable = dmTable.ParentRelations.FirstOrDefault
-                            (pr => pr.ParentTable.TableName.ToLowerInvariant() == levelBeforeRefJoin.TableName.ObjectNameNormalized.ToLowerInvariant());
-
-                        if (dmForeignTable != null)
-                        {
-                            return "SELECT DISTINCT ";
-                        }
-                    }
-
-                    // go next
-                    // get the current ref join that will become the ancestor
-                    levelBeforeRefJoin = refJoin;
-                    // get the next ref join
-                    refJoin = refJoin.FilterTable;
-                    joinLevel++;
-                }
-
-            }
-
-            return "SELECT";
-
-        }
-
         private string GetSICFirstLevelFrom()
         {
             var stringBuilder = new StringBuilder();
@@ -1841,7 +1772,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.Append($"ON ");
 
             string empty = "";
-            foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
+            foreach (var pkColumn in tableDescription.PrimaryKey.Columns)
             {
                 var pkColumnName = new ObjectNameParser(pkColumn.ColumnName);
                 stringBuilder.Append($"{empty}[base].{pkColumnName.FullQuotedString} = [side].{pkColumnName.FullQuotedString}");
@@ -1875,7 +1806,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.Append("\t([side].[sync_row_is_tombstone] = 0");
 
             var empty = " AND ";
-            foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
+            foreach (var pkColumn in tableDescription.PrimaryKey.Columns)
             {
                 var pkColumnName = new ObjectNameParser(pkColumn.ColumnName, "[", "]");
                 stringBuilder.Append($"{empty}[base].{pkColumnName.FullQuotedString} is not null");
@@ -1890,12 +1821,12 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
             var lstParams = new List<SqlParameter>();
 
-            if (this.Filters != null && this.Filters.Count > 0)
+            if (Filters != null && Filters.Count > 0)
             {
-                foreach (var f in this.Filters)
+                foreach (var f in Filters)
                 {
                     if (f.InParameter == null)
-                        throw new InvalidExpressionException($"filter parameter has not been set for table {this.tableDescription.TableName}");
+                        throw new InvalidExpressionException($"filter parameter has not been set for table {tableDescription.TableName}");
 
                     // parse it
                     var columnFilterName = new ObjectNameParser(f.InParameter.ColumnName, "[", "]");
@@ -1910,196 +1841,27 @@ namespace Dotmim.Sync.SqlServer.Builders
             return lstParams;
         }
 
-        private string GetSICFiltersRightJoinClause(FilterClause2 filter)
-        {
-
-            var stringBuilder = new StringBuilder();
-            int joinLevel = 0, lastJoinLevel = 0;
-            FilterJoinReference2 lastJoinReference = null;
-
-            // get the first ref
-            FilterJoinReference2 refJoin = filter.FilterTable;
-            FilterJoinReference2 levelBeforeRefJoin = null;
-
-            DmTable dmTable = null;
-            // while we have a refjoin
-            while (refJoin != null)
-            {
-                // save the last join reference for later use
-                lastJoinReference = refJoin;
-                lastJoinLevel = joinLevel;
-
-
-                // get the dmTable
-                dmTable = this.tableDescription.DmSet.Tables[refJoin.TableName.ObjectNameNormalized];
-
-                // if we are at level 0, we should have the table itself, no need to do nothing here
-                if (refJoin.TableName.ObjectNameNormalized.ToLowerInvariant() == this.tableDescription.TableName.ToLowerInvariant())
-                {
-                    levelBeforeRefJoin = refJoin;
-                    refJoin = refJoin.FilterTable;
-                    continue;
-                }
-
-                if (levelBeforeRefJoin == null)
-                    throw new ArgumentException("Level before should exist");
-
-                // get the correct name of tracking table
-                (ObjectNameParser refTableName, ObjectNameParser refTrackingName) refNames = (null, null);
-
-                // Get the foreign table if exists
-                var dmForeignTable = dmTable.ChildRelations.FirstOrDefault
-                        (pr => pr.ChildTable.TableName.ToLowerInvariant() == levelBeforeRefJoin.TableName.ObjectNameNormalized.ToLowerInvariant());
-
-                if (dmForeignTable != null)
-                    refNames = SqlBuilder.GetParsers(dmForeignTable.ParentTable);
-
-                if (dmForeignTable == null)
-                {
-                    // Search 1:Many relationship
-                    dmForeignTable = dmTable.ParentRelations.FirstOrDefault
-                        (pr => pr.ParentTable.TableName.ToLowerInvariant() == levelBeforeRefJoin.TableName.ObjectNameNormalized.ToLowerInvariant());
-
-                    if (dmForeignTable != null)
-                    {
-                        refNames = SqlBuilder.GetParsers(dmForeignTable.ChildTable);
-                    }
-                }
-
-                if (dmForeignTable == null)
-                    throw new Exception($"Table {refJoin.TableName} is not a foreign key for {dmTable.TableName}");
-
-                stringBuilder.AppendLine($"RIGHT JOIN {refNames.refTrackingName.FullQuotedString} [ref{joinLevel.ToString()}_side]");
-                stringBuilder.Append($"ON ");
-
-                var and = "";
-                foreach (var col in dmForeignTable.ParentColumns)
-                {
-                    var side1 = levelBeforeRefJoin.TableName.ObjectNameNormalized.ToLowerInvariant() == this.tableDescription.TableName.ToLowerInvariant() ? "[side]" : $"[ref{(lastJoinLevel - 1)}_side]";
-
-                    // parse it
-                    var columnName2 = new ObjectNameParser(col.ColumnName, "[", "]");
-                    stringBuilder.AppendLine($"{and}[ref{joinLevel.ToString()}_side].{columnName2} = {side1}.{columnName2}");
-                    and = " AND ";
-                }
-
-                // go next
-                // get the current ref join that will become the ancestor
-                levelBeforeRefJoin = refJoin;
-                // get the next ref join
-                refJoin = refJoin.FilterTable;
-                joinLevel++;
-            }
-
-            return stringBuilder.ToString();
-
-        }
-
         private string GetSICWhereConditionForFilter(FilterClause2 filter)
         {
 
+            string alias = "[side]";
             StringBuilder whereFilterBuilder = new StringBuilder();
-            // get the first ref
-            int joinLevel = 0, lastJoinLevel = 0;
-            FilterJoinReference2 refJoin = filter.FilterTable;
-            FilterJoinReference2 levelBeforeRefJoin = null;
-            FilterJoinReference2 lastJoinReference = null;
-            bool hasSubLevel = false;
 
-            DmTable dmTable = null;
-            // while we have a refjoin
-            while (refJoin != null)
-            {
-                // save the last join reference for later use
-                lastJoinReference = refJoin;
-                lastJoinLevel = joinLevel;
+            var columnFilter = tableDescription.DmSet.Tables[filter.FilterTable.TableName.ObjectNameNormalized].Columns[filter.FilterTable.ColumnName];
 
-                // get the dmTable
-                dmTable = this.tableDescription.DmSet.Tables[refJoin.TableName.ObjectNameNormalized];
+            if (columnFilter == null)
+                throw new InvalidExpressionException($"Column {filter.FilterTable.ColumnName} does not exist in Table {this.tableDescription.TableName}");
 
-                // if we are at level 0, we should have the table itself, no need to do nothing here
-                if (refJoin.TableName.ObjectNameNormalized.ToLowerInvariant() == this.tableDescription.TableName.ToLowerInvariant())
-                {
-                    levelBeforeRefJoin = refJoin;
-                    refJoin = refJoin.FilterTable;
-                    continue;
-                }
+            var quotedColumnName = new ObjectNameParser(columnFilter.ColumnName, "[", "]").FullQuotedString;
+            whereFilterBuilder.AppendLine("(");
+            whereFilterBuilder.Append($"\t{alias}.{quotedColumnName} = @{filter.InParameter.ColumnName} ");
+            whereFilterBuilder.Append($"OR {alias}.{quotedColumnName} IS NULL ");
+            whereFilterBuilder.AppendLine($"OR @{filter.InParameter.ColumnName} IS NULL ");
+            whereFilterBuilder.AppendLine(")");
+            whereFilterBuilder.AppendLine("AND ");
 
-                if (levelBeforeRefJoin == null)
-                    throw new ArgumentException("Level before should exist");
-
-                // get the correct name of tracking table
-                (ObjectNameParser refTableName, ObjectNameParser refTrackingName) refNames = (null, null);
-
-                // Get the foreign table if exists
-                var dmForeignTable = dmTable.ChildRelations.FirstOrDefault
-                        (pr => pr.ChildTable.TableName.ToLowerInvariant() == levelBeforeRefJoin.TableName.ObjectNameNormalized.ToLowerInvariant());
-
-                if (dmForeignTable != null)
-                    refNames = SqlBuilder.GetParsers(dmForeignTable.ParentTable);
-
-                if (dmForeignTable == null)
-                {
-                    // Search 1:Many relationship
-                    dmForeignTable = dmTable.ParentRelations.FirstOrDefault
-                        (pr => pr.ParentTable.TableName.ToLowerInvariant() == levelBeforeRefJoin.TableName.ObjectNameNormalized.ToLowerInvariant());
-
-                    if (dmForeignTable != null)
-                        refNames = SqlBuilder.GetParsers(dmForeignTable.ChildTable);
-                }
-
-                if (dmForeignTable == null)
-                    throw new Exception($"Table {refJoin.TableName} is not a foreign key for {dmTable.TableName}");
-
-                hasSubLevel = true;
-
-                // go next
-                // get the current ref join that will become the ancestor
-                levelBeforeRefJoin = refJoin;
-                // get the next ref join
-                refJoin = refJoin.FilterTable;
-                joinLevel++;
-            }
-
-            // Setting the Where Part
-            if (!string.IsNullOrEmpty(lastJoinReference.ColumnName))
-            {
-
-                var filterParameterName = filter.InParameter.ColumnName;
-                var columnName = new ObjectNameParser(lastJoinReference.ColumnName, "[", "]");
-
-                // filter is on the same table
-                if (!hasSubLevel)
-                {
-                    // ([side].[EmployeeID] = @empID) OR [side].[EmployeeID] IS NULL)
-                    whereFilterBuilder.AppendLine("(");
-                    whereFilterBuilder.Append($"\t[side].{columnName.FullUnquotedString} = @{filterParameterName} OR [side].{columnName.FullUnquotedString} IS NULL ");
-
-                    if (filter.InParameter.AllowDBNull)
-                        whereFilterBuilder.Append($"OR @{filterParameterName} IS NULL ");
-
-                    whereFilterBuilder.AppendLine();
-                    whereFilterBuilder.AppendLine(")");
-
-                }
-                else
-                {
-                    // ([ref0_side].[EmployeeID] = @empId OR [ref0_side].[EmployeeID] IS NULL OR @empId IS NULL)
-                    whereFilterBuilder.AppendLine("(");
-                    whereFilterBuilder.Append($"\t[ref{lastJoinLevel.ToString()}_side].{columnName.FullQuotedString} = @{filterParameterName} ");
-                    whereFilterBuilder.Append($"OR [ref{lastJoinLevel.ToString()}_side].{columnName.FullQuotedString} IS NULL ");
-
-                    if (filter.InParameter.AllowDBNull)
-                        whereFilterBuilder.Append($"OR @{filterParameterName} IS NULL ");
-
-                    whereFilterBuilder.AppendLine($"OR @{filterParameterName} IS NULL ");
-                    whereFilterBuilder.AppendLine(")");
-                }
-
-                whereFilterBuilder.AppendLine("AND ");
-            }
-
-            return whereFilterBuilder.ToString();
+            var str = whereFilterBuilder.ToString();
+            return str;
 
         }
 
@@ -2129,16 +1891,13 @@ namespace Dotmim.Sync.SqlServer.Builders
                 var filter = Filters[filterIndex];
 
                 // append the correct SELECT (DISTINCT or NOT)
-                stringBuilder.AppendLine(GetSICSelect(true));
+                stringBuilder.AppendLine("SELECT DISTINCT");
 
                 // Get all the Columns from table
                 stringBuilder.AppendLine(GetSICStandardColumns());
 
                 // get the first FROM on the inner table 
                 stringBuilder.AppendLine(GetSICFirstLevelFrom());
-
-                // get the RIGHT Joins from current filter
-                stringBuilder.AppendLine(GetSICFiltersRightJoinClause(filter));
 
                 // add Where
                 stringBuilder.AppendLine("WHERE ");
@@ -2213,15 +1972,15 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         public void CreateSelectIncrementalChanges()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChanges);
+            var commandName = sqlObjectNames.GetCommandName(DbCommandType.SelectChanges);
             SqlCommand cmdWithoutFilter() => BuildSelectIncrementalChangesCommand(false);
             CreateProcedureCommand(cmdWithoutFilter, commandName);
 
-            if (this.Filters != null && this.Filters.Count > 0)
+            if (Filters != null && Filters.Count > 0)
             {
-                var filtersName = this.Filters.GroupBy(fc => fc.InParameter.ColumnName).Select(f => f.Key);
+                var filtersName = Filters.GroupBy(fc => fc.InParameter.ColumnName).Select(f => f.Key);
 
-                commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWitFilters, filtersName);
+                commandName = sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWitFilters, filtersName);
                 SqlCommand cmdWithFilter() => BuildSelectIncrementalChangesCommand(true);
                 CreateProcedureCommand(cmdWithFilter, commandName);
 
@@ -2232,14 +1991,14 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
             StringBuilder sbSelecteChanges = new StringBuilder();
 
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChanges);
+            var commandName = sqlObjectNames.GetCommandName(DbCommandType.SelectChanges);
             SqlCommand cmdWithoutFilter() => BuildSelectIncrementalChangesCommand(false);
             sbSelecteChanges.AppendLine(CreateProcedureCommandScriptText(cmdWithoutFilter, commandName));
 
 
-            if (this.Filters != null && this.Filters.Count > 0)
+            if (Filters != null && Filters.Count > 0)
             {
-                commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWitFilters);
+                commandName = sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWitFilters);
                 SqlCommand cmdWithFilter() => BuildSelectIncrementalChangesCommand(true);
                 sbSelecteChanges.AppendLine(CreateProcedureCommandScriptText(cmdWithFilter, commandName));
 
@@ -2248,44 +2007,44 @@ namespace Dotmim.Sync.SqlServer.Builders
         }
         public void DropSelectIncrementalChanges()
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            bool alreadyOpened = connection.State == ConnectionState.Open;
 
             try
             {
                 using (var command = new SqlCommand())
                 {
                     if (!alreadyOpened)
-                        this.connection.Open();
+                        connection.Open();
 
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
+                    if (transaction != null)
+                        command.Transaction = transaction;
 
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChanges);
+                    var commandName = sqlObjectNames.GetCommandName(DbCommandType.SelectChanges);
 
                     command.CommandText = $"DROP PROCEDURE {commandName};";
-                    command.Connection = this.connection;
+                    command.Connection = connection;
                     command.ExecuteNonQuery();
 
                 }
 
-                if (this.Filters != null && this.Filters.Count > 0)
+                if (Filters != null && Filters.Count > 0)
                 {
 
                     using (var command = new SqlCommand())
                     {
                         if (!alreadyOpened)
-                            this.connection.Open();
+                            connection.Open();
 
-                        if (this.transaction != null)
-                            command.Transaction = this.transaction;
+                        if (transaction != null)
+                            command.Transaction = transaction;
 
                         //this.Filters.ValidateColumnFilters(this.tableDescription);
 
-                        var filtersName = this.Filters.GroupBy(fc => fc.InParameter.ColumnName).Select(f => f.Key);
-                        var commandNameWithFilter = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWitFilters, filtersName);
+                        var filtersName = Filters.GroupBy(fc => fc.InParameter.ColumnName).Select(f => f.Key);
+                        var commandNameWithFilter = sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWitFilters, filtersName);
 
                         command.CommandText = $"DROP PROCEDURE {commandNameWithFilter};";
-                        command.Connection = this.connection;
+                        command.Connection = connection;
                         command.ExecuteNonQuery();
 
                     }
@@ -2302,25 +2061,25 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             finally
             {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
+                if (!alreadyOpened && connection.State != ConnectionState.Closed)
+                    connection.Close();
 
             }
 
         }
         public string DropSelectIncrementalChangesScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChanges);
+            var commandName = sqlObjectNames.GetCommandName(DbCommandType.SelectChanges);
 
             string dropProcedure = $"DROP PROCEDURE {commandName};";
 
-            if (this.Filters != null && this.Filters.Count > 0)
+            if (Filters != null && Filters.Count > 0)
             {
 
                 using (var command = new SqlCommand())
                 {
-                    var filtersName = this.Filters.GroupBy(fc => fc.InParameter.ColumnName).Select(f => f.Key);
-                    var commandNameWithFilter = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWitFilters, filtersName);
+                    var filtersName = Filters.GroupBy(fc => fc.InParameter.ColumnName).Select(f => f.Key);
+                    var commandNameWithFilter = sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWitFilters, filtersName);
 
                     dropProcedure += Environment.NewLine + $"DROP PROCEDURE {commandNameWithFilter};";
 

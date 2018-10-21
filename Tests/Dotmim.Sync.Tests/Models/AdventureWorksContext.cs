@@ -1,8 +1,8 @@
-using System;
-using System.Linq;
 using Dotmim.Sync.Tests.Core;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using System;
+using System.Linq;
 
 namespace Dotmim.Sync.Tests.Models
 {
@@ -17,18 +17,18 @@ namespace Dotmim.Sync.Tests.Models
 
         public AdventureWorksContext(ProviderType providerType, string connectionString, bool fallbackUseSchema = true, bool useSeeding = true) : this()
         {
-            ProviderType = providerType;
-            ConnectionString = connectionString;
+            this.ProviderType = providerType;
+            this.ConnectionString = connectionString;
             this.useSeeding = useSeeding;
-            this.useSchema = ProviderType == ProviderType.Sql && fallbackUseSchema;
+            this.useSchema = this.ProviderType == ProviderType.Sql && fallbackUseSchema;
         }
         public AdventureWorksContext(ProviderRun providerRun, bool fallbackUseSchema = true, bool useSeeding = true) : this()
         {
 
-            ProviderType = providerRun.ClientProviderType;
-            ConnectionString = providerRun.ConnectionString;
+            this.ProviderType = providerRun.ClientProviderType;
+            this.ConnectionString = providerRun.ConnectionString;
 
-            this.useSchema = ProviderType == ProviderType.Sql && fallbackUseSchema;
+            this.useSchema = this.ProviderType == ProviderType.Sql && fallbackUseSchema;
             this.useSeeding = useSeeding;
         }
 
@@ -45,16 +45,16 @@ namespace Dotmim.Sync.Tests.Models
         {
             if (!optionsBuilder.IsConfigured)
             {
-                switch (ProviderType)
+                switch (this.ProviderType)
                 {
                     case ProviderType.Sql:
-                        optionsBuilder.UseSqlServer(ConnectionString);
+                        optionsBuilder.UseSqlServer(this.ConnectionString);
                         break;
                     case ProviderType.MySql:
-                        optionsBuilder.UseMySql(ConnectionString);
+                        optionsBuilder.UseMySql(this.ConnectionString);
                         break;
                     case ProviderType.Sqlite:
-                        optionsBuilder.UseSqlite(ConnectionString);
+                        optionsBuilder.UseSqlite(this.ConnectionString);
                         break;
                 }
             }
@@ -65,6 +65,7 @@ namespace Dotmim.Sync.Tests.Models
 
         }
 
+        public virtual DbSet<Region> Region { get; set; }
         public virtual DbSet<Address> Address { get; set; }
         public virtual DbSet<Customer> Customer { get; set; }
         public virtual DbSet<CustomerAddress> CustomerAddress { get; set; }
@@ -83,7 +84,7 @@ namespace Dotmim.Sync.Tests.Models
         public virtual DbSet<PriceList> PricesList { get; set; }
 
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Address>(entity =>
             {
@@ -131,6 +132,20 @@ namespace Dotmim.Sync.Tests.Models
                     .HasMaxLength(50);
             });
 
+            modelBuilder.Entity<Region>(entity =>
+            {
+
+                entity.Property(e => e.RegionId)
+                    .HasColumnName("RegionID")
+                    .HasMaxLength(10);
+
+                entity.Property(e => e.Name)
+                    .HasMaxLength(150);
+
+                entity.HasKey(e => e.RegionId);
+
+            });
+
             modelBuilder.Entity<Customer>(entity =>
             {
                 entity.HasIndex(e => e.EmailAddress);
@@ -168,9 +183,9 @@ namespace Dotmim.Sync.Tests.Models
 
 
                 entity.Property(e => e.PasswordHash)
-                    .IsRequired()
-                    .HasMaxLength(128)
-                    .IsUnicode(false);
+                .IsRequired()
+                .HasMaxLength(128)
+                .IsUnicode(false);
 
                 entity.Property(e => e.PasswordSalt)
                     .IsRequired()
@@ -201,6 +216,13 @@ namespace Dotmim.Sync.Tests.Models
 
             modelBuilder.Entity<Employee>(entity =>
             {
+                entity.Property(e => e.EmployeeId)
+                    .HasColumnName("EmployeeID");
+
+                entity.Property(e => e.RegionId)
+                    .HasColumnName("RegionID")
+                    .HasMaxLength(10);
+
                 entity.Property(e => e.FirstName)
                     .IsRequired()
                     .HasMaxLength(50);
@@ -224,6 +246,10 @@ namespace Dotmim.Sync.Tests.Models
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.Rowguid).HasDefaultValueSql("(newid())");
 
+                entity.HasOne(d => d.Region)
+                    .WithMany(p => p.Employee)
+                    .HasForeignKey(d => d.RegionId)
+                    .OnDelete(DeleteBehavior.ClientSetNull);
 
             });
 
@@ -320,7 +346,7 @@ namespace Dotmim.Sync.Tests.Models
 
             modelBuilder.Entity<Product>(entity =>
             {
-                if (useSchema)
+                if (this.useSchema)
                     entity.ToTable("Product", "SalesLT");
 
                 entity.HasKey(e => e.ProductId);
@@ -396,7 +422,7 @@ namespace Dotmim.Sync.Tests.Models
 
             modelBuilder.Entity<ProductCategory>(entity =>
             {
-                if (useSchema)
+                if (this.useSchema)
                     entity.ToTable("ProductCategory", "SalesLT");
 
                 entity.HasIndex(e => e.Name)
@@ -439,7 +465,7 @@ namespace Dotmim.Sync.Tests.Models
 
             modelBuilder.Entity<ProductModel>(entity =>
             {
-                if (useSchema)
+                if (this.useSchema)
                     entity.ToTable("ProductModel", "SalesLT");
 
                 entity.HasIndex(e => e.Name)
@@ -472,7 +498,7 @@ namespace Dotmim.Sync.Tests.Models
 
             modelBuilder.Entity<SalesOrderDetail>(entity =>
             {
-                if (useSchema)
+                if (this.useSchema)
                     entity.ToTable("SalesOrderDetail", "SalesLT");
 
                 entity.HasKey(e => new { e.SalesOrderDetailId });
@@ -526,7 +552,7 @@ namespace Dotmim.Sync.Tests.Models
 
             modelBuilder.Entity<SalesOrderHeader>(entity =>
             {
-                if (useSchema)
+                if (this.useSchema)
                     entity.ToTable("SalesOrderHeader", "SalesLT");
 
                 entity.HasKey(e => e.SalesOrderId);
@@ -768,16 +794,21 @@ namespace Dotmim.Sync.Tests.Models
                 new Address { AddressId = 21, AddressLine1 = "600 Slater Street", City = "Ottawa", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "M9V 4W3" }
             );
 
+            modelBuilder.Entity<Region>().HasData(
+                new Region { RegionId = "NORTH", Name = "Northern Europe" },
+                new Region { RegionId = "SOUTH", Name = "Southern Europe" }
+                );
+
             modelBuilder.Entity<Employee>().HasData(
-                new Employee { EmployeeId = 1, FirstName = "Pamela", LastName = "Orson" },
-                new Employee { EmployeeId = 2, FirstName = "David", LastName = "Kandle" },
-                new Employee { EmployeeId = 3, FirstName = "Jillian", LastName = "Jon" }
+                new Employee { EmployeeId = 1, FirstName = "Pamela", LastName = "Orson", RegionId = "NORTH" },
+                new Employee { EmployeeId = 2, FirstName = "David", LastName = "Kandle", RegionId = "NORTH" },
+                new Employee { EmployeeId = 3, FirstName = "Jillian", LastName = "Jon", RegionId = "SOUTH" }
             );
 
-            Guid customerId1 = Guid.NewGuid();
-            Guid customerId2 = Guid.NewGuid();
-            Guid customerId3 = Guid.NewGuid();
-            Guid customerId4 = Guid.NewGuid();
+            var customerId1 = Guid.NewGuid();
+            var customerId2 = Guid.NewGuid();
+            var customerId3 = Guid.NewGuid();
+            var customerId4 = Guid.NewGuid();
 
             modelBuilder.Entity<Customer>().HasData(
                 new Customer { CustomerId = customerId1, EmployeeId = 1, NameStyle = false, Title = "Mr.", FirstName = "Orlando", MiddleName = "N.", LastName = "Gee", CompanyName = "A Bike Store", SalesPerson = @"adventure-works\pamela0", EmailAddress = "orlando0@adventure-works.com", Phone = "245-555-0173", PasswordHash = "L/Rlwxzp4w7RWmEgXX+/A7cXaePEPcp+KwQhl2fJL7w=", PasswordSalt = "1KjXYs4=" },
@@ -955,14 +986,14 @@ namespace Dotmim.Sync.Tests.Models
             });
 
             modelBuilder.Entity<PriceListCategory>()
-                .HasData(new PriceListCategory() { PriceListId = hollydayPriceListId, PriceCategoryId = "BIKES"}
+                .HasData(new PriceListCategory() { PriceListId = hollydayPriceListId, PriceCategoryId = "BIKES" }
                     , new PriceListCategory() { PriceListId = hollydayPriceListId, PriceCategoryId = "CLOTHE", }
                     , new PriceListCategory() { PriceListId = dalyPriceListId, PriceCategoryId = "BIKES", }
                     , new PriceListCategory() { PriceListId = dalyPriceListId, PriceCategoryId = "CLOTHE", }
                     , new PriceListCategory() { PriceListId = dalyPriceListId, PriceCategoryId = "COMPT", }
                     );
 
-            
+
             var dettails = new System.Collections.Generic.List<PriceListDetail>();
             var generator = new Random((int)DateTime.Now.Ticks);
             //Add hollyday price list
@@ -1036,33 +1067,33 @@ namespace Dotmim.Sync.Tests.Models
 
     internal class MyModelCacheKey : ModelCacheKey
     {
-        ProviderType providerType;
-        bool useSchema;
-        bool useSeeding;
+        private readonly ProviderType providerType;
+        private readonly bool useSchema;
+        private readonly bool useSeeding;
 
         public MyModelCacheKey(DbContext context)
             : base(context)
         {
 
-            AdventureWorksContext adventureWorksContext = (AdventureWorksContext)context;
+            var adventureWorksContext = (AdventureWorksContext)context;
 
-            providerType = adventureWorksContext.ProviderType;
-            useSchema = adventureWorksContext.useSchema;
-            useSeeding = adventureWorksContext.useSeeding;
+            this.providerType = adventureWorksContext.ProviderType;
+            this.useSchema = adventureWorksContext.useSchema;
+            this.useSeeding = adventureWorksContext.useSeeding;
         }
 
         protected override bool Equals(ModelCacheKey other)
             => base.Equals(other)
-                && (other as MyModelCacheKey)?.providerType == providerType
-                && (other as MyModelCacheKey)?.useSchema == useSchema
-                && (other as MyModelCacheKey)?.useSeeding == useSeeding;
+                && (other as MyModelCacheKey)?.providerType == this.providerType
+                && (other as MyModelCacheKey)?.useSchema == this.useSchema
+                && (other as MyModelCacheKey)?.useSeeding == this.useSeeding;
 
         public override int GetHashCode()
         {
             var hashCode = base.GetHashCode() * 397;
-            hashCode ^= useSchema.GetHashCode();
-            hashCode ^= providerType.GetHashCode();
-            hashCode ^= useSeeding.GetHashCode();
+            hashCode ^= this.useSchema.GetHashCode();
+            hashCode ^= this.providerType.GetHashCode();
+            hashCode ^= this.useSeeding.GetHashCode();
 
             return hashCode;
         }

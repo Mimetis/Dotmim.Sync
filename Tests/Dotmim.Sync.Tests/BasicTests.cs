@@ -1120,103 +1120,103 @@ namespace Dotmim.Sync.Tests
         /// Delete some rows from one table. Address from primary key 6 and +, are not used
         /// </summary>
         /// <returns></returns>
-        public async virtual Task Delete_From_Server()
-        {
-            var configurations = TestConfigurations.GetConfigurations();
+        //public async virtual Task Delete_From_Server()
+        //{
+        //    var configurations = TestConfigurations.GetConfigurations();
 
-            // part of the filter
-            var employeeId = 1;
-            // will be defined when address is inserted
-            var addressId = 0;
+        //    // part of the filter
+        //    var employeeId = 1;
+        //    // will be defined when address is inserted
+        //    var addressId = 0;
 
-            for (int i = 0; i < configurations.Count; i++)
-            {
-                SyncConfiguration conf = configurations[i];
-                // insert in db server
-                // first of all, delete the line from server
-                using (var serverDbCtx = GetServerDbContext())
-                {
+        //    for (int i = 0; i < configurations.Count; i++)
+        //    {
+        //        SyncConfiguration conf = configurations[i];
+        //        // insert in db server
+        //        // first of all, delete the line from server
+        //        using (var serverDbCtx = GetServerDbContext())
+        //        {
 
-                    // Insert a new address for employee 1
-                    var city = "Paris " + Path.GetRandomFileName().Replace(".", "");
-                    var addressline1 = "Rue Monthieu " + Path.GetRandomFileName().Replace(".", "");
-                    var stateProvince = "Ile de France";
-                    var countryRegion = "France";
-                    var postalCode = "75001";
+        //            // Insert a new address for employee 1
+        //            var city = "Paris " + Path.GetRandomFileName().Replace(".", "");
+        //            var addressline1 = "Rue Monthieu " + Path.GetRandomFileName().Replace(".", "");
+        //            var stateProvince = "Ile de France";
+        //            var countryRegion = "France";
+        //            var postalCode = "75001";
 
-                    Address address = new Address
-                    {
-                        AddressLine1 = addressline1,
-                        City = city,
-                        StateProvince = stateProvince,
-                        CountryRegion = countryRegion,
-                        PostalCode = postalCode
+        //            Address address = new Address
+        //            {
+        //                AddressLine1 = addressline1,
+        //                City = city,
+        //                StateProvince = stateProvince,
+        //                CountryRegion = countryRegion,
+        //                PostalCode = postalCode
 
-                    };
+        //            };
 
-                    serverDbCtx.Add(address);
-                    await serverDbCtx.SaveChangesAsync();
-                    addressId = address.AddressId;
+        //            serverDbCtx.Add(address);
+        //            await serverDbCtx.SaveChangesAsync();
+        //            addressId = address.AddressId;
 
-                    EmployeeAddress employeeAddress = new EmployeeAddress
-                    {
-                        EmployeeId = employeeId,
-                        AddressId = address.AddressId,
-                        AddressType = "SERVER"
-                    };
+        //            EmployeeAddress employeeAddress = new EmployeeAddress
+        //            {
+        //                EmployeeId = employeeId,
+        //                AddressId = address.AddressId,
+        //                AddressType = "SERVER"
+        //            };
 
-                    var ea = serverDbCtx.EmployeeAddress.Add(employeeAddress);
-                    await serverDbCtx.SaveChangesAsync();
+        //            var ea = serverDbCtx.EmployeeAddress.Add(employeeAddress);
+        //            await serverDbCtx.SaveChangesAsync();
 
-                }
+        //        }
 
-                // Upload this new address / employee address
-                var resultsInsertServer = await this.testRunner.RunTestsAsync(conf);
+        //        // Upload this new address / employee address
+        //        var resultsInsertServer = await this.testRunner.RunTestsAsync(conf);
 
-                // check the download to client
-                foreach (var trr in resultsInsertServer)
-                {
-                    Assert.Equal(2, trr.Results.TotalChangesDownloaded);
-                    Assert.Equal(0, trr.Results.TotalChangesUploaded);
-                }
+        //        // check the download to client
+        //        foreach (var trr in resultsInsertServer)
+        //        {
+        //            Assert.Equal(2, trr.Results.TotalChangesDownloaded);
+        //            Assert.Equal(0, trr.Results.TotalChangesUploaded);
+        //        }
 
-                // Delete those lines from server
-                using (var serverDbCtx = GetServerDbContext())
-                {
-                    // Get the addresses query
-                    var address = await serverDbCtx.Address.SingleAsync(a => a.AddressId == addressId);
-                    var empAddress = await serverDbCtx.EmployeeAddress.SingleAsync(a => a.AddressId == addressId && a.EmployeeId == employeeId);
+        //        // Delete those lines from server
+        //        using (var serverDbCtx = GetServerDbContext())
+        //        {
+        //            // Get the addresses query
+        //            var address = await serverDbCtx.Address.SingleAsync(a => a.AddressId == addressId);
+        //            var empAddress = await serverDbCtx.EmployeeAddress.SingleAsync(a => a.AddressId == addressId && a.EmployeeId == employeeId);
 
-                    // remove them
-                    serverDbCtx.EmployeeAddress.Remove(empAddress);
-                    serverDbCtx.Address.Remove(address);
+        //            // remove them
+        //            serverDbCtx.EmployeeAddress.Remove(empAddress);
+        //            serverDbCtx.Address.Remove(address);
 
-                    // Execute query
-                    await serverDbCtx.SaveChangesAsync();
-                }
+        //            // Execute query
+        //            await serverDbCtx.SaveChangesAsync();
+        //        }
 
-                var resultsDeleteOnServer = await this.testRunner.RunTestsAsync(conf);
+        //        var resultsDeleteOnServer = await this.testRunner.RunTestsAsync(conf);
 
-                foreach (var trr in resultsDeleteOnServer)
-                {
-                    Assert.Equal(2, trr.Results.TotalChangesDownloaded);
-                    Assert.Equal(0, trr.Results.TotalChangesUploaded);
+        //        foreach (var trr in resultsDeleteOnServer)
+        //        {
+        //            Assert.Equal(2, trr.Results.TotalChangesDownloaded);
+        //            Assert.Equal(0, trr.Results.TotalChangesUploaded);
 
-                    // check row deleted on client values
-                    using (var ctx = GetClientDbContext(trr))
-                    {
-                        var finalAddressesCount = await ctx.Address.AsNoTracking().CountAsync(a => a.AddressId == addressId);
-                        var finalEmployeeAddressesCount = await ctx.EmployeeAddress.AsNoTracking().CountAsync(a => a.AddressId == addressId && a.EmployeeId == employeeId);
-                        Assert.Equal(0, finalAddressesCount);
-                        Assert.Equal(0, finalEmployeeAddressesCount);
-                    }
-                }
+        //            // check row deleted on client values
+        //            using (var ctx = GetClientDbContext(trr))
+        //            {
+        //                var finalAddressesCount = await ctx.Address.AsNoTracking().CountAsync(a => a.AddressId == addressId);
+        //                var finalEmployeeAddressesCount = await ctx.EmployeeAddress.AsNoTracking().CountAsync(a => a.AddressId == addressId && a.EmployeeId == employeeId);
+        //                Assert.Equal(0, finalAddressesCount);
+        //                Assert.Equal(0, finalEmployeeAddressesCount);
+        //            }
+        //        }
 
-                // reset all clients
-                await this.testRunner.RunTestsAsync(conf);
-            }
+        //        // reset all clients
+        //        await this.testRunner.RunTestsAsync(conf);
+        //    }
 
-        }
+        //}
 
         /// <summary>
         /// The idea is to insert an item, then delete it, then sync.

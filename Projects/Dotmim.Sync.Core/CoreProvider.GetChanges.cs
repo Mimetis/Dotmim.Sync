@@ -15,7 +15,6 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync
@@ -52,7 +51,7 @@ namespace Dotmim.Sync
                 }
 
                 // create local directory
-                if (message.DownloadBatchSizeInKB > 0 && !String.IsNullOrEmpty(message.BatchDirectory) && !Directory.Exists(message.BatchDirectory))
+                if (message.DownloadBatchSizeInKB > 0 && !string.IsNullOrEmpty(message.BatchDirectory) && !Directory.Exists(message.BatchDirectory))
                     Directory.CreateDirectory(message.BatchDirectory);
 
                 // batch info containing changes
@@ -84,7 +83,7 @@ namespace Dotmim.Sync
         /// destination knowledge, and change data retriever parameters.
         /// </summary>
         /// <returns>A DbSyncContext object that will be used to retrieve the modified data.</returns>
-        public virtual async Task<TimeSpan> PrepareArchiveAsync(string[] tables, int downloadBatchSizeInKB, string batchDirectory, ConflictResolutionPolicy policy,  List<FilterClause2> filters)
+        public virtual async Task<TimeSpan> PrepareArchiveAsync(string[] tables, int downloadBatchSizeInKB, string batchDirectory, ConflictResolutionPolicy policy, List<FilterClause2> filters)
         {
             try
             {
@@ -93,7 +92,7 @@ namespace Dotmim.Sync
 
                 // IF the client is new and the SyncConfiguration object has the Archive property
 
-                Stopwatch stopwatch = new Stopwatch();
+                var stopwatch = new Stopwatch();
                 stopwatch.Start();
 
                 SyncContext context;
@@ -121,7 +120,7 @@ namespace Dotmim.Sync
                     await this.EnumerateChangesInBatchesInternal(context, scopeInfo, downloadBatchSizeInKB, config.Schema, batchDirectory, policy, filters);
 
                 var dir = Path.Combine(batchDirectory, batchInfo.Directory);
-                var archiveFullName = String.Concat(batchDirectory, "\\", Path.GetRandomFileName());
+                var archiveFullName = string.Concat(batchDirectory, "\\", Path.GetRandomFileName());
 
                 ZipFile.CreateFromDirectory(dir, archiveFullName, CompressionLevel.Fastest, false);
 
@@ -148,7 +147,7 @@ namespace Dotmim.Sync
             var isBatched = downloadBatchSizeInKB > 0;
 
             // create the in memory changes set
-            DmSet changesSet = new DmSet(SyncConfiguration.DMSET_NAME);
+            var changesSet = new DmSet(SyncConfiguration.DMSET_NAME);
 
             // Create the batch info, in memory
             var batchInfo = new BatchInfo
@@ -175,7 +174,7 @@ namespace Dotmim.Sync
             SyncContext context, ScopeInfo scopeInfo, DmSet configTables, string batchDirectory, ConflictResolutionPolicy policy, List<FilterClause2> filters)
         {
             // create the in memory changes set
-            DmSet changesSet = new DmSet(SyncConfiguration.DMSET_NAME);
+            var changesSet = new DmSet(SyncConfiguration.DMSET_NAME);
 
             // Create the batch info, in memory
             var batchInfo = new BatchInfo
@@ -193,7 +192,7 @@ namespace Dotmim.Sync
                     try
                     {
                         // changes that will be returned as selected changes
-                        ChangesSelected changes = new ChangesSelected();
+                        var changes = new ChangesSelected();
 
                         foreach (var tableDescription in configTables.Tables)
                         {
@@ -215,7 +214,7 @@ namespace Dotmim.Sync
                             this.TryRaiseProgressEvent(beforeArgs, this.TableChangesSelecting);
 
                             // selected changes for the current table
-                            TableChangesSelected tableSelectedChanges = new TableChangesSelected
+                            var tableSelectedChanges = new TableChangesSelected
                             {
                                 TableName = tableDescription.TableName
                             };
@@ -226,11 +225,20 @@ namespace Dotmim.Sync
 
                             if (this.CanBeServerProvider && context.Parameters != null && context.Parameters.Count > 0 && filters != null && filters.Count > 0)
                             {
-                                var filtersName = filters
-                                                .Where(f => f.FilterTable.TableName.ObjectNameNormalized.Equals(tableDescription.TableName, StringComparison.InvariantCultureIgnoreCase))
-                                                .GroupBy(fc => fc.InParameter.ColumnName)
-                                                .Select(f => f.Key);
-                                                
+                                var filtersName = new List<string>();
+                                foreach (var filter in filters)
+                                {
+                                    var tableFilter = tableDescription.DmSet.Tables[filter.FilterTable.TableName.ObjectNameNormalized];
+
+                                    var hierarchy = tableDescription.GetParentsTo(tableFilter);
+
+                                    if (hierarchy.Count > 0 || tableDescription.TableName.ToLowerInvariant() == filter.FilterTable.TableName.ObjectNameNormalized.ToLowerInvariant())
+                                    {
+                                        filtersName.Add(filter.InParameter.ColumnName);
+                                    }
+
+                                }
+
                                 if (filtersName != null && filtersName.Count() > 0)
                                 {
                                     dbCommandType = DbCommandType.SelectChangesWitFilters;
@@ -258,18 +266,19 @@ namespace Dotmim.Sync
                             syncAdapter.SetCommandParameters(dbCommandType, selectIncrementalChangesCommand);
 
                             // Get a clone of the table with tracking columns
-                            var dmTableChanges = BuildChangesTable(tableDescription.TableName, configTables);
+                            var dmTableChanges = this.BuildChangesTable(tableDescription.TableName, configTables);
 
                             SetSelectChangesCommonParameters(context, scopeInfo, selectIncrementalChangesCommand);
 
                             // Set filter parameters if any
                             if (this.CanBeServerProvider && context.Parameters != null && context.Parameters.Count > 0 && filters != null && filters.Count > 0)
                             {
-                                var tableFilters = filters.Where(f => f.FilterTable.TableName.ObjectNameNormalized.Equals(tableDescription.TableName, StringComparison.InvariantCultureIgnoreCase)).ToList();
-
-                                if (tableFilters != null && tableFilters.Count > 0)
+                                foreach (var filter in filters)
                                 {
-                                    foreach (var filter in tableFilters)
+                                    var tableFilter = tableDescription.DmSet.Tables[filter.FilterTable.TableName.ObjectNameNormalized];
+                                    var hierarchy = tableDescription.GetParentsTo(tableFilter);
+
+                                    if (hierarchy.Count > 0 || tableDescription.TableName.ToLowerInvariant() == filter.FilterTable.TableName.ObjectNameNormalized.ToLowerInvariant())
                                     {
                                         // Get the parameter from my context and its value
                                         var parameter = context.Parameters.FirstOrDefault(p => p.ParameterName.Equals(filter.InParameter.ColumnName, StringComparison.InvariantCultureIgnoreCase));
@@ -277,7 +286,22 @@ namespace Dotmim.Sync
                                         if (parameter != null)
                                             DbManager.SetParameterValue(selectIncrementalChangesCommand, parameter.ParameterName, parameter.Value);
                                     }
+
                                 }
+
+                                //var tableFilters = filters.Where(f => f.FilterTable.TableName.ObjectNameNormalized.Equals(tableDescription.TableName, StringComparison.InvariantCultureIgnoreCase)).ToList();
+
+                                //if (tableFilters != null && tableFilters.Count > 0)
+                                //{
+                                //    foreach (var filter in tableFilters)
+                                //    {
+                                //        // Get the parameter from my context and its value
+                                //        var parameter = context.Parameters.FirstOrDefault(p => p.ParameterName.Equals(filter.InParameter.ColumnName, StringComparison.InvariantCultureIgnoreCase));
+
+                                //        if (parameter != null)
+                                //            DbManager.SetParameterValue(selectIncrementalChangesCommand, parameter.ParameterName, parameter.Value);
+                                //    }
+                                //}
                             }
 
                             this.AddTrackingColumns<int>(dmTableChanges, "sync_row_is_tombstone");
@@ -287,15 +311,15 @@ namespace Dotmim.Sync
                             {
                                 while (dataReader.Read())
                                 {
-                                    DmRow dataRow = CreateRowFromReader(dataReader, dmTableChanges);
+                                    var dataRow = this.CreateRowFromReader(dataReader, dmTableChanges);
 
                                     //DmRow dataRow = dmTableChanges.NewRow();
 
                                     // assuming the row is not inserted / modified
-                                    DmRowState state = DmRowState.Unchanged;
+                                    var state = DmRowState.Unchanged;
 
                                     // get if the current row is inserted, modified, deleted
-                                    state = GetStateFromDmRow(dataRow, scopeInfo);
+                                    state = this.GetStateFromDmRow(dataRow, scopeInfo);
 
                                     if (state != DmRowState.Deleted && state != DmRowState.Modified && state != DmRowState.Added)
                                         continue;
@@ -377,7 +401,7 @@ namespace Dotmim.Sync
             var lastTimeStamp = scopeInfo.Timestamp;
             //var lastTimeStampExcludedBegin = scopeInfo.LastSyncTimestampExcludedBegin;
             //var lastTimeStampExcludedEnd = scopeInfo.LastSyncTimestampExcludedEnd;
-            int isReinit = context.SyncType == SyncType.Reinitialize ? 1 : 0;
+            var isReinit = context.SyncType == SyncType.Reinitialize ? 1 : 0;
 
             switch (context.SyncWay)
             {
@@ -425,10 +449,10 @@ namespace Dotmim.Sync
             // memory size total
             double memorySizeFromDmRows = 0L;
 
-            int batchIndex = 0;
+            var batchIndex = 0;
 
             // this batch info won't be in memory, it will be be batched
-            BatchInfo batchInfo = new BatchInfo
+            var batchInfo = new BatchInfo
             {
                 // directory where all files will be stored
                 Directory = BatchInfo.GenerateNewDirectoryName(),
@@ -437,7 +461,7 @@ namespace Dotmim.Sync
             };
 
             // Create stats object to store changes count
-            ChangesSelected changes = new ChangesSelected();
+            var changes = new ChangesSelected();
 
             using (var connection = this.CreateConnection())
             {
@@ -449,7 +473,7 @@ namespace Dotmim.Sync
                     using (var transaction = connection.BeginTransaction())
                     {
                         // create the in memory changes set
-                        DmSet changesSet = new DmSet(configTables.DmSetName);
+                        var changesSet = new DmSet(configTables.DmSetName);
 
                         foreach (var tableDescription in configTables.Tables)
                         {
@@ -480,7 +504,7 @@ namespace Dotmim.Sync
                                                 .Where(f => f.FilterTable.TableName.ObjectNameNormalized.Equals(tableDescription.TableName, StringComparison.InvariantCultureIgnoreCase))
                                                 .GroupBy(fc => fc.InParameter.ColumnName)
                                                 .Select(f => f.Key);
-                                                
+
                                 if (filtersName != null && filtersName.Count() > 0)
                                 {
                                     dbCommandType = DbCommandType.SelectChangesWitFilters;
@@ -507,7 +531,7 @@ namespace Dotmim.Sync
                                 throw new Exception(exc);
                             }
 
-                            dmTable = BuildChangesTable(tableDescription.TableName, configTables);
+                            dmTable = this.BuildChangesTable(tableDescription.TableName, configTables);
 
                             try
                             {
@@ -535,7 +559,7 @@ namespace Dotmim.Sync
                                 this.AddTrackingColumns<int>(dmTable, "sync_row_is_tombstone");
 
                                 // Statistics
-                                TableChangesSelected tableChangesSelected = new TableChangesSelected
+                                var tableChangesSelected = new TableChangesSelected
                                 {
                                     TableName = tableDescription.TableName
                                 };
@@ -547,11 +571,11 @@ namespace Dotmim.Sync
                                 {
                                     while (dataReader.Read())
                                     {
-                                        DmRow dmRow = CreateRowFromReader(dataReader, dmTable);
+                                        var dmRow = this.CreateRowFromReader(dataReader, dmTable);
 
-                                        DmRowState state = DmRowState.Unchanged;
+                                        var state = DmRowState.Unchanged;
 
-                                        state = GetStateFromDmRow(dmRow, scopeInfo);
+                                        state = this.GetStateFromDmRow(dmRow, scopeInfo);
 
                                         // If the row is not deleted inserted or modified, go next
                                         if (state != DmRowState.Deleted && state != DmRowState.Modified && state != DmRowState.Added)
@@ -688,9 +712,9 @@ namespace Dotmim.Sync
         private DmRow CreateRowFromReader(IDataReader dataReader, DmTable dmTable)
         {
             // we have an insert / update or delete
-            DmRow dataRow = dmTable.NewRow();
+            var dataRow = dmTable.NewRow();
 
-            for (int i = 0; i < dataReader.FieldCount; i++)
+            for (var i = 0; i < dataReader.FieldCount; i++)
             {
                 var columnName = dataReader.GetName(i);
                 var dmRowObject = dataReader.GetValue(i);
@@ -708,35 +732,35 @@ namespace Dotmim.Sync
                                 dmRowObject = new Guid(dmRowObject.ToString());
                             else if (columnType == typeof(Guid) && dmRowObject.GetType() == typeof(byte[]))
                                 dmRowObject = dataReader.GetGuid(i);
-                            else if (columnType == typeof(Int32) && dmRowObjectType != typeof(Int32))
+                            else if (columnType == typeof(int) && dmRowObjectType != typeof(int))
                                 dmRowObject = Convert.ToInt32(dmRowObject);
-                            else if (columnType == typeof(UInt32) && dmRowObjectType != typeof(UInt32))
+                            else if (columnType == typeof(uint) && dmRowObjectType != typeof(uint))
                                 dmRowObject = Convert.ToUInt32(dmRowObject);
-                            else if (columnType == typeof(Int16) && dmRowObjectType != typeof(Int16))
+                            else if (columnType == typeof(short) && dmRowObjectType != typeof(short))
                                 dmRowObject = Convert.ToInt16(dmRowObject);
-                            else if (columnType == typeof(UInt16) && dmRowObjectType != typeof(UInt16))
+                            else if (columnType == typeof(ushort) && dmRowObjectType != typeof(ushort))
                                 dmRowObject = Convert.ToUInt16(dmRowObject);
-                            else if (columnType == typeof(Int64) && dmRowObjectType != typeof(Int64))
+                            else if (columnType == typeof(long) && dmRowObjectType != typeof(long))
                                 dmRowObject = Convert.ToInt64(dmRowObject);
-                            else if (columnType == typeof(UInt64) && dmRowObjectType != typeof(UInt64))
+                            else if (columnType == typeof(ulong) && dmRowObjectType != typeof(ulong))
                                 dmRowObject = Convert.ToUInt64(dmRowObject);
-                            else if (columnType == typeof(Byte) && dmRowObjectType != typeof(Byte))
+                            else if (columnType == typeof(byte) && dmRowObjectType != typeof(byte))
                                 dmRowObject = Convert.ToByte(dmRowObject);
-                            else if (columnType == typeof(Char) && dmRowObjectType != typeof(Char))
+                            else if (columnType == typeof(char) && dmRowObjectType != typeof(char))
                                 dmRowObject = Convert.ToChar(dmRowObject);
                             else if (columnType == typeof(DateTime) && dmRowObjectType != typeof(DateTime))
                                 dmRowObject = Convert.ToDateTime(dmRowObject);
-                            else if (columnType == typeof(Decimal) && dmRowObjectType != typeof(Decimal))
+                            else if (columnType == typeof(decimal) && dmRowObjectType != typeof(decimal))
                                 dmRowObject = Convert.ToDecimal(dmRowObject);
-                            else if (columnType == typeof(Double) && dmRowObjectType != typeof(Double))
+                            else if (columnType == typeof(double) && dmRowObjectType != typeof(double))
                                 dmRowObject = Convert.ToDouble(dmRowObject);
-                            else if (columnType == typeof(SByte) && dmRowObjectType != typeof(SByte))
+                            else if (columnType == typeof(sbyte) && dmRowObjectType != typeof(sbyte))
                                 dmRowObject = Convert.ToSByte(dmRowObject);
-                            else if (columnType == typeof(Single) && dmRowObjectType != typeof(Single))
+                            else if (columnType == typeof(float) && dmRowObjectType != typeof(float))
                                 dmRowObject = Convert.ToSingle(dmRowObject);
-                            else if (columnType == typeof(String) && dmRowObjectType != typeof(String))
+                            else if (columnType == typeof(string) && dmRowObjectType != typeof(string))
                                 dmRowObject = Convert.ToString(dmRowObject);
-                            else if (columnType == typeof(Boolean) && dmRowObjectType != typeof(Boolean))
+                            else if (columnType == typeof(bool) && dmRowObjectType != typeof(bool))
                                 dmRowObject = Convert.ToBoolean(dmRowObject);
                             else if (dmRowObjectType != columnType)
                             {
@@ -760,10 +784,10 @@ namespace Dotmim.Sync
             var dmTable = configTables.Tables[tableName].Clone();
 
             // Adding the tracking columns
-            AddTrackingColumns<Guid>(dmTable, "create_scope_id");
-            AddTrackingColumns<long>(dmTable, "create_timestamp");
-            AddTrackingColumns<Guid>(dmTable, "update_scope_id");
-            AddTrackingColumns<long>(dmTable, "update_timestamp");
+            this.AddTrackingColumns<Guid>(dmTable, "create_scope_id");
+            this.AddTrackingColumns<long>(dmTable, "create_timestamp");
+            this.AddTrackingColumns<Guid>(dmTable, "update_scope_id");
+            this.AddTrackingColumns<long>(dmTable, "update_timestamp");
 
             // Since we can have some deleted rows, the Changes table should have only null columns (except PrimaryKeys)
 
@@ -785,7 +809,7 @@ namespace Dotmim.Sync
         /// </summary>
         private DmRowState GetStateFromDmRow(DmRow dataRow, ScopeInfo scopeInfo)
         {
-            DmRowState dmRowState = DmRowState.Unchanged;
+            var dmRowState = DmRowState.Unchanged;
 
             var isTombstone = Convert.ToInt64(dataRow["sync_row_is_tombstone"]) > 0;
 
@@ -798,8 +822,8 @@ namespace Dotmim.Sync
                 var updateScopeIdRow = dataRow["update_scope_id"];
                 var createScopeIdRow = dataRow["create_scope_id"];
 
-                Guid? updateScopeId = (updateScopeIdRow != DBNull.Value && updateScopeIdRow != null) ? (Guid)updateScopeIdRow : (Guid?)null;
-                Guid? createScopeId = (createScopeIdRow != DBNull.Value && createScopeIdRow != null) ? (Guid)createScopeIdRow : (Guid?)null;
+                var updateScopeId = (updateScopeIdRow != DBNull.Value && updateScopeIdRow != null) ? (Guid)updateScopeIdRow : (Guid?)null;
+                var createScopeId = (createScopeIdRow != DBNull.Value && createScopeIdRow != null) ? (Guid)createScopeIdRow : (Guid?)null;
 
                 var isLocallyCreated = !createScopeId.HasValue;
                 var islocallyUpdated = !updateScopeId.HasValue || updateScopeId.Value != scopeInfo.Id;

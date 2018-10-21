@@ -1,12 +1,9 @@
-﻿using System;
-using System.Linq;
-using System.Collections;
+﻿using Dotmim.Sync.Enumerations;
+using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Diagnostics;
-using System.Globalization;
 using System.Data;
-using Dotmim.Sync.Enumerations;
+using System.Globalization;
+using System.Linq;
 
 namespace Dotmim.Sync.Data
 {
@@ -23,22 +20,22 @@ namespace Dotmim.Sync.Data
         internal readonly DmColumnCollection columns;
 
         // props
-        string tableName = string.Empty;
-        string schema = string.Empty;
+        private string tableName = string.Empty;
+        private string schema = string.Empty;
 
         // globalization stuff
-        CultureInfo culture;
-        bool caseSensitive;
+        private CultureInfo culture;
+        private bool caseSensitive;
 
         // Case insensitive compare options
         internal CompareOptions compareFlags;
 
         // primary key info
-        readonly static Int32[] zeroIntegers = new Int32[0];
-        internal readonly static DmRow[] zeroRows = new DmRow[0];
+        private static readonly int[] zeroIntegers = new int[0];
+        internal static readonly DmRow[] zeroRows = new DmRow[0];
 
         // primary key
-        DmKey primaryKey;
+        private DmKey primaryKey;
 
         public DmTable()
         {
@@ -50,15 +47,12 @@ namespace Dotmim.Sync.Data
             this.compareFlags = CompareOptions.IgnoreCase | CompareOptions.IgnoreKanaType | CompareOptions.IgnoreWidth;
         }
 
-        public DmTable(string tableName) : this()
-        {
-            this.tableName = tableName ?? "";
-        }
+        public DmTable(string tableName) : this() => this.tableName = tableName ?? "";
 
         /// <summary>
         /// Columns collection
         /// </summary>
-        public DmColumnCollection Columns => columns;
+        public DmColumnCollection Columns => this.columns;
 
         public DmSet DmSet { get; internal set; }
 
@@ -67,20 +61,17 @@ namespace Dotmim.Sync.Data
         /// </summary>
         public bool CaseSensitive
         {
-            get
-            {
-                return caseSensitive;
-            }
+            get => this.caseSensitive;
             set
             {
-                if (caseSensitive != value)
+                if (this.caseSensitive != value)
                 {
-                    caseSensitive = value;
+                    this.caseSensitive = value;
 
-                    if (caseSensitive)
-                        compareFlags = CompareOptions.None;
+                    if (this.caseSensitive)
+                        this.compareFlags = CompareOptions.None;
                     else
-                        compareFlags = CompareOptions.IgnoreCase | CompareOptions.IgnoreKanaType | CompareOptions.IgnoreWidth;
+                        this.compareFlags = CompareOptions.IgnoreCase | CompareOptions.IgnoreKanaType | CompareOptions.IgnoreWidth;
 
                     this.CheckNameCompliance(this.tableName);
                 }
@@ -101,32 +92,32 @@ namespace Dotmim.Sync.Data
         /// <summary>
         /// Specify a prefix for naming stored procedure. Default is empty string
         /// </summary>
-        public String StoredProceduresPrefix { get; set; }
+        public string StoredProceduresPrefix { get; set; }
 
         /// <summary>
         /// Specify a suffix for naming triggers. Default is empty string
         /// </summary>
-        public String TriggersSuffix { get; set; }
+        public string TriggersSuffix { get; set; }
 
         /// <summary>
         /// Specify a prefix for triggers. Default is empty string
         /// </summary>
-        public String TriggersPrefix { get; set; }
+        public string TriggersPrefix { get; set; }
 
         /// <summary>
         /// Specify a suffix for naming stored procedures. Default is empty string
         /// </summary>
-        public String StoredProceduresSuffix { get; set; }
+        public string StoredProceduresSuffix { get; set; }
 
         /// <summary>
         /// Specify a prefix for naming tracking tables. Default is empty string
         /// </summary>
-        public String TrackingTablesPrefix { get; set; }
+        public string TrackingTablesPrefix { get; set; }
 
         /// <summary>
         /// Specify a suffix for naming tracking tables. Default is empty string
         /// </summary>
-        public String TrackingTablesSuffix { get; set; }
+        public string TrackingTablesSuffix { get; set; }
 
 
         /// <summary>
@@ -134,19 +125,15 @@ namespace Dotmim.Sync.Data
         /// </summary>
         public CultureInfo Culture
         {
-            get
-            {
-
-                return culture;
-            }
+            get => this.culture;
             set
             {
                 if (null == value)
-                    value = (DmSet != null) ? DmSet.Culture : CultureInfo.InvariantCulture;
+                    value = (this.DmSet != null) ? this.DmSet.Culture : CultureInfo.InvariantCulture;
 
-                if (culture != value)
+                if (this.culture != value)
                 {
-                    culture = value;
+                    this.culture = value;
                     this.CheckNameCompliance(this.tableName);
                 }
 
@@ -186,14 +173,30 @@ namespace Dotmim.Sync.Data
             }
         }
 
+        /// <summary>
+        /// Get all foreign keys from current table
+        /// </summary>
+        public IEnumerable<DmRelation> ForeignKeys
+        {
+            get
+            {
+                if (this.DmSet == null || this.DmSet.Relations == null || this.DmSet.Relations.Count == 0)
+                    return null;
+
+                var relations = this.DmSet.Relations.Where(r => r.ChildTable == this);
+
+                return relations;
+            }
+        }
+
         public DmRelation AddForeignKey(string relationName, DmColumn childColumn, DmColumn parentColumn)
         {
-            // check if child column is from the current table
+            // check if child column is from the current table, because foreign key are allways referenced in child table
             if (!this.Columns.Contains(childColumn))
                 throw new Exception("Child column should belong to the dmTable");
 
 
-            DmRelation dr = new DmRelation(relationName, parentColumn, childColumn);
+            var dr = new DmRelation(relationName, parentColumn, childColumn);
             this.DmSet.Relations.Add(dr);
 
             return dr;
@@ -213,10 +216,7 @@ namespace Dotmim.Sync.Data
         /// <summary>
         /// Get a DmRow by its primary key 
         /// </summary>
-        public DmRow FindByKey(object key)
-        {
-            return this.FindByKey(new object[] { key });
-        }
+        public DmRow FindByKey(object key) => this.FindByKey(new object[] { key });
 
         /// <summary>
         /// Get a DmRow by its primary key (composed by a multi columns key)
@@ -224,10 +224,10 @@ namespace Dotmim.Sync.Data
         public DmRow FindByKey(object[] key)
         {
 
-            if (!primaryKey.HasValue)
+            if (!this.primaryKey.HasValue)
                 return null;
 
-            return this.Rows.FirstOrDefault(r => primaryKey.ValuesAreEqual(r, key));
+            return this.Rows.FirstOrDefault(r => this.primaryKey.ValuesAreEqual(r, key));
         }
 
         /// <summary>
@@ -235,26 +235,23 @@ namespace Dotmim.Sync.Data
         /// </summary>
         public DmKey PrimaryKey
         {
-            get
-            {
-                return primaryKey;
-            }
+            get => this.primaryKey;
             set
             {
-                if (value == primaryKey || value.Equals(primaryKey))
+                if (value == this.primaryKey || value.Equals(this.primaryKey))
                     return;
 
-                primaryKey = value;
+                this.primaryKey = value;
 
-                if (!primaryKey.HasValue)
+                if (!this.primaryKey.HasValue)
                     return;
 
-                for (int i = 0; i < primaryKey.Columns.Length; i++)
-                    primaryKey.Columns[i].AllowDBNull = false;
+                for (var i = 0; i < this.primaryKey.Columns.Length; i++)
+                    this.primaryKey.Columns[i].AllowDBNull = false;
 
                 // if we have only One Column, so must be unique
-                if (primaryKey.Columns.Length == 1)
-                    primaryKey.Columns[0].IsUnique = true;
+                if (this.primaryKey.Columns.Length == 1)
+                    this.primaryKey.Columns[0].IsUnique = true;
             }
         }
 
@@ -268,10 +265,7 @@ namespace Dotmim.Sync.Data
         /// </summary>
         public string TableName
         {
-            get
-            {
-                return tableName;
-            }
+            get => this.tableName;
             set
             {
                 try
@@ -279,14 +273,14 @@ namespace Dotmim.Sync.Data
                     if (value == null)
                         value = "";
 
-                    if (DmSet != null)
+                    if (this.DmSet != null)
                     {
                         if (value.Length == 0)
                             throw new ArgumentException("NoTableName");
 
-                        CheckNameCompliance(value);
+                        this.CheckNameCompliance(value);
                     }
-                    tableName = value;
+                    this.tableName = value;
                 }
                 finally
                 {
@@ -299,7 +293,7 @@ namespace Dotmim.Sync.Data
         /// </summary>
         internal void CheckNameCompliance(string tableName)
         {
-            if (DmSet != null && this.IsEqual(tableName, DmSet.DmSetName))
+            if (this.DmSet != null && this.IsEqual(tableName, this.DmSet.DmSetName))
                 throw new ArgumentException("Conflicting name. DmTable Name must be different than DmSet Name");
         }
 
@@ -308,8 +302,8 @@ namespace Dotmim.Sync.Data
         /// </summary>
         public string Schema
         {
-            get { return schema; }
-            set { schema = value ?? string.Empty; }
+            get => this.schema;
+            set => this.schema = value ?? string.Empty;
         }
 
         /// <summary>
@@ -341,7 +335,7 @@ namespace Dotmim.Sync.Data
                         (this.primaryKey == null || !this.primaryKey.Columns.Contains(column))
                         &&
                         !column.IsCompute
-                        && 
+                        &&
                         !column.IsReadOnly
                         )
                         yield return column;
@@ -376,13 +370,7 @@ namespace Dotmim.Sync.Data
         /// <summary>
         /// Gets a value returning if the dmTable contains an auto increment column
         /// </summary>
-        public bool HasAutoIncrementColumns
-        {
-            get
-            {
-                return this.Columns.Any(c => c.IsAutoIncrement);
-            }
-        }
+        public bool HasAutoIncrementColumns => this.Columns.Any(c => c.IsAutoIncrement);
 
 
         /// <summary>
@@ -400,7 +388,7 @@ namespace Dotmim.Sync.Data
         /// </summary>
         public DmTable Clone()
         {
-            DmTable clone = new DmTable
+            var clone = new DmTable
             {
 
                 // Set All properties
@@ -420,16 +408,16 @@ namespace Dotmim.Sync.Data
 
             // add all columns
             var clmns = this.Columns;
-            for (int i = 0; i < clmns.Count; i++)
+            for (var i = 0; i < clmns.Count; i++)
                 clone.Columns.Add(clmns[i].Clone());
 
             // Create PrimaryKey
-            DmColumn[] pkey = PrimaryKey.Columns;
+            var pkey = this.PrimaryKey.Columns;
             if (pkey != null && pkey.Length > 0)
             {
-                DmColumn[] key = new DmColumn[pkey.Length];
+                var key = new DmColumn[pkey.Length];
 
-                for (int i = 0; i < pkey.Length; i++)
+                for (var i = 0; i < pkey.Length; i++)
                     key[i] = clone.Columns[pkey[i].Ordinal];
 
                 clone.PrimaryKey = new DmKey(key);
@@ -445,9 +433,9 @@ namespace Dotmim.Sync.Data
         {
             try
             {
-                DmTable destTable = this.Clone();
+                var destTable = this.Clone();
 
-                foreach (DmRow row in Rows)
+                foreach (var row in this.Rows)
                     destTable.ImportRow(row);
 
                 return destTable;
@@ -465,28 +453,25 @@ namespace Dotmim.Sync.Data
             foreach (var c in this.columns)
                 c.Clear();
 
-            Rows.Clear();
+            this.Rows.Clear();
         }
 
         /// <summary>
         /// Compare string with the table CultureInfo and CaseSensitive flags
         /// </summary>
-        public Boolean IsEqual(string s1, string s2)
-        {
-            return this.culture.CompareInfo.Compare(s1, s2, this.compareFlags) == 0;
-        }
+        public bool IsEqual(string s1, string s2) => this.culture.CompareInfo.Compare(s1, s2, this.compareFlags) == 0;
 
         /// <summary>
         /// Get Changes from the DmTable
         /// </summary>
         public DmTable GetChanges()
         {
-            DmTable dtChanges = this.Clone();
+            var dtChanges = this.Clone();
             DmRow row = null;
 
-            for (int i = 0; i < Rows.Count; i++)
+            for (var i = 0; i < this.Rows.Count; i++)
             {
-                row = Rows[i];
+                row = this.Rows[i];
                 if (row.oldRecord != row.newRecord)
                     dtChanges.ImportRow(row);
             }
@@ -502,12 +487,12 @@ namespace Dotmim.Sync.Data
         /// </summary>
         public DmTable GetChanges(DmRowState rowStates)
         {
-            DmTable dtChanges = this.Clone();
+            var dtChanges = this.Clone();
             DmRow row = null;
 
-            for (int i = 0; i < Rows.Count; i++)
+            for (var i = 0; i < this.Rows.Count; i++)
             {
-                row = Rows[i];
+                row = this.Rows[i];
                 if ((row.RowState & rowStates) == row.RowState)
                     dtChanges.ImportRow(row);
             }
@@ -524,12 +509,12 @@ namespace Dotmim.Sync.Data
         internal void CopyRecords(DmTable src, int srcRecord, int newRecord)
         {
             // Parcours de toutes les colonnes de destination
-            for (int i = 0; i < this.Columns.Count; ++i)
+            for (var i = 0; i < this.Columns.Count; ++i)
             {
                 // colonne de destination
-                DmColumn dstColumn = this.Columns[i];
+                var dstColumn = this.Columns[i];
                 // colonne à copier
-                DmColumn srcColumn = src.Columns.FirstOrDefault(c => this.IsEqual(c.ColumnName, dstColumn.ColumnName));
+                var srcColumn = src.Columns.FirstOrDefault(c => this.IsEqual(c.ColumnName, dstColumn.ColumnName));
 
 
                 if (srcColumn == null)
@@ -552,8 +537,8 @@ namespace Dotmim.Sync.Data
                 {
                     if (srcColumn[srcRecord] is byte[] srcArray && srcArray.Length > 0)
                     {
-                        byte[] destArray = (byte[])dstColumn[newRecord];
-                        destArray = new Byte[srcArray.Length];
+                        var destArray = (byte[])dstColumn[newRecord];
+                        destArray = new byte[srcArray.Length];
                         Buffer.BlockCopy(srcArray, 0, destArray, 0, srcArray.Length);
                     }
                     continue;
@@ -562,7 +547,7 @@ namespace Dotmim.Sync.Data
                 {
                     if (srcColumn[srcRecord] is char[] srcArray && srcArray.Length > 0)
                     {
-                        char[] destArray = (char[])dstColumn[newRecord];
+                        var destArray = (char[])dstColumn[newRecord];
                         destArray = new char[srcArray.Length];
                         Buffer.BlockCopy(srcArray, 0, destArray, 0, srcArray.Length);
                     }
@@ -591,7 +576,7 @@ namespace Dotmim.Sync.Data
                 oldRecord = this.Rows.GetNewVersionId();
 
                 // ancienne version de la ligne à enregistrer dans la nouvelle ligne
-                CopyRecords(rowToImport.Table, rowToImport.oldRecord, oldRecord);
+                this.CopyRecords(rowToImport.Table, rowToImport.oldRecord, oldRecord);
             }
 
 
@@ -605,7 +590,7 @@ namespace Dotmim.Sync.Data
                     newRecord = this.Rows.GetNewVersionId();
 
                     // not unchanged, it means Added or modified
-                    CopyRecords(rowToImport.Table, rowToImport.newRecord, newRecord);
+                    this.CopyRecords(rowToImport.Table, rowToImport.newRecord, newRecord);
                 }
                 else
                     newRecord = oldRecord;
@@ -634,14 +619,14 @@ namespace Dotmim.Sync.Data
             var dr = new DmRow(this);
 
             // Check if less values than columns
-            bool hasLessValues = false;
-            if (values.Length == columns.Count - 1)
+            var hasLessValues = false;
+            if (values.Length == this.columns.Count - 1)
                 hasLessValues = true;
 
-            int j = 0;
-            for (int i = 0; i < columns.Count; i++)
+            var j = 0;
+            for (var i = 0; i < this.columns.Count; i++)
             {
-                var column = columns[i];
+                var column = this.columns[i];
 
                 if (column.IsAutoIncrement && hasLessValues)
                     continue;
@@ -668,10 +653,10 @@ namespace Dotmim.Sync.Data
         /// </summary>
         public void RejectChanges()
         {
-            DmRow[] oldRows = new DmRow[Rows.Count];
-            Rows.CopyTo(oldRows, 0);
+            var oldRows = new DmRow[this.Rows.Count];
+            this.Rows.CopyTo(oldRows, 0);
 
-            for (int i = 0; i < oldRows.Length; i++)
+            for (var i = 0; i < oldRows.Length; i++)
                 oldRows[i].Rollback();
 
         }
@@ -681,10 +666,7 @@ namespace Dotmim.Sync.Data
         /// <summary>
         /// Merge a dmTable in this dmTable without perserving changes
         /// </summary>
-        public void Merge(DmTable table)
-        {
-            Merge(table, false);
-        }
+        public void Merge(DmTable table) => this.Merge(table, false);
 
         /// <summary>
         /// Merge a dmTable in this dmTable perserving changes
@@ -694,7 +676,7 @@ namespace Dotmim.Sync.Data
             if (table == null)
                 throw new ArgumentNullException(nameof(table));
 
-            DmMerger merger = new DmMerger(this, preserveChanges);
+            var merger = new DmMerger(this, preserveChanges);
             merger.MergeTable(table);
         }
 
@@ -703,15 +685,15 @@ namespace Dotmim.Sync.Data
             // Si le merge ne concerne pas une ligne déjà existante
             if (targetRow == null)
             {
-                ImportRow(row);
+                this.ImportRow(row);
                 return;
             }
 
-            int proposedRecord = targetRow.tempRecord; // by saving off the tempRecord, EndEdit won't free newRecord
+            var proposedRecord = targetRow.tempRecord; // by saving off the tempRecord, EndEdit won't free newRecord
             targetRow.tempRecord = -1;
             try
             {
-                DmRowState saveRowState = targetRow.RowState;
+                var saveRowState = targetRow.RowState;
                 int saveIdxRecord = (saveRowState == DmRowState.Added) ? targetRow.newRecord : saveIdxRecord = targetRow.oldRecord;
                 int newRecord;
                 int oldRecord;
@@ -723,7 +705,7 @@ namespace Dotmim.Sync.Data
                     if (preserveChanges)
                     {
                         newRecord = this.Rows.GetNewVersionId();
-                        CopyRecords(this, oldRecord, newRecord);
+                        this.CopyRecords(this, oldRecord, newRecord);
                     }
                     else
                     {
@@ -731,7 +713,7 @@ namespace Dotmim.Sync.Data
                     }
 
 
-                    CopyRecords(row.Table, row.oldRecord, targetRow.oldRecord);
+                    this.CopyRecords(row.Table, row.oldRecord, targetRow.oldRecord);
                 }
                 else if (row.newRecord == -1)
                 {
@@ -742,7 +724,7 @@ namespace Dotmim.Sync.Data
                         if (targetRow.RowState == DmRowState.Unchanged)
                         {
                             newRecord = this.Rows.GetNewVersionId();
-                            CopyRecords(this, oldRecord, newRecord);
+                            this.CopyRecords(this, oldRecord, newRecord);
                         }
                         else
                         {
@@ -752,7 +734,7 @@ namespace Dotmim.Sync.Data
                     else
                         newRecord = -1;
 
-                    CopyRecords(row.Table, row.oldRecord, oldRecord);
+                    this.CopyRecords(row.Table, row.oldRecord, oldRecord);
 
                 }
                 else
@@ -763,13 +745,13 @@ namespace Dotmim.Sync.Data
                     if (targetRow.RowState == DmRowState.Unchanged)
                     {
                         newRecord = this.Rows.GetNewVersionId();
-                        CopyRecords(this, oldRecord, newRecord);
+                        this.CopyRecords(this, oldRecord, newRecord);
                     }
-                    CopyRecords(row.Table, row.oldRecord, oldRecord);
+                    this.CopyRecords(row.Table, row.oldRecord, oldRecord);
 
                     if (!preserveChanges)
                     {
-                        CopyRecords(row.Table, row.newRecord, newRecord);
+                        this.CopyRecords(row.Table, row.newRecord, newRecord);
                     }
                 }
 
@@ -794,11 +776,11 @@ namespace Dotmim.Sync.Data
             if (this.Columns.Count == 0)
             {
 
-                for (int i = 0; i < reader.FieldCount; i++)
+                for (var i = 0; i < reader.FieldCount; i++)
                 {
                     var columnName = reader.GetName(i);
                     var columnType = reader.GetFieldType(i);
-                    DmColumn column = DmColumn.CreateColumn(columnName, columnType);
+                    var column = DmColumn.CreateColumn(columnName, columnType);
                     this.Columns.Add(column);
                 }
             }
@@ -809,12 +791,116 @@ namespace Dotmim.Sync.Data
 
             while (reader.Read())
             {
-                object[] readerDataValues = new object[reader.FieldCount];
+                var readerDataValues = new object[reader.FieldCount];
 
                 reader.GetValues(readerDataValues);
                 var dataRow = this.LoadDataRow(readerDataValues, true);
 
             }
+        }
+
+
+
+        /// <summary>
+        /// Get a List of DmRelation from the current table to the childTable
+        /// </summary>
+        public List<DmRelation> GetChildsTo(DmTable childTable)
+        {
+            // bool validating we found the correct path from this to childTable
+            var checkFound = false;
+
+            // final list containing all relation from this to childTable
+            var childsRelations = new List<DmRelation>();
+
+            void checkBranch(DmTable dmTable, ref List<DmRelation> lst, ref bool found)
+            {
+                // if we don't have any foreign key in the current table (so no parent tables) we can return false
+                if (dmTable.ChildRelations == null || dmTable.ChildRelations.Count == 0)
+                    return;
+
+                // check all child relations
+                foreach (var childRelation in dmTable.ChildRelations)
+                {
+                    // new list cloned
+                    var nList = new List<DmRelation>(lst)
+                    {
+                        // add the parent table name to the new cloned list
+                        childRelation
+                    };
+
+                    // Check if finally we reach the correct table we are looking for
+                    if (childRelation.ChildTable.TableName.ToLowerInvariant() == childTable.TableName.ToLowerInvariant())
+                    {
+                        // set the correct flag
+                        found = true;
+                        // replace the referenced list with the good one
+                        childsRelations = nList;
+                        return;
+                    }
+
+                    checkBranch(childRelation.ChildTable, ref nList, ref found);
+                }
+            }
+
+            checkBranch(this, ref childsRelations, ref checkFound);
+
+            if (!checkFound)
+                childsRelations.Clear();
+
+            return childsRelations;
+
+        }
+
+        /// <summary>
+        /// Get a List of DmRelation from the current table to the parentTable
+        /// </summary>
+        public List<DmRelation> GetParentsTo(DmTable rootTable)
+        {
+
+            // bool validating we found the correct path from this to parentTable
+            var checkFound = false;
+
+            // final list containing all relation from this to parentTable
+            var parentRelations = new List<DmRelation>();
+
+            // check a whole branch
+            void checkBranch(DmTable dmTable, ref List<DmRelation> lst, ref bool found)
+            {
+                // if we don't have any foreign key in the current table (so no parent tables) we can return false
+                if (dmTable.ParentRelations == null || dmTable.ParentRelations.Count == 0)
+                    return;
+
+                // check all parent relations
+                foreach (var parentRelation in dmTable.ParentRelations)
+                {
+                    // new list cloned
+                    var nList = new List<DmRelation>(lst)
+                    {
+
+                        // add the parent table name to the new cloned list
+                        parentRelation
+                    };
+
+                    // Check if the parent relation is the parentTable name we are searching
+                    if (parentRelation.ParentTable.TableName.ToLowerInvariant() == rootTable.TableName.ToLowerInvariant())
+                    {
+                        // set the correct flag
+                        found = true;
+                        // replace the referenced list with the good one
+                        parentRelations = nList;
+                        return;
+                    }
+
+                    checkBranch(parentRelation.ParentTable, ref nList, ref found);
+                }
+            }
+
+            checkBranch(this, ref parentRelations, ref checkFound);
+
+            if (!checkFound)
+                parentRelations.Clear();
+
+            return parentRelations;
         }
 
     }

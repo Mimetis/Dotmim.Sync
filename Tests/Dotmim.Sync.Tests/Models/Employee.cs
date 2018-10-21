@@ -15,9 +15,11 @@ namespace Dotmim.Sync.Tests.Models
         public int EmployeeId { get; set; }
         public string FirstName { get; set; }
         public string LastName { get; set; }
+        public string RegionId { get; set; }
         public Guid? Rowguid { get; set; }
         public DateTime? ModifiedDate { get; set; }
 
+        public Region Region { get; set; }
         public ICollection<Customer> Customer { get; set; }
         public ICollection<EmployeeAddress> EmployeeAddress { get; set; }
     }
