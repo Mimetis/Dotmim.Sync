@@ -1356,8 +1356,72 @@ namespace Dotmim.Sync.Tests
             }
         }
 
+        /// <summary>
+        /// Insert one row on each client and update FK on another table that references that row,
+        /// should be correctly sync on server and all clients
+        /// </summary>
+        public virtual async Task Insert_New_Table_Then_Update_Existing_Table_From_Client()
+        {
+            // create new ProductCategory on server
+            foreach (var conf in TestConfigurations.GetConfigurations())
+            {
+                var productId = Guid.NewGuid();
+                var productNameServer = Path.GetRandomFileName().Replace(".", "");
+                var productNumber = Path.GetRandomFileName().Replace(".", "").ToUpperInvariant().Substring(0, 10);
+
+                // insert the row on the server
+                using (var serverDbCtx = GetServerDbContext())
+                {
+                    serverDbCtx.Product.Add(new Product
+                    {
+                        ProductId = productId,
+                        Name = productNameServer,
+                        ProductNumber = productNumber
+                    });
+
+                    await serverDbCtx.SaveChangesAsync();
+                }
+
+                var results = await this.testRunner.RunTestsAsync();
+
+                foreach (var trr in results)
+                {
+                    Assert.Equal(1, trr.Results.TotalChangesDownloaded);
+                    Assert.Equal(0, trr.Results.TotalChangesUploaded);
+                    Assert.Equal(0, trr.Results.TotalSyncConflicts);
+                }
+
+                foreach (var clientRun in fixture.ClientRuns)
+                {
+                    var name = Path.GetRandomFileName().Replace(".", "");
+                    var id = name.ToUpperInvariant().Substring(0, 6);
+
+                    using (var clientDbCtx = GetClientDbContext(clientRun))
+                    {
+                        // create a new product category
+                        clientDbCtx.ProductCategory.Add(new ProductCategory
+                        {
+                            Name = name,
+                            ProductCategoryId = id
+                        });
+
+                        // update the synced product with this new product category
+                        var product = await clientDbCtx.Product.SingleAsync(a => a.ProductId == productId);
+                        product.ProductCategoryId = id;
+
+                        await clientDbCtx.SaveChangesAsync();
+                    }
+                }
+
+                results = await testRunner.RunTestsAsync(conf);
+
+               foreach (var trr in results)
+               {
+                    Assert.Equal(0, trr.Results.TotalChangesDownloaded);
+                    Assert.Equal(2, trr.Results.TotalChangesUploaded);
+                    Assert.Equal(0, trr.Results.TotalSyncConflicts);
+                }
+            }
+        }
     }
-
-
-
 }
