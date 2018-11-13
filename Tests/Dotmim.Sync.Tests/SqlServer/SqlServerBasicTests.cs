@@ -147,5 +147,11 @@ public class SqlServerBasicTests : BasicTestsBase, IClassFixture<SqlServerFixtur
         {
             return base.Check_Composite_ForeignKey_Existence();
         }
+            
+        [Fact, TestPriority(22)]
+        public override Task Insert_New_Table_Then_Update_Existing_Table_From_Client()
+        {
+            return base.Insert_New_Table_Then_Update_Existing_Table_From_Client();
+        }
     }
 }
