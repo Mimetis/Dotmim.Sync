@@ -12,6 +12,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -1214,7 +1215,7 @@ namespace Dotmim.Sync.Tests
                 }
 
 
-                var results = await this.testRunner.RunTestsAsync();
+                var results = await this.testRunner.RunTestsAsync(conf);
 
                 foreach (var trr in results)
                 {
@@ -1319,9 +1320,9 @@ namespace Dotmim.Sync.Tests
 
                         Assert.False(spBuider.NeedToCreateProcedure(Builders.DbCommandType.InsertMetadata));
                         Assert.False(spBuider.NeedToCreateProcedure(Builders.DbCommandType.InsertRow));
-                        Assert.False( spBuider.NeedToCreateProcedure(Builders.DbCommandType.Reset));
-                        Assert.False( spBuider.NeedToCreateProcedure(Builders.DbCommandType.SelectChanges));
-                        Assert.False( spBuider.NeedToCreateProcedure(Builders.DbCommandType.SelectRow));
+                        Assert.False(spBuider.NeedToCreateProcedure(Builders.DbCommandType.Reset));
+                        Assert.False(spBuider.NeedToCreateProcedure(Builders.DbCommandType.SelectChanges));
+                        Assert.False(spBuider.NeedToCreateProcedure(Builders.DbCommandType.SelectRow));
                         Assert.False(spBuider.NeedToCreateProcedure(Builders.DbCommandType.DeleteMetadata));
                         Assert.False(spBuider.NeedToCreateProcedure(Builders.DbCommandType.DeleteRow));
 
@@ -1422,7 +1423,7 @@ namespace Dotmim.Sync.Tests
                     await serverDbCtx.SaveChangesAsync();
                 }
 
-                var results = await this.testRunner.RunTestsAsync();
+                var results = await this.testRunner.RunTestsAsync(conf);
 
                 foreach (var trr in results)
                 {
@@ -1455,13 +1456,78 @@ namespace Dotmim.Sync.Tests
 
                 results = await testRunner.RunTestsAsync(conf);
 
-               foreach (var trr in results)
-               {
+                foreach (var trr in results)
+                {
                     Assert.Equal(0, trr.Results.TotalChangesDownloaded);
                     Assert.Equal(2, trr.Results.TotalChangesUploaded);
                     Assert.Equal(0, trr.Results.TotalSyncConflicts);
                 }
             }
         }
+
+
+        public virtual async Task Insert_Record_Then_Insert_During_GetChanges()
+        {
+            // create new ProductCategory on server
+            foreach (var conf in TestConfigurations.GetConfigurations())
+            {
+                foreach (var clientRun in this.fixture.ClientRuns)
+                {
+                    var name = Path.GetRandomFileName().Replace(".", "");
+                    var id = name.ToUpperInvariant().Substring(0, 6);
+
+                    // Add a row on the client
+                    using (var ctx = GetClientDbContext(clientRun))
+                    {
+                        var pc = new ProductCategory { Name = name, ProductCategoryId = id };
+                        ctx.ProductCategory.Add(pc);
+                        await ctx.SaveChangesAsync();
+                    }
+
+                    // Sleep during a selecting changes on first sync
+                    async void tableChangesSelected(object s, TableChangesSelectedEventArgs changes)
+                    {
+                        // just after the table select changes has occured and before the next step
+                        // insert a new record
+
+                        // Assert.Equal(1, changes.TableChangesSelected.Inserts);
+
+                        if (changes.TableChangesSelected.TableName != "ProductCategory")
+                            return;
+
+                        var name2 = Path.GetRandomFileName().Replace(".", "");
+                        var id2 = name2.ToUpperInvariant().Substring(0, 6);
+
+                        using (var ctx = GetClientDbContext(clientRun))
+                        {
+                            var pc = new ProductCategory { Name = name2, ProductCategoryId = id2 };
+                            ctx.ProductCategory.Add(pc);
+                            await ctx.SaveChangesAsync();
+                        }
+                    };
+
+                    // during first run, add a new row during selection on client (very first step of whole sync process)
+                    clientRun.ClientProvider.TableChangesSelected += tableChangesSelected;
+                    var trr = await clientRun.RunAsync(this.ServerProvider, this.fixture, null, null, conf, false);
+                    clientRun.ClientProvider.TableChangesSelected -= tableChangesSelected;
+
+                    Assert.Equal(0, trr.Results.TotalChangesDownloaded);
+                    Assert.Equal(1, trr.Results.TotalChangesUploaded);
+                    Assert.Equal(0, trr.Results.TotalSyncConflicts);
+
+
+                    // then 2nd run to get row inserted DURING last sync
+                    var trr2 = await clientRun.RunAsync(this.ServerProvider, this.fixture, null, null, conf, false);
+                    Assert.Equal(0, trr2.Results.TotalChangesDownloaded);
+                    Assert.Equal(1, trr2.Results.TotalChangesUploaded);
+                    Assert.Equal(0, trr2.Results.TotalSyncConflicts);
+
+
+
+                }
+
+            }
+        }
+
     }
 }

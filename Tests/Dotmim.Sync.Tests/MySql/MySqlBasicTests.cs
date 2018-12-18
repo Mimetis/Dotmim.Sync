@@ -165,5 +165,13 @@ namespace Dotmim.Sync.Tests.MySql
         {
             return base.Insert_New_Table_Then_Update_Existing_Table_From_Client();
         }
+
+        [Fact, TestPriority(23)]
+        public override Task Insert_Record_Then_Insert_During_GetChanges()
+        {
+            return base.Insert_Record_Then_Insert_During_GetChanges();
+        }
+
+
     }
 }
