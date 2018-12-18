@@ -243,6 +243,63 @@ namespace Dotmim.Sync.SqlServer.Builders
         }
 
         /// <summary>
+        /// Gets DmTable & DmColumn from a FilterClause2
+        /// </summary>
+        private (DmTable filterTable, DmColumn filterColumn) GetFilterDmColumn(FilterClause2 filter)
+        {
+            try
+            {
+                // get the column from the original filtered table (could be another table)
+                var tableFilter = this.tableDescription.DmSet.Tables[filter.FilterTable.TableName.ObjectName];
+                var columnFilter = tableFilter.Columns[filter.FilterTable.ColumnName];
+
+                if (columnFilter == null)
+                    throw new InvalidExpressionException($"Column {filter.FilterTable.ColumnName} does not exist in Table {this.tableDescription.TableName}");
+
+                return (tableFilter, columnFilter);
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidExpressionException($"Can't get Filter column from {this.tableDescription.TableName}. Exception is {ex.Message}");
+            }
+
+        }
+
+        /// <summary>
+        /// Get all relations that are referenced as foreign keys and filtered columns, in a tracking table
+        /// From a table to any filter table, get all DmRelation parents to this filter, with a defined depth
+        /// </summary>
+        /// <returns></returns>
+        private List<DmRelation> GetFilteredRelations(DmTable table, int depth = 0)
+        {
+            var relations = new List<DmRelation>();
+
+            foreach (var filter in this.Filters)
+            {
+                // if column is null, we are in a table that need a relation before
+                if (string.IsNullOrEmpty(filter.FilterTable.ColumnName))
+                    continue;
+
+                // Gets filterTable and filterColumn from DmSet
+                var (filterTable, filterColumn) = this.GetFilterDmColumn(filter);
+
+                // get hierarchy from this table to filtertable
+                var hierarchy = table.GetParentsTo(filterTable);
+
+                depth = depth > 0 ? Math.Min(hierarchy.Count, depth) : hierarchy.Count;
+
+                for (var i = 0; i < depth; i++)
+                {
+                    relations.Add(hierarchy[i]);
+                }
+
+            }
+
+            return relations;
+
+        }
+
+        /// <summary>
         /// Get the update statement used in triggers
         /// </summary>
         private string GetUpdateStatement(ObjectNameParser trackingTable, bool isTombstone = false)
@@ -253,7 +310,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"SET \t[sync_row_is_tombstone] = { (isTombstone ? "1" : "0") }");
             stringBuilder.AppendLine($"\t,[update_scope_id] = NULL -- Update locally");
             stringBuilder.AppendLine($"\t,[last_change_datetime] = GetUtcDate()");
-            stringBuilder.AppendLine($"FROM {trackingTable.FullQuotedString} [side]");
+            stringBuilder.Append($"FROM {trackingTable.FullQuotedString} [side]");
 
             return stringBuilder.ToString();
 
@@ -333,6 +390,197 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         }
 
+        private string GetInsertTriggerStatement(DmTable currentTable)
+        {
+            var stringBuilder = new StringBuilder();
+            (var dmTableName, var dmTrackingName) = SqlBuilder.GetParsers(currentTable);
+
+            stringBuilder.AppendLine("(");
+            var argComma = string.Empty;
+            // Add mutable primary keys in the insert statement
+            foreach (var mutableColumn in currentTable.PrimaryKey.Columns.Where(c => !c.IsReadOnly))
+            {
+                var columnName = new ObjectNameParser(mutableColumn.ColumnName);
+                stringBuilder.Append($"{argComma}{columnName.FullQuotedString}");
+                argComma = ",";
+            }
+
+            stringBuilder.AppendLine();
+            stringBuilder.Append(", [create_scope_id]");
+            stringBuilder.Append(", [create_timestamp]");
+            stringBuilder.Append(", [update_scope_id]");
+            stringBuilder.Append(", [update_timestamp]");
+            stringBuilder.Append(", [sync_row_is_tombstone]");
+            stringBuilder.AppendLine(", [last_change_datetime]\t");
+
+            // iterate through all columns that are foreign keys, from currentTable to Filter
+            var dmColumns = this.GetFilteredRelations(currentTable).SelectMany(dr => dr.ParentColumns).ToList();
+
+            foreach (var column in dmColumns)
+            {
+                var pt = new ObjectNameParser(column.Table.TableName).ObjectNameNormalized;
+                var pc = new ObjectNameParser(column.ColumnName).ObjectNameNormalized;
+                var ccc = new ObjectNameParser($"{pt}_{pc}").FullQuotedString;
+                stringBuilder.Append($",{ccc} ");
+            }
+            stringBuilder.AppendLine(")");
+
+            // Get the Select command 
+            // Examples
+            // Current table [CustomerAddress]. INSERTED [Employee]
+            // SELECT [r1].[CustomerID], [r1].[AddressID]
+            // Current table [CustomerAddress]. INSERTED [Customer]
+            // SELECT [r0].[CustomerID], [r0].[AddressID]
+            // Current table [CustomerAddress]. INSERTED [CustomerAddress]
+            // SELECT [i].[CustomerID], [i].[AddressID]
+            stringBuilder.Append("SELECT ");
+
+            // get from tableDescription (INSERTED) DOWN to current table to get primary keys needed
+            // if dmTable == tableDescription, no relations will be involved in
+            var hierarchy = this.tableDescription.GetChildsTo(currentTable);
+
+            // get the correct alias
+            var alias = hierarchy.Count > 0 ? $"[r{hierarchy.Count - 1}]" : "[i]";
+
+            foreach (var mutableColumn in currentTable.PrimaryKey.Columns.Where(c => !c.IsReadOnly))
+            {
+                var columnName = new ObjectNameParser(mutableColumn.ColumnName);
+                stringBuilder.Append($"{alias}.{columnName.FullQuotedString}, ");
+            }
+
+            stringBuilder.Append(" NULL ,@@DBTS+1 ,NULL ,@@DBTS+1 ,0 ,GetUtcDate() ");
+
+            stringBuilder.AppendLine();
+
+            // Get From clause
+            // Joined from INSERTED UP to filter
+            // and from INSERTED DOWN to current table 
+            stringBuilder.AppendLine("FROM INSERTED [i]");
+            stringBuilder.AppendLine($"-- Get all rows INSERTED {this.tableName.FullQuotedString} UP TO Filter to get all columns needed to fill foreign keys");
+
+            // Go from current table UP to filter
+            var dmRelations = this.GetFilteredRelations(this.tableDescription);
+
+            if (dmRelations.Count == 0)
+                stringBuilder.AppendLine($"-- Not Needed here.");
+
+            // needed later for joining the left clause on tracking table
+            var leftJoinTrackingTableClauses = new StringBuilder();
+
+            for (var indexRelation = 0; indexRelation < dmRelations.Count; indexRelation++)
+            {
+                var dmRelation = dmRelations[indexRelation];
+                // get joined table
+                var joinedDmTable = dmRelation.ParentTable;
+                // get joined table name
+                var joinedDmTableName = new ObjectNameParser(joinedDmTable.TableName);
+
+                stringBuilder.Append($"INNER JOIN {joinedDmTableName.FullQuotedString} as [i{indexRelation}] ON ");
+
+                var and = "";
+                for (var indexColumn = 0; indexColumn < dmRelation.ChildColumns.Length; indexColumn++)
+                {
+                    var dmParentColumn = dmRelation.ParentColumns[indexColumn];
+                    var dmParentColumnName = new ObjectNameParser(dmParentColumn.ColumnName).FullQuotedString;
+                    var dmParentColumnAlias = $"[i{indexRelation}]";
+
+                    var dmChildColumn = dmRelation.ChildColumns[indexColumn];
+                    var dmChildColumnName = new ObjectNameParser(dmChildColumn.ColumnName).FullQuotedString;
+                    var dmChildColumnAlias = indexRelation == 0 ? "[i]" : $"[i{indexRelation - 1}]";
+
+                    stringBuilder.Append($"{and}{dmParentColumnAlias}.{dmParentColumnName} = {dmChildColumnAlias}.{dmChildColumnName}");
+
+                    // needed later for left join clause
+                    var pt = new ObjectNameParser(dmRelation.ChildTable.TableName).ObjectNameNormalized;
+                    var pc = new ObjectNameParser(dmChildColumn.ColumnName).ObjectNameNormalized;
+                    var ccc = new ObjectNameParser($"{pt}_{pc}").FullQuotedString;
+                    leftJoinTrackingTableClauses.AppendLine($"and [side].{ccc} = {dmChildColumnAlias}.{dmChildColumnName}");
+
+                    and = " AND ";
+                }
+
+                stringBuilder.AppendLine();
+            }
+
+
+
+            stringBuilder.AppendLine($"-- Get all rows from INSERTED {this.tableName.FullQuotedString} DOW TO current tracking table {dmTrackingName.FullQuotedString} to fill primary keys");
+
+            dmRelations = this.tableDescription.GetChildsTo(currentTable);
+
+            // needed later for joining the left clause on tracking table
+            var leftJoinTrackingTableClauses2 = new StringBuilder();
+            
+            if (dmRelations.Count == 0)
+            {
+                stringBuilder.AppendLine($"-- Not Needed here.");
+
+                // if nos left join to get clauses, we are at root level, so just make a left clause on pkeys
+                var and = "";
+                foreach (var pkey in this.tableDescription.PrimaryKey.Columns)
+                {
+                    var pkeyName = new ObjectNameParser(pkey.ColumnName).FullQuotedString;
+                    leftJoinTrackingTableClauses2.Append($"{and}[side].{pkeyName} = [i].{pkeyName}");
+                    and = " AND ";
+                }
+                stringBuilder.AppendLine();
+            }
+
+
+            for (var indexRelation = 0; indexRelation < dmRelations.Count; indexRelation++)
+            {
+                var dmRelation = dmRelations[indexRelation];
+                // get joined table
+                var joinedDmTable = dmRelation.ChildTable;
+                // get joined table name
+                var joinedDmTableName = new ObjectNameParser(joinedDmTable.TableName);
+
+                stringBuilder.Append($"INNER JOIN {joinedDmTableName.FullQuotedString} AS [r{indexRelation}] ON ");
+
+                var and = "";
+                var and2 = dmRelations.Count == 0 ? "AND " : "";
+                for (var indexColumn = 0; indexColumn < dmRelation.ChildColumns.Length; indexColumn++)
+                {
+                    var dmParentColumn = dmRelation.ParentColumns[indexColumn];
+                    var dmParentColumnName = new ObjectNameParser(dmParentColumn.ColumnName).FullQuotedString;
+                    var dmParentColumnAlias = indexRelation == 0 ? "[i]" : $"[r{indexRelation - 1}]";
+
+                    var dmChildColumn = dmRelation.ChildColumns[indexColumn];
+                    var dmChildColumnName = new ObjectNameParser(dmChildColumn.ColumnName).FullQuotedString;
+                    var dmChildColumnAlias = $"[r{indexRelation}]";
+
+                    stringBuilder.Append($"{and}{dmChildColumnAlias}.{dmChildColumnName} = {dmParentColumnAlias}.{dmParentColumnName} ");
+
+                    // needed later for left join clause
+                    var pt = new ObjectNameParser(dmRelation.ParentTable.TableName).ObjectNameNormalized;
+                    var pc = new ObjectNameParser(dmParentColumn.ColumnName).ObjectNameNormalized;
+                    var ccc = new ObjectNameParser($"{pt}_{pc}").FullQuotedString;
+
+                    if (indexRelation == dmRelations.Count - 1)
+                        ccc = dmParentColumnName;
+
+                    leftJoinTrackingTableClauses2.AppendLine($"{and2}[side].{ccc} = {dmParentColumnAlias}.{dmParentColumnName}");
+
+                    and = and2 = " AND ";
+                }
+
+                stringBuilder.AppendLine();
+            }
+
+
+            // Get Left join on current table to check if line did not already exists
+            stringBuilder.AppendLine($"-- Make sure this line is not existing in the current [Customer_tracking] table ");
+            stringBuilder.AppendLine($"-- Based on {dmTrackingName.FullQuotedString} foreign keys to ROOT FILTER.");
+
+            stringBuilder.Append($"LEFT OUTER JOIN {dmTrackingName.FullQuotedString} [side] ON ");
+            stringBuilder.Append(leftJoinTrackingTableClauses.ToString());
+            stringBuilder.Append(leftJoinTrackingTableClauses2.ToString());
+            stringBuilder.AppendLine("WHERE [side].[id] IS NULL");
+
+
+
+            return stringBuilder.ToString();
+        }
 
         private string GetInsertIntoStatement(DmTable dmTable)
         {
@@ -590,7 +838,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             return str;
         }
 
-
         private (string whereEqual, string whereDifferent) GetWhereClauses(DmTable dmTable, DmTable tableDescription, string alias1, string alias2)
         {
             string whereClauseEqual = "", whereClauseDifferent = "", and = "";
@@ -692,59 +939,14 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         }
 
-
-
         /// <summary>
-        /// Get all columns that are referenced as foreign keys and as filtered columns in tracking table
+        /// UPDATE TRIGGER : Get all columns that should be part of a Join clause
+        /// In this example, tableDescription is Employee :
+        /// INNER JOIN [DELETED] AS[d] ON[d].[EmployeeID] = [side].[Employee_EmployeeID] and[d].[RegionID] = [side].[Region_RegionID]
+        /// DmColumns are EmployeeID (Pkey) and RegionId (Fkey) that are pkey / fkey AND part of the filter
         /// </summary>
-        /// <returns></returns>
-        private List<DmRelation> GetFilteredRelations(DmTable table, int level = 0)
+        private List<DmColumn> GetFilteredJoinedColumns()
         {
-            var relations = new List<DmRelation>();
-
-            foreach (var filter in this.Filters)
-            {
-                // if column is null, we are in a table that need a relation before
-                if (string.IsNullOrEmpty(filter.FilterTable.ColumnName))
-                    continue;
-
-                // get the column from the original filtered table (could be another table)
-                var tableFilter = table.DmSet.Tables[filter.FilterTable.TableName.ObjectName];
-                var columnFilter = tableFilter.Columns[filter.FilterTable.ColumnName];
-
-                if (columnFilter == null)
-                    throw new InvalidExpressionException($"Column {filter.FilterTable.ColumnName} does not exist in Table {this.tableDescription.TableName}");
-
-                // get hierarchy from this tabledescription to filtertable
-                var hierarchy = table.GetParentsTo(tableFilter);
-
-                var depth = level > 0 ? Math.Min(hierarchy.Count, level) : hierarchy.Count;
-
-                for (var i = 0; i < depth; i++)
-                {
-                    relations.Add(hierarchy[i]);
-                }
-
-            }
-
-            return relations;
-
-        }
-
-        /// <summary>
-        /// Get join clause for UPDATE [side] trigger. [side] the current table
-        /// INSERTED and DELETED are the tableDescription
-        /// </summary>
-        /// <param name="currentTable">Can be Root Filter table to Leaf table</param>
-        /// <returns></returns>
-        private string GetJoin(DmTable currentTable)
-        {
-            (var currenTableName, var currentTrackingTableName) = SqlBuilder.GetParsers(currentTable);
-
-            var sb = new StringBuilder();
-            sb.AppendLine($"Get all {currentTrackingTableName} rows joined from [INSERTED] and [DELETED] based " +
-                          $"on primary keys and foreign keys (if exists) from {this.tableName}.");
-
             // Get primary keys and foreign keys, part of filter, from tableDescription
             var tableDescPrimaryKeysColumns = this.tableDescription.PrimaryKey.Columns;
 
@@ -754,12 +956,88 @@ namespace Dotmim.Sync.SqlServer.Builders
             // exclusive union of previous
             tbAllKeysColumns.AddRange(tableDescPrimaryKeysColumns.Where(k => !tbAllKeysColumns.Any(fk => fk.ColumnName.ToLowerInvariant() == k.ColumnName.ToLowerInvariant())));
 
+            return tbAllKeysColumns;
+        }
+
+
+        /// <summary>
+        /// UPDATE TRIGGER : Get the Where clause
+        /// Can be equal or different
+        /// Example. Equality :
+        ///  ([i].[RegionID] = [d].[RegionID] and [i].[EmployeeID] = [d].[EmployeeID])
+        /// Example. Different:
+        ///  ([i].[RegionID] <> [d].[RegionID] or [i].[EmployeeID] <> [d].[EmployeeID]) OR ([i].[RegionID] is null and [i].[EmployeeID] is null)
+        /// </summary>
+        private string GetUpdateTriggerWhereClauses(DmTable currentTable, bool shouldBeDifferent)
+        {
+            // from tableDescription (current INSERTED / DELETED) get all columns involved in fkey / pkey to be checked
+            var columns = this.GetFilteredJoinedColumns();
+
+            var stringBuilder = new StringBuilder();
+            stringBuilder.AppendLine($"-- Check if the foreign keys in [INSERTED] / [DELETED] from {this.tableName.FullQuotedString}, and part of the filter, have not changed.");
+
+            var comparer = shouldBeDifferent ? "<>" : "=";
+            var and = "";
+
+            stringBuilder.Append("(");
+
+            // Equality
+            foreach (var column in columns)
+            {
+                var columnName = new ObjectNameParser(column.ColumnName);
+
+                stringBuilder.Append($"{and}[i].{columnName.FullQuotedString} {comparer} [d].{columnName.FullQuotedString}");
+                and = " AND ";
+            }
+            stringBuilder.Append(")");
+
+            // Adding Difference if needed
+            if (shouldBeDifferent)
+            {
+                stringBuilder.Append(" OR (");
+
+                and = "";
+                foreach (var column in columns)
+                {
+                    var columnName = new ObjectNameParser(column.ColumnName);
+
+                    stringBuilder.Append($"{and}[i].{columnName.FullQuotedString} IS NULL");
+                    and = " AND ";
+                }
+                stringBuilder.Append(")");
+
+            }
+
+            return stringBuilder.ToString();
+        }
+
+
+        /// <summary>
+        /// UPDATE TRIGGER : Get join clause for UPDATE [side] trigger. [side] the current table
+        /// INSERTED and DELETED are the tableDescription
+        /// In this example, tableDescription is Employee and filter is [Region]:
+        /// INNER JOIN [DELETED] AS[d] ON[d].[EmployeeID] = [side].[Employee_EmployeeID] and[d].[RegionID] = [side].[Region_RegionID]
+        /// </summary>
+        /// <param name="currentTable">Can be Root Filter [Region] to any table to Leaf table [CustomerAddress]</param>
+        /// <returns></returns>
+        private string GetUpdateTriggerJoinClauses(DmTable currentTable, string innerText1, string innerText2)
+        {
+            (var currenTableName, var currentTrackingTableName) = SqlBuilder.GetParsers(currentTable);
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"-- Get all {currentTrackingTableName} rows joined from [INSERTED] and [DELETED] based " +
+                          $"on primary keys and foreign keys (if exists) from {this.tableName}.");
+
+
             // Get foreign keys in currenTable, who are part of the filter
             var sideFilteredRelations = this.GetFilteredRelations(currentTable);
 
-            var deletedString = new StringBuilder("INNER JOIN DELETED [d] on ");
-            var insertedString = new StringBuilder("INNER JOIN INSERTED [i] on ");
+            var deletedString = new StringBuilder($"{innerText1} JOIN DELETED [d] on ");
+            var insertedString = new StringBuilder($"{innerText2} JOIN INSERTED [i] on ");
             var and = "";
+
+            // Get all columns that should be use in the join clauses
+            var tbAllKeysColumns = this.GetFilteredJoinedColumns();
 
             // iterate through all column that are PKEY or FKEY in tableDescription (which are available through INSERTED and DELETED)
             // 1st case : column is a primary key and currentTable IS tableDescription
@@ -777,7 +1055,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 var tableDescColumnName = new ObjectNameParser(column.ColumnName).FullQuotedString;
 
                 // check if we have a primary key
-                var isPrimaryKey = tableDescPrimaryKeysColumns.Any(c => c.ColumnName.ToLowerInvariant() == column.ColumnName.ToLowerInvariant() && c.Table.TableName.ToLowerInvariant() == column.Table.TableName.ToLowerInvariant());
+                var isPrimaryKey = this.tableDescription.PrimaryKey.Columns.Any(c => c.ColumnName.ToLowerInvariant() == column.ColumnName.ToLowerInvariant() && c.Table.TableName.ToLowerInvariant() == column.Table.TableName.ToLowerInvariant());
 
                 // if we are at the root of trigger (ie tableDescription == currentTable)
                 var isRoot = this.tableDescription.TableName.ToLowerInvariant() == currentTable.TableName.ToLowerInvariant();
@@ -839,15 +1117,12 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
 
 
-            sb.AppendLine(insertedString.ToString());
             sb.AppendLine(deletedString.ToString());
+            sb.Append(insertedString.ToString());
 
             var str = sb.ToString();
-            Debug.WriteLine($"-- {this.tableName}");
-            Debug.WriteLine(str);
             return str;
         }
-
 
         /// <summary>
         /// Create insert trigger text statement
@@ -875,42 +1150,38 @@ namespace Dotmim.Sync.SqlServer.Builders
             // inner join on deleted to check if filter has changed
             if (isAForeignTableToFilter || isRootTableFiltered)
             {
-
-                void CreateUpdateTombstoneRow(DmTable parentTable)
+                void CreateUpdateTombstoneRow(DmTable currentTable)
                 {
-                    this.GetJoin(parentTable);
+                    // for current table, get tracking and table names
+                    (var tb, var tk) = SqlBuilder.GetParsers(currentTable);
 
-                    (var tb, var tk) = SqlBuilder.GetParsers(parentTable);
-                    // get all joins
-                    (var t_innerJoinInserted, var t_innerJoinDeleted,
-                     var t_leftJoinInserted, var t_leftJoinDeleted) = this.GetJoinsAndWhereClauses(parentTable, this.tableDescription);
-                    (var t_whereClauseEqual, var t_whereClauseDifferent) = this.GetWhereClauses(parentTable, this.tableDescription, "[i]", "[d]");
-
+                    stringBuilder.AppendLine();
                     stringBuilder.AppendLine($"-------------------------------------");
-                    stringBuilder.AppendLine($"- {tb.FullQuotedString} -");
+                    stringBuilder.AppendLine($"-- {tb.FullQuotedString} --");
                     stringBuilder.AppendLine($"-------------------------------------");
 
                     // First update is only when filtered columns are not impacted  
                     stringBuilder.AppendLine();
-                    stringBuilder.AppendLine($"-- Update rows into {tb.FullQuotedString} where primary keys and foreign keys, part of a filter, have not changed.");
+                    stringBuilder.AppendLine($"-- Update rows into {tb.FullQuotedString} when primary keys and foreign keys, part of a filter, have not changed.");
                     stringBuilder.AppendLine(this.GetUpdateStatement(tk, false));
-                    stringBuilder.AppendLine(t_innerJoinInserted);
-                    stringBuilder.AppendLine(t_innerJoinDeleted);
-                    stringBuilder.AppendLine($"WHERE {whereClauseEqual}");
+                    stringBuilder.AppendLine(this.GetUpdateTriggerJoinClauses(currentTable, "INNER", "INNER"));
+                    stringBuilder.Append($"WHERE ");
+                    stringBuilder.AppendLine(this.GetUpdateTriggerWhereClauses(currentTable, false));
 
-
+                    // Second update: Only when filtered columns are impacted. Mark old rows as Tombstone 
                     stringBuilder.AppendLine();
-                    stringBuilder.AppendLine("----------------------------------------------------");
-                    stringBuilder.AppendLine($"-- Mark the old row on {tb.ObjectNameNormalized} as deleted when filter has changed");
-                    stringBuilder.AppendLine("----------------------------------------------------");
+                    stringBuilder.AppendLine($"-- Mark rows as Tombstone on {tb.FullQuotedString} when primary keys and foreign keys, part of a filter, have not changed.");
                     stringBuilder.AppendLine("");
                     stringBuilder.AppendLine(this.GetUpdateStatement(tk, true));
-                    stringBuilder.AppendLine(t_innerJoinDeleted);
-                    stringBuilder.AppendLine(t_leftJoinInserted);
-                    stringBuilder.AppendLine($"WHERE {t_whereClauseDifferent}");
+                    stringBuilder.AppendLine(this.GetUpdateTriggerJoinClauses(currentTable, "INNER", "LEFT OUTER"));
+                    stringBuilder.Append("WHERE ");
+                    stringBuilder.AppendLine(this.GetUpdateTriggerWhereClauses(currentTable, true));
 
+                    stringBuilder.AppendLine();
+                    stringBuilder.AppendLine($"INSERT INTO {tk.FullQuotedString}");
+                    stringBuilder.AppendLine(this.GetInsertTriggerStatement(currentTable));
                     // Get all child tables that are foreign tkeys to this table
-                    var oneLevelTables = parentTable.DmSet.Tables.Where(dt => this.IsForeignKeyTo(dt, parentTable));
+                    var oneLevelTables = currentTable.DmSet.Tables.Where(dt => this.IsForeignKeyTo(dt, currentTable));
 
                     foreach (var dmTable in oneLevelTables)
                     {
@@ -989,7 +1260,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             }
 
-            CreateInsertIntoCommand(this.tableDescription);
+            //CreateInsertIntoCommand(this.tableDescription);
 
             addedColumns.Clear();
             var str = stringBuilder.ToString();
@@ -1018,7 +1289,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                     command.Connection = this.connection;
 
                     // TODO : DISABLE EXECUTE QUERY ON CREATE INSERT TRIGGER
-                    //command.ExecuteNonQuery();
+                    command.ExecuteNonQuery();
 
                 }
             }
