@@ -356,8 +356,8 @@ namespace Dotmim.Sync
                 // Apply on the Server Side
                 // Since we are on the server, 
                 // we need to check the server client timestamp (not the client timestamp which is completely different)
-                ConflictResolutionPolicy serverPolicy = this.Configuration.ConflictResolutionPolicy;
-                ConflictResolutionPolicy clientPolicy = serverPolicy == ConflictResolutionPolicy.ServerWins ? ConflictResolutionPolicy.ClientWins : ConflictResolutionPolicy.ServerWins;
+                var serverPolicy = this.Configuration.ConflictResolutionPolicy;
+                var clientPolicy = serverPolicy == ConflictResolutionPolicy.ServerWins ? ConflictResolutionPolicy.ClientWins : ConflictResolutionPolicy.ServerWins;
 
                 // We get from local provider all rows not last updated from the server
                 fromId = serverScopeInfo.Id;
@@ -367,6 +367,18 @@ namespace Dotmim.Sync
                 isNew = localScopeInfo.IsNewScope;
                 //Direction set to Upload
                 context.SyncWay = SyncWay.Upload;
+
+                // JUST before the whole process, get the timestamp, to be sure to 
+                // get rows inserted / updated elsewhere since the sync is not over
+                (context, clientTimestamp) = await this.LocalProvider.GetLocalTimestampAsync(context,
+                    new MessageTimestamp
+                    {
+                        ScopeInfoTableName = this.Configuration.ScopeInfoTableName,
+                        SerializationFormat = this.Configuration.SerializationFormat
+                    });
+
+                if (cancellationToken.IsCancellationRequested)
+                    cancellationToken.ThrowIfCancellationRequested();
 
                 scope = new ScopeInfo { Id = fromId, IsNewScope = isNew, Timestamp = lastSyncTS };
                 (context, clientBatchInfo, clientChangesSelected) =
@@ -385,17 +397,6 @@ namespace Dotmim.Sync
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
-                // JUST After the get changes, get the timestamp, to be sure to 
-                // get rows inserted / updated elsewhere since the sync is not over
-                (context, clientTimestamp) = await this.LocalProvider.GetLocalTimestampAsync(context,
-                    new MessageTimestamp
-                    {
-                        ScopeInfoTableName = this.Configuration.ScopeInfoTableName,
-                        SerializationFormat = this.Configuration.SerializationFormat
-                    });
-
-                if (cancellationToken.IsCancellationRequested)
-                    cancellationToken.ThrowIfCancellationRequested();
 
 
                 // fromId : When applying rows, make sure it's identified as applied by this client scope
@@ -424,7 +425,6 @@ namespace Dotmim.Sync
                 // Conflicts count should be temp saved because applychanges on client side won't raise any conflicts (and so property Context.TotalSyncConflicts will be reset to 0)
                 var conflictsOnRemoteCount = context.TotalSyncConflicts;
                 
-
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
                 // Get changes from server
@@ -473,6 +473,17 @@ namespace Dotmim.Sync
                 //Direction set to Download
                 context.SyncWay = SyncWay.Download;
 
+                // JUST Before get changes, get the timestamp, to be sure to 
+                // get rows inserted / updated elsewhere since the sync is not over
+                (context, serverTimestamp) = await this.RemoteProvider.GetLocalTimestampAsync(context,
+                    new MessageTimestamp
+                    {
+                        ScopeInfoTableName = this.Configuration.ScopeInfoTableName,
+                        SerializationFormat = this.Configuration.SerializationFormat
+                    });
+
+                if (cancellationToken.IsCancellationRequested)
+                    cancellationToken.ThrowIfCancellationRequested();
 
                 (context, serverBatchInfo, serverChangesSelected) =
                     await this.RemoteProvider.GetChangeBatchAsync(context,
@@ -490,17 +501,6 @@ namespace Dotmim.Sync
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
-                // JUST After the get changes, get the timestamp, to be sure to 
-                // get rows inserted / updated elsewhere since the sync is not over
-                (context, serverTimestamp) = await this.RemoteProvider.GetLocalTimestampAsync(context,
-                    new MessageTimestamp
-                    {
-                        ScopeInfoTableName = this.Configuration.ScopeInfoTableName,
-                        SerializationFormat = this.Configuration.SerializationFormat
-                    });
-
-                if (cancellationToken.IsCancellationRequested)
-                    cancellationToken.ThrowIfCancellationRequested();
 
 
                 // Apply local changes
