@@ -83,7 +83,7 @@ namespace Dotmim.Sync.Tests
                         sqlCommand.Connection = sqlConnection;
                         sqlCommand.CommandText = commandText;
 
-                        sqlConnection.Open();
+                        await sqlConnection.OpenAsync();
                         var dbReader = sqlCommand.ExecuteReader();
                         while (dbReader.Read())
                         {
@@ -142,7 +142,7 @@ namespace Dotmim.Sync.Tests
 
             foreach (var trr in results)
             {
-                Assert.IsType(typeof(SyncException), trr.Exception);
+                Assert.IsType<SyncException>(trr.Exception);
                 SyncException se = trr.Exception as SyncException;
                 Assert.Equal(SyncExceptionType.Data, se.Type);
             }
@@ -161,7 +161,7 @@ namespace Dotmim.Sync.Tests
 
             foreach (var trr in results)
             {
-                Assert.IsType(typeof(SyncException), trr.Exception);
+                Assert.IsType<SyncException>(trr.Exception);
                 SyncException se = trr.Exception as SyncException;
             }
         }
@@ -1292,7 +1292,7 @@ namespace Dotmim.Sync.Tests
                 using (var dbConnection = localProvider.CreateConnection())
                 {
                     var scopeBuilder = scopeBuilderFactory.CreateScopeInfoBuilder(conf.ScopeInfoTableName, dbConnection);
-                    Assert.Equal(false, scopeBuilder.NeedToCreateScopeInfoTable());
+                    Assert.False(scopeBuilder.NeedToCreateScopeInfoTable());
                 }
 
                 // get the db manager
@@ -1311,32 +1311,32 @@ namespace Dotmim.Sync.Tests
 
                         await dbConnection.OpenAsync();
 
-                        Assert.Equal(false, trackingTablesBuilder.NeedToCreateTrackingTable());
+                        Assert.False(trackingTablesBuilder.NeedToCreateTrackingTable());
 
-                        Assert.Equal(false, triggersBuilder.NeedToCreateTrigger(Builders.DbTriggerType.Insert));
-                        Assert.Equal(false, triggersBuilder.NeedToCreateTrigger(Builders.DbTriggerType.Delete));
-                        Assert.Equal(false, triggersBuilder.NeedToCreateTrigger(Builders.DbTriggerType.Update));
+                        Assert.False(triggersBuilder.NeedToCreateTrigger(Builders.DbTriggerType.Insert));
+                        Assert.False(triggersBuilder.NeedToCreateTrigger(Builders.DbTriggerType.Delete));
+                        Assert.False(triggersBuilder.NeedToCreateTrigger(Builders.DbTriggerType.Update));
 
-                        Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.InsertMetadata));
-                        Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.InsertRow));
-                        Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.Reset));
-                        Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.SelectChanges));
-                        Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.SelectRow));
-                        Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.DeleteMetadata));
-                        Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.DeleteRow));
+                        Assert.False(spBuider.NeedToCreateProcedure(Builders.DbCommandType.InsertMetadata));
+                        Assert.False(spBuider.NeedToCreateProcedure(Builders.DbCommandType.InsertRow));
+                        Assert.False( spBuider.NeedToCreateProcedure(Builders.DbCommandType.Reset));
+                        Assert.False( spBuider.NeedToCreateProcedure(Builders.DbCommandType.SelectChanges));
+                        Assert.False( spBuider.NeedToCreateProcedure(Builders.DbCommandType.SelectRow));
+                        Assert.False(spBuider.NeedToCreateProcedure(Builders.DbCommandType.DeleteMetadata));
+                        Assert.False(spBuider.NeedToCreateProcedure(Builders.DbCommandType.DeleteRow));
 
                         // Check if we have mutables columns to see if the update row / metadata have been generated
                         if (dbTableBuilder.TableDescription.MutableColumnsAndNotAutoInc.Any())
                         {
-                            Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.UpdateRow));
-                            Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.UpdateMetadata));
+                            Assert.False(spBuider.NeedToCreateProcedure(Builders.DbCommandType.UpdateRow));
+                            Assert.False(spBuider.NeedToCreateProcedure(Builders.DbCommandType.UpdateMetadata));
                         }
 
                         if (this.fixture.ProviderType == ProviderType.Sql)
                         {
-                            Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.BulkDeleteRows));
-                            Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.BulkInsertRows));
-                            Assert.Equal(false, spBuider.NeedToCreateProcedure(Builders.DbCommandType.BulkInsertRows));
+                            Assert.False(spBuider.NeedToCreateProcedure(Builders.DbCommandType.BulkDeleteRows));
+                            Assert.False(spBuider.NeedToCreateProcedure(Builders.DbCommandType.BulkInsertRows));
+                            Assert.False(spBuider.NeedToCreateProcedure(Builders.DbCommandType.BulkInsertRows));
                         }
 
                         dbConnection.Close();
@@ -1389,7 +1389,7 @@ namespace Dotmim.Sync.Tests
                         continue;
 
                     var relations = tableManger.GetTableRelations().ToArray();
-                    Assert.Equal(1, relations.Count());
+                    Assert.Single(relations);
                     Assert.Equal("FK_PriceListDetail_PriceListCategory_PriceListId_PriceCategoryId", relations[0].ForeignKey);
                     Assert.Equal(2, relations[0].KeyColumnsName.Count());
                 }
