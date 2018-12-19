@@ -46,6 +46,7 @@ namespace Dotmim.Sync
 
                             // get the builder
                             var builder = GetDatabaseBuilder(dmTable);
+                            builder.UseBulkProcedures = this.SupportBulkOperations;
 
                             // adding filters
                             this.AddFilters(configuration.Filters, dmTable, builder);
@@ -123,6 +124,7 @@ namespace Dotmim.Sync
 
                             // get the builder
                             var builder = GetDatabaseBuilder(dmTable);
+                            builder.UseBulkProcedures = this.SupportBulkOperations;
 
                             // adding filters
                             this.AddFilters(configuration.Filters, dmTable, builder);
@@ -198,7 +200,9 @@ namespace Dotmim.Sync
                         foreach (var dmTable in dmTables)
                         {
                             var builder = GetDatabaseBuilder(dmTable);
-
+                            // set if the builder supports creating the bulk operations proc stock
+                            builder.UseBulkProcedures = this.SupportBulkOperations;
+                           
                             // adding filter
                             this.AddFilters(message.Filters, dmTable, builder);
 

@@ -979,22 +979,22 @@ namespace Dotmim.Sync.MySql
 
         public void DropTVPType()
         {
-            throw new NotImplementedException();
+            return;
         }
 
         public void DropBulkInsert()
         {
-            throw new NotImplementedException();
+            return;
         }
 
         public void DropBulkUpdate()
         {
-            throw new NotImplementedException();
+            return;
         }
 
         public void DropBulkDelete()
         {
-            throw new NotImplementedException();
+            return;
         }
 
         public void DropReset()
