@@ -219,7 +219,7 @@ namespace Dotmim.Sync.Tests.StandAlone
             DmTable table = new DmTable();
             Assert.NotNull(table.Columns);
             Assert.NotNull(table.Rows);
-            Assert.Equal(0, table.Columns.Count);
+            Assert.Empty(table.Columns);
 
             DmTable table2 = new DmTable("Clients");
             Assert.Equal("Clients", table2.TableName);
@@ -249,7 +249,7 @@ namespace Dotmim.Sync.Tests.StandAlone
 
             Assert.NotEqual(set0.DmSetName, tbl0.TableName);
 
-            Assert.Throws(typeof(ArgumentException), () =>
+            Assert.Throws<ArgumentException>(() =>
             {
                 var set1 = new DmSet("CaseSensitive");
                 set1.CaseSensitive = false;
@@ -291,12 +291,10 @@ namespace Dotmim.Sync.Tests.StandAlone
             Assert.NotSame(tbl2, tbl);
             Assert.Empty(tbl2.Rows);
             Assert.Equal(8, tbl2.Columns.Count);
-            Assert.NotNull(tbl2.PrimaryKey);
 
             var tbl3 = tbl.Copy();
             Assert.NotSame(tbl3, tbl2);
             Assert.NotSame(tbl3, tbl);
-            Assert.NotNull(tbl3.PrimaryKey);
             Assert.Equal(8, tbl3.Columns.Count);
             Assert.NotEmpty(tbl3.Rows);
 
@@ -330,7 +328,7 @@ namespace Dotmim.Sync.Tests.StandAlone
             var changes2 = tbl.GetChanges(DmRowState.Added);
 
             Assert.NotSame(tbl, changes2);
-            Assert.Equal(1, changes2.Rows.Count);
+            Assert.Single(changes2.Rows);
 
             var changes3 = tbl.GetChanges(DmRowState.Added | DmRowState.Modified);
 
@@ -340,7 +338,7 @@ namespace Dotmim.Sync.Tests.StandAlone
             var changes4 = tbl.GetChanges(DmRowState.Deleted);
 
             Assert.NotSame(tbl, changes4);
-            Assert.Equal(1, changes4.Rows.Count);
+            Assert.Single(changes4.Rows);
 
         }
 
@@ -553,7 +551,7 @@ namespace Dotmim.Sync.Tests.StandAlone
             tbl3.Rows.Add(st3);
 
             // SInce we didn't AcceptChanges, raise an error
-            Assert.Throws(typeof(Exception), () => tbl3.RejectChanges());
+            Assert.Throws<Exception>(() => tbl3.RejectChanges());
 
         }
 
