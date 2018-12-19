@@ -42,6 +42,8 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         public static string GetConnectionString(ProviderType providerType, string dbName)
         {
+            Console.WriteLine($"Get connection for provider {providerType} and database name {dbName}");
+
             switch (providerType)
             {
                 case ProviderType.Sql:

@@ -21,8 +21,8 @@ jobs:
     name: setvarStep
     displayName: '[obsolete] Get Ip from MySql container'
 
-  - script: docker run -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
-    displayName: 'Run SQL 2017 on Linux container'
+  # - script: docker run -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
+  #   displayName: 'Run SQL 2017 on Linux container'
 
   #- script: |
   #    sqlcmd -S localhost -U sa -P 'Password12!' -Q 'select @@VERSION'
