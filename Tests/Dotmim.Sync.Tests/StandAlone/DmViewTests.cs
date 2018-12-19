@@ -229,12 +229,12 @@ namespace Dotmim.Sync.Tests.StandAlone
             Assert.Equal(17, view.Count);
 
             var view2 = new DmView(t, DmRowState.Modified);
-            Assert.Equal(0, view2.Count);
+            Assert.Empty(view2);
 
             // Set one row as Modified
             view[0].SetModified();
             var view22 = new DmView(t, DmRowState.Modified);
-            Assert.Equal(1, view22.Count);
+            Assert.Single(view22);
 
             var view3 = new DmView(t, (r) => (int)r["CustomerID"] == 1);
             Assert.Equal(5, view3.Count);
@@ -302,7 +302,7 @@ namespace Dotmim.Sync.Tests.StandAlone
             Assert.Equal("Titre AER", (string)view3[1]["Title"]);
 
             var view4 = view.Take(4, 1);
-            Assert.Equal(1, view4.Count);
+            Assert.Single(view4);
             Assert.Equal("Titre AFBBB", (string)view4[0]["Title"]);
 
             var view5 = view.Take(5, 12);
@@ -312,10 +312,10 @@ namespace Dotmim.Sync.Tests.StandAlone
             Assert.Equal(12, view6.Count);
 
             var view7 = view.Take(12, 0);
-            Assert.Equal(0, view7.Count);
+            Assert.Empty(view7);
 
             var view8 = view.Take(17, 0);
-            Assert.Equal(0, view8.Count);
+            Assert.Empty(view8);
 
             Assert.Throws<Exception>(() =>
             {

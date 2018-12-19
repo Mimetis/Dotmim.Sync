@@ -39,7 +39,7 @@ namespace Dotmim.Sync.Tests.StandAlone
         [Fact]
         public void DmColumn_Create_Bad_AutoIncorement_Column()
         {
-            Assert.Throws(typeof(ArgumentException), () =>
+            Assert.Throws<ArgumentException>(() =>
             {
                 var tbl = new DmTable("ServiceTickets");
 

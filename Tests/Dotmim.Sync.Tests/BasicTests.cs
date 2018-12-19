@@ -88,7 +88,7 @@ namespace Dotmim.Sync.Tests
                         var dbReader = sqlCommand.ExecuteReader();
                         while (dbReader.Read())
                         {
-                            string debugLine = $"{(string)dbReader["tableName"]}\t\t{(string)dbReader["columnName"]}\t{(string)dbReader["type"]}";
+                            string debugLine = $"{(string)dbReader["tableName"]}\t{(string)dbReader["columnName"]}\t{(string)dbReader["type"]}";
 
                             Console.WriteLine(debugLine);
                             Debug.WriteLine(debugLine);
