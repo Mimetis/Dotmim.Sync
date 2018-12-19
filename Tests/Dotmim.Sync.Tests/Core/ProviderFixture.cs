@@ -19,7 +19,7 @@ namespace Dotmim.Sync.Tests.Core
     public abstract class ProviderFixture<T> : IDisposable where T : CoreProvider
     {
         private static readonly object locker = new object();
-        private static bool isConfigured = false;
+        private bool isConfigured = false;
 
         // list of client providers we want to create
         private readonly Dictionary<(ProviderType ServerType, NetworkType NetworkType), ProviderType> lstClientsType = new Dictionary<(ProviderType, NetworkType), ProviderType>();
@@ -98,8 +98,6 @@ namespace Dotmim.Sync.Tests.Core
                     var listOfBs = (from assemblyType in typeof(ProviderFixture<T>).Assembly.DefinedTypes
                                     where typeof(ProviderFixture<T>).IsAssignableFrom(assemblyType)
                                     select assemblyType).ToArray();
-
-                    Debug.WriteLine(listOfBs);
 
                     foreach (var t in listOfBs)
                     {
