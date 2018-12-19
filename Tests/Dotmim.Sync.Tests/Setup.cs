@@ -91,6 +91,7 @@ namespace Dotmim.Sync.Tests
             else
                 cs = $@"Server=127.0.0.1; Port=3307; Database={dbName}; Uid=root; Pwd=Password12!";
 
+            Console.WriteLine(cs);
             return cs;
         }
 
