@@ -48,12 +48,12 @@ namespace Dotmim.Sync.Tests
             }
             else
             {
-                providerFixture.AddRun((ProviderType.Sql, NetworkType.Tcp), ProviderType.Sql);
-                providerFixture.AddRun((ProviderType.Sql, NetworkType.Tcp), ProviderType.MySql);
-                providerFixture.AddRun((ProviderType.Sql, NetworkType.Http), ProviderType.Sqlite);
+                //providerFixture.AddRun((ProviderType.Sql, NetworkType.Tcp), ProviderType.Sql);
+                //providerFixture.AddRun((ProviderType.Sql, NetworkType.Tcp), ProviderType.MySql);
+                //providerFixture.AddRun((ProviderType.Sql, NetworkType.Http), ProviderType.Sqlite);
                 providerFixture.AddRun((ProviderType.MySql, NetworkType.Tcp), ProviderType.Sql);
-                providerFixture.AddRun((ProviderType.MySql, NetworkType.Tcp), ProviderType.MySql);
-                providerFixture.AddRun((ProviderType.MySql, NetworkType.Http), ProviderType.Sqlite);
+                //providerFixture.AddRun((ProviderType.MySql, NetworkType.Tcp), ProviderType.MySql);
+                //providerFixture.AddRun((ProviderType.MySql, NetworkType.Http), ProviderType.Sqlite);
             }
 
         }
