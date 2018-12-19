@@ -1345,6 +1345,59 @@ namespace Dotmim.Sync.Tests
                     }
                 }
 
+
+                // Provision the database with all tracking tables, stored procedures, triggers and scope
+                await localProvider.DeprovisionAsync(conf, SyncProvision.All);
+
+
+                // get the db manager
+                foreach (var dmTable in conf.Schema.Tables)
+                {
+                    var tableName = dmTable.TableName;
+                    using (var dbConnection = localProvider.CreateConnection())
+                    {
+                        // get the database manager factory then the db manager itself
+                        var dbTableBuilder = localProvider.GetDatabaseBuilder(dmTable);
+
+                        // get builders
+                        var trackingTablesBuilder = dbTableBuilder.CreateTrackingTableBuilder(dbConnection);
+                        var triggersBuilder = dbTableBuilder.CreateTriggerBuilder(dbConnection);
+                        var spBuider = dbTableBuilder.CreateProcBuilder(dbConnection);
+
+                        await dbConnection.OpenAsync();
+
+                        Assert.True(trackingTablesBuilder.NeedToCreateTrackingTable());
+                        Assert.True(triggersBuilder.NeedToCreateTrigger(Builders.DbTriggerType.Insert));
+                        Assert.True(triggersBuilder.NeedToCreateTrigger(Builders.DbTriggerType.Delete));
+                        Assert.True(triggersBuilder.NeedToCreateTrigger(Builders.DbTriggerType.Update));
+                        Assert.True(spBuider.NeedToCreateProcedure(Builders.DbCommandType.InsertMetadata));
+                        Assert.True(spBuider.NeedToCreateProcedure(Builders.DbCommandType.InsertRow));
+                        Assert.True(spBuider.NeedToCreateProcedure(Builders.DbCommandType.Reset));
+                        Assert.True(spBuider.NeedToCreateProcedure(Builders.DbCommandType.SelectChanges));
+                        Assert.True(spBuider.NeedToCreateProcedure(Builders.DbCommandType.SelectRow));
+                        Assert.True(spBuider.NeedToCreateProcedure(Builders.DbCommandType.DeleteMetadata));
+                        Assert.True(spBuider.NeedToCreateProcedure(Builders.DbCommandType.DeleteRow));
+
+                        // Check if we have mutables columns to see if the update row / metadata have been generated
+                        if (dbTableBuilder.TableDescription.MutableColumnsAndNotAutoInc.Any())
+                        {
+                            Assert.True(spBuider.NeedToCreateProcedure(Builders.DbCommandType.UpdateRow));
+                            Assert.True(spBuider.NeedToCreateProcedure(Builders.DbCommandType.UpdateMetadata));
+                        }
+
+                        if (this.fixture.ProviderType == ProviderType.Sql)
+                        {
+                            Assert.True(spBuider.NeedToCreateProcedure(Builders.DbCommandType.BulkDeleteRows));
+                            Assert.True(spBuider.NeedToCreateProcedure(Builders.DbCommandType.BulkInsertRows));
+                            Assert.True(spBuider.NeedToCreateProcedure(Builders.DbCommandType.BulkInsertRows));
+                        }
+
+                        dbConnection.Close();
+
+                    }
+                }
+
+
             }
             finally
             {
@@ -1357,6 +1410,8 @@ namespace Dotmim.Sync.Tests
             }
         }
 
+
+   
         //[Fact, TestPriority(99)]
         //public async Task Reserved_Keyword_Should_Raise_Error()
         //{

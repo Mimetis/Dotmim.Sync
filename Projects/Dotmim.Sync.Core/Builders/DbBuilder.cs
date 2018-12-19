@@ -13,7 +13,6 @@ namespace Dotmim.Sync.Builders
 {
     public abstract class DbBuilder
     {
-        private readonly bool useBulkProcedures = true;
 
         /// <summary>
         /// Gets the table description for the current DbBuilder
@@ -24,6 +23,11 @@ namespace Dotmim.Sync.Builders
         /// Filtered Columns
         /// </summary>
         public ICollection<FilterClause> FilterColumns { get; set; } = new List<FilterClause>();
+
+        /// <summary>
+        /// Gets or Sets if the Database builder supports bulk procedures
+        /// </summary>
+        public bool UseBulkProcedures { get; set; } = true;
 
         /// <summary>
         /// You have to provide a proc builder implementation for your current database
@@ -193,7 +197,7 @@ namespace Dotmim.Sync.Builders
                 if (procBuilder.NeedToCreateProcedure(DbCommandType.Reset))
                     procBuilder.CreateReset();
 
-                if (this.useBulkProcedures && procBuilder.NeedToCreateType(DbCommandType.BulkTableType))
+                if (this.UseBulkProcedures && procBuilder.NeedToCreateType(DbCommandType.BulkTableType))
                 {
                     procBuilder.CreateTVPType();
                     procBuilder.CreateBulkInsert();
@@ -314,7 +318,7 @@ namespace Dotmim.Sync.Builders
                 if (!procBuilder.NeedToCreateProcedure(DbCommandType.Reset))
                     procBuilder.DropReset();
 
-                if (this.useBulkProcedures && !procBuilder.NeedToCreateType(DbCommandType.BulkTableType))
+                if (this.UseBulkProcedures && !procBuilder.NeedToCreateType(DbCommandType.BulkTableType))
                 {
                     procBuilder.DropBulkInsert();
 
@@ -545,7 +549,7 @@ namespace Dotmim.Sync.Builders
                     if (procBuilder.NeedToCreateProcedure(DbCommandType.Reset))
                         stringBuilder.Append(procBuilder.CreateResetScriptText());
 
-                    if (this.useBulkProcedures && procBuilder.NeedToCreateType(DbCommandType.BulkTableType))
+                    if (this.UseBulkProcedures && procBuilder.NeedToCreateType(DbCommandType.BulkTableType))
                     {
                         stringBuilder.Append(procBuilder.CreateTVPTypeScriptText());
                         stringBuilder.Append(procBuilder.CreateBulkInsertScriptText());
