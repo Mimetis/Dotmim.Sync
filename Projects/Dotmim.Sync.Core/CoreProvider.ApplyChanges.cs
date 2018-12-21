@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -19,10 +20,10 @@ namespace Dotmim.Sync
         /// </summary>
         public virtual async Task<(SyncContext, ChangesApplied)> ApplyChangesAsync(SyncContext context, MessageApplyChanges message)
         {
-            ChangeApplicationAction changeApplicationAction = ChangeApplicationAction.Continue;
+            var changeApplicationAction = ChangeApplicationAction.Continue;
             DbTransaction applyTransaction = null;
             DbConnection connection = null;
-            ChangesApplied changesApplied = new ChangesApplied();
+            var changesApplied = new ChangesApplied();
 
             try
             {
@@ -54,16 +55,16 @@ namespace Dotmim.Sync
                         foreach (var table in message.Schema.Tables.Reverse())
                         {
                             changeApplicationAction = this.ApplyChangesInternal(table, context, message, connection,
-                                applyTransaction, DmRowState.Deleted, changesApplied);                        
+                                applyTransaction, DmRowState.Deleted, changesApplied);
                         }
-                        
+
                         // Rollback
                         if (changeApplicationAction == ChangeApplicationAction.Rollback)
                         {
-                            RaiseRollbackException(context, "Rollback during applying deletes");
+                            this.RaiseRollbackException(context, "Rollback during applying deletes");
                         }
                     }
-                    
+
                     // -----------------------------------------------------
                     // 2) Applying Inserts and Updates. Apply in table order
                     // -----------------------------------------------------
@@ -71,11 +72,11 @@ namespace Dotmim.Sync
                     {
                         changeApplicationAction = this.ApplyChangesInternal(table, context, message, connection,
                             applyTransaction, DmRowState.Added, changesApplied);
-                        
+
                         // Rollback
                         if (changeApplicationAction == ChangeApplicationAction.Rollback)
                         {
-                            RaiseRollbackException(context, "Rollback during applying inserts");
+                            this.RaiseRollbackException(context, "Rollback during applying inserts");
                         }
 
                         changeApplicationAction = this.ApplyChangesInternal(table, context, message, connection,
@@ -84,12 +85,13 @@ namespace Dotmim.Sync
                         // Rollback
                         if (changeApplicationAction == ChangeApplicationAction.Rollback)
                         {
-                            RaiseRollbackException(context, "Rollback during applying updates");
+                            this.RaiseRollbackException(context, "Rollback during applying updates");
                         }
                     }
 
                     applyTransaction.Commit();
-                    
+
+
                     return (context, changesApplied);
                 }
             }
@@ -113,7 +115,7 @@ namespace Dotmim.Sync
                     connection.Close();
 
                 if (message.Changes != null)
-                    message.Changes.Clear();
+                    message.Changes.Clear(message.CleanMetadatas);
 
             }
         }
@@ -126,7 +128,7 @@ namespace Dotmim.Sync
             if (configTables == null || configTables.Tables.Count <= 0)
                 return ChangeApplicationAction.Continue;
 
-            for (int i = 0; i < configTables.Tables.Count; i++)
+            for (var i = 0; i < configTables.Tables.Count; i++)
             {
                 var tableDescription = configTables.Tables[configTables.Tables.Count - i - 1];
 
@@ -152,8 +154,8 @@ namespace Dotmim.Sync
             DmRowState applyType,
             ChangesApplied changesApplied)
         {
-            ChangeApplicationAction changeApplicationAction = ChangeApplicationAction.Continue;
- 
+            var changeApplicationAction = ChangeApplicationAction.Continue;
+
             // if we are in upload stage, so check if table is not download only
             if (context.SyncWay == SyncWay.Upload && table.SyncDirection == SyncDirection.DownloadOnly)
             {
@@ -176,14 +178,14 @@ namespace Dotmim.Sync
 
             // Get conflict handler resolver
             if (syncAdapter.ConflictActionInvoker == null && this.ApplyChangedFailed != null)
-                syncAdapter.ConflictActionInvoker = GetConflictAction;
+                syncAdapter.ConflictActionInvoker = this.GetConflictAction;
 
             if (message.Changes.BatchPartsInfo != null && message.Changes.BatchPartsInfo.Count > 0)
             {
                 // getting the table to be applied
                 // we may have multiple batch files, so we can have multipe dmTable with the same Name
                 // We can say that dmTable may be contained in several files
-                foreach (DmTable dmTablePart in message.Changes.GetTable(table.TableName))
+                foreach (var dmTablePart in message.Changes.GetTable(table.TableName))
                 {
                     if (dmTablePart == null || dmTablePart.Rows.Count == 0)
                         continue;
@@ -199,7 +201,7 @@ namespace Dotmim.Sync
                     }
 
                     // Conflicts occured when trying to apply rows
-                    List<SyncConflict> conflicts = new List<SyncConflict>();
+                    var conflicts = new List<SyncConflict>();
 
                     // Raise event progress only if there are rows to be applied
                     context.SyncStage = SyncStage.TableChangesApplying;
@@ -225,7 +227,7 @@ namespace Dotmim.Sync
                             var fromScopeLocalTimeStamp = message.FromScope.Timestamp;
 
                             var conflictCount = 0;
-                            (changeApplicationAction, conflictCount) = syncAdapter.HandleConflict(conflict, message.Policy, message.FromScope, fromScopeLocalTimeStamp, out DmRow resolvedRow);
+                            (changeApplicationAction, conflictCount) = syncAdapter.HandleConflict(conflict, message.Policy, message.FromScope, fromScopeLocalTimeStamp, out var resolvedRow);
 
                             if (changeApplicationAction == ChangeApplicationAction.Continue)
                             {
@@ -289,7 +291,7 @@ namespace Dotmim.Sync
         /// </summary>
         internal (ApplyAction, DmRow) GetConflictAction(SyncConflict conflict, ConflictResolutionPolicy policy, DbConnection connection, DbTransaction transaction = null)
         {
-            ConflictAction conflictAction = ConflictAction.ServerWins;
+            var conflictAction = ConflictAction.ServerWins;
 
             if (policy == ConflictResolutionPolicy.ClientWins)
                 conflictAction = ConflictAction.ClientWins;
@@ -299,24 +301,21 @@ namespace Dotmim.Sync
             this.ApplyChangedFailed?.Invoke(this, arg);
 
             // if ConflictAction is ServerWins or MergeRow it's Ok to set to Continue
-            ApplyAction action = ApplyAction.Continue;
+            var action = ApplyAction.Continue;
 
             if (arg.Action == ConflictAction.ClientWins)
                 action = ApplyAction.RetryWithForceWrite;
 
-            DmRow finalRow = arg.Action == ConflictAction.MergeRow ? arg.FinalRow : null;
+            var finalRow = arg.Action == ConflictAction.MergeRow ? arg.FinalRow : null;
 
             // returning the action to take, and actually the finalRow if action is set to Merge
             return (action, finalRow);
         }
 
-        private void RaiseRollbackException(SyncContext context, string message)
-        {
-            throw new SyncException(
-                message, 
+        private void RaiseRollbackException(SyncContext context, string message) => throw new SyncException(
+                message,
                 context.SyncStage,
-                this.ProviderTypeName, 
+                this.ProviderTypeName,
                 SyncExceptionType.Rollback);
-        }
     }
 }

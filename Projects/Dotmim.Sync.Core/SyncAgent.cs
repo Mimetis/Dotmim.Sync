@@ -1,13 +1,12 @@
 ﻿using Dotmim.Sync.Batch;
-using Dotmim.Sync.Filter;
 using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.Filter;
+using Dotmim.Sync.Messages;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Diagnostics;
-using Dotmim.Sync.Messages;
 
 namespace Dotmim.Sync
 {
@@ -113,7 +112,7 @@ namespace Dotmim.Sync
             this.LocalProvider.ScopeLoading += (s, e) => this.ScopeLoading?.Invoke(s, e);
             this.LocalProvider.ScopeSaved += (s, e) => this.ScopeSaved?.Invoke(s, e);
 
-            this.RemoteProvider.ApplyChangedFailed += RemoteProvider_ApplyChangedFailed;
+            this.RemoteProvider.ApplyChangedFailed += this.RemoteProvider_ApplyChangedFailed;
         }
 
 
@@ -160,27 +159,17 @@ namespace Dotmim.Sync
         /// <summary>
         /// Launch a normal synchronization
         /// </summary>
-        public async Task<SyncContext> SynchronizeAsync()
-        {
-            return await this.SynchronizeAsync(SyncType.Normal, CancellationToken.None);
-        }
+        public async Task<SyncContext> SynchronizeAsync() => await this.SynchronizeAsync(SyncType.Normal, CancellationToken.None);
 
         /// <summary>
         /// Launch a normal synchronization with a cancellation token
         /// </summary>
-        public async Task<SyncContext> SynchronizeAsync(CancellationToken cancellationToken)
-        {
-            return await this.SynchronizeAsync(SyncType.Normal, cancellationToken);
-        }
+        public async Task<SyncContext> SynchronizeAsync(CancellationToken cancellationToken) => await this.SynchronizeAsync(SyncType.Normal, cancellationToken);
 
         /// <summary>
         /// Launch a synchronization with the specified mode
         /// </summary>
-        public async Task<SyncContext> SynchronizeAsync(SyncType syncType)
-        {
-            return await this.SynchronizeAsync(syncType, CancellationToken.None);
-
-        }
+        public async Task<SyncContext> SynchronizeAsync(SyncType syncType) => await this.SynchronizeAsync(syncType, CancellationToken.None);
 
         /// <summary>
         /// Launch a synchronization with the specified mode
@@ -188,14 +177,12 @@ namespace Dotmim.Sync
         public async Task<SyncContext> SynchronizeAsync(SyncType syncType, CancellationToken cancellationToken)
         {
             // Context, used to back and forth data between servers
-            SyncContext context = new SyncContext(Guid.NewGuid())
+            var context = new SyncContext(Guid.NewGuid())
             {
                 // set start time
                 StartTime = DateTime.Now,
-
                 // if any parameters, set in context
                 Parameters = this.Parameters,
-
                 // set sync type (Normal, Reinitialize, ReinitializeWithUpload)
                 SyncType = syncType
             };
@@ -208,9 +195,9 @@ namespace Dotmim.Sync
                       localScopeReferenceInfo = null,
                       scope = null;
 
-            Guid fromId = Guid.Empty;
-            long lastSyncTS = 0L;
-            bool isNew = true;
+            var fromId = Guid.Empty;
+            var lastSyncTS = 0L;
+            var isNew = true;
 
             try
             {
@@ -415,23 +402,25 @@ namespace Dotmim.Sync
                          Schema = this.Configuration.Schema,
                          Policy = serverPolicy,
                          UseBulkOperations = this.Configuration.UseBulkOperations,
+                         CleanMetadatas = this.Configuration.CleanMetadatas,
                          ScopeInfoTableName = this.Configuration.ScopeInfoTableName,
                          Changes = clientBatchInfo,
                          SerializationFormat = this.Configuration.SerializationFormat
                      });
 
+
                 // if ConflictResolutionPolicy.ClientWins or Handler set to Client wins
                 // Conflict occurs here and server loose. 
                 // Conflicts count should be temp saved because applychanges on client side won't raise any conflicts (and so property Context.TotalSyncConflicts will be reset to 0)
                 var conflictsOnRemoteCount = context.TotalSyncConflicts;
-                
+
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
                 // Get changes from server
 
 
                 // get the archive if exists
-                if (localScopeReferenceInfo.IsNewScope && !String.IsNullOrEmpty(this.Configuration.Archive))
+                if (localScopeReferenceInfo.IsNewScope && !string.IsNullOrEmpty(this.Configuration.Archive))
                 {
                     //// fromId : Make sure we don't select lines on server that has been already updated by the client
                     //fromId = localScopeInfo.Id;
@@ -521,17 +510,16 @@ namespace Dotmim.Sync
                             Schema = this.Configuration.Schema,
                             Policy = clientPolicy,
                             UseBulkOperations = this.Configuration.UseBulkOperations,
+                            CleanMetadatas = this.Configuration.CleanMetadatas,
                             ScopeInfoTableName = this.Configuration.ScopeInfoTableName,
                             Changes = serverBatchInfo,
                             SerializationFormat = this.Configuration.SerializationFormat
                         });
 
+
                 context.TotalChangesDownloaded = clientChangesApplied.TotalAppliedChanges;
                 context.TotalChangesUploaded = clientChangesSelected.TotalChangesSelected;
                 context.TotalSyncErrors = clientChangesApplied.TotalAppliedChangesFailed;
-
-                // add conflicts occured on server side if policy is set to ClientWins
-                //context.TotalSyncConflicts += conflictsOnRemoteCount;
 
                 context.CompleteTime = DateTime.Now;
 
@@ -606,10 +594,7 @@ namespace Dotmim.Sync
         }
 
 
-        private void RemoteProvider_ApplyChangedFailed(object sender, ApplyChangeFailedEventArgs e)
-        {
-            this.ApplyChangedFailed?.Invoke(this, e);
-        }
+        private void RemoteProvider_ApplyChangedFailed(object sender, ApplyChangeFailedEventArgs e) => this.ApplyChangedFailed?.Invoke(this, e);
 
 
         // --------------------------------------------------------------------
@@ -644,7 +629,7 @@ namespace Dotmim.Sync
             this.LocalProvider.ScopeLoading -= (s, e) => this.ScopeLoading?.Invoke(s, e);
             this.LocalProvider.ScopeSaved -= (s, e) => this.ScopeSaved?.Invoke(s, e);
 
-            this.RemoteProvider.ApplyChangedFailed -= RemoteProvider_ApplyChangedFailed;
+            this.RemoteProvider.ApplyChangedFailed -= this.RemoteProvider_ApplyChangedFailed;
         }
     }
 }

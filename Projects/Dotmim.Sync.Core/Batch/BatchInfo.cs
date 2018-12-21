@@ -1,10 +1,8 @@
 ﻿using Dotmim.Sync.Data;
-using Dotmim.Sync.Data.Surrogate;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 
 namespace Dotmim.Sync.Batch
 {
@@ -18,16 +16,28 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Create a new BatchInfo, containing all BatchPartInfo
         /// </summary>
-        public BatchInfo()
+        public BatchInfo(bool isInMemory, string rootDirectory)
         {
             this.BatchPartsInfo = new List<BatchPartInfo>();
+            this.DirectoryRoot = rootDirectory;
+            this.InMemory = isInMemory;
         }
 
         /// <summary>
         /// Get the directory where all files are stored (if InMemory == false)
         /// </summary>
-        public String Directory { get; set; }
+        public string DirectoryName { get; set; }
 
+        /// <summary>
+        /// Get the Directory full path
+        /// </summary>
+        public string DirectoryRoot { get; set; }
+
+        /// <summary>
+        /// Get the full path of the Batch directory
+        /// </summary>
+        /// <returns></returns>
+        public string GetDirectoryFullPath() => Path.Combine(this.DirectoryRoot, this.DirectoryName);
 
         /// <summary>
         /// Is the batch parts are in memory
@@ -55,7 +65,7 @@ namespace Dotmim.Sync.Batch
         {
             foreach (var batchPartinInfo in this.BatchPartsInfo)
             {
-                bool isSerialized = false;
+                var isSerialized = false;
 
                 if (batchPartinInfo.Tables.Contains(tableName))
                 {
@@ -63,7 +73,7 @@ namespace Dotmim.Sync.Batch
                     if (batchPartinInfo.Set == null)
                     {
                         // Set is not already deserialized so we try to get the batch
-                        BatchPart batchPart = batchPartinInfo.GetBatch();
+                        var batchPart = batchPartinInfo.GetBatch();
 
                         // Unserialized and set in memory the DmSet
                         batchPartinInfo.Set = batchPart.DmSetSurrogate.ConvertToDmSet();
@@ -91,7 +101,7 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Generate a new BatchPartInfo and add it to the current batchInfo
         /// </summary>
-        internal BatchPartInfo GenerateBatchInfo(int batchIndex, DmSet changesSet, string batchDirectory )
+        internal BatchPartInfo GenerateBatchInfo(int batchIndex, DmSet changesSet)
         {
             var hasData = true;
 
@@ -105,12 +115,13 @@ namespace Dotmim.Sync.Batch
             //    return null;
 
             BatchPartInfo bpi = null;
+
             // Create a batch part
             // The batch part creation process will serialize the changesSet to the disk
-            if (!InMemory)
+            if (!this.InMemory)
             {
-                var bpId = GenerateNewFileName(batchIndex.ToString());
-                var fileName = Path.Combine(batchDirectory, this.Directory, bpId);
+                var bpId = this.GenerateNewFileName(batchIndex.ToString());
+                var fileName = Path.Combine(this.GetDirectoryFullPath(), bpId);
 
                 bpi = BatchPartInfo.CreateBatchPartInfo(batchIndex, changesSet, fileName, false, false);
             }
@@ -125,18 +136,16 @@ namespace Dotmim.Sync.Batch
             return bpi;
         }
 
- 
-        public static string GenerateNewDirectoryName()
+
+        public void GenerateNewDirectoryName()
         {
-            return String.Concat(DateTime.UtcNow.ToString("yyyy_MM_dd_ss"), Path.GetRandomFileName().Replace(".", ""));
+            this.DirectoryName = string.Concat(DateTime.UtcNow.ToString("yyyy_MM_dd_ss"), Path.GetRandomFileName().Replace(".", ""));
         }
 
         /// <summary>
         /// generate a batch file name
         /// </summary>
-        /// <param name="batchIndex"></param>
-        /// <returns></returns>
-        public static string GenerateNewFileName(string batchIndex)
+        public string GenerateNewFileName(string batchIndex)
         {
             if (batchIndex.Length == 1)
                 batchIndex = $"00{batchIndex}";
@@ -151,12 +160,40 @@ namespace Dotmim.Sync.Batch
         }
 
 
-        public void Clear()
+        /// <summary>
+        /// try to delete the Batch tmp directory and all the files stored in it
+        /// </summary>
+        public void TryRemoveDirectory()
         {
-            foreach (var bpi in this.BatchPartsInfo)
+            // Once we have applied all the batch, we can safely remove the temp dir and all it's files
+            if (!this.InMemory && !string.IsNullOrEmpty(this.DirectoryRoot) && !string.IsNullOrEmpty(this.DirectoryName))
             {
-                bpi.Clear();
+                var tmpDirectory = new DirectoryInfo(this.GetDirectoryFullPath());
+
+                if (tmpDirectory == null || !tmpDirectory.Exists)
+                    return;
+
+                try
+                {
+                    tmpDirectory.Delete(true);
+                }
+                // do nothing here 
+                catch { }
             }
+        }
+
+
+        /// <summary>
+        /// Clear all batch parts info and try to delete tmp folder if needed
+        /// </summary>
+        public void Clear(bool deleteFolder)
+        {
+            // Delete folders before deleting batch parts
+            if (deleteFolder)
+                this.TryRemoveDirectory();
+
+            foreach (var bpi in this.BatchPartsInfo)
+                bpi.Clear();
 
             this.BatchPartsInfo.Clear();
 

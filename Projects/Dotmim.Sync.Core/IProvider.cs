@@ -1,8 +1,5 @@
 ﻿using Dotmim.Sync.Batch;
-using Dotmim.Sync.Builders;
 using Dotmim.Sync.Data;
-using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Filter;
 using Dotmim.Sync.Messages;
 using System;
 using System.Collections.Generic;
@@ -13,7 +10,6 @@ namespace Dotmim.Sync
 {
     public interface IProvider
     {
-
         event EventHandler<ProgressEventArgs> SyncProgress;
         event EventHandler<BeginSessionEventArgs> BeginSession;
         event EventHandler<EndSessionEventArgs> EndSession;
@@ -31,7 +27,7 @@ namespace Dotmim.Sync
         event EventHandler<TableChangesAppliedEventArgs> TableChangesApplied;
 
         event EventHandler<ApplyChangeFailedEventArgs> ApplyChangedFailed;
-        
+
         /// <summary>
         /// Set the token for the current operation
         /// </summary>
@@ -77,11 +73,12 @@ namespace Dotmim.Sync
         /// <summary>
         /// End Session
         /// </summary>
-        Task<SyncContext> EndSessionAsync(SyncContext context );
+        Task<SyncContext> EndSessionAsync(SyncContext context);
 
         /// <summary>
         /// Get a local timestamp
         /// </summary>
-        Task<(SyncContext, Int64)> GetLocalTimestampAsync(SyncContext context, MessageTimestamp message);
+        Task<(SyncContext, long)> GetLocalTimestampAsync(SyncContext context, MessageTimestamp message);
+
     }
 }

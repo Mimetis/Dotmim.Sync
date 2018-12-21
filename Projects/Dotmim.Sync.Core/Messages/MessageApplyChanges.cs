@@ -39,6 +39,11 @@ namespace Dotmim.Sync.Messages
         public Boolean UseBulkOperations { get; set; }
 
         /// <summary>
+        /// Gets or Sets if we should cleaning tmp dir files after sync.
+        /// </summary>
+        public Boolean CleanMetadatas { get; set; }
+
+        /// <summary>
         /// Gets ors Sets the Scope info table name used for the sync
         /// </summary>
         public String ScopeInfoTableName { get; set; }

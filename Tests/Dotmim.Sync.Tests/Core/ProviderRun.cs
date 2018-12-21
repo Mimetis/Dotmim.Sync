@@ -5,10 +5,7 @@ using Dotmim.Sync.Web.Client;
 using Dotmim.Sync.Web.Server;
 using Microsoft.AspNetCore.Http;
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
+using System.IO;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Tests.Core
@@ -18,39 +15,39 @@ namespace Dotmim.Sync.Tests.Core
         /// <summary>
         /// Gets or Sets the database name used to generate correct connection string
         /// </summary>
-        public String DatabaseName { get; set; }
+        public string DatabaseName { get; set; }
 
         /// <summary>
         /// Get or Sets Connection on inner Provider.
         /// </summary>
-        public String ConnectionString
+        public string ConnectionString
         {
             get
             {
-                switch (ClientProviderType)
+                switch (this.ClientProviderType)
                 {
                     case ProviderType.Sql:
-                        return ((SqlSyncProvider)ClientProvider)?.ConnectionString;
+                        return ((SqlSyncProvider)this.ClientProvider)?.ConnectionString;
                     case ProviderType.MySql:
-                        return ((MySqlSyncProvider)ClientProvider)?.ConnectionString;
+                        return ((MySqlSyncProvider)this.ClientProvider)?.ConnectionString;
                     case ProviderType.Sqlite:
-                        return ((SqliteSyncProvider)ClientProvider)?.ConnectionString;
+                        return ((SqliteSyncProvider)this.ClientProvider)?.ConnectionString;
                 }
 
                 return null;
             }
             set
             {
-                switch (ClientProviderType)
+                switch (this.ClientProviderType)
                 {
                     case ProviderType.Sql:
-                        ((SqlSyncProvider)ClientProvider).ConnectionString = value;
+                        ((SqlSyncProvider)this.ClientProvider).ConnectionString = value;
                         break;
                     case ProviderType.MySql:
-                        ((MySqlSyncProvider)ClientProvider).ConnectionString = value;
+                        ((MySqlSyncProvider)this.ClientProvider).ConnectionString = value;
                         break;
                     case ProviderType.Sqlite:
-                        ((SqliteSyncProvider)ClientProvider).ConnectionString = value;
+                        ((SqliteSyncProvider)this.ClientProvider).ConnectionString = value;
                         break;
                 }
             }
@@ -90,11 +87,11 @@ namespace Dotmim.Sync.Tests.Core
             var syncTables = tables ?? serverFixture.Tables;
 
             // local test, through tcp
-            if (NetworkType == NetworkType.Tcp)
+            if (this.NetworkType == NetworkType.Tcp)
             {
                 // create agent
                 if (this.Agent == null || !reuseAgent)
-                    this.Agent = new SyncAgent(ClientProvider, serverProvider, syncTables);
+                    this.Agent = new SyncAgent(this.ClientProvider, serverProvider, syncTables);
 
                 // copy conf settings
                 if (conf != null)
@@ -102,27 +99,28 @@ namespace Dotmim.Sync.Tests.Core
 
                 // Add Filers
                 if (serverFixture.Filters != null && serverFixture.Filters.Count > 0)
-                    serverFixture.Filters.ForEach(f => {
-                        if (!Agent.Configuration.Filters.Contains(f))
-                            Agent.Configuration.Filters.Add(f);
+                    serverFixture.Filters.ForEach(f =>
+                    {
+                        if (!this.Agent.Configuration.Filters.Contains(f))
+                            this.Agent.Configuration.Filters.Add(f);
                     });
 
                 // Add Filers values
                 if (serverFixture.FilterParameters != null && serverFixture.FilterParameters.Count > 0)
-                    foreach(var syncParam in serverFixture.FilterParameters)
+                    foreach (var syncParam in serverFixture.FilterParameters)
                         if (!this.Agent.Parameters.Contains(syncParam))
                             this.Agent.Parameters.Add(syncParam);
 
                 // sync
                 try
                 {
-                    BeginRun?.Invoke(this.Agent.RemoteProvider);
-                    Results = await this.Agent.SynchronizeAsync();
-                    EndRun?.Invoke(this.Agent.RemoteProvider);
+                    this.BeginRun?.Invoke(this.Agent.RemoteProvider);
+                    this.Results = await this.Agent.SynchronizeAsync();
+                    this.EndRun?.Invoke(this.Agent.RemoteProvider);
                 }
                 catch (Exception ex)
                 {
-                    Exception = ex;
+                    this.Exception = ex;
                     Console.WriteLine(ex);
                 }
             }
@@ -132,7 +130,7 @@ namespace Dotmim.Sync.Tests.Core
             // -----------------------------------------------------------------------
 
             // tests through http proxy
-            if (NetworkType == NetworkType.Http)
+            if (this.NetworkType == NetworkType.Http)
             {
 
                 // client handler
@@ -142,7 +140,7 @@ namespace Dotmim.Sync.Tests.Core
                     var serverHandler = new RequestDelegate(async context =>
                     {
 
-                        SyncConfiguration syncConfiguration = new SyncConfiguration(syncTables);// set proxy conf
+                        var syncConfiguration = new SyncConfiguration(syncTables);// set proxy conf
                         // copy conf settings
 
                         if (conf != null)
@@ -152,9 +150,13 @@ namespace Dotmim.Sync.Tests.Core
                         // set proxy conf
                         proxyServerProvider.Configuration = syncConfiguration;
 
+                        // test if <> directory name works
+                        proxyServerProvider.Configuration.BatchDirectory = Path.Combine(proxyServerProvider.Configuration.BatchDirectory, "server");
+
                         // Add Filers
                         if (serverFixture.Filters != null && serverFixture.Filters.Count > 0)
-                            serverFixture.Filters.ForEach(f => {
+                            serverFixture.Filters.ForEach(f =>
+                            {
                                 if (!proxyServerProvider.Configuration.Filters.Contains(f))
                                     proxyServerProvider.Configuration.Filters.Add(f);
                             });
@@ -163,9 +165,9 @@ namespace Dotmim.Sync.Tests.Core
                         // sync
                         try
                         {
-                            BeginRun?.Invoke(proxyServerProvider.LocalProvider);
+                            this.BeginRun?.Invoke(proxyServerProvider.LocalProvider);
                             await proxyServerProvider.HandleRequestAsync(context);
-                            EndRun?.Invoke(proxyServerProvider.LocalProvider);
+                            this.EndRun?.Invoke(proxyServerProvider.LocalProvider);
 
                         }
                         catch (Exception ew)
@@ -178,7 +180,7 @@ namespace Dotmim.Sync.Tests.Core
                     {
                         // create agent
                         if (this.Agent == null || !reuseAgent)
-                            this.Agent = new SyncAgent(ClientProvider, proxyClientProvider);
+                            this.Agent = new SyncAgent(this.ClientProvider, proxyClientProvider);
 
                         if (serverFixture.FilterParameters != null && serverFixture.FilterParameters.Count > 0)
                             foreach (var syncParam in serverFixture.FilterParameters)
@@ -189,11 +191,11 @@ namespace Dotmim.Sync.Tests.Core
 
                         try
                         {
-                            Results = await Agent.SynchronizeAsync();
+                            this.Results = await this.Agent.SynchronizeAsync();
                         }
                         catch (Exception ew)
                         {
-                            Exception = ew;
+                            this.Exception = ew;
                             Console.WriteLine(ew);
                         }
                     });
