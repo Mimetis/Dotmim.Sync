@@ -299,14 +299,14 @@ namespace Dotmim.Sync.Web.Server
 
             // client specific path
             var batchDirectory = httpMessageBeginSession.SyncConfiguration.BatchDirectory;
-            
+
             // the Conf is hosted by the server ? if not, get the client configuration
-            httpMessageBeginSession.SyncConfiguration = 
+            httpMessageBeginSession.SyncConfiguration =
                 this.Configuration ?? httpMessageBeginSession.SyncConfiguration;
 
             // Begin the session, requesting the server for the correct configuration
             (SyncContext ctx, SyncConfiguration conf) =
-                await this.BeginSessionAsync(httpMessage.SyncContext, 
+                await this.BeginSessionAsync(httpMessage.SyncContext,
                         httpMessageBeginSession as MessageBeginSession);
 
             // One exception : don't touch the batch directory, it's very client specific and may differ from server side
@@ -492,6 +492,17 @@ namespace Dotmim.Sync.Web.Server
 
                 httpMessage.SyncContext = syncContext;
                 httpMessage.Content = httpMessageContent;
+
+                // If we have only one bpi, we can safely delete it
+                if (httpMessageContent.BatchPartInfo.IsLastBatch)
+                {
+                    this.LocalProvider.CacheManager.Remove("GetChangeBatch_BatchInfo");
+                    this.LocalProvider.CacheManager.Remove("GetChangeBatch_ChangesSelected");
+                    // delete the folder (not the BatchPartInfo, because we have a reference on it)
+                    if (this.Configuration.CleanMetadatas)
+                        bi.TryRemoveDirectory();
+                }
+
                 return httpMessage;
             }
 
@@ -516,6 +527,9 @@ namespace Dotmim.Sync.Web.Server
             {
                 this.LocalProvider.CacheManager.Remove("GetChangeBatch_BatchInfo");
                 this.LocalProvider.CacheManager.Remove("GetChangeBatch_ChangesSelected");
+                // delete the folder (not the BatchPartInfo, because we have a reference on it)
+                if (this.Configuration.CleanMetadatas)
+                    batchInfo.TryRemoveDirectory();
             }
 
             httpMessage.Content = httpMessageContent;
@@ -545,11 +559,10 @@ namespace Dotmim.Sync.Web.Server
 
             if (httpMessageContent.InMemory)
             {
-                batchInfo = new BatchInfo
+                batchInfo = new BatchInfo(true, this.Configuration.BatchDirectory)
                 {
                     BatchIndex = 0,
                     BatchPartsInfo = new List<BatchPartInfo>(new[] { bpi }),
-                    InMemory = true
                 };
 
                 bpi.Set = httpMessageContent.Set.ConvertToDmSet();
@@ -564,6 +577,7 @@ namespace Dotmim.Sync.Web.Server
                         Schema = schema,
                         Policy = httpMessageContent.Policy,
                         UseBulkOperations = httpMessageContent.UseBulkOperations,
+                        CleanMetadatas = httpMessageContent.CleanMetadatas,
                         ScopeInfoTableName = httpMessageContent.ScopeInfoTableName,
                         Changes = batchInfo
                     });
@@ -583,23 +597,24 @@ namespace Dotmim.Sync.Web.Server
 
             if (batchInfo == null)
             {
-                batchInfo = new BatchInfo
+                batchInfo = new BatchInfo(false, this.Configuration.BatchDirectory)
                 {
                     BatchIndex = 0,
                     BatchPartsInfo = new List<BatchPartInfo>(new[] { bpi }),
                     InMemory = false,
-                    Directory = BatchInfo.GenerateNewDirectoryName()
                 };
+
+                batchInfo.GenerateNewDirectoryName();
             }
             else
             {
                 batchInfo.BatchPartsInfo.Add(bpi);
             }
 
-            var bpId = BatchInfo.GenerateNewFileName(httpMessageContent.BatchIndex.ToString());
+            var bpId = batchInfo.GenerateNewFileName(httpMessageContent.BatchIndex.ToString());
 
             // to save the file, we should use the local configuration batch directory
-            var fileName = Path.Combine(this.Configuration.BatchDirectory, batchInfo.Directory, bpId);
+            var fileName = Path.Combine(batchInfo.GetDirectoryFullPath(), bpId);
 
             BatchPart.Serialize(httpMessageContent.Set, fileName);
             bpi.FileName = fileName;
@@ -624,6 +639,7 @@ namespace Dotmim.Sync.Web.Server
                         Schema = schema,
                         Policy = httpMessageContent.Policy,
                         UseBulkOperations = httpMessageContent.UseBulkOperations,
+                        CleanMetadatas = httpMessageContent.CleanMetadatas,
                         ScopeInfoTableName = httpMessageContent.ScopeInfoTableName,
                         Changes = batchInfo
                     });
@@ -768,7 +784,7 @@ namespace Dotmim.Sync.Web.Server
         // --------------------------------------------------------------------
 
         /// <summary>
-        /// Releases all resources used by the <see cref="T:Microsoft.Synchronization.Data.DbSyncBatchInfo" />.
+        /// Releases all resources
         /// </summary>
         public void Dispose()
         {
@@ -778,7 +794,6 @@ namespace Dotmim.Sync.Web.Server
 
         /// <summary>
         /// Releases the unmanaged resources used 
-        /// by the <see cref="T:Microsoft.Synchronization.Data.DbSyncBatchInfo" /> and optionally releases the managed resources.
         /// </summary>
         protected virtual void Dispose(bool cleanup)
         {

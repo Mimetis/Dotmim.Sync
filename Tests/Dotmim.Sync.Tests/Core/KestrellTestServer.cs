@@ -2,12 +2,10 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Session;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Tests.Core
@@ -21,9 +19,9 @@ namespace Dotmim.Sync.Tests.Core
     /// </summary>
     public class KestrellTestServer : IDisposable
     {
-        IWebHostBuilder builder;
-        bool useFiddler = false;
-        IWebHost host;
+        private readonly IWebHostBuilder builder;
+        private readonly bool useFiddler = false;
+        private IWebHost host;
 
         public KestrellTestServer(bool useFiddler = false)
         {
@@ -35,8 +33,8 @@ namespace Dotmim.Sync.Tests.Core
                     services.AddDistributedMemoryCache();
                     services.AddSession(options =>
                     {
-                            // Set a long timeout for easy testing.
-                            options.IdleTimeout = TimeSpan.FromDays(10);
+                        // Set a long timeout for easy testing.
+                        options.IdleTimeout = TimeSpan.FromDays(10);
                         options.Cookie.HttpOnly = true;
                     });
                 });
@@ -56,12 +54,12 @@ namespace Dotmim.Sync.Tests.Core
 
             this.host = this.builder.Build();
             this.host.Start();
-            string localHost = $"http://localhost";
+            var localHost = $"http://localhost";
 
-            if (useFiddler)
+            if (this.useFiddler)
                 localHost = $"{localHost}.fiddler";
 
-            string serviceUrl = $"{localHost}:{host.GetPort()}/";
+            var serviceUrl = $"{localHost}:{this.host.GetPort()}/";
 
             await clientHandler(serviceUrl);
         }
@@ -83,35 +81,20 @@ namespace Dotmim.Sync.Tests.Core
     }
     public static class IWebHostPortExtensions
     {
-        public static string GetHost(this IWebHost host, bool isHttps = false)
-        {
-            return host.GetUri(isHttps).Host;
-        }
+        public static string GetHost(this IWebHost host, bool isHttps = false) => host.GetUri(isHttps).Host;
 
-        public static int GetPort(this IWebHost host)
-        {
-            return host.GetPorts().First();
-        }
+        public static int GetPort(this IWebHost host) => host.GetPorts().First();
 
-        public static int GetPort(this IWebHost host, string scheme)
-        {
-            return host.GetUris()
+        public static int GetPort(this IWebHost host, string scheme) => host.GetUris()
                 .Where(u => u.Scheme.Equals(scheme, StringComparison.OrdinalIgnoreCase))
                 .Select(u => u.Port)
                 .First();
-        }
 
-        public static IEnumerable<int> GetPorts(this IWebHost host)
-        {
-            return host.GetUris()
+        public static IEnumerable<int> GetPorts(this IWebHost host) => host.GetUris()
                 .Select(u => u.Port);
-        }
 
-        public static IEnumerable<Uri> GetUris(this IWebHost host)
-        {
-            return host.ServerFeatures.Get<IServerAddressesFeature>().Addresses
+        public static IEnumerable<Uri> GetUris(this IWebHost host) => host.ServerFeatures.Get<IServerAddressesFeature>().Addresses
                 .Select(a => new Uri(a));
-        }
 
         public static Uri GetUri(this IWebHost host, bool isHttps = false)
         {

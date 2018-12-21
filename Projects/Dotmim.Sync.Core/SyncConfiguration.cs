@@ -1,14 +1,11 @@
-﻿using Dotmim.Sync.Enumerations;
+﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Data;
-using System;
-using System.IO;
-using System.Linq;
+using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Filter;
-using Dotmim.Sync.Serialization;
-using System.Collections;
-using System.Collections.Generic;
-using Dotmim.Sync.Builders;
 using Newtonsoft.Json;
+using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Runtime.Serialization;
 
 namespace Dotmim.Sync
@@ -16,7 +13,7 @@ namespace Dotmim.Sync
     [Serializable]
     public class SyncConfiguration
     {
-        public const String DMSET_NAME = "DotmimSync";
+        public const string DMSET_NAME = "DotmimSync";
 
         [NonSerialized]
         [JsonIgnore]
@@ -41,29 +38,17 @@ namespace Dotmim.Sync
         [JsonIgnore]
         public DmSet Schema
         {
-            get
-            {
-                return scopeSet;
-            }
-            set
-            {
-                scopeSet = value;
-            }
+            get => this.scopeSet;
+            set => this.scopeSet = value;
         }
 
         /// <summary>
         /// Gets or Sets the directory used for batch mode.
         /// Default value is [Windows Temp Path]/[DotmimSync]
         /// </summary>
-        [DataMember(Name="BD")]
-        public String BatchDirectory { get; set; }
+        [DataMember(Name = "BD")]
+        public string BatchDirectory { get; set; }
 
-        /// <summary>
-        /// Gets or Sets the archive name, saved in the BatchDirectory, 
-        /// containing the zip starter for any new client
-        /// </summary>
-        [DataMember(Name = "A")]
-        public String Archive { get; set; }
 
         /// <summary>
         /// Gets or Sets the size used for downloading in batch mode. 
@@ -71,6 +56,13 @@ namespace Dotmim.Sync
         /// </summary>
         [DataMember(Name = "DBSKB")]
         public int DownloadBatchSizeInKB { get; set; }
+
+        /// <summary>
+        /// Gets or Sets the archive name, saved in the BatchDirectory, 
+        /// containing the zip starter for any new client
+        /// </summary>
+        [DataMember(Name = "A")]
+        public string Archive { get; set; }
 
         /// <summary>
         /// Gets/Sets the serialization converter object. Default is Json
@@ -81,6 +73,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets/Sets the log level for sync operations. Default value is false.
         /// </summary>
+        [DataMember(Name = "UVE")]
         public bool UseVerboseErrors { get; set; }
 
         /// <summary>
@@ -90,10 +83,17 @@ namespace Dotmim.Sync
         [DataMember(Name = "UBO")]
         public bool UseBulkOperations { get; set; } = true;
 
+        /// <summary>
+        /// Gets or Sets if we should cleaning tmp dir files after sync.
+        /// </summary>
+        [DataMember(Name = "CM")]
+        public bool CleanMetadatas { get; set; } = true;
 
-
+        /// <summary>
+        /// Gets or Sets the current scope name
+        /// </summary>
         [DataMember(Name = "SN")]
-        public String ScopeName { get; set; }
+        public string ScopeName { get; set; }
 
         /// <summary>
         /// Filters applied on tables
@@ -105,19 +105,20 @@ namespace Dotmim.Sync
         /// Specify a prefix for naming stored procedure. Default is empty string
         /// </summary>
         [DataMember(Name = "SPP")]
-        public String StoredProceduresPrefix {
-            get => _storedProceduresPrefix;
+        public string StoredProceduresPrefix
+        {
+            get => this._storedProceduresPrefix;
             set
             {
-                if (_storedProceduresPrefix != value)
+                if (this._storedProceduresPrefix != value)
                 {
-                    _storedProceduresPrefix = value;
+                    this._storedProceduresPrefix = value;
 
                     if (this.Schema != null || this.Schema.Tables != null)
                     {
                         foreach (var tbl in this.Schema.Tables)
                         {
-                            tbl.StoredProceduresPrefix = _storedProceduresPrefix;
+                            tbl.StoredProceduresPrefix = this._storedProceduresPrefix;
                         }
                     }
                 }
@@ -128,20 +129,20 @@ namespace Dotmim.Sync
         /// Specify a suffix for naming stored procedures. Default is empty string
         /// </summary>
         [DataMember(Name = "SPS")]
-        public String StoredProceduresSuffix
+        public string StoredProceduresSuffix
         {
-            get => _storedProceduresSuffix;
+            get => this._storedProceduresSuffix;
             set
             {
-                if (_storedProceduresSuffix != value)
+                if (this._storedProceduresSuffix != value)
                 {
-                    _storedProceduresSuffix = value;
+                    this._storedProceduresSuffix = value;
 
                     if (this.Schema != null || this.Schema.Tables != null)
                     {
                         foreach (var tbl in this.Schema.Tables)
                         {
-                            tbl.StoredProceduresSuffix = _storedProceduresSuffix;
+                            tbl.StoredProceduresSuffix = this._storedProceduresSuffix;
                         }
                     }
                 }
@@ -152,20 +153,20 @@ namespace Dotmim.Sync
         /// Specify a prefix for naming stored procedure. Default is empty string
         /// </summary>
         [DataMember(Name = "TP")]
-        public String TriggersPrefix
+        public string TriggersPrefix
         {
-            get => _triggersPrefix;
+            get => this._triggersPrefix;
             set
             {
-                if (_triggersPrefix != value)
+                if (this._triggersPrefix != value)
                 {
-                    _triggersPrefix = value;
+                    this._triggersPrefix = value;
 
                     if (this.Schema != null || this.Schema.Tables != null)
                     {
                         foreach (var tbl in this.Schema.Tables)
                         {
-                            tbl.TriggersPrefix= _triggersPrefix;
+                            tbl.TriggersPrefix = this._triggersPrefix;
                         }
                     }
                 }
@@ -176,46 +177,44 @@ namespace Dotmim.Sync
         /// Specify a suffix for naming stored procedures. Default is empty string
         /// </summary>
         [DataMember(Name = "TS")]
-        public String TriggersSuffix
+        public string TriggersSuffix
         {
-            get => _triggersSuffix;
+            get => this._triggersSuffix;
             set
             {
-                if (_triggersSuffix != value)
+                if (this._triggersSuffix != value)
                 {
-                    _triggersSuffix = value;
+                    this._triggersSuffix = value;
 
                     if (this.Schema != null || this.Schema.Tables != null)
                     {
                         foreach (var tbl in this.Schema.Tables)
                         {
-                            tbl.TriggersSuffix = _triggersSuffix;
+                            tbl.TriggersSuffix = this._triggersSuffix;
                         }
                     }
                 }
             }
         }
 
-
-
         /// <summary>
         /// Specify a prefix for naming tracking tables. Default is empty string
         /// </summary>
         [DataMember(Name = "TTP")]
-        public String TrackingTablesPrefix
+        public string TrackingTablesPrefix
         {
-            get => _trackingTablesPrefix;
+            get => this._trackingTablesPrefix;
             set
             {
-                if (_trackingTablesPrefix != value)
+                if (this._trackingTablesPrefix != value)
                 {
-                    _trackingTablesPrefix = value;
+                    this._trackingTablesPrefix = value;
 
                     if (this.Schema != null || this.Schema.Tables != null)
                     {
                         foreach (var tbl in this.Schema.Tables)
                         {
-                            tbl.TrackingTablesPrefix = _trackingTablesPrefix;
+                            tbl.TrackingTablesPrefix = this._trackingTablesPrefix;
                         }
                     }
                 }
@@ -226,20 +225,20 @@ namespace Dotmim.Sync
         /// Specify a suffix for naming tracking tables.
         /// </summary>
         [DataMember(Name = "TTS")]
-        public String TrackingTablesSuffix
+        public string TrackingTablesSuffix
         {
-            get => _trackingTablesSuffix;
+            get => this._trackingTablesSuffix;
             set
             {
-                if (_trackingTablesSuffix != value)
+                if (this._trackingTablesSuffix != value)
                 {
-                    _trackingTablesSuffix = value;
+                    this._trackingTablesSuffix = value;
 
                     if (this.Schema != null || this.Schema.Tables != null)
                     {
                         foreach (var tbl in this.Schema.Tables)
                         {
-                            tbl.TrackingTablesSuffix = _trackingTablesSuffix;
+                            tbl.TrackingTablesSuffix = this._trackingTablesSuffix;
                         }
                     }
 
@@ -252,8 +251,7 @@ namespace Dotmim.Sync
         /// Gets or Sets the scope_info table name. Default is scope_info
         /// </summary>
         [DataMember(Name = "SIT")]
-        public String ScopeInfoTableName { get; set; }
-
+        public string ScopeInfoTableName { get; set; }
 
         /// <summary>
         /// Get the default apply action on conflict resolution.
@@ -262,8 +260,6 @@ namespace Dotmim.Sync
         public static ApplyAction GetApplyAction(ConflictResolutionPolicy policy) => policy == ConflictResolutionPolicy.ServerWins ?
              ApplyAction.Continue :
              ApplyAction.RetryWithForceWrite;
-
-
 
 
 
@@ -278,6 +274,7 @@ namespace Dotmim.Sync
             this.Filters = new List<FilterClause>();
             this.ScopeInfoTableName = "scope_info";
             this.ScopeName = "DefaultScope";
+            this.CleanMetadatas = true;
         }
 
         public SyncConfiguration(string[] tables) : this()
@@ -291,9 +288,10 @@ namespace Dotmim.Sync
 
         public SyncConfiguration Clone()
         {
-            SyncConfiguration syncConfiguration = new SyncConfiguration
+            var syncConfiguration = new SyncConfiguration
             {
                 BatchDirectory = this.BatchDirectory,
+                CleanMetadatas = this.CleanMetadatas,
                 ConflictResolutionPolicy = this.ConflictResolutionPolicy,
                 DownloadBatchSizeInKB = this.DownloadBatchSizeInKB,
                 Schema = this.Schema.Clone(),
@@ -339,7 +337,7 @@ namespace Dotmim.Sync
         public void Add(string[] tables)
         {
             foreach (var table in tables)
-                Add(table);
+                this.Add(table);
         }
 
         /// <summary>
@@ -352,7 +350,7 @@ namespace Dotmim.Sync
 
             // Potentially user can pass something like [SalesLT].[Product]
             // or SalesLT.Product or Product. ObjectNameParser will handle it
-            ObjectNameParser parser = new ObjectNameParser(table);
+            var parser = new ObjectNameParser(table);
 
             var tableName = parser.ObjectName;
             var schema = parser.SchemaName;
@@ -360,7 +358,7 @@ namespace Dotmim.Sync
             if (!this.Schema.Tables.Contains(tableName))
             {
                 var dmTable = new DmTable(tableName);
-                if (!String.IsNullOrEmpty(schema))
+                if (!string.IsNullOrEmpty(schema))
                     dmTable.Schema = schema;
 
                 dmTable.StoredProceduresPrefix = this.StoredProceduresPrefix;
@@ -388,72 +386,5 @@ namespace Dotmim.Sync
             this.Schema.Tables.Add(item);
         }
 
-        //public void Clear()
-        //{
-        //    if (this.ScopeSet == null || this.ScopeSet.Tables == null)
-        //        return;
-
-        //    this.ScopeSet.Tables.Clear();
-        //}
-
-        //public DmTable this[int index]
-        //{
-        //    get
-        //    {
-        //        if (this.ScopeSet == null || this.ScopeSet.Tables == null)
-        //            return null;
-
-        //        return this.ScopeSet.Tables[index];
-        //    }
-        //}
-        //public DmTable this[string name]
-        //{
-        //    get
-        //    {
-        //        if (string.IsNullOrEmpty(name))
-        //            throw new ArgumentNullException("name");
-
-        //        if (this.ScopeSet == null || this.ScopeSet.Tables == null)
-        //            return null;
-
-        //        return this.ScopeSet.Tables[name];
-        //    }
-        //}
-        //public bool Contains(DmTable item)
-        //{
-        //    if (this.ScopeSet == null || this.ScopeSet.Tables == null)
-        //        return false;
-
-        //    return this.ScopeSet.Tables.Contains(item);
-        //}
-        //public void CopyTo(DmTable[] array, int arrayIndex)
-        //{
-        //    if (this.ScopeSet == null || this.ScopeSet.Tables == null)
-        //        return;
-
-        //    for (int i = 0; i < this.ScopeSet.Tables.Count; ++i)
-        //        array[arrayIndex + i] = this.ScopeSet.Tables[i];
-        //}
-        //public bool Remove(DmTable item)
-        //{
-        //    if (this.ScopeSet == null || this.ScopeSet.Tables == null)
-        //        return false;
-
-        //    return this.ScopeSet.Tables.Remove(item);
-        //}
-        //public IEnumerator<DmTable> GetEnumerator()
-        //{
-        //    if (this.ScopeSet == null || this.ScopeSet.Tables == null)
-        //        return null;
-
-        //    return this.ScopeSet.Tables.GetEnumerator();
-        //}
-        //IEnumerator IEnumerable.GetEnumerator()
-        //{
-        //    if (this.ScopeSet == null || this.ScopeSet.Tables == null)
-        //        yield break;
-
-        //    yield return this.ScopeSet.Tables.GetEnumerator();
-        //}
     }
 }
