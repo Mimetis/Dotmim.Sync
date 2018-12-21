@@ -197,7 +197,7 @@ namespace Dotmim.Sync
         /// </summary>
         private void TryRaiseProgressEvent(SyncStage stage, String message, Dictionary<String, String> properties = null)
         {
-            ProgressEventArgs progressEventArgs = new ProgressEventArgs(this.ProviderTypeName, stage, message);
+            var progressEventArgs = new ProgressEventArgs(this.ProviderTypeName, stage, message);
 
             if (properties != null)
                 progressEventArgs.Properties = properties;

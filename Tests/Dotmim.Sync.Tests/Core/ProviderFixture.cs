@@ -315,6 +315,7 @@ namespace Dotmim.Sync.Tests.Core
         {
             to.DownloadBatchSizeInKB = from.DownloadBatchSizeInKB;
             to.UseBulkOperations = from.UseBulkOperations;
+            to.CleanMetadatas = from.CleanMetadatas;
             to.SerializationFormat = from.SerializationFormat;
             to.Archive = from.Archive;
             to.BatchDirectory = from.BatchDirectory;

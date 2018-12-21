@@ -1,18 +1,13 @@
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Test.Misc;
 using Dotmim.Sync.Tests.Core;
-using Dotmim.Sync.Tests.Misc;
 using Dotmim.Sync.Tests.Models;
 using Microsoft.EntityFrameworkCore;
-using MySql.Data.MySqlClient;
 using System;
-using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -36,15 +31,9 @@ namespace Dotmim.Sync.Tests
         // the server provider
         protected readonly CoreProvider ServerProvider;
 
-        protected virtual AdventureWorksContext GetServerDbContext()
-        {
-            return new AdventureWorksContext(fixture.ProviderType, ServerProvider.ConnectionString);
-        }
+        protected virtual AdventureWorksContext GetServerDbContext() => new AdventureWorksContext(this.fixture.ProviderType, this.ServerProvider.ConnectionString);
 
-        protected virtual AdventureWorksContext GetClientDbContext(ProviderRun providerRun)
-        {
-            return new AdventureWorksContext(providerRun);
-        }
+        protected virtual AdventureWorksContext GetClientDbContext(ProviderRun providerRun) => new AdventureWorksContext(providerRun);
 
         /// <summary>
         /// on ctor, set the tables we want to use
@@ -64,7 +53,7 @@ namespace Dotmim.Sync.Tests
         }
 
 
-        public async virtual Task CheckHealthDatabase()
+        public virtual async Task CheckHealthDatabase()
         {
             if (this.fixture.ProviderType == ProviderType.Sql)
             {
@@ -74,7 +63,7 @@ namespace Dotmim.Sync.Tests
                 {
                     using (var sqlCommand = new SqlCommand())
                     {
-                        string commandText =
+                        var commandText =
                                 $"Select tbl.name as tableName,  col.name as columnName, typ.name as [type], col.max_length " +
                                 $"from sys.columns as col " +
                                 $"Inner join sys.tables as tbl on tbl.object_id = col.object_id " +
@@ -88,7 +77,7 @@ namespace Dotmim.Sync.Tests
                         var dbReader = sqlCommand.ExecuteReader();
                         while (dbReader.Read())
                         {
-                            string debugLine = $"{(string)dbReader["tableName"]}\t{(string)dbReader["columnName"]}\t{(string)dbReader["type"]}";
+                            var debugLine = $"{(string)dbReader["tableName"]}\t{(string)dbReader["columnName"]}\t{(string)dbReader["type"]}";
 
                             Console.WriteLine(debugLine);
                             Debug.WriteLine(debugLine);
@@ -108,12 +97,19 @@ namespace Dotmim.Sync.Tests
         /// It creates the clients schemas and make a first sync
         /// Once Initialize() is done, both server and all clients should be equivalent
         /// </summary>
-        public async virtual Task Initialize()
+        public virtual async Task Initialize()
         {
             try
             {
+                var s = new SyncConfiguration
+                {
+                    DownloadBatchSizeInKB = 100,
+                    UseBulkOperations = true,
+                    SerializationFormat = SerializationFormat.Json,
+                    CleanMetadatas = false
+                };
 
-                var results = await this.testRunner.RunTestsAsync();
+                var results = await this.testRunner.RunTestsAsync(s);
 
                 foreach (var trr in results)
                 {
@@ -133,18 +129,18 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Should raise a correct error when a bad connection is defined
         /// </summary>
-        public async virtual Task Bad_Server_Connection_Should_Raise_Error()
+        public virtual async Task Bad_Server_Connection_Should_Raise_Error()
         {
             var provider = this.fixture.NewServerProvider($@"Server=unknown;Database=unknown;UID=sa;PWD=unknown");
             // create a new runner with a provider with bad connection string
-            var tempTestRunner = new TestRunner(fixture, this.ServerProvider);
+            var tempTestRunner = new TestRunner(this.fixture, this.ServerProvider);
 
             var results = await tempTestRunner.RunTestsAsync(false);
 
             foreach (var trr in results)
             {
                 Assert.IsType<SyncException>(trr.Exception);
-                SyncException se = trr.Exception as SyncException;
+                var se = trr.Exception as SyncException;
                 Assert.Equal(SyncExceptionType.Data, se.Type);
             }
 
@@ -153,7 +149,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Should raise a correct error when a bad connection is defined
         /// </summary>
-        public async virtual Task Bad_Client_Connection_Should_Raise_Error()
+        public virtual async Task Bad_Client_Connection_Should_Raise_Error()
         {
             // set a bad connection string
             this.fixture.ClientRuns.ForEach(tr => tr.ConnectionString = $@"Server=unknown;Database=unknown;UID=sa;PWD=unknown");
@@ -163,23 +159,23 @@ namespace Dotmim.Sync.Tests
             foreach (var trr in results)
             {
                 Assert.IsType<SyncException>(trr.Exception);
-                SyncException se = trr.Exception as SyncException;
+                var se = trr.Exception as SyncException;
             }
         }
 
         /// <summary>
         /// Insert one row on server, should be correctly sync on all clients
         /// </summary>
-        public async virtual Task Insert_One_Table_From_Server()
+        public virtual async Task Insert_One_Table_From_Server()
         {
             foreach (var conf in TestConfigurations.GetConfigurations())
             {
                 var name = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
                 var productNumber = Path.GetRandomFileName().Replace(".", "").ToUpperInvariant().Substring(0, 10);
 
-                Product product = new Product { ProductId = Guid.NewGuid(), Name = name, ProductNumber = productNumber };
+                var product = new Product { ProductId = Guid.NewGuid(), Name = name, ProductNumber = productNumber };
 
-                using (var serverDbCtx = GetServerDbContext())
+                using (var serverDbCtx = this.GetServerDbContext())
                 {
                     serverDbCtx.Product.Add(product);
                     await serverDbCtx.SaveChangesAsync();
@@ -198,7 +194,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert one row on each client, should be correctly sync on server and all clients
         /// </summary>
-        public async virtual Task Insert_One_Table_From_Client()
+        public virtual async Task Insert_One_Table_From_Client()
         {
             foreach (var conf in TestConfigurations.GetConfigurations())
             {
@@ -207,9 +203,9 @@ namespace Dotmim.Sync.Tests
                     var name = Path.GetRandomFileName().Replace(".", "");
                     var id = name.ToUpperInvariant().Substring(0, 6);
 
-                    using (var ctx = GetClientDbContext(clientRun))
+                    using (var ctx = this.GetClientDbContext(clientRun))
                     {
-                        ProductCategory pc = new ProductCategory { Name = name, ProductCategoryId = id };
+                        var pc = new ProductCategory { Name = name, ProductCategoryId = id };
                         ctx.ProductCategory.Add(pc);
                         await ctx.SaveChangesAsync();
                     }
@@ -220,7 +216,7 @@ namespace Dotmim.Sync.Tests
                 // the last one will have all the rows, as well as the server
                 var results = await this.testRunner.RunTestsAsync(conf);
 
-                for (int i = 0; i < this.fixture.ClientRuns.Count; i++)
+                for (var i = 0; i < this.fixture.ClientRuns.Count; i++)
                 {
                     var testRunner = this.fixture.ClientRuns[i];
 
@@ -232,8 +228,8 @@ namespace Dotmim.Sync.Tests
                 var results2 = await this.testRunner.RunTestsAsync(conf);
 
                 // check rows count on server
-                int productCategoryRowCount = 0;
-                using (var serverDbCtx = GetServerDbContext())
+                var productCategoryRowCount = 0;
+                using (var serverDbCtx = this.GetServerDbContext())
                 {
                     productCategoryRowCount = await serverDbCtx.ProductCategory.AsNoTracking().CountAsync();
                 }
@@ -241,7 +237,7 @@ namespace Dotmim.Sync.Tests
                 // check rows number on all product category table
                 foreach (var clientRun in this.fixture.ClientRuns)
                 {
-                    using (var ctx = GetClientDbContext(clientRun))
+                    using (var ctx = this.GetClientDbContext(clientRun))
                     {
                         var rowCount = await ctx.ProductCategory.AsNoTracking().CountAsync();
                         Assert.Equal(productCategoryRowCount, rowCount);
@@ -253,7 +249,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert several rows on server, with a foreign key involved, should be correctly sync on all clients
         /// </summary>
-        public async virtual Task Insert_Multiple_Tables_From_Server()
+        public virtual async Task Insert_Multiple_Tables_From_Server()
         {
             foreach (var conf in TestConfigurations.GetConfigurations())
             {
@@ -265,12 +261,12 @@ namespace Dotmim.Sync.Tests
                 var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
 
                 // insert 2 rows
-                using (var serverDbCtx = GetServerDbContext())
+                using (var serverDbCtx = this.GetServerDbContext())
                 {
-                    ProductCategory pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
+                    var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
                     serverDbCtx.Add(pc);
 
-                    Product product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber };
+                    var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber };
                     serverDbCtx.Add(product);
 
                     await serverDbCtx.SaveChangesAsync();
@@ -292,7 +288,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert several rows on each client, with a foreign key involved, should be correctly sync on server and all clients
         /// </summary>
-        public async virtual Task Insert_Multiple_Tables_From_Client()
+        public virtual async Task Insert_Multiple_Tables_From_Client()
         {
             foreach (var conf in TestConfigurations.GetConfigurations())
             {
@@ -306,11 +302,11 @@ namespace Dotmim.Sync.Tests
                     var productNumber = productName.ToUpperInvariant().Substring(0, 10);
 
 
-                    using (var ctx = GetClientDbContext(testRun))
+                    using (var ctx = this.GetClientDbContext(testRun))
                     {
-                        ProductCategory pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
+                        var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
                         ctx.Add(pc);
-                        Product product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber, ProductCategoryId = productCategoryId };
+                        var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber, ProductCategoryId = productCategoryId };
                         ctx.Add(product);
 
                         await ctx.SaveChangesAsync();
@@ -322,7 +318,7 @@ namespace Dotmim.Sync.Tests
                 // the last one will have all the rows, as well as the server
                 var results = await this.testRunner.RunTestsAsync(conf);
 
-                for (int i = 0; i < this.fixture.ClientRuns.Count; i++)
+                for (var i = 0; i < this.fixture.ClientRuns.Count; i++)
                 {
                     var testRunner = this.fixture.ClientRuns[i];
 
@@ -334,7 +330,7 @@ namespace Dotmim.Sync.Tests
                 var results2 = await this.testRunner.RunTestsAsync(conf);
 
                 // check rows count on server
-                using (var serverDbCtx = GetServerDbContext())
+                using (var serverDbCtx = this.GetServerDbContext())
                 {
                     var productRowCount = await serverDbCtx.Product.AsNoTracking().CountAsync();
                     var productCategoryCount = await serverDbCtx.ProductCategory.AsNoTracking().CountAsync();
@@ -342,7 +338,7 @@ namespace Dotmim.Sync.Tests
                     // check rows number on all product category table
                     foreach (var testRun in this.fixture.ClientRuns)
                     {
-                        using (var ctx = GetClientDbContext(testRun))
+                        using (var ctx = this.GetClientDbContext(testRun))
                         {
                             var pCount = await ctx.Product.AsNoTracking().CountAsync();
                             Assert.Equal(productRowCount, pCount);
@@ -358,7 +354,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Update one row from server. Should be updated on each client
         /// </summary>
-        public async virtual Task Update_One_Table_From_Server()
+        public virtual async Task Update_One_Table_From_Server()
         {
             foreach (var conf in TestConfigurations.GetConfigurations())
             {
@@ -367,9 +363,9 @@ namespace Dotmim.Sync.Tests
                 string stateProvince;
 
                 // get the first address with ID=1
-                using (var serverDbCtx = GetServerDbContext())
+                using (var serverDbCtx = this.GetServerDbContext())
                 {
-                    Address address = await serverDbCtx.Address.SingleAsync(a => a.AddressId == 1);
+                    var address = await serverDbCtx.Address.SingleAsync(a => a.AddressId == 1);
 
                     // Update at least two properties
                     // Use a random string for each configuration
@@ -393,7 +389,7 @@ namespace Dotmim.Sync.Tests
                     Assert.Equal(0, trr.Results.TotalChangesUploaded);
 
                     // check row updated values
-                    using (var ctx = GetClientDbContext(trr))
+                    using (var ctx = this.GetClientDbContext(trr))
                     {
                         var cliAddress = await ctx.Address.AsNoTracking().SingleAsync(a => a.AddressId == 1);
                         Assert.Equal(city, cliAddress.City);
@@ -409,24 +405,24 @@ namespace Dotmim.Sync.Tests
         /// Update one row from client. Should be update on server and on each client
         /// To avoid conflicts, each client should update a different row
         /// </summary>
-        public async virtual Task Update_One_Table_From_Client()
+        public virtual async Task Update_One_Table_From_Client()
         {
             foreach (var conf in TestConfigurations.GetConfigurations())
             {
                 // get a for instead of foreach to have an index corresponding to the Address pkeyid, ensuring I won't have conflicts beetween clients
                 // start on "Index-Base-1"
-                for (int i = 1; i <= fixture.ClientRuns.Count; i++)
+                for (var i = 1; i <= this.fixture.ClientRuns.Count; i++)
                 {
-                    ProviderRun testRun = this.fixture.ClientRuns[i - 1];
-                    using (var ctx = GetClientDbContext(testRun))
+                    var testRun = this.fixture.ClientRuns[i - 1];
+                    using (var ctx = this.GetClientDbContext(testRun))
                     {
                         // get the client address with ID=i
-                        Address address = await ctx.Address.SingleAsync(a => a.AddressId == i);
+                        var address = await ctx.Address.SingleAsync(a => a.AddressId == i);
 
                         // Update at least two properties
                         // Use a random string for each configuration
-                        string randomAddressLine = Path.GetRandomFileName().Replace(".", "");
-                        string stateProvince = "Floridia";
+                        var randomAddressLine = Path.GetRandomFileName().Replace(".", "");
+                        var stateProvince = "Floridia";
 
                         address.StateProvince = stateProvince;
                         address.AddressLine2 = randomAddressLine;
@@ -443,7 +439,7 @@ namespace Dotmim.Sync.Tests
                 // and so on ...
                 var results = await this.testRunner.RunTestsAsync(conf);
 
-                for (int i = 0; i < this.fixture.ClientRuns.Count; i++)
+                for (var i = 0; i < this.fixture.ClientRuns.Count; i++)
                 {
                     var testRunner = this.fixture.ClientRuns[i];
 
@@ -455,15 +451,15 @@ namespace Dotmim.Sync.Tests
                 await this.testRunner.RunTestsAsync(conf);
 
                 // get all address from server
-                using (var serverDbCtx = GetServerDbContext())
+                using (var serverDbCtx = this.GetServerDbContext())
                 {
                     var serverAddresses = await serverDbCtx.Address.AsNoTracking().ToListAsync();
 
-                    for (int i = 0; i < this.fixture.ClientRuns.Count; i++)
+                    for (var i = 0; i < this.fixture.ClientRuns.Count; i++)
                     {
                         var clientRun = this.fixture.ClientRuns[i];
 
-                        using (var ctx = GetClientDbContext(clientRun))
+                        using (var ctx = this.GetClientDbContext(clientRun))
                         {
                             var clientAddresses = await ctx.Address.AsNoTracking().ToListAsync();
 
@@ -491,7 +487,7 @@ namespace Dotmim.Sync.Tests
         /// Conflict resolution on insert-insert. 
         /// Use the default behavior where server should always wins conflict.
         /// </summary>
-        public async virtual Task Conflict_Insert_Insert_Server_Should_Wins()
+        public virtual async Task Conflict_Insert_Insert_Server_Should_Wins()
         {
             foreach (var conf in TestConfigurations.GetConfigurations())
             {
@@ -504,7 +500,7 @@ namespace Dotmim.Sync.Tests
                 // Insert a conflict product category and a product
                 foreach (var testRun in this.fixture.ClientRuns)
                 {
-                    using (var ctx = GetClientDbContext(testRun))
+                    using (var ctx = this.GetClientDbContext(testRun))
                     {
                         ctx.Add(new ProductCategory
                         {
@@ -517,7 +513,7 @@ namespace Dotmim.Sync.Tests
                 }
 
                 // insert conflict rows on server
-                using (var serverDbCtx = GetServerDbContext())
+                using (var serverDbCtx = this.GetServerDbContext())
                 {
                     serverDbCtx.Add(new ProductCategory
                     {
@@ -537,7 +533,7 @@ namespace Dotmim.Sync.Tests
                     Assert.Equal(1, testRunner.Results.TotalSyncConflicts);
                 }
 
-                using (var serverDbCtx = GetServerDbContext())
+                using (var serverDbCtx = this.GetServerDbContext())
                 {
                     // check server product category
                     var checkProductCategoryServer = await serverDbCtx.ProductCategory.AsNoTracking().SingleAsync(pc => pc.ProductCategoryId == conflictProductCategoryId);
@@ -547,7 +543,7 @@ namespace Dotmim.Sync.Tests
                 // check client product category row
                 foreach (var testRun in this.fixture.ClientRuns)
                 {
-                    using (var ctx = GetClientDbContext(testRun))
+                    using (var ctx = this.GetClientDbContext(testRun))
                     {
                         // check client product category
                         var checkProductCategoryClient = await ctx.ProductCategory.AsNoTracking().SingleAsync(pc => pc.ProductCategoryId == conflictProductCategoryId);
@@ -561,7 +557,7 @@ namespace Dotmim.Sync.Tests
         /// Conflict resolution on insert-insert. 
         /// Use the configuration behavior where client should always wins conflict.
         /// </summary>
-        public async virtual Task Conflict_Insert_Insert_Client_Should_Wins_Coz_Configuration()
+        public virtual async Task Conflict_Insert_Insert_Client_Should_Wins_Coz_Configuration()
         {
             foreach (var conf in TestConfigurations.GetConfigurations())
             {
@@ -577,7 +573,7 @@ namespace Dotmim.Sync.Tests
                 // Insert a conflict product category and a product
                 foreach (var testRun in this.fixture.ClientRuns)
                 {
-                    using (var ctx = GetClientDbContext(testRun))
+                    using (var ctx = this.GetClientDbContext(testRun))
                     {
                         ctx.Add(new ProductCategory
                         {
@@ -590,7 +586,7 @@ namespace Dotmim.Sync.Tests
                     }
                 }
 
-                using (var serverDbCtx = GetServerDbContext())
+                using (var serverDbCtx = this.GetServerDbContext())
                 {
                     // insert conflict rows on server
                     serverDbCtx.Add(new ProductCategory
@@ -605,9 +601,9 @@ namespace Dotmim.Sync.Tests
                 // use a new agent since we modify conf
                 var results = await this.testRunner.RunTestsAsync(conf, false);
 
-                for (int i = 0; i < fixture.ClientRuns.Count; i++)
+                for (var i = 0; i < this.fixture.ClientRuns.Count; i++)
                 {
-                    ProviderRun testRunner = this.fixture.ClientRuns[i];
+                    var testRunner = this.fixture.ClientRuns[i];
 
                     // 0+i : Download is false on sqlite
                     //Assert.Equal(0 + i, testRunner.Results.TotalChangesDownloaded);
@@ -615,7 +611,7 @@ namespace Dotmim.Sync.Tests
                     Assert.Equal(1, testRunner.Results.TotalSyncConflicts);
                 }
 
-                using (var serverDbCtx = GetServerDbContext())
+                using (var serverDbCtx = this.GetServerDbContext())
                 {
                     // check server product category
                     var checkProductCategoryServer = await serverDbCtx.ProductCategory.AsNoTracking().SingleAsync(pc => pc.ProductCategoryId == conflictProductCategoryId);
@@ -626,7 +622,7 @@ namespace Dotmim.Sync.Tests
                 // check client product category row
                 foreach (var testRun in this.fixture.ClientRuns)
                 {
-                    using (var ctx = GetClientDbContext(testRun))
+                    using (var ctx = this.GetClientDbContext(testRun))
                     {
                         // check client product category
                         var checkProductCategoryClient = await ctx.ProductCategory.AsNoTracking().SingleAsync(pc => pc.ProductCategoryId == conflictProductCategoryId);
@@ -641,7 +637,7 @@ namespace Dotmim.Sync.Tests
         /// Conflict resolution on insert-insert. 
         /// Use the handler to resolve the conflict using the action [ConflictAction.ClientWins].
         /// </summary>
-        public async virtual Task Conflict_Insert_Insert_Client_Should_Wins_Coz_Handler_Raised()
+        public virtual async Task Conflict_Insert_Insert_Client_Should_Wins_Coz_Handler_Raised()
         {
             foreach (var conf in TestConfigurations.GetConfigurations())
             {
@@ -654,7 +650,7 @@ namespace Dotmim.Sync.Tests
 
                 foreach (var testRun in this.fixture.ClientRuns)
                 {
-                    using (var ctx = GetClientDbContext(testRun))
+                    using (var ctx = this.GetClientDbContext(testRun))
                     {
                         ctx.Add(new ProductCategory
                         {
@@ -666,7 +662,7 @@ namespace Dotmim.Sync.Tests
                     }
                 }
 
-                using (var serverDbCtx = GetServerDbContext())
+                using (var serverDbCtx = this.GetServerDbContext())
                 {
                     // insert conflict rows on server
                     serverDbCtx.Add(new ProductCategory
@@ -695,7 +691,7 @@ namespace Dotmim.Sync.Tests
                     Assert.Equal(1, testRunner.Results.TotalSyncConflicts);
                 }
 
-                using (var serverDbCtx = GetServerDbContext())
+                using (var serverDbCtx = this.GetServerDbContext())
                 {
                     // check server product category
                     var checkProductCategoryServer = await serverDbCtx.ProductCategory.AsNoTracking().SingleAsync(pc => pc.ProductCategoryId == conflictProductCategoryId);
@@ -705,7 +701,7 @@ namespace Dotmim.Sync.Tests
                 // check client product category row
                 foreach (var testRun in this.fixture.ClientRuns)
                 {
-                    using (var ctx = GetClientDbContext(testRun))
+                    using (var ctx = this.GetClientDbContext(testRun))
                     {
                         // check client product category
                         var checkProductCategoryClient = await ctx.ProductCategory.AsNoTracking().SingleAsync(pc => pc.ProductCategoryId == conflictProductCategoryId);
@@ -719,7 +715,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Conflict resolution on update-update. 
         /// Use the configuration behavior where client should always wins conflict.
-        public async virtual Task Conflict_Update_Update_Client_Should_Wins_Coz_Configuration()
+        public virtual async Task Conflict_Update_Update_Client_Should_Wins_Coz_Configuration()
         {
             foreach (var conf in TestConfigurations.GetConfigurations())
             {
@@ -735,7 +731,7 @@ namespace Dotmim.Sync.Tests
                 // Insert a conflict product category and a product
                 foreach (var testRun in this.fixture.ClientRuns)
                 {
-                    using (var ctx = GetClientDbContext(testRun))
+                    using (var ctx = this.GetClientDbContext(testRun))
                     {
                         ctx.ProductCategory.Update(new ProductCategory
                         {
@@ -748,7 +744,7 @@ namespace Dotmim.Sync.Tests
                     }
                 }
 
-                using (var serverDbCtx = GetServerDbContext())
+                using (var serverDbCtx = this.GetServerDbContext())
                 {
                     // insert conflict rows on server
                     serverDbCtx.Update(new ProductCategory
@@ -763,15 +759,15 @@ namespace Dotmim.Sync.Tests
                 // use a new agent since we modify conf
                 var results = await this.testRunner.RunTestsAsync(conf, false);
 
-                for (int i = 0; i < fixture.ClientRuns.Count; i++)
+                for (var i = 0; i < this.fixture.ClientRuns.Count; i++)
                 {
-                    ProviderRun testRunner = this.fixture.ClientRuns[i];
+                    var testRunner = this.fixture.ClientRuns[i];
 
                     Assert.Equal(1, testRunner.Results.TotalChangesUploaded);
                     Assert.Equal(1, testRunner.Results.TotalSyncConflicts);
                 }
 
-                using (var serverDbCtx = GetServerDbContext())
+                using (var serverDbCtx = this.GetServerDbContext())
                 {
                     // check server product category
                     var checkProductCategoryServer = await serverDbCtx.ProductCategory.AsNoTracking().SingleAsync(pc => pc.ProductCategoryId == conflictProductCategoryId);
@@ -781,7 +777,7 @@ namespace Dotmim.Sync.Tests
                 // check client product category row
                 foreach (var testRun in this.fixture.ClientRuns)
                 {
-                    using (var ctx = GetClientDbContext(testRun))
+                    using (var ctx = this.GetClientDbContext(testRun))
                     {
                         // check client product category
                         var checkProductCategoryClient = await ctx.ProductCategory.AsNoTracking().SingleAsync(pc => pc.ProductCategoryId == conflictProductCategoryId);
@@ -796,7 +792,7 @@ namespace Dotmim.Sync.Tests
         /// Conflict resolution on update-update. 
         /// Use the handler to resolve the conflict using the action [ConflictAction.ClientWins].
         /// </summary>
-        public async virtual Task Conflict_Update_Update_Client_Should_Wins_Coz_Handler_Raised()
+        public virtual async Task Conflict_Update_Update_Client_Should_Wins_Coz_Handler_Raised()
         {
             foreach (var conf in TestConfigurations.GetConfigurations())
             {
@@ -809,7 +805,7 @@ namespace Dotmim.Sync.Tests
                 // Insert a conflict product category and a product
                 foreach (var testRun in this.fixture.ClientRuns)
                 {
-                    using (var ctx = GetClientDbContext(testRun))
+                    using (var ctx = this.GetClientDbContext(testRun))
                     {
 
                         ctx.ProductCategory.Update(new ProductCategory
@@ -823,7 +819,7 @@ namespace Dotmim.Sync.Tests
                     }
                 }
 
-                using (var serverDbCtx = GetServerDbContext())
+                using (var serverDbCtx = this.GetServerDbContext())
                 {
                     // insert conflict rows on server
                     serverDbCtx.Update(new ProductCategory
@@ -846,15 +842,15 @@ namespace Dotmim.Sync.Tests
 
                 var results = await this.testRunner.RunTestsAsync(conf);
 
-                for (int i = 0; i < fixture.ClientRuns.Count; i++)
+                for (var i = 0; i < this.fixture.ClientRuns.Count; i++)
                 {
-                    ProviderRun testRunner = this.fixture.ClientRuns[i];
+                    var testRunner = this.fixture.ClientRuns[i];
 
                     Assert.Equal(1, testRunner.Results.TotalChangesUploaded);
                     Assert.Equal(1, testRunner.Results.TotalSyncConflicts);
                 }
 
-                using (var serverDbCtx = GetServerDbContext())
+                using (var serverDbCtx = this.GetServerDbContext())
                 {
                     // check server product category
                     var checkProductCategoryServer = await serverDbCtx.ProductCategory.AsNoTracking().SingleAsync(pc => pc.ProductCategoryId == conflictProductCategoryId);
@@ -864,7 +860,7 @@ namespace Dotmim.Sync.Tests
                 // check client product category row
                 foreach (var testRun in this.fixture.ClientRuns)
                 {
-                    using (var ctx = GetClientDbContext(testRun))
+                    using (var ctx = this.GetClientDbContext(testRun))
                     {
                         // check client product category
                         var checkProductCategoryClient = await ctx.ProductCategory.AsNoTracking().SingleAsync(pc => pc.ProductCategoryId == conflictProductCategoryId);
@@ -878,7 +874,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Conflict resolved by merging the entity on both server and client
         /// </summary>
-        public async virtual Task Conflict_Update_Update_Resolve_By_Merge()
+        public virtual async Task Conflict_Update_Update_Resolve_By_Merge()
         {
             foreach (var conf in TestConfigurations.GetConfigurations())
             {
@@ -892,7 +888,7 @@ namespace Dotmim.Sync.Tests
                 // Insert a conflict product category and a product
                 foreach (var testRun in this.fixture.ClientRuns)
                 {
-                    using (var ctx = GetClientDbContext(testRun))
+                    using (var ctx = this.GetClientDbContext(testRun))
                     {
 
                         ctx.ProductCategory.Update(new ProductCategory
@@ -906,7 +902,7 @@ namespace Dotmim.Sync.Tests
                     }
                 }
 
-                using (var serverDbCtx = GetServerDbContext())
+                using (var serverDbCtx = this.GetServerDbContext())
                 {
                     // insert conflict rows on server
                     serverDbCtx.Update(new ProductCategory
@@ -929,15 +925,15 @@ namespace Dotmim.Sync.Tests
 
                 var results = await this.testRunner.RunTestsAsync(conf);
 
-                for (int i = 0; i < fixture.ClientRuns.Count; i++)
+                for (var i = 0; i < this.fixture.ClientRuns.Count; i++)
                 {
-                    ProviderRun testRunner = this.fixture.ClientRuns[i];
+                    var testRunner = this.fixture.ClientRuns[i];
 
                     Assert.Equal(1, testRunner.Results.TotalChangesUploaded);
                     Assert.Equal(1, testRunner.Results.TotalSyncConflicts);
                 }
 
-                using (var serverDbCtx = GetServerDbContext())
+                using (var serverDbCtx = this.GetServerDbContext())
                 {
                     // check server product category
                     var checkProductCategoryServer = await serverDbCtx.ProductCategory.AsNoTracking().SingleAsync(pc => pc.ProductCategoryId == conflictProductCategoryId);
@@ -947,7 +943,7 @@ namespace Dotmim.Sync.Tests
                 // check client product category row
                 foreach (var testRun in this.fixture.ClientRuns)
                 {
-                    using (var ctx = GetClientDbContext(testRun))
+                    using (var ctx = this.GetClientDbContext(testRun))
                     {
                         // check client product category
                         var checkProductCategoryClient = await ctx.ProductCategory.AsNoTracking().SingleAsync(pc => pc.ProductCategoryId == conflictProductCategoryId);
@@ -963,7 +959,7 @@ namespace Dotmim.Sync.Tests
         /// Conflict resolution by default. Server wins the resolution and all clients should be updated correctly
         /// </summary>
         /// <returns></returns>
-        public async virtual Task Conflict_Update_Update_Server_Should_Wins()
+        public virtual async Task Conflict_Update_Update_Server_Should_Wins()
         {
             foreach (var conf in TestConfigurations.GetConfigurations())
             {
@@ -976,7 +972,7 @@ namespace Dotmim.Sync.Tests
                 // Insert a conflict product category and a product
                 foreach (var testRun in this.fixture.ClientRuns)
                 {
-                    using (var ctx = GetClientDbContext(testRun))
+                    using (var ctx = this.GetClientDbContext(testRun))
                     {
                         ctx.ProductCategory.Update(new ProductCategory
                         {
@@ -989,7 +985,7 @@ namespace Dotmim.Sync.Tests
                     }
                 }
 
-                using (var serverDbCtx = GetServerDbContext())
+                using (var serverDbCtx = this.GetServerDbContext())
                 {
                     // insert conflict rows on server
                     serverDbCtx.Update(new ProductCategory
@@ -1004,16 +1000,16 @@ namespace Dotmim.Sync.Tests
                 // use a new agent since we modify conf
                 var results = await this.testRunner.RunTestsAsync(conf, false);
 
-                for (int i = 0; i < fixture.ClientRuns.Count; i++)
+                for (var i = 0; i < this.fixture.ClientRuns.Count; i++)
                 {
-                    ProviderRun testRunner = this.fixture.ClientRuns[i];
+                    var testRunner = this.fixture.ClientRuns[i];
 
                     Assert.Equal(1, testRunner.Results.TotalChangesUploaded);
                     Assert.Equal(1, testRunner.Results.TotalChangesDownloaded);
                     Assert.Equal(1, testRunner.Results.TotalSyncConflicts);
                 }
 
-                using (var serverDbCtx = GetServerDbContext())
+                using (var serverDbCtx = this.GetServerDbContext())
                 {
                     // check server product category
                     var checkProductCategoryServer = await serverDbCtx.ProductCategory.AsNoTracking().SingleAsync(pc => pc.ProductCategoryId == conflictProductCategoryId);
@@ -1023,7 +1019,7 @@ namespace Dotmim.Sync.Tests
                 // check client product category row
                 foreach (var testRun in this.fixture.ClientRuns)
                 {
-                    using (var ctx = GetClientDbContext(testRun))
+                    using (var ctx = this.GetClientDbContext(testRun))
                     {
                         // check client product category
                         var checkProductCategoryClient = await ctx.ProductCategory.AsNoTracking().SingleAsync(pc => pc.ProductCategoryId == conflictProductCategoryId);
@@ -1038,7 +1034,7 @@ namespace Dotmim.Sync.Tests
         /// Delete some rows from one table. Address from primary key 6 and +, are not used
         /// </summary>
         /// <returns></returns>
-        public async virtual Task Delete_From_Server()
+        public virtual async Task Delete_From_Server()
         {
             var configurations = TestConfigurations.GetConfigurations();
 
@@ -1047,12 +1043,12 @@ namespace Dotmim.Sync.Tests
             // will be defined when address is inserted
             var addressId = 0;
 
-            for (int i = 0; i < configurations.Count; i++)
+            for (var i = 0; i < configurations.Count; i++)
             {
-                SyncConfiguration conf = configurations[i];
+                var conf = configurations[i];
                 // insert in db server
                 // first of all, delete the line from server
-                using (var serverDbCtx = GetServerDbContext())
+                using (var serverDbCtx = this.GetServerDbContext())
                 {
 
                     // Insert a new address for employee 1
@@ -1062,7 +1058,7 @@ namespace Dotmim.Sync.Tests
                     var countryRegion = "France";
                     var postalCode = "75001";
 
-                    Address address = new Address
+                    var address = new Address
                     {
                         AddressLine1 = addressline1,
                         City = city,
@@ -1076,7 +1072,7 @@ namespace Dotmim.Sync.Tests
                     await serverDbCtx.SaveChangesAsync();
                     addressId = address.AddressId;
 
-                    EmployeeAddress employeeAddress = new EmployeeAddress
+                    var employeeAddress = new EmployeeAddress
                     {
                         EmployeeId = employeeId,
                         AddressId = address.AddressId,
@@ -1099,7 +1095,7 @@ namespace Dotmim.Sync.Tests
                 }
 
                 // Delete those lines from server
-                using (var serverDbCtx = GetServerDbContext())
+                using (var serverDbCtx = this.GetServerDbContext())
                 {
                     // Get the addresses query
                     var address = await serverDbCtx.Address.SingleAsync(a => a.AddressId == addressId);
@@ -1121,7 +1117,7 @@ namespace Dotmim.Sync.Tests
                     Assert.Equal(0, trr.Results.TotalChangesUploaded);
 
                     // check row deleted on client values
-                    using (var ctx = GetClientDbContext(trr))
+                    using (var ctx = this.GetClientDbContext(trr))
                     {
                         var finalAddressesCount = await ctx.Address.AsNoTracking().CountAsync(a => a.AddressId == addressId);
                         var finalEmployeeAddressesCount = await ctx.EmployeeAddress.AsNoTracking().CountAsync(a => a.AddressId == addressId && a.EmployeeId == employeeId);
@@ -1140,7 +1136,7 @@ namespace Dotmim.Sync.Tests
         /// The idea is to insert an item, then delete it, then sync.
         /// To see how the client is interacting with something to delete he does not have 
         /// </summary>
-        public async virtual Task Insert_Then_Delete_From_Server_Then_Sync()
+        public virtual async Task Insert_Then_Delete_From_Server_Then_Sync()
         {
             foreach (var conf in TestConfigurations.GetConfigurations())
             {
@@ -1148,7 +1144,7 @@ namespace Dotmim.Sync.Tests
                 var productCategoryNameServer = Path.GetRandomFileName().Replace(".", "").ToUpperInvariant().Substring(3, 6);
 
                 // insert the row on the server
-                using (var serverDbCtx = GetServerDbContext())
+                using (var serverDbCtx = this.GetServerDbContext())
                 {
                     serverDbCtx.Add(new ProductCategory
                     {
@@ -1160,7 +1156,7 @@ namespace Dotmim.Sync.Tests
                 }
 
                 // then delete it
-                using (var serverDbCtx = GetServerDbContext())
+                using (var serverDbCtx = this.GetServerDbContext())
                 {
                     var pc = await serverDbCtx.ProductCategory.SingleAsync(o => o.ProductCategoryId == productCategoryId);
 
@@ -1184,7 +1180,7 @@ namespace Dotmim.Sync.Tests
         /// The idea is to insert an item, then update it, then sync.
         /// To see how the client is interacting with something to delete he does not have 
         /// </summary>
-        public async virtual Task Insert_Then_Update_From_Server_Then_Sync()
+        public virtual async Task Insert_Then_Update_From_Server_Then_Sync()
         {
             foreach (var conf in TestConfigurations.GetConfigurations())
             {
@@ -1193,7 +1189,7 @@ namespace Dotmim.Sync.Tests
                 var productCategoryNameServerUpdated = Path.GetRandomFileName().Replace(".", "").ToUpperInvariant().Substring(3, 6);
 
                 // insert the row on the server
-                using (var serverDbCtx = GetServerDbContext())
+                using (var serverDbCtx = this.GetServerDbContext())
                 {
                     serverDbCtx.Add(new ProductCategory
                     {
@@ -1205,7 +1201,7 @@ namespace Dotmim.Sync.Tests
                 }
 
                 // Then update the row
-                using (var serverDbCtx = GetServerDbContext())
+                using (var serverDbCtx = this.GetServerDbContext())
                 {
                     var pc = await serverDbCtx.ProductCategory.SingleAsync(o => o.ProductCategoryId == productCategoryId);
 
@@ -1223,7 +1219,7 @@ namespace Dotmim.Sync.Tests
                     Assert.Equal(0, trr.Results.TotalChangesUploaded);
 
                     // Check
-                    using (var ctx = GetClientDbContext(trr))
+                    using (var ctx = this.GetClientDbContext(trr))
                     {
                         var pc = await ctx.ProductCategory.SingleAsync(o => o.ProductCategoryId == productCategoryId);
                         Assert.Equal(productCategoryNameServerUpdated, pc.Name);
@@ -1233,52 +1229,34 @@ namespace Dotmim.Sync.Tests
         }
 
 
-        public Task Delete_One_Table_From_Client()
-        {
-            throw new NotImplementedException();
-        }
-        public Task Delete_Multiple_Tables_From_Client()
-        {
-            throw new NotImplementedException();
-        }
+        public Task Delete_One_Table_From_Client() => throw new NotImplementedException();
+        public Task Delete_Multiple_Tables_From_Client() => throw new NotImplementedException();
 
-        public Task Insert_Update_Delete_From_Server()
-        {
-            throw new NotImplementedException();
-        }
-        public Task No_Rows()
-        {
-            throw new NotImplementedException();
-        }
-        public Task Update_Multiple_Rows_From_Client()
-        {
-            throw new NotImplementedException();
-        }
-        public Task Update_Multiple_Rows_From_Server()
-        {
-            throw new NotImplementedException();
-        }
+        public Task Insert_Update_Delete_From_Server() => throw new NotImplementedException();
+        public Task No_Rows() => throw new NotImplementedException();
+        public Task Update_Multiple_Rows_From_Client() => throw new NotImplementedException();
+        public Task Update_Multiple_Rows_From_Server() => throw new NotImplementedException();
 
         /// <summary>
         /// Should be able to Deprovision a whole database
         /// </summary>
-        public async virtual Task Use_Existing_Client_Database_Provision_Deprosivion()
+        public virtual async Task Use_Existing_Client_Database_Provision_Deprosivion()
         {
             // Generate a new temp database and a local provider
-            var dbName = fixture.GetRandomDatabaseName();
-            var connectionString = HelperDB.GetConnectionString(fixture.ProviderType, dbName);
+            var dbName = this.fixture.GetRandomDatabaseName();
+            var connectionString = HelperDB.GetConnectionString(this.fixture.ProviderType, dbName);
 
             // create a local provider (the provider we want to test, obviously)
-            var localProvider = fixture.NewServerProvider(connectionString);
+            var localProvider = this.fixture.NewServerProvider(connectionString);
 
             try
             {
                 // create an empty AdventureWorks client database
-                using (var ctx = new AdventureWorksContext(fixture.ProviderType, connectionString, (fixture.ProviderType == ProviderType.Sql), false))
+                using (var ctx = new AdventureWorksContext(this.fixture.ProviderType, connectionString, this.fixture.ProviderType == ProviderType.Sql, false))
                     await ctx.Database.EnsureCreatedAsync();
 
                 // generate a sync conf to host the schema
-                var conf = new SyncConfiguration(fixture.Tables);
+                var conf = new SyncConfiguration(this.fixture.Tables);
 
                 // Provision the database with all tracking tables, stored procedures, triggers and scope
                 await localProvider.ProvisionAsync(conf, SyncProvision.All);
@@ -1402,7 +1380,7 @@ namespace Dotmim.Sync.Tests
             finally
             {
                 // ensure database is created and filled with some data
-                using (var ctx = new AdventureWorksContext(fixture.ProviderType, connectionString))
+                using (var ctx = new AdventureWorksContext(this.fixture.ProviderType, connectionString))
                 {
                     await ctx.Database.EnsureDeletedAsync();
                 }
@@ -1411,7 +1389,7 @@ namespace Dotmim.Sync.Tests
         }
 
 
-   
+
         //[Fact, TestPriority(99)]
         //public async Task Reserved_Keyword_Should_Raise_Error()
         //{
@@ -1466,7 +1444,7 @@ namespace Dotmim.Sync.Tests
                 var productNumber = Path.GetRandomFileName().Replace(".", "").ToUpperInvariant().Substring(0, 10);
 
                 // insert the row on the server
-                using (var serverDbCtx = GetServerDbContext())
+                using (var serverDbCtx = this.GetServerDbContext())
                 {
                     serverDbCtx.Product.Add(new Product
                     {
@@ -1487,12 +1465,12 @@ namespace Dotmim.Sync.Tests
                     Assert.Equal(0, trr.Results.TotalSyncConflicts);
                 }
 
-                foreach (var clientRun in fixture.ClientRuns)
+                foreach (var clientRun in this.fixture.ClientRuns)
                 {
                     var name = Path.GetRandomFileName().Replace(".", "");
                     var id = name.ToUpperInvariant().Substring(0, 6);
 
-                    using (var clientDbCtx = GetClientDbContext(clientRun))
+                    using (var clientDbCtx = this.GetClientDbContext(clientRun))
                     {
                         // create a new product category
                         clientDbCtx.ProductCategory.Add(new ProductCategory
@@ -1509,7 +1487,7 @@ namespace Dotmim.Sync.Tests
                     }
                 }
 
-                results = await testRunner.RunTestsAsync(conf);
+                results = await this.testRunner.RunTestsAsync(conf);
 
                 foreach (var trr in results)
                 {
@@ -1532,7 +1510,7 @@ namespace Dotmim.Sync.Tests
                     var id = name.ToUpperInvariant().Substring(0, 6);
 
                     // Add a row on the client
-                    using (var ctx = GetClientDbContext(clientRun))
+                    using (var ctx = this.GetClientDbContext(clientRun))
                     {
                         var pc = new ProductCategory { Name = name, ProductCategoryId = id };
                         ctx.ProductCategory.Add(pc);
@@ -1553,7 +1531,7 @@ namespace Dotmim.Sync.Tests
                         var name2 = Path.GetRandomFileName().Replace(".", "");
                         var id2 = name2.ToUpperInvariant().Substring(0, 6);
 
-                        using (var ctx = GetClientDbContext(clientRun))
+                        using (var ctx = this.GetClientDbContext(clientRun))
                         {
                             var pc = new ProductCategory { Name = name2, ProductCategoryId = id2 };
                             ctx.ProductCategory.Add(pc);

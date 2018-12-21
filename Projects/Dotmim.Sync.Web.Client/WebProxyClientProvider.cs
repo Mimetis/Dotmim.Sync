@@ -1,9 +1,7 @@
 ﻿using Dotmim.Sync.Batch;
-using Dotmim.Sync.Builders;
 using Dotmim.Sync.Data;
 using Dotmim.Sync.Data.Surrogate;
 using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Filter;
 using Dotmim.Sync.Messages;
 using Newtonsoft.Json.Linq;
 using System;
@@ -48,80 +46,35 @@ namespace Dotmim.Sync.Web.Client
         public event EventHandler<TableChangesApplyingEventArgs> TableChangesApplying;
         public event EventHandler<TableChangesAppliedEventArgs> TableChangesApplied;
 
-        public Dictionary<string, string> CustomHeaders
-        {
-            get
-            {
-                return this.httpRequestHandler.CustomHeaders;
-            }
-        }
-        public Dictionary<string, string> ScopeParameters
-        {
-            get
-            {
-                return this.httpRequestHandler.ScopeParameters;
-            }
-
-        }
+        public Dictionary<string, string> CustomHeaders => this.httpRequestHandler.CustomHeaders;
+        public Dictionary<string, string> ScopeParameters => this.httpRequestHandler.ScopeParameters;
 
         public Uri ServiceUri
         {
-            get
-            {
-                return this.httpRequestHandler.BaseUri;
-            }
-            set
-            {
-                this.httpRequestHandler.BaseUri = value;
-            }
+            get => this.httpRequestHandler.BaseUri;
+            set => this.httpRequestHandler.BaseUri = value;
         }
         public CancellationToken CancellationToken
         {
-            get
-            {
-                return this.httpRequestHandler.CancellationToken;
-            }
-            set
-            {
-                this.httpRequestHandler.CancellationToken = value;
-            }
+            get => this.httpRequestHandler.CancellationToken;
+            set => this.httpRequestHandler.CancellationToken = value;
         }
         public HttpClientHandler Handler
         {
-            get
-            {
-                return this.httpRequestHandler.Handler;
-            }
-            set
-            {
-                this.httpRequestHandler.Handler = value;
-            }
+            get => this.httpRequestHandler.Handler;
+            set => this.httpRequestHandler.Handler = value;
         }
         public CookieHeaderValue Cookie
         {
-            get
-            {
-                return this.httpRequestHandler.Cookie;
-            }
-            set
-            {
-                this.httpRequestHandler.Cookie = value;
-            }
+            get => this.httpRequestHandler.Cookie;
+            set => this.httpRequestHandler.Cookie = value;
         }
 
-        public WebProxyClientProvider()
-        {
-            this.httpRequestHandler = new HttpRequestHandler();
-
-        }
+        public WebProxyClientProvider() => this.httpRequestHandler = new HttpRequestHandler();
         /// <summary>
         /// Use this Constructor if you are on the Client Side, only
         /// </summary>
-        public WebProxyClientProvider(Uri serviceUri)
-        {
-            this.httpRequestHandler = new HttpRequestHandler(serviceUri, CancellationToken.None);
-
-        }
+        public WebProxyClientProvider(Uri serviceUri) => this.httpRequestHandler = new HttpRequestHandler(serviceUri, CancellationToken.None);
 
 
         public void AddScopeParameter(string key, string value)
@@ -161,7 +114,7 @@ namespace Dotmim.Sync.Web.Client
 
         public async Task<(SyncContext, SyncConfiguration)> BeginSessionAsync(SyncContext context, MessageBeginSession message)
         {
-            HttpMessage httpMessage = new HttpMessage
+            var httpMessage = new HttpMessage
             {
                 Step = HttpStep.BeginSession,
                 SyncContext = context,
@@ -173,7 +126,7 @@ namespace Dotmim.Sync.Web.Client
 
             //Post request and get response
             // This first request is always JSON based, to be able to get the format from the server side
-            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, SerializationFormat.Json, cancellationToken);
+            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, SerializationFormat.Json, this.cancellationToken);
 
             if (httpMessageResponse == null || httpMessageResponse.Content == null)
                 throw new Exception("Can't have an empty body");
@@ -190,14 +143,14 @@ namespace Dotmim.Sync.Web.Client
 
         public async Task<SyncContext> EndSessionAsync(SyncContext context)
         {
-            HttpMessage message = new HttpMessage
+            var message = new HttpMessage
             {
                 Step = HttpStep.EndSession,
                 SyncContext = context
             };
 
             //Post request and get response
-            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(message, SerializationFormat.Json, cancellationToken);
+            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(message, SerializationFormat.Json, this.cancellationToken);
 
             if (httpMessageResponse == null)
                 throw new Exception("Can't have an empty body");
@@ -207,7 +160,7 @@ namespace Dotmim.Sync.Web.Client
 
         public async Task<(SyncContext, List<ScopeInfo>)> EnsureScopesAsync(SyncContext context, MessageEnsureScopes message)
         {
-            HttpMessage httpMessage = new HttpMessage
+            var httpMessage = new HttpMessage
             {
                 SyncContext = context,
                 Step = HttpStep.EnsureScopes,
@@ -221,7 +174,7 @@ namespace Dotmim.Sync.Web.Client
             };
 
             //Post request and get response
-            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, message.SerializationFormat, cancellationToken);
+            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, message.SerializationFormat, this.cancellationToken);
 
             if (httpMessageResponse == null)
                 throw new Exception("Can't have an empty body");
@@ -237,7 +190,7 @@ namespace Dotmim.Sync.Web.Client
 
         public async Task<(SyncContext, DmSet)> EnsureSchemaAsync(SyncContext context, MessageEnsureSchema message)
         {
-            HttpMessage httpMessage = new HttpMessage
+            var httpMessage = new HttpMessage
             {
                 SyncContext = context,
                 Step = HttpStep.EnsureConfiguration,
@@ -249,7 +202,7 @@ namespace Dotmim.Sync.Web.Client
             };
 
             //Post request and get response
-            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, message.SerializationFormat, cancellationToken);
+            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, message.SerializationFormat, this.cancellationToken);
 
             if (httpMessageResponse == null)
                 throw new Exception("Can't have an empty body");
@@ -277,7 +230,7 @@ namespace Dotmim.Sync.Web.Client
 
         public async Task<SyncContext> EnsureDatabaseAsync(SyncContext context, MessageEnsureDatabase message)
         {
-            HttpMessage httpMessage = new HttpMessage
+            var httpMessage = new HttpMessage
             {
                 SyncContext = context,
                 Step = HttpStep.EnsureDatabase,
@@ -291,7 +244,7 @@ namespace Dotmim.Sync.Web.Client
             };
 
             //Post request and get response
-            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, message.SerializationFormat, cancellationToken);
+            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, message.SerializationFormat, this.cancellationToken);
 
             if (httpMessageResponse == null)
                 throw new Exception("Can't have an empty body");
@@ -306,16 +259,18 @@ namespace Dotmim.Sync.Web.Client
             var isLastBatch = false;
 
             // Create the BatchInfo and SyncContext to return at the end
-            BatchInfo changes = new BatchInfo
-            {
-                Directory = BatchInfo.GenerateNewDirectoryName()
-            };
+            // Set InMemory by default to "true", but the real value comes from server side
+            var changes = new BatchInfo(true, message.BatchDirectory);
+
+            // Generate new directory name
+            changes.GenerateNewDirectoryName();
+
             SyncContext syncContext = null;
             ChangesSelected changesSelected = null;
 
             while (!isLastBatch)
             {
-                HttpMessage httpMessage = new HttpMessage
+                var httpMessage = new HttpMessage
                 {
                     SyncContext = context,
                     Step = HttpStep.GetChangeBatch,
@@ -330,11 +285,10 @@ namespace Dotmim.Sync.Web.Client
                         Filters = message.Filters,
                         Policy = message.Policy,
                         SerializationFormat = message.SerializationFormat
-
                     }
                 };
 
-                var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, message.SerializationFormat, cancellationToken);
+                var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, message.SerializationFormat, this.cancellationToken);
 
                 if (httpMessageResponse == null)
                     throw new Exception("Can't have an empty body");
@@ -377,8 +331,8 @@ namespace Dotmim.Sync.Web.Client
                 else
                 {
                     // Serialize the file !
-                    var bpId = BatchInfo.GenerateNewFileName(changes.BatchIndex.ToString());
-                    var fileName = Path.Combine(message.BatchDirectory, changes.Directory, bpId);
+                    var bpId = changes.GenerateNewFileName(changes.BatchIndex.ToString());
+                    var fileName = Path.Combine(message.BatchDirectory, changes.DirectoryName, bpId);
                     BatchPart.Serialize(httpMessageContent.Set, fileName);
                     bpi.FileName = fileName;
                     bpi.Clear();
@@ -407,7 +361,10 @@ namespace Dotmim.Sync.Web.Client
         public async Task<(SyncContext, ChangesApplied)> ApplyChangesAsync(SyncContext context, MessageApplyChanges message)
         {
             if (message.Changes == null || message.Changes.BatchPartsInfo.Count == 0)
+            {
+                message.Changes?.Clear(message.CleanMetadatas);
                 return (context, new ChangesApplied());
+            }
 
             SyncContext syncContext = null;
             ChangesApplied changesApplied = null;
@@ -422,12 +379,13 @@ namespace Dotmim.Sync.Web.Client
                     Schema = new DmSetSurrogate(message.Schema),
                     Policy = message.Policy,
                     UseBulkOperations = message.UseBulkOperations,
+                    CleanMetadatas = message.CleanMetadatas,
                     ScopeInfoTableName = message.ScopeInfoTableName,
                     SerializationFormat = message.SerializationFormat
 
                 };
 
-                HttpMessage httpMessage = new HttpMessage
+                var httpMessage = new HttpMessage
                 {
                     Step = HttpStep.ApplyChanges,
                     SyncContext = context,
@@ -465,7 +423,7 @@ namespace Dotmim.Sync.Web.Client
                 applyChanges.BatchIndex = bpi.Index;
 
                 //Post request and get response
-                var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, message.SerializationFormat, cancellationToken);
+                var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, message.SerializationFormat, this.cancellationToken);
 
                 // Clear surrogate
                 applyChanges.Set.Dispose();
@@ -484,6 +442,9 @@ namespace Dotmim.Sync.Web.Client
                 changesApplied = httpMessageContent.ChangesApplied;
             }
 
+            // Once all bpi sent, we can safely delete the local tmp folder
+            message.Changes?.Clear(message.CleanMetadatas);
+
             return (syncContext, changesApplied);
 
         }
@@ -491,7 +452,7 @@ namespace Dotmim.Sync.Web.Client
 
         public async Task<(SyncContext, long)> GetLocalTimestampAsync(SyncContext context, MessageTimestamp message)
         {
-            HttpMessage httpMessage = new HttpMessage
+            var httpMessage = new HttpMessage
             {
                 Step = HttpStep.GetLocalTimestamp,
                 SyncContext = context,
@@ -503,7 +464,7 @@ namespace Dotmim.Sync.Web.Client
             };
 
             //Post request and get response
-            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, message.SerializationFormat, cancellationToken);
+            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, message.SerializationFormat, this.cancellationToken);
 
             if (httpMessageResponse == null)
                 throw new Exception("Can't have an empty body");
@@ -522,7 +483,7 @@ namespace Dotmim.Sync.Web.Client
 
         public async Task<SyncContext> WriteScopesAsync(SyncContext context, MessageWriteScopes message)
         {
-            HttpMessage httpMessage = new HttpMessage
+            var httpMessage = new HttpMessage
             {
                 Step = HttpStep.WriteScopes,
                 SyncContext = context,
@@ -535,7 +496,7 @@ namespace Dotmim.Sync.Web.Client
             };
 
             //Post request and get response
-            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, message.SerializationFormat, cancellationToken);
+            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, message.SerializationFormat, this.cancellationToken);
 
             if (httpMessageResponse == null)
                 throw new Exception("Can't have an empty body");
@@ -544,33 +505,28 @@ namespace Dotmim.Sync.Web.Client
         }
 
 
-        public void SetCancellationToken(CancellationToken token)
-        {
-            this.cancellationToken = token;
-        }
+        public void SetCancellationToken(CancellationToken token) => this.cancellationToken = token;
 
-#region IDisposable Support
+        #region IDisposable Support
         private bool disposedValue = false; // To detect redundant calls
 
         protected virtual void Dispose(bool disposing)
         {
-            if (!disposedValue)
+            if (!this.disposedValue)
             {
                 if (disposing)
                 {
                     if (this.httpRequestHandler != null)
                         this.httpRequestHandler.Dispose();
                 }
-                disposedValue = true;
+                this.disposedValue = true;
             }
         }
 
         // This code added to correctly implement the disposable pattern.
-        public void Dispose()
-        {
+        public void Dispose() =>
             // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
-            Dispose(true);
-        }
-#endregion
+            this.Dispose(true);
+        #endregion
     }
 }

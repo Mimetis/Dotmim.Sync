@@ -20,7 +20,6 @@ namespace Dotmim.Sync
         /// </summary>
         public DateTime StartTime { get; set; }
 
-
         /// <summary>
         /// Gets or Sets the ScopeName for this sync session
         /// </summary>
