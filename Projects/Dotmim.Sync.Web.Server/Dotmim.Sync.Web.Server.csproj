@@ -11,7 +11,7 @@ Can't work without a Server provider, you have to choose an existing one to be a
     <AssemblyName>Dotmim.Sync.Web.Server</AssemblyName>
     <RootNamespace>Dotmim.Sync.Web.Server</RootNamespace>
     <VersionSuffix>$(VersionSuffix)</VersionSuffix>
-    <Version>0.3.0</Version>
+    <Version>0.3.0-tsu-01</Version>
     <Version Condition=" '$(VersionSuffix)' != '' ">$(Version)-$(VersionSuffix)</Version>
   </PropertyGroup>
 

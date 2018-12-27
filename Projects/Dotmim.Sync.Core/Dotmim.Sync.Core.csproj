@@ -11,7 +11,7 @@
     <PackageTags>Dotmim.Sync, Sync Core Provider, .Net Standard 2.0, Sync, Synchronization, Sync Framework</PackageTags>
 
     <VersionSuffix>$(VersionSuffix)</VersionSuffix>
-    <Version>0.3.0</Version>
+    <Version>0.3.0-tsu-01</Version>
     <Version Condition=" '$(VersionSuffix)' != '' ">$(Version)-$(VersionSuffix)</Version>
     
   </PropertyGroup>
