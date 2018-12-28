@@ -23,6 +23,21 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dotmim.Sync.Web.Client", "P
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dotmim.Sync.WebApi2.Tests", "Tests\Dotmim.Sync.WebApi2.Tests\Dotmim.Sync.WebApi2.Tests.csproj", "{D3BF4ABB-329B-40BA-BA00-B07A15B6EE00}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "root", "root", "{82ED19F0-A426-4B91-8289-183277F1CA0F}"
+ProjectSection(SolutionItems) = preProject
+	.editorconfig = .editorconfig
+	.gitattributes = .gitattributes
+	.gitignore = .gitignore
+	_config.yml = _config.yml
+	azure-pipelines.yml = azure-pipelines.yml
+	CreateAdventureWorks.sql = CreateAdventureWorks.sql
+	Dotmim.Sync.sln = Dotmim.Sync.sln
+	installMySql.ps1 = installMySql.ps1
+	Jenkinsfile = Jenkinsfile
+	Readme.md = Readme.md
+	uninstallMySql.ps1 = uninstallMySql.ps1
+EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
