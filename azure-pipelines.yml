@@ -14,12 +14,12 @@ jobs:
   steps:
  
   # Seems the 3306 is already in use on the machine used by Azure Devops, so redirect to 3307
-  - script: docker run --name mysql -e MYSQL_ROOT_PASSWORD=Password12! -p 3307:3306 -d mysql
-    displayName: 'Run MySql on Linux container'
+  # - script: docker run --name mysql -e MYSQL_ROOT_PASSWORD=Password12! -p 3307:3306 -d mysql
+  #   displayName: 'Run MySql on Linux container'
     
-  - script: echo "##vso[task.setvariable variable=mySQLIP;isOutput=true]$(docker inspect -f "{{ .NetworkSettings.IPAddress }}" mysql)"
-    name: setvarStep
-    displayName: '[obsolete] Get Ip from MySql container'
+  # - script: echo "##vso[task.setvariable variable=mySQLIP;isOutput=true]$(docker inspect -f "{{ .NetworkSettings.IPAddress }}" mysql)"
+  #   name: setvarStep
+  #   displayName: '[obsolete] Get Ip from MySql container'
 
   - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
     displayName: 'Run SQL 2017 on Linux container'
@@ -34,7 +34,7 @@ jobs:
   # Dont need anymore to pass the MySQL Ip Address, just let it here for memory
   # --logger trx;logfilename=TEST.xml : Unexplained arg to publish tests resuls
 
-  - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --logger trx
+  - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter SqlServerBasicTests --logger trx
     name: dotnettests
     displayName: 'Tests'
     env: 
