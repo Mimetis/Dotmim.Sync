@@ -3,8 +3,6 @@ using Dotmim.Sync.Data;
 using Dotmim.Sync.Enumerations;
 using Newtonsoft.Json;
 using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Dotmim.Sync.Messages
 {
@@ -26,27 +24,29 @@ namespace Dotmim.Sync.Messages
         /// Gets or Sets the schema used for this sync
         /// </summary>
         [JsonIgnore]
-        public DmSet Schema { get => _schema; set => _schema = value; }
+        public DmSet Schema { get => this._schema; set => this._schema = value; }
 
         /// <summary>
         /// Gets or Sets the current Conflict resolution policy
         /// </summary>
         public ConflictResolutionPolicy Policy { get; set; }
 
-        /// <summary>
-        /// Gets or sets the boolean indicating if we can use bulk operations
-        /// </summary>
-        public Boolean UseBulkOperations { get; set; }
+        ///// <summary>
+        ///// Gets or sets the boolean indicating if we can use bulk operations
+        ///// </summary>
+        //[JsonIgnore]
+        //public bool UseBulkOperations { get; set; }
 
-        /// <summary>
-        /// Gets or Sets if we should cleaning tmp dir files after sync.
-        /// </summary>
-        public Boolean CleanMetadatas { get; set; }
+        ///// <summary>
+        ///// Gets or Sets if we should cleaning tmp dir files after sync.
+        ///// </summary>
+        //[JsonIgnore]
+        //public bool CleanMetadatas { get; set; }
 
         /// <summary>
         /// Gets ors Sets the Scope info table name used for the sync
         /// </summary>
-        public String ScopeInfoTableName { get; set; }
+        public string ScopeInfoTableName { get; set; }
 
         /// <summary>
         /// Gets or Sets the Batch Info used for this sync session

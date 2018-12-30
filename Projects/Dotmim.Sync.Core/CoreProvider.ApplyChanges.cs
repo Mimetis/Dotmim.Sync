@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -115,7 +114,7 @@ namespace Dotmim.Sync
                     connection.Close();
 
                 if (message.Changes != null)
-                    message.Changes.Clear(message.CleanMetadatas);
+                    message.Changes.Clear(this.Options.CleanMetadatas);
 
             }
         }
@@ -210,7 +209,7 @@ namespace Dotmim.Sync
 
                     int rowsApplied;
                     // applying the bulkchanges command
-                    if (message.UseBulkOperations && this.SupportBulkOperations)
+                    if (this.Options.UseBulkOperations && this.SupportBulkOperations)
                         rowsApplied = syncAdapter.ApplyBulkChanges(dmChangesView, message.FromScope, conflicts);
                     else
                         rowsApplied = syncAdapter.ApplyChanges(dmChangesView, message.FromScope, conflicts);

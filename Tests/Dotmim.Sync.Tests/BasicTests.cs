@@ -101,13 +101,7 @@ namespace Dotmim.Sync.Tests
         {
             try
             {
-                var s = new SyncConfiguration
-                {
-                    DownloadBatchSizeInKB = 100,
-                    UseBulkOperations = true,
-                    SerializationFormat = SerializationFormat.Json,
-                    CleanMetadatas = false
-                };
+                var s = new SyncConfiguration();
 
                 var results = await this.testRunner.RunTestsAsync(s);
 
