@@ -24,4 +24,10 @@ Can't work without a Server provider, you have to choose an existing one to be a
   <ItemGroup>
     <PackageReference Include="Microsoft.Net.Http.Headers" Version="2.1.1" />
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="..\..\Readme.md">
+      <Pack>true</Pack>
+      <PackagePath>\</PackagePath>
+    </Content>
+  </ItemGroup>
 </Project>

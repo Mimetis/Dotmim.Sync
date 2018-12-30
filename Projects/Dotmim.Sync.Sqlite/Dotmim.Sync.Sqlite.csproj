@@ -12,22 +12,24 @@
     <Version>0.3.0</Version>
     <Version Condition=" '$(VersionSuffix)' != '' ">$(Version)-$(VersionSuffix)</Version>
   </PropertyGroup>
-
   <!--generate NUGET package including symbols ans source on each release build -->
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <IncludeSource>True</IncludeSource>
     <IncludeSymbols>True</IncludeSymbols>
   </PropertyGroup>
-
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.SQLite">
       <Version>2.1.0</Version>
     </PackageReference>
   </ItemGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" />
   </ItemGroup>
-
+  <ItemGroup>
+    <Content Include="..\..\Readme.md">
+      <Pack>true</Pack>
+      <PackagePath>\</PackagePath>
+    </Content>
+  </ItemGroup>
 </Project>
