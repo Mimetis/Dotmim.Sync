@@ -14,7 +14,8 @@ namespace Dotmim.Sync.Messages
         /// <summary>
         /// Gets or Sets the configuration, exchanged between the client and the server
         /// </summary>
-        public SyncConfiguration SyncConfiguration { get; set; }
+        public SyncConfiguration Configuration { get; set; }
 
+ 
     }
 }

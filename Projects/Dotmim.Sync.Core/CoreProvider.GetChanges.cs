@@ -51,8 +51,8 @@ namespace Dotmim.Sync
                 }
 
                 // create local directory
-                if (message.DownloadBatchSizeInKB > 0 && !string.IsNullOrEmpty(message.BatchDirectory) && !Directory.Exists(message.BatchDirectory))
-                    Directory.CreateDirectory(message.BatchDirectory);
+                if (this.Options.BatchSize > 0 && !string.IsNullOrEmpty(this.Options.BatchDirectory) && !Directory.Exists(this.Options.BatchDirectory))
+                    Directory.CreateDirectory(this.Options.BatchDirectory);
 
                 // batch info containing changes
                 BatchInfo batchInfo;
@@ -63,11 +63,11 @@ namespace Dotmim.Sync
                 // if we try a Reinitialize action, don't get any changes from client
                 // else get changes from batch or in memory methods
                 if (context.SyncWay == SyncWay.Upload && context.SyncType == SyncType.Reinitialize)
-                    (batchInfo, changesSelected) = this.GetEmptyChanges(context, message.ScopeInfo, message.DownloadBatchSizeInKB, message.BatchDirectory);
-                else if (message.DownloadBatchSizeInKB == 0)
-                    (batchInfo, changesSelected) = await this.EnumerateChangesInternal(context, message.ScopeInfo, message.Schema, message.BatchDirectory, message.Policy, message.Filters);
+                    (batchInfo, changesSelected) = this.GetEmptyChanges(context, message.ScopeInfo, this.Options.BatchSize, this.Options.BatchDirectory);
+                else if (this.Options.BatchSize == 0)
+                    (batchInfo, changesSelected) = await this.EnumerateChangesInternal(context, message.ScopeInfo, message.Schema, this.Options.BatchDirectory, message.Policy, message.Filters);
                 else
-                    (batchInfo, changesSelected) = await this.EnumerateChangesInBatchesInternal(context, message.ScopeInfo, message.DownloadBatchSizeInKB, message.Schema, message.BatchDirectory, message.Policy, message.Filters);
+                    (batchInfo, changesSelected) = await this.EnumerateChangesInBatchesInternal(context, message.ScopeInfo, this.Options.BatchSize, message.Schema, this.Options.BatchDirectory, message.Policy, message.Filters);
 
                 return (context, batchInfo, changesSelected);
             }

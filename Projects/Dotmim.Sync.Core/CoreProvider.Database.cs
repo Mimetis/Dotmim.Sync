@@ -1,15 +1,15 @@
 using Dotmim.Sync.Builders;
-using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Data;
+using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.Filter;
+using Dotmim.Sync.Messages;
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Linq;
-using System.Threading.Tasks;
 using System.Text;
-using Dotmim.Sync.Filter;
-using System.Collections.Generic;
-using Dotmim.Sync.Messages;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
@@ -39,13 +39,13 @@ namespace Dotmim.Sync
 
                     using (var transaction = connection.BeginTransaction())
                     {
-                        for (int i = configuration.Count - 1; i >= 0; i--)
+                        for (var i = configuration.Count - 1; i >= 0; i--)
                         {
                             // Get the table
                             var dmTable = configuration.Schema.Tables[i];
 
                             // get the builder
-                            var builder = GetDatabaseBuilder(dmTable);
+                            var builder = this.GetDatabaseBuilder(dmTable);
                             builder.UseBulkProcedures = this.SupportBulkOperations;
 
                             // adding filters
@@ -67,7 +67,7 @@ namespace Dotmim.Sync
 
                         if (provision.HasFlag(SyncProvision.Scope) || provision.HasFlag(SyncProvision.All))
                         {
-                            var scopeBuilder = GetScopeBuilder().CreateScopeInfoBuilder(configuration.ScopeInfoTableName, connection, transaction);
+                            var scopeBuilder = this.GetScopeBuilder().CreateScopeInfoBuilder(configuration.ScopeInfoTableName, connection, transaction);
                             if (!scopeBuilder.NeedToCreateScopeInfoTable())
                                 scopeBuilder.DropScopeInfoTable();
                         }
@@ -112,18 +112,18 @@ namespace Dotmim.Sync
 
                         if (provision.HasFlag(SyncProvision.Scope) || provision.HasFlag(SyncProvision.All))
                         {
-                            var scopeBuilder = GetScopeBuilder().CreateScopeInfoBuilder(configuration.ScopeInfoTableName, connection, transaction);
+                            var scopeBuilder = this.GetScopeBuilder().CreateScopeInfoBuilder(configuration.ScopeInfoTableName, connection, transaction);
                             if (scopeBuilder.NeedToCreateScopeInfoTable())
                                 scopeBuilder.CreateScopeInfoTable();
                         }
 
-                        for (int i = 0; i < configuration.Count; i++)
+                        for (var i = 0; i < configuration.Count; i++)
                         {
                             // Get the table
                             var dmTable = configuration.Schema.Tables[i];
 
                             // get the builder
-                            var builder = GetDatabaseBuilder(dmTable);
+                            var builder = this.GetDatabaseBuilder(dmTable);
                             builder.UseBulkProcedures = this.SupportBulkOperations;
 
                             // adding filters
@@ -173,7 +173,7 @@ namespace Dotmim.Sync
                 // Event progress
                 context.SyncStage = SyncStage.DatabaseApplying;
 
-                DatabaseApplyingEventArgs beforeArgs =
+                var beforeArgs =
                     new DatabaseApplyingEventArgs(this.ProviderTypeName, context.SyncStage, message.Schema);
                 this.TryRaiseProgressEvent(beforeArgs, this.DatabaseApplying);
 
@@ -183,7 +183,7 @@ namespace Dotmim.Sync
                 if (message.ScopeInfo.LastSync.HasValue && !beforeArgs.OverwriteSchema)
                     return context;
 
-                StringBuilder script = new StringBuilder();
+                var script = new StringBuilder();
 
                 // Open the connection
                 using (connection = this.CreateConnection())
@@ -199,15 +199,15 @@ namespace Dotmim.Sync
 
                         foreach (var dmTable in dmTables)
                         {
-                            var builder = GetDatabaseBuilder(dmTable);
+                            var builder = this.GetDatabaseBuilder(dmTable);
                             // set if the builder supports creating the bulk operations proc stock
                             builder.UseBulkProcedures = this.SupportBulkOperations;
-                           
+
                             // adding filter
                             this.AddFilters(message.Filters, dmTable, builder);
 
                             context.SyncStage = SyncStage.DatabaseTableApplying;
-                            DatabaseTableApplyingEventArgs beforeTableArgs =
+                            var beforeTableArgs =
                                 new DatabaseTableApplyingEventArgs(this.ProviderTypeName, context.SyncStage, dmTable.TableName);
                             this.TryRaiseProgressEvent(beforeTableArgs, this.DatabaseTableApplying);
 
@@ -223,7 +223,7 @@ namespace Dotmim.Sync
                             builder.CreateForeignKeys(connection, transaction);
 
                             context.SyncStage = SyncStage.DatabaseTableApplied;
-                            DatabaseTableAppliedEventArgs afterTableArgs =
+                            var afterTableArgs =
                                 new DatabaseTableAppliedEventArgs(this.ProviderTypeName, context.SyncStage, dmTable.TableName, currentScript);
                             this.TryRaiseProgressEvent(afterTableArgs, this.DatabaseTableApplied);
                         }

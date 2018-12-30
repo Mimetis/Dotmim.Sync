@@ -313,14 +313,8 @@ namespace Dotmim.Sync.Tests.Core
 
         internal void CopyConfiguration(SyncConfiguration to, SyncConfiguration from)
         {
-            to.DownloadBatchSizeInKB = from.DownloadBatchSizeInKB;
-            to.UseBulkOperations = from.UseBulkOperations;
-            to.CleanMetadatas = from.CleanMetadatas;
             to.SerializationFormat = from.SerializationFormat;
-            to.Archive = from.Archive;
-            to.BatchDirectory = from.BatchDirectory;
             to.ConflictResolutionPolicy = from.ConflictResolutionPolicy;
-            to.DownloadBatchSizeInKB = from.DownloadBatchSizeInKB;
             to.SerializationFormat = from.SerializationFormat;
             to.StoredProceduresPrefix = from.StoredProceduresPrefix;
             to.StoredProceduresSuffix = from.StoredProceduresSuffix;
@@ -328,7 +322,6 @@ namespace Dotmim.Sync.Tests.Core
             to.TrackingTablesSuffix = from.TrackingTablesSuffix;
             to.TriggersPrefix = from.TriggersPrefix;
             to.TriggersSuffix = from.TriggersSuffix;
-            to.UseVerboseErrors = from.UseVerboseErrors;
 
             if (from.Filters != null && from.Filters.Count > 0)
             {
@@ -337,10 +330,7 @@ namespace Dotmim.Sync.Tests.Core
                 foreach (var f in from.Filters)
                     to.Filters.Add(f.TableName, f.ColumnName);
             }
-
         }
-
-
 
     }
 }
