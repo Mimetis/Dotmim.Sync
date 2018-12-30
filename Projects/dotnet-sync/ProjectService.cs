@@ -88,7 +88,8 @@ namespace Dotmim.Sync.Tools
             if (project.ServerProvider.ProviderType != ProviderType.Web && (project.Tables == null || project.Tables.Count <= 0))
                 throw new Exception($"No table configured for project {project.Name}. See help: dotnet sync table --help");
 
-            IProvider serverProvider, clientprovider;
+            IProvider serverProvider;
+            CoreProvider clientprovider;
             switch (project.ServerProvider.ProviderType)
             {
                 case ProviderType.Sqlite:
@@ -148,12 +149,17 @@ namespace Dotmim.Sync.Tools
                     syncConfiguration.Add(dmTable);
                 }
 
-                syncConfiguration.BatchDirectory = string.IsNullOrEmpty(project.Configuration.BatchDirectory) ? null : project.Configuration.BatchDirectory;
+                var options = new SyncOptions
+                {
+                    BatchDirectory = string.IsNullOrEmpty(project.Configuration.BatchDirectory) ? null : project.Configuration.BatchDirectory,
+                    BatchSize = (int)Math.Min(Int32.MaxValue, project.Configuration.DownloadBatchSizeInKB),
+                    UseBulkOperations = project.Configuration.UseBulkOperations
+                };
+
                 syncConfiguration.SerializationFormat = project.Configuration.SerializationFormat;
-                syncConfiguration.UseBulkOperations = project.Configuration.UseBulkOperations;
-                syncConfiguration.DownloadBatchSizeInKB = (int)Math.Min(Int32.MaxValue, project.Configuration.DownloadBatchSizeInKB);
                 syncConfiguration.ConflictResolutionPolicy = project.Configuration.ConflictResolutionPolicy;
 
+                agent.Options = options;
 
             }
             else

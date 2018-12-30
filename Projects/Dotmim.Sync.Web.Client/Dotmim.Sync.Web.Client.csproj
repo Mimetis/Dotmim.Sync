@@ -26,7 +26,7 @@ Can't work without a Server provider, you have to choose an existing one to be a
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Net.Http.Headers" Version="2.1.1" />
+    <PackageReference Include="Microsoft.Net.Http.Headers" Version="2.2.0" />
   </ItemGroup>
 
 </Project>

@@ -19,10 +19,15 @@ namespace Dotmim.Sync
     {
 
         /// <summary>
-        /// Gets or Sets the configuration object.
+        /// Gets or Sets the configuration object, concerning everything from the database, that is shared between the client and server provider
         /// This object will be passed to the remote provider, and will be handle by it.
         /// </summary>
         public SyncConfiguration Configuration { get; private set; }
+
+        /// <summary>
+        /// Gets or Sets differents options that could be different from server and client
+        /// </summary>
+        public SyncOptions Options { get; set; }
 
         /// <summary>
         /// Defines the state that a synchronization session is in.
@@ -32,7 +37,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets or Sets the provider for the Client Side
         /// </summary>
-        public IProvider LocalProvider { get; set; }
+        public CoreProvider LocalProvider { get; set; }
 
         /// <summary>
         /// Get or Sets the provider for the Server Side
@@ -80,13 +85,11 @@ namespace Dotmim.Sync
         /// </summary>
         public event EventHandler<SyncSessionState> SessionStateChanged = null;
 
-
-
         /// <summary>
         /// SyncAgent manage both server and client provider
         /// It's the main object to launch the Sync process
         /// </summary>
-        public SyncAgent(string scopeName, IProvider localProvider, IProvider remoteProvider)
+        public SyncAgent(string scopeName, CoreProvider localProvider, IProvider remoteProvider)
         {
             this.LocalProvider = localProvider ?? throw new ArgumentNullException("ClientProvider");
             this.RemoteProvider = remoteProvider ?? throw new ArgumentNullException("ServerProvider");
@@ -95,7 +98,6 @@ namespace Dotmim.Sync
             {
                 ScopeName = scopeName ?? throw new ArgumentNullException("scopeName")
             };
-
             this.LocalProvider.SyncProgress += (s, e) => this.SyncProgress?.Invoke(s, e);
             this.LocalProvider.BeginSession += (s, e) => this.BeginSession?.Invoke(s, e);
             this.LocalProvider.EndSession += (s, e) => this.EndSession?.Invoke(s, e);
@@ -119,7 +121,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// SyncAgent used in a web proxy sync session. No need to set tables, it's done from the server web api side.
         /// </summary>
-        public SyncAgent(IProvider localProvider, IProvider remoteProvider)
+        public SyncAgent(CoreProvider localProvider, IProvider remoteProvider)
             : this("DefaultScope", localProvider, remoteProvider)
         {
         }
@@ -129,7 +131,7 @@ namespace Dotmim.Sync
         /// the tables array represents the tables you want to sync
         /// Don't work on the proxy provider
         /// </summary>
-        public SyncAgent(string scopeName, IProvider clientProvider, IProvider serverProvider, string[] tables)
+        public SyncAgent(string scopeName, CoreProvider clientProvider, IProvider serverProvider, string[] tables)
         : this(scopeName, clientProvider, serverProvider)
         {
             if (tables == null || tables.Length <= 0)
@@ -150,7 +152,7 @@ namespace Dotmim.Sync
         /// the tables array represents the tables you want to sync
         /// Don't work on the proxy provider
         /// </summary>
-        public SyncAgent(IProvider clientProvider, IProvider serverProvider, string[] tables)
+        public SyncAgent(CoreProvider clientProvider, IProvider serverProvider, string[] tables)
         : this("DefaultScope", clientProvider, serverProvider, tables)
         {
         }
@@ -208,19 +210,29 @@ namespace Dotmim.Sync
                 this.LocalProvider.SetCancellationToken(cancellationToken);
                 this.RemoteProvider.SetCancellationToken(cancellationToken);
 
+                if (this.Options == null)
+                    this.Options = new SyncOptions();
+
+                // if local provider does not provider options, get them from sync agent
+                if (this.LocalProvider.Options == null)
+                    this.LocalProvider.Options = this.Options;
+
+                if (this.RemoteProvider.Options == null)
+                    this.RemoteProvider.Options = this.Options;
+
                 // ----------------------------------------
                 // 0) Begin Session / Get the Configuration from remote provider
                 //    If the configuration object is provided by the client, the server will be updated with it.
                 // ----------------------------------------
                 (context, this.Configuration) = await this.RemoteProvider.BeginSessionAsync(context,
-                    new MessageBeginSession { SyncConfiguration = this.Configuration });
+                    new MessageBeginSession { Configuration = this.Configuration });
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
                 // Locally, nothing really special. Eventually, editing the config object
                 (context, this.Configuration) = await this.LocalProvider.BeginSessionAsync(context,
-                    new MessageBeginSession { SyncConfiguration = this.Configuration });
+                    new MessageBeginSession { Configuration = this.Configuration });
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -374,8 +386,8 @@ namespace Dotmim.Sync
                         {
                             ScopeInfo = scope,
                             Schema = this.Configuration.Schema,
-                            DownloadBatchSizeInKB = this.Configuration.DownloadBatchSizeInKB,
-                            BatchDirectory = this.Configuration.BatchDirectory,
+                            //BatchSize = this.Options.BatchSize,
+                            //BatchDirectory = this.Options.BatchDirectory,
                             Policy = clientPolicy,
                             Filters = this.Configuration.Filters,
                             SerializationFormat = this.Configuration.SerializationFormat
@@ -401,8 +413,8 @@ namespace Dotmim.Sync
                          FromScope = scope,
                          Schema = this.Configuration.Schema,
                          Policy = serverPolicy,
-                         UseBulkOperations = this.Configuration.UseBulkOperations,
-                         CleanMetadatas = this.Configuration.CleanMetadatas,
+                         //UseBulkOperations = this.Options.UseBulkOperations,
+                         //CleanMetadatas = this.Options.CleanMetadatas,
                          ScopeInfoTableName = this.Configuration.ScopeInfoTableName,
                          Changes = clientBatchInfo,
                          SerializationFormat = this.Configuration.SerializationFormat
@@ -420,36 +432,36 @@ namespace Dotmim.Sync
 
 
                 // get the archive if exists
-                if (localScopeReferenceInfo.IsNewScope && !string.IsNullOrEmpty(this.Configuration.Archive))
-                {
-                    //// fromId : Make sure we don't select lines on server that has been already updated by the client
-                    //fromId = localScopeInfo.Id;
-                    //// lastSyncTS : apply lines only if thye are not modified since last client sync
-                    //lastSyncTS = localScopeReferenceInfo.LastTimestamp;
-                    //// isNew : make sure we take all lines if it's the first time we get 
-                    //isNew = localScopeReferenceInfo.IsNewScope;
-                    //scope = new ScopeInfo { Id = fromId, IsNewScope = isNew, LastTimestamp = lastSyncTS };
-                    ////Direction set to Download
-                    //context.SyncWay = SyncWay.Download;
+                //if (localScopeReferenceInfo.IsNewScope && !string.IsNullOrEmpty(this.Configuration.Archive))
+                //{
+                //// fromId : Make sure we don't select lines on server that has been already updated by the client
+                //fromId = localScopeInfo.Id;
+                //// lastSyncTS : apply lines only if thye are not modified since last client sync
+                //lastSyncTS = localScopeReferenceInfo.LastTimestamp;
+                //// isNew : make sure we take all lines if it's the first time we get 
+                //isNew = localScopeReferenceInfo.IsNewScope;
+                //scope = new ScopeInfo { Id = fromId, IsNewScope = isNew, LastTimestamp = lastSyncTS };
+                ////Direction set to Download
+                //context.SyncWay = SyncWay.Download;
 
-                    //(context, serverBatchInfo, serverChangesSelected) = await this.RemoteProvider.GetArchiveAsync(context, scope);
+                //(context, serverBatchInfo, serverChangesSelected) = await this.RemoteProvider.GetArchiveAsync(context, scope);
 
-                    //// fromId : When applying rows, make sure it's identified as applied by this server scope
-                    //fromId = serverScopeInfo.Id;
-                    //// lastSyncTS : apply lines only if they are not modified since last client sync
-                    //lastSyncTS = localScopeInfo.LastTimestamp;
-                    //// isNew : if IsNew, don't apply deleted rows from server
-                    //isNew = localScopeInfo.IsNewScope;
-                    //scope = new ScopeInfo { Id = fromId, IsNewScope = isNew, LastTimestamp = lastSyncTS };
+                //// fromId : When applying rows, make sure it's identified as applied by this server scope
+                //fromId = serverScopeInfo.Id;
+                //// lastSyncTS : apply lines only if they are not modified since last client sync
+                //lastSyncTS = localScopeInfo.LastTimestamp;
+                //// isNew : if IsNew, don't apply deleted rows from server
+                //isNew = localScopeInfo.IsNewScope;
+                //scope = new ScopeInfo { Id = fromId, IsNewScope = isNew, LastTimestamp = lastSyncTS };
 
-                    //(context, clientChangesApplied) = await this.LocalProvider.ApplyArchiveAsync(context, scope, serverBatchInfo);
+                //(context, clientChangesApplied) = await this.LocalProvider.ApplyArchiveAsync(context, scope, serverBatchInfo);
 
-                    //// Here we have to change the localScopeInfo.LastTimestamp to the good one
-                    //// last ts from archive
-                    //localScopeReferenceInfo.LastTimestamp = [something from the archive];
-                    //// we are not new anymore 
-                    //localScopeReferenceInfo.IsNewScope = false;
-                }
+                //// Here we have to change the localScopeInfo.LastTimestamp to the good one
+                //// last ts from archive
+                //localScopeReferenceInfo.LastTimestamp = [something from the archive];
+                //// we are not new anymore 
+                //localScopeReferenceInfo.IsNewScope = false;
+                //}
 
 
                 // fromId : Make sure we don't select lines on server that has been already updated by the client
@@ -480,8 +492,8 @@ namespace Dotmim.Sync
                         {
                             ScopeInfo = scope,
                             Schema = this.Configuration.Schema,
-                            DownloadBatchSizeInKB = this.Configuration.DownloadBatchSizeInKB,
-                            BatchDirectory = this.Configuration.BatchDirectory,
+                            //BatchSize = this.Options.BatchSize,
+                            //BatchDirectory = this.Options.BatchDirectory,
                             Policy = serverPolicy,
                             Filters = this.Configuration.Filters,
                             SerializationFormat = this.Configuration.SerializationFormat
@@ -509,8 +521,8 @@ namespace Dotmim.Sync
                             FromScope = scope,
                             Schema = this.Configuration.Schema,
                             Policy = clientPolicy,
-                            UseBulkOperations = this.Configuration.UseBulkOperations,
-                            CleanMetadatas = this.Configuration.CleanMetadatas,
+                            //UseBulkOperations = this.Options.UseBulkOperations,
+                            //CleanMetadatas = this.Options.CleanMetadatas,
                             ScopeInfoTableName = this.Configuration.ScopeInfoTableName,
                             Changes = serverBatchInfo,
                             SerializationFormat = this.Configuration.SerializationFormat

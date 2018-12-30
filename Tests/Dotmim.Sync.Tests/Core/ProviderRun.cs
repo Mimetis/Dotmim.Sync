@@ -53,13 +53,13 @@ namespace Dotmim.Sync.Tests.Core
             }
         }
         public ProviderType ClientProviderType { get; set; }
-        public IProvider ClientProvider { get; set; }
+        public CoreProvider ClientProvider { get; set; }
         public NetworkType NetworkType { get; set; }
         public SyncContext Results { get; set; }
         public SyncAgent Agent { get; set; }
         public Exception Exception { get; set; }
 
-        public ProviderRun(string databaseName, IProvider clientProvider, ProviderType clientProviderType, NetworkType networkType)
+        public ProviderRun(string databaseName, CoreProvider clientProvider, ProviderType clientProviderType, NetworkType networkType)
         {
             if (string.IsNullOrEmpty(databaseName))
                 throw new ArgumentNullException(nameof(databaseName));
@@ -151,7 +151,8 @@ namespace Dotmim.Sync.Tests.Core
                         proxyServerProvider.Configuration = syncConfiguration;
 
                         // test if <> directory name works
-                        proxyServerProvider.Configuration.BatchDirectory = Path.Combine(proxyServerProvider.Configuration.BatchDirectory, "server");
+                        proxyServerProvider.Options = new SyncOptions();
+                        proxyServerProvider.Options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "server");
 
                         // Add Filers
                         if (serverFixture.Filters != null && serverFixture.Filters.Count > 0)
