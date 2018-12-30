@@ -38,7 +38,7 @@ jobs:
     name: dotnettests
     displayName: 'Tests'
     env: 
-      'MYSQLIP' : $(setvarStep.mySQLIP)
+      'MYSQLIP' : $(setvarStep.mySQLIP) 
       'AZUREDEV' : 'true'
 
   - task: PublishTestResults@2
