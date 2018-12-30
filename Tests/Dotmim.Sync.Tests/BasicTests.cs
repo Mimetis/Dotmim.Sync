@@ -1418,7 +1418,7 @@ namespace Dotmim.Sync.Tests
 
                     var relations = tableManger.GetTableRelations().ToArray();
                     Assert.Single(relations);
-                    Assert.Equal("FK_PriceListDetail_PriceListCategory_PriceListId_PriceCategoryId", relations[0].ForeignKey);
+                    Assert.Equal("FK_PriceListDetail_PriceListCategory_CategoryPriceListId_CategoryPriceCategoryId", relations[0].ForeignKey);
                     Assert.Equal(2, relations[0].KeyColumnsName.Count());
                 }
             }
