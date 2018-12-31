@@ -72,7 +72,8 @@ namespace Dotmim.Sync.Tests
             else if (IsOnAzureDev)
                 return $@"Data Source=localhost;Initial Catalog={dbName};User Id=SA;Password=Password12!";
             else if (isWindowsRuntime)
-                return $@"Data Source=(localdb)\MSSQLLocalDB;Initial Catalog={dbName};Integrated Security=true;";
+                return $@"Data Source=localhost;Initial Catalog={dbName};User Id=SA;Password=Password12!";
+            //return $@"Data Source=(localdb)\MSSQLLocalDB;Initial Catalog={dbName};Integrated Security=true;";
             else
                 return $@"Data Source=localhost; Database={dbName}; User=sa; Password=Password12!";
         }

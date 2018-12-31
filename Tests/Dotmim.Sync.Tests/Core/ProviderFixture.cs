@@ -287,12 +287,10 @@ namespace Dotmim.Sync.Tests.Core
                     // generate a new database name
                     var dbName = this.GetRandomDatabaseName();
 
-                    Console.WriteLine("Create a database called " + dbName + " for provider " + clientProviderType);
+                    Console.WriteLine("Create client database called " + dbName + " for provider " + clientProviderType);
 
                     // get the connection string
                     var connectionString = HelperDB.GetConnectionString(clientProviderType, dbName);
-
-                    Console.WriteLine("Connection String : " + connectionString);
 
                     // create the database on the client provider
                     HelperDB.CreateDatabase(clientProviderType, dbName);
