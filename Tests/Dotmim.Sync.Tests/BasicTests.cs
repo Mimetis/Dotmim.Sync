@@ -75,10 +75,10 @@ namespace Dotmim.Sync.Tests
 
                         await sqlConnection.OpenAsync();
                         var dbReader = sqlCommand.ExecuteReader();
+                        Console.WriteLine($"Check Health Database on {this.fixture.DatabaseName}");
                         while (dbReader.Read())
                         {
                             var debugLine = $"{(string)dbReader["tableName"]}\t{(string)dbReader["columnName"]}\t{(string)dbReader["type"]}";
-
                             Console.WriteLine(debugLine);
                             Debug.WriteLine(debugLine);
                         }
