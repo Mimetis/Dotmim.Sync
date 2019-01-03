@@ -1,25 +1,51 @@
 using Dotmim.Sync.Builders;
-using System;
-using System.Text;
 using Dotmim.Sync.Data;
-using System.Data.Common;
-using System.Linq;
-using System.Data;
-using MySql.Data.MySqlClient;
 using Dotmim.Sync.MySql.Builders;
+using MySql.Data.MySqlClient;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Data.Common;
 using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Text;
 
 namespace Dotmim.Sync.MySql
 {
     public class MySqlBuilderTable : IDbBuilderTableHelper
     {
-        private ObjectNameParser tableName;
-        private ObjectNameParser trackingName;
-        private DmTable tableDescription;
-        private MySqlConnection connection;
-        private MySqlTransaction transaction;
-        private MySqlDbMetadata mySqlDbMetadata;
+        private readonly ObjectNameParser tableName;
+        private readonly ObjectNameParser trackingName;
+        private readonly DmTable tableDescription;
+        private readonly MySqlConnection connection;
+        private readonly MySqlTransaction transaction;
+        private readonly MySqlDbMetadata mySqlDbMetadata;
 
+        private static Dictionary<string, string> createdRelationNames = new Dictionary<string, string>();
+
+        private static string GetRandomString()
+        {
+            return Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
+        }
+
+        /// <summary>
+        /// Ensure the relation name is correct to be created in MySql
+        /// </summary>
+        public static string NormalizeRelationName(string relation)
+        {
+            if (createdRelationNames.ContainsKey(relation))
+                return createdRelationNames[relation];
+
+            var name = relation;
+
+            if (relation.Length > 65)
+                name = $"{relation.Substring(0, 50)}_{GetRandomString()}";
+
+            createdRelationNames.Add(relation, name);
+
+            return name;
+        }
         public MySqlBuilderTable(DmTable tableDescription, DbConnection connection, DbTransaction transaction = null)
         {
 
@@ -33,28 +59,29 @@ namespace Dotmim.Sync.MySql
 
         private MySqlCommand BuildForeignKeyConstraintsCommand(DmRelation foreignKey)
         {
-            MySqlCommand sqlCommand = new MySqlCommand();
+            var sqlCommand = new MySqlCommand();
 
             var childTable = foreignKey.ChildTable;
             var childTableName = new ObjectNameParser(childTable.TableName, "`", "`");
             var parentTable = foreignKey.ParentTable;
             var parentTableName = new ObjectNameParser(parentTable.TableName, "`", "`"); ;
 
-            var relationName = foreignKey.RelationName;
+            var relationName = NormalizeRelationName(foreignKey.RelationName);
 
             DmColumn[] foreignKeyColumns = foreignKey.ChildColumns;
             DmColumn[] referencesColumns = foreignKey.ParentColumns;
 
-            StringBuilder stringBuilder = new StringBuilder();
+            var stringBuilder = new StringBuilder();
             stringBuilder.Append("ALTER TABLE ");
             stringBuilder.AppendLine(childTableName.FullQuotedString);
             stringBuilder.Append("ADD CONSTRAINT ");
-            stringBuilder.AppendLine(relationName);
+
+            stringBuilder.AppendLine($"`{relationName}`");
             stringBuilder.Append("FOREIGN KEY (");
             string empty = string.Empty;
             foreach (var foreignKeyColumn in foreignKeyColumns)
             {
-                var foreignKeyColumnName = new ObjectNameParser(foreignKeyColumn.ColumnName.ToLowerInvariant(), "`", "`");
+                var foreignKeyColumnName = new ObjectNameParser(foreignKeyColumn.ColumnName, "`", "`");
                 stringBuilder.Append($"{empty} {foreignKeyColumnName.FullQuotedString}");
                 empty = ", ";
             }
@@ -64,7 +91,7 @@ namespace Dotmim.Sync.MySql
             empty = string.Empty;
             foreach (var referencesColumn in referencesColumns)
             {
-                var referencesColumnName = new ObjectNameParser(referencesColumn.ColumnName.ToLowerInvariant(), "`", "`");
+                var referencesColumnName = new ObjectNameParser(referencesColumn.ColumnName, "`", "`");
                 stringBuilder.Append($"{empty} {referencesColumnName.FullQuotedString}");
                 empty = ", ";
             }
@@ -78,24 +105,26 @@ namespace Dotmim.Sync.MySql
         {
             string parentTable = foreignKey.ParentTable.TableName;
             string parentSchema = foreignKey.ParentTable.Schema;
-            string parentFullName = String.IsNullOrEmpty(parentSchema) ? parentTable : $"{parentSchema}.{parentTable}";
+            string parentFullName = string.IsNullOrEmpty(parentSchema) ? parentTable : $"{parentSchema}.{parentTable}";
 
-            bool alreadyOpened = connection.State == ConnectionState.Open;
+            var relationName = NormalizeRelationName(foreignKey.RelationName);
+
+            bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
             // Don't want foreign key on same table since it could be a problem on first 
             // sync. We are not sure that parent row will be inserted in first position
-            if (String.Equals(parentTable, foreignKey.ChildTable.TableName, StringComparison.CurrentCultureIgnoreCase))
+            if (string.Equals(parentTable, foreignKey.ChildTable.TableName, StringComparison.CurrentCultureIgnoreCase))
                 return false;
 
             try
             {
                 if (!alreadyOpened)
-                    connection.Open();
+                    this.connection.Open();
 
-                var dmTable = MySqlManagementUtils.RelationsForTable(connection, transaction, parentFullName);
+                var dmTable = MySqlManagementUtils.RelationsForTable(this.connection, this.transaction, parentFullName);
 
                 var foreignKeyExist = dmTable.Rows.Any(r =>
-                   dmTable.IsEqual(r["ForeignKey"].ToString(), foreignKey.RelationName));
+                   dmTable.IsEqual(r["ForeignKey"].ToString(), relationName));
 
                 return !foreignKeyExist;
             }
@@ -106,27 +135,26 @@ namespace Dotmim.Sync.MySql
             }
             finally
             {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
+                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
+                    this.connection.Close();
             }
         }
 
-
         public void CreateForeignKeyConstraints(DmRelation constraint)
         {
-            bool alreadyOpened = connection.State == ConnectionState.Open;
+            bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
             try
             {
                 if (!alreadyOpened)
-                    connection.Open();
+                    this.connection.Open();
 
-                using (var command = BuildForeignKeyConstraintsCommand(constraint))
+                using (var command = this.BuildForeignKeyConstraintsCommand(constraint))
                 {
-                    command.Connection = connection;
+                    command.Connection = this.connection;
 
-                    if (transaction != null)
-                        command.Transaction = transaction;
+                    if (this.transaction != null)
+                        command.Transaction = this.transaction;
 
                     command.ExecuteNonQuery();
                 }
@@ -140,8 +168,8 @@ namespace Dotmim.Sync.MySql
             }
             finally
             {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
+                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
+                    this.connection.Close();
 
             }
 
@@ -149,21 +177,20 @@ namespace Dotmim.Sync.MySql
 
         public string CreateForeignKeyConstraintsScriptText(DmRelation constraint)
         {
-            StringBuilder stringBuilder = new StringBuilder();
+            var stringBuilder = new StringBuilder();
+            var relationName = NormalizeRelationName(constraint.RelationName);
 
             var constraintName = $"Create Constraint {constraint.RelationName} between parent {constraint.ParentTable.TableName} and child {constraint.ChildTable.TableName}";
-            var constraintScript = BuildForeignKeyConstraintsCommand(constraint).CommandText;
+            var constraintScript = this.BuildForeignKeyConstraintsCommand(constraint).CommandText;
             stringBuilder.Append(MySqlBuilder.WrapScriptTextWithComments(constraintScript, constraintName));
             stringBuilder.AppendLine();
 
             return stringBuilder.ToString();
         }
 
-
         public void CreatePrimaryKey()
         {
             return;
-
         }
         public string CreatePrimaryKeyScriptText()
         {
@@ -173,9 +200,9 @@ namespace Dotmim.Sync.MySql
 
         private MySqlCommand BuildTableCommand()
         {
-            MySqlCommand command = new MySqlCommand();
+            var command = new MySqlCommand();
 
-            StringBuilder stringBuilder = new StringBuilder($"CREATE TABLE IF NOT EXISTS {tableName.FullQuotedString} (");
+            var stringBuilder = new StringBuilder($"CREATE TABLE IF NOT EXISTS {this.tableName.FullQuotedString} (");
             string empty = string.Empty;
             stringBuilder.AppendLine();
             foreach (var column in this.tableDescription.Columns)
@@ -251,19 +278,19 @@ namespace Dotmim.Sync.MySql
 
         public void CreateTable()
         {
-            bool alreadyOpened = connection.State == ConnectionState.Open;
+            bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
             try
             {
-                using (var command = BuildTableCommand())
+                using (var command = this.BuildTableCommand())
                 {
                     if (!alreadyOpened)
-                        connection.Open();
+                        this.connection.Open();
 
-                    if (transaction != null)
-                        command.Transaction = transaction;
+                    if (this.transaction != null)
+                        command.Transaction = this.transaction;
 
-                    command.Connection = connection;
+                    command.Connection = this.connection;
                     command.ExecuteNonQuery();
 
                 }
@@ -276,22 +303,21 @@ namespace Dotmim.Sync.MySql
             }
             finally
             {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
+                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
+                    this.connection.Close();
 
             }
 
         }
         public string CreateTableScriptText()
         {
-            StringBuilder stringBuilder = new StringBuilder();
-            var tableNameScript = $"Create Table {tableName.FullQuotedString}";
-            var tableScript = BuildTableCommand().CommandText;
+            var stringBuilder = new StringBuilder();
+            var tableNameScript = $"Create Table {this.tableName.FullQuotedString}";
+            var tableScript = this.BuildTableCommand().CommandText;
             stringBuilder.Append(MySqlBuilder.WrapScriptTextWithComments(tableScript, tableNameScript));
             stringBuilder.AppendLine();
             return stringBuilder.ToString();
         }
-
 
         /// <summary>
         /// For a foreign key, check if the Parent table exists
@@ -313,14 +339,14 @@ namespace Dotmim.Sync.MySql
             if (!exist)
                 return false;
 
-            bool alreadyOpened = connection.State == ConnectionState.Open;
+            bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
             try
             {
                 if (!alreadyOpened)
-                    connection.Open();
+                    this.connection.Open();
 
-                return MySqlManagementUtils.TableExists(connection, transaction, parentTable.TableName);
+                return MySqlManagementUtils.TableExists(this.connection, this.transaction, parentTable.TableName);
 
             }
             catch (Exception ex)
@@ -331,8 +357,8 @@ namespace Dotmim.Sync.MySql
             }
             finally
             {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
+                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
+                    this.connection.Close();
 
             }
 
@@ -344,8 +370,7 @@ namespace Dotmim.Sync.MySql
         /// </summary>
         public bool NeedToCreateTable()
         {
-            return !MySqlManagementUtils.TableExists(connection, transaction, tableName.FullUnquotedString);
-
+            return !MySqlManagementUtils.TableExists(this.connection, this.transaction, this.tableName.FullUnquotedString);
         }
 
         public bool NeedToCreateSchema()
@@ -365,19 +390,19 @@ namespace Dotmim.Sync.MySql
 
         public void DropTable()
         {
-            var commandText = $"drop table if exists {tableName.FullQuotedString}";
+            var commandText = $"drop table if exists {this.tableName.FullQuotedString}";
 
-            bool alreadyOpened = connection.State == ConnectionState.Open;
+            bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
             try
             {
                 if (!alreadyOpened)
-                    connection.Open();
+                    this.connection.Open();
 
-                using (var command = new MySqlCommand(commandText, connection))
+                using (var command = new MySqlCommand(commandText, this.connection))
                 {
-                    if (transaction != null)
-                        command.Transaction = transaction;
+                    if (this.transaction != null)
+                        command.Transaction = this.transaction;
 
                     command.ExecuteNonQuery();
                 }
@@ -389,8 +414,8 @@ namespace Dotmim.Sync.MySql
             }
             finally
             {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
+                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
+                    this.connection.Close();
 
             }
 
@@ -398,9 +423,9 @@ namespace Dotmim.Sync.MySql
 
         public string DropTableScriptText()
         {
-            var commandText = $"drop table if exists {tableName.FullQuotedString}";
+            var commandText = $"drop table if exists {this.tableName.FullQuotedString}";
 
-            var str1 = $"Drop table {tableName.FullQuotedString}";
+            var str1 = $"Drop table {this.tableName.FullQuotedString}";
             return MySqlBuilder.WrapScriptTextWithComments(commandText, str1);
         }
     }

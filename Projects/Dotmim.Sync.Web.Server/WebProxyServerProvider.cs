@@ -39,10 +39,19 @@ namespace Dotmim.Sync.Web.Server
         public CoreProvider LocalProvider { get; private set; }
 
         /// <summary>
+        /// Gets or Sets differents options that could be different from server and client
+        /// </summary>
+        public SyncOptions Options
+        {
+            get => this.LocalProvider?.Options;
+            set => this.LocalProvider.Options = value;
+        }
+
+        /// <summary>
         /// Gets or sets a boolean value to indicate if this service is register as Singleton on web server.
         /// if true, we don't need to use Session, if false, we will try to use session
         /// </summary>
-        public Boolean IsRegisterAsSingleton { get; set; }
+        public bool IsRegisterAsSingleton { get; set; }
 
         public event EventHandler<ProgressEventArgs> SyncProgress = null;
         public event EventHandler<ApplyChangeFailedEventArgs> ApplyChangedFailed;
@@ -95,10 +104,7 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// Call this method to handle requests on the server, sent by the client
         /// </summary>
-        public async Task HandleRequestAsync(HttpContext context)
-        {
-            await HandleRequestAsync(context, CancellationToken.None);
-        }
+        public async Task HandleRequestAsync(HttpContext context) => await this.HandleRequestAsync(context, CancellationToken.None);
 
         /// <summary>
         /// Call this method to handle requests on the server, sent by the client
@@ -109,15 +115,15 @@ namespace Dotmim.Sync.Web.Server
             var httpResponse = context.Response;
             var streamArray = httpRequest.GetBody();
 
-            SerializationFormat serializationFormat = SerializationFormat.Json;
+            var serializationFormat = SerializationFormat.Json;
             // Get the serialization format
-            if (context.Request.Headers.TryGetHeaderValue("dotmim-sync-serialization-format", out string vs))
+            if (context.Request.Headers.TryGetHeaderValue("dotmim-sync-serialization-format", out var vs))
                 serializationFormat = vs.ToLowerInvariant() == "json" ? SerializationFormat.Json : SerializationFormat.Binary;
 
             // Check if we should handle a session store to handle configuration
             if (!this.IsRegisterAsSingleton)
             {
-                if (IsSessionEnabled(context))
+                if (this.IsSessionEnabled(context))
                     this.LocalProvider.CacheManager = new SessionCache(context);
             }
 
@@ -132,31 +138,31 @@ namespace Dotmim.Sync.Web.Server
                 {
                     case HttpStep.BeginSession:
                         // on first message, replace the Configuration with the server one !
-                        httpMessageResponse = await BeginSessionAsync(httpMessage);
+                        httpMessageResponse = await this.BeginSessionAsync(httpMessage);
                         break;
                     case HttpStep.EnsureScopes:
-                        httpMessageResponse = await EnsureScopesAsync(httpMessage);
+                        httpMessageResponse = await this.EnsureScopesAsync(httpMessage);
                         break;
                     case HttpStep.EnsureConfiguration:
-                        httpMessageResponse = await EnsureSchemaAsync(httpMessage);
+                        httpMessageResponse = await this.EnsureSchemaAsync(httpMessage);
                         break;
                     case HttpStep.EnsureDatabase:
-                        httpMessageResponse = await EnsureDatabaseAsync(httpMessage);
+                        httpMessageResponse = await this.EnsureDatabaseAsync(httpMessage);
                         break;
                     case HttpStep.GetChangeBatch:
-                        httpMessageResponse = await GetChangeBatchAsync(httpMessage);
+                        httpMessageResponse = await this.GetChangeBatchAsync(httpMessage);
                         break;
                     case HttpStep.ApplyChanges:
-                        httpMessageResponse = await ApplyChangesAsync(httpMessage);
+                        httpMessageResponse = await this.ApplyChangesAsync(httpMessage);
                         break;
                     case HttpStep.GetLocalTimestamp:
-                        httpMessageResponse = await GetLocalTimestampAsync(httpMessage);
+                        httpMessageResponse = await this.GetLocalTimestampAsync(httpMessage);
                         break;
                     case HttpStep.WriteScopes:
-                        httpMessageResponse = await WriteScopesAsync(httpMessage);
+                        httpMessageResponse = await this.WriteScopesAsync(httpMessage);
                         break;
                     case HttpStep.EndSession:
-                        httpMessageResponse = await EndSessionAsync(httpMessage);
+                        httpMessageResponse = await this.EndSessionAsync(httpMessage);
                         break;
                 }
 
@@ -289,6 +295,11 @@ namespace Dotmim.Sync.Web.Server
 #endif
 
 
+        /// <summary>
+        /// Handle begin session
+        /// Here we compare Options to see if client supplied it or not
+        /// If not returns Options defined on server side
+        /// </summary>
         private async Task<HttpMessage> BeginSessionAsync(HttpMessage httpMessage)
         {
             HttpMessageBeginSession httpMessageBeginSession;
@@ -297,21 +308,16 @@ namespace Dotmim.Sync.Web.Server
             else
                 httpMessageBeginSession = (httpMessage.Content as JObject).ToObject<HttpMessageBeginSession>();
 
-            // client specific path
-            var batchDirectory = httpMessageBeginSession.SyncConfiguration.BatchDirectory;
-
             // the Conf is hosted by the server ? if not, get the client configuration
-            httpMessageBeginSession.SyncConfiguration =
-                this.Configuration ?? httpMessageBeginSession.SyncConfiguration;
+            httpMessageBeginSession.Configuration =
+                this.Configuration ?? httpMessageBeginSession.Configuration;
 
             // Begin the session, requesting the server for the correct configuration
-            (SyncContext ctx, SyncConfiguration conf) =
+            (var ctx, var conf) =
                 await this.BeginSessionAsync(httpMessage.SyncContext,
                         httpMessageBeginSession as MessageBeginSession);
 
-            // One exception : don't touch the batch directory, it's very client specific and may differ from server side
-            conf.BatchDirectory = batchDirectory;
-            httpMessageBeginSession.SyncConfiguration = conf;
+            httpMessageBeginSession.Configuration = conf;
 
             httpMessage.SyncContext = ctx;
 
@@ -451,8 +457,8 @@ namespace Dotmim.Sync.Web.Server
                     {
                         ScopeInfo = scopeInfo,
                         Schema = httpMessageContent.Schema.ConvertToDmSet(),
-                        DownloadBatchSizeInKB = httpMessageContent.DownloadBatchSizeInKB,
-                        BatchDirectory = httpMessageContent.BatchDirectory,
+                        //BatchSize = httpMessageContent.BatchSize,
+                        //BatchDirectory = httpMessageContent.BatchDirectory,
                         Policy = httpMessageContent.Policy,
                         Filters = httpMessageContent.Filters
                     });
@@ -499,7 +505,7 @@ namespace Dotmim.Sync.Web.Server
                     this.LocalProvider.CacheManager.Remove("GetChangeBatch_BatchInfo");
                     this.LocalProvider.CacheManager.Remove("GetChangeBatch_ChangesSelected");
                     // delete the folder (not the BatchPartInfo, because we have a reference on it)
-                    if (this.Configuration.CleanMetadatas)
+                    if (this.Options.CleanMetadatas)
                         bi.TryRemoveDirectory();
                 }
 
@@ -528,7 +534,7 @@ namespace Dotmim.Sync.Web.Server
                 this.LocalProvider.CacheManager.Remove("GetChangeBatch_BatchInfo");
                 this.LocalProvider.CacheManager.Remove("GetChangeBatch_ChangesSelected");
                 // delete the folder (not the BatchPartInfo, because we have a reference on it)
-                if (this.Configuration.CleanMetadatas)
+                if (this.Options.CleanMetadatas)
                     batchInfo.TryRemoveDirectory();
             }
 
@@ -559,7 +565,7 @@ namespace Dotmim.Sync.Web.Server
 
             if (httpMessageContent.InMemory)
             {
-                batchInfo = new BatchInfo(true, this.Configuration.BatchDirectory)
+                batchInfo = new BatchInfo(true, this.Options.BatchDirectory)
                 {
                     BatchIndex = 0,
                     BatchPartsInfo = new List<BatchPartInfo>(new[] { bpi }),
@@ -576,8 +582,8 @@ namespace Dotmim.Sync.Web.Server
                         FromScope = scopeInfo,
                         Schema = schema,
                         Policy = httpMessageContent.Policy,
-                        UseBulkOperations = httpMessageContent.UseBulkOperations,
-                        CleanMetadatas = httpMessageContent.CleanMetadatas,
+                        //UseBulkOperations = httpMessageContent.UseBulkOperations,
+                        //CleanMetadatas = httpMessageContent.CleanMetadatas,
                         ScopeInfoTableName = httpMessageContent.ScopeInfoTableName,
                         Changes = batchInfo
                     });
@@ -597,7 +603,7 @@ namespace Dotmim.Sync.Web.Server
 
             if (batchInfo == null)
             {
-                batchInfo = new BatchInfo(false, this.Configuration.BatchDirectory)
+                batchInfo = new BatchInfo(false, this.Options.BatchDirectory)
                 {
                     BatchIndex = 0,
                     BatchPartsInfo = new List<BatchPartInfo>(new[] { bpi }),
@@ -638,8 +644,8 @@ namespace Dotmim.Sync.Web.Server
                         FromScope = scopeInfo,
                         Schema = schema,
                         Policy = httpMessageContent.Policy,
-                        UseBulkOperations = httpMessageContent.UseBulkOperations,
-                        CleanMetadatas = httpMessageContent.CleanMetadatas,
+                        //UseBulkOperations = httpMessageContent.UseBulkOperations,
+                        //CleanMetadatas = httpMessageContent.CleanMetadatas,
                         ScopeInfoTableName = httpMessageContent.ScopeInfoTableName,
                         Changes = batchInfo
                     });
@@ -743,7 +749,7 @@ namespace Dotmim.Sync.Web.Server
             => await this.LocalProvider.GetChangeBatchAsync(ctx, message);
         public async Task<(SyncContext, ChangesApplied)> ApplyChangesAsync(SyncContext ctx, MessageApplyChanges message)
             => await this.LocalProvider.ApplyChangesAsync(ctx, message);
-        public async Task<(SyncContext, Int64)> GetLocalTimestampAsync(SyncContext ctx, MessageTimestamp message)
+        public async Task<(SyncContext, long)> GetLocalTimestampAsync(SyncContext ctx, MessageTimestamp message)
             => await this.LocalProvider.GetLocalTimestampAsync(ctx, message);
         public async Task<SyncContext> WriteScopesAsync(SyncContext ctx, MessageWriteScopes message)
             => await this.LocalProvider.WriteScopesAsync(ctx, message);
@@ -818,7 +824,7 @@ namespace Dotmim.Sync.Web.Server
 #if NETSTANDARD
         public static bool TryGetHeaderValue(this IHeaderDictionary n, string key, out string header)
         {
-            if (n.TryGetValue(key, out StringValues vs))
+            if (n.TryGetValue(key, out var vs))
             {
                 header = vs[0];
                 return true;
@@ -828,14 +834,8 @@ namespace Dotmim.Sync.Web.Server
             return false;
         }
 
-        public static Stream GetBody(this HttpRequest r)
-        {
-            return r.Body;
-        }
-        public static Stream GetBody(this HttpResponse r)
-        {
-            return r.Body;
-        }
+        public static Stream GetBody(this HttpRequest r) => r.Body;
+        public static Stream GetBody(this HttpResponse r) => r.Body;
 #else
         public static bool TryGetHeaderValue(this HttpRequestHeaders n, string key, out string header)
         {

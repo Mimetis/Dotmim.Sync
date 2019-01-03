@@ -64,10 +64,10 @@ namespace Dotmim.Sync.MySql
         /// </summary>
         private void SetDefaultNames()
         {
-            var pref = this.TableDescription.TrackingTablesPrefix != null ? this.TableDescription.TrackingTablesPrefix.ToLowerInvariant() : "";
-            var suf = this.TableDescription.TrackingTablesSuffix != null ? this.TableDescription.TrackingTablesSuffix.ToLowerInvariant() : "";
-            var tpref = this.TableDescription.TriggersPrefix != null ? this.TableDescription.TriggersPrefix.ToLowerInvariant() : "";
-            var tsuf = this.TableDescription.TriggersSuffix != null ? this.TableDescription.TriggersSuffix.ToLowerInvariant() : "";
+            var pref = this.TableDescription.TrackingTablesPrefix != null ? this.TableDescription.TrackingTablesPrefix : "";
+            var suf = this.TableDescription.TrackingTablesSuffix != null ? this.TableDescription.TrackingTablesSuffix : "";
+            var tpref = this.TableDescription.TriggersPrefix != null ? this.TableDescription.TriggersPrefix : "";
+            var tsuf = this.TableDescription.TriggersSuffix != null ? this.TableDescription.TriggersSuffix : "";
 
             this.AddName(DbCommandType.InsertTrigger, string.Format(insertTriggerName, $"{tpref}{tableName.ObjectNameNormalized}{tsuf}"));
             this.AddName(DbCommandType.UpdateTrigger, string.Format(updateTriggerName, $"{tpref}{tableName.ObjectNameNormalized}{tsuf}"));
