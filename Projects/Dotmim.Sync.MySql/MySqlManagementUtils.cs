@@ -52,20 +52,21 @@ namespace Dotmim.Sync.MySql
         internal static DmTable RelationsForTable(MySqlConnection connection, MySqlTransaction transaction, string tableName)
         {
             var commandRelations = @"
-SELECT
-  ke.CONSTRAINT_NAME as ForeignKey,
-  ke.referenced_table_name as TableName,
-  ke.REFERENCED_COLUMN_NAME as ColumnName,
-  ke.table_name ReferenceTableName,
-  ke.COLUMN_NAME ReferenceColumnName
-FROM
-  information_schema.KEY_COLUMN_USAGE ke
-WHERE
-  ke.referenced_table_name IS NOT NULL
-  and ke.REFERENCED_TABLE_SCHEMA = schema()
-  AND ke.REFERENCED_TABLE_NAME = @tableName
-ORDER BY
-  ke.referenced_table_name;";
+            SELECT
+              ke.CONSTRAINT_NAME as ForeignKey,
+              ke.POSITION_IN_UNIQUE_CONSTRAINT as ForeignKeyOrder,
+              ke.referenced_table_name as TableName,
+              ke.REFERENCED_COLUMN_NAME as ColumnName,
+              ke.table_name ReferenceTableName,
+              ke.COLUMN_NAME ReferenceColumnName
+            FROM
+              information_schema.KEY_COLUMN_USAGE ke
+            WHERE
+              ke.referenced_table_name IS NOT NULL
+              and ke.REFERENCED_TABLE_SCHEMA = schema()
+              AND ke.REFERENCED_TABLE_NAME = @tableName
+            ORDER BY
+              ke.referenced_table_name;";
 
             ObjectNameParser tableNameParser = new ObjectNameParser(tableName, "`", "`");
             DmTable dmTable = new DmTable(tableNameParser.ObjectNameNormalized);

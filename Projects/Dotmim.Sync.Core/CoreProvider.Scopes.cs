@@ -113,15 +113,16 @@ namespace Dotmim.Sync
                             }
                         }
 
+                        // Event progress
+                        this.TryRaiseProgressEvent(
+                            new ScopeEventArgs(this.ProviderTypeName, context.SyncStage, scopes.FirstOrDefault(s => s.IsLocal), connection, transaction), ScopeLoading);
+
                         transaction.Commit();
                     }
 
                     connection.Close();
                 }
 
-                // Event progress
-                this.TryRaiseProgressEvent(
-                    new ScopeEventArgs(this.ProviderTypeName, context.SyncStage, scopes.FirstOrDefault(s => s.IsLocal)), ScopeLoading);
 
                 return (context, scopes);
             }
@@ -168,7 +169,7 @@ namespace Dotmim.Sync
                         // Event progress
                         this.TryRaiseProgressEvent(
                             new ScopeEventArgs(this.ProviderTypeName, context.SyncStage,
-                                            lstScopes.FirstOrDefault(s => s.IsLocal)), ScopeSaved);
+                                            lstScopes.FirstOrDefault(s => s.IsLocal), connection, transaction), ScopeSaved);
 
                         transaction.Commit();
                     }

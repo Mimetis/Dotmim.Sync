@@ -192,9 +192,9 @@ namespace Dotmim.Sync
         /// <summary>
         /// Try to raise a generalist progress event
         /// </summary>
-        private void TryRaiseProgressEvent(SyncStage stage, string message, Dictionary<string, string> properties = null)
+        private void TryRaiseProgressEvent(SyncStage stage, string message, Dictionary<string, string> properties = null, DbConnection connection = null, DbTransaction transaction = null)
         {
-            var progressEventArgs = new ProgressEventArgs(this.ProviderTypeName, stage, message);
+            var progressEventArgs = new ProgressEventArgs(this.ProviderTypeName, stage, message, connection, transaction);
 
             if (properties != null)
                 progressEventArgs.Properties = properties;
@@ -225,7 +225,7 @@ namespace Dotmim.Sync
                 context.SyncStage = SyncStage.BeginSession;
 
                 // Event progress
-                var progressEventArgs = new BeginSessionEventArgs(this.ProviderTypeName, context.SyncStage);
+                var progressEventArgs = new BeginSessionEventArgs(this.ProviderTypeName, context.SyncStage, null, null);
                 this.TryRaiseProgressEvent(progressEventArgs, this.BeginSession);
 
                 return Task.FromResult((context, message.Configuration));
@@ -254,7 +254,7 @@ namespace Dotmim.Sync
 
             // Event progress
             this.TryRaiseProgressEvent(
-                new EndSessionEventArgs(this.ProviderTypeName, context.SyncStage), this.EndSession);
+                new EndSessionEventArgs(this.ProviderTypeName, context.SyncStage, null, null), this.EndSession);
 
             lock (this)
             {

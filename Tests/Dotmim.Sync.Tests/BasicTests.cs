@@ -4,6 +4,7 @@ using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Tests.Models;
 using Microsoft.EntityFrameworkCore;
 using System;
+using System.Data.Common;
 using System.Data.SqlClient;
 using System.Diagnostics;
 using System.IO;
@@ -34,6 +35,8 @@ namespace Dotmim.Sync.Tests
         protected virtual AdventureWorksContext GetServerDbContext() => new AdventureWorksContext(this.fixture.ProviderType, this.ServerProvider.ConnectionString);
 
         protected virtual AdventureWorksContext GetClientDbContext(ProviderRun providerRun) => new AdventureWorksContext(providerRun);
+
+        protected virtual AdventureWorksContext GetClientDbContext(ProviderRun providerRun, DbConnection connection) => new AdventureWorksContext(providerRun, connection);
 
         /// <summary>
         /// on ctor, set the tables we want to use
@@ -1418,8 +1421,8 @@ namespace Dotmim.Sync.Tests
 
                     var relations = tableManger.GetTableRelations().ToArray();
                     Assert.Single(relations);
-                    Assert.Equal("FK_PriceListDetail_PriceListCategory_CategoryPriceListId_CategoryPriceCategoryId", relations[0].ForeignKey);
-                    Assert.Equal(2, relations[0].KeyColumnsName.Count());
+                    Assert.StartsWith("FK_PriceListDetail_PriceListCategory_", relations[0].ForeignKey);
+                    Assert.Equal(2, relations[0].Columns.Count());
                 }
             }
         }
@@ -1433,6 +1436,9 @@ namespace Dotmim.Sync.Tests
             // create new ProductCategory on server
             foreach (var conf in TestConfigurations.GetConfigurations())
             {
+                // reset to be sure everything is downloaded from every clients
+                await this.testRunner.RunTestsAsync(conf);
+
                 var productId = Guid.NewGuid();
                 var productNameServer = Path.GetRandomFileName().Replace(".", "");
                 var productNumber = Path.GetRandomFileName().Replace(".", "").ToUpperInvariant().Substring(0, 10);
@@ -1455,8 +1461,6 @@ namespace Dotmim.Sync.Tests
                 foreach (var trr in results)
                 {
                     Assert.Equal(1, trr.Results.TotalChangesDownloaded);
-                    Assert.Equal(0, trr.Results.TotalChangesUploaded);
-                    Assert.Equal(0, trr.Results.TotalSyncConflicts);
                 }
 
                 foreach (var clientRun in this.fixture.ClientRuns)
@@ -1479,16 +1483,11 @@ namespace Dotmim.Sync.Tests
 
                         await clientDbCtx.SaveChangesAsync();
                     }
-                }
 
-                results = await this.testRunner.RunTestsAsync(conf);
-
-                foreach (var trr in results)
-                {
-                    Assert.Equal(0, trr.Results.TotalChangesDownloaded);
+                    var trr = await clientRun.RunAsync(this.ServerProvider, this.fixture, null, null, conf, false);
                     Assert.Equal(2, trr.Results.TotalChangesUploaded);
-                    Assert.Equal(0, trr.Results.TotalSyncConflicts);
                 }
+               
             }
         }
 
@@ -1498,6 +1497,10 @@ namespace Dotmim.Sync.Tests
             // create new ProductCategory on server
             foreach (var conf in TestConfigurations.GetConfigurations())
             {
+                // reset
+                await this.testRunner.RunTestsAsync(conf);
+
+                var cpt = 0;
                 foreach (var clientRun in this.fixture.ClientRuns)
                 {
                     var name = Path.GetRandomFileName().Replace(".", "");
@@ -1512,24 +1515,40 @@ namespace Dotmim.Sync.Tests
                     }
 
                     // Sleep during a selecting changes on first sync
-                    async void tableChangesSelected(object s, TableChangesSelectedEventArgs changes)
+                    void tableChangesSelected(object s, TableChangesSelectedEventArgs changes)
                     {
-                        // just after the table select changes has occured and before the next step
-                        // insert a new record
-
-                        // Assert.Equal(1, changes.TableChangesSelected.Inserts);
-
-                        if (changes.TableChangesSelected.TableName != "ProductCategory")
+                        if (changes.TableChangesSelected.TableName != "PricesList")
                             return;
 
-                        var name2 = Path.GetRandomFileName().Replace(".", "");
-                        var id2 = name2.ToUpperInvariant().Substring(0, 6);
+                        var randomString = Path.GetRandomFileName().Replace(".", "");
+                        var randomGuid = Guid.NewGuid();
+                        // Insert on same connection as current sync.
+                        // Using same connection to avoid lock, especially on SQlite
 
-                        using (var ctx = this.GetClientDbContext(clientRun))
+                        var command = changes.Connection.CreateCommand();
+                        command.CommandText = "INSERT INTO PricesList (PriceListId, Description) Values (@PriceListId, @Description);";
+
+                        var p = command.CreateParameter();
+                        p.ParameterName = "@PriceListId";
+                        p.Value = randomGuid;
+                        command.Parameters.Add(p);
+
+                        p = command.CreateParameter();
+                        p.ParameterName = "@Description";
+                        p.Value = randomString;
+                        command.Parameters.Add(p);
+
+                        command.Transaction = changes.Transaction;
+                        try
                         {
-                            var pc = new ProductCategory { Name = name2, ProductCategoryId = id2 };
-                            ctx.ProductCategory.Add(pc);
-                            await ctx.SaveChangesAsync();
+                            Debug.WriteLine($"Insert new value in {changes.Connection.ConnectionString}. {randomGuid.ToString()}={randomString}");
+                            var inserted = command.ExecuteNonQuery();
+                            Debug.WriteLine($"Execution result: {inserted}");
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine(ex.Message);
+                            throw;
                         }
                     };
 
@@ -1538,23 +1557,18 @@ namespace Dotmim.Sync.Tests
                     var trr = await clientRun.RunAsync(this.ServerProvider, this.fixture, null, null, conf, false);
                     clientRun.ClientProvider.TableChangesSelected -= tableChangesSelected;
 
-                    Assert.Equal(0, trr.Results.TotalChangesDownloaded);
+                    Assert.Equal(cpt, trr.Results.TotalChangesDownloaded);
                     Assert.Equal(1, trr.Results.TotalChangesUploaded);
-                    Assert.Equal(0, trr.Results.TotalSyncConflicts);
-
+                    cpt = cpt + 2;
 
                     // then 2nd run to get row inserted DURING last sync
                     var trr2 = await clientRun.RunAsync(this.ServerProvider, this.fixture, null, null, conf, false);
+                    Debug.WriteLine($"{trr2.ClientProvider.ConnectionString}: Upload={trr2.Results.TotalChangesUploaded}");
+
                     Assert.Equal(0, trr2.Results.TotalChangesDownloaded);
                     Assert.Equal(1, trr2.Results.TotalChangesUploaded);
-                    Assert.Equal(0, trr2.Results.TotalSyncConflicts);
-
-
-
                 }
-
             }
         }
-
     }
 }
