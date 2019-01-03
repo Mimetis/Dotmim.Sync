@@ -118,7 +118,7 @@ namespace Dotmim.Sync.Tests.Core
 
         public static ConstructorInfo GetDefaultConstructor(Type t, bool nonPublic = true)
         {
-            BindingFlags bindingFlags = BindingFlags.Instance | BindingFlags.Public;
+            var bindingFlags = BindingFlags.Instance | BindingFlags.Public;
 
             if (nonPublic)
                 bindingFlags = bindingFlags | BindingFlags.NonPublic;
@@ -132,7 +132,7 @@ namespace Dotmim.Sync.Tests.Core
         /// Gets or Sets if we should delete all the databases. 
         /// Useful for debug purpose. Do not forget to set to false when commit
         /// </summary>
-        internal virtual bool DeleteAllDatabasesOnDispose { get; } = true;
+        internal virtual bool DeleteAllDatabasesOnDispose { get; set; } = true;
 
 
         /// <summary>
@@ -287,19 +287,16 @@ namespace Dotmim.Sync.Tests.Core
                     // generate a new database name
                     var dbName = this.GetRandomDatabaseName();
 
-                    Console.WriteLine("Create a database called " + dbName + " for provider " + clientProviderType);
+                    Console.WriteLine("Create client database called " + dbName + " for provider " + clientProviderType);
 
                     // get the connection string
                     var connectionString = HelperDB.GetConnectionString(clientProviderType, dbName);
-
-                    Console.WriteLine("Connection String : " + connectionString);
 
                     // create the database on the client provider
                     HelperDB.CreateDatabase(clientProviderType, dbName);
 
                     // generate the client provider
                     var clientProvider = registeredProviders[clientProviderType].NewServerProvider(connectionString);
-
 
                     // then add the run 
                     this.ClientRuns.Add(new ProviderRun(dbName, clientProvider, clientProviderType, networkType));
@@ -313,14 +310,8 @@ namespace Dotmim.Sync.Tests.Core
 
         internal void CopyConfiguration(SyncConfiguration to, SyncConfiguration from)
         {
-            to.DownloadBatchSizeInKB = from.DownloadBatchSizeInKB;
-            to.UseBulkOperations = from.UseBulkOperations;
-            to.CleanMetadatas = from.CleanMetadatas;
             to.SerializationFormat = from.SerializationFormat;
-            to.Archive = from.Archive;
-            to.BatchDirectory = from.BatchDirectory;
             to.ConflictResolutionPolicy = from.ConflictResolutionPolicy;
-            to.DownloadBatchSizeInKB = from.DownloadBatchSizeInKB;
             to.SerializationFormat = from.SerializationFormat;
             to.StoredProceduresPrefix = from.StoredProceduresPrefix;
             to.StoredProceduresSuffix = from.StoredProceduresSuffix;
@@ -328,7 +319,6 @@ namespace Dotmim.Sync.Tests.Core
             to.TrackingTablesSuffix = from.TrackingTablesSuffix;
             to.TriggersPrefix = from.TriggersPrefix;
             to.TriggersSuffix = from.TriggersSuffix;
-            to.UseVerboseErrors = from.UseVerboseErrors;
 
             if (from.Filters != null && from.Filters.Count > 0)
             {
@@ -337,10 +327,7 @@ namespace Dotmim.Sync.Tests.Core
                 foreach (var f in from.Filters)
                     to.Filters.Add(f.TableName, f.ColumnName);
             }
-
         }
-
-
 
     }
 }

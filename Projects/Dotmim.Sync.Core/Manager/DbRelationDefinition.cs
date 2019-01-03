@@ -10,9 +10,19 @@ namespace Dotmim.Sync.Manager
     {
         public string ForeignKey { get; set; }
         public string TableName { get; set; }
-        public IEnumerable<string> KeyColumnsName { get; set; }
+        public List<DbRelationColumnDefinition> Columns { get; set; } = new List<DbRelationColumnDefinition>();
         public string ReferenceTableName { get; set; }
-        public IEnumerable<string> ReferenceColumnsName { get; set; }
+
+    }
+
+    /// <summary>
+    /// Each column from foreign key and reference key, with the order used
+    /// </summary>
+    public class DbRelationColumnDefinition
+    {
+        public string KeyColumnName { get; set; }
+        public string ReferenceColumnName { get; set; }
+        public int Order { get; set; }
 
     }
 }

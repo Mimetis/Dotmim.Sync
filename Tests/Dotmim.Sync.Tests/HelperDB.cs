@@ -42,20 +42,23 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         public static string GetConnectionString(ProviderType providerType, string dbName)
         {
-            Console.WriteLine($"Get connection for provider {providerType} and database name {dbName}");
-
+            string con = "";
             switch (providerType)
             {
                 case ProviderType.Sql:
-                    return Setup.GetSqlDatabaseConnectionString(dbName);
+                    con = Setup.GetSqlDatabaseConnectionString(dbName);
+                    break;
                 case ProviderType.MySql:
-                    return Setup.GetMySqlDatabaseConnectionString(dbName);
+                    con =Setup.GetMySqlDatabaseConnectionString(dbName);
+                    break;
                 case ProviderType.Sqlite:
-                    return GetSqliteDatabaseConnectionString(dbName);
+                    con =GetSqliteDatabaseConnectionString(dbName);
+                    break;
             }
+            Console.WriteLine($"[{providerType}]-[{dbName}]: {con}");
 
             // default 
-            return GetSqliteDatabaseConnectionString(dbName);
+            return con;
         }
 
         /// <summary>

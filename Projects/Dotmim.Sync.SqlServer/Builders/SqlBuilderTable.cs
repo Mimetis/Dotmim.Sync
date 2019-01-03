@@ -3,10 +3,12 @@ using Dotmim.Sync.Data;
 using Dotmim.Sync.Log;
 using Dotmim.Sync.SqlServer.Manager;
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Data.SqlClient;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
 
@@ -32,18 +34,48 @@ namespace Dotmim.Sync.SqlServer.Builders
             this.sqlDbMetadata = new SqlDbMetadata();
         }
 
+
+        private static Dictionary<string, string> createdRelationNames = new Dictionary<string, string>();
+
+        private static string GetRandomString()
+        {
+            return Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
+        }
+
+        /// <summary>
+        /// Ensure the relation name is correct to be created in MySql
+        /// </summary>
+        public static string NormalizeRelationName(string relation)
+        {
+            if (createdRelationNames.ContainsKey(relation))
+                return createdRelationNames[relation];
+
+            var name = relation;
+
+            if (relation.Length > 128)
+                name = $"{relation.Substring(0, 110)}_{GetRandomString()}";
+
+            // MySql could have a special character in its relation names
+            name = name.Replace("~", "").Replace("#", "");
+
+            createdRelationNames.Add(relation, name);
+
+            return name;
+        }
+
         public bool NeedToCreateForeignKeyConstraints(DmRelation foreignKey)
         {
 
             string parentTable = foreignKey.ParentTable.TableName;
             string parentSchema = foreignKey.ParentTable.Schema;
             string parentFullName = String.IsNullOrEmpty(parentSchema) ? parentTable : $"{parentSchema}.{parentTable}";
+            var relationName = NormalizeRelationName(foreignKey.RelationName);
 
             bool alreadyOpened = connection.State == ConnectionState.Open;
 
             // Don't want foreign key on same table since it could be a problem on first 
             // sync. We are not sure that parent row will be inserted in first position
-            if (String.Equals(parentTable, foreignKey.ChildTable.TableName, StringComparison.CurrentCultureIgnoreCase))
+            if (string.Equals(parentTable, foreignKey.ChildTable.TableName, StringComparison.CurrentCultureIgnoreCase))
                 return false;
 
             try
@@ -54,7 +86,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 var dmTable = SqlManagementUtils.RelationsForTable(connection, transaction, parentFullName);
 
                 var foreignKeyExist = dmTable.Rows.Any(r =>
-                   dmTable.IsEqual(r["ForeignKey"].ToString(), foreignKey.RelationName));
+                   dmTable.IsEqual(r["ForeignKey"].ToString(), relationName));
 
                 return !foreignKeyExist;
             }
@@ -71,7 +103,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         }
         private SqlCommand BuildForeignKeyConstraintsCommand(DmRelation foreignKey)
         {
-            SqlCommand sqlCommand = new SqlCommand();
+            var sqlCommand = new SqlCommand();
 
             string childTable = foreignKey.ChildTable.TableName;
             string childSchema = foreignKey.ChildTable.Schema;
@@ -84,11 +116,13 @@ namespace Dotmim.Sync.SqlServer.Builders
             string parentFullName = String.IsNullOrEmpty(parentSchema) ? parentTable : $"{parentSchema}.{parentTable}";
             var parentTableName = new ObjectNameParser(parentFullName);
 
+            var relationName = NormalizeRelationName(foreignKey.RelationName);
+
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.Append("ALTER TABLE ");
             stringBuilder.AppendLine(childTableName.FullQuotedString);
             stringBuilder.Append("ADD CONSTRAINT ");
-            stringBuilder.AppendLine(foreignKey.RelationName);
+            stringBuilder.AppendLine(relationName);
             stringBuilder.Append("FOREIGN KEY (");
             string empty = string.Empty;
 			foreach (var childColumn in foreignKey.ChildColumns)
@@ -149,8 +183,10 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
             StringBuilder stringBuilder = new StringBuilder();
 
+            var relationName = NormalizeRelationName(constraint.RelationName);
+
             var constraintName =
-                $"Create Constraint {constraint.RelationName} " +
+                $"Create Constraint {relationName} " +
                 $"between parent {constraint.ParentTable.TableName} " +
                 $"and child {constraint.ChildTable.TableName}";
 
