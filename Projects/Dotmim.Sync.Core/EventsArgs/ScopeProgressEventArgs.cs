@@ -2,6 +2,7 @@
 using Dotmim.Sync.Enumerations;
 using System;
 using System.Collections.Generic;
+using System.Data.Common;
 using System.Linq;
 
 namespace Dotmim.Sync
@@ -9,6 +10,17 @@ namespace Dotmim.Sync
 
     public abstract class BaseProgressEventArgs
     {
+
+        /// <summary>
+        /// Current connection used 
+        /// </summary>
+        public DbConnection Connection { get; }
+
+        /// <summary>
+        /// Current transaction used for the sync
+        /// </summary>
+        public DbTransaction Transaction { get; }
+
         /// <summary>
         /// Gets the current stage
         /// </summary>
@@ -27,10 +39,12 @@ namespace Dotmim.Sync
         /// <summary>
         /// Constructor
         /// </summary>
-        public BaseProgressEventArgs(string providerTypeName, SyncStage stage)
+        public BaseProgressEventArgs(string providerTypeName, SyncStage stage, DbConnection connection, DbTransaction transaction)
         {
             this.ProviderTypeName = providerTypeName;
             this.Stage = stage;
+            this.Connection = connection;
+            this.Transaction = transaction;
         }
 
     }
@@ -40,7 +54,7 @@ namespace Dotmim.Sync
     /// </summary>
     public class ProgressEventArgs : BaseProgressEventArgs
     {
-        public ProgressEventArgs(string providerTypeName, SyncStage stage, string message) : base(providerTypeName, stage)
+        public ProgressEventArgs(string providerTypeName, SyncStage stage, string message, DbConnection connection, DbTransaction transaction) : base(providerTypeName, stage, connection, transaction)
         {
             this.Message = message;
         }
@@ -67,7 +81,7 @@ namespace Dotmim.Sync
     /// </summary>
     public class BeginSessionEventArgs : BaseProgressEventArgs
     {
-        public BeginSessionEventArgs(string providerTypeName, SyncStage stage) : base(providerTypeName, stage)
+        public BeginSessionEventArgs(string providerTypeName, SyncStage stage, DbConnection connection, DbTransaction transaction) : base(providerTypeName, stage, connection, transaction)
         {
         }
     }
@@ -76,7 +90,7 @@ namespace Dotmim.Sync
     /// </summary>
     public class EndSessionEventArgs : BaseProgressEventArgs
     {
-        public EndSessionEventArgs(string providerTypeName, SyncStage stage) : base(providerTypeName, stage)
+        public EndSessionEventArgs(string providerTypeName, SyncStage stage, DbConnection connection, DbTransaction transaction) : base(providerTypeName, stage, connection, transaction)
         {
         }
     }
@@ -87,7 +101,7 @@ namespace Dotmim.Sync
     public class DatabaseAppliedEventArgs : BaseProgressEventArgs
     {
 
-        public DatabaseAppliedEventArgs(string providerTypeName, SyncStage stage, string script) : base(providerTypeName, stage)
+        public DatabaseAppliedEventArgs(string providerTypeName, SyncStage stage, string script, DbConnection connection, DbTransaction transaction) : base(providerTypeName, stage, connection, transaction)
         {
             this.Script = script;
         }
@@ -103,7 +117,7 @@ namespace Dotmim.Sync
     /// </summary>
     public class DatabaseApplyingEventArgs : BaseProgressEventArgs
     {
-        public DatabaseApplyingEventArgs(string providerTypeName, SyncStage stage, DmSet schema) : base(providerTypeName, stage)
+        public DatabaseApplyingEventArgs(string providerTypeName, SyncStage stage, DmSet schema, DbConnection connection, DbTransaction transaction) : base(providerTypeName, stage, connection, transaction)
         {
             this.Schema = schema;
         }
@@ -132,7 +146,7 @@ namespace Dotmim.Sync
     public class DatabaseTableAppliedEventArgs : BaseProgressEventArgs
     {
 
-        public DatabaseTableAppliedEventArgs(string providerTypeName, SyncStage stage, string tableName, string script) : base(providerTypeName, stage)
+        public DatabaseTableAppliedEventArgs(string providerTypeName, SyncStage stage, string tableName, string script, DbConnection connection, DbTransaction transaction) : base(providerTypeName, stage, connection, transaction)
         {
             TableName = tableName;
             this.Script = script;
@@ -153,7 +167,7 @@ namespace Dotmim.Sync
     /// </summary>
     public class DatabaseTableApplyingEventArgs : BaseProgressEventArgs
     {
-        public DatabaseTableApplyingEventArgs(string providerTypeName, SyncStage stage, string tableName) : base(providerTypeName, stage)
+        public DatabaseTableApplyingEventArgs(string providerTypeName, SyncStage stage, string tableName, DbConnection connection, DbTransaction transaction) : base(providerTypeName, stage, connection, transaction)
         {
             TableName = tableName;
         }
@@ -168,7 +182,7 @@ namespace Dotmim.Sync
     /// </summary>
     public class ScopeEventArgs : BaseProgressEventArgs
     {
-        public ScopeEventArgs(string providerTypeName, SyncStage stage, ScopeInfo scope) : base(providerTypeName, stage)
+        public ScopeEventArgs(string providerTypeName, SyncStage stage, ScopeInfo scope, DbConnection connection, DbTransaction transaction) : base(providerTypeName, stage, connection, transaction)
         {
             this.ScopeInfo = scope;
         }
@@ -181,7 +195,7 @@ namespace Dotmim.Sync
 
     public class SchemaApplyingEventArgs : BaseProgressEventArgs
     {
-        public SchemaApplyingEventArgs(string providerTypeName, SyncStage stage, DmSet schema) : base(providerTypeName, stage)
+        public SchemaApplyingEventArgs(string providerTypeName, SyncStage stage, DmSet schema, DbConnection connection, DbTransaction transaction) : base(providerTypeName, stage, connection, transaction)
         {
             this.Schema = schema;
         }
@@ -199,7 +213,7 @@ namespace Dotmim.Sync
 
     public class SchemaAppliedEventArgs : BaseProgressEventArgs
     {
-        public SchemaAppliedEventArgs(string providerTypeName, SyncStage stage, DmSet schema) : base(providerTypeName, stage)
+        public SchemaAppliedEventArgs(string providerTypeName, SyncStage stage, DmSet schema, DbConnection connection, DbTransaction transaction) : base(providerTypeName, stage, connection, transaction)
         {
             this.Schema= schema;
         }

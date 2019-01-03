@@ -119,9 +119,9 @@ namespace Dotmim.Sync
             var columnsForKey = new DmColumn[dmTableKeys.Count()];
 
             var i = 0;
-            foreach (var rowColumn in dmTableKeys)
+            foreach (var rowColumn in dmTableKeys.OrderBy(r => r.Ordinal))
             {
-                var columnKey = dmTable.Columns.FirstOrDefault(c => string.Equals(c.ColumnName, rowColumn, StringComparison.InvariantCultureIgnoreCase));
+                var columnKey = dmTable.Columns.FirstOrDefault(c => string.Equals(c.ColumnName, rowColumn.ColumnName, StringComparison.InvariantCultureIgnoreCase));
                 columnsForKey[i++] = columnKey ?? throw new MissingPrimaryKeyException("Primary key found is not present in the columns list");
             }
 
@@ -132,24 +132,21 @@ namespace Dotmim.Sync
         /// <summary>
         /// Create a simple configuration, based on tables
         /// </summary>
-        private async Task<SyncConfiguration> ReadSchemaAsync(string[] tables)
+        private async Task<SyncConfiguration> ReadSchemaAsync(string[] tables, DbConnection connection, DbTransaction transaction)
         {
             // Load the configuration
             var configuration = new SyncConfiguration(tables);
-            await this.ReadSchemaAsync(configuration.Schema);
+            await this.ReadSchemaAsync(configuration.Schema, connection, transaction);
             return configuration;
         }
 
         /// <summary>
         /// update configuration object with tables desc from server database
         /// </summary>
-        private async Task ReadSchemaAsync(DmSet schema)
+        private async Task ReadSchemaAsync(DmSet schema, DbConnection connection, DbTransaction transaction)
         {
             if (schema == null || schema.Tables.Count <= 0)
                 throw new ArgumentNullException("syncConfiguration", "Configuration should contains Tables, at least tables with a name");
-
-            DbConnection connection = null;
-            DbTransaction transaction;
 
             try
             {
@@ -184,11 +181,15 @@ namespace Dotmim.Sync
                 {
                     foreach (var r in relations)
                     {
+                        // Get table from the relation where we need to work on
                         var dmTable = schema.Tables[r.TableName];
-                        var tblColumns = r.KeyColumnsName
-                            .Select(kc => dmTable.Columns[kc])
+
+                        // get DmColumn from DmTable, based on the columns from relations
+                        var tblColumns = r.Columns.OrderBy(kc => kc.Order)
+                            .Select(kc => dmTable.Columns[kc.KeyColumnName])
                             .ToArray();
 
+                        // then Get the foreign table as well
                         var foreignTable = syncConfiguration[r.ReferenceTableName];
 
                         // Since we can have a table with a foreign key but not the parent table
@@ -196,13 +197,14 @@ namespace Dotmim.Sync
                         if (foreignTable == null || foreignTable.Columns.Count == 0)
                             continue;
 
-                        var foreignColumns = r.ReferenceColumnsName
-                             .Select(fc => foreignTable.Columns[fc])
+                        var foreignColumns = r.Columns.OrderBy(kc => kc.Order)
+                             .Select(fc => foreignTable.Columns[fc.ReferenceColumnName])
                              .ToArray();
+
 
                         if (foreignColumns == null || foreignColumns.Any(c => c == null))
                             throw new NotSupportedException(
-                                $"Foreign columns {string.Join(",", r.ReferenceColumnsName)} does not exist in table {r.ReferenceTableName}");
+                                $"Foreign columns {string.Join(",", r.Columns.Select(kc => kc.ReferenceColumnName))} does not exist in table {r.ReferenceTableName}");
 
                         var dmRelation = new DmRelation(r.ForeignKey, tblColumns, foreignColumns);
 
@@ -230,19 +232,34 @@ namespace Dotmim.Sync
             {
                 context.SyncStage = SyncStage.SchemaApplying;
 
-                // Raise event before
-                context.SyncStage = SyncStage.SchemaApplying;
-                var beforeArgs2 = new SchemaApplyingEventArgs(this.ProviderTypeName, context.SyncStage, message.Schema);
-                this.TryRaiseProgressEvent(beforeArgs2, this.SchemaApplying);
-                var overWriteConfiguration = beforeArgs2.OverwriteConfiguration;
+                using (var connection = this.CreateConnection())
+                {
+                    await connection.OpenAsync();
 
-                // if we dont have already read the tables || we want to overwrite the current config
-                if (message.Schema.HasTables && !message.Schema.HasColumns)
-                    await this.ReadSchemaAsync(message.Schema);
+                    using (var transaction = connection.BeginTransaction())
+                    {
+                        // Raise event before
+                        context.SyncStage = SyncStage.SchemaApplying;
+                        var beforeArgs2 = new SchemaApplyingEventArgs(this.ProviderTypeName, context.SyncStage, message.Schema, connection, transaction);
+                        this.TryRaiseProgressEvent(beforeArgs2, this.SchemaApplying);
+                        var overWriteConfiguration = beforeArgs2.OverwriteConfiguration;
 
-                context.SyncStage = SyncStage.SchemaApplied;
-                var afterArgs = new SchemaAppliedEventArgs(this.ProviderTypeName, context.SyncStage, message.Schema);
-                this.TryRaiseProgressEvent(afterArgs, this.SchemaApplied);
+                        // if we dont have already read the tables || we want to overwrite the current config
+                        if (message.Schema.HasTables && !message.Schema.HasColumns)
+                            await this.ReadSchemaAsync(message.Schema, connection, transaction);
+
+                        context.SyncStage = SyncStage.SchemaApplied;
+                        var afterArgs = new SchemaAppliedEventArgs(this.ProviderTypeName, context.SyncStage, message.Schema, connection, transaction);
+                        this.TryRaiseProgressEvent(afterArgs, this.SchemaApplied);
+
+                        transaction.Commit();
+                    }
+
+                    connection.Close();
+                }
+
+
+
 
                 return (context, message.Schema);
             }

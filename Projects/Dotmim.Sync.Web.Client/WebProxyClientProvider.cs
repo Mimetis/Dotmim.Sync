@@ -28,22 +28,22 @@ namespace Dotmim.Sync.Web.Client
         private readonly HttpRequestHandler httpRequestHandler;
         private CancellationToken cancellationToken;
 
-        public event EventHandler<ProgressEventArgs> SyncProgress;
+        //public event EventHandler<ProgressEventArgs> SyncProgress;
         public event EventHandler<ApplyChangeFailedEventArgs> ApplyChangedFailed;
-        public event EventHandler<BeginSessionEventArgs> BeginSession;
-        public event EventHandler<EndSessionEventArgs> EndSession;
-        public event EventHandler<ScopeEventArgs> ScopeLoading;
-        public event EventHandler<ScopeEventArgs> ScopeSaved;
-        public event EventHandler<DatabaseApplyingEventArgs> DatabaseApplying;
-        public event EventHandler<DatabaseAppliedEventArgs> DatabaseApplied;
-        public event EventHandler<DatabaseTableApplyingEventArgs> DatabaseTableApplying;
-        public event EventHandler<DatabaseTableAppliedEventArgs> DatabaseTableApplied;
-        public event EventHandler<SchemaApplyingEventArgs> SchemaApplying;
-        public event EventHandler<SchemaAppliedEventArgs> SchemaApplied;
-        public event EventHandler<TableChangesSelectingEventArgs> TableChangesSelecting;
-        public event EventHandler<TableChangesSelectedEventArgs> TableChangesSelected;
-        public event EventHandler<TableChangesApplyingEventArgs> TableChangesApplying;
-        public event EventHandler<TableChangesAppliedEventArgs> TableChangesApplied;
+        //public event EventHandler<BeginSessionEventArgs> BeginSession;
+        //public event EventHandler<EndSessionEventArgs> EndSession;
+        //public event EventHandler<ScopeEventArgs> ScopeLoading;
+        //public event EventHandler<ScopeEventArgs> ScopeSaved;
+        //public event EventHandler<DatabaseApplyingEventArgs> DatabaseApplying;
+        //public event EventHandler<DatabaseAppliedEventArgs> DatabaseApplied;
+        //public event EventHandler<DatabaseTableApplyingEventArgs> DatabaseTableApplying;
+        //public event EventHandler<DatabaseTableAppliedEventArgs> DatabaseTableApplied;
+        //public event EventHandler<SchemaApplyingEventArgs> SchemaApplying;
+        //public event EventHandler<SchemaAppliedEventArgs> SchemaApplied;
+        //public event EventHandler<TableChangesSelectingEventArgs> TableChangesSelecting;
+        //public event EventHandler<TableChangesSelectedEventArgs> TableChangesSelected;
+        //public event EventHandler<TableChangesApplyingEventArgs> TableChangesApplying;
+        //public event EventHandler<TableChangesAppliedEventArgs> TableChangesApplied;
 
         public Dictionary<string, string> CustomHeaders => this.httpRequestHandler.CustomHeaders;
         public Dictionary<string, string> ScopeParameters => this.httpRequestHandler.ScopeParameters;

@@ -16,12 +16,14 @@ namespace Dotmim.Sync.Manager
         IEnumerable<DmColumn> GetTableDefinition();
 
         /// <summary>
-        /// Gets all relations from a current table
+        /// Gets all relations from a current table. If composite, must be ordered
         /// </summary>
         IEnumerable<DbRelationDefinition> GetTableRelations();
 
-
-        IEnumerable<string> GetTablePrimaryKeys();
+        /// <summary>
+        /// Get all primary keys. If composite, must be ordered
+        /// </summary>
+        IEnumerable<DmColumn> GetTablePrimaryKeys();
 
     }
 }

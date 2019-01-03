@@ -237,6 +237,11 @@ namespace Dotmim.Sync.Builders
                     tableBuilder.CreatePrimaryKey();
                 }
             }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex);
+                throw ex;
+            }
             finally
             {
                 if (!alreadyOpened)

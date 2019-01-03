@@ -1,21 +1,21 @@
 using Dotmim.Sync.Data;
 using Dotmim.Sync.Manager;
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Data.SqlClient;
 using System.Linq;
-using System.Collections.Generic;
 
 namespace Dotmim.Sync.SqlServer.Manager
 {
     public class SqlManagerTable : IDbManagerTable
     {
         private string tableName;
-        private SqlTransaction sqlTransaction;
-        private SqlConnection sqlConnection;
+        private readonly SqlTransaction sqlTransaction;
+        private readonly SqlConnection sqlConnection;
 
-        public string TableName { set => tableName = value; }
+        public string TableName { set => this.tableName = value; }
 
         public SqlManagerTable(DbConnection connection, DbTransaction transaction = null)
         {
@@ -26,9 +26,7 @@ namespace Dotmim.Sync.SqlServer.Manager
         public IEnumerable<DbRelationDefinition> GetTableRelations()
         {
             List<DbRelationDefinition> relations = new List<DbRelationDefinition>();
-            var dmRelations = SqlManagementUtils.RelationsForTable(sqlConnection, sqlTransaction, tableName);
-
-
+            var dmRelations = SqlManagementUtils.RelationsForTable(this.sqlConnection, this.sqlTransaction, this.tableName);
 
             if (dmRelations != null && dmRelations.Rows.Count > 0)
                 foreach (var fk in dmRelations.Rows.GroupBy(row => new { Name = (string)row["ForeignKey"], TableName = (string)row["TableName"], ReferenceTableName = (string)row["ReferenceTableName"] }))
@@ -40,8 +38,13 @@ namespace Dotmim.Sync.SqlServer.Manager
                         ReferenceTableName = fk.Key.ReferenceTableName,
                     };
 
-                    relationDefinition.KeyColumnsName = fk.Select(dmRow => (string)dmRow["ColumnName"]).ToArray();
-                    relationDefinition.ReferenceColumnsName = fk.Select(dmRow => (string)dmRow["ReferenceColumnName"]).ToArray();
+                    relationDefinition.Columns.AddRange(fk.Select(dmRow =>
+                       new DbRelationColumnDefinition
+                       {
+                           KeyColumnName = (string)dmRow["ColumnName"],
+                           ReferenceColumnName = (string)dmRow["ReferenceColumnName"],
+                           Order = (int)dmRow["ForeignKeyOrder"]
+                       }));
 
                     relations.Add(relationDefinition);
                 }
@@ -53,7 +56,7 @@ namespace Dotmim.Sync.SqlServer.Manager
         {
             List<DmColumn> columns = new List<DmColumn>();
             // Get the columns definition
-            var dmColumnsList = SqlManagementUtils.ColumnsForTable(sqlConnection, sqlTransaction, this.tableName);
+            var dmColumnsList = SqlManagementUtils.ColumnsForTable(this.sqlConnection, this.sqlTransaction, this.tableName);
             var sqlDbMetadata = new SqlDbMetadata();
 
             foreach (var c in dmColumnsList.Rows.OrderBy(r => (int)r["column_id"]))
@@ -72,7 +75,7 @@ namespace Dotmim.Sync.SqlServer.Manager
                 dbColumn.SetOrdinal((int)c["column_id"]);
                 dbColumn.OriginalTypeName = c["type"].ToString();
 
-                dbColumn.MaxLength = maxLengthLong > Int32.MaxValue ? Int32.MaxValue : (Int32)maxLengthLong;
+                dbColumn.MaxLength = maxLengthLong > int.MaxValue ? int.MaxValue : (int)maxLengthLong;
                 dbColumn.Precision = (byte)c["precision"];
                 dbColumn.Scale = (byte)c["scale"];
                 dbColumn.AllowDBNull = (bool)c["is_nullable"];
@@ -100,16 +103,21 @@ namespace Dotmim.Sync.SqlServer.Manager
             }
             return columns.ToArray();
         }
-        
-        public IEnumerable<string> GetTablePrimaryKeys()
+
+        public IEnumerable<DmColumn> GetTablePrimaryKeys()
         {
-            var dmTableKeys = SqlManagementUtils.PrimaryKeysForTable(sqlConnection, sqlTransaction, tableName);
-            var lstKeys = new List<String>();
+            var dmTableKeys = SqlManagementUtils.PrimaryKeysForTable(this.sqlConnection, this.sqlTransaction, this.tableName);
+
+            var lstKeys = new List<DmColumn>();
 
             foreach (var dmKey in dmTableKeys.Rows)
-                lstKeys.Add((string)dmKey["columnName"]);
+            {
+                var keyColumn = new DmColumn<string>((string)dmKey["columnName"]);
+                keyColumn.SetOrdinal(Convert.ToInt32(dmKey["key_ordinal"]));
+                lstKeys.Add(keyColumn);
+            }
 
-            return lstKeys.ToArray();
+            return lstKeys;
         }
     }
 }

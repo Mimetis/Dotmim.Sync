@@ -118,7 +118,7 @@ namespace Dotmim.Sync.Tests.Core
 
         public static ConstructorInfo GetDefaultConstructor(Type t, bool nonPublic = true)
         {
-            BindingFlags bindingFlags = BindingFlags.Instance | BindingFlags.Public;
+            var bindingFlags = BindingFlags.Instance | BindingFlags.Public;
 
             if (nonPublic)
                 bindingFlags = bindingFlags | BindingFlags.NonPublic;
@@ -132,7 +132,7 @@ namespace Dotmim.Sync.Tests.Core
         /// Gets or Sets if we should delete all the databases. 
         /// Useful for debug purpose. Do not forget to set to false when commit
         /// </summary>
-        internal virtual bool DeleteAllDatabasesOnDispose { get; } = true;
+        internal virtual bool DeleteAllDatabasesOnDispose { get; set; } = true;
 
 
         /// <summary>
@@ -297,7 +297,6 @@ namespace Dotmim.Sync.Tests.Core
 
                     // generate the client provider
                     var clientProvider = registeredProviders[clientProviderType].NewServerProvider(connectionString);
-
 
                     // then add the run 
                     this.ClientRuns.Add(new ProviderRun(dbName, clientProvider, clientProviderType, networkType));

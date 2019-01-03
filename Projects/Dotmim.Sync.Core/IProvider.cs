@@ -10,21 +10,21 @@ namespace Dotmim.Sync
 {
     public interface IProvider
     {
-        event EventHandler<ProgressEventArgs> SyncProgress;
-        event EventHandler<BeginSessionEventArgs> BeginSession;
-        event EventHandler<EndSessionEventArgs> EndSession;
-        event EventHandler<ScopeEventArgs> ScopeLoading;
-        event EventHandler<ScopeEventArgs> ScopeSaved;
-        event EventHandler<DatabaseApplyingEventArgs> DatabaseApplying;
-        event EventHandler<DatabaseAppliedEventArgs> DatabaseApplied;
-        event EventHandler<DatabaseTableApplyingEventArgs> DatabaseTableApplying;
-        event EventHandler<DatabaseTableAppliedEventArgs> DatabaseTableApplied;
-        event EventHandler<SchemaApplyingEventArgs> SchemaApplying;
-        event EventHandler<SchemaAppliedEventArgs> SchemaApplied;
-        event EventHandler<TableChangesSelectingEventArgs> TableChangesSelecting;
-        event EventHandler<TableChangesSelectedEventArgs> TableChangesSelected;
-        event EventHandler<TableChangesApplyingEventArgs> TableChangesApplying;
-        event EventHandler<TableChangesAppliedEventArgs> TableChangesApplied;
+        //event EventHandler<ProgressEventArgs> SyncProgress;
+        //event EventHandler<BeginSessionEventArgs> BeginSession;
+        //event EventHandler<EndSessionEventArgs> EndSession;
+        //event EventHandler<ScopeEventArgs> ScopeLoading;
+        //event EventHandler<ScopeEventArgs> ScopeSaved;
+        //event EventHandler<DatabaseApplyingEventArgs> DatabaseApplying;
+        //event EventHandler<DatabaseAppliedEventArgs> DatabaseApplied;
+        //event EventHandler<DatabaseTableApplyingEventArgs> DatabaseTableApplying;
+        //event EventHandler<DatabaseTableAppliedEventArgs> DatabaseTableApplied;
+        //event EventHandler<SchemaApplyingEventArgs> SchemaApplying;
+        //event EventHandler<SchemaAppliedEventArgs> SchemaApplied;
+        //event EventHandler<TableChangesSelectingEventArgs> TableChangesSelecting;
+        //event EventHandler<TableChangesSelectedEventArgs> TableChangesSelected;
+        //event EventHandler<TableChangesApplyingEventArgs> TableChangesApplying;
+        //event EventHandler<TableChangesAppliedEventArgs> TableChangesApplied;
         event EventHandler<ApplyChangeFailedEventArgs> ApplyChangedFailed;
 
         /// <summary>
