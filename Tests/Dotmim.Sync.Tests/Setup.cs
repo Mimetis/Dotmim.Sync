@@ -31,6 +31,7 @@ namespace Dotmim.Sync.Tests
                 "PricesList", "PriceListCategory", "PriceListDetail"
             };
 
+
             // 1) Add database name
             providerFixture.AddDatabaseName(ProviderType.Sql, "SqlAdventureWorks");
             providerFixture.AddDatabaseName(ProviderType.MySql, "mysqladventureworks");
@@ -39,21 +40,20 @@ namespace Dotmim.Sync.Tests
             providerFixture.AddTables(ProviderType.Sql, sqlTables, 109);
             providerFixture.AddTables(ProviderType.MySql, mySqlTables, 109);
 
-            // SQL Server provider
+            providerFixture.DeleteAllDatabasesOnDispose = false;
+
 
             if (!IsOnAzureDev)
             {
-                providerFixture.AddRun((ProviderType.Sql, NetworkType.Http), ProviderType.Sql);
-                providerFixture.AddRun((ProviderType.MySql, NetworkType.Tcp), ProviderType.MySql);
+                providerFixture.AddRun((ProviderType.Sql, NetworkType.Tcp), ProviderType.MySql | ProviderType.Sql | ProviderType.Sqlite);
+                providerFixture.AddRun((ProviderType.MySql, NetworkType.Tcp), ProviderType.MySql | ProviderType.Sql | ProviderType.Sqlite);
             }
             else
             {
-                providerFixture.AddRun((ProviderType.Sql, NetworkType.Tcp), ProviderType.Sql);
-                providerFixture.AddRun((ProviderType.Sql, NetworkType.Tcp), ProviderType.MySql);
-                providerFixture.AddRun((ProviderType.Sql, NetworkType.Http), ProviderType.Sqlite);
-                providerFixture.AddRun((ProviderType.MySql, NetworkType.Tcp), ProviderType.Sql);
-                providerFixture.AddRun((ProviderType.MySql, NetworkType.Tcp), ProviderType.MySql);
-                providerFixture.AddRun((ProviderType.MySql, NetworkType.Http), ProviderType.Sqlite);
+                providerFixture.AddRun((ProviderType.Sql, NetworkType.Tcp), ProviderType.MySql | ProviderType.Sql | ProviderType.Sqlite);
+                providerFixture.AddRun((ProviderType.MySql, NetworkType.Tcp), ProviderType.MySql | ProviderType.Sql | ProviderType.Sqlite);
+                providerFixture.AddRun((ProviderType.Sql, NetworkType.Http), ProviderType.MySql | ProviderType.Sql | ProviderType.Sqlite);
+                providerFixture.AddRun((ProviderType.MySql, NetworkType.Http), ProviderType.MySql | ProviderType.Sql | ProviderType.Sqlite);
             }
 
         }
@@ -62,7 +62,7 @@ namespace Dotmim.Sync.Tests
         /// Returns the database server to be used in the untittests - note that this is the connection to appveyor SQL Server 2016 instance!
         /// see: https://www.appveyor.com/docs/services-databases/#mysql
         /// </summary>
-        internal static String GetSqlDatabaseConnectionString(string dbName)
+        internal static string GetSqlDatabaseConnectionString(string dbName)
         {
             // check if we are running localy on windows or linux
             bool isWindowsRuntime = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
@@ -104,7 +104,7 @@ namespace Dotmim.Sync.Tests
             {
                 // check if we are running on appveyor or not
                 string isOnAppVeyor = Environment.GetEnvironmentVariable("APPVEYOR");
-                return !String.IsNullOrEmpty(isOnAppVeyor) && isOnAppVeyor.ToLowerInvariant() == "true";
+                return !string.IsNullOrEmpty(isOnAppVeyor) && isOnAppVeyor.ToLowerInvariant() == "true";
             }
         }
 
@@ -117,7 +117,7 @@ namespace Dotmim.Sync.Tests
             {
                 // check if we are running on appveyor or not
                 string isOnAzureDev = Environment.GetEnvironmentVariable("AZUREDEV");
-                return !String.IsNullOrEmpty(isOnAzureDev) && isOnAzureDev.ToLowerInvariant() == "true";
+                return !string.IsNullOrEmpty(isOnAzureDev) && isOnAzureDev.ToLowerInvariant() == "true";
             }
         }
 

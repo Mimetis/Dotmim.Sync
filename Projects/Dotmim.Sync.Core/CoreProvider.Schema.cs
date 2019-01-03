@@ -13,7 +13,6 @@ namespace Dotmim.Sync
 {
     public abstract partial class CoreProvider
     {
-
         /// <summary>
         /// Generate the DmTable configuration from a given columns list
         /// Validate that all columns are currently supported by the provider
@@ -50,7 +49,7 @@ namespace Dotmim.Sync
             foreach (var column in columns.OrderBy(c => c.Ordinal))
             {
                 // First of all validate if the column is currently supported
-                if (!Metadata.IsValid(column))
+                if (!this.Metadata.IsValid(column))
                     throw new NotSupportedException($"The Column {column.ColumnName} of type {column.OriginalTypeName} from provider {this.ProviderTypeName} is not currently supported.");
 
                 var columnNameLower = column.ColumnName.ToLowerInvariant();
@@ -73,34 +72,34 @@ namespace Dotmim.Sync
                 dmTable.Columns.Add(column);
 
                 // Validate max length
-                column.MaxLength = Metadata.ValidateMaxLength(column.OriginalTypeName, column.IsUnsigned, column.IsUnicode, column.MaxLength);
+                column.MaxLength = this.Metadata.ValidateMaxLength(column.OriginalTypeName, column.IsUnsigned, column.IsUnicode, column.MaxLength);
 
                 // Gets the datastore owner dbType (could be SqlDbtype, MySqlDbType, SqliteDbType, NpgsqlDbType & so on ...)
-                object datastoreDbType = Metadata.ValidateOwnerDbType(column.OriginalTypeName, column.IsUnsigned, column.IsUnicode, column.MaxLength);
+                var datastoreDbType = this.Metadata.ValidateOwnerDbType(column.OriginalTypeName, column.IsUnsigned, column.IsUnicode, column.MaxLength);
 
                 // once we have the datastore type, we can have the managed type
-                Type columnType = Metadata.ValidateType(datastoreDbType);
+                var columnType = this.Metadata.ValidateType(datastoreDbType);
 
                 // and the DbType
-                column.DbType = Metadata.ValidateDbType(column.OriginalTypeName, column.IsUnsigned, column.IsUnicode, column.MaxLength);
+                column.DbType = this.Metadata.ValidateDbType(column.OriginalTypeName, column.IsUnsigned, column.IsUnicode, column.MaxLength);
 
                 // Gets the owner dbtype (SqlDbType, OracleDbType, MySqlDbType, NpsqlDbType & so on ...)
                 // Sqlite does not have it's own type, so it's DbType too
                 column.OriginalDbType = datastoreDbType.ToString();
 
                 // Validate if column should be readonly
-                column.IsReadOnly = Metadata.ValidateIsReadonly(column);
+                column.IsReadOnly = this.Metadata.ValidateIsReadonly(column);
 
                 // set position ordinal
                 column.SetOrdinal(ordinal);
                 ordinal++;
 
                 // Validate the precision and scale properties
-                if (Metadata.IsNumericType(column.OriginalTypeName))
+                if (this.Metadata.IsNumericType(column.OriginalTypeName))
                 {
-                    if (Metadata.SupportScale(column.OriginalTypeName))
+                    if (this.Metadata.SupportScale(column.OriginalTypeName))
                     {
-                        var (p, s) = Metadata.ValidatePrecisionAndScale(column);
+                        var (p, s) = this.Metadata.ValidatePrecisionAndScale(column);
                         column.Precision = p;
                         column.PrecisionSpecified = true;
                         column.Scale = s;
@@ -108,7 +107,7 @@ namespace Dotmim.Sync
                     }
                     else
                     {
-                        column.Precision = Metadata.ValidatePrecision(column);
+                        column.Precision = this.Metadata.ValidatePrecision(column);
                         column.PrecisionSpecified = true;
                         column.ScaleSpecified = false;
                     }
@@ -117,12 +116,12 @@ namespace Dotmim.Sync
 
             }
 
-            DmColumn[] columnsForKey = new DmColumn[dmTableKeys.Count()];
+            var columnsForKey = new DmColumn[dmTableKeys.Count()];
 
-            int i = 0;
-            foreach (var rowColumn in dmTableKeys)
+            var i = 0;
+            foreach (var rowColumn in dmTableKeys.OrderBy(r => r.Ordinal))
             {
-                var columnKey = dmTable.Columns.FirstOrDefault(c => String.Equals(c.ColumnName, rowColumn, StringComparison.InvariantCultureIgnoreCase));
+                var columnKey = dmTable.Columns.FirstOrDefault(c => string.Equals(c.ColumnName, rowColumn.ColumnName, StringComparison.InvariantCultureIgnoreCase));
                 columnsForKey[i++] = columnKey ?? throw new MissingPrimaryKeyException("Primary key found is not present in the columns list");
             }
 
@@ -133,24 +132,21 @@ namespace Dotmim.Sync
         /// <summary>
         /// Create a simple configuration, based on tables
         /// </summary>
-        private async Task<SyncConfiguration> ReadSchemaAsync(string[] tables)
+        private async Task<SyncConfiguration> ReadSchemaAsync(string[] tables, DbConnection connection, DbTransaction transaction)
         {
             // Load the configuration
             var configuration = new SyncConfiguration(tables);
-            await this.ReadSchemaAsync(configuration.Schema);
+            await this.ReadSchemaAsync(configuration.Schema, connection, transaction);
             return configuration;
         }
 
         /// <summary>
         /// update configuration object with tables desc from server database
         /// </summary>
-        private async Task ReadSchemaAsync(DmSet schema)
+        private async Task ReadSchemaAsync(DmSet schema, DbConnection connection, DbTransaction transaction)
         {
             if (schema == null || schema.Tables.Count <= 0)
                 throw new ArgumentNullException("syncConfiguration", "Configuration should contains Tables, at least tables with a name");
-
-            DbConnection connection = null;
-            DbTransaction transaction;
 
             try
             {
@@ -185,11 +181,15 @@ namespace Dotmim.Sync
                 {
                     foreach (var r in relations)
                     {
+                        // Get table from the relation where we need to work on
                         var dmTable = schema.Tables[r.TableName];
-                        var tblColumns = r.KeyColumnsName
-                            .Select(kc => dmTable.Columns[kc])
+
+                        // get DmColumn from DmTable, based on the columns from relations
+                        var tblColumns = r.Columns.OrderBy(kc => kc.Order)
+                            .Select(kc => dmTable.Columns[kc.KeyColumnName])
                             .ToArray();
 
+                        // then Get the foreign table as well
                         var foreignTable = syncConfiguration[r.ReferenceTableName];
 
                         // Since we can have a table with a foreign key but not the parent table
@@ -197,13 +197,14 @@ namespace Dotmim.Sync
                         if (foreignTable == null || foreignTable.Columns.Count == 0)
                             continue;
 
-                        var foreignColumns = r.ReferenceColumnsName
-                             .Select(fc => foreignTable.Columns[fc])
+                        var foreignColumns = r.Columns.OrderBy(kc => kc.Order)
+                             .Select(fc => foreignTable.Columns[fc.ReferenceColumnName])
                              .ToArray();
+
 
                         if (foreignColumns == null || foreignColumns.Any(c => c == null))
                             throw new NotSupportedException(
-                                $"Foreign columns {string.Join(",", r.ReferenceColumnsName)} does not exist in table {r.ReferenceTableName}");
+                                $"Foreign columns {string.Join(",", r.Columns.Select(kc => kc.ReferenceColumnName))} does not exist in table {r.ReferenceTableName}");
 
                         var dmRelation = new DmRelation(r.ForeignKey, tblColumns, foreignColumns);
 
@@ -231,31 +232,34 @@ namespace Dotmim.Sync
             {
                 context.SyncStage = SyncStage.SchemaApplying;
 
-                // Get cache manager and try to get configuration from cache
-                //var cacheManager = this.CacheManager;
+                using (var connection = this.CreateConnection())
+                {
+                    await connection.OpenAsync();
 
-                //// if we don't pass config object (configuration == null), we may be in proxy mode, so the config object is handled by a local configuration object.
-                //if (syncConfiguration == null && this.syncConfiguration == null)
-                //    throw new ArgumentNullException("syncConfiguration", "You try to set a provider with no configuration object");
+                    using (var transaction = connection.BeginTransaction())
+                    {
+                        // Raise event before
+                        context.SyncStage = SyncStage.SchemaApplying;
+                        var beforeArgs2 = new SchemaApplyingEventArgs(this.ProviderTypeName, context.SyncStage, message.Schema, connection, transaction);
+                        this.TryRaiseProgressEvent(beforeArgs2, this.SchemaApplying);
+                        var overWriteConfiguration = beforeArgs2.OverwriteConfiguration;
 
-                //// the configuration has been set from the proxy server itself, use it.
-                //if (syncConfiguration == null && this.syncConfiguration != null)
-                //    syncConfiguration = this.syncConfiguration;
+                        // if we dont have already read the tables || we want to overwrite the current config
+                        if (message.Schema.HasTables && !message.Schema.HasColumns)
+                            await this.ReadSchemaAsync(message.Schema, connection, transaction);
 
-                // Raise event before
-                context.SyncStage = SyncStage.SchemaApplying;
-                var beforeArgs2 = new SchemaApplyingEventArgs(this.ProviderTypeName, context.SyncStage, message.Schema);
-                this.TryRaiseProgressEvent(beforeArgs2, this.SchemaApplying);
-                bool overWriteConfiguration = beforeArgs2.OverwriteConfiguration;
+                        context.SyncStage = SyncStage.SchemaApplied;
+                        var afterArgs = new SchemaAppliedEventArgs(this.ProviderTypeName, context.SyncStage, message.Schema, connection, transaction);
+                        this.TryRaiseProgressEvent(afterArgs, this.SchemaApplied);
+
+                        transaction.Commit();
+                    }
+
+                    connection.Close();
+                }
 
 
-                // if we dont have already read the tables || we want to overwrite the current config
-                if ((message.Schema.HasTables && !message.Schema.HasColumns))
-                    await this.ReadSchemaAsync(message.Schema);
 
-                context.SyncStage = SyncStage.SchemaApplied;
-                var afterArgs = new SchemaAppliedEventArgs(this.ProviderTypeName, context.SyncStage, message.Schema);
-                this.TryRaiseProgressEvent(afterArgs, this.SchemaApplied);
 
                 return (context, message.Schema);
             }
@@ -270,28 +274,5 @@ namespace Dotmim.Sync
 
         }
 
-        ///// <summary>
-        ///// Get cached configuration (inmemory or session cache)
-        ///// </summary>
-        //public SyncConfiguration GetCacheConfiguration()
-        //{
-        //    var configurationSurrogate = this.CacheManager.GetValue<DmSetSurrogate>(SYNC_CONF);
-        //    if (configurationSurrogate == null)
-        //        return null;
-
-        //    var dmSet = configurationSurrogate.ConvertToDmSet();
-        //    if (dmSet == null)
-        //        return null;
-
-        //    return SyncConfiguration.DeserializeFromDmSet(dmSet);
-        //}
-
-        //public void SetCacheConfiguration(SyncConfiguration configuration)
-        //{
-        //    var dmSetConf = new DmSet();
-        //    SyncConfiguration.SerializeInDmSet(dmSetConf, configuration);
-        //    var dmSSetConf = new DmSetSurrogate(dmSetConf);
-        //    this.CacheManager.Set(SYNC_CONF, dmSSetConf);
-        //}
     }
 }

@@ -2,6 +2,7 @@
 using Dotmim.Sync.Enumerations;
 using System;
 using System.Collections.Generic;
+using System.Data.Common;
 using System.Text;
 
 namespace Dotmim.Sync
@@ -12,7 +13,7 @@ namespace Dotmim.Sync
     /// </summary>
     public class TableChangesAppliedEventArgs : BaseProgressEventArgs
     {
-        public TableChangesAppliedEventArgs(string providerTypeName, SyncStage stage, TableChangesApplied tableChangesApplied) : base(providerTypeName, stage)
+        public TableChangesAppliedEventArgs(string providerTypeName, SyncStage stage, TableChangesApplied tableChangesApplied, DbConnection connection, DbTransaction transaction) : base(providerTypeName, stage, connection, transaction)
         {
             this.TableChangesApplied = tableChangesApplied;
         }
@@ -25,7 +26,7 @@ namespace Dotmim.Sync
     /// </summary>
     public class TableChangesApplyingEventArgs : BaseProgressEventArgs
     {
-        public TableChangesApplyingEventArgs(string providerTypeName, SyncStage stage, string tableName, DmRowState state) : base(providerTypeName, stage)
+        public TableChangesApplyingEventArgs(string providerTypeName, SyncStage stage, string tableName, DmRowState state, DbConnection connection, DbTransaction transaction) : base(providerTypeName, stage, connection, transaction)
         {
             this.TableName = tableName;
             this.State = state;

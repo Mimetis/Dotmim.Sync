@@ -23,31 +23,32 @@ namespace Dotmim.Sync.Web.Client
     /// <summary>
     /// Class used when you have to deal with a Web Server
     /// </summary>
-#pragma warning disable CS0067
     public class WebProxyClientProvider : IProvider, IDisposable
     {
         private readonly HttpRequestHandler httpRequestHandler;
         private CancellationToken cancellationToken;
 
-        public event EventHandler<ProgressEventArgs> SyncProgress;
+        //public event EventHandler<ProgressEventArgs> SyncProgress;
         public event EventHandler<ApplyChangeFailedEventArgs> ApplyChangedFailed;
-        public event EventHandler<BeginSessionEventArgs> BeginSession;
-        public event EventHandler<EndSessionEventArgs> EndSession;
-        public event EventHandler<ScopeEventArgs> ScopeLoading;
-        public event EventHandler<ScopeEventArgs> ScopeSaved;
-        public event EventHandler<DatabaseApplyingEventArgs> DatabaseApplying;
-        public event EventHandler<DatabaseAppliedEventArgs> DatabaseApplied;
-        public event EventHandler<DatabaseTableApplyingEventArgs> DatabaseTableApplying;
-        public event EventHandler<DatabaseTableAppliedEventArgs> DatabaseTableApplied;
-        public event EventHandler<SchemaApplyingEventArgs> SchemaApplying;
-        public event EventHandler<SchemaAppliedEventArgs> SchemaApplied;
-        public event EventHandler<TableChangesSelectingEventArgs> TableChangesSelecting;
-        public event EventHandler<TableChangesSelectedEventArgs> TableChangesSelected;
-        public event EventHandler<TableChangesApplyingEventArgs> TableChangesApplying;
-        public event EventHandler<TableChangesAppliedEventArgs> TableChangesApplied;
+        //public event EventHandler<BeginSessionEventArgs> BeginSession;
+        //public event EventHandler<EndSessionEventArgs> EndSession;
+        //public event EventHandler<ScopeEventArgs> ScopeLoading;
+        //public event EventHandler<ScopeEventArgs> ScopeSaved;
+        //public event EventHandler<DatabaseApplyingEventArgs> DatabaseApplying;
+        //public event EventHandler<DatabaseAppliedEventArgs> DatabaseApplied;
+        //public event EventHandler<DatabaseTableApplyingEventArgs> DatabaseTableApplying;
+        //public event EventHandler<DatabaseTableAppliedEventArgs> DatabaseTableApplied;
+        //public event EventHandler<SchemaApplyingEventArgs> SchemaApplying;
+        //public event EventHandler<SchemaAppliedEventArgs> SchemaApplied;
+        //public event EventHandler<TableChangesSelectingEventArgs> TableChangesSelecting;
+        //public event EventHandler<TableChangesSelectedEventArgs> TableChangesSelected;
+        //public event EventHandler<TableChangesApplyingEventArgs> TableChangesApplying;
+        //public event EventHandler<TableChangesAppliedEventArgs> TableChangesApplied;
 
         public Dictionary<string, string> CustomHeaders => this.httpRequestHandler.CustomHeaders;
         public Dictionary<string, string> ScopeParameters => this.httpRequestHandler.ScopeParameters;
+
+        public SyncOptions Options { get; set; }
 
         public Uri ServiceUri
         {
@@ -120,7 +121,7 @@ namespace Dotmim.Sync.Web.Client
                 SyncContext = context,
                 Content = new HttpMessageBeginSession
                 {
-                    SyncConfiguration = message.SyncConfiguration
+                    Configuration = message.Configuration
                 }
             };
 
@@ -137,7 +138,7 @@ namespace Dotmim.Sync.Web.Client
             else
                 httpMessageContent = (httpMessageResponse.Content as JObject).ToObject<HttpMessageBeginSession>();
 
-            return (httpMessageResponse.SyncContext, httpMessageContent.SyncConfiguration);
+            return (httpMessageResponse.SyncContext, httpMessageContent.Configuration);
         }
 
 
@@ -260,7 +261,7 @@ namespace Dotmim.Sync.Web.Client
 
             // Create the BatchInfo and SyncContext to return at the end
             // Set InMemory by default to "true", but the real value comes from server side
-            var changes = new BatchInfo(true, message.BatchDirectory);
+            var changes = new BatchInfo(true, this.Options.BatchDirectory);
 
             // Generate new directory name
             changes.GenerateNewDirectoryName();
@@ -279,8 +280,6 @@ namespace Dotmim.Sync.Web.Client
                     {
                         ScopeInfo = message.ScopeInfo,
                         BatchIndexRequested = changes.BatchIndex,
-                        DownloadBatchSizeInKB = message.DownloadBatchSizeInKB,
-                        BatchDirectory = message.BatchDirectory,
                         Schema = new DmSetSurrogate(message.Schema),
                         Filters = message.Filters,
                         Policy = message.Policy,
@@ -332,7 +331,7 @@ namespace Dotmim.Sync.Web.Client
                 {
                     // Serialize the file !
                     var bpId = changes.GenerateNewFileName(changes.BatchIndex.ToString());
-                    var fileName = Path.Combine(message.BatchDirectory, changes.DirectoryName, bpId);
+                    var fileName = Path.Combine(changes.GetDirectoryFullPath(), bpId);
                     BatchPart.Serialize(httpMessageContent.Set, fileName);
                     bpi.FileName = fileName;
                     bpi.Clear();
@@ -362,7 +361,7 @@ namespace Dotmim.Sync.Web.Client
         {
             if (message.Changes == null || message.Changes.BatchPartsInfo.Count == 0)
             {
-                message.Changes?.Clear(message.CleanMetadatas);
+                message.Changes?.Clear(this.Options.CleanMetadatas);
                 return (context, new ChangesApplied());
             }
 
@@ -378,8 +377,6 @@ namespace Dotmim.Sync.Web.Client
                     FromScope = message.FromScope,
                     Schema = new DmSetSurrogate(message.Schema),
                     Policy = message.Policy,
-                    UseBulkOperations = message.UseBulkOperations,
-                    CleanMetadatas = message.CleanMetadatas,
                     ScopeInfoTableName = message.ScopeInfoTableName,
                     SerializationFormat = message.SerializationFormat
 
@@ -443,7 +440,7 @@ namespace Dotmim.Sync.Web.Client
             }
 
             // Once all bpi sent, we can safely delete the local tmp folder
-            message.Changes?.Clear(message.CleanMetadatas);
+            message.Changes?.Clear(this.Options.CleanMetadatas);
 
             return (syncContext, changesApplied);
 

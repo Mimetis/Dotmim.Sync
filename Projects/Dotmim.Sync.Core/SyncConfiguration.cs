@@ -42,52 +42,13 @@ namespace Dotmim.Sync
             set => this.scopeSet = value;
         }
 
-        /// <summary>
-        /// Gets or Sets the directory used for batch mode.
-        /// Default value is [Windows Temp Path]/[DotmimSync]
-        /// </summary>
-        [DataMember(Name = "BD")]
-        public string BatchDirectory { get; set; }
-
-
-        /// <summary>
-        /// Gets or Sets the size used for downloading in batch mode. 
-        /// Default is 0 (no batch mode)
-        /// </summary>
-        [DataMember(Name = "DBSKB")]
-        public int DownloadBatchSizeInKB { get; set; }
-
-        /// <summary>
-        /// Gets or Sets the archive name, saved in the BatchDirectory, 
-        /// containing the zip starter for any new client
-        /// </summary>
-        [DataMember(Name = "A")]
-        public string Archive { get; set; }
+    
 
         /// <summary>
         /// Gets/Sets the serialization converter object. Default is Json
         /// </summary>
         [DataMember(Name = "SF")]
         public SerializationFormat SerializationFormat { get; set; }
-
-        /// <summary>
-        /// Gets/Sets the log level for sync operations. Default value is false.
-        /// </summary>
-        [DataMember(Name = "UVE")]
-        public bool UseVerboseErrors { get; set; }
-
-        /// <summary>
-        /// Gets or Sets if we should use the bulk operations. Default is true.
-        /// If provider doe not support bulk operations, this option is overrided to false.
-        /// </summary>
-        [DataMember(Name = "UBO")]
-        public bool UseBulkOperations { get; set; } = true;
-
-        /// <summary>
-        /// Gets or Sets if we should cleaning tmp dir files after sync.
-        /// </summary>
-        [DataMember(Name = "CM")]
-        public bool CleanMetadatas { get; set; } = true;
 
         /// <summary>
         /// Gets or Sets the current scope name
@@ -267,14 +228,10 @@ namespace Dotmim.Sync
         {
             this.Schema = new DmSet(DMSET_NAME);
             this.ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
-            this.DownloadBatchSizeInKB = 0;
-            this.UseVerboseErrors = false;
-            this.BatchDirectory = Path.Combine(Path.GetTempPath(), "DotmimSync");
             this.SerializationFormat = SerializationFormat.Json;
             this.Filters = new List<FilterClause>();
             this.ScopeInfoTableName = "scope_info";
             this.ScopeName = "DefaultScope";
-            this.CleanMetadatas = true;
         }
 
         public SyncConfiguration(string[] tables) : this()
@@ -290,15 +247,9 @@ namespace Dotmim.Sync
         {
             var syncConfiguration = new SyncConfiguration
             {
-                BatchDirectory = this.BatchDirectory,
-                CleanMetadatas = this.CleanMetadatas,
                 ConflictResolutionPolicy = this.ConflictResolutionPolicy,
-                DownloadBatchSizeInKB = this.DownloadBatchSizeInKB,
                 Schema = this.Schema.Clone(),
-                UseBulkOperations = this.UseBulkOperations,
-                UseVerboseErrors = this.UseVerboseErrors,
                 SerializationFormat = this.SerializationFormat,
-                Archive = this.Archive,
                 TrackingTablesSuffix = this.TrackingTablesSuffix,
                 TrackingTablesPrefix = this.TrackingTablesPrefix,
                 StoredProceduresPrefix = this.StoredProceduresPrefix,

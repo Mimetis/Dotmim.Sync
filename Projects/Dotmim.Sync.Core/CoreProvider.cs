@@ -1,23 +1,15 @@
-﻿using Dotmim.Sync.Batch;
-using Dotmim.Sync.Builders;
+﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Cache;
-using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Log;
-using Dotmim.Sync.Manager;
 using Dotmim.Sync.Data;
-using Dotmim.Sync.Data.Surrogate;
+using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.Manager;
+using Dotmim.Sync.Messages;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 using System.Threading;
-using Dotmim.Sync.Serialization;
-using System.Diagnostics;
-using System.Text;
-using Dotmim.Sync.Messages;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
@@ -26,11 +18,11 @@ namespace Dotmim.Sync
     /// </summary>
     public abstract partial class CoreProvider : IProvider
     {
-        private const string SYNC_CONF = "syncconf";
-
         private bool syncInProgress;
         private CancellationToken cancellationToken;
 
+        public void SetCancellationToken(CancellationToken token) => this.cancellationToken = token;
+        
         /// <summary>
         /// Raise an event if the sync is outdated. 
         /// Let the user choose if he wants to force or not
@@ -110,6 +102,11 @@ namespace Dotmim.Sync
         public abstract bool CanBeServerProvider { get; }
 
         /// <summary>
+        /// Gets the options used on this provider
+        /// </summary>
+        public SyncOptions Options { get; set; }
+
+        /// <summary>
         /// Try to raise a specific progress event
         /// </summary>
         private void TryRaiseProgressEvent<T>(T args, EventHandler<T> handler) where T : BaseProgressEventArgs
@@ -121,7 +118,7 @@ namespace Dotmim.Sync
             if (args.Action == ChangeApplicationAction.Rollback)
                 throw new RollbackException();
 
-            var props = new Dictionary<String, String>();
+            var props = new Dictionary<string, string>();
 
             switch (args.Stage)
             {
@@ -195,9 +192,9 @@ namespace Dotmim.Sync
         /// <summary>
         /// Try to raise a generalist progress event
         /// </summary>
-        private void TryRaiseProgressEvent(SyncStage stage, String message, Dictionary<String, String> properties = null)
+        private void TryRaiseProgressEvent(SyncStage stage, string message, Dictionary<string, string> properties = null, DbConnection connection = null, DbTransaction transaction = null)
         {
-            var progressEventArgs = new ProgressEventArgs(this.ProviderTypeName, stage, message);
+            var progressEventArgs = new ProgressEventArgs(this.ProviderTypeName, stage, message, connection, transaction);
 
             if (properties != null)
                 progressEventArgs.Properties = properties;
@@ -228,18 +225,17 @@ namespace Dotmim.Sync
                 context.SyncStage = SyncStage.BeginSession;
 
                 // Event progress
-                // TODO : First step to edit the configuration
-                var progressEventArgs = new BeginSessionEventArgs(this.ProviderTypeName, context.SyncStage);
+                var progressEventArgs = new BeginSessionEventArgs(this.ProviderTypeName, context.SyncStage, null, null);
                 this.TryRaiseProgressEvent(progressEventArgs, this.BeginSession);
 
-                return Task.FromResult((context, message.SyncConfiguration));
+                return Task.FromResult((context, message.Configuration));
             }
             catch (Exception ex)
             {
                 throw new SyncException(ex, SyncStage.BeginSession, this.ProviderTypeName);
             }
 
-            
+
         }
 
         /// <summary>
@@ -250,7 +246,7 @@ namespace Dotmim.Sync
             // already ended
             lock (this)
             {
-                if (!syncInProgress)
+                if (!this.syncInProgress)
                     return Task.FromResult(context);
             }
 
@@ -258,7 +254,7 @@ namespace Dotmim.Sync
 
             // Event progress
             this.TryRaiseProgressEvent(
-                new EndSessionEventArgs(this.ProviderTypeName, context.SyncStage), this.EndSession);
+                new EndSessionEventArgs(this.ProviderTypeName, context.SyncStage, null, null), this.EndSession);
 
             lock (this)
             {
@@ -295,13 +291,11 @@ namespace Dotmim.Sync
         /// <summary>
         /// TODO : Manager le fait qu'un scope peut être out dater, car il n'a pas synchronisé depuis assez longtemps
         /// </summary>
-        internal virtual bool IsRemoteOutdated()
-        {
+        internal virtual bool IsRemoteOutdated() =>
             //var lastCleanupTimeStamp = 0; // A établir comment récupérer la dernière date de clean up des metadatas
             //return (ScopeInfo.LastTimestamp < lastCleanupTimeStamp);
 
-            return false;
-        }
+            false;
 
         /// <summary>
         /// Add metadata columns
@@ -321,10 +315,5 @@ namespace Dotmim.Sync
                 changes.Columns.Remove(name);
         }
 
-
-        public void SetCancellationToken(CancellationToken token)
-        {
-            this.cancellationToken = token;
-        }
     }
 }

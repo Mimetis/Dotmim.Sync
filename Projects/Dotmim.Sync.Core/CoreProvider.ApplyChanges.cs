@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -115,7 +114,7 @@ namespace Dotmim.Sync
                     connection.Close();
 
                 if (message.Changes != null)
-                    message.Changes.Clear(message.CleanMetadatas);
+                    message.Changes.Clear(this.Options.CleanMetadatas);
 
             }
         }
@@ -205,12 +204,12 @@ namespace Dotmim.Sync
 
                     // Raise event progress only if there are rows to be applied
                     context.SyncStage = SyncStage.TableChangesApplying;
-                    var args = new TableChangesApplyingEventArgs(this.ProviderTypeName, context.SyncStage, table.TableName, applyType);
+                    var args = new TableChangesApplyingEventArgs(this.ProviderTypeName, context.SyncStage, table.TableName, applyType, connection, transaction);
                     this.TryRaiseProgressEvent(args, this.TableChangesApplying);
 
                     int rowsApplied;
                     // applying the bulkchanges command
-                    if (message.UseBulkOperations && this.SupportBulkOperations)
+                    if (this.Options.UseBulkOperations && this.SupportBulkOperations)
                         rowsApplied = syncAdapter.ApplyBulkChanges(dmChangesView, message.FromScope, conflicts);
                     else
                         rowsApplied = syncAdapter.ApplyChanges(dmChangesView, message.FromScope, conflicts);
@@ -273,7 +272,7 @@ namespace Dotmim.Sync
 
                     // Event progress
                     context.SyncStage = SyncStage.TableChangesApplied;
-                    var progressEventArgs = new TableChangesAppliedEventArgs(this.ProviderTypeName, context.SyncStage, existAppliedChanges);
+                    var progressEventArgs = new TableChangesAppliedEventArgs(this.ProviderTypeName, context.SyncStage, existAppliedChanges, connection, transaction);
                     this.TryRaiseProgressEvent(progressEventArgs, this.TableChangesApplied);
 
                 }

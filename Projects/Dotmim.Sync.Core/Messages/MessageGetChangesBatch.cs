@@ -28,15 +28,17 @@ namespace Dotmim.Sync.Messages
         [JsonIgnore]
         public DmSet Schema { get => _schema; set => _schema = value; }
 
-        /// <summary>
-        /// Gets or Sets the download batch size, if needed
-        /// </summary>
-        public int DownloadBatchSizeInKB { get; set; }
+        ///// <summary>
+        ///// Gets or Sets the download batch size, if needed
+        ///// </summary>
+        //[JsonIgnore]
+        //public int BatchSize { get; set; }
 
-        /// <summary>
-        /// Gets or Sets the batch directory used to serialize the datas
-        /// </summary>
-        public string BatchDirectory { get; set; }
+        ///// <summary>
+        ///// Gets or Sets the batch directory used to serialize the datas
+        ///// </summary>
+        //[JsonIgnore]
+        //public string BatchDirectory { get; set; }
 
         /// <summary>
         /// Gets or Sets the current Conflict resolution policy
