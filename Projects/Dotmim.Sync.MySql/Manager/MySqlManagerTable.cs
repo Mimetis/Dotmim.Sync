@@ -1,23 +1,23 @@
 using Dotmim.Sync.Data;
 using Dotmim.Sync.Manager;
+using Dotmim.Sync.MySql.Builders;
 using MySql.Data.MySqlClient;
 using System;
-using System.Data;
-using System.Data.Common;
-using System.Linq;
 using System.Collections.Generic;
-using Dotmim.Sync.MySql.Builders;
+using System.Data.Common;
+using System.IO;
+using System.Linq;
 
 namespace Dotmim.Sync.MySql
 {
     public class MySqlManagerTable : IDbManagerTable
     {
         private string tableName;
-        private MySqlTransaction sqlTransaction;
-        private MySqlConnection sqlConnection;
-        private MySqlDbMetadata mySqlDbMetadata;
+        private readonly MySqlTransaction sqlTransaction;
+        private readonly MySqlConnection sqlConnection;
+        private readonly MySqlDbMetadata mySqlDbMetadata;
 
-        public string TableName { set => tableName = value; }
+        public string TableName { set => this.tableName = value; }
 
         public MySqlManagerTable(DbConnection connection, DbTransaction transaction = null)
         {
@@ -27,10 +27,7 @@ namespace Dotmim.Sync.MySql
         }
 
 
-        public DmTable GetTableRelations()
-        {
-            return MySqlManagementUtils.RelationsForTable(sqlConnection, sqlTransaction, tableName);
-        }
+  
 
         IEnumerable<DmColumn> IDbManagerTable.GetTableDefinition()
         {
@@ -38,7 +35,7 @@ namespace Dotmim.Sync.MySql
 
             // Get the columns definition
 
-            var dmColumnsList = MySqlManagementUtils.ColumnsForTable(sqlConnection, sqlTransaction, this.tableName);
+            var dmColumnsList = MySqlManagementUtils.ColumnsForTable(this.sqlConnection, this.sqlTransaction, this.tableName);
             var mySqlDbMetadata = new MySqlDbMetadata();
 
             foreach (var c in dmColumnsList.Rows.OrderBy(r => Convert.ToUInt64(r["ordinal_position"])))
@@ -58,10 +55,10 @@ namespace Dotmim.Sync.MySql
                 var dbColumn = DmColumn.CreateColumn(name, columnType);
                 dbColumn.OriginalTypeName = typeName;
                 dbColumn.SetOrdinal(Convert.ToInt32(c["ordinal_position"]));
-                dbColumn.MaxLength = maxLengthLong > Int32.MaxValue ? Int32.MaxValue : (Int32)maxLengthLong;
+                dbColumn.MaxLength = maxLengthLong > int.MaxValue ? int.MaxValue : (int)maxLengthLong;
                 dbColumn.Precision = c["numeric_precision"] != DBNull.Value ? Convert.ToByte(c["numeric_precision"]) : (byte)0;
                 dbColumn.Scale = c["numeric_scale"] != DBNull.Value ? Convert.ToByte(c["numeric_scale"]) : (byte)0;
-                dbColumn.AllowDBNull = (String)c["is_nullable"] == "NO" ? false : true;
+                dbColumn.AllowDBNull = (string)c["is_nullable"] == "NO" ? false : true;
 
                 String extra = c["extra"] != DBNull.Value ? ((string)c["extra"]).ToLowerInvariant() : null;
 
@@ -82,9 +79,9 @@ namespace Dotmim.Sync.MySql
 
         IEnumerable<DbRelationDefinition> IDbManagerTable.GetTableRelations()
         {
-            List<DbRelationDefinition> relations = new List<DbRelationDefinition>();
+            var relations = new List<DbRelationDefinition>();
 
-            var dmRelations = MySqlManagementUtils.RelationsForTable(sqlConnection, sqlTransaction, tableName);
+            var dmRelations = MySqlManagementUtils.RelationsForTable(this.sqlConnection, this.sqlTransaction, this.tableName);
 
             if (dmRelations != null && dmRelations.Rows.Count > 0)
             {
@@ -97,8 +94,13 @@ namespace Dotmim.Sync.MySql
                         ReferenceTableName = fk.Key.ReferenceTableName,
                     };
 
-                    relationDefinition.KeyColumnsName = fk.Select(dmRow => (string)dmRow["ColumnName"]).ToArray();
-                    relationDefinition.ReferenceColumnsName = fk.Select(dmRow => (string)dmRow["ReferenceColumnName"]).ToArray();
+                    relationDefinition.Columns.AddRange(fk.Select(dmRow =>
+                       new DbRelationColumnDefinition
+                       {
+                           KeyColumnName = (string)dmRow["ColumnName"],
+                           ReferenceColumnName = (string)dmRow["ReferenceColumnName"],
+                           Order = Convert.ToInt32(dmRow["ForeignKeyOrder"])
+                       }));
 
                     relations.Add(relationDefinition);
                 }
@@ -107,21 +109,24 @@ namespace Dotmim.Sync.MySql
             return relations.ToArray();
         }
 
-        public IEnumerable<string> GetTablePrimaryKeys()
+        public IEnumerable<DmColumn> GetTablePrimaryKeys()
         {
             // Get PrimaryKey
-            var dmTableKeys = MySqlManagementUtils.PrimaryKeysForTable(sqlConnection, sqlTransaction, tableName);
+            var dmTableKeys = MySqlManagementUtils.PrimaryKeysForTable(this.sqlConnection, this.sqlTransaction, this.tableName);
 
             if (dmTableKeys == null || dmTableKeys.Rows.Count == 0)
                 throw new Exception("No Primary Keys in this table, it' can't happen :) ");
 
-            var lstKeys = new List<String>();
+            var lstKeys = new List<DmColumn>();
 
             foreach (var dmKey in dmTableKeys.Rows)
-                lstKeys.Add((string)dmKey["COLUMN_NAME"]);
+            {
+                var keyColumn = new DmColumn<string>((string)dmKey["COLUMN_NAME"]);
+                keyColumn.SetOrdinal(Convert.ToInt32(dmKey["ORDINAL_POSITION"]));
+                lstKeys.Add(keyColumn);
+            }
 
-            return lstKeys.ToArray();
-
+            return lstKeys;
         }
     }
 }

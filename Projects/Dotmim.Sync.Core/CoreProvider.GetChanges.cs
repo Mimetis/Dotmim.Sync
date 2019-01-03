@@ -83,55 +83,55 @@ namespace Dotmim.Sync
         /// destination knowledge, and change data retriever parameters.
         /// </summary>
         /// <returns>A DbSyncContext object that will be used to retrieve the modified data.</returns>
-        public virtual async Task<TimeSpan> PrepareArchiveAsync(string[] tables, int downloadBatchSizeInKB, string batchDirectory, ConflictResolutionPolicy policy, ICollection<FilterClause> filters)
-        {
-            try
-            {
-                // We need to save 
-                // the lasttimestamp when the zip generated for the client to be able to launch a sync since this ts
+        //public virtual async Task<TimeSpan> PrepareArchiveAsync(string[] tables, int downloadBatchSizeInKB, string batchDirectory, ConflictResolutionPolicy policy, ICollection<FilterClause> filters)
+        //{
+        //    try
+        //    {
+        //        // We need to save 
+        //        // the lasttimestamp when the zip generated for the client to be able to launch a sync since this ts
 
-                // IF the client is new and the SyncConfiguration object has the Archive property
+        //        // IF the client is new and the SyncConfiguration object has the Archive property
 
-                var stopwatch = new Stopwatch();
-                stopwatch.Start();
+        //        var stopwatch = new Stopwatch();
+        //        stopwatch.Start();
 
-                SyncContext context;
-                ScopeInfo scopeInfo;
+        //        SyncContext context;
+        //        ScopeInfo scopeInfo;
 
-                context = new SyncContext(Guid.NewGuid())
-                {
-                    SyncType = SyncType.Normal,
-                    SyncWay = SyncWay.Download,
+        //        context = new SyncContext(Guid.NewGuid())
+        //        {
+        //            SyncType = SyncType.Normal,
+        //            SyncWay = SyncWay.Download,
 
-                };
-                scopeInfo = new ScopeInfo
-                {
-                    IsNewScope = true
-                };
+        //        };
+        //        scopeInfo = new ScopeInfo
+        //        {
+        //            IsNewScope = true
+        //        };
 
-                // Read configuration
-                var config = await this.ReadSchemaAsync(tables);
+        //        // Read configuration
+        //        var config = await this.ReadSchemaAsync(tables);
 
-                // We want a batch zip
-                if (downloadBatchSizeInKB <= 0)
-                    downloadBatchSizeInKB = 10000;
+        //        // We want a batch zip
+        //        if (downloadBatchSizeInKB <= 0)
+        //            downloadBatchSizeInKB = 10000;
 
-                (var batchInfo, var changesSelected) =
-                    await this.EnumerateChangesInBatchesInternal(context, scopeInfo, downloadBatchSizeInKB, config.Schema, batchDirectory, policy, filters);
+        //        (var batchInfo, var changesSelected) =
+        //            await this.EnumerateChangesInBatchesInternal(context, scopeInfo, downloadBatchSizeInKB, config.Schema, batchDirectory, policy, filters);
 
-                var dir = batchInfo.GetDirectoryFullPath();
-                var archiveFullName = string.Concat(batchDirectory, "\\", Path.GetRandomFileName());
+        //        var dir = batchInfo.GetDirectoryFullPath();
+        //        var archiveFullName = string.Concat(batchDirectory, "\\", Path.GetRandomFileName());
 
-                ZipFile.CreateFromDirectory(dir, archiveFullName, CompressionLevel.Fastest, false);
+        //        ZipFile.CreateFromDirectory(dir, archiveFullName, CompressionLevel.Fastest, false);
 
-                stopwatch.Stop();
-                return stopwatch.Elapsed;
-            }
-            catch (Exception ex)
-            {
-                throw new SyncException(ex, SyncStage.TableChangesSelecting, this.ProviderTypeName);
-            }
-        }
+        //        stopwatch.Stop();
+        //        return stopwatch.Elapsed;
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        throw new SyncException(ex, SyncStage.TableChangesSelecting, this.ProviderTypeName);
+        //    }
+        //}
 
 
         /// <summary>
@@ -202,7 +202,7 @@ namespace Dotmim.Sync
 
                             // raise before event
                             context.SyncStage = SyncStage.TableChangesSelecting;
-                            var beforeArgs = new TableChangesSelectingEventArgs(this.ProviderTypeName, context.SyncStage, tableDescription.TableName);
+                            var beforeArgs = new TableChangesSelectingEventArgs(this.ProviderTypeName, context.SyncStage, tableDescription.TableName, connection, transaction);
                             this.TryRaiseProgressEvent(beforeArgs, this.TableChangesSelecting);
 
                             // selected changes for the current table
@@ -327,7 +327,7 @@ namespace Dotmim.Sync
 
                             // Raise event for this table
                             context.SyncStage = SyncStage.TableChangesSelected;
-                            var args = new TableChangesSelectedEventArgs(this.ProviderTypeName, SyncStage.TableChangesSelected, tableSelectedChanges);
+                            var args = new TableChangesSelectedEventArgs(this.ProviderTypeName, SyncStage.TableChangesSelected, tableSelectedChanges, connection, transaction);
                             this.TryRaiseProgressEvent(args, this.TableChangesSelected);
                         }
 
@@ -453,7 +453,7 @@ namespace Dotmim.Sync
 
                             // raise before event
                             context.SyncStage = SyncStage.TableChangesSelecting;
-                            var beforeArgs = new TableChangesSelectingEventArgs(this.ProviderTypeName, context.SyncStage, tableDescription.TableName);
+                            var beforeArgs = new TableChangesSelectingEventArgs(this.ProviderTypeName, context.SyncStage, tableDescription.TableName, connection, transaction);
                             this.TryRaiseProgressEvent(beforeArgs, this.TableChangesSelecting);
 
                             // Get Command
@@ -605,7 +605,7 @@ namespace Dotmim.Sync
                                             // add stats for a SyncProgress event
                                             context.SyncStage = SyncStage.TableChangesSelected;
                                             var args2 = new TableChangesSelectedEventArgs
-                                                (this.ProviderTypeName, SyncStage.TableChangesSelected, tableChangesSelected);
+                                                (this.ProviderTypeName, SyncStage.TableChangesSelected, tableChangesSelected, connection, transaction);
 
                                             this.TryRaiseProgressEvent(args2, this.TableChangesSelected);
 
@@ -624,7 +624,7 @@ namespace Dotmim.Sync
 
                                     // Event progress
                                     context.SyncStage = SyncStage.TableChangesSelected;
-                                    var args = new TableChangesSelectedEventArgs(this.ProviderTypeName, SyncStage.TableChangesSelected, tableChangesSelected);
+                                    var args = new TableChangesSelectedEventArgs(this.ProviderTypeName, SyncStage.TableChangesSelected, tableChangesSelected, connection, transaction);
                                     this.TryRaiseProgressEvent(args, this.TableChangesSelected);
                                 }
                             }

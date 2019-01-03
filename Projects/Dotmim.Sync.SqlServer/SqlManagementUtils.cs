@@ -46,7 +46,7 @@ namespace Dotmim.Sync.SqlServer
         internal static DmTable PrimaryKeysForTable(SqlConnection connection, SqlTransaction transaction, string tableName)
         {
 
-            var commandColumn = @"select ind.name, col.name as columnName, ind_col.column_id
+            var commandColumn = @"select ind.name, col.name as columnName, ind_col.column_id, ind_col.key_ordinal 
                                   from sys.indexes ind
                                   left outer join sys.index_columns ind_col on ind_col.object_id = ind.object_id and ind_col.index_id = ind.index_id
                                   inner join sys.columns col on col.object_id = ind_col.object_id and col.column_id = ind_col.column_id
@@ -71,6 +71,7 @@ namespace Dotmim.Sync.SqlServer
         internal static DmTable RelationsForTable(SqlConnection connection, SqlTransaction transaction, string tableName)
         {
             var commandRelations = @"SELECT f.name AS ForeignKey,
+                                        constraint_column_id as ForeignKeyOrder,
                                         OBJECT_NAME (f.referenced_object_id)  AS TableName,
                                         COL_NAME(fc.referenced_object_id, fc.referenced_column_id) AS ColumnName,
                                         OBJECT_NAME(f.parent_object_id) AS ReferenceTableName,

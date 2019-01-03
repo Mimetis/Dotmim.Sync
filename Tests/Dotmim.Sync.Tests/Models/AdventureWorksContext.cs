@@ -1,8 +1,9 @@
-using System;
-using System.Linq;
 using Dotmim.Sync.Tests.Core;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using System;
+using System.Data.Common;
+using System.Linq;
 
 namespace Dotmim.Sync.Tests.Models
 {
@@ -15,20 +16,30 @@ namespace Dotmim.Sync.Tests.Models
         public ProviderType ProviderType { get; }
         public string ConnectionString { get; }
 
+        private DbConnection Connection { get; }
+
         public AdventureWorksContext(ProviderType providerType, string connectionString, bool fallbackUseSchema = true, bool useSeeding = true) : this()
         {
-            ProviderType = providerType;
-            ConnectionString = connectionString;
+            this.ProviderType = providerType;
+            this.ConnectionString = connectionString;
             this.useSeeding = useSeeding;
-            this.useSchema = ProviderType == ProviderType.Sql && fallbackUseSchema;
+            this.useSchema = this.ProviderType == ProviderType.Sql && fallbackUseSchema;
+        }
+
+        public AdventureWorksContext(ProviderRun providerRun, DbConnection connection, bool fallbackUseSchema = true, bool useSeeding = true) : this()
+        {
+            this.ProviderType = providerRun.ClientProviderType;
+            this.Connection = connection;
+            this.useSeeding = useSeeding;
+            this.useSchema = this.ProviderType == ProviderType.Sql && fallbackUseSchema;
         }
         public AdventureWorksContext(ProviderRun providerRun, bool fallbackUseSchema = true, bool useSeeding = true) : this()
         {
 
-            ProviderType = providerRun.ClientProviderType;
-            ConnectionString = providerRun.ConnectionString;
+            this.ProviderType = providerRun.ClientProviderType;
+            this.ConnectionString = providerRun.ConnectionString;
 
-            this.useSchema = ProviderType == ProviderType.Sql && fallbackUseSchema;
+            this.useSchema = this.ProviderType == ProviderType.Sql && fallbackUseSchema;
             this.useSeeding = useSeeding;
         }
 
@@ -45,16 +56,25 @@ namespace Dotmim.Sync.Tests.Models
         {
             if (!optionsBuilder.IsConfigured)
             {
-                switch (ProviderType)
+                switch (this.ProviderType)
                 {
                     case ProviderType.Sql:
-                        optionsBuilder.UseSqlServer(ConnectionString);
+                        if (this.Connection != null)
+                            optionsBuilder.UseSqlServer(this.Connection);
+                        else
+                            optionsBuilder.UseSqlServer(this.ConnectionString);
                         break;
                     case ProviderType.MySql:
-                        optionsBuilder.UseMySql(ConnectionString);
+                        if (this.Connection != null)
+                            optionsBuilder.UseMySql(this.Connection);
+                        else
+                            optionsBuilder.UseMySql(this.ConnectionString);
                         break;
                     case ProviderType.Sqlite:
-                        optionsBuilder.UseSqlite(ConnectionString);
+                        if (this.Connection != null)
+                            optionsBuilder.UseSqlite(this.Connection);
+                        else
+                            optionsBuilder.UseSqlite(this.ConnectionString);
                         break;
                 }
             }
@@ -83,7 +103,7 @@ namespace Dotmim.Sync.Tests.Models
         public virtual DbSet<PriceList> PricesList { get; set; }
 
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Address>(entity =>
             {
@@ -320,7 +340,7 @@ namespace Dotmim.Sync.Tests.Models
 
             modelBuilder.Entity<Product>(entity =>
             {
-                if (useSchema)
+                if (this.useSchema)
                     entity.ToTable("Product", "SalesLT");
 
                 entity.HasKey(e => e.ProductId);
@@ -396,7 +416,7 @@ namespace Dotmim.Sync.Tests.Models
 
             modelBuilder.Entity<ProductCategory>(entity =>
             {
-                if (useSchema)
+                if (this.useSchema)
                     entity.ToTable("ProductCategory", "SalesLT");
 
                 entity.HasIndex(e => e.Name)
@@ -439,7 +459,7 @@ namespace Dotmim.Sync.Tests.Models
 
             modelBuilder.Entity<ProductModel>(entity =>
             {
-                if (useSchema)
+                if (this.useSchema)
                     entity.ToTable("ProductModel", "SalesLT");
 
                 entity.HasIndex(e => e.Name)
@@ -472,7 +492,7 @@ namespace Dotmim.Sync.Tests.Models
 
             modelBuilder.Entity<SalesOrderDetail>(entity =>
             {
-                if (useSchema)
+                if (this.useSchema)
                     entity.ToTable("SalesOrderDetail", "SalesLT");
 
                 entity.HasKey(e => new { e.SalesOrderDetailId });
@@ -526,7 +546,7 @@ namespace Dotmim.Sync.Tests.Models
 
             modelBuilder.Entity<SalesOrderHeader>(entity =>
             {
-                if (useSchema)
+                if (this.useSchema)
                     entity.ToTable("SalesOrderHeader", "SalesLT");
 
                 entity.HasKey(e => e.SalesOrderId);
@@ -934,14 +954,14 @@ namespace Dotmim.Sync.Tests.Models
             });
 
             modelBuilder.Entity<PriceListCategory>()
-                .HasData(new PriceListCategory() { PriceListId = hollydayPriceListId, PriceCategoryId = "BIKES"}
+                .HasData(new PriceListCategory() { PriceListId = hollydayPriceListId, PriceCategoryId = "BIKES" }
                     , new PriceListCategory() { PriceListId = hollydayPriceListId, PriceCategoryId = "CLOTHE", }
                     , new PriceListCategory() { PriceListId = dalyPriceListId, PriceCategoryId = "BIKES", }
                     , new PriceListCategory() { PriceListId = dalyPriceListId, PriceCategoryId = "CLOTHE", }
                     , new PriceListCategory() { PriceListId = dalyPriceListId, PriceCategoryId = "COMPT", }
                     );
 
-            
+
             var dettails = new System.Collections.Generic.List<PriceListDetail>();
             var generator = new Random((int)DateTime.Now.Ticks);
             //Add hollyday price list
@@ -1015,9 +1035,9 @@ namespace Dotmim.Sync.Tests.Models
 
     internal class MyModelCacheKey : ModelCacheKey
     {
-        ProviderType providerType;
-        bool useSchema;
-        bool useSeeding;
+        private readonly ProviderType providerType;
+        private readonly bool useSchema;
+        private readonly bool useSeeding;
 
         public MyModelCacheKey(DbContext context)
             : base(context)
@@ -1025,23 +1045,23 @@ namespace Dotmim.Sync.Tests.Models
 
             AdventureWorksContext adventureWorksContext = (AdventureWorksContext)context;
 
-            providerType = adventureWorksContext.ProviderType;
-            useSchema = adventureWorksContext.useSchema;
-            useSeeding = adventureWorksContext.useSeeding;
+            this.providerType = adventureWorksContext.ProviderType;
+            this.useSchema = adventureWorksContext.useSchema;
+            this.useSeeding = adventureWorksContext.useSeeding;
         }
 
         protected override bool Equals(ModelCacheKey other)
             => base.Equals(other)
-                && (other as MyModelCacheKey)?.providerType == providerType
-                && (other as MyModelCacheKey)?.useSchema == useSchema
-                && (other as MyModelCacheKey)?.useSeeding == useSeeding;
+                && (other as MyModelCacheKey)?.providerType == this.providerType
+                && (other as MyModelCacheKey)?.useSchema == this.useSchema
+                && (other as MyModelCacheKey)?.useSeeding == this.useSeeding;
 
         public override int GetHashCode()
         {
             var hashCode = base.GetHashCode() * 397;
-            hashCode ^= useSchema.GetHashCode();
-            hashCode ^= providerType.GetHashCode();
-            hashCode ^= useSeeding.GetHashCode();
+            hashCode ^= this.useSchema.GetHashCode();
+            hashCode ^= this.providerType.GetHashCode();
+            hashCode ^= this.useSeeding.GetHashCode();
 
             return hashCode;
         }

@@ -204,7 +204,7 @@ namespace Dotmim.Sync
 
                     // Raise event progress only if there are rows to be applied
                     context.SyncStage = SyncStage.TableChangesApplying;
-                    var args = new TableChangesApplyingEventArgs(this.ProviderTypeName, context.SyncStage, table.TableName, applyType);
+                    var args = new TableChangesApplyingEventArgs(this.ProviderTypeName, context.SyncStage, table.TableName, applyType, connection, transaction);
                     this.TryRaiseProgressEvent(args, this.TableChangesApplying);
 
                     int rowsApplied;
@@ -272,7 +272,7 @@ namespace Dotmim.Sync
 
                     // Event progress
                     context.SyncStage = SyncStage.TableChangesApplied;
-                    var progressEventArgs = new TableChangesAppliedEventArgs(this.ProviderTypeName, context.SyncStage, existAppliedChanges);
+                    var progressEventArgs = new TableChangesAppliedEventArgs(this.ProviderTypeName, context.SyncStage, existAppliedChanges, connection, transaction);
                     this.TryRaiseProgressEvent(progressEventArgs, this.TableChangesApplied);
 
                 }
