@@ -35,14 +35,14 @@ jobs:
   # --logger trx;logfilename=TEST.xml : Unexplained arg to publish tests resuls
 
   - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter SqlServerBasicTests --logger trx
-    name: dotnettests
+    name: dotnettestssql
     displayName: 'Tests with SQL Server acting as server'
     env: 
       'MYSQLIP' : $(setvarStep.mySQLIP) 
       'AZUREDEV' : 'true'
 
   - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter MySqlBasicTests --logger trx
-    name: dotnettests
+    name: dotnettestsmysql
     displayName: 'Tests with MySQL Server acting as server'
     env: 
       'MYSQLIP' : $(setvarStep.mySQLIP) 
