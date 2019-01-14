@@ -23,8 +23,8 @@ namespace Dotmim.Sync
         /// <summary>
         /// Intercept the provider action when session end is called
         /// </summary>
-        public static void InterceptSessionEnd(this CoreProvider coreProvider, Func<SessionBeginArgs, Task> func)
-            => coreProvider.GetInterceptor<SessionBeginArgs>().Set(func);
+        public static void InterceptSessionEnd(this CoreProvider coreProvider, Func<SessionEndArgs, Task> func)
+            => coreProvider.GetInterceptor<SessionEndArgs>().Set(func);
 
         /// <summary>
         /// Intercept the provider when schema is readed
