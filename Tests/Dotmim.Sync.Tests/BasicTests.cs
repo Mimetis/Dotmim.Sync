@@ -1653,7 +1653,7 @@ namespace Dotmim.Sync.Tests
                         return Task.CompletedTask;
                     });
 
-                    clientRun.ClientProvider.InterceptSessionBegin(sba =>
+                    clientRun.ClientProvider.InterceptSessionEnd(sba =>
                     {
                         sessionString += "end";
                         return Task.CompletedTask;
