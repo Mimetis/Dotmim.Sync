@@ -214,7 +214,7 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw new SyncException(ex, SyncStage.SchemaApplying, this.ProviderTypeName);
+                throw new SyncException(ex, SyncStage.SchemaApplying);
             }
             finally
             {
@@ -240,26 +240,25 @@ namespace Dotmim.Sync
                     {
                         // Raise event before
                         context.SyncStage = SyncStage.SchemaApplying;
-                        var beforeArgs2 = new SchemaApplyingEventArgs(this.ProviderTypeName, context.SyncStage, message.Schema, connection, transaction);
-                        this.TryRaiseProgressEvent(beforeArgs2, this.SchemaApplying);
-                        var overWriteConfiguration = beforeArgs2.OverwriteConfiguration;
+
+                        this.ReportProgress(context, connection, transaction);
 
                         // if we dont have already read the tables || we want to overwrite the current config
                         if (message.Schema.HasTables && !message.Schema.HasColumns)
                             await this.ReadSchemaAsync(message.Schema, connection, transaction);
 
                         context.SyncStage = SyncStage.SchemaApplied;
-                        var afterArgs = new SchemaAppliedEventArgs(this.ProviderTypeName, context.SyncStage, message.Schema, connection, transaction);
-                        this.TryRaiseProgressEvent(afterArgs, this.SchemaApplied);
+
+                        this.ReportProgress(context, connection, transaction);
+
+                        // launch interceptor if any
+                        await this.InterceptAsync(new SchemaArgs(context, message.Schema, connection, transaction));
 
                         transaction.Commit();
                     }
 
                     connection.Close();
                 }
-
-
-
 
                 return (context, message.Schema);
             }
@@ -269,10 +268,11 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw new SyncException(ex, SyncStage.SchemaApplying, this.ProviderTypeName);
+                throw new SyncException(ex, SyncStage.SchemaApplying);
             }
 
         }
+
 
     }
 }

@@ -1,16 +1,10 @@
-﻿using Dotmim.Sync.Data;
-using Dotmim.Sync.Data.Surrogate;
-using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Manager;
+﻿using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Messages;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
-using System.Diagnostics;
-using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync
@@ -21,15 +15,12 @@ namespace Dotmim.Sync
         /// <summary>
         /// Called when the sync ensure scopes are created
         /// </summary>
-        public virtual async Task<(SyncContext, List<ScopeInfo>)> EnsureScopesAsync
-            (SyncContext context, MessageEnsureScopes message)
+        public virtual async Task<(SyncContext, List<ScopeInfo>)> EnsureScopesAsync (SyncContext context, MessageEnsureScopes message)
         {
             DbConnection connection = null;
             try
             {
-                context.SyncStage = SyncStage.ScopeLoading;
-
-                List<ScopeInfo> scopes = new List<ScopeInfo>();
+                var scopes = new List<ScopeInfo>();
 
                 // Open the connection
                 using (connection = this.CreateConnection())
@@ -66,12 +57,14 @@ namespace Dotmim.Sync
                             scopes = new List<ScopeInfo>();
 
                             // create a new scope id for the current owner (could be server or client as well)
-                            var scope = new ScopeInfo();
-                            scope.Id = Guid.NewGuid();
-                            scope.Name = message.ScopeName;
-                            scope.IsLocal = true;
-                            scope.IsNewScope = true;
-                            scope.LastSync = null;
+                            var scope = new ScopeInfo
+                            {
+                                Id = Guid.NewGuid(),
+                                Name = message.ScopeName,
+                                IsLocal = true,
+                                IsNewScope = true,
+                                LastSync = null
+                            };
 
                             scope = scopeInfoBuilder.InsertOrUpdateScopeInfo(scope);
 
@@ -96,12 +89,14 @@ namespace Dotmim.Sync
 
                             if (refScope == null)
                             {
-                                refScope = new ScopeInfo();
-                                refScope.Id = message.ClientReferenceId.Value;
-                                refScope.Name = message.ScopeName;
-                                refScope.IsLocal = false;
-                                refScope.IsNewScope = true;
-                                refScope.LastSync = null;
+                                refScope = new ScopeInfo
+                                {
+                                    Id = message.ClientReferenceId.Value,
+                                    Name = message.ScopeName,
+                                    IsLocal = false,
+                                    IsNewScope = true,
+                                    LastSync = null
+                                };
 
                                 refScope = scopeInfoBuilder.InsertOrUpdateScopeInfo(refScope);
 
@@ -113,9 +108,10 @@ namespace Dotmim.Sync
                             }
                         }
 
-                        // Event progress
-                        this.TryRaiseProgressEvent(
-                            new ScopeEventArgs(this.ProviderTypeName, context.SyncStage, scopes.FirstOrDefault(s => s.IsLocal), connection, transaction), ScopeLoading);
+                        context.SyncStage = SyncStage.ScopeLoading;
+                        this.ReportProgress(context, connection, transaction);
+
+                        await this.InterceptAsync(new ScopeArgs(context, scopes.FirstOrDefault(s => s.IsLocal), connection, transaction));
 
                         transaction.Commit();
                     }
@@ -123,12 +119,11 @@ namespace Dotmim.Sync
                     connection.Close();
                 }
 
-
                 return (context, scopes);
             }
             catch (Exception ex)
             {
-                throw new SyncException(ex, SyncStage.ScopeLoading, this.ProviderTypeName);
+                throw new SyncException(ex, SyncStage.ScopeLoading);
             }
             finally
             {
@@ -141,7 +136,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Write scope in the provider datasource
         /// </summary>
-        public virtual async Task<SyncContext> WriteScopesAsync(SyncContext context, 
+        public virtual async Task<SyncContext> WriteScopesAsync(SyncContext context,
             MessageWriteScopes message)
         {
             DbConnection connection = null;
@@ -166,10 +161,11 @@ namespace Dotmim.Sync
 
                         context.SyncStage = SyncStage.ScopeSaved;
 
-                        // Event progress
-                        this.TryRaiseProgressEvent(
-                            new ScopeEventArgs(this.ProviderTypeName, context.SyncStage,
-                                            lstScopes.FirstOrDefault(s => s.IsLocal), connection, transaction), ScopeSaved);
+                        this.ReportProgress(context, connection, transaction);
+
+                        await this.InterceptAsync(new ScopeArgs(context, lstScopes.FirstOrDefault(s => s.IsLocal), connection, transaction));
+
+                        this.ReportProgress(context, connection, transaction);
 
                         transaction.Commit();
                     }
@@ -179,7 +175,7 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw new SyncException(ex, SyncStage.ScopeSaved, this.ProviderTypeName);
+                throw new SyncException(ex, SyncStage.ScopeSaved);
             }
             finally
             {
