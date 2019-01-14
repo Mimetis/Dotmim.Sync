@@ -1,3 +1,4 @@
+using Dotmim.Sync.Data;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Test.Misc;
 using Dotmim.Sync.Tests.Core;
@@ -672,13 +673,15 @@ namespace Dotmim.Sync.Tests
                 }
 
                 // register applychangedfailed to all sync agent 
-                void applyChangedFailed(object s, ApplyChangeFailedEventArgs changeFailedEventAgrs)
+                Task applyChangedFailed(ApplyChangesFailedArgs changeFailedEventAgrs)
                 {
-                    changeFailedEventAgrs.Action = ConflictAction.ClientWins;
+
+                    changeFailedEventAgrs.Resolution = ConflictResolution.ClientWins;
+                    return Task.CompletedTask;
                 }
 
-                this.testRunner.BeginRun = provider => provider.ApplyChangedFailed += applyChangedFailed;
-                this.testRunner.EndRun = provider => provider.ApplyChangedFailed -= applyChangedFailed;
+                this.testRunner.BeginRun = provider => provider.InterceptApplyChangesFailed(applyChangedFailed);
+
 
                 var results = await this.testRunner.RunTestsAsync(conf);
 
@@ -829,13 +832,13 @@ namespace Dotmim.Sync.Tests
                 }
 
                 // register applychangedfailed to all sync agent 
-                void applyChangedFailed(object s, ApplyChangeFailedEventArgs changeFailedEventAgrs)
+                Task applyChangesFailed(ApplyChangesFailedArgs changeFailedEventAgrs)
                 {
-                    changeFailedEventAgrs.Action = ConflictAction.ClientWins;
+                    changeFailedEventAgrs.Resolution = ConflictResolution.ClientWins;
+                    return Task.CompletedTask;
                 }
 
-                this.testRunner.BeginRun = provider => provider.ApplyChangedFailed += applyChangedFailed;
-                this.testRunner.EndRun = provider => provider.ApplyChangedFailed -= applyChangedFailed;
+                this.testRunner.BeginRun = provider => provider.InterceptApplyChangesFailed(applyChangesFailed);
 
                 var results = await this.testRunner.RunTestsAsync(conf);
 
@@ -911,14 +914,14 @@ namespace Dotmim.Sync.Tests
                     await serverDbCtx.SaveChangesAsync();
                 }
 
-                void applyChangedFailed(object s, ApplyChangeFailedEventArgs changeFailedEventAgrs)
+                Task applyChangesFailed(ApplyChangesFailedArgs changeFailedEventAgrs)
                 {
-                    changeFailedEventAgrs.Action = ConflictAction.MergeRow;
+                    changeFailedEventAgrs.Resolution = ConflictResolution.MergeRow;
                     changeFailedEventAgrs.FinalRow["Name"] = productCategoryNameMerged;
+                    return Task.CompletedTask;
                 };
 
-                this.testRunner.BeginRun = provider => provider.ApplyChangedFailed += applyChangedFailed;
-                this.testRunner.EndRun = provider => provider.ApplyChangedFailed -= applyChangedFailed;
+                this.testRunner.BeginRun = provider => provider.InterceptApplyChangesFailed(applyChangesFailed);
 
                 var results = await this.testRunner.RunTestsAsync(conf);
 
@@ -1255,8 +1258,19 @@ namespace Dotmim.Sync.Tests
                 // generate a sync conf to host the schema
                 var conf = new SyncConfiguration(this.fixture.Tables);
 
+
+                // just check interceptor
+                localProvider.InterceptTabeProvisioning(args =>
+                {
+                    Assert.Equal(SyncProvision.All, args.Provision);
+                    return Task.CompletedTask;
+                });
+
+
                 // Provision the database with all tracking tables, stored procedures, triggers and scope
                 await localProvider.ProvisionAsync(conf, SyncProvision.All);
+
+                localProvider.InterceptNone();
 
                 //--------------------------
                 // ASSERTION
@@ -1320,10 +1334,18 @@ namespace Dotmim.Sync.Tests
                     }
                 }
 
+                // just check interceptor
+                localProvider.InterceptTabeDeprovisioning(args =>
+                {
+                    Assert.Equal(SyncProvision.All, args.Provision);
+                    return Task.CompletedTask;
+                });
+
 
                 // Provision the database with all tracking tables, stored procedures, triggers and scope
                 await localProvider.DeprovisionAsync(conf, SyncProvision.All);
 
+                localProvider.InterceptNone();
 
                 // get the db manager
                 foreach (var dmTable in conf.Schema.Tables)
@@ -1487,7 +1509,7 @@ namespace Dotmim.Sync.Tests
                     var trr = await clientRun.RunAsync(this.ServerProvider, this.fixture, null, null, conf, false);
                     Assert.Equal(2, trr.Results.TotalChangesUploaded);
                 }
-               
+
             }
         }
 
@@ -1515,10 +1537,10 @@ namespace Dotmim.Sync.Tests
                     }
 
                     // Sleep during a selecting changes on first sync
-                    void tableChangesSelected(object s, TableChangesSelectedEventArgs changes)
+                    Task tableChangesSelected(TableChangesSelectedArgs changes)
                     {
                         if (changes.TableChangesSelected.TableName != "PricesList")
-                            return;
+                            return Task.CompletedTask;
 
                         var randomString = Path.GetRandomFileName().Replace(".", "");
                         var randomGuid = Guid.NewGuid();
@@ -1550,24 +1572,153 @@ namespace Dotmim.Sync.Tests
                             Console.WriteLine(ex.Message);
                             throw;
                         }
+                        return Task.CompletedTask;
                     };
 
                     // during first run, add a new row during selection on client (very first step of whole sync process)
-                    clientRun.ClientProvider.TableChangesSelected += tableChangesSelected;
+                    clientRun.ClientProvider.InterceptTableChangesSelected(tableChangesSelected);
+
                     var trr = await clientRun.RunAsync(this.ServerProvider, this.fixture, null, null, conf, false);
-                    clientRun.ClientProvider.TableChangesSelected -= tableChangesSelected;
 
                     Assert.Equal(cpt, trr.Results.TotalChangesDownloaded);
                     Assert.Equal(1, trr.Results.TotalChangesUploaded);
                     cpt = cpt + 2;
 
                     // then 2nd run to get row inserted DURING last sync
+                    clientRun.ClientProvider.InterceptTableChangesSelected(null);
+
                     var trr2 = await clientRun.RunAsync(this.ServerProvider, this.fixture, null, null, conf, false);
                     Debug.WriteLine($"{trr2.ClientProvider.ConnectionString}: Upload={trr2.Results.TotalChangesUploaded}");
 
                     Assert.Equal(0, trr2.Results.TotalChangesDownloaded);
                     Assert.Equal(1, trr2.Results.TotalChangesUploaded);
                 }
+            }
+        }
+
+
+        public virtual async Task Check_Interceptors()
+        {
+
+
+            // create new ProductCategory on server
+            foreach (var conf in TestConfigurations.GetConfigurations())
+            {
+                foreach (var clientRun in this.fixture.ClientRuns)
+                {
+                    // reset all
+
+                    await this.testRunner.RunTestsAsync(conf);
+
+                    var productId = Guid.NewGuid();
+                    var productName = Path.GetRandomFileName().Replace(".", "");
+                    var productNumber = productName.ToUpperInvariant().Substring(0, 10);
+
+                    var productCategoryName = Path.GetRandomFileName().Replace(".", "");
+                    var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
+
+                    // insert 2 rows
+                    using (var serverDbCtx = this.GetServerDbContext())
+                    {
+                        var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
+                        serverDbCtx.Add(pc);
+
+                        var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber };
+                        serverDbCtx.Add(product);
+
+                        await serverDbCtx.SaveChangesAsync();
+                    }
+
+                    var clientProductCategoryName = Path.GetRandomFileName().Replace(".", "");
+                    var clientProductCategoryId = clientProductCategoryName.ToUpperInvariant().Substring(0, 6);
+
+                    var clientProductId = Guid.NewGuid();
+                    var clientProductName = Path.GetRandomFileName().Replace(".", "");
+                    var clientProductNumber = clientProductName.ToUpperInvariant().Substring(0, 10);
+
+                    using (var ctx = this.GetClientDbContext(clientRun))
+                    {
+                        var pc = new ProductCategory { ProductCategoryId = clientProductCategoryId, Name = clientProductCategoryName };
+                        ctx.Add(pc);
+                        var product = new Product { ProductId = clientProductId, Name = clientProductName, ProductNumber = clientProductNumber, ProductCategoryId = clientProductCategoryId };
+                        ctx.Add(product);
+
+                        await ctx.SaveChangesAsync();
+                    }
+
+                    string sessionString = "";
+                    clientRun.ClientProvider.InterceptSessionBegin(sba =>
+                    {
+                        sessionString += "begin";
+                        return Task.CompletedTask;
+                    });
+
+                    clientRun.ClientProvider.InterceptSessionBegin(sba =>
+                    {
+                        sessionString += "end";
+                        return Task.CompletedTask;
+                    });
+
+                    // Intercept Changes applying
+                    clientRun.ClientProvider.InterceptTableChangesApplying(args =>
+                    {
+                        if (args.TableName == "ProductCategory")
+                            Assert.Equal(DmRowState.Added, args.State);
+
+                        if (args.TableName == "Product")
+                            Assert.Equal(DmRowState.Added, args.State);
+
+                        return Task.CompletedTask;
+
+                    });
+
+                    // Intercept Changes applied
+                    clientRun.ClientProvider.InterceptTableChangesApplied(args =>
+                    {
+                        if (args.TableChangesApplied.TableName == "ProductCategory")
+                        {
+                            Assert.Equal(DmRowState.Added, args.TableChangesApplied.State);
+                            Assert.Equal(1, args.TableChangesApplied.Applied);
+                        }
+
+                        if (args.TableChangesApplied.TableName == "Product")
+                        {
+                            Assert.Equal(DmRowState.Added, args.TableChangesApplied.State);
+                            Assert.Equal(1, args.TableChangesApplied.Applied);
+                        }
+
+                        return Task.CompletedTask;
+
+                    });
+
+                    // Intercept Changes Selected
+                    clientRun.ClientProvider.InterceptTableChangesSelected(args =>
+                    {
+                        if (args.TableChangesSelected.TableName == "ProductCategory")
+                            Assert.Equal(1, args.TableChangesSelected.Inserts);
+
+                        if (args.TableChangesSelected.TableName == "Product")
+                            Assert.Equal(1, args.TableChangesSelected.Inserts);
+                        return Task.CompletedTask;
+                    });
+
+                    clientRun.ClientProvider.InterceptSchema(args =>
+                    {
+                        Assert.True(args.Schema.HasTables);
+                        return Task.CompletedTask;
+                    });
+
+                    
+                    await clientRun.RunAsync(this.ServerProvider, this.fixture, null, null, conf, false);
+
+                    //Assert we have go through begin and end session
+                    Assert.Equal("beginend", sessionString);
+
+                    // Reset interceptors
+                    clientRun.ClientProvider.InterceptNone();
+
+                }
+
             }
         }
     }

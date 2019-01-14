@@ -11,6 +11,7 @@ using System.Linq;
 using Dotmim.Sync.Builders;
 using System.Diagnostics;
 using System.ComponentModel;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
@@ -23,12 +24,6 @@ namespace Dotmim.Sync
     public abstract class DbSyncAdapter
     {
         private const int BATCH_SIZE = 1000;
-
-        public delegate (ApplyAction, DmRow) ConflictActionDelegate(SyncConflict conflict, ConflictResolutionPolicy policy, DbConnection connection, DbTransaction transaction = null);
-
-        public ConflictActionDelegate ConflictActionInvoker = null;
-
-        internal ApplyAction ConflictApplyAction { get; set; } = ApplyAction.Continue;
 
         /// <summary>
         /// Gets the table description, a dmTable with no rows
@@ -225,7 +220,7 @@ namespace Dotmim.Sync
         /// Try to get a source row
         /// </summary>
         /// <returns></returns>
-        private DmTable GetRow(DmRow sourceRow)
+        internal DmTable GetRow(DmRow sourceRow)
         {
             // Get the row in the local repository
             using (DbCommand selectCommand = GetCommand(DbCommandType.SelectRow))
@@ -755,213 +750,6 @@ namespace Dotmim.Sync
             }
         }
 
-
-        /// <summary>
-        /// Handle a conflict
-        /// The int returned is the conflict count I need 
-        /// </summary>
-        internal (ChangeApplicationAction, int) HandleConflict(SyncConflict conflict, ConflictResolutionPolicy policy, ScopeInfo scope, long fromScopeLocalTimeStamp, out DmRow finalRow)
-        {
-            finalRow = null;
-
-            // overwrite apply action if we handle it (ie : user wants to change the action)
-            if (this.ConflictActionInvoker != null)
-                (ConflictApplyAction, finalRow) = this.ConflictActionInvoker(conflict, policy, Connection, Transaction);
-
-            // Default behavior and an error occured
-            if (ConflictApplyAction == ApplyAction.Rollback)
-            {
-                conflict.ErrorMessage = "Rollback action taken on conflict";
-                conflict.Type = ConflictType.ErrorsOccurred;
-
-                return (ChangeApplicationAction.Rollback, 0);
-            }
-
-            // Local provider wins, update metadata
-            if (ConflictApplyAction == ApplyAction.Continue)
-            {
-                var isMergeAction = finalRow != null;
-                var row = isMergeAction ? finalRow : conflict.LocalRow;
-
-                // Conflict on a line that is not present on the datasource
-                if (row == null)
-                    return (ChangeApplicationAction.Continue, 0);
-
-                if (row != null)
-                {
-                    // if we have a merge action, we apply the row on the server
-                    if (isMergeAction)
-                    {
-                        bool isUpdated = false;
-                        bool isInserted = false;
-                        // Insert metadata is a merge, actually
-                        DbCommandType commandType = DbCommandType.UpdateMetadata;
-
-                        isUpdated = this.ApplyUpdate(row, scope, true);
-
-                        if (!isUpdated)
-                        {
-                            // Insert the row
-                            isInserted = this.ApplyInsert(row, scope, true);
-                            // Then update the row to mark this row as updated from server
-                            // and get it back to client 
-                            isUpdated = this.ApplyUpdate(row, scope, true);
-
-                            commandType = DbCommandType.InsertMetadata;
-                        }
-
-                        if (!isUpdated && !isInserted)
-                            throw new Exception("Can't update the merge row.");
-
-
-                        // IF we have insert the row in the server side, to resolve the conflict
-                        // Whe should update the metadatas correctly
-                        if (isUpdated || isInserted)
-                        {
-                            using (var metadataCommand = GetCommand(commandType))
-                            {
-                                // getting the row updated from server
-                                var dmTableRow = GetRow(row);
-                                row = dmTableRow.Rows[0];
-
-                                // Deriving Parameters
-                                this.SetCommandParameters(commandType, metadataCommand);
-
-                                // Set the id parameter
-                                this.SetColumnParametersValues(metadataCommand, row);
-
-                                DmRowVersion version = row.RowState == DmRowState.Deleted ? DmRowVersion.Original : DmRowVersion.Current;
-
-                                Guid? create_scope_id = row["create_scope_id"] != DBNull.Value ? (Guid?)row["create_scope_id"] : null;
-                                long createTimestamp = row["create_timestamp", version] != DBNull.Value ? Convert.ToInt64(row["create_timestamp", version]) : 0;
-
-                                // The trick is to force the row to be "created before last sync"
-                                // Even if we just inserted it
-                                // to be able to get the row in state Updated (and not Added)
-                                row["create_scope_id"] = create_scope_id;
-                                row["create_timestamp"] = fromScopeLocalTimeStamp - 1;
-
-                                // Update scope id is set to server side
-                                Guid? update_scope_id = row["update_scope_id"] != DBNull.Value ? (Guid?)row["update_scope_id"] : null;
-                                long updateTimestamp = row["update_timestamp", version] != DBNull.Value ? Convert.ToInt64(row["update_timestamp", version]) : 0;
-
-                                row["update_scope_id"] = null;
-                                row["update_timestamp"] = updateTimestamp;
-
-
-                                // apply local row, set scope.id to null becoz applied locally
-                                var rowsApplied = this.InsertOrUpdateMetadatas(metadataCommand, row, null);
-
-                                if (!rowsApplied)
-                                    throw new Exception("No metadatas rows found, can't update the server side");
-
-                            }
-                        }
-                    }
-
-                    finalRow = isMergeAction ? row : conflict.LocalRow;
-
-                    // We don't do anything on the local provider, so we do not need to return a +1 on syncConflicts count
-                    return (ChangeApplicationAction.Continue, 0);
-                }
-                return (ChangeApplicationAction.Rollback, 0);
-            }
-
-            // We gonna apply with force the line
-            if (ConflictApplyAction == ApplyAction.RetryWithForceWrite)
-            {
-                if (conflict.RemoteRow == null)
-                {
-                    // TODO : Should Raise an error ?
-                    return (ChangeApplicationAction.Rollback, 0);
-                }
-
-                bool operationComplete = false;
-
-                // create a localscope to override values
-                var localScope = new ScopeInfo { Name = scope.Name, Timestamp = fromScopeLocalTimeStamp };
-
-                DbCommandType commandType = DbCommandType.InsertMetadata;
-                bool needToUpdateMetadata = true;
-
-                switch (conflict.Type)
-                {
-                    // Remote source has row, Local don't have the row, so insert it
-                    case ConflictType.RemoteUpdateLocalNoRow:
-                    case ConflictType.RemoteInsertLocalNoRow:
-                        operationComplete = this.ApplyInsert(conflict.RemoteRow, localScope, true);
-                        commandType = DbCommandType.InsertMetadata;
-                        break;
-
-                    // Conflict, but both have delete the row, so nothing to do
-                    case ConflictType.RemoteDeleteLocalDelete:
-                    case ConflictType.RemoteDeleteLocalNoRow:
-                        operationComplete = true;
-                        needToUpdateMetadata = false;
-                        break;
-
-                    // The remote has delete the row, and local has insert or update it
-                    // So delete the local row
-                    case ConflictType.RemoteDeleteLocalUpdate:
-                    case ConflictType.RemoteDeleteLocalInsert:
-                        operationComplete = this.ApplyDelete(conflict.RemoteRow, localScope, true);
-                        commandType = DbCommandType.UpdateMetadata;
-                        break;
-
-
-                    // Remote insert and local delete, sor insert again on local
-                    // but tracking line exist, so make an update on metadata
-                    case ConflictType.RemoteInsertLocalDelete:
-                    case ConflictType.RemoteUpdateLocalDelete:
-                        operationComplete = this.ApplyInsert(conflict.RemoteRow, localScope, true);
-                        commandType = DbCommandType.UpdateMetadata;
-                        break;
-
-                    // Remote insert and local insert/ update, take the remote row and update the local row
-                    case ConflictType.RemoteUpdateLocalInsert:
-                    case ConflictType.RemoteUpdateLocalUpdate:
-                    case ConflictType.RemoteInsertLocalInsert:
-                    case ConflictType.RemoteInsertLocalUpdate:
-                        operationComplete = this.ApplyUpdate(conflict.RemoteRow, localScope, true);
-                        commandType = DbCommandType.UpdateMetadata;
-                        break;
-
-                    case ConflictType.RemoteCleanedupDeleteLocalUpdate:
-                    case ConflictType.ErrorsOccurred:
-                        return (ChangeApplicationAction.Rollback, 0);
-                }
-
-                if (needToUpdateMetadata)
-                {
-                    using (var metadataCommand = GetCommand(commandType))
-                    {
-                        // Deriving Parameters
-                        this.SetCommandParameters(commandType, metadataCommand);
-
-                        // force applying client row, so apply scope.id (client scope here)
-                        var rowsApplied = this.InsertOrUpdateMetadatas(metadataCommand, conflict.RemoteRow, scope.Id);
-                        if (!rowsApplied)
-                            throw new Exception("No metadatas rows found, can't update the server side");
-                    }
-                }
-
-                finalRow = conflict.RemoteRow;
-
-                //After a force update, there is a problem, so raise exception
-                if (!operationComplete)
-                {
-                    var ex = $"Can't force operation for applyType {ApplyType}";
-                    finalRow = null;
-                    return (ChangeApplicationAction.Continue, 0);
-                }
-
-                // tableProgress.ChangesApplied += 1;
-                return (ChangeApplicationAction.Continue, 1);
-            }
-
-            return (ChangeApplicationAction.Rollback, 0);
-
-        }
 
         /// <summary>
         /// Trace info

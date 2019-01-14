@@ -54,32 +54,6 @@ namespace Dotmim.Sync
         /// </summary>
         public SyncParameterCollection Parameters { get; set; } = new SyncParameterCollection();
 
-
-        // Read only SyncProgress for all SyncStage
-        public event EventHandler<ProgressEventArgs> SyncProgress = null;
-
-        // Types events for each SyncStage
-        public event EventHandler<BeginSessionEventArgs> BeginSession = null;
-        public event EventHandler<EndSessionEventArgs> EndSession = null;
-        public event EventHandler<ScopeEventArgs> ScopeLoading = null;
-        public event EventHandler<ScopeEventArgs> ScopeSaved = null;
-        public event EventHandler<DatabaseApplyingEventArgs> DatabaseApplying = null;
-        public event EventHandler<DatabaseAppliedEventArgs> DatabaseApplied = null;
-        public event EventHandler<DatabaseTableApplyingEventArgs> DatabaseTableApplying = null;
-        public event EventHandler<DatabaseTableAppliedEventArgs> DatabaseTableApplied = null;
-        public event EventHandler<SchemaApplyingEventArgs> SchemaApplying = null;
-        public event EventHandler<SchemaAppliedEventArgs> SchemaApplied = null;
-        public event EventHandler<TableChangesSelectingEventArgs> TableChangesSelecting = null;
-        public event EventHandler<TableChangesSelectedEventArgs> TableChangesSelected = null;
-        public event EventHandler<TableChangesApplyingEventArgs> TableChangesApplying = null;
-        public event EventHandler<TableChangesAppliedEventArgs> TableChangesApplied = null;
-
-
-        /// <summary>
-        /// Occurs when a conflict is raised on the server side
-        /// </summary>
-        public event EventHandler<ApplyChangeFailedEventArgs> ApplyChangedFailed = null;
-
         /// <summary>
         /// Occurs when sync is starting, ending
         /// </summary>
@@ -98,23 +72,6 @@ namespace Dotmim.Sync
             {
                 ScopeName = scopeName ?? throw new ArgumentNullException("scopeName")
             };
-            this.LocalProvider.SyncProgress += (s, e) => this.SyncProgress?.Invoke(s, e);
-            this.LocalProvider.BeginSession += (s, e) => this.BeginSession?.Invoke(s, e);
-            this.LocalProvider.EndSession += (s, e) => this.EndSession?.Invoke(s, e);
-            this.LocalProvider.TableChangesApplied += (s, e) => this.TableChangesApplied?.Invoke(s, e);
-            this.LocalProvider.TableChangesApplying += (s, e) => this.TableChangesApplying?.Invoke(s, e);
-            this.LocalProvider.TableChangesSelected += (s, e) => this.TableChangesSelected?.Invoke(s, e);
-            this.LocalProvider.TableChangesSelecting += (s, e) => this.TableChangesSelecting?.Invoke(s, e);
-            this.LocalProvider.SchemaApplied += (s, e) => this.SchemaApplied?.Invoke(s, e);
-            this.LocalProvider.SchemaApplying += (s, e) => this.SchemaApplying?.Invoke(s, e);
-            this.LocalProvider.DatabaseApplied += (s, e) => this.DatabaseApplied?.Invoke(s, e);
-            this.LocalProvider.DatabaseApplying += (s, e) => this.DatabaseApplying?.Invoke(s, e);
-            this.LocalProvider.DatabaseTableApplied += (s, e) => this.DatabaseTableApplied?.Invoke(s, e);
-            this.LocalProvider.DatabaseTableApplying += (s, e) => this.DatabaseTableApplying?.Invoke(s, e);
-            this.LocalProvider.ScopeLoading += (s, e) => this.ScopeLoading?.Invoke(s, e);
-            this.LocalProvider.ScopeSaved += (s, e) => this.ScopeSaved?.Invoke(s, e);
-
-            this.RemoteProvider.ApplyChangedFailed += this.RemoteProvider_ApplyChangedFailed;
         }
 
 
@@ -169,6 +126,11 @@ namespace Dotmim.Sync
         public async Task<SyncContext> SynchronizeAsync(CancellationToken cancellationToken) => await this.SynchronizeAsync(SyncType.Normal, cancellationToken);
 
         /// <summary>
+        /// Launch a normal synchronization with a progress object
+        /// </summary>
+        public async Task<SyncContext> SynchronizeAsync(IProgress<ProgressArgs> progress) => await this.SynchronizeAsync(SyncType.Normal, CancellationToken.None, progress);
+
+        /// <summary>
         /// Launch a synchronization with the specified mode
         /// </summary>
         public async Task<SyncContext> SynchronizeAsync(SyncType syncType) => await this.SynchronizeAsync(syncType, CancellationToken.None);
@@ -176,7 +138,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Launch a synchronization with the specified mode
         /// </summary>
-        public async Task<SyncContext> SynchronizeAsync(SyncType syncType, CancellationToken cancellationToken)
+        public async Task<SyncContext> SynchronizeAsync(SyncType syncType, CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
             // Context, used to back and forth data between servers
             var context = new SyncContext(Guid.NewGuid())
@@ -209,6 +171,10 @@ namespace Dotmim.Sync
                 // Setting the cancellation token
                 this.LocalProvider.SetCancellationToken(cancellationToken);
                 this.RemoteProvider.SetCancellationToken(cancellationToken);
+
+                // Setting progress
+                this.LocalProvider.SetProgress(progress);
+                this.RemoteProvider.SetProgress(progress);
 
                 if (this.Options == null)
                     this.Options = new SyncOptions();
@@ -341,10 +307,10 @@ namespace Dotmim.Sync
                 BatchInfo clientBatchInfo;
                 BatchInfo serverBatchInfo;
 
-                ChangesSelected clientChangesSelected = null;
-                ChangesSelected serverChangesSelected = null;
-                ChangesApplied clientChangesApplied = null;
-                ChangesApplied serverChangesApplied = null;
+                DatabaseChangesSelected clientChangesSelected = null;
+                DatabaseChangesSelected serverChangesSelected = null;
+                DatabaseChangesApplied clientChangesApplied = null;
+                DatabaseChangesApplied serverChangesApplied = null;
 
                 // those timestamps will be registered as the "timestamp just before launch the sync"
                 long serverTimestamp, clientTimestamp;
@@ -584,13 +550,13 @@ namespace Dotmim.Sync
             }
             catch (SyncException se)
             {
-                Console.WriteLine($"Sync Exception: {se.Message}. Type:{se.Type}. On provider: {se.ProviderName}.");
+                Console.WriteLine($"Sync Exception: {se.Message}. Type:{se.Type}.");
                 throw;
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Unknwon Exception: {ex.Message}.");
-                throw new SyncException(ex, SyncStage.None, string.Empty);
+                throw new SyncException(ex, SyncStage.None);
             }
             finally
             {
@@ -605,10 +571,7 @@ namespace Dotmim.Sync
             return context;
         }
 
-
-        private void RemoteProvider_ApplyChangedFailed(object sender, ApplyChangeFailedEventArgs e) => this.ApplyChangedFailed?.Invoke(this, e);
-
-
+        
         // --------------------------------------------------------------------
         // Dispose
         // --------------------------------------------------------------------
@@ -628,20 +591,20 @@ namespace Dotmim.Sync
         /// </summary>
         protected virtual void Dispose(bool cleanup)
         {
-            this.LocalProvider.BeginSession -= (s, e) => this.BeginSession?.Invoke(s, e);
-            this.LocalProvider.EndSession -= (s, e) => this.EndSession?.Invoke(s, e);
-            this.LocalProvider.TableChangesApplied -= (s, e) => this.TableChangesApplied?.Invoke(s, e);
-            this.LocalProvider.TableChangesApplying -= (s, e) => this.TableChangesApplying?.Invoke(s, e);
-            this.LocalProvider.TableChangesSelected -= (s, e) => this.TableChangesSelected?.Invoke(s, e);
-            this.LocalProvider.TableChangesSelecting -= (s, e) => this.TableChangesSelecting?.Invoke(s, e);
-            this.LocalProvider.SchemaApplied -= (s, e) => this.SchemaApplied?.Invoke(s, e);
-            this.LocalProvider.SchemaApplying -= (s, e) => this.SchemaApplying?.Invoke(s, e);
-            this.LocalProvider.DatabaseApplied -= (s, e) => this.DatabaseApplied?.Invoke(s, e);
-            this.LocalProvider.DatabaseApplying -= (s, e) => this.DatabaseApplying?.Invoke(s, e);
-            this.LocalProvider.ScopeLoading -= (s, e) => this.ScopeLoading?.Invoke(s, e);
-            this.LocalProvider.ScopeSaved -= (s, e) => this.ScopeSaved?.Invoke(s, e);
+            //this.LocalProvider.BeginSession -= (s, e) => this.BeginSession?.Invoke(s, e);
+            //this.LocalProvider.EndSession -= (s, e) => this.EndSession?.Invoke(s, e);
+            //this.LocalProvider.TableChangesApplied -= (s, e) => this.TableChangesApplied?.Invoke(s, e);
+            //this.LocalProvider.TableChangesApplying -= (s, e) => this.TableChangesApplying?.Invoke(s, e);
+            //this.LocalProvider.TableChangesSelected -= (s, e) => this.TableChangesSelected?.Invoke(s, e);
+            //this.LocalProvider.TableChangesSelecting -= (s, e) => this.TableChangesSelecting?.Invoke(s, e);
+            //this.LocalProvider.SchemaApplied -= (s, e) => this.SchemaApplied?.Invoke(s, e);
+            //this.LocalProvider.SchemaApplying -= (s, e) => this.SchemaApplying?.Invoke(s, e);
+            //this.LocalProvider.DatabaseApplied -= (s, e) => this.DatabaseApplied?.Invoke(s, e);
+            //this.LocalProvider.DatabaseApplying -= (s, e) => this.DatabaseApplying?.Invoke(s, e);
+            //this.LocalProvider.ScopeLoading -= (s, e) => this.ScopeLoading?.Invoke(s, e);
+            //this.LocalProvider.ScopeSaved -= (s, e) => this.ScopeSaved?.Invoke(s, e);
 
-            this.RemoteProvider.ApplyChangedFailed -= this.RemoteProvider_ApplyChangedFailed;
+            //this.RemoteProvider.ApplyChangedFailed -= this.RemoteProvider_ApplyChangedFailed;
         }
     }
 }

@@ -45,7 +45,7 @@ namespace Dotmim.Sync.Tests
 
             if (!IsOnAzureDev)
             {
-                providerFixture.AddRun((ProviderType.Sql, NetworkType.Tcp), ProviderType.MySql | ProviderType.Sql | ProviderType.Sqlite);
+                providerFixture.AddRun((ProviderType.Sql, NetworkType.Tcp), ProviderType.Sql | ProviderType.Sqlite);
                 providerFixture.AddRun((ProviderType.MySql, NetworkType.Tcp), ProviderType.MySql | ProviderType.Sql | ProviderType.Sqlite);
             }
             else
