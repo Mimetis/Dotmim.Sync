@@ -1,10 +1,12 @@
 ﻿using Dotmim.Sync;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.SampleConsole;
+using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Web.Client;
 using Dotmim.Sync.Web.Server;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Data.Sqlite;
 using System;
 using System.Data;
 using System.Data.SqlClient;
@@ -17,7 +19,7 @@ internal class Program
 {
     private static void Main(string[] args)
     {
-        TestSync().GetAwaiter().GetResult();
+        TestKasiSample().GetAwaiter().GetResult();
 
         Console.ReadLine();
     }
@@ -445,6 +447,42 @@ internal class Program
 
         Console.WriteLine("End");
     }
+
+    private static async Task TestKasiSample()
+    {
+        var serverProvider = new SqlSyncProvider(GetDatabaseConnectionString("kasi"));
+        var builder = new SqliteConnectionStringBuilder { DataSource = Path.Combine(Directory.GetCurrentDirectory(), "kasi.db") };
+        var clientProvider = new SqliteSyncProvider(builder);
+
+        var tables = new string[] {"r_kasi", "r_payment_types", "r_kasi_payment_types" };
+
+        var agent = new SyncAgent(clientProvider, serverProvider, tables);
+
+        do
+        {
+            Console.Clear();
+            Console.WriteLine("Sync Start");
+            try
+            {
+                var s1 = await agent.SynchronizeAsync();
+                Console.WriteLine(s1);
+            }
+            catch (SyncException e)
+            {
+                Console.WriteLine(e.ToString());
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+            }
+
+
+            //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+        Console.WriteLine("End");
+    }
+
 
     public static void DeleteDatabase(string dbName)
     {

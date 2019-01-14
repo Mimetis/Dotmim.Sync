@@ -13,6 +13,7 @@ So you must use it on classic .NET Framework ( &gt; 4.5)</Description>
     <VersionSuffix>$(VersionSuffix)</VersionSuffix>
     <Version>0.3.0</Version>
     <Version Condition=" '$(VersionSuffix)' != '' ">$(Version)-$(VersionSuffix)</Version>
+    <LangVersion>7.3</LangVersion>
   </PropertyGroup>
 
   <!--generate NUGET package including symbols ans source on each release build -->

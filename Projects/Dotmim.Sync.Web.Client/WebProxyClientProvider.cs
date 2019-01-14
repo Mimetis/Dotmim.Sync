@@ -28,33 +28,35 @@ namespace Dotmim.Sync.Web.Client
         private readonly HttpRequestHandler httpRequestHandler;
         private CancellationToken cancellationToken;
 
-        //public event EventHandler<ProgressEventArgs> SyncProgress;
-        public event EventHandler<ApplyChangeFailedEventArgs> ApplyChangedFailed;
-        //public event EventHandler<BeginSessionEventArgs> BeginSession;
-        //public event EventHandler<EndSessionEventArgs> EndSession;
-        //public event EventHandler<ScopeEventArgs> ScopeLoading;
-        //public event EventHandler<ScopeEventArgs> ScopeSaved;
-        //public event EventHandler<DatabaseApplyingEventArgs> DatabaseApplying;
-        //public event EventHandler<DatabaseAppliedEventArgs> DatabaseApplied;
-        //public event EventHandler<DatabaseTableApplyingEventArgs> DatabaseTableApplying;
-        //public event EventHandler<DatabaseTableAppliedEventArgs> DatabaseTableApplied;
-        //public event EventHandler<SchemaApplyingEventArgs> SchemaApplying;
-        //public event EventHandler<SchemaAppliedEventArgs> SchemaApplied;
-        //public event EventHandler<TableChangesSelectingEventArgs> TableChangesSelecting;
-        //public event EventHandler<TableChangesSelectedEventArgs> TableChangesSelected;
-        //public event EventHandler<TableChangesApplyingEventArgs> TableChangesApplying;
-        //public event EventHandler<TableChangesAppliedEventArgs> TableChangesApplied;
-
         public Dictionary<string, string> CustomHeaders => this.httpRequestHandler.CustomHeaders;
         public Dictionary<string, string> ScopeParameters => this.httpRequestHandler.ScopeParameters;
 
         public SyncOptions Options { get; set; }
 
+
+        public void SetCancellationToken(CancellationToken token) => this.cancellationToken = token;
+
+        /// <summary>
+        ///  The proxy client does not report any progress
+        /// </summary>
+        /// <param name="progress"></param>
+        public void SetProgress(IProgress<ProgressArgs> progress) { }
+
+        /// <summary>
+        /// The proxy client does not interecot changes failed
+        /// Failed changes are handled by the server side only
+        /// </summary>
+        public void InterceptApplyChangesFailed(Func<ApplyChangesFailedArgs, Task> action) { }
+
+        /// <summary>
+        /// Gets or Sets the service uri to the server side
+        /// </summary>
         public Uri ServiceUri
         {
             get => this.httpRequestHandler.BaseUri;
             set => this.httpRequestHandler.BaseUri = value;
         }
+
         public CancellationToken CancellationToken
         {
             get => this.httpRequestHandler.CancellationToken;
@@ -140,7 +142,6 @@ namespace Dotmim.Sync.Web.Client
 
             return (httpMessageResponse.SyncContext, httpMessageContent.Configuration);
         }
-
 
         public async Task<SyncContext> EndSessionAsync(SyncContext context)
         {
@@ -253,7 +254,7 @@ namespace Dotmim.Sync.Web.Client
             return httpMessageResponse.SyncContext;
         }
 
-        public async Task<(SyncContext, BatchInfo, ChangesSelected)> GetChangeBatchAsync(
+        public async Task<(SyncContext, BatchInfo, DatabaseChangesSelected)> GetChangeBatchAsync(
             SyncContext context, MessageGetChangesBatch message)
         {
             // While we have an other batch to process
@@ -267,7 +268,7 @@ namespace Dotmim.Sync.Web.Client
             changes.GenerateNewDirectoryName();
 
             SyncContext syncContext = null;
-            ChangesSelected changesSelected = null;
+            DatabaseChangesSelected changesSelected = null;
 
             while (!isLastBatch)
             {
@@ -357,16 +358,16 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// Send changes to server
         /// </summary>
-        public async Task<(SyncContext, ChangesApplied)> ApplyChangesAsync(SyncContext context, MessageApplyChanges message)
+        public async Task<(SyncContext, DatabaseChangesApplied)> ApplyChangesAsync(SyncContext context, MessageApplyChanges message)
         {
             if (message.Changes == null || message.Changes.BatchPartsInfo.Count == 0)
             {
                 message.Changes?.Clear(this.Options.CleanMetadatas);
-                return (context, new ChangesApplied());
+                return (context, new DatabaseChangesApplied());
             }
 
             SyncContext syncContext = null;
-            ChangesApplied changesApplied = null;
+            DatabaseChangesApplied changesApplied = null;
 
             // Foreach part, will have to send them to the remote
             // once finished, return context
@@ -446,7 +447,6 @@ namespace Dotmim.Sync.Web.Client
 
         }
 
-
         public async Task<(SyncContext, long)> GetLocalTimestampAsync(SyncContext context, MessageTimestamp message)
         {
             var httpMessage = new HttpMessage
@@ -501,9 +501,6 @@ namespace Dotmim.Sync.Web.Client
             return httpMessageResponse.SyncContext;
         }
 
-
-        public void SetCancellationToken(CancellationToken token) => this.cancellationToken = token;
-
         #region IDisposable Support
         private bool disposedValue = false; // To detect redundant calls
 
@@ -524,6 +521,7 @@ namespace Dotmim.Sync.Web.Client
         public void Dispose() =>
             // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
             this.Dispose(true);
+
         #endregion
     }
 }

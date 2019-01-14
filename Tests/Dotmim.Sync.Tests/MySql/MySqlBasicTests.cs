@@ -172,6 +172,12 @@ namespace Dotmim.Sync.Tests.MySql
             return base.Insert_Record_Then_Insert_During_GetChanges();
         }
 
+        [Fact, TestPriority(24)]
+        public override Task Check_Interceptors()
+        {
+            return base.Check_Interceptors();
+        }
+
 
     }
 }
