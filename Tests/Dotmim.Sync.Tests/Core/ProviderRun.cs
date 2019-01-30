@@ -135,43 +135,41 @@ namespace Dotmim.Sync.Tests.Core
             // tests through http proxy
             if (this.NetworkType == NetworkType.Http)
             {
-
-                // client handler
-                using (var server = new KestrellTestServer())
+                Action<SyncConfiguration> action = configuration =>
+                {
+                    configuration.Add(syncTables);
+                    if (conf != null)
+                        serverFixture.CopyConfiguration(configuration, conf);
+                    
+                    // Add Filters
+                    if (serverFixture.Filters != null && serverFixture.Filters.Count > 0)
+                        serverFixture.Filters.ForEach(f =>
+                        {
+                            if (!configuration.Filters.Contains(f))
+                                configuration.Filters.Add(f);
+                        });
+                };
+                
+                using (var server = new KestrellTestServer(proxyServerProvider.LocalProvider, action, true))
                 {
                     // server handler
                     var serverHandler = new RequestDelegate(async context =>
                     {
-
-                        var syncConfiguration = new SyncConfiguration(syncTables);// set proxy conf
-                        // copy conf settings
-
-                        if (conf != null)
-                            serverFixture.CopyConfiguration(syncConfiguration, conf);
-
-
-                        // set proxy conf
-                        proxyServerProvider.Configuration = syncConfiguration;
-
-                        // test if <> directory name works
-                        proxyServerProvider.Options = new SyncOptions();
-                        proxyServerProvider.Options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "server");
-
-                        // Add Filers
-                        if (serverFixture.Filters != null && serverFixture.Filters.Count > 0)
-                            serverFixture.Filters.ForEach(f =>
-                            {
-                                if (!proxyServerProvider.Configuration.Filters.Contains(f))
-                                    proxyServerProvider.Configuration.Filters.Add(f);
-                            });
-
-
                         // sync
                         try
                         {
-                            this.BeginRun?.Invoke(proxyServerProvider.LocalProvider);
-                            await proxyServerProvider.HandleRequestAsync(context);
-                            this.EndRun?.Invoke(proxyServerProvider.LocalProvider);
+                            WebProxyServerProvider providerReference = null;
+                            await WebProxyServerProvider.HandleRequestAsync(context, provider =>
+                            {
+                                // test if <> directory name works
+                                provider.Options = new SyncOptions();
+                                provider.Options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "server");
+
+                                providerReference = provider;
+                                this.BeginRun?.Invoke(providerReference.LocalProvider);
+                                
+                            });
+                            this.EndRun?.Invoke(providerReference?.LocalProvider);
 
                         }
                         catch (Exception ew)
@@ -180,6 +178,7 @@ namespace Dotmim.Sync.Tests.Core
                         }
                     });
 
+                    // client handler
                     var clientHandler = new ResponseDelegate(async (serviceUri) =>
                     {
                         // create agent

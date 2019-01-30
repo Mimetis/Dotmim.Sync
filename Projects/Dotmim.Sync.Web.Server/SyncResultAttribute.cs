@@ -47,14 +47,7 @@ namespace Dotmim.Sync.Web.Server
             if (OnMethods.Contains(context.HttpContext.Request.Method)
                 || OnMethods.Contains("*"))
             {
-                WebProxyServerProvider _webProxyService = (WebProxyServerProvider)context.HttpContext.RequestServices.GetService(typeof(WebProxyServerProvider));
-
-                if (_webProxyService == null)
-                {
-                    throw new ArgumentNullException("Proxy service not found");
-                }
-
-                await _webProxyService.HandleRequestAsync(context.HttpContext);
+                await WebProxyServerProvider.HandleRequestAsync(context.HttpContext);
             }
         }
     }
