@@ -1,4 +1,6 @@
+using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Tests.Misc;
+using System;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -12,8 +14,41 @@ namespace Dotmim.Sync.Tests.SqlServer
     [Collection("SqlServer")]
     public class SqlServerBasicTests : BasicTestsBase, IClassFixture<SqlServerFixture>
     {
+        static SqlServerBasicTests()
+        {
+            Configure = providerFixture =>
+            {
+                // Set tables to be used for your provider
+                var sqlTables = new string[]
+                {
+                    "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "Employee", "Customer", "Address", "CustomerAddress", "EmployeeAddress",
+                    "SalesLT.SalesOrderHeader", "SalesLT.SalesOrderDetail", "dbo.Sql", "Posts", "Tags", "PostTag",
+                    "PricesList", "PriceListCategory", "PriceListDetail"
+                };
+
+                // 1) Add database name
+                providerFixture.AddDatabaseName("SqlAdventureWorks");
+                // 2) Add tables
+                providerFixture.AddTables(sqlTables, 109);
+                // 3) Options
+                providerFixture.DeleteAllDatabasesOnDispose = false;
+
+                if (!Setup.IsOnAzureDev)
+                {
+                    providerFixture.AddRun(NetworkType.Tcp, ProviderType.Sql | ProviderType.Sqlite);
+                }
+                else
+                {
+                    providerFixture.AddRun(NetworkType.Tcp, ProviderType.MySql | ProviderType.Sql | ProviderType.Sqlite);
+                    providerFixture.AddRun(NetworkType.Http, ProviderType.MySql | ProviderType.Sql | ProviderType.Sqlite);
+                }
+            };
+
+        }
+
         public SqlServerBasicTests(SqlServerFixture fixture) : base(fixture)
         {
+
         }
 
         [Fact, TestPriority(1)]

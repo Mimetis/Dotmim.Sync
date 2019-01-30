@@ -10,7 +10,7 @@ namespace Dotmim.Sync.Tests.SqlServer
     /// <summary>
     /// Fixture used to test the SqlSyncProvider
     /// </summary>
-    public class SqlServerFixture : ProviderFixture<CoreProvider>
+    public class SqlServerFixture : ProviderFixture
     {
         public override ProviderType ProviderType => ProviderType.Sql;
 
