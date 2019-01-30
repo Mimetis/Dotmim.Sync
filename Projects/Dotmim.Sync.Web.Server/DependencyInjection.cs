@@ -11,7 +11,7 @@ namespace Microsoft.Extensions.DependencyInjection
 {
     public static class DependencyInjection
     {
-        public static bool RegisterAsSingleton;
+        internal static bool RegisterAsSingleton;
         
         private static Type _providerType;
         private static string _connectionString;
