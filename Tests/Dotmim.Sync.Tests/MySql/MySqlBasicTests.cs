@@ -20,6 +20,41 @@ namespace Dotmim.Sync.Tests.MySql
     public class MySqlBasicTests : BasicTestsBase, IClassFixture<MySqlFixture>
     {
 
+        static MySqlBasicTests()
+        {
+            Configure = providerFixture =>
+            {
+                // Set tables to be used for your provider
+                var mySqlTables = new string[]
+               {
+                "ProductCategory", "ProductModel", "Product", "Employee", "Customer", "Address", "CustomerAddress","EmployeeAddress",
+                "SalesOrderHeader", "SalesOrderDetail", "Sql", "Posts", "Tags", "PostTag",
+                "PricesList", "PriceListCategory", "PriceListDetail"
+               };
+
+                // 1) Add database name
+                providerFixture.AddDatabaseName("mysqladventureworks");
+                // 2) Add tables
+                providerFixture.AddTables(mySqlTables, 109);
+                // 3) Options
+                // providerFixture.DeleteAllDatabasesOnDispose = false;
+
+                if (!Setup.IsOnAzureDev)
+                {
+                    providerFixture.AddRun(NetworkType.Tcp, ProviderType.Sql | ProviderType.Sqlite);
+                    providerFixture.AddRun(NetworkType.Tcp, ProviderType.MySql | ProviderType.Sql | ProviderType.Sqlite);
+                }
+                else
+                {
+                    providerFixture.AddRun(NetworkType.Tcp, ProviderType.MySql | ProviderType.Sql | ProviderType.Sqlite);
+                    providerFixture.AddRun(NetworkType.Tcp, ProviderType.MySql | ProviderType.Sql | ProviderType.Sqlite);
+                    providerFixture.AddRun(NetworkType.Http, ProviderType.MySql | ProviderType.Sql | ProviderType.Sqlite);
+                    providerFixture.AddRun(NetworkType.Http, ProviderType.MySql | ProviderType.Sql | ProviderType.Sqlite);
+                }
+            };
+        }
+
+
         /// <summary>
         /// because schemas are not replicate on SQL Server, from MySQL
         /// Override get context to set "don't use schema on Sql client childs "

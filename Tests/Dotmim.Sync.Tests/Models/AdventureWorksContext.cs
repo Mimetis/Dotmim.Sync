@@ -18,10 +18,10 @@ namespace Dotmim.Sync.Tests.Models
 
         private DbConnection Connection { get; }
 
-        public AdventureWorksContext(ProviderType providerType, string connectionString, bool fallbackUseSchema = true, bool useSeeding = true) : this()
+        public AdventureWorksContext(ProviderFixture fixture, bool fallbackUseSchema = true, bool useSeeding = true) : this()
         {
-            this.ProviderType = providerType;
-            this.ConnectionString = connectionString;
+            this.ProviderType = fixture.ProviderType;
+            this.ConnectionString = HelperDB.GetConnectionString(fixture.ProviderType, fixture.DatabaseName);
             this.useSeeding = useSeeding;
             this.useSchema = this.ProviderType == ProviderType.Sql && fallbackUseSchema;
         }
