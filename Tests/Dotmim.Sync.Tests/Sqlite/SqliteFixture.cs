@@ -9,7 +9,7 @@ namespace Dotmim.Sync.Tests.Sqlite
     /// <summary>
     /// Fixture used to test the SqlSyncProvider
     /// </summary>
-    public class SqliteFixture : ProviderFixture<CoreProvider>
+    public class SqliteFixture : ProviderFixture
     {
         public override ProviderType ProviderType => ProviderType.Sqlite;
 

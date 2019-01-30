@@ -27,7 +27,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets or Sets differents options that could be different from server and client
         /// </summary>
-        public SyncOptions Options { get; set; }
+        public SyncOptions Options { get; } = new SyncOptions();
 
         /// <summary>
         /// Defines the state that a synchronization session is in.
@@ -175,9 +175,6 @@ namespace Dotmim.Sync
                 // Setting progress
                 this.LocalProvider.SetProgress(progress);
                 this.RemoteProvider.SetProgress(progress);
-
-                if (this.Options == null)
-                    this.Options = new SyncOptions();
 
                 // if local provider does not provider options, get them from sync agent
                 if (this.LocalProvider.Options == null)
