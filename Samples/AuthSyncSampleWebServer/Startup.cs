@@ -29,7 +29,6 @@ namespace AuthSyncSampleWebServer
             {
                 var s = new string[] { "Employees" };
                 configuration.Add(s);
-                configuration.DownloadBatchSizeInKB = 1000;
             });
 
             // Use bearer schema for authentication

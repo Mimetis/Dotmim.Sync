@@ -77,13 +77,12 @@ namespace Dotmim.Sync.Tests.Core
         public Action<IProvider> EndRun { get; set; }
 
 
-        public async Task<ProviderRun> RunAsync(ProviderFixture serverFixture, 
-            string scopeName = null, string[] tables = null, 
+        public async Task<ProviderRun> RunAsync(ProviderFixture serverFixture,
+            string scopeName = null, string[] tables = null,
             SyncConfiguration conf = null,
             bool reuseAgent = true)
         {
             // server proxy
-            var proxyServerProvider = new WebProxyServerProvider(serverFixture.ServerProvider);
             var proxyClientProvider = new WebProxyClientProvider();
 
             var syncTables = tables ?? serverFixture.Tables;
@@ -134,8 +133,21 @@ namespace Dotmim.Sync.Tests.Core
             // tests through http proxy
             if (this.NetworkType == NetworkType.Http)
             {
+                Action<SyncConfiguration> action = configuration =>
+                {
+                    configuration.Add(syncTables);
+                    if (conf != null)
+                        serverFixture.CopyConfiguration(configuration, conf);
 
-                // client handler
+                    // Add Filters
+                    if (serverFixture.Filters != null && serverFixture.Filters.Count > 0)
+                        serverFixture.Filters.ForEach(f =>
+                        {
+                            if (!configuration.Filters.Contains(f))
+                                configuration.Filters.Add(f);
+                        });
+                };
+
                 using (var server = new KestrellTestServer())
                 {
                     // server handler
@@ -148,29 +160,26 @@ namespace Dotmim.Sync.Tests.Core
                         if (conf != null)
                             serverFixture.CopyConfiguration(syncConfiguration, conf);
 
-
-                        // set proxy conf
-                        proxyServerProvider.Configuration = syncConfiguration;
-
                         // test if <> directory name works
-                        proxyServerProvider.Options = new SyncOptions();
-                        proxyServerProvider.Options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "server");
+                        var options = new SyncOptions();
+                        options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "server");
 
                         // Add Filers
                         if (serverFixture.Filters != null && serverFixture.Filters.Count > 0)
                             serverFixture.Filters.ForEach(f =>
                             {
-                                if (!proxyServerProvider.Configuration.Filters.Contains(f))
-                                    proxyServerProvider.Configuration.Filters.Add(f);
+                                if (!conf.Filters.Contains(f))
+                                    conf.Filters.Add(f);
                             });
-
 
                         // sync
                         try
                         {
-                            this.BeginRun?.Invoke(proxyServerProvider.LocalProvider);
+                            var proxyServerProvider = WebProxyServerProvider.Create(context, serverFixture.ServerProvider, syncConfiguration, options);
+
+                            this.BeginRun?.Invoke(proxyServerProvider.GetLocalProvider(context));
                             await proxyServerProvider.HandleRequestAsync(context);
-                            this.EndRun?.Invoke(proxyServerProvider.LocalProvider);
+                            this.EndRun?.Invoke(proxyServerProvider.GetLocalProvider(context));
 
                         }
                         catch (Exception ew)
