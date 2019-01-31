@@ -14,6 +14,7 @@ namespace Microsoft.Extensions.DependencyInjection
         private static Type _providerType;
         private static string _connectionString;
         private static SyncConfiguration _syncConfiguration;
+        private static SyncOptions _options;
 
         /// <summary>
         /// Add the server provider (inherited from CoreProvider) and register in the DI a WebProxyServerProvider.
@@ -27,22 +28,28 @@ namespace Microsoft.Extensions.DependencyInjection
         public static IServiceCollection AddSyncServer<TProvider>(
                     this IServiceCollection serviceCollection,
                     string connectionString,
-                    Action<SyncConfiguration> action) where TProvider : CoreProvider, new()
+                    Action<SyncConfiguration> configuration, Action<SyncOptions> options= null) where TProvider : CoreProvider, new()
         {
             if (string.IsNullOrWhiteSpace(connectionString))
                 throw new ArgumentNullException(nameof(connectionString));
 
-            if (action == null)
-                throw new ArgumentNullException(nameof(action));
+            if (configuration == null)
+                throw new ArgumentNullException(nameof(configuration));
 
             _providerType = typeof(TProvider);
             _connectionString = connectionString;
             _syncConfiguration = new SyncConfiguration();
+            _options = new SyncOptions();
 
             // get sync configuration
-            action.Invoke(_syncConfiguration);
+            configuration.Invoke(_syncConfiguration);
+
+            // get options if specified
+            options?.Invoke(_options);
 
             serviceCollection.AddOptions();
+
+            serviceCollection.AddSingleton(new WebProxyServerProvider());
 
             return serviceCollection;
         }
@@ -58,7 +65,8 @@ namespace Microsoft.Extensions.DependencyInjection
             var webProvider = new SyncMemoryProvider(provider)
             {
                 // Sets the configuration, owned by the server side.
-                Configuration = _syncConfiguration
+                Configuration = _syncConfiguration,
+                Options = _options
             };
             return webProvider;
         }

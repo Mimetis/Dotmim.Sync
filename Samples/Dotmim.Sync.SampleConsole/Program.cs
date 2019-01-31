@@ -19,7 +19,7 @@ internal class Program
 {
     private static void Main(string[] args)
     {
-        TestSync().GetAwaiter().GetResult();
+        SyncHttpThroughKestellAsync().GetAwaiter().GetResult();
         Console.ReadLine();
     }
 
@@ -35,8 +35,6 @@ internal class Program
     {
         // server provider
         var serverProvider = new SqlSyncProvider(GetDatabaseConnectionString("AdventureWorks"));
-        // proxy server based on server provider
-        var proxyServerProvider = new WebProxyServerProvider(serverProvider);
 
         // client provider
         var client1Provider = new SqlSyncProvider(GetDatabaseConnectionString("Client"));
@@ -60,29 +58,32 @@ internal class Program
             TrackingTablesSuffix = "",
         };
 
+   
+
         var optionsClient = new SyncOptions
         {
             BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "client"),
-            BatchSize = 400,
+            BatchSize = 100,
             CleanMetadatas = true,
             UseBulkOperations = true,
             UseVerboseErrors = false
         };
 
+ 
+
         var optionsServer = new SyncOptions
         {
             BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "server"),
-            BatchSize = 400,
+            BatchSize = 100,
             CleanMetadatas = false,
             UseBulkOperations = true,
             UseVerboseErrors = false
         };
-
+        // proxy server based on server provider
+        var proxyServerProvider = new WebProxyServerProvider(serverProvider, configuration, optionsServer);
 
         var serverHandler = new RequestDelegate(async context =>
         {
-            proxyServerProvider.Configuration = configuration;
-
             await proxyServerProvider.HandleRequestAsync(context);
         });
         using (var server = new KestrellTestServer())
@@ -350,10 +351,10 @@ internal class Program
     /// </summary>
     private static async Task TestSyncThroughWebApi()
     {
-        var clientProvider = new SqlSyncProvider(GetDatabaseConnectionString("NW1"));
+        var clientProvider = new SqlSyncProvider(GetDatabaseConnectionString("Client"));
 
         var proxyClientProvider = new WebProxyClientProvider(
-            new Uri("http://localhost:54347/api/values"));
+            new Uri("http://localhost:52288/api/Sync"));
 
         var agent = new SyncAgent(clientProvider, proxyClientProvider);
 
