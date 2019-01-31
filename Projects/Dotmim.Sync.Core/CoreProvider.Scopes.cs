@@ -108,10 +108,11 @@ namespace Dotmim.Sync
                             }
                         }
 
+                        // Progress & Interceptor
                         context.SyncStage = SyncStage.ScopeLoading;
-                        this.ReportProgress(context, connection, transaction);
-
-                        await this.InterceptAsync(new ScopeArgs(context, scopes.FirstOrDefault(s => s.IsLocal), connection, transaction));
+                        var scopeArgs = new ScopeArgs(context, scopes.FirstOrDefault(s => s.IsLocal), connection, transaction);
+                        this.ReportProgress(context, scopeArgs);
+                        await this.InterceptAsync(scopeArgs);
 
                         transaction.Commit();
                     }
@@ -159,13 +160,11 @@ namespace Dotmim.Sync
                         foreach (var scope in message.Scopes)
                             lstScopes.Add(scopeInfoBuilder.InsertOrUpdateScopeInfo(scope));
 
+                        // Progress & Interceptor
                         context.SyncStage = SyncStage.ScopeSaved;
-
-                        this.ReportProgress(context, connection, transaction);
-
-                        await this.InterceptAsync(new ScopeArgs(context, lstScopes.FirstOrDefault(s => s.IsLocal), connection, transaction));
-
-                        this.ReportProgress(context, connection, transaction);
+                        var scopeArgs = new ScopeArgs(context, lstScopes.FirstOrDefault(s => s.IsLocal), connection, transaction);
+                        this.ReportProgress(context, scopeArgs);
+                        await this.InterceptAsync(scopeArgs);
 
                         transaction.Commit();
                     }

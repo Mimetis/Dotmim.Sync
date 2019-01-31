@@ -9,21 +9,27 @@ namespace Dotmim.Sync
     /// <summary>
     /// Event args generated during BeginSession stage
     /// </summary>
-    public class SessionBeginArgs : BaseArgs
+    public class SessionBeginArgs : ProgressArgs
     {
         public SessionBeginArgs(SyncContext context, DbConnection connection, DbTransaction transaction)
             : base(context, connection, transaction)
         {
         }
+
+        public override string Message => $"";
+
     }
     /// <summary>
     /// Event args generated during EndSession stage
     /// </summary>
-    public class SessionEndArgs : BaseArgs
+    public class SessionEndArgs : ProgressArgs
     {
         public SessionEndArgs(SyncContext context, DbConnection connection, DbTransaction transaction)
             : base(context, connection, transaction)
         {
         }
+
+        public override string Message => $"";
+
     }
 }

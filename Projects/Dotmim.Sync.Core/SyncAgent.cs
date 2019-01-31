@@ -174,7 +174,7 @@ namespace Dotmim.Sync
 
                 // Setting progress
                 this.LocalProvider.SetProgress(progress);
-                this.RemoteProvider.SetProgress(progress);
+                //this.RemoteProvider.SetProgress(progress);
 
                 // if local provider does not provider options, get them from sync agent
                 if (this.LocalProvider.Options == null)

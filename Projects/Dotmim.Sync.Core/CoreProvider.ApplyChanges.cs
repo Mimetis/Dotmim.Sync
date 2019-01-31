@@ -197,11 +197,7 @@ namespace Dotmim.Sync
                     // Conflicts occured when trying to apply rows
                     var conflicts = new List<SyncConflict>();
 
-                    // Raise event progress only if there are rows to be applied
                     context.SyncStage = SyncStage.TableChangesApplying;
-
-                    this.ReportProgress(context, connection, transaction);
-
                     // Launch any interceptor if available
                     await this.InterceptAsync(new TableChangesApplyingArgs(context, table.TableName, applyType, connection, transaction));
 
@@ -270,13 +266,11 @@ namespace Dotmim.Sync
                         existAppliedChanges.Failed += changedFailed;
                     }
 
-                    // Event progress
+                    // Progress & Interceptor
                     context.SyncStage = SyncStage.TableChangesApplied;
-
-                    this.ReportProgress(context, connection, transaction);
-
-                    // Launch any interceptor if available
-                    await this.InterceptAsync(new TableChangesAppliedArgs(context, existAppliedChanges, connection, transaction));
+                    var tableChangesAppliedArgs = new TableChangesAppliedArgs(context, existAppliedChanges, connection, transaction);
+                    this.ReportProgress(context, tableChangesAppliedArgs, connection, transaction);
+                    await this.InterceptAsync(tableChangesAppliedArgs);
 
 
 
@@ -296,9 +290,8 @@ namespace Dotmim.Sync
             if (policy == ConflictResolutionPolicy.ClientWins)
                 conflictAction = ConflictResolution.ClientWins;
 
+            // Interceptor
             var arg = new ApplyChangesFailedArgs(context, conflict, conflictAction, connection, transaction);
-
-            // Launch any interceptor for apply changes failed, if available
             await this.InterceptAsync(arg);
 
             // if ConflictAction is ServerWins or MergeRow it's Ok to set to Continue

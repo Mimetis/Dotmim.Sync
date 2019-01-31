@@ -83,7 +83,7 @@ namespace Dotmim.Sync
                         }
 
                         // Launch any interceptor if available
-                        await this.InterceptAsync(new DatabaseDeprovisionedArgs(null, provision, null, connection, transaction));
+                        await this.InterceptAsync(new DatabaseDeprovisionedArgs(null, provision, configuration.Schema, null, connection, transaction));
 
                         transaction.Commit();
                     }
@@ -174,7 +174,7 @@ namespace Dotmim.Sync
                         }
 
                         // call any interceptor
-                        await this.InterceptAsync(new DatabaseProvisionedArgs(null, provision, null, connection, transaction));
+                        await this.InterceptAsync(new DatabaseProvisionedArgs(null, provision, configuration.Schema, null, connection, transaction));
 
                         transaction.Commit();
                     }
@@ -215,13 +215,8 @@ namespace Dotmim.Sync
 
                     using (var transaction = connection.BeginTransaction())
                     {
-                        var beforeArgs =
-                            new DatabaseProvisioningArgs(context, SyncProvision.All, message.Schema, connection, transaction);
-
-                        // Event progress
-                        this.ReportProgress(context);
-
-                        // Launch any interceptor if available
+                        // Interceptor
+                        var beforeArgs = new DatabaseProvisioningArgs(context, SyncProvision.All, message.Schema, connection, transaction);
                         await this.InterceptAsync(beforeArgs);
 
                         if (message.ScopeInfo.LastSync.HasValue && !beforeArgs.OverwriteSchema)
@@ -243,9 +238,6 @@ namespace Dotmim.Sync
 
                             context.SyncStage = SyncStage.DatabaseTableApplying;
 
-                            // Event progress
-                            this.ReportProgress(context);
-
                             // Launch any interceptor if available
                             await this.InterceptAsync(new TableProvisioningArgs(context, SyncProvision.All, dmTable, connection, transaction));
 
@@ -260,21 +252,18 @@ namespace Dotmim.Sync
                             builder.Create(connection, transaction);
                             builder.CreateForeignKeys(connection, transaction);
 
+                            // Report & Interceptor
                             context.SyncStage = SyncStage.DatabaseTableApplied;
-
-                            // Event progress
-                            this.ReportProgress(context);
-
-                            // Launch any interceptor if available
-                            await this.InterceptAsync(new TableProvisionedArgs(context, SyncProvision.All, dmTable, connection, transaction));
+                            var tableProvisionedArgs = new TableProvisionedArgs(context, SyncProvision.All, dmTable, connection, transaction);
+                            this.ReportProgress(context, tableProvisionedArgs);
+                            await this.InterceptAsync(tableProvisionedArgs);
                         }
 
+                        // Report & Interceptor
                         context.SyncStage = SyncStage.DatabaseApplied;
-
-                        this.ReportProgress(context);
-
-                        // Launch any interceptor if available
-                        await this.InterceptAsync(new DatabaseProvisionedArgs(context, SyncProvision.All, script.ToString(), connection, transaction));
+                        var args = new DatabaseProvisionedArgs(context, SyncProvision.All, message.Schema, script.ToString(), connection, transaction);
+                        this.ReportProgress(context, args);
+                        await this.InterceptAsync(args);
 
                         transaction.Commit();
                     }

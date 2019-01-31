@@ -8,7 +8,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Args generated before ensuring a schema exists or after a schema has been readed
     /// </summary>
-    public class SchemaArgs : BaseArgs
+    public class SchemaArgs : ProgressArgs
     {
         public SchemaArgs(SyncContext context, DmSet schema, DbConnection connection, DbTransaction transaction)
             : base(context, connection, transaction) => this.Schema = schema;
@@ -22,8 +22,10 @@ namespace Dotmim.Sync
         /// Gets the schema to be applied. If no tables are filled, the schema will be read.
         /// </summary>
         public DmSet Schema { get; }
+        public override string Message => $"Tables count:{this.Schema.Tables.Count}";
+
     }
-    public class OutdatedArgs : BaseArgs
+    public class OutdatedArgs : ProgressArgs
     {
         public OutdatedArgs(SyncContext context, DbConnection connection, DbTransaction transaction) : base(context, connection, transaction)
         {
@@ -33,6 +35,8 @@ namespace Dotmim.Sync
         /// Gets or sets an action enumeration value for the action to handle the outdated peer.
         /// </summary>
         public new OutdatedSyncAction Action { get; set; } = OutdatedSyncAction.Rollback;
+
+        public override string Message => $"";
     }
 
     public enum OutdatedAction
