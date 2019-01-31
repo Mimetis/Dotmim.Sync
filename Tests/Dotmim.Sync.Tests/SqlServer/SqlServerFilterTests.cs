@@ -4,12 +4,13 @@ using System.Text;
 using System.Threading.Tasks;
 using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Tests.Misc;
+using Dotmim.Sync.Tests.Models;
 using Xunit;
 
 namespace Dotmim.Sync.Tests.SqlServer
 {
     [TestCaseOrderer("Dotmim.Sync.Tests.Misc.PriorityOrderer", "Dotmim.Sync.Tests")]
-    [Collection("SqlServer")]
+    [Collection("SqlServerFilter")]
     public class SqlServerFilterTests : BasicTestsBase, IClassFixture<SqlServerFixture>
     {
 
@@ -27,13 +28,15 @@ namespace Dotmim.Sync.Tests.SqlServer
                 // 1) Add database name
                 providerFixture.AddDatabaseName("SqlAdventureWorksFilter");
                 // 2) Add tables
-                providerFixture.AddTables(sqlTables, 109);
+                providerFixture.AddTables(sqlTables, 28);
                 // 3) Options
                 // providerFixture.DeleteAllDatabasesOnDispose = false;
 
                 // add a filter
-                providerFixture.Filters.Add(new Filter.FilterClause("Customer", "Title"));
-                providerFixture.FilterParameters.Add(new Filter.SyncParameter("Customer", "Title", "Mr."));
+                providerFixture.Filters.Add(new Filter.FilterClause("Customer", "CustomerID"));
+                providerFixture.FilterParameters.Add(new Filter.SyncParameter("Customer", "CustomerID", AdventureWorksContext.CustomerIdForFilter));
+                providerFixture.Filters.Add(new Filter.FilterClause("CustomerAddress", "CustomerID"));
+                providerFixture.FilterParameters.Add(new Filter.SyncParameter("CustomerAddress", "CustomerID", AdventureWorksContext.CustomerIdForFilter));
 
                 if (!Setup.IsOnAzureDev)
                 {
@@ -47,11 +50,11 @@ namespace Dotmim.Sync.Tests.SqlServer
             };
 
         }
-        public SqlServerFilterTests(ProviderFixture fixture) : base(fixture)
+        public SqlServerFilterTests(SqlServerFixture fixture) : base(fixture)
         {
         }
 
-        [Fact, TestPriority(2)]
+        [Fact, TestPriority(1)]
         public override Task Initialize()
         {
             return base.Initialize();
