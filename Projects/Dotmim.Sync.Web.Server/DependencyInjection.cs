@@ -5,14 +5,12 @@ using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
-[assembly:InternalsVisibleTo("Dotmim.Sync.Tests")]
+[assembly: InternalsVisibleTo("Dotmim.Sync.Tests")]
 
 namespace Microsoft.Extensions.DependencyInjection
 {
     public static class DependencyInjection
     {
-        internal static bool RegisterAsSingleton;
-        
         private static Type _providerType;
         private static string _connectionString;
         private static SyncConfiguration _syncConfiguration;
@@ -29,69 +27,43 @@ namespace Microsoft.Extensions.DependencyInjection
         public static IServiceCollection AddSyncServer<TProvider>(
                     this IServiceCollection serviceCollection,
                     string connectionString,
-                    Action<SyncConfiguration> action,
-                    bool registerAsSingleton = true) where TProvider : CoreProvider, new()
+                    Action<SyncConfiguration> action) where TProvider : CoreProvider, new()
         {
             if (string.IsNullOrWhiteSpace(connectionString))
                 throw new ArgumentNullException(nameof(connectionString));
-            
+
             if (action == null)
                 throw new ArgumentNullException(nameof(action));
 
-            RegisterAsSingleton = registerAsSingleton;
+            _providerType = typeof(TProvider);
+            _connectionString = connectionString;
+            _syncConfiguration = new SyncConfiguration();
 
-            if (registerAsSingleton)
-            {
-                var provider = new TProvider();
-                var syncConfiguration = new SyncConfiguration();
-                action.Invoke(syncConfiguration);
+            // get sync configuration
+            action.Invoke(_syncConfiguration);
 
-                provider.ConnectionString = connectionString;
-
-                var webProvider = new WebProxyServerProvider(provider)
-                {
-                    // Sets the configuration, owned by the server side.
-                    Configuration = syncConfiguration,
-                    // since we will register this proxy as a singleton, just signal it
-                    IsRegisterAsSingleton = true
-                };
-                serviceCollection.AddSingleton(webProvider);
-            }
-            else
-            {
-                _providerType = typeof(TProvider);
-                _connectionString = connectionString;
-                _syncConfiguration = new SyncConfiguration();
-                action.Invoke(_syncConfiguration);
-
-                serviceCollection.AddOptions();
-                serviceCollection.TryAdd(ServiceDescriptor.Singleton<SyncMemoryCache, SyncMemoryCache>());
-            }
+            serviceCollection.AddOptions();
 
             return serviceCollection;
         }
 
-        internal static WebProxyServerProvider GetNewWebProxyServerProvider()
+        /// <summary>
+        /// Create a new instance of Sync Memory Provider
+        /// </summary>
+        internal static SyncMemoryProvider GetNewWebProxyServerProvider()
         {
-            if (RegisterAsSingleton) throw new Exception("Do not use this method if RegisterAsSingleton is true!");
-            
-            var provider = (CoreProvider) Activator.CreateInstance(_providerType);
+            var provider = (CoreProvider)Activator.CreateInstance(_providerType);
             provider.ConnectionString = _connectionString;
-            var webProvider = new WebProxyServerProvider(provider)
+
+            var webProvider = new SyncMemoryProvider(provider)
             {
                 // Sets the configuration, owned by the server side.
-                Configuration = _syncConfiguration,
-                IsRegisterAsSingleton = false
+                Configuration = _syncConfiguration
             };
             return webProvider;
         }
-        
-        public class SyncMemoryCache : MemoryCache
-        {
-            public SyncMemoryCache(IOptions<MemoryCacheOptions> optionsAccessor) : base(optionsAccessor)
-            {
-            }
-        }
+
+
     }
 }
 
