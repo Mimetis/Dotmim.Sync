@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Dotmim.Sync.Enumerations
 {
-    public enum ConflictAction
+    public enum ConflictResolution
     {
         /// <summary>
         /// Indicates that the change on the server is the conflict winner

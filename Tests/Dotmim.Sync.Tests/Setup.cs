@@ -1,4 +1,6 @@
 ﻿using Dotmim.Sync.Tests.Core;
+using Dotmim.Sync.Tests.MySql;
+using Dotmim.Sync.Tests.SqlServer;
 using System;
 using System.Runtime.InteropServices;
 
@@ -9,53 +11,8 @@ namespace Dotmim.Sync.Tests
     /// </summary>
     public class Setup
     {
-
-        /// <summary>
-        /// Configure a provider fixture
-        /// </summary>
-        internal static void OnConfiguring<T>(ProviderFixture<T> providerFixture) where T : CoreProvider
+        static Setup()
         {
-
-            // Set tables to be used for your provider
-            var sqlTables = new string[]
-            {
-                "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "Employee", "Customer", "Address", "CustomerAddress", "EmployeeAddress",
-                "SalesLT.SalesOrderHeader", "SalesLT.SalesOrderDetail", "dbo.Sql", "Posts", "Tags", "PostTag",
-                "PricesList", "PriceListCategory", "PriceListDetail"
-            };
-
-            var mySqlTables = new string[]
-            {
-                "ProductCategory", "ProductModel", "Product", "Employee", "Customer", "Address", "CustomerAddress","EmployeeAddress",
-                "SalesOrderHeader", "SalesOrderDetail", "Sql", "Posts", "Tags", "PostTag",
-                "PricesList", "PriceListCategory", "PriceListDetail"
-            };
-
-
-            // 1) Add database name
-            providerFixture.AddDatabaseName(ProviderType.Sql, "SqlAdventureWorks");
-            providerFixture.AddDatabaseName(ProviderType.MySql, "mysqladventureworks");
-
-            // 2) Add tables
-            providerFixture.AddTables(ProviderType.Sql, sqlTables, 109);
-            providerFixture.AddTables(ProviderType.MySql, mySqlTables, 109);
-
-            providerFixture.DeleteAllDatabasesOnDispose = false;
-
-
-            if (!IsOnAzureDev)
-            {
-                providerFixture.AddRun((ProviderType.Sql, NetworkType.Tcp), ProviderType.MySql | ProviderType.Sql | ProviderType.Sqlite);
-                providerFixture.AddRun((ProviderType.MySql, NetworkType.Tcp), ProviderType.MySql | ProviderType.Sql | ProviderType.Sqlite);
-            }
-            else
-            {
-                providerFixture.AddRun((ProviderType.Sql, NetworkType.Tcp), ProviderType.MySql | ProviderType.Sql | ProviderType.Sqlite);
-                providerFixture.AddRun((ProviderType.MySql, NetworkType.Tcp), ProviderType.MySql | ProviderType.Sql | ProviderType.Sqlite);
-                providerFixture.AddRun((ProviderType.Sql, NetworkType.Http), ProviderType.MySql | ProviderType.Sql | ProviderType.Sqlite);
-                providerFixture.AddRun((ProviderType.MySql, NetworkType.Http), ProviderType.MySql | ProviderType.Sql | ProviderType.Sqlite);
-            }
-
         }
 
         /// <summary>

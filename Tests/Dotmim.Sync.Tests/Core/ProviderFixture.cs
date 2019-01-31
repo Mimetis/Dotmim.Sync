@@ -15,17 +15,17 @@ namespace Dotmim.Sync.Tests.Core
     /// It will be in charge to create / drop your server database, regarding your properties.
     /// In your provider fixture instance, you will be able to select o, which kind of client databases you want to test, thx to all "Enable..." properties
     /// </summary>
-    /// <typeparam name="T">The provider we want to test</typeparam>
-    public abstract class ProviderFixture<T> : IDisposable where T : CoreProvider
+    public abstract class ProviderFixture : IDisposable
     {
         private static readonly object locker = new object();
         private bool isConfigured = false;
 
         // list of client providers we want to create
-        private readonly Dictionary<(ProviderType ServerType, NetworkType NetworkType), ProviderType> lstClientsType = new Dictionary<(ProviderType, NetworkType), ProviderType>();
+        private readonly Dictionary<NetworkType, ProviderType> lstClientsType = new Dictionary<NetworkType, ProviderType>();
 
         // internal static list of registered providers
-        static readonly Dictionary<ProviderType, ProviderFixture<CoreProvider>> registeredProviders = new Dictionary<ProviderType, ProviderFixture<CoreProvider>>();
+        static readonly Dictionary<ProviderType, ProviderFixture> registeredProviders 
+            = new Dictionary<ProviderType, ProviderFixture>();
 
         /// <summary>
         /// All clients providers registerd to run. Depends on "Enable..." properities
@@ -43,32 +43,27 @@ namespace Dotmim.Sync.Tests.Core
         public int RowsCount { get; set; }
 
         /// <summary>
+        /// Gets or Sets the server provider.
+        /// </summary>
+        public CoreProvider ServerProvider { get; set; }
+
+        /// <summary>
         /// Sets the tables used for this server provider
         /// </summary>
-        internal void AddTables(ProviderType providerType, string[] tables, int rowsCount)
+        internal void AddTables(string[] tables, int rowsCount)
         {
-            if (providerType == this.ProviderType)
-            {
-                this.Tables = tables;
-                this.RowsCount = rowsCount;
-            }
-
+            this.Tables = tables;
+            this.RowsCount = rowsCount;
         }
 
-        internal void AddFilter(ProviderType providerType, FilterClause filter)
+        internal void AddFilter(FilterClause filter)
         {
-            if (providerType == this.ProviderType)
-            {
-                this.Filters.Add(filter);
-            }
+            this.Filters.Add(filter);
         }
 
-        internal void AddFilterParameter(ProviderType providerType, SyncParameter param)
+        internal void AddFilterParameter(SyncParameter param)
         {
-            if (providerType == this.ProviderType)
-            {
-                this.FilterParameters.Add(param);
-            }
+            this.FilterParameters.Add(param);
         }
 
 
@@ -88,24 +83,25 @@ namespace Dotmim.Sync.Tests.Core
                     if (isConfigured)
                         return;
 
-                    // get database name, tables and clients we want to register
-                    Setup.OnConfiguring(this);
+                    // gets the server provider
+                    this.ServerProvider = this.NewServerProvider(HelperDB.GetConnectionString(this.ProviderType, this.DatabaseName));
 
                     // create the server database
                     this.ServerDatabaseEnsureCreated();
 
 
-                    var listOfBs = (from assemblyType in typeof(ProviderFixture<T>).Assembly.DefinedTypes
-                                    where typeof(ProviderFixture<T>).IsAssignableFrom(assemblyType)
+                    // Get all provider fixture
+                    var listOfBs = (from assemblyType in typeof(ProviderFixture).Assembly.DefinedTypes
+                                    where typeof(ProviderFixture).IsAssignableFrom(assemblyType)
+                                    && assemblyType.BaseType == typeof(ProviderFixture)
                                     select assemblyType).ToArray();
 
                     foreach (var t in listOfBs)
                     {
                         var c = GetDefaultConstructor(t);
-                        ProviderFixture<CoreProvider> instance = c.Invoke(null) as ProviderFixture<CoreProvider>;
+                        var instance = c.Invoke(null) as ProviderFixture;
                         RegisterProvider(instance.ProviderType, instance);
                     }
-
 
                     // create the clients database
                     this.ClientDatabasesEnsureCreated();
@@ -138,7 +134,7 @@ namespace Dotmim.Sync.Tests.Core
         /// <summary>
         /// register all Provider fixture to be able to call them when we need to create a client provider
         /// </summary>
-        internal static void RegisterProvider(ProviderType providerType, ProviderFixture<CoreProvider> providerFixture)
+        internal static void RegisterProvider(ProviderType providerType, ProviderFixture providerFixture)
         {
             // Register the provider to be able to call it for create some client provider
             if (!registeredProviders.ContainsKey(providerType))
@@ -155,7 +151,7 @@ namespace Dotmim.Sync.Tests.Core
         /// </summary>
         /// <param name="key">The server provider type and the network (http / tcp) you want to test</param>
         /// <param name="clientsType">a flags enum of all client you want to create</param>
-        internal ProviderFixture<T> AddRun((ProviderType ServerType, NetworkType NetworkType) key, ProviderType clientsType)
+        internal ProviderFixture AddRun(NetworkType key, ProviderType clientsType)
         {
             if (!this.lstClientsType.ContainsKey(key))
                 this.lstClientsType.Add(key, clientsType);
@@ -166,10 +162,9 @@ namespace Dotmim.Sync.Tests.Core
         /// <summary>
         /// Add the database name used for the server provider
         /// </summary>
-        internal void AddDatabaseName(ProviderType providerType, string databaseName)
+        internal void AddDatabaseName(string databaseName)
         {
-            if (providerType == this.ProviderType)
-                this.DatabaseName = databaseName;
+            this.DatabaseName = databaseName;
         }
 
 
@@ -219,7 +214,7 @@ namespace Dotmim.Sync.Tests.Core
 
             try
             {
-                using (var ctx = new AdventureWorksContext(this.ProviderType, HelperDB.GetConnectionString(this.ProviderType, this.DatabaseName)))
+                using (var ctx = new AdventureWorksContext(this))
                 {
                     ctx.Database.EnsureDeleted();
                     ctx.Database.EnsureCreated();
@@ -238,8 +233,10 @@ namespace Dotmim.Sync.Tests.Core
         /// </summary>
         internal virtual void ServerDatabaseEnsureDeleted()
         {
-            using (AdventureWorksContext ctx =
-                new AdventureWorksContext(this.ProviderType, HelperDB.GetConnectionString(this.ProviderType, this.DatabaseName)))
+            if (string.IsNullOrEmpty(this.DatabaseName))
+                return;
+
+            using (var ctx = new AdventureWorksContext(this))
             {
                 ctx.Database.EnsureDeleted();
             }
@@ -268,11 +265,8 @@ namespace Dotmim.Sync.Tests.Core
             // foreach server provider to test, there is a list of client / network
             foreach (var serverKey in this.lstClientsType)
             {
-                // get the server provider type and the network we want to use
-                (ProviderType serverType, NetworkType networkType) = serverKey.Key;
-
-                if (serverType != this.ProviderType)
-                    continue;
+                // get the the network we want to use
+                var networkType = serverKey.Key;
 
                 // create all the client databases based in the flags we set
                 foreach (var cpt in serverKey.Value.GetFlags())

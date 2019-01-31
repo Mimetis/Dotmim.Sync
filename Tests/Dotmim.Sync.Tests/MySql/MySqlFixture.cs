@@ -11,7 +11,7 @@ namespace Dotmim.Sync.Tests.MySql
     /// <summary>
     /// Fixture used to test the SqlSyncProvider
     /// </summary>
-    public class MySqlFixture : ProviderFixture<CoreProvider>
+    public class MySqlFixture : ProviderFixture
     {
         public override ProviderType ProviderType => ProviderType.MySql;
 

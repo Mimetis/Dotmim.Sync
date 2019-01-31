@@ -1,10 +1,12 @@
 ﻿using Dotmim.Sync;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.SampleConsole;
+using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Web.Client;
 using Dotmim.Sync.Web.Server;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Data.Sqlite;
 using System;
 using System.Data;
 using System.Data.SqlClient;
@@ -18,7 +20,6 @@ internal class Program
     private static void Main(string[] args)
     {
         TestSync().GetAwaiter().GetResult();
-
         Console.ReadLine();
     }
 
@@ -204,7 +205,6 @@ internal class Program
         }
 
     }
-
     private static async Task<int> InsertProductModel(string connectionString)
     {
         var insertCategory = @"
@@ -244,7 +244,6 @@ internal class Program
 
         return categoryId;
     }
-
     private static async Task<int> InsertProductCategory(string connectionString)
     {
         var insertCategory = @"
@@ -408,14 +407,13 @@ internal class Program
         agent.Configuration.ScopeInfoTableName = "syncscope";
         agent.Configuration.SerializationFormat = SerializationFormat.Binary;
 
-        agent.Options = new SyncOptions
-        {
-            BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "test"),
-            BatchSize = 1000,
-            CleanMetadatas = true,
-            UseBulkOperations = true,
-            UseVerboseErrors = false
-        };
+        agent.Options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "test");
+        agent.Options.BatchSize = 1000;
+        agent.Options.CleanMetadatas = true;
+        agent.Options.UseBulkOperations = true;
+        agent.Options.UseVerboseErrors = false;
+
+        var progress = new Progress<ProgressArgs>(s => Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}"));
 
         do
         {
@@ -426,7 +424,7 @@ internal class Program
                 var cts = new CancellationTokenSource();
                 var token = cts.Token;
 
-                var s1 = await agent.SynchronizeAsync(SyncType.ReinitializeWithUpload, token);
+                var s1 = await agent.SynchronizeAsync(SyncType.ReinitializeWithUpload, token, progress);
 
                 Console.WriteLine(s1);
             }
@@ -445,6 +443,9 @@ internal class Program
 
         Console.WriteLine("End");
     }
+
+
+
 
     public static void DeleteDatabase(string dbName)
     {

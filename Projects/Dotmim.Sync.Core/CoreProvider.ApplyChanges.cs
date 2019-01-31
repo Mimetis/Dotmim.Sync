@@ -1,4 +1,5 @@
-﻿using Dotmim.Sync.Data;
+﻿using Dotmim.Sync.Builders;
+using Dotmim.Sync.Data;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Messages;
 using System;
@@ -17,12 +18,12 @@ namespace Dotmim.Sync
         /// the fromScope is local client scope when this method is called from server
         /// the fromScope is server scope when this method is called from client
         /// </summary>
-        public virtual async Task<(SyncContext, ChangesApplied)> ApplyChangesAsync(SyncContext context, MessageApplyChanges message)
+        public virtual async Task<(SyncContext, DatabaseChangesApplied)> ApplyChangesAsync(SyncContext context, MessageApplyChanges message)
         {
             var changeApplicationAction = ChangeApplicationAction.Continue;
             DbTransaction applyTransaction = null;
             DbConnection connection = null;
-            var changesApplied = new ChangesApplied();
+            var changesApplied = new DatabaseChangesApplied();
 
             try
             {
@@ -42,7 +43,7 @@ namespace Dotmim.Sync
 
                         // Rollback
                         if (changeApplicationAction == ChangeApplicationAction.Rollback)
-                            throw new SyncException("Rollback during reset tables", context.SyncStage, this.ProviderTypeName, SyncExceptionType.Rollback);
+                            throw new SyncException("Rollback during reset tables", context.SyncStage, SyncExceptionType.Rollback);
                     }
 
                     // -----------------------------------------------------
@@ -53,14 +54,14 @@ namespace Dotmim.Sync
                         // for delete we must go from Up to Down
                         foreach (var table in message.Schema.Tables.Reverse())
                         {
-                            changeApplicationAction = this.ApplyChangesInternal(table, context, message, connection,
+                            changeApplicationAction = await this.ApplyChangesInternalAsync(table, context, message, connection,
                                 applyTransaction, DmRowState.Deleted, changesApplied);
                         }
 
                         // Rollback
                         if (changeApplicationAction == ChangeApplicationAction.Rollback)
                         {
-                            this.RaiseRollbackException(context, "Rollback during applying deletes");
+                            RaiseRollbackException(context, "Rollback during applying deletes");
                         }
                     }
 
@@ -69,22 +70,22 @@ namespace Dotmim.Sync
                     // -----------------------------------------------------
                     foreach (var table in message.Schema.Tables)
                     {
-                        changeApplicationAction = this.ApplyChangesInternal(table, context, message, connection,
+                        changeApplicationAction = await this.ApplyChangesInternalAsync(table, context, message, connection,
                             applyTransaction, DmRowState.Added, changesApplied);
 
                         // Rollback
                         if (changeApplicationAction == ChangeApplicationAction.Rollback)
                         {
-                            this.RaiseRollbackException(context, "Rollback during applying inserts");
+                            RaiseRollbackException(context, "Rollback during applying inserts");
                         }
 
-                        changeApplicationAction = this.ApplyChangesInternal(table, context, message, connection,
+                        changeApplicationAction = await this.ApplyChangesInternalAsync(table, context, message, connection,
                             applyTransaction, DmRowState.Modified, changesApplied);
 
                         // Rollback
                         if (changeApplicationAction == ChangeApplicationAction.Rollback)
                         {
-                            this.RaiseRollbackException(context, "Rollback during applying updates");
+                            RaiseRollbackException(context, "Rollback during applying updates");
                         }
                     }
 
@@ -100,7 +101,7 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw new SyncException(ex, SyncStage.TableChangesApplying, this.ProviderTypeName);
+                throw new SyncException(ex, SyncStage.TableChangesApplying);
             }
             finally
             {
@@ -144,15 +145,16 @@ namespace Dotmim.Sync
         /// <summary>
         /// Apply changes internal method for one Insert or Update or Delete for every dbSyncAdapter
         /// </summary>
-        internal ChangeApplicationAction ApplyChangesInternal(
+        internal async Task<ChangeApplicationAction> ApplyChangesInternalAsync(
             DmTable table,
             SyncContext context,
             MessageApplyChanges message,
             DbConnection connection,
             DbTransaction transaction,
             DmRowState applyType,
-            ChangesApplied changesApplied)
+            DatabaseChangesApplied changesApplied)
         {
+
             var changeApplicationAction = ChangeApplicationAction.Continue;
 
             // if we are in upload stage, so check if table is not download only
@@ -168,16 +170,9 @@ namespace Dotmim.Sync
             }
 
             var builder = this.GetDatabaseBuilder(table);
+
             var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
-
-            syncAdapter.ConflictApplyAction = SyncConfiguration.GetApplyAction(message.Policy);
-
-            // Set syncAdapter properties
             syncAdapter.ApplyType = applyType;
-
-            // Get conflict handler resolver
-            if (syncAdapter.ConflictActionInvoker == null && this.ApplyChangedFailed != null)
-                syncAdapter.ConflictActionInvoker = this.GetConflictAction;
 
             if (message.Changes.BatchPartsInfo != null && message.Changes.BatchPartsInfo.Count > 0)
             {
@@ -202,10 +197,9 @@ namespace Dotmim.Sync
                     // Conflicts occured when trying to apply rows
                     var conflicts = new List<SyncConflict>();
 
-                    // Raise event progress only if there are rows to be applied
                     context.SyncStage = SyncStage.TableChangesApplying;
-                    var args = new TableChangesApplyingEventArgs(this.ProviderTypeName, context.SyncStage, table.TableName, applyType, connection, transaction);
-                    this.TryRaiseProgressEvent(args, this.TableChangesApplying);
+                    // Launch any interceptor if available
+                    await this.InterceptAsync(new TableChangesApplyingArgs(context, table.TableName, applyType, connection, transaction));
 
                     int rowsApplied;
                     // applying the bulkchanges command
@@ -226,7 +220,9 @@ namespace Dotmim.Sync
                             var fromScopeLocalTimeStamp = message.FromScope.Timestamp;
 
                             var conflictCount = 0;
-                            (changeApplicationAction, conflictCount) = syncAdapter.HandleConflict(conflict, message.Policy, message.FromScope, fromScopeLocalTimeStamp, out var resolvedRow);
+                            DmRow resolvedRow = null;
+                            (changeApplicationAction, conflictCount, resolvedRow) = 
+                                await this.HandleConflictAsync(syncAdapter, context, conflict, message.Policy, message.FromScope, fromScopeLocalTimeStamp, connection, transaction);
 
                             if (changeApplicationAction == ChangeApplicationAction.Continue)
                             {
@@ -270,17 +266,16 @@ namespace Dotmim.Sync
                         existAppliedChanges.Failed += changedFailed;
                     }
 
-                    // Event progress
+                    // Progress & Interceptor
                     context.SyncStage = SyncStage.TableChangesApplied;
-                    var progressEventArgs = new TableChangesAppliedEventArgs(this.ProviderTypeName, context.SyncStage, existAppliedChanges, connection, transaction);
-                    this.TryRaiseProgressEvent(progressEventArgs, this.TableChangesApplied);
+                    var tableChangesAppliedArgs = new TableChangesAppliedArgs(context, existAppliedChanges, connection, transaction);
+                    this.ReportProgress(context, tableChangesAppliedArgs, connection, transaction);
+                    await this.InterceptAsync(tableChangesAppliedArgs);
+
+
 
                 }
             }
-
-            // Dispose conflict handler resolver
-            if (syncAdapter.ConflictActionInvoker != null)
-                syncAdapter.ConflictActionInvoker = null;
 
             return ChangeApplicationAction.Continue;
         }
@@ -288,33 +283,236 @@ namespace Dotmim.Sync
         /// <summary>
         /// A conflict has occured, we try to ask for the solution to the user
         /// </summary>
-        internal (ApplyAction, DmRow) GetConflictAction(SyncConflict conflict, ConflictResolutionPolicy policy, DbConnection connection, DbTransaction transaction = null)
+        internal async Task<(ApplyAction, DmRow)> GetConflictActionAsync(SyncContext context, SyncConflict conflict, ConflictResolutionPolicy policy, DbConnection connection, DbTransaction transaction = null)
         {
-            var conflictAction = ConflictAction.ServerWins;
+            var conflictAction = ConflictResolution.ServerWins;
 
             if (policy == ConflictResolutionPolicy.ClientWins)
-                conflictAction = ConflictAction.ClientWins;
+                conflictAction = ConflictResolution.ClientWins;
 
-            var arg = new ApplyChangeFailedEventArgs(conflict, conflictAction, connection, transaction);
-
-            this.ApplyChangedFailed?.Invoke(this, arg);
+            // Interceptor
+            var arg = new ApplyChangesFailedArgs(context, conflict, conflictAction, connection, transaction);
+            await this.InterceptAsync(arg);
 
             // if ConflictAction is ServerWins or MergeRow it's Ok to set to Continue
             var action = ApplyAction.Continue;
 
-            if (arg.Action == ConflictAction.ClientWins)
+            if (arg.Resolution == ConflictResolution.ClientWins)
                 action = ApplyAction.RetryWithForceWrite;
 
-            var finalRow = arg.Action == ConflictAction.MergeRow ? arg.FinalRow : null;
+            var finalRow = arg.Resolution == ConflictResolution.MergeRow ? arg.FinalRow : null;
 
             // returning the action to take, and actually the finalRow if action is set to Merge
             return (action, finalRow);
         }
 
-        private void RaiseRollbackException(SyncContext context, string message) => throw new SyncException(
-                message,
-                context.SyncStage,
-                this.ProviderTypeName,
-                SyncExceptionType.Rollback);
+        /// <summary>
+        /// Handle a conflict
+        /// The int returned is the conflict count I need 
+        /// </summary>
+        internal async Task<(ChangeApplicationAction, int, DmRow)> HandleConflictAsync(DbSyncAdapter syncAdapter, SyncContext context, SyncConflict conflict, ConflictResolutionPolicy policy, ScopeInfo scope, long fromScopeLocalTimeStamp, DbConnection connection, DbTransaction transaction)
+        {
+            DmRow finalRow = null;
+            var conflictApplyAction = ApplyAction.Continue;
+
+            (conflictApplyAction, finalRow) = await this.GetConflictActionAsync(context, conflict, policy, connection, transaction);
+
+            // Default behavior and an error occured
+            if (conflictApplyAction == ApplyAction.Rollback)
+            {
+                conflict.ErrorMessage = "Rollback action taken on conflict";
+                conflict.Type = ConflictType.ErrorsOccurred;
+
+                return (ChangeApplicationAction.Rollback, 0, null);
+            }
+
+            // Local provider wins, update metadata
+            if (conflictApplyAction == ApplyAction.Continue)
+            {
+                var isMergeAction = finalRow != null;
+                var row = isMergeAction ? finalRow : conflict.LocalRow;
+
+                // Conflict on a line that is not present on the datasource
+                if (row == null)
+                    return (ChangeApplicationAction.Continue, 0, finalRow);
+
+                if (row != null)
+                {
+                    // if we have a merge action, we apply the row on the server
+                    if (isMergeAction)
+                    {
+                        bool isUpdated = false;
+                        bool isInserted = false;
+                        // Insert metadata is a merge, actually
+                        var commandType = DbCommandType.UpdateMetadata;
+
+                        isUpdated = syncAdapter.ApplyUpdate(row, scope, true);
+
+                        if (!isUpdated)
+                        {
+                            // Insert the row
+                            isInserted = syncAdapter.ApplyInsert(row, scope, true);
+                            // Then update the row to mark this row as updated from server
+                            // and get it back to client 
+                            isUpdated = syncAdapter.ApplyUpdate(row, scope, true);
+
+                            commandType = DbCommandType.InsertMetadata;
+                        }
+
+                        if (!isUpdated && !isInserted)
+                            throw new Exception("Can't update the merge row.");
+
+
+                        // IF we have insert the row in the server side, to resolve the conflict
+                        // Whe should update the metadatas correctly
+                        if (isUpdated || isInserted)
+                        {
+                            using (var metadataCommand = syncAdapter.GetCommand(commandType))
+                            {
+                                // getting the row updated from server
+                                var dmTableRow = syncAdapter.GetRow(row);
+                                row = dmTableRow.Rows[0];
+
+                                // Deriving Parameters
+                                syncAdapter.SetCommandParameters(commandType, metadataCommand);
+
+                                // Set the id parameter
+                                syncAdapter.SetColumnParametersValues(metadataCommand, row);
+
+                                var version = row.RowState == DmRowState.Deleted ? DmRowVersion.Original : DmRowVersion.Current;
+
+                                Guid? create_scope_id = row["create_scope_id"] != DBNull.Value ? (Guid?)row["create_scope_id"] : null;
+                                long createTimestamp = row["create_timestamp", version] != DBNull.Value ? Convert.ToInt64(row["create_timestamp", version]) : 0;
+
+                                // The trick is to force the row to be "created before last sync"
+                                // Even if we just inserted it
+                                // to be able to get the row in state Updated (and not Added)
+                                row["create_scope_id"] = create_scope_id;
+                                row["create_timestamp"] = fromScopeLocalTimeStamp - 1;
+
+                                // Update scope id is set to server side
+                                Guid? update_scope_id = row["update_scope_id"] != DBNull.Value ? (Guid?)row["update_scope_id"] : null;
+                                long updateTimestamp = row["update_timestamp", version] != DBNull.Value ? Convert.ToInt64(row["update_timestamp", version]) : 0;
+
+                                row["update_scope_id"] = null;
+                                row["update_timestamp"] = updateTimestamp;
+
+
+                                // apply local row, set scope.id to null becoz applied locally
+                                var rowsApplied = syncAdapter.InsertOrUpdateMetadatas(metadataCommand, row, null);
+
+                                if (!rowsApplied)
+                                    throw new Exception("No metadatas rows found, can't update the server side");
+
+                            }
+                        }
+                    }
+
+                    finalRow = isMergeAction ? row : conflict.LocalRow;
+
+                    // We don't do anything on the local provider, so we do not need to return a +1 on syncConflicts count
+                    return (ChangeApplicationAction.Continue, 0, finalRow);
+                }
+                return (ChangeApplicationAction.Rollback, 0, finalRow);
+            }
+
+            // We gonna apply with force the line
+            if (conflictApplyAction == ApplyAction.RetryWithForceWrite)
+            {
+                if (conflict.RemoteRow == null)
+                {
+                    // TODO : Should Raise an error ?
+                    return (ChangeApplicationAction.Rollback, 0, finalRow);
+                }
+
+                bool operationComplete = false;
+
+                // create a localscope to override values
+                var localScope = new ScopeInfo { Name = scope.Name, Timestamp = fromScopeLocalTimeStamp };
+
+                DbCommandType commandType = DbCommandType.InsertMetadata;
+                bool needToUpdateMetadata = true;
+
+                switch (conflict.Type)
+                {
+                    // Remote source has row, Local don't have the row, so insert it
+                    case ConflictType.RemoteUpdateLocalNoRow:
+                    case ConflictType.RemoteInsertLocalNoRow:
+                        operationComplete = syncAdapter.ApplyInsert(conflict.RemoteRow, localScope, true);
+                        commandType = DbCommandType.InsertMetadata;
+                        break;
+
+                    // Conflict, but both have delete the row, so nothing to do
+                    case ConflictType.RemoteDeleteLocalDelete:
+                    case ConflictType.RemoteDeleteLocalNoRow:
+                        operationComplete = true;
+                        needToUpdateMetadata = false;
+                        break;
+
+                    // The remote has delete the row, and local has insert or update it
+                    // So delete the local row
+                    case ConflictType.RemoteDeleteLocalUpdate:
+                    case ConflictType.RemoteDeleteLocalInsert:
+                        operationComplete = syncAdapter.ApplyDelete(conflict.RemoteRow, localScope, true);
+                        commandType = DbCommandType.UpdateMetadata;
+                        break;
+
+
+                    // Remote insert and local delete, sor insert again on local
+                    // but tracking line exist, so make an update on metadata
+                    case ConflictType.RemoteInsertLocalDelete:
+                    case ConflictType.RemoteUpdateLocalDelete:
+                        operationComplete = syncAdapter.ApplyInsert(conflict.RemoteRow, localScope, true);
+                        commandType = DbCommandType.UpdateMetadata;
+                        break;
+
+                    // Remote insert and local insert/ update, take the remote row and update the local row
+                    case ConflictType.RemoteUpdateLocalInsert:
+                    case ConflictType.RemoteUpdateLocalUpdate:
+                    case ConflictType.RemoteInsertLocalInsert:
+                    case ConflictType.RemoteInsertLocalUpdate:
+                        operationComplete = syncAdapter.ApplyUpdate(conflict.RemoteRow, localScope, true);
+                        commandType = DbCommandType.UpdateMetadata;
+                        break;
+
+                    case ConflictType.RemoteCleanedupDeleteLocalUpdate:
+                    case ConflictType.ErrorsOccurred:
+                        return (ChangeApplicationAction.Rollback, 0, finalRow);
+                }
+
+                if (needToUpdateMetadata)
+                {
+                    using (var metadataCommand = syncAdapter.GetCommand(commandType))
+                    {
+                        // Deriving Parameters
+                        syncAdapter.SetCommandParameters(commandType, metadataCommand);
+
+                        // force applying client row, so apply scope.id (client scope here)
+                        var rowsApplied = syncAdapter.InsertOrUpdateMetadatas(metadataCommand, conflict.RemoteRow, scope.Id);
+                        if (!rowsApplied)
+                            throw new Exception("No metadatas rows found, can't update the server side");
+                    }
+                }
+
+                finalRow = conflict.RemoteRow;
+
+                //After a force update, there is a problem, so raise exception
+                if (!operationComplete)
+                {
+                    var ex = $"Can't force operation for applyType {syncAdapter.ApplyType}";
+                    finalRow = null;
+                    return (ChangeApplicationAction.Continue, 0, finalRow);
+                }
+
+                // tableProgress.ChangesApplied += 1;
+                return (ChangeApplicationAction.Continue, 1, finalRow);
+            }
+
+            return (ChangeApplicationAction.Rollback, 0, finalRow);
+
+        }
+
+
+
     }
 }

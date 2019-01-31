@@ -113,7 +113,7 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// Gets the changes statistics
         /// </summary>
-        public ChangesSelected ChangesSelected { get; set; }
+        public DatabaseChangesSelected ChangesSelected { get; set; }
     }
 
 
@@ -157,7 +157,7 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// Gets the changes applied stats from the server
         /// </summary>
-        public ChangesApplied ChangesApplied { get; set; }
+        public DatabaseChangesApplied ChangesApplied { get; set; }
 
 
     }

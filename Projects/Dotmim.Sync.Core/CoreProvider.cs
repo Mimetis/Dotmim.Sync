@@ -19,36 +19,9 @@ namespace Dotmim.Sync
     public abstract partial class CoreProvider : IProvider
     {
         private bool syncInProgress;
+        private readonly Dictionary<Type, ISyncInterceptor> dictionary = new Dictionary<Type, ISyncInterceptor>();
         private CancellationToken cancellationToken;
-
-        public void SetCancellationToken(CancellationToken token) => this.cancellationToken = token;
-        
-        /// <summary>
-        /// Raise an event if the sync is outdated. 
-        /// Let the user choose if he wants to force or not
-        /// </summary>
-        public event EventHandler<OutdatedEventArgs> SyncOutdated = null;
-
-        public event EventHandler<ProgressEventArgs> SyncProgress = null;
-        public event EventHandler<BeginSessionEventArgs> BeginSession = null;
-        public event EventHandler<EndSessionEventArgs> EndSession = null;
-        public event EventHandler<ScopeEventArgs> ScopeLoading = null;
-        public event EventHandler<ScopeEventArgs> ScopeSaved = null;
-        public event EventHandler<DatabaseApplyingEventArgs> DatabaseApplying = null;
-        public event EventHandler<DatabaseAppliedEventArgs> DatabaseApplied = null;
-        public event EventHandler<DatabaseTableApplyingEventArgs> DatabaseTableApplying = null;
-        public event EventHandler<DatabaseTableAppliedEventArgs> DatabaseTableApplied = null;
-        public event EventHandler<SchemaApplyingEventArgs> SchemaApplying = null;
-        public event EventHandler<SchemaAppliedEventArgs> SchemaApplied = null;
-        public event EventHandler<TableChangesSelectingEventArgs> TableChangesSelecting = null;
-        public event EventHandler<TableChangesSelectedEventArgs> TableChangesSelected = null;
-        public event EventHandler<TableChangesApplyingEventArgs> TableChangesApplying = null;
-        public event EventHandler<TableChangesAppliedEventArgs> TableChangesApplied = null;
-
-        /// <summary>
-        /// Occurs when a conflict is raised.
-        /// </summary>
-        public event EventHandler<ApplyChangeFailedEventArgs> ApplyChangedFailed = null;
+        private IProgress<ProgressArgs> progress;
 
         /// <summary>
         /// Create a new instance of the implemented Connection provider
@@ -106,110 +79,117 @@ namespace Dotmim.Sync
         /// </summary>
         public SyncOptions Options { get; set; }
 
+
         /// <summary>
-        /// Try to raise a specific progress event
+        /// set the progress action used to get progression on the provider
         /// </summary>
-        private void TryRaiseProgressEvent<T>(T args, EventHandler<T> handler) where T : BaseProgressEventArgs
-        {
-            args.Action = ChangeApplicationAction.Continue;
+        public void SetProgress(IProgress<ProgressArgs> progress) => this.progress = progress;
 
-            handler?.Invoke(this, args);
+        /// <summary>
+        /// Set the cancellation token used to cancel sync
+        /// </summary>
+        /// <param name="token"></param>
+        public void SetCancellationToken(CancellationToken token) => this.cancellationToken = token;
 
-            if (args.Action == ChangeApplicationAction.Rollback)
-                throw new RollbackException();
 
-            var props = new Dictionary<string, string>();
-
-            switch (args.Stage)
-            {
-                case SyncStage.None:
-                    break;
-                case SyncStage.BeginSession:
-                    this.TryRaiseProgressEvent(SyncStage.BeginSession, $"Begin session");
-                    break;
-                case SyncStage.ScopeLoading:
-                    props.Add("ScopeId", (args as ScopeEventArgs).ScopeInfo.Id.ToString());
-                    this.TryRaiseProgressEvent(SyncStage.ScopeLoading, $"Loading scope", props);
-                    break;
-                case SyncStage.ScopeSaved:
-                    props.Add("ScopeId", (args as ScopeEventArgs).ScopeInfo.Id.ToString());
-                    this.TryRaiseProgressEvent(SyncStage.ScopeLoading, $"Scope saved", props);
-                    break;
-                case SyncStage.SchemaApplying:
-                    this.TryRaiseProgressEvent(SyncStage.SchemaApplying, $"Applying configuration");
-                    break;
-                case SyncStage.SchemaApplied:
-                    this.TryRaiseProgressEvent(SyncStage.SchemaApplied, $"Configuration applied");
-                    break;
-                case SyncStage.DatabaseApplying:
-                    this.TryRaiseProgressEvent(SyncStage.DatabaseApplying, $"Applying database schemas");
-                    break;
-                case SyncStage.DatabaseApplied:
-                    props.Add("Script", (args as DatabaseAppliedEventArgs).Script);
-                    this.TryRaiseProgressEvent(SyncStage.DatabaseApplied, $"Database schemas applied", props);
-                    break;
-                case SyncStage.DatabaseTableApplying:
-                    props.Add("TableName", (args as DatabaseTableApplyingEventArgs).TableName);
-                    this.TryRaiseProgressEvent(SyncStage.DatabaseApplying, $"Applying schema table", props);
-                    break;
-                case SyncStage.DatabaseTableApplied:
-                    props.Add("TableName", (args as DatabaseTableAppliedEventArgs).TableName);
-                    props.Add("Script", (args as DatabaseTableAppliedEventArgs).Script);
-                    this.TryRaiseProgressEvent(SyncStage.DatabaseApplied, $"Table schema applied", props);
-                    break;
-                case SyncStage.TableChangesSelecting:
-                    props.Add("TableName", (args as TableChangesSelectingEventArgs).TableName);
-                    this.TryRaiseProgressEvent(SyncStage.TableChangesSelecting, $"Selecting changes", props);
-                    break;
-                case SyncStage.TableChangesSelected:
-                    props.Add("TableName", (args as TableChangesSelectedEventArgs).TableChangesSelected.TableName);
-                    props.Add("Deletes", (args as TableChangesSelectedEventArgs).TableChangesSelected.Deletes.ToString());
-                    props.Add("Inserts", (args as TableChangesSelectedEventArgs).TableChangesSelected.Inserts.ToString());
-                    props.Add("Updates", (args as TableChangesSelectedEventArgs).TableChangesSelected.Updates.ToString());
-                    props.Add("TotalChanges", (args as TableChangesSelectedEventArgs).TableChangesSelected.TotalChanges.ToString());
-                    this.TryRaiseProgressEvent(SyncStage.TableChangesSelected, $"Changes selected", props);
-                    break;
-                case SyncStage.TableChangesApplying:
-                    props.Add("TableName", (args as TableChangesApplyingEventArgs).TableName);
-                    props.Add("State", (args as TableChangesApplyingEventArgs).State.ToString());
-                    this.TryRaiseProgressEvent(SyncStage.TableChangesApplying, $"Applying changes", props);
-                    break;
-                case SyncStage.TableChangesApplied:
-                    props.Add("TableName", (args as TableChangesAppliedEventArgs).TableChangesApplied.TableName);
-                    props.Add("State", (args as TableChangesAppliedEventArgs).TableChangesApplied.State.ToString());
-                    props.Add("Applied", (args as TableChangesAppliedEventArgs).TableChangesApplied.Applied.ToString());
-                    props.Add("Failed", (args as TableChangesAppliedEventArgs).TableChangesApplied.Failed.ToString());
-                    this.TryRaiseProgressEvent(SyncStage.TableChangesApplied, $"Changes applied", props);
-                    break;
-                case SyncStage.EndSession:
-                    this.TryRaiseProgressEvent(SyncStage.EndSession, $"End session");
-                    break;
-                case SyncStage.CleanupMetadata:
-                    break;
-            }
-        }
+        /// <summary>
+        /// Shortcut to raise a rollback error
+        /// </summary>
+        internal static void RaiseRollbackException(SyncContext context, string message) =>
+            throw new SyncException(message, context.SyncStage, SyncExceptionType.Rollback);
 
         /// <summary>
         /// Try to raise a generalist progress event
         /// </summary>
-        private void TryRaiseProgressEvent(SyncStage stage, string message, Dictionary<string, string> properties = null, DbConnection connection = null, DbTransaction transaction = null)
+        private void ReportProgress(SyncContext context, ProgressArgs args, DbConnection connection = null, DbTransaction transaction = null)
         {
-            var progressEventArgs = new ProgressEventArgs(this.ProviderTypeName, stage, message, connection, transaction);
 
-            if (properties != null)
-                progressEventArgs.Properties = properties;
+            if (connection == null && args.Connection != null)
+                connection = args.Connection;
 
-            SyncProgress?.Invoke(this, progressEventArgs);
+            if (transaction == null && args.Transaction!= null)
+                transaction = args.Transaction;
 
-            if (progressEventArgs.Action == ChangeApplicationAction.Rollback)
-                throw new RollbackException();
+
+            ReportProgress(context, args.Message, connection, transaction);
         }
+
+
+        /// <summary>
+        /// Try to raise a generalist progress event
+        /// </summary>
+        private void ReportProgress(SyncContext context, string message,  DbConnection connection = null, DbTransaction transaction = null)
+        {
+            if (this.progress == null)
+                return;
+
+            var progressArgs = new ProgressArgs(context, message, connection, transaction);
+
+            this.progress.Report(progressArgs);
+
+            if (progressArgs.Action == ChangeApplicationAction.Rollback)
+                RaiseRollbackException(context, "Rollback by user during a progress event");
+        }
+
+
+        /// <summary>
+        /// Subscribe an apply changes failed action
+        /// </summary>
+        public void InterceptApplyChangesFailed(Func<ApplyChangesFailedArgs, Task> action)
+            => this.GetInterceptor<ApplyChangesFailedArgs>().Set(action);
+
+
+        /// <summary>
+        /// Get an interceptor for a given args, deriving from BaseArgs
+        /// </summary>
+        public InterceptorWrapper<T> GetInterceptor<T>() where T : ProgressArgs
+        {
+            InterceptorWrapper<T> interceptor = null;
+            var typeofT = typeof(T);
+
+            // try get the interceptor from the dictionary and cast it
+            if (this.dictionary.TryGetValue(typeofT, out var i))
+                interceptor = (InterceptorWrapper<T>)i;
+
+            // if null, create a new one
+            if (interceptor == null)
+            {
+                interceptor = new InterceptorWrapper<T>();
+                this.dictionary.Add(typeofT, interceptor);
+            }
+
+            return interceptor;
+        }
+
+        /// <summary>
+        /// Reset all interceptors
+        /// </summary>
+        public void InterceptNone()
+        {
+            foreach(var interceptor in this.dictionary.Values)
+            {
+                interceptor.Dispose();
+            }
+
+            this.dictionary.Clear();
+        }
+
+        /// <summary>
+        /// Returns the Task associated with given type of BaseArgs 
+        /// Because we are not doing anything else than just returning a task, no need to use async / await. Just return the Task itself
+        /// </summary>
+        internal Task InterceptAsync<T>(T args) where T : ProgressArgs
+        {
+            var interceptor = GetInterceptor<T>();
+            return interceptor.RunAsync(args);
+        }
+
 
         /// <summary>
         /// Called by the  to indicate that a 
         /// synchronization session has started.
         /// </summary>
-        public virtual Task<(SyncContext, SyncConfiguration)> BeginSessionAsync(SyncContext context, MessageBeginSession message)
+        public virtual async Task<(SyncContext, SyncConfiguration)> BeginSessionAsync(SyncContext context, MessageBeginSession message)
         {
             try
             {
@@ -221,18 +201,17 @@ namespace Dotmim.Sync
                     this.syncInProgress = true;
                 }
 
-                // Set stage
+                // Progress & interceptor
                 context.SyncStage = SyncStage.BeginSession;
+                var sessionArgs = new SessionBeginArgs(context, null, null);
+                this.ReportProgress(context, sessionArgs);
+                await this.InterceptAsync(sessionArgs);
 
-                // Event progress
-                var progressEventArgs = new BeginSessionEventArgs(this.ProviderTypeName, context.SyncStage, null, null);
-                this.TryRaiseProgressEvent(progressEventArgs, this.BeginSession);
-
-                return Task.FromResult((context, message.Configuration));
+                return (context, message.Configuration);
             }
             catch (Exception ex)
             {
-                throw new SyncException(ex, SyncStage.BeginSession, this.ProviderTypeName);
+                throw new SyncException(ex, SyncStage.BeginSession);
             }
 
 
@@ -241,27 +220,28 @@ namespace Dotmim.Sync
         /// <summary>
         /// Called when the sync is over
         /// </summary>
-        public virtual Task<SyncContext> EndSessionAsync(SyncContext context)
+        public virtual async Task<SyncContext> EndSessionAsync(SyncContext context)
         {
             // already ended
             lock (this)
             {
                 if (!this.syncInProgress)
-                    return Task.FromResult(context);
+                    return context;
             }
 
             context.SyncStage = SyncStage.EndSession;
 
-            // Event progress
-            this.TryRaiseProgressEvent(
-                new EndSessionEventArgs(this.ProviderTypeName, context.SyncStage, null, null), this.EndSession);
+            // Progress & interceptor
+            var sessionArgs = new SessionEndArgs(context, null, null);
+            this.ReportProgress(context, sessionArgs);
+            await this.InterceptAsync(sessionArgs);
 
             lock (this)
             {
                 this.syncInProgress = false;
             }
 
-            return Task.FromResult(context);
+            return context;
         }
 
         /// <summary>
