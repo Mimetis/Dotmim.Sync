@@ -1,4 +1,4 @@
-﻿#if NETSTANDARD
+﻿
 using Microsoft.AspNetCore.Mvc.Filters;
 using System;
 using System.Linq;
@@ -47,7 +47,7 @@ namespace Dotmim.Sync.Web.Server
             if (OnMethods.Contains(context.HttpContext.Request.Method)
                 || OnMethods.Contains("*"))
             {
-                WebProxyServerProvider _webProxyService = (WebProxyServerProvider)context.HttpContext.RequestServices.GetService(typeof(WebProxyServerProvider));
+                var _webProxyService = (WebProxyServerProvider)context.HttpContext.RequestServices.GetService(typeof(WebProxyServerProvider));
 
                 if (_webProxyService == null)
                 {
@@ -59,4 +59,3 @@ namespace Dotmim.Sync.Web.Server
         }
     }
 }
-#endif
