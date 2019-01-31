@@ -53,7 +53,7 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// Process a request message with HttpClient object. 
         /// </summary>
-        public async Task<T> ProcessRequest<T>(T content, SerializationFormat serializationFormat,  CancellationToken cancellationToken)
+        public async Task<T> ProcessRequest<T>(T content, Guid sessionId, SerializationFormat serializationFormat, CancellationToken cancellationToken)
         {
             if (this.BaseUri == null)
                 throw new ArgumentException("BaseUri is not defined");
@@ -101,12 +101,13 @@ namespace Dotmim.Sync.Web.Client
                 if (this.Cookie != null)
                     client.DefaultRequestHeaders.Add("Cookie", this.Cookie.ToString());
 
-                HttpRequestMessage requestMessage = new HttpRequestMessage(HttpMethod.Post, requestUri.ToString())
+                var requestMessage = new HttpRequestMessage(HttpMethod.Post, requestUri.ToString())
                 {
                     Content = arrayContent
                 };
 
-                // Adding the serialization format used
+                // Adding the serialization format used and session id
+                requestMessage.Headers.Add("dotmim-sync-session-id", sessionId.ToString());
                 requestMessage.Headers.Add("dotmim-sync-serialization-format", serializationFormat.ToString());
 
                 // Adding others headers
@@ -184,7 +185,7 @@ namespace Dotmim.Sync.Web.Client
 
         }
 
-#region IDisposable Support
+        #region IDisposable Support
         private bool disposedValue = false; // To detect redundant calls
 
 
@@ -208,7 +209,7 @@ namespace Dotmim.Sync.Web.Client
             // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
             Dispose(true);
         }
-#endregion
+        #endregion
 
 
     }

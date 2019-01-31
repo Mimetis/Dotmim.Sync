@@ -466,7 +466,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                     derivingParameters.TryAdd(textParser.FullUnquotedString, arrayParameters);
                 }
 
-                if (command.Parameters[0].ParameterName == "@RETURN_VALUE")
+                if (command.Parameters.Count > 0 && command.Parameters[0].ParameterName == "@RETURN_VALUE")
                     command.Parameters.RemoveAt(0);
 
             }

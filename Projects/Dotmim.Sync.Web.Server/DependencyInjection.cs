@@ -1,49 +1,77 @@
 ﻿using Dotmim.Sync;
 using Dotmim.Sync.Web.Server;
 using System;
+using System.Runtime.CompilerServices;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
+[assembly: InternalsVisibleTo("Dotmim.Sync.Tests")]
 
 namespace Microsoft.Extensions.DependencyInjection
 {
     public static class DependencyInjection
     {
+        private static Type _providerType;
+        private static string _connectionString;
+        private static SyncConfiguration _syncConfiguration;
+        private static SyncOptions _options;
+
         /// <summary>
         /// Add the server provider (inherited from CoreProvider) and register in the DI a WebProxyServerProvider.
         /// Use the WebProxyServerProvider in your controller, by inject it.
         /// </summary>
-        /// <typeparam name="TProvider">Provider inherited from CoreProvider (SqlSyncProvider, MySqlSyncProvider, OracleSyncProvider) Shoud have [CanBeServerProvider=true] </typeparam>
+        /// <typeparam name="TProvider">Provider inherited from CoreProvider (SqlSyncProvider, MySqlSyncProvider, OracleSyncProvider) Should have [CanBeServerProvider=true] </typeparam>
         /// <param name="serviceCollection"></param>
         /// <param name="connectionString">Provider connection string</param>
-        /// <param name="action">Configuration server side. Adding at least tables to be synchronized</param>
+        /// <param name="configuration">Configuration server side. Adding at least tables to be synchronized</param>
+        /// <param name="options">Options, not shared with client, but only applied locally. Can be null</param>
         public static IServiceCollection AddSyncServer<TProvider>(
                     this IServiceCollection serviceCollection,
                     string connectionString,
-                    Action<SyncConfiguration> action) where TProvider : CoreProvider, new()
+                    Action<SyncConfiguration> configuration, 
+                    Action<SyncOptions> options= null) where TProvider : CoreProvider, new()
         {
-            if (action == null)
-                throw new ArgumentNullException(nameof(action));
+            if (string.IsNullOrWhiteSpace(connectionString))
+                throw new ArgumentNullException(nameof(connectionString));
 
-            var provider = new TProvider();
-            SyncConfiguration syncConfiguration = new SyncConfiguration();
-            action?.Invoke(syncConfiguration);
+            if (configuration == null)
+                throw new ArgumentNullException(nameof(configuration));
 
-            provider.ConnectionString = connectionString;
+            _providerType = typeof(TProvider);
+            _connectionString = connectionString;
+            _syncConfiguration = new SyncConfiguration();
+            _options = new SyncOptions();
 
-            var webProvider = new WebProxyServerProvider(provider)
-            {
-                // Sets the configuration, owned by the server side.
-                Configuration = syncConfiguration,
-                // since we will register this proxy as a singleton, just signal it
-                IsRegisterAsSingleton = true
-            };
+            // get sync configuration
+            configuration.Invoke(_syncConfiguration);
 
-            
-            serviceCollection.AddSingleton(webProvider);
+            // get options if specified
+            options?.Invoke(_options);
+
+            serviceCollection.AddOptions();
+
+            serviceCollection.AddSingleton(new WebProxyServerProvider());
 
             return serviceCollection;
         }
 
+        /// <summary>
+        /// Create a new instance of Sync Memory Provider
+        /// </summary>
+        internal static SyncMemoryProvider GetNewWebProxyServerProvider()
+        {
+            var provider = (CoreProvider)Activator.CreateInstance(_providerType);
+            provider.ConnectionString = _connectionString;
 
-        
+            var webProvider = new SyncMemoryProvider(provider)
+            {
+                // Sets the configuration, owned by the server side.
+                Configuration = _syncConfiguration,
+                Options = _options
+            };
+            return webProvider;
+        }
+
 
     }
 }
