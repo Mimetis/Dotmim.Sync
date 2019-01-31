@@ -77,13 +77,12 @@ namespace Dotmim.Sync.Tests.Core
         public Action<IProvider> EndRun { get; set; }
 
 
-        public async Task<ProviderRun> RunAsync(ProviderFixture serverFixture, 
-            string scopeName = null, string[] tables = null, 
+        public async Task<ProviderRun> RunAsync(ProviderFixture serverFixture,
+            string scopeName = null, string[] tables = null,
             SyncConfiguration conf = null,
             bool reuseAgent = true)
         {
             // server proxy
-            var proxyServerProvider = new WebProxyServerProvider(serverFixture.ServerProvider);
             var proxyClientProvider = new WebProxyClientProvider();
 
             var syncTables = tables ?? serverFixture.Tables;
@@ -139,7 +138,7 @@ namespace Dotmim.Sync.Tests.Core
                     configuration.Add(syncTables);
                     if (conf != null)
                         serverFixture.CopyConfiguration(configuration, conf);
-                    
+
                     // Add Filters
                     if (serverFixture.Filters != null && serverFixture.Filters.Count > 0)
                         serverFixture.Filters.ForEach(f =>
@@ -148,27 +147,39 @@ namespace Dotmim.Sync.Tests.Core
                                 configuration.Filters.Add(f);
                         });
                 };
-                
-                using (var server = new KestrellTestServer(proxyServerProvider.LocalProvider, action, true))
+
+                using (var server = new KestrellTestServer())
                 {
                     // server handler
                     var serverHandler = new RequestDelegate(async context =>
                     {
+
+                        var syncConfiguration = new SyncConfiguration(syncTables);// set proxy conf
+                        // copy conf settings
+
+                        if (conf != null)
+                            serverFixture.CopyConfiguration(syncConfiguration, conf);
+
+                        // test if <> directory name works
+                        var options = new SyncOptions();
+                        options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "server");
+
+                        // Add Filers
+                        if (serverFixture.Filters != null && serverFixture.Filters.Count > 0)
+                            serverFixture.Filters.ForEach(f =>
+                            {
+                                if (!conf.Filters.Contains(f))
+                                    conf.Filters.Add(f);
+                            });
+
                         // sync
                         try
                         {
-                            WebProxyServerProvider providerReference = null;
-                            await WebProxyServerProvider.HandleRequestAsync(context, provider =>
-                            {
-                                // test if <> directory name works
-                                provider.Options = new SyncOptions();
-                                provider.Options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "server");
+                            var proxyServerProvider = WebProxyServerProvider.Create(context, serverFixture.ServerProvider, syncConfiguration, options);
 
-                                providerReference = provider;
-                                this.BeginRun?.Invoke(providerReference.LocalProvider);
-                                
-                            });
-                            this.EndRun?.Invoke(providerReference?.LocalProvider);
+                            this.BeginRun?.Invoke(proxyServerProvider.GetLocalProvider(context));
+                            await proxyServerProvider.HandleRequestAsync(context);
+                            this.EndRun?.Invoke(proxyServerProvider.GetLocalProvider(context));
 
                         }
                         catch (Exception ew)
@@ -177,7 +188,6 @@ namespace Dotmim.Sync.Tests.Core
                         }
                     });
 
-                    // client handler
                     var clientHandler = new ResponseDelegate(async (serviceUri) =>
                     {
                         // create agent

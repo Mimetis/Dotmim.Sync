@@ -29,6 +29,8 @@ namespace Dotmim.Sync.Web.Server
     public class WebProxyServerProvider
     {
 
+        private static WebProxyServerProvider defaultInstance = new WebProxyServerProvider();
+
         private readonly SyncMemoryProvider internalProvider;
 
         /// <summary>
@@ -36,17 +38,57 @@ namespace Dotmim.Sync.Web.Server
         /// </summary>
         public WebProxyServerProvider() { }
 
-        /// <summary>
-        /// TODO : How to handle a direct instance of webproxy provider, if no memorycache available ?
-        /// </summary>
-        public WebProxyServerProvider(CoreProvider provider, SyncConfiguration configuration, SyncOptions options)
+
+        internal static WebProxyServerProvider Create(HttpContext context, CoreProvider provider, SyncConfiguration conf, SyncOptions options)
         {
-            internalProvider = new SyncMemoryProvider(provider)
+            if (!TryGetHeaderValue(context.Request.Headers, "dotmim-sync-session-id", out var sessionId))
+                throw new SyncException($"Can't find any session id in the header");
+
+            // Check if we have already a cached Sync Memory provider
+            var syncMemoryProvider = GetCachedProviderInstance(context, sessionId);
+
+            // we don't have any provider for this session id, so create it
+            if (syncMemoryProvider == null)
             {
-                // Sets the configuration, owned by the server side.
-                Configuration = configuration,
-                Options = options
-            };
+                var cache = context.RequestServices.GetService<IMemoryCache>();
+
+                if (cache == null)
+                    throw new SyncException("Cache is not configured! Please add memory cache, distributed or not (see https://docs.microsoft.com/en-us/aspnet/core/performance/caching/response?view=aspnetcore-2.2)");
+
+                syncMemoryProvider = new SyncMemoryProvider(provider)
+                {
+                    // Sets the configuration, owned by the server side.
+                    Configuration = conf,
+                    Options = options
+                };
+
+                cache.Set(sessionId, syncMemoryProvider, TimeSpan.FromHours(1));
+
+            }
+
+            return defaultInstance;
+        }
+
+        public CoreProvider GetLocalProvider(HttpContext context = null)
+        {
+            if (context == null)
+                return this.internalProvider?.LocalProvider ;
+
+            var syncMemoryProvider = this.internalProvider;
+
+            // get cached provider instance if not defined byt web proxy server provider
+            if (syncMemoryProvider != null)
+                return this.internalProvider?.LocalProvider;
+
+            if (!TryGetHeaderValue(context.Request.Headers, "dotmim-sync-session-id", out var sessionId))
+                return null;
+
+            syncMemoryProvider = GetCachedProviderInstance(context, sessionId);
+
+            if (syncMemoryProvider != null)
+                return syncMemoryProvider.LocalProvider;
+
+            return null;
         }
 
         /// <summary>
@@ -81,6 +123,9 @@ namespace Dotmim.Sync.Web.Server
             if (TryGetHeaderValue(context.Request.Headers, "dotmim-sync-serialization-format", out var vs))
                 serializationFormat = vs.ToLowerInvariant() == "json" ? SerializationFormat.Json : SerializationFormat.Binary;
 
+            if (!TryGetHeaderValue(context.Request.Headers, "dotmim-sync-session-id", out var sessionId))
+                throw new SyncException($"Can't find any session id in the header");
+
             var syncMemoryProvider = this.internalProvider;
             var syncSessionId = "";
             HttpMessage httpMessage = null;
@@ -90,12 +135,15 @@ namespace Dotmim.Sync.Web.Server
                 httpMessage = serializer.Deserialize(streamArray);
                 syncSessionId = httpMessage.SyncContext.SessionId.ToString();
 
+                if (!httpMessage.SyncContext.SessionId.Equals(Guid.Parse(sessionId)))
+                    throw new SyncException($"Session id is not matching correctly between header and message");
+
                 // get cached provider instance if not defined byt web proxy server provider
                 if (syncMemoryProvider == null)
                     syncMemoryProvider = GetCachedProviderInstance(context, syncSessionId);
 
                 if (syncMemoryProvider == null)
-                    throw new SyncException($"Can't find any cached provider for session id {syncSessionId}");
+                    syncMemoryProvider = AddProviderInstanceToCache(context, syncSessionId);
 
                 // action from user if available
                 action?.Invoke(syncMemoryProvider);
@@ -137,38 +185,28 @@ namespace Dotmim.Sync.Web.Server
                 throw new ArgumentNullException(nameof(syncSessionId));
 
             // get the sync provider associated with the session id
-            syncMemoryProvider = (SyncMemoryProvider)cache.Get(syncSessionId);
-            if (syncMemoryProvider != null)
-                return syncMemoryProvider;
+            syncMemoryProvider = cache.Get(syncSessionId) as SyncMemoryProvider;
 
-            syncMemoryProvider = DependencyInjection.GetNewWebProxyServerProvider();
-            cache.Set(syncSessionId, syncMemoryProvider, TimeSpan.FromHours(1));
             return syncMemoryProvider;
+
         }
 
-        ///// <summary>
-        ///// Get an instance of SyncMemoryProvider depending on session id. If the entry for session id does not exists, create a new one
-        ///// </summary>
-        //private static ICache GetCacheManagerInstance(HttpContext context, string syncSessionId)
-        //{
-        //    InMemoryCache memoryCache;
+        /// <summary>
+        /// Add a new instance of SyncMemoryProvider, created by DI
+        /// </summary>
+        /// <returns></returns>
+        private static SyncMemoryProvider AddProviderInstanceToCache(HttpContext context, string syncSessionId)
+        {
+            var cache = context.RequestServices.GetService<IMemoryCache>();
 
-        //    var cache = context.RequestServices.GetService<IMemoryCache>();
-        //    if (cache == null)
-        //        throw new SyncException("Cache is not configured! Please add memory cache, distributed or not (see https://docs.microsoft.com/en-us/aspnet/core/performance/caching/response?view=aspnetcore-2.2)");
+            if (cache == null)
+                throw new SyncException("Cache is not configured! Please add memory cache, distributed or not (see https://docs.microsoft.com/en-us/aspnet/core/performance/caching/response?view=aspnetcore-2.2)");
 
-        //    if (string.IsNullOrWhiteSpace(syncSessionId))
-        //        throw new ArgumentNullException(nameof(syncSessionId));
+            var syncMemoryProvider = DependencyInjection.GetNewWebProxyServerProvider();
+            cache.Set(syncSessionId, syncMemoryProvider, TimeSpan.FromHours(1));
 
-        //    // get the sync provider associated with the session id
-        //    memoryCache = (InMemoryCache)cache.Get(syncSessionId + "_session");
-        //    if (memoryCache != null)
-        //        return memoryCache;
-
-        //    memoryCache = new InMemoryCache();
-        //    cache.Set(syncSessionId + "_session", memoryCache, TimeSpan.FromHours(1));
-        //    return memoryCache;
-        //}
+            return syncMemoryProvider;
+        }
 
 
         /// <summary>
@@ -187,14 +225,6 @@ namespace Dotmim.Sync.Web.Server
                 {
                     Console.WriteLine(e);
                 }
-                //try
-                //{
-                //    (memoryCache as IMemoryCache)?.Remove(syncSessionId + "_session");
-                //}
-                //catch (Exception e)
-                //{
-                //    Console.WriteLine(e);
-                //}
             });
         }
 
@@ -216,7 +246,7 @@ namespace Dotmim.Sync.Web.Server
         }
 
 
-        public bool TryGetHeaderValue(IHeaderDictionary n, string key, out string header)
+        public static bool TryGetHeaderValue(IHeaderDictionary n, string key, out string header)
         {
             if (n.TryGetValue(key, out var vs))
             {
