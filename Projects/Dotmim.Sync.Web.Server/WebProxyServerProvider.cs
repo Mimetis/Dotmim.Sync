@@ -17,7 +17,8 @@ using Newtonsoft.Json.Linq;
 #if NETSTANDARD
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Session;
-using Microsoft.Extensions.Primitives;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.DependencyInjection;
 #else
 using System.Collections.Specialized;
 using System.Net;
@@ -81,12 +82,25 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// Call this method to handle requests on the server, sent by the client
         /// </summary>
-        public async Task HandleRequestAsync(HttpContext context) => await this.HandleRequestAsync(context, CancellationToken.None);
+        public static async Task HandleRequestAsync(HttpContext context) =>
+            await HandleRequestAsync(context, null, CancellationToken.None);
+        
+        /// <summary>
+        /// Call this method to handle requests on the server, sent by the client
+        /// </summary>
+        public static async Task HandleRequestAsync(HttpContext context, Action<WebProxyServerProvider> action) =>
+            await HandleRequestAsync(context, action, CancellationToken.None);
 
         /// <summary>
         /// Call this method to handle requests on the server, sent by the client
         /// </summary>
-        public async Task HandleRequestAsync(HttpContext context, CancellationToken cancellationToken)
+        public static async Task HandleRequestAsync(HttpContext context, CancellationToken token) =>
+            await HandleRequestAsync(context, null, token);
+        
+        /// <summary>
+        /// Call this method to handle requests on the server, sent by the client
+        /// </summary>
+        public static async Task HandleRequestAsync(HttpContext context, Action<WebProxyServerProvider> action, CancellationToken cancellationToken)
         {
             var httpRequest = context.Request;
             var httpResponse = context.Response;
@@ -96,52 +110,29 @@ namespace Dotmim.Sync.Web.Server
             // Get the serialization format
             if (context.Request.Headers.TryGetHeaderValue("dotmim-sync-serialization-format", out var vs))
                 serializationFormat = vs.ToLowerInvariant() == "json" ? SerializationFormat.Json : SerializationFormat.Binary;
-
-            // Check if we should handle a session store to handle configuration
-            if (!this.IsRegisterAsSingleton)
-            {
-                if (this.IsSessionEnabled(context))
-                    this.LocalProvider.CacheManager = new SessionCache(context);
-            }
-
+            
+            WebProxyServerProvider webProxyServerProvider = null;
+            var syncSessionId = "";
+            HttpMessage httpMessage = null;
             try
             {
                 var serializer = BaseConverter<HttpMessage>.GetConverter(serializationFormat);
+                httpMessage = serializer.Deserialize(streamArray);
+                syncSessionId = httpMessage.SyncContext.SessionId.ToString();
 
-                var httpMessage = serializer.Deserialize(streamArray);
+                webProxyServerProvider = GetInstance(context, syncSessionId);
+                if (webProxyServerProvider == null) throw new SyncException("WebProxyServerProvider is null!");
+                action?.Invoke(webProxyServerProvider);
 
-                HttpMessage httpMessageResponse = null;
-                switch (httpMessage.Step)
+                // Check if we should handle a session store to handle configuration
+                if (!webProxyServerProvider.IsRegisterAsSingleton)
                 {
-                    case HttpStep.BeginSession:
-                        // on first message, replace the Configuration with the server one !
-                        httpMessageResponse = await this.BeginSessionAsync(httpMessage);
-                        break;
-                    case HttpStep.EnsureScopes:
-                        httpMessageResponse = await this.EnsureScopesAsync(httpMessage);
-                        break;
-                    case HttpStep.EnsureConfiguration:
-                        httpMessageResponse = await this.EnsureSchemaAsync(httpMessage);
-                        break;
-                    case HttpStep.EnsureDatabase:
-                        httpMessageResponse = await this.EnsureDatabaseAsync(httpMessage);
-                        break;
-                    case HttpStep.GetChangeBatch:
-                        httpMessageResponse = await this.GetChangeBatchAsync(httpMessage);
-                        break;
-                    case HttpStep.ApplyChanges:
-                        httpMessageResponse = await this.ApplyChangesAsync(httpMessage);
-                        break;
-                    case HttpStep.GetLocalTimestamp:
-                        httpMessageResponse = await this.GetLocalTimestampAsync(httpMessage);
-                        break;
-                    case HttpStep.WriteScopes:
-                        httpMessageResponse = await this.WriteScopesAsync(httpMessage);
-                        break;
-                    case HttpStep.EndSession:
-                        httpMessageResponse = await this.EndSessionAsync(httpMessage);
-                        break;
+                    if (IsSessionEnabled(context))
+                        webProxyServerProvider.LocalProvider.CacheManager = new SessionCache(context);
                 }
+
+                var httpMessageResponse =
+                    await webProxyServerProvider.GetResponseMessageAsync(httpMessage, cancellationToken);
 
                 var binaryData = serializer.Serialize(httpMessageResponse);
                 await httpResponse.GetBody().WriteAsync(binaryData, 0, binaryData.Length);
@@ -149,24 +140,113 @@ namespace Dotmim.Sync.Web.Server
             }
             catch (Exception ex)
             {
-                await this.WriteExceptionAsync(httpResponse, ex);
+                await WriteExceptionAsync(httpResponse, ex, webProxyServerProvider?.LocalProvider?.ProviderTypeName ?? "ServerLocalProvider");
+            }
+            finally
+            {
+                if (!DependencyInjection.RegisterAsSingleton)
+                {
+                    if (httpMessage != null && httpMessage.Step == HttpStep.EndSession)
+                        Cleanup(context.RequestServices.GetService(typeof(DependencyInjection.SyncMemoryCache)), syncSessionId);
+                }
             }
         }
+
+        private static void Cleanup(object memoryCache, string syncSessionId)
+        {
+            if (memoryCache == null || string.IsNullOrWhiteSpace(syncSessionId)) return;
+            Task.Run(() =>
+            {
+                try
+                {
+                    (memoryCache as IMemoryCache)?.Remove(syncSessionId);
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e);
+                }
+            });
+        }
+
+        private static WebProxyServerProvider GetInstance(HttpContext context, string syncSessionId)
+        {
+            WebProxyServerProvider webProxyServerProvider;
+            if (DependencyInjection.RegisterAsSingleton)
+            {
+                webProxyServerProvider = (WebProxyServerProvider) context.RequestServices.GetService(typeof(WebProxyServerProvider));
+                if (webProxyServerProvider == null) throw new SyncException("WebProxyServerProvider service not found");
+                return webProxyServerProvider;
+            }
+
+            if (!(context.RequestServices.GetService(typeof(DependencyInjection.SyncMemoryCache)) is IMemoryCache cache))
+                throw new SyncException("Cache is not configured!");
+                
+            if (string.IsNullOrWhiteSpace(syncSessionId))
+                throw new ArgumentNullException(nameof(syncSessionId));
+            
+            webProxyServerProvider = (WebProxyServerProvider) cache.Get(syncSessionId);
+            if (webProxyServerProvider != null)
+                return webProxyServerProvider;
+            
+            webProxyServerProvider = DependencyInjection.GetNewWebProxyServerProvider();
+            cache.Set(syncSessionId, webProxyServerProvider, TimeSpan.FromHours(1));
+            return webProxyServerProvider;
+        }
+
+        private async Task<HttpMessage> GetResponseMessageAsync(HttpMessage httpMessage,
+            CancellationToken cancellationToken)
+        {
+            HttpMessage httpMessageResponse = null;
+            switch (httpMessage.Step)
+            {
+                case HttpStep.BeginSession:
+                    // on first message, replace the Configuration with the server one !
+                    httpMessageResponse = await this.BeginSessionAsync(httpMessage);
+                    break;
+                case HttpStep.EnsureScopes:
+                    httpMessageResponse = await this.EnsureScopesAsync(httpMessage);
+                    break;
+                case HttpStep.EnsureConfiguration:
+                    httpMessageResponse = await this.EnsureSchemaAsync(httpMessage);
+                    break;
+                case HttpStep.EnsureDatabase:
+                    httpMessageResponse = await this.EnsureDatabaseAsync(httpMessage);
+                    break;
+                case HttpStep.GetChangeBatch:
+                    httpMessageResponse = await this.GetChangeBatchAsync(httpMessage);
+                    break;
+                case HttpStep.ApplyChanges:
+                    httpMessageResponse = await this.ApplyChangesAsync(httpMessage);
+                    break;
+                case HttpStep.GetLocalTimestamp:
+                    httpMessageResponse = await this.GetLocalTimestampAsync(httpMessage);
+                    break;
+                case HttpStep.WriteScopes:
+                    httpMessageResponse = await this.WriteScopesAsync(httpMessage);
+                    break;
+                case HttpStep.EndSession:
+                    httpMessageResponse = await this.EndSessionAsync(httpMessage);
+                    break;
+            }
+
+            return httpMessageResponse;
+        }
+
         /// <summary>
         /// Write exception to output message
         /// </summary>
-        public async Task WriteExceptionAsync(HttpResponse httpResponse, Exception ex)
+        public static async Task WriteExceptionAsync(HttpResponse httpResponse, Exception ex, string providerTypeName)
         {
-
-            // Check if it's an unknwon error, not managed (yet)
+            // Check if it's an unknown error, not managed (yet)
             if (!(ex is SyncException syncException))
-                syncException = new SyncException(ex.Message, SyncStage.None, SyncExceptionType.Unknown);
+                syncException = new SyncException(ex.Message, SyncStage.None, providerTypeName, SyncExceptionType.Unknown);
 
             var webXMessage = JsonConvert.SerializeObject(syncException);
 
             httpResponse.StatusCode = StatusCodes.Status400BadRequest;
             httpResponse.ContentLength = webXMessage.Length;
             await httpResponse.WriteAsync(webXMessage);
+            Console.WriteLine(syncException);
         }
 #else
         /// <summary>
@@ -741,7 +821,7 @@ namespace Dotmim.Sync.Web.Server
 
 
 #if NETSTANDARD
-        public bool IsSessionEnabled(HttpContext context)
+        public static bool IsSessionEnabled(HttpContext context)
         {
             // try to get the session store service from DI
             var sessionStore = context.RequestServices.GetService(typeof(ISessionStore));
