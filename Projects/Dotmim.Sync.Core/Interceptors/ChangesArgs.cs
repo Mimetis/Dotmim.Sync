@@ -9,18 +9,20 @@ namespace Dotmim.Sync
     /// <summary>
     /// Contains statistics about selected changes from local provider
     /// </summary>
-    public class TableChangesSelectedArgs : BaseArgs
+    public class TableChangesSelectedArgs : ProgressArgs
     {
         public TableChangesSelectedArgs(SyncContext context, TableChangesSelected changesSelected, DbConnection connection, DbTransaction transaction)
             : base(context, connection, transaction) => this.TableChangesSelected = changesSelected;
 
         public TableChangesSelected TableChangesSelected { get; set; }
+
+        public override string Message => $"{this.TableChangesSelected.TableName} Inserts:{this.TableChangesSelected.Inserts} Updates:{this.TableChangesSelected.Updates} Deletes:{this.TableChangesSelected.Deletes} TotalChanges:{this.TableChangesSelected.TotalChanges}" ;
     }
 
     /// <summary>
     /// Raise before selecting changes will occur
     /// </summary>
-    public class TableChangesSelectingArgs : BaseArgs
+    public class TableChangesSelectingArgs : ProgressArgs
     {
         public TableChangesSelectingArgs(SyncContext context, string tableName, DbConnection connection, DbTransaction transaction)
             : base(context, connection, transaction) => this.TableName = tableName;
@@ -29,12 +31,15 @@ namespace Dotmim.Sync
         /// Gets the table name where the changes are going to be selected
         /// </summary>
         public string TableName { get; }
+
+        public override string Message => $"{this.TableName}";
+
     }
 
     /// <summary>
     /// Event args raised to get Changes applied on a provider
     /// </summary>
-    public class TableChangesAppliedArgs : BaseArgs
+    public class TableChangesAppliedArgs : ProgressArgs
     {
         public TableChangesAppliedArgs(SyncContext context, TableChangesApplied tableChangesApplied, DbConnection connection, DbTransaction transaction) 
             : base(context, connection, transaction)
@@ -43,12 +48,17 @@ namespace Dotmim.Sync
         }
 
         public TableChangesApplied TableChangesApplied { get; set; }
+
+        public override string Message => $"{this.TableChangesApplied.TableName} " +
+            $"State:{this.TableChangesApplied.State} " +
+            $"Applied:{this.TableChangesApplied.Applied} " +
+            $"Failed:{this.TableChangesApplied.Failed}";
     }
 
     /// <summary>
     /// Event args before Changes are applied on a provider
     /// </summary>
-    public class TableChangesApplyingArgs : BaseArgs
+    public class TableChangesApplyingArgs : ProgressArgs
     {
         public TableChangesApplyingArgs(SyncContext context, string tableName, DmRowState state, DbConnection connection, DbTransaction transaction) 
             : base(context, connection, transaction)
@@ -66,6 +76,9 @@ namespace Dotmim.Sync
         /// Gets the table name where changes are going to be applied
         /// </summary>
         public string TableName { get; }
+
+        public override string Message => $"{this.TableName} State:{this.State}";
+
     }
 
     /// <summary>

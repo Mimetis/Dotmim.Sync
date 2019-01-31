@@ -10,7 +10,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Encapsulate 1 func to intercept one event
     /// </summary>
-    public class InterceptorWrapper<T> : ISyncInterceptor<T> where T : BaseArgs
+    public class InterceptorWrapper<T> : ISyncInterceptor<T> where T : ProgressArgs
     {
         private Func<T, Task> run;
         private static Func<T, Task> emptyRun = new Func<T, Task>(t => Task.CompletedTask);

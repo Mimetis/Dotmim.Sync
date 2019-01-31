@@ -7,7 +7,7 @@ using Dotmim.Sync.Enumerations;
 
 namespace Dotmim.Sync
 {
-    public class ApplyChangesFailedArgs : BaseArgs
+    public class ApplyChangesFailedArgs : ProgressArgs
     {
         ConflictResolution resolution;
         DmTable finalRowTable;
@@ -53,5 +53,8 @@ namespace Dotmim.Sync
             this.finalRowTable = dbSyncConflict.RemoteRow.Table.Clone();
             this.finalRowTable.TableName = dbSyncConflict.RemoteRow.Table.TableName;
         }
+
+        public override string Message => $"{this.Conflict.Type}";
+
     }
 }

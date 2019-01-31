@@ -19,8 +19,7 @@ internal class Program
 {
     private static void Main(string[] args)
     {
-        TestKasiSample().GetAwaiter().GetResult();
-
+        TestSync().GetAwaiter().GetResult();
         Console.ReadLine();
     }
 
@@ -206,7 +205,6 @@ internal class Program
         }
 
     }
-
     private static async Task<int> InsertProductModel(string connectionString)
     {
         var insertCategory = @"
@@ -246,7 +244,6 @@ internal class Program
 
         return categoryId;
     }
-
     private static async Task<int> InsertProductCategory(string connectionString)
     {
         var insertCategory = @"
@@ -410,14 +407,13 @@ internal class Program
         agent.Configuration.ScopeInfoTableName = "syncscope";
         agent.Configuration.SerializationFormat = SerializationFormat.Binary;
 
-        agent.Options = new SyncOptions
-        {
-            BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "test"),
-            BatchSize = 1000,
-            CleanMetadatas = true,
-            UseBulkOperations = true,
-            UseVerboseErrors = false
-        };
+        agent.Options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "test");
+        agent.Options.BatchSize = 1000;
+        agent.Options.CleanMetadatas = true;
+        agent.Options.UseBulkOperations = true;
+        agent.Options.UseVerboseErrors = false;
+
+        var progress = new Progress<ProgressArgs>(s => Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}"));
 
         do
         {
@@ -428,7 +424,7 @@ internal class Program
                 var cts = new CancellationTokenSource();
                 var token = cts.Token;
 
-                var s1 = await agent.SynchronizeAsync(SyncType.ReinitializeWithUpload, token);
+                var s1 = await agent.SynchronizeAsync(SyncType.ReinitializeWithUpload, token, progress);
 
                 Console.WriteLine(s1);
             }
@@ -448,40 +444,7 @@ internal class Program
         Console.WriteLine("End");
     }
 
-    private static async Task TestKasiSample()
-    {
-        var serverProvider = new SqlSyncProvider(GetDatabaseConnectionString("kasi"));
-        var builder = new SqliteConnectionStringBuilder { DataSource = Path.Combine(Directory.GetCurrentDirectory(), "kasi.db") };
-        var clientProvider = new SqliteSyncProvider(builder);
 
-        var tables = new string[] {"r_kasi", "r_payment_types", "r_kasi_payment_types" };
-
-        var agent = new SyncAgent(clientProvider, serverProvider, tables);
-
-        do
-        {
-            Console.Clear();
-            Console.WriteLine("Sync Start");
-            try
-            {
-                var s1 = await agent.SynchronizeAsync();
-                Console.WriteLine(s1);
-            }
-            catch (SyncException e)
-            {
-                Console.WriteLine(e.ToString());
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
-            }
-
-
-            //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
-        } while (Console.ReadKey().Key != ConsoleKey.Escape);
-
-        Console.WriteLine("End");
-    }
 
 
     public static void DeleteDatabase(string dbName)

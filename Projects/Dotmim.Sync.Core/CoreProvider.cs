@@ -101,16 +101,33 @@ namespace Dotmim.Sync
         /// <summary>
         /// Try to raise a generalist progress event
         /// </summary>
-        private void ReportProgress(SyncContext context, DbConnection connection = null, DbTransaction transaction = null)
+        private void ReportProgress(SyncContext context, ProgressArgs args, DbConnection connection = null, DbTransaction transaction = null)
+        {
+
+            if (connection == null && args.Connection != null)
+                connection = args.Connection;
+
+            if (transaction == null && args.Transaction!= null)
+                transaction = args.Transaction;
+
+
+            ReportProgress(context, args.Message, connection, transaction);
+        }
+
+
+        /// <summary>
+        /// Try to raise a generalist progress event
+        /// </summary>
+        private void ReportProgress(SyncContext context, string message,  DbConnection connection = null, DbTransaction transaction = null)
         {
             if (this.progress == null)
                 return;
 
-            var args = new ProgressArgs(context, connection, transaction);
+            var progressArgs = new ProgressArgs(context, message, connection, transaction);
 
-            this.progress.Report(args);
+            this.progress.Report(progressArgs);
 
-            if (args.Action == ChangeApplicationAction.Rollback)
+            if (progressArgs.Action == ChangeApplicationAction.Rollback)
                 RaiseRollbackException(context, "Rollback by user during a progress event");
         }
 
@@ -125,7 +142,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get an interceptor for a given args, deriving from BaseArgs
         /// </summary>
-        public InterceptorWrapper<T> GetInterceptor<T>() where T : BaseArgs
+        public InterceptorWrapper<T> GetInterceptor<T>() where T : ProgressArgs
         {
             InterceptorWrapper<T> interceptor = null;
             var typeofT = typeof(T);
@@ -161,7 +178,7 @@ namespace Dotmim.Sync
         /// Returns the Task associated with given type of BaseArgs 
         /// Because we are not doing anything else than just returning a task, no need to use async / await. Just return the Task itself
         /// </summary>
-        internal Task InterceptAsync<T>(T args) where T : BaseArgs
+        internal Task InterceptAsync<T>(T args) where T : ProgressArgs
         {
             var interceptor = GetInterceptor<T>();
             return interceptor.RunAsync(args);
@@ -184,14 +201,11 @@ namespace Dotmim.Sync
                     this.syncInProgress = true;
                 }
 
-                // Set stage
+                // Progress & interceptor
                 context.SyncStage = SyncStage.BeginSession;
-
-                // Event progress
-                this.ReportProgress(context);
-
-                // Launch any interceptor if available
-                await this.InterceptAsync(new SessionBeginArgs(context, null, null));
+                var sessionArgs = new SessionBeginArgs(context, null, null);
+                this.ReportProgress(context, sessionArgs);
+                await this.InterceptAsync(sessionArgs);
 
                 return (context, message.Configuration);
             }
@@ -217,11 +231,10 @@ namespace Dotmim.Sync
 
             context.SyncStage = SyncStage.EndSession;
 
-            // Event progress
-            this.ReportProgress(context);
-
-            // Launch any interceptor if available
-            await this.InterceptAsync(new SessionEndArgs(context, null, null));
+            // Progress & interceptor
+            var sessionArgs = new SessionEndArgs(context, null, null);
+            this.ReportProgress(context, sessionArgs);
+            await this.InterceptAsync(sessionArgs);
 
             lock (this)
             {
