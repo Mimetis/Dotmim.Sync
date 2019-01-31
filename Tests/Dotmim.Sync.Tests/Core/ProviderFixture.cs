@@ -233,6 +233,9 @@ namespace Dotmim.Sync.Tests.Core
         /// </summary>
         internal virtual void ServerDatabaseEnsureDeleted()
         {
+            if (string.IsNullOrEmpty(this.DatabaseName))
+                return;
+
             using (var ctx = new AdventureWorksContext(this))
             {
                 ctx.Database.EnsureDeleted();

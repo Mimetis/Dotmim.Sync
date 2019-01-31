@@ -1282,7 +1282,7 @@ namespace Dotmim.Sync.Tests
             // create a local provider (the provider we want to test, obviously)
             var localProvider = this.fixture.NewServerProvider(connectionString);
 
-            var providerRun = new ProviderRun(dbName, localProvider, ProviderType.Sql, NetworkType.Tcp);
+            var providerRun = new ProviderRun(dbName, localProvider, this.fixture.ProviderType, NetworkType.Tcp);
 
             try
             {
