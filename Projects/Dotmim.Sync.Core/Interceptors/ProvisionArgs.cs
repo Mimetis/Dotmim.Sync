@@ -1,10 +1,11 @@
 ﻿using System.Data.Common;
+using System.Linq;
 using Dotmim.Sync.Data;
 using Dotmim.Sync.Enumerations;
 
 namespace Dotmim.Sync
 {
-    public class TableProvisionedArgs : BaseArgs
+    public class TableProvisionedArgs : ProgressArgs
     {
         public SyncProvision Provision { get; }
         public DmTable DmTable { get; }
@@ -15,6 +16,9 @@ namespace Dotmim.Sync
             Provision = provision;
             DmTable = dmTable;
         }
+
+        public override string Message => $"TableName: {DmTable.TableName} Provision:{Provision}";
+
     }
 
     public class TableProvisioningArgs : TableProvisionedArgs
@@ -24,7 +28,7 @@ namespace Dotmim.Sync
         }
     }
 
-    public class DatabaseProvisionedArgs : BaseArgs
+    public class DatabaseProvisionedArgs : ProgressArgs
     {
         public SyncProvision Provision { get; }
         public DmSet Schema { get; }
@@ -34,16 +38,20 @@ namespace Dotmim.Sync
         /// </summary>
         public string Script { get; }
 
-        public DatabaseProvisionedArgs(SyncContext context, SyncProvision provision, string script, DbConnection connection, DbTransaction transaction)
+        public DatabaseProvisionedArgs(SyncContext context, SyncProvision provision, DmSet schema, string script, DbConnection connection, DbTransaction transaction)
         : base(context, connection, transaction)
 
         {
             Provision = provision;
             Script = script;
+            Schema = schema;
         }
+
+        public override string Message => $"Tables count:{Schema.Tables.Sum(t => t.Columns.Count)} Provision:{Provision}";
+
     }
 
-    public class DatabaseProvisioningArgs : BaseArgs
+    public class DatabaseProvisioningArgs : ProgressArgs
     {
         /// <summary>
         /// Get the provision type (Flag enum)
@@ -72,6 +80,9 @@ namespace Dotmim.Sync
             Provision = provision;
             Schema = schema;
         }
+
+        public override string Message => $"Tables count:{Schema.Tables.Sum(t => t.Columns.Count)} Provision:{Provision}";
+
     }
 
 
@@ -90,7 +101,8 @@ namespace Dotmim.Sync
 
     public class DatabaseDeprovisionedArgs : DatabaseProvisionedArgs
     {
-        public DatabaseDeprovisionedArgs(SyncContext context, SyncProvision provision, string script, DbConnection connection, DbTransaction transaction) : base(context, provision, script, connection, transaction)
+        public DatabaseDeprovisionedArgs(SyncContext context, SyncProvision provision, DmSet schema, string script, DbConnection connection, DbTransaction transaction) 
+            : base(context, provision, schema, script, connection, transaction)
         {
         }
     }

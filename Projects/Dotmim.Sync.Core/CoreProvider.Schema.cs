@@ -238,21 +238,18 @@ namespace Dotmim.Sync
 
                     using (var transaction = connection.BeginTransaction())
                     {
-                        // Raise event before
+                        // Progress
                         context.SyncStage = SyncStage.SchemaApplying;
-
-                        this.ReportProgress(context, connection, transaction);
 
                         // if we dont have already read the tables || we want to overwrite the current config
                         if (message.Schema.HasTables && !message.Schema.HasColumns)
                             await this.ReadSchemaAsync(message.Schema, connection, transaction);
 
+                        // Progress & Interceptor
                         context.SyncStage = SyncStage.SchemaApplied;
-
-                        this.ReportProgress(context, connection, transaction);
-
-                        // launch interceptor if any
-                        await this.InterceptAsync(new SchemaArgs(context, message.Schema, connection, transaction));
+                        var schemaArgs = new SchemaArgs(context, message.Schema, connection, transaction);
+                        this.ReportProgress(context, schemaArgs);
+                        await this.InterceptAsync(schemaArgs);
 
                         transaction.Commit();
                     }

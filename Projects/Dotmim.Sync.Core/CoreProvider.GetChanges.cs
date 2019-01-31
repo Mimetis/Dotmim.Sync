@@ -202,9 +202,6 @@ namespace Dotmim.Sync
 
                             // raise before event
                             context.SyncStage = SyncStage.TableChangesSelecting;
-
-                            this.ReportProgress(context, connection, transaction);
-
                             // launch any interceptor
                             await this.InterceptAsync(new TableChangesSelectingArgs(context, tableDescription.TableName, connection, transaction));
 
@@ -328,12 +325,11 @@ namespace Dotmim.Sync
                             // add the stats to global stats
                             changes.TableChangesSelected.Add(tableSelectedChanges);
 
-                            // Raise event for this table
+                            // Progress & Interceptor
                             context.SyncStage = SyncStage.TableChangesSelected;
-                            this.ReportProgress(context);
-
-                            // launch any interceptor
-                            await this.InterceptAsync(new TableChangesSelectedArgs(context, tableSelectedChanges, connection, transaction));
+                            var args = new TableChangesSelectedArgs(context, tableSelectedChanges, connection, transaction);
+                            this.ReportProgress(context, args);
+                            await this.InterceptAsync(args);
                         }
 
                         transaction.Commit();
@@ -449,10 +445,9 @@ namespace Dotmim.Sync
 
                             // raise before event
                             context.SyncStage = SyncStage.TableChangesSelecting;
-                            this.ReportProgress(context);
-
+                            var tableChangesSelectingArgs = new TableChangesSelectingArgs(context, tableDescription.TableName, connection, transaction);
                             // launc interceptor if any
-                            await this.InterceptAsync(new TableChangesSelectingArgs(context, tableDescription.TableName, connection, transaction));
+                            await this.InterceptAsync(tableChangesSelectingArgs);
 
                             // Get Command
                             DbCommand selectIncrementalChangesCommand;
@@ -600,13 +595,11 @@ namespace Dotmim.Sync
                                             // Init the row memory size
                                             memorySizeFromDmRows = 0L;
 
-                                            // add stats for a SyncProgress event
+                                            // SyncProgress & interceptor
                                             context.SyncStage = SyncStage.TableChangesSelected;
-
-                                            this.ReportProgress(context);
-
-                                            // launch any interceptor
-                                            await this.InterceptAsync(new TableChangesSelectedArgs(context, tableChangesSelected, connection, transaction));
+                                            var loopTableChangesSelectedArgs = new TableChangesSelectedArgs(context, tableChangesSelected, connection, transaction);
+                                            this.ReportProgress(context, loopTableChangesSelectedArgs);
+                                            await this.InterceptAsync(loopTableChangesSelectedArgs);
                                         }
                                     }
 
@@ -620,13 +613,11 @@ namespace Dotmim.Sync
                                     // Init the row memory size
                                     memorySizeFromDmRows = 0L;
 
-                                    // Event progress
+                                    // Event progress & interceptor
                                     context.SyncStage = SyncStage.TableChangesSelected;
-
-                                    this.ReportProgress(context);
-
-                                    // launch any interceptor
-                                    await this.InterceptAsync(new TableChangesSelectedArgs(context, tableChangesSelected, connection, transaction));
+                                    var tableChangesSelectedArgs = new TableChangesSelectedArgs(context, tableChangesSelected, connection, transaction);
+                                    this.ReportProgress(context, tableChangesSelectedArgs);
+                                    await this.InterceptAsync(tableChangesSelectedArgs);
                                 }
                             }
                             catch (Exception)
