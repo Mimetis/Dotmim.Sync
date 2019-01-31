@@ -31,14 +31,17 @@ namespace Dotmim.Sync.Web.Server
 
         private static WebProxyServerProvider defaultInstance = new WebProxyServerProvider();
 
-        private readonly SyncMemoryProvider internalProvider;
-
+       
         /// <summary>
         /// Default constructor for DI
         /// </summary>
         public WebProxyServerProvider() { }
 
 
+        /// <summary>
+        /// Create a new WebProxyServerProvider with a first instance of an in memory CoreProvider
+        /// Use this method to create your WebProxyServerProvider if you don't use the DI stuff from ASP.NET
+        /// </summary>
         public static WebProxyServerProvider Create(HttpContext context, CoreProvider provider, SyncConfiguration conf, SyncOptions options)
         {
             if (!TryGetHeaderValue(context.Request.Headers, "dotmim-sync-session-id", out var sessionId))
@@ -49,41 +52,20 @@ namespace Dotmim.Sync.Web.Server
 
             // we don't have any provider for this session id, so create it
             if (syncMemoryProvider == null)
-            {
-                var cache = context.RequestServices.GetService<IMemoryCache>();
-
-                if (cache == null)
-                    throw new SyncException("Cache is not configured! Please add memory cache, distributed or not (see https://docs.microsoft.com/en-us/aspnet/core/performance/caching/response?view=aspnetcore-2.2)");
-
-                syncMemoryProvider = new SyncMemoryProvider(provider)
-                {
-                    // Sets the configuration, owned by the server side.
-                    Configuration = conf,
-                    Options = options
-                };
-
-                cache.Set(sessionId, syncMemoryProvider, TimeSpan.FromHours(1));
-
-            }
-
+                 AddNewProviderToCache(context, provider, conf, options, sessionId);
+       
             return defaultInstance;
         }
 
-        public CoreProvider GetLocalProvider(HttpContext context = null)
+        /// <summary>
+        /// Retrieve from cache the selected provider depending on the session id
+        /// </summary>
+        public CoreProvider GetLocalProvider(HttpContext context)
         {
-            if (context == null)
-                return this.internalProvider?.LocalProvider ;
-
-            var syncMemoryProvider = this.internalProvider;
-
-            // get cached provider instance if not defined byt web proxy server provider
-            if (syncMemoryProvider != null)
-                return this.internalProvider?.LocalProvider;
-
             if (!TryGetHeaderValue(context.Request.Headers, "dotmim-sync-session-id", out var sessionId))
                 return null;
 
-            syncMemoryProvider = GetCachedProviderInstance(context, sessionId);
+            var syncMemoryProvider = GetCachedProviderInstance(context, sessionId);
 
             if (syncMemoryProvider != null)
                 return syncMemoryProvider.LocalProvider;
@@ -126,7 +108,7 @@ namespace Dotmim.Sync.Web.Server
             if (!TryGetHeaderValue(context.Request.Headers, "dotmim-sync-session-id", out var sessionId))
                 throw new SyncException($"Can't find any session id in the header");
 
-            var syncMemoryProvider = this.internalProvider;
+            SyncMemoryProvider syncMemoryProvider = null;
             var syncSessionId = "";
             HttpMessage httpMessage = null;
             try
@@ -143,7 +125,7 @@ namespace Dotmim.Sync.Web.Server
                     syncMemoryProvider = GetCachedProviderInstance(context, syncSessionId);
 
                 if (syncMemoryProvider == null)
-                    syncMemoryProvider = AddProviderInstanceToCache(context, syncSessionId);
+                    syncMemoryProvider = AddNewProviderToCacheFromDI(context, syncSessionId);
 
                 // action from user if available
                 action?.Invoke(syncMemoryProvider);
@@ -195,7 +177,7 @@ namespace Dotmim.Sync.Web.Server
         /// Add a new instance of SyncMemoryProvider, created by DI
         /// </summary>
         /// <returns></returns>
-        private static SyncMemoryProvider AddProviderInstanceToCache(HttpContext context, string syncSessionId)
+        private static SyncMemoryProvider AddNewProviderToCacheFromDI(HttpContext context, string syncSessionId)
         {
             var cache = context.RequestServices.GetService<IMemoryCache>();
 
@@ -207,6 +189,27 @@ namespace Dotmim.Sync.Web.Server
 
             return syncMemoryProvider;
         }
+
+        
+        private static SyncMemoryProvider AddNewProviderToCache(HttpContext context, CoreProvider provider, SyncConfiguration conf, SyncOptions options, string sessionId)
+        {
+            SyncMemoryProvider syncMemoryProvider;
+            var cache = context.RequestServices.GetService<IMemoryCache>();
+
+            if (cache == null)
+                throw new SyncException("Cache is not configured! Please add memory cache, distributed or not (see https://docs.microsoft.com/en-us/aspnet/core/performance/caching/response?view=aspnetcore-2.2)");
+
+            syncMemoryProvider = new SyncMemoryProvider(provider)
+            {
+                // Sets the configuration, owned by the server side.
+                Configuration = conf,
+                Options = options
+            };
+
+            cache.Set(sessionId, syncMemoryProvider, TimeSpan.FromHours(1));
+            return syncMemoryProvider;
+        }
+
 
 
         /// <summary>

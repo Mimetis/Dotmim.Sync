@@ -23,12 +23,13 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <typeparam name="TProvider">Provider inherited from CoreProvider (SqlSyncProvider, MySqlSyncProvider, OracleSyncProvider) Should have [CanBeServerProvider=true] </typeparam>
         /// <param name="serviceCollection"></param>
         /// <param name="connectionString">Provider connection string</param>
-        /// <param name="action">Configuration server side. Adding at least tables to be synchronized</param>
-        /// <param name="registerAsSingleton">WebProxyServerProvider registration</param>
+        /// <param name="configuration">Configuration server side. Adding at least tables to be synchronized</param>
+        /// <param name="options">Options, not shared with client, but only applied locally. Can be null</param>
         public static IServiceCollection AddSyncServer<TProvider>(
                     this IServiceCollection serviceCollection,
                     string connectionString,
-                    Action<SyncConfiguration> configuration, Action<SyncOptions> options= null) where TProvider : CoreProvider, new()
+                    Action<SyncConfiguration> configuration, 
+                    Action<SyncOptions> options= null) where TProvider : CoreProvider, new()
         {
             if (string.IsNullOrWhiteSpace(connectionString))
                 throw new ArgumentNullException(nameof(connectionString));
