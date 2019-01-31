@@ -80,10 +80,11 @@ internal class Program
             UseVerboseErrors = false
         };
         // proxy server based on server provider
-        var proxyServerProvider = new WebProxyServerProvider(serverProvider, configuration, optionsServer);
 
         var serverHandler = new RequestDelegate(async context =>
         {
+            var proxyServerProvider = WebProxyServerProvider.Create(context, serverProvider, configuration, optionsServer);
+
             await proxyServerProvider.HandleRequestAsync(context);
         });
         using (var server = new KestrellTestServer())
