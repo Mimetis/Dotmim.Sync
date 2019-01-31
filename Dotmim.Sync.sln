@@ -21,6 +21,10 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dotmim.Sync.Web.Server", "P
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dotmim.Sync.Web.Client", "Projects\Dotmim.Sync.Web.Client\Dotmim.Sync.Web.Client.csproj", "{270D05BA-80DB-4C45-A19B-75309EB6B839}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dotmim.Sync.SampleConsole", "Samples\Dotmim.Sync.SampleConsole\Dotmim.Sync.SampleConsole.csproj", "{79BA3E42-9D2A-4A08-B40C-5309AE6F8ED5}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dotmim.Sync.SampleWebServer", "Samples\Dotmim.Sync.SampleWebServer\Dotmim.Sync.SampleWebServer.csproj", "{5D23F616-DBAD-40EC-B588-2925C96DB9A0}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -160,6 +164,38 @@ Global
 		{270D05BA-80DB-4C45-A19B-75309EB6B839}.Release|x64.Build.0 = Release|Any CPU
 		{270D05BA-80DB-4C45-A19B-75309EB6B839}.Release|x86.ActiveCfg = Release|Any CPU
 		{270D05BA-80DB-4C45-A19B-75309EB6B839}.Release|x86.Build.0 = Release|Any CPU
+		{79BA3E42-9D2A-4A08-B40C-5309AE6F8ED5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{79BA3E42-9D2A-4A08-B40C-5309AE6F8ED5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{79BA3E42-9D2A-4A08-B40C-5309AE6F8ED5}.Debug|ARM.ActiveCfg = Debug|Any CPU
+		{79BA3E42-9D2A-4A08-B40C-5309AE6F8ED5}.Debug|ARM.Build.0 = Debug|Any CPU
+		{79BA3E42-9D2A-4A08-B40C-5309AE6F8ED5}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{79BA3E42-9D2A-4A08-B40C-5309AE6F8ED5}.Debug|x64.Build.0 = Debug|Any CPU
+		{79BA3E42-9D2A-4A08-B40C-5309AE6F8ED5}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{79BA3E42-9D2A-4A08-B40C-5309AE6F8ED5}.Debug|x86.Build.0 = Debug|Any CPU
+		{79BA3E42-9D2A-4A08-B40C-5309AE6F8ED5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{79BA3E42-9D2A-4A08-B40C-5309AE6F8ED5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{79BA3E42-9D2A-4A08-B40C-5309AE6F8ED5}.Release|ARM.ActiveCfg = Release|Any CPU
+		{79BA3E42-9D2A-4A08-B40C-5309AE6F8ED5}.Release|ARM.Build.0 = Release|Any CPU
+		{79BA3E42-9D2A-4A08-B40C-5309AE6F8ED5}.Release|x64.ActiveCfg = Release|Any CPU
+		{79BA3E42-9D2A-4A08-B40C-5309AE6F8ED5}.Release|x64.Build.0 = Release|Any CPU
+		{79BA3E42-9D2A-4A08-B40C-5309AE6F8ED5}.Release|x86.ActiveCfg = Release|Any CPU
+		{79BA3E42-9D2A-4A08-B40C-5309AE6F8ED5}.Release|x86.Build.0 = Release|Any CPU
+		{5D23F616-DBAD-40EC-B588-2925C96DB9A0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5D23F616-DBAD-40EC-B588-2925C96DB9A0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5D23F616-DBAD-40EC-B588-2925C96DB9A0}.Debug|ARM.ActiveCfg = Debug|Any CPU
+		{5D23F616-DBAD-40EC-B588-2925C96DB9A0}.Debug|ARM.Build.0 = Debug|Any CPU
+		{5D23F616-DBAD-40EC-B588-2925C96DB9A0}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{5D23F616-DBAD-40EC-B588-2925C96DB9A0}.Debug|x64.Build.0 = Debug|Any CPU
+		{5D23F616-DBAD-40EC-B588-2925C96DB9A0}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{5D23F616-DBAD-40EC-B588-2925C96DB9A0}.Debug|x86.Build.0 = Debug|Any CPU
+		{5D23F616-DBAD-40EC-B588-2925C96DB9A0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5D23F616-DBAD-40EC-B588-2925C96DB9A0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5D23F616-DBAD-40EC-B588-2925C96DB9A0}.Release|ARM.ActiveCfg = Release|Any CPU
+		{5D23F616-DBAD-40EC-B588-2925C96DB9A0}.Release|ARM.Build.0 = Release|Any CPU
+		{5D23F616-DBAD-40EC-B588-2925C96DB9A0}.Release|x64.ActiveCfg = Release|Any CPU
+		{5D23F616-DBAD-40EC-B588-2925C96DB9A0}.Release|x64.Build.0 = Release|Any CPU
+		{5D23F616-DBAD-40EC-B588-2925C96DB9A0}.Release|x86.ActiveCfg = Release|Any CPU
+		{5D23F616-DBAD-40EC-B588-2925C96DB9A0}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -168,8 +204,8 @@ Global
 		{3AEABB50-D3EA-428B-BF01-06CA578EDA73} = {AC37FDEF-1057-4915-806D-DC22DD68F44B}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {348020ED-748B-4CC8-AA1D-9F7D36E2AC12}
 		BuildVersion_StartDate = 2000/1/1
+		SolutionGuid = {348020ED-748B-4CC8-AA1D-9F7D36E2AC12}
 	EndGlobalSection
 	GlobalSection(Performance) = preSolution
 		HasPerformanceSessions = true

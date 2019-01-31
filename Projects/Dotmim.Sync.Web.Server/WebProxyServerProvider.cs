@@ -39,7 +39,7 @@ namespace Dotmim.Sync.Web.Server
         public WebProxyServerProvider() { }
 
 
-        internal static WebProxyServerProvider Create(HttpContext context, CoreProvider provider, SyncConfiguration conf, SyncOptions options)
+        public static WebProxyServerProvider Create(HttpContext context, CoreProvider provider, SyncConfiguration conf, SyncOptions options)
         {
             if (!TryGetHeaderValue(context.Request.Headers, "dotmim-sync-session-id", out var sessionId))
                 throw new SyncException($"Can't find any session id in the header");
