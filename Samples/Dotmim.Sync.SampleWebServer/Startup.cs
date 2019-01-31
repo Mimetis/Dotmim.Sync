@@ -28,14 +28,23 @@ namespace Dotmim.Sync.SampleWebServer
         {
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
 
+            services.AddMemoryCache();
+
             var connectionString = Configuration.GetSection("ConnectionStrings")["DefaultConnection"];
-            services.AddSyncServer<SqlSyncProvider>(connectionString, configuration =>
-            {
-                var s = new string[] { "Employees" };
-                configuration.Add(s);
-            });
+            services.AddSyncServer<SqlSyncProvider>(connectionString, 
+                configuration =>
+                {
+                    var tables = new string[] {"ProductCategory",
+                            "ProductDescription", "ProductModel",
+                            "Product", "ProductModelProductDescription",
+                            "Address", "Customer", "CustomerAddress",
+                            "SalesOrderHeader", "SalesOrderDetail" };
+                    configuration.Add(tables);
 
-
+                }, options =>
+                {
+                    options.BatchSize = 100;
+                });
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

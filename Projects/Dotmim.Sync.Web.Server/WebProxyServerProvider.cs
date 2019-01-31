@@ -29,19 +29,24 @@ namespace Dotmim.Sync.Web.Server
     public class WebProxyServerProvider
     {
 
+        private readonly SyncMemoryProvider internalProvider;
+
+        /// <summary>
+        /// Default constructor for DI
+        /// </summary>
+        public WebProxyServerProvider() { }
+
         /// <summary>
         /// TODO : How to handle a direct instance of webproxy provider, if no memorycache available ?
         /// </summary>
-        public WebProxyServerProvider(IProvider provider, SyncConfiguration configuration)
+        public WebProxyServerProvider(CoreProvider provider, SyncConfiguration configuration, SyncOptions options)
         {
-        }
-
-
-        public static bool IsSessionEnabled(HttpContext context)
-        {
-            // try to get the session store service from DI
-            var sessionStore = context.RequestServices.GetService(typeof(ISessionStore));
-            return sessionStore != null;
+            internalProvider = new SyncMemoryProvider(provider)
+            {
+                // Sets the configuration, owned by the server side.
+                Configuration = configuration,
+                Options = options
+            };
         }
 
         /// <summary>
@@ -76,7 +81,7 @@ namespace Dotmim.Sync.Web.Server
             if (TryGetHeaderValue(context.Request.Headers, "dotmim-sync-serialization-format", out var vs))
                 serializationFormat = vs.ToLowerInvariant() == "json" ? SerializationFormat.Json : SerializationFormat.Binary;
 
-            SyncMemoryProvider syncMemoryProvider = null;
+            var syncMemoryProvider = this.internalProvider;
             var syncSessionId = "";
             HttpMessage httpMessage = null;
             try
@@ -85,8 +90,9 @@ namespace Dotmim.Sync.Web.Server
                 httpMessage = serializer.Deserialize(streamArray);
                 syncSessionId = httpMessage.SyncContext.SessionId.ToString();
 
-                // get cached provider instance
-                syncMemoryProvider = GetCachedProviderInstance(context, syncSessionId);
+                // get cached provider instance if not defined byt web proxy server provider
+                if (syncMemoryProvider == null)
+                    syncMemoryProvider = GetCachedProviderInstance(context, syncSessionId);
 
                 if (syncMemoryProvider == null)
                     throw new SyncException($"Can't find any cached provider for session id {syncSessionId}");
@@ -95,7 +101,8 @@ namespace Dotmim.Sync.Web.Server
                 action?.Invoke(syncMemoryProvider);
 
                 // get cache manager
-                syncMemoryProvider.LocalProvider.CacheManager = GetCacheManagerInstance(context, syncSessionId);
+                // since we are using memorycache, it's not necessary to handle it here
+                //syncMemoryProvider.LocalProvider.CacheManager = GetCacheManagerInstance(context, syncSessionId);
 
                 var httpMessageResponse =
                     await syncMemoryProvider.GetResponseMessageAsync(httpMessage, cancellationToken);
@@ -122,7 +129,8 @@ namespace Dotmim.Sync.Web.Server
         {
             SyncMemoryProvider syncMemoryProvider;
 
-            if (!(context.RequestServices.GetService(typeof(MemoryCache)) is IMemoryCache cache))
+            var cache = context.RequestServices.GetService<IMemoryCache>();
+            if (cache == null)
                 throw new SyncException("Cache is not configured! Please add memory cache, distributed or not (see https://docs.microsoft.com/en-us/aspnet/core/performance/caching/response?view=aspnetcore-2.2)");
 
             if (string.IsNullOrWhiteSpace(syncSessionId))
@@ -138,28 +146,29 @@ namespace Dotmim.Sync.Web.Server
             return syncMemoryProvider;
         }
 
-        /// <summary>
-        /// Get an instance of SyncMemoryProvider depending on session id. If the entry for session id does not exists, create a new one
-        /// </summary>
-        private static ICache GetCacheManagerInstance(HttpContext context, string syncSessionId)
-        {
-            InMemoryCache memoryCache;
+        ///// <summary>
+        ///// Get an instance of SyncMemoryProvider depending on session id. If the entry for session id does not exists, create a new one
+        ///// </summary>
+        //private static ICache GetCacheManagerInstance(HttpContext context, string syncSessionId)
+        //{
+        //    InMemoryCache memoryCache;
 
-            if (!(context.RequestServices.GetService(typeof(MemoryCache)) is IMemoryCache cache))
-                throw new SyncException("Cache is not configured! Please add memory cache, distributed or not (see https://docs.microsoft.com/en-us/aspnet/core/performance/caching/response?view=aspnetcore-2.2)");
+        //    var cache = context.RequestServices.GetService<IMemoryCache>();
+        //    if (cache == null)
+        //        throw new SyncException("Cache is not configured! Please add memory cache, distributed or not (see https://docs.microsoft.com/en-us/aspnet/core/performance/caching/response?view=aspnetcore-2.2)");
 
-            if (string.IsNullOrWhiteSpace(syncSessionId))
-                throw new ArgumentNullException(nameof(syncSessionId));
+        //    if (string.IsNullOrWhiteSpace(syncSessionId))
+        //        throw new ArgumentNullException(nameof(syncSessionId));
 
-            // get the sync provider associated with the session id
-            memoryCache = (InMemoryCache)cache.Get(syncSessionId + "_session");
-            if (memoryCache != null)
-                return memoryCache;
+        //    // get the sync provider associated with the session id
+        //    memoryCache = (InMemoryCache)cache.Get(syncSessionId + "_session");
+        //    if (memoryCache != null)
+        //        return memoryCache;
 
-            memoryCache = new InMemoryCache();
-            cache.Set(syncSessionId + "_session", memoryCache, TimeSpan.FromHours(1));
-            return memoryCache;
-        }
+        //    memoryCache = new InMemoryCache();
+        //    cache.Set(syncSessionId + "_session", memoryCache, TimeSpan.FromHours(1));
+        //    return memoryCache;
+        //}
 
 
         /// <summary>
@@ -178,14 +187,14 @@ namespace Dotmim.Sync.Web.Server
                 {
                     Console.WriteLine(e);
                 }
-                try
-                {
-                    (memoryCache as IMemoryCache)?.Remove(syncSessionId + "_session");
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine(e);
-                }
+                //try
+                //{
+                //    (memoryCache as IMemoryCache)?.Remove(syncSessionId + "_session");
+                //}
+                //catch (Exception e)
+                //{
+                //    Console.WriteLine(e);
+                //}
             });
         }
 
@@ -223,5 +232,5 @@ namespace Dotmim.Sync.Web.Server
         public Stream GetBody(HttpResponse r) => r.Body;
 
     }
-    
+
 }
