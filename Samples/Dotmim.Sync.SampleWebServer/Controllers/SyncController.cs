@@ -23,6 +23,16 @@ namespace Dotmim.Sync.SampleWebServer.Controllers
         [HttpPost]
         public async Task Post()
         {
+            var provider = webProxyServer.GetLocalProvider(this.HttpContext);
+            if (provider != null)
+            {
+                provider.InterceptApplyChangesFailed(fail =>
+                {
+                    //fail.Action = Enumerations.ChangeApplicationAction.Continue;
+                    return Task.CompletedTask;
+                });
+            }
+
             await webProxyServer.HandleRequestAsync(this.HttpContext);
         }
     }
