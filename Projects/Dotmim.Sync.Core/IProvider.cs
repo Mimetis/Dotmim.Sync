@@ -10,25 +10,8 @@ namespace Dotmim.Sync
 {
     public interface IProvider
     {
-        //event EventHandler<ProgressEventArgs> SyncProgress;
-        //event EventHandler<BeginSessionEventArgs> BeginSession;
-        //event EventHandler<EndSessionEventArgs> EndSession;
-        //event EventHandler<ScopeEventArgs> ScopeLoading;
-        //event EventHandler<ScopeEventArgs> ScopeSaved;
-        //event EventHandler<DatabaseApplyingEventArgs> DatabaseApplying;
-        //event EventHandler<DatabaseAppliedEventArgs> DatabaseApplied;
-        //event EventHandler<DatabaseTableApplyingEventArgs> DatabaseTableApplying;
-        //event EventHandler<DatabaseTableAppliedEventArgs> DatabaseTableApplied;
-        //event EventHandler<SchemaApplyingEventArgs> SchemaApplying;
-        //event EventHandler<SchemaAppliedEventArgs> SchemaApplied;
-        //event EventHandler<TableChangesSelectingEventArgs> TableChangesSelecting;
-        //event EventHandler<TableChangesSelectedEventArgs> TableChangesSelected;
-        //event EventHandler<TableChangesApplyingEventArgs> TableChangesApplying;
-        //event EventHandler<TableChangesAppliedEventArgs> TableChangesApplied;
-        event EventHandler<ApplyChangeFailedEventArgs> ApplyChangedFailed;
-
         /// <summary>
-        /// Gets or Sets the options used on this provider
+        /// Gets or Sets the options used on this provider, locally
         /// </summary>
         SyncOptions Options { get; set; }
 
@@ -36,6 +19,17 @@ namespace Dotmim.Sync
         /// Set the token for the current operation
         /// </summary>
         void SetCancellationToken(CancellationToken token);
+
+        /// <summary>
+        /// set the progress action used to get progression on the provider
+        /// </summary>
+        void SetProgress(IProgress<ProgressArgs> progress);
+
+        /// <summary>
+        /// Subecribe an apply changes failed action
+        /// </summary>
+        void InterceptApplyChangesFailed(Func<ApplyChangesFailedArgs, Task> action);
+
 
         /// <summary>
         /// Begin Session. if Configuration is set locally, then send it to the server
@@ -62,12 +56,12 @@ namespace Dotmim.Sync
         /// <summary>
         /// Apply changes to the local storage, coming from this scope
         /// </summary>
-        Task<(SyncContext, ChangesApplied)> ApplyChangesAsync(SyncContext context, MessageApplyChanges message);
+        Task<(SyncContext, DatabaseChangesApplied)> ApplyChangesAsync(SyncContext context, MessageApplyChanges message);
 
         /// <summary>
         /// Get Changes to be applied 
         /// </summary>
-        Task<(SyncContext, BatchInfo, ChangesSelected)> GetChangeBatchAsync(SyncContext context, MessageGetChangesBatch message);
+        Task<(SyncContext, BatchInfo, DatabaseChangesSelected)> GetChangeBatchAsync(SyncContext context, MessageGetChangesBatch message);
 
         /// <summary>
         /// Update scope to reflect last changed timestamp

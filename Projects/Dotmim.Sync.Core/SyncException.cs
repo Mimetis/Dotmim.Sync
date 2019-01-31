@@ -1,12 +1,11 @@
 ﻿using Dotmim.Sync.Enumerations;
 using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Data.Common;
 using System.Data;
-using System.Threading.Tasks;
-using System.Security.Permissions;
+using System.Data.Common;
 using System.Runtime.Serialization;
+using System.Security.Permissions;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
@@ -18,27 +17,19 @@ namespace Dotmim.Sync
     public class SyncException : Exception
     {
 
-        public SyncException(string message, SyncStage stage) : base(message)
+        public SyncException(string message, SyncStage stage) : base(message) => this.SyncStage = stage;
+        public SyncException(string message) : base(message) => this.SyncStage = SyncStage.None;
+        public SyncException(string message, SyncStage stage, SyncExceptionType type = SyncExceptionType.Unknown, int errorCode = -1) : base(message)
         {
             this.SyncStage = stage;
-        }
-        public SyncException(string message) : base(message)
-        {
-            this.SyncStage = SyncStage.None;
-        }
-        public SyncException(String message, SyncStage stage, string providerName, SyncExceptionType type = SyncExceptionType.Unknown, int errorCode = -1) : base(message)
-        {
-            this.SyncStage = stage;
-            this.ProviderName = providerName;
             this.ErrorCode = errorCode;
             this.Type = type;
         }
 
-        public SyncException(Exception exception, SyncStage stage, string providerName) : base(exception.Message, exception)
+        public SyncException(Exception exception, SyncStage stage) : base(exception.Message, exception)
         {
 
             this.SyncStage = stage;
-            this.ProviderName = providerName;
             if (exception is SyncException)
             {
                 return;
@@ -161,11 +152,6 @@ namespace Dotmim.Sync
         public int ErrorCode { get; set; }
 
         /// <summary>
-        /// Provider triggering the exception
-        /// </summary>
-        public String ProviderName { get; set; }
-
-        /// <summary>
         /// Sync stage when exception occured
         /// </summary>
         public SyncStage SyncStage { get; }
@@ -173,13 +159,12 @@ namespace Dotmim.Sync
 
         // Constructor should be protected for unsealed classes, private for sealed classes.
         [SecurityPermission(SecurityAction.Demand, SerializationFormatter = true)]
-        protected SyncException(SerializationInfo info, StreamingContext context): base(info, context)
+        protected SyncException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
 
             this.Type = (SyncExceptionType)info.GetInt32("SyncType");
             this.SyncStage = (SyncStage)info.GetInt32("SyncStage");
             this.ErrorCode = info.GetInt32("ErrorCode");
-            this.ProviderName = info.GetString("ProviderName");
         }
 
 
@@ -192,7 +177,6 @@ namespace Dotmim.Sync
             info.AddValue("SyncType", this.Type);
             info.AddValue("SyncStage", this.SyncStage);
             info.AddValue("ErrorCode", this.ErrorCode);
-            info.AddValue("ProviderName", this.ProviderName);
 
             // MUST call through to the base class to let it save its own state
             base.GetObjectData(info, context);
@@ -218,14 +202,7 @@ namespace Dotmim.Sync
         public InProgressException(Exception exception) : base(exception.Message, exception) { }
 
     }
-    public class RollbackException : Exception
-    {
-        public RollbackException() { }
-        public RollbackException(string message) : base(message) { }
-        public RollbackException(Exception exception) : base(exception.Message, exception) { }
-
-    }
-    
+ 
     public enum SyncExceptionType
     {
         ArgumentOutOfRange,

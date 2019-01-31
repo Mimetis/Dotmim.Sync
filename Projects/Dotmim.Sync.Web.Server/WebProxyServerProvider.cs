@@ -47,53 +47,30 @@ namespace Dotmim.Sync.Web.Server
             set => this.LocalProvider.Options = value;
         }
 
+
+        /// <summary>
+        /// set the progress action used to get progression on the provider
+        /// </summary>
+        public void SetProgress(IProgress<ProgressArgs> progress) => this.LocalProvider.SetProgress(progress);
+
+
+        /// <summary>
+        /// Subscribe an apply changes failed action
+        /// </summary>
+        public void InterceptApplyChangesFailed(Func<ApplyChangesFailedArgs, Task> action)
+            => this.LocalProvider.GetInterceptor<ApplyChangesFailedArgs>().Set(action);
+
+
         /// <summary>
         /// Gets or sets a boolean value to indicate if this service is register as Singleton on web server.
         /// if true, we don't need to use Session, if false, we will try to use session
         /// </summary>
         public bool IsRegisterAsSingleton { get; set; }
 
-        public event EventHandler<ProgressEventArgs> SyncProgress = null;
-        public event EventHandler<ApplyChangeFailedEventArgs> ApplyChangedFailed;
-        public event EventHandler<BeginSessionEventArgs> BeginSession;
-        public event EventHandler<EndSessionEventArgs> EndSession;
-        public event EventHandler<ScopeEventArgs> ScopeLoading;
-        public event EventHandler<ScopeEventArgs> ScopeSaved;
-        public event EventHandler<DatabaseApplyingEventArgs> DatabaseApplying;
-        public event EventHandler<DatabaseAppliedEventArgs> DatabaseApplied;
-        public event EventHandler<DatabaseTableApplyingEventArgs> DatabaseTableApplying;
-        public event EventHandler<DatabaseTableAppliedEventArgs> DatabaseTableApplied;
-        public event EventHandler<SchemaApplyingEventArgs> SchemaApplying;
-        public event EventHandler<SchemaAppliedEventArgs> SchemaApplied;
-        public event EventHandler<TableChangesSelectingEventArgs> TableChangesSelecting;
-        public event EventHandler<TableChangesSelectedEventArgs> TableChangesSelected;
-        public event EventHandler<TableChangesApplyingEventArgs> TableChangesApplying;
-        public event EventHandler<TableChangesAppliedEventArgs> TableChangesApplied;
-
         /// <summary>
         /// Use this constructor when you are on the Remote Side, only
         /// </summary>
-        public WebProxyServerProvider(CoreProvider localProvider)
-        {
-            this.LocalProvider = localProvider;
-
-            this.LocalProvider.SyncProgress += (s, e) => this.SyncProgress?.Invoke(s, e);
-            this.LocalProvider.BeginSession += (s, e) => this.BeginSession?.Invoke(s, e);
-            this.LocalProvider.EndSession += (s, e) => this.EndSession?.Invoke(s, e);
-            this.LocalProvider.TableChangesApplied += (s, e) => this.TableChangesApplied?.Invoke(s, e);
-            this.LocalProvider.TableChangesApplying += (s, e) => this.TableChangesApplying?.Invoke(s, e);
-            this.LocalProvider.TableChangesSelected += (s, e) => this.TableChangesSelected?.Invoke(s, e);
-            this.LocalProvider.TableChangesSelecting += (s, e) => this.TableChangesSelecting?.Invoke(s, e);
-            this.LocalProvider.SchemaApplied += (s, e) => this.SchemaApplied?.Invoke(s, e);
-            this.LocalProvider.SchemaApplying += (s, e) => this.SchemaApplying?.Invoke(s, e);
-            this.LocalProvider.DatabaseApplied += (s, e) => this.DatabaseApplied?.Invoke(s, e);
-            this.LocalProvider.DatabaseApplying += (s, e) => this.DatabaseApplying?.Invoke(s, e);
-            this.LocalProvider.DatabaseTableApplied += (s, e) => this.DatabaseTableApplied?.Invoke(s, e);
-            this.LocalProvider.DatabaseTableApplying += (s, e) => this.DatabaseTableApplying?.Invoke(s, e);
-            this.LocalProvider.ScopeLoading += (s, e) => this.ScopeLoading?.Invoke(s, e);
-            this.LocalProvider.ScopeSaved += (s, e) => this.ScopeSaved?.Invoke(s, e);
-            this.LocalProvider.ApplyChangedFailed += (s, e) => this.ApplyChangedFailed?.Invoke(s, e);
-        }
+        public WebProxyServerProvider(CoreProvider localProvider) => this.LocalProvider = localProvider;
 
         /// <summary>
         /// Gets or sets the Sync configuration handled by the server
@@ -183,7 +160,7 @@ namespace Dotmim.Sync.Web.Server
 
             // Check if it's an unknwon error, not managed (yet)
             if (!(ex is SyncException syncException))
-                syncException = new SyncException(ex.Message, SyncStage.None, this.LocalProvider.ProviderTypeName, SyncExceptionType.Unknown);
+                syncException = new SyncException(ex.Message, SyncStage.None, SyncExceptionType.Unknown);
 
             var webXMessage = JsonConvert.SerializeObject(syncException);
 
@@ -280,7 +257,7 @@ namespace Dotmim.Sync.Web.Server
 
             // Check if it's an unknwon error, not managed (yet)
             if (!(ex is SyncException syncException))
-                syncException = new SyncException(ex.Message, SyncStage.None, this.LocalProvider.ProviderTypeName, SyncExceptionType.Unknown);
+                syncException = new SyncException(ex.Message, SyncStage.None, SyncExceptionType.Unknown);
 
             var webXMessage = JsonConvert.SerializeObject(syncException);
 
@@ -514,7 +491,7 @@ namespace Dotmim.Sync.Web.Server
 
             // We are in batch mode here
             var batchInfo = this.LocalProvider.CacheManager.GetValue<BatchInfo>("GetChangeBatch_BatchInfo");
-            var stats = this.LocalProvider.CacheManager.GetValue<ChangesSelected>("GetChangeBatch_ChangesSelected");
+            var stats = this.LocalProvider.CacheManager.GetValue<DatabaseChangesSelected>("GetChangeBatch_ChangesSelected");
 
             if (batchInfo == null)
                 throw new ArgumentNullException("batchInfo stored in session can't be null if request more batch part info.");
@@ -745,9 +722,9 @@ namespace Dotmim.Sync.Web.Server
             => await this.LocalProvider.EnsureSchemaAsync(ctx, message);
         public async Task<SyncContext> EnsureDatabaseAsync(SyncContext ctx, MessageEnsureDatabase message)
             => await this.LocalProvider.EnsureDatabaseAsync(ctx, message);
-        public async Task<(SyncContext, BatchInfo, ChangesSelected)> GetChangeBatchAsync(SyncContext ctx, MessageGetChangesBatch message)
+        public async Task<(SyncContext, BatchInfo, DatabaseChangesSelected)> GetChangeBatchAsync(SyncContext ctx, MessageGetChangesBatch message)
             => await this.LocalProvider.GetChangeBatchAsync(ctx, message);
-        public async Task<(SyncContext, ChangesApplied)> ApplyChangesAsync(SyncContext ctx, MessageApplyChanges message)
+        public async Task<(SyncContext, DatabaseChangesApplied)> ApplyChangesAsync(SyncContext ctx, MessageApplyChanges message)
             => await this.LocalProvider.ApplyChangesAsync(ctx, message);
         public async Task<(SyncContext, long)> GetLocalTimestampAsync(SyncContext ctx, MessageTimestamp message)
             => await this.LocalProvider.GetLocalTimestampAsync(ctx, message);
@@ -803,19 +780,6 @@ namespace Dotmim.Sync.Web.Server
         /// </summary>
         protected virtual void Dispose(bool cleanup)
         {
-            this.LocalProvider.BeginSession -= (s, e) => this.BeginSession?.Invoke(s, e);
-            this.LocalProvider.EndSession -= (s, e) => this.EndSession?.Invoke(s, e);
-            this.LocalProvider.TableChangesApplied -= (s, e) => this.TableChangesApplied?.Invoke(s, e);
-            this.LocalProvider.TableChangesApplying -= (s, e) => this.TableChangesApplying?.Invoke(s, e);
-            this.LocalProvider.TableChangesSelected -= (s, e) => this.TableChangesSelected?.Invoke(s, e);
-            this.LocalProvider.TableChangesSelecting -= (s, e) => this.TableChangesSelecting?.Invoke(s, e);
-            this.LocalProvider.SchemaApplied -= (s, e) => this.SchemaApplied?.Invoke(s, e);
-            this.LocalProvider.SchemaApplying -= (s, e) => this.SchemaApplying?.Invoke(s, e);
-            this.LocalProvider.DatabaseApplied -= (s, e) => this.DatabaseApplied?.Invoke(s, e);
-            this.LocalProvider.DatabaseApplying -= (s, e) => this.DatabaseApplying?.Invoke(s, e);
-            this.LocalProvider.ScopeLoading -= (s, e) => this.ScopeLoading?.Invoke(s, e);
-            this.LocalProvider.ScopeSaved -= (s, e) => this.ScopeSaved?.Invoke(s, e);
-            this.LocalProvider.ApplyChangedFailed -= (s, e) => this.ApplyChangedFailed?.Invoke(s, e);
         }
     }
 

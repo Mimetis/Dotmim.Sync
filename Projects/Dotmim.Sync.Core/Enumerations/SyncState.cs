@@ -11,7 +11,6 @@ namespace Dotmim.Sync.Enumerations
     /// </summary>
     public enum SyncState
     {
-        UnknownError,
         Successful,
         RollbackBeforeEnsuringScopes,
         RollbackAfterEnsuringScopes,
@@ -23,5 +22,6 @@ namespace Dotmim.Sync.Enumerations
         RollbackAfterSelectedChanges,
         RollbackBeforeApplyingChanges,
         RollbackAfterAppliedChanges,
+        UnknownError,
     }
 }
