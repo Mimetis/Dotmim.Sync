@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Dotmim.Sync.MySql;
 
 namespace Dotmim.Sync.Tests.Core
 {
@@ -41,6 +42,30 @@ namespace Dotmim.Sync.Tests.Core
             this.useFiddler = useFiddler;
             this.builder = hostBuilder;
 
+        }
+
+        public KestrellTestServer(CoreProvider coreProvider, Action<SyncConfiguration> action, bool registerAsSingleton, bool useFiddler = false)
+        {
+            var hostBuilder = new WebHostBuilder()
+                .UseKestrel()
+                .UseUrls("http://127.0.0.1:0/")
+                .ConfigureServices(services =>
+                {
+                    services.AddDistributedMemoryCache();
+                    services.AddSession(options =>
+                    {
+                        // Set a long timeout for easy testing.
+                        options.IdleTimeout = TimeSpan.FromDays(10);
+                        options.Cookie.HttpOnly = true;
+                    });
+                    // call AddSyncServer method
+                    var addSyncServerMethod = typeof(DependencyInjection)
+                        .GetMethod(nameof(DependencyInjection.AddSyncServer), new[] { services.GetType(), typeof(string), typeof(Action<SyncConfiguration>), typeof(bool) })
+                        .MakeGenericMethod(coreProvider.GetType());
+                    addSyncServerMethod.Invoke(this, new object [] { services, coreProvider.ConnectionString, action, registerAsSingleton });
+                });
+            this.useFiddler = useFiddler;
+            this.builder = hostBuilder;
         }
 
         public async Task Run(RequestDelegate serverHandler, ResponseDelegate clientHandler)
