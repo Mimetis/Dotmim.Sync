@@ -214,7 +214,7 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw new SyncException(ex, SyncStage.SchemaApplying, this.ProviderTypeName);
+                throw new SyncException(ex, SyncStage.SchemaApplying);
             }
             finally
             {
@@ -238,28 +238,24 @@ namespace Dotmim.Sync
 
                     using (var transaction = connection.BeginTransaction())
                     {
-                        // Raise event before
+                        // Progress
                         context.SyncStage = SyncStage.SchemaApplying;
-                        var beforeArgs2 = new SchemaApplyingEventArgs(this.ProviderTypeName, context.SyncStage, message.Schema, connection, transaction);
-                        this.TryRaiseProgressEvent(beforeArgs2, this.SchemaApplying);
-                        var overWriteConfiguration = beforeArgs2.OverwriteConfiguration;
 
                         // if we dont have already read the tables || we want to overwrite the current config
                         if (message.Schema.HasTables && !message.Schema.HasColumns)
                             await this.ReadSchemaAsync(message.Schema, connection, transaction);
 
+                        // Progress & Interceptor
                         context.SyncStage = SyncStage.SchemaApplied;
-                        var afterArgs = new SchemaAppliedEventArgs(this.ProviderTypeName, context.SyncStage, message.Schema, connection, transaction);
-                        this.TryRaiseProgressEvent(afterArgs, this.SchemaApplied);
+                        var schemaArgs = new SchemaArgs(context, message.Schema, connection, transaction);
+                        this.ReportProgress(context, schemaArgs);
+                        await this.InterceptAsync(schemaArgs);
 
                         transaction.Commit();
                     }
 
                     connection.Close();
                 }
-
-
-
 
                 return (context, message.Schema);
             }
@@ -269,10 +265,11 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw new SyncException(ex, SyncStage.SchemaApplying, this.ProviderTypeName);
+                throw new SyncException(ex, SyncStage.SchemaApplying);
             }
 
         }
+
 
     }
 }
