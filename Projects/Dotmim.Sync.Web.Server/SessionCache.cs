@@ -4,13 +4,11 @@ using Newtonsoft.Json;
 using System;
 using System.Collections.Specialized;
 using System.Linq;
-#if NETSTANDARD
 using Microsoft.AspNetCore.Http;
-#else
-using System.Web;
-using System.Web.SessionState;
-using HttpContext = System.Web.HttpContextBase;
-#endif
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Options;
+using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Dotmim.Sync.Web.Server
 {
@@ -70,24 +68,8 @@ namespace Dotmim.Sync.Web.Server
         {
             this.context.Session.Clear();
         }
+
     }
 
-#if !NETSTANDARD
-    internal static class SessionExtensions
-    {
-        public static void SetString(this HttpSessionStateBase session, string cacheKey, string value)
-        {
-            session.Add(cacheKey, value);
-        }
-        public static string GetString(this HttpSessionStateBase session, string cacheKey)
-        {
-            return session[cacheKey] as string;
-        }
 
-        public static bool Any(this NameObjectCollectionBase.KeysCollection k, Func<string,bool> predicate)
-        {
-            return k.Cast<string>().Any(predicate);
-        }
-    }
-#endif
 }
