@@ -42,7 +42,7 @@ namespace Dotmim.Sync.Web.Server
         /// Create a new WebProxyServerProvider with a first instance of an in memory CoreProvider
         /// Use this method to create your WebProxyServerProvider if you don't use the DI stuff from ASP.NET
         /// </summary>
-        public static WebProxyServerProvider Create(HttpContext context, CoreProvider provider, SyncConfiguration conf, SyncOptions options)
+        public static WebProxyServerProvider Create(HttpContext context, CoreProvider provider, Action<SyncConfiguration> conf, Action<SyncOptions> options)
         {
             if (!TryGetHeaderValue(context.Request.Headers, "dotmim-sync-session-id", out var sessionId))
                 throw new SyncException($"Can't find any session id in the header");
@@ -191,7 +191,7 @@ namespace Dotmim.Sync.Web.Server
         }
 
         
-        private static SyncMemoryProvider AddNewProviderToCache(HttpContext context, CoreProvider provider, SyncConfiguration conf, SyncOptions options, string sessionId)
+        private static SyncMemoryProvider AddNewProviderToCache(HttpContext context, CoreProvider provider, Action<SyncConfiguration> conf, Action<SyncOptions> options, string sessionId)
         {
             SyncMemoryProvider syncMemoryProvider;
             var cache = context.RequestServices.GetService<IMemoryCache>();
@@ -199,12 +199,10 @@ namespace Dotmim.Sync.Web.Server
             if (cache == null)
                 throw new SyncException("Cache is not configured! Please add memory cache, distributed or not (see https://docs.microsoft.com/en-us/aspnet/core/performance/caching/response?view=aspnetcore-2.2)");
 
-            syncMemoryProvider = new SyncMemoryProvider(provider)
-            {
-                // Sets the configuration, owned by the server side.
-                Configuration = conf,
-                Options = options
-            };
+            syncMemoryProvider = new SyncMemoryProvider(provider);
+
+            syncMemoryProvider.SetConfiguration(conf);
+            syncMemoryProvider.SetOptions(options);
 
             cache.Set(sessionId, syncMemoryProvider, TimeSpan.FromHours(1));
             return syncMemoryProvider;

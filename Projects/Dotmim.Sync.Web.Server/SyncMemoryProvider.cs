@@ -23,45 +23,37 @@ using Microsoft.Extensions.Options;
 namespace Dotmim.Sync.Web.Server
 {
 
-
-
     public class SyncMemoryProvider : IProvider, IDisposable
     {
-
 
         /// <summary>
         /// Use this constructor when you are on the Remote Side, only
         /// </summary>
         public SyncMemoryProvider(CoreProvider localProvider) => this.LocalProvider = localProvider;
 
-
         public CoreProvider LocalProvider { get; private set; }
 
         /// <summary>
-        /// Gets or Sets differents options that could be different from server and client
+        /// Set Options parameters
         /// </summary>
-        public SyncOptions Options
-        {
-            get => this.LocalProvider?.Options;
-            set => this.LocalProvider.Options = value;
-        }
+        public void SetOptions(Action<SyncOptions> options) 
+            => this.LocalProvider.SetOptions(options);
 
         /// <summary>
-        /// Gets or sets the Sync configuration handled by the server
+        /// Set Sync Configuration parameters
         /// </summary>
-        public SyncConfiguration Configuration { get; set; }
+        public void SetConfiguration(Action<SyncConfiguration> configuration)
+            => this.LocalProvider.SetConfiguration(configuration);
 
         /// <summary>
         /// set the progress action used to get progression on the provider
         /// </summary>
-        public void SetProgress(IProgress<ProgressArgs> progress) => this.LocalProvider.SetProgress(progress);
+        public void SetProgress(IProgress<ProgressArgs> progress) 
+            => this.LocalProvider.SetProgress(progress);
 
 
-        /// <summary>
-        /// Subscribe an apply changes failed action
-        /// </summary>
-        public void InterceptApplyChangesFailed(Func<ApplyChangesFailedArgs, Task> action)
-            => this.LocalProvider.GetInterceptor<ApplyChangesFailedArgs>().Set(action);
+        public void SetInterceptor(InterceptorBase interceptorBase)
+            => this.LocalProvider.SetInterceptor(interceptorBase);
 
 
         internal async Task<HttpMessage> GetResponseMessageAsync(HttpMessage httpMessage,
@@ -120,12 +112,11 @@ namespace Dotmim.Sync.Web.Server
 
             // the Conf is hosted by the server ? if not, get the client configuration
             httpMessageBeginSession.Configuration =
-                this.Configuration ?? httpMessageBeginSession.Configuration;
+                this.LocalProvider.Configuration ?? httpMessageBeginSession.Configuration;
 
             // Begin the session, requesting the server for the correct configuration
             (var ctx, var conf) =
-                await this.BeginSessionAsync(httpMessage.SyncContext,
-                        httpMessageBeginSession as MessageBeginSession);
+                await this.BeginSessionAsync(httpMessage.SyncContext, httpMessageBeginSession as MessageBeginSession);
 
             httpMessageBeginSession.Configuration = conf;
 
@@ -182,13 +173,13 @@ namespace Dotmim.Sync.Web.Server
             if (httpMessageContent == null)
                 throw new ArgumentException("EnsureSchema message could not be null");
 
-            if (this.Configuration == null)
+            if (this.LocalProvider.Configuration == null)
                 throw new InvalidOperationException("No sync configuration was provided. Make sure you create a SyncConfiguration object and pass it to the WebProxyServerProvider!");
 
             // If the Conf is hosted by the server, we try to get the tables from it, overriding the client schema, if passed
             DmSet schema = null;
-            if (this.Configuration.Schema != null)
-                schema = this.Configuration.Schema;
+            if (this.LocalProvider.Configuration.Schema != null)
+                schema = this.LocalProvider.Configuration.Schema;
             else if (httpMessageContent.Schema != null)
                 schema = httpMessageContent.Schema.ConvertToDmSet();
 
@@ -315,7 +306,7 @@ namespace Dotmim.Sync.Web.Server
                     this.LocalProvider.CacheManager.Remove("GetChangeBatch_BatchInfo");
                     this.LocalProvider.CacheManager.Remove("GetChangeBatch_ChangesSelected");
                     // delete the folder (not the BatchPartInfo, because we have a reference on it)
-                    if (this.Options.CleanMetadatas)
+                    if (this.LocalProvider.Options.CleanMetadatas)
                         bi.TryRemoveDirectory();
                 }
 
@@ -344,7 +335,7 @@ namespace Dotmim.Sync.Web.Server
                 this.LocalProvider.CacheManager.Remove("GetChangeBatch_BatchInfo");
                 this.LocalProvider.CacheManager.Remove("GetChangeBatch_ChangesSelected");
                 // delete the folder (not the BatchPartInfo, because we have a reference on it)
-                if (this.Options.CleanMetadatas)
+                if (this.LocalProvider.Options.CleanMetadatas)
                     batchInfo.TryRemoveDirectory();
             }
 
@@ -375,7 +366,7 @@ namespace Dotmim.Sync.Web.Server
 
             if (httpMessageContent.InMemory)
             {
-                batchInfo = new BatchInfo(true, this.Options.BatchDirectory)
+                batchInfo = new BatchInfo(true, this.LocalProvider.Options.BatchDirectory)
                 {
                     BatchIndex = 0,
                     BatchPartsInfo = new List<BatchPartInfo>(new[] { bpi }),
@@ -413,7 +404,7 @@ namespace Dotmim.Sync.Web.Server
 
             if (batchInfo == null)
             {
-                batchInfo = new BatchInfo(false, this.Options.BatchDirectory)
+                batchInfo = new BatchInfo(false, this.LocalProvider.Options.BatchDirectory)
                 {
                     BatchIndex = 0,
                     BatchPartsInfo = new List<BatchPartInfo>(new[] { bpi }),
