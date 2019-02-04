@@ -11,9 +11,14 @@ namespace Dotmim.Sync
     public interface IProvider
     {
         /// <summary>
-        /// Gets or Sets the options used on this provider, locally
+        /// Set Options parameters
         /// </summary>
-        SyncOptions Options { get; set; }
+        void SetOptions(Action<SyncOptions> options);
+
+        /// <summary>
+        /// Set Sync Configuration parameters
+        /// </summary>
+        void SetConfiguration(Action<SyncConfiguration> configuration);
 
         /// <summary>
         /// Set the token for the current operation
@@ -26,9 +31,19 @@ namespace Dotmim.Sync
         void SetProgress(IProgress<ProgressArgs> progress);
 
         /// <summary>
-        /// Subecribe an apply changes failed action
+        /// set the Interceptor class to intercepts multipes events during the sync process
         /// </summary>
-        void InterceptApplyChangesFailed(Func<ApplyChangesFailedArgs, Task> action);
+        void SetInterceptor(InterceptorBase interceptor);
+
+        ///// <summary>
+        ///// Subecribe an apply changes failed action
+        ///// </summary>
+        //void InterceptApplyChangesFailed(Func<ApplyChangesFailedArgs, Task> action);
+
+        ///// <summary>
+        ///// Subecribe an apply changes failed action
+        ///// </summary>
+        //void InterceptApplyChangesFailed(Action<ApplyChangesFailedArgs> action);
 
 
         /// <summary>

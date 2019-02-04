@@ -26,11 +26,10 @@ namespace Dotmim.Sync.SampleWebServer.Controllers
             var provider = webProxyServer.GetLocalProvider(this.HttpContext);
             if (provider != null)
             {
-                provider.InterceptApplyChangesFailed(fail =>
+                provider.SetInterceptor(new Interceptor<ApplyChangesFailedArgs>(fail =>
                 {
-                    //fail.Action = Enumerations.ChangeApplicationAction.Continue;
-                    return Task.CompletedTask;
-                });
+                    fail.Resolution = Enumerations.ConflictResolution.ServerWins;
+                }));
             }
 
             await webProxyServer.HandleRequestAsync(this.HttpContext);

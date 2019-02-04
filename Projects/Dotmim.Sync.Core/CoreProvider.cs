@@ -22,6 +22,7 @@ namespace Dotmim.Sync
         private readonly Dictionary<Type, ISyncInterceptor> dictionary = new Dictionary<Type, ISyncInterceptor>();
         private CancellationToken cancellationToken;
         private IProgress<ProgressArgs> progress;
+        private InterceptorBase interceptorBase;
 
         /// <summary>
         /// Create a new instance of the implemented Connection provider
@@ -77,19 +78,42 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the options used on this provider
         /// </summary>
-        public SyncOptions Options { get; set; }
+        public SyncOptions Options { get; internal set; } = new SyncOptions();
 
+        /// <summary>
+        /// Gets the options used on this provider
+        /// </summary>
+        public SyncConfiguration Configuration { get; set; } = new SyncConfiguration();
+
+        /// <summary>
+        /// Set Options parameters
+        /// </summary>
+        public void SetOptions(Action<SyncOptions> options) 
+            => options?.Invoke(this.Options);
+
+        /// <summary>
+        /// Set Configuration parameters
+        /// </summary>
+        public void SetConfiguration(Action<SyncConfiguration> configuration) 
+            => configuration?.Invoke(this.Configuration);
 
         /// <summary>
         /// set the progress action used to get progression on the provider
         /// </summary>
-        public void SetProgress(IProgress<ProgressArgs> progress) => this.progress = progress;
+        public void SetProgress(IProgress<ProgressArgs> progress) 
+            => this.progress = progress;
+
+        /// <summary>
+        /// Set an interceptor to get info on the current sync process
+        /// </summary>
+        public void SetInterceptor(InterceptorBase interceptor) 
+            => this.interceptorBase = interceptor;
 
         /// <summary>
         /// Set the cancellation token used to cancel sync
         /// </summary>
-        /// <param name="token"></param>
-        public void SetCancellationToken(CancellationToken token) => this.cancellationToken = token;
+        public void SetCancellationToken(CancellationToken token) 
+            => this.cancellationToken = token;
 
 
         /// <summary>
@@ -99,26 +123,23 @@ namespace Dotmim.Sync
             throw new SyncException(message, context.SyncStage, SyncExceptionType.Rollback);
 
         /// <summary>
-        /// Try to raise a generalist progress event
+        /// Try to report progress
         /// </summary>
         private void ReportProgress(SyncContext context, ProgressArgs args, DbConnection connection = null, DbTransaction transaction = null)
         {
-
             if (connection == null && args.Connection != null)
                 connection = args.Connection;
 
-            if (transaction == null && args.Transaction!= null)
+            if (transaction == null && args.Transaction != null)
                 transaction = args.Transaction;
-
 
             ReportProgress(context, args.Message, connection, transaction);
         }
 
-
         /// <summary>
-        /// Try to raise a generalist progress event
+        /// Try to report progress
         /// </summary>
-        private void ReportProgress(SyncContext context, string message,  DbConnection connection = null, DbTransaction transaction = null)
+        private void ReportProgress(SyncContext context, string message, DbConnection connection = null, DbTransaction transaction = null)
         {
             if (this.progress == null)
                 return;
@@ -131,56 +152,16 @@ namespace Dotmim.Sync
                 RaiseRollbackException(context, "Rollback by user during a progress event");
         }
 
-
-        /// <summary>
-        /// Subscribe an apply changes failed action
-        /// </summary>
-        public void InterceptApplyChangesFailed(Func<ApplyChangesFailedArgs, Task> action)
-            => this.GetInterceptor<ApplyChangesFailedArgs>().Set(action);
-
-
-        /// <summary>
-        /// Get an interceptor for a given args, deriving from BaseArgs
-        /// </summary>
-        public InterceptorWrapper<T> GetInterceptor<T>() where T : ProgressArgs
-        {
-            InterceptorWrapper<T> interceptor = null;
-            var typeofT = typeof(T);
-
-            // try get the interceptor from the dictionary and cast it
-            if (this.dictionary.TryGetValue(typeofT, out var i))
-                interceptor = (InterceptorWrapper<T>)i;
-
-            // if null, create a new one
-            if (interceptor == null)
-            {
-                interceptor = new InterceptorWrapper<T>();
-                this.dictionary.Add(typeofT, interceptor);
-            }
-
-            return interceptor;
-        }
-
-        /// <summary>
-        /// Reset all interceptors
-        /// </summary>
-        public void InterceptNone()
-        {
-            foreach(var interceptor in this.dictionary.Values)
-            {
-                interceptor.Dispose();
-            }
-
-            this.dictionary.Clear();
-        }
-
         /// <summary>
         /// Returns the Task associated with given type of BaseArgs 
         /// Because we are not doing anything else than just returning a task, no need to use async / await. Just return the Task itself
         /// </summary>
         internal Task InterceptAsync<T>(T args) where T : ProgressArgs
         {
-            var interceptor = GetInterceptor<T>();
+            if (this.interceptorBase == null)
+                return Task.CompletedTask;
+
+            var interceptor = this.interceptorBase.GetInterceptor<T>();
             return interceptor.RunAsync(args);
         }
 
