@@ -302,26 +302,26 @@ namespace Dotmim.Sync.Tests.Core
         }
 
 
-        internal void CopyConfiguration(SyncConfiguration to, SyncConfiguration from)
-        {
-            to.SerializationFormat = from.SerializationFormat;
-            to.ConflictResolutionPolicy = from.ConflictResolutionPolicy;
-            to.SerializationFormat = from.SerializationFormat;
-            to.StoredProceduresPrefix = from.StoredProceduresPrefix;
-            to.StoredProceduresSuffix = from.StoredProceduresSuffix;
-            to.TrackingTablesPrefix = from.TrackingTablesPrefix;
-            to.TrackingTablesSuffix = from.TrackingTablesSuffix;
-            to.TriggersPrefix = from.TriggersPrefix;
-            to.TriggersSuffix = from.TriggersSuffix;
+        //internal void CopyConfiguration(SyncConfiguration to, SyncConfiguration from)
+        //{
+        //    to.SerializationFormat = from.SerializationFormat;
+        //    to.ConflictResolutionPolicy = from.ConflictResolutionPolicy;
+        //    to.SerializationFormat = from.SerializationFormat;
+        //    to.StoredProceduresPrefix = from.StoredProceduresPrefix;
+        //    to.StoredProceduresSuffix = from.StoredProceduresSuffix;
+        //    to.TrackingTablesPrefix = from.TrackingTablesPrefix;
+        //    to.TrackingTablesSuffix = from.TrackingTablesSuffix;
+        //    to.TriggersPrefix = from.TriggersPrefix;
+        //    to.TriggersSuffix = from.TriggersSuffix;
 
-            if (from.Filters != null && from.Filters.Count > 0)
-            {
-                to.Filters.Clear();
+        //    if (from.Filters != null && from.Filters.Count > 0)
+        //    {
+        //        to.Filters.Clear();
 
-                foreach (var f in from.Filters)
-                    to.Filters.Add(f.TableName, f.ColumnName);
-            }
-        }
+        //        foreach (var f in from.Filters)
+        //            to.Filters.Add(f.TableName, f.ColumnName);
+        //    }
+        //}
 
     }
 }
