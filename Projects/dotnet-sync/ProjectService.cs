@@ -128,7 +128,7 @@ namespace Dotmim.Sync.Tools
             {
                 agent = new SyncAgent(clientprovider, serverProvider);
 
-                var syncConfiguration = agent.Configuration;
+                var syncConfiguration = agent.LocalProvider.Configuration;
 
                 foreach (var t in project.Tables.OrderBy(tbl => tbl.Order))
                 {
@@ -149,8 +149,8 @@ namespace Dotmim.Sync.Tools
                     syncConfiguration.Add(dmTable);
                 }
 
-                agent.Options.BatchDirectory = string.IsNullOrEmpty(project.Configuration.BatchDirectory) ? null : project.Configuration.BatchDirectory;
-                agent.Options.BatchSize = (int)Math.Min(Int32.MaxValue, project.Configuration.DownloadBatchSizeInKB);
+                agent.LocalProvider.Options.BatchDirectory = string.IsNullOrEmpty(project.Configuration.BatchDirectory) ? null : project.Configuration.BatchDirectory;
+                agent.LocalProvider.Options.BatchSize = (int)Math.Min(Int32.MaxValue, project.Configuration.DownloadBatchSizeInKB);
                 //agent.Options.UseBulkOperations = project.Configuration.UseBulkOperation;
 
                 syncConfiguration.SerializationFormat = project.Configuration.SerializationFormat;
@@ -163,19 +163,12 @@ namespace Dotmim.Sync.Tools
                 agent = new SyncAgent(clientprovider, serverProvider);
             }
 
+            var interceptor = new Interceptor<TableChangesSelectedArgs, TableChangesAppliedArgs>(
+            tcs => Console.WriteLine($"Changes selected for table {tcs.TableChangesSelected.TableName}: {tcs.TableChangesSelected.TotalChanges}"),
+            tca => Console.WriteLine($"Changes applied for table {tca.TableChangesApplied.TableName}: [{tca.TableChangesApplied.State}] {tca.TableChangesApplied.Applied}")
+                );
 
-            agent.LocalProvider.InterceptTableChangesSelected(a =>
-            {
-                Console.WriteLine($"Changes selected for table {a.TableChangesSelected.TableName}: {a.TableChangesSelected.TotalChanges}");
-                return Task.CompletedTask;
-            });
-
-            agent.LocalProvider.InterceptTableChangesApplied(a =>
-            {
-                Console.WriteLine($"Changes applied for table {a.TableChangesApplied.TableName}: [{a.TableChangesApplied.State}] {a.TableChangesApplied.Applied}");
-                return Task.CompletedTask;
-
-            });
+            agent.SetInterceptor(interceptor);
 
             // synchronous call
             var syncContext = agent.SynchronizeAsync().GetAwaiter().GetResult();
