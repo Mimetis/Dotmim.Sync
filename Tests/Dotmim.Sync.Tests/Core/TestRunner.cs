@@ -26,7 +26,7 @@ namespace Dotmim.Sync.Tests.Core
         public Action<IProvider> EndRun { get; set; }
 
 
-        public TestRunner(ProviderFixture providerFixture, CoreProvider serverProvider) 
+        public TestRunner(ProviderFixture providerFixture, CoreProvider serverProvider)
         {
             this.providerFixture = providerFixture;
             this.serverProvider = serverProvider;
@@ -34,19 +34,19 @@ namespace Dotmim.Sync.Tests.Core
 
         public async Task<List<ProviderRun>> RunTestsAsync()
         {
-            return await RunTestsAsync(null, this.providerFixture.Tables, null, true);
+            return await RunTestsAsync(this.providerFixture.Tables, null, true);
         }
         public async Task<List<ProviderRun>> RunTestsAsync(bool reuseAgent)
         {
-            return await RunTestsAsync(null, this.providerFixture.Tables, null, reuseAgent);
+            return await RunTestsAsync(this.providerFixture.Tables, null, reuseAgent);
         }
 
-        public async Task<List<ProviderRun>> RunTestsAsync(SyncConfiguration conf, bool reuseAgent = true)
+        public async Task<List<ProviderRun>> RunTestsAsync(Action<SyncConfiguration> conf, bool reuseAgent = true)
         {
-            return await RunTestsAsync(null, this.providerFixture.Tables, conf, reuseAgent);
+            return await RunTestsAsync(this.providerFixture.Tables, conf, reuseAgent);
         }
 
-        public async Task<List<ProviderRun>> RunTestsAsync(string scopeName = null, string[] tables = null, SyncConfiguration conf = null,
+        public async Task<List<ProviderRun>> RunTestsAsync(string[] tables = null, Action<SyncConfiguration> conf = null,
                                                            bool reuseAgent = true)
         {
             foreach (var tra in this.providerFixture.ClientRuns)
@@ -56,9 +56,9 @@ namespace Dotmim.Sync.Tests.Core
                     tra.BeginRun = this.BeginRun;
                     tra.EndRun = this.EndRun;
 
-                    await tra.RunAsync(this.providerFixture, scopeName, tables, conf, reuseAgent);
+                    await tra.RunAsync(this.providerFixture, tables, conf, reuseAgent);
                 }
-                catch(Exception ex)
+                catch (Exception ex)
                 {
                     Console.WriteLine(ex);
                 }
