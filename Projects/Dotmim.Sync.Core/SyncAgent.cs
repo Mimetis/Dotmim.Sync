@@ -17,18 +17,6 @@ namespace Dotmim.Sync
     /// </summary>
     public class SyncAgent : IDisposable
     {
-
-        /// <summary>
-        /// Gets or Sets the configuration object, concerning everything from the database, that is shared between the client and server provider
-        /// This object will be passed to the remote provider, and will be handle by it.
-        /// </summary>
-        public SyncConfiguration Configuration { get; private set; }
-
-        /// <summary>
-        /// Gets or Sets differents options that could be different from server and client
-        /// </summary>
-        public SyncOptions Options { get; } = new SyncOptions();
-
         /// <summary>
         /// Defines the state that a synchronization session is in.
         /// </summary>
@@ -52,7 +40,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get or Sets the Sync parameter to pass to Remote provider for filtering rows
         /// </summary>
-        public SyncParameterCollection Parameters { get; set; } = new SyncParameterCollection();
+        public SyncParameterCollection Parameters { get; private set; }
 
         /// <summary>
         /// Occurs when sync is starting, ending
@@ -60,18 +48,46 @@ namespace Dotmim.Sync
         public event EventHandler<SyncSessionState> SessionStateChanged = null;
 
         /// <summary>
+        /// Set Sync Configuration parameters
+        /// </summary>
+        public void SetConfiguration(Action<SyncConfiguration> configuration)
+            => this.LocalProvider.SetConfiguration(configuration);
+
+        /// <summary>
+        /// Set Sync Options parameters
+        /// </summary>
+        public void SetOptions(Action<SyncOptions> options)
+            => this.LocalProvider.SetOptions(options);
+
+
+        /// <summary>
+        /// set the progress action used to get progression on the provider
+        /// </summary>
+        public void SetProgress(IProgress<ProgressArgs> progress)
+            => this.LocalProvider.SetProgress(progress);
+
+        /// <summary>
+        /// Set an interceptor to get info on the current sync process
+        /// </summary>
+        public void SetInterceptor(InterceptorBase interceptor)
+            => this.LocalProvider.SetInterceptor(interceptor);
+
+
+        /// <summary>
         /// SyncAgent manage both server and client provider
         /// It's the main object to launch the Sync process
         /// </summary>
         public SyncAgent(string scopeName, CoreProvider localProvider, IProvider remoteProvider)
         {
+            if (string.IsNullOrEmpty(scopeName))
+                throw new ArgumentNullException("scopeName");
             this.LocalProvider = localProvider ?? throw new ArgumentNullException("ClientProvider");
             this.RemoteProvider = remoteProvider ?? throw new ArgumentNullException("ServerProvider");
 
-            this.Configuration = new SyncConfiguration
-            {
-                ScopeName = scopeName ?? throw new ArgumentNullException("scopeName")
-            };
+            this.LocalProvider.SetConfiguration(c => c.ScopeName = scopeName);
+            this.RemoteProvider.SetConfiguration(c => c.ScopeName = scopeName);
+
+            this.Parameters = new SyncParameterCollection();
         }
 
 
@@ -100,8 +116,16 @@ namespace Dotmim.Sync
             if (!remoteCoreProvider.CanBeServerProvider)
                 throw new NotSupportedException();
 
-            foreach (var tbl in tables)
-                this.Configuration.Add(tbl);
+            this.LocalProvider.SetConfiguration(c =>
+            {
+                foreach (var tbl in tables)
+                    c.Add(tbl);
+            });
+            this.RemoteProvider.SetConfiguration(c =>
+            {
+                foreach (var tbl in tables)
+                    c.Add(tbl);
+            });
         }
 
         /// <summary>
@@ -113,7 +137,6 @@ namespace Dotmim.Sync
         : this("DefaultScope", clientProvider, serverProvider, tables)
         {
         }
-
 
         /// <summary>
         /// Launch a normal synchronization
@@ -174,28 +197,21 @@ namespace Dotmim.Sync
 
                 // Setting progress
                 this.LocalProvider.SetProgress(progress);
-                //this.RemoteProvider.SetProgress(progress);
-
-                // if local provider does not provider options, get them from sync agent
-                if (this.LocalProvider.Options == null)
-                    this.LocalProvider.Options = this.Options;
-
-                if (this.RemoteProvider.Options == null)
-                    this.RemoteProvider.Options = this.Options;
 
                 // ----------------------------------------
                 // 0) Begin Session / Get the Configuration from remote provider
                 //    If the configuration object is provided by the client, the server will be updated with it.
                 // ----------------------------------------
-                (context, this.Configuration) = await this.RemoteProvider.BeginSessionAsync(context,
-                    new MessageBeginSession { Configuration = this.Configuration });
+                (context, this.LocalProvider.Configuration) = await this.RemoteProvider.BeginSessionAsync(context,
+                    new MessageBeginSession { Configuration = this.LocalProvider.Configuration });
+
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
                 // Locally, nothing really special. Eventually, editing the config object
-                (context, this.Configuration) = await this.LocalProvider.BeginSessionAsync(context,
-                    new MessageBeginSession { Configuration = this.Configuration });
+                (context, this.LocalProvider.Configuration) = await this.LocalProvider.BeginSessionAsync(context,
+                    new MessageBeginSession { Configuration = this.LocalProvider.Configuration });
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -210,9 +226,9 @@ namespace Dotmim.Sync
                 (context, localScopes) = await this.LocalProvider.EnsureScopesAsync(context,
                     new MessageEnsureScopes
                     {
-                        ScopeInfoTableName = this.Configuration.ScopeInfoTableName,
-                        ScopeName = this.Configuration.ScopeName,
-                        SerializationFormat = this.Configuration.SerializationFormat
+                        ScopeInfoTableName = this.LocalProvider.Configuration.ScopeInfoTableName,
+                        ScopeName = this.LocalProvider.Configuration.ScopeName,
+                        SerializationFormat = this.LocalProvider.Configuration.SerializationFormat
                     });
 
                 if (localScopes.Count != 1)
@@ -226,10 +242,10 @@ namespace Dotmim.Sync
                 (context, serverScopes) = await this.RemoteProvider.EnsureScopesAsync(context,
                     new MessageEnsureScopes
                     {
-                        ScopeInfoTableName = this.Configuration.ScopeInfoTableName,
-                        ScopeName = this.Configuration.ScopeName,
+                        ScopeInfoTableName = this.LocalProvider.Configuration.ScopeInfoTableName,
+                        ScopeName = this.LocalProvider.Configuration.ScopeName,
                         ClientReferenceId = localScopeInfo.Id,
-                        SerializationFormat = this.Configuration.SerializationFormat
+                        SerializationFormat = this.LocalProvider.Configuration.SerializationFormat
                     });
 
                 if (serverScopes.Count != 2)
@@ -247,22 +263,22 @@ namespace Dotmim.Sync
                 // ----------------------------------------
 
                 // Get Schema from remote provider
-                (context, this.Configuration.Schema) = await this.RemoteProvider.EnsureSchemaAsync(context,
+                (context, this.LocalProvider.Configuration.Schema) = await this.RemoteProvider.EnsureSchemaAsync(context,
                     new MessageEnsureSchema
                     {
-                        Schema = this.Configuration.Schema,
-                        SerializationFormat = this.Configuration.SerializationFormat
+                        Schema = this.LocalProvider.Configuration.Schema,
+                        SerializationFormat = this.LocalProvider.Configuration.SerializationFormat
                     });
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
                 // Apply on local Provider
-                (context, this.Configuration.Schema) = await this.LocalProvider.EnsureSchemaAsync(context,
+                (context, this.LocalProvider.Configuration.Schema) = await this.LocalProvider.EnsureSchemaAsync(context,
                     new MessageEnsureSchema
                     {
-                        Schema = this.Configuration.Schema,
-                        SerializationFormat = this.Configuration.SerializationFormat
+                        Schema = this.LocalProvider.Configuration.Schema,
+                        SerializationFormat = this.LocalProvider.Configuration.SerializationFormat
                     });
 
                 if (cancellationToken.IsCancellationRequested)
@@ -277,9 +293,9 @@ namespace Dotmim.Sync
                     new MessageEnsureDatabase
                     {
                         ScopeInfo = serverScopeInfo,
-                        Schema = this.Configuration.Schema,
-                        Filters = this.Configuration.Filters,
-                        SerializationFormat = this.Configuration.SerializationFormat
+                        Schema = this.LocalProvider.Configuration.Schema,
+                        Filters = this.LocalProvider.Configuration.Filters,
+                        SerializationFormat = this.LocalProvider.Configuration.SerializationFormat
                     });
 
                 if (cancellationToken.IsCancellationRequested)
@@ -290,9 +306,9 @@ namespace Dotmim.Sync
                     new MessageEnsureDatabase
                     {
                         ScopeInfo = localScopeInfo,
-                        Schema = this.Configuration.Schema,
-                        Filters = this.Configuration.Filters,
-                        SerializationFormat = this.Configuration.SerializationFormat
+                        Schema = this.LocalProvider.Configuration.Schema,
+                        Filters = this.LocalProvider.Configuration.Filters,
+                        SerializationFormat = this.LocalProvider.Configuration.SerializationFormat
                     });
 
                 if (cancellationToken.IsCancellationRequested)
@@ -318,7 +334,7 @@ namespace Dotmim.Sync
                 // Apply on the Server Side
                 // Since we are on the server, 
                 // we need to check the server client timestamp (not the client timestamp which is completely different)
-                var serverPolicy = this.Configuration.ConflictResolutionPolicy;
+                var serverPolicy = this.LocalProvider.Configuration.ConflictResolutionPolicy;
                 var clientPolicy = serverPolicy == ConflictResolutionPolicy.ServerWins ? ConflictResolutionPolicy.ClientWins : ConflictResolutionPolicy.ServerWins;
 
                 // We get from local provider all rows not last updated from the server
@@ -335,8 +351,8 @@ namespace Dotmim.Sync
                 (context, clientTimestamp) = await this.LocalProvider.GetLocalTimestampAsync(context,
                     new MessageTimestamp
                     {
-                        ScopeInfoTableName = this.Configuration.ScopeInfoTableName,
-                        SerializationFormat = this.Configuration.SerializationFormat
+                        ScopeInfoTableName = this.LocalProvider.Configuration.ScopeInfoTableName,
+                        SerializationFormat = this.LocalProvider.Configuration.SerializationFormat
                     });
 
                 if (cancellationToken.IsCancellationRequested)
@@ -348,12 +364,12 @@ namespace Dotmim.Sync
                         new MessageGetChangesBatch
                         {
                             ScopeInfo = scope,
-                            Schema = this.Configuration.Schema,
+                            Schema = this.LocalProvider.Configuration.Schema,
                             //BatchSize = this.Options.BatchSize,
                             //BatchDirectory = this.Options.BatchDirectory,
                             Policy = clientPolicy,
-                            Filters = this.Configuration.Filters,
-                            SerializationFormat = this.Configuration.SerializationFormat
+                            Filters = this.LocalProvider.Configuration.Filters,
+                            SerializationFormat = this.LocalProvider.Configuration.SerializationFormat
                         });
 
                 if (cancellationToken.IsCancellationRequested)
@@ -374,13 +390,11 @@ namespace Dotmim.Sync
                      new MessageApplyChanges
                      {
                          FromScope = scope,
-                         Schema = this.Configuration.Schema,
+                         Schema = this.LocalProvider.Configuration.Schema,
                          Policy = serverPolicy,
-                         //UseBulkOperations = this.Options.UseBulkOperations,
-                         //CleanMetadatas = this.Options.CleanMetadatas,
-                         ScopeInfoTableName = this.Configuration.ScopeInfoTableName,
+                         ScopeInfoTableName = this.LocalProvider.Configuration.ScopeInfoTableName,
                          Changes = clientBatchInfo,
-                         SerializationFormat = this.Configuration.SerializationFormat
+                         SerializationFormat = this.LocalProvider.Configuration.SerializationFormat
                      });
 
 
@@ -442,8 +456,8 @@ namespace Dotmim.Sync
                 (context, serverTimestamp) = await this.RemoteProvider.GetLocalTimestampAsync(context,
                     new MessageTimestamp
                     {
-                        ScopeInfoTableName = this.Configuration.ScopeInfoTableName,
-                        SerializationFormat = this.Configuration.SerializationFormat
+                        ScopeInfoTableName = this.LocalProvider.Configuration.ScopeInfoTableName,
+                        SerializationFormat = this.LocalProvider.Configuration.SerializationFormat
                     });
 
                 if (cancellationToken.IsCancellationRequested)
@@ -454,12 +468,10 @@ namespace Dotmim.Sync
                         new MessageGetChangesBatch
                         {
                             ScopeInfo = scope,
-                            Schema = this.Configuration.Schema,
-                            //BatchSize = this.Options.BatchSize,
-                            //BatchDirectory = this.Options.BatchDirectory,
+                            Schema = this.LocalProvider.Configuration.Schema,
                             Policy = serverPolicy,
-                            Filters = this.Configuration.Filters,
-                            SerializationFormat = this.Configuration.SerializationFormat
+                            Filters = this.LocalProvider.Configuration.Filters,
+                            SerializationFormat = this.LocalProvider.Configuration.SerializationFormat
                         });
 
                 if (cancellationToken.IsCancellationRequested)
@@ -482,13 +494,11 @@ namespace Dotmim.Sync
                         new MessageApplyChanges
                         {
                             FromScope = scope,
-                            Schema = this.Configuration.Schema,
+                            Schema = this.LocalProvider.Configuration.Schema,
                             Policy = clientPolicy,
-                            //UseBulkOperations = this.Options.UseBulkOperations,
-                            //CleanMetadatas = this.Options.CleanMetadatas,
-                            ScopeInfoTableName = this.Configuration.ScopeInfoTableName,
+                            ScopeInfoTableName = this.LocalProvider.Configuration.ScopeInfoTableName,
                             Changes = serverBatchInfo,
-                            SerializationFormat = this.Configuration.SerializationFormat
+                            SerializationFormat = this.LocalProvider.Configuration.SerializationFormat
                         });
 
 
@@ -521,9 +531,9 @@ namespace Dotmim.Sync
                 context = await this.RemoteProvider.WriteScopesAsync(context,
                         new MessageWriteScopes
                         {
-                            ScopeInfoTableName = this.Configuration.ScopeInfoTableName,
+                            ScopeInfoTableName = this.LocalProvider.Configuration.ScopeInfoTableName,
                             Scopes = new List<ScopeInfo> { serverScopeInfo, localScopeReferenceInfo },
-                            SerializationFormat = this.Configuration.SerializationFormat
+                            SerializationFormat = this.LocalProvider.Configuration.SerializationFormat
                         });
 
 
@@ -536,9 +546,9 @@ namespace Dotmim.Sync
                 context = await this.LocalProvider.WriteScopesAsync(context,
                         new MessageWriteScopes
                         {
-                            ScopeInfoTableName = this.Configuration.ScopeInfoTableName,
+                            ScopeInfoTableName = this.LocalProvider.Configuration.ScopeInfoTableName,
                             Scopes = new List<ScopeInfo> { localScopeInfo, serverScopeInfo },
-                            SerializationFormat = this.Configuration.SerializationFormat
+                            SerializationFormat = this.LocalProvider.Configuration.SerializationFormat
                         });
 
                 if (cancellationToken.IsCancellationRequested)
@@ -568,7 +578,7 @@ namespace Dotmim.Sync
             return context;
         }
 
-        
+
         // --------------------------------------------------------------------
         // Dispose
         // --------------------------------------------------------------------
@@ -588,20 +598,7 @@ namespace Dotmim.Sync
         /// </summary>
         protected virtual void Dispose(bool cleanup)
         {
-            //this.LocalProvider.BeginSession -= (s, e) => this.BeginSession?.Invoke(s, e);
-            //this.LocalProvider.EndSession -= (s, e) => this.EndSession?.Invoke(s, e);
-            //this.LocalProvider.TableChangesApplied -= (s, e) => this.TableChangesApplied?.Invoke(s, e);
-            //this.LocalProvider.TableChangesApplying -= (s, e) => this.TableChangesApplying?.Invoke(s, e);
-            //this.LocalProvider.TableChangesSelected -= (s, e) => this.TableChangesSelected?.Invoke(s, e);
-            //this.LocalProvider.TableChangesSelecting -= (s, e) => this.TableChangesSelecting?.Invoke(s, e);
-            //this.LocalProvider.SchemaApplied -= (s, e) => this.SchemaApplied?.Invoke(s, e);
-            //this.LocalProvider.SchemaApplying -= (s, e) => this.SchemaApplying?.Invoke(s, e);
-            //this.LocalProvider.DatabaseApplied -= (s, e) => this.DatabaseApplied?.Invoke(s, e);
-            //this.LocalProvider.DatabaseApplying -= (s, e) => this.DatabaseApplying?.Invoke(s, e);
-            //this.LocalProvider.ScopeLoading -= (s, e) => this.ScopeLoading?.Invoke(s, e);
-            //this.LocalProvider.ScopeSaved -= (s, e) => this.ScopeSaved?.Invoke(s, e);
 
-            //this.RemoteProvider.ApplyChangedFailed -= this.RemoteProvider_ApplyChangedFailed;
         }
     }
 }

@@ -31,7 +31,29 @@ namespace Dotmim.Sync.Web.Client
         public Dictionary<string, string> CustomHeaders => this.httpRequestHandler.CustomHeaders;
         public Dictionary<string, string> ScopeParameters => this.httpRequestHandler.ScopeParameters;
 
-        public SyncOptions Options { get; set; }
+
+        /// <summary>
+        /// Gets the options used on this provider
+        /// </summary>
+        public SyncOptions Options { get; private set; } = new SyncOptions();
+
+        /// <summary>
+        /// Gets the options used on this provider
+        /// </summary>
+        public SyncConfiguration Configuration { get; private set; } = new SyncConfiguration();
+
+        /// <summary>
+        /// Set Options parameters
+        /// </summary>
+        public void SetOptions(Action<SyncOptions> options) 
+            => options?.Invoke(this.Options);
+
+        /// <summary>
+        /// Set Configuration parameters
+        /// </summary>
+        public void SetConfiguration(Action<SyncConfiguration> configuration)
+            => configuration?.Invoke(this.Configuration);
+
 
 
         public void SetCancellationToken(CancellationToken token) => this.cancellationToken = token;
@@ -42,11 +64,25 @@ namespace Dotmim.Sync.Web.Client
         /// <param name="progress"></param>
         public void SetProgress(IProgress<ProgressArgs> progress) { }
 
+
+        /// <summary>
+        ///  The proxy client does not use any interceptor
+        /// </summary>
+        public void SetInterceptor(InterceptorBase interceptorBase) { }
+
+
+
         /// <summary>
         /// The proxy client does not interecot changes failed
         /// Failed changes are handled by the server side only
         /// </summary>
         public void InterceptApplyChangesFailed(Func<ApplyChangesFailedArgs, Task> action) { }
+
+        /// <summary>
+        /// The proxy client does not interecot changes failed
+        /// Failed changes are handled by the server side only
+        /// </summary>
+        public void InterceptApplyChangesFailed(Action<ApplyChangesFailedArgs> action) { }
 
         /// <summary>
         /// Gets or Sets the service uri to the server side
