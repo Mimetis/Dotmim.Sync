@@ -121,7 +121,7 @@ namespace Dotmim.Sync.Tests
         {
             try
             {
-                var s = new SyncConfiguration();
+                var s = new Action<SyncConfiguration>(c => { });
 
                 var results = await this.testRunner.RunTestsAsync(s);
 
@@ -575,80 +575,79 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         public virtual async Task Conflict_Insert_Insert_Client_Should_Wins_Coz_Configuration()
         {
-            foreach (var conf in TestConfigurations.GetConfigurations())
+
+            // reset
+            await this.testRunner.RunTestsAsync();
+
+            var conf = new Action<SyncConfiguration>(sc => sc.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins);
+
+            // generate a conflict product category id
+            var conflictProductCategoryId = Path.GetRandomFileName().Replace(".", "").ToUpperInvariant().Substring(0, 6);
+
+            var productCategoryNameClient = "Client " + Path.GetRandomFileName().Replace(".", "");
+            var productCategoryNameServer = "Server " + Path.GetRandomFileName().Replace(".", "");
+
+            // Insert a conflict product category and a product
+            foreach (var testRun in this.fixture.ClientRuns)
             {
-                // reset
-                await this.testRunner.RunTestsAsync(conf);
-                // set manually conf resolution to client wins
-                conf.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
-
-                // generate a conflict product category id
-                var conflictProductCategoryId = Path.GetRandomFileName().Replace(".", "").ToUpperInvariant().Substring(0, 6);
-
-                var productCategoryNameClient = "Client " + Path.GetRandomFileName().Replace(".", "");
-                var productCategoryNameServer = "Server " + Path.GetRandomFileName().Replace(".", "");
-
-                // Insert a conflict product category and a product
-                foreach (var testRun in this.fixture.ClientRuns)
+                using (var ctx = this.GetClientDbContext(testRun))
                 {
-                    using (var ctx = this.GetClientDbContext(testRun))
-                    {
-                        ctx.Add(new ProductCategory
-                        {
-                            ProductCategoryId = conflictProductCategoryId,
-                            Name = productCategoryNameClient
-                        });
-
-                        await ctx.SaveChangesAsync();
-
-                    }
-                }
-
-                using (var serverDbCtx = this.GetServerDbContext())
-                {
-                    // insert conflict rows on server
-                    serverDbCtx.Add(new ProductCategory
+                    ctx.Add(new ProductCategory
                     {
                         ProductCategoryId = conflictProductCategoryId,
-                        Name = productCategoryNameServer
+                        Name = productCategoryNameClient
                     });
 
-                    await serverDbCtx.SaveChangesAsync();
-                }
+                    await ctx.SaveChangesAsync();
 
-                // use a new agent since we modify conf
-                var results = await this.testRunner.RunTestsAsync(conf, false);
-
-                for (var i = 0; i < this.fixture.ClientRuns.Count; i++)
-                {
-                    var testRunner = this.fixture.ClientRuns[i];
-
-                    // 0+i : Download is false on sqlite
-                    //Assert.Equal(0 + i, testRunner.Results.TotalChangesDownloaded);
-                    Assert.Equal(1, testRunner.Results.TotalChangesUploaded);
-                    Assert.Equal(1, testRunner.Results.TotalSyncConflicts);
-                }
-
-                using (var serverDbCtx = this.GetServerDbContext())
-                {
-                    // check server product category
-                    var checkProductCategoryServer = await serverDbCtx.ProductCategory.AsNoTracking().SingleAsync(pc => pc.ProductCategoryId == conflictProductCategoryId);
-
-                    Assert.Equal(productCategoryNameClient, checkProductCategoryServer.Name);
-                }
-
-                // check client product category row
-                foreach (var testRun in this.fixture.ClientRuns)
-                {
-                    using (var ctx = this.GetClientDbContext(testRun))
-                    {
-                        // check client product category
-                        var checkProductCategoryClient = await ctx.ProductCategory.AsNoTracking().SingleAsync(pc => pc.ProductCategoryId == conflictProductCategoryId);
-
-                        Assert.Equal(productCategoryNameClient, checkProductCategoryClient.Name);
-                    }
                 }
             }
+
+            using (var serverDbCtx = this.GetServerDbContext())
+            {
+                // insert conflict rows on server
+                serverDbCtx.Add(new ProductCategory
+                {
+                    ProductCategoryId = conflictProductCategoryId,
+                    Name = productCategoryNameServer
+                });
+
+                await serverDbCtx.SaveChangesAsync();
+            }
+
+            // use a new agent since we modify conf
+            var results = await this.testRunner.RunTestsAsync(conf, false);
+
+            for (var i = 0; i < this.fixture.ClientRuns.Count; i++)
+            {
+                var testRunner = this.fixture.ClientRuns[i];
+
+                // 0+i : Download is false on sqlite
+                //Assert.Equal(0 + i, testRunner.Results.TotalChangesDownloaded);
+                Assert.Equal(1, testRunner.Results.TotalChangesUploaded);
+                Assert.Equal(1, testRunner.Results.TotalSyncConflicts);
+            }
+
+            using (var serverDbCtx = this.GetServerDbContext())
+            {
+                // check server product category
+                var checkProductCategoryServer = await serverDbCtx.ProductCategory.AsNoTracking().SingleAsync(pc => pc.ProductCategoryId == conflictProductCategoryId);
+
+                Assert.Equal(productCategoryNameClient, checkProductCategoryServer.Name);
+            }
+
+            // check client product category row
+            foreach (var testRun in this.fixture.ClientRuns)
+            {
+                using (var ctx = this.GetClientDbContext(testRun))
+                {
+                    // check client product category
+                    var checkProductCategoryClient = await ctx.ProductCategory.AsNoTracking().SingleAsync(pc => pc.ProductCategoryId == conflictProductCategoryId);
+
+                    Assert.Equal(productCategoryNameClient, checkProductCategoryClient.Name);
+                }
+            }
+
         }
 
         /// <summary>
@@ -694,16 +693,10 @@ namespace Dotmim.Sync.Tests
                     await serverDbCtx.SaveChangesAsync();
                 }
 
-                // register applychangedfailed to all sync agent 
-                Task applyChangedFailed(ApplyChangesFailedArgs changeFailedEventAgrs)
-                {
 
-                    changeFailedEventAgrs.Resolution = ConflictResolution.ClientWins;
-                    return Task.CompletedTask;
-                }
-
-                this.testRunner.BeginRun = provider => provider.InterceptApplyChangesFailed(applyChangedFailed);
-                this.testRunner.EndRun = provider => provider.InterceptApplyChangesFailed(null);
+                this.testRunner.BeginRun = provider
+                    => provider.SetInterceptor(new Interceptor<ApplyChangesFailedArgs>(c => c.Resolution = ConflictResolution.ClientWins));
+                this.testRunner.EndRun = provider => provider.SetInterceptor(null);
 
                 var results = await this.testRunner.RunTestsAsync(conf);
 
@@ -739,75 +732,72 @@ namespace Dotmim.Sync.Tests
         /// Use the configuration behavior where client should always wins conflict.
         public virtual async Task Conflict_Update_Update_Client_Should_Wins_Coz_Configuration()
         {
-            foreach (var conf in TestConfigurations.GetConfigurations())
+            // reset
+            await this.testRunner.RunTestsAsync();
+
+            var conf = new Action<SyncConfiguration>(sc => sc.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins);
+
+            // generate a conflict product category id
+            var conflictProductCategoryId = "BIKES";
+
+            var productCategoryNameClient = "Client BIKES " + Path.GetRandomFileName().Replace(".", "");
+            var productCategoryNameServer = "Server BIKES " + Path.GetRandomFileName().Replace(".", "");
+
+            // Insert a conflict product category and a product
+            foreach (var testRun in this.fixture.ClientRuns)
             {
-                // reset
-                await this.testRunner.RunTestsAsync(conf);
-                // set manually conf resolution to client wins
-                conf.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
-
-                // generate a conflict product category id
-                var conflictProductCategoryId = "BIKES";
-
-                var productCategoryNameClient = "Client BIKES " + Path.GetRandomFileName().Replace(".", "");
-                var productCategoryNameServer = "Server BIKES " + Path.GetRandomFileName().Replace(".", "");
-
-                // Insert a conflict product category and a product
-                foreach (var testRun in this.fixture.ClientRuns)
+                using (var ctx = this.GetClientDbContext(testRun))
                 {
-                    using (var ctx = this.GetClientDbContext(testRun))
-                    {
-                        ctx.ProductCategory.Update(new ProductCategory
-                        {
-                            ProductCategoryId = conflictProductCategoryId,
-                            Name = productCategoryNameClient
-                        });
-
-                        await ctx.SaveChangesAsync();
-
-                    }
-                }
-
-                using (var serverDbCtx = this.GetServerDbContext())
-                {
-                    // insert conflict rows on server
-                    serverDbCtx.Update(new ProductCategory
+                    ctx.ProductCategory.Update(new ProductCategory
                     {
                         ProductCategoryId = conflictProductCategoryId,
-                        Name = productCategoryNameServer
+                        Name = productCategoryNameClient
                     });
 
-                    await serverDbCtx.SaveChangesAsync();
+                    await ctx.SaveChangesAsync();
+
                 }
+            }
 
-                // use a new agent since we modify conf
-                var results = await this.testRunner.RunTestsAsync(conf, false);
-
-                for (var i = 0; i < this.fixture.ClientRuns.Count; i++)
+            using (var serverDbCtx = this.GetServerDbContext())
+            {
+                // insert conflict rows on server
+                serverDbCtx.Update(new ProductCategory
                 {
-                    var testRunner = this.fixture.ClientRuns[i];
+                    ProductCategoryId = conflictProductCategoryId,
+                    Name = productCategoryNameServer
+                });
 
-                    Assert.Equal(1, testRunner.Results.TotalChangesUploaded);
-                    Assert.Equal(1, testRunner.Results.TotalSyncConflicts);
-                }
+                await serverDbCtx.SaveChangesAsync();
+            }
 
-                using (var serverDbCtx = this.GetServerDbContext())
+            // use a new agent since we modify conf
+            var results = await this.testRunner.RunTestsAsync(conf, false);
+
+            for (var i = 0; i < this.fixture.ClientRuns.Count; i++)
+            {
+                var testRunner = this.fixture.ClientRuns[i];
+
+                Assert.Equal(1, testRunner.Results.TotalChangesUploaded);
+                Assert.Equal(1, testRunner.Results.TotalSyncConflicts);
+            }
+
+            using (var serverDbCtx = this.GetServerDbContext())
+            {
+                // check server product category
+                var checkProductCategoryServer = await serverDbCtx.ProductCategory.AsNoTracking().SingleAsync(pc => pc.ProductCategoryId == conflictProductCategoryId);
+
+                Assert.Equal(productCategoryNameClient, checkProductCategoryServer.Name);
+            }
+            // check client product category row
+            foreach (var testRun in this.fixture.ClientRuns)
+            {
+                using (var ctx = this.GetClientDbContext(testRun))
                 {
-                    // check server product category
-                    var checkProductCategoryServer = await serverDbCtx.ProductCategory.AsNoTracking().SingleAsync(pc => pc.ProductCategoryId == conflictProductCategoryId);
+                    // check client product category
+                    var checkProductCategoryClient = await ctx.ProductCategory.AsNoTracking().SingleAsync(pc => pc.ProductCategoryId == conflictProductCategoryId);
 
-                    Assert.Equal(productCategoryNameClient, checkProductCategoryServer.Name);
-                }
-                // check client product category row
-                foreach (var testRun in this.fixture.ClientRuns)
-                {
-                    using (var ctx = this.GetClientDbContext(testRun))
-                    {
-                        // check client product category
-                        var checkProductCategoryClient = await ctx.ProductCategory.AsNoTracking().SingleAsync(pc => pc.ProductCategoryId == conflictProductCategoryId);
-
-                        Assert.Equal(productCategoryNameClient, checkProductCategoryClient.Name);
-                    }
+                    Assert.Equal(productCategoryNameClient, checkProductCategoryClient.Name);
                 }
             }
         }
@@ -857,15 +847,10 @@ namespace Dotmim.Sync.Tests
                     await serverDbCtx.SaveChangesAsync();
                 }
 
-                // register applychangedfailed to all sync agent 
-                Task applyChangesFailed(ApplyChangesFailedArgs changeFailedEventAgrs)
-                {
-                    changeFailedEventAgrs.Resolution = ConflictResolution.ClientWins;
-                    return Task.CompletedTask;
-                }
 
-                this.testRunner.BeginRun = provider => provider.InterceptApplyChangesFailed(applyChangesFailed);
-                this.testRunner.EndRun = provider => provider.InterceptApplyChangesFailed(null);
+                this.testRunner.BeginRun = provider =>
+                    provider.SetInterceptor(new Interceptor<ApplyChangesFailedArgs>(args =>
+                            args.Resolution = ConflictResolution.ClientWins));
 
                 var results = await this.testRunner.RunTestsAsync(conf);
 
@@ -903,10 +888,12 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         public virtual async Task Conflict_Update_Update_Resolve_By_Merge()
         {
+
             foreach (var conf in TestConfigurations.GetConfigurations())
             {
                 // reset
-                await this.testRunner.RunTestsAsync(conf);
+                await this.testRunner.RunTestsAsync();
+
                 // generate a conflict product category id
                 var conflictProductCategoryId = "BIKES";
 
@@ -943,15 +930,17 @@ namespace Dotmim.Sync.Tests
                     await serverDbCtx.SaveChangesAsync();
                 }
 
-                Task applyChangesFailed(ApplyChangesFailedArgs changeFailedEventAgrs)
-                {
-                    changeFailedEventAgrs.Resolution = ConflictResolution.MergeRow;
-                    changeFailedEventAgrs.FinalRow["Name"] = productCategoryNameMerged;
-                    return Task.CompletedTask;
-                };
+                this.testRunner.BeginRun = provider
+                    => provider.SetInterceptor(new Interceptor<ApplyChangesFailedArgs>(args =>
+                    {
+                        args.Resolution = ConflictResolution.MergeRow;
+                        args.FinalRow["Name"] = productCategoryNameMerged;
 
-                this.testRunner.BeginRun = provider => provider.InterceptApplyChangesFailed(applyChangesFailed);
-                this.testRunner.EndRun = provider => provider.InterceptApplyChangesFailed(null);
+                    }));
+
+
+                this.testRunner.EndRun = provider => provider.SetInterceptor(null);
+
 
                 var results = await this.testRunner.RunTestsAsync(conf);
 
@@ -1295,17 +1284,14 @@ namespace Dotmim.Sync.Tests
 
 
                 // just check interceptor
-                localProvider.InterceptTabeProvisioning(args =>
+                localProvider.SetInterceptor(new Interceptor<TableProvisioningArgs>(args =>
                 {
                     Assert.Equal(SyncProvision.All, args.Provision);
-                    return Task.CompletedTask;
-                });
+                }));
 
 
                 // Provision the database with all tracking tables, stored procedures, triggers and scope
                 await localProvider.ProvisionAsync(conf, SyncProvision.All);
-
-                localProvider.InterceptTabeProvisioning(null);
 
                 //--------------------------
                 // ASSERTION
@@ -1370,17 +1356,14 @@ namespace Dotmim.Sync.Tests
                 }
 
                 // just check interceptor
-                localProvider.InterceptTabeDeprovisioning(args =>
+                localProvider.SetInterceptor(new Interceptor<TableDeprovisioningArgs>(args =>
                 {
                     Assert.Equal(SyncProvision.All, args.Provision);
-                    return Task.CompletedTask;
-                });
+                }));
 
 
                 // Provision the database with all tracking tables, stored procedures, triggers and scope
                 await localProvider.DeprovisionAsync(conf, SyncProvision.All);
-
-                localProvider.InterceptTabeDeprovisioning(null);
 
                 // get the db manager
                 foreach (var dmTable in conf.Schema.Tables)
@@ -1428,6 +1411,9 @@ namespace Dotmim.Sync.Tests
 
                     }
                 }
+
+
+                localProvider.SetInterceptor(null);
 
 
             }
@@ -1539,7 +1525,7 @@ namespace Dotmim.Sync.Tests
                         await clientDbCtx.SaveChangesAsync();
                     }
 
-                    var trr = await clientRun.RunAsync(this.fixture, null, null, conf, false);
+                    var trr = await clientRun.RunAsync(this.fixture, null, conf, false);
                     Assert.Equal(2, trr.Results.TotalChangesUploaded);
                 }
 
@@ -1609,22 +1595,24 @@ namespace Dotmim.Sync.Tests
                     };
 
                     // during first run, add a new row during selection on client (very first step of whole sync process)
-                    clientRun.ClientProvider.InterceptTableChangesSelected(tableChangesSelected);
+                    clientRun.ClientProvider.SetInterceptor
+                        (new Interceptor<TableChangesSelectedArgs>(tableChangesSelected));
 
-                    var trr = await clientRun.RunAsync(this.fixture, null, null, conf, false);
+                    var trr = await clientRun.RunAsync(this.fixture, null, conf, false);
 
                     Assert.Equal(cpt, trr.Results.TotalChangesDownloaded);
                     Assert.Equal(1, trr.Results.TotalChangesUploaded);
                     cpt = cpt + 2;
 
-                    // then 2nd run to get row inserted DURING last sync
-                    clientRun.ClientProvider.InterceptTableChangesSelected(null);
+                    clientRun.ClientProvider.SetInterceptor(null);
 
-                    var trr2 = await clientRun.RunAsync(this.fixture, null, null, conf, false);
+                    var trr2 = await clientRun.RunAsync(this.fixture, null, conf, false);
                     Debug.WriteLine($"{trr2.ClientProvider.ConnectionString}: Upload={trr2.Results.TotalChangesUploaded}");
 
                     Assert.Equal(0, trr2.Results.TotalChangesDownloaded);
                     Assert.Equal(1, trr2.Results.TotalChangesUploaded);
+
+
                 }
             }
         }
@@ -1678,33 +1666,19 @@ namespace Dotmim.Sync.Tests
                     }
 
                     string sessionString = "";
-                    clientRun.ClientProvider.InterceptSessionBegin(sba =>
-                    {
-                        sessionString += "begin";
-                        return Task.CompletedTask;
-                    });
 
-                    clientRun.ClientProvider.InterceptSessionEnd(sba =>
-                    {
-                        sessionString += "end";
-                        return Task.CompletedTask;
-                    });
-
-                    // Intercept Changes applying
-                    clientRun.ClientProvider.InterceptTableChangesApplying(args =>
+                    var interceptor = new Interceptors();
+                    interceptor.OnSessionBegin(sba => sessionString += "begin");
+                    interceptor.OnSessionEnd(sea => sessionString += "end");
+                    interceptor.OnTableChangesApplying(args =>
                     {
                         if (args.TableName == "ProductCategory")
                             Assert.Equal(DmRowState.Added, args.State);
 
                         if (args.TableName == "Product")
                             Assert.Equal(DmRowState.Added, args.State);
-
-                        return Task.CompletedTask;
-
                     });
-
-                    // Intercept Changes applied
-                    clientRun.ClientProvider.InterceptTableChangesApplied(args =>
+                    interceptor.OnTableChangesApplied(args =>
                     {
                         if (args.TableChangesApplied.TableName == "ProductCategory")
                         {
@@ -1717,36 +1691,31 @@ namespace Dotmim.Sync.Tests
                             Assert.Equal(DmRowState.Added, args.TableChangesApplied.State);
                             Assert.Equal(1, args.TableChangesApplied.Applied);
                         }
-
-                        return Task.CompletedTask;
-
                     });
 
-                    // Intercept Changes Selected
-                    clientRun.ClientProvider.InterceptTableChangesSelected(args =>
+                    interceptor.OnTableChangesSelected(args =>
                     {
                         if (args.TableChangesSelected.TableName == "ProductCategory")
                             Assert.Equal(1, args.TableChangesSelected.Inserts);
 
                         if (args.TableChangesSelected.TableName == "Product")
                             Assert.Equal(1, args.TableChangesSelected.Inserts);
-                        return Task.CompletedTask;
                     });
 
-                    clientRun.ClientProvider.InterceptSchema(args =>
+                    interceptor.OnSchema(args =>
                     {
                         Assert.True(args.Schema.HasTables);
-                        return Task.CompletedTask;
                     });
 
 
-                    await clientRun.RunAsync(this.fixture, null, null, conf, false);
+                    clientRun.Agent.SetInterceptor(interceptor);
+
+                    await clientRun.RunAsync(this.fixture, null, conf, false);
 
                     //Assert we have go through begin and end session
                     Assert.Equal("beginend", sessionString);
 
-                    // Reset interceptors
-                    clientRun.ClientProvider.InterceptNone();
+                    clientRun.Agent.SetInterceptor(null);
 
                 }
 

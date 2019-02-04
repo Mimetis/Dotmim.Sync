@@ -11,10 +11,10 @@ namespace Microsoft.Extensions.DependencyInjection
 {
     public static class DependencyInjection
     {
-        private static Type _providerType;
-        private static string _connectionString;
-        private static SyncConfiguration _syncConfiguration;
-        private static SyncOptions _options;
+        private static Type providerType;
+        private static string connectionString;
+        private static Action<SyncConfiguration> configuration;
+        private static Action<SyncOptions> options;
 
         /// <summary>
         /// Add the server provider (inherited from CoreProvider) and register in the DI a WebProxyServerProvider.
@@ -28,8 +28,8 @@ namespace Microsoft.Extensions.DependencyInjection
         public static IServiceCollection AddSyncServer<TProvider>(
                     this IServiceCollection serviceCollection,
                     string connectionString,
-                    Action<SyncConfiguration> configuration, 
-                    Action<SyncOptions> options= null) where TProvider : CoreProvider, new()
+                    Action<SyncConfiguration> configuration,
+                    Action<SyncOptions> options = null) where TProvider : CoreProvider, new()
         {
             if (string.IsNullOrWhiteSpace(connectionString))
                 throw new ArgumentNullException(nameof(connectionString));
@@ -37,19 +37,12 @@ namespace Microsoft.Extensions.DependencyInjection
             if (configuration == null)
                 throw new ArgumentNullException(nameof(configuration));
 
-            _providerType = typeof(TProvider);
-            _connectionString = connectionString;
-            _syncConfiguration = new SyncConfiguration();
-            _options = new SyncOptions();
-
-            // get sync configuration
-            configuration.Invoke(_syncConfiguration);
-
-            // get options if specified
-            options?.Invoke(_options);
+            providerType = typeof(TProvider);
+            DependencyInjection.connectionString = connectionString;
+            DependencyInjection.options = options;
+            DependencyInjection.configuration = configuration;
 
             serviceCollection.AddOptions();
-
             serviceCollection.AddSingleton(new WebProxyServerProvider());
 
             return serviceCollection;
@@ -60,15 +53,15 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </summary>
         internal static SyncMemoryProvider GetNewWebProxyServerProvider()
         {
-            var provider = (CoreProvider)Activator.CreateInstance(_providerType);
-            provider.ConnectionString = _connectionString;
+            var provider = (CoreProvider)Activator.CreateInstance(providerType);
+            provider.ConnectionString = connectionString;
 
-            var webProvider = new SyncMemoryProvider(provider)
-            {
-                // Sets the configuration, owned by the server side.
-                Configuration = _syncConfiguration,
-                Options = _options
-            };
+            var webProvider = new SyncMemoryProvider(provider);
+
+            // Sets the options / configurations
+            webProvider.SetConfiguration(configuration);
+            webProvider.SetOptions(options);
+
             return webProvider;
         }
 

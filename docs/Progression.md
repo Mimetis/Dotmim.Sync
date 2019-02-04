@@ -1,9 +1,10 @@
 # Progression
 
 Progression in a sync process could be complex.   
+
 Firs of all, you have two kind of progression:
-* Progression from the client side
-* Progression from the server side.
+* **Progression** from the client side
+* **Progression** from the server side.
 
 Progression is divided in several ordered parts:
 * **Server** begins a new session.
@@ -24,8 +25,8 @@ Progression is divided in several ordered parts:
 * **Server** ends the session
 * **Client** ends the session
 
-As you can see, you have a lot events raised by both server and client side.
-Each event in a sync process is called a *stage*, represented by a **SyncStage** enumeration
+As you can see, you have a lot events raised by both server and client side.  
+Each event in a sync process is called a *stage*, represented by a **SyncStage** enumeration:
 ``` cs
 public enum SyncStage
 {
@@ -65,219 +66,133 @@ Now, imagine you have a really straightforward sync process :
 SqlSyncProvider serverProvider = new SqlSyncProvider(GetDatabaseConnectionString("Northwind"));
 SqlSyncProvider clientProvider = new SqlSyncProvider(GetDatabaseConnectionString("NW1"));
 
-SyncAgent syncAgent = new SyncAgent(clientProvider, serverProvider, new string[] { "Customers", "Region" });
+SyncAgent syncAgent = new SyncAgent(clientProvider, serverProvider, new string[] { "ProductCategory", "Product" });
 
 var context = await syncAgent.SynchronizeAsync();
 Console.WriteLine(context);
 
 ```
-We are going to see how to get informations through the stages, thanks to multiples events.
+We are going to see how to get informations through the stages, thanks to `IProgress<T>` and then go deeper with `Interceptor<T>`.
 
-## How events are raised 
+## How progression is handled 
 
-The events are raised from both side : Server and Client sides.   
+The progress values are raised from both side : **Server** side and **Client** side, ordered.  
+
 In our sample, we can say that : 
-The `serverProvider` instance will raise every events from the server side.   
-The `clientProvider` instance will raise every events from the client side.  
-To simplify things, the `syncAgent` instance will raise the events from the `clientProvider` side.
+- The `serverProvider` instance will report each progress from the server provider.   
+- The `clientProvider` instance will report each progress from the client provider.  
 
-### Why SyncAgent handles the events from the client side and not from the server side ?
+> The `syncAgent` instance will report progress **only** from the `clientProvider` side.
+> Why? Because the `syncAgent` instance will always run on the client local machine, and maybe the server provider is behind an **HTTP** endpoint. The `syncAgent` has no idea what's going on the server side.
 
-As we mentioned, the `SyncAgent` object (represented by `syncAgent` instance in our sample code) will only handle the client events.  
-The reason is simple : The `SyncAgent` object is **always** on the client side of any architecture.  
-If you are using a **multi-tiers** application composed with a client and a web api server, the `SyncAgent` instance will use a `WebProxyClientProvider` and a `WebProxyServerProvider`.  
-In this particular case, the SyncAgent has no way to handle server events (since they are raised from the web api side)
+Just remember this : The `syncAgent` object is **always** on the client side of any architecture.  
 
-## The SyncProgress event : Read only sync progress informations
+## Progress\<ProgressArgs\>
 
-You can follow the sync progression through the `SyncPogress` event. 
+Since version **0.3** the `Dotmim.Sync` does not use any more the `EventHandler` events mechanism.   
+
+Since our main method `SynchronizeAsync()` is marked `async` method, we will use the (https://docs.microsoft.com/en-us/dotnet/api/system.progress-1?view=netcore-2.2)[Progress<T>] to be able to report progress value.
+
 The informations you will get from the `SyncProgress` event are **read only** (If you want more options, see section below *Go further*)
 
 Here is a quick example, often used to provide some feedback to the users:   
 
 ``` cs
-agent.SyncProgress +=  (sender, args) => Console.WriteLine($"{args.Message} {args.PropertiesMessage}");
-```
-![SyncProgress](/assets/Progression_SyncProgress.png)
 
-As you can see, it's a first synchronization:
-* Session begins
-* Client get configuration
-* Client apply databases schema for Region and Customers
+// Using the IProgress<T> pattern to handle progession dring the synchronization
+var progress = new Progress<ProgressArgs>(s => Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}"));
+
+// Dont forget to add this instance to the SynchronizeAsync method call
+...
+...
+        // Launch the sync process
+        var context = await agent.SynchronizeAsync(progress);
+...
+...
+
+```
+Here is the result, after the first synchronization, assuming the **Client** database is empty:
+
+``` cmd
+Sync Start
+BeginSession:
+ScopeLoading:   Id:0f5ac5e0-7987-4054-93bc-078d300a2cd2 LastSync: LastSyncDuration:0 SyncState:Successful
+SchemaApplied:  Tables count:2
+DatabaseTableApplied:   TableName: Product Provision:All
+DatabaseApplied:        TableName: ProductCategory Provision:All
+DatabaseApplied:        Tables count:22 Provision:All
+TableChangesSelected:   ProductCategory Inserts:0 Updates:0 Deletes:0 TotalChanges:0
+TableChangesSelected:   Product Inserts:0 Updates:0 Deletes:0 TotalChanges:0
+TableChangesApplied:    ProductCategory State:Added Applied:11 Failed:0
+TableChangesApplied:    Product State:Added Applied:14 Failed:0
+ScopeSaved:     Id:0f5ac5e0-7987-4054-93bc-078d300a2cd2 LastSync:01/02/2019 16:36:10 LastSyncDuration:32585196 SyncState:Successful
+Synchronization done.
+        Total changes downloaded: 25
+        Total changes uploaded: 0
+        Total conflicts: 0
+        Total duration :0:0:3.258
+EndSession:
+```
+
+As you can see, it's a first synchronization, so:
+* Session begins 
+* Client apply databases schema for **Product** and **ProductCategory**
 * Client select changes to send (nothing, obviously is selected since the tables are just created)
 * Client applies changes from server 
 * Session ends
 
+
 If you want both informations from server and from client, we can do a little trick like this :
 
 ``` csharp
-agent.SyncProgress += (s, a) => Console.WriteLine($"[Client] : {a.Message} {a.PropertiesMessage}");
-serverProvider.SyncProgress += (s, a) => Console.WriteLine($"[Server] : {a.Message} {a.PropertiesMessage}");
+// I want the server side progress as well
+agent.RemoteProvider.SetProgress(progress);
+// Launch the sync process
+var s1 = await agent.SynchronizeAsync(progress);
 ```
 
-The result is really verbose, but you have ALL the informations raised from both client side and server side as well !
+Since the agent is executing on the client, as we said, the `progress` instance reference passed to the `agent.SynchronizeAsync()` will trigger all the progress fromt the client.   
 
-![SyncProgress](/assets/Progression_SyncProgress2.png)
+On the other side, to be able to get progress from server side (if you are not in a web proxy mode), you can call the `SetProgress()` method with your `progress` instance on the `RemoteProvider` property.
 
-*Note:* As you can see in this screenshot, no events are raised about server tables schemas. This is simple, a previous sync process may have already configured the server side !
+The result is really verbose, but you have ALL the informations  from both **Client** side and **Server** side as well !
 
-## Go further
+## Go further : Interceptor\<T\>
 
-As `SyncProgress` is a readonly event, you have multiples others events that can interact and modify the current sync process.   
-Basically, we have one typed event for each `SyncStage`.   
-Here is an extract from the declarations of each event in the `SyncAgent` class :
-``` csharp
-// Read only SyncProgress for all SyncStage
-public event EventHandler<ProgressEventArgs> SyncProgress = null;
+The `Progress<T>` stuff is great, but as we said, it's read only, and the progress is always reported **at the end of the current sync stage**.   
+For instance, the `SyncStage` step called `DatabaseTableApplying` is never reported through `Progress<T>` (in opposite to `DatabaseTableApplied` that is called).   
 
-// Types events for each SyncStage
-public event EventHandler<BeginSessionEventArgs> BeginSession = null;
-public event EventHandler<ScopeEventArgs> ScopeLoading = null;
-public event EventHandler<ScopeEventArgs> ScopeSaved = null;
-public event EventHandler<DatabaseApplyingEventArgs> DatabaseApplying = null;
-public event EventHandler<DatabaseAppliedEventArgs> DatabaseApplied = null;
-public event EventHandler<ConfigurationApplyingEventArgs> ConfigurationApplying = null;
-public event EventHandler<ConfigurationAppliedEventArgs> ConfigurationApplied = null;
-public event EventHandler<TableChangesSelectingEventArgs> TableChangesSelecting = null;
-public event EventHandler<TableChangesSelectedEventArgs> TableChangesSelected = null;
-public event EventHandler<TableChangesApplyingEventArgs> TableChangesApplying = null;
-public event EventHandler<TableChangesAppliedEventArgs> TableChangesApplied = null;
-public event EventHandler<EndSessionEventArgs> EndSession = null;
-```
-Each typed event has 2 properties in common :
-* Stage : the current `SyncStage`.
-* Action : Enumeration of type `ChangeApplicationAction` that can rollback a sync process during any stage.
+So, if you need to kind of *intercept* stages, you can subscribe to an `Interceptor<T>`.   
+On any provider, you will find a lot of relevant methods to intercept the sync process:
 
-Each typed event has several properties typically used during the stage involved.  
-For example, you can set a boolean indicating you want a script when the `DatabaseApplying` event is raised, and then get a string script when `DatabaseApplied` is raised !   
+![Interceptor](assets/interceptor01.png)
 
-### Rollback 
-Each typed event can rollback the entire sync process. Just set the `Action` property to `Rollback` to rollback the entire sync process. 
 
-the `BeginSession` event (and the `EndSession` as well) are the simpliest events since they have no more properties than the base class. We can test the Rollback action during this stage :
+Imagine you have a table that should **never** be synchronized. You're able to use an interceptor like this:
 
 ``` csharp
-private static void Agent_BeginSession(object sender, BeginSessionEventArgs e)
+agent.LocalProvider.InterceptTableChangesApplying((args) =>
 {
-    e.Action = ChangeApplicationAction.Rollback;
-}
+    if (args.TableName == "Table_That_Should_Not_Be_Sync")
+        args.Action = ChangeApplicationAction.Rollback;
+});
 ```
-![Rollback during BeginSession](assets/Progression_BeginSession_Rollback.png)
+Be careful, returning a `ChangeApplicationAction.Rollback` will rollback the whole sync session ! 
 
-### ScopeLoading and ScopeLoaded
+Other useful example, you can use interceptors to have more detailed logs. For instance :
 
-The scope represents each client and the server. A scope contains useful informations about the client like the last successful sync datetime.
-
-```csharp
-private static void Agent_ScopeLoading(object sender, ScopeEventArgs e)
+``` csharp
+agent.LocalProvider.InterceptTableChangesSelecting(args =>
 {
-    Console.WriteLine($"Scope loading");
-    Console.WriteLine($"Scope Name : {e.ScopeInfo.Name}");
-    Console.WriteLine($"Scope Id : {e.ScopeInfo.Id}");
-    Console.WriteLine(e.ScopeInfo.IsNewScope ? "Client is a new client" : "Client has already make a sync");
-    if (e.ScopeInfo.LastSync.HasValue)
-        Console.WriteLine($"Last sync datetime : {e.ScopeInfo.LastSync.Value}");
-}
+    Console.WriteLine($"Get changes for table {args.TableName}");
+});
+
+
+agent.LocalProvider.InterceptTableChangesSelected(args =>
+{
+    Console.WriteLine($"Changes selected from table {args.TableChangesSelected.TableName}: ");
+    Console.WriteLine($"\tInserts:{args.TableChangesSelected.Inserts}.");
+    Console.WriteLine($"\tUpdates:{args.TableChangesSelected.Updates}.");
+    Console.WriteLine($"\tDeletes:{args.TableChangesSelected.Deletes}.");
+});
 ```
-
-![Scope Progress](assets/Progression_Scope.png)
-
-### ConfigurationApplying and ConfigurationApplied
-
-The configuration object contains the database schema. This schema is passed through server to clients, and then is cached.  
-During this stage, you can edit the configuration object and disable the cache.   
-Be careful, disabling the cache will imply a lot of sql statements to get the tables schemas each time a sync process is launched.
-```csharp
-private static void Agent_ConfigurationApplying(object sender, ConfigurationApplyingEventArgs e)
-{
-    // Disabling the cache configuration
-    e.OverwriteConfiguration = true;
-}
-private static void Agent_ConfigurationApplied(object sender, ConfigurationAppliedEventArgs e)
-{
-    // Get the configuration
-    var syncConfiguration = e.Configuration;
-}
-```
-
-### DatabaseApplying and DatabaseApplied
-
-One common scenario involving those two sync progress events is to get the SQL generated script.  
-
-```csharp
-private static void Agent_DatabaseApplying(object sender, DatabaseApplyingEventArgs e)
-{
-    e.GenerateScript = true;
-}
-private static void Agent_DatabaseApplied(object sender, DatabaseAppliedEventArgs e)
-{
-    Console.WriteLine(e.Script);
-}
-```
-![Database Progress](assets/Progression_Database.png)
-
-*Note:* If you set the property `OverwriteConfiguration` to `true`, the Dotmim.Sync framework will check every tables and every stored procedures and triggers, to create them if necessary, even if it knows tables already exists
-
-
-### DatabaseTableApplying and DatabaseTableApplied
-
-Like `DatabaseApplying` and `DatabaseApplied` for the overall database, these events will raise for each table creation.
-
-```csharp
-private static void Agent_DatabaseApplying(object sender, DatabaseApplyingEventArgs e)
-{
-    e.GenerateScript = true;
-}
-private static void Agent_DatabaseTableApplying(object sender, DatabaseTableApplyingEventArgs e)
-{
-    Console.WriteLine($"Current table generation : {e.TableName}");
-}
-private static void Agent_DatabaseTableApplied(object sender, DatabaseTableAppliedEventArgs e)
-{
-    Console.WriteLine(e.Script);
-}
-```
-
-### TableChangesSelecting and TableChangesSelected
-
-Occurs when a provider selects all records to be synchronize with server or client.
-
-```csharp
-private static void Agent_TableChangesSelecting(object sender, TableChangesSelectingEventArgs e)
-{
-    Console.WriteLine($"Get changes for table {e.TableName}");
-}
-private static void Agent_TableChangesSelected(object sender, TableChangesSelectedEventArgs e)
-{
-    Console.WriteLine($"Changes selected from table {e.TableChangesSelected.TableName}: ");
-    Console.WriteLine($"\tInserts:{e.TableChangesSelected.Inserts}.");
-    Console.WriteLine($"\tUpdates:{e.TableChangesSelected.Updates}.");
-    Console.WriteLine($"\tDeletes:{e.TableChangesSelected.Deletes}.");
-}
-```
-
-![Selecting and Selected changes](assets/Progression_GetChanges.png)
-
-### TableChangesApplying and TableChangesApplied
-
-Occurs when a provider applies changes locally. Be carfule those events are raised for each state :
-* Deleted rows.
-* Updated rows.
-* Inserted rows.
-
-```csharp
-private static void Agent_TableChangesApplying(object sender, TableChangesApplyingEventArgs e)
-{
-    string kind =   e.State == DmRowState.Added ? "inserts" :
-                    e.State == DmRowState.Deleted ? "deletes" :
-                    e.State == DmRowState.Modified ? "updates" : "";
-
-    Console.WriteLine($"Applying {kind} for table {e.TableName}");
-}
-private static void Agent_TableChangesApplied(object sender, TableChangesAppliedEventArgs e)
-{
-    Console.WriteLine($"Successfuly applied : {e.TableChangesApplied}. Failed : {e.TableChangesApplied.Failed}");
-}
-```
-
-![Applying and Applied changes](assets/Progression_ApplyChanges.png)
