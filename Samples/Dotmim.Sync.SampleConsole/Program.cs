@@ -53,7 +53,7 @@ internal class Program
         var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
 
         // Tables involved in the sync process:
-        var tables = new string[] { "ProductCategory", "Product" };
+        var tables = allTables;
 
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, tables);

@@ -167,6 +167,7 @@ namespace Dotmim.Sync.Web.Server
                 throw new ArgumentNullException(nameof(syncSessionId));
 
             // get the sync provider associated with the session id
+            Debug.WriteLine($"Getting SyncMemoryProvider from cache with key {syncSessionId}");
             syncMemoryProvider = cache.Get(syncSessionId) as SyncMemoryProvider;
 
             return syncMemoryProvider;
