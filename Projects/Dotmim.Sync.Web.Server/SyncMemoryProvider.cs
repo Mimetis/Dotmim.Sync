@@ -178,10 +178,14 @@ namespace Dotmim.Sync.Web.Server
 
             // If the Conf is hosted by the server, we try to get the tables from it, overriding the client schema, if passed
             DmSet schema = null;
-            if (this.LocalProvider.Configuration.Schema != null)
+            if (this.LocalProvider.Configuration.Schema != null) {
                 schema = this.LocalProvider.Configuration.Schema;
+            }
             else if (httpMessageContent.Schema != null)
+            {
                 schema = httpMessageContent.Schema.ConvertToDmSet();
+                this.LocalProvider.Configuration.Schema = schema;
+            }
 
             if (httpMessageContent.Schema != null)
             {
@@ -193,9 +197,6 @@ namespace Dotmim.Sync.Web.Server
                 new MessageEnsureSchema { Schema = schema });
 
             httpMessageContent.Schema = new DmSetSurrogate(schema);
-
-            schema.Clear();
-            schema = null;
 
             // Dont forget to re-assign since it's a JObject, until now
             httpMessage.Content = httpMessageContent;
