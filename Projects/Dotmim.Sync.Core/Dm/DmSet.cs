@@ -146,9 +146,6 @@ namespace Dotmim.Sync.Data
             if (this.Tables != null)
                 for (int i = 0; i < Tables.Count; i++)
                     Tables[i].Clear();
-
-            if (this.Relations != null)
-                this.Relations.Clear();
         }
 
         /// <summary>
@@ -373,7 +370,7 @@ namespace Dotmim.Sync.Data
         {
             try
             {
-                Clear();
+                this.Clear();
                 Relations.Clear();
                 Tables.Clear();
             }
