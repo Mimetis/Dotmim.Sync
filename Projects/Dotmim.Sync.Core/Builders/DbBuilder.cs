@@ -70,7 +70,7 @@ namespace Dotmim.Sync.Builders
         public void CreateForeignKeys(DbConnection connection, DbTransaction transaction = null)
         {
             if (!TableDescription.PrimaryKey.HasValue)
-                throw new InvalidOperationException($"Table {TableDescription.TableName} must have at least one dmColumn as Primary key");
+                throw new InvalidOperationException($"Create foreign keys: Table {TableDescription.TableName} must have at least one dmColumn as Primary key");
 
             var alreadyOpened = connection.State != ConnectionState.Closed;
 
@@ -104,7 +104,7 @@ namespace Dotmim.Sync.Builders
         public void CreateTrackingTable(DbConnection connection, DbTransaction transaction = null)
         {
             if (!TableDescription.PrimaryKey.HasValue)
-                throw new InvalidOperationException($"Table {TableDescription.TableName} must have at least one dmColumn as Primary key");
+                throw new InvalidOperationException($"Create tracking table: Table {TableDescription.TableName} must have at least one dmColumn as Primary key");
 
             var alreadyOpened = connection.State != ConnectionState.Closed;
 
@@ -134,7 +134,7 @@ namespace Dotmim.Sync.Builders
         public void CreateTriggers(DbConnection connection, DbTransaction transaction = null)
         {
             if (!TableDescription.PrimaryKey.HasValue)
-                throw new InvalidOperationException($"Table {TableDescription.TableName} must have at least one dmColumn as Primary key");
+                throw new InvalidOperationException($"Create triggers: Table {TableDescription.TableName} must have at least one dmColumn as Primary key");
 
             var alreadyOpened = connection.State != ConnectionState.Closed;
 
@@ -160,7 +160,7 @@ namespace Dotmim.Sync.Builders
         public void CreateStoredProcedures(DbConnection connection, DbTransaction transaction = null)
         {
             if (!TableDescription.PrimaryKey.HasValue)
-                throw new InvalidOperationException($"Table {TableDescription.TableName} must have at least one dmColumn as Primary key");
+                throw new InvalidOperationException($"Create stored procedures: Table {TableDescription.TableName} must have at least one dmColumn as Primary key");
 
             // Check if we have mutables columns
             var hasMutableColumns = TableDescription.MutableColumnsAndNotAutoInc.Any();
@@ -219,7 +219,7 @@ namespace Dotmim.Sync.Builders
         public void CreateTable(DbConnection connection, DbTransaction transaction = null)
         {
             if (!TableDescription.PrimaryKey.HasValue)
-                throw new InvalidOperationException($"Table {TableDescription.TableName} must have at least one dmColumn as Primary key");
+                throw new InvalidOperationException($"Create table: Table {TableDescription.TableName} must have at least one dmColumn as Primary key");
 
             var tableBuilder = CreateTableBuilder(connection, transaction);
 
@@ -256,7 +256,7 @@ namespace Dotmim.Sync.Builders
         public void Create(DbConnection connection, DbTransaction transaction = null)
         {
             if (!TableDescription.PrimaryKey.HasValue)
-                throw new InvalidOperationException($"Table {TableDescription.TableName} must have at least one dmColumn as Primary key");
+                throw new InvalidOperationException($"Before creating table: Table {TableDescription.TableName} must have at least one dmColumn as Primary key");
 
             var alreadyOpened = connection.State != ConnectionState.Closed;
 
