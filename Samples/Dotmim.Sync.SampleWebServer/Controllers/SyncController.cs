@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Web.Server;
 using Microsoft.AspNetCore.Mvc;
 
@@ -19,18 +20,24 @@ namespace Dotmim.Sync.SampleWebServer.Controllers
             webProxyServer = proxy;
         }
 
-        // POST api/values
         [HttpPost]
         public async Task Post()
         {
+            // Get the underline local provider
             var provider = webProxyServer.GetLocalProvider(this.HttpContext);
-            if (provider != null)
+
+            provider.InterceptApplyChangesFailed(e =>
             {
-                provider.SetInterceptor(new Interceptor<ApplyChangesFailedArgs>(fail =>
+                if (e.Conflict.RemoteRow.Table.TableName == "Region")
                 {
-                    fail.Resolution = Enumerations.ConflictResolution.ServerWins;
-                }));
-            }
+                    e.Resolution = ConflictResolution.MergeRow;
+                    e.FinalRow["RegionDescription"] = "Eastern alone !";
+                }
+                else
+                {
+                    e.Resolution = ConflictResolution.ServerWins;
+                }
+            });
 
             await webProxyServer.HandleRequestAsync(this.HttpContext);
         }

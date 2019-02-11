@@ -5,18 +5,28 @@ You can configure your sync tables with schema if you target the `SqlSyncProvide
 
 You have two way to configure schemas :  
 
-* Directly during the tables declaration
-* On each table, from the `SyncConfiguration` object
+Directly during the tables declaration, as string:
 
 ``` cs
 var tables = new string[] { "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product",
                                 "Address", "Customer", "CustomerAddress"};
 
 SyncAgent agent = new SyncAgent(clientProvider, serverProvider, tables);
+```
 
-agent.Configuration["Address"].Schema = "SalesLT";
-agent.Configuration["Customer"].Schema = "SalesLT";
-agent.Configuration["CustomerAddress"].Schema = "SalesLT";
+On each table, from the `SyncConfiguration` action:
+
+``` cs
+var tables = new string[] { "ProductCategory", "ProductModel", "Product",
+                                "Address", "Customer", "CustomerAddress"};
+
+SyncAgent agent = new SyncAgent(clientProvider, serverProvider, tables);
+agent.SetConfiguration(c =>{
+
+    c["Address"].Schema = "SalesLT";
+    c["Customer"].Schema = "SalesLT";
+    c["CustomerAddress"].Schema = "SalesLT";
+});
 
 ```
 Be careful, **schemas are not replicated if you target `SqliteSyncProvider` or `MySqlSyncProvider` as client providers**
