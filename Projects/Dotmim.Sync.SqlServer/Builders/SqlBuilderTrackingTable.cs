@@ -417,7 +417,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.Append(string.Concat("SELECT ", stringBuilder2.ToString(), ", "));
             stringBuilder.Append("NULL, ");
             stringBuilder.Append("NULL, ");
-            stringBuilder.Append("@@DBTS+1, ");
+            stringBuilder.Append("@@DBTS-1, ");
             stringBuilder.Append("0, ");
             //stringBuilder.Append("@@DBTS+1, "); // timestamp is not a column we update, it's auto
             stringBuilder.Append("0");

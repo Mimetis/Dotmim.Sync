@@ -20,6 +20,8 @@ namespace Dotmim.Sync.Tests.Core
         private static readonly object locker = new object();
         private bool isConfigured = false;
 
+        Action<SyncConfiguration> configuration;
+
         // list of client providers we want to create
         private readonly Dictionary<NetworkType, ProviderType> lstClientsType = new Dictionary<NetworkType, ProviderType>();
 
@@ -66,6 +68,9 @@ namespace Dotmim.Sync.Tests.Core
             this.FilterParameters.Add(param);
         }
 
+
+        public void SetConfiguration(Action<SyncConfiguration> configuration)
+            => this.configuration = configuration;
 
         /// <summary>
         /// Will configure the fixture on first test launch

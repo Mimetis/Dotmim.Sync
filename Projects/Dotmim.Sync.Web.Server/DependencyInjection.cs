@@ -34,13 +34,10 @@ namespace Microsoft.Extensions.DependencyInjection
             if (string.IsNullOrWhiteSpace(connectionString))
                 throw new ArgumentNullException(nameof(connectionString));
 
-            if (configuration == null)
-                throw new ArgumentNullException(nameof(configuration));
-
             providerType = typeof(TProvider);
             DependencyInjection.connectionString = connectionString;
             DependencyInjection.options = options;
-            DependencyInjection.configuration = configuration;
+            DependencyInjection.configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
 
             serviceCollection.AddOptions();
             serviceCollection.AddSingleton(new WebProxyServerProvider());

@@ -222,8 +222,6 @@ namespace Dotmim.Sync
              ApplyAction.Continue :
              ApplyAction.RetryWithForceWrite;
 
-
-
         public SyncConfiguration()
         {
             this.Schema = new DmSet(DMSET_NAME);
@@ -266,8 +264,6 @@ namespace Dotmim.Sync
 
             return syncConfiguration;
         }
-
-
         public int Count
         {
             get
