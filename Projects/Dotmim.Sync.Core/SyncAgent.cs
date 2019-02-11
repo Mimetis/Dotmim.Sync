@@ -257,7 +257,6 @@ namespace Dotmim.Sync
                 serverScopeInfo = serverScopes.First(s => s.Id != localScopeInfo.Id);
                 localScopeReferenceInfo = serverScopes.First(s => s.Id == localScopeInfo.Id);
 
-
                 // ----------------------------------------
                 // 2) Build Configuration Object
                 // ----------------------------------------

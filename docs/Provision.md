@@ -145,8 +145,8 @@ private static async Task AlterSchemasAsync()
     }
 
     // Provision again
-    await serverProvider.CreateSyncTablesAsync(tables, SyncProvision.StoredProcedures | SyncProvision.Triggers);
-    await clientProvider.CreateSyncTablesAsync(tables, SyncProvision.StoredProcedures | SyncProvision.Triggers);
+    await serverProvider.ProvisionAsync(tables, SyncProvision.StoredProcedures | SyncProvision.Triggers);
+    await clientProvider.ProvisionAsync(tables, SyncProvision.StoredProcedures | SyncProvision.Triggers);
 
   // sync !
   await this.SynchronizeAsync();

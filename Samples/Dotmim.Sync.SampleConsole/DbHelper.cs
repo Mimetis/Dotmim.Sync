@@ -18,17 +18,14 @@ namespace Dotmim.Sync.SampleConsole
         /// create a server database with datas and an empty client database
         /// </summary>
         /// <returns></returns>
-        public static async Task EnsureDatabasesAsync(string serverDatabaseName, string clientDatabaseName)
+        public static async Task EnsureDatabasesAsync(string databaseName, bool useSeeding = true)
         {
             // Create server database with items
-            using (var dbServer = new AdventureWorksContext(GetDatabaseConnectionString(serverDatabaseName), true))
+            using (var dbServer = new AdventureWorksContext(GetDatabaseConnectionString(databaseName), useSeeding))
             {
                 await dbServer.Database.EnsureDeletedAsync();
                 await dbServer.Database.EnsureCreatedAsync();
             }
-            // Create an empty client database (with no schema and not datas)
-            await CreateDatabaseAsync(clientDatabaseName, true);
-
         }
 
         public static async Task DeleteDatabaseAsync(string dbName)

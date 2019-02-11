@@ -7,37 +7,40 @@ You can choose:
 * `ConflictResolutionPolicy.ServerWins` : The server is allways the winner of any conflict. this behavior is the default behavior.
 * `ConflictResolutionPolicy.ClientWins` : The client is allways the winner of any conflict.
 
+> Default value is `ServerWins`.
+
 ``` cs
-configuration.ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
+agent.SetConfiguration(c => {
+    c.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
+});
 ``` 
 
-First of all, **a conflict is allways resolved from the server side.**
+## Resolution side
 
-Depending on your policy resolution, the workflow is:
-* A conflict is generated on the client and the server side (for example a row is updated on both the server and the client database)
+**A conflict is always resolved on the server side.**
+
+Depending on your policy resolution, the workflow could be:
+* A conflict is generated on the client and the server side (for example a row, with same Id, is updated on both the server and the client database)
 * The client is launching a sync processus.
 * The server tries to apply the row and a conflict is generated.
 * The server resolve the conflict on the server side.
-* If the server wins, the server row is sent to the client and will overwrite the client version.
-* If the client wins, the server will force apply the client row on the server.
+* If the server wins, the resolved server row is sent to the client and is *force-applied* on the client database.
+* If the client wins, the server will *force-apply* the client row on the server. Nothing happen on the client, since the row is correct.
 
 
 ## Handling conflicts manually
 
 If you decide to manually resolve a conflict, the `ConflictResolutionPolicy` option will be ignored.  
-To be able to resolve a conflict, you just have to subscribe on the `ApplyChangedFailed` event and choose the correct version.  
+To be able to resolve a conflict, you just have to *Intercept*  the `ApplyChangedFailed` method and choose the correct version.  
 
 ``` cs
-// Subscribing to the ApplyChangedFailed event
-agent.ApplyChangedFailed += ApplyChangedFailed;
-
-// Custom conflict resolution
-static void ApplyChangedFailed(object sender, ApplyChangeFailedEventArgs e)
+agent.LocalProvider.InterceptApplyChangesFailed(args =>
 {
+ // do stuff
 }
 ```
 
-The `ApplyChangeFailedEventArgs` argument contains all the required propreties to be able to resolve your conflict:
+The `ApplyChangeFailedEventArgs` argument contains all the required properties to be able to resolve your conflict:
 
 You will determinate the correct version through the `Action` property of type `ConflictAction`:
 * `ConflictAction.ClientWins` : The client row will be applied on server, even if there is a conflict, so the client row wins.
@@ -54,21 +57,24 @@ If you decide to rollback the transaction, all the sync process will be rollback
 
 Eventually, the `FinalRow` property is used when you specify an Action to `ConflictAction.MergeRow`. In this way, you decide what will contains the row applied on both server and client side. Be careful, the `FinalRow` property is null until you specify the `Action` property to `ConflictAction.MergeRow` !
 
-## Examples
+## TCP mode
 
 Manually resolving a conflict based on a column value:
 
 ``` cs
-private void ApplyChangedFailed(object sender, ApplyChangeFailedEventArgs e)
+agent.LocalProvider.InterceptApplyChangesFailed(e =>
 {
-    e.Action = (int)e.Conflict.RemoteRow["Id"] == 1 ? ConflictAction.ClientWins : ConflictAction.ServerWins;
+    if (e.Conflict.RemoteRow.Table.TableName == "Region")
+    {
+        e.Action = (int)e.Conflict.RemoteRow["Id"] == 1 ? ConflictResolution.ClientWins : ConflictResolution.ServerWins;
+    }
 }
 ```
 
 Manually resolving a conflict based on the conflict type :
 
 ``` cs
-private void ApplyChangedFailed(object sender, ApplyChangeFailedEventArgs e)
+agent.LocalProvider.InterceptApplyChangesFailed(e =>
 {
     switch (e.Conflict.Type)
     {
@@ -78,12 +84,12 @@ private void ApplyChangedFailed(object sender, ApplyChangeFailedEventArgs e)
         case ConflictType.RemoteInsertLocalInsert:
         case ConflictType.RemoteInsertLocalUpdate:
         case ConflictType.RemoteInsertLocalDelete:
-            e.Action = ConflictAction.ServerWins;
+            e.Action = ConflictResolution.ServerWins;
             break;
         case ConflictType.RemoteUpdateLocalNoRow:
         case ConflictType.RemoteInsertLocalNoRow:
         case ConflictType.RemoteDeleteLocalNoRow:
-            e.Action = ConflictAction.ClientWins;
+            e.Action = ConflictResolution.ClientWins;
             break;
     }
 }
@@ -92,10 +98,52 @@ private void ApplyChangedFailed(object sender, ApplyChangeFailedEventArgs e)
 Resolving a conflict by specifying a merged row :
 
 ``` cs
-static void ApplyChangedFailed(object sender, ApplyChangeFailedEventArgs e)
+agent.LocalProvider.InterceptApplyChangesFailed(e =>
 {
-    e.Action = ConflictAction.MergeRow;
-    e.FinalRow["RegionDescription"] = "Eastern alone !";
+    if (e.Conflict.RemoteRow.Table.TableName == "Region")
+    {
+        e.Action = ConflictResolution.MergeRow;
+        e.FinalRow["RegionDescription"] = "Eastern alone !";
+    }
 }
 ```
 Be careful, the `e.FinalRow` is null until you specify the `Action` property to `ConflictAction.MergeRow` !
+
+### HTTP Mode
+
+Since we see that conflicts are resolved on the server side, if you are in a proxy mode, involving a server web side, it is there that you need to intercept failed applied changes:
+
+``` csharp
+    public class SyncController : ControllerBase
+    {
+        private WebProxyServerProvider webProxyServer;
+
+        // Injected thanks to Dependency Injection
+        public SyncController(WebProxyServerProvider proxy)
+        {
+            webProxyServer = proxy;
+        }
+
+        [HttpPost]
+        public async Task Post()
+        {
+            // Get the underline local provider
+            var provider = webProxyServer.GetLocalProvider(this.HttpContext);
+
+            provider.InterceptApplyChangesFailed(e =>
+            {
+                if (e.Conflict.RemoteRow.Table.TableName == "Region")
+                {
+                    e.Resolution = ConflictResolution.MergeRow;
+                    e.FinalRow["RegionDescription"] = "Eastern alone !";
+                }
+                else
+                {
+                    e.Resolution = ConflictResolution.ServerWins;
+                }
+            });
+
+            await webProxyServer.HandleRequestAsync(this.HttpContext);
+        }
+    }
+```
