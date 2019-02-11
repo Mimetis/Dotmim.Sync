@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Dotmim.Sync.SqlServer;
@@ -31,18 +32,27 @@ namespace Dotmim.Sync.SampleWebServer
             services.AddMemoryCache();
 
             var connectionString = Configuration.GetSection("ConnectionStrings")["DefaultConnection"];
-            services.AddSyncServer<SqlSyncProvider>(connectionString, 
-                configuration =>
+
+            services.AddSyncServer<SqlSyncProvider>(connectionString,
+                c =>
                 {
                     var tables = new string[] {"ProductCategory",
                             "ProductDescription", "ProductModel",
                             "Product", "ProductModelProductDescription",
                             "Address", "Customer", "CustomerAddress",
                             "SalesOrderHeader", "SalesOrderDetail" };
-                    configuration.Add(tables);
+                    c.Add(tables);
+                    c.ScopeInfoTableName = "tscopeinfo";
+                    c.SerializationFormat = Dotmim.Sync.Enumerations.SerializationFormat.Binary;
+                    c.StoredProceduresPrefix = "s";
+                    c.StoredProceduresSuffix = "";
+                    c.TrackingTablesPrefix = "t";
+                    c.TrackingTablesSuffix = "";
+
 
                 }, options =>
                 {
+                    options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "server");
                     options.BatchSize = 100;
                 });
         }

@@ -695,7 +695,7 @@ namespace Dotmim.Sync.Tests
 
 
                 this.testRunner.BeginRun = provider
-                    => provider.SetInterceptor(new Interceptor<ApplyChangesFailedArgs>(c => c.Resolution = ConflictResolution.ClientWins));
+                    => provi    der.SetInterceptor(new Interceptor<ApplyChangesFailedArgs>(c => c.Resolution = ConflictResolution.ClientWins));
                 this.testRunner.EndRun = provider => provider.SetInterceptor(null);
 
                 var results = await this.testRunner.RunTestsAsync(conf);
