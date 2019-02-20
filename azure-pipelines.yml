@@ -32,42 +32,42 @@ jobs:
       # --logger trx;logfilename=TEST.xml : Unexplained arg to publish tests resuls
 
       - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter SqlServerBasicTests --logger trx
-        name: dotnettestssql
+        name: SqlServerBasicTests
         displayName: "Tests with SQL Server acting as server"
         env:
           "MYSQLIP": $(setvarStep.mySQLIP)
           "AZUREDEV": "true"
 
       - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter SyncAllColumnsTests --logger trx
-        name: dotnettestssql
+        name: SyncAllColumnsTests
         displayName: "Tests with SQL Server acting as server and all columns possibilities"
         env:
           "MYSQLIP": $(setvarStep.mySQLIP)
           "AZUREDEV": "true"
 
       - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter SqlServerConfigTests --logger trx
-        name: dotnettestssql
+        name: SqlServerConfigTests
         displayName: "Tests with SQL Server acting as server and specific configurations"
         env:
           "MYSQLIP": $(setvarStep.mySQLIP)
           "AZUREDEV": "true"
 
       - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter SqlServerFilterTests --logger trx
-        name: dotnettestssql
+        name: SqlServerFilterTests
         displayName: "Tests with SQL Server acting as server and specific filters"
         env:
           "MYSQLIP": $(setvarStep.mySQLIP)
           "AZUREDEV": "true"
 
       - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter MySqlBasicTests --logger trx
-        name: dotnettestsmysql
+        name: MySqlBasicTests
         displayName: "Tests with MySQL Server acting as server"
         env:
           "MYSQLIP": $(setvarStep.mySQLIP)
           "AZUREDEV": "true"
 
       - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter MySqlFilterTests --logger trx
-        name: dotnettestsmysql
+        name: MySqlFilterTests
         displayName: "Tests with MySQL Server acting as server"
         env:
           "MYSQLIP": $(setvarStep.mySQLIP)
