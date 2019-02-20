@@ -1,4 +1,5 @@
 ﻿using Dotmim.Sync.Data;
+using Dotmim.Sync.Data.Surrogate;
 using Dotmim.Sync.Enumerations;
 using System;
 using System.Collections.Generic;
@@ -6,6 +7,32 @@ using System.Data.Common;
 
 namespace Dotmim.Sync
 {
+
+    /// <summary>
+    /// Event args generated before applying change on the target database
+    /// </summary>
+    public class DatabaseChangesApplyingArgs : ProgressArgs
+    {
+        public DatabaseChangesApplyingArgs(SyncContext context, DbConnection connection, DbTransaction transaction)
+            : base(context, connection, transaction)
+        {
+        }
+
+        public override string Message => $"Applying changes on database {Connection.Database}";
+    }
+
+    public class DatabaseChangesAppliedArgs : ProgressArgs
+    {
+        public DatabaseChangesAppliedArgs(SyncContext context, DbConnection connection, DbTransaction transaction)
+            : base(context, connection, transaction)
+        {
+        }
+
+        public override string Message => $"Changes applied on database {Connection.Database}";
+
+    }
+
+
     /// <summary>
     /// Contains statistics about selected changes from local provider
     /// </summary>
@@ -49,7 +76,7 @@ namespace Dotmim.Sync
 
         public TableChangesApplied TableChangesApplied { get; set; }
 
-        public override string Message => $"{this.TableChangesApplied.TableName} " +
+        public override string Message => $"{this.TableChangesApplied.Table.TableName} " +
             $"State:{this.TableChangesApplied.State} " +
             $"Applied:{this.TableChangesApplied.Applied} " +
             $"Failed:{this.TableChangesApplied.Failed}";
@@ -60,10 +87,10 @@ namespace Dotmim.Sync
     /// </summary>
     public class TableChangesApplyingArgs : ProgressArgs
     {
-        public TableChangesApplyingArgs(SyncContext context, string tableName, DmRowState state, DbConnection connection, DbTransaction transaction) 
+        public TableChangesApplyingArgs(SyncContext context, DmTable table, DmRowState state, DbConnection connection, DbTransaction transaction) 
             : base(context, connection, transaction)
         {
-            this.TableName = tableName;
+            this.Table = table;
             this.State = state;
         }
 
@@ -75,9 +102,9 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the table name where changes are going to be applied
         /// </summary>
-        public string TableName { get; }
+        public DmTable Table { get; }
 
-        public override string Message => $"{this.TableName} State:{this.State}";
+        public override string Message => $"{this.Table.TableName} State:{this.State}";
 
     }
 
@@ -134,7 +161,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the table where changes were applied
         /// </summary>
-        public string TableName { get; set; }
+        public DmTableSurrogate Table { get; set; }
 
         /// <summary>
         /// Gets the RowState of the applied rows

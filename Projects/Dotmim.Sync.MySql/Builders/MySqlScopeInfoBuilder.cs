@@ -11,7 +11,7 @@ namespace Dotmim.Sync.MySql
 {
     public class MySqlScopeInfoBuilder : IDbScopeInfoBuilder
     {
-        private readonly ObjectNameParser scopeTableName;
+        private readonly ParserName scopeTableName;
         private readonly MySqlConnection connection;
         private readonly MySqlTransaction transaction;
 
@@ -19,7 +19,7 @@ namespace Dotmim.Sync.MySql
         {
             this.connection = connection as MySqlConnection;
             this.transaction = transaction as MySqlTransaction;
-            this.scopeTableName = new ObjectNameParser(scopeTableName, "`", "`");
+            this.scopeTableName = ParserName.Parse(scopeTableName, "`");
         }
 
 
@@ -37,7 +37,7 @@ namespace Dotmim.Sync.MySql
                     connection.Open();
 
                 command.CommandText =
-                    $@"CREATE TABLE {scopeTableName.ObjectNameNormalized}(
+                    $@"CREATE TABLE {scopeTableName.Quoted().ToString()}(
                         sync_scope_id varchar(36) NOT NULL,
 	                    sync_scope_name varchar(100) NOT NULL,
 	                    scope_timestamp bigint NULL,
@@ -78,7 +78,7 @@ namespace Dotmim.Sync.MySql
                 if (!alreadyOpened)
                     connection.Open();
 
-                command.CommandText = $"drop table if exists {scopeTableName.ObjectNameNormalized}";
+                command.CommandText = $"drop table if exists {scopeTableName.Quoted().ToString()}";
 
                 command.ExecuteNonQuery();
             }
@@ -120,7 +120,7 @@ namespace Dotmim.Sync.MySql
                            , scope_last_sync
                            , scope_last_sync_timestamp
                            , scope_last_sync_duration
-                    FROM  {scopeTableName.ObjectNameNormalized}
+                    FROM  {scopeTableName.Quoted().ToString()}
                     WHERE sync_scope_name = @sync_scope_name";
 
                 var p = command.CreateParameter();
@@ -212,7 +212,7 @@ namespace Dotmim.Sync.MySql
                     if (!alreadyOpened)
                         connection.Open();
 
-                    command.CommandText = $@"Select count(*) from {scopeTableName.ObjectNameNormalized} where sync_scope_id = @sync_scope_id";
+                    command.CommandText = $@"Select count(*) from {scopeTableName.Quoted().ToString()} where sync_scope_id = @sync_scope_id";
 
                     var p = command.CreateParameter();
                     p.ParameterName = "@sync_scope_id";
@@ -225,8 +225,8 @@ namespace Dotmim.Sync.MySql
                 }
 
                 string stmtText = exist
-                    ? $"Update {scopeTableName.ObjectNameNormalized} set sync_scope_name=@sync_scope_name, scope_timestamp={MySqlObjectNames.TimestampValue}, scope_is_local=@scope_is_local, scope_last_sync=@scope_last_sync, scope_last_sync_timestamp=@scope_last_sync_timestamp, scope_last_sync_duration=@scope_last_sync_duration  where sync_scope_id=@sync_scope_id"
-                    : $"Insert into {scopeTableName.ObjectNameNormalized} (sync_scope_name, scope_timestamp, scope_is_local, scope_last_sync, sync_scope_id, scope_last_sync_timestamp, scope_last_sync_duration) values (@sync_scope_name, {MySqlObjectNames.TimestampValue}, @scope_is_local, @scope_last_sync, @sync_scope_id, @scope_last_sync_timestamp, @scope_last_sync_duration)";
+                    ? $"Update {scopeTableName.Quoted().ToString()} set sync_scope_name=@sync_scope_name, scope_timestamp={MySqlObjectNames.TimestampValue}, scope_is_local=@scope_is_local, scope_last_sync=@scope_last_sync, scope_last_sync_timestamp=@scope_last_sync_timestamp, scope_last_sync_duration=@scope_last_sync_duration  where sync_scope_id=@sync_scope_id"
+                    : $"Insert into {scopeTableName.Quoted().ToString()} (sync_scope_name, scope_timestamp, scope_is_local, scope_last_sync, sync_scope_id, scope_last_sync_timestamp, scope_last_sync_duration) values (@sync_scope_name, {MySqlObjectNames.TimestampValue}, @scope_is_local, @scope_last_sync, @sync_scope_id, @scope_last_sync_timestamp, @scope_last_sync_duration)";
 
                 using (var command = connection.CreateCommand())
                 {
@@ -313,7 +313,7 @@ namespace Dotmim.Sync.MySql
                 if (!alreadyOpened)
                     connection.Open();
 
-                command.CommandText = $"select count(*) from information_schema.TABLES where TABLE_NAME = '{scopeTableName.ObjectNameNormalized}' and TABLE_SCHEMA = schema() and TABLE_TYPE = 'BASE TABLE'";
+                command.CommandText = $"select count(*) from information_schema.TABLES where TABLE_NAME = '{scopeTableName.Unquoted().ToString()}' and TABLE_SCHEMA = schema() and TABLE_TYPE = 'BASE TABLE'";
 
                 return (long)command.ExecuteScalar() != 1;
 

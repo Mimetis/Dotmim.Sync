@@ -246,5 +246,32 @@ namespace Dotmim.Sync
             => this.GetInterceptor<TableChangesAppliedArgs>().Set(func);
 
 
+        /// <summary>
+        /// Intercept the provider action when changes are going to be applied on each table defined in the configuration schema
+        /// </summary>
+        public void OnDatabaseChangesApplying(Func<DatabaseChangesApplyingArgs, Task> func)
+            => this.GetInterceptor<DatabaseChangesApplyingArgs>().Set(func);
+
+        /// <summary>
+        /// Intercept the provider action when changes are going to be applied on each table defined in the configuration schema
+        /// </summary>
+        public void OnDatabaseChangesApplying(Action<DatabaseChangesApplyingArgs> func)
+            => this.GetInterceptor<DatabaseChangesApplyingArgs>().Set(func);
+
+        /// <summary>
+        /// Intercept the provider action when changes are applied on each table defined in the configuration schema
+        /// </summary>
+        public void OnDatabaseChangesApplied(Func<DatabaseChangesAppliedArgs, Task> func)
+            => this.GetInterceptor<DatabaseChangesAppliedArgs>().Set(func);
+
+        /// <summary>
+        /// Intercept the provider action when changes are applied on each table defined in the configuration schema
+        /// </summary>
+        public void OnDatabaseChangesApplied(Action<DatabaseChangesAppliedArgs> func)
+            => this.GetInterceptor<DatabaseChangesAppliedArgs>().Set(func);
+
+
+
+
     }
 }

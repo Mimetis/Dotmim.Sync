@@ -13,6 +13,8 @@ namespace Dotmim.Sync.Builders
         InsertRow,
         UpdateRow,
         DeleteRow,
+        DisableConstraints,
+        EnableConstraints,
         InsertMetadata,
         UpdateMetadata,
         DeleteMetadata,

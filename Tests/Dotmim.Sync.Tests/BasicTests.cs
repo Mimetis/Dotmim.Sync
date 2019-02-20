@@ -1,3 +1,4 @@
+using Dotmim.Sync.Builders;
 using Dotmim.Sync.Data;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Test.Misc;
@@ -1265,7 +1266,7 @@ namespace Dotmim.Sync.Tests
         public virtual async Task Use_Existing_Client_Database_Provision_Deprosivion()
         {
             // Generate a new temp database and a local provider
-            var dbName = this.fixture.GetRandomDatabaseName();
+            var dbName = ProviderFixture.GetRandomDatabaseName();
             var connectionString = HelperDB.GetConnectionString(this.fixture.ProviderType, dbName);
 
             // create a local provider (the provider we want to test, obviously)
@@ -1672,21 +1673,21 @@ namespace Dotmim.Sync.Tests
                     interceptor.OnSessionEnd(sea => sessionString += "end");
                     interceptor.OnTableChangesApplying(args =>
                     {
-                        if (args.TableName == "ProductCategory")
+                        if (args.Table.TableName == "ProductCategory")
                             Assert.Equal(DmRowState.Added, args.State);
 
-                        if (args.TableName == "Product")
+                        if (args.Table.TableName == "Product")
                             Assert.Equal(DmRowState.Added, args.State);
                     });
                     interceptor.OnTableChangesApplied(args =>
                     {
-                        if (args.TableChangesApplied.TableName == "ProductCategory")
+                        if (args.TableChangesApplied.Table.TableName == "ProductCategory")
                         {
                             Assert.Equal(DmRowState.Added, args.TableChangesApplied.State);
                             Assert.Equal(1, args.TableChangesApplied.Applied);
                         }
 
-                        if (args.TableChangesApplied.TableName == "Product")
+                        if (args.TableChangesApplied.Table.TableName == "Product")
                         {
                             Assert.Equal(DmRowState.Added, args.TableChangesApplied.State);
                             Assert.Equal(1, args.TableChangesApplied.Applied);
@@ -1716,6 +1717,103 @@ namespace Dotmim.Sync.Tests
                     Assert.Equal("beginend", sessionString);
 
                     clientRun.Agent.SetInterceptor(null);
+
+                }
+
+            }
+        }
+
+
+        public virtual async Task Force_Failing_Constraints()
+        {
+            foreach (var conf in TestConfigurations.GetConfigurations())
+            {
+                foreach (var clientRun in this.fixture.ClientRuns)
+                {
+                    // test only on SQL Server for now
+                    if (clientRun.ClientProviderType != ProviderType.Sql)
+                        return;
+
+                    // reset all
+                    await this.testRunner.RunTestsAsync(conf);
+
+                    var productId = Guid.NewGuid();
+                    var productName = Path.GetRandomFileName().Replace(".", "");
+                    var productNumber = productName.ToUpperInvariant().Substring(0, 10);
+
+                    var productCategoryName = Path.GetRandomFileName().Replace(".", "");
+                    var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
+
+                    // insert 2 rows
+                    using (var serverDbCtx = this.GetServerDbContext())
+                    {
+                        var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
+                        serverDbCtx.Add(pc);
+
+                        var product = new Product
+                        {
+                            ProductId = productId,
+                            ProductCategory = pc,
+                            Name = productName,
+                            ProductNumber = productNumber
+                        };
+                        serverDbCtx.Add(product);
+
+                        await serverDbCtx.SaveChangesAsync();
+                    }
+
+                    // first sync
+                    await clientRun.RunAsync(this.fixture, null, conf, false);
+
+
+                    // Creating the fail constraint 
+                    using (var serverDbCtx = this.GetServerDbContext())
+                    {
+                        // Get the ProductCategory and the Product
+                        var pc = serverDbCtx.ProductCategory.Find(productCategoryId);
+                        var p = serverDbCtx.Product.Find(productId);
+
+                        // Update Product to remove foreign key to Product Category
+                        p.ProductCategory = null;
+                        // Delete the ProductCategory row
+                        serverDbCtx.ProductCategory.Remove(pc);
+
+                        // Save
+                        await serverDbCtx.SaveChangesAsync();
+
+                    }
+
+                    //var interceptor = new Interceptors();
+                    //interceptor.OnDatabaseChangesApplying(tca =>
+                    //{
+                    //    foreach (var table in clientRun.Agent.LocalProvider.Configuration.Schema.Tables)
+                    //    {
+                    //        var cmd = tca.Connection.CreateCommand();
+                    //        var tableName = ParserName.Parse(table).Schema().Quoted().ToString();
+                    //        cmd.CommandText = $"ALTER TABLE {tableName} NOCHECK CONSTRAINT ALL";
+                    //        cmd.Connection = tca.Connection;
+                    //        cmd.Transaction = tca.Transaction;
+                    //        cmd.ExecuteNonQuery();
+                    //    }
+                    //});
+
+                    //interceptor.OnDatabaseChangesApplied(tca =>
+                    //{
+                    //    foreach (var table in clientRun.Agent.LocalProvider.Configuration.Schema.Tables)
+                    //    {
+                    //        var cmd = tca.Connection.CreateCommand();
+                    //        var tableName = ParserName.Parse(table).Schema().Quoted().ToString();
+                    //        cmd.CommandText = $"ALTER TABLE {tableName} CHECK CONSTRAINT ALL";
+                    //        cmd.Connection = tca.Connection;
+                    //        cmd.Transaction = tca.Transaction;
+                    //        cmd.ExecuteNonQuery();
+                    //    }
+                    //});
+
+                    //clientRun.Agent.SetInterceptor(interceptor);
+
+                    // try sync
+                    await clientRun.RunAsync(this.fixture, null, conf, false);
 
                 }
 

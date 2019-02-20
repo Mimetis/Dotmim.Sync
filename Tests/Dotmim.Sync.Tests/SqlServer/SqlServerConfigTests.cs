@@ -10,7 +10,7 @@ using Xunit;
 namespace Dotmim.Sync.Tests.SqlServer
 {
     [TestCaseOrderer("Dotmim.Sync.Tests.Misc.PriorityOrderer", "Dotmim.Sync.Tests")]
-    [Collection("SqlServerFilter")]
+    [Collection("SqlServerConfig")]
     public class SqlServerConfigTests : BasicTestsBase, IClassFixture<SqlServerFixture>
     {
 
@@ -33,7 +33,8 @@ namespace Dotmim.Sync.Tests.SqlServer
 
                 if (!Setup.IsOnAzureDev)
                 {
-                    providerFixture.AddRun(NetworkType.Tcp, ProviderType.Sql | ProviderType.Sqlite);
+                    providerFixture.AddRun(NetworkType.Tcp, ProviderType.MySql | ProviderType.Sql | ProviderType.Sqlite);
+                    providerFixture.AddRun(NetworkType.Http, ProviderType.MySql | ProviderType.Sql | ProviderType.Sqlite);
                 }
                 else
                 {

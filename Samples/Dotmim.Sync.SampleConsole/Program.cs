@@ -29,7 +29,7 @@ internal class Program
     {
 
 
-        SynchronizeExistingTablesAsync().GetAwaiter().GetResult();
+        SyncAdvAsync().GetAwaiter().GetResult();
         Console.ReadLine();
     }
 
@@ -42,6 +42,35 @@ internal class Program
         // Launch Sync
         await SynchronizeAsync();
     }
+
+
+    private static async Task SyncAdvAsync()
+    {
+        // Sql Server provider, the master.
+        var serverProvider = new SqlSyncProvider(
+            @"Data Source=.;Initial Catalog=AdventureWorks;User Id=sa;Password=Password12!;");
+
+        // Sqlite Client provider for a Sql Server <=> Sqlite sync
+        var clientProvider = new SqliteSyncProvider("advworks2.db");
+
+        // Tables involved in the sync process:
+        var tables = new string[] {"ProductCategory",
+                "ProductDescription", "ProductModel",
+                "Product", "ProductModelProductDescription",
+                "Address", "Customer", "CustomerAddress",
+                "SalesOrderHeader", "SalesOrderDetail" };
+
+        // Sync orchestrator
+        var agent = new SyncAgent(clientProvider, serverProvider, tables);
+
+        do
+        {
+            var s = await agent.SynchronizeAsync();
+            Console.WriteLine($"Total Changes downloaded : {s.TotalChangesDownloaded}");
+
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+    }
+
 
     /// <summary>
     /// Launch a simple sync, over TCP network, each sql server (client and server are reachable through TCP cp

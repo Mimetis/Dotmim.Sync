@@ -15,16 +15,22 @@ namespace Dotmim.Sync.Enumerations
         BeginSession,
         ScopeLoading,
         ScopeSaved,
+
+        SchemaReading,
+        SchemaRead,
         SchemaApplying,
         SchemaApplied,
-        DatabaseApplying,
-        DatabaseApplied,
-        DatabaseTableApplying,
-        DatabaseTableApplied,
+        TableSchemaApplying,
+        TableSchemaApplied,
+
         TableChangesSelecting,
         TableChangesSelected,
+
+        DatabaseChangesApplying,
+        DatabaseChangesApplied,
         TableChangesApplying,
         TableChangesApplied,
+
         EndSession,
         CleanupMetadata
     }

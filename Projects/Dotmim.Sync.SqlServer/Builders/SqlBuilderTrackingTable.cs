@@ -16,8 +16,8 @@ namespace Dotmim.Sync.SqlServer.Builders
 {
     public class SqlBuilderTrackingTable : IDbBuilderTrackingTableHelper
     {
-        private ObjectNameParser tableName;
-        private ObjectNameParser trackingName;
+        private ParserName tableName;
+        private ParserName trackingName;
         private readonly DmTable tableDescription;
         private readonly SqlConnection connection;
         private readonly SqlTransaction transaction;
@@ -73,7 +73,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         private string CreateIndexCommandText()
         {
             StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"CREATE NONCLUSTERED INDEX [{trackingName.ObjectNameNormalized}_timestamp_index] ON {trackingName.FullQuotedString} (");
+            stringBuilder.AppendLine($"CREATE NONCLUSTERED INDEX [{trackingName.Schema().Unquoted().Normalized().ToString()}_timestamp_index] ON {trackingName.Schema().Quoted().ToString()} (");
             stringBuilder.AppendLine($"\t[update_timestamp] ASC");
             stringBuilder.AppendLine($"\t,[update_scope_id] ASC");
             stringBuilder.AppendLine($"\t,[sync_row_is_tombstone] ASC");
@@ -90,15 +90,15 @@ namespace Dotmim.Sync.SqlServer.Builders
                     if (!this.tableDescription.Columns.Any(c => c.ColumnName.ToLowerInvariant() == filterColumn.ColumnName.ToLowerInvariant()))
                         continue;
 
-                    ObjectNameParser columnName = new ObjectNameParser(filterColumn.ColumnName);
-                    stringBuilder.AppendLine($"\t,{columnName.FullQuotedString} ASC");
+                    var columnName = ParserName.Parse(filterColumn.ColumnName).Quoted().ToString();
+                    stringBuilder.AppendLine($"\t,{columnName} ASC");
                 }
             }
 
             foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
             {
-                ObjectNameParser columnName = new ObjectNameParser(pkColumn.ColumnName);
-                stringBuilder.AppendLine($"\t,{columnName.FullQuotedString} ASC");
+                var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
+                stringBuilder.AppendLine($"\t,{columnName} ASC");
             }
             stringBuilder.Append(")");
             return stringBuilder.ToString();
@@ -106,7 +106,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         public string CreateIndexScriptText()
         {
-            string str = string.Concat("Create index on Tracking Table ", trackingName.FullQuotedString);
+            string str = string.Concat("Create index on Tracking Table ", trackingName.Schema().Quoted().ToString());
             return SqlBuilder.WrapScriptTextWithComments(this.CreateIndexCommandText(), str);
         }
 
@@ -147,20 +147,19 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         public string CreatePkScriptText()
         {
-            string str = string.Concat("Create Primary Key on Tracking Table ", trackingName.FullQuotedString);
+            string str = string.Concat("Create Primary Key on Tracking Table ", trackingName.Schema().Quoted().ToString());
             return SqlBuilder.WrapScriptTextWithComments(this.CreatePkCommandText(), str);
         }
 
         public string CreatePkCommandText()
         {
             StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.Append($"ALTER TABLE {trackingName.FullQuotedString} ADD CONSTRAINT [PK_{trackingName.ObjectNameNormalized}] PRIMARY KEY (");
+            stringBuilder.Append($"ALTER TABLE {trackingName.Schema().Quoted().ToString()} ADD CONSTRAINT [PK_{trackingName.Schema().Unquoted().Normalized().ToString()}] PRIMARY KEY (");
 
             for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
             {
                 DmColumn pkColumn = this.tableDescription.PrimaryKey.Columns[i];
-                var quotedColumnName = new ObjectNameParser(pkColumn.ColumnName, "[", "]").FullQuotedString;
-
+                var quotedColumnName = ParserName.Parse(pkColumn).Quoted().ToString();
                 stringBuilder.Append(quotedColumnName);
 
                 if (i < this.tableDescription.PrimaryKey.Columns.Length - 1)
@@ -245,32 +244,32 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         public string CreateTableScriptText()
         {
-            string str = string.Concat("Create Tracking Table ", trackingName.FullQuotedString);
+            string str = string.Concat("Create Tracking Table ", trackingName.Schema().Quoted().ToString());
             return SqlBuilder.WrapScriptTextWithComments(this.CreateTableCommandText(), str);
         }
         public string DropTableScriptText()
         {
-            string str = string.Concat("Droping Tracking Table ", trackingName.FullQuotedString);
+            string str = string.Concat("Droping Tracking Table ", trackingName.Schema().Quoted().ToString());
             return SqlBuilder.WrapScriptTextWithComments(this.CreateTableCommandText(), str);
         }
 
         private string CreateDropTableCommandText()
         {
-            return $"DROP TABLE {trackingName.FullQuotedString};";
+            return $"DROP TABLE {trackingName.Schema().Quoted().ToString()};";
         }
 
         private string CreateTableCommandText()
         {
             StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"CREATE TABLE {trackingName.FullQuotedString} (");
+            stringBuilder.AppendLine($"CREATE TABLE {trackingName.Schema().Quoted().ToString()} (");
 
             // Adding the primary key
             foreach (DmColumn pkColumn in this.tableDescription.PrimaryKey.Columns)
             {
-                var quotedColumnName = new ObjectNameParser(pkColumn.ColumnName, "[", "]").FullQuotedString;
+                var quotedColumnName = ParserName.Parse(pkColumn).Quoted().ToString();
 
                 var columnTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(pkColumn.OriginalDbType, pkColumn.DbType, false, false, pkColumn.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-                var quotedColumnType = new ObjectNameParser(columnTypeString, "[", "]").FullQuotedString;
+                var quotedColumnType = ParserName.Parse(columnTypeString).Quoted().ToString();
                 var columnPrecisionString = this.sqlDbMetadata.TryGetOwnerDbTypePrecision(pkColumn.OriginalDbType, pkColumn.DbType, false, false, pkColumn.MaxLength, pkColumn.Precision, pkColumn.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
                 var columnType = $"{quotedColumnType} {columnPrecisionString}";
 
@@ -300,11 +299,9 @@ namespace Dotmim.Sync.SqlServer.Builders
                     if (isPk)
                         continue;
 
-
-                    var quotedColumnName = new ObjectNameParser(columnFilter.ColumnName, "[", "]").FullQuotedString;
-
+                    var quotedColumnName = ParserName.Parse(columnFilter).Quoted().ToString();
                     var columnTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(columnFilter.OriginalDbType, columnFilter.DbType, false, false, columnFilter.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-                    var quotedColumnType = new ObjectNameParser(columnTypeString, "[", "]").FullQuotedString;
+                    var quotedColumnType = ParserName.Parse(columnTypeString).Quoted().ToString();
                     var columnPrecisionString = this.sqlDbMetadata.TryGetOwnerDbTypePrecision(columnFilter.OriginalDbType, columnFilter.DbType, false, false, columnFilter.MaxLength, columnFilter.Precision, columnFilter.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
                     var columnType = $"{quotedColumnType} {columnPrecisionString}";
 
@@ -318,7 +315,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         public bool NeedToCreateTrackingTable()
         {
-            return !SqlManagementUtils.TableExists(connection, transaction, trackingName.FullQuotedString);
+            return !SqlManagementUtils.TableExists(connection, transaction, trackingName.Schema().Quoted().ToString());
         }
 
         public void PopulateFromBaseTable()
@@ -358,19 +355,19 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         private string CreatePopulateFromBaseTableCommandText()
         {
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine(string.Concat("INSERT INTO ", trackingName.FullQuotedString, " ("));
-            StringBuilder stringBuilder1 = new StringBuilder();
-            StringBuilder stringBuilder2 = new StringBuilder();
+            var stringBuilder = new StringBuilder();
+            stringBuilder.AppendLine(string.Concat("INSERT INTO ", trackingName.Schema().Quoted().ToString(), " ("));
+            var stringBuilder1 = new StringBuilder();
+            var stringBuilder2 = new StringBuilder();
             string empty = string.Empty;
-            StringBuilder stringBuilderOnClause = new StringBuilder("ON ");
-            StringBuilder stringBuilderWhereClause = new StringBuilder("WHERE ");
+            var stringBuilderOnClause = new StringBuilder("ON ");
+            var stringBuilderWhereClause = new StringBuilder("WHERE ");
             string str = string.Empty;
             string baseTable = "[base]";
             string sideTable = "[side]";
             foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
             {
-                var quotedColumnName = new ObjectNameParser(pkColumn.ColumnName, "[", "]").FullQuotedString;
+                var quotedColumnName = ParserName.Parse(pkColumn).Quoted().ToString();
 
                 stringBuilder1.Append(string.Concat(empty, quotedColumnName));
 
@@ -383,8 +380,8 @@ namespace Dotmim.Sync.SqlServer.Builders
                 empty = ", ";
                 str = " AND ";
             }
-            StringBuilder stringBuilder5 = new StringBuilder();
-            StringBuilder stringBuilder6 = new StringBuilder();
+            var stringBuilder5 = new StringBuilder();
+            var stringBuilder6 = new StringBuilder();
 
             if (Filters != null && Filters.Count > 0)
                 foreach (var filter in this.Filters)
@@ -398,7 +395,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                     if (isPk)
                         continue;
 
-                    var quotedColumnName = new ObjectNameParser(columnFilter.ColumnName, "[", "]").FullQuotedString;
+                    var quotedColumnName = ParserName.Parse(columnFilter).Quoted().ToString();
 
                     stringBuilder6.Append(string.Concat(empty, quotedColumnName));
                     stringBuilder5.Append(string.Concat(empty, baseTable, ".", quotedColumnName));
@@ -422,7 +419,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             //stringBuilder.Append("@@DBTS+1, "); // timestamp is not a column we update, it's auto
             stringBuilder.Append("0");
             stringBuilder.AppendLine(string.Concat(stringBuilder5.ToString(), " "));
-            string[] localName = new string[] { "FROM ", tableName.FullQuotedString, " ", baseTable, " LEFT OUTER JOIN ", trackingName.FullQuotedString, " ", sideTable, " " };
+            string[] localName = new string[] { "FROM ", tableName.Schema().Quoted().ToString(), " ", baseTable, " LEFT OUTER JOIN ", trackingName.Schema().Quoted().ToString(), " ", sideTable, " " };
             stringBuilder.AppendLine(string.Concat(localName));
             stringBuilder.AppendLine(string.Concat(stringBuilderOnClause.ToString(), " "));
             stringBuilder.AppendLine(string.Concat(stringBuilderWhereClause.ToString(), "; \n"));
@@ -431,7 +428,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         public string CreatePopulateFromBaseTableScriptText()
         {
-            string str = string.Concat("Populate tracking table ", trackingName.FullQuotedString, " for existing data in table ", tableName.FullQuotedString);
+            string str = string.Concat("Populate tracking table ", trackingName.Schema().Quoted().ToString(), " for existing data in table ", tableName.Schema().Quoted().ToString());
             return SqlBuilder.WrapScriptTextWithComments(this.CreatePopulateFromBaseTableCommandText(), str);
         }
 
@@ -482,9 +479,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         private string AddFilterColumnCommandText(DmColumn col)
         {
-            var quotedColumnName = new ObjectNameParser(col.ColumnName, "[", "]").FullQuotedString;
-            var quotedColumnType = new ObjectNameParser(col.OriginalDbType, "[", "]").FullQuotedString;
-
+            var quotedColumnName = ParserName.Parse(col).Quoted().ToString();
             var columnTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(col.OriginalDbType, col.DbType, false, false, col.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
             var columnPrecisionString = this.sqlDbMetadata.TryGetOwnerDbTypePrecision(col.OriginalDbType, col.DbType, false, false, col.MaxLength, col.Precision, col.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
             var columnType = $"{columnTypeString} {columnPrecisionString}";
@@ -493,9 +488,8 @@ namespace Dotmim.Sync.SqlServer.Builders
         }
         public string ScriptAddFilterColumn(DmColumn filterColumn)
         {
-            var quotedColumnName = new ObjectNameParser(filterColumn.ColumnName, "[", "]");
-
-            string str = string.Concat("Add new filter column, ", quotedColumnName.FullUnquotedString, ", to Tracking Table ", trackingName.FullQuotedString);
+            var quotedColumnName = ParserName.Parse(filterColumn).Quoted().ToString();
+            string str = string.Concat("Add new filter column, ", quotedColumnName, ", to Tracking Table ", trackingName.Schema().Quoted().ToString());
             return SqlBuilder.WrapScriptTextWithComments(this.AddFilterColumnCommandText(filterColumn), str);
         }
 

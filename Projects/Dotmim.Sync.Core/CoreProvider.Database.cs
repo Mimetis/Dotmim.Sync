@@ -91,7 +91,7 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw new SyncException(ex, SyncStage.DatabaseApplying);
+                throw new SyncException(ex, SyncStage.SchemaApplying);
             }
             finally
             {
@@ -185,7 +185,7 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw new SyncException(ex, SyncStage.DatabaseApplying);
+                throw new SyncException(ex, SyncStage.SchemaApplying);
             }
             finally
             {
@@ -204,7 +204,7 @@ namespace Dotmim.Sync
             try
             {
                 // Event progress
-                context.SyncStage = SyncStage.DatabaseApplying;
+                context.SyncStage = SyncStage.SchemaApplying;
 
                 var script = new StringBuilder();
 
@@ -236,7 +236,7 @@ namespace Dotmim.Sync
                             // adding filter
                             this.AddFilters(message.Filters, dmTable, builder);
 
-                            context.SyncStage = SyncStage.DatabaseTableApplying;
+                            context.SyncStage = SyncStage.TableSchemaApplying;
 
                             // Launch any interceptor if available
                             await this.InterceptAsync(new TableProvisioningArgs(context, SyncProvision.All, dmTable, connection, transaction));
@@ -253,14 +253,14 @@ namespace Dotmim.Sync
                             builder.CreateForeignKeys(connection, transaction);
 
                             // Report & Interceptor
-                            context.SyncStage = SyncStage.DatabaseTableApplied;
+                            context.SyncStage = SyncStage.TableSchemaApplied;
                             var tableProvisionedArgs = new TableProvisionedArgs(context, SyncProvision.All, dmTable, connection, transaction);
                             this.ReportProgress(context, tableProvisionedArgs);
                             await this.InterceptAsync(tableProvisionedArgs);
                         }
 
                         // Report & Interceptor
-                        context.SyncStage = SyncStage.DatabaseApplied;
+                        context.SyncStage = SyncStage.SchemaApplied;
                         var args = new DatabaseProvisionedArgs(context, SyncProvision.All, message.Schema, script.ToString(), connection, transaction);
                         this.ReportProgress(context, args);
                         await this.InterceptAsync(args);
@@ -276,7 +276,7 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw new SyncException(ex, SyncStage.DatabaseApplying);
+                throw new SyncException(ex, SyncStage.SchemaApplying);
             }
             finally
             {

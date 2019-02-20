@@ -177,6 +177,10 @@ namespace Dotmim.Sync.Tests.Models
                 entity.Property(e => e.LastName)
                     .IsRequired()
                     .HasMaxLength(50);
+                
+                // Creating a column with space in it
+                entity.Property(e => e.AttributeWithSpace)
+                    .HasColumnName("Attribute With Space");
 
                 entity.Property(e => e.MiddleName).HasMaxLength(50);
 
@@ -449,6 +453,11 @@ namespace Dotmim.Sync.Tests.Models
 
                 entity.Property(e => e.Rowguid)
                     .HasColumnName("rowguid");
+
+                // Creating a column with space in it, and a schema on the table
+                entity.Property(e => e.AttributeWithSpace)
+                    .HasColumnName("Attribute With Space");
+
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.Rowguid).HasDefaultValueSql("(newid())");

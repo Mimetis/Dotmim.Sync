@@ -17,7 +17,7 @@ namespace Dotmim.Sync.Scope
     /// </summary>
     public class ScopeConfigDataAdapter
     {
-        ObjectNameParser _trackingTableName;
+        ParserName _trackingTableName;
         Collection<string> _filterColumns;
         Collection<ScopeConfigDataColumn> _columns;
         Collection<ScopeConfigDataParameter> _filterParameters;
@@ -156,11 +156,11 @@ namespace Dotmim.Sync.Scope
         {
             get
             {
-                return this._trackingTableName.FullQuotedString;
+                return this._trackingTableName.Quoted().ToString();
             }
             set
             {
-                this._trackingTableName.ParseString(value);
+                this._trackingTableName = ParserName.Parse(value);
             }
         }
 
@@ -170,7 +170,7 @@ namespace Dotmim.Sync.Scope
         {
             get
             {
-                return this._trackingTableName.FullUnquotedString;
+                return this._trackingTableName.Unquoted().Normalized().ToString();
             }
         }
 
@@ -194,7 +194,6 @@ namespace Dotmim.Sync.Scope
         {
             this._columns = new Collection<ScopeConfigDataColumn>();
             this._filterColumns = new Collection<string>();
-            this._trackingTableName = new ObjectNameParser();
             this._filterParameters = new Collection<ScopeConfigDataParameter>();
         }
 
