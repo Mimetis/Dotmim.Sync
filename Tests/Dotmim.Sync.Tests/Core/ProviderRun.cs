@@ -149,6 +149,15 @@ namespace Dotmim.Sync.Tests.Core
 
                             serverProvider.Configuration.Add(syncTables);
 
+                            // Add Filers
+                            if (serverFixture.Filters != null && serverFixture.Filters.Count > 0)
+                                serverFixture.Filters.ForEach(f =>
+                                {
+                                    if (!serverProvider.Configuration.Filters.Contains(f))
+                                        serverProvider.Configuration.Filters.Add(f);
+                                });
+
+
                             this.BeginRun?.Invoke(serverProvider);
                             await proxyServerProvider.HandleRequestAsync(context);
                             this.EndRun?.Invoke(serverProvider);

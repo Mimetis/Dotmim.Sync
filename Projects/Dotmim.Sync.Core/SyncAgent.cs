@@ -364,8 +364,6 @@ namespace Dotmim.Sync
                         {
                             ScopeInfo = scope,
                             Schema = this.LocalProvider.Configuration.Schema,
-                            //BatchSize = this.Options.BatchSize,
-                            //BatchDirectory = this.Options.BatchDirectory,
                             Policy = clientPolicy,
                             Filters = this.LocalProvider.Configuration.Filters,
                             SerializationFormat = this.LocalProvider.Configuration.SerializationFormat

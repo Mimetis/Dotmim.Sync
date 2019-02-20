@@ -21,9 +21,10 @@ namespace Dotmim.Sync.SqlServer.Builders
             ObjectNames = new SqlObjectNames(tableDescription);
         }
 
-        internal static (ObjectNameParser tableName, ObjectNameParser trackingName) GetParsers(DmTable tableDescription)
+        internal static (ParserName tableName, ParserName trackingName) GetParsers(DmTable tableDescription)
         {
-            string tableAndPrefixName = String.IsNullOrWhiteSpace(tableDescription.Schema) ? tableDescription.TableName : $"{tableDescription.Schema}.{tableDescription.TableName}";
+            var originalTableName = ParserName.Parse(tableDescription);
+
             var pref = tableDescription.TrackingTablesPrefix;
             var suf = tableDescription.TrackingTablesSuffix;
 
@@ -32,26 +33,26 @@ namespace Dotmim.Sync.SqlServer.Builders
             if (string.IsNullOrEmpty(pref) && string.IsNullOrEmpty(suf))
                 suf = "_tracking";
 
-            var originalTableName = new ObjectNameParser(tableAndPrefixName, "[", "]");
-            //var trackingTableName = new ObjectNameParser($"{pref}{tableAndPrefixName}{suf}", "[", "]");
             var trakingTableNameString = $"{pref}{originalTableName.ObjectName}{suf}";
-            if (!String.IsNullOrEmpty(originalTableName.SchemaName))
+
+            if (!string.IsNullOrEmpty(originalTableName.SchemaName))
                 trakingTableNameString = $"{originalTableName.SchemaName}.{trakingTableNameString}";
 
-            var trackingTableName = new ObjectNameParser(trakingTableNameString);
-            
-
+            var trackingTableName = ParserName.Parse(trakingTableNameString);
+           
             return (originalTableName, trackingTableName);
         }
         public static string WrapScriptTextWithComments(string commandText, string commentText, bool includeGo = true, int indentLevel = 0)
         {
-            StringBuilder stringBuilder = new StringBuilder();
-            StringBuilder stringBuilder1 = new StringBuilder("\n");
+            var stringBuilder = new StringBuilder();
+            var stringBuilder1 = new StringBuilder("\n");
+
             for (int i = 0; i < indentLevel; i++)
             {
                 stringBuilder.Append("\t");
                 stringBuilder1.Append("\t");
             }
+
             string str = stringBuilder1.ToString();
             stringBuilder.Append(string.Concat("-- BEGIN ", commentText, str));
             stringBuilder.Append(commandText);

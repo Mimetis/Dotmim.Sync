@@ -15,8 +15,8 @@ namespace Dotmim.Sync.MySql
 {
     public class MySqlBuilderTable : IDbBuilderTableHelper
     {
-        private readonly ObjectNameParser tableName;
-        private readonly ObjectNameParser trackingName;
+        private readonly ParserName tableName;
+        private readonly ParserName trackingName;
         private readonly DmTable tableDescription;
         private readonly MySqlConnection connection;
         private readonly MySqlTransaction transaction;
@@ -61,10 +61,8 @@ namespace Dotmim.Sync.MySql
         {
             var sqlCommand = new MySqlCommand();
 
-            var childTable = foreignKey.ChildTable;
-            var childTableName = new ObjectNameParser(childTable.TableName, "`", "`");
-            var parentTable = foreignKey.ParentTable;
-            var parentTableName = new ObjectNameParser(parentTable.TableName, "`", "`"); ;
+            var childTableName = ParserName.Parse(foreignKey.ChildTable, "`").Quoted().ToString();
+            var parentTableName = ParserName.Parse(foreignKey.ParentTable, "`").Quoted().ToString();
 
             var relationName = NormalizeRelationName(foreignKey.RelationName);
 
@@ -73,7 +71,7 @@ namespace Dotmim.Sync.MySql
 
             var stringBuilder = new StringBuilder();
             stringBuilder.Append("ALTER TABLE ");
-            stringBuilder.AppendLine(childTableName.FullQuotedString);
+            stringBuilder.AppendLine(childTableName);
             stringBuilder.Append("ADD CONSTRAINT ");
 
             stringBuilder.AppendLine($"`{relationName}`");
@@ -81,18 +79,18 @@ namespace Dotmim.Sync.MySql
             string empty = string.Empty;
             foreach (var foreignKeyColumn in foreignKeyColumns)
             {
-                var foreignKeyColumnName = new ObjectNameParser(foreignKeyColumn.ColumnName, "`", "`");
-                stringBuilder.Append($"{empty} {foreignKeyColumnName.FullQuotedString}");
+                var foreignKeyColumnName = ParserName.Parse(foreignKeyColumn, "`").Quoted().ToString();
+                stringBuilder.Append($"{empty} {foreignKeyColumnName}");
                 empty = ", ";
             }
             stringBuilder.AppendLine(" )");
             stringBuilder.Append("REFERENCES ");
-            stringBuilder.Append(parentTableName.FullQuotedString).Append(" (");
+            stringBuilder.Append(parentTableName).Append(" (");
             empty = string.Empty;
             foreach (var referencesColumn in referencesColumns)
             {
-                var referencesColumnName = new ObjectNameParser(referencesColumn.ColumnName, "`", "`");
-                stringBuilder.Append($"{empty} {referencesColumnName.FullQuotedString}");
+                var referencesColumnName = ParserName.Parse(referencesColumn, "`").Quoted().ToString();
+                stringBuilder.Append($"{empty} {referencesColumnName}");
                 empty = ", ";
             }
             stringBuilder.Append(" ) ");
@@ -202,12 +200,12 @@ namespace Dotmim.Sync.MySql
         {
             var command = new MySqlCommand();
 
-            var stringBuilder = new StringBuilder($"CREATE TABLE IF NOT EXISTS {this.tableName.FullQuotedString} (");
+            var stringBuilder = new StringBuilder($"CREATE TABLE IF NOT EXISTS {this.tableName.Quoted().ToString()} (");
             string empty = string.Empty;
             stringBuilder.AppendLine();
             foreach (var column in this.tableDescription.Columns)
             {
-                var columnName = new ObjectNameParser(column.ColumnName, "`", "`");
+                var columnName = ParserName.Parse(column, "`").Quoted().ToString();
                 var stringType = this.mySqlDbMetadata.TryGetOwnerDbTypeString(column.OriginalDbType, column.DbType, false, false, column.MaxLength, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
                 var stringPrecision = this.mySqlDbMetadata.TryGetOwnerDbTypePrecision(column.OriginalDbType, column.DbType, false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
                 var columnType = $"{stringType} {stringPrecision}";
@@ -228,7 +226,7 @@ namespace Dotmim.Sync.MySql
                 if (column.IsReadOnly)
                     nullString = "NULL";
 
-                stringBuilder.AppendLine($"\t{empty}{columnName.FullQuotedString} {columnType} {identity} {nullString}");
+                stringBuilder.AppendLine($"\t{empty}{columnName} {columnType} {identity} {nullString}");
                 empty = ",";
             }
 
@@ -238,7 +236,7 @@ namespace Dotmim.Sync.MySql
             empty = string.Empty;
             foreach (var column in this.tableDescription.MutableColumns.Where(c => c.IsAutoIncrement))
             {
-                var columnName = new ObjectNameParser(column.ColumnName, "`", "`");
+                var columnName = ParserName.Parse(column, "`").Quoted().ToString();
                 stringBuilder.Append($"{empty} {columnName}");
                 empty = ",";
             }
@@ -252,9 +250,9 @@ namespace Dotmim.Sync.MySql
             // It seems we need to specify the increment column in first place
             foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns.OrderByDescending(pk => pk.IsAutoIncrement))
             {
-                var quotedColumnName = new ObjectNameParser(pkColumn.ColumnName, "`", "`").QuotedObjectName;
+                var columnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
 
-                stringBuilder.Append(quotedColumnName);
+                stringBuilder.Append(columnName);
 
                 if (i < this.tableDescription.PrimaryKey.Columns.Length - 1)
                     stringBuilder.Append(", ");
@@ -312,7 +310,7 @@ namespace Dotmim.Sync.MySql
         public string CreateTableScriptText()
         {
             var stringBuilder = new StringBuilder();
-            var tableNameScript = $"Create Table {this.tableName.FullQuotedString}";
+            var tableNameScript = $"Create Table {this.tableName.Quoted().ToString()}";
             var tableScript = this.BuildTableCommand().CommandText;
             stringBuilder.Append(MySqlBuilder.WrapScriptTextWithComments(tableScript, tableNameScript));
             stringBuilder.AppendLine();
@@ -346,7 +344,7 @@ namespace Dotmim.Sync.MySql
                 if (!alreadyOpened)
                     this.connection.Open();
 
-                return MySqlManagementUtils.TableExists(this.connection, this.transaction, parentTable.TableName);
+                return MySqlManagementUtils.TableExists(this.connection, this.transaction, ParserName.Parse(parentTable));
 
             }
             catch (Exception ex)
@@ -370,7 +368,7 @@ namespace Dotmim.Sync.MySql
         /// </summary>
         public bool NeedToCreateTable()
         {
-            return !MySqlManagementUtils.TableExists(this.connection, this.transaction, this.tableName.FullUnquotedString);
+            return !MySqlManagementUtils.TableExists(this.connection, this.transaction, this.tableName);
         }
 
         public bool NeedToCreateSchema()
@@ -390,7 +388,7 @@ namespace Dotmim.Sync.MySql
 
         public void DropTable()
         {
-            var commandText = $"drop table if exists {this.tableName.FullQuotedString}";
+            var commandText = $"drop table if exists {this.tableName.Quoted().ToString()}";
 
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
@@ -423,9 +421,9 @@ namespace Dotmim.Sync.MySql
 
         public string DropTableScriptText()
         {
-            var commandText = $"drop table if exists {this.tableName.FullQuotedString}";
+            var commandText = $"drop table if exists {this.tableName.Quoted().ToString()}";
 
-            var str1 = $"Drop table {this.tableName.FullQuotedString}";
+            var str1 = $"Drop table {this.tableName.Quoted().ToString()}";
             return MySqlBuilder.WrapScriptTextWithComments(commandText, str1);
         }
     }

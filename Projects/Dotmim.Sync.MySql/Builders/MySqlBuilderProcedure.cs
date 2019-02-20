@@ -17,8 +17,8 @@ namespace Dotmim.Sync.MySql
 {
     public class MySqlBuilderProcedure : IDbBuilderProcedureHelper
     {
-        private ObjectNameParser tableName;
-        private ObjectNameParser trackingName;
+        private ParserName tableName;
+        private ParserName trackingName;
         private MySqlConnection connection;
         private MySqlTransaction transaction;
         private DmTable tableDescription;
@@ -135,7 +135,7 @@ namespace Dotmim.Sync.MySql
                 if (!alreadyOpened)
                     connection.Open();
 
-                var str1 = $"Command {procName} for table {tableName.FullQuotedString}";
+                var str1 = $"Command {procName} for table {tableName.Quoted().ToString()}";
                 var str = CreateProcedureCommandText(BuildCommand(), procName);
                 return MySqlBuilder.WrapScriptTextWithComments(str, str1);
 
@@ -162,7 +162,7 @@ namespace Dotmim.Sync.MySql
             if (connection.State != ConnectionState.Open)
                 throw new ArgumentException("Here, we need an opened connection please");
 
-            var commandName = this.sqlObjectNames.GetCommandName(commandType);
+            var commandName = this.sqlObjectNames.GetCommandName(commandType).name;
 
             return !MySqlManagementUtils.ProcedureExists(connection, transaction, commandName);
         }
@@ -180,29 +180,25 @@ namespace Dotmim.Sync.MySql
         //------------------------------------------------------------------
         private MySqlCommand BuildResetCommand()
         {
-            var updTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger);
-            var delTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger);
-            var insTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger);
 
-            MySqlCommand sqlCommand = new MySqlCommand();
+            var sqlCommand = new MySqlCommand();
+            var stringBuilder = new StringBuilder();
 
-            StringBuilder stringBuilder = new StringBuilder();
-
-            stringBuilder.AppendLine($"DELETE FROM {tableName.FullQuotedString};");
-            stringBuilder.AppendLine($"DELETE FROM {trackingName.FullQuotedString};");
-
+            stringBuilder.AppendLine($"DELETE FROM {tableName.Quoted().ToString()};");
+            stringBuilder.AppendLine($"DELETE FROM {trackingName.Quoted().ToString()};");
             stringBuilder.AppendLine();
+
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
         public void CreateReset()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.Reset);
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.Reset).name;
             CreateProcedureCommand(BuildResetCommand, commandName);
         }
         public string CreateResetScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.Reset);
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.Reset).name;
             return CreateProcedureCommandScriptText(BuildResetCommand, commandName);
         }
 
@@ -227,8 +223,8 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("DECLARE ts BIGINT;");
             stringBuilder.AppendLine("SET ts = 0;");
-            stringBuilder.AppendLine($"SELECT `timestamp` FROM {trackingName.QuotedObjectName} WHERE {MySqlManagementUtils.WhereColumnAndParameters(this.tableDescription.PrimaryKey.Columns, trackingName.QuotedObjectName)} LIMIT 1 INTO ts;");
-            stringBuilder.AppendLine($"DELETE FROM {tableName.FullQuotedString} WHERE");
+            stringBuilder.AppendLine($"SELECT `timestamp` FROM {trackingName.Quoted().ToString()} WHERE {MySqlManagementUtils.WhereColumnAndParameters(this.tableDescription.PrimaryKey.Columns, trackingName.Quoted().ToString())} LIMIT 1 INTO ts;");
+            stringBuilder.AppendLine($"DELETE FROM {tableName.Quoted().ToString()} WHERE");
             stringBuilder.AppendLine(MySqlManagementUtils.WhereColumnAndParameters(this.tableDescription.PrimaryKey.Columns, ""));
             stringBuilder.AppendLine("AND (ts <= sync_min_timestamp  OR sync_force_write = 1);");
             sqlCommand.CommandText = stringBuilder.ToString();
@@ -237,13 +233,13 @@ namespace Dotmim.Sync.MySql
 
         public void CreateDelete()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteRow);
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteRow).name;
             CreateProcedureCommand(BuildDeleteCommand, commandName);
         }
 
         public string CreateDeleteScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteRow);
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteRow).name;
             return CreateProcedureCommandScriptText(BuildDeleteCommand, commandName);
         }
 
@@ -267,7 +263,7 @@ namespace Dotmim.Sync.MySql
 
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"DELETE FROM {trackingName.FullQuotedString} ");
+            stringBuilder.AppendLine($"DELETE FROM {trackingName.Quoted().ToString()} ");
             stringBuilder.Append($"WHERE ");
             stringBuilder.AppendLine(MySqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKey.Columns, ""));
             stringBuilder.Append(";");
@@ -277,13 +273,13 @@ namespace Dotmim.Sync.MySql
 
         public void CreateDeleteMetadata()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata);
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata).name;
             CreateProcedureCommand(BuildDeleteMetadataCommand, commandName);
         }
 
         public string CreateDeleteMetadataScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata);
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata).name;
             return CreateProcedureCommandScriptText(BuildDeleteMetadataCommand, commandName);
         }
 
@@ -300,19 +296,21 @@ namespace Dotmim.Sync.MySql
 
             this.AddColumnParametersToCommand(sqlCommand);
 
-            stringBuilder.Append(string.Concat("IF ((SELECT COUNT(*) FROM ", trackingName.FullQuotedString, " WHERE "));
+            stringBuilder.Append(string.Concat("IF ((SELECT COUNT(*) FROM ", trackingName.Quoted().ToString(), " WHERE "));
             stringBuilder.Append(MySqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKey.Columns, string.Empty));
             stringBuilder.AppendLine(") <= 0) THEN");
 
             string empty = string.Empty;
             foreach (var mutableColumn in this.tableDescription.Columns.Where(c => !c.IsReadOnly))
             {
-                ObjectNameParser columnName = new ObjectNameParser(mutableColumn.ColumnName, "`", "`");
-                stringBuilderArguments.Append(string.Concat(empty, columnName.FullQuotedString));
-                stringBuilderParameters.Append(string.Concat(empty, $"{MYSQL_PREFIX_PARAMETER}{columnName.FullUnquotedString}"));
+                var columnName = ParserName.Parse(mutableColumn, "`").Quoted().ToString();
+                var parameterName = ParserName.Parse(mutableColumn, "`").Unquoted().Normalized().ToString();
+
+                stringBuilderArguments.Append(string.Concat(empty, columnName));
+                stringBuilderParameters.Append(string.Concat(empty, $"{MYSQL_PREFIX_PARAMETER}{parameterName}"));
                 empty = ", ";
             }
-            stringBuilder.AppendLine($"\tINSERT INTO {tableName.FullQuotedString}");
+            stringBuilder.AppendLine($"\tINSERT INTO {tableName.Quoted().ToString()}");
             stringBuilder.AppendLine($"\t({stringBuilderArguments.ToString()})");
             stringBuilder.AppendLine($"\tVALUES ({stringBuilderParameters.ToString()});");
             stringBuilder.AppendLine();
@@ -324,13 +322,13 @@ namespace Dotmim.Sync.MySql
 
         public void CreateInsert()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertRow);
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertRow).name;
             CreateProcedureCommand(BuildInsertCommand, commandName);
         }
 
         public string CreateInsertScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertRow);
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertRow).name;
             return CreateProcedureCommandScriptText(BuildInsertCommand, commandName);
         }
 
@@ -366,14 +364,16 @@ namespace Dotmim.Sync.MySql
             sqlParameter4.MySqlDbType = MySqlDbType.Int64;
             sqlCommand.Parameters.Add(sqlParameter4);
 
-            stringBuilder.AppendLine($"\tINSERT INTO {trackingName.FullQuotedString}");
+            stringBuilder.AppendLine($"\tINSERT INTO {trackingName.Quoted().ToString()}");
 
             string empty = string.Empty;
             foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
             {
-                ObjectNameParser columnName = new ObjectNameParser(pkColumn.ColumnName, "`", "`");
-                stringBuilderArguments.Append(string.Concat(empty, columnName.FullQuotedString));
-                stringBuilderParameters.Append(string.Concat(empty, $"{MYSQL_PREFIX_PARAMETER}{columnName.FullUnquotedString}"));
+                var columnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
+                var parameterName = ParserName.Parse(pkColumn, "`").Unquoted().Normalized().ToString();
+
+                stringBuilderArguments.Append(string.Concat(empty, columnName));
+                stringBuilderParameters.Append(string.Concat(empty, $"{MYSQL_PREFIX_PARAMETER}{parameterName}"));
                 empty = ", ";
             }
             stringBuilder.Append($"\t({stringBuilderArguments.ToString()}, ");
@@ -397,13 +397,13 @@ namespace Dotmim.Sync.MySql
 
         public void CreateInsertMetadata()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertMetadata);
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertMetadata).name;
             CreateProcedureCommand(BuildInsertMetadataCommand, commandName);
         }
 
         public string CreateInsertMetadataScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertMetadata);
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertMetadata).name;
             return CreateProcedureCommandScriptText(BuildInsertMetadataCommand, commandName);
         }
 
@@ -428,15 +428,17 @@ namespace Dotmim.Sync.MySql
             string empty = string.Empty;
             foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
             {
-                ObjectNameParser pkColumnName = new ObjectNameParser(pkColumn.ColumnName, "`", "`");
-                stringBuilder.AppendLine($"\t`side`.{pkColumnName.FullQuotedString}, ");
-                stringBuilder1.Append($"{empty}`side`.{pkColumnName.FullQuotedString} = {MYSQL_PREFIX_PARAMETER}{pkColumnName.FullUnquotedString}");
+                var columnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
+                var parameterName = ParserName.Parse(pkColumn, "`").Unquoted().Normalized().ToString();
+
+                stringBuilder.AppendLine($"\t`side`.{columnName}, ");
+                stringBuilder1.Append($"{empty}`side`.{columnName} = {MYSQL_PREFIX_PARAMETER}{parameterName}");
                 empty = " AND ";
             }
             foreach (DmColumn mutableColumn in this.tableDescription.MutableColumns)
             {
-                ObjectNameParser nonPkColumnName = new ObjectNameParser(mutableColumn.ColumnName, "`", "`");
-                stringBuilder.AppendLine($"\t`base`.{nonPkColumnName.FullQuotedString}, ");
+                var nonPkColumnName = ParserName.Parse(mutableColumn, "`").Quoted().ToString();
+                stringBuilder.AppendLine($"\t`base`.{nonPkColumnName}, ");
             }
             stringBuilder.AppendLine("\t`side`.`sync_row_is_tombstone`,");
             stringBuilder.AppendLine("\t`side`.`create_scope_id`,");
@@ -444,14 +446,15 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine("\t`side`.`update_scope_id`,");
             stringBuilder.AppendLine("\t`side`.`update_timestamp`");
 
-            stringBuilder.AppendLine($"FROM {tableName.FullQuotedString} `base`");
-            stringBuilder.AppendLine($"RIGHT JOIN {trackingName.FullQuotedString} `side` ON");
+            stringBuilder.AppendLine($"FROM {tableName.Quoted().ToString()} `base`");
+            stringBuilder.AppendLine($"RIGHT JOIN {trackingName.Quoted().ToString()} `side` ON");
 
             string str = string.Empty;
             foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
             {
-                ObjectNameParser pkColumnName = new ObjectNameParser(pkColumn.ColumnName, "`", "`");
-                stringBuilder.Append($"{str}`base`.{pkColumnName.FullQuotedString} = `side`.{pkColumnName.FullQuotedString}");
+                var columnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
+
+                stringBuilder.Append($"{str}`base`.{columnName} = `side`.{columnName}");
                 str = " AND ";
             }
             stringBuilder.AppendLine();
@@ -464,13 +467,13 @@ namespace Dotmim.Sync.MySql
 
         public void CreateSelectRow()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectRow);
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectRow).name;
             CreateProcedureCommand(BuildSelectRowCommand, commandName);
         }
 
         public string CreateSelectRowScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectRow);
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectRow).name;
             return CreateProcedureCommandScriptText(BuildSelectRowCommand, commandName);
         }
 
@@ -498,9 +501,9 @@ namespace Dotmim.Sync.MySql
 
             stringBuilder.AppendLine("DECLARE ts BIGINT;");
             stringBuilder.AppendLine("SET ts = 0;");
-            stringBuilder.AppendLine($"SELECT `timestamp` FROM {trackingName.QuotedObjectName} WHERE {MySqlManagementUtils.WhereColumnAndParameters(this.tableDescription.PrimaryKey.Columns, trackingName.QuotedObjectName)} LIMIT 1 INTO ts;");
+            stringBuilder.AppendLine($"SELECT `timestamp` FROM {trackingName.Quoted().ToString()} WHERE {MySqlManagementUtils.WhereColumnAndParameters(this.tableDescription.PrimaryKey.Columns, trackingName.Quoted().ToString())} LIMIT 1 INTO ts;");
 
-            stringBuilder.AppendLine($"UPDATE {tableName.FullQuotedString}");
+            stringBuilder.AppendLine($"UPDATE {tableName.Quoted().ToString()}");
             stringBuilder.Append($"SET {MySqlManagementUtils.CommaSeparatedUpdateFromParameters(this.tableDescription)}");
             stringBuilder.Append($"WHERE {MySqlManagementUtils.WhereColumnAndParameters(this.tableDescription.PrimaryKey.Columns, "")}");
             stringBuilder.AppendLine($" AND (ts <= sync_min_timestamp OR sync_force_write = 1);");
@@ -519,13 +522,13 @@ namespace Dotmim.Sync.MySql
 
         public void CreateUpdate()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateRow);
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateRow).name;
             this.CreateProcedureCommand(BuildUpdateCommand, commandName);
         }
 
         public string CreateUpdateScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateRow);
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateRow).name;
             return CreateProcedureCommandScriptText(BuildUpdateCommand, commandName);
         }
 
@@ -561,12 +564,12 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine($"DECLARE was_tombstone int;");
             stringBuilder.AppendLine($"SET was_tombstone = 1;");
             stringBuilder.AppendLine($"SELECT `sync_row_is_tombstone` " +
-                                     $"FROM {trackingName.QuotedObjectName} " +
-                                     $"WHERE {MySqlManagementUtils.WhereColumnAndParameters(this.tableDescription.PrimaryKey.Columns, trackingName.QuotedObjectName)} " +
+                                     $"FROM {trackingName.Quoted().ToString()} " +
+                                     $"WHERE {MySqlManagementUtils.WhereColumnAndParameters(this.tableDescription.PrimaryKey.Columns, trackingName.Quoted().ToString())} " +
                                      $"LIMIT 1 INTO was_tombstone;");
             stringBuilder.AppendLine($"IF (was_tombstone is not null and was_tombstone = 1 and sync_row_is_tombstone = 0) THEN");
 
-            stringBuilder.AppendLine($"UPDATE {trackingName.FullQuotedString}");
+            stringBuilder.AppendLine($"UPDATE {trackingName.Quoted().ToString()}");
             stringBuilder.AppendLine($"SET `create_scope_id` = sync_scope_id, ");
             stringBuilder.AppendLine($"\t `update_scope_id` = sync_scope_id, ");
             stringBuilder.AppendLine($"\t `create_timestamp` = create_timestamp, ");
@@ -578,7 +581,7 @@ namespace Dotmim.Sync.MySql
 
             stringBuilder.AppendLine($"ELSE");
 
-            stringBuilder.AppendLine($"UPDATE {trackingName.FullQuotedString}");
+            stringBuilder.AppendLine($"UPDATE {trackingName.Quoted().ToString()}");
             stringBuilder.AppendLine($"SET `update_scope_id` = sync_scope_id, ");
             stringBuilder.AppendLine($"\t `update_timestamp` = update_timestamp, ");
             stringBuilder.AppendLine($"\t `sync_row_is_tombstone` = sync_row_is_tombstone, ");
@@ -593,13 +596,13 @@ namespace Dotmim.Sync.MySql
 
         public void CreateUpdateMetadata()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata);
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata).name;
             CreateProcedureCommand(BuildUpdateMetadataCommand, commandName);
         }
 
         public string CreateUpdateMetadataScriptText()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata);
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata).name;
             return CreateProcedureCommandScriptText(BuildUpdateMetadataCommand, commandName);
         }
 
@@ -609,70 +612,80 @@ namespace Dotmim.Sync.MySql
         //------------------------------------------------------------------
         private MySqlCommand BuildSelectIncrementalChangesCommand(bool withFilter = false)
         {
-            MySqlCommand sqlCommand = new MySqlCommand();
-            MySqlParameter sqlParameter1 = new MySqlParameter();
+            var sqlCommand = new MySqlCommand();
+            var sqlParameter1 = new MySqlParameter();
             sqlParameter1.ParameterName = "sync_min_timestamp";
             sqlParameter1.MySqlDbType = MySqlDbType.Int64;
             sqlCommand.Parameters.Add(sqlParameter1);
 
-            MySqlParameter sqlParameter3 = new MySqlParameter();
+            var sqlParameter3 = new MySqlParameter();
             sqlParameter3.ParameterName = "sync_scope_id";
             sqlParameter3.MySqlDbType = MySqlDbType.Guid;
             sqlParameter3.Size = 36;
             sqlCommand.Parameters.Add(sqlParameter3);
 
-            MySqlParameter sqlParameter4 = new MySqlParameter();
+            var sqlParameter4 = new MySqlParameter();
             sqlParameter4.ParameterName = "sync_scope_is_new";
             sqlParameter4.MySqlDbType = MySqlDbType.Bit;
             sqlCommand.Parameters.Add(sqlParameter4);
 
-            MySqlParameter sqlParameter5 = new MySqlParameter();
+            var sqlParameter5 = new MySqlParameter();
             sqlParameter5.ParameterName = "sync_scope_is_reinit";
             sqlParameter5.MySqlDbType = MySqlDbType.Bit;
             sqlCommand.Parameters.Add(sqlParameter5);
 
 
-            //if (withFilter && this.Filters != null && this.Filters.Count > 0)
-            //{
-            //    foreach (var c in this.Filters)
-            //    {
-            //        var columnFilter = this.tableDescription.Columns[c.ColumnName];
+            if (withFilter && this.Filters != null && this.Filters.Count > 0)
+            {
+                foreach (var c in this.Filters)
+                {
+                    if (!c.IsVirtual)
+                    {
+                        var columnFilter = this.tableDescription.Columns[c.ColumnName];
 
-            //        if (columnFilter == null)
-            //            throw new InvalidExpressionException($"Column {c.ColumnName} does not exist in Table {this.tableDescription.TableName}");
+                        if (columnFilter == null)
+                            throw new InvalidExpressionException($"Column {c.ColumnName} does not exist in Table {this.tableDescription.TableName}");
 
-            //        var columnFilterName = new ObjectNameParser(columnFilter.ColumnName, "`", "`");
+                        var columnName = ParserName.Parse(columnFilter).Unquoted().Normalized().ToString();
+                        var mySqlDbType = (MySqlDbType)this.mySqlDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.DbType, false, false, columnFilter.MaxLength, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
+                        var mySqlParamFilter = new MySqlParameter($"{MYSQL_PREFIX_PARAMETER}{columnName}", mySqlDbType);
+                        sqlCommand.Parameters.Add(mySqlParamFilter);
+                    }
+                    else
+                    {
+                        var sqlDbType = (MySqlDbType)this.mySqlDbMetadata.TryGetOwnerDbType(null, c.ColumnType.Value, false, false, 0, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
+                        var columnFilterName = ParserName.Parse(c.ColumnName).Unquoted().Normalized().ToString();
+                        var sqlParamFilter = new MySqlParameter($"{MYSQL_PREFIX_PARAMETER}{columnFilterName}", sqlDbType);
+                        sqlCommand.Parameters.Add(sqlParamFilter);
+                    }
+                }
+            }
 
-            //        MySqlParameter sqlParamFilter = new MySqlParameter($"{columnFilterName.UnquotedString}", columnFilter.GetMySqlDbType());
-            //        sqlCommand.Parameters.Add(sqlParamFilter);
-            //    }
-            //}
-
-            StringBuilder stringBuilder = new StringBuilder("SELECT ");
+            var stringBuilder = new StringBuilder("SELECT ");
             foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
             {
-                var pkColumnName = new ObjectNameParser(pkColumn.ColumnName, "`", "`");
-                stringBuilder.AppendLine($"\t`side`.{pkColumnName.FullQuotedString}, ");
+                var pkColumnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
+                stringBuilder.AppendLine($"\t`side`.{pkColumnName}, ");
             }
             foreach (var mutableColumn in this.tableDescription.MutableColumns)
             {
-                var columnName = new ObjectNameParser(mutableColumn.ColumnName, "`", "`");
-                stringBuilder.AppendLine($"\t`base`.{columnName.FullQuotedString}, ");
+                var columnName = ParserName.Parse(mutableColumn, "`").Quoted().ToString();
+                stringBuilder.AppendLine($"\t`base`.{columnName}, ");
             }
             stringBuilder.AppendLine($"\t`side`.`sync_row_is_tombstone`, ");
             stringBuilder.AppendLine($"\t`side`.`create_scope_id`, ");
             stringBuilder.AppendLine($"\t`side`.`create_timestamp`, ");
             stringBuilder.AppendLine($"\t`side`.`update_scope_id`, ");
             stringBuilder.AppendLine($"\t`side`.`update_timestamp` ");
-            stringBuilder.AppendLine($"FROM {tableName.FullQuotedString} `base`");
-            stringBuilder.AppendLine($"RIGHT JOIN {trackingName.FullQuotedString} `side`");
+            stringBuilder.AppendLine($"FROM {tableName.Quoted().ToString()} `base`");
+            stringBuilder.AppendLine($"RIGHT JOIN {trackingName.Quoted().ToString()} `side`");
             stringBuilder.Append($"ON ");
 
             string empty = "";
             foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
             {
-                var pkColumnName = new ObjectNameParser(pkColumn.ColumnName, "`", "`");
-                stringBuilder.Append($"{empty}`base`.{pkColumnName.FullQuotedString} = `side`.{pkColumnName.FullQuotedString}");
+                var pkColumnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
+                stringBuilder.Append($"{empty}`base`.{pkColumnName} = `side`.{pkColumnName}");
                 empty = " AND ";
             }
             stringBuilder.AppendLine();
@@ -691,9 +704,10 @@ namespace Dotmim.Sync.MySql
                     if (columnFilter == null)
                         throw new InvalidExpressionException($"Column {c.ColumnName} does not exist in Table {this.tableDescription.TableName}");
 
-                    var columnFilterName = new ObjectNameParser(columnFilter.ColumnName, "`", "`");
+                    var columnFilterName = ParserName.Parse(columnFilter, "`").Quoted().ToString();
+                    var unquotedColumnFilterName = ParserName.Parse(columnFilter, "`").Unquoted().Normalized().ToString();
 
-                    builderFilter.Append($"`side`.{columnFilterName.QuotedObjectName} = {columnFilterName.FullUnquotedString}{filterSeparationString}");
+                    builderFilter.Append($"`side`.{columnFilterName} = {MYSQL_PREFIX_PARAMETER}{unquotedColumnFilterName}{filterSeparationString}");
                     filterSeparationString = " AND ";
                 }
                 builderFilter.AppendLine(")");
@@ -705,9 +719,9 @@ namespace Dotmim.Sync.MySql
                 foreach (var c in this.Filters)
                 {
                     var columnFilter = this.tableDescription.Columns[c.ColumnName];
-                    var columnFilterName = new ObjectNameParser(columnFilter.ColumnName, "`", "`");
+                    var columnFilterName = ParserName.Parse(columnFilter, "`").Quoted().ToString();
 
-                    builderFilter.Append($"`side`.{columnFilterName.QuotedObjectName} IS NULL{filterSeparationString}");
+                    builderFilter.Append($"`side`.{columnFilterName} IS NULL{filterSeparationString}");
                     filterSeparationString = " OR ";
                 }
 
@@ -739,8 +753,8 @@ namespace Dotmim.Sync.MySql
             empty = " AND ";
             foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
             {
-                var pkColumnName = new ObjectNameParser(pkColumn.ColumnName, "`", "`");
-                stringBuilder.Append($"{empty}`base`.{pkColumnName.FullQuotedString} is not null");
+                var pkColumnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
+                stringBuilder.Append($"{empty}`base`.{pkColumnName} is not null");
             }
             stringBuilder.AppendLine("\t)");
             stringBuilder.AppendLine(");");
@@ -760,22 +774,14 @@ namespace Dotmim.Sync.MySql
 
         public void CreateSelectIncrementalChanges()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChanges);
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChanges).name;
             Func<MySqlCommand> cmdWithoutFilter = () => BuildSelectIncrementalChangesCommand(false);
             CreateProcedureCommand(cmdWithoutFilter, commandName);
 
             if (this.Filters != null && this.Filters.Count > 0)
             {
-                foreach (var c in this.Filters)
-                {
-                    var columnFilter = this.tableDescription.Columns[c.ColumnName];
-
-                    if (columnFilter == null)
-                        throw new InvalidExpressionException($"Column {c.ColumnName} does not exist in Table {this.tableDescription.TableName}");
-                }
-
-                var filtersName = this.Filters.Select(f => f.ColumnName);
-                commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWitFilters, filtersName);
+                this.Filters.ValidateColumnFilters(this.tableDescription);
+                commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWitFilters, this.Filters).name;
                 Func<MySqlCommand> cmdWithFilter = () => BuildSelectIncrementalChangesCommand(true);
                 CreateProcedureCommand(cmdWithFilter, commandName);
 
@@ -787,14 +793,14 @@ namespace Dotmim.Sync.MySql
         {
             StringBuilder sbSelecteChanges = new StringBuilder();
 
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChanges);
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChanges).name;
             Func<MySqlCommand> cmdWithoutFilter = () => BuildSelectIncrementalChangesCommand(false);
             sbSelecteChanges.AppendLine(CreateProcedureCommandScriptText(cmdWithoutFilter, commandName));
 
 
             if (this.Filters != null && this.Filters.Count > 0)
             {
-                commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWitFilters);
+                commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWitFilters).name;
                 string name = "";
                 string sep = "";
                 foreach (var c in this.Filters)
@@ -804,7 +810,7 @@ namespace Dotmim.Sync.MySql
                     if (columnFilter == null)
                         throw new InvalidExpressionException($"Column {c.ColumnName} does not exist in Table {this.tableDescription.TableName}");
 
-                    var unquotedColumnName = new ObjectNameParser(columnFilter.ColumnName, "`", "`").FullUnquotedString;
+                    var unquotedColumnName = ParserName.Parse(columnFilter, "`").Unquoted().Normalized().ToString();
                     name += $"{unquotedColumnName}{sep}";
                     sep = "_";
                 }
@@ -860,16 +866,16 @@ namespace Dotmim.Sync.MySql
 
         private string DropProcedureText(DbCommandType procType)
         {
-            var commandName = this.sqlObjectNames.GetCommandName(procType);
+            var commandName = this.sqlObjectNames.GetCommandName(procType).name;
             var commandText = $"drop procedure if exists {commandName}";
 
-            var str1 = $"Drop procedure {commandName} for table {tableName.FullQuotedString}";
+            var str1 = $"Drop procedure {commandName} for table {tableName.Quoted().ToString()}";
             return MySqlBuilder.WrapScriptTextWithComments(commandText, str1);
 
         }
         private void DropProcedure(DbCommandType procType)
         {
-            var commandName = this.sqlObjectNames.GetCommandName(procType);
+            var commandName = this.sqlObjectNames.GetCommandName(procType).name;
             var commandText = $"drop procedure if exists {commandName}";
 
             bool alreadyOpened = connection.State == ConnectionState.Open;
@@ -931,8 +937,7 @@ namespace Dotmim.Sync.MySql
                             throw new InvalidExpressionException($"Column {c.ColumnName} does not exist in Table {this.tableDescription.TableName}");
                     }
 
-                    var filtersName = this.Filters.Select(f => f.ColumnName);
-                    var commandNameWithFilter = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWitFilters, filtersName);
+                    var commandNameWithFilter = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWitFilters, this.Filters).name;
 
                     command.CommandText = $"DROP PROCEDURE IF EXISTS {commandNameWithFilter};";
                     command.Connection = this.connection;

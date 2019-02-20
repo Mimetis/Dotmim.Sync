@@ -16,8 +16,8 @@ namespace Dotmim.Sync.SqlServer.Builders
 {
     public class SqlBuilderTable : IDbBuilderTableHelper
     {
-        private ObjectNameParser tableName;
-        private ObjectNameParser trackingName;
+        private ParserName tableName;
+        private ParserName trackingName;
         private DmTable tableDescription;
         private SqlConnection connection;
         private SqlTransaction transaction;
@@ -104,41 +104,32 @@ namespace Dotmim.Sync.SqlServer.Builders
         private SqlCommand BuildForeignKeyConstraintsCommand(DmRelation foreignKey)
         {
             var sqlCommand = new SqlCommand();
-
-            string childTable = foreignKey.ChildTable.TableName;
-            string childSchema = foreignKey.ChildTable.Schema;
-            string childFullName = String.IsNullOrEmpty(childSchema) ? childTable : $"{childSchema}.{childTable}";
-
-            var childTableName = new ObjectNameParser(childFullName);
-
-            string parentTable = foreignKey.ParentTable.TableName;
-            string parentSchema = foreignKey.ParentTable.Schema;
-            string parentFullName = String.IsNullOrEmpty(parentSchema) ? parentTable : $"{parentSchema}.{parentTable}";
-            var parentTableName = new ObjectNameParser(parentFullName);
+            var childTableName = ParserName.Parse(foreignKey.ChildTable).Quoted().Schema().ToString();
+            var parentTableName = ParserName.Parse(foreignKey.ParentTable).Quoted().Schema().ToString();
 
             var relationName = NormalizeRelationName(foreignKey.RelationName);
 
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.Append("ALTER TABLE ");
-            stringBuilder.AppendLine(childTableName.FullQuotedString);
+            stringBuilder.AppendLine(childTableName);
             stringBuilder.Append("ADD CONSTRAINT ");
             stringBuilder.AppendLine(relationName);
             stringBuilder.Append("FOREIGN KEY (");
             string empty = string.Empty;
 			foreach (var childColumn in foreignKey.ChildColumns)
 			{
-				var childColumnName = new ObjectNameParser(childColumn.ColumnName);
-				stringBuilder.Append($"{empty} {childColumnName.FullQuotedString}");
+                var childColumnName = ParserName.Parse(childColumn).Quoted().ToString();
+                stringBuilder.Append($"{empty} {childColumnName}");
 				empty = ", ";
 			}
             stringBuilder.AppendLine(" )");
             stringBuilder.Append("REFERENCES ");
-            stringBuilder.Append(parentTableName.FullQuotedString).Append(" (");
+            stringBuilder.Append(parentTableName).Append(" (");
             empty = string.Empty;
 			foreach (var parentdColumn in foreignKey.ParentColumns)
 			{
-				var parentColumnName = new ObjectNameParser(parentdColumn.ColumnName);
-				stringBuilder.Append($"{empty} {parentColumnName.FullQuotedString}");
+                var parentColumnName = ParserName.Parse(parentdColumn).Quoted().ToString();
+                stringBuilder.Append($"{empty} {parentColumnName}");
 				empty = ", ";
 			}
             stringBuilder.Append(" ) ");
@@ -202,12 +193,11 @@ namespace Dotmim.Sync.SqlServer.Builders
             string[] localName = new string[] { };
             StringBuilder stringBuilder = new StringBuilder();
 
-            stringBuilder.AppendLine($"ALTER TABLE {tableName.FullQuotedString} ADD CONSTRAINT [PK_{tableName.ObjectName}] PRIMARY KEY(");
+            stringBuilder.AppendLine($"ALTER TABLE {tableName.Schema().Quoted().ToString()} ADD CONSTRAINT [PK_{tableName.Schema().Unquoted().Normalized().ToString()}] PRIMARY KEY(");
             for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
             {
                 DmColumn pkColumn = this.tableDescription.PrimaryKey.Columns[i];
-                var quotedColumnName = new ObjectNameParser(pkColumn.ColumnName, "[", "]").FullQuotedString;
-
+                var quotedColumnName = ParserName.Parse(pkColumn).Quoted().ToString();
                 stringBuilder.Append(quotedColumnName);
 
                 if (i < this.tableDescription.PrimaryKey.Columns.Length - 1)
@@ -251,7 +241,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         public string CreatePrimaryKeyScriptText()
         {
             StringBuilder stringBuilder = new StringBuilder();
-            var pkName = $"Create primary keys for table {tableName.FullQuotedString}";
+            var pkName = $"Create primary keys for table {tableName.Schema().Quoted().ToString()}";
             var pkScript = BuildPkCommand().CommandText;
             stringBuilder.Append(SqlBuilder.WrapScriptTextWithComments(pkScript, pkName));
             stringBuilder.AppendLine();
@@ -260,12 +250,12 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         private SqlCommand BuildTableCommand()
         {
-            StringBuilder stringBuilder = new StringBuilder($"CREATE TABLE {tableName.FullQuotedString} (");
+            StringBuilder stringBuilder = new StringBuilder($"CREATE TABLE {tableName.Schema().Quoted().ToString()} (");
             string empty = string.Empty;
             stringBuilder.AppendLine();
             foreach (var column in this.tableDescription.Columns)
             {
-                var columnName = new ObjectNameParser(column.ColumnName);
+                var columnName = ParserName.Parse(column).Quoted().ToString();
 
                 var columnTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(column.OriginalDbType, column.DbType, false, false, column.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
                 var columnPrecisionString = this.sqlDbMetadata.TryGetOwnerDbTypePrecision(column.OriginalDbType, column.DbType, false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
@@ -283,7 +273,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 if (column.IsReadOnly)
                     nullString = "NULL";
 
-                stringBuilder.AppendLine($"\t{empty}{columnName.FullQuotedString} {columnType} {identity} {nullString}");
+                stringBuilder.AppendLine($"\t{empty}{columnName} {columnType} {identity} {nullString}");
                 empty = ",";
             }
             stringBuilder.Append(")");
@@ -293,7 +283,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         private SqlCommand BuildDeleteTableCommand()
         {
-            return new SqlCommand($"DROP TABLE {tableName.FullQuotedString};");
+            return new SqlCommand($"DROP TABLE {tableName.Schema().Quoted().ToString()};");
         }
 
         public void CreateSchema()
@@ -405,7 +395,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         public string CreateTableScriptText()
         {
             StringBuilder stringBuilder = new StringBuilder();
-            var tableNameScript = $"Create Table {tableName.FullQuotedString}";
+            var tableNameScript = $"Create Table {tableName.Schema().Quoted().ToString()}";
             var tableScript = BuildTableCommand().CommandText;
             stringBuilder.Append(SqlBuilder.WrapScriptTextWithComments(tableScript, tableNameScript));
             stringBuilder.AppendLine();
@@ -415,7 +405,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         public string DropTableScriptText()
         {
             StringBuilder stringBuilder = new StringBuilder();
-            var tableNameScript = $"Drop Table {tableName.FullQuotedString}";
+            var tableNameScript = $"Drop Table {tableName.Schema().Quoted().ToString()}";
             var tableScript = BuildTableCommand().CommandText;
             stringBuilder.Append(SqlBuilder.WrapScriptTextWithComments(tableScript, tableNameScript));
             stringBuilder.AppendLine();
@@ -477,10 +467,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             {
                 if (!alreadyOpened && connection.State != ConnectionState.Closed)
                     connection.Close();
-
             }
-
-
         }
 
         /// <summary>
@@ -488,7 +475,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         /// </summary>
         public bool NeedToCreateTable()
         {
-            return !SqlManagementUtils.TableExists(connection, transaction, tableName.FullQuotedString);
+            return !SqlManagementUtils.TableExists(connection, transaction, tableName.Schema().Quoted().ToString());
 
         }
 

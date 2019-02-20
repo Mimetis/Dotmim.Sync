@@ -12,7 +12,7 @@ namespace Dotmim.Sync.SqlServer.Scope
 {
     public class SqlScopeInfoBuilder : IDbScopeInfoBuilder
     {
-        private readonly ObjectNameParser scopeTableName;
+        private readonly ParserName scopeTableName;
         private readonly SqlConnection connection;
         private readonly SqlTransaction transaction;
 
@@ -20,7 +20,7 @@ namespace Dotmim.Sync.SqlServer.Scope
         {
             this.connection = connection as SqlConnection;
             this.transaction = transaction as SqlTransaction;
-            this.scopeTableName = new ObjectNameParser(scopeTableName, "[", "]");
+            this.scopeTableName = ParserName.Parse(scopeTableName);
             
         }
 
@@ -37,7 +37,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                     connection.Open();
 
                 command.CommandText =
-                    $@"CREATE TABLE [dbo].{scopeTableName.QuotedObjectName}(
+                    $@"CREATE TABLE [dbo].{scopeTableName.Quoted().ToString()}(
                         [sync_scope_id] [uniqueidentifier] NOT NULL,
 	                    [sync_scope_name] [nvarchar](100) NOT NULL,
 	                    [scope_timestamp] [timestamp] NULL,
@@ -45,7 +45,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                         [scope_last_sync_timestamp] [bigint] NULL,
                         [scope_last_sync_duration] [bigint] NULL,
                         [scope_last_sync] [datetime] NULL
-                        CONSTRAINT [PK_{scopeTableName.ObjectNameNormalized}] PRIMARY KEY CLUSTERED ([sync_scope_id] ASC)
+                        CONSTRAINT [PK_{scopeTableName.Unquoted().Normalized().ToString()}] PRIMARY KEY CLUSTERED ([sync_scope_id] ASC)
                         )";
                 command.ExecuteNonQuery();
             }
@@ -76,7 +76,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                 if (!alreadyOpened)
                     connection.Open();
 
-                command.CommandText =$"DROP Table [dbo].{scopeTableName.QuotedObjectName}";
+                command.CommandText =$"DROP Table [dbo].{scopeTableName.Quoted().ToString()}";
 
                 command.ExecuteNonQuery();
             }
@@ -117,7 +117,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                            , [scope_last_sync]
                            , [scope_last_sync_timestamp]
                            , [scope_last_sync_duration]
-                    FROM  {scopeTableName.QuotedObjectName}
+                    FROM  {scopeTableName.Quoted().ToString()}
                     WHERE [sync_scope_name] = @sync_scope_name";
 
                 var p = command.CreateParameter();
@@ -221,7 +221,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                     connection.Open();
 
                 command.CommandText = $@"
-                    MERGE {scopeTableName.QuotedObjectName} AS [base] 
+                    MERGE {scopeTableName.Quoted().ToString()} AS [base] 
                     USING (
                                SELECT  @sync_scope_id AS sync_scope_id,  
 	                                   @sync_scope_name AS sync_scope_name,  
@@ -333,7 +333,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                 command.CommandText =
                     $@"IF EXISTS (SELECT t.name FROM sys.tables t 
                             JOIN sys.schemas s ON s.schema_id = t.schema_id 
-                            WHERE t.name = N'{this.scopeTableName.ObjectNameNormalized}')
+                            WHERE t.name = N'{this.scopeTableName.Unquoted().ToString()}')
                      SELECT 1 
                      ELSE
                      SELECT 0";

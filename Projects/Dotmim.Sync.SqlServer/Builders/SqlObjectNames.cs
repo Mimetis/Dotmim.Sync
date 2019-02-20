@@ -1,5 +1,6 @@
 ﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Data;
+using Dotmim.Sync.Filter;
 using System;
 using System.Collections.Generic;
 
@@ -31,24 +32,26 @@ namespace Dotmim.Sync.SqlServer.Builders
         internal const string bulkUpdateProcName = "[{0}].[{1}_bulkupdate]";
         internal const string bulkDeleteProcName = "[{0}].[{1}_bulkdelete]";
 
+        internal const string disableConstraintsText = "ALTER TABLE {0} NOCHECK CONSTRAINT ALL";
+        internal const string enableConstraintsText = "ALTER TABLE {0} CHECK CONSTRAINT ALL";
 
-        Dictionary<DbCommandType, String> names = new Dictionary<DbCommandType, string>();
+        Dictionary<DbCommandType, (string name, bool isStoredProcedure)> names = new Dictionary<DbCommandType, (string name, bool isStoredProcedure)>();
         public DmTable TableDescription { get; }
 
 
-        public void AddName(DbCommandType objectType, string name)
+        public void AddName(DbCommandType objectType, string name, bool isStoredProcedure)
         {
             if (names.ContainsKey(objectType))
                 throw new Exception("Yous can't add an objectType multiple times");
 
-            names.Add(objectType, name);
+            names.Add(objectType, (name, isStoredProcedure));
         }
-        public string GetCommandName(DbCommandType objectType, IEnumerable<string> filters = null)
+        public (string name, bool isStoredProcedure) GetCommandName(DbCommandType objectType, IEnumerable<FilterClause> filters = null)
         {
             if (!names.ContainsKey(objectType))
                 throw new Exception("Yous should provide a value for all DbCommandName");
 
-            var commandName = names[objectType];
+            (var commandName, var isStoredProc) = names[objectType];
 
             if (filters != null)
             {
@@ -56,14 +59,14 @@ namespace Dotmim.Sync.SqlServer.Builders
                 string sep = "";
                 foreach (var c in filters)
                 {
-                    var unquotedColumnName = new ObjectNameParser(c).FullUnquotedString;
-                    name += $"{unquotedColumnName}{sep}";
+                    var columnName = ParserName.Parse(c.ColumnName).Unquoted().Normalized().ToString();
+                    name += $"{columnName}{sep}";
                     sep = "_";
                 }
 
                 commandName = String.Format(commandName, name);
             }
-            return commandName;
+            return (commandName, isStoredProc);
         }
 
         public SqlObjectNames(DmTable tableDescription)
@@ -77,35 +80,40 @@ namespace Dotmim.Sync.SqlServer.Builders
         /// </summary>
         private void SetDefaultNames()
         {
-            (var tableName, var trackingName) = SqlBuilder.GetParsers(this.TableDescription);
+            
 
             var pref = this.TableDescription.StoredProceduresPrefix;
             var suf = this.TableDescription.StoredProceduresSuffix;
             var tpref = this.TableDescription.TriggersPrefix;
             var tsuf = this.TableDescription.TriggersSuffix;
 
+            var tableName = ParserName.Parse(TableDescription);
+
             var schema = string.IsNullOrEmpty(tableName.SchemaName) ? "dbo" : tableName.SchemaName;
 
-            this.AddName(DbCommandType.SelectChanges, string.Format(selectChangesProcName, schema, $"{pref}{tableName.ObjectNameNormalized}{suf}"));
-            this.AddName(DbCommandType.SelectChangesWitFilters, string.Format(selectChangesProcNameWithFilters, schema, $"{pref}{tableName.ObjectNameNormalized}{suf}", "{0}"));
-            this.AddName(DbCommandType.SelectRow, string.Format(selectRowProcName, schema, $"{pref}{tableName.ObjectNameNormalized}{suf}"));
-            this.AddName(DbCommandType.InsertRow, string.Format(insertProcName, schema, $"{pref}{tableName.ObjectNameNormalized}{suf}"));
-            this.AddName(DbCommandType.UpdateRow, string.Format(updateProcName, schema, $"{pref}{tableName.ObjectNameNormalized}{suf}"));
-            this.AddName(DbCommandType.DeleteRow, string.Format(deleteProcName, schema, $"{pref}{tableName.ObjectNameNormalized}{suf}"));
-            this.AddName(DbCommandType.InsertMetadata, string.Format(insertMetadataProcName, schema, $"{pref}{tableName.ObjectNameNormalized}{suf}"));
-            this.AddName(DbCommandType.UpdateMetadata, string.Format(updateMetadataProcName, schema, $"{pref}{tableName.ObjectNameNormalized}{suf}"));
-            this.AddName(DbCommandType.DeleteMetadata, string.Format(deleteMetadataProcName, schema, $"{pref}{tableName.ObjectNameNormalized}{suf}"));
-            this.AddName(DbCommandType.Reset, string.Format(resetMetadataProcName, schema, $"{pref}{tableName.ObjectNameNormalized}{suf}"));
+            this.AddName(DbCommandType.SelectChanges, string.Format(selectChangesProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
+            this.AddName(DbCommandType.SelectChangesWitFilters, string.Format(selectChangesProcNameWithFilters, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}", "{0}"), true);
+            this.AddName(DbCommandType.SelectRow, string.Format(selectRowProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
+            this.AddName(DbCommandType.InsertRow, string.Format(insertProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
+            this.AddName(DbCommandType.UpdateRow, string.Format(updateProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
+            this.AddName(DbCommandType.DeleteRow, string.Format(deleteProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
+            this.AddName(DbCommandType.InsertMetadata, string.Format(insertMetadataProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
+            this.AddName(DbCommandType.UpdateMetadata, string.Format(updateMetadataProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
+            this.AddName(DbCommandType.DeleteMetadata, string.Format(deleteMetadataProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
+            this.AddName(DbCommandType.Reset, string.Format(resetMetadataProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
 
-            this.AddName(DbCommandType.InsertTrigger, string.Format(insertTriggerName, schema, $"{tpref}{tableName.ObjectNameNormalized}{tsuf}"));
-            this.AddName(DbCommandType.UpdateTrigger, string.Format(updateTriggerName, schema, $"{tpref}{tableName.ObjectNameNormalized}{tsuf}"));
-            this.AddName(DbCommandType.DeleteTrigger, string.Format(deleteTriggerName, schema, $"{tpref}{tableName.ObjectNameNormalized}{tsuf}"));
+            this.AddName(DbCommandType.InsertTrigger, string.Format(insertTriggerName, schema, $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}"), true);
+            this.AddName(DbCommandType.UpdateTrigger, string.Format(updateTriggerName, schema, $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}"), true);
+            this.AddName(DbCommandType.DeleteTrigger, string.Format(deleteTriggerName, schema, $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}"), true);
 
-            this.AddName(DbCommandType.BulkTableType, string.Format(bulkTableTypeName, schema, $"{pref}{tableName.ObjectNameNormalized}{suf}"));
+            this.AddName(DbCommandType.BulkTableType, string.Format(bulkTableTypeName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
 
-            this.AddName(DbCommandType.BulkInsertRows, string.Format(bulkInsertProcName, schema, $"{pref}{tableName.ObjectNameNormalized}{suf}"));
-            this.AddName(DbCommandType.BulkUpdateRows, string.Format(bulkUpdateProcName, schema, $"{pref}{tableName.ObjectNameNormalized}{suf}"));
-            this.AddName(DbCommandType.BulkDeleteRows, string.Format(bulkDeleteProcName, schema, $"{pref}{tableName.ObjectNameNormalized}{suf}"));
+            this.AddName(DbCommandType.BulkInsertRows, string.Format(bulkInsertProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
+            this.AddName(DbCommandType.BulkUpdateRows, string.Format(bulkUpdateProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
+            this.AddName(DbCommandType.BulkDeleteRows, string.Format(bulkDeleteProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
+
+            this.AddName(DbCommandType.DisableConstraints, string.Format(disableConstraintsText, ParserName.Parse(TableDescription).Schema().Quoted().ToString()) , false);
+            this.AddName(DbCommandType.EnableConstraints, string.Format(enableConstraintsText, ParserName.Parse(TableDescription).Schema().Quoted().ToString()), false);
         }
 
     }

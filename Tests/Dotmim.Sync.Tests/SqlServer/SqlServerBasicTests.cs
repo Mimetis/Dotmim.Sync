@@ -35,8 +35,8 @@ namespace Dotmim.Sync.Tests.SqlServer
 
                 if (!Setup.IsOnAzureDev)
                 {
-                    providerFixture.AddRun(NetworkType.Http, ProviderType.MySql | ProviderType.Sql );
-                    //providerFixture.AddRun(NetworkType.Tcp, ProviderType.MySql);
+                    providerFixture.AddRun(NetworkType.Tcp, ProviderType.MySql | ProviderType.Sql | ProviderType.Sqlite);
+                    providerFixture.AddRun(NetworkType.Http, ProviderType.MySql | ProviderType.Sql | ProviderType.Sqlite);
                 }
                 else
                 {
@@ -202,7 +202,10 @@ namespace Dotmim.Sync.Tests.SqlServer
             return base.Check_Interceptors();
         }
 
-
-
+        [Fact, TestPriority(25)]
+        public override Task Force_Failing_Constraints()
+        {
+            return base.Force_Failing_Constraints();
+        }
     }
 }

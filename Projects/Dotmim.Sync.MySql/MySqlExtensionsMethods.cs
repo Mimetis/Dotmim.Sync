@@ -305,9 +305,11 @@ namespace Dotmim.Sync.MySql
         {
             MySqlDbMetadata mySqlDbMetadata = new MySqlDbMetadata();
 
+            var parameterName = ParserName.Parse(column).Unquoted().Normalized().ToString();
+
             MySqlParameter sqlParameter = new MySqlParameter
             {
-                ParameterName = $"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{column.ColumnName}",
+                ParameterName = $"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{parameterName}",
                 DbType = column.DbType,
                 IsNullable = column.AllowDBNull
             };

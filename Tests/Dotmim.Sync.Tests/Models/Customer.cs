@@ -27,6 +27,7 @@ namespace Dotmim.Sync.Tests.Models
         public string PasswordSalt { get; set; }
         public Guid? Rowguid { get; set; }
         public DateTime? ModifiedDate { get; set; }
+        public string AttributeWithSpace { get; set;  }
 
         public ICollection<CustomerAddress> CustomerAddress { get; set; }
         public Employee Employee { get; set; }

@@ -25,6 +25,7 @@ namespace Dotmim.Sync.SampleWebServer.Controllers
         {
             // Get the underline local provider
             var provider = webProxyServer.GetLocalProvider(this.HttpContext);
+            provider.SetConfiguration(c =>c.Filters.Add("Customer", "CustomerId"));
 
             provider.InterceptApplyChangesFailed(e =>
             {

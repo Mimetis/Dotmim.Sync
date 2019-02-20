@@ -16,8 +16,8 @@ namespace Dotmim.Sync.MySql
 {
     public class MySqlBuilderTrackingTable : IDbBuilderTrackingTableHelper
     {
-        private ObjectNameParser tableName;
-        private ObjectNameParser trackingName;
+        private ParserName tableName;
+        private ParserName trackingName;
         private DmTable tableDescription;
         private MySqlConnection connection;
         private MySqlTransaction transaction;
@@ -43,15 +43,12 @@ namespace Dotmim.Sync.MySql
 
         private string CreateIndexCommandText()
         {
-            StringBuilder stringBuilder = new StringBuilder();
-
-            return stringBuilder.ToString();
+            return string.Empty;
         }
 
         public string CreateIndexScriptText()
         {
-            string str = string.Concat("Create index on Tracking Table ", trackingName.FullQuotedString);
-            return "";
+            return string.Empty;
         }
 
         public void CreatePk()
@@ -88,7 +85,7 @@ namespace Dotmim.Sync.MySql
         }
         public string CreatePkScriptText()
         {
-            string str = string.Concat("No need to Create Primary Key on Tracking Table since it's done during table creation ", trackingName.FullQuotedString);
+            string str = string.Concat("No need to Create Primary Key on Tracking Table since it's done during table creation ", trackingName.Quoted().ToString());
             return "";
         }
 
@@ -135,26 +132,26 @@ namespace Dotmim.Sync.MySql
 
         public string CreateTableScriptText()
         {
-            string str = string.Concat("Create Tracking Table ", trackingName.FullQuotedString);
+            string str = string.Concat("Create Tracking Table ", trackingName.Quoted().ToString());
             return MySqlBuilder.WrapScriptTextWithComments(this.CreateTableCommandText(), str);
         }
 
         public string CreateTableCommandText()
         {
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"CREATE TABLE {trackingName.FullQuotedString} (");
+            var stringBuilder = new StringBuilder();
+            stringBuilder.AppendLine($"CREATE TABLE {trackingName.Quoted().ToString()} (");
 
             // Adding the primary key
-            foreach (DmColumn pkColumn in this.tableDescription.PrimaryKey.Columns)
+            foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
             {
-                var quotedColumnName = new ObjectNameParser(pkColumn.ColumnName, "`", "`").FullQuotedString;
-
+                var columnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
                 var columnTypeString = this.mySqlDbMetadata.TryGetOwnerDbTypeString(pkColumn.OriginalDbType, pkColumn.DbType, false, false, pkColumn.MaxLength, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
-                var unQuotedColumnType = new ObjectNameParser(columnTypeString, "`", "`").FullUnquotedString;
+                var unQuotedColumnType = ParserName.Parse(columnTypeString, "`").Unquoted().Normalized().ToString();
+
                 var columnPrecisionString = this.mySqlDbMetadata.TryGetOwnerDbTypePrecision(pkColumn.OriginalDbType, pkColumn.DbType, false, false, pkColumn.MaxLength, pkColumn.Precision, pkColumn.Scale, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
                 var columnType = $"{unQuotedColumnType} {columnPrecisionString}";
 
-                stringBuilder.AppendLine($"{quotedColumnName} {columnType} NOT NULL, ");
+                stringBuilder.AppendLine($"{columnName} {columnType} NOT NULL, ");
             }
 
             // adding the tracking columns
@@ -179,10 +176,10 @@ namespace Dotmim.Sync.MySql
                         continue;
 
 
-                    var quotedColumnName = new ObjectNameParser(columnFilter.ColumnName, "`", "`").FullQuotedString;
-
+                    var quotedColumnName = ParserName.Parse(columnFilter, "`").Quoted().ToString();
                     var columnTypeString = this.mySqlDbMetadata.TryGetOwnerDbTypeString(columnFilter.OriginalDbType, columnFilter.DbType, false, false, columnFilter.MaxLength, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
-                    var unQuotedColumnType = new ObjectNameParser(columnTypeString, "`", "`").FullUnquotedString;
+                    var unQuotedColumnType = ParserName.Parse(columnTypeString, "`").Unquoted().Normalized().ToString();
+
                     var columnPrecisionString = this.mySqlDbMetadata.TryGetOwnerDbTypePrecision(columnFilter.OriginalDbType, columnFilter.DbType, false, false, columnFilter.MaxLength, columnFilter.Precision, columnFilter.Scale, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
                     var columnType = $"{unQuotedColumnType} {columnPrecisionString}";
 
@@ -195,7 +192,7 @@ namespace Dotmim.Sync.MySql
             for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
             {
                 DmColumn pkColumn = this.tableDescription.PrimaryKey.Columns[i];
-                var quotedColumnName = new ObjectNameParser(pkColumn.ColumnName, "`", "`").QuotedObjectName;
+                var quotedColumnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
 
                 stringBuilder.Append(quotedColumnName);
 
@@ -209,7 +206,7 @@ namespace Dotmim.Sync.MySql
 
         public bool NeedToCreateTrackingTable()
         {
-            return !MySqlManagementUtils.TableExists(connection, transaction, trackingName.FullUnquotedString);
+            return !MySqlManagementUtils.TableExists(connection, transaction, trackingName);
 
         }
 
@@ -251,7 +248,7 @@ namespace Dotmim.Sync.MySql
         private string CreatePopulateFromBaseTableCommandText()
         {
             StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine(string.Concat("INSERT INTO ", trackingName.FullQuotedString, " ("));
+            stringBuilder.AppendLine(string.Concat("INSERT INTO ", trackingName.Quoted().ToString(), " ("));
             StringBuilder stringBuilder1 = new StringBuilder();
             StringBuilder stringBuilder2 = new StringBuilder();
             string empty = string.Empty;
@@ -262,7 +259,7 @@ namespace Dotmim.Sync.MySql
             string sideTable = "`side`";
             foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
             {
-                var quotedColumnName = new ObjectNameParser(pkColumn.ColumnName, "`", "`").FullQuotedString;
+                var quotedColumnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
 
                 stringBuilder1.Append(string.Concat(empty, quotedColumnName));
 
@@ -285,7 +282,7 @@ namespace Dotmim.Sync.MySql
                     if (isPk)
                         continue;
 
-                    var quotedColumnName = new ObjectNameParser(filterColumn.ColumnName, "`", "`").FullQuotedString;
+                    var quotedColumnName = ParserName.Parse(filterColumn.ColumnName, "`").Quoted().ToString();
 
                     stringBuilder6.Append(string.Concat(empty, quotedColumnName));
                     stringBuilder5.Append(string.Concat(empty, baseTable, ".", quotedColumnName));
@@ -309,7 +306,7 @@ namespace Dotmim.Sync.MySql
             stringBuilder.Append($"{MySqlObjectNames.TimestampValue}, ");
             stringBuilder.Append("0");
             stringBuilder.AppendLine(string.Concat(stringBuilder5.ToString(), " "));
-            string[] localName = new string[] { "FROM ", tableName.FullQuotedString, " ", baseTable, " LEFT OUTER JOIN ", trackingName.FullQuotedString, " ", sideTable, " " };
+            string[] localName = new string[] { "FROM ", tableName.Quoted().ToString(), " ", baseTable, " LEFT OUTER JOIN ", trackingName.Quoted().ToString(), " ", sideTable, " " };
             stringBuilder.AppendLine(string.Concat(localName));
             stringBuilder.AppendLine(string.Concat(stringBuilderOnClause.ToString(), " "));
             stringBuilder.AppendLine(string.Concat(stringBuilderWhereClause.ToString(), "; \n"));
@@ -318,7 +315,7 @@ namespace Dotmim.Sync.MySql
 
         public string CreatePopulateFromBaseTableScriptText()
         {
-            string str = string.Concat("Populate tracking table ", trackingName.FullQuotedString, " for existing data in table ", tableName.FullQuotedString);
+            string str = string.Concat("Populate tracking table ", trackingName.Quoted().ToString(), " for existing data in table ", tableName.Quoted().ToString());
             return MySqlBuilder.WrapScriptTextWithComments(this.CreatePopulateFromBaseTableCommandText(), str);
         }
 
@@ -369,7 +366,7 @@ namespace Dotmim.Sync.MySql
 
         private string AddFilterColumnCommandText(DmColumn col)
         {
-            var quotedColumnName = new ObjectNameParser(col.ColumnName, "`", "`").FullQuotedString;
+            var quotedColumnName = ParserName.Parse(col, "`").Quoted().ToString();
 
             var columnTypeString = this.mySqlDbMetadata.TryGetOwnerDbTypeString(col.OriginalDbType, col.DbType, false, false, col.MaxLength, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
             var columnPrecisionString = this.mySqlDbMetadata.TryGetOwnerDbTypePrecision(col.OriginalDbType, col.DbType, false, false, col.MaxLength, col.Precision, col.Scale, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
@@ -379,15 +376,15 @@ namespace Dotmim.Sync.MySql
         }
         public string ScriptAddFilterColumn(DmColumn filterColumn)
         {
-            var quotedColumnName = new ObjectNameParser(filterColumn.ColumnName, "`", "`");
+            var quotedColumnName = ParserName.Parse(filterColumn, "`").Quoted().ToString();
 
-            string str = string.Concat("Add new filter column, ", quotedColumnName.FullUnquotedString, ", to Tracking Table ", trackingName.FullQuotedString);
+            string str = string.Concat("Add new filter column, ", quotedColumnName, ", to Tracking Table ", trackingName.Quoted().ToString());
             return MySqlBuilder.WrapScriptTextWithComments(this.AddFilterColumnCommandText(filterColumn), str);
         }
 
         public void DropTable()
         {
-            var commandText = $"drop table if exists {trackingName.FullQuotedString}";
+            var commandText = $"drop table if exists {trackingName.Quoted().ToString()}";
 
             bool alreadyOpened = connection.State == ConnectionState.Open;
 
@@ -420,9 +417,9 @@ namespace Dotmim.Sync.MySql
 
         public string DropTableScriptText()
         {
-            var commandText = $"drop table if exists {trackingName.FullQuotedString}";
+            var commandText = $"drop table if exists {trackingName.Quoted().ToString()}";
 
-            var str1 = $"Drop table {trackingName.FullQuotedString}";
+            var str1 = $"Drop table {trackingName.Quoted().ToString()}";
             return MySqlBuilder.WrapScriptTextWithComments(commandText, str1);
         }
 

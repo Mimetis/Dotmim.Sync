@@ -60,6 +60,13 @@ namespace Dotmim.Sync
         [DataMember(Name = "cm")]
         public bool CleanMetadatas { get; set; } = true;
 
+        /// <summary>
+        /// Gets or Sets if we should disable constraints before making apply changes 
+        /// Default value is true
+        /// </summary>
+        [DataMember(Name = "dcoa")]
+        public bool DisableConstraintsOnApplyChanges { get; set; } = true;
+
 
         /// <summary>
         /// Create a new instance of options with default values
@@ -71,6 +78,7 @@ namespace Dotmim.Sync
             this.CleanMetadatas = true;
             this.UseBulkOperations = true;
             this.UseVerboseErrors = false;
+            this.DisableConstraintsOnApplyChanges = true;
 
         }
 
