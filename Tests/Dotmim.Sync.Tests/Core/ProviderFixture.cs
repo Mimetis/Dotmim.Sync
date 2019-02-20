@@ -250,7 +250,7 @@ namespace Dotmim.Sync.Tests.Core
         /// <summary>
         /// Used to generate client databases
         /// </summary>
-        internal virtual string GetRandomDatabaseName()
+        public static string GetRandomDatabaseName()
         {
             var str1 = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
             return $"st_{str1}";
@@ -284,7 +284,7 @@ namespace Dotmim.Sync.Tests.Core
                         continue;
 
                     // generate a new database name
-                    var dbName = this.GetRandomDatabaseName();
+                    var dbName = GetRandomDatabaseName();
 
                     Console.WriteLine("Create client database called " + dbName + " for provider " + clientProviderType);
 
@@ -307,26 +307,6 @@ namespace Dotmim.Sync.Tests.Core
         }
 
 
-        //internal void CopyConfiguration(SyncConfiguration to, SyncConfiguration from)
-        //{
-        //    to.SerializationFormat = from.SerializationFormat;
-        //    to.ConflictResolutionPolicy = from.ConflictResolutionPolicy;
-        //    to.SerializationFormat = from.SerializationFormat;
-        //    to.StoredProceduresPrefix = from.StoredProceduresPrefix;
-        //    to.StoredProceduresSuffix = from.StoredProceduresSuffix;
-        //    to.TrackingTablesPrefix = from.TrackingTablesPrefix;
-        //    to.TrackingTablesSuffix = from.TrackingTablesSuffix;
-        //    to.TriggersPrefix = from.TriggersPrefix;
-        //    to.TriggersSuffix = from.TriggersSuffix;
-
-        //    if (from.Filters != null && from.Filters.Count > 0)
-        //    {
-        //        to.Filters.Clear();
-
-        //        foreach (var f in from.Filters)
-        //            to.Filters.Add(f.TableName, f.ColumnName);
-        //    }
-        //}
 
     }
 }

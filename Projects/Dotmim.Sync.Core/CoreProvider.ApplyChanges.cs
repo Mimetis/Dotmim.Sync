@@ -1,5 +1,6 @@
 ﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Data;
+using Dotmim.Sync.Data.Surrogate;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Messages;
 using System;
@@ -33,6 +34,14 @@ namespace Dotmim.Sync
 
                     // Create a transaction
                     applyTransaction = connection.BeginTransaction();
+
+                    context.SyncStage = SyncStage.DatabaseChangesApplying;
+                    // Launch any interceptor if available
+                    await this.InterceptAsync(new DatabaseChangesApplyingArgs(context, connection, applyTransaction));
+
+                    // Disable check constraints
+                    if (this.Options.DisableConstraintsOnApplyChanges)
+                        changeApplicationAction = this.DisableConstraints(context, message.Schema, connection, applyTransaction, message.FromScope);
 
                     // -----------------------------------------------------
                     // 0) Check if we are in a reinit mode
@@ -89,6 +98,17 @@ namespace Dotmim.Sync
                         }
                     }
 
+
+                    // Progress & Interceptor
+                    context.SyncStage = SyncStage.DatabaseChangesApplied;
+                    var databaseChangesAppliedArgs = new DatabaseChangesAppliedArgs(context, connection, applyTransaction);
+                    this.ReportProgress(context, databaseChangesAppliedArgs, connection, applyTransaction);
+                    await this.InterceptAsync(databaseChangesAppliedArgs);
+
+                    // Re enable check constraints
+                    if (this.Options.DisableConstraintsOnApplyChanges)
+                        changeApplicationAction = this.EnableConstraints(context, message.Schema, connection, applyTransaction, message.FromScope);
+
                     applyTransaction.Commit();
 
 
@@ -141,6 +161,54 @@ namespace Dotmim.Sync
             }
             return ChangeApplicationAction.Continue;
         }
+
+
+
+        /// <summary>
+        /// Disabling all constraints on synced tables
+        /// </summary>
+        private ChangeApplicationAction DisableConstraints(SyncContext context, DmSet configTables, DbConnection connection, DbTransaction transaction, ScopeInfo fromScope)
+        {
+            if (configTables == null || configTables.Tables.Count <= 0)
+                return ChangeApplicationAction.Continue;
+
+            for (var i = 0; i < configTables.Tables.Count; i++)
+            {
+                var tableDescription = configTables.Tables[configTables.Tables.Count - i - 1];
+
+                var builder = this.GetDatabaseBuilder(tableDescription);
+                var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
+
+                // reset table
+                syncAdapter.DisableConstraints();
+
+            }
+            return ChangeApplicationAction.Continue;
+        }
+
+
+        /// <summary>
+        /// Disabling all constraints on synced tables
+        /// </summary>
+        private ChangeApplicationAction EnableConstraints(SyncContext context, DmSet configTables, DbConnection connection, DbTransaction transaction, ScopeInfo fromScope)
+        {
+            if (configTables == null || configTables.Tables.Count <= 0)
+                return ChangeApplicationAction.Continue;
+
+            for (var i = 0; i < configTables.Tables.Count; i++)
+            {
+                var tableDescription = configTables.Tables[configTables.Tables.Count - i - 1];
+
+                var builder = this.GetDatabaseBuilder(tableDescription);
+                var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
+
+                // reset table
+                syncAdapter.EnableConstraints();
+
+            }
+            return ChangeApplicationAction.Continue;
+        }
+
 
         /// <summary>
         /// Apply changes internal method for one Insert or Update or Delete for every dbSyncAdapter
@@ -199,7 +267,7 @@ namespace Dotmim.Sync
 
                     context.SyncStage = SyncStage.TableChangesApplying;
                     // Launch any interceptor if available
-                    await this.InterceptAsync(new TableChangesApplyingArgs(context, table.TableName, applyType, connection, transaction));
+                    await this.InterceptAsync(new TableChangesApplyingArgs(context, table, applyType, connection, transaction));
 
                     int rowsApplied;
                     // applying the bulkchanges command
@@ -221,7 +289,7 @@ namespace Dotmim.Sync
 
                             var conflictCount = 0;
                             DmRow resolvedRow = null;
-                            (changeApplicationAction, conflictCount, resolvedRow) = 
+                            (changeApplicationAction, conflictCount, resolvedRow) =
                                 await this.HandleConflictAsync(syncAdapter, context, conflict, message.Policy, message.FromScope, fromScopeLocalTimeStamp, connection, transaction);
 
                             if (changeApplicationAction == ChangeApplicationAction.Continue)
@@ -247,13 +315,13 @@ namespace Dotmim.Sync
 
                     // raise SyncProgress Event
                     var existAppliedChanges = changesApplied.TableChangesApplied.FirstOrDefault(
-                            sc => string.Equals(sc.TableName, table.TableName) && sc.State == applyType);
+                            sc => string.Equals(sc.Table.TableName, table.TableName) && sc.State == applyType);
 
                     if (existAppliedChanges == null)
                     {
                         existAppliedChanges = new TableChangesApplied
                         {
-                            TableName = table.TableName,
+                            Table = new DmTableSurrogate(table),
                             Applied = rowsApplied,
                             Failed = changedFailed,
                             State = applyType

@@ -6,6 +6,8 @@ using System.Data.Common;
 using System.Data;
 using Dotmim.Sync.Builders;
 using MySql.Data.MySqlClient;
+using Dotmim.Sync.MySql.Builders;
+using Dotmim.Sync.Filter;
 
 namespace Dotmim.Sync.MySql
 {
@@ -14,6 +16,8 @@ namespace Dotmim.Sync.MySql
         private MySqlConnection connection;
         private MySqlTransaction transaction;
         private MySqlObjectNames mySqlObjectNames;
+        private MySqlDbMetadata mySqlDbMetadata;
+
         // Derive Parameters cache
         private static Dictionary<string, List<MySqlParameter>> derivingParameters = new Dictionary<string, List<MySqlParameter>>();
 
@@ -39,6 +43,7 @@ namespace Dotmim.Sync.MySql
             this.connection = sqlc ?? throw new InvalidCastException("Connection should be a MySqlConnection");
 
             this.transaction = transaction as MySqlTransaction;
+            this.mySqlDbMetadata = new MySqlDbMetadata();
 
             this.mySqlObjectNames = new MySqlObjectNames(TableDescription);
         }
@@ -53,28 +58,22 @@ namespace Dotmim.Sync.MySql
         }
 
 
-        public override DbCommand GetCommand(DbCommandType commandType, IEnumerable<string> additionals = null)
+        public override DbCommand GetCommand(DbCommandType commandType, IEnumerable<FilterClause> additionals = null)
         {
             var command = this.Connection.CreateCommand();
             string text;
+            bool isStoredProc;
 
             if (additionals != null)
-                text = this.mySqlObjectNames.GetCommandName(commandType, additionals);
+                (text, isStoredProc) = this.mySqlObjectNames.GetCommandName(commandType, additionals);
             else
-                text = this.mySqlObjectNames.GetCommandName(commandType);
+                (text, isStoredProc) = this.mySqlObjectNames.GetCommandName(commandType);
 
-            var textName = new ObjectNameParser(text, "`", "`");
-            // on MySql, everything is text based :)
-            command.CommandType = CommandType.StoredProcedure;
-            command.CommandText = textName.ObjectName;
+            var textName = ParserName.Parse(text, "`");
+
+            command.CommandType = isStoredProc ? CommandType.StoredProcedure : CommandType.Text;
+            command.CommandText = isStoredProc ? textName.Quoted().ToString() : text;
             command.Connection = Connection;
-
-            //if (commandType == DbCommandType.UpdateRow)
-            //{
-            //    command.CommandType = CommandType.StoredProcedure;
-            //    command.CommandText = "customers_update";
-            //    command.Connection = Connection;
-            //}
 
             if (Transaction != null)
                 command.Transaction = Transaction;
@@ -83,12 +82,13 @@ namespace Dotmim.Sync.MySql
         }
 
 
-        public override void SetCommandParameters(DbCommandType commandType, DbCommand command)
+        public override void SetCommandParameters(DbCommandType commandType, DbCommand command, IEnumerable<FilterClause> filters = null)
         {
             switch (commandType)
             {
                 case DbCommandType.SelectChanges:
-                    this.SetSelecteChangesParameters(command);
+                case DbCommandType.SelectChangesWitFilters:
+                    this.SetSelecteChangesParameters(command, filters);
                     break;
                 case DbCommandType.SelectRow:
                     this.SetSelectRowParameters(command);
@@ -122,9 +122,10 @@ namespace Dotmim.Sync.MySql
 
             foreach (DmColumn column in this.TableDescription.Columns.Where(c => !c.IsReadOnly))
             {
-                ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
+                var columnName = ParserName.Parse(column, "`").Unquoted().Normalized().ToString();
+
                 p = command.CreateParameter();
-                p.ParameterName = $"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{quotedColumn.ObjectNameNormalized}";
+                p.ParameterName = $"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{columnName}";
                 p.DbType = column.DbType;
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
@@ -148,9 +149,9 @@ namespace Dotmim.Sync.MySql
 
             foreach (DmColumn column in this.TableDescription.PrimaryKey.Columns.Where(c => !c.IsReadOnly))
             {
-                ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
+                var quotedColumn = ParserName.Parse(column, "`").Unquoted().Normalized().ToString();
                 p = command.CreateParameter();
-                p.ParameterName = $"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{quotedColumn.ObjectNameNormalized}";
+                p.ParameterName = $"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{quotedColumn}";
                 p.DbType = column.DbType;
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
@@ -183,9 +184,10 @@ namespace Dotmim.Sync.MySql
 
             foreach (DmColumn column in this.TableDescription.Columns.Where(c => !c.IsReadOnly))
             {
-                ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
+                var quotedColumn = ParserName.Parse(column, "`").Unquoted().Normalized().ToString();
+
                 p = command.CreateParameter();
-                p.ParameterName = $"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{quotedColumn.ObjectNameNormalized}";
+                p.ParameterName = $"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{quotedColumn}";
                 p.DbType = column.DbType;
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
@@ -198,9 +200,10 @@ namespace Dotmim.Sync.MySql
 
             foreach (DmColumn column in this.TableDescription.PrimaryKey.Columns.Where(c => !c.IsReadOnly))
             {
-                ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
+                var quotedColumn = ParserName.Parse(column, "`").Unquoted().Normalized().ToString();
+
                 p = command.CreateParameter();
-                p.ParameterName = $"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{quotedColumn.ObjectNameNormalized}";
+                p.ParameterName = $"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{quotedColumn}";
                 p.DbType = column.DbType;
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
@@ -233,9 +236,10 @@ namespace Dotmim.Sync.MySql
 
             foreach (DmColumn column in this.TableDescription.PrimaryKey.Columns.Where(c => !c.IsReadOnly))
             {
-                ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
+                var quotedColumn = ParserName.Parse(column, "`").Unquoted().Normalized().ToString();
+
                 p = command.CreateParameter();
-                p.ParameterName = $"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{quotedColumn.ObjectNameNormalized}";
+                p.ParameterName = $"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{quotedColumn}";
                 p.DbType = column.DbType;
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
@@ -258,9 +262,10 @@ namespace Dotmim.Sync.MySql
 
             foreach (DmColumn column in this.TableDescription.PrimaryKey.Columns.Where(c => !c.IsReadOnly))
             {
-                ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
+                var quotedColumn = ParserName.Parse(column, "`").Unquoted().Normalized().ToString();
+
                 p = command.CreateParameter();
-                p.ParameterName = $"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{quotedColumn.ObjectNameNormalized}";
+                p.ParameterName = $"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{quotedColumn}";
                 p.DbType = column.DbType;
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
@@ -279,9 +284,10 @@ namespace Dotmim.Sync.MySql
 
             foreach (DmColumn column in this.TableDescription.PrimaryKey.Columns.Where(c => !c.IsReadOnly))
             {
-                ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
+                var quotedColumn = ParserName.Parse(column, "`").Unquoted().Normalized().ToString();
+
                 p = command.CreateParameter();
-                p.ParameterName = $"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{quotedColumn.ObjectNameNormalized}";
+                p.ParameterName = $"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{quotedColumn}";
                 p.DbType = column.DbType;
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
@@ -308,7 +314,7 @@ namespace Dotmim.Sync.MySql
             command.Parameters.Add(p);
         }
 
-        private void SetSelecteChangesParameters(DbCommand command)
+        private void SetSelecteChangesParameters(DbCommand command, IEnumerable<FilterClause> filters = null)
         {
             var p = command.CreateParameter();
             p.ParameterName = "sync_min_timestamp";
@@ -329,7 +335,35 @@ namespace Dotmim.Sync.MySql
             p.ParameterName = "sync_scope_is_reinit";
             p.DbType = DbType.Boolean;
             command.Parameters.Add(p);
+
+            if (filters != null)
+            {
+                foreach (var filter in filters)
+                {
+                    if (!filter.IsVirtual)
+                    {
+                        var columnFilter = this.TableDescription.Columns[filter.ColumnName];
+
+                        if (columnFilter == null)
+                            throw new InvalidExpressionException($"Column {filter.ColumnName} does not exist in Table {this.TableDescription.TableName}");
+
+                        var columnName = ParserName.Parse(columnFilter).Unquoted().Normalized().ToString();
+                        var mySqlDbType = (MySqlDbType)this.mySqlDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.DbType, false, false, columnFilter.MaxLength, this.TableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
+                        var mySqlParamFilter = new MySqlParameter($"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{columnName}", mySqlDbType);
+                        command.Parameters.Add(mySqlParamFilter);
+                    }
+                    else
+                    {
+                        var mySqlDbType = (MySqlDbType)this.mySqlDbMetadata.TryGetOwnerDbType(null, filter.ColumnType.Value, false, false, 0, this.TableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
+                        var columnFilterName = ParserName.Parse(filter.ColumnName).Unquoted().Normalized().ToString();
+                        var mySqlParamFilter = new MySqlParameter($"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{columnFilterName}", mySqlDbType);
+                        command.Parameters.Add(mySqlParamFilter);
+                    }
+                }
+            }
+
         }
+
 
         public override void ExecuteBatchCommand(DbCommand cmd, DmView applyTable, DmTable failedRows, ScopeInfo scope)
         {

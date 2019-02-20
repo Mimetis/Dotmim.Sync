@@ -133,8 +133,8 @@ namespace Dotmim.Sync.Tools
                 foreach (var t in project.Tables.OrderBy(tbl => tbl.Order))
                 {
                     // Potentially user can pass something like [SalesLT].[Product]
-                    // or SalesLT.Product or Product. ObjectNameParser will handle it
-                    ObjectNameParser parser = new ObjectNameParser(t.Name);
+                    // or SalesLT.Product or Product. ParserName will handle it
+                    var parser = ParserName.Parse(t.Name);
 
                     var tableName = parser.ObjectName;
                     var schema = string.IsNullOrEmpty(t.Schema) ? parser.SchemaName : t.Schema;
@@ -165,7 +165,7 @@ namespace Dotmim.Sync.Tools
 
             var interceptor = new Interceptor<TableChangesSelectedArgs, TableChangesAppliedArgs>(
             tcs => Console.WriteLine($"Changes selected for table {tcs.TableChangesSelected.TableName}: {tcs.TableChangesSelected.TotalChanges}"),
-            tca => Console.WriteLine($"Changes applied for table {tca.TableChangesApplied.TableName}: [{tca.TableChangesApplied.State}] {tca.TableChangesApplied.Applied}")
+            tca => Console.WriteLine($"Changes applied for table {tca.TableChangesApplied.Table.TableName}: [{tca.TableChangesApplied.State}] {tca.TableChangesApplied.Applied}")
                 );
 
             agent.SetInterceptor(interceptor);

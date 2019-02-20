@@ -12,8 +12,8 @@ namespace Dotmim.Sync.Sqlite
 {
     public class SqliteBuilderTable : IDbBuilderTableHelper
     {
-        private ObjectNameParser tableName;
-        private ObjectNameParser trackingName;
+        private ParserName tableName;
+        private ParserName trackingName;
         private DmTable tableDescription;
         private SqliteConnection connection;
         private SqliteTransaction transaction;
@@ -32,31 +32,31 @@ namespace Dotmim.Sync.Sqlite
             SqliteCommand sqlCommand = new SqliteCommand();
 
             var childTable = foreignKey.ChildTable;
-            var childTableName = new ObjectNameParser(childTable.TableName);
+            var childTableName = ParserName.Parse(childTable.TableName).Quoted().ToString();
+
             var parentTable = foreignKey.ParentTable;
-            var parentTableName = new ObjectNameParser(parentTable.TableName);
+            var parentTableName = ParserName.Parse(parentTable.TableName).Quoted().ToString();
 
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.Append("ALTER TABLE ");
-            stringBuilder.AppendLine(childTableName.FullQuotedString);
+            stringBuilder.AppendLine(childTableName);
             stringBuilder.Append("ADD CONSTRAINT ");
             stringBuilder.AppendLine(foreignKey.RelationName);
             stringBuilder.Append("FOREIGN KEY (");
             string empty = string.Empty;
             foreach (var childColumn in foreignKey.ChildColumns)
             {
-                var childColumnName = new ObjectNameParser(childColumn.ColumnName);
-                stringBuilder.Append($"{empty} {childColumnName.FullQuotedString}");
+                var childColumnName = ParserName.Parse(childColumn).Quoted().ToString();
+                stringBuilder.Append($"{empty} {childColumnName}");
             }
             stringBuilder.AppendLine(" )");
             stringBuilder.Append("REFERENCES ");
-            stringBuilder.Append(parentTableName.FullQuotedString).Append(" (");
+            stringBuilder.Append(parentTableName).Append(" (");
             empty = string.Empty;
             foreach (var parentdColumn in foreignKey.ParentColumns)
             {
-                var parentColumnName = new ObjectNameParser(parentdColumn.ColumnName);
-
-                stringBuilder.Append($"{empty} {parentColumnName.FullQuotedString}");
+                var parentColumnName = ParserName.Parse(parentdColumn).Quoted().ToString();
+                stringBuilder.Append($"{empty} {parentColumnName}");
                 empty = ", ";
             }
             stringBuilder.Append(" ) ");
@@ -77,14 +77,14 @@ namespace Dotmim.Sync.Sqlite
 
         private SqliteCommand BuildTableCommand()
         {
-            SqliteCommand command = new SqliteCommand();
+            var command = new SqliteCommand();
 
-            StringBuilder stringBuilder = new StringBuilder($"CREATE TABLE IF NOT EXISTS {tableName.FullQuotedString} (");
+            var stringBuilder = new StringBuilder($"CREATE TABLE IF NOT EXISTS {tableName.Quoted().ToString()} (");
             string empty = string.Empty;
             stringBuilder.AppendLine();
             foreach (var column in this.tableDescription.Columns)
             {
-                var columnName = new ObjectNameParser(column.ColumnName);
+                var columnName = ParserName.Parse(column).Quoted().ToString();
 
                 var columnTypeString = this.sqliteDbMetadata.TryGetOwnerDbTypeString(column.OriginalDbType, column.DbType, false, false, column.MaxLength, this.tableDescription.OriginalProvider, SqliteSyncProvider.ProviderType);
                 var columnPrecisionString = this.sqliteDbMetadata.TryGetOwnerDbTypePrecision(column.OriginalDbType, column.DbType, false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, SqliteSyncProvider.ProviderType);
@@ -108,8 +108,8 @@ namespace Dotmim.Sync.Sqlite
 
                 if (column.IsAutoIncrement)
                 {
-                    var s = column.GetAutoIncrementSeedAndStep();
-                    if (s.Seed > 1 || s.Step > 1)
+                    var (step, seed) = column.GetAutoIncrementSeedAndStep();
+                    if (seed > 1 || step > 1)
                         throw new NotSupportedException("can't establish a seed / step in Sqlite autoinc value");
 
                     //identity = $"AUTOINCREMENT";
@@ -125,14 +125,14 @@ namespace Dotmim.Sync.Sqlite
                 else if (column.IsReadOnly)
                     nullString = "NULL";
 
-                stringBuilder.AppendLine($"\t{empty}{columnName.FullQuotedString} {columnType} {identity} {nullString} {casesensitive}");
+                stringBuilder.AppendLine($"\t{empty}{columnName} {columnType} {identity} {nullString} {casesensitive}");
                 empty = ",";
             }
             stringBuilder.Append("\t,PRIMARY KEY (");
             for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
             {
-                DmColumn pkColumn = this.tableDescription.PrimaryKey.Columns[i];
-                var quotedColumnName = new ObjectNameParser(pkColumn.ColumnName).ObjectName;
+                var pkColumn = this.tableDescription.PrimaryKey.Columns[i];
+                var quotedColumnName = ParserName.Parse(pkColumn).Quoted().ToString();
 
                 stringBuilder.Append(quotedColumnName);
 
@@ -142,34 +142,32 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.Append(")");
 
             // Constraints
-            foreach (DmRelation constraint in this.tableDescription.ParentRelations)
+            foreach (var constraint in this.tableDescription.ParentRelations)
             {
-
                 // Don't want foreign key on same table since it could be a problem on first 
                 // sync. We are not sure that parent row will be inserted in first position
-                if (String.Equals(constraint.ParentTable.TableName, constraint.ChildTable.TableName, StringComparison.CurrentCultureIgnoreCase))
+                if (string.Equals(constraint.ParentTable.TableName, constraint.ChildTable.TableName, StringComparison.CurrentCultureIgnoreCase))
                     continue;
 
                 var parentTable = constraint.ParentTable;
-                var parentTableName = new ObjectNameParser(parentTable.TableName);
+                var parentTableName = ParserName.Parse(parentTable.TableName).Quoted().ToString();
+
                 stringBuilder.AppendLine();
                 stringBuilder.Append($"\tFOREIGN KEY (");
                 empty = string.Empty;
                 foreach (var column in constraint.ChildColumns)
                 {
-                    var columnName = new ObjectNameParser(column.ColumnName);
-
-                    stringBuilder.Append($"{empty} {columnName.FullQuotedString}");
+                    var columnName = ParserName.Parse(column).Quoted().ToString();
+                    stringBuilder.Append($"{empty} {columnName}");
                     empty = ", ";
                 }
                 stringBuilder.Append($") ");
-                stringBuilder.Append($"REFERENCES {parentTableName.FullQuotedString}(");
+                stringBuilder.Append($"REFERENCES {parentTableName}(");
                 empty = string.Empty;
                 foreach (var column in constraint.ParentColumns)
                 {
-                    var columnName = new ObjectNameParser(column.ColumnName);
-
-                    stringBuilder.Append($"{empty} {columnName.FullQuotedString}");
+                    var columnName = ParserName.Parse(column).Quoted().ToString();
+                    stringBuilder.Append($"{empty} {columnName}");
                     empty = ", ";
                 }
                 stringBuilder.AppendLine(" )");
@@ -214,7 +212,7 @@ namespace Dotmim.Sync.Sqlite
         public string CreateTableScriptText()
         {
             StringBuilder stringBuilder = new StringBuilder();
-            var tableNameScript = $"Create Table {tableName.FullQuotedString}";
+            var tableNameScript = $"Create Table {tableName.Quoted().ToString()}";
             var tableScript = BuildTableCommand().CommandText;
             stringBuilder.Append(SqliteBuilder.WrapScriptTextWithComments(tableScript, tableNameScript));
             stringBuilder.AppendLine();
@@ -249,7 +247,7 @@ namespace Dotmim.Sync.Sqlite
                 if (!alreadyOpened)
                     connection.Open();
 
-                return SqliteManagementUtils.TableExists(connection, transaction, parentTable.TableName);
+                return SqliteManagementUtils.TableExists(connection, transaction, ParserName.Parse(parentTable));
 
             }
             catch (Exception ex)
@@ -273,7 +271,7 @@ namespace Dotmim.Sync.Sqlite
         /// </summary>
         public bool NeedToCreateTable()
         {
-            return !SqliteManagementUtils.TableExists(connection, transaction, tableName.FullQuotedString);
+            return !SqliteManagementUtils.TableExists(connection, transaction, tableName);
 
         }
 
@@ -313,7 +311,7 @@ namespace Dotmim.Sync.Sqlite
 
             try
             {
-                using (var command = new SqliteCommand($"DROP TABLE IF EXISTS {tableName.FullQuotedString}", connection))
+                using (var command = new SqliteCommand($"DROP TABLE IF EXISTS {tableName.Quoted().ToString()}", connection))
                 {
                     if (!alreadyOpened)
                         connection.Open();
@@ -344,8 +342,8 @@ namespace Dotmim.Sync.Sqlite
         public string DropTableScriptText()
         {
             StringBuilder stringBuilder = new StringBuilder();
-            var tableNameScript = $"Drop Table {tableName.FullQuotedString}";
-            var tableScript = $"DROP TABLE IF EXISTS {tableName.FullQuotedString}";
+            var tableNameScript = $"Drop Table {tableName.Quoted().ToString()}";
+            var tableScript = $"DROP TABLE IF EXISTS {tableName.Quoted().ToString()}";
             stringBuilder.Append(SqliteBuilder.WrapScriptTextWithComments(tableScript, tableNameScript));
             stringBuilder.AppendLine();
             return stringBuilder.ToString();

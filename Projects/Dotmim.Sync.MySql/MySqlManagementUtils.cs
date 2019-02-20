@@ -1,10 +1,10 @@
+using Dotmim.Sync.Builders;
 using Dotmim.Sync.Data;
+using MySql.Data.MySqlClient;
+using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Text;
-using MySql.Data.MySqlClient;
-using Dotmim.Sync.Builders;
-using System;
 using System.Text.RegularExpressions;
 
 namespace Dotmim.Sync.MySql
@@ -16,11 +16,11 @@ namespace Dotmim.Sync.MySql
         {
             string commandColumn = "select * from information_schema.COLUMNS where table_schema = schema() and table_name = @tableName";
 
-            ObjectNameParser tableNameParser = new ObjectNameParser(tableName, "`", "`");
-            DmTable dmTable = new DmTable(tableNameParser.ObjectNameNormalized);
+            var tableNameParser = ParserName.Parse(tableName, "`");
+            DmTable dmTable = new DmTable(tableNameParser.Unquoted().ToString());
             using (MySqlCommand sqlCommand = new MySqlCommand(commandColumn, connection, transaction))
             {
-                sqlCommand.Parameters.AddWithValue("@tableName", tableNameParser.ObjectName);
+                sqlCommand.Parameters.AddWithValue("@tableName", tableNameParser.Unquoted().ToString());
 
                 using (var reader = sqlCommand.ExecuteReader())
                 {
@@ -35,11 +35,11 @@ namespace Dotmim.Sync.MySql
 
             var commandColumn = @"select * from information_schema.COLUMNS where table_schema = schema() and table_name = @tableName and column_key='PRI'";
 
-            ObjectNameParser tableNameParser = new ObjectNameParser(tableName, "`", "`");
-            DmTable dmTable = new DmTable(tableNameParser.ObjectNameNormalized);
-            using (MySqlCommand sqlCommand = new MySqlCommand(commandColumn, connection, transaction))
+            var tableNameParser = ParserName.Parse(tableName, "`");
+            var dmTable = new DmTable(tableNameParser.Unquoted().ToString());
+            using (var sqlCommand = new MySqlCommand(commandColumn, connection, transaction))
             {
-                sqlCommand.Parameters.AddWithValue("@tableName", tableNameParser.ObjectName);
+                sqlCommand.Parameters.AddWithValue("@tableName", tableNameParser.Unquoted().ToString());
 
                 using (var reader = sqlCommand.ExecuteReader())
                 {
@@ -68,11 +68,12 @@ namespace Dotmim.Sync.MySql
             ORDER BY
               ke.referenced_table_name;";
 
-            ObjectNameParser tableNameParser = new ObjectNameParser(tableName, "`", "`");
-            DmTable dmTable = new DmTable(tableNameParser.ObjectNameNormalized);
+            var tableNameParser = ParserName.Parse(tableName, "`");
+
+            var dmTable = new DmTable(tableNameParser.Unquoted().ToString());
             using (MySqlCommand sqlCommand = new MySqlCommand(commandRelations, connection, transaction))
             {
-                sqlCommand.Parameters.AddWithValue("@tableName", tableNameParser.ObjectName);
+                sqlCommand.Parameters.AddWithValue("@tableName", tableNameParser.Unquoted().ToString());
 
                 using (var reader = sqlCommand.ExecuteReader())
                 {
@@ -87,13 +88,13 @@ namespace Dotmim.Sync.MySql
 
         public static void DropTableIfExists(MySqlConnection connection, MySqlTransaction transaction, string quotedTableName)
         {
-            ObjectNameParser objectNameParser = new ObjectNameParser(quotedTableName, "`", "`");
+            var tableNameParser = ParserName.Parse(quotedTableName, "`");
 
-            using (MySqlCommand dbCommand = connection.CreateCommand())
+            using (var dbCommand = connection.CreateCommand())
             {
                 dbCommand.CommandText = $"select * from information_schema.TABLES where table_schema = schema() and table_name = @tableName";
 
-                dbCommand.Parameters.AddWithValue("@tableName", objectNameParser.ObjectName);
+                dbCommand.Parameters.AddWithValue("@tableName", tableNameParser.Unquoted().ToString());
 
                 if (transaction != null)
                     dbCommand.Transaction = transaction;
@@ -104,9 +105,9 @@ namespace Dotmim.Sync.MySql
 
         public static string DropTableIfExistsScriptText(string quotedTableName)
         {
-            ObjectNameParser objectNameParser = new ObjectNameParser(quotedTableName, "`", "`");
+            var tableNameParser = ParserName.Parse(quotedTableName, "`");
 
-            return $"drop table if exist {objectNameParser.ObjectName}";
+            return $"drop table if exist {tableNameParser.Unquoted().ToString()}";
         }
 
         internal static bool IsStringNullOrWhitespace(string value)
@@ -115,18 +116,18 @@ namespace Dotmim.Sync.MySql
         }
         public static string DropTableScriptText(string quotedTableName)
         {
-            ObjectNameParser objectNameParser = new ObjectNameParser(quotedTableName, "`", "`");
+            var tableNameParser = ParserName.Parse(quotedTableName, "`");
 
-            return $"drop table {objectNameParser.ObjectName}";
+            return $"drop table {tableNameParser.Unquoted().ToString()}";
         }
 
         public static void DropTriggerIfExists(MySqlConnection connection, MySqlTransaction transaction, string quotedTriggerName)
         {
-            ObjectNameParser objectNameParser = new ObjectNameParser(quotedTriggerName, "`", "`");
+            var triggerName = ParserName.Parse(quotedTriggerName, "`");
 
             using (DbCommand dbCommand = connection.CreateCommand())
             {
-                dbCommand.CommandText = $"drop trigger {objectNameParser.ObjectName}";
+                dbCommand.CommandText = $"drop trigger {triggerName.Unquoted().ToString()}";
                 if (transaction != null)
                     dbCommand.Transaction = transaction;
 
@@ -136,14 +137,14 @@ namespace Dotmim.Sync.MySql
 
         public static string DropTriggerScriptText(string quotedTriggerName)
         {
-            ObjectNameParser objectNameParser = new ObjectNameParser(quotedTriggerName, "`", "`");
-            return $"drop trigger {objectNameParser.ObjectName}";
+            var triggerName = ParserName.Parse(quotedTriggerName, "`");
+            return $"drop trigger {triggerName.Unquoted().ToString()}";
         }
 
-        public static bool TableExists(MySqlConnection connection, MySqlTransaction transaction, string unQuotedTableName)
+        public static bool TableExists(MySqlConnection connection, MySqlTransaction transaction, ParserName table)
         {
             bool tableExist;
-            ObjectNameParser tableNameParser = new ObjectNameParser(unQuotedTableName, "`", "`");
+
             using (DbCommand dbCommand = connection.CreateCommand())
             {
                 dbCommand.CommandText = "select COUNT(*) from information_schema.TABLES where TABLE_NAME = @tableName and TABLE_SCHEMA = schema() and TABLE_TYPE = 'BASE TABLE'";
@@ -154,7 +155,7 @@ namespace Dotmim.Sync.MySql
                 MySqlParameter sqlParameter = new MySqlParameter()
                 {
                     ParameterName = "@tableName",
-                    Value = tableNameParser.FullUnquotedString
+                    Value = table.Unquoted().ToString()
                 };
 
                 dbCommand.Parameters.Add(sqlParameter);
@@ -168,14 +169,14 @@ namespace Dotmim.Sync.MySql
         public static bool TriggerExists(MySqlConnection connection, MySqlTransaction transaction, string quotedTriggerName)
         {
             bool triggerExist;
-            ObjectNameParser objectNameParser = new ObjectNameParser(quotedTriggerName, "`", "`");
+            var triggerName = ParserName.Parse(quotedTriggerName, "`");
 
 
             using (MySqlCommand dbCommand = connection.CreateCommand())
             {
                 dbCommand.CommandText = "select count(*) from information_schema.TRIGGERS where trigger_name = @triggerName AND trigger_schema = schema()";
 
-                dbCommand.Parameters.AddWithValue("@triggerName", objectNameParser.ObjectName);
+                dbCommand.Parameters.AddWithValue("@triggerName", triggerName.Unquoted().ToString());
 
                 if (transaction != null)
                     dbCommand.Transaction = transaction;
@@ -188,8 +189,7 @@ namespace Dotmim.Sync.MySql
         internal static bool ProcedureExists(MySqlConnection connection, MySqlTransaction transaction, string commandName)
         {
             bool procExist;
-            ObjectNameParser objectNameParser = new ObjectNameParser(commandName, "`", "`");
-
+            var commandNameString = ParserName.Parse(commandName, "`");
 
             using (MySqlCommand dbCommand = connection.CreateCommand())
             {
@@ -198,7 +198,7 @@ namespace Dotmim.Sync.MySql
                                         and ROUTINE_SCHEMA = schema()
                                         and ROUTINE_NAME = @procName";
 
-                dbCommand.Parameters.AddWithValue("@procName", objectNameParser.ObjectName);
+                dbCommand.Parameters.AddWithValue("@procName", commandNameString.Unquoted().ToString());
 
                 if (transaction != null)
                     dbCommand.Transaction = transaction;
@@ -217,14 +217,14 @@ namespace Dotmim.Sync.MySql
             string str = "";
             foreach (DmColumn column in columns)
             {
-                ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName, "`", "`");
+                var quotedColumn = ParserName.Parse(column, "`");
 
                 stringBuilder.Append(str);
                 stringBuilder.Append(strLeftName);
-                stringBuilder.Append(quotedColumn.FullQuotedString);
+                stringBuilder.Append(quotedColumn.Quoted().ToString());
                 stringBuilder.Append(" = ");
                 stringBuilder.Append(strRightName);
-                stringBuilder.Append(quotedColumn.FullQuotedString);
+                stringBuilder.Append(quotedColumn.Quoted().ToString());
 
                 str = " AND ";
             }
@@ -238,11 +238,11 @@ namespace Dotmim.Sync.MySql
             string str1 = "";
             foreach (DmColumn column in columns)
             {
-                ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName, "`", "`");
+                var quotedColumn = ParserName.Parse(column, "`");
 
                 stringBuilder.Append(str1);
                 stringBuilder.Append(strFromPrefix);
-                stringBuilder.Append(quotedColumn.FullQuotedString);
+                stringBuilder.Append(quotedColumn.Quoted().ToString());
                 stringBuilder.Append(" = ");
                 stringBuilder.Append($"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{column.ColumnName}");
                 str1 = " AND ";
@@ -257,11 +257,11 @@ namespace Dotmim.Sync.MySql
             string str1 = "";
             foreach (DmColumn column in columns)
             {
-                ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName, "`", "`");
+                var quotedColumn = ParserName.Parse(column, "`");
 
                 stringBuilder.Append(str1);
                 stringBuilder.Append(strFromPrefix);
-                stringBuilder.Append(quotedColumn.FullQuotedString);
+                stringBuilder.Append(quotedColumn.Quoted().ToString());
                 stringBuilder.Append(" = ");
                 stringBuilder.Append($"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{column.ColumnName}");
                 str1 = " AND ";
@@ -271,13 +271,13 @@ namespace Dotmim.Sync.MySql
 
         internal static string CommaSeparatedUpdateFromParameters(DmTable table, string fromPrefix = "")
         {
-            StringBuilder stringBuilder = new StringBuilder();
+            var stringBuilder = new StringBuilder();
             string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));
             string strSeparator = "";
-            foreach (DmColumn mutableColumn in table.MutableColumns)
+            foreach (var mutableColumn in table.MutableColumns)
             {
-                ObjectNameParser quotedColumn = new ObjectNameParser(mutableColumn.ColumnName, "`", "`");
-                stringBuilder.AppendLine($"{strSeparator} {strFromPrefix}{quotedColumn.FullQuotedString} = {MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{quotedColumn.FullUnquotedString}");
+                var quotedColumn = ParserName.Parse(mutableColumn, "`");
+                stringBuilder.AppendLine($"{strSeparator} {strFromPrefix}{quotedColumn.Quoted().ToString()} = {MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{quotedColumn.Unquoted().Normalized().ToString()}");
                 strSeparator = ", ";
             }
             return stringBuilder.ToString();

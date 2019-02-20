@@ -7,28 +7,28 @@ using Dotmim.Sync.Tests.Misc;
 using Dotmim.Sync.Tests.Models;
 using Xunit;
 
-namespace Dotmim.Sync.Tests.SqlServer
+namespace Dotmim.Sync.Tests.MySql
 {
     [TestCaseOrderer("Dotmim.Sync.Tests.Misc.PriorityOrderer", "Dotmim.Sync.Tests")]
-    [Collection("SqlServerFilter")]
-    public class SqlServerFilterTests : BasicTestsBase, IClassFixture<SqlServerFixture>
+    [Collection("MySqlServerFilter")]
+    public class MySqlFilterTests : BasicTestsBase, IClassFixture<MySqlFixture>
     {
 
-        static SqlServerFilterTests()
+        static MySqlFilterTests()
         {
             Configure = providerFixture =>
             {
                 // Set tables to be used for your provider
-                var sqlTables = new string[]
+                var tables = new string[]
                 {
                     "Customer", "Address", "CustomerAddress",
-                    "SalesLT.SalesOrderHeader", "SalesLT.SalesOrderDetail"
+                    "SalesOrderHeader", "SalesOrderDetail"
                 };
 
                 // 1) Add database name
-                providerFixture.AddDatabaseName("SqlAdventureWorksFilter");
+                providerFixture.AddDatabaseName("MySqlAdventureWorksFilter");
                 // 2) Add tables
-                providerFixture.AddTables(sqlTables, 28);
+                providerFixture.AddTables(tables, 28);
                 // 3) Options
                 // providerFixture.DeleteAllDatabasesOnDispose = false;
 
@@ -40,7 +40,8 @@ namespace Dotmim.Sync.Tests.SqlServer
 
                 if (!Setup.IsOnAzureDev)
                 {
-                    providerFixture.AddRun(NetworkType.Http, ProviderType.Sql );
+                    providerFixture.AddRun(NetworkType.Tcp, ProviderType.MySql | ProviderType.Sql | ProviderType.Sqlite);
+                    providerFixture.AddRun(NetworkType.Http, ProviderType.MySql | ProviderType.Sql | ProviderType.Sqlite);
                 }
                 else
                 {
@@ -50,7 +51,7 @@ namespace Dotmim.Sync.Tests.SqlServer
             };
 
         }
-        public SqlServerFilterTests(SqlServerFixture fixture) : base(fixture)
+        public MySqlFilterTests(MySqlFixture fixture) : base(fixture)
         {
         }
 

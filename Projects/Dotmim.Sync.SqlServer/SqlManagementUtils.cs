@@ -26,11 +26,13 @@ namespace Dotmim.Sync.SqlServer
                                 $"Left outer join sys.indexes ind on ind.object_id = col.object_id and ind.index_id = col.column_id " +
                                 $"Where tbl.name = @tableName";
 
-            ObjectNameParser tableNameParser = new ObjectNameParser(tableName);
-            DmTable dmTable = new DmTable(tableNameParser.ObjectNameNormalized);
-            using (SqlCommand sqlCommand = new SqlCommand(commandColumn, connection, transaction))
+            var tableNameNormalized = ParserName.Parse(tableName).Unquoted().Normalized().ToString();
+            var tableNameString = ParserName.Parse(tableName).ToString();
+
+            var dmTable = new DmTable(tableNameNormalized);
+            using (var sqlCommand = new SqlCommand(commandColumn, connection, transaction))
             {
-                sqlCommand.Parameters.AddWithValue("@tableName", tableNameParser.ObjectName);
+                sqlCommand.Parameters.AddWithValue("@tableName", tableNameString);
 
                 using (var reader = sqlCommand.ExecuteReader())
                 {
@@ -54,11 +56,13 @@ namespace Dotmim.Sync.SqlServer
                                   where tbl.name = @tableName and ind.index_id >= 0 and ind.type <> 3 and ind.type <> 4 and ind.is_hypothetical = 0 and ind.is_primary_key = 1
                                   order by ind.index_id, ind_col.key_ordinal";
 
-            ObjectNameParser tableNameParser = new ObjectNameParser(tableName);
-            DmTable dmTable = new DmTable(tableNameParser.ObjectNameNormalized);
-            using (SqlCommand sqlCommand = new SqlCommand(commandColumn, connection, transaction))
+            var tableNameNormalized = ParserName.Parse(tableName).Unquoted().Normalized().ToString();
+            var tableNameString = ParserName.Parse(tableName).ToString();
+
+            var dmTable = new DmTable(tableNameNormalized);
+            using (var sqlCommand = new SqlCommand(commandColumn, connection, transaction))
             {
-                sqlCommand.Parameters.AddWithValue("@tableName", tableNameParser.ObjectName);
+                sqlCommand.Parameters.AddWithValue("@tableName", tableNameString);
 
                 using (var reader = sqlCommand.ExecuteReader())
                 {
@@ -80,11 +84,13 @@ namespace Dotmim.Sync.SqlServer
                                     INNER JOIN sys.foreign_key_columns AS fc ON f.OBJECT_ID = fc.constraint_object_id
                                     WHERE OBJECT_NAME(f.referenced_object_id) = @tableName";
 
-            ObjectNameParser tableNameParser = new ObjectNameParser(tableName);
-            DmTable dmTable = new DmTable(tableNameParser.ObjectNameNormalized);
-            using (SqlCommand sqlCommand = new SqlCommand(commandRelations, connection, transaction))
+            var tableNameNormalized = ParserName.Parse(tableName).Unquoted().Normalized().ToString();
+            var tableNameString = ParserName.Parse(tableName).ToString();
+
+            var dmTable = new DmTable(tableNameNormalized);
+            using (var sqlCommand = new SqlCommand(commandRelations, connection, transaction))
             {
-                sqlCommand.Parameters.AddWithValue("@tableName", tableNameParser.ObjectName);
+                sqlCommand.Parameters.AddWithValue("@tableName", tableNameString);
 
                 using (var reader = sqlCommand.ExecuteReader())
                 {
@@ -98,12 +104,12 @@ namespace Dotmim.Sync.SqlServer
 
         public static void DropProcedureIfExists(SqlConnection connection, SqlTransaction transaction, int commandTimout, string quotedProcedureName)
         {
-            ObjectNameParser objectNameParser = new ObjectNameParser(quotedProcedureName);
-            using (SqlCommand sqlCommand = new SqlCommand(string.Format(CultureInfo.InvariantCulture, "IF EXISTS (SELECT * FROM sys.procedures p JOIN sys.schemas s ON s.schema_id = p.schema_id WHERE p.name = @procName AND s.name = @schemaName) DROP PROCEDURE {0}", quotedProcedureName), connection, transaction))
+            var procName = ParserName.Parse(quotedProcedureName).ToString();
+            using (var sqlCommand = new SqlCommand(string.Format(CultureInfo.InvariantCulture, "IF EXISTS (SELECT * FROM sys.procedures p JOIN sys.schemas s ON s.schema_id = p.schema_id WHERE p.name = @procName AND s.name = @schemaName) DROP PROCEDURE {0}", quotedProcedureName), connection, transaction))
             {
                 sqlCommand.CommandTimeout = commandTimout;
-                sqlCommand.Parameters.AddWithValue("@procName", objectNameParser.ObjectName);
-                sqlCommand.Parameters.AddWithValue("@schemaName", SqlManagementUtils.GetUnquotedSqlSchemaName(objectNameParser));
+                sqlCommand.Parameters.AddWithValue("@procName", procName);
+                sqlCommand.Parameters.AddWithValue("@schemaName", SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(quotedProcedureName)));
                 sqlCommand.ExecuteNonQuery();
             }
         }
@@ -115,38 +121,40 @@ namespace Dotmim.Sync.SqlServer
 
         public static void DropTableIfExists(SqlConnection connection, SqlTransaction transaction, int commandTimeout, string quotedTableName)
         {
-            ObjectNameParser objectNameParser = new ObjectNameParser(quotedTableName);
-            using (SqlCommand sqlCommand = new SqlCommand(string.Format(CultureInfo.InvariantCulture, "IF EXISTS (SELECT t.name FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @tableName AND s.name = @schemaName) DROP TABLE {0}", quotedTableName), connection, transaction))
+            var tableName = ParserName.Parse(quotedTableName).ToString();
+            using (var sqlCommand = new SqlCommand(string.Format(CultureInfo.InvariantCulture, "IF EXISTS (SELECT t.name FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @tableName AND s.name = @schemaName) DROP TABLE {0}", quotedTableName), connection, transaction))
             {
                 sqlCommand.CommandTimeout = commandTimeout;
-                sqlCommand.Parameters.AddWithValue("@tableName", objectNameParser.ObjectName);
-                sqlCommand.Parameters.AddWithValue("@schemaName", SqlManagementUtils.GetUnquotedSqlSchemaName(objectNameParser));
+                sqlCommand.Parameters.AddWithValue("@tableName", tableName);
+                sqlCommand.Parameters.AddWithValue("@schemaName", SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(quotedTableName)));
                 sqlCommand.ExecuteNonQuery();
             }
         }
 
         public static string DropTableIfExistsScriptText(string quotedTableName)
         {
-            ObjectNameParser objectNameParser = new ObjectNameParser(quotedTableName);
-            object[] escapedString = new object[] { objectNameParser.ObjectName, SqlManagementUtils.GetUnquotedSqlSchemaName(objectNameParser), quotedTableName };
+            var tableName = ParserName.Parse(quotedTableName).ToString();
+
+            object[] escapedString = new object[] { tableName, SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(quotedTableName)), quotedTableName };
             return string.Format(CultureInfo.InvariantCulture, "IF EXISTS (SELECT t.name FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = N'{0}' AND s.name = N'{1}') DROP TABLE {2}\n", escapedString);
         }
 
         public static string DropTableScriptText(string quotedTableName)
         {
-            CultureInfo invariantCulture = CultureInfo.InvariantCulture;
+            var invariantCulture = CultureInfo.InvariantCulture;
             object[] objArray = new object[] { quotedTableName };
             return string.Format(invariantCulture, "DROP TABLE {0};\n", objArray);
         }
 
         public static void DropTriggerIfExists(SqlConnection connection, SqlTransaction transaction, int commandTimeout, string quotedTriggerName)
         {
-            ObjectNameParser objectNameParser = new ObjectNameParser(quotedTriggerName);
-            using (SqlCommand sqlCommand = new SqlCommand(string.Format(CultureInfo.InvariantCulture, "IF EXISTS (SELECT tr.name FROM sys.triggers tr JOIN sys.tables t ON tr.parent_id = t.object_id JOIN sys.schemas s ON t.schema_id = s.schema_id WHERE tr.name = @triggerName and s.name = @schemaName) DROP TRIGGER {0}", quotedTriggerName), connection, transaction))
+            var triggerName = ParserName.Parse(quotedTriggerName).ToString();
+
+            using (var sqlCommand = new SqlCommand(string.Format(CultureInfo.InvariantCulture, "IF EXISTS (SELECT tr.name FROM sys.triggers tr JOIN sys.tables t ON tr.parent_id = t.object_id JOIN sys.schemas s ON t.schema_id = s.schema_id WHERE tr.name = @triggerName and s.name = @schemaName) DROP TRIGGER {0}", quotedTriggerName), connection, transaction))
             {
                 sqlCommand.CommandTimeout = commandTimeout;
-                sqlCommand.Parameters.AddWithValue("@triggerName", objectNameParser.ObjectName);
-                sqlCommand.Parameters.AddWithValue("@schemaName", SqlManagementUtils.GetUnquotedSqlSchemaName(objectNameParser));
+                sqlCommand.Parameters.AddWithValue("@triggerName", triggerName);
+                sqlCommand.Parameters.AddWithValue("@schemaName", SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(quotedTriggerName)));
                 sqlCommand.ExecuteNonQuery();
             }
         }
@@ -159,12 +167,13 @@ namespace Dotmim.Sync.SqlServer
 
         public static void DropTypeIfExists(SqlConnection connection, SqlTransaction transaction, int commandTimeout, string quotedTypeName)
         {
-            ObjectNameParser objectNameParser = new ObjectNameParser(quotedTypeName);
-            using (SqlCommand sqlCommand = new SqlCommand(string.Format(CultureInfo.InvariantCulture, "IF EXISTS (SELECT * FROM sys.types t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @typeName AND s.name = @schemaName) DROP TYPE {0}", quotedTypeName), connection, transaction))
+            var typeName = ParserName.Parse(quotedTypeName).ToString();
+
+            using (var sqlCommand = new SqlCommand(string.Format(CultureInfo.InvariantCulture, "IF EXISTS (SELECT * FROM sys.types t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @typeName AND s.name = @schemaName) DROP TYPE {0}", quotedTypeName), connection, transaction))
             {
                 sqlCommand.CommandTimeout = commandTimeout;
-                sqlCommand.Parameters.AddWithValue("@typeName", objectNameParser.ObjectName);
-                sqlCommand.Parameters.AddWithValue("@schemaName", SqlManagementUtils.GetUnquotedSqlSchemaName(objectNameParser));
+                sqlCommand.Parameters.AddWithValue("@typeName", typeName);
+                sqlCommand.Parameters.AddWithValue("@schemaName", SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(quotedTypeName)));
                 sqlCommand.ExecuteNonQuery();
             }
         }
@@ -185,7 +194,7 @@ namespace Dotmim.Sync.SqlServer
             return empty;
         }
 
-        public static string GetUnquotedSqlSchemaName(ObjectNameParser parser)
+        public static string GetUnquotedSqlSchemaName(ParserName parser)
         {
             if (string.IsNullOrEmpty(parser.SchemaName))
                 return "dbo";
@@ -201,11 +210,12 @@ namespace Dotmim.Sync.SqlServer
         public static bool ProcedureExists(SqlConnection connection, SqlTransaction transaction, string quotedProcedureName)
         {
             bool flag;
-            ObjectNameParser objectNameParser = new ObjectNameParser(quotedProcedureName);
-            using (SqlCommand sqlCommand = new SqlCommand("IF EXISTS (SELECT * FROM sys.procedures p JOIN sys.schemas s ON s.schema_id = p.schema_id WHERE p.name = @procName AND s.name = @schemaName) SELECT 1 ELSE SELECT 0", connection))
+            var procedureName = ParserName.Parse(quotedProcedureName).ToString();
+
+            using (var sqlCommand = new SqlCommand("IF EXISTS (SELECT * FROM sys.procedures p JOIN sys.schemas s ON s.schema_id = p.schema_id WHERE p.name = @procName AND s.name = @schemaName) SELECT 1 ELSE SELECT 0", connection))
             {
-                sqlCommand.Parameters.AddWithValue("@procName", objectNameParser.ObjectName);
-                sqlCommand.Parameters.AddWithValue("@schemaName", SqlManagementUtils.GetUnquotedSqlSchemaName(objectNameParser));
+                sqlCommand.Parameters.AddWithValue("@procName", procedureName);
+                sqlCommand.Parameters.AddWithValue("@schemaName", SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(quotedProcedureName)));
                 if (transaction != null)
                 {
                     sqlCommand.Transaction = transaction;
@@ -218,7 +228,8 @@ namespace Dotmim.Sync.SqlServer
         public static bool TableExists(SqlConnection connection, SqlTransaction transaction, string quotedTableName)
         {
             bool tableExist;
-            ObjectNameParser objectNameParser = new ObjectNameParser(quotedTableName);
+            var tableName = ParserName.Parse(quotedTableName).ToString();
+
             using (DbCommand dbCommand = connection.CreateCommand())
             {
                 dbCommand.CommandText = "IF EXISTS (SELECT t.name FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @tableName AND s.name = @schemaName) SELECT 1 ELSE SELECT 0";
@@ -226,14 +237,14 @@ namespace Dotmim.Sync.SqlServer
                 SqlParameter sqlParameter = new SqlParameter()
                 {
                     ParameterName = "@tableName",
-                    Value = objectNameParser.ObjectName
+                    Value = tableName
                 };
                 dbCommand.Parameters.Add(sqlParameter);
 
                 sqlParameter = new SqlParameter()
                 {
                     ParameterName = "@schemaName",
-                    Value = SqlManagementUtils.GetUnquotedSqlSchemaName(objectNameParser)
+                    Value = SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(quotedTableName))
                 };
                 dbCommand.Parameters.Add(sqlParameter);
 
@@ -270,11 +281,12 @@ namespace Dotmim.Sync.SqlServer
         public static bool TriggerExists(SqlConnection connection, SqlTransaction transaction, string quotedTriggerName)
         {
             bool triggerExist;
-            ObjectNameParser objectNameParser = new ObjectNameParser(quotedTriggerName);
-            using (SqlCommand sqlCommand = new SqlCommand("IF EXISTS (SELECT tr.name FROM sys.triggers tr JOIN sys.tables t ON tr.parent_id = t.object_id JOIN sys.schemas s ON t.schema_id = s.schema_id WHERE tr.name = @triggerName and s.name = @schemaName) SELECT 1 ELSE SELECT 0", connection))
+            var triggerName = ParserName.Parse(quotedTriggerName).ToString();
+
+            using (var sqlCommand = new SqlCommand("IF EXISTS (SELECT tr.name FROM sys.triggers tr JOIN sys.tables t ON tr.parent_id = t.object_id JOIN sys.schemas s ON t.schema_id = s.schema_id WHERE tr.name = @triggerName and s.name = @schemaName) SELECT 1 ELSE SELECT 0", connection))
             {
-                sqlCommand.Parameters.AddWithValue("@triggerName", objectNameParser.ObjectName);
-                sqlCommand.Parameters.AddWithValue("@schemaName", SqlManagementUtils.GetUnquotedSqlSchemaName(objectNameParser));
+                sqlCommand.Parameters.AddWithValue("@triggerName", triggerName);
+                sqlCommand.Parameters.AddWithValue("@schemaName", SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(quotedTriggerName)));
                 if (transaction != null)
                     sqlCommand.Transaction = transaction;
 
@@ -286,11 +298,13 @@ namespace Dotmim.Sync.SqlServer
         public static bool TypeExists(SqlConnection connection, SqlTransaction transaction, string quotedTypeName)
         {
             bool typeExist;
-            ObjectNameParser objectNameParser = new ObjectNameParser(quotedTypeName);
+
+            var columnName = ParserName.Parse(quotedTypeName).ToString();
+
             using (SqlCommand sqlCommand = new SqlCommand("IF EXISTS (SELECT * FROM sys.types t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @typeName AND s.name = @schemaName) SELECT 1 ELSE SELECT 0", connection))
             {
-                sqlCommand.Parameters.AddWithValue("@typeName", objectNameParser.ObjectName);
-                sqlCommand.Parameters.AddWithValue("@schemaName", SqlManagementUtils.GetUnquotedSqlSchemaName(objectNameParser));
+                sqlCommand.Parameters.AddWithValue("@typeName", columnName);
+                sqlCommand.Parameters.AddWithValue("@schemaName", SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(quotedTypeName)));
                 if (transaction != null)
                     sqlCommand.Transaction = transaction;
 
@@ -299,48 +313,23 @@ namespace Dotmim.Sync.SqlServer
             return typeExist;
         }
 
-        internal static string GetQuotedPrefixedName(string prefix, string objectString, string schemaOverride)
-        {
-            ObjectNameParser objectNameParser = new ObjectNameParser(objectString);
-
-            string empty = string.Empty;
-            if (!string.IsNullOrEmpty(schemaOverride))
-                empty = (new ObjectNameParser(schemaOverride)).QuotedObjectName;
-
-            string strSchema = (string.IsNullOrEmpty(schemaOverride) ? objectNameParser.QuotedSchemaName : empty);
-
-            string strPrefix = (string.IsNullOrEmpty(prefix) ? string.Empty : string.Concat(prefix, "_"));
-
-            if (!string.IsNullOrEmpty(strSchema))
-            {
-                string[] objectName = new string[] { strSchema, ".[", strPrefix, objectNameParser.ObjectName, "]" };
-                objectNameParser = new ObjectNameParser(string.Concat(objectName));
-            }
-            else
-            {
-                ObjectNameParser objectNameParser1 = new ObjectNameParser(string.Concat("[", strPrefix, objectNameParser.ObjectName, "]"));
-                objectNameParser = objectNameParser1;
-            }
-            return objectNameParser.FullQuotedString;
-        }
-
         internal static string JoinTwoTablesOnClause(IEnumerable<DmColumn> columns, string leftName, string rightName)
         {
-            StringBuilder stringBuilder = new StringBuilder();
+            var stringBuilder = new StringBuilder();
             string strRightName = (string.IsNullOrEmpty(rightName) ? string.Empty : string.Concat(rightName, "."));
             string strLeftName = (string.IsNullOrEmpty(leftName) ? string.Empty : string.Concat(leftName, "."));
 
             string str = "";
-            foreach (DmColumn column in columns)
+            foreach (var column in columns)
             {
-                ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
+                var quotedColumn = ParserName.Parse(column).Quoted().ToString() ;
 
                 stringBuilder.Append(str);
                 stringBuilder.Append(strLeftName);
-                stringBuilder.Append(quotedColumn.FullQuotedString);
+                stringBuilder.Append(quotedColumn);
                 stringBuilder.Append(" = ");
                 stringBuilder.Append(strRightName);
-                stringBuilder.Append(quotedColumn.FullQuotedString);
+                stringBuilder.Append(quotedColumn);
 
                 str = " AND ";
             }
@@ -354,13 +343,14 @@ namespace Dotmim.Sync.SqlServer
             string str1 = "";
             foreach (DmColumn column in columns)
             {
-                ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
+                var quotedColumn = ParserName.Parse(column).Quoted().ToString();
+                var unquotedColumn = ParserName.Parse(column).Unquoted().Normalized().ToString();
 
                 stringBuilder.Append(str1);
                 stringBuilder.Append(strFromPrefix);
-                stringBuilder.Append(quotedColumn.FullQuotedString);
+                stringBuilder.Append(quotedColumn);
                 stringBuilder.Append(" = ");
-                stringBuilder.Append($"@{column.ColumnName}");
+                stringBuilder.Append($"@{unquotedColumn}");
                 str1 = " AND ";
             }
             return stringBuilder.ToString();
@@ -373,8 +363,10 @@ namespace Dotmim.Sync.SqlServer
             string strSeparator = "";
             foreach (DmColumn mutableColumn in table.MutableColumnsAndNotAutoInc)
             {
-                ObjectNameParser quotedColumn = new ObjectNameParser(mutableColumn.ColumnName);
-                stringBuilder.AppendLine($"{strSeparator} {strFromPrefix}{quotedColumn.FullQuotedString} = @{quotedColumn.FullUnquotedString}");
+                var quotedColumn = ParserName.Parse(mutableColumn).Quoted().ToString();
+                var unquotedColumn = ParserName.Parse(mutableColumn).Unquoted().Normalized().ToString();
+
+                stringBuilder.AppendLine($"{strSeparator} {strFromPrefix}{quotedColumn} = @{unquotedColumn}");
                 strSeparator = ", ";
             }
             return stringBuilder.ToString();

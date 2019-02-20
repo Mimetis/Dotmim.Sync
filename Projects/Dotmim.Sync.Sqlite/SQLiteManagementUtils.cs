@@ -13,11 +13,11 @@ namespace Dotmim.Sync.Sqlite
 
         public static void DropTableIfExists(SqliteConnection connection, SqliteTransaction transaction, string quotedTableName)
         {
-            ObjectNameParser objectNameParser = new ObjectNameParser(quotedTableName);
+            var tableName = ParserName.Parse(quotedTableName).ToString();
 
             using (DbCommand dbCommand = connection.CreateCommand())
             {
-                dbCommand.CommandText = $"drop table if exist {objectNameParser.ObjectName}";
+                dbCommand.CommandText = $"drop table if exist {tableName}";
                 if (transaction != null)
                     dbCommand.Transaction = transaction;
 
@@ -27,25 +27,23 @@ namespace Dotmim.Sync.Sqlite
 
         public static string DropTableIfExistsScriptText(string quotedTableName)
         {
-            ObjectNameParser objectNameParser = new ObjectNameParser(quotedTableName);
-
-            return $"drop table if exist {objectNameParser.ObjectName}";
+            var tableName = ParserName.Parse(quotedTableName).ToString();
+            return $"drop table if exist {tableName}";
         }
 
         public static string DropTableScriptText(string quotedTableName)
         {
-            ObjectNameParser objectNameParser = new ObjectNameParser(quotedTableName);
-
-            return $"drop table {objectNameParser.ObjectName}";
+            var tableName = ParserName.Parse(quotedTableName).ToString();
+            return $"drop table {tableName}";
         }
 
         public static void DropTriggerIfExists(SqliteConnection connection, SqliteTransaction transaction, string quotedTriggerName)
         {
-            ObjectNameParser objectNameParser = new ObjectNameParser(quotedTriggerName);
+            var triggerName = ParserName.Parse(quotedTriggerName).ToString();
 
             using (DbCommand dbCommand = connection.CreateCommand())
             {
-                dbCommand.CommandText = $"drop trigger if exist {objectNameParser.ObjectName}";
+                dbCommand.CommandText = $"drop trigger if exist {triggerName}";
                 if (transaction != null)
                     dbCommand.Transaction = transaction;
              
@@ -55,23 +53,24 @@ namespace Dotmim.Sync.Sqlite
 
         public static string DropTriggerScriptText(string quotedTriggerName)
         {
-            ObjectNameParser objectNameParser = new ObjectNameParser(quotedTriggerName);
-            return $"drop trigger {objectNameParser.ObjectName}";
+            var triggerName = ParserName.Parse(quotedTriggerName).ToString();
+            return $"drop trigger {triggerName}";
         }
 
 
-        public static bool TableExists(SqliteConnection connection, SqliteTransaction transaction, string quotedTableName)
+        public static bool TableExists(SqliteConnection connection, SqliteTransaction transaction, ParserName tableName)
         {
             bool tableExist;
-            ObjectNameParser objectNameParser = new ObjectNameParser(quotedTableName);
+            var quotedTableName = tableName.Unquoted().ToString();
+
             using (DbCommand dbCommand = connection.CreateCommand())
             {
                 dbCommand.CommandText = "select count(*) from sqlite_master where name = @tableName AND type='table'";
 
-                SqliteParameter SqliteParameter = new SqliteParameter()
+                var SqliteParameter = new SqliteParameter()
                 {
                     ParameterName = "@tableName",
-                    Value = objectNameParser.ObjectName
+                    Value = quotedTableName
                 };
                 dbCommand.Parameters.Add(SqliteParameter);
 
@@ -86,14 +85,13 @@ namespace Dotmim.Sync.Sqlite
         public static bool TriggerExists(SqliteConnection connection, SqliteTransaction transaction, string quotedTriggerName)
         {
             bool triggerExist;
-            ObjectNameParser objectNameParser = new ObjectNameParser(quotedTriggerName);
+            var triggerName = ParserName.Parse(quotedTriggerName).ToString();
 
-
-            using (SqliteCommand dbCommand = connection.CreateCommand())
+            using (var dbCommand = connection.CreateCommand())
             {
                 dbCommand.CommandText = "select count(*) from sqlite_master where name = @triggerName AND type='trigger'";
 
-                dbCommand.Parameters.AddWithValue("@triggerName", objectNameParser.ObjectName);
+                dbCommand.Parameters.AddWithValue("@triggerName", triggerName);
 
                 if (transaction != null)
                     dbCommand.Transaction = transaction;
@@ -105,21 +103,21 @@ namespace Dotmim.Sync.Sqlite
 
         internal static string JoinTwoTablesOnClause(IEnumerable<DmColumn> columns, string leftName, string rightName)
         {
-            StringBuilder stringBuilder = new StringBuilder();
+            var stringBuilder = new StringBuilder();
             string strRightName = (string.IsNullOrEmpty(rightName) ? string.Empty : string.Concat(rightName, "."));
             string strLeftName = (string.IsNullOrEmpty(leftName) ? string.Empty : string.Concat(leftName, "."));
 
             string str = "";
-            foreach (DmColumn column in columns)
+            foreach (var column in columns)
             {
-                ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
+                var quotedColumn = ParserName.Parse(column).Quoted().ToString();
 
                 stringBuilder.Append(str);
                 stringBuilder.Append(strLeftName);
-                stringBuilder.Append(quotedColumn.FullQuotedString);
+                stringBuilder.Append(quotedColumn);
                 stringBuilder.Append(" = ");
                 stringBuilder.Append(strRightName);
-                stringBuilder.Append(quotedColumn.FullQuotedString);
+                stringBuilder.Append(quotedColumn);
 
                 str = " AND ";
             }
@@ -128,18 +126,19 @@ namespace Dotmim.Sync.Sqlite
 
         internal static string WhereColumnAndParameters(IEnumerable<DmColumn> columns, string fromPrefix)
         {
-            StringBuilder stringBuilder = new StringBuilder();
+            var stringBuilder = new StringBuilder();
             string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));
             string str1 = "";
-            foreach (DmColumn column in columns)
+            foreach (var column in columns)
             {
-                ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
+                var quotedColumn = ParserName.Parse(column).Quoted().ToString();
+                var unquotedColumn = ParserName.Parse(column).Unquoted().Normalized().ToString();
 
                 stringBuilder.Append(str1);
                 stringBuilder.Append(strFromPrefix);
-                stringBuilder.Append(quotedColumn.FullQuotedString);
+                stringBuilder.Append(quotedColumn);
                 stringBuilder.Append(" = ");
-                stringBuilder.Append($"@{column.ColumnName}");
+                stringBuilder.Append($"@{unquotedColumn}");
                 str1 = " AND ";
             }
             return stringBuilder.ToString();
@@ -147,13 +146,15 @@ namespace Dotmim.Sync.Sqlite
 
         internal static string CommaSeparatedUpdateFromParameters(DmTable table, string fromPrefix = "")
         {
-            StringBuilder stringBuilder = new StringBuilder();
+            var stringBuilder = new StringBuilder();
             string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));
             string strSeparator = "";
-            foreach (DmColumn mutableColumn in table.MutableColumns)
+            foreach (var mutableColumn in table.MutableColumns)
             {
-                ObjectNameParser quotedColumn = new ObjectNameParser(mutableColumn.ColumnName);
-                stringBuilder.AppendLine($"{strSeparator} {strFromPrefix}{quotedColumn.FullQuotedString} = @{quotedColumn.FullUnquotedString}");
+                var quotedColumn = ParserName.Parse(mutableColumn).Quoted().ToString();
+                var unquotedColumn = ParserName.Parse(mutableColumn).Unquoted().Normalized().ToString();
+
+                stringBuilder.AppendLine($"{strSeparator} {strFromPrefix}{quotedColumn} = @{unquotedColumn}");
                 strSeparator = ", ";
             }
             return stringBuilder.ToString();

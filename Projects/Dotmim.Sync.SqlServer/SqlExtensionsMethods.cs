@@ -15,7 +15,7 @@ namespace Dotmim.Sync.SqlServer
         {
             if (cmd == null) throw new ArgumentNullException("SqlCommand");
 
-            var textParser = new ObjectNameParser(cmd.CommandText);
+            var textParser = ParserName.Parse(cmd.CommandText);
 
             string schemaName = textParser.SchemaName;
             string spName = textParser.ObjectName;

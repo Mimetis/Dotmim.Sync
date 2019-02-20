@@ -472,9 +472,9 @@ namespace Dotmim.Sync.Scope
         /// <summary>Initializes a new instance of the <see cref="T:Microsoft.Synchronization.Data.DbSyncColumnDescription" /> class for a column that has the specified name and data type.</summary>
         public ScopeConfigDataColumn(string columnName, string type)
         {
-            ObjectNameParser objectNameParser = new ObjectNameParser(columnName);
-            this._unquotedName = objectNameParser.ObjectName;
-            this._quotedName = objectNameParser.QuotedObjectName;
+            var objectNameParser = ParserName.Parse(columnName);
+            this._unquotedName = objectNameParser.Unquoted().Normalized().ToString();
+            this._quotedName = objectNameParser.Quoted().ToString();
             this.Type = type;
         }
 
@@ -493,7 +493,7 @@ namespace Dotmim.Sync.Scope
             }
         }
 
-       
+
         /// <summary>Returns a string that represents the <see cref="T:Microsoft.Synchronization.Data.DbSyncColumnDescription" /> object.</summary>
         /// <returns>A string that represents the <see cref="T:Microsoft.Synchronization.Data.DbSyncColumnDescription" /> object.</returns>
         public override string ToString()

@@ -32,12 +32,6 @@ namespace Dotmim.Sync.Messages
         public ConflictResolutionPolicy Policy { get; set; }
 
         ///// <summary>
-        ///// Gets or sets the boolean indicating if we can use bulk operations
-        ///// </summary>
-        //[JsonIgnore]
-        //public bool UseBulkOperations { get; set; }
-
-        ///// <summary>
         ///// Gets or Sets if we should cleaning tmp dir files after sync.
         ///// </summary>
         //[JsonIgnore]
