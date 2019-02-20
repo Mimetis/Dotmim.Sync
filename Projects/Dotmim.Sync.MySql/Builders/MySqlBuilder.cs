@@ -20,10 +20,11 @@ namespace Dotmim.Sync.MySql
             sqlObjectNames = new MySqlObjectNames(tableDescription);
         }
 
-        internal static (ObjectNameParser tableName, ObjectNameParser trackingName) GetParsers(DmTable tableDescription)
+        internal static (ParserName tableName, ParserName trackingName) GetParsers(DmTable tableDescription)
         {
             string tableAndPrefixName = tableDescription.TableName;
-            var originalTableName = new ObjectNameParser(tableAndPrefixName, "`", "`");
+
+            var originalTableName = ParserName.Parse(tableDescription, "`");
 
             var pref = tableDescription.TrackingTablesPrefix != null ? tableDescription.TrackingTablesPrefix : "";
             var suf = tableDescription.TrackingTablesSuffix != null ? tableDescription.TrackingTablesSuffix : "";
@@ -33,14 +34,14 @@ namespace Dotmim.Sync.MySql
             if (string.IsNullOrEmpty(pref) && string.IsNullOrEmpty(suf))
                 suf = "_tracking";
 
-            var trackingTableName = new ObjectNameParser($"{pref}{tableAndPrefixName}{suf}", "`", "`");
+            var trackingTableName = ParserName.Parse($"{pref}{tableAndPrefixName}{suf}", "`");
 
             return (originalTableName, trackingTableName);
         }
         public static string WrapScriptTextWithComments(string commandText, string commentText)
         {
-            StringBuilder stringBuilder = new StringBuilder();
-            StringBuilder stringBuilder1 = new StringBuilder("\n");
+            var stringBuilder = new StringBuilder();
+            var stringBuilder1 = new StringBuilder("\n");
 
             string str = stringBuilder1.ToString();
             stringBuilder.AppendLine("DELIMITER $$ ");

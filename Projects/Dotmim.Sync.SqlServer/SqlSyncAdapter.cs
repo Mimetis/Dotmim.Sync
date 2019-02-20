@@ -1,5 +1,6 @@
 ﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Data;
+using Dotmim.Sync.Filter;
 using Dotmim.Sync.SqlServer.Manager;
 using Microsoft.SqlServer.Server;
 using System;
@@ -406,18 +407,18 @@ namespace Dotmim.Sync.SqlServer.Builders
             return false;
         }
 
-        public override DbCommand GetCommand(DbCommandType nameType, IEnumerable<string> additionals = null)
+        public override DbCommand GetCommand(DbCommandType nameType, IEnumerable<FilterClause> filters = null)
         {
             var command = this.Connection.CreateCommand();
 
             string text;
-            if (additionals != null)
-                text = this.sqlObjectNames.GetCommandName(nameType, additionals);
+            bool isStoredProc;
+            if (filters != null)
+                (text, isStoredProc) = this.sqlObjectNames.GetCommandName(nameType, filters);
             else
-                text = this.sqlObjectNames.GetCommandName(nameType);
+                (text, isStoredProc) = this.sqlObjectNames.GetCommandName(nameType);
 
-            // on Sql Server, everything is Stored Procedure
-            command.CommandType = CommandType.StoredProcedure;
+            command.CommandType = isStoredProc ? CommandType.StoredProcedure : CommandType.Text;
             command.CommandText = text;
             command.Connection = Connection;
 
@@ -430,7 +431,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         /// <summary>
         /// Set a stored procedure parameters
         /// </summary>
-        public override void SetCommandParameters(DbCommandType commandType, DbCommand command)
+        public override void SetCommandParameters(DbCommandType commandType, DbCommand command, IEnumerable<FilterClause> filters = null)
         {
             if (command == null)
                 return;
@@ -448,11 +449,11 @@ namespace Dotmim.Sync.SqlServer.Builders
                 if (this.transaction != null)
                     command.Transaction = this.transaction;
 
-                var textParser = new ObjectNameParser(command.CommandText);
+                var textParser = ParserName.Parse(command.CommandText).Unquoted().Normalized().ToString();
 
-                if (derivingParameters.ContainsKey(textParser.FullUnquotedString))
+                if (derivingParameters.ContainsKey(textParser))
                 {
-                    foreach (var p in derivingParameters[textParser.FullUnquotedString])
+                    foreach (var p in derivingParameters[textParser])
                         command.Parameters.Add(p.Clone());
                 }
                 else
@@ -463,7 +464,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                     foreach (var p in parameters)
                         arrayParameters.Add(p.Clone());
 
-                    derivingParameters.TryAdd(textParser.FullUnquotedString, arrayParameters);
+                    derivingParameters.TryAdd(textParser, arrayParameters);
                 }
 
                 if (command.Parameters.Count > 0 && command.Parameters[0].ParameterName == "@RETURN_VALUE")

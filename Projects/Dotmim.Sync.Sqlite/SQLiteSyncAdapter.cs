@@ -6,6 +6,7 @@ using System.Data.Common;
 using System.Data;
 using Dotmim.Sync.Builders;
 using Microsoft.Data.Sqlite;
+using Dotmim.Sync.Filter;
 
 namespace Dotmim.Sync.Sqlite
 {
@@ -48,13 +49,13 @@ namespace Dotmim.Sync.Sqlite
             return false;
         }
 
-        public override DbCommand GetCommand(DbCommandType commandType, IEnumerable<string> additionals = null)
+        public override DbCommand GetCommand(DbCommandType commandType, IEnumerable<FilterClause> filters = null)
         {
             var command = this.Connection.CreateCommand();
             string text;
 
-            if (additionals != null)
-                text = this.sqliteObjectNames.GetCommandName(commandType, additionals);
+            if (filters != null)
+                text = this.sqliteObjectNames.GetCommandName(commandType, filters);
             else
                 text = this.sqliteObjectNames.GetCommandName(commandType);
 
@@ -69,11 +70,12 @@ namespace Dotmim.Sync.Sqlite
             return command;
         }
 
-        public override void SetCommandParameters(DbCommandType commandType, DbCommand command)
+        public override void SetCommandParameters(DbCommandType commandType, DbCommand command, IEnumerable<FilterClause> filters = null)
         {
             switch (commandType)
             {
                 case DbCommandType.SelectChanges:
+                case DbCommandType.SelectChangesWitFilters:
                     this.SetSelecteChangesParameters(command);
                     break;
                 case DbCommandType.SelectRow:
@@ -127,9 +129,9 @@ namespace Dotmim.Sync.Sqlite
 
             foreach (DmColumn column in this.TableDescription.Columns.Where(c => !c.IsReadOnly))
             {
-                ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
+                var unquotedColumn = ParserName.Parse(column).Normalized().Unquoted().ToString();
                 p = command.CreateParameter();
-                p.ParameterName = $"@{quotedColumn.ObjectNameNormalized}";
+                p.ParameterName = $"@{unquotedColumn}";
                 p.DbType = GetValidDbType(column.DbType);
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
@@ -151,11 +153,11 @@ namespace Dotmim.Sync.Sqlite
         {
             DbParameter p;
 
-            foreach (DmColumn column in this.TableDescription.PrimaryKey.Columns.Where(c => !c.IsReadOnly))
+            foreach (var column in this.TableDescription.PrimaryKey.Columns.Where(c => !c.IsReadOnly))
             {
-                ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
+                var unquotedColumn = ParserName.Parse(column).Normalized().Unquoted().ToString();
                 p = command.CreateParameter();
-                p.ParameterName = $"@{quotedColumn.ObjectNameNormalized}";
+                p.ParameterName = $"@{unquotedColumn}";
                 p.DbType = GetValidDbType(column.DbType);
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
@@ -181,11 +183,12 @@ namespace Dotmim.Sync.Sqlite
         {
             DbParameter p;
 
-            foreach (DmColumn column in this.TableDescription.Columns.Where(c => !c.IsReadOnly))
+            foreach (var column in this.TableDescription.Columns.Where(c => !c.IsReadOnly))
             {
-                ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
+                var unquotedColumn = ParserName.Parse(column).Normalized().Unquoted().ToString();
+
                 p = command.CreateParameter();
-                p.ParameterName = $"@{quotedColumn.ObjectNameNormalized}";
+                p.ParameterName = $"@{unquotedColumn}";
                 p.DbType = GetValidDbType(column.DbType);
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
@@ -198,9 +201,9 @@ namespace Dotmim.Sync.Sqlite
 
             foreach (DmColumn column in this.TableDescription.PrimaryKey.Columns.Where(c => !c.IsReadOnly))
             {
-                ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
+                var unquotedColumn = ParserName.Parse(column).Normalized().Unquoted().ToString();
                 p = command.CreateParameter();
-                p.ParameterName = $"@{quotedColumn.ObjectNameNormalized}";
+                p.ParameterName = $"@{unquotedColumn}";
                 p.DbType = column.DbType;
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
@@ -236,11 +239,11 @@ namespace Dotmim.Sync.Sqlite
         {
             DbParameter p;
 
-            foreach (DmColumn column in this.TableDescription.PrimaryKey.Columns.Where(c => !c.IsReadOnly))
+            foreach (var column in this.TableDescription.PrimaryKey.Columns.Where(c => !c.IsReadOnly))
             {
-                ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
+                var unquotedColumn = ParserName.Parse(column).Normalized().Unquoted().ToString();
                 p = command.CreateParameter();
-                p.ParameterName = $"@{quotedColumn.ObjectNameNormalized}";
+                p.ParameterName = $"@{unquotedColumn}";
                 p.DbType = GetValidDbType(column.DbType);
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
@@ -261,11 +264,11 @@ namespace Dotmim.Sync.Sqlite
         {
             DbParameter p;
 
-            foreach (DmColumn column in this.TableDescription.PrimaryKey.Columns.Where(c => !c.IsReadOnly))
+            foreach (var column in this.TableDescription.PrimaryKey.Columns.Where(c => !c.IsReadOnly))
             {
-                ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
+                var unquotedColumn = ParserName.Parse(column).Normalized().Unquoted().ToString();
                 p = command.CreateParameter();
-                p.ParameterName = $"@{quotedColumn.ObjectNameNormalized}";
+                p.ParameterName = $"@{unquotedColumn}";
                 p.DbType = GetValidDbType(column.DbType);
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);

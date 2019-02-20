@@ -217,35 +217,36 @@ namespace Dotmim.Sync
 
                             if (this.CanBeServerProvider && context.Parameters != null && context.Parameters.Count > 0 && filters != null && filters.Count > 0)
                             {
-                                var filtersName = filters
-                                                .Where(f => f.TableName.Equals(tableDescription.TableName, StringComparison.InvariantCultureIgnoreCase))
-                                                .Select(f => f.ColumnName);
+                                var tableFilters = filters
+                                                .Where(f => f.TableName.Equals(tableDescription.TableName, StringComparison.InvariantCultureIgnoreCase));
 
-                                if (filtersName != null && filtersName.Count() > 0)
+                                if (tableFilters != null && tableFilters.Count() > 0)
                                 {
                                     dbCommandType = DbCommandType.SelectChangesWitFilters;
-                                    selectIncrementalChangesCommand = syncAdapter.GetCommand(dbCommandType, filtersName);
+                                    selectIncrementalChangesCommand = syncAdapter.GetCommand(dbCommandType, tableFilters);
+                                    if (selectIncrementalChangesCommand == null)
+                                        throw new Exception("Missing command 'SelectIncrementalChangesCommand'");
+                                    syncAdapter.SetCommandParameters(dbCommandType, selectIncrementalChangesCommand, tableFilters);
                                 }
                                 else
                                 {
                                     dbCommandType = DbCommandType.SelectChanges;
                                     selectIncrementalChangesCommand = syncAdapter.GetCommand(dbCommandType);
+                                    if (selectIncrementalChangesCommand == null)
+                                        throw new Exception("Missing command 'SelectIncrementalChangesCommand'");
+                                    syncAdapter.SetCommandParameters(dbCommandType, selectIncrementalChangesCommand);
                                 }
                             }
                             else
                             {
                                 dbCommandType = DbCommandType.SelectChanges;
                                 selectIncrementalChangesCommand = syncAdapter.GetCommand(dbCommandType);
+                                if (selectIncrementalChangesCommand == null)
+                                    throw new Exception("Missing command 'SelectIncrementalChangesCommand'");
+                                syncAdapter.SetCommandParameters(dbCommandType, selectIncrementalChangesCommand);
                             }
 
-                            if (selectIncrementalChangesCommand == null)
-                            {
-                                var exc = "Missing command 'SelectIncrementalChangesCommand' ";
-                                throw new Exception(exc);
-                            }
 
-                            // Deriving Parameters
-                            syncAdapter.SetCommandParameters(dbCommandType, selectIncrementalChangesCommand);
 
                             // Get a clone of the table with tracking columns
                             var dmTableChanges = this.BuildChangesTable(tableDescription.TableName, configTables);
@@ -255,7 +256,8 @@ namespace Dotmim.Sync
                             // Set filter parameters if any
                             if (this.CanBeServerProvider && context.Parameters != null && context.Parameters.Count > 0 && filters != null && filters.Count > 0)
                             {
-                                var tableFilters = filters.Where(f => f.TableName.Equals(tableDescription.TableName, StringComparison.InvariantCultureIgnoreCase)).ToList();
+                                var tableFilters = filters
+                                    .Where(f => f.TableName.Equals(tableDescription.TableName, StringComparison.InvariantCultureIgnoreCase)).ToList();
 
                                 if (tableFilters != null && tableFilters.Count > 0)
                                 {
@@ -455,35 +457,36 @@ namespace Dotmim.Sync
 
                             if (this.CanBeServerProvider && context.Parameters != null && context.Parameters.Count > 0 && filters != null && filters.Count > 0)
                             {
-                                var filtersName = filters
-                                                .Where(f => f.TableName.Equals(tableDescription.TableName, StringComparison.InvariantCultureIgnoreCase))
-                                                .Select(f => f.ColumnName);
+                                var tableFilters = filters
+                                                .Where(f => f.TableName.Equals(tableDescription.TableName, StringComparison.InvariantCultureIgnoreCase));
 
-                                if (filtersName != null && filtersName.Count() > 0)
+                                if (tableFilters != null && tableFilters.Count() > 0)
                                 {
                                     dbCommandType = DbCommandType.SelectChangesWitFilters;
-                                    selectIncrementalChangesCommand = syncAdapter.GetCommand(dbCommandType, filtersName);
+                                    selectIncrementalChangesCommand = syncAdapter.GetCommand(dbCommandType, tableFilters);
+                                    if (selectIncrementalChangesCommand == null)
+                                        throw new Exception("Missing command 'SelectIncrementalChangesCommand' ");
+                                    syncAdapter.SetCommandParameters(dbCommandType, selectIncrementalChangesCommand, tableFilters);
                                 }
                                 else
                                 {
                                     dbCommandType = DbCommandType.SelectChanges;
                                     selectIncrementalChangesCommand = syncAdapter.GetCommand(dbCommandType);
+                                    if (selectIncrementalChangesCommand == null)
+                                        throw new Exception("Missing command 'SelectIncrementalChangesCommand' ");
+                                    syncAdapter.SetCommandParameters(dbCommandType, selectIncrementalChangesCommand);
                                 }
                             }
                             else
                             {
                                 dbCommandType = DbCommandType.SelectChanges;
                                 selectIncrementalChangesCommand = syncAdapter.GetCommand(dbCommandType);
+                                if (selectIncrementalChangesCommand == null)
+                                    throw new Exception("Missing command 'SelectIncrementalChangesCommand' ");
+                                syncAdapter.SetCommandParameters(dbCommandType, selectIncrementalChangesCommand);
                             }
 
-                            // Deriving Parameters
-                            syncAdapter.SetCommandParameters(DbCommandType.SelectChanges, selectIncrementalChangesCommand);
 
-                            if (selectIncrementalChangesCommand == null)
-                            {
-                                var exc = "Missing command 'SelectIncrementalChangesCommand' ";
-                                throw new Exception(exc);
-                            }
 
                             dmTable = this.BuildChangesTable(tableDescription.TableName, configTables);
 

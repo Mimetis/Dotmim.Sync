@@ -11,13 +11,36 @@ First of all, you have to add all the filtered **tables** and the corresponding 
 This step is required on the **server** side, to be able to generate all required **stored procédures**.  
 
 In the `Filters` property, add a new filter, composed with **table** name and **column** name :  
-``` cs
-SyncConfiguration configuration = new SyncConfiguration(new[] { "ServiceTickets" });
+### TCP mode
 
+``` cs
 // Add a filter
-configuration.Filters.Add("ServiceTickets", "CustomerID");
+agent.SetConfiguration(c =>c.Filters.Add("Customer", "CustomerId"));
 
 ```
+
+### HTTP mode
+
+``` cs
+private WebProxyServerProvider webProxyServer;
+
+// Injected thanks to Dependency Injection
+public SyncController(WebProxyServerProvider proxy)
+{
+    webProxyServer = proxy;
+}
+
+[HttpPost]
+public async Task Post()
+{
+    // Get the underline local provider
+    var provider = webProxyServer.GetLocalProvider(this.HttpContext);
+    provider.SetConfiguration(c =>c.Filters.Add("Customer", "CustomerId"));
+    await webProxyServer.HandleRequestAsync(this.HttpContext);
+}
+
+```
+
 ## Client side configuration
 
 On each client, you will have to specify the **value** to provider fo filtering.  

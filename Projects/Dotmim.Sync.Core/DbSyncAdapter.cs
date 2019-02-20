@@ -12,6 +12,7 @@ using Dotmim.Sync.Builders;
 using System.Diagnostics;
 using System.ComponentModel;
 using System.Threading.Tasks;
+using Dotmim.Sync.Filter;
 
 namespace Dotmim.Sync
 {
@@ -48,12 +49,12 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets a command from the current adapter
         /// </summary>
-        public abstract DbCommand GetCommand(DbCommandType commandType, IEnumerable<string> additionals = null);
+        public abstract DbCommand GetCommand(DbCommandType commandType, IEnumerable<FilterClause> filters = null);
 
         /// <summary>
         /// Set parameters on a command
         /// </summary>
-        public abstract void SetCommandParameters(DbCommandType commandType, DbCommand command);
+        public abstract void SetCommandParameters(DbCommandType commandType, DbCommand command, IEnumerable<FilterClause> filters = null);
 
         /// <summary>
         /// Execute a batch command
@@ -647,6 +648,68 @@ namespace Dotmim.Sync
                 return rowCount > 0;
             }
         }
+
+
+        /// <summary>
+        /// Reset a table, deleting rows from table and tracking_table
+        /// </summary>
+        internal bool DisableConstraints()
+        {
+            using (var command = this.GetCommand(DbCommandType.DisableConstraints))
+            {
+                var alreadyOpened = Connection.State == ConnectionState.Open;
+
+                int rowCount = 0;
+                try
+                {
+                    if (!alreadyOpened)
+                        Connection.Open();
+
+                    if (Transaction != null)
+                        command.Transaction = Transaction;
+
+                    rowCount = command.ExecuteNonQuery();
+                }
+                finally
+                {
+                    if (!alreadyOpened)
+                        Connection.Close();
+                }
+                return rowCount > 0;
+            }
+        }
+
+
+        /// <summary>
+        /// Reset a table, deleting rows from table and tracking_table
+        /// </summary>
+        internal bool EnableConstraints()
+        {
+            using (var command = this.GetCommand(DbCommandType.EnableConstraints))
+            {
+                var alreadyOpened = Connection.State == ConnectionState.Open;
+
+                int rowCount = 0;
+                try
+                {
+                    if (!alreadyOpened)
+                        Connection.Open();
+
+                    if (Transaction != null)
+                        command.Transaction = Transaction;
+
+                    rowCount = command.ExecuteNonQuery();
+                }
+                finally
+                {
+                    if (!alreadyOpened)
+                        Connection.Close();
+                }
+                return rowCount > 0;
+            }
+        }
+
+
 
         /// <summary>
         /// Add common parameters which could be part of the command

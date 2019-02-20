@@ -214,7 +214,7 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw new SyncException(ex, SyncStage.SchemaApplying);
+                throw new SyncException(ex, SyncStage.SchemaReading);
             }
             finally
             {
@@ -230,7 +230,7 @@ namespace Dotmim.Sync
         {
             try
             {
-                context.SyncStage = SyncStage.SchemaApplying;
+                context.SyncStage = SyncStage.SchemaReading;
 
                 using (var connection = this.CreateConnection())
                 {
@@ -238,15 +238,12 @@ namespace Dotmim.Sync
 
                     using (var transaction = connection.BeginTransaction())
                     {
-                        // Progress
-                        context.SyncStage = SyncStage.SchemaApplying;
-
                         // if we dont have already read the tables || we want to overwrite the current config
                         if (message.Schema.HasTables && !message.Schema.HasColumns)
                             await this.ReadSchemaAsync(message.Schema, connection, transaction);
 
                         // Progress & Interceptor
-                        context.SyncStage = SyncStage.SchemaApplied;
+                        context.SyncStage = SyncStage.SchemaRead;
                         var schemaArgs = new SchemaArgs(context, message.Schema, connection, transaction);
                         this.ReportProgress(context, schemaArgs);
                         await this.InterceptAsync(schemaArgs);
@@ -265,7 +262,7 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw new SyncException(ex, SyncStage.SchemaApplying);
+                throw new SyncException(ex, SyncStage.SchemaReading);
             }
 
         }

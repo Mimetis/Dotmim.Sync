@@ -1,6 +1,7 @@
 ﻿using Dotmim.Sync.Data;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Data.Common;
 using System.Globalization;
 using System.Linq;
@@ -37,8 +38,8 @@ namespace Dotmim.Sync.Manager
             if (command.Parameters.Contains($":{parameterName}"))
                 return command.Parameters[$":{parameterName}"];
 
-            if (command.Parameters.Contains($"in{parameterName}"))
-                return command.Parameters[$"in{parameterName}"];
+            if (command.Parameters.Contains($"in_{parameterName}"))
+                return command.Parameters[$"in_{parameterName}"];
 
             if (!command.Parameters.Contains(parameterName))
                 return null;
@@ -51,9 +52,67 @@ namespace Dotmim.Sync.Manager
         /// </summary>
         public static void SetParameterValue(DbCommand command, string parameterName, object value)
         {
-            DbParameter parameter = GetParameter(command, parameterName);
+            var parameter = GetParameter(command, parameterName);
             if (parameter == null)
                 return;
+
+            if (value != null)
+            {
+                var columnType = parameter.DbType;
+                var valueType = value.GetType();
+
+                try
+                {
+
+
+                    if (columnType == DbType.Guid && valueType != typeof(Guid) && (value as string) != null)
+                        value = new Guid(value.ToString());
+                    else if (columnType == DbType.Int32 && valueType != typeof(int))
+                        value = Convert.ToInt32(value);
+                    else if (columnType == DbType.UInt32 && valueType != typeof(uint))
+                        value = Convert.ToUInt32(value);
+                    else if (columnType == DbType.UInt16 && valueType != typeof(short))
+                        value = Convert.ToInt16(value);
+                    else if (columnType == DbType.UInt16 && valueType != typeof(ushort))
+                        value = Convert.ToUInt16(value);
+                    else if (columnType == DbType.Int64 && valueType != typeof(long))
+                        value = Convert.ToInt64(value);
+                    else if (columnType == DbType.UInt64 && valueType != typeof(ulong))
+                        value = Convert.ToUInt64(value);
+                    else if (columnType == DbType.Byte && valueType != typeof(byte))
+                        value = Convert.ToByte(value);
+                    else if (columnType == DbType.Currency && valueType != typeof(Decimal))
+                        value = Convert.ToDecimal(value);
+                    else if (columnType == DbType.DateTime && valueType != typeof(DateTime))
+                        value = Convert.ToDateTime(value);
+                    else if (columnType == DbType.DateTime2 && valueType != typeof(DateTime))
+                        value = Convert.ToDateTime(value);
+                    else if (columnType == DbType.DateTimeOffset && valueType != typeof(DateTime))
+                        value = Convert.ToDateTime(value);
+                    else if (columnType == DbType.Decimal && valueType != typeof(decimal))
+                        value = Convert.ToDecimal(value);
+                    else if (columnType == DbType.Double && valueType != typeof(double))
+                        value = Convert.ToDouble(value);
+                    else if (columnType == DbType.SByte && valueType != typeof(sbyte))
+                        value = Convert.ToSByte(value);
+                    else if (columnType == DbType.VarNumeric && valueType != typeof(float))
+                        value = Convert.ToSingle(value);
+                    else if (columnType == DbType.String && valueType != typeof(string))
+                        value = Convert.ToString(value);
+                    else if (columnType == DbType.StringFixedLength && valueType != typeof(string))
+                        value = Convert.ToString(value);
+                    else if (columnType == DbType.AnsiString && valueType != typeof(string))
+                        value = Convert.ToString(value);
+                    else if (columnType == DbType.AnsiStringFixedLength && valueType != typeof(string))
+                        value = Convert.ToString(value);
+                    else if (columnType == DbType.Boolean && valueType != typeof(bool))
+                        value = Convert.ToBoolean(value);
+                }
+                catch
+                {
+                    // if execption, just try to set the value, directly
+                }
+            }
 
             parameter.Value = value ?? DBNull.Value;
         }
@@ -72,14 +131,12 @@ namespace Dotmim.Sync.Manager
         /// </summary>
         public static long ParseTimestamp(object obj)
         {
-            long timestamp = 0;
-
             if (obj == DBNull.Value)
                 return 0;
 
             if (obj is long || obj is int || obj is ulong || obj is uint || obj is decimal)
                 return Convert.ToInt64(obj, NumberFormatInfo.InvariantInfo);
-
+            long timestamp;
             if (obj is string str)
             {
                 long.TryParse(str, NumberStyles.HexNumber, CultureInfo.InvariantCulture.NumberFormat, out timestamp);
@@ -89,7 +146,7 @@ namespace Dotmim.Sync.Manager
             if (!(obj is byte[] numArray))
                 return 0;
 
-            StringBuilder stringBuilder = new StringBuilder();
+            var stringBuilder = new StringBuilder();
             for (int i = 0; i < numArray.Length; i++)
             {
                 string str1 = numArray[i].ToString("X", NumberFormatInfo.InvariantInfo);
@@ -101,6 +158,6 @@ namespace Dotmim.Sync.Manager
         }
 
 
- 
+
     }
 }
