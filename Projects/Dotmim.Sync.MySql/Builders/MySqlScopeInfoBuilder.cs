@@ -131,18 +131,21 @@ namespace Dotmim.Sync.MySql
 
                 using (DbDataReader reader = command.ExecuteReader())
                 {
-                    // read only the first one
-                    while (reader.Read())
+                    if (reader.HasRows)
                     {
-                        ScopeInfo scopeInfo = new ScopeInfo();
-                        scopeInfo.Name = reader["sync_scope_name"] as String;
-                        scopeInfo.Id = new Guid((String)reader["sync_scope_id"]);
-                        scopeInfo.Timestamp = MySqlManager.ParseTimestamp(reader["scope_timestamp"]);
-                        scopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value ? (DateTime?)reader["scope_last_sync"] : null;
-                        scopeInfo.LastSyncDuration = reader["scope_last_sync_duration"] != DBNull.Value ? (long)reader["scope_last_sync_duration"] : 0L;
-                        scopeInfo.LastSyncTimestamp = reader["scope_last_sync_timestamp"] != DBNull.Value ? (long)reader["scope_last_sync_timestamp"] : 0L;
-                        scopeInfo.IsLocal = reader.GetBoolean(reader.GetOrdinal("scope_is_local"));
-                        scopes.Add(scopeInfo);
+                        // read only the first one
+                        while (reader.Read())
+                        {
+                            ScopeInfo scopeInfo = new ScopeInfo();
+                            scopeInfo.Name = reader["sync_scope_name"] as String;
+                            scopeInfo.Id = new Guid((String)reader["sync_scope_id"]);
+                            scopeInfo.Timestamp = MySqlManager.ParseTimestamp(reader["scope_timestamp"]);
+                            scopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value ? (DateTime?)reader["scope_last_sync"] : null;
+                            scopeInfo.LastSyncDuration = reader["scope_last_sync_duration"] != DBNull.Value ? (long)reader["scope_last_sync_duration"] : 0L;
+                            scopeInfo.LastSyncTimestamp = reader["scope_last_sync_timestamp"] != DBNull.Value ? (long)reader["scope_last_sync_timestamp"] : 0L;
+                            scopeInfo.IsLocal = reader.GetBoolean(reader.GetOrdinal("scope_is_local"));
+                            scopes.Add(scopeInfo);
+                        }
                     }
                 }
 
@@ -273,15 +276,18 @@ namespace Dotmim.Sync.MySql
 
                     using (DbDataReader reader = command.ExecuteReader())
                     {
-                        while (reader.Read())
+                        if (reader.HasRows)
                         {
-                            scopeInfo.Name = reader["sync_scope_name"] as String;
-                            scopeInfo.Id = new Guid((string)reader["sync_scope_id"]);
-                            scopeInfo.Timestamp = MySqlManager.ParseTimestamp(reader["scope_timestamp"]);
-                            scopeInfo.IsLocal = (bool)reader["scope_is_local"];
-                            scopeInfo.LastSyncDuration = reader["scope_last_sync_duration"] != DBNull.Value ? (long)reader["scope_last_sync_duration"] : 0L;
-                            scopeInfo.LastSyncTimestamp = reader["scope_last_sync_timestamp"] != DBNull.Value ? (long)reader["scope_last_sync_timestamp"] : 0L;
-                            scopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value ? (DateTime?)reader["scope_last_sync"] : null;
+                            while (reader.Read())
+                            {
+                                scopeInfo.Name = reader["sync_scope_name"] as String;
+                                scopeInfo.Id = new Guid((string)reader["sync_scope_id"]);
+                                scopeInfo.Timestamp = MySqlManager.ParseTimestamp(reader["scope_timestamp"]);
+                                scopeInfo.IsLocal = (bool)reader["scope_is_local"];
+                                scopeInfo.LastSyncDuration = reader["scope_last_sync_duration"] != DBNull.Value ? (long)reader["scope_last_sync_duration"] : 0L;
+                                scopeInfo.LastSyncTimestamp = reader["scope_last_sync_timestamp"] != DBNull.Value ? (long)reader["scope_last_sync_timestamp"] : 0L;
+                                scopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value ? (DateTime?)reader["scope_last_sync"] : null;
+                            }
                         }
                     }
 

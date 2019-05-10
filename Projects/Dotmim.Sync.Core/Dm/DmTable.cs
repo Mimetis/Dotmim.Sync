@@ -807,13 +807,15 @@ namespace Dotmim.Sync.Data
             if (readerFieldCount < this.columns.Count - 2)
                 return;
 
-            while (reader.Read())
+            if (reader.NextResult())
             {
-                object[] readerDataValues = new object[reader.FieldCount];
+                while (reader.Read())
+                {
+                    object[] readerDataValues = new object[reader.FieldCount];
 
-                reader.GetValues(readerDataValues);
-                var dataRow = this.LoadDataRow(readerDataValues, true);
-
+                    reader.GetValues(readerDataValues);
+                    var dataRow = this.LoadDataRow(readerDataValues, true);
+                }
             }
         }
 
