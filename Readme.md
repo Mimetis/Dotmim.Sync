@@ -30,7 +30,7 @@ SqlSyncProvider serverProvider = new SqlSyncProvider(
     @"Data Source=.;Initial Catalog=AdventureWorks;Integrated Security=true;");
 
 // Sqlite Client provider for a Sql Server <=> Sqlite sync
-SQLiteSyncProvider clientProvider = new SQLiteSyncProvider("advworks.db");
+SqliteSyncProvider clientProvider = new SqliteSyncProvider("advworks.db");
 
 // Tables involved in the sync process:
 var tables = new string[] {"ProductCategory",
