@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Data;
 using Dotmim.Sync.Enumerations;
+using System.Data.Common;
 
 namespace Dotmim.Sync.Data
 {
@@ -782,9 +783,9 @@ namespace Dotmim.Sync.Data
         }
 
         /// <summary>
-        /// Fill the DmTable from a IDataReader connected to any kind of database
+        /// Fill the DmTable from a DbDataReader connected to any kind of database
         /// </summary>
-        public void Fill(IDataReader reader)
+        public void Fill(DbDataReader reader)
         {
             var readerFieldCount = reader.FieldCount;
 
@@ -803,11 +804,11 @@ namespace Dotmim.Sync.Data
                 }
             }
 
-            // Count - 2 becoz we can have a autoinc columns
+            // Count - 2 because we can have a autoinc columns
             if (readerFieldCount < this.columns.Count - 2)
                 return;
 
-            if (reader.NextResult())
+            if (reader.HasRows)
             {
                 while (reader.Read())
                 {
@@ -818,6 +819,5 @@ namespace Dotmim.Sync.Data
                 }
             }
         }
-
     }
 }
