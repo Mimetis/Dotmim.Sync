@@ -128,20 +128,23 @@ namespace Dotmim.Sync.Sqlite
 
                 using (DbDataReader reader = command.ExecuteReader())
                 {
-                    // read only the first one
-                    while (reader.Read())
+                    if (reader.HasRows)
                     {
-                        ScopeInfo scopeInfo = new ScopeInfo();
-                        scopeInfo.Name = reader["sync_scope_name"] as String;
-                        scopeInfo.Id = reader.GetGuid(reader.GetOrdinal("sync_scope_id"));
-                        scopeInfo.Timestamp = SqliteManager.ParseTimestamp(reader["scope_timestamp"]);
-                        scopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value
-                                        ? (DateTime?)reader.GetDateTime(reader.GetOrdinal("scope_last_sync"))
-                                        : null;
-                        scopeInfo.LastSyncTimestamp = reader["scope_last_sync_timestamp"] != DBNull.Value ? reader.GetInt64(reader.GetOrdinal("scope_last_sync_timestamp")) : 0L;
-                        scopeInfo.LastSyncDuration = reader["scope_last_sync_duration"] != DBNull.Value ? reader.GetInt64(reader.GetOrdinal("scope_last_sync_duration")) : 0L;
-                        scopeInfo.IsLocal = reader.GetBoolean(reader.GetOrdinal("scope_is_local"));
-                        scopes.Add(scopeInfo);
+                        // read only the first one
+                        while (reader.Read())
+                        {
+                            ScopeInfo scopeInfo = new ScopeInfo();
+                            scopeInfo.Name = reader["sync_scope_name"] as String;
+                            scopeInfo.Id = reader.GetGuid(reader.GetOrdinal("sync_scope_id"));
+                            scopeInfo.Timestamp = SqliteManager.ParseTimestamp(reader["scope_timestamp"]);
+                            scopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value
+                                            ? (DateTime?)reader.GetDateTime(reader.GetOrdinal("scope_last_sync"))
+                                            : null;
+                            scopeInfo.LastSyncTimestamp = reader["scope_last_sync_timestamp"] != DBNull.Value ? reader.GetInt64(reader.GetOrdinal("scope_last_sync_timestamp")) : 0L;
+                            scopeInfo.LastSyncDuration = reader["scope_last_sync_duration"] != DBNull.Value ? reader.GetInt64(reader.GetOrdinal("scope_last_sync_duration")) : 0L;
+                            scopeInfo.IsLocal = reader.GetBoolean(reader.GetOrdinal("scope_is_local"));
+                            scopes.Add(scopeInfo);
+                        }
                     }
                 }
 
@@ -263,19 +266,21 @@ namespace Dotmim.Sync.Sqlite
 
                 using (DbDataReader reader = command.ExecuteReader())
                 {
-                    while (reader.Read())
+                    if (reader.HasRows)
                     {
-                        
-                        scopeInfo.Name = reader["sync_scope_name"] as String;
-                        scopeInfo.Id = reader.GetGuid(reader.GetOrdinal("sync_scope_id"));
-                        scopeInfo.Timestamp = SqliteManager.ParseTimestamp(reader["scope_timestamp"]);
-                        scopeInfo.IsLocal = (bool)reader["scope_is_local"];
-                        scopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value
-                                    ? (DateTime?)reader.GetDateTime(reader.GetOrdinal("scope_last_sync"))
-                                    : null;
-                        scopeInfo.LastSyncTimestamp = reader["scope_last_sync_timestamp"] != DBNull.Value ? reader.GetInt64(reader.GetOrdinal("scope_last_sync_timestamp")) : 0L;
-                        scopeInfo.LastSyncDuration = reader["scope_last_sync_duration"] != DBNull.Value ? reader.GetInt64(reader.GetOrdinal("scope_last_sync_duration")) : 0L;
+                        while (reader.Read())
+                        {
 
+                            scopeInfo.Name = reader["sync_scope_name"] as String;
+                            scopeInfo.Id = reader.GetGuid(reader.GetOrdinal("sync_scope_id"));
+                            scopeInfo.Timestamp = SqliteManager.ParseTimestamp(reader["scope_timestamp"]);
+                            scopeInfo.IsLocal = (bool)reader["scope_is_local"];
+                            scopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value
+                                        ? (DateTime?)reader.GetDateTime(reader.GetOrdinal("scope_last_sync"))
+                                        : null;
+                            scopeInfo.LastSyncTimestamp = reader["scope_last_sync_timestamp"] != DBNull.Value ? reader.GetInt64(reader.GetOrdinal("scope_last_sync_timestamp")) : 0L;
+                            scopeInfo.LastSyncDuration = reader["scope_last_sync_duration"] != DBNull.Value ? reader.GetInt64(reader.GetOrdinal("scope_last_sync_duration")) : 0L;
+                        }
                     }
                 }
 
