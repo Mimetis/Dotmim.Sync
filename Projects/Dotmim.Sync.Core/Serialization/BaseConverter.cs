@@ -8,7 +8,7 @@ namespace Dotmim.Sync.Serialization
 {
     public abstract class BaseConverter<T>
     {
-        public abstract void Serialize(T obj, Stream ms);
+
         public abstract T Deserialize(Stream ms);
         public abstract byte[] Serialize(T obj);
 

@@ -16,10 +16,6 @@ namespace Dotmim.Sync.Serialization
             return serializer.Deserialize<T>(ms);
         }
 
-        public override void Serialize(T obj, Stream ms)
-        {
-            serializer.Serialize(obj, ms);
-        }
         public override byte[] Serialize(T obj)
         {
             return serializer.Serialize(obj);

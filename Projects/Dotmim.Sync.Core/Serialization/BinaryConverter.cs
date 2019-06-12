@@ -24,14 +24,6 @@ namespace Dotmim.Sync.Serialization
             return (T)obj;
         }
 
-        public override void Serialize(T obj, Stream ms)
-        {
-            BinaryFormatter binaryFormatter = new BinaryFormatter
-            {
-                TypeFormat = FormatterTypeStyle.TypesAlways
-            };
-            binaryFormatter.Serialize(ms, obj);
-        }
 
         public override byte[] Serialize(T obj)
         {
