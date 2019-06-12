@@ -470,6 +470,8 @@ namespace Dotmim.Sync.MySql.Builders
                 case "bit":
                 case "integer":
                 case "datetime":
+                case "date":
+                case "newdate":
                 case "numeric":
                 case "decimal":
                 case "dec":
