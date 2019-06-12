@@ -10,30 +10,31 @@ namespace Dotmim.Sync.Serialization
     {
         public override T Deserialize(Stream ms)
         {
-            using (StreamReader sr = new StreamReader(ms))
+            using (var sr = new StreamReader(ms))
             {
-                var stringObject = sr.ReadToEnd();
-                return JsonConvert.DeserializeObject<T>(stringObject);
+                using (var reader = new JsonTextReader(sr))
+                {
+                    var serializer = new JsonSerializer();
+                    return serializer.Deserialize<T>(reader);
+                }
             }
         }
 
-        public override void Serialize(T obj, Stream ms)
-        {
-            var serializedObjectString = JsonConvert.SerializeObject(obj);
-            StreamWriter writer = new StreamWriter(ms);
-            writer.Write(serializedObjectString);
-            
-        }
 
         public override byte[] Serialize(T obj)
         {
-            MemoryStream ms = new MemoryStream();
-            var serializedObjectString = JsonConvert.SerializeObject(obj);
-            using (StreamWriter writer = new StreamWriter(ms))
+            using (var ms = new MemoryStream())
             {
-                writer.Write(serializedObjectString);
+                using (var writer = new StreamWriter(ms))
+                {
+                    using (var jsonWriter = new JsonTextWriter(writer))
+                    {
+                        var serializer = new JsonSerializer();
+                        serializer.Serialize(jsonWriter, obj);
+                    }
+                }
+                return ms.ToArray();
             }
-            return ms.ToArray();
         }
 
     }
