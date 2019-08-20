@@ -405,39 +405,6 @@ namespace Dotmim.Sync
                 // Get changes from server
 
 
-                // get the archive if exists
-                //if (localScopeReferenceInfo.IsNewScope && !string.IsNullOrEmpty(this.Configuration.Archive))
-                //{
-                //// fromId : Make sure we don't select lines on server that has been already updated by the client
-                //fromId = localScopeInfo.Id;
-                //// lastSyncTS : apply lines only if thye are not modified since last client sync
-                //lastSyncTS = localScopeReferenceInfo.LastTimestamp;
-                //// isNew : make sure we take all lines if it's the first time we get 
-                //isNew = localScopeReferenceInfo.IsNewScope;
-                //scope = new ScopeInfo { Id = fromId, IsNewScope = isNew, LastTimestamp = lastSyncTS };
-                ////Direction set to Download
-                //context.SyncWay = SyncWay.Download;
-
-                //(context, serverBatchInfo, serverChangesSelected) = await this.RemoteProvider.GetArchiveAsync(context, scope);
-
-                //// fromId : When applying rows, make sure it's identified as applied by this server scope
-                //fromId = serverScopeInfo.Id;
-                //// lastSyncTS : apply lines only if they are not modified since last client sync
-                //lastSyncTS = localScopeInfo.LastTimestamp;
-                //// isNew : if IsNew, don't apply deleted rows from server
-                //isNew = localScopeInfo.IsNewScope;
-                //scope = new ScopeInfo { Id = fromId, IsNewScope = isNew, LastTimestamp = lastSyncTS };
-
-                //(context, clientChangesApplied) = await this.LocalProvider.ApplyArchiveAsync(context, scope, serverBatchInfo);
-
-                //// Here we have to change the localScopeInfo.LastTimestamp to the good one
-                //// last ts from archive
-                //localScopeReferenceInfo.LastTimestamp = [something from the archive];
-                //// we are not new anymore 
-                //localScopeReferenceInfo.IsNewScope = false;
-                //}
-
-
                 // fromId : Make sure we don't select lines on server that has been already updated by the client
                 fromId = localScopeInfo.Id;
                 // lastSyncTS : apply lines only if thye are not modified since last client sync
