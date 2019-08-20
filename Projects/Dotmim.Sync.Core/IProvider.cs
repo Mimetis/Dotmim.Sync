@@ -35,17 +35,6 @@ namespace Dotmim.Sync
         /// </summary>
         void SetInterceptor(InterceptorBase interceptor);
 
-        ///// <summary>
-        ///// Subecribe an apply changes failed action
-        ///// </summary>
-        //void InterceptApplyChangesFailed(Func<ApplyChangesFailedArgs, Task> action);
-
-        ///// <summary>
-        ///// Subecribe an apply changes failed action
-        ///// </summary>
-        //void InterceptApplyChangesFailed(Action<ApplyChangesFailedArgs> action);
-
-
         /// <summary>
         /// Begin Session. if Configuration is set locally, then send it to the server
         /// On Server side, you can override Configuration and then send back the new configuration to apply on local machine

@@ -40,7 +40,7 @@ namespace Dotmim.Sync
                         await this.InterceptAsync(new ConnectionOpenArgs(null, connection, transaction));
 
                         // Load the configuration
-                        await this.ReadSchema(configuration.Schema, connection, transaction);
+                        this.ReadSchema(configuration.Schema, connection, transaction);
 
                         // Launch any interceptor if available
                         await this.InterceptAsync(new DatabaseDeprovisioningArgs(null, provision, configuration.Schema, connection, transaction));
@@ -128,7 +128,7 @@ namespace Dotmim.Sync
                         await this.InterceptAsync(new ConnectionOpenArgs(null, connection, transaction));
 
                         // Load the configuration
-                        await this.ReadSchema(configuration.Schema, connection, transaction);
+                        this.ReadSchema(configuration.Schema, connection, transaction);
 
                         var beforeArgs =
                             new DatabaseProvisioningArgs(null, provision, configuration.Schema, connection, transaction);
