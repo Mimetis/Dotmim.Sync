@@ -6,6 +6,35 @@ using System.Text;
 
 namespace Dotmim.Sync
 {
+
+    /// <summary>
+    /// Event args generated when a connection is opened
+    /// </summary>
+    public class ConnectionOpenArgs : ProgressArgs
+    {
+        public ConnectionOpenArgs(SyncContext context, DbConnection connection, DbTransaction transaction)
+            : base(context, connection, transaction)
+        {
+        }
+
+        public override string Message => $"";
+
+    }
+
+    /// <summary>
+    /// Event args generated when a connection is closed 
+    /// </summary>
+    public class ConnectionCloseArgs : ProgressArgs
+    {
+        public ConnectionCloseArgs(SyncContext context, DbConnection connection, DbTransaction transaction)
+            : base(context, connection, transaction)
+        {
+        }
+
+        public override string Message => $"";
+
+    }
+
     /// <summary>
     /// Event args generated during BeginSession stage
     /// </summary>

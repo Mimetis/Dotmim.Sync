@@ -236,6 +236,10 @@ namespace Dotmim.Sync
                 try
                 {
                     await connection.OpenAsync();
+
+                    await this.InterceptAsync(new ConnectionOpenArgs(context, connection, null));
+
+
                     var scopeBuilder = this.GetScopeBuilder();
                     var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(message.ScopeInfoTableName, connection);
                     var localTime = scopeInfoBuilder.GetLocalTimestamp();
@@ -245,6 +249,8 @@ namespace Dotmim.Sync
                 {
                     if (connection.State != ConnectionState.Closed)
                         connection.Close();
+
+                    await this.InterceptAsync(new ConnectionCloseArgs(context, connection, null));
                 }
             }
         }

@@ -29,7 +29,7 @@ internal class Program
     {
 
 
-        SyncAdvAsync().GetAwaiter().GetResult();
+        TrySyncAzureSqlDbAsync().GetAwaiter().GetResult();
         Console.ReadLine();
     }
 
@@ -43,6 +43,29 @@ internal class Program
         await SynchronizeAsync();
     }
 
+
+    private static async Task TrySyncAzureSqlDbAsync()
+    {
+        // Sql Server provider, the master.
+        var serverProvider = new SqlSyncProvider(
+            @"Data Source=sebpertus.database.windows.net;Initial Catalog=AdventureWorks;User Id=YOUR_ID;Password=YOUR_PASSWORD;");
+
+        // Sqlite Client provider for a Sql Server <=> Sqlite sync
+        var clientProvider = new SqliteSyncProvider("advfromazure.db");
+
+        // Tables involved in the sync process:
+        var tables = new string[] { "Address" };
+
+        // Sync orchestrator
+        var agent = new SyncAgent(clientProvider, serverProvider, tables);
+
+        do
+        {
+            var s = await agent.SynchronizeAsync();
+            Console.WriteLine($"Total Changes downloaded : {s.TotalChangesDownloaded}");
+
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+    }
 
     private static async Task SyncAdvAsync()
     {
@@ -62,6 +85,7 @@ internal class Program
 
         // Sync orchestrator
         var agent = new SyncAgent(clientProvider, serverProvider, tables);
+
 
         do
         {
