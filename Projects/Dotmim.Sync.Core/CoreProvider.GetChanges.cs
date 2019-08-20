@@ -111,7 +111,7 @@ namespace Dotmim.Sync
         //        };
 
         //        // Read configuration
-        //        var config = await this.ReadSchemaAsync(tables);
+        //        var config = this.ReadSchemaAsync(tables);
 
         //        // We want a batch zip
         //        if (downloadBatchSizeInKB <= 0)
