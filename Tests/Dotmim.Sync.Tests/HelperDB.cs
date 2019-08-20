@@ -48,6 +48,9 @@ namespace Dotmim.Sync.Tests
                 case ProviderType.Sql:
                     con = Setup.GetSqlDatabaseConnectionString(dbName);
                     break;
+                case ProviderType.SqlAzure:
+                    con = Setup.GetSqlAzureDatabaseConnectionString(dbName);
+                    break;
                 case ProviderType.MySql:
                     con =Setup.GetMySqlDatabaseConnectionString(dbName);
                     break;
@@ -69,6 +72,9 @@ namespace Dotmim.Sync.Tests
             switch (providerType)
             {
                 case ProviderType.Sql:
+                    CreateSqlServerDatabase(dbName, recreateDb);
+                    break;
+                case ProviderType.SqlAzure:
                     CreateSqlServerDatabase(dbName, recreateDb);
                     break;
                 case ProviderType.MySql:
@@ -288,7 +294,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Gets the Create or Re-create a database script text
         /// </summary>
-        private static string GetSqlCreationScript(string dbName, Boolean recreateDb = true)
+        private static string GetSqlCreationScript(string dbName, bool recreateDb = true)
         {
             if (recreateDb)
                 return $@"if (exists (Select * from sys.databases where name = '{dbName}'))

@@ -19,6 +19,30 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
+        /// Intercept the provider action whenever a connection is opened
+        /// </summary>
+        public static void InterceptConnectionOpen(this CoreProvider coreProvider, Func<ConnectionOpenArgs, Task> func)
+            => coreProvider.SetInterceptor(func);
+
+        /// <summary>
+        /// Intercept the provider action whenever a connection is opened
+        /// </summary>
+        public static void InterceptConnectionOpen(this CoreProvider coreProvider, Action<ConnectionOpenArgs> func)
+            => coreProvider.SetInterceptor(func);
+
+        /// <summary>
+        /// Intercept the provider action whenever a connection is closed
+        /// </summary>
+        public static void InterceptConnectionClose(this CoreProvider coreProvider, Func<ConnectionCloseArgs, Task> func)
+            => coreProvider.SetInterceptor(func);
+
+        /// <summary>
+        /// Intercept the provider action whenever a connection is closed
+        /// </summary>
+        public static void InterceptConnectionClose(this CoreProvider coreProvider, Action<ConnectionCloseArgs> func)
+            => coreProvider.SetInterceptor(func);
+
+        /// <summary>
         /// Intercept the provider action when session begin is called
         /// </summary>
         public static void InterceptOutdated(this CoreProvider coreProvider, Func<OutdatedArgs, Task> func)

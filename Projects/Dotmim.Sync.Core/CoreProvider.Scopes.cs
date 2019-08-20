@@ -29,6 +29,8 @@ namespace Dotmim.Sync
 
                     using (var transaction = connection.BeginTransaction())
                     {
+                        await this.InterceptAsync(new ConnectionOpenArgs(context, connection, transaction));
+
                         var scopeBuilder = this.GetScopeBuilder();
                         var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(
                             message.ScopeInfoTableName, connection, transaction);
@@ -130,6 +132,8 @@ namespace Dotmim.Sync
             {
                 if (connection != null && connection.State != ConnectionState.Closed)
                     connection.Close();
+
+                await this.InterceptAsync(new ConnectionCloseArgs(context, connection, null));
             }
 
         }
@@ -151,6 +155,7 @@ namespace Dotmim.Sync
 
                     using (var transaction = connection.BeginTransaction())
                     {
+                        await this.InterceptAsync(new ConnectionOpenArgs(context, connection, transaction));
 
                         var scopeBuilder = this.GetScopeBuilder();
                         var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(message.ScopeInfoTableName, connection, transaction);
@@ -180,6 +185,8 @@ namespace Dotmim.Sync
             {
                 if (connection != null && connection.State != ConnectionState.Closed)
                     connection.Close();
+
+                await this.InterceptAsync(new ConnectionCloseArgs(context, connection, null));
             }
             return context;
 
