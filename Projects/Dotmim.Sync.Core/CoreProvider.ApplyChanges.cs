@@ -36,7 +36,9 @@ namespace Dotmim.Sync
                     applyTransaction = connection.BeginTransaction();
 
                     context.SyncStage = SyncStage.DatabaseChangesApplying;
+
                     // Launch any interceptor if available
+                    await this.InterceptAsync(new ConnectionOpenArgs(context, connection, applyTransaction));
                     await this.InterceptAsync(new DatabaseChangesApplyingArgs(context, connection, applyTransaction));
 
                     // Disable check constraints
@@ -128,7 +130,6 @@ namespace Dotmim.Sync
                 if (applyTransaction != null)
                 {
                     applyTransaction.Dispose();
-                    applyTransaction = null;
                 }
 
                 if (connection != null && connection.State == ConnectionState.Open)
@@ -136,6 +137,8 @@ namespace Dotmim.Sync
 
                 if (message.Changes != null)
                     message.Changes.Clear(this.Options.CleanMetadatas);
+
+                await this.InterceptAsync(new ConnectionCloseArgs(context, connection, applyTransaction));
 
             }
         }

@@ -37,8 +37,10 @@ namespace Dotmim.Sync
 
                     using (var transaction = connection.BeginTransaction())
                     {
+                        await this.InterceptAsync(new ConnectionOpenArgs(null, connection, transaction));
+
                         // Load the configuration
-                        await this.ReadSchemaAsync(configuration.Schema, connection, transaction);
+                        await this.ReadSchema(configuration.Schema, connection, transaction);
 
                         // Launch any interceptor if available
                         await this.InterceptAsync(new DatabaseDeprovisioningArgs(null, provision, configuration.Schema, connection, transaction));
@@ -97,6 +99,8 @@ namespace Dotmim.Sync
             {
                 if (connection != null && connection.State != ConnectionState.Closed)
                     connection.Close();
+
+                await this.InterceptAsync(new ConnectionCloseArgs(null, connection, null));
             }
 
         }
@@ -121,8 +125,10 @@ namespace Dotmim.Sync
 
                     using (var transaction = connection.BeginTransaction())
                     {
+                        await this.InterceptAsync(new ConnectionOpenArgs(null, connection, transaction));
+
                         // Load the configuration
-                        await this.ReadSchemaAsync(configuration.Schema, connection, transaction);
+                        await this.ReadSchema(configuration.Schema, connection, transaction);
 
                         var beforeArgs =
                             new DatabaseProvisioningArgs(null, provision, configuration.Schema, connection, transaction);
@@ -191,6 +197,8 @@ namespace Dotmim.Sync
             {
                 if (connection != null && connection.State != ConnectionState.Closed)
                     connection.Close();
+
+                await this.InterceptAsync(new ConnectionCloseArgs(null, connection, null));
             }
         }
 
@@ -215,7 +223,9 @@ namespace Dotmim.Sync
 
                     using (var transaction = connection.BeginTransaction())
                     {
-                        // Interceptor
+                        // Interceptors
+                        await this.InterceptAsync(new ConnectionOpenArgs(context, connection, transaction));
+
                         var beforeArgs = new DatabaseProvisioningArgs(context, SyncProvision.All, message.Schema, connection, transaction);
                         await this.InterceptAsync(beforeArgs);
 
@@ -282,6 +292,8 @@ namespace Dotmim.Sync
             {
                 if (connection != null && connection.State != ConnectionState.Closed)
                     connection.Close();
+
+                await this.InterceptAsync(new ConnectionCloseArgs(context, connection, null));
             }
         }
 

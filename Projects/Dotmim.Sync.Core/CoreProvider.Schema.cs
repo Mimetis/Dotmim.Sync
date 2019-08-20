@@ -130,97 +130,65 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Create a simple configuration, based on tables
-        /// </summary>
-        private async Task<SyncConfiguration> ReadSchemaAsync(string[] tables, DbConnection connection, DbTransaction transaction)
-        {
-            // Load the configuration
-            var configuration = new SyncConfiguration(tables);
-            await this.ReadSchemaAsync(configuration.Schema, connection, transaction);
-            return configuration;
-        }
-
-        /// <summary>
         /// update configuration object with tables desc from server database
         /// </summary>
-        private async Task ReadSchemaAsync(DmSet schema, DbConnection connection, DbTransaction transaction)
+        private void ReadSchema(DmSet schema, DbConnection connection, DbTransaction transaction)
         {
             if (schema == null || schema.Tables.Count <= 0)
                 throw new ArgumentNullException("syncConfiguration", "Configuration should contains Tables, at least tables with a name");
 
-            try
+            var relations = new List<DbRelationDefinition>(20);
+            var syncConfiguration = schema.Tables;
+
+            foreach (var dmTable in syncConfiguration)
             {
-                var relations = new List<DbRelationDefinition>(20);
-                var syncConfiguration = schema.Tables;
-                using (connection = this.CreateConnection())
+                var builderTable = this.GetDbManager(dmTable.TableName);
+                var tblManager = builderTable.CreateManagerTable(connection, transaction);
+
+                // get columns list
+                var lstColumns = tblManager.GetTableDefinition();
+
+                // Validate the column list and get the dmTable configuration object.
+                this.ValidateTableFromColumns(dmTable, lstColumns, tblManager);
+
+                relations.AddRange(tblManager.GetTableRelations());
+            }
+
+            if (relations.Any())
+            {
+                foreach (var r in relations)
                 {
-                    await connection.OpenAsync();
+                    // Get table from the relation where we need to work on
+                    var dmTable = schema.Tables[r.TableName];
 
-                    using (transaction = connection.BeginTransaction())
-                    {
-                        foreach (var dmTable in syncConfiguration)
-                        {
-                            var builderTable = this.GetDbManager(dmTable.TableName);
-                            var tblManager = builderTable.CreateManagerTable(connection, transaction);
+                    // get DmColumn from DmTable, based on the columns from relations
+                    var tblColumns = r.Columns.OrderBy(kc => kc.Order)
+                        .Select(kc => dmTable.Columns[kc.KeyColumnName])
+                        .ToArray();
 
-                            // get columns list
-                            var lstColumns = tblManager.GetTableDefinition();
+                    // then Get the foreign table as well
+                    var foreignTable = syncConfiguration[r.ReferenceTableName];
 
-                            // Validate the column list and get the dmTable configuration object.
-                            this.ValidateTableFromColumns(dmTable, lstColumns, tblManager);
+                    // Since we can have a table with a foreign key but not the parent table
+                    // It's not a problem, just forget it
+                    if (foreignTable == null || foreignTable.Columns.Count == 0)
+                        continue;
 
-                            relations.AddRange(tblManager.GetTableRelations());
-                        }
-
-                        transaction.Commit();
-                    }
-
-                    connection.Close();
-                }
-                if (relations.Any())
-                {
-                    foreach (var r in relations)
-                    {
-                        // Get table from the relation where we need to work on
-                        var dmTable = schema.Tables[r.TableName];
-
-                        // get DmColumn from DmTable, based on the columns from relations
-                        var tblColumns = r.Columns.OrderBy(kc => kc.Order)
-                            .Select(kc => dmTable.Columns[kc.KeyColumnName])
-                            .ToArray();
-
-                        // then Get the foreign table as well
-                        var foreignTable = syncConfiguration[r.ReferenceTableName];
-
-                        // Since we can have a table with a foreign key but not the parent table
-                        // It's not a problem, just forget it
-                        if (foreignTable == null || foreignTable.Columns.Count == 0)
-                            continue;
-
-                        var foreignColumns = r.Columns.OrderBy(kc => kc.Order)
-                             .Select(fc => foreignTable.Columns[fc.ReferenceColumnName])
-                             .ToArray();
+                    var foreignColumns = r.Columns.OrderBy(kc => kc.Order)
+                         .Select(fc => foreignTable.Columns[fc.ReferenceColumnName])
+                         .ToArray();
 
 
-                        if (foreignColumns == null || foreignColumns.Any(c => c == null))
-                            throw new NotSupportedException(
-                                $"Foreign columns {string.Join(",", r.Columns.Select(kc => kc.ReferenceColumnName))} does not exist in table {r.ReferenceTableName}");
+                    if (foreignColumns == null || foreignColumns.Any(c => c == null))
+                        throw new NotSupportedException(
+                            $"Foreign columns {string.Join(",", r.Columns.Select(kc => kc.ReferenceColumnName))} does not exist in table {r.ReferenceTableName}");
 
-                        var dmRelation = new DmRelation(r.ForeignKey, tblColumns, foreignColumns);
+                    var dmRelation = new DmRelation(r.ForeignKey, tblColumns, foreignColumns);
 
-                        schema.Relations.Add(dmRelation);
-                    }
+                    schema.Relations.Add(dmRelation);
                 }
             }
-            catch (Exception ex)
-            {
-                throw new SyncException(ex, SyncStage.SchemaReading);
-            }
-            finally
-            {
-                if (connection != null && connection.State != ConnectionState.Closed)
-                    connection.Close();
-            }
+
         }
 
         /// <summary>
@@ -228,19 +196,22 @@ namespace Dotmim.Sync
         /// </summary>
         public virtual async Task<(SyncContext, DmSet)> EnsureSchemaAsync(SyncContext context, MessageEnsureSchema message)
         {
+            DbConnection connection = null;
             try
             {
                 context.SyncStage = SyncStage.SchemaReading;
 
-                using (var connection = this.CreateConnection())
+                using (connection = this.CreateConnection())
                 {
                     await connection.OpenAsync();
 
                     using (var transaction = connection.BeginTransaction())
                     {
+                        await this.InterceptAsync(new ConnectionOpenArgs(null, connection, transaction));
+
                         // if we dont have already read the tables || we want to overwrite the current config
                         if (message.Schema.HasTables && !message.Schema.HasColumns)
-                            await this.ReadSchemaAsync(message.Schema, connection, transaction);
+                            this.ReadSchema(message.Schema, connection, transaction);
 
                         // Progress & Interceptor
                         context.SyncStage = SyncStage.SchemaRead;
@@ -264,6 +235,14 @@ namespace Dotmim.Sync
             {
                 throw new SyncException(ex, SyncStage.SchemaReading);
             }
+            finally
+            {
+                if (connection != null && connection.State != ConnectionState.Closed)
+                    connection.Close();
+
+                await this.InterceptAsync(new ConnectionCloseArgs(null, connection, null));
+            }
+
 
         }
 
