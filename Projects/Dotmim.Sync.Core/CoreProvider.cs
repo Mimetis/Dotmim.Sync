@@ -16,7 +16,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Core provider : should be implemented by any server / client provider
     /// </summary>
-    public abstract partial class CoreProvider : IProvider
+    public abstract partial class CoreProvider : IProvider2
     {
         private bool syncInProgress;
         private readonly Dictionary<Type, ISyncInterceptor> dictionary = new Dictionary<Type, ISyncInterceptor>();
