@@ -15,9 +15,10 @@ namespace Dotmim.Sync
         /// <summary>
         /// Called when the sync ensure scopes are created
         /// </summary>
-        public virtual async Task<(SyncContext, List<ScopeInfo>)> EnsureScopesAsync (SyncContext context, MessageEnsureScopes message)
+        public virtual async Task<(SyncContext, List<ScopeInfo>)> EnsureScopesAsync(SyncContext context, MessageEnsureScopes message)
         {
             DbConnection connection = null;
+            DbTransaction transaction = null;
             try
             {
                 var scopes = new List<ScopeInfo>();
@@ -26,10 +27,11 @@ namespace Dotmim.Sync
                 using (connection = this.CreateConnection())
                 {
                     await connection.OpenAsync();
+                    await this.InterceptAsync(new ConnectionOpenArgs(context, connection));
 
-                    using (var transaction = connection.BeginTransaction())
+                    using (transaction = connection.BeginTransaction())
                     {
-                        await this.InterceptAsync(new ConnectionOpenArgs(context, connection, transaction));
+                        await this.InterceptAsync(new TransactionOpenArgs(context, connection, transaction));
 
                         var scopeBuilder = this.GetScopeBuilder();
                         var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(
@@ -116,6 +118,7 @@ namespace Dotmim.Sync
                         this.ReportProgress(context, scopeArgs);
                         await this.InterceptAsync(scopeArgs);
 
+                        await this.InterceptAsync(new TransactionCommitArgs(context, connection, transaction));
                         transaction.Commit();
                     }
 
@@ -133,7 +136,7 @@ namespace Dotmim.Sync
                 if (connection != null && connection.State != ConnectionState.Closed)
                     connection.Close();
 
-                await this.InterceptAsync(new ConnectionCloseArgs(context, connection, null));
+                await this.InterceptAsync(new ConnectionCloseArgs(context, connection, transaction));
             }
 
         }
@@ -145,17 +148,18 @@ namespace Dotmim.Sync
             MessageWriteScopes message)
         {
             DbConnection connection = null;
-
+            DbTransaction transaction = null;
             try
             {
                 // Open the connection
                 using (connection = this.CreateConnection())
                 {
                     await connection.OpenAsync();
+                    await this.InterceptAsync(new ConnectionOpenArgs(context, connection));
 
-                    using (var transaction = connection.BeginTransaction())
+                    using (transaction = connection.BeginTransaction())
                     {
-                        await this.InterceptAsync(new ConnectionOpenArgs(context, connection, transaction));
+                        await this.InterceptAsync(new TransactionOpenArgs(context, connection, transaction));
 
                         var scopeBuilder = this.GetScopeBuilder();
                         var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(message.ScopeInfoTableName, connection, transaction);
@@ -171,6 +175,7 @@ namespace Dotmim.Sync
                         this.ReportProgress(context, scopeArgs);
                         await this.InterceptAsync(scopeArgs);
 
+                        await this.InterceptAsync(new TransactionCommitArgs(context, connection, transaction));
                         transaction.Commit();
                     }
 
@@ -186,7 +191,7 @@ namespace Dotmim.Sync
                 if (connection != null && connection.State != ConnectionState.Closed)
                     connection.Close();
 
-                await this.InterceptAsync(new ConnectionCloseArgs(context, connection, null));
+                await this.InterceptAsync(new ConnectionCloseArgs(context, connection, transaction));
             }
             return context;
 

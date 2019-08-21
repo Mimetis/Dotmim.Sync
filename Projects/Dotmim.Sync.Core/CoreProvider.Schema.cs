@@ -197,6 +197,7 @@ namespace Dotmim.Sync
         public virtual async Task<(SyncContext, DmSet)> EnsureSchemaAsync(SyncContext context, MessageEnsureSchema message)
         {
             DbConnection connection = null;
+            DbTransaction transaction = null;
             try
             {
                 context.SyncStage = SyncStage.SchemaReading;
@@ -204,10 +205,11 @@ namespace Dotmim.Sync
                 using (connection = this.CreateConnection())
                 {
                     await connection.OpenAsync();
+                    await this.InterceptAsync(new ConnectionOpenArgs(context, connection));
 
-                    using (var transaction = connection.BeginTransaction())
+                    using (transaction = connection.BeginTransaction())
                     {
-                        await this.InterceptAsync(new ConnectionOpenArgs(null, connection, transaction));
+                        await this.InterceptAsync(new TransactionOpenArgs(context, connection, transaction));
 
                         // if we dont have already read the tables || we want to overwrite the current config
                         if (message.Schema.HasTables && !message.Schema.HasColumns)
@@ -219,6 +221,7 @@ namespace Dotmim.Sync
                         this.ReportProgress(context, schemaArgs);
                         await this.InterceptAsync(schemaArgs);
 
+                        await this.InterceptAsync(new TransactionCommitArgs(context, connection, transaction));
                         transaction.Commit();
                     }
 
@@ -240,7 +243,7 @@ namespace Dotmim.Sync
                 if (connection != null && connection.State != ConnectionState.Closed)
                     connection.Close();
 
-                await this.InterceptAsync(new ConnectionCloseArgs(null, connection, null));
+                await this.InterceptAsync(new ConnectionCloseArgs(context, connection, transaction));
             }
 
 

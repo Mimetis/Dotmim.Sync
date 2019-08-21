@@ -179,12 +179,13 @@ namespace Dotmim.Sync
             {
                 // Open the connection
                 await connection.OpenAsync();
+                await this.InterceptAsync(new ConnectionOpenArgs(context, connection));
 
                 using (var transaction = connection.BeginTransaction())
                 {
                     try
                     {
-                        await this.InterceptAsync(new ConnectionOpenArgs(context, connection, transaction));
+                        await this.InterceptAsync(new TransactionOpenArgs(context, connection, transaction));
 
                         // changes that will be returned as selected changes
                         var changes = new DatabaseChangesSelected();
@@ -336,6 +337,7 @@ namespace Dotmim.Sync
                             await this.InterceptAsync(args);
                         }
 
+                        await this.InterceptAsync(new TransactionCommitArgs(context, connection, transaction));
                         transaction.Commit();
 
                         // generate the batchpartinfo
@@ -426,14 +428,16 @@ namespace Dotmim.Sync
 
             using (var connection = this.CreateConnection())
             {
+                DbTransaction transaction = null;
                 try
                 {
                     // Open the connection
                     await connection.OpenAsync();
+                    await this.InterceptAsync(new ConnectionOpenArgs(context, connection));
 
-                    using (var transaction = connection.BeginTransaction())
+                    using (transaction = connection.BeginTransaction())
                     {
-                        await this.InterceptAsync(new ConnectionOpenArgs(context, connection, transaction));
+                        await this.InterceptAsync(new TransactionOpenArgs(context, connection, transaction));
 
                         // create the in memory changes set
                         var changesSet = new DmSet(configTables.DmSetName);
@@ -648,6 +652,7 @@ namespace Dotmim.Sync
 
                         }
 
+                        await this.InterceptAsync(new TransactionCommitArgs(context, connection, transaction));
                         transaction.Commit();
                     }
 
@@ -661,7 +666,7 @@ namespace Dotmim.Sync
                     if (connection != null && connection.State == ConnectionState.Open)
                         connection.Close();
 
-                    await this.InterceptAsync(new ConnectionCloseArgs(context, connection, null));
+                    await this.InterceptAsync(new ConnectionCloseArgs(context, connection, transaction));
                 }
 
 

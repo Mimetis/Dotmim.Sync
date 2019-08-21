@@ -31,6 +31,18 @@ namespace Dotmim.Sync
             => coreProvider.SetInterceptor(func);
 
         /// <summary>
+        /// Intercept the provider action whenever a transaction is opened
+        /// </summary>
+        public static void InterceptTransactionOpen(this CoreProvider coreProvider, Action<TransactionOpenArgs> func)
+            => coreProvider.SetInterceptor(func);
+
+        /// <summary>
+        /// Intercept the provider action whenever a transaction is opened
+        /// </summary>
+        public static void InterceptTransactionOpen(this CoreProvider coreProvider, Func<ConnectionOpenArgs, Task> func)
+            => coreProvider.SetInterceptor(func);
+
+        /// <summary>
         /// Intercept the provider action whenever a connection is closed
         /// </summary>
         public static void InterceptConnectionClose(this CoreProvider coreProvider, Func<ConnectionCloseArgs, Task> func)
@@ -40,6 +52,18 @@ namespace Dotmim.Sync
         /// Intercept the provider action whenever a connection is closed
         /// </summary>
         public static void InterceptConnectionClose(this CoreProvider coreProvider, Action<ConnectionCloseArgs> func)
+            => coreProvider.SetInterceptor(func);
+
+        /// <summary>
+        /// Intercept the provider action whenever a transaction is commit
+        /// </summary>
+        public static void InterceptTransactionCommit(this CoreProvider coreProvider, Action<TransactionCommitArgs> func)
+            => coreProvider.SetInterceptor(func);
+
+        /// <summary>
+        /// Intercept the provider action whenever a transaction is commit
+        /// </summary>
+        public static void InterceptTransactionCommit(this CoreProvider coreProvider, Func<TransactionCommitArgs, Task> func)
             => coreProvider.SetInterceptor(func);
 
         /// <summary>
