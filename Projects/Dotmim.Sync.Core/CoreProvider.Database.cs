@@ -24,6 +24,7 @@ namespace Dotmim.Sync
         public async Task DeprovisionAsync(SyncConfiguration configuration, SyncProvision provision)
         {
             DbConnection connection = null;
+            DbTransaction transaction = null;
             try
             {
                 if (configuration.Schema == null || !configuration.Schema.HasTables)
@@ -34,10 +35,11 @@ namespace Dotmim.Sync
                 using (connection = this.CreateConnection())
                 {
                     await connection.OpenAsync();
+                    await this.InterceptAsync(new ConnectionOpenArgs(null, connection));
 
-                    using (var transaction = connection.BeginTransaction())
+                    using (transaction = connection.BeginTransaction())
                     {
-                        await this.InterceptAsync(new ConnectionOpenArgs(null, connection, transaction));
+                        await this.InterceptAsync(new TransactionOpenArgs(null, connection, transaction));
 
                         // Load the configuration
                         this.ReadSchema(configuration.Schema, connection, transaction);
@@ -87,6 +89,7 @@ namespace Dotmim.Sync
                         // Launch any interceptor if available
                         await this.InterceptAsync(new DatabaseDeprovisionedArgs(null, provision, configuration.Schema, null, connection, transaction));
 
+                        await this.InterceptAsync(new TransactionCommitArgs(null, connection, transaction));
                         transaction.Commit();
                     }
                 }
@@ -100,7 +103,7 @@ namespace Dotmim.Sync
                 if (connection != null && connection.State != ConnectionState.Closed)
                     connection.Close();
 
-                await this.InterceptAsync(new ConnectionCloseArgs(null, connection, null));
+                await this.InterceptAsync(new ConnectionCloseArgs(null, connection, transaction));
             }
 
         }
@@ -111,6 +114,7 @@ namespace Dotmim.Sync
         public async Task ProvisionAsync(SyncConfiguration configuration, SyncProvision provision)
         {
             DbConnection connection = null;
+            DbTransaction transaction = null;
 
             try
             {
@@ -122,10 +126,11 @@ namespace Dotmim.Sync
                 using (connection = this.CreateConnection())
                 {
                     await connection.OpenAsync();
+                    await this.InterceptAsync(new ConnectionOpenArgs(null, connection));
 
-                    using (var transaction = connection.BeginTransaction())
+                    using (transaction = connection.BeginTransaction())
                     {
-                        await this.InterceptAsync(new ConnectionOpenArgs(null, connection, transaction));
+                        await this.InterceptAsync(new TransactionOpenArgs(null, connection, transaction));
 
                         // Load the configuration
                         this.ReadSchema(configuration.Schema, connection, transaction);
@@ -181,6 +186,7 @@ namespace Dotmim.Sync
 
                         // call any interceptor
                         await this.InterceptAsync(new DatabaseProvisionedArgs(null, provision, configuration.Schema, null, connection, transaction));
+                        await this.InterceptAsync(new TransactionCommitArgs(null, connection, transaction));
 
                         transaction.Commit();
                     }
@@ -198,7 +204,7 @@ namespace Dotmim.Sync
                 if (connection != null && connection.State != ConnectionState.Closed)
                     connection.Close();
 
-                await this.InterceptAsync(new ConnectionCloseArgs(null, connection, null));
+                await this.InterceptAsync(new ConnectionCloseArgs(null, connection, transaction));
             }
         }
 
@@ -209,6 +215,7 @@ namespace Dotmim.Sync
         public virtual async Task<SyncContext> EnsureDatabaseAsync(SyncContext context, MessageEnsureDatabase message)
         {
             DbConnection connection = null;
+            DbTransaction transaction = null;
             try
             {
                 // Event progress
@@ -220,11 +227,12 @@ namespace Dotmim.Sync
                 using (connection = this.CreateConnection())
                 {
                     await connection.OpenAsync();
+                    await this.InterceptAsync(new ConnectionOpenArgs(context, connection));
 
-                    using (var transaction = connection.BeginTransaction())
+                    using (transaction = connection.BeginTransaction())
                     {
                         // Interceptors
-                        await this.InterceptAsync(new ConnectionOpenArgs(context, connection, transaction));
+                        await this.InterceptAsync(new TransactionOpenArgs(context, connection, transaction));
 
                         var beforeArgs = new DatabaseProvisioningArgs(context, SyncProvision.All, message.Schema, connection, transaction);
                         await this.InterceptAsync(beforeArgs);
@@ -275,6 +283,7 @@ namespace Dotmim.Sync
                         this.ReportProgress(context, args);
                         await this.InterceptAsync(args);
 
+                        await this.InterceptAsync(new TransactionCommitArgs(context, connection, transaction));
                         transaction.Commit();
                     }
 
@@ -293,7 +302,7 @@ namespace Dotmim.Sync
                 if (connection != null && connection.State != ConnectionState.Closed)
                     connection.Close();
 
-                await this.InterceptAsync(new ConnectionCloseArgs(context, connection, null));
+                await this.InterceptAsync(new ConnectionCloseArgs(context, connection, transaction));
             }
         }
 
