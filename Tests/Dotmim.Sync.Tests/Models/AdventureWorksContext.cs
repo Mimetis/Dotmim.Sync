@@ -13,8 +13,8 @@ namespace Dotmim.Sync.Tests.Models
     {
         internal bool useSchema = false;
         internal bool useSeeding = false;
-        public ProviderType ProviderType { get; }
-        public string ConnectionString { get; }
+        public ProviderType ProviderType { get; set; }
+        public string ConnectionString { get; set;  }
 
         private DbConnection Connection { get; }
 

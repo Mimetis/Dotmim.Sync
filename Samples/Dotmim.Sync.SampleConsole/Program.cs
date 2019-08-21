@@ -226,9 +226,9 @@ internal class Program
 
         });
 
-        remoteProvider.InterceptDatabaseProvisioned(dpAction);
+        remoteProvider.OnDatabaseProvisioned(dpAction);
 
-        agent.LocalProvider.InterceptDatabaseProvisioned(dpAction);
+        agent.LocalProvider.OnDatabaseProvisioned(dpAction);
 
         do
         {

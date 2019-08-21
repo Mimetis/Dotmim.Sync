@@ -68,9 +68,12 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         ///  The proxy client does not use any interceptor
         /// </summary>
-        public void SetInterceptor(InterceptorBase interceptorBase) { }
+        public void On(InterceptorBase interceptorBase) { }
 
-
+        /// <summary>
+        /// Set an interceptor to get info on the current sync process
+        /// </summary>
+        public void On<T>(Action<T> interceptorAction) where T : ProgressArgs { }
 
         /// <summary>
         /// The proxy client does not interecot changes failed

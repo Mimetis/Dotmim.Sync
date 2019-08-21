@@ -70,7 +70,7 @@ namespace Dotmim.Sync
         /// Set an interceptor to get info on the current sync process
         /// </summary>
         public void SetInterceptor(InterceptorBase interceptor)
-            => this.LocalProvider.SetInterceptor(interceptor);
+            => this.LocalProvider.On(interceptor);
 
 
         /// <summary>
