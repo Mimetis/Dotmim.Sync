@@ -51,10 +51,17 @@ namespace Dotmim.Sync.Web.Server
         public void SetProgress(IProgress<ProgressArgs> progress) 
             => this.LocalProvider.SetProgress(progress);
 
+        /// <summary>
+        /// Set an interceptor to get info on the current sync process
+        /// </summary>
+        public void On(InterceptorBase interceptorBase)
+            => this.LocalProvider.On(interceptorBase);
 
-        public void SetInterceptor(InterceptorBase interceptorBase)
-            => this.LocalProvider.SetInterceptor(interceptorBase);
-
+        /// <summary>
+        /// Set an interceptor to get info on the current sync process
+        /// </summary>
+        public void On<T>(Action<T> interceptorAction) where T : ProgressArgs
+            => this.LocalProvider.On<T>(interceptorAction);
 
         internal async Task<HttpMessage> GetResponseMessageAsync(HttpMessage httpMessage,
                  CancellationToken cancellationToken)

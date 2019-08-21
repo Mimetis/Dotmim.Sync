@@ -59,6 +59,13 @@ jobs:
           "MYSQLIP": $(setvarStep.mySQLIP)
           "AZUREDEV": "true"
 
+      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter SqliteEncryptedTests --logger trx
+        name: SqliteEncryptedTests
+        displayName: "Tests with SQL Server acting as server and encrypted SQLite database"
+        env:
+          "MYSQLIP": $(setvarStep.mySQLIP)
+          "AZUREDEV": "true"
+
       - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter MySqlBasicTests --logger trx
         name: MySqlBasicTests
         displayName: "Tests with MySQL Server acting as server"

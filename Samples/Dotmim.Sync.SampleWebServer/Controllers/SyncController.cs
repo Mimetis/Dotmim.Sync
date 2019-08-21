@@ -27,7 +27,7 @@ namespace Dotmim.Sync.SampleWebServer.Controllers
             var provider = webProxyServer.GetLocalProvider(this.HttpContext);
             provider.SetConfiguration(c =>c.Filters.Add("Customer", "CustomerId"));
 
-            provider.InterceptApplyChangesFailed(e =>
+            provider.OnApplyChangesFailed(e =>
             {
                 if (e.Conflict.RemoteRow.Table.TableName == "Region")
                 {

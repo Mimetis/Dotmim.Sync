@@ -33,7 +33,12 @@ namespace Dotmim.Sync
         /// <summary>
         /// set the Interceptor class to intercepts multipes events during the sync process
         /// </summary>
-        void SetInterceptor(InterceptorBase interceptor);
+        void On(InterceptorBase interceptor);
+
+        /// <summary>
+        /// set the Interceptor class to intercepts multipes events during the sync process
+        /// </summary>
+        void On<T>(Action<T> interceptorAction) where T : ProgressArgs;
 
         /// <summary>
         /// Begin Session. if Configuration is set locally, then send it to the server
