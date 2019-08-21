@@ -12,8 +12,8 @@ namespace Dotmim.Sync
     /// </summary>
     public class ConnectionOpenArgs : ProgressArgs
     {
-        public ConnectionOpenArgs(SyncContext context, DbConnection connection, DbTransaction transaction)
-            : base(context, connection, transaction)
+        public ConnectionOpenArgs(SyncContext context, DbConnection connection)
+            : base(context, connection)
         {
         }
 
@@ -34,6 +34,35 @@ namespace Dotmim.Sync
         public override string Message => $"";
 
     }
+
+    /// <summary>
+    /// Event args generated when a transaction is opened
+    /// </summary>
+    public class TransactionOpenArgs : ProgressArgs
+    {
+        public TransactionOpenArgs(SyncContext context, DbConnection connection, DbTransaction transaction)
+            : base(context, connection, transaction)
+        {
+        }
+
+        public override string Message => $"";
+
+    }
+
+    /// <summary>
+    /// Event args generated when a transaction is commit
+    /// </summary>
+    public class TransactionCommitArgs : ProgressArgs
+    {
+        public TransactionCommitArgs(SyncContext context, DbConnection connection, DbTransaction transaction)
+            : base(context, connection, transaction)
+        {
+        }
+
+        public override string Message => $"";
+
+    }
+
 
     /// <summary>
     /// Event args generated during BeginSession stage

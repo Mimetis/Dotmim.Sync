@@ -16,7 +16,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Core provider : should be implemented by any server / client provider
     /// </summary>
-    public abstract partial class CoreProvider : IProvider2
+    public abstract partial class CoreProvider : IProvider
     {
         private bool syncInProgress;
         private readonly Dictionary<Type, ISyncInterceptor> dictionary = new Dictionary<Type, ISyncInterceptor>();
@@ -236,9 +236,7 @@ namespace Dotmim.Sync
                 try
                 {
                     await connection.OpenAsync();
-
-                    await this.InterceptAsync(new ConnectionOpenArgs(context, connection, null));
-
+                    await this.InterceptAsync(new ConnectionOpenArgs(context, connection));
 
                     var scopeBuilder = this.GetScopeBuilder();
                     var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(message.ScopeInfoTableName, connection);

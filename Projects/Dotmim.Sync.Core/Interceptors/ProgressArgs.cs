@@ -44,6 +44,12 @@ namespace Dotmim.Sync
             this.Transaction = transaction;
         }
 
+        public ProgressArgs(SyncContext context, DbConnection connection)
+        {
+            this.Context = context;
+            this.Connection = connection;
+        }
+
         public ProgressArgs(SyncContext context, string message, DbConnection connection, DbTransaction transaction)
             : this(context, connection, transaction) => this.Message = message;
 
