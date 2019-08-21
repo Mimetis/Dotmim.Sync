@@ -106,8 +106,14 @@ namespace Dotmim.Sync
         /// <summary>
         /// Set an interceptor to get info on the current sync process
         /// </summary>
-        public void SetInterceptor(InterceptorBase interceptor) 
+        public void On(InterceptorBase interceptor) 
             => this.interceptorBase = interceptor;
+
+        /// <summary>
+        /// Set an interceptor to get info on the current sync process
+        /// </summary>
+        public void On<T>(Action<T> interceptorAction) where T : ProgressArgs 
+            => this.interceptorBase = new Interceptor<T>(interceptorAction);
 
         /// <summary>
         /// Set the cancellation token used to cancel sync
@@ -279,6 +285,7 @@ namespace Dotmim.Sync
             if (changes.Columns.Contains(name))
                 changes.Columns.Remove(name);
         }
+
 
     }
 }

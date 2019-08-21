@@ -14,7 +14,7 @@ namespace Dotmim.Sync.Tests
     public static class HelperDB
     {
 
-        public static Func<String, String> GetSqlConnectionString;
+        public static Func<string, string> GetSqlConnectionString;
 
 
         /// <summary>

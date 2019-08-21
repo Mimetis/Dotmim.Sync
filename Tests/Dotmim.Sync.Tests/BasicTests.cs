@@ -696,8 +696,8 @@ namespace Dotmim.Sync.Tests
 
 
                 this.testRunner.BeginRun = provider
-                    => provider.SetInterceptor(new Interceptor<ApplyChangesFailedArgs>(c => c.Resolution = ConflictResolution.ClientWins));
-                this.testRunner.EndRun = provider => provider.SetInterceptor(null);
+                    => provider.On(new Interceptor<ApplyChangesFailedArgs>(c => c.Resolution = ConflictResolution.ClientWins));
+                this.testRunner.EndRun = provider => provider.On(null);
 
                 var results = await this.testRunner.RunTestsAsync(conf);
 
@@ -850,7 +850,7 @@ namespace Dotmim.Sync.Tests
 
 
                 this.testRunner.BeginRun = provider =>
-                    provider.SetInterceptor(new Interceptor<ApplyChangesFailedArgs>(args =>
+                    provider.On(new Interceptor<ApplyChangesFailedArgs>(args =>
                             args.Resolution = ConflictResolution.ClientWins));
 
                 var results = await this.testRunner.RunTestsAsync(conf);
@@ -932,7 +932,7 @@ namespace Dotmim.Sync.Tests
                 }
 
                 this.testRunner.BeginRun = provider
-                    => provider.SetInterceptor(new Interceptor<ApplyChangesFailedArgs>(args =>
+                    => provider.On(new Interceptor<ApplyChangesFailedArgs>(args =>
                     {
                         args.Resolution = ConflictResolution.MergeRow;
                         args.FinalRow["Name"] = productCategoryNameMerged;
@@ -940,7 +940,7 @@ namespace Dotmim.Sync.Tests
                     }));
 
 
-                this.testRunner.EndRun = provider => provider.SetInterceptor(null);
+                this.testRunner.EndRun = provider => provider.On(null);
 
 
                 var results = await this.testRunner.RunTestsAsync(conf);
@@ -1285,7 +1285,7 @@ namespace Dotmim.Sync.Tests
 
 
                 // just check interceptor
-                localProvider.SetInterceptor(new Interceptor<TableProvisioningArgs>(args =>
+                localProvider.On(new Interceptor<TableProvisioningArgs>(args =>
                 {
                     Assert.Equal(SyncProvision.All, args.Provision);
                 }));
@@ -1357,7 +1357,7 @@ namespace Dotmim.Sync.Tests
                 }
 
                 // just check interceptor
-                localProvider.SetInterceptor(new Interceptor<TableDeprovisioningArgs>(args =>
+                localProvider.On(new Interceptor<TableDeprovisioningArgs>(args =>
                 {
                     Assert.Equal(SyncProvision.All, args.Provision);
                 }));
@@ -1414,7 +1414,7 @@ namespace Dotmim.Sync.Tests
                 }
 
 
-                localProvider.SetInterceptor(null);
+                localProvider.On(null);
 
 
             }
@@ -1596,7 +1596,7 @@ namespace Dotmim.Sync.Tests
                     };
 
                     // during first run, add a new row during selection on client (very first step of whole sync process)
-                    clientRun.ClientProvider.SetInterceptor
+                    clientRun.ClientProvider.On
                         (new Interceptor<TableChangesSelectedArgs>(tableChangesSelected));
 
                     var trr = await clientRun.RunAsync(this.fixture, null, conf, false);
@@ -1605,7 +1605,7 @@ namespace Dotmim.Sync.Tests
                     Assert.Equal(1, trr.Results.TotalChangesUploaded);
                     cpt = cpt + 2;
 
-                    clientRun.ClientProvider.SetInterceptor(null);
+                    clientRun.ClientProvider.On(null);
 
                     var trr2 = await clientRun.RunAsync(this.fixture, null, conf, false);
                     Debug.WriteLine($"{trr2.ClientProvider.ConnectionString}: Upload={trr2.Results.TotalChangesUploaded}");
