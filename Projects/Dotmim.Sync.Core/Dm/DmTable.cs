@@ -785,7 +785,7 @@ namespace Dotmim.Sync.Data
         /// <summary>
         /// Fill the DmTable from a DbDataReader connected to any kind of database
         /// </summary>
-        public void Fill(DbDataReader reader)
+        public void Fill(DbDataReader reader) 
         {
             var readerFieldCount = reader.FieldCount;
 
