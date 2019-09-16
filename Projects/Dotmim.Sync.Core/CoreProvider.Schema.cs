@@ -1,4 +1,5 @@
 using Dotmim.Sync.Data;
+using Dotmim.Sync.Data.Surrogate;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Manager;
 using Dotmim.Sync.Messages;
@@ -25,7 +26,7 @@ namespace Dotmim.Sync
 
             // Eventually, do not raise exception here, just we don't have any columns
             if (columns == null || columns.Any() == false)
-                return;
+                throw new ObjectNotFoundException($"Table {dmTable.TableName} not found or has no columns.");
 
             // Get PrimaryKey
             var dmTableKeys = dbManagerTable.GetTablePrimaryKeys();
