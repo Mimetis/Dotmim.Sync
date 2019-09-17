@@ -48,6 +48,9 @@ namespace Dotmim.Sync
                         if (this.Options.DisableConstraintsOnApplyChanges)
                             changeApplicationAction = this.DisableConstraints(context, message.Schema, connection, applyTransaction, message.FromScope);
 
+                        var tables = message.Schema.Tables.SortByDependencies(tab => tab.ParentRelations
+                                 .Select(r => r.ParentTable))
+                                 .ToArray();
                         // -----------------------------------------------------
                         // 0) Check if we are in a reinit mode
                         // -----------------------------------------------------
@@ -66,7 +69,7 @@ namespace Dotmim.Sync
                         if (!message.FromScope.IsNewScope)
                         {
                             // for delete we must go from Up to Down
-                            foreach (var table in message.Schema.Tables.Reverse())
+                            foreach (var table in tables.Reverse())
                             {
                                 changeApplicationAction = await this.ApplyChangesInternalAsync(table, context, message, connection,
                                     applyTransaction, DmRowState.Deleted, changesApplied);
@@ -82,7 +85,7 @@ namespace Dotmim.Sync
                         // -----------------------------------------------------
                         // 2) Applying Inserts and Updates. Apply in table order
                         // -----------------------------------------------------
-                        foreach (var table in message.Schema.Tables)
+                        foreach (var table in tables)
                         {
                             changeApplicationAction = await this.ApplyChangesInternalAsync(table, context, message, connection,
                                 applyTransaction, DmRowState.Added, changesApplied);
