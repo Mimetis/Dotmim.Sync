@@ -204,12 +204,12 @@ namespace Dotmim.Sync
 
                 using (connection = this.CreateConnection())
                 {
-                    await connection.OpenAsync();
-                    await this.InterceptAsync(new ConnectionOpenArgs(context, connection));
+                    await connection.OpenAsync().ConfigureAwait(false);
+                    await this.InterceptAsync(new ConnectionOpenArgs(context, connection)).ConfigureAwait(false);
 
                     using (transaction = connection.BeginTransaction())
                     {
-                        await this.InterceptAsync(new TransactionOpenArgs(context, connection, transaction));
+                        await this.InterceptAsync(new TransactionOpenArgs(context, connection, transaction)).ConfigureAwait(false);
 
                         // if we dont have already read the tables || we want to overwrite the current config
                         if (message.Schema.HasTables && !message.Schema.HasColumns)
@@ -219,9 +219,9 @@ namespace Dotmim.Sync
                         context.SyncStage = SyncStage.SchemaRead;
                         var schemaArgs = new SchemaArgs(context, message.Schema, connection, transaction);
                         this.ReportProgress(context, schemaArgs);
-                        await this.InterceptAsync(schemaArgs);
+                        await this.InterceptAsync(schemaArgs).ConfigureAwait(false);
 
-                        await this.InterceptAsync(new TransactionCommitArgs(context, connection, transaction));
+                        await this.InterceptAsync(new TransactionCommitArgs(context, connection, transaction)).ConfigureAwait(false);
                         transaction.Commit();
                     }
 
@@ -243,7 +243,7 @@ namespace Dotmim.Sync
                 if (connection != null && connection.State != ConnectionState.Closed)
                     connection.Close();
 
-                await this.InterceptAsync(new ConnectionCloseArgs(context, connection, transaction));
+                await this.InterceptAsync(new ConnectionCloseArgs(context, connection, transaction)).ConfigureAwait(false);
             }
 
 

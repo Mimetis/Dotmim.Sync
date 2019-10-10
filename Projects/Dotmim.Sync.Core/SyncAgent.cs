@@ -203,7 +203,7 @@ namespace Dotmim.Sync
                 //    If the configuration object is provided by the client, the server will be updated with it.
                 // ----------------------------------------
                 (context, this.LocalProvider.Configuration) = await this.RemoteProvider.BeginSessionAsync(context,
-                    new MessageBeginSession { Configuration = this.LocalProvider.Configuration });
+                    new MessageBeginSession { Configuration = this.LocalProvider.Configuration }).ConfigureAwait(false);
 
 
                 if (cancellationToken.IsCancellationRequested)
@@ -211,7 +211,7 @@ namespace Dotmim.Sync
 
                 // Locally, nothing really special. Eventually, editing the config object
                 (context, this.LocalProvider.Configuration) = await this.LocalProvider.BeginSessionAsync(context,
-                    new MessageBeginSession { Configuration = this.LocalProvider.Configuration });
+                    new MessageBeginSession { Configuration = this.LocalProvider.Configuration }).ConfigureAwait(false);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -229,7 +229,7 @@ namespace Dotmim.Sync
                         ScopeInfoTableName = this.LocalProvider.Configuration.ScopeInfoTableName,
                         ScopeName = this.LocalProvider.Configuration.ScopeName,
                         SerializationFormat = this.LocalProvider.Configuration.SerializationFormat
-                    });
+                    }).ConfigureAwait(false);
 
                 if (localScopes.Count != 1)
                     throw new Exception("On Local provider, we should have only one scope info");
@@ -246,7 +246,7 @@ namespace Dotmim.Sync
                         ScopeName = this.LocalProvider.Configuration.ScopeName,
                         ClientReferenceId = localScopeInfo.Id,
                         SerializationFormat = this.LocalProvider.Configuration.SerializationFormat
-                    });
+                    }).ConfigureAwait(false);
 
                 if (serverScopes.Count != 2)
                     throw new Exception("On Remote provider, we should have two scopes (one for server and one for client side)");
@@ -267,7 +267,7 @@ namespace Dotmim.Sync
                     {
                         Schema = this.LocalProvider.Configuration.Schema,
                         SerializationFormat = this.LocalProvider.Configuration.SerializationFormat
-                    });
+                    }).ConfigureAwait(false);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -278,7 +278,7 @@ namespace Dotmim.Sync
                     {
                         Schema = this.LocalProvider.Configuration.Schema,
                         SerializationFormat = this.LocalProvider.Configuration.SerializationFormat
-                    });
+                    }).ConfigureAwait(false);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -295,7 +295,7 @@ namespace Dotmim.Sync
                         Schema = this.LocalProvider.Configuration.Schema,
                         Filters = this.LocalProvider.Configuration.Filters,
                         SerializationFormat = this.LocalProvider.Configuration.SerializationFormat
-                    });
+                    }).ConfigureAwait(false);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -308,7 +308,7 @@ namespace Dotmim.Sync
                         Schema = this.LocalProvider.Configuration.Schema,
                         Filters = this.LocalProvider.Configuration.Filters,
                         SerializationFormat = this.LocalProvider.Configuration.SerializationFormat
-                    });
+                    }).ConfigureAwait(false);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -352,7 +352,7 @@ namespace Dotmim.Sync
                     {
                         ScopeInfoTableName = this.LocalProvider.Configuration.ScopeInfoTableName,
                         SerializationFormat = this.LocalProvider.Configuration.SerializationFormat
-                    });
+                    }).ConfigureAwait(false);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -367,7 +367,7 @@ namespace Dotmim.Sync
                             Policy = clientPolicy,
                             Filters = this.LocalProvider.Configuration.Filters,
                             SerializationFormat = this.LocalProvider.Configuration.SerializationFormat
-                        });
+                        }).ConfigureAwait(false);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -392,7 +392,7 @@ namespace Dotmim.Sync
                          ScopeInfoTableName = this.LocalProvider.Configuration.ScopeInfoTableName,
                          Changes = clientBatchInfo,
                          SerializationFormat = this.LocalProvider.Configuration.SerializationFormat
-                     });
+                     }).ConfigureAwait(false);
 
 
                 // if ConflictResolutionPolicy.ClientWins or Handler set to Client wins
@@ -422,7 +422,7 @@ namespace Dotmim.Sync
                     {
                         ScopeInfoTableName = this.LocalProvider.Configuration.ScopeInfoTableName,
                         SerializationFormat = this.LocalProvider.Configuration.SerializationFormat
-                    });
+                    }).ConfigureAwait(false);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -436,7 +436,7 @@ namespace Dotmim.Sync
                             Policy = serverPolicy,
                             Filters = this.LocalProvider.Configuration.Filters,
                             SerializationFormat = this.LocalProvider.Configuration.SerializationFormat
-                        });
+                        }).ConfigureAwait(false);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -463,7 +463,7 @@ namespace Dotmim.Sync
                             ScopeInfoTableName = this.LocalProvider.Configuration.ScopeInfoTableName,
                             Changes = serverBatchInfo,
                             SerializationFormat = this.LocalProvider.Configuration.SerializationFormat
-                        });
+                        }).ConfigureAwait(false);
 
 
                 context.TotalChangesDownloaded = clientChangesApplied.TotalAppliedChanges;
@@ -498,7 +498,7 @@ namespace Dotmim.Sync
                             ScopeInfoTableName = this.LocalProvider.Configuration.ScopeInfoTableName,
                             Scopes = new List<ScopeInfo> { serverScopeInfo, localScopeReferenceInfo },
                             SerializationFormat = this.LocalProvider.Configuration.SerializationFormat
-                        });
+                        }).ConfigureAwait(false);
 
 
                 serverScopeInfo.IsLocal = false;
@@ -513,7 +513,7 @@ namespace Dotmim.Sync
                             ScopeInfoTableName = this.LocalProvider.Configuration.ScopeInfoTableName,
                             Scopes = new List<ScopeInfo> { localScopeInfo, serverScopeInfo },
                             SerializationFormat = this.LocalProvider.Configuration.SerializationFormat
-                        });
+                        }).ConfigureAwait(false);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -532,8 +532,8 @@ namespace Dotmim.Sync
             finally
             {
                 // End the current session
-                context = await this.RemoteProvider.EndSessionAsync(context);
-                context = await this.LocalProvider.EndSessionAsync(context);
+                context = await this.RemoteProvider.EndSessionAsync(context).ConfigureAwait(false);
+                context = await this.LocalProvider.EndSessionAsync(context).ConfigureAwait(false);
 
                 this.SessionState = SyncSessionState.Ready;
                 this.SessionStateChanged?.Invoke(this, this.SessionState);
