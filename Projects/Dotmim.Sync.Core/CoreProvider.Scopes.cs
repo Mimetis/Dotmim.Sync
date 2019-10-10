@@ -26,12 +26,12 @@ namespace Dotmim.Sync
                 // Open the connection
                 using (connection = this.CreateConnection())
                 {
-                    await connection.OpenAsync();
-                    await this.InterceptAsync(new ConnectionOpenArgs(context, connection));
+                    await connection.OpenAsync().ConfigureAwait(false);
+                    await this.InterceptAsync(new ConnectionOpenArgs(context, connection)).ConfigureAwait(false);
 
                     using (transaction = connection.BeginTransaction())
                     {
-                        await this.InterceptAsync(new TransactionOpenArgs(context, connection, transaction));
+                        await this.InterceptAsync(new TransactionOpenArgs(context, connection, transaction)).ConfigureAwait(false);
 
                         var scopeBuilder = this.GetScopeBuilder();
                         var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(
@@ -116,9 +116,9 @@ namespace Dotmim.Sync
                         context.SyncStage = SyncStage.ScopeLoading;
                         var scopeArgs = new ScopeArgs(context, scopes.FirstOrDefault(s => s.IsLocal), connection, transaction);
                         this.ReportProgress(context, scopeArgs);
-                        await this.InterceptAsync(scopeArgs);
+                        await this.InterceptAsync(scopeArgs).ConfigureAwait(false);
 
-                        await this.InterceptAsync(new TransactionCommitArgs(context, connection, transaction));
+                        await this.InterceptAsync(new TransactionCommitArgs(context, connection, transaction)).ConfigureAwait(false);
                         transaction.Commit();
                     }
 
@@ -136,7 +136,7 @@ namespace Dotmim.Sync
                 if (connection != null && connection.State != ConnectionState.Closed)
                     connection.Close();
 
-                await this.InterceptAsync(new ConnectionCloseArgs(context, connection, transaction));
+                await this.InterceptAsync(new ConnectionCloseArgs(context, connection, transaction)).ConfigureAwait(false);
             }
 
         }
@@ -154,12 +154,12 @@ namespace Dotmim.Sync
                 // Open the connection
                 using (connection = this.CreateConnection())
                 {
-                    await connection.OpenAsync();
-                    await this.InterceptAsync(new ConnectionOpenArgs(context, connection));
+                    await connection.OpenAsync().ConfigureAwait(false);
+                    await this.InterceptAsync(new ConnectionOpenArgs(context, connection)).ConfigureAwait(false);
 
                     using (transaction = connection.BeginTransaction())
                     {
-                        await this.InterceptAsync(new TransactionOpenArgs(context, connection, transaction));
+                        await this.InterceptAsync(new TransactionOpenArgs(context, connection, transaction)).ConfigureAwait(false);
 
                         var scopeBuilder = this.GetScopeBuilder();
                         var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(message.ScopeInfoTableName, connection, transaction);
@@ -173,9 +173,9 @@ namespace Dotmim.Sync
                         context.SyncStage = SyncStage.ScopeSaved;
                         var scopeArgs = new ScopeArgs(context, lstScopes.FirstOrDefault(s => s.IsLocal), connection, transaction);
                         this.ReportProgress(context, scopeArgs);
-                        await this.InterceptAsync(scopeArgs);
+                        await this.InterceptAsync(scopeArgs).ConfigureAwait(false);
 
-                        await this.InterceptAsync(new TransactionCommitArgs(context, connection, transaction));
+                        await this.InterceptAsync(new TransactionCommitArgs(context, connection, transaction)).ConfigureAwait(false);
                         transaction.Commit();
                     }
 
@@ -191,7 +191,7 @@ namespace Dotmim.Sync
                 if (connection != null && connection.State != ConnectionState.Closed)
                     connection.Close();
 
-                await this.InterceptAsync(new ConnectionCloseArgs(context, connection, transaction));
+                await this.InterceptAsync(new ConnectionCloseArgs(context, connection, transaction)).ConfigureAwait(false);
             }
             return context;
 

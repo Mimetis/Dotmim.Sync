@@ -31,7 +31,7 @@ namespace Dotmim.Sync.Web.Server
 
         private static WebProxyServerProvider defaultInstance = new WebProxyServerProvider();
 
-       
+
         /// <summary>
         /// Default constructor for DI
         /// </summary>
@@ -52,8 +52,8 @@ namespace Dotmim.Sync.Web.Server
 
             // we don't have any provider for this session id, so create it
             if (syncMemoryProvider == null)
-                 AddNewProviderToCache(context, provider, conf, options, sessionId);
-       
+                AddNewProviderToCache(context, provider, conf, options, sessionId);
+
             return defaultInstance;
         }
 
@@ -76,20 +76,20 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// Call this method to handle requests on the server, sent by the client
         /// </summary>
-        public async Task HandleRequestAsync(HttpContext context) =>
-            await HandleRequestAsync(context, null, CancellationToken.None);
+        public Task HandleRequestAsync(HttpContext context) =>
+            HandleRequestAsync(context, null, CancellationToken.None);
 
         /// <summary>
         /// Call this method to handle requests on the server, sent by the client
         /// </summary>
-        public async Task HandleRequestAsync(HttpContext context, Action<SyncMemoryProvider> action) =>
-            await HandleRequestAsync(context, action, CancellationToken.None);
+        public Task HandleRequestAsync(HttpContext context, Action<SyncMemoryProvider> action) =>
+            HandleRequestAsync(context, action, CancellationToken.None);
 
         /// <summary>
         /// Call this method to handle requests on the server, sent by the client
         /// </summary>
-        public async Task HandleRequestAsync(HttpContext context, CancellationToken token) =>
-            await HandleRequestAsync(context, null, token);
+        public Task HandleRequestAsync(HttpContext context, CancellationToken token) =>
+            HandleRequestAsync(context, null, token);
 
         /// <summary>
         /// Call this method to handle requests on the server, sent by the client
@@ -135,10 +135,10 @@ namespace Dotmim.Sync.Web.Server
                 //syncMemoryProvider.LocalProvider.CacheManager = GetCacheManagerInstance(context, syncSessionId);
 
                 var httpMessageResponse =
-                    await syncMemoryProvider.GetResponseMessageAsync(httpMessage, cancellationToken);
+                    await syncMemoryProvider.GetResponseMessageAsync(httpMessage, cancellationToken).ConfigureAwait(false);
 
                 var binaryData = serializer.Serialize(httpMessageResponse);
-                await GetBody(httpResponse).WriteAsync(binaryData, 0, binaryData.Length);
+                await GetBody(httpResponse).WriteAsync(binaryData, 0, binaryData.Length).ConfigureAwait(false);
 
             }
             catch (Exception ex)
@@ -190,7 +190,7 @@ namespace Dotmim.Sync.Web.Server
             return syncMemoryProvider;
         }
 
-        
+
         private static SyncMemoryProvider AddNewProviderToCache(HttpContext context, CoreProvider provider, Action<SyncConfiguration> conf, Action<SyncOptions> options, string sessionId)
         {
             SyncMemoryProvider syncMemoryProvider;
