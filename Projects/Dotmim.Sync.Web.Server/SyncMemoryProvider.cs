@@ -36,7 +36,7 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// Set Options parameters
         /// </summary>
-        public void SetOptions(Action<SyncOptions> options) 
+        public void SetOptions(Action<SyncOptions> options)
             => this.LocalProvider.SetOptions(options);
 
         /// <summary>
@@ -48,7 +48,7 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// set the progress action used to get progression on the provider
         /// </summary>
-        public void SetProgress(IProgress<ProgressArgs> progress) 
+        public void SetProgress(IProgress<ProgressArgs> progress)
             => this.LocalProvider.SetProgress(progress);
 
         /// <summary>
@@ -71,31 +71,31 @@ namespace Dotmim.Sync.Web.Server
             {
                 case HttpStep.BeginSession:
                     // on first message, replace the Configuration with the server one !
-                    httpMessageResponse = await this.BeginSessionAsync(httpMessage);
+                    httpMessageResponse = await this.BeginSessionAsync(httpMessage).ConfigureAwait(false);
                     break;
                 case HttpStep.EnsureScopes:
-                    httpMessageResponse = await this.EnsureScopesAsync(httpMessage);
+                    httpMessageResponse = await this.EnsureScopesAsync(httpMessage).ConfigureAwait(false);
                     break;
                 case HttpStep.EnsureConfiguration:
-                    httpMessageResponse = await this.EnsureSchemaAsync(httpMessage);
+                    httpMessageResponse = await this.EnsureSchemaAsync(httpMessage).ConfigureAwait(false);
                     break;
                 case HttpStep.EnsureDatabase:
-                    httpMessageResponse = await this.EnsureDatabaseAsync(httpMessage);
+                    httpMessageResponse = await this.EnsureDatabaseAsync(httpMessage).ConfigureAwait(false);
                     break;
                 case HttpStep.GetChangeBatch:
-                    httpMessageResponse = await this.GetChangeBatchAsync(httpMessage);
+                    httpMessageResponse = await this.GetChangeBatchAsync(httpMessage).ConfigureAwait(false);
                     break;
                 case HttpStep.ApplyChanges:
-                    httpMessageResponse = await this.ApplyChangesAsync(httpMessage);
+                    httpMessageResponse = await this.ApplyChangesAsync(httpMessage).ConfigureAwait(false);
                     break;
                 case HttpStep.GetLocalTimestamp:
-                    httpMessageResponse = await this.GetLocalTimestampAsync(httpMessage);
+                    httpMessageResponse = await this.GetLocalTimestampAsync(httpMessage).ConfigureAwait(false);
                     break;
                 case HttpStep.WriteScopes:
-                    httpMessageResponse = await this.WriteScopesAsync(httpMessage);
+                    httpMessageResponse = await this.WriteScopesAsync(httpMessage).ConfigureAwait(false);
                     break;
                 case HttpStep.EndSession:
-                    httpMessageResponse = await this.EndSessionAsync(httpMessage);
+                    httpMessageResponse = await this.EndSessionAsync(httpMessage).ConfigureAwait(false);
                     break;
             }
 
@@ -123,7 +123,7 @@ namespace Dotmim.Sync.Web.Server
 
             // Begin the session, requesting the server for the correct configuration
             (var ctx, var conf) =
-                await this.BeginSessionAsync(httpMessage.SyncContext, httpMessageBeginSession as MessageBeginSession);
+                await this.BeginSessionAsync(httpMessage.SyncContext, httpMessageBeginSession as MessageBeginSession).ConfigureAwait(false);
 
             httpMessageBeginSession.Configuration = conf;
 
@@ -138,7 +138,7 @@ namespace Dotmim.Sync.Web.Server
         private async Task<HttpMessage> EndSessionAsync(HttpMessage httpMessage)
         {
             // call inner provider
-            httpMessage.SyncContext = await this.EndSessionAsync(httpMessage.SyncContext);
+            httpMessage.SyncContext = await this.EndSessionAsync(httpMessage.SyncContext).ConfigureAwait(false);
 
             return httpMessage;
 
@@ -156,7 +156,7 @@ namespace Dotmim.Sync.Web.Server
                 throw new ArgumentException("EnsureScopeMessage could not be null");
 
             var (syncContext, lstScopes) = await this.EnsureScopesAsync(
-                httpMessage.SyncContext, httpMessageEnsureScopes as MessageEnsureScopes);
+                httpMessage.SyncContext, httpMessageEnsureScopes as MessageEnsureScopes).ConfigureAwait(false);
 
             // Local scope is the server scope here
             httpMessageEnsureScopes.Scopes = lstScopes;
@@ -185,7 +185,8 @@ namespace Dotmim.Sync.Web.Server
 
             // If the Conf is hosted by the server, we try to get the tables from it, overriding the client schema, if passed
             DmSet schema = null;
-            if (this.LocalProvider.Configuration.Schema != null) {
+            if (this.LocalProvider.Configuration.Schema != null)
+            {
                 schema = this.LocalProvider.Configuration.Schema;
             }
             else if (httpMessageContent.Schema != null)
@@ -201,7 +202,7 @@ namespace Dotmim.Sync.Web.Server
             }
 
             (httpMessage.SyncContext, schema) = await this.EnsureSchemaAsync(httpMessage.SyncContext,
-                new MessageEnsureSchema { Schema = schema });
+                new MessageEnsureSchema { Schema = schema }).ConfigureAwait(false);
 
             httpMessageContent.Schema = new DmSetSurrogate(schema);
 
@@ -229,7 +230,7 @@ namespace Dotmim.Sync.Web.Server
                     ScopeInfo = httpMessageContent.ScopeInfo,
                     Schema = httpMessageContent.Schema.ConvertToDmSet(),
                     Filters = httpMessageContent.Filters
-                });
+                }).ConfigureAwait(false);
 
             return httpMessage;
         }
@@ -270,7 +271,7 @@ namespace Dotmim.Sync.Web.Server
                         //BatchDirectory = httpMessageContent.BatchDirectory,
                         Policy = httpMessageContent.Policy,
                         Filters = httpMessageContent.Filters
-                    });
+                    }).ConfigureAwait(false);
 
                 // Select the first bpi needed (index == 0)
                 if (bi.BatchPartsInfo.Count > 0)
@@ -395,7 +396,7 @@ namespace Dotmim.Sync.Web.Server
                         //CleanMetadatas = httpMessageContent.CleanMetadatas,
                         ScopeInfoTableName = httpMessageContent.ScopeInfoTableName,
                         Changes = batchInfo
-                    });
+                    }).ConfigureAwait(false);
 
                 httpMessageContent.ChangesApplied = s;
                 httpMessageContent.BatchPartInfo.Clear();
@@ -457,7 +458,7 @@ namespace Dotmim.Sync.Web.Server
                         //CleanMetadatas = httpMessageContent.CleanMetadatas,
                         ScopeInfoTableName = httpMessageContent.ScopeInfoTableName,
                         Changes = batchInfo
-                    });
+                    }).ConfigureAwait(false);
 
                 this.LocalProvider.CacheManager.Remove("ApplyChanges_BatchInfo");
 
@@ -486,7 +487,7 @@ namespace Dotmim.Sync.Web.Server
 
 
             var (ctx, ts) = await this.GetLocalTimestampAsync(httpMessage.SyncContext,
-                new MessageTimestamp { ScopeInfoTableName = httpMessageContent.ScopeInfoTableName });
+                new MessageTimestamp { ScopeInfoTableName = httpMessageContent.ScopeInfoTableName }).ConfigureAwait(false);
 
             httpMessageContent.LocalTimestamp = ts;
             httpMessage.SyncContext = ctx;
@@ -515,7 +516,7 @@ namespace Dotmim.Sync.Web.Server
                 {
                     ScopeInfoTableName = httpMessageContent.ScopeInfoTableName,
                     Scopes = scopes
-                });
+                }).ConfigureAwait(false);
 
             httpMessage.SyncContext = ctx;
 
@@ -523,24 +524,24 @@ namespace Dotmim.Sync.Web.Server
         }
 
 
-        public async Task<(SyncContext, SyncConfiguration)> BeginSessionAsync(SyncContext ctx, MessageBeginSession message)
-            => await this.LocalProvider.BeginSessionAsync(ctx, message);
-        public async Task<(SyncContext, List<ScopeInfo>)> EnsureScopesAsync(SyncContext ctx, MessageEnsureScopes message)
-            => await this.LocalProvider.EnsureScopesAsync(ctx, message);
-        public async Task<(SyncContext, DmSet)> EnsureSchemaAsync(SyncContext ctx, MessageEnsureSchema message)
-            => await this.LocalProvider.EnsureSchemaAsync(ctx, message);
-        public async Task<SyncContext> EnsureDatabaseAsync(SyncContext ctx, MessageEnsureDatabase message)
-            => await this.LocalProvider.EnsureDatabaseAsync(ctx, message);
-        public async Task<(SyncContext, BatchInfo, DatabaseChangesSelected)> GetChangeBatchAsync(SyncContext ctx, MessageGetChangesBatch message)
-            => await this.LocalProvider.GetChangeBatchAsync(ctx, message);
-        public async Task<(SyncContext, DatabaseChangesApplied)> ApplyChangesAsync(SyncContext ctx, MessageApplyChanges message)
-            => await this.LocalProvider.ApplyChangesAsync(ctx, message);
-        public async Task<(SyncContext, long)> GetLocalTimestampAsync(SyncContext ctx, MessageTimestamp message)
-            => await this.LocalProvider.GetLocalTimestampAsync(ctx, message);
-        public async Task<SyncContext> WriteScopesAsync(SyncContext ctx, MessageWriteScopes message)
-            => await this.LocalProvider.WriteScopesAsync(ctx, message);
-        public async Task<SyncContext> EndSessionAsync(SyncContext ctx)
-            => await this.LocalProvider.EndSessionAsync(ctx);
+        public Task<(SyncContext, SyncConfiguration)> BeginSessionAsync(SyncContext ctx, MessageBeginSession message)
+            => this.LocalProvider.BeginSessionAsync(ctx, message);
+        public Task<(SyncContext, List<ScopeInfo>)> EnsureScopesAsync(SyncContext ctx, MessageEnsureScopes message)
+            => this.LocalProvider.EnsureScopesAsync(ctx, message);
+        public Task<(SyncContext, DmSet)> EnsureSchemaAsync(SyncContext ctx, MessageEnsureSchema message)
+            => this.LocalProvider.EnsureSchemaAsync(ctx, message);
+        public Task<SyncContext> EnsureDatabaseAsync(SyncContext ctx, MessageEnsureDatabase message)
+            => this.LocalProvider.EnsureDatabaseAsync(ctx, message);
+        public Task<(SyncContext, BatchInfo, DatabaseChangesSelected)> GetChangeBatchAsync(SyncContext ctx, MessageGetChangesBatch message)
+            => this.LocalProvider.GetChangeBatchAsync(ctx, message);
+        public Task<(SyncContext, DatabaseChangesApplied)> ApplyChangesAsync(SyncContext ctx, MessageApplyChanges message)
+            => this.LocalProvider.ApplyChangesAsync(ctx, message);
+        public Task<(SyncContext, long)> GetLocalTimestampAsync(SyncContext ctx, MessageTimestamp message)
+            => this.LocalProvider.GetLocalTimestampAsync(ctx, message);
+        public Task<SyncContext> WriteScopesAsync(SyncContext ctx, MessageWriteScopes message)
+            => this.LocalProvider.WriteScopesAsync(ctx, message);
+        public Task<SyncContext> EndSessionAsync(SyncContext ctx)
+            => this.LocalProvider.EndSessionAsync(ctx);
 
         public void SetCancellationToken(CancellationToken token)
         {
