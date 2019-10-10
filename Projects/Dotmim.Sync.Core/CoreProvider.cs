@@ -88,37 +88,37 @@ namespace Dotmim.Sync
         /// <summary>
         /// Set Options parameters
         /// </summary>
-        public void SetOptions(Action<SyncOptions> options) 
+        public void SetOptions(Action<SyncOptions> options)
             => options?.Invoke(this.Options);
 
         /// <summary>
         /// Set Configuration parameters
         /// </summary>
-        public void SetConfiguration(Action<SyncConfiguration> configuration) 
+        public void SetConfiguration(Action<SyncConfiguration> configuration)
             => configuration?.Invoke(this.Configuration);
 
         /// <summary>
         /// set the progress action used to get progression on the provider
         /// </summary>
-        public void SetProgress(IProgress<ProgressArgs> progress) 
+        public void SetProgress(IProgress<ProgressArgs> progress)
             => this.progress = progress;
 
         /// <summary>
         /// Set an interceptor to get info on the current sync process
         /// </summary>
-        public void On(InterceptorBase interceptor) 
+        public void On(InterceptorBase interceptor)
             => this.interceptorBase = interceptor;
 
         /// <summary>
         /// Set an interceptor to get info on the current sync process
         /// </summary>
-        public void On<T>(Action<T> interceptorAction) where T : ProgressArgs 
+        public void On<T>(Action<T> interceptorAction) where T : ProgressArgs
             => this.interceptorBase = new Interceptor<T>(interceptorAction);
 
         /// <summary>
         /// Set the cancellation token used to cancel sync
         /// </summary>
-        public void SetCancellationToken(CancellationToken token) 
+        public void SetCancellationToken(CancellationToken token)
             => this.cancellationToken = token;
 
 
@@ -192,7 +192,7 @@ namespace Dotmim.Sync
                 context.SyncStage = SyncStage.BeginSession;
                 var sessionArgs = new SessionBeginArgs(context, null, null);
                 this.ReportProgress(context, sessionArgs);
-                await this.InterceptAsync(sessionArgs);
+                await this.InterceptAsync(sessionArgs).ConfigureAwait(false);
 
                 return (context, message.Configuration);
             }
@@ -221,7 +221,7 @@ namespace Dotmim.Sync
             // Progress & interceptor
             var sessionArgs = new SessionEndArgs(context, null, null);
             this.ReportProgress(context, sessionArgs);
-            await this.InterceptAsync(sessionArgs);
+            await this.InterceptAsync(sessionArgs).ConfigureAwait(false);
 
             lock (this)
             {
@@ -241,8 +241,8 @@ namespace Dotmim.Sync
             {
                 try
                 {
-                    await connection.OpenAsync();
-                    await this.InterceptAsync(new ConnectionOpenArgs(context, connection));
+                    await connection.OpenAsync().ConfigureAwait(false);
+                    await this.InterceptAsync(new ConnectionOpenArgs(context, connection)).ConfigureAwait(false);
 
                     var scopeBuilder = this.GetScopeBuilder();
                     var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(message.ScopeInfoTableName, connection);
@@ -254,7 +254,7 @@ namespace Dotmim.Sync
                     if (connection.State != ConnectionState.Closed)
                         connection.Close();
 
-                    await this.InterceptAsync(new ConnectionCloseArgs(context, connection, null));
+                    await this.InterceptAsync(new ConnectionCloseArgs(context, connection, null)).ConfigureAwait(false);
                 }
             }
         }

@@ -67,7 +67,7 @@ namespace Dotmim.Sync
         {
             if (runFunc == null && runAction == null)
             {
-                await Task.CompletedTask;
+                await Task.CompletedTask.ConfigureAwait(false);
             }
             else
             {
@@ -77,7 +77,7 @@ namespace Dotmim.Sync
                 }
                 else
                 {
-                    await runFunc(args);
+                    await runFunc(args).ConfigureAwait(false);
 
                 }
 
