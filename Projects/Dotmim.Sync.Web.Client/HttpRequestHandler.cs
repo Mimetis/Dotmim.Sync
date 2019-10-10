@@ -59,7 +59,7 @@ namespace Dotmim.Sync.Web.Client
                 throw new ArgumentException("BaseUri is not defined");
 
             HttpResponseMessage response = null;
-            T responseMessage = default(T);
+            var responseMessage = default(T);
             try
             {
                 if (cancellationToken.IsCancellationRequested)
@@ -83,12 +83,12 @@ namespace Dotmim.Sync.Web.Client
                 }
 
                 // default handler if no one specified
-                HttpClientHandler httpClientHandler = this.Handler ?? new HttpClientHandler();
+                var httpClientHandler = this.Handler ?? new HttpClientHandler();
 
                 // serialize dmSet content to bytearraycontent
                 var serializer = BaseConverter<T>.GetConverter(serializationFormat);
                 var binaryData = serializer.Serialize(content);
-                ByteArrayContent arrayContent = new ByteArrayContent(binaryData);
+                var arrayContent = new ByteArrayContent(binaryData);
 
                 // do not dispose HttpClient for performance issue
                 if (client == null)
@@ -120,7 +120,7 @@ namespace Dotmim.Sync.Web.Client
                 if (serializationFormat == SerializationFormat.Json && !requestMessage.Content.Headers.Contains("content-type"))
                     requestMessage.Content.Headers.Add("content-type", "application/json");
 
-                response = await client.SendAsync(requestMessage, cancellationToken);
+                response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -128,8 +128,8 @@ namespace Dotmim.Sync.Web.Client
                 // get response from server
                 if (!response.IsSuccessStatusCode && response.Content != null)
                 {
-                    var exrror = await response.Content.ReadAsStringAsync();
-                    SyncException syncException = JsonConvert.DeserializeObject<SyncException>(exrror);
+                    var exrror = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                    var syncException = JsonConvert.DeserializeObject<SyncException>(exrror);
 
                     if (syncException != null)
                         throw syncException;
@@ -159,7 +159,7 @@ namespace Dotmim.Sync.Web.Client
 
                 }
 
-                using (var streamResponse = await response.Content.ReadAsStreamAsync())
+                using (var streamResponse = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
                     if (streamResponse.CanRead && streamResponse.Length > 0)
                         responseMessage = serializer.Deserialize(streamResponse);
 
@@ -179,7 +179,7 @@ namespace Dotmim.Sync.Web.Client
                 if (response == null || response.Content == null)
                     throw e;
 
-                var exrror = await response.Content.ReadAsStringAsync();
+                var exrror = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
                 throw new SyncException(exrror);
             }
 

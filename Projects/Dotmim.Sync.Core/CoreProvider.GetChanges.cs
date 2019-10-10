@@ -42,7 +42,7 @@ namespace Dotmim.Sync
                     var outdatedArgs = new OutdatedArgs(context, null, null);
 
                     // Interceptor
-                    await this.InterceptAsync(outdatedArgs);
+                    await this.InterceptAsync(outdatedArgs).ConfigureAwait(false);
 
                     if (outdatedArgs.Action != OutdatedSyncAction.Rollback)
                         context.SyncType = outdatedArgs.Action == OutdatedSyncAction.Reinitialize ? SyncType.Reinitialize : SyncType.ReinitializeWithUpload;
@@ -66,9 +66,9 @@ namespace Dotmim.Sync
                 if (context.SyncWay == SyncWay.Upload && context.SyncType == SyncType.Reinitialize)
                     (batchInfo, changesSelected) = this.GetEmptyChanges(context, message.ScopeInfo, this.Options.BatchSize, this.Options.BatchDirectory);
                 else if (this.Options.BatchSize == 0)
-                    (batchInfo, changesSelected) = await this.EnumerateChangesInternalAsync(context, message.ScopeInfo, message.Schema, this.Options.BatchDirectory, message.Policy, message.Filters);
+                    (batchInfo, changesSelected) = await this.EnumerateChangesInternalAsync(context, message.ScopeInfo, message.Schema, this.Options.BatchDirectory, message.Policy, message.Filters).ConfigureAwait(false);
                 else
-                    (batchInfo, changesSelected) = await this.EnumerateChangesInBatchesInternalAsync(context, message.ScopeInfo, this.Options.BatchSize, message.Schema, this.Options.BatchDirectory, message.Policy, message.Filters);
+                    (batchInfo, changesSelected) = await this.EnumerateChangesInBatchesInternalAsync(context, message.ScopeInfo, this.Options.BatchSize, message.Schema, this.Options.BatchDirectory, message.Policy, message.Filters).ConfigureAwait(false);
 
                 return (context, batchInfo, changesSelected);
             }
@@ -118,7 +118,7 @@ namespace Dotmim.Sync
         //            downloadBatchSizeInKB = 10000;
 
         //        (var batchInfo, var changesSelected) =
-        //            await this.EnumerateChangesInBatchesInternal(context, scopeInfo, downloadBatchSizeInKB, config.Schema, batchDirectory, policy, filters);
+        //            await this.EnumerateChangesInBatchesInternal(context, scopeInfo, downloadBatchSizeInKB, config.Schema, batchDirectory, policy, filters).ConfigureAwait(false);
 
         //        var dir = batchInfo.GetDirectoryFullPath();
         //        var archiveFullName = string.Concat(batchDirectory, "\\", Path.GetRandomFileName());
@@ -178,14 +178,14 @@ namespace Dotmim.Sync
             using (var connection = this.CreateConnection())
             {
                 // Open the connection
-                await connection.OpenAsync();
-                await this.InterceptAsync(new ConnectionOpenArgs(context, connection));
+                await connection.OpenAsync().ConfigureAwait(false);
+                await this.InterceptAsync(new ConnectionOpenArgs(context, connection)).ConfigureAwait(false);
 
                 using (var transaction = connection.BeginTransaction())
                 {
                     try
                     {
-                        await this.InterceptAsync(new TransactionOpenArgs(context, connection, transaction));
+                        await this.InterceptAsync(new TransactionOpenArgs(context, connection, transaction)).ConfigureAwait(false);
 
                         // changes that will be returned as selected changes
                         var changes = new DatabaseChangesSelected();
@@ -206,7 +206,7 @@ namespace Dotmim.Sync
                             // raise before event
                             context.SyncStage = SyncStage.TableChangesSelecting;
                             // launch any interceptor
-                            await this.InterceptAsync(new TableChangesSelectingArgs(context, tableDescription.TableName, connection, transaction));
+                            await this.InterceptAsync(new TableChangesSelectingArgs(context, tableDescription.TableName, connection, transaction)).ConfigureAwait(false);
 
                             // selected changes for the current table
                             var tableSelectedChanges = new TableChangesSelected
@@ -334,10 +334,10 @@ namespace Dotmim.Sync
                             context.SyncStage = SyncStage.TableChangesSelected;
                             var args = new TableChangesSelectedArgs(context, tableSelectedChanges, connection, transaction);
                             this.ReportProgress(context, args);
-                            await this.InterceptAsync(args);
+                            await this.InterceptAsync(args).ConfigureAwait(false);
                         }
 
-                        await this.InterceptAsync(new TransactionCommitArgs(context, connection, transaction));
+                        await this.InterceptAsync(new TransactionCommitArgs(context, connection, transaction)).ConfigureAwait(false);
                         transaction.Commit();
 
                         // generate the batchpartinfo
@@ -356,7 +356,7 @@ namespace Dotmim.Sync
                         if (connection != null && connection.State == ConnectionState.Open)
                             connection.Close();
 
-                        await this.InterceptAsync(new ConnectionCloseArgs(context, connection, transaction));
+                        await this.InterceptAsync(new ConnectionCloseArgs(context, connection, transaction)).ConfigureAwait(false);
                     }
 
                 }
@@ -432,12 +432,12 @@ namespace Dotmim.Sync
                 try
                 {
                     // Open the connection
-                    await connection.OpenAsync();
-                    await this.InterceptAsync(new ConnectionOpenArgs(context, connection));
+                    await connection.OpenAsync().ConfigureAwait(false);
+                    await this.InterceptAsync(new ConnectionOpenArgs(context, connection)).ConfigureAwait(false);
 
                     using (transaction = connection.BeginTransaction())
                     {
-                        await this.InterceptAsync(new TransactionOpenArgs(context, connection, transaction));
+                        await this.InterceptAsync(new TransactionOpenArgs(context, connection, transaction)).ConfigureAwait(false);
 
                         // create the in memory changes set
                         var changesSet = new DmSet(configTables.DmSetName);
@@ -459,7 +459,7 @@ namespace Dotmim.Sync
                             context.SyncStage = SyncStage.TableChangesSelecting;
                             var tableChangesSelectingArgs = new TableChangesSelectingArgs(context, tableDescription.TableName, connection, transaction);
                             // launc interceptor if any
-                            await this.InterceptAsync(tableChangesSelectingArgs);
+                            await this.InterceptAsync(tableChangesSelectingArgs).ConfigureAwait(false);
 
                             // Get Command
                             DbCommand selectIncrementalChangesCommand;
@@ -612,7 +612,7 @@ namespace Dotmim.Sync
                                             context.SyncStage = SyncStage.TableChangesSelected;
                                             var loopTableChangesSelectedArgs = new TableChangesSelectedArgs(context, tableChangesSelected, connection, transaction);
                                             this.ReportProgress(context, loopTableChangesSelectedArgs);
-                                            await this.InterceptAsync(loopTableChangesSelectedArgs);
+                                            await this.InterceptAsync(loopTableChangesSelectedArgs).ConfigureAwait(false);
                                         }
                                     }
 
@@ -630,7 +630,7 @@ namespace Dotmim.Sync
                                     context.SyncStage = SyncStage.TableChangesSelected;
                                     var tableChangesSelectedArgs = new TableChangesSelectedArgs(context, tableChangesSelected, connection, transaction);
                                     this.ReportProgress(context, tableChangesSelectedArgs);
-                                    await this.InterceptAsync(tableChangesSelectedArgs);
+                                    await this.InterceptAsync(tableChangesSelectedArgs).ConfigureAwait(false);
                                 }
                             }
                             catch (Exception)
@@ -652,7 +652,7 @@ namespace Dotmim.Sync
 
                         }
 
-                        await this.InterceptAsync(new TransactionCommitArgs(context, connection, transaction));
+                        await this.InterceptAsync(new TransactionCommitArgs(context, connection, transaction)).ConfigureAwait(false);
                         transaction.Commit();
                     }
 
@@ -666,7 +666,7 @@ namespace Dotmim.Sync
                     if (connection != null && connection.State == ConnectionState.Open)
                         connection.Close();
 
-                    await this.InterceptAsync(new ConnectionCloseArgs(context, connection, transaction));
+                    await this.InterceptAsync(new ConnectionCloseArgs(context, connection, transaction)).ConfigureAwait(false);
                 }
 
 
