@@ -30,27 +30,24 @@ namespace Dotmim.Sync
             {
                 using (connection = this.CreateConnection())
                 {
-                    await connection.OpenAsync();
-                    await this.InterceptAsync(new ConnectionOpenArgs(context, connection));
+                    await connection.OpenAsync().ConfigureAwait(false);
+                    await this.InterceptAsync(new ConnectionOpenArgs(context, connection)).ConfigureAwait(false);
 
                     // Create a transaction
                     using (applyTransaction = connection.BeginTransaction())
                     {
 
-                        await this.InterceptAsync(new TransactionOpenArgs(context, connection, applyTransaction));
+                        await this.InterceptAsync(new TransactionOpenArgs(context, connection, applyTransaction)).ConfigureAwait(false);
 
                         context.SyncStage = SyncStage.DatabaseChangesApplying;
 
                         // Launch any interceptor if available
-                        await this.InterceptAsync(new DatabaseChangesApplyingArgs(context, connection, applyTransaction));
+                        await this.InterceptAsync(new DatabaseChangesApplyingArgs(context, connection, applyTransaction)).ConfigureAwait(false);
 
                         // Disable check constraints
                         if (this.Options.DisableConstraintsOnApplyChanges)
                             changeApplicationAction = this.DisableConstraints(context, message.Schema, connection, applyTransaction, message.FromScope);
 
-                        var tables = message.Schema.Tables.SortByDependencies(tab => tab.ParentRelations
-                                 .Select(r => r.ParentTable))
-                                 .ToArray();
                         // -----------------------------------------------------
                         // 0) Check if we are in a reinit mode
                         // -----------------------------------------------------
@@ -69,10 +66,10 @@ namespace Dotmim.Sync
                         if (!message.FromScope.IsNewScope)
                         {
                             // for delete we must go from Up to Down
-                            foreach (var table in tables.Reverse())
+                            foreach (var table in message.Schema.Tables.Reverse())
                             {
                                 changeApplicationAction = await this.ApplyChangesInternalAsync(table, context, message, connection,
-                                    applyTransaction, DmRowState.Deleted, changesApplied);
+                                    applyTransaction, DmRowState.Deleted, changesApplied).ConfigureAwait(false);
                             }
 
                             // Rollback
@@ -85,10 +82,10 @@ namespace Dotmim.Sync
                         // -----------------------------------------------------
                         // 2) Applying Inserts and Updates. Apply in table order
                         // -----------------------------------------------------
-                        foreach (var table in tables)
+                        foreach (var table in message.Schema.Tables)
                         {
                             changeApplicationAction = await this.ApplyChangesInternalAsync(table, context, message, connection,
-                                applyTransaction, DmRowState.Added, changesApplied);
+                                applyTransaction, DmRowState.Added, changesApplied).ConfigureAwait(false);
 
                             // Rollback
                             if (changeApplicationAction == ChangeApplicationAction.Rollback)
@@ -97,7 +94,7 @@ namespace Dotmim.Sync
                             }
 
                             changeApplicationAction = await this.ApplyChangesInternalAsync(table, context, message, connection,
-                                applyTransaction, DmRowState.Modified, changesApplied);
+                                applyTransaction, DmRowState.Modified, changesApplied).ConfigureAwait(false);
 
                             // Rollback
                             if (changeApplicationAction == ChangeApplicationAction.Rollback)
@@ -111,13 +108,13 @@ namespace Dotmim.Sync
                         context.SyncStage = SyncStage.DatabaseChangesApplied;
                         var databaseChangesAppliedArgs = new DatabaseChangesAppliedArgs(context, connection, applyTransaction);
                         this.ReportProgress(context, databaseChangesAppliedArgs, connection, applyTransaction);
-                        await this.InterceptAsync(databaseChangesAppliedArgs);
+                        await this.InterceptAsync(databaseChangesAppliedArgs).ConfigureAwait(false);
 
                         // Re enable check constraints
                         if (this.Options.DisableConstraintsOnApplyChanges)
                             changeApplicationAction = this.EnableConstraints(context, message.Schema, connection, applyTransaction, message.FromScope);
 
-                        await this.InterceptAsync(new TransactionCommitArgs(context, connection, applyTransaction));
+                        await this.InterceptAsync(new TransactionCommitArgs(context, connection, applyTransaction)).ConfigureAwait(false);
                         applyTransaction.Commit();
 
                     }
@@ -146,7 +143,7 @@ namespace Dotmim.Sync
                 if (message.Changes != null)
                     message.Changes.Clear(this.Options.CleanMetadatas);
 
-                await this.InterceptAsync(new ConnectionCloseArgs(context, connection, applyTransaction));
+                await this.InterceptAsync(new ConnectionCloseArgs(context, connection, applyTransaction)).ConfigureAwait(false);
 
             }
         }
@@ -278,7 +275,7 @@ namespace Dotmim.Sync
 
                     context.SyncStage = SyncStage.TableChangesApplying;
                     // Launch any interceptor if available
-                    await this.InterceptAsync(new TableChangesApplyingArgs(context, table, applyType, connection, transaction));
+                    await this.InterceptAsync(new TableChangesApplyingArgs(context, table, applyType, connection, transaction)).ConfigureAwait(false);
 
                     int rowsApplied;
                     // applying the bulkchanges command
@@ -301,7 +298,7 @@ namespace Dotmim.Sync
                             var conflictCount = 0;
                             DmRow resolvedRow = null;
                             (changeApplicationAction, conflictCount, resolvedRow) =
-                                await this.HandleConflictAsync(syncAdapter, context, conflict, message.Policy, message.FromScope, fromScopeLocalTimeStamp, connection, transaction);
+                                await this.HandleConflictAsync(syncAdapter, context, conflict, message.Policy, message.FromScope, fromScopeLocalTimeStamp, connection, transaction).ConfigureAwait(false);
 
                             if (changeApplicationAction == ChangeApplicationAction.Continue)
                             {
@@ -349,7 +346,7 @@ namespace Dotmim.Sync
                     context.SyncStage = SyncStage.TableChangesApplied;
                     var tableChangesAppliedArgs = new TableChangesAppliedArgs(context, existAppliedChanges, connection, transaction);
                     this.ReportProgress(context, tableChangesAppliedArgs, connection, transaction);
-                    await this.InterceptAsync(tableChangesAppliedArgs);
+                    await this.InterceptAsync(tableChangesAppliedArgs).ConfigureAwait(false);
 
 
 
@@ -371,7 +368,7 @@ namespace Dotmim.Sync
 
             // Interceptor
             var arg = new ApplyChangesFailedArgs(context, conflict, conflictAction, connection, transaction);
-            await this.InterceptAsync(arg);
+            await this.InterceptAsync(arg).ConfigureAwait(false);
 
             // if ConflictAction is ServerWins or MergeRow it's Ok to set to Continue
             var action = ApplyAction.Continue;
@@ -393,7 +390,7 @@ namespace Dotmim.Sync
         {
             DmRow finalRow;
             ApplyAction conflictApplyAction;
-            (conflictApplyAction, finalRow) = await this.GetConflictActionAsync(context, conflict, policy, connection, transaction);
+            (conflictApplyAction, finalRow) = await this.GetConflictActionAsync(context, conflict, policy, connection, transaction).ConfigureAwait(false);
 
             // Default behavior and an error occured
             if (conflictApplyAction == ApplyAction.Rollback)

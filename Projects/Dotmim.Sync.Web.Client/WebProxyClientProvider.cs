@@ -45,7 +45,7 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// Set Options parameters
         /// </summary>
-        public void SetOptions(Action<SyncOptions> options) 
+        public void SetOptions(Action<SyncOptions> options)
             => options?.Invoke(this.Options);
 
         /// <summary>
@@ -168,7 +168,7 @@ namespace Dotmim.Sync.Web.Client
 
             //Post request and get response
             // This first request is always JSON based, to be able to get the format from the server side
-            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, context.SessionId, SerializationFormat.Json, this.cancellationToken);
+            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, context.SessionId, SerializationFormat.Json, this.cancellationToken).ConfigureAwait(false);
 
             if (httpMessageResponse == null || httpMessageResponse.Content == null)
                 throw new Exception("Can't have an empty body");
@@ -191,7 +191,7 @@ namespace Dotmim.Sync.Web.Client
             };
 
             //Post request and get response
-            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(message, context.SessionId, SerializationFormat.Json, this.cancellationToken);
+            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(message, context.SessionId, SerializationFormat.Json, this.cancellationToken).ConfigureAwait(false);
 
             if (httpMessageResponse == null)
                 throw new Exception("Can't have an empty body");
@@ -215,7 +215,7 @@ namespace Dotmim.Sync.Web.Client
             };
 
             //Post request and get response
-            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, context.SessionId, message.SerializationFormat, this.cancellationToken);
+            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, context.SessionId, message.SerializationFormat, this.cancellationToken).ConfigureAwait(false);
 
             if (httpMessageResponse == null)
                 throw new Exception("Can't have an empty body");
@@ -243,7 +243,7 @@ namespace Dotmim.Sync.Web.Client
             };
 
             //Post request and get response
-            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, context.SessionId, message.SerializationFormat, this.cancellationToken);
+            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, context.SessionId, message.SerializationFormat, this.cancellationToken).ConfigureAwait(false);
 
             if (httpMessageResponse == null)
                 throw new Exception("Can't have an empty body");
@@ -285,7 +285,7 @@ namespace Dotmim.Sync.Web.Client
             };
 
             //Post request and get response
-            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, context.SessionId, message.SerializationFormat, this.cancellationToken);
+            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, context.SessionId, message.SerializationFormat, this.cancellationToken).ConfigureAwait(false);
 
             if (httpMessageResponse == null)
                 throw new Exception("Can't have an empty body");
@@ -327,7 +327,7 @@ namespace Dotmim.Sync.Web.Client
                     }
                 };
 
-                var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, context.SessionId, message.SerializationFormat, this.cancellationToken);
+                var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, context.SessionId, message.SerializationFormat, this.cancellationToken).ConfigureAwait(false);
 
                 if (httpMessageResponse == null)
                     throw new Exception("Can't have an empty body");
@@ -460,7 +460,7 @@ namespace Dotmim.Sync.Web.Client
                 applyChanges.BatchIndex = bpi.Index;
 
                 //Post request and get response
-                var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, context.SessionId, message.SerializationFormat, this.cancellationToken);
+                var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, context.SessionId, message.SerializationFormat, this.cancellationToken).ConfigureAwait(false);
 
                 // Clear surrogate
                 applyChanges.Set.Dispose();
@@ -500,7 +500,7 @@ namespace Dotmim.Sync.Web.Client
             };
 
             //Post request and get response
-            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, context.SessionId, message.SerializationFormat, this.cancellationToken);
+            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, context.SessionId, message.SerializationFormat, this.cancellationToken).ConfigureAwait(false);
 
             if (httpMessageResponse == null)
                 throw new Exception("Can't have an empty body");
@@ -532,7 +532,7 @@ namespace Dotmim.Sync.Web.Client
             };
 
             //Post request and get response
-            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, context.SessionId, message.SerializationFormat, this.cancellationToken);
+            var httpMessageResponse = await this.httpRequestHandler.ProcessRequest(httpMessage, context.SessionId, message.SerializationFormat, this.cancellationToken).ConfigureAwait(false);
 
             if (httpMessageResponse == null)
                 throw new Exception("Can't have an empty body");
