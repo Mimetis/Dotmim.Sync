@@ -94,7 +94,7 @@ namespace Dotmim.Sync.MySql
         public MySqlSyncProvider(string connectionString) : base()
         {
 
-            MySqlConnectionStringBuilder builder = new MySqlConnectionStringBuilder(connectionString);
+            var builder = new MySqlConnectionStringBuilder(connectionString);
             
             // Set the default behavior to use Found rows and not Affected rows !
             builder.UseAffectedRows = false;
