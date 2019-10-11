@@ -356,8 +356,6 @@ namespace Dotmim.Sync.Web.Client
                 else
                 {
                     changes.BatchIndex = 0;
-                    isLastBatch = true;
-
                     // break the while { } story
                     break;
                 }
