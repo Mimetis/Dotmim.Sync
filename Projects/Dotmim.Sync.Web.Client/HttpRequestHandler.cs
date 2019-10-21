@@ -51,7 +51,7 @@ namespace Dotmim.Sync.Web.Client
 
 
         /// <summary>
-        /// Process a request message with HttpClient object. 
+        /// Process a request message with HttpClient object.
         /// </summary>
         public async Task<T> ProcessRequest<T>(T content, SerializationFormat serializationFormat,  CancellationToken cancellationToken)
         {
@@ -95,7 +95,7 @@ namespace Dotmim.Sync.Web.Client
                 {
                     client = new HttpClient(httpClientHandler)
                     {
-                        Timeout = TimeSpan.FromSeconds(60 * 5)
+                        Timeout = TimeSpan.FromSeconds(60 * 30)
                     };
                 }
 
