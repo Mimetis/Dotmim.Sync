@@ -78,7 +78,7 @@ namespace Dotmim.Sync.Tests.Core
 
 
         public async Task<ProviderRun> RunAsync(ProviderFixture serverFixture, string[] tables = null,
-            Action<SyncConfiguration> conf = null, bool reuseAgent = true)
+            Action<SyncSchema> conf = null, bool reuseAgent = true)
         {
             // server proxy
             var proxyClientProvider = new WebProxyClientProvider();

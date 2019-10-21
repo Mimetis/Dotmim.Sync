@@ -11,24 +11,27 @@ namespace Dotmim.Sync.Messages
     [Serializable]
     public class MessageEnsureScopes
     {
+        public MessageEnsureScopes(string scopeInfoTableName, string scopeName, Guid? clientReferenceId = null)
+        {
+            this.ClientReferenceId = clientReferenceId;
+            this.ScopeInfoTableName = scopeInfoTableName ?? throw new ArgumentNullException(nameof(scopeInfoTableName));
+            this.ScopeName = scopeName ?? throw new ArgumentNullException(nameof(scopeName));
+        }
+
         /// <summary>
         /// Gets or Sets the client id. If null, the ensure scope step is occuring on the client. If not null, we are on the server
         /// </summary>
-        public Guid? ClientReferenceId { get; set; }
+        public Guid? ClientReferenceId { get; private set; }
 
         /// <summary>
         /// Gets or Sets the scope info table name used for ensuring scopes
         /// </summary>
-        public String ScopeInfoTableName { get; set; }
+        public string ScopeInfoTableName { get; private set; }
 
         /// <summary>
         /// Gets or Sets the scope name
         /// </summary>
-        public String ScopeName { get; set; }
+        public string ScopeName { get; private set; }
 
-        /// <summary>
-        /// Gets or Sets the Serialization format used during the sync
-        /// </summary>
-        public SerializationFormat SerializationFormat { get; set; }
     }
 }

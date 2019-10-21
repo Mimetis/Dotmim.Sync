@@ -16,8 +16,6 @@ using Dotmim.Sync.Filter;
 
 namespace Dotmim.Sync
 {
-
-
     /// <summary>
     /// The SyncAdapter is the datasource manager for ONE table
     /// Should be implemented by every database provider and provide every SQL action

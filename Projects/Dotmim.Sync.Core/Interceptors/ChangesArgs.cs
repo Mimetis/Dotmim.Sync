@@ -23,12 +23,15 @@ namespace Dotmim.Sync
 
     public class DatabaseChangesAppliedArgs : ProgressArgs
     {
-        public DatabaseChangesAppliedArgs(SyncContext context, DbConnection connection, DbTransaction transaction)
+        public DatabaseChangesAppliedArgs(SyncContext context, DatabaseChangesApplied changesApplied, DbConnection connection, DbTransaction transaction)
             : base(context, connection, transaction)
         {
+            this.ChangesApplied = changesApplied;
         }
 
-        public override string Message => $"Changes applied on database {Connection.Database}";
+        public DatabaseChangesApplied ChangesApplied { get; set; }
+
+        public override string Message => $"Changes applied on database {Connection.Database}: Applied: {ChangesApplied.TotalAppliedChanges} Failed: {ChangesApplied.TotalAppliedChangesFailed}";
 
     }
 

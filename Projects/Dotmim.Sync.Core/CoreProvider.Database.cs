@@ -9,6 +9,7 @@ using System.Data;
 using System.Data.Common;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync
@@ -21,7 +22,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Deprovision a database. You have to passe a configuration object, containing at least the dmTables
         /// </summary>
-        public async Task DeprovisionAsync(SyncConfiguration configuration, SyncProvision provision)
+        public async Task DeprovisionAsync(SyncSchema configuration, SyncProvision provision)
         {
             DbConnection connection = null;
             DbTransaction transaction = null;
@@ -111,7 +112,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Deprovision a database
         /// </summary>
-        public async Task ProvisionAsync(SyncConfiguration configuration, SyncProvision provision)
+        public async Task ProvisionAsync(SyncSchema configuration, SyncProvision provision)
         {
             DbConnection connection = null;
             DbTransaction transaction = null;
@@ -212,10 +213,10 @@ namespace Dotmim.Sync
         /// Be sure all tables are ready and configured for sync
         /// the ScopeSet Configuration MUST be filled by the schema form Database
         /// </summary>
-        public virtual async Task<SyncContext> EnsureDatabaseAsync(SyncContext context, MessageEnsureDatabase message)
+        public virtual async Task<SyncContext> EnsureDatabaseAsync(SyncContext context, MessageEnsureDatabase message,
+                             DbConnection connection, DbTransaction transaction,
+                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
-            DbConnection connection = null;
-            DbTransaction transaction = null;
             try
             {
                 // Event progress
@@ -223,86 +224,64 @@ namespace Dotmim.Sync
 
                 var script = new StringBuilder();
 
-                // Open the connection
-                using (connection = this.CreateConnection())
+
+                var beforeArgs = new DatabaseProvisioningArgs(context, SyncProvision.All, message.Schema, connection, transaction);
+                await this.InterceptAsync(beforeArgs).ConfigureAwait(false);
+
+                if (message.ScopeInfo.LastSync.HasValue && !beforeArgs.OverwriteSchema)
+                    return context;
+
+                // Sorting tables based on dependencies between them
+                var dmTables = message.Schema.Tables
+                    .SortByDependencies(tab => tab.ChildRelations
+                        .Select(r => r.ChildTable));
+
+                foreach (var dmTable in dmTables)
                 {
-                    await connection.OpenAsync().ConfigureAwait(false);
-                    await this.InterceptAsync(new ConnectionOpenArgs(context, connection)).ConfigureAwait(false);
+                    var builder = this.GetDatabaseBuilder(dmTable);
+                    // set if the builder supports creating the bulk operations proc stock
+                    builder.UseBulkProcedures = this.SupportBulkOperations;
 
-                    using (transaction = connection.BeginTransaction())
+                    // adding filter
+                    this.AddFilters(message.Filters, dmTable, builder);
+
+                    context.SyncStage = SyncStage.TableSchemaApplying;
+
+                    // Launch any interceptor if available
+                    await this.InterceptAsync(new TableProvisioningArgs(context, SyncProvision.All, dmTable, connection, transaction)).ConfigureAwait(false);
+
+                    string currentScript = null;
+                    if (beforeArgs.GenerateScript)
                     {
-                        // Interceptors
-                        await this.InterceptAsync(new TransactionOpenArgs(context, connection, transaction)).ConfigureAwait(false);
-
-                        var beforeArgs = new DatabaseProvisioningArgs(context, SyncProvision.All, message.Schema, connection, transaction);
-                        await this.InterceptAsync(beforeArgs).ConfigureAwait(false);
-
-                        if (message.ScopeInfo.LastSync.HasValue && !beforeArgs.OverwriteSchema)
-                            return context;
-
-                        // Sorting tables based on dependencies between them
-                        var dmTables = message.Schema.Tables
-                            .SortByDependencies(tab => tab.ChildRelations
-                                .Select(r => r.ChildTable));
-
-                        foreach (var dmTable in dmTables)
-                        {
-                            var builder = this.GetDatabaseBuilder(dmTable);
-                            // set if the builder supports creating the bulk operations proc stock
-                            builder.UseBulkProcedures = this.SupportBulkOperations;
-
-                            // adding filter
-                            this.AddFilters(message.Filters, dmTable, builder);
-
-                            context.SyncStage = SyncStage.TableSchemaApplying;
-
-                            // Launch any interceptor if available
-                            await this.InterceptAsync(new TableProvisioningArgs(context, SyncProvision.All, dmTable, connection, transaction)).ConfigureAwait(false);
-
-                            string currentScript = null;
-                            if (beforeArgs.GenerateScript)
-                            {
-                                currentScript = builder.ScriptTable(connection, transaction);
-                                currentScript += builder.ScriptForeignKeys(connection, transaction);
-                                script.Append(currentScript);
-                            }
-
-                            builder.Create(connection, transaction);
-                            builder.CreateForeignKeys(connection, transaction);
-
-                            // Report & Interceptor
-                            context.SyncStage = SyncStage.TableSchemaApplied;
-                            var tableProvisionedArgs = new TableProvisionedArgs(context, SyncProvision.All, dmTable, connection, transaction);
-                            this.ReportProgress(context, tableProvisionedArgs);
-                            await this.InterceptAsync(tableProvisionedArgs).ConfigureAwait(false);
-                        }
-
-                        // Report & Interceptor
-                        context.SyncStage = SyncStage.SchemaApplied;
-                        var args = new DatabaseProvisionedArgs(context, SyncProvision.All, message.Schema, script.ToString(), connection, transaction);
-                        this.ReportProgress(context, args);
-                        await this.InterceptAsync(args).ConfigureAwait(false);
-
-                        await this.InterceptAsync(new TransactionCommitArgs(context, connection, transaction)).ConfigureAwait(false);
-                        transaction.Commit();
+                        currentScript = builder.ScriptTable(connection, transaction);
+                        currentScript += builder.ScriptForeignKeys(connection, transaction);
+                        script.Append(currentScript);
                     }
 
-                    connection.Close();
+                    builder.Create(connection, transaction);
+                    builder.CreateForeignKeys(connection, transaction);
 
-                    return context;
+                    // Report & Interceptor
+                    context.SyncStage = SyncStage.TableSchemaApplied;
+                    var tableProvisionedArgs = new TableProvisionedArgs(context, SyncProvision.All, dmTable, connection, transaction);
+                    this.ReportProgress(context, progress, tableProvisionedArgs);
+                    await this.InterceptAsync(tableProvisionedArgs).ConfigureAwait(false);
                 }
+
+                // Report & Interceptor
+                context.SyncStage = SyncStage.SchemaApplied;
+                var args = new DatabaseProvisionedArgs(context, SyncProvision.All, message.Schema, script.ToString(), connection, transaction);
+                this.ReportProgress(context, progress, args);
+                await this.InterceptAsync(args).ConfigureAwait(false);
+
+                await this.InterceptAsync(new TransactionCommitArgs(context, connection, transaction)).ConfigureAwait(false);
+
+                return context;
 
             }
             catch (Exception ex)
             {
                 throw new SyncException(ex, SyncStage.SchemaApplying);
-            }
-            finally
-            {
-                if (connection != null && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-                await this.InterceptAsync(new ConnectionCloseArgs(context, connection, transaction)).ConfigureAwait(false);
             }
         }
 

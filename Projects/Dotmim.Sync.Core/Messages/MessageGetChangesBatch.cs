@@ -17,6 +17,16 @@ namespace Dotmim.Sync.Messages
         [NonSerialized]
         private DmSet _schema;
 
+        public MessageGetChangesBatch(ScopeInfo scopeInfo, DmSet schema, int batchSize, string batchDirectory, ConflictResolutionPolicy policy, ICollection<FilterClause> filters, SerializationFormat serializationFormat)
+        {
+            this.ScopeInfo = scopeInfo ?? throw new ArgumentNullException(nameof(scopeInfo));
+            this.Schema = schema ?? throw new ArgumentNullException(nameof(schema));
+            this.BatchSize = batchSize;
+            this.BatchDirectory = batchDirectory ?? throw new ArgumentNullException(nameof(batchDirectory));
+            this.Policy = policy;
+            this.SerializationFormat = serializationFormat;
+        }
+
         /// <summary>
         /// Gets or Sets the scope info for the current sync
         /// </summary>
@@ -28,17 +38,15 @@ namespace Dotmim.Sync.Messages
         [JsonIgnore]
         public DmSet Schema { get => _schema; set => _schema = value; }
 
-        ///// <summary>
-        ///// Gets or Sets the download batch size, if needed
-        ///// </summary>
-        //[JsonIgnore]
-        //public int BatchSize { get; set; }
+        /// <summary>
+        /// Gets or Sets the download batch size, if needed
+        /// </summary>
+        public int BatchSize { get; set; }
 
-        ///// <summary>
-        ///// Gets or Sets the batch directory used to serialize the datas
-        ///// </summary>
-        //[JsonIgnore]
-        //public string BatchDirectory { get; set; }
+        /// <summary>
+        /// Gets or Sets the batch directory used to serialize the datas
+        /// </summary>
+        public string BatchDirectory { get; set; }
 
         /// <summary>
         /// Gets or Sets the current Conflict resolution policy

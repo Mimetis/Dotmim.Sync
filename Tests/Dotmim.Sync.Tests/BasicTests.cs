@@ -122,7 +122,7 @@ namespace Dotmim.Sync.Tests
         {
             try
             {
-                var s = new Action<SyncConfiguration>(c => { });
+                var s = new Action<SyncSchema>(c => { });
 
                 var results = await this.testRunner.RunTestsAsync(s);
 
@@ -580,7 +580,7 @@ namespace Dotmim.Sync.Tests
             // reset
             await this.testRunner.RunTestsAsync();
 
-            var conf = new Action<SyncConfiguration>(sc => sc.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins);
+            var conf = new Action<SyncSchema>(sc => sc.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins);
 
             // generate a conflict product category id
             var conflictProductCategoryId = Path.GetRandomFileName().Replace(".", "").ToUpperInvariant().Substring(0, 6);
@@ -736,7 +736,7 @@ namespace Dotmim.Sync.Tests
             // reset
             await this.testRunner.RunTestsAsync();
 
-            var conf = new Action<SyncConfiguration>(sc => sc.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins);
+            var conf = new Action<SyncSchema>(sc => sc.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins);
 
             // generate a conflict product category id
             var conflictProductCategoryId = "BIKES";
@@ -1281,7 +1281,7 @@ namespace Dotmim.Sync.Tests
                     await ctx.Database.EnsureCreatedAsync();
 
                 // generate a sync conf to host the schema
-                var conf = new SyncConfiguration(this.fixture.Tables);
+                var conf = new SyncSchema(this.fixture.Tables);
 
 
                 // just check interceptor

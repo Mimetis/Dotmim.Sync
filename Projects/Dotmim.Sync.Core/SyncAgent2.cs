@@ -17,6 +17,10 @@ namespace Dotmim.Sync
     /// </summary>
     public class SyncAgent2 : IDisposable
     {
+        private SyncSchema schema = new SyncSchema();
+        private SyncOptions options = new SyncOptions();
+        private IProgress<ProgressArgs> remoteProgress = null;
+
         /// <summary>
         /// Defines the state that a synchronization session is in.
         /// </summary>
@@ -25,17 +29,17 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets or Sets the local orchestrator
         /// </summary>
-        public ILocalOrchestrator<IProvider> LocalOrchestrator { get; set; }
+        public ILocalOrchestrator<CoreProvider> LocalOrchestrator { get; set; }
 
         /// <summary>
         /// Get or Sets the remote orchestrator
         /// </summary>
-        public IRemoteOrchestrator<IProvider> RemoteOrchestrator { get; set; }
+        public IRemoteOrchestrator<CoreProvider> RemoteOrchestrator { get; set; }
 
         // Scope informaitons. 
         // On Server, we have tow scopes available : Server Scope and Client (server timestamp) scope
         // On Client, we have only the client scope
-        public Dictionary<string, ScopeInfo> Scopes { get; set; }
+        //public Dictionary<string, ScopeInfo> Scopes { get; set; }
 
         /// <summary>
         /// Get or Sets the Sync parameter to pass to Remote provider for filtering rows
@@ -50,157 +54,78 @@ namespace Dotmim.Sync
         /// <summary>
         /// Set Sync Configuration parameters
         /// </summary>
-        public void SetConfiguration(Action<SyncConfiguration> configuration)
-            => this.LocalOrchestrator.SetConfiguration(configuration);
+        public void SetSchema(Action<SyncSchema> onSchema)
+            => onSchema?.Invoke(this.schema);
 
         /// <summary>
         /// Set Sync Options parameters
         /// </summary>
-        public void SetOptions(Action<SyncOptions> options)
-            => this.LocalOrchestrator.SetOptions(options);
+        public void SetOptions(Action<SyncOptions> onOptions)
+            => onOptions?.Invoke(this.options);
 
 
         /// <summary>
-        /// set the progress action used to get progression on the provider
+        /// Shortcut to Apply changed failed (supported by the local orchestrator)
         /// </summary>
-        public void SetProgress(IProgress<ProgressArgs> progress)
-            => this.LocalOrchestrator.SetProgress(progress);
+        public void OnApplyChangesFailed(Func<ApplyChangesFailedArgs, Task> func) => this.LocalOrchestrator.OnApplyChangesFailed(func);
 
         /// <summary>
-        /// Set an interceptor to get info on the current sync process
+        /// Shortcut to Apply changed failed (supported by the local orchestrator)
         /// </summary>
-        public void SetInterceptor(InterceptorBase interceptor)
-            => this.LocalOrchestrator.On(interceptor);
+        public void OnApplyChangesFailed(Action<ApplyChangesFailedArgs> action) => this.LocalOrchestrator.OnApplyChangesFailed(action);
 
+
+
+        public SyncAgent2(CoreProvider clientProvider, CoreProvider serverProvider, string[] tables)
+            : this("DefaultScope", clientProvider, serverProvider, tables)
+        {
+
+        }
+
+        /// <summary>
+        /// If you want to see remote progress as well (only on direct connection)
+        /// </summary>
+        /// <param name="remoteProgress"></param>
+        public void AddRemoteProgress(IProgress<ProgressArgs> remoteProgress)
+        {
+            this.remoteProgress = remoteProgress;
+        }
 
         /// <summary>
         /// SyncAgent manage both server and client provider
         /// the tables array represents the tables you want to sync
         /// Don't work on the proxy provider
         /// </summary>
-        public SyncAgent2(string scopeName, CoreProvider clientProvider, IProvider serverProvider, string[] tables)
+        public SyncAgent2(string scopeName, CoreProvider clientProvider, CoreProvider serverProvider, string[] tables)
         {
             if (tables == null || tables.Length <= 0)
-                throw new ArgumentException("you need to pass at lease one table name");
+                throw new ArgumentException("you need to pass at least one table name");
 
             if (string.IsNullOrEmpty(scopeName))
                 throw new ArgumentNullException("scopeName");
 
-            this.LocalOrchestrator = new LocalOrchestrator();
-            this.LocalOrchestrator.SetProvider(clientProvider);
+            if (!serverProvider.CanBeServerProvider)
+                throw new NotSupportedException();
 
-            this.RemoteProvider = remoteProvider ?? throw new ArgumentNullException("ServerProvider");
+            this.LocalOrchestrator = new LocalOrchestrator(clientProvider);
+            this.RemoteOrchestrator = new RemoteOrchestrator(serverProvider);
 
-            this.LocalProvider.SetConfiguration(c => c.ScopeName = scopeName);
-            this.RemoteProvider.SetConfiguration(c => c.ScopeName = scopeName);
+            this.SetSchema(c =>
+            {
+                c.ScopeName = scopeName;
+
+                foreach (var tbl in tables)
+                    c.Add(tbl);
+            });
 
             this.Parameters = new SyncParameterCollection();
 
-
-
-            if (!(this.RemoteProvider is CoreProvider remoteCoreProvider))
-                throw new ArgumentException("Since the remote provider is a web proxy, you have to configure the server side");
-
-            if (!remoteCoreProvider.CanBeServerProvider)
-                throw new NotSupportedException();
-
-            this.LocalProvider.SetConfiguration(c =>
-            {
-                foreach (var tbl in tables)
-                    c.Add(tbl);
-            });
-            this.RemoteProvider.SetConfiguration(c =>
-            {
-                foreach (var tbl in tables)
-                    c.Add(tbl);
-            });
         }
 
         /// <summary>
         /// Launch a synchronization with the specified mode
-       /*
-        FROM:
-            -------------------------------------------
-            0) BeginSessionAsync : Was passing configuration between Client and Server
-            -------------------------------------------
-            FIRST ROUNDTRIP
-            -------------------------------------------
-            1) EnsureScopesAsync : Ensure scopes is created on both sides
-                - Raise error if local scope is not equals to 1: On Local provider, we should have only one scope info
-                - Write client scope to remote provider
-                - Raise error if more than 2 scopes on remote On Remote provider, we should have two scopes(one for server and one for client side)
-            -------------------------------------------
-            SECOND ROUNDTRIP
-            -------------------------------------------
-            2) EnsureSchemaAsync : Get schema from remote and save locally
-            -------------------------------------------
-            THIRD ROUNDTRIP
-            -------------------------------------------
-            3) EnsureDatabaseAsync : Create the database remotelly and locally
-            -------------------------------------------
-            FOURTH ROUNDTRIP
-            -------------------------------------------
-            4) GetLocalTimestampAsync              
-                - JUST before the whole process, get the timestamp, to be sure to get rows inserted / updated elsewhere since the sync is not over
-            5) GetChangeBatchAsync locally
-            6) ApplyChangesAsync remotely
-            -------------------------------------------
-            FIFTH ROUNDTRIP
-            -------------------------------------------
-            7) GetLocalTimestampAsync remotely
-            8) GetChangeBatchAsync remotely
-            9) ApplyChangesAsync locally
-            -------------------------------------------
-            SIXTH ROUNDTRIP
-            -------------------------------------------
-            10) Write scopes
-                
-            -------------------------------------------
-            -------------------------------------------
-            TO:
-            -------------------------------------------
-            0) BeginSessionAsync[Client] : session is beginning
-                - Raise events
-            1) EnsureScopeAsync[Client]: Be sure we have at least the scope table
-            -------------------------------------------
-            FIRST ROUNDTRIP
-            -------------------------------------------
-            2) GetChangeBatchAsync[Client]
-            3) ApplyChangesOnServerAndGetChanges :
-                EnsureScopesAsync[Server]
-                GetSchemaAsync[Server]
-                ApplyChangesAsync[Server]
-                GetChangeBatchAsync[Server]
-                WriteScopesAsync[Server]
-            4) ApplySchema[Client]
-            4) ApplyChangesAsync[Client]
-            5) WriteScopesAsync[Client]
-
-            IProvider
-             - BeginSessionAsync
-             - GetSchemaAsync
-             - ApplySchemaAsync
-             - EnsureScopesAsync
-             - GetChangeBatchAsync
-             - ApplyChangesAsync
-             - WriteScopesAsync
-             - EndSessionAsync
-
-
-            ClientProvider(IProvider)
-            - Implements all
-
-            IRemoteProvider
-            - Task<object> GetChangesAsync(object localChangesToApplyOnRemote);
-
-            ILocalProvider
-             - Task<object> GetChangesAsync();
-             - Task<string> ApplyChangesAsync(object remoteChangesToApplyOnLocal);
-            
-
-            */
         /// </summary>
-        public async Task<SyncContext> SynchronizeAsync(SyncType syncType, 
+        public async Task<SyncContext> SynchronizeAsync(SyncType syncType,
             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
             // Context, used to back and forth data between servers
@@ -217,84 +142,74 @@ namespace Dotmim.Sync
             this.SessionState = SyncSessionState.Synchronizing;
             this.SessionStateChanged?.Invoke(this, this.SessionState);
 
-            ScopeInfo localScopeInfo = null,
-                      serverScopeInfo = null,
-                      localScopeReferenceInfo = null,
-                      scope = null;
-
-            var fromId = Guid.Empty;
-            var lastSyncTS = 0L;
-            var isNew = true;
-
             try
             {
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
-                // Setting progress
-                this.LocalOrchestrator.SetProgress(progress);
-
-                SyncConfiguration conf = null;
-                // ----------------------------------------
-                // 0) Begin Session 
-                // ----------------------------------------
-                // Locally, nothing really special. Eventually, editing the config object
-                await this.LocalOrchestrator.BeginSessionAsync(context, new MessageBeginSession { Configuration = conf }).ConfigureAwait(false);
+                // Starts sync by :
+                // - Getting local config we have set by code
+                // - Ensure local scope is created (table and values)
+                var clientScope = await this.LocalOrchestrator.EnsureScopeAsync
+                        (context, schema, options, cancellationToken, progress);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
-                // ----------------------------------------
-                // 1) Read scope info
-                // ----------------------------------------
+                context = clientScope.context;
 
-                // get the scope from local provider 
-                List<ScopeInfo> localScopes;
-                (context, localScopes) = await this.LocalProvider.EnsureScopesAsync(context,
-                                    new MessageEnsureScopes
-                                    {
-                                        ScopeInfoTableName = this.LocalProvider.Configuration.ScopeInfoTableName,
-                                        ScopeName = this.LocalProvider.Configuration.ScopeName,
-                                        SerializationFormat = this.LocalProvider.Configuration.SerializationFormat
-                                    }).ConfigureAwait(false);
-
-                if (localScopes.Count != 1)
-                    throw new Exception("On Local provider, we should have only one scope info");
+                // FIRST call to server
+                // Get the server scope info and server reference id to local scope
+                // Be sure options / schema from client are passed if needed
+                // Then the configuration with full schema
+                var serverScope = await this.RemoteOrchestrator.EnsureScopeAsync(
+                        context, schema, options, clientScope.localScopeInfo.Id,
+                        cancellationToken, remoteProgress);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
-                localScopeInfo = localScopes[0];
+                context = serverScope.context;
+                this.schema = serverScope.schema;
 
-                // ----------------------------------------
-                // 5) Get local changes
-                // ----------------------------------------
-                BatchInfo clientBatchInfo;
-                BatchInfo serverBatchInfo;
 
-                DatabaseChangesSelected clientChangesSelected = null;
-                DatabaseChangesSelected serverChangesSelected = null;
-                DatabaseChangesApplied clientChangesApplied = null;
-                DatabaseChangesApplied serverChangesApplied = null;
-
-                var serverPolicy = this.LocalProvider.Configuration.ConflictResolutionPolicy;
-                var clientPolicy = serverPolicy == ConflictResolutionPolicy.ServerWins ? ConflictResolutionPolicy.ClientWins : ConflictResolutionPolicy.ServerWins;
-
-                scope = new ScopeInfo { Id = fromId, IsNewScope = isNew, Timestamp = lastSyncTS };
-                (context, clientBatchInfo, clientChangesSelected) =
-                    await this.LocalProvider.GetChangeBatchAsync(context,
-                        new MessageGetChangesBatch
-                        {
-                            ScopeInfo = scope,
-                            Schema = this.LocalProvider.Configuration.Schema,
-                            Policy = clientPolicy,
-                            Filters = this.LocalProvider.Configuration.Filters,
-                            SerializationFormat = this.LocalProvider.Configuration.SerializationFormat
-                        }).ConfigureAwait(false);
+                // on local orchestrator, get local changes
+                // Most probably the schema has changed, so we passed it again (coming from Server)
+                // Don't need to pass again Options since we are not modifying it between server and client
+                var clientChanges = await this.LocalOrchestrator.GetChangesAsync(
+                    context, schema, clientScope.localScopeInfo, serverScope.serverScopeInfo,
+                    cancellationToken, progress);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
+                // set context
+                context = clientChanges.context;
+
+                // SECOND call to server
+                var serverChanges = await this.RemoteOrchestrator.ApplyThenGetChangesAsync(
+                    context, clientScope.localScopeInfo, serverScope.localScopeReferenceInfo,
+                    serverScope.serverScopeInfo, clientChanges.clientBatchInfo,
+                    cancellationToken, remoteProgress);
+
+                if (cancellationToken.IsCancellationRequested)
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                // set context
+                context = serverChanges.context;
+
+                var localChanges = await this.LocalOrchestrator.ApplyChangesAsync(
+                    context, serverChanges.serverTimestamp, clientChanges.clientTimestamp,
+                    serverScope.serverScopeInfo, clientScope.localScopeInfo, serverChanges.serverBatchInfo,
+                    cancellationToken, progress);
+
+
+                context.TotalChangesDownloaded = localChanges.clientChangesApplied.TotalAppliedChanges;
+                context.TotalChangesUploaded = clientChanges.clientChangesSelected.TotalChangesSelected;
+                context.TotalSyncErrors = localChanges.clientChangesApplied.TotalAppliedChangesFailed;
+
+                if (cancellationToken.IsCancellationRequested)
+                    cancellationToken.ThrowIfCancellationRequested();
 
             }
             catch (SyncException se)
