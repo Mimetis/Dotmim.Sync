@@ -17,6 +17,13 @@ namespace Dotmim.Sync.Messages
         [NonSerialized]
         private DmSet _schema;
 
+        public MessageEnsureDatabase(ScopeInfo scopeInfo, DmSet schema, ICollection<FilterClause> filters, SerializationFormat serializationFormat)
+        {
+            this.ScopeInfo = scopeInfo ?? throw new ArgumentNullException(nameof(scopeInfo));
+            this.Schema = schema ?? throw new ArgumentNullException(nameof(schema));
+            this.SerializationFormat = serializationFormat;
+        }
+
         /// <summary>
         /// Gets or Sets he scope info used during the ensure database sync stage
         /// </summary>

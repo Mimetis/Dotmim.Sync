@@ -54,7 +54,7 @@ namespace Dotmim.Sync.Tests.SqlServer
             try
             {
 
-                var conf = new Action<SyncConfiguration>(s =>
+                var conf = new Action<SyncSchema>(s =>
                 {
                     s.ScopeInfoTableName = "tscopeinfo";
                     s.StoredProceduresPrefix = "s";

@@ -13,7 +13,7 @@ namespace Microsoft.Extensions.DependencyInjection
     {
         private static Type providerType;
         private static string connectionString;
-        private static Action<SyncConfiguration> configuration;
+        private static Action<SyncSchema> configuration;
         private static Action<SyncOptions> options;
 
         /// <summary>
@@ -28,7 +28,7 @@ namespace Microsoft.Extensions.DependencyInjection
         public static IServiceCollection AddSyncServer<TProvider>(
                     this IServiceCollection serviceCollection,
                     string connectionString,
-                    Action<SyncConfiguration> configuration,
+                    Action<SyncSchema> configuration,
                     Action<SyncOptions> options = null) where TProvider : CoreProvider, new()
         {
             if (string.IsNullOrWhiteSpace(connectionString))
@@ -56,7 +56,7 @@ namespace Microsoft.Extensions.DependencyInjection
             var webProvider = new SyncMemoryProvider(provider);
 
             // Sets the options / configurations
-            webProvider.SetConfiguration(configuration);
+            webProvider.SetSchema(configuration);
             webProvider.SetOptions(options);
 
             return webProvider;

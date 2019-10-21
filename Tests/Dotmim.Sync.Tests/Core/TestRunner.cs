@@ -41,12 +41,12 @@ namespace Dotmim.Sync.Tests.Core
             return await RunTestsAsync(this.providerFixture.Tables, null, reuseAgent);
         }
 
-        public async Task<List<ProviderRun>> RunTestsAsync(Action<SyncConfiguration> conf, bool reuseAgent = true)
+        public async Task<List<ProviderRun>> RunTestsAsync(Action<SyncSchema> conf, bool reuseAgent = true)
         {
             return await RunTestsAsync(this.providerFixture.Tables, conf, reuseAgent);
         }
 
-        public async Task<List<ProviderRun>> RunTestsAsync(string[] tables = null, Action<SyncConfiguration> conf = null,
+        public async Task<List<ProviderRun>> RunTestsAsync(string[] tables = null, Action<SyncSchema> conf = null,
                                                            bool reuseAgent = true)
         {
             foreach (var tra in this.providerFixture.ClientRuns)

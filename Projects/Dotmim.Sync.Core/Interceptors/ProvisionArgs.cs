@@ -47,7 +47,7 @@ namespace Dotmim.Sync
             Schema = schema;
         }
 
-        public override string Message => $"Tables count:{Schema.Tables.Sum(t => t.Columns.Count)} Provision:{Provision}";
+        public override string Message => $"Tables count:{Schema.Tables.Count} Provision:{Provision}";
 
     }
 

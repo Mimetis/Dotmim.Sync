@@ -42,7 +42,7 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// Set Sync Configuration parameters
         /// </summary>
-        public void SetConfiguration(Action<SyncConfiguration> configuration)
+        public void SetSchema(Action<SyncSchema> configuration)
             => this.LocalProvider.SetConfiguration(configuration);
 
         /// <summary>
@@ -118,14 +118,14 @@ namespace Dotmim.Sync.Web.Server
                 httpMessageBeginSession = (httpMessage.Content as JObject).ToObject<HttpMessageBeginSession>();
 
             // the Conf is hosted by the server ? if not, get the client configuration
-            httpMessageBeginSession.Configuration =
-                this.LocalProvider.Configuration ?? httpMessageBeginSession.Configuration;
+            httpMessageBeginSession.Schema =
+                this.LocalProvider.Configuration ?? httpMessageBeginSession.Schema;
 
             // Begin the session, requesting the server for the correct configuration
             (var ctx, var conf) =
                 await this.BeginSessionAsync(httpMessage.SyncContext, httpMessageBeginSession as MessageBeginSession).ConfigureAwait(false);
 
-            httpMessageBeginSession.Configuration = conf;
+            httpMessageBeginSession.Schema = conf;
 
             httpMessage.SyncContext = ctx;
 
@@ -395,7 +395,10 @@ namespace Dotmim.Sync.Web.Server
                         //UseBulkOperations = httpMessageContent.UseBulkOperations,
                         //CleanMetadatas = httpMessageContent.CleanMetadatas,
                         ScopeInfoTableName = httpMessageContent.ScopeInfoTableName,
-                        Changes = batchInfo
+                        Changes = batchInfo,
+                        DisableConstraintsOnApplyChanges = Options.DisableConstraintsOnApplyChanges,
+                        CleanMetadatas = Options.CleanMetadatas,
+                        UseBulkOperations = Options.UseBulkOperations
                     }).ConfigureAwait(false);
 
                 httpMessageContent.ChangesApplied = s;
@@ -524,7 +527,7 @@ namespace Dotmim.Sync.Web.Server
         }
 
 
-        public Task<(SyncContext, SyncConfiguration)> BeginSessionAsync(SyncContext ctx, MessageBeginSession message)
+        public Task<(SyncContext, SyncSchema)> BeginSessionAsync(SyncContext ctx, MessageBeginSession message)
             => this.LocalProvider.BeginSessionAsync(ctx, message);
         public Task<(SyncContext, List<ScopeInfo>)> EnsureScopesAsync(SyncContext ctx, MessageEnsureScopes message)
             => this.LocalProvider.EnsureScopesAsync(ctx, message);

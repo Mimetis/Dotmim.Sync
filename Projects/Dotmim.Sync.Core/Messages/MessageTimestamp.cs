@@ -11,6 +11,12 @@ namespace Dotmim.Sync.Messages
     [Serializable]
     public class MessageTimestamp
     {
+        public MessageTimestamp(string scopeInfoTableName, SerializationFormat serializationFormat)
+        {
+            this.ScopeInfoTableName = scopeInfoTableName ?? throw new ArgumentNullException(nameof(scopeInfoTableName));
+            this.SerializationFormat = serializationFormat;
+        }
+
         /// <summary>
         /// Gets or Sets the Scope info table name, used to get the timestamp
         /// </summary>
