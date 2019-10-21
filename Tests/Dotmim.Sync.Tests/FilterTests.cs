@@ -74,7 +74,7 @@ namespace Dotmim.Sync.Tests
         {
             try
             {
-                var s = new Action<SyncConfiguration>(c => { });
+                var s = new Action<SyncSchema>(c => { });
 
                 var results = await this.testRunner.RunTestsAsync(s);
 

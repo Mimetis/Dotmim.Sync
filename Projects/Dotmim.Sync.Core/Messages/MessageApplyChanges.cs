@@ -15,6 +15,19 @@ namespace Dotmim.Sync.Messages
         [NonSerialized]
         private DmSet _schema;
 
+        public MessageApplyChanges(ScopeInfo fromScope, DmSet schema, ConflictResolutionPolicy policy, bool disableConstraintsOnApplyChanges, bool useBulkOperations, bool cleanMetadatas, string scopeInfoTableName, BatchInfo changes, SerializationFormat serializationFormat)
+        {
+            this.FromScope = fromScope ?? throw new ArgumentNullException(nameof(fromScope));
+            this.Schema = schema ?? throw new ArgumentNullException(nameof(schema));
+            this.Policy = policy;
+            this.DisableConstraintsOnApplyChanges = disableConstraintsOnApplyChanges;
+            this.UseBulkOperations = useBulkOperations;
+            this.CleanMetadatas = cleanMetadatas;
+            this.ScopeInfoTableName = scopeInfoTableName ?? throw new ArgumentNullException(nameof(scopeInfoTableName));
+            this.Changes = changes ?? throw new ArgumentNullException(nameof(changes));
+            this.SerializationFormat = serializationFormat;
+        }
+
         /// <summary>
         /// Gets or Sets the scope info for the current sync
         /// </summary>
@@ -31,11 +44,20 @@ namespace Dotmim.Sync.Messages
         /// </summary>
         public ConflictResolutionPolicy Policy { get; set; }
 
-        ///// <summary>
-        ///// Gets or Sets if we should cleaning tmp dir files after sync.
-        ///// </summary>
-        //[JsonIgnore]
-        //public bool CleanMetadatas { get; set; }
+        /// <summary>
+        /// Gets or Sets if we should disable all constraints on apply changes.
+        /// </summary>
+        public bool DisableConstraintsOnApplyChanges { get; set; }
+
+        /// <summary>
+        /// Gets or Sets if during appy changes, we are using bulk operations
+        /// </summary>
+        public bool UseBulkOperations { get; set; }
+
+        /// <summary>
+        /// Gets or Sets if we should cleaning tmp dir files after sync.
+        /// </summary>
+        public bool CleanMetadatas { get; set; }
 
         /// <summary>
         /// Gets ors Sets the Scope info table name used for the sync

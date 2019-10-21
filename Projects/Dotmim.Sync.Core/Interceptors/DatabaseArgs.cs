@@ -22,7 +22,7 @@ namespace Dotmim.Sync
         /// Gets the schema to be applied. If no tables are filled, the schema will be read.
         /// </summary>
         public DmSet Schema { get; }
-        public override string Message => $"Tables count:{this.Schema.Tables.Count}";
+        public override string Message => $"Synced tables count: {this.Schema.Tables.Count}";
 
     }
     public class OutdatedArgs : ProgressArgs

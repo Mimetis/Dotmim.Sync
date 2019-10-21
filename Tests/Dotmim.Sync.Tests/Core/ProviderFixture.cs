@@ -20,7 +20,7 @@ namespace Dotmim.Sync.Tests.Core
         private static readonly object locker = new object();
         private bool isConfigured = false;
 
-        Action<SyncConfiguration> configuration;
+        Action<SyncSchema> configuration;
 
         // list of client providers we want to create
         private readonly Dictionary<NetworkType, ProviderType> lstClientsType = new Dictionary<NetworkType, ProviderType>();
@@ -69,7 +69,7 @@ namespace Dotmim.Sync.Tests.Core
         }
 
 
-        public void SetConfiguration(Action<SyncConfiguration> configuration)
+        public void SetConfiguration(Action<SyncSchema> configuration)
             => this.configuration = configuration;
 
         /// <summary>

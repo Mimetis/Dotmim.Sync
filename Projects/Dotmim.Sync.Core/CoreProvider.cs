@@ -16,13 +16,37 @@ namespace Dotmim.Sync
     /// <summary>
     /// Core provider : should be implemented by any server / client provider
     /// </summary>
-    public abstract partial class CoreProvider : IProvider
+    public abstract partial class CoreProvider
     {
-        private bool syncInProgress;
-        private readonly Dictionary<Type, ISyncInterceptor> dictionary = new Dictionary<Type, ISyncInterceptor>();
-        private CancellationToken cancellationToken;
-        private IProgress<ProgressArgs> progress;
         private InterceptorBase interceptorBase;
+
+        /// <summary>
+        /// Set an interceptor to get info on the current sync process
+        /// </summary>
+        public void On(InterceptorBase interceptor)
+            => this.interceptorBase = interceptor;
+
+        /// <summary>
+        /// Set an interceptor to get info on the current sync process
+        /// </summary>
+        public void On<T>(Action<T> interceptorAction) where T : ProgressArgs
+            => this.interceptorBase = new Interceptor<T>(interceptorAction);
+
+        /// <summary>
+        /// Returns the Task associated with given type of BaseArgs 
+        /// Because we are not doing anything else than just returning a task, no need to use async / await. Just return the Task itself
+        /// </summary>
+        internal Task InterceptAsync<T>(T args) where T : ProgressArgs
+        {
+            if (this.interceptorBase == null)
+                return Task.CompletedTask;
+
+            var interceptor = this.interceptorBase.GetInterceptor<T>();
+            return interceptor.RunAsync(args);
+        }
+
+
+
 
         /// <summary>
         /// Create a new instance of the implemented Connection provider
@@ -75,51 +99,7 @@ namespace Dotmim.Sync
         /// </summary>
         public abstract bool CanBeServerProvider { get; }
 
-        /// <summary>
-        /// Gets the options used on this provider
-        /// </summary>
-        public SyncOptions Options { get; internal set; } = new SyncOptions();
 
-        /// <summary>
-        /// Gets the options used on this provider
-        /// </summary>
-        public SyncConfiguration Configuration { get; set; } = new SyncConfiguration();
-
-        /// <summary>
-        /// Set Options parameters
-        /// </summary>
-        public void SetOptions(Action<SyncOptions> options)
-            => options?.Invoke(this.Options);
-
-        /// <summary>
-        /// Set Configuration parameters
-        /// </summary>
-        public void SetConfiguration(Action<SyncConfiguration> configuration)
-            => configuration?.Invoke(this.Configuration);
-
-        /// <summary>
-        /// set the progress action used to get progression on the provider
-        /// </summary>
-        public void SetProgress(IProgress<ProgressArgs> progress)
-            => this.progress = progress;
-
-        /// <summary>
-        /// Set an interceptor to get info on the current sync process
-        /// </summary>
-        public void On(InterceptorBase interceptor)
-            => this.interceptorBase = interceptor;
-
-        /// <summary>
-        /// Set an interceptor to get info on the current sync process
-        /// </summary>
-        public void On<T>(Action<T> interceptorAction) where T : ProgressArgs
-            => this.interceptorBase = new Interceptor<T>(interceptorAction);
-
-        /// <summary>
-        /// Set the cancellation token used to cancel sync
-        /// </summary>
-        public void SetCancellationToken(CancellationToken token)
-            => this.cancellationToken = token;
 
 
         /// <summary>
@@ -131,7 +111,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Try to report progress
         /// </summary>
-        private void ReportProgress(SyncContext context, ProgressArgs args, DbConnection connection = null, DbTransaction transaction = null)
+        private void ReportProgress(SyncContext context, IProgress<ProgressArgs> progress, ProgressArgs args, DbConnection connection = null, DbTransaction transaction = null)
         {
             if (connection == null && args.Connection != null)
                 connection = args.Connection;
@@ -139,62 +119,46 @@ namespace Dotmim.Sync
             if (transaction == null && args.Transaction != null)
                 transaction = args.Transaction;
 
-            ReportProgress(context, args.Message, connection, transaction);
+            ReportProgress(context, progress, args.Message, connection, transaction);
         }
 
         /// <summary>
         /// Try to report progress
         /// </summary>
-        private void ReportProgress(SyncContext context, string message, DbConnection connection = null, DbTransaction transaction = null)
+        private void ReportProgress(SyncContext context, IProgress<ProgressArgs> progress, string message, DbConnection connection = null, DbTransaction transaction = null)
         {
-            if (this.progress == null)
+            if (progress == null)
                 return;
 
             var progressArgs = new ProgressArgs(context, message, connection, transaction);
 
-            this.progress.Report(progressArgs);
+            progress.Report(progressArgs);
 
             if (progressArgs.Action == ChangeApplicationAction.Rollback)
                 RaiseRollbackException(context, "Rollback by user during a progress event");
         }
 
-        /// <summary>
-        /// Returns the Task associated with given type of BaseArgs 
-        /// Because we are not doing anything else than just returning a task, no need to use async / await. Just return the Task itself
-        /// </summary>
-        internal Task InterceptAsync<T>(T args) where T : ProgressArgs
-        {
-            if (this.interceptorBase == null)
-                return Task.CompletedTask;
 
-            var interceptor = this.interceptorBase.GetInterceptor<T>();
-            return interceptor.RunAsync(args);
-        }
 
 
         /// <summary>
         /// Called by the  to indicate that a 
         /// synchronization session has started.
         /// </summary>
-        public virtual async Task<(SyncContext, SyncConfiguration)> BeginSessionAsync(SyncContext context, MessageBeginSession message)
+        public virtual async Task<SyncContext> BeginSessionAsync(SyncContext context,
+                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
             try
             {
-                lock (this)
-                {
-                    if (this.syncInProgress)
-                        throw new InProgressException("Synchronization already in progress");
 
-                    this.syncInProgress = true;
-                }
+                context.SyncStage = SyncStage.BeginSession;
 
                 // Progress & interceptor
-                context.SyncStage = SyncStage.BeginSession;
                 var sessionArgs = new SessionBeginArgs(context, null, null);
-                this.ReportProgress(context, sessionArgs);
+                this.ReportProgress(context, progress, sessionArgs);
                 await this.InterceptAsync(sessionArgs).ConfigureAwait(false);
 
-                return (context, message.Configuration);
+                return context;
             }
             catch (Exception ex)
             {
@@ -207,26 +171,17 @@ namespace Dotmim.Sync
         /// <summary>
         /// Called when the sync is over
         /// </summary>
-        public virtual async Task<SyncContext> EndSessionAsync(SyncContext context)
+        public virtual async Task<SyncContext> EndSessionAsync(SyncContext context,
+                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
-            // already ended
-            lock (this)
-            {
-                if (!this.syncInProgress)
-                    return context;
-            }
 
             context.SyncStage = SyncStage.EndSession;
 
             // Progress & interceptor
             var sessionArgs = new SessionEndArgs(context, null, null);
-            this.ReportProgress(context, sessionArgs);
+            this.ReportProgress(context, progress, sessionArgs);
             await this.InterceptAsync(sessionArgs).ConfigureAwait(false);
 
-            lock (this)
-            {
-                this.syncInProgress = false;
-            }
 
             return context;
         }
@@ -234,29 +189,14 @@ namespace Dotmim.Sync
         /// <summary>
         /// Read a scope info
         /// </summary>
-        public virtual async Task<(SyncContext, long)> GetLocalTimestampAsync(SyncContext context, MessageTimestamp message)
+        public virtual (SyncContext, long) GetLocalTimestampAsync(SyncContext context, MessageTimestamp message,
+                             DbConnection connection, DbTransaction transaction,
+                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
-            // Open the connection
-            using (var connection = this.CreateConnection())
-            {
-                try
-                {
-                    await connection.OpenAsync().ConfigureAwait(false);
-                    await this.InterceptAsync(new ConnectionOpenArgs(context, connection)).ConfigureAwait(false);
-
-                    var scopeBuilder = this.GetScopeBuilder();
-                    var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(message.ScopeInfoTableName, connection);
-                    var localTime = scopeInfoBuilder.GetLocalTimestamp();
-                    return (context, localTime);
-                }
-                finally
-                {
-                    if (connection.State != ConnectionState.Closed)
-                        connection.Close();
-
-                    await this.InterceptAsync(new ConnectionCloseArgs(context, connection, null)).ConfigureAwait(false);
-                }
-            }
+            var scopeBuilder = this.GetScopeBuilder();
+            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(message.ScopeInfoTableName, connection, transaction);
+            var localTime = scopeInfoBuilder.GetLocalTimestamp();
+            return (context, localTime);
         }
 
         /// <summary>

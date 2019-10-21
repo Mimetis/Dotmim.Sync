@@ -40,7 +40,7 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// Gets the options used on this provider
         /// </summary>
-        public SyncConfiguration Configuration { get; private set; } = new SyncConfiguration();
+        public SyncSchema Configuration { get; private set; } = new SyncSchema();
 
         /// <summary>
         /// Set Options parameters
@@ -51,7 +51,7 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// Set Configuration parameters
         /// </summary>
-        public void SetConfiguration(Action<SyncConfiguration> configuration)
+        public void SetSchema(Action<SyncSchema> configuration)
             => configuration?.Invoke(this.Configuration);
 
 
@@ -154,7 +154,7 @@ namespace Dotmim.Sync.Web.Client
                 this.AddCustomHeader(ch.Key, ch.Value);
         }
 
-        public async Task<(SyncContext, SyncConfiguration)> BeginSessionAsync(SyncContext context, MessageBeginSession message)
+        public async Task<(SyncContext, SyncSchema)> BeginSessionAsync(SyncContext context, MessageBeginSession message)
         {
             var httpMessage = new HttpMessage
             {
@@ -162,7 +162,7 @@ namespace Dotmim.Sync.Web.Client
                 SyncContext = context,
                 Content = new HttpMessageBeginSession
                 {
-                    Configuration = message.Configuration
+                    Schema = message.Schema
                 }
             };
 
@@ -179,7 +179,7 @@ namespace Dotmim.Sync.Web.Client
             else
                 httpMessageContent = (httpMessageResponse.Content as JObject).ToObject<HttpMessageBeginSession>();
 
-            return (httpMessageResponse.SyncContext, httpMessageContent.Configuration);
+            return (httpMessageResponse.SyncContext, httpMessageContent.Schema);
         }
 
         public async Task<SyncContext> EndSessionAsync(SyncContext context)
