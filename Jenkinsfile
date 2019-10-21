@@ -3,7 +3,7 @@ timestamps {
         def suffix = "tsu-${BUILD_NUMBER}"
         stage('Clone repository') {
             checkout scm
-        }    
+        }
         docker.image('microsoft/dotnet:2.1.300-sdk').inside() {
             stage('Restore Dependencies') {
                 sh 'dotnet restore'
@@ -31,8 +31,8 @@ timestamps {
 
 def String pushPackage(String path, String packageName) {
     def file = getPackageFile(path, packageName)
-    sh "dotnet nuget push ${file} -s http://10.19.11.17:5500/v3/index.json -k NUGET-SERVER-API-KEY"
-} 
+    sh "dotnet nuget push ${file} -s http://10.17.11.17:5500/v3/index.json -k NUGET-SERVER-API-KEY"
+}
 
 def String getPackageFile(String path, String packageName) {
     def file = sh returnStdout: true, script: "find ${path}/${packageName} -name ${packageName}*.nupkg -not -name *.symbols.nupkg -printf '%p'"
