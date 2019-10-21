@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync
@@ -19,108 +20,85 @@ namespace Dotmim.Sync
         /// the fromScope is local client scope when this method is called from server
         /// the fromScope is server scope when this method is called from client
         /// </summary>
-        public virtual async Task<(SyncContext, DatabaseChangesApplied)> ApplyChangesAsync(SyncContext context, MessageApplyChanges message)
+        public virtual async Task<(SyncContext, DatabaseChangesApplied)>
+            ApplyChangesAsync(SyncContext context, MessageApplyChanges message, DbConnection connection, DbTransaction transaction,
+                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
             var changeApplicationAction = ChangeApplicationAction.Continue;
-            DbTransaction applyTransaction = null;
-            DbConnection connection = null;
             var changesApplied = new DatabaseChangesApplied();
 
             try
             {
-                using (connection = this.CreateConnection())
+                context.SyncStage = SyncStage.DatabaseChangesApplying;
+
+                // Launch any interceptor if available
+                await this.InterceptAsync(new DatabaseChangesApplyingArgs(context, connection, transaction)).ConfigureAwait(false);
+
+                // Disable check constraints
+                if (message.DisableConstraintsOnApplyChanges)
+                    changeApplicationAction = this.DisableConstraints(context, message.Schema, connection, transaction, message.FromScope);
+
+                // -----------------------------------------------------
+                // 0) Check if we are in a reinit mode
+                // -----------------------------------------------------
+                if (context.SyncWay == SyncWay.Download && context.SyncType != SyncType.Normal)
                 {
-                    await connection.OpenAsync().ConfigureAwait(false);
-                    await this.InterceptAsync(new ConnectionOpenArgs(context, connection)).ConfigureAwait(false);
+                    changeApplicationAction = this.ResetInternal(context, message.Schema, connection, transaction, message.FromScope);
 
-                    // Create a transaction
-                    using (applyTransaction = connection.BeginTransaction())
+                    // Rollback
+                    if (changeApplicationAction == ChangeApplicationAction.Rollback)
+                        throw new SyncException("Rollback during reset tables", context.SyncStage, SyncExceptionType.Rollback);
+                }
+
+                // -----------------------------------------------------
+                // 1) Applying deletes. Do not apply deletes if we are in a new database
+                // -----------------------------------------------------
+                if (!message.FromScope.IsNewScope)
+                {
+                    // for delete we must go from Up to Down
+                    foreach (var table in message.Schema.Tables.Reverse())
                     {
-
-                        await this.InterceptAsync(new TransactionOpenArgs(context, connection, applyTransaction)).ConfigureAwait(false);
-
-                        context.SyncStage = SyncStage.DatabaseChangesApplying;
-
-                        // Launch any interceptor if available
-                        await this.InterceptAsync(new DatabaseChangesApplyingArgs(context, connection, applyTransaction)).ConfigureAwait(false);
-
-                        // Disable check constraints
-                        if (this.Options.DisableConstraintsOnApplyChanges)
-                            changeApplicationAction = this.DisableConstraints(context, message.Schema, connection, applyTransaction, message.FromScope);
-
-                        // -----------------------------------------------------
-                        // 0) Check if we are in a reinit mode
-                        // -----------------------------------------------------
-                        if (context.SyncWay == SyncWay.Download && context.SyncType != SyncType.Normal)
-                        {
-                            changeApplicationAction = this.ResetInternal(context, message.Schema, connection, applyTransaction, message.FromScope);
-
-                            // Rollback
-                            if (changeApplicationAction == ChangeApplicationAction.Rollback)
-                                throw new SyncException("Rollback during reset tables", context.SyncStage, SyncExceptionType.Rollback);
-                        }
-
-                        // -----------------------------------------------------
-                        // 1) Applying deletes. Do not apply deletes if we are in a new database
-                        // -----------------------------------------------------
-                        if (!message.FromScope.IsNewScope)
-                        {
-                            // for delete we must go from Up to Down
-                            foreach (var table in message.Schema.Tables.Reverse())
-                            {
-                                changeApplicationAction = await this.ApplyChangesInternalAsync(table, context, message, connection,
-                                    applyTransaction, DmRowState.Deleted, changesApplied).ConfigureAwait(false);
-                            }
-
-                            // Rollback
-                            if (changeApplicationAction == ChangeApplicationAction.Rollback)
-                            {
-                                RaiseRollbackException(context, "Rollback during applying deletes");
-                            }
-                        }
-
-                        // -----------------------------------------------------
-                        // 2) Applying Inserts and Updates. Apply in table order
-                        // -----------------------------------------------------
-                        foreach (var table in message.Schema.Tables)
-                        {
-                            changeApplicationAction = await this.ApplyChangesInternalAsync(table, context, message, connection,
-                                applyTransaction, DmRowState.Added, changesApplied).ConfigureAwait(false);
-
-                            // Rollback
-                            if (changeApplicationAction == ChangeApplicationAction.Rollback)
-                            {
-                                RaiseRollbackException(context, "Rollback during applying inserts");
-                            }
-
-                            changeApplicationAction = await this.ApplyChangesInternalAsync(table, context, message, connection,
-                                applyTransaction, DmRowState.Modified, changesApplied).ConfigureAwait(false);
-
-                            // Rollback
-                            if (changeApplicationAction == ChangeApplicationAction.Rollback)
-                            {
-                                RaiseRollbackException(context, "Rollback during applying updates");
-                            }
-                        }
-
-
-                        // Progress & Interceptor
-                        context.SyncStage = SyncStage.DatabaseChangesApplied;
-                        var databaseChangesAppliedArgs = new DatabaseChangesAppliedArgs(context, connection, applyTransaction);
-                        this.ReportProgress(context, databaseChangesAppliedArgs, connection, applyTransaction);
-                        await this.InterceptAsync(databaseChangesAppliedArgs).ConfigureAwait(false);
-
-                        // Re enable check constraints
-                        if (this.Options.DisableConstraintsOnApplyChanges)
-                            changeApplicationAction = this.EnableConstraints(context, message.Schema, connection, applyTransaction, message.FromScope);
-
-                        await this.InterceptAsync(new TransactionCommitArgs(context, connection, applyTransaction)).ConfigureAwait(false);
-                        applyTransaction.Commit();
-
+                        changeApplicationAction = await this.ApplyChangesInternalAsync(table, context, message, connection,
+                            transaction, DmRowState.Deleted, changesApplied, cancellationToken, progress).ConfigureAwait(false);
                     }
 
-                    return (context, changesApplied);
+                    // Rollback
+                    if (changeApplicationAction == ChangeApplicationAction.Rollback)
+                        RaiseRollbackException(context, "Rollback during applying deletes");
                 }
+
+                // -----------------------------------------------------
+                // 2) Applying Inserts and Updates. Apply in table order
+                // -----------------------------------------------------
+                foreach (var table in message.Schema.Tables)
+                {
+                    changeApplicationAction = await this.ApplyChangesInternalAsync(table, context, message, connection,
+                        transaction, DmRowState.Added, changesApplied, cancellationToken, progress).ConfigureAwait(false);
+
+                    // Rollback
+                    if (changeApplicationAction == ChangeApplicationAction.Rollback)
+                        RaiseRollbackException(context, "Rollback during applying inserts");
+
+                    changeApplicationAction = await this.ApplyChangesInternalAsync(table, context, message, connection,
+                        transaction, DmRowState.Modified, changesApplied, cancellationToken, progress).ConfigureAwait(false);
+
+                    // Rollback
+                    if (changeApplicationAction == ChangeApplicationAction.Rollback)
+                        RaiseRollbackException(context, "Rollback during applying updates");
+                }
+
+
+                // Progress & Interceptor
+                context.SyncStage = SyncStage.DatabaseChangesApplied;
+                var databaseChangesAppliedArgs = new DatabaseChangesAppliedArgs(context, changesApplied, connection, transaction);
+                this.ReportProgress(context, progress, databaseChangesAppliedArgs, connection, transaction);
+                await this.InterceptAsync(databaseChangesAppliedArgs).ConfigureAwait(false);
+
+                // Re enable check constraints
+                if (message.DisableConstraintsOnApplyChanges)
+                    changeApplicationAction = this.EnableConstraints(context, message.Schema, connection, transaction, message.FromScope);
+
+                return (context, changesApplied);
             }
             catch (SyncException)
             {
@@ -129,22 +107,6 @@ namespace Dotmim.Sync
             catch (Exception ex)
             {
                 throw new SyncException(ex, SyncStage.TableChangesApplying);
-            }
-            finally
-            {
-                if (applyTransaction != null)
-                {
-                    applyTransaction.Dispose();
-                }
-
-                if (connection != null && connection.State == ConnectionState.Open)
-                    connection.Close();
-
-                if (message.Changes != null)
-                    message.Changes.Clear(this.Options.CleanMetadatas);
-
-                await this.InterceptAsync(new ConnectionCloseArgs(context, connection, applyTransaction)).ConfigureAwait(false);
-
             }
         }
 
@@ -228,7 +190,8 @@ namespace Dotmim.Sync
             DbConnection connection,
             DbTransaction transaction,
             DmRowState applyType,
-            DatabaseChangesApplied changesApplied)
+            DatabaseChangesApplied changesApplied,
+            CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
 
             var changeApplicationAction = ChangeApplicationAction.Continue;
@@ -279,7 +242,7 @@ namespace Dotmim.Sync
 
                     int rowsApplied;
                     // applying the bulkchanges command
-                    if (this.Options.UseBulkOperations && this.SupportBulkOperations)
+                    if (message.UseBulkOperations && this.SupportBulkOperations)
                         rowsApplied = syncAdapter.ApplyBulkChanges(dmChangesView, message.FromScope, conflicts);
                     else
                         rowsApplied = syncAdapter.ApplyChanges(dmChangesView, message.FromScope, conflicts);
@@ -345,7 +308,7 @@ namespace Dotmim.Sync
                     // Progress & Interceptor
                     context.SyncStage = SyncStage.TableChangesApplied;
                     var tableChangesAppliedArgs = new TableChangesAppliedArgs(context, existAppliedChanges, connection, transaction);
-                    this.ReportProgress(context, tableChangesAppliedArgs, connection, transaction);
+                    this.ReportProgress(context, progress, tableChangesAppliedArgs, connection, transaction);
                     await this.InterceptAsync(tableChangesAppliedArgs).ConfigureAwait(false);
 
 

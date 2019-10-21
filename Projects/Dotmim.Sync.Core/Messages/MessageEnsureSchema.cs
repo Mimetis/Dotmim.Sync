@@ -16,6 +16,12 @@ namespace Dotmim.Sync.Messages
         [NonSerialized]
         private DmSet _schema;
 
+        public MessageEnsureSchema(DmSet schema, SerializationFormat serializationFormat)
+        {
+            this.Schema = schema ?? throw new ArgumentNullException(nameof(schema));
+            this.SerializationFormat = serializationFormat;
+        }
+
         /// <summary>
         /// Gets or Sets the database schema
         /// </summary>

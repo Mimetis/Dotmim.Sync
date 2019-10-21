@@ -11,7 +11,7 @@ using System.Runtime.Serialization;
 namespace Dotmim.Sync
 {
     [Serializable]
-    public class SyncConfiguration
+    public class SyncSchema
     {
         public const string DMSET_NAME = "DotmimSync";
 
@@ -222,7 +222,7 @@ namespace Dotmim.Sync
              ApplyAction.Continue :
              ApplyAction.RetryWithForceWrite;
 
-        public SyncConfiguration()
+        public SyncSchema()
         {
             this.Schema = new DmSet(DMSET_NAME);
             this.ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
@@ -232,7 +232,7 @@ namespace Dotmim.Sync
             this.ScopeName = "DefaultScope";
         }
 
-        public SyncConfiguration(string[] tables) : this()
+        public SyncSchema(string[] tables) : this()
         {
             if (tables.Length <= 0)
                 return;
@@ -241,9 +241,9 @@ namespace Dotmim.Sync
                 this.Add(table);
         }
 
-        public SyncConfiguration Clone()
+        public SyncSchema Clone()
         {
-            var syncConfiguration = new SyncConfiguration
+            var syncConfiguration = new SyncSchema
             {
                 ConflictResolutionPolicy = this.ConflictResolutionPolicy,
                 Schema = this.Schema.Clone(),

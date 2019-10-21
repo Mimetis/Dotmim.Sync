@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync
@@ -194,39 +195,23 @@ namespace Dotmim.Sync
         /// <summary>
         /// Ensure configuration is correct on both server and client side
         /// </summary>
-        public virtual async Task<(SyncContext, DmSet)> EnsureSchemaAsync(SyncContext context, MessageEnsureSchema message)
+        public virtual async Task<(SyncContext, DmSet)> EnsureSchemaAsync(SyncContext context, MessageEnsureSchema message,
+                             DbConnection connection, DbTransaction transaction,
+                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
-            DbConnection connection = null;
-            DbTransaction transaction = null;
             try
             {
                 context.SyncStage = SyncStage.SchemaReading;
 
-                using (connection = this.CreateConnection())
-                {
-                    await connection.OpenAsync().ConfigureAwait(false);
-                    await this.InterceptAsync(new ConnectionOpenArgs(context, connection)).ConfigureAwait(false);
+                // if we dont have already read the tables || we want to overwrite the current config
+                if (message.Schema.HasTables && !message.Schema.HasColumns)
+                    this.ReadSchema(message.Schema, connection, transaction);
 
-                    using (transaction = connection.BeginTransaction())
-                    {
-                        await this.InterceptAsync(new TransactionOpenArgs(context, connection, transaction)).ConfigureAwait(false);
-
-                        // if we dont have already read the tables || we want to overwrite the current config
-                        if (message.Schema.HasTables && !message.Schema.HasColumns)
-                            this.ReadSchema(message.Schema, connection, transaction);
-
-                        // Progress & Interceptor
-                        context.SyncStage = SyncStage.SchemaRead;
-                        var schemaArgs = new SchemaArgs(context, message.Schema, connection, transaction);
-                        this.ReportProgress(context, schemaArgs);
-                        await this.InterceptAsync(schemaArgs).ConfigureAwait(false);
-
-                        await this.InterceptAsync(new TransactionCommitArgs(context, connection, transaction)).ConfigureAwait(false);
-                        transaction.Commit();
-                    }
-
-                    connection.Close();
-                }
+                // Progress & Interceptor
+                context.SyncStage = SyncStage.SchemaRead;
+                var schemaArgs = new SchemaArgs(context, message.Schema, connection, transaction);
+                this.ReportProgress(context, progress, schemaArgs);
+                await this.InterceptAsync(schemaArgs).ConfigureAwait(false);
 
                 return (context, message.Schema);
             }
@@ -238,15 +223,6 @@ namespace Dotmim.Sync
             {
                 throw new SyncException(ex, SyncStage.SchemaReading);
             }
-            finally
-            {
-                if (connection != null && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-                await this.InterceptAsync(new ConnectionCloseArgs(context, connection, transaction)).ConfigureAwait(false);
-            }
-
-
         }
 
 

@@ -11,6 +11,13 @@ namespace Dotmim.Sync.Messages
     [Serializable]
     public class MessageWriteScopes
     {
+        public MessageWriteScopes(string scopeInfoTableName, List<ScopeInfo> scopes, SerializationFormat serializationFormat)
+        {
+            this.ScopeInfoTableName = scopeInfoTableName ?? throw new ArgumentNullException(nameof(scopeInfoTableName));
+            this.Scopes = scopes ?? throw new ArgumentNullException(nameof(scopes));
+            this.SerializationFormat = serializationFormat;
+        }
+
         /// <summary>
         /// Gets or Sets the scope info table used to set the scopes
         /// </summary>
