@@ -2,7 +2,9 @@
 using Dotmim.Sync.Data.Surrogate;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 
 namespace Dotmim.Sync.Batch
@@ -11,26 +13,21 @@ namespace Dotmim.Sync.Batch
     /// Info about a BatchPart
     /// Will be serialized in the BatchInfo file
     /// </summary>
-    [Serializable]
     public class BatchPartInfo
     {
-        private BatchPart batch;
-
         /// <summary>
-        /// Gets or sets the batch file included in this batch part
+        /// Loads the batch file and set the DmSet in memory
         /// </summary>
-        public BatchPart GetBatch()
+        public void LoadBatch()
         {
-            if (batch != null)
-                return batch;
+            if (this.Set != null && this.Set.HasTables)
+                return;
 
-            if (String.IsNullOrEmpty(this.FileName))
-                throw new ArgumentNullException("Cant get a batchpart if filename is null");
+            if (string.IsNullOrEmpty(this.FileName))
+                return;
 
-            // Get a Batch part, and deserialise the file into a DmSetSurrogate
-            batch = BatchPart.Deserialize(this.FileName);
-
-            return batch;
+            // Get a Batch part, and deserialise the file into a the BatchPartInfo Set property
+            this.Set = Deserialize(this.FileName);
         }
 
         /// <summary>
@@ -38,11 +35,6 @@ namespace Dotmim.Sync.Batch
         /// </summary>
         public void Clear()
         {
-            if (this.batch != null)
-            {
-                this.batch.Clear();
-                this.batch = null;
-            }
             if (this.Set != null)
             {
                 this.Set.Clear();
@@ -50,22 +42,21 @@ namespace Dotmim.Sync.Batch
             }
         }
 
-        public String FileName { get; set; }
+        public string FileName { get; set; }
 
         public int Index { get; set; }
 
-        public Boolean IsLastBatch { get; set; }
+        public bool IsLastBatch { get; set; }
 
         /// <summary>
         /// Tables contained in the DmSet (serialiazed or not)
         /// </summary>
-        public String[] Tables { get; set; }
+        public string[] Tables { get; set; }
 
         /// <summary>
         /// Gets or Sets the DmSet from the batch associated once the DmSetSurrogate is deserialized
         /// </summary>
 
-        [NonSerialized]
         private DmSet set;
         public DmSet Set
         {
@@ -84,38 +75,38 @@ namespace Dotmim.Sync.Batch
         {
         }
 
-        /// <summary>
-        /// Deserialize the BPI WITHOUT the DmSet
-        /// </summary>
-        public static BatchPartInfo DeserializeFromDmSet(DmSet set)
+        public static DmSet Deserialize(string fileName)
         {
-            if (set == null)
-                return null;
+            if (string.IsNullOrEmpty(fileName))
+                throw new ArgumentNullException("Cant get a Batch part if fileName doesn't exist");
 
-            if (!set.Tables.Contains("DotmimSync__BatchPartsInfo"))
-                return null;
+            if (!File.Exists(fileName))
+                throw new ArgumentNullException($"file {fileName} doesn't exist");
 
-            var dmRow = set.Tables["DotmimSync__BatchPartsInfo"].Rows[0];
-
-            var bpi = new BatchPartInfo
+            using (var fs = new FileStream(fileName, FileMode.Open, FileAccess.Read))
             {
-                Index = (int)dmRow["Index"],
-                FileName = dmRow["FileName"] as string,
-                IsLastBatch = (Boolean)dmRow["IsLastBatch"]
-            };
-
-            if (dmRow["Tables"] != null)
-            {
-                var stringTables = dmRow["Tables"] as string;
-                var tables = stringTables.Split(new char[] { '|' }, StringSplitOptions.RemoveEmptyEntries);
-                bpi.Tables = tables;
+                var serializer = new BinaryFormatter();
+                return serializer.Deserialize(fs) as DmSet;
             }
-
-            return bpi;
         }
 
-    
-        /// <summary>
+        public static void Serialize(DmSet set, string fileName)
+        {
+            if (set == null)
+                return;
+
+            var fi = new FileInfo(fileName);
+
+            if (!Directory.Exists(fi.Directory.FullName))
+                Directory.CreateDirectory(fi.Directory.FullName);
+
+            // Serialize on disk.
+            using (var f = new FileStream(fileName, FileMode.CreateNew, FileAccess.ReadWrite))
+            {
+                var serializer = new BinaryFormatter();
+                serializer.Serialize(f, set);
+            }
+        }
         /// Create a new BPI, and serialize the changeset if not in memory
         /// </summary>
         internal static BatchPartInfo CreateBatchPartInfo(int batchIndex, DmSet changesSet, string fileName, Boolean isLastBatch, Boolean inMemory)
@@ -127,7 +118,7 @@ namespace Dotmim.Sync.Batch
             if (!inMemory)
             {
                 // Serialize the file !
-                BatchPart.Serialize(new DmSetSurrogate(changesSet), fileName);
+                Serialize(changesSet, fileName);
 
                 bpi = new BatchPartInfo { FileName = fileName };
             }
@@ -140,7 +131,8 @@ namespace Dotmim.Sync.Batch
             bpi.IsLastBatch = isLastBatch;
 
             // Even if the set is empty (serialized on disk), we should retain the tables names
-            bpi.Tables = changesSet.Tables.Select(t => t.TableName).ToArray();
+            if (changesSet != null && changesSet.HasTables)
+                bpi.Tables = changesSet.Tables.Select(t => t.TableName).ToArray();
 
             return bpi;
         }

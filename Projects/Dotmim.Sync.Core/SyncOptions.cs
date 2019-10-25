@@ -67,6 +67,11 @@ namespace Dotmim.Sync
         [DataMember(Name = "dcoa")]
         public bool DisableConstraintsOnApplyChanges { get; set; } = true;
 
+        /// <summary>
+        /// Gets or Sets the scope_info table name. Default is scope_info
+        /// </summary>
+        [DataMember(Name = "sitn")]
+        public string ScopeInfoTableName { get; set; }
 
         /// <summary>
         /// Create a new instance of options with default values
@@ -79,6 +84,7 @@ namespace Dotmim.Sync
             this.UseBulkOperations = true;
             this.UseVerboseErrors = false;
             this.DisableConstraintsOnApplyChanges = true;
+            this.ScopeInfoTableName = "scope_info";
 
         }
 

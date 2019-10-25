@@ -48,12 +48,12 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Create a new instance of Sync Memory Provider
         /// </summary>
-        internal static SyncMemoryProvider GetNewWebProxyServerProvider()
+        internal static WebServerOrchestrator GetNewOrchestrator()
         {
             var provider = (CoreProvider)Activator.CreateInstance(providerType);
             provider.ConnectionString = connectionString;
 
-            var webProvider = new SyncMemoryProvider(provider);
+            var webProvider = new WebServerOrchestrator(provider);
 
             // Sets the options / configurations
             webProvider.SetSchema(configuration);

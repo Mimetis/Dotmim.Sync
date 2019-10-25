@@ -1,6 +1,9 @@
 ﻿using Dotmim.Sync;
+using Dotmim.Sync.Data;
+using Dotmim.Sync.Data.Surrogate;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.SampleConsole;
+using Dotmim.Sync.Serialization;
 using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Tests.Models;
@@ -10,9 +13,12 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.IO;
+using System.Runtime.Serialization.Formatters;
+using System.Runtime.Serialization.Formatters.Binary;
 using System.Threading;
 using System.Threading.Tasks;
 using SerializationFormat = Dotmim.Sync.Enumerations.SerializationFormat;
@@ -27,9 +33,11 @@ internal class Program
                                                     "SalesOrderHeader", "SalesOrderDetail" };
     private static void Main(string[] args)
     {
-        SynchronizeWithSyncAgent2Async().GetAwaiter().GetResult();
+        SyncHttpThroughKestellAsync().GetAwaiter().GetResult();
+
         Console.ReadLine();
     }
+
 
 
     private static async Task SynchronizeWithSyncAgent2Async()
@@ -44,15 +52,26 @@ internal class Program
         // Creating an agent that will handle all the process
         var agent = new SyncAgent2(clientProvider, serverProvider, tables);
 
-
         // Using the Progress pattern to handle progession during the synchronization
-        var progress = new Progress<ProgressArgs>(s => Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}"));
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
+            Console.ResetColor();
+        });
+
+        var remoteProgress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
+            Console.ResetColor();
+        });
+        agent.AddRemoteProgress(remoteProgress);
 
         // Setting configuration options
         agent.SetSchema(s =>
         {
-            s.ScopeInfoTableName = "tscopeinfo";
-            s.SerializationFormat = Dotmim.Sync.Enumerations.SerializationFormat.Binary;
+            s.SerializationFormat = Dotmim.Sync.Enumerations.SerializationFormat.Json;
             s.StoredProceduresPrefix = "s";
             s.StoredProceduresSuffix = "";
             s.TrackingTablesPrefix = "t";
@@ -61,6 +80,7 @@ internal class Program
 
         agent.SetOptions(opt =>
         {
+            opt.ScopeInfoTableName = "tscopeinfo";
             opt.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync");
             opt.BatchSize = 100;
             opt.CleanMetadatas = true;
@@ -69,21 +89,37 @@ internal class Program
         });
 
 
-        agent.LocalOrchestrator.OnTransactionOpen(to => Console.WriteLine("Transaction Opened."));
-        agent.LocalOrchestrator.OnTransactionCommit(to => Console.WriteLine("Transaction Commited."));
 
-        agent.RemoteOrchestrator.OnTransactionOpen(to => {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("Transaction Opened.");
+        agent.LocalOrchestrator.OnTransactionOpen(to =>
+        {
+            var dt = DateTime.Now;
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"Transaction Opened\t {dt.ToLongTimeString()}.{dt.Millisecond}");
             Console.ResetColor();
         });
-        agent.RemoteOrchestrator.OnTransactionCommit(to => {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("Transaction Closed.");
+        agent.LocalOrchestrator.OnTransactionCommit(to =>
+        {
+            var dt = DateTime.Now;
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"Transaction Commited\t {dt.ToLongTimeString()}.{dt.Millisecond}");
             Console.ResetColor();
         });
 
 
+        agent.RemoteOrchestrator.OnTransactionOpen(to =>
+        {
+            var dt = DateTime.Now;
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"Transaction Opened\t {dt.ToLongTimeString()}.{dt.Millisecond}");
+            Console.ResetColor();
+        });
+        agent.RemoteOrchestrator.OnTransactionCommit(to =>
+        {
+            var dt = DateTime.Now;
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"Transaction Commited\t {dt.ToLongTimeString()}.{dt.Millisecond}");
+            Console.ResetColor();
+        });
 
         do
         {
@@ -373,133 +409,132 @@ internal class Program
     }
 
 
-
-
     public static async Task SyncHttpThroughKestellAsync()
     {
-        //// server provider
-        //var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
+        // server provider
+        // Create 2 Sql Sync providers
+        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString("AdventureWorks"));
+        var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString("Client"));
 
-        //// client provider
-        //var client1Provider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
-        //// proxy client provider 
-        //var proxyClientProvider = new WebProxyClientProvider();
+        var proxyClientProvider = new WebClientOrchestrator();
 
-        //var tables = new string[] {"ProductCategory",
-        //        "ProductDescription", "ProductModel",
-        //        "Product", "ProductModelProductDescription",
-        //        "Address", "Customer", "CustomerAddress",
-        //        "SalesOrderHeader", "SalesOrderDetail" };
+        // Tables involved in the sync process:
+        var tables = new string[] { "ProductCategory", "ProductModel", "Product" };
 
-        //var configuration = new Action<SyncSchema>(conf =>
-        //{
-        //    conf.ScopeName = "AdventureWorks";
-        //    conf.ScopeInfoTableName = "tscopeinfo";
-        //    conf.SerializationFormat = Dotmim.Sync.Enumerations.SerializationFormat.Binary;
-        //    conf.StoredProceduresPrefix = "s";
-        //    conf.StoredProceduresSuffix = "";
-        //    conf.TrackingTablesPrefix = "t";
-        //    conf.TrackingTablesSuffix = "";
-        //    conf.Add(tables);
-        //});
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent2(clientProvider, proxyClientProvider);
 
 
-        //var optionsClient = new Action<SyncOptions>(opt =>
-        //{
-        //    opt.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "client");
-        //    opt.BatchSize = 100;
-        //    opt.CleanMetadatas = true;
-        //    opt.UseBulkOperations = true;
-        //    opt.UseVerboseErrors = false;
+        // ----------------------------------
+        // Client side
+        // ----------------------------------
+        agent.SetOptions(opt =>
+        {
+            opt.ScopeInfoTableName = "client_scopeinfo";
+            opt.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync_client");
+            opt.BatchSize = 100;
+            opt.CleanMetadatas = true;
+            opt.UseBulkOperations = true;
+            opt.UseVerboseErrors = false;
+        });
 
-        //});
+        // ----------------------------------
+        // Server side
+        // ----------------------------------
+        var schema = new Action<SyncSchema>(s =>
+        {
+            s.Add(tables);
+            s.SerializationFormat = Dotmim.Sync.Enumerations.SerializationFormat.Binary;
+            s.StoredProceduresPrefix = "s";
+            s.StoredProceduresSuffix = "";
+            s.TrackingTablesPrefix = "t";
+            s.TrackingTablesSuffix = "";
+        });
 
-        //var optionsServer = new Action<SyncOptions>(opt =>
-        //{
-        //    opt.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "server");
-        //    opt.BatchSize = 100;
-        //    opt.CleanMetadatas = true;
-        //    opt.UseBulkOperations = true;
-        //    opt.UseVerboseErrors = false;
+        var optionsServer = new Action<SyncOptions>(opt =>
+        {
+            opt.ScopeInfoTableName = "server_scopeinfo";
+            opt.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync_server");
+            opt.BatchSize = 100;
+            opt.CleanMetadatas = true;
+            opt.UseBulkOperations = true;
+            opt.UseVerboseErrors = false;
 
-        //});
-
-
-
-        //var serverHandler = new RequestDelegate(async context =>
-        //{
-        //    var proxyServerProvider = WebProxyServerProvider.Create(context, serverProvider, configuration, optionsServer);
-
-        //    await proxyServerProvider.HandleRequestAsync(context);
-        //});
-        //using (var server = new KestrellTestServer())
-        //{
-        //    var clientHandler = new ResponseDelegate(async (serviceUri) =>
-        //    {
-        //        proxyClientProvider.ServiceUri = new Uri(serviceUri);
-
-        //        var syncAgent = new SyncAgent(client1Provider, proxyClientProvider);
-
-        //        do
-        //        {
-        //            Console.Clear();
-        //            Console.WriteLine("Sync Start");
-        //            try
-        //            {
-        //                var cts = new CancellationTokenSource();
-
-        //                Console.WriteLine("--------------------------------------------------");
-        //                Console.WriteLine("1 : Normal synchronization.");
-        //                Console.WriteLine("2 : Synchronization with reinitialize");
-        //                Console.WriteLine("3 : Synchronization with upload and reinitialize");
-        //                Console.WriteLine("--------------------------------------------------");
-        //                Console.WriteLine("What's your choice ? ");
-        //                Console.WriteLine("--------------------------------------------------");
-        //                var choice = Console.ReadLine();
-
-        //                if (int.TryParse(choice, out var choiceNumber))
-        //                {
-        //                    Console.WriteLine($"You choose {choice}. Start operation....");
-        //                    switch (choiceNumber)
-        //                    {
-        //                        case 1:
-        //                            var s1 = await syncAgent.SynchronizeAsync(cts.Token);
-        //                            Console.WriteLine(s1);
-        //                            break;
-        //                        case 2:
-        //                            s1 = await syncAgent.SynchronizeAsync(SyncType.Reinitialize, cts.Token);
-        //                            Console.WriteLine(s1);
-        //                            break;
-        //                        case 3:
-        //                            s1 = await syncAgent.SynchronizeAsync(SyncType.ReinitializeWithUpload, cts.Token);
-        //                            Console.WriteLine(s1);
-        //                            break;
-
-        //                        default:
-        //                            break;
-
-        //                    }
-        //                }
-        //            }
-        //            catch (SyncException e)
-        //            {
-        //                Console.WriteLine(e.ToString());
-        //            }
-        //            catch (Exception e)
-        //            {
-        //                Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
-        //            }
+        });
 
 
-        //            Console.WriteLine("--------------------------------------------------");
-        //            Console.WriteLine("Press a key to choose again, or Escapte to end");
+        var serverHandler = new RequestDelegate(async context =>
+        {
+            var proxyServerProvider = WebProxyServerProvider.Create(context, serverProvider, schema, optionsServer);
 
-        //        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+            await proxyServerProvider.HandleRequestAsync(context);
+        });
+        using (var server = new KestrellTestServer())
+        {
+            var clientHandler = new ResponseDelegate(async (serviceUri) =>
+            {
+                proxyClientProvider.ServiceUri = new Uri(serviceUri);
+        
+                do
+                {
+                    Console.Clear();
+                    Console.WriteLine("Sync Start");
+                    try
+                    {
+                        var cts = new CancellationTokenSource();
+
+                        Console.WriteLine("--------------------------------------------------");
+                        Console.WriteLine("1 : Normal synchronization.");
+                        Console.WriteLine("2 : Synchronization with reinitialize");
+                        Console.WriteLine("3 : Synchronization with upload and reinitialize");
+                        Console.WriteLine("--------------------------------------------------");
+                        Console.WriteLine("What's your choice ? ");
+                        Console.WriteLine("--------------------------------------------------");
+                        var choice = Console.ReadLine();
+
+                        if (int.TryParse(choice, out var choiceNumber))
+                        {
+                            Console.WriteLine($"You choose {choice}. Start operation....");
+                            switch (choiceNumber)
+                            {
+                                case 1:
+                                    var s1 = await agent.SynchronizeAsync(SyncType.Normal, cts.Token);
+                                    Console.WriteLine(s1);
+                                    break;
+                                case 2:
+                                    s1 = await agent.SynchronizeAsync(SyncType.Reinitialize, cts.Token);
+                                    Console.WriteLine(s1);
+                                    break;
+                                case 3:
+                                    s1 = await agent.SynchronizeAsync(SyncType.ReinitializeWithUpload, cts.Token);
+                                    Console.WriteLine(s1);
+                                    break;
+
+                                default:
+                                    break;
+
+                            }
+                        }
+                    }
+                    catch (SyncException e)
+                    {
+                        Console.WriteLine(e.ToString());
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+                    }
 
 
-        //    });
-        //    await server.Run(serverHandler, clientHandler);
-        //}
+                    Console.WriteLine("--------------------------------------------------");
+                    Console.WriteLine("Press a key to choose again, or Escapte to end");
+
+                } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+
+            });
+            await server.Run(serverHandler, clientHandler);
+        }
 
     }
 

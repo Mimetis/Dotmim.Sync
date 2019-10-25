@@ -33,6 +33,7 @@ namespace Dotmim.Sync.SampleConsole
                     .UseUrls("http://127.0.0.1:0/")
                     .ConfigureServices(services =>
                     {
+                        services.AddMemoryCache();
                         services.AddDistributedMemoryCache();
                         services.AddSession(options =>
                         {

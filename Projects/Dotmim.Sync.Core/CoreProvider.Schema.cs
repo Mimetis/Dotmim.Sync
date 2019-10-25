@@ -133,13 +133,13 @@ namespace Dotmim.Sync
         /// <summary>
         /// update configuration object with tables desc from server database
         /// </summary>
-        private void ReadSchema(DmSet schema, DbConnection connection, DbTransaction transaction)
+        private void ReadSchema(DmSet set, DbConnection connection, DbTransaction transaction)
         {
-            if (schema == null || schema.Tables.Count <= 0)
+            if (set == null || set.Tables.Count <= 0)
                 throw new ArgumentNullException("syncConfiguration", "Configuration should contains Tables, at least tables with a name");
 
             var relations = new List<DbRelationDefinition>(20);
-            var syncConfiguration = schema.Tables;
+            var syncConfiguration = set.Tables;
 
             foreach (var dmTable in syncConfiguration)
             {
@@ -160,7 +160,7 @@ namespace Dotmim.Sync
                 foreach (var r in relations)
                 {
                     // Get table from the relation where we need to work on
-                    var dmTable = schema.Tables[r.TableName];
+                    var dmTable = set.Tables[r.TableName];
 
                     // get DmColumn from DmTable, based on the columns from relations
                     var tblColumns = r.Columns.OrderBy(kc => kc.Order)
@@ -186,7 +186,7 @@ namespace Dotmim.Sync
 
                     var dmRelation = new DmRelation(r.ForeignKey, tblColumns, foreignColumns);
 
-                    schema.Relations.Add(dmRelation);
+                    set.Relations.Add(dmRelation);
                 }
             }
 
@@ -195,7 +195,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Ensure configuration is correct on both server and client side
         /// </summary>
-        public virtual async Task<(SyncContext, DmSet)> EnsureSchemaAsync(SyncContext context, MessageEnsureSchema message,
+        public virtual async Task<(SyncContext, SyncSchema)> EnsureSchemaAsync(SyncContext context, SyncSchema schema,
                              DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
@@ -204,16 +204,16 @@ namespace Dotmim.Sync
                 context.SyncStage = SyncStage.SchemaReading;
 
                 // if we dont have already read the tables || we want to overwrite the current config
-                if (message.Schema.HasTables && !message.Schema.HasColumns)
-                    this.ReadSchema(message.Schema, connection, transaction);
+                if (schema.Set.HasTables && !schema.Set.HasColumns)
+                    this.ReadSchema(schema.Set, connection, transaction);
 
                 // Progress & Interceptor
                 context.SyncStage = SyncStage.SchemaRead;
-                var schemaArgs = new SchemaArgs(context, message.Schema, connection, transaction);
+                var schemaArgs = new SchemaArgs(context, schema.Set, connection, transaction);
                 this.ReportProgress(context, progress, schemaArgs);
                 await this.InterceptAsync(schemaArgs).ConfigureAwait(false);
 
-                return (context, message.Schema);
+                return (context, schema);
             }
             catch (SyncException)
             {

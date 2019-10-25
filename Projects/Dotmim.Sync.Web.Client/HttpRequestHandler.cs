@@ -15,8 +15,6 @@ using Microsoft.Net.Http.Headers;
 using System.Net.Http.Headers;
 #endif
 
-
-
 namespace Dotmim.Sync.Web.Client
 {
     /// <summary>
@@ -53,7 +51,7 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// Process a request message with HttpClient object. 
         /// </summary>
-        public async Task<T> ProcessRequest<T>(T content, Guid sessionId, SerializationFormat serializationFormat, CancellationToken cancellationToken)
+        public async Task<T> ProcessRequestAsync<T>(T content, Guid sessionId, SerializationFormat serializationFormat, CancellationToken cancellationToken)
         {
             if (this.BaseUri == null)
                 throw new ArgumentException("BaseUri is not defined");
