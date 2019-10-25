@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 using Dotmim.Sync.Enumerations;
+using System.Collections;
 
 namespace Dotmim.Sync.Data.Surrogate
 {
@@ -17,15 +18,15 @@ namespace Dotmim.Sync.Data.Surrogate
         /// <summary>
         /// Gets or sets the locale information used to compare strings within the table.
         /// </summary>
-        public String CultureInfoName { get; set; }
+        public string CultureInfoName { get; set; }
 
         /// <summary>Gets or sets the Case sensitive rul of the DmTable that the DmTableSurrogate object represents.</summary>
-        public Boolean CaseSensitive { get; set; }
+        public bool CaseSensitive { get; set; }
 
         /// <summary>
         /// Get or Set the schema used for the DmTableSurrogate
         /// </summary>
-        public String Schema { get; set; }
+        public string Schema { get; set; }
 
         /// <summary>
         /// Gets or sets an array that represents the state of each row in the table.
@@ -50,8 +51,9 @@ namespace Dotmim.Sync.Data.Surrogate
         /// <summary>
         /// Gets an array of objects that represent the columns and rows of dm in the dmTable.
         /// </summary>
-        public Dictionary<int, List<object>> Records { get; set; }
+        public SortedList<int, List<object>> Records { get; set; }
 
+       // public System.Collections.Hashtable
 
         /// <summary>
         /// Gets or Sets the original provider (SqlServer, MySql, Sqlite, Oracle, PostgreSQL)
@@ -156,7 +158,7 @@ namespace Dotmim.Sync.Data.Surrogate
             this.RowStates = new int[dt.Rows.Count];
 
             // Records in a straightforward object array
-            this.Records = new Dictionary<int, List<object>>(dt.Columns.Count);
+            this.Records = new SortedList<int, List<object>>(dt.Columns.Count);
 
             for (int j = 0; j < dt.Columns.Count; j++)
                 this.Records[j] = new List<object>(dt.Rows.Count);
@@ -220,7 +222,9 @@ namespace Dotmim.Sync.Data.Surrogate
         {
             if (this.Records != null && dt != null && dt.Columns.Count > 0)
             {
+                // get length in the first records
                 int length = Records[0].Count;
+
                 for (int i = 0; i < length; i++)
                     this.ConvertToDmRow(dt, i);
             }
@@ -228,7 +232,7 @@ namespace Dotmim.Sync.Data.Surrogate
 
         private DmRow ConvertToDmRow(DmTable dt, int bitIndex)
         {
-            DmRowState rowState = (DmRowState)this.RowStates[bitIndex];
+            var rowState = (DmRowState)this.RowStates[bitIndex];
             return this.ConstructRow(dt, rowState, bitIndex);
         }
 
@@ -237,11 +241,10 @@ namespace Dotmim.Sync.Data.Surrogate
         /// </summary>
         private DmRow ConstructRow(DmTable dt, DmRowState rowState, int bitIndex)
         {
-            DmRow dmRow = dt.NewRow();
+            var dmRow = dt.NewRow();
             int count = dt.Columns.Count;
 
             dmRow.BeginEdit();
-
             for (int i = 0; i < count; i++)
             {
                 object dmRowObject = this.Records[i][bitIndex];
@@ -312,6 +315,7 @@ namespace Dotmim.Sync.Data.Surrogate
                 {
                     dmRow[i] = dmRowObject;
                 }
+
             }
 
             dt.Rows.Add(dmRow);
@@ -352,11 +356,12 @@ namespace Dotmim.Sync.Data.Surrogate
         private void ConvertToSurrogateRecords(DmRow row)
         {
             int count = row.Table.Columns.Count;
-            DmRowState rowState = row.RowState;
-            DmRowVersion rowVersion = rowState == DmRowState.Deleted ? DmRowVersion.Original : DmRowVersion.Current;
+            var rowState = row.RowState;
+            var rowVersion = rowState == DmRowState.Deleted ? DmRowVersion.Original : DmRowVersion.Current;
 
             for (int i = 0; i < count; i++)
                 this.Records[i].Add(row[i, rowVersion]);
+
         }
 
 
@@ -380,7 +385,7 @@ namespace Dotmim.Sync.Data.Surrogate
             {
                 // Size for the value
                 object obj = itemArray[i];
-                Type objType = obj?.GetType();
+                var objType = obj?.GetType();
 
 
                 if (obj == null)

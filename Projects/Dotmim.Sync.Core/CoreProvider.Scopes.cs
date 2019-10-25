@@ -24,7 +24,6 @@ namespace Dotmim.Sync
             {
                 var scopes = new List<ScopeInfo>();
 
-
                 var scopeBuilder = this.GetScopeBuilder();
                 var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(
                     message.ScopeInfoTableName, connection, transaction);
@@ -110,7 +109,6 @@ namespace Dotmim.Sync
                 this.ReportProgress(context, progress, scopeArgs);
                 await this.InterceptAsync(scopeArgs).ConfigureAwait(false);
 
-
                 return (context, scopes);
             }
             catch (Exception ex)
@@ -128,8 +126,6 @@ namespace Dotmim.Sync
         {
             try
             {
-                await this.InterceptAsync(new TransactionOpenArgs(context, connection, transaction)).ConfigureAwait(false);
-
                 var scopeBuilder = this.GetScopeBuilder();
                 var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(message.ScopeInfoTableName, connection, transaction);
 

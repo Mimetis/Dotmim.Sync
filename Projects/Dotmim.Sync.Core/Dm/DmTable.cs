@@ -8,11 +8,13 @@ using System.Globalization;
 using System.Data;
 using Dotmim.Sync.Enumerations;
 using System.Data.Common;
+using System.Runtime.Serialization;
+using Dotmim.Sync.Data.Surrogate;
 
 namespace Dotmim.Sync.Data
 {
-
-    public class DmTable
+    [Serializable]
+    public class DmTable : ISerializable
     {
 
         /// <summary>
@@ -55,6 +57,34 @@ namespace Dotmim.Sync.Data
         {
             this.tableName = tableName ?? "";
         }
+
+        public DmTable(SerializationInfo info, StreamingContext context) : this()
+        {
+            var dmTableSurrogate = info.GetValue("surrogate", typeof(DmTableSurrogate)) as DmTableSurrogate;
+
+            if (dmTableSurrogate == null)
+                return;
+
+            this.Culture = new CultureInfo(dmTableSurrogate.CultureInfoName);
+            this.CaseSensitive = dmTableSurrogate.CaseSensitive;
+            this.TableName = dmTableSurrogate.TableName;
+
+            dmTableSurrogate.ReadSchemaIntoDmTable(this);
+            dmTableSurrogate.ReadDatasIntoDmTable(this);
+
+        }
+
+
+        /// <summary>
+        /// How to serialize
+        /// </summary>
+        public void GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            var surrogate = new DmTableSurrogate(this);
+            info.AddValue("surrogate", surrogate);
+            
+        }
+
 
         /// <summary>
         /// Columns collection
@@ -342,7 +372,7 @@ namespace Dotmim.Sync.Data
                         (this.primaryKey == null || !this.primaryKey.Columns.Contains(column))
                         &&
                         !column.IsCompute
-                        && 
+                        &&
                         !column.IsReadOnly
                         )
                         yield return column;
@@ -785,7 +815,7 @@ namespace Dotmim.Sync.Data
         /// <summary>
         /// Fill the DmTable from a DbDataReader connected to any kind of database
         /// </summary>
-        public void Fill(DbDataReader reader) 
+        public void Fill(DbDataReader reader)
         {
             var readerFieldCount = reader.FieldCount;
 

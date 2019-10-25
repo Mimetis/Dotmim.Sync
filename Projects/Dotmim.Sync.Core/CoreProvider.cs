@@ -18,19 +18,19 @@ namespace Dotmim.Sync
     /// </summary>
     public abstract partial class CoreProvider
     {
-        private InterceptorBase interceptorBase;
+        private InterceptorBase interceptorBase = new InterceptorBase();
 
         /// <summary>
         /// Set an interceptor to get info on the current sync process
         /// </summary>
-        public void On(InterceptorBase interceptor)
-            => this.interceptorBase = interceptor;
+        public void On<T>(Func<T, Task> interceptorFunc) where T : ProgressArgs => 
+            this.interceptorBase.GetInterceptor<T>().Set(interceptorFunc);
 
         /// <summary>
         /// Set an interceptor to get info on the current sync process
         /// </summary>
         public void On<T>(Action<T> interceptorAction) where T : ProgressArgs
-            => this.interceptorBase = new Interceptor<T>(interceptorAction);
+            => this.interceptorBase.GetInterceptor<T>().Set(interceptorAction);
 
         /// <summary>
         /// Returns the Task associated with given type of BaseArgs 
@@ -129,7 +129,8 @@ namespace Dotmim.Sync
         {
             if (progress == null)
                 return;
-
+            var dt = DateTime.Now;
+            message = $"{dt.ToLongTimeString()}.{dt.Millisecond}\t {message}";
             var progressArgs = new ProgressArgs(context, message, connection, transaction);
 
             progress.Report(progressArgs);

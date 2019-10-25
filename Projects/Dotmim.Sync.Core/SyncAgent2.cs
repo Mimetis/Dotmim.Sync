@@ -29,17 +29,12 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets or Sets the local orchestrator
         /// </summary>
-        public ILocalOrchestrator<CoreProvider> LocalOrchestrator { get; set; }
+        public ILocalOrchestrator LocalOrchestrator { get; set; }
 
         /// <summary>
         /// Get or Sets the remote orchestrator
         /// </summary>
-        public IRemoteOrchestrator<CoreProvider> RemoteOrchestrator { get; set; }
-
-        // Scope informaitons. 
-        // On Server, we have tow scopes available : Server Scope and Client (server timestamp) scope
-        // On Client, we have only the client scope
-        //public Dictionary<string, ScopeInfo> Scopes { get; set; }
+        public IRemoteOrchestrator RemoteOrchestrator { get; set; }
 
         /// <summary>
         /// Get or Sets the Sync parameter to pass to Remote provider for filtering rows
@@ -63,6 +58,14 @@ namespace Dotmim.Sync
         public void SetOptions(Action<SyncOptions> onOptions)
             => onOptions?.Invoke(this.options);
 
+        /// <summary>
+        /// If you want to see remote progress as well (only on direct connection)
+        /// </summary>
+        /// <param name="remoteProgress"></param>
+        public void AddRemoteProgress(IProgress<ProgressArgs> remoteProgress)
+        {
+            this.remoteProgress = remoteProgress;
+        }
 
         /// <summary>
         /// Shortcut to Apply changed failed (supported by the local orchestrator)
@@ -75,52 +78,47 @@ namespace Dotmim.Sync
         public void OnApplyChangesFailed(Action<ApplyChangesFailedArgs> action) => this.LocalOrchestrator.OnApplyChangesFailed(action);
 
 
-
-        public SyncAgent2(CoreProvider clientProvider, CoreProvider serverProvider, string[] tables)
+        public SyncAgent2(string scopeName, CoreProvider clientProvider, CoreProvider serverProvider, string[] tables = null)
+            : this(scopeName, new LocalOrchestrator(clientProvider), new RemoteOrchestrator(serverProvider), tables)
+        {
+        }
+        public SyncAgent2(CoreProvider clientProvider, CoreProvider serverProvider, string[] tables = null)
             : this("DefaultScope", clientProvider, serverProvider, tables)
         {
-
+        }
+        public SyncAgent2(string scopeName, CoreProvider clientProvider, IRemoteOrchestrator remoteOrchestrator, string[] tables = null)
+            : this(scopeName, new LocalOrchestrator(clientProvider), remoteOrchestrator, tables)
+        {
+        }
+        public SyncAgent2(CoreProvider clientProvider, IRemoteOrchestrator remoteOrchestrator, string[] tables = null)
+            : this("DefaultScope", new LocalOrchestrator(clientProvider), remoteOrchestrator, tables)
+        {
         }
 
-        /// <summary>
-        /// If you want to see remote progress as well (only on direct connection)
-        /// </summary>
-        /// <param name="remoteProgress"></param>
-        public void AddRemoteProgress(IProgress<ProgressArgs> remoteProgress)
+        private SyncAgent2(string scopeName, ILocalOrchestrator localOrchestrator, IRemoteOrchestrator remoteOrchestrator, string[] tables = null)
         {
-            this.remoteProgress = remoteProgress;
-        }
-
-        /// <summary>
-        /// SyncAgent manage both server and client provider
-        /// the tables array represents the tables you want to sync
-        /// Don't work on the proxy provider
-        /// </summary>
-        public SyncAgent2(string scopeName, CoreProvider clientProvider, CoreProvider serverProvider, string[] tables)
-        {
-            if (tables == null || tables.Length <= 0)
-                throw new ArgumentException("you need to pass at least one table name");
-
             if (string.IsNullOrEmpty(scopeName))
                 throw new ArgumentNullException("scopeName");
 
-            if (!serverProvider.CanBeServerProvider)
+            if (remoteOrchestrator.Provider != null && !remoteOrchestrator.Provider.CanBeServerProvider)
                 throw new NotSupportedException();
 
-            this.LocalOrchestrator = new LocalOrchestrator(clientProvider);
-            this.RemoteOrchestrator = new RemoteOrchestrator(serverProvider);
+            this.LocalOrchestrator = localOrchestrator;
+            this.RemoteOrchestrator = remoteOrchestrator;
 
             this.SetSchema(c =>
             {
                 c.ScopeName = scopeName;
 
-                foreach (var tbl in tables)
-                    c.Add(tbl);
+                if (tables != null && tables.Length > 0)
+                    foreach (var tbl in tables)
+                        c.Add(tbl);
             });
 
             this.Parameters = new SyncParameterCollection();
-
         }
+
+
 
         /// <summary>
         /// Launch a synchronization with the specified mode
@@ -188,7 +186,7 @@ namespace Dotmim.Sync
 
                 // SECOND call to server
                 var serverChanges = await this.RemoteOrchestrator.ApplyThenGetChangesAsync(
-                    context, clientScope.localScopeInfo, serverScope.localScopeReferenceInfo,
+                    context, clientScope.localScopeInfo.Id, serverScope.localScopeReferenceInfo,
                     serverScope.serverScopeInfo, clientChanges.clientBatchInfo,
                     cancellationToken, remoteProgress);
 
@@ -199,8 +197,8 @@ namespace Dotmim.Sync
                 context = serverChanges.context;
 
                 var localChanges = await this.LocalOrchestrator.ApplyChangesAsync(
-                    context, serverChanges.serverTimestamp, clientChanges.clientTimestamp,
-                    serverScope.serverScopeInfo, clientScope.localScopeInfo, serverChanges.serverBatchInfo,
+                    context, clientChanges.clientTimestamp,
+                    serverScope.serverScopeInfo.Id, clientScope.localScopeInfo, serverChanges.serverBatchInfo,
                     cancellationToken, progress);
 
 

@@ -153,9 +153,6 @@ namespace Dotmim.Sync
             // Create the batch info, in memory
             var batchInfo = new BatchInfo(!isBatched, batchDirectory);
 
-            if (isBatched)
-                batchInfo.GenerateNewDirectoryName();
-
             // generate the batchpartinfo
             var bpi = batchInfo.GenerateBatchInfo(0, changesSet);
             bpi.IsLastBatch = true;
@@ -405,9 +402,6 @@ namespace Dotmim.Sync
 
             // this batch info won't be in memory, it will be be batched
             var batchInfo = new BatchInfo(false, batchDirectory);
-
-            // directory where all files will be stored
-            batchInfo.GenerateNewDirectoryName();
 
             // Create stats object to store changes count
             var changes = new DatabaseChangesSelected();

@@ -24,6 +24,9 @@ Can't work without a Server provider, you have to choose an existing one to be a
   <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|netstandard2.0|AnyCPU'">
     <DefineConstants />
   </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="SyncMemoryProvider.cs" />
+  </ItemGroup>
 
 
   <ItemGroup>
