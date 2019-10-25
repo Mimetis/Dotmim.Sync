@@ -124,8 +124,8 @@ namespace Dotmim.Sync.Data.Surrogate
             var dmTableSurrogateArray = this.Tables;
             for (int i = 0; i < dmTableSurrogateArray.Count; i++)
             {
-                DmTableSurrogate dmTableSurrogate = dmTableSurrogateArray[i];
-                DmTable dmTable = new DmTable();
+                var dmTableSurrogate = dmTableSurrogateArray[i];
+                var dmTable = new DmTable();
                 dmTableSurrogate.ReadSchemaIntoDmTable(dmTable);
 
                 dmTable.Culture = new CultureInfo(dmTableSurrogate.CultureInfoName);

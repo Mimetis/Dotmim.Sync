@@ -13,24 +13,15 @@ namespace Dotmim.Sync.Messages
     [Serializable]
     public class MessageEnsureSchema
     {
-        [NonSerialized]
-        private DmSet _schema;
-
-        public MessageEnsureSchema(DmSet schema, SerializationFormat serializationFormat)
+        public MessageEnsureSchema(SyncSchema schema)
         {
             this.Schema = schema ?? throw new ArgumentNullException(nameof(schema));
-            this.SerializationFormat = serializationFormat;
         }
 
         /// <summary>
         /// Gets or Sets the database schema
         /// </summary>
-        [JsonIgnore]
-        public DmSet Schema { get => _schema; set => _schema = value; }
+        public SyncSchema Schema { get; set; }
 
-        /// <summary>
-        /// Gets or Sets the Serialization format used during the sync
-        /// </summary>
-        public SerializationFormat SerializationFormat { get; set; }
     }
 }

@@ -164,7 +164,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the table where changes were applied
         /// </summary>
-        public DmTableSurrogate Table { get; set; }
+        public DmTable Table { get; set; }
 
         /// <summary>
         /// Gets the RowState of the applied rows

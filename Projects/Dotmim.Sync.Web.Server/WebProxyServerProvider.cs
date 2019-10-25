@@ -48,11 +48,11 @@ namespace Dotmim.Sync.Web.Server
                 throw new SyncException($"Can't find any session id in the header");
 
             // Check if we have already a cached Sync Memory provider
-            var syncMemoryProvider = GetCachedProviderInstance(context, sessionId);
+            var syncMemoryProvider = GetCachedOrchestrator(context, sessionId);
 
             // we don't have any provider for this session id, so create it
             if (syncMemoryProvider == null)
-                AddNewProviderToCache(context, provider, conf, options, sessionId);
+                AddNewOrchestratorToCache(context, provider, conf, options, sessionId);
 
             return defaultInstance;
         }
@@ -65,10 +65,10 @@ namespace Dotmim.Sync.Web.Server
             if (!TryGetHeaderValue(context.Request.Headers, "dotmim-sync-session-id", out var sessionId))
                 return null;
 
-            var syncMemoryProvider = GetCachedProviderInstance(context, sessionId);
+            var syncMemoryProvider = GetCachedOrchestrator(context, sessionId);
 
             if (syncMemoryProvider != null)
-                return syncMemoryProvider.LocalProvider;
+                return syncMemoryProvider.Provider;
 
             return null;
         }
@@ -82,7 +82,7 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// Call this method to handle requests on the server, sent by the client
         /// </summary>
-        public Task HandleRequestAsync(HttpContext context, Action<SyncMemoryProvider> action) =>
+        public Task HandleRequestAsync(HttpContext context, Action<RemoteOrchestrator> action) =>
             HandleRequestAsync(context, action, CancellationToken.None);
 
         /// <summary>
@@ -94,7 +94,7 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// Call this method to handle requests on the server, sent by the client
         /// </summary>
-        public async Task HandleRequestAsync(HttpContext context, Action<SyncMemoryProvider> action, CancellationToken cancellationToken)
+        public async Task HandleRequestAsync(HttpContext context, Action<RemoteOrchestrator> action, CancellationToken cancellationToken)
         {
             var httpRequest = context.Request;
             var httpResponse = context.Response;
@@ -108,56 +108,52 @@ namespace Dotmim.Sync.Web.Server
             if (!TryGetHeaderValue(context.Request.Headers, "dotmim-sync-session-id", out var sessionId))
                 throw new SyncException($"Can't find any session id in the header");
 
-            SyncMemoryProvider syncMemoryProvider = null;
-            var syncSessionId = "";
-            HttpMessage httpMessage = null;
+            WebServerOrchestrator remoteOrchestrator = null;
+            
             try
             {
                 var serializer = BaseConverter<HttpMessage>.GetConverter(serializationFormat);
-                httpMessage = serializer.Deserialize(streamArray);
-                syncSessionId = httpMessage.SyncContext.SessionId.ToString();
+                var httpMessage = serializer.Deserialize(streamArray);
+                var syncSessionId = httpMessage.SyncContext.SessionId.ToString();
 
                 if (!httpMessage.SyncContext.SessionId.Equals(Guid.Parse(sessionId)))
                     throw new SyncException($"Session id is not matching correctly between header and message");
 
                 // get cached provider instance if not defined byt web proxy server provider
-                if (syncMemoryProvider == null)
-                    syncMemoryProvider = GetCachedProviderInstance(context, syncSessionId);
+                if (remoteOrchestrator == null)
+                    remoteOrchestrator = GetCachedOrchestrator(context, syncSessionId);
 
-                if (syncMemoryProvider == null)
-                    syncMemoryProvider = AddNewProviderToCacheFromDI(context, syncSessionId);
+                if (remoteOrchestrator == null)
+                    remoteOrchestrator = AddNewOrchestratorToCacheFromDI(context, syncSessionId);
 
                 // action from user if available
-                action?.Invoke(syncMemoryProvider);
-
-                // get cache manager
-                // since we are using memorycache, it's not necessary to handle it here
-                //syncMemoryProvider.LocalProvider.CacheManager = GetCacheManagerInstance(context, syncSessionId);
+                action?.Invoke(remoteOrchestrator);
 
                 var httpMessageResponse =
-                    await syncMemoryProvider.GetResponseMessageAsync(httpMessage, cancellationToken).ConfigureAwait(false);
+                    await remoteOrchestrator.GetResponseMessageAsync(httpMessage, cancellationToken).ConfigureAwait(false);
 
                 var binaryData = serializer.Serialize(httpMessageResponse);
+
                 await GetBody(httpResponse).WriteAsync(binaryData, 0, binaryData.Length).ConfigureAwait(false);
 
             }
             catch (Exception ex)
             {
-                await WriteExceptionAsync(httpResponse, ex, syncMemoryProvider?.LocalProvider?.ProviderTypeName ?? "ServerLocalProvider");
+                await WriteExceptionAsync(httpResponse, ex, remoteOrchestrator?.Provider?.ProviderTypeName ?? "ServerLocalProvider");
             }
             finally
             {
-                if (httpMessage != null && httpMessage.Step == HttpStep.EndSession)
-                    Cleanup(context.RequestServices.GetService(typeof(IMemoryCache)), syncSessionId);
+                //if (httpMessage != null && httpMessage.Step == HttpStep.EndSession)
+                //    Cleanup(context.RequestServices.GetService(typeof(IMemoryCache)), syncSessionId);
             }
         }
 
         /// <summary>
         /// Get an instance of SyncMemoryProvider depending on session id. If the entry for session id does not exists, create a new one
         /// </summary>
-        private static SyncMemoryProvider GetCachedProviderInstance(HttpContext context, string syncSessionId)
+        private static WebServerOrchestrator GetCachedOrchestrator(HttpContext context, string syncSessionId)
         {
-            SyncMemoryProvider syncMemoryProvider;
+            WebServerOrchestrator remoteOrchestrator;
 
             var cache = context.RequestServices.GetService<IMemoryCache>();
             if (cache == null)
@@ -167,45 +163,44 @@ namespace Dotmim.Sync.Web.Server
                 throw new ArgumentNullException(nameof(syncSessionId));
 
             // get the sync provider associated with the session id
-            syncMemoryProvider = cache.Get(syncSessionId) as SyncMemoryProvider;
+            remoteOrchestrator = cache.Get(syncSessionId) as WebServerOrchestrator;
 
-            return syncMemoryProvider;
-
+            return remoteOrchestrator;
         }
 
         /// <summary>
         /// Add a new instance of SyncMemoryProvider, created by DI
         /// </summary>
         /// <returns></returns>
-        private static SyncMemoryProvider AddNewProviderToCacheFromDI(HttpContext context, string syncSessionId)
+        private static WebServerOrchestrator AddNewOrchestratorToCacheFromDI(HttpContext context, string syncSessionId)
         {
             var cache = context.RequestServices.GetService<IMemoryCache>();
 
             if (cache == null)
                 throw new SyncException("Cache is not configured! Please add memory cache, distributed or not (see https://docs.microsoft.com/en-us/aspnet/core/performance/caching/response?view=aspnetcore-2.2)");
 
-            var syncMemoryProvider = DependencyInjection.GetNewWebProxyServerProvider();
-            cache.Set(syncSessionId, syncMemoryProvider, TimeSpan.FromHours(1));
+            var remoteOrchestrator = DependencyInjection.GetNewOrchestrator();
+            cache.Set(syncSessionId, remoteOrchestrator, TimeSpan.FromHours(1));
 
-            return syncMemoryProvider;
+            return remoteOrchestrator;
         }
 
 
-        private static SyncMemoryProvider AddNewProviderToCache(HttpContext context, CoreProvider provider, Action<SyncSchema> conf, Action<SyncOptions> options, string sessionId)
+        private static RemoteOrchestrator AddNewOrchestratorToCache(HttpContext context, CoreProvider provider, Action<SyncSchema> conf, Action<SyncOptions> options, string sessionId)
         {
-            SyncMemoryProvider syncMemoryProvider;
+            WebServerOrchestrator remoteOrchestrator;
             var cache = context.RequestServices.GetService<IMemoryCache>();
 
             if (cache == null)
                 throw new SyncException("Cache is not configured! Please add memory cache, distributed or not (see https://docs.microsoft.com/en-us/aspnet/core/performance/caching/response?view=aspnetcore-2.2)");
 
-            syncMemoryProvider = new SyncMemoryProvider(provider);
+            remoteOrchestrator = new WebServerOrchestrator(provider);
 
-            syncMemoryProvider.SetSchema(conf);
-            syncMemoryProvider.SetOptions(options);
+            remoteOrchestrator.SetSchema(conf);
+            remoteOrchestrator.SetOptions(options);
 
-            cache.Set(sessionId, syncMemoryProvider, TimeSpan.FromHours(1));
-            return syncMemoryProvider;
+            cache.Set(sessionId, remoteOrchestrator, TimeSpan.FromHours(1));
+            return remoteOrchestrator;
         }
 
 
