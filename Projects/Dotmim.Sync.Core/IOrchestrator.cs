@@ -13,28 +13,19 @@ namespace Dotmim.Sync
     /// <summary>
     /// Base orchestrator.
     /// </summary>
-    public interface IOrchestrator<T> where T : CoreProvider
+    public interface IOrchestrator
     {
-
         /// <summary>
         /// Gets a reference to the provider
         /// </summary>
-        T Provider { get; }
-
-        /// <summary>
-        /// Set the provider used for this orchestrator
-        /// </summary>
-        void SetProvider(T coreProvider);
-
-
+        CoreProvider Provider { get; set; }
     }
 
     /// <summary>
     /// Remote provider
     /// </summary>
-    public interface ILocalOrchestrator<T> : IOrchestrator<T> where T : CoreProvider
+    public interface ILocalOrchestrator : IOrchestrator
     {
-
         /// <summary>
         /// Get configuration to ensure local provider has everything needed
         /// </summary>
@@ -43,9 +34,6 @@ namespace Dotmim.Sync
               ScopeInfo localScopeInfo)>
             EnsureScopeAsync(SyncContext context, SyncSchema schema, SyncOptions options,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null);
-
-
-
 
         /// <summary>
         /// Send all changes and get new changes in return
@@ -63,20 +51,18 @@ namespace Dotmim.Sync
         Task<(SyncContext context,
               DatabaseChangesApplied clientChangesApplied)>
             ApplyChangesAsync(SyncContext context,
-                              long serverTimestamp, long clientTimestamp,
-                              ScopeInfo serverScopeInfo, ScopeInfo localScopeInfo,
+                              long clientTimestamp,
+                              Guid serverScopeId, ScopeInfo localScopeInfo,
                               BatchInfo serverBatchInfo,
                               CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null);
-
     }
 
 
     /// <summary>
     /// Remote provider
     /// </summary>
-    public interface IRemoteOrchestrator<T> : IOrchestrator<T> where T : CoreProvider
+    public interface IRemoteOrchestrator : IOrchestrator
     {
-
         /// <summary>
         /// Get configuration from remote to ensure local provider has everything needed
         /// </summary>
@@ -92,17 +78,11 @@ namespace Dotmim.Sync
         /// Send all changes and get new changes in return
         /// </summary>
         Task<(SyncContext context,
-              long serverTimestamp,
               BatchInfo serverBatchInfo,
               DatabaseChangesSelected serverChangesSelected)>
             ApplyThenGetChangesAsync(SyncContext context, 
-                                     ScopeInfo localScopeInfo, ScopeInfo localScopeReferenceInfo,
+                                     Guid clientScopeId, ScopeInfo localScopeReferenceInfo,
                                      ScopeInfo serverScopeInfo, BatchInfo clientBatchInfo,
                                      CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null);
-
-
-
     }
-
-
 }

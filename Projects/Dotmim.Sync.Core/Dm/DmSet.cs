@@ -8,14 +8,15 @@ using System.Globalization;
 using System.IO;
 using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.Serialization;
+using Dotmim.Sync.Data.Surrogate;
 
 namespace Dotmim.Sync.Data
 {
 
-    public class DmSet
+    [Serializable]
+    public class DmSet : ISerializable
     {
-        readonly DmTableCollection tables;
-        readonly List<DmRelation> relations;
         string dmSetName = "NewDataSet";
 
         // globalization stuff
@@ -23,25 +24,6 @@ namespace Dotmim.Sync.Data
         // Case insensitive compare options
         CompareOptions compareFlags;
         CultureInfo culture;
-
-
-        public DmSet()
-        {
-            this.tables = new DmTableCollection(this);
-            this.Culture = CultureInfo.CurrentCulture; // Set default locale
-            this.CaseSensitive = false;
-            this.compareFlags = CompareOptions.IgnoreCase | CompareOptions.IgnoreKanaType | CompareOptions.IgnoreWidth;
-            this.relations = new List<DmRelation>();
-            this.DmSetName = "NewDmSet";
-
-        }
-
-        public DmSet(string dataSetName)
-            : this()
-        {
-            this.DmSetName = dataSetName;
-        }
-
 
         /// <summary>
         /// Get or Set the DmSet name
@@ -120,14 +102,60 @@ namespace Dotmim.Sync.Data
         /// <summary>
         /// Gets the collection of tables contained in the DmSet
         /// </summary>
-        public DmTableCollection Tables => tables;
+        public DmTableCollection Tables { get; }
 
         /// <summary>
         /// Gets all the relations that link tables and allow navigations
         /// </summary>
-        public List<DmRelation> Relations => relations;
+        public List<DmRelation> Relations { get; }
 
-   
+
+
+
+        public DmSet()
+        {
+            this.Tables = new DmTableCollection(this);
+            this.Culture = CultureInfo.CurrentCulture; // Set default locale
+            this.CaseSensitive = false;
+            this.compareFlags = CompareOptions.IgnoreCase | CompareOptions.IgnoreKanaType | CompareOptions.IgnoreWidth;
+            this.Relations = new List<DmRelation>();
+            this.DmSetName = "NewDmSet";
+
+        }
+
+        public DmSet(string dataSetName)
+            : this()
+        {
+            this.DmSetName = dataSetName;
+        }
+
+        public DmSet(SerializationInfo info, StreamingContext context) : this()
+        {
+            var dmSetSurrogate = info.GetValue("surrogate", typeof(DmSetSurrogate)) as DmSetSurrogate;
+
+            if (dmSetSurrogate != null)
+            {
+                this.Culture = new CultureInfo(dmSetSurrogate.CultureInfoName);
+                this.CaseSensitive = dmSetSurrogate.CaseSensitive;
+                this.DmSetName = dmSetSurrogate.DmSetName;
+                dmSetSurrogate.ReadSchemaIntoDmSet(this);
+                dmSetSurrogate.ReadDataIntoDmSet(this);
+            }
+        }
+
+
+        /// <summary>
+        /// How to serialize
+        /// </summary>
+        public void GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            var surrogate = new DmSetSurrogate(this);
+
+            info.AddValue("surrogate", surrogate, typeof(DmSetSurrogate));
+        }
+
+        
+
         /// <summary>
         /// Commits all the changes made to this DmSet
         /// </summary>
@@ -378,5 +406,7 @@ namespace Dotmim.Sync.Data
             {
             }
         }
+
+       
     }
 }

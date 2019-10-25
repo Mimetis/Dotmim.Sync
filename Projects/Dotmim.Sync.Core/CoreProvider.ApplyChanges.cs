@@ -292,7 +292,7 @@ namespace Dotmim.Sync
                     {
                         existAppliedChanges = new TableChangesApplied
                         {
-                            Table = new DmTableSurrogate(table),
+                            Table = table,
                             Applied = rowsApplied,
                             Failed = changedFailed,
                             State = applyType
