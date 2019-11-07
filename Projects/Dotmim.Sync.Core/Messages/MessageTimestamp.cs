@@ -8,7 +8,6 @@ namespace Dotmim.Sync.Messages
     /// <summary>
     /// Message exchanged during the Get Timestamp sync stage
     /// </summary>
-    [Serializable]
     public class MessageTimestamp
     {
         public MessageTimestamp(string scopeInfoTableName, SerializationFormat serializationFormat)

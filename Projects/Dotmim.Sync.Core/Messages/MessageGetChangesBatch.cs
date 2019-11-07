@@ -11,12 +11,8 @@ namespace Dotmim.Sync.Messages
     /// <summary>
     /// Message exchanged during the Get Changes Batch sync stage
     /// </summary>
-    [Serializable]
     public class MessageGetChangesBatch
     {
-        [NonSerialized]
-        private DmSet _schema;
-
         public MessageGetChangesBatch(ScopeInfo scopeInfo, DmSet schema, int batchSize, string batchDirectory, ConflictResolutionPolicy policy, ICollection<FilterClause> filters, SerializationFormat serializationFormat)
         {
             this.ScopeInfo = scopeInfo ?? throw new ArgumentNullException(nameof(scopeInfo));
@@ -24,6 +20,7 @@ namespace Dotmim.Sync.Messages
             this.BatchSize = batchSize;
             this.BatchDirectory = batchDirectory ?? throw new ArgumentNullException(nameof(batchDirectory));
             this.Policy = policy;
+            this.Filters = filters;
             this.SerializationFormat = serializationFormat;
         }
 
@@ -35,8 +32,7 @@ namespace Dotmim.Sync.Messages
         /// <summary>
         /// Gets or Sets the schema used for this sync
         /// </summary>
-        [JsonIgnore]
-        public DmSet Schema { get => _schema; set => _schema = value; }
+        public DmSet Schema { get; set; }
 
         /// <summary>
         /// Gets or Sets the download batch size, if needed

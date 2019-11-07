@@ -40,7 +40,7 @@ namespace Microsoft.Extensions.DependencyInjection
             DependencyInjection.configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
 
             serviceCollection.AddOptions();
-            serviceCollection.AddSingleton(new WebProxyServerProvider());
+            serviceCollection.AddSingleton(new WebProxyServerOrchestrator());
 
             return serviceCollection;
         }

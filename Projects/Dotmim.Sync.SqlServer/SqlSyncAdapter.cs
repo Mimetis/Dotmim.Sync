@@ -458,11 +458,16 @@ namespace Dotmim.Sync.SqlServer.Builders
                 }
                 else
                 {
+                    // Using the SqlCommandBuilder.DeriveParameters() method is not working yet, 
+                    // because default value is not well done handled on the Dotmim.Sync framework
+                    // TODO: Fix that.
+                    //SqlCommandBuilder.DeriveParameters((SqlCommand)command);
+
                     var parameters = connection.DeriveParameters((SqlCommand)command, false, transaction);
 
                     var arrayParameters = new List<SqlParameter>();
-                    foreach (var p in parameters)
-                        arrayParameters.Add(p.Clone());
+                    foreach(var p in command.Parameters)
+                        arrayParameters.Add(((SqlParameter)p).Clone());
 
                     derivingParameters.TryAdd(textParser, arrayParameters);
                 }

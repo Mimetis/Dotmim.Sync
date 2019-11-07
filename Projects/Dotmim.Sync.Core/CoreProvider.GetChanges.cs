@@ -82,6 +82,7 @@ namespace Dotmim.Sync
         }
 
 
+
         /// <summary>
         /// Gets a batch of changes to synchronize when given batch size, 
         /// destination knowledge, and change data retriever parameters.
@@ -153,9 +154,8 @@ namespace Dotmim.Sync
             // Create the batch info, in memory
             var batchInfo = new BatchInfo(!isBatched, batchDirectory);
 
-            // generate the batchpartinfo
-            var bpi = batchInfo.GenerateBatchInfo(0, changesSet);
-            bpi.IsLastBatch = true;
+            // add changes to batchInfo
+            batchInfo.AddChanges(changesSet);
 
             // Create a new in-memory batch info with an the changes DmSet
             return (batchInfo, new DatabaseChangesSelected());
@@ -175,7 +175,7 @@ namespace Dotmim.Sync
 
             // Create the batch info, in memory
             // No need to geneate a directory name, since we are in memory
-            var batchInfo = new BatchInfo(true, batchDirectory);
+            var batchInfo = new BatchInfo(true);
 
             try
             {
@@ -319,6 +319,7 @@ namespace Dotmim.Sync
 
                     }
 
+                    selectIncrementalChangesCommand.Dispose();
                     // add the stats to global stats
                     changes.TableChangesSelected.Add(tableSelectedChanges);
 
@@ -329,8 +330,8 @@ namespace Dotmim.Sync
                     await this.InterceptAsync(args).ConfigureAwait(false);
                 }
 
-                // generate the batchpartinfo
-                batchInfo.GenerateBatchInfo(0, changesSet);
+                // add changes to batchinfo
+                batchInfo.AddChanges(changesSet);
 
                 // Create a new in-memory batch info with an the changes DmSet
                 return (batchInfo, changes);
@@ -561,8 +562,8 @@ namespace Dotmim.Sync
 
                                     changesSet.Tables.Add(dmTable);
 
-                                    // generate the batch part info
-                                    batchInfo.GenerateBatchInfo(batchIndex, changesSet);
+                                    // add changes to batchinfo
+                                    batchInfo.AddChanges(changesSet, batchIndex, false);
 
                                     // increment batch index
                                     batchIndex++;
@@ -613,19 +614,16 @@ namespace Dotmim.Sync
 
                 // We are in batch mode, and we are at the last batchpart info
                 if (changesSet != null && changesSet.HasTables && changesSet.HasChanges())
-                {
-                    var batchPartInfo = batchInfo.GenerateBatchInfo(batchIndex, changesSet);
-
-                    if (batchPartInfo != null)
-                        batchPartInfo.IsLastBatch = true;
-
-                }
+                    batchInfo.AddChanges(changesSet, batchIndex, true);
 
             }
             catch (Exception)
             {
                 throw;
             }
+
+            // Check the last index as the last batch
+            batchInfo.EnsureLastBatch();
 
             return (batchInfo, changes);
 

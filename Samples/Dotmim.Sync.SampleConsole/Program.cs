@@ -50,7 +50,7 @@ internal class Program
         var tables = new string[] { "ProductCategory", "ProductModel", "Product" };
 
         // Creating an agent that will handle all the process
-        var agent = new SyncAgent2(clientProvider, serverProvider, tables);
+        var agent = new SyncAgent(clientProvider, serverProvider, tables);
 
         // Using the Progress pattern to handle progession during the synchronization
         var progress = new SynchronousProgress<ProgressArgs>(s =>
@@ -422,7 +422,7 @@ internal class Program
         var tables = new string[] { "ProductCategory", "ProductModel", "Product" };
 
         // Creating an agent that will handle all the process
-        var agent = new SyncAgent2(clientProvider, proxyClientProvider);
+        var agent = new SyncAgent(clientProvider, proxyClientProvider);
 
 
         // ----------------------------------
@@ -432,7 +432,7 @@ internal class Program
         {
             opt.ScopeInfoTableName = "client_scopeinfo";
             opt.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync_client");
-            opt.BatchSize = 100;
+            opt.BatchSize = 0;
             opt.CleanMetadatas = true;
             opt.UseBulkOperations = true;
             opt.UseVerboseErrors = false;
@@ -444,7 +444,7 @@ internal class Program
         var schema = new Action<SyncSchema>(s =>
         {
             s.Add(tables);
-            s.SerializationFormat = Dotmim.Sync.Enumerations.SerializationFormat.Binary;
+            s.SerializationFormat = Dotmim.Sync.Enumerations.SerializationFormat.Json;
             s.StoredProceduresPrefix = "s";
             s.StoredProceduresSuffix = "";
             s.TrackingTablesPrefix = "t";
@@ -455,7 +455,7 @@ internal class Program
         {
             opt.ScopeInfoTableName = "server_scopeinfo";
             opt.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync_server");
-            opt.BatchSize = 100;
+            opt.BatchSize = 0;
             opt.CleanMetadatas = true;
             opt.UseBulkOperations = true;
             opt.UseVerboseErrors = false;
@@ -465,7 +465,7 @@ internal class Program
 
         var serverHandler = new RequestDelegate(async context =>
         {
-            var proxyServerProvider = WebProxyServerProvider.Create(context, serverProvider, schema, optionsServer);
+            var proxyServerProvider = WebProxyServerOrchestrator.Create(context, serverProvider, schema, optionsServer);
 
             await proxyServerProvider.HandleRequestAsync(context);
         });

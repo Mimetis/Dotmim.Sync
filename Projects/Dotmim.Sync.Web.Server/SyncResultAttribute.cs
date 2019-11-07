@@ -47,7 +47,7 @@ namespace Dotmim.Sync.Web.Server
             if (OnMethods.Contains(context.HttpContext.Request.Method)
                 || OnMethods.Contains("*"))
             {
-                var _webProxyService = (WebProxyServerProvider)context.HttpContext.RequestServices.GetService(typeof(WebProxyServerProvider));
+                var _webProxyService = (WebProxyServerOrchestrator)context.HttpContext.RequestServices.GetService(typeof(WebProxyServerOrchestrator));
 
                 if (_webProxyService == null)
                 {

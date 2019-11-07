@@ -11,16 +11,15 @@ namespace Dotmim.Sync.Messages
     /// <summary>
     /// Message exchanged during the Ensure Database sync stage
     /// </summary>
-    [Serializable]
     public class MessageEnsureDatabase
     {
-        [NonSerialized]
         private DmSet _schema;
 
         public MessageEnsureDatabase(ScopeInfo scopeInfo, DmSet schema, ICollection<FilterClause> filters, SerializationFormat serializationFormat)
         {
             this.ScopeInfo = scopeInfo ?? throw new ArgumentNullException(nameof(scopeInfo));
             this.Schema = schema ?? throw new ArgumentNullException(nameof(schema));
+            this.Filters = filters;
             this.SerializationFormat = serializationFormat;
         }
 
@@ -32,7 +31,6 @@ namespace Dotmim.Sync.Messages
         /// <summary>
         /// Gets or Sets the database schema
         /// </summary>
-        [JsonIgnore]
         public DmSet Schema { get => _schema; set => _schema = value; }
 
         /// <summary>

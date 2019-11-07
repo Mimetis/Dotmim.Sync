@@ -19,6 +19,9 @@ Can't work without a Server provider, you have to choose an existing one to be a
     <IncludeSource>True</IncludeSource>
     <IncludeSymbols>True</IncludeSymbols>
   </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="WebProxyClientProvider.cs" />
+  </ItemGroup>
 
 
   <ItemGroup>

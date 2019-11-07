@@ -22,7 +22,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Deprovision a database. You have to passe a configuration object, containing at least the dmTables
         /// </summary>
-        public async Task DeprovisionAsync(string scopeInfoTableName, SyncSchema schema, SyncProvision provision)
+        public async Task DeprovisionAsync(SyncSchema schema, SyncProvision provision, string scopeInfoTableName = SyncOptions.DefaultScopeInfoTableName)
         {
             DbConnection connection = null;
             DbTransaction transaction = null;
@@ -112,14 +112,14 @@ namespace Dotmim.Sync
         /// <summary>
         /// Deprovision a database
         /// </summary>
-        public async Task ProvisionAsync(string scopeInfoTableName, SyncSchema configuration, SyncProvision provision)
+        public async Task ProvisionAsync(SyncSchema schema, SyncProvision provision, string scopeInfoTableName = SyncOptions.DefaultScopeInfoTableName)
         {
             DbConnection connection = null;
             DbTransaction transaction = null;
 
             try
             {
-                if (configuration.Set == null || !configuration.Set.HasTables)
+                if (schema.Set == null || !schema.Set.HasTables)
                     throw new ArgumentNullException("tables", "You must set the tables you want to provision");
 
 
@@ -134,10 +134,10 @@ namespace Dotmim.Sync
                         await this.InterceptAsync(new TransactionOpenArgs(null, connection, transaction)).ConfigureAwait(false);
 
                         // Load the configuration
-                        this.ReadSchema(configuration.Set, connection, transaction);
+                        this.ReadSchema(schema.Set, connection, transaction);
 
                         var beforeArgs =
-                            new DatabaseProvisioningArgs(null, provision, configuration.Set, connection, transaction);
+                            new DatabaseProvisioningArgs(null, provision, schema.Set, connection, transaction);
 
                         // Launch any interceptor if available
                         await this.InterceptAsync(beforeArgs).ConfigureAwait(false);
@@ -150,7 +150,7 @@ namespace Dotmim.Sync
                         }
 
                         // Sorting tables based on dependencies between them
-                        var dmTables = configuration.Set.Tables
+                        var dmTables = schema.Set.Tables
                             .SortByDependencies(tab => tab.ChildRelations
                                 .Select(r => r.ChildTable));
 
@@ -165,7 +165,7 @@ namespace Dotmim.Sync
                             builder.UseBulkProcedures = this.SupportBulkOperations;
 
                             // adding filters
-                            this.AddFilters(configuration.Filters, dmTable, builder);
+                            this.AddFilters(schema.Filters, dmTable, builder);
 
                             // On purpose, the flag SyncProvision.All does not include the SyncProvision.Table, too dangerous...
                             if (provision.HasFlag(SyncProvision.Table))
@@ -186,7 +186,7 @@ namespace Dotmim.Sync
                         }
 
                         // call any interceptor
-                        await this.InterceptAsync(new DatabaseProvisionedArgs(null, provision, configuration.Set, null, connection, transaction)).ConfigureAwait(false);
+                        await this.InterceptAsync(new DatabaseProvisionedArgs(null, provision, schema.Set, null, connection, transaction)).ConfigureAwait(false);
                         await this.InterceptAsync(new TransactionCommitArgs(null, connection, transaction)).ConfigureAwait(false);
 
                         transaction.Commit();

@@ -10,14 +10,13 @@ namespace Dotmim.Sync.Test.Misc
         /// Always return a new list of configurations.
         /// To be sure that no tests will update a property that will be used (instead of default property) in the next test
         /// </summary>
-        public static List<Action<SyncSchema>> GetConfigurations()
+        public static List<Action<SyncSchema>> GetSchemas()
         {
             var Configurations = new List<Action<SyncSchema>>
             {
                 new Action<SyncSchema>( sc => {
                     sc.ConflictResolutionPolicy = Enumerations.ConflictResolutionPolicy.ServerWins;
                     sc.Filters.Clear();
-                    sc.ScopeInfoTableName = "scope_info";
                     sc.SerializationFormat = Enumerations.SerializationFormat.Json;
                     sc.StoredProceduresPrefix = "";
                     sc.StoredProceduresSuffix = "";
@@ -30,7 +29,6 @@ namespace Dotmim.Sync.Test.Misc
                 new Action<SyncSchema>( sc => {
                     sc.ConflictResolutionPolicy = Enumerations.ConflictResolutionPolicy.ServerWins;
                     sc.Filters.Clear();
-                    sc.ScopeInfoTableName = "scope_info";
                     sc.SerializationFormat = Enumerations.SerializationFormat.Binary;
                     sc.StoredProceduresPrefix = "";
                     sc.StoredProceduresSuffix = "";

@@ -91,28 +91,55 @@ namespace Dotmim.Sync.Web.Server
 
             // We are in batch mode here
             var serverBatchInfo = this.Provider.CacheManager.GetValue<BatchInfo>("GetChangeBatch_BatchInfo");
-            var stats = this.Provider.CacheManager.GetValue<DatabaseChangesSelected>("GetChangeBatch_ChangesSelected");
+            var serverChangesSelected = this.Provider.CacheManager.GetValue<DatabaseChangesSelected>("GetChangeBatch_ChangesSelected");
 
             if (serverBatchInfo == null)
                 throw new ArgumentNullException("batchInfo stored in session can't be null if request more batch part info.");
 
+            // Get if we need to serialize data or making everything in memory
+            var workInMemory = this.Options.BatchSize == 0;
+
+            return GetChangesResponse(httpMessage.SyncContext, serverBatchInfo, serverChangesSelected, httpMessageContent.BatchIndexRequested);
+        }
+
+
+        /// <summary>
+        /// Create a response message content based on a requested index in a server batch info
+        /// </summary>
+        private HttpMessage GetChangesResponse(SyncContext context, BatchInfo serverBatchInfo,
+                                DatabaseChangesSelected serverChangesSelected, int batchIndexRequested)
+        {
+
+            // 1) Create the http message response
+            var response = new HttpMessage();
+            response.SyncContext = context;
+            response.Step = HttpStep.GetChanges;
+
+            // 2) Create the http message content response
             var changesResponse = new HttpMessageSendChangesResponse();
 
-            // Get the first batch part info
-            var batchPartInfo = serverBatchInfo.BatchPartsInfo.First(d => d.Index == httpMessageContent.BatchIndexRequested);
+            changesResponse.ChangesSelected = serverChangesSelected;
+            response.Content = changesResponse;
+
+            // If nothing to do, just send back
+            if (serverBatchInfo.InMemory || serverBatchInfo.BatchPartsInfo.Count == 0)
+            {
+                changesResponse.Changes = serverBatchInfo.InMemoryData;
+                changesResponse.BatchIndex = 0;
+                changesResponse.IsLastBatch = true;
+                return response;
+            }
+
+            // Get the batch part index requested
+            var batchPartInfo = serverBatchInfo.BatchPartsInfo.First(d => d.Index == batchIndexRequested);
+
+            // if we are not in memory, we set the BI in session, to be able to get it back on next request
             batchPartInfo.LoadBatch();
 
-            changesResponse.ChangesSelected = stats;
-            changesResponse.Changes = batchPartInfo.Set;
-            changesResponse.BatchIndex = httpMessageContent.BatchIndexRequested;
+            changesResponse.Changes = batchPartInfo.Data;
+            changesResponse.BatchIndex = batchIndexRequested;
             changesResponse.IsLastBatch = batchPartInfo.IsLastBatch;
-
-            var response = new HttpMessage
-            {
-                Content = changesResponse,
-                Step = batchPartInfo.IsLastBatch ? HttpStep.SendChanges : HttpStep.InProgress,
-                SyncContext = httpMessage.SyncContext
-            };
+            response.Step = batchPartInfo.IsLastBatch ? HttpStep.GetChanges : HttpStep.GetChangesInProgress;
 
             // If we have only one bpi, we can safely delete it
             if (batchPartInfo.IsLastBatch)
@@ -126,13 +153,14 @@ namespace Dotmim.Sync.Web.Server
             }
 
             return response;
-
         }
 
-
+        /// <summary>
+        /// Get changes from 
+        /// </summary>
         private async Task<HttpMessage> ApplyThenGetChangesAsync(HttpMessage httpMessage, CancellationToken cancellationToken)
         {
-
+            #region Load content
             // ------------------------------------------------------------
             // FIRST STEP : receive client changes
             // ------------------------------------------------------------
@@ -146,40 +174,45 @@ namespace Dotmim.Sync.Web.Server
             if (httpMessageContent == null)
                 throw new ArgumentException("ApplyChanges message could not be null");
 
+            // BatchInfo containing all the changes from the client 
+            BatchInfo batchInfo = null;
+
             // Get if we need to serialize data or making everything in memory
             var workInMemory = this.Options.BatchSize == 0;
+            #endregion
 
-            // BatchInfo containing all BatchPartInfo objects
-            // Retrieve batchinfo instance if exists
-            var batchInfo = this.Provider.CacheManager.GetValue<BatchInfo>("ApplyChanges_BatchInfo");
+            // We are receiving changes from client
+            if (httpMessage.Step == HttpStep.SendChanges)
+            {
+                // BatchInfo containing all BatchPartInfo objects
+                // Retrieve batchinfo instance if exists
+                batchInfo = this.Provider.CacheManager.GetValue<BatchInfo>("ApplyChanges_BatchInfo");
 
-            // Create a new batch info
-            if (batchInfo == null)
-                batchInfo = new BatchInfo(workInMemory, this.Options.BatchDirectory);
+                // Create a new batch info
+                if (batchInfo == null)
+                    batchInfo = new BatchInfo(workInMemory, this.Options.BatchDirectory);
 
-            // Create the BatchPartInfo object based on the message received from client and add it to the batchInfo instance
-            var bpi = batchInfo.GenerateBatchInfo(httpMessageContent.BatchIndex, httpMessageContent.Changes);
+                // add changes to the batch info
+                batchInfo.AddChanges(httpMessageContent.Changes, httpMessageContent.BatchIndex, httpMessageContent.IsLastBatch);
 
-            // We may have the last batch sent from client. So specify it in tbe BatchPartInfo
-            bpi.IsLastBatch = httpMessageContent.IsLastBatch;
+                // Save the BatchInfo
+                this.Provider.CacheManager.Set("ApplyChanges_BatchInfo", batchInfo);
 
-            // Save the BatchInfo
-            this.Provider.CacheManager.Set("ApplyChanges_BatchInfo", batchInfo);
+                // Clear the httpMessage set
+                if (!workInMemory && httpMessageContent != null && httpMessageContent.Changes != null)
+                    httpMessageContent.Changes.Clear();
 
-            // Clear the httpMessage set
-            if (!workInMemory && httpMessageContent != null && httpMessageContent.Changes != null)
-                httpMessageContent.Changes.Clear();
+                // Until we don't have received all the batches, wait for more
+                if (!httpMessageContent.IsLastBatch)
+                    return new HttpMessage() { SyncContext = httpMessage.SyncContext, Step = HttpStep.SendChangesInProgress, Content = null };
+            }
 
-            // Until we don't have received all the batches, wait for more
-            if (!httpMessageContent.IsLastBatch)
-                return new HttpMessage() { SyncContext = httpMessage.SyncContext, Step = HttpStep.InProgress, Content = null };
+            // Now all the batchs have been sent from client
+            this.Provider.CacheManager.Remove("ApplyChanges_BatchInfo");
 
             // ------------------------------------------------------------
             // SECOND STEP : apply then return server changes
             // ------------------------------------------------------------
-
-            // Now all the batchs have been sent from client
-            this.Provider.CacheManager.Remove("ApplyChanges_BatchInfo");
 
             // get changes
             var (context, serverBatchInfo, serverChangesSelected) =
@@ -188,55 +221,16 @@ namespace Dotmim.Sync.Web.Server
                            httpMessageContent.ServerScopeInfo, batchInfo, cancellationToken).ConfigureAwait(false);
 
 
-            // Create the http message response
-            var response = new HttpMessage();
-            response.SyncContext = context;
-            response.Step = HttpStep.SendChanges;
-
-            // Check if the serverBatchInfo is a batched
-            // then send back the response (the first BPI
-            var changesResponse = new HttpMessageSendChangesResponse();
-            changesResponse.ChangesSelected = serverChangesSelected;
-
-            response.Content = changesResponse;
-
-            // If nothing to do, just send back
-            if (serverBatchInfo.BatchPartsInfo.Count == 0)
-            {
-                changesResponse.IsLastBatch = true;
-                return response;
-            }
-
-            // Get the first batch part info
-            var firstServerBatchPartInfo = serverBatchInfo.BatchPartsInfo.First(d => d.Index == 0);
-
-            // if we are not in memory, we set the BI in session, to be able to get it back on next request
+            // Save the server batch info object to cache if not working in memory
             if (!workInMemory)
             {
                 // Save the BatchInfo
                 this.Provider.CacheManager.Set("GetChangeBatch_BatchInfo", serverBatchInfo);
                 this.Provider.CacheManager.Set("GetChangeBatch_ChangesSelected", serverChangesSelected);
-
-                // load the batchpart set directly, to be able to send it back
-                firstServerBatchPartInfo.LoadBatch();
             }
 
-            changesResponse.Changes = firstServerBatchPartInfo.Set;
-            response.Step = firstServerBatchPartInfo.IsLastBatch ?HttpStep.SendChanges : HttpStep.InProgress;
-            changesResponse.IsLastBatch = firstServerBatchPartInfo.IsLastBatch;
-
-            // If we have only one bpi, we can safely delete it
-            if (!workInMemory && firstServerBatchPartInfo.IsLastBatch)
-            {
-                this.Provider.CacheManager.Remove("GetChangeBatch_BatchInfo");
-                this.Provider.CacheManager.Remove("GetChangeBatch_ChangesSelected");
-
-                // delete the folder (not the BatchPartInfo, because we have a reference on it)
-                if (this.Options.CleanMetadatas)
-                    serverBatchInfo.TryRemoveDirectory();
-            }
-
-            return response;
+            // Get the firt response to send back to client
+            return GetChangesResponse(context, serverBatchInfo, serverChangesSelected, 0);
 
         }
     }
