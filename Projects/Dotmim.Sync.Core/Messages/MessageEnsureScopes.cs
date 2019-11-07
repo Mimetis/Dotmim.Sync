@@ -8,7 +8,6 @@ namespace Dotmim.Sync.Messages
     /// <summary>
     /// Message exchanged during the Ensure scopes sync stage
     /// </summary>
-    [Serializable]
     public class MessageEnsureScopes
     {
         public MessageEnsureScopes(string scopeInfoTableName, string scopeName, Guid? clientReferenceId = null)

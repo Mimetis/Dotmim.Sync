@@ -183,8 +183,11 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         public virtual async Task Insert_One_Table_From_Server()
         {
-            foreach (var conf in TestConfigurations.GetConfigurations())
+            foreach (var conf in TestConfigurations.GetSchemas())
             {
+                // reset
+                await this.testRunner.RunTestsAsync(conf);
+
                 var name = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
                 var productNumber = Path.GetRandomFileName().Replace(".", "").ToUpperInvariant().Substring(0, 10);
 
@@ -211,8 +214,11 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         public virtual async Task Insert_One_Table_From_Client()
         {
-            foreach (var conf in TestConfigurations.GetConfigurations())
+            foreach (var conf in TestConfigurations.GetSchemas())
             {
+                // reset
+                await this.testRunner.RunTestsAsync(conf);
+
                 foreach (var clientRun in this.fixture.ClientRuns)
                 {
                     var name = Path.GetRandomFileName().Replace(".", "");
@@ -266,7 +272,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         public virtual async Task Insert_Multiple_Tables_From_Server()
         {
-            foreach (var conf in TestConfigurations.GetConfigurations())
+            foreach (var conf in TestConfigurations.GetSchemas())
             {
                 var productId = Guid.NewGuid();
                 var productName = Path.GetRandomFileName().Replace(".", "");
@@ -305,7 +311,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         public virtual async Task Insert_Multiple_Tables_From_Client()
         {
-            foreach (var conf in TestConfigurations.GetConfigurations())
+            foreach (var conf in TestConfigurations.GetSchemas())
             {
                 foreach (var testRun in this.fixture.ClientRuns)
                 {
@@ -371,7 +377,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         public virtual async Task Update_One_Table_From_Server()
         {
-            foreach (var conf in TestConfigurations.GetConfigurations())
+            foreach (var conf in TestConfigurations.GetSchemas())
             {
                 string randomAddressLine;
                 string city;
@@ -422,7 +428,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         public virtual async Task Update_One_Table_From_Client()
         {
-            foreach (var conf in TestConfigurations.GetConfigurations())
+            foreach (var conf in TestConfigurations.GetSchemas())
             {
                 // get a for instead of foreach to have an index corresponding to the Address pkeyid, ensuring I won't have conflicts beetween clients
                 // start on "Index-Base-1"
@@ -504,7 +510,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         public virtual async Task Conflict_Insert_Insert_Server_Should_Wins()
         {
-            foreach (var conf in TestConfigurations.GetConfigurations())
+            foreach (var conf in TestConfigurations.GetSchemas())
             {
                 // reset
                 await this.testRunner.RunTestsAsync(conf);
@@ -657,10 +663,10 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         public virtual async Task Conflict_Insert_Insert_Client_Should_Wins_Coz_Handler_Raised()
         {
-            foreach (var conf in TestConfigurations.GetConfigurations())
+            foreach (var conf in TestConfigurations.GetSchemas())
             {
                 // reset
-                await this.testRunner.RunTestsAsync(conf);
+                var cc = await this.testRunner.RunTestsAsync(conf);
                 // generate a conflict product category id
                 var conflictProductCategoryId = Path.GetRandomFileName().Replace(".", "").ToUpperInvariant().Substring(0, 6);
 
@@ -696,8 +702,11 @@ namespace Dotmim.Sync.Tests
 
 
                 this.testRunner.BeginRun = provider
-                    => provider.On(new Interceptor<ApplyChangesFailedArgs>(c => c.Resolution = ConflictResolution.ClientWins));
-                this.testRunner.EndRun = provider => provider.On(null);
+                    => provider.On<ApplyChangesFailedArgs>(c =>
+                    {
+                        c.Resolution = ConflictResolution.ClientWins;
+                    });
+                this.testRunner.EndRun = provider => provider.On<ApplyChangesFailedArgs>(null);
 
                 var results = await this.testRunner.RunTestsAsync(conf);
 
@@ -809,7 +818,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         public virtual async Task Conflict_Update_Update_Client_Should_Wins_Coz_Handler_Raised()
         {
-            foreach (var conf in TestConfigurations.GetConfigurations())
+            foreach (var conf in TestConfigurations.GetSchemas())
             {
                 // reset
                 await this.testRunner.RunTestsAsync(conf);
@@ -850,8 +859,7 @@ namespace Dotmim.Sync.Tests
 
 
                 this.testRunner.BeginRun = provider =>
-                    provider.On(new Interceptor<ApplyChangesFailedArgs>(args =>
-                            args.Resolution = ConflictResolution.ClientWins));
+                    provider.On<ApplyChangesFailedArgs>(args => args.Resolution = ConflictResolution.ClientWins);
 
                 var results = await this.testRunner.RunTestsAsync(conf);
 
@@ -890,7 +898,7 @@ namespace Dotmim.Sync.Tests
         public virtual async Task Conflict_Update_Update_Resolve_By_Merge()
         {
 
-            foreach (var conf in TestConfigurations.GetConfigurations())
+            foreach (var conf in TestConfigurations.GetSchemas())
             {
                 // reset
                 await this.testRunner.RunTestsAsync();
@@ -932,15 +940,18 @@ namespace Dotmim.Sync.Tests
                 }
 
                 this.testRunner.BeginRun = provider
-                    => provider.On(new Interceptor<ApplyChangesFailedArgs>(args =>
-                    {
-                        args.Resolution = ConflictResolution.MergeRow;
-                        args.FinalRow["Name"] = productCategoryNameMerged;
+                    => provider.On<ApplyChangesFailedArgs>(args =>
+                   {
+                       args.Resolution = ConflictResolution.MergeRow;
+                       args.FinalRow["Name"] = productCategoryNameMerged;
 
-                    }));
+                   });
 
 
-                this.testRunner.EndRun = provider => provider.On(null);
+                this.testRunner.EndRun = provider =>
+                {
+                    provider.On<ApplyChangesFailedArgs>(null);
+                };
 
 
                 var results = await this.testRunner.RunTestsAsync(conf);
@@ -981,7 +992,7 @@ namespace Dotmim.Sync.Tests
         /// <returns></returns>
         public virtual async Task Conflict_Update_Update_Server_Should_Wins()
         {
-            foreach (var conf in TestConfigurations.GetConfigurations())
+            foreach (var conf in TestConfigurations.GetSchemas())
             {
                 // reset
                 await this.testRunner.RunTestsAsync(conf);
@@ -1059,7 +1070,7 @@ namespace Dotmim.Sync.Tests
         /// <returns></returns>
         public virtual async Task Delete_From_Server()
         {
-            var configurations = TestConfigurations.GetConfigurations();
+            var configurations = TestConfigurations.GetSchemas();
 
             // part of the filter
             var employeeId = 1;
@@ -1161,7 +1172,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         public virtual async Task Insert_Then_Delete_From_Server_Then_Sync()
         {
-            foreach (var conf in TestConfigurations.GetConfigurations())
+            foreach (var conf in TestConfigurations.GetSchemas())
             {
                 var productCategoryId = Path.GetRandomFileName().Replace(".", "").ToUpperInvariant().Substring(0, 6);
                 var productCategoryNameServer = Path.GetRandomFileName().Replace(".", "").ToUpperInvariant().Substring(3, 6);
@@ -1205,7 +1216,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         public virtual async Task Insert_Then_Update_From_Server_Then_Sync()
         {
-            foreach (var conf in TestConfigurations.GetConfigurations())
+            foreach (var conf in TestConfigurations.GetSchemas())
             {
                 var productCategoryId = Path.GetRandomFileName().Replace(".", "").ToUpperInvariant().Substring(0, 6);
                 var productCategoryNameServer = Path.GetRandomFileName().Replace(".", "").ToUpperInvariant().Substring(3, 6);
@@ -1281,18 +1292,15 @@ namespace Dotmim.Sync.Tests
                     await ctx.Database.EnsureCreatedAsync();
 
                 // generate a sync conf to host the schema
-                var conf = new SyncSchema(this.fixture.Tables);
+                var syncSchema = new SyncSchema(this.fixture.Tables);
 
 
                 // just check interceptor
-                localProvider.On(new Interceptor<TableProvisioningArgs>(args =>
-                {
-                    Assert.Equal(SyncProvision.All, args.Provision);
-                }));
+                localProvider.On<TableProvisioningArgs>(args => Assert.Equal(SyncProvision.All, args.Provision));
 
 
                 // Provision the database with all tracking tables, stored procedures, triggers and scope
-                await localProvider.ProvisionAsync(conf, SyncProvision.All);
+                await localProvider.ProvisionAsync(syncSchema, SyncProvision.All);
 
                 //--------------------------
                 // ASSERTION
@@ -1303,12 +1311,12 @@ namespace Dotmim.Sync.Tests
 
                 using (var dbConnection = localProvider.CreateConnection())
                 {
-                    var scopeBuilder = scopeBuilderFactory.CreateScopeInfoBuilder(conf.ScopeInfoTableName, dbConnection);
+                    var scopeBuilder = scopeBuilderFactory.CreateScopeInfoBuilder(SyncOptions.DefaultScopeInfoTableName, dbConnection);
                     Assert.False(scopeBuilder.NeedToCreateScopeInfoTable());
                 }
 
                 // get the db manager
-                foreach (var dmTable in conf.Schema.Tables)
+                foreach (var dmTable in syncSchema.Set.Tables)
                 {
                     var tableName = dmTable.TableName;
                     using (var dbConnection = localProvider.CreateConnection())
@@ -1357,17 +1365,14 @@ namespace Dotmim.Sync.Tests
                 }
 
                 // just check interceptor
-                localProvider.On(new Interceptor<TableDeprovisioningArgs>(args =>
-                {
-                    Assert.Equal(SyncProvision.All, args.Provision);
-                }));
+                localProvider.On<TableDeprovisioningArgs>(args => Assert.Equal(SyncProvision.All, args.Provision));
 
 
                 // Provision the database with all tracking tables, stored procedures, triggers and scope
-                await localProvider.DeprovisionAsync(conf, SyncProvision.All);
+                await localProvider.DeprovisionAsync(syncSchema, SyncProvision.All);
 
                 // get the db manager
-                foreach (var dmTable in conf.Schema.Tables)
+                foreach (var dmTable in syncSchema.Set.Tables)
                 {
                     var tableName = dmTable.TableName;
                     using (var dbConnection = localProvider.CreateConnection())
@@ -1414,7 +1419,7 @@ namespace Dotmim.Sync.Tests
                 }
 
 
-                localProvider.On(null);
+                localProvider.On<TableDeprovisioningArgs>(null);
 
 
             }
@@ -1476,7 +1481,7 @@ namespace Dotmim.Sync.Tests
         public virtual async Task Insert_New_Table_Then_Update_Existing_Table_From_Client()
         {
             // create new ProductCategory on server
-            foreach (var conf in TestConfigurations.GetConfigurations())
+            foreach (var conf in TestConfigurations.GetSchemas())
             {
                 // reset to be sure everything is downloaded from every clients
                 await this.testRunner.RunTestsAsync(conf);
@@ -1537,7 +1542,7 @@ namespace Dotmim.Sync.Tests
         public virtual async Task Insert_Record_Then_Insert_During_GetChanges()
         {
             // create new ProductCategory on server
-            foreach (var conf in TestConfigurations.GetConfigurations())
+            foreach (var conf in TestConfigurations.GetSchemas())
             {
                 // reset
                 await this.testRunner.RunTestsAsync(conf);
@@ -1596,8 +1601,7 @@ namespace Dotmim.Sync.Tests
                     };
 
                     // during first run, add a new row during selection on client (very first step of whole sync process)
-                    clientRun.ClientProvider.On
-                        (new Interceptor<TableChangesSelectedArgs>(tableChangesSelected));
+                    clientRun.ClientProvider.On<TableChangesSelectedArgs>(tableChangesSelected);
 
                     var trr = await clientRun.RunAsync(this.fixture, null, conf, false);
 
@@ -1605,7 +1609,7 @@ namespace Dotmim.Sync.Tests
                     Assert.Equal(1, trr.Results.TotalChangesUploaded);
                     cpt = cpt + 2;
 
-                    clientRun.ClientProvider.On(null);
+                    clientRun.ClientProvider.On<TableChangesSelectedArgs>(null);
 
                     var trr2 = await clientRun.RunAsync(this.fixture, null, conf, false);
                     Debug.WriteLine($"{trr2.ClientProvider.ConnectionString}: Upload={trr2.Results.TotalChangesUploaded}");
@@ -1622,7 +1626,7 @@ namespace Dotmim.Sync.Tests
         public virtual async Task Check_Interceptors()
         {
             // create new ProductCategory on server
-            foreach (var conf in TestConfigurations.GetConfigurations())
+            foreach (var conf in TestConfigurations.GetSchemas())
             {
                 foreach (var clientRun in this.fixture.ClientRuns)
                 {
@@ -1709,14 +1713,14 @@ namespace Dotmim.Sync.Tests
                     });
 
 
-                    clientRun.Agent.SetInterceptor(interceptor);
+                    clientRun.Agent.SetInterceptors(interceptor);
 
                     await clientRun.RunAsync(this.fixture, null, conf, false);
 
                     //Assert we have go through begin and end session
                     Assert.Equal("beginend", sessionString);
 
-                    clientRun.Agent.SetInterceptor(null);
+                    clientRun.Agent.SetInterceptors(null);
 
                 }
 
@@ -1726,7 +1730,7 @@ namespace Dotmim.Sync.Tests
 
         public virtual async Task Force_Failing_Constraints()
         {
-            foreach (var conf in TestConfigurations.GetConfigurations())
+            foreach (var conf in TestConfigurations.GetSchemas())
             {
                 foreach (var clientRun in this.fixture.ClientRuns)
                 {

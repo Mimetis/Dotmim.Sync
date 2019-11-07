@@ -20,14 +20,14 @@ namespace Dotmim.Sync.Batch
         /// </summary>
         public void LoadBatch()
         {
-            if (this.Set != null && this.Set.HasTables)
+            if (this.Data != null && this.Data.Tables != null && this.Data.Tables.Count > 0)
                 return;
 
             if (string.IsNullOrEmpty(this.FileName))
                 return;
 
             // Get a Batch part, and deserialise the file into a the BatchPartInfo Set property
-            this.Set = Deserialize(this.FileName);
+            this.Data = Deserialize(this.FileName);
         }
 
         /// <summary>
@@ -35,10 +35,10 @@ namespace Dotmim.Sync.Batch
         /// </summary>
         public void Clear()
         {
-            if (this.Set != null)
+            if (this.Data != null)
             {
-                this.Set.Clear();
-                this.Set = null;
+                this.Data.Clear();
+                this.Data = null;
             }
         }
 
@@ -53,22 +53,7 @@ namespace Dotmim.Sync.Batch
         /// </summary>
         public string[] Tables { get; set; }
 
-        /// <summary>
-        /// Gets or Sets the DmSet from the batch associated once the DmSetSurrogate is deserialized
-        /// </summary>
-
-        private DmSet set;
-        public DmSet Set
-        {
-            get
-            {
-                return set;
-            }
-            set
-            {
-                set = value;
-            }
-        }
+        public DmSet Data { get; set; }
 
 
         public BatchPartInfo()
@@ -90,6 +75,9 @@ namespace Dotmim.Sync.Batch
             }
         }
 
+        /// <summary>
+        /// Serialize the DmSet data (acutally serialize a DmSetSurrogate)
+        /// </summary>
         public static void Serialize(DmSet set, string fileName)
         {
             if (set == null)
@@ -107,32 +95,28 @@ namespace Dotmim.Sync.Batch
                 serializer.Serialize(f, set);
             }
         }
+
+        /// <summary>
         /// Create a new BPI, and serialize the changeset if not in memory
         /// </summary>
-        internal static BatchPartInfo CreateBatchPartInfo(int batchIndex, DmSet changesSet, string fileName, Boolean isLastBatch, Boolean inMemory)
+        internal static BatchPartInfo CreateBatchPartInfo(int batchIndex, DmSet set, string fileName, bool isLastBatch)
         {
             BatchPartInfo bpi = null;
 
             // Create a batch part
             // The batch part creation process will serialize the changesSet to the disk
-            if (!inMemory)
-            {
-                // Serialize the file !
-                Serialize(changesSet, fileName);
 
-                bpi = new BatchPartInfo { FileName = fileName };
-            }
-            else
-            {
-                bpi = new BatchPartInfo { Set = changesSet };
-            }
+            // Serialize the file !
+            Serialize(set, fileName);
+
+            bpi = new BatchPartInfo { FileName = fileName };
 
             bpi.Index = batchIndex;
             bpi.IsLastBatch = isLastBatch;
 
             // Even if the set is empty (serialized on disk), we should retain the tables names
-            if (changesSet != null && changesSet.HasTables)
-                bpi.Tables = changesSet.Tables.Select(t => t.TableName).ToArray();
+            if (set != null && set.Tables != null && set.Tables.Count > 0)
+                bpi.Tables = set.Tables.Select(t => t.TableName).ToArray();
 
             return bpi;
         }

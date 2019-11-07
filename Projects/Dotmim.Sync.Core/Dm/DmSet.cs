@@ -80,7 +80,7 @@ namespace Dotmim.Sync.Data
         /// <summary>
         /// Compare string with the table CultureInfo and CaseSensitive flags
         /// </summary>
-        public Boolean IsEqual(string s1, string s2)
+        public bool IsEqual(string s1, string s2)
         {
             return this.culture.CompareInfo.Compare(s1, s2, this.compareFlags) == 0;
         }

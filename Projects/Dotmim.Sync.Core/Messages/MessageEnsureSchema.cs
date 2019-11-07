@@ -10,7 +10,6 @@ namespace Dotmim.Sync.Messages
     /// <summary>
     /// Message exchanged during the Ensure Schema sync stage
     /// </summary>
-    [Serializable]
     public class MessageEnsureSchema
     {
         public MessageEnsureSchema(SyncSchema schema)

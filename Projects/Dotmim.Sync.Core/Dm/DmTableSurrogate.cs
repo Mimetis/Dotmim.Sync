@@ -230,6 +230,25 @@ namespace Dotmim.Sync.Data.Surrogate
             }
         }
 
+        /// <summary>
+        /// Convert this surrogate to a DmTable
+        /// </summary>
+        /// <returns></returns>
+        public DmTable ConvertToDmTable()
+        {
+            var dmTable = new DmTable();
+
+            dmTable.Culture = new CultureInfo(this.CultureInfoName);
+            dmTable.CaseSensitive = this.CaseSensitive;
+            this.TableName = this.TableName;
+
+            this.ReadSchemaIntoDmTable(dmTable);
+            this.ReadDatasIntoDmTable(dmTable);
+
+            return dmTable;
+        }
+
+
         private DmRow ConvertToDmRow(DmTable dt, int bitIndex)
         {
             var rowState = (DmRowState)this.RowStates[bitIndex];
