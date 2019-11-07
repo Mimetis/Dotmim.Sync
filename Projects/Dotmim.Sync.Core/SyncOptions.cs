@@ -12,6 +12,8 @@ namespace Dotmim.Sync
     public class SyncOptions
     {
 
+        public const string DefaultScopeInfoTableName = "scope_info";
+
         /// <summary>
         /// Gets or Sets the directory used for batch mode.
         /// Default value is [User Temp Path]/[DotmimSync]
@@ -84,7 +86,7 @@ namespace Dotmim.Sync
             this.UseBulkOperations = true;
             this.UseVerboseErrors = false;
             this.DisableConstraintsOnApplyChanges = true;
-            this.ScopeInfoTableName = "scope_info";
+            this.ScopeInfoTableName = DefaultScopeInfoTableName;
 
         }
 

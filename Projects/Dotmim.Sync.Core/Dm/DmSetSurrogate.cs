@@ -57,8 +57,8 @@ namespace Dotmim.Sync.Data.Surrogate
 
                 for (int i = 0; i < ds.Relations.Count; i++)
                 {
-                    DmRelation dr = ds.Relations[i];
-                    DmRelationSurrogate drs = new DmRelationSurrogate();
+                    var dr = ds.Relations[i];
+                    var drs = new DmRelationSurrogate();
 
                     drs.ChildKeySurrogates = new DmColumnSurrogate[dr.ChildKey.Columns.Length];
                     for (int keyIndex = 0; keyIndex < dr.ChildKey.Columns.Length; keyIndex++)
@@ -80,8 +80,6 @@ namespace Dotmim.Sync.Data.Surrogate
         /// </summary>
         public DmSetSurrogate()
         {
-            //this.DmTableSurrogates = new List<DmTableSurrogate>();
-            //this.DmRelationSurrogates = new List<DmRelationSurrogate>();
         }
 
         /// <summary>
@@ -89,7 +87,7 @@ namespace Dotmim.Sync.Data.Surrogate
         /// </summary>
         public DmSet ConvertToDmSet()
         {
-            DmSet dmSet = new DmSet()
+            var dmSet = new DmSet()
             {
                 Culture = new CultureInfo(this.CultureInfoName),
                 CaseSensitive = this.CaseSensitive,
@@ -100,12 +98,15 @@ namespace Dotmim.Sync.Data.Surrogate
             return dmSet;
         }
 
+
+   
+
         /// <summary>
         /// Clone the originla DmSet and copy datas from the DmSetSurrogate
         /// </summary>
         public DmSet ConvertToDmSet(DmSet originalDmSet)
         {
-            DmSet dmSet = originalDmSet.Clone();
+            var dmSet = originalDmSet.Clone();
             this.ReadDataIntoDmSet(dmSet);
             return dmSet;
         }
@@ -114,7 +115,7 @@ namespace Dotmim.Sync.Data.Surrogate
         {
             for (int i = 0; i < ds.Tables.Count; i++)
             {
-                DmTableSurrogate dmTableSurrogate = this.Tables[i];
+                var dmTableSurrogate = this.Tables[i];
                 dmTableSurrogate.ReadDatasIntoDmTable(ds.Tables[i]);
             }
         }
@@ -156,7 +157,7 @@ namespace Dotmim.Sync.Data.Surrogate
 
                     }
 
-                    DmRelation relation = new DmRelation(dmRelationSurrogate.RelationName, parentColumns, childColumns);
+                    var relation = new DmRelation(dmRelationSurrogate.RelationName, parentColumns, childColumns);
                     ds.Relations.Add(relation);
                 }
             }

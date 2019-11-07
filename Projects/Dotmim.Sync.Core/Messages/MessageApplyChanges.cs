@@ -9,13 +9,10 @@ namespace Dotmim.Sync.Messages
     /// <summary>
     /// Message exchanged during the Begin session sync stage
     /// </summary>
-    [Serializable]
     public class MessageApplyChanges
     {
-        [NonSerialized]
-        private DmSet _schema;
 
-        public MessageApplyChanges(ScopeInfo fromScope, DmSet schema, ConflictResolutionPolicy policy, bool disableConstraintsOnApplyChanges, bool useBulkOperations, bool cleanMetadatas, string scopeInfoTableName, BatchInfo changes, SerializationFormat serializationFormat)
+        public MessageApplyChanges(ScopeInfo fromScope, SyncSchema schema, ConflictResolutionPolicy policy, bool disableConstraintsOnApplyChanges, bool useBulkOperations, bool cleanMetadatas, string scopeInfoTableName, BatchInfo changes)
         {
             this.FromScope = fromScope ?? throw new ArgumentNullException(nameof(fromScope));
             this.Schema = schema ?? throw new ArgumentNullException(nameof(schema));
@@ -25,7 +22,6 @@ namespace Dotmim.Sync.Messages
             this.CleanMetadatas = cleanMetadatas;
             this.ScopeInfoTableName = scopeInfoTableName ?? throw new ArgumentNullException(nameof(scopeInfoTableName));
             this.Changes = changes ?? throw new ArgumentNullException(nameof(changes));
-            this.SerializationFormat = serializationFormat;
         }
 
         /// <summary>
@@ -36,8 +32,7 @@ namespace Dotmim.Sync.Messages
         /// <summary>
         /// Gets or Sets the schema used for this sync
         /// </summary>
-        [JsonIgnore]
-        public DmSet Schema { get => this._schema; set => this._schema = value; }
+        public SyncSchema Schema { get; set; }
 
         /// <summary>
         /// Gets or Sets the current Conflict resolution policy
@@ -68,11 +63,6 @@ namespace Dotmim.Sync.Messages
         /// Gets or Sets the Batch Info used for this sync session
         /// </summary>
         public BatchInfo Changes { get; set; }
-
-        /// <summary>
-        /// Gets or Sets the Serialization format used during the sync
-        /// </summary>
-        public SerializationFormat SerializationFormat { get; set; }
 
     }
 }

@@ -24,11 +24,25 @@ namespace Dotmim.Sync
 
         }
 
- 
         /// <summary>
         /// Local orchestrator used as a client
         /// </summary>
         public LocalOrchestrator(CoreProvider provider) => this.Provider = provider;
+
+        /// <summary>
+        /// Set an interceptor to get info on the current sync process
+        /// </summary>
+        public void On<T>(Func<T, Task> interceptorFunc) where T : ProgressArgs => this.Provider.On(interceptorFunc);
+
+        /// <summary>
+        /// Set an interceptor to get info on the current sync process
+        /// </summary>
+        public void On<T>(Action<T> interceptorAction) where T : ProgressArgs => this.Provider.On(interceptorAction);
+
+        /// <summary>
+        /// Set a collection of interceptors
+        /// </summary>
+        public void On(Interceptors interceptors) => this.Provider.On(interceptors);
 
         /// <summary>
         /// Get the local configuration, ensures the local scope is created
@@ -277,7 +291,7 @@ namespace Dotmim.Sync
                         DatabaseChangesApplied clientChangesApplied;
 
                         // Check if we need to apply changes somewhere
-                        if (serverBatchInfo.BatchPartsInfo != null && serverBatchInfo.BatchPartsInfo.Count > 0)
+                        if (serverBatchInfo.HasData())
                         {
                             // fromId : When applying rows, make sure it's identified as applied by this server scope
                             var fromId = serverScopeId;
@@ -293,9 +307,9 @@ namespace Dotmim.Sync
                             (context, clientChangesApplied) =
                                 await this.Provider.ApplyChangesAsync(context,
                                     new MessageApplyChanges(
-                                            scope, schema.Set, clientPolicy, this.options.DisableConstraintsOnApplyChanges,
+                                            scope, schema, clientPolicy, this.options.DisableConstraintsOnApplyChanges,
                                             this.options.UseBulkOperations, this.options.CleanMetadatas, options.ScopeInfoTableName,
-                                            serverBatchInfo, schema.SerializationFormat),
+                                            serverBatchInfo),
                                         connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                         }
                         else

@@ -18,19 +18,26 @@ namespace Dotmim.Sync
     /// </summary>
     public abstract partial class CoreProvider
     {
-        private InterceptorBase interceptorBase = new InterceptorBase();
+        // Collection of Interceptors
+        private Interceptors interceptors = new Interceptors();
 
         /// <summary>
         /// Set an interceptor to get info on the current sync process
         /// </summary>
         public void On<T>(Func<T, Task> interceptorFunc) where T : ProgressArgs => 
-            this.interceptorBase.GetInterceptor<T>().Set(interceptorFunc);
+            this.interceptors.GetInterceptor<T>().Set(interceptorFunc);
 
         /// <summary>
         /// Set an interceptor to get info on the current sync process
         /// </summary>
-        public void On<T>(Action<T> interceptorAction) where T : ProgressArgs
-            => this.interceptorBase.GetInterceptor<T>().Set(interceptorAction);
+        public void On<T>(Action<T> interceptorAction) where T : ProgressArgs => 
+            this.interceptors.GetInterceptor<T>().Set(interceptorAction);
+
+
+        /// <summary>
+        /// Set a collection of interceptors
+        /// </summary>
+        public void On(Interceptors interceptors) => this.interceptors = interceptors;
 
         /// <summary>
         /// Returns the Task associated with given type of BaseArgs 
@@ -38,14 +45,12 @@ namespace Dotmim.Sync
         /// </summary>
         internal Task InterceptAsync<T>(T args) where T : ProgressArgs
         {
-            if (this.interceptorBase == null)
+            if (this.interceptors == null)
                 return Task.CompletedTask;
 
-            var interceptor = this.interceptorBase.GetInterceptor<T>();
+            var interceptor = this.interceptors.GetInterceptor<T>();
             return interceptor.RunAsync(args);
         }
-
-
 
 
         /// <summary>

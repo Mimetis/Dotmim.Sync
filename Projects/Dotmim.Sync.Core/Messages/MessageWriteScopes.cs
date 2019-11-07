@@ -8,7 +8,6 @@ namespace Dotmim.Sync.Messages
     /// <summary>
     /// Message exchanged during the Write Scopes sync stage
     /// </summary>
-    [Serializable]
     public class MessageWriteScopes
     {
         public MessageWriteScopes(string scopeInfoTableName, List<ScopeInfo> scopes, SerializationFormat serializationFormat)

@@ -73,15 +73,13 @@ namespace Dotmim.Sync.Tests.Core
 
         //public event EventHandler<SyncAgent> OnRunning;
 
-        public Action<IProvider> BeginRun { get; set; }
-        public Action<IProvider> EndRun { get; set; }
+        public Action<IRemoteOrchestrator> BeginRun { get; set; }
+        public Action<IRemoteOrchestrator> EndRun { get; set; }
 
 
         public async Task<ProviderRun> RunAsync(ProviderFixture serverFixture, string[] tables = null,
-            Action<SyncSchema> conf = null, bool reuseAgent = true)
+            Action<SyncSchema> schema = null, bool reuseAgent = true)
         {
-            // server proxy
-            var proxyClientProvider = new WebProxyClientProvider();
 
             var syncTables = tables ?? serverFixture.Tables;
 
@@ -93,16 +91,12 @@ namespace Dotmim.Sync.Tests.Core
                     this.Agent = new SyncAgent(this.ClientProvider, serverFixture.ServerProvider, syncTables);
 
                 // copy conf settings
-                if (conf != null)
-                    this.Agent.SetConfiguration(conf);
+                if (schema != null)
+                    this.Agent.SetSchema(schema);
 
                 // Add Filers
                 if (serverFixture.Filters != null && serverFixture.Filters.Count > 0)
-                    serverFixture.Filters.ForEach(f =>
-                    {
-                        if (!this.Agent.LocalProvider.Configuration.Filters.Contains(f))
-                            this.Agent.LocalProvider.Configuration.Filters.Add(f);
-                    });
+                    serverFixture.Filters.ForEach(f => this.Agent.AddFilter(f));
 
                 // Add Filers values
                 if (serverFixture.FilterParameters != null && serverFixture.FilterParameters.Count > 0)
@@ -113,9 +107,9 @@ namespace Dotmim.Sync.Tests.Core
                 // sync
                 try
                 {
-                    this.BeginRun?.Invoke(this.Agent.RemoteProvider);
+                    this.BeginRun?.Invoke(this.Agent.RemoteOrchestrator);
                     this.Results = await this.Agent.SynchronizeAsync();
-                    this.EndRun?.Invoke(this.Agent.RemoteProvider);
+                    this.EndRun?.Invoke(this.Agent.RemoteOrchestrator);
                 }
                 catch (Exception ex)
                 {
@@ -142,25 +136,26 @@ namespace Dotmim.Sync.Tests.Core
                         // sync
                         try
                         {
-                            var proxyServerProvider = WebProxyServerProvider.Create(
-                                context, serverFixture.ServerProvider, conf, options);
 
-                            var serverProvider = proxyServerProvider.GetLocalProvider(context);
+                            var proxyServerOrchestrator = WebProxyServerOrchestrator.Create(
+                                context, serverFixture.ServerProvider, schema, options);
 
-                            serverProvider.Configuration.Add(syncTables);
+                            var serverOrchestrator = proxyServerOrchestrator.GetLocalOrchestrator(context);
+
+                            serverOrchestrator.Schema.Add(syncTables);
 
                             // Add Filers
                             if (serverFixture.Filters != null && serverFixture.Filters.Count > 0)
                                 serverFixture.Filters.ForEach(f =>
                                 {
-                                    if (!serverProvider.Configuration.Filters.Contains(f))
-                                        serverProvider.Configuration.Filters.Add(f);
+                                    if (!serverOrchestrator.Schema.Filters.Contains(f))
+                                        serverOrchestrator.Schema.Filters.Add(f);
                                 });
 
 
-                            this.BeginRun?.Invoke(serverProvider);
-                            await proxyServerProvider.HandleRequestAsync(context);
-                            this.EndRun?.Invoke(serverProvider);
+                            this.BeginRun?.Invoke(serverOrchestrator);
+                            await proxyServerOrchestrator.HandleRequestAsync(context);
+                            this.EndRun?.Invoke(serverOrchestrator);
 
                         }
                         catch (Exception ew)
@@ -171,16 +166,21 @@ namespace Dotmim.Sync.Tests.Core
 
                     var clientHandler = new ResponseDelegate(async (serviceUri) =>
                     {
+
+                        // server proxy
+                        var proxyClientOrchestrator = new WebClientOrchestrator(serviceUri);
+
                         // create agent
                         if (this.Agent == null || !reuseAgent)
-                            this.Agent = new SyncAgent(this.ClientProvider, proxyClientProvider);
+                            this.Agent = new SyncAgent(this.ClientProvider, proxyClientOrchestrator);
+
+                        // Just set the correct serviceUri if my kestrell server changed it
+                        ((WebClientOrchestrator)this.Agent.RemoteOrchestrator).ServiceUri = new Uri(serviceUri);
 
                         if (serverFixture.FilterParameters != null && serverFixture.FilterParameters.Count > 0)
                             foreach (var syncParam in serverFixture.FilterParameters)
                                 if (!this.Agent.Parameters.Contains(syncParam))
                                     this.Agent.Parameters.Add(syncParam);
-
-                        ((WebProxyClientProvider)this.Agent.RemoteProvider).ServiceUri = new Uri(serviceUri);
 
                         try
                         {

@@ -15,7 +15,7 @@ namespace Dotmim.Sync
     /// Sync agent. It's the sync orchestrator
     /// Knows both the Sync Server provider and the Sync Client provider
     /// </summary>
-    public class SyncAgent2 : IDisposable
+    public class SyncAgent : IDisposable
     {
         private SyncSchema schema = new SyncSchema();
         private SyncOptions options = new SyncOptions();
@@ -58,6 +58,17 @@ namespace Dotmim.Sync
         public void SetOptions(Action<SyncOptions> onOptions)
             => onOptions?.Invoke(this.options);
 
+        public void AddFilter(FilterClause filter)
+        {
+            if (!this.schema.Filters.Any(f => f.TableName == filter.TableName && f.ColumnName == filter.ColumnName))
+                this.schema.Filters.Add(filter);
+        }
+
+        public void SetInterceptors(Interceptors interceptors)
+            => this.LocalOrchestrator.On(interceptors);
+
+
+
         /// <summary>
         /// If you want to see remote progress as well (only on direct connection)
         /// </summary>
@@ -78,24 +89,24 @@ namespace Dotmim.Sync
         public void OnApplyChangesFailed(Action<ApplyChangesFailedArgs> action) => this.LocalOrchestrator.OnApplyChangesFailed(action);
 
 
-        public SyncAgent2(string scopeName, CoreProvider clientProvider, CoreProvider serverProvider, string[] tables = null)
+        public SyncAgent(string scopeName, CoreProvider clientProvider, CoreProvider serverProvider, string[] tables = null)
             : this(scopeName, new LocalOrchestrator(clientProvider), new RemoteOrchestrator(serverProvider), tables)
         {
         }
-        public SyncAgent2(CoreProvider clientProvider, CoreProvider serverProvider, string[] tables = null)
+        public SyncAgent(CoreProvider clientProvider, CoreProvider serverProvider, string[] tables = null)
             : this("DefaultScope", clientProvider, serverProvider, tables)
         {
         }
-        public SyncAgent2(string scopeName, CoreProvider clientProvider, IRemoteOrchestrator remoteOrchestrator, string[] tables = null)
+        public SyncAgent(string scopeName, CoreProvider clientProvider, IRemoteOrchestrator remoteOrchestrator, string[] tables = null)
             : this(scopeName, new LocalOrchestrator(clientProvider), remoteOrchestrator, tables)
         {
         }
-        public SyncAgent2(CoreProvider clientProvider, IRemoteOrchestrator remoteOrchestrator, string[] tables = null)
+        public SyncAgent(CoreProvider clientProvider, IRemoteOrchestrator remoteOrchestrator, string[] tables = null)
             : this("DefaultScope", new LocalOrchestrator(clientProvider), remoteOrchestrator, tables)
         {
         }
 
-        private SyncAgent2(string scopeName, ILocalOrchestrator localOrchestrator, IRemoteOrchestrator remoteOrchestrator, string[] tables = null)
+        private SyncAgent(string scopeName, ILocalOrchestrator localOrchestrator, IRemoteOrchestrator remoteOrchestrator, string[] tables = null)
         {
             if (string.IsNullOrEmpty(scopeName))
                 throw new ArgumentNullException("scopeName");
@@ -118,6 +129,14 @@ namespace Dotmim.Sync
             this.Parameters = new SyncParameterCollection();
         }
 
+
+        /// <summary>
+        /// Launch a normal synchronization without any IProgess or CancellationToken
+        /// </summary>
+        public Task<SyncContext> SynchronizeAsync()
+        {
+            return SynchronizeAsync(SyncType.Normal, CancellationToken.None);
+        }
 
 
         /// <summary>

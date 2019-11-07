@@ -35,40 +35,6 @@ namespace Dotmim.Sync.Web.Client
     }
 
 
-    //[Serializable]
-    //public class HttpMessageGetChangesBatch : MessageGetChangesBatch
-    //{
-    //    /// <summary>
-    //    /// Gets or Sets the tables schema. Overriding the default Schema DmSet property, which is not serializable
-    //    /// </summary>
-    //    public new DmSet Schema { get; set; }
-
-    //    /// <summary>
-    //    /// Gets the output batch index, returned by the server
-    //    /// </summary>
-    //    public int BatchIndexRequested { get; set; }
-
-    //    /// <summary>
-    //    /// Gets the output in memory flag from the server
-    //    /// </summary>
-    //    public Boolean InMemory { get; set; }
-
-    //    /// <summary>
-    //    /// Gets the BatchParInfo returned by the server
-    //    /// </summary>
-    //    public BatchPartInfo BatchPartInfo { get; set; }
-
-    //    /// <summary>
-    //    /// Gets the DmSet containing the data for the corresponding batch, returned by the server
-    //    /// </summary>
-    //    public DmSetSurrogate Set { get; set; }
-
-    //    /// <summary>
-    //    /// Gets the changes statistics
-    //    /// </summary>
-    //    public DatabaseChangesSelected ChangesSelected { get; set; }
-    //}
-
     [Serializable]
 
     public class HttpMessageSendChangesResponse

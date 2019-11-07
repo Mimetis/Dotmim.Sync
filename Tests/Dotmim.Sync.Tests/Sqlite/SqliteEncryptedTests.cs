@@ -58,7 +58,7 @@ namespace Dotmim.Sync.Tests.Sqlite
 
                 var agent = new SyncAgent(this.clientProvider, this.serverProvider, this.sqlTables);
 
-                agent.LocalProvider.OnConnectionOpen(args =>
+                agent.LocalOrchestrator.OnConnectionOpen(args =>
                 {
                     var keyCommand = args.Connection.CreateCommand();
                     keyCommand.CommandText = "PRAGMA key = 'password';";
