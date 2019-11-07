@@ -13,6 +13,7 @@ namespace Dotmim.Sync
     {
 
         public const string DefaultScopeInfoTableName = "scope_info";
+        public const string DefaultScopeName = "DefaultScope";
 
         /// <summary>
         /// Gets or Sets the directory used for batch mode.
