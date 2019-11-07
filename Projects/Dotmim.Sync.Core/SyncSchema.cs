@@ -215,7 +215,7 @@ namespace Dotmim.Sync
             this.ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
             this.SerializationFormat = SerializationFormat.Json;
             this.Filters = new List<FilterClause>();
-            this.ScopeName = "DefaultScope";
+            this.ScopeName = SyncOptions.DefaultScopeName;
         }
 
         public SyncSchema(string[] tables) : this()
