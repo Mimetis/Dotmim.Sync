@@ -11,7 +11,8 @@ namespace Dotmim.Sync.Web.Client
     {
         EnsureScopes,
         SendChanges,
+        SendChangesInProgress,
         GetChanges,
-        InProgress
+        GetChangesInProgress,
     }
 }

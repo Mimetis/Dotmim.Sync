@@ -56,7 +56,7 @@ namespace Dotmim.Sync
                 if (!message.FromScope.IsNewScope)
                 {
                     // for delete we must go from Up to Down
-                    foreach (var table in message.Schema.Tables.Reverse())
+                    foreach (var table in message.Schema.Set.Tables.Reverse())
                     {
                         changeApplicationAction = await this.ApplyChangesInternalAsync(table, context, message, connection,
                             transaction, DmRowState.Deleted, changesApplied, cancellationToken, progress).ConfigureAwait(false);
@@ -70,7 +70,7 @@ namespace Dotmim.Sync
                 // -----------------------------------------------------
                 // 2) Applying Inserts and Updates. Apply in table order
                 // -----------------------------------------------------
-                foreach (var table in message.Schema.Tables)
+                foreach (var table in message.Schema.Set.Tables)
                 {
                     changeApplicationAction = await this.ApplyChangesInternalAsync(table, context, message, connection,
                         transaction, DmRowState.Added, changesApplied, cancellationToken, progress).ConfigureAwait(false);
@@ -113,14 +113,14 @@ namespace Dotmim.Sync
         /// <summary>
         /// Here we are reseting all tables and tracking tables to be able to Reinitialize completely
         /// </summary>
-        private ChangeApplicationAction ResetInternal(SyncContext context, DmSet configTables, DbConnection connection, DbTransaction transaction, ScopeInfo fromScope)
+        private ChangeApplicationAction ResetInternal(SyncContext context, SyncSchema schema, DbConnection connection, DbTransaction transaction, ScopeInfo fromScope)
         {
-            if (configTables == null || configTables.Tables.Count <= 0)
+            if (schema == null || schema.Set.Tables.Count <= 0)
                 return ChangeApplicationAction.Continue;
 
-            for (var i = 0; i < configTables.Tables.Count; i++)
+            for (var i = 0; i < schema.Set.Tables.Count; i++)
             {
-                var tableDescription = configTables.Tables[configTables.Tables.Count - i - 1];
+                var tableDescription = schema.Set.Tables[schema.Set.Tables.Count - i - 1];
 
                 var builder = this.GetDatabaseBuilder(tableDescription);
                 var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
@@ -137,14 +137,14 @@ namespace Dotmim.Sync
         /// <summary>
         /// Disabling all constraints on synced tables
         /// </summary>
-        private ChangeApplicationAction DisableConstraints(SyncContext context, DmSet configTables, DbConnection connection, DbTransaction transaction, ScopeInfo fromScope)
+        private ChangeApplicationAction DisableConstraints(SyncContext context, SyncSchema schema, DbConnection connection, DbTransaction transaction, ScopeInfo fromScope)
         {
-            if (configTables == null || configTables.Tables.Count <= 0)
+            if (schema == null || schema.Set.Tables.Count <= 0)
                 return ChangeApplicationAction.Continue;
 
-            for (var i = 0; i < configTables.Tables.Count; i++)
+            for (var i = 0; i < schema.Set.Tables.Count; i++)
             {
-                var tableDescription = configTables.Tables[configTables.Tables.Count - i - 1];
+                var tableDescription = schema.Set.Tables[schema.Set.Tables.Count - i - 1];
 
                 var builder = this.GetDatabaseBuilder(tableDescription);
                 var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
@@ -160,14 +160,14 @@ namespace Dotmim.Sync
         /// <summary>
         /// Disabling all constraints on synced tables
         /// </summary>
-        private ChangeApplicationAction EnableConstraints(SyncContext context, DmSet configTables, DbConnection connection, DbTransaction transaction, ScopeInfo fromScope)
+        private ChangeApplicationAction EnableConstraints(SyncContext context, SyncSchema schema, DbConnection connection, DbTransaction transaction, ScopeInfo fromScope)
         {
-            if (configTables == null || configTables.Tables.Count <= 0)
+            if (schema == null || schema.Set.Tables.Count <= 0)
                 return ChangeApplicationAction.Continue;
 
-            for (var i = 0; i < configTables.Tables.Count; i++)
+            for (var i = 0; i < schema.Set.Tables.Count; i++)
             {
-                var tableDescription = configTables.Tables[configTables.Tables.Count - i - 1];
+                var tableDescription = schema.Set.Tables[schema.Set.Tables.Count - i - 1];
 
                 var builder = this.GetDatabaseBuilder(tableDescription);
                 var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
@@ -213,7 +213,7 @@ namespace Dotmim.Sync
             var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
             syncAdapter.ApplyType = applyType;
 
-            if (message.Changes.BatchPartsInfo != null && message.Changes.BatchPartsInfo.Count > 0)
+            if (message.Changes.HasData())
             {
                 // getting the table to be applied
                 // we may have multiple batch files, so we can have multipe dmTable with the same Name

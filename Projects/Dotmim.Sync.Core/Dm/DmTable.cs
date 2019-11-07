@@ -74,6 +74,11 @@ namespace Dotmim.Sync.Data
 
         }
 
+        public DmTable(DmTableSurrogate dmTableSurrogate)
+        {
+
+        }
+
 
         /// <summary>
         /// How to serialize

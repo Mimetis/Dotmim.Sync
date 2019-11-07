@@ -23,6 +23,23 @@ namespace Dotmim.Sync
 
 
         /// <summary>
+        /// Set an interceptor to get info on the current sync process
+        /// </summary>
+        public void On<T>(Func<T, Task> interceptorFunc) where T : ProgressArgs => this.Provider.On(interceptorFunc);
+
+        /// <summary>
+        /// Set an interceptor to get info on the current sync process
+        /// </summary>
+        public void On<T>(Action<T> interceptorAction) where T : ProgressArgs => this.Provider.On(interceptorAction);
+
+        /// <summary>
+        /// Set a collection of interceptors
+        /// </summary>
+        public void On(Interceptors interceptors) => this.Provider.On(interceptors);
+
+
+
+        /// <summary>
         /// Get the scope infos from remote
         /// </summary>
         public async Task<(SyncContext, ScopeInfo, ScopeInfo, SyncSchema)>
@@ -158,9 +175,9 @@ namespace Dotmim.Sync
                         
                         (context, changesApplied) =
                             await this.Provider.ApplyChangesAsync(context,
-                             new MessageApplyChanges(scope, Schema.Set, this.Schema.ConflictResolutionPolicy, this.Options.DisableConstraintsOnApplyChanges,
+                             new MessageApplyChanges(scope, Schema, this.Schema.ConflictResolutionPolicy, this.Options.DisableConstraintsOnApplyChanges,
                                         this.Options.UseBulkOperations, this.Options.CleanMetadatas, Options.ScopeInfoTableName,
-                                        clientBatchInfo, Schema.SerializationFormat),
+                                        clientBatchInfo),
                              connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                         // if ConflictResolutionPolicy.ClientWins or Handler set to Client wins

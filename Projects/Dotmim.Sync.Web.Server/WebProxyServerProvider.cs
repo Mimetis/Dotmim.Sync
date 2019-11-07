@@ -26,23 +26,23 @@ namespace Dotmim.Sync.Web.Server
     /// <summary>
     /// Class used when you have to deal with a Web Server
     /// </summary>
-    public class WebProxyServerProvider
+    public class WebProxyServerOrchestrator
     {
 
-        private static WebProxyServerProvider defaultInstance = new WebProxyServerProvider();
+        private static WebProxyServerOrchestrator defaultInstance = new WebProxyServerOrchestrator();
 
 
         /// <summary>
         /// Default constructor for DI
         /// </summary>
-        public WebProxyServerProvider() { }
+        public WebProxyServerOrchestrator() { }
 
 
         /// <summary>
         /// Create a new WebProxyServerProvider with a first instance of an in memory CoreProvider
         /// Use this method to create your WebProxyServerProvider if you don't use the DI stuff from ASP.NET
         /// </summary>
-        public static WebProxyServerProvider Create(HttpContext context, CoreProvider provider, Action<SyncSchema> conf, Action<SyncOptions> options)
+        public static WebProxyServerOrchestrator Create(HttpContext context, CoreProvider provider, Action<SyncSchema> conf, Action<SyncOptions> options)
         {
             if (!TryGetHeaderValue(context.Request.Headers, "dotmim-sync-session-id", out var sessionId))
                 throw new SyncException($"Can't find any session id in the header");
@@ -60,15 +60,15 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// Retrieve from cache the selected provider depending on the session id
         /// </summary>
-        public CoreProvider GetLocalProvider(HttpContext context)
+        public WebServerOrchestrator GetLocalOrchestrator(HttpContext context)
         {
             if (!TryGetHeaderValue(context.Request.Headers, "dotmim-sync-session-id", out var sessionId))
                 return null;
 
-            var syncMemoryProvider = GetCachedOrchestrator(context, sessionId);
+            var webServerOrchestrator = GetCachedOrchestrator(context, sessionId);
 
-            if (syncMemoryProvider != null)
-                return syncMemoryProvider.Provider;
+            if (webServerOrchestrator != null)
+                return webServerOrchestrator;
 
             return null;
         }
@@ -186,7 +186,7 @@ namespace Dotmim.Sync.Web.Server
         }
 
 
-        private static RemoteOrchestrator AddNewOrchestratorToCache(HttpContext context, CoreProvider provider, Action<SyncSchema> conf, Action<SyncOptions> options, string sessionId)
+        private static WebServerOrchestrator AddNewOrchestratorToCache(HttpContext context, CoreProvider provider, Action<SyncSchema> conf, Action<SyncOptions> options, string sessionId)
         {
             WebServerOrchestrator remoteOrchestrator;
             var cache = context.RequestServices.GetService<IMemoryCache>();

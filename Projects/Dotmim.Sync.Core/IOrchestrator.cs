@@ -19,6 +19,23 @@ namespace Dotmim.Sync
         /// Gets a reference to the provider
         /// </summary>
         CoreProvider Provider { get; set; }
+
+        /// <summary>
+        /// Set an interceptor to get info on the current sync process
+        /// </summary>
+        void On<T>(Func<T, Task> interceptorFunc) where T : ProgressArgs;
+
+        /// <summary>
+        /// Set an interceptor to get info on the current sync process
+        /// </summary>
+        void On<T>(Action<T> interceptorAction) where T : ProgressArgs;
+
+        /// <summary>
+        /// Set a collection of interceptors
+        /// </summary>
+        /// <param name="interceptorBase"></param>
+        void On(Interceptors interceptors);
+
     }
 
     /// <summary>

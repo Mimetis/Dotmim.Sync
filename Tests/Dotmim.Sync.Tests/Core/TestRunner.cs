@@ -22,8 +22,8 @@ namespace Dotmim.Sync.Tests.Core
         private readonly ProviderFixture providerFixture;
         private readonly CoreProvider serverProvider;
 
-        public Action<IProvider> BeginRun { get; set; }
-        public Action<IProvider> EndRun { get; set; }
+        public Action<IRemoteOrchestrator> BeginRun { get; set; }
+        public Action<IRemoteOrchestrator> EndRun { get; set; }
 
 
         public TestRunner(ProviderFixture providerFixture, CoreProvider serverProvider)
