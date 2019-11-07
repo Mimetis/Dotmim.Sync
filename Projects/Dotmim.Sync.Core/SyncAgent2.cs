@@ -94,7 +94,7 @@ namespace Dotmim.Sync
         {
         }
         public SyncAgent(CoreProvider clientProvider, CoreProvider serverProvider, string[] tables = null)
-            : this("DefaultScope", clientProvider, serverProvider, tables)
+            : this(SyncOptions.DefaultScopeName, clientProvider, serverProvider, tables)
         {
         }
         public SyncAgent(string scopeName, CoreProvider clientProvider, IRemoteOrchestrator remoteOrchestrator, string[] tables = null)
@@ -102,11 +102,16 @@ namespace Dotmim.Sync
         {
         }
         public SyncAgent(CoreProvider clientProvider, IRemoteOrchestrator remoteOrchestrator, string[] tables = null)
-            : this("DefaultScope", new LocalOrchestrator(clientProvider), remoteOrchestrator, tables)
+            : this(SyncOptions.DefaultScopeName, new LocalOrchestrator(clientProvider), remoteOrchestrator, tables)
+        {
+        }
+        
+        public SyncAgent(ILocalOrchestrator localOrchestrator, IRemoteOrchestrator remoteOrchestrator, string[] tables = null)
+            : this(SyncOptions.DefaultScopeName, localOrchestrator, remoteOrchestrator, tables)
         {
         }
 
-        private SyncAgent(string scopeName, ILocalOrchestrator localOrchestrator, IRemoteOrchestrator remoteOrchestrator, string[] tables = null)
+        public SyncAgent(string scopeName, ILocalOrchestrator localOrchestrator, IRemoteOrchestrator remoteOrchestrator, string[] tables = null)
         {
             if (string.IsNullOrEmpty(scopeName))
                 throw new ArgumentNullException("scopeName");
