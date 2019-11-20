@@ -57,7 +57,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Execute a batch command
         /// </summary>
-        public abstract void ExecuteBatchCommand(DbCommand cmd, DmView applyTable, DmTable failedRows, ScopeInfo scope);
+        public abstract void ExecuteBatchCommand(DbCommand cmd, DmView applyTable, DmTable failedRows, Guid applyingScopeId, long lastTimestamp);
 
         /// <summary>
         /// Gets the current connection. could be opened
@@ -269,7 +269,7 @@ namespace Dotmim.Sync
         /// Launch apply bulk changes
         /// </summary>
         /// <returns></returns>
-        public int ApplyBulkChanges(DmView dmChanges, ScopeInfo fromScope, List<SyncConflict> conflicts)
+        public int ApplyBulkChanges(DmView dmChanges, Guid applyingScopeId, long lastTimestamp, List<SyncConflict> conflicts)
         {
             DbCommand bulkCommand = null;
 
@@ -317,7 +317,7 @@ namespace Dotmim.Sync
                 using (var dmStepChanges = dmChanges.Take(step, taken))
                 {
                     // execute the batch, through the provider
-                    ExecuteBatchCommand(bulkCommand, dmStepChanges, failedDmtable, fromScope);
+                    ExecuteBatchCommand(bulkCommand, dmStepChanges, failedDmtable, applyingScopeId, lastTimestamp);
                 }
             }
 
@@ -401,12 +401,12 @@ namespace Dotmim.Sync
         }
 
 
-        private void UpdateMetadatas(DbCommandType dbCommandType, DmRow dmRow, ScopeInfo scope)
+        private void UpdateMetadatas(DbCommandType dbCommandType, DmRow dmRow, Guid applyingScopeId)
         {
             using (var dbCommand = this.GetCommand(dbCommandType))
             {
                 this.SetCommandParameters(dbCommandType, dbCommand);
-                this.InsertOrUpdateMetadatas(dbCommand, dmRow, scope.Id);
+                this.InsertOrUpdateMetadatas(dbCommand, dmRow, applyingScopeId);
             }
         }
 
@@ -416,7 +416,7 @@ namespace Dotmim.Sync
         /// </summary>
         /// <param name="dmChanges">Changes from remote</param>
         /// <returns>every lines not updated on the server side</returns>
-        internal int ApplyChanges(DmView dmChanges, ScopeInfo scope, List<SyncConflict> conflicts)
+        internal int ApplyChanges(DmView dmChanges, Guid applyingScopeId, long lastTimestamp, List<SyncConflict> conflicts)
         {
             int appliedRows = 0;
 
@@ -428,21 +428,21 @@ namespace Dotmim.Sync
                 {
                     if (ApplyType == DmRowState.Added)
                     {
-                        operationComplete = this.ApplyInsert(dmRow, scope, false);
+                        operationComplete = this.ApplyInsert(dmRow, applyingScopeId, lastTimestamp, false);
                         if (operationComplete)
-                            UpdateMetadatas(DbCommandType.InsertMetadata, dmRow, scope);
+                            UpdateMetadatas(DbCommandType.InsertMetadata, dmRow, applyingScopeId);
                     }
                     else if (ApplyType == DmRowState.Modified)
                     {
-                        operationComplete = this.ApplyUpdate(dmRow, scope, false);
+                        operationComplete = this.ApplyUpdate(dmRow, applyingScopeId, lastTimestamp, false);
                         if (operationComplete)
-                            UpdateMetadatas(DbCommandType.UpdateMetadata, dmRow, scope);
+                            UpdateMetadatas(DbCommandType.UpdateMetadata, dmRow, applyingScopeId);
                     }
                     else if (ApplyType == DmRowState.Deleted)
                     {
-                        operationComplete = this.ApplyDelete(dmRow, scope, false);
+                        operationComplete = this.ApplyDelete(dmRow, applyingScopeId, lastTimestamp, false);
                         if (operationComplete)
-                            UpdateMetadatas(DbCommandType.UpdateMetadata, dmRow, scope);
+                            UpdateMetadatas(DbCommandType.UpdateMetadata, dmRow, applyingScopeId);
                     }
 
                     if (operationComplete)
@@ -486,7 +486,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Apply a single insert in the current data source
         /// </summary>
-        internal bool ApplyInsert(DmRow row, ScopeInfo scope, bool forceWrite)
+        internal bool ApplyInsert(DmRow row, Guid applyingScopeId, long lastTimestamp, bool forceWrite)
         {
             using (var command = this.GetCommand(DbCommandType.InsertRow))
             {
@@ -498,7 +498,7 @@ namespace Dotmim.Sync
                 this.SetColumnParametersValues(command, row);
 
                 // Set the special parameters for insert
-                AddCommonParametersValues(command, scope.Id, scope.Timestamp, false, forceWrite);
+                AddCommonParametersValues(command, applyingScopeId, lastTimestamp, false, forceWrite);
 
                 var alreadyOpened = Connection.State == ConnectionState.Open;
 
@@ -530,7 +530,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Apply a delete on a row
         /// </summary>
-        internal bool ApplyDelete(DmRow sourceRow, ScopeInfo scope, bool forceWrite)
+        internal bool ApplyDelete(DmRow sourceRow, Guid applyingScopeId, long lastTimestamp, bool forceWrite)
         {
             using (var command = this.GetCommand(DbCommandType.DeleteRow))
             {
@@ -541,7 +541,7 @@ namespace Dotmim.Sync
                 this.SetColumnParametersValues(command, sourceRow);
 
                 // Set the special parameters for update
-                this.AddCommonParametersValues(command, scope.Id, scope.Timestamp, true, forceWrite);
+                this.AddCommonParametersValues(command, applyingScopeId, lastTimestamp, true, forceWrite);
 
                 var alreadyOpened = Connection.State == ConnectionState.Open;
 
@@ -571,7 +571,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Apply a single update in the current datasource. if forceWrite, override conflict situation and force the update
         /// </summary>
-        internal bool ApplyUpdate(DmRow sourceRow, ScopeInfo scope, bool forceWrite)
+        internal bool ApplyUpdate(DmRow sourceRow, Guid applyingScopeId, long lastTimestamp, bool forceWrite)
         {
 
             bool hasUpdatableColumns = true;
@@ -591,7 +591,7 @@ namespace Dotmim.Sync
                 this.SetColumnParametersValues(command, sourceRow);
 
                 // Set the special parameters for update
-                AddCommonParametersValues(command, scope.Id, scope.Timestamp, false, forceWrite);
+                AddCommonParametersValues(command, applyingScopeId, lastTimestamp, false, forceWrite);
 
                 var alreadyOpened = Connection.State == ConnectionState.Open;
 

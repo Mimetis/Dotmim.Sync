@@ -36,14 +36,14 @@ namespace Dotmim.Sync
 
                 // Disable check constraints
                 if (message.DisableConstraintsOnApplyChanges)
-                    changeApplicationAction = this.DisableConstraints(context, message.Schema, connection, transaction, message.FromScope);
+                    changeApplicationAction = this.DisableConstraints(context, message.Schema, connection, transaction);
 
                 // -----------------------------------------------------
                 // 0) Check if we are in a reinit mode
                 // -----------------------------------------------------
                 if (context.SyncWay == SyncWay.Download && context.SyncType != SyncType.Normal)
                 {
-                    changeApplicationAction = this.ResetInternal(context, message.Schema, connection, transaction, message.FromScope);
+                    changeApplicationAction = this.ResetInternal(context, message.Schema, connection, transaction);
 
                     // Rollback
                     if (changeApplicationAction == ChangeApplicationAction.Rollback)
@@ -53,7 +53,7 @@ namespace Dotmim.Sync
                 // -----------------------------------------------------
                 // 1) Applying deletes. Do not apply deletes if we are in a new database
                 // -----------------------------------------------------
-                if (!message.FromScope.IsNewScope)
+                if (!message.IsNew)
                 {
                     // for delete we must go from Up to Down
                     foreach (var table in message.Schema.Set.Tables.Reverse())
@@ -96,7 +96,7 @@ namespace Dotmim.Sync
 
                 // Re enable check constraints
                 if (message.DisableConstraintsOnApplyChanges)
-                    changeApplicationAction = this.EnableConstraints(context, message.Schema, connection, transaction, message.FromScope);
+                    changeApplicationAction = this.EnableConstraints(context, message.Schema, connection, transaction);
 
                 return (context, changesApplied);
             }
@@ -113,7 +113,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Here we are reseting all tables and tracking tables to be able to Reinitialize completely
         /// </summary>
-        private ChangeApplicationAction ResetInternal(SyncContext context, SyncSchema schema, DbConnection connection, DbTransaction transaction, ScopeInfo fromScope)
+        private ChangeApplicationAction ResetInternal(SyncContext context, SyncSchema schema, DbConnection connection, DbTransaction transaction)
         {
             if (schema == null || schema.Set.Tables.Count <= 0)
                 return ChangeApplicationAction.Continue;
@@ -137,7 +137,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Disabling all constraints on synced tables
         /// </summary>
-        private ChangeApplicationAction DisableConstraints(SyncContext context, SyncSchema schema, DbConnection connection, DbTransaction transaction, ScopeInfo fromScope)
+        private ChangeApplicationAction DisableConstraints(SyncContext context, SyncSchema schema, DbConnection connection, DbTransaction transaction)
         {
             if (schema == null || schema.Set.Tables.Count <= 0)
                 return ChangeApplicationAction.Continue;
@@ -160,7 +160,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Disabling all constraints on synced tables
         /// </summary>
-        private ChangeApplicationAction EnableConstraints(SyncContext context, SyncSchema schema, DbConnection connection, DbTransaction transaction, ScopeInfo fromScope)
+        private ChangeApplicationAction EnableConstraints(SyncContext context, SyncSchema schema, DbConnection connection, DbTransaction transaction)
         {
             if (schema == null || schema.Set.Tables.Count <= 0)
                 return ChangeApplicationAction.Continue;
@@ -243,9 +243,9 @@ namespace Dotmim.Sync
                     int rowsApplied;
                     // applying the bulkchanges command
                     if (message.UseBulkOperations && this.SupportBulkOperations)
-                        rowsApplied = syncAdapter.ApplyBulkChanges(dmChangesView, message.FromScope, conflicts);
+                        rowsApplied = syncAdapter.ApplyBulkChanges(dmChangesView, message.ApplyingScopeId, message.LastTimestamp, conflicts);
                     else
-                        rowsApplied = syncAdapter.ApplyChanges(dmChangesView, message.FromScope, conflicts);
+                        rowsApplied = syncAdapter.ApplyChanges(dmChangesView, message.ApplyingScopeId, message.LastTimestamp, conflicts);
 
                     // If conflicts occured
                     // Eventuall, conflicts are resolved on server side.
@@ -256,12 +256,12 @@ namespace Dotmim.Sync
                             //var scopeBuilder = this.GetScopeBuilder();
                             //var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(message.ScopeInfoTableName, connection, transaction);
                             //var localTimeStamp = scopeInfoBuilder.GetLocalTimestamp();
-                            var fromScopeLocalTimeStamp = message.FromScope.Timestamp;
+                            var fromScopeLocalTimeStamp = message.LastTimestamp;
 
                             var conflictCount = 0;
                             DmRow resolvedRow = null;
                             (changeApplicationAction, conflictCount, resolvedRow) =
-                                await this.HandleConflictAsync(syncAdapter, context, conflict, message.Policy, message.FromScope, fromScopeLocalTimeStamp, connection, transaction).ConfigureAwait(false);
+                                await this.HandleConflictAsync(syncAdapter, context, conflict, message.Policy, message.ApplyingScopeId, fromScopeLocalTimeStamp, connection, transaction).ConfigureAwait(false);
 
                             if (changeApplicationAction == ChangeApplicationAction.Continue)
                             {
@@ -349,7 +349,9 @@ namespace Dotmim.Sync
         /// Handle a conflict
         /// The int returned is the conflict count I need 
         /// </summary>
-        internal async Task<(ChangeApplicationAction, int, DmRow)> HandleConflictAsync(DbSyncAdapter syncAdapter, SyncContext context, SyncConflict conflict, ConflictResolutionPolicy policy, ScopeInfo scope, long fromScopeLocalTimeStamp, DbConnection connection, DbTransaction transaction)
+        internal async Task<(ChangeApplicationAction, int, DmRow)> 
+            HandleConflictAsync(
+            DbSyncAdapter syncAdapter, SyncContext context, SyncConflict conflict, ConflictResolutionPolicy policy, Guid applyingScopeId, long lastTimestamp, DbConnection connection, DbTransaction transaction)
         {
             DmRow finalRow;
             ApplyAction conflictApplyAction;
@@ -384,15 +386,15 @@ namespace Dotmim.Sync
                         // Insert metadata is a merge, actually
                         var commandType = DbCommandType.UpdateMetadata;
 
-                        isUpdated = syncAdapter.ApplyUpdate(row, scope, true);
+                        isUpdated = syncAdapter.ApplyUpdate(row, applyingScopeId, lastTimestamp, true);
 
                         if (!isUpdated)
                         {
                             // Insert the row
-                            isInserted = syncAdapter.ApplyInsert(row, scope, true);
+                            isInserted = syncAdapter.ApplyInsert(row,  applyingScopeId,  lastTimestamp, true);
                             // Then update the row to mark this row as updated from server
                             // and get it back to client 
-                            isUpdated = syncAdapter.ApplyUpdate(row, scope, true);
+                            isUpdated = syncAdapter.ApplyUpdate(row,  applyingScopeId,  lastTimestamp, true);
 
                             commandType = DbCommandType.InsertMetadata;
                         }
@@ -426,7 +428,7 @@ namespace Dotmim.Sync
                                 // Even if we just inserted it
                                 // to be able to get the row in state Updated (and not Added)
                                 row["create_scope_id"] = create_scope_id;
-                                row["create_timestamp"] = fromScopeLocalTimeStamp - 1;
+                                row["create_timestamp"] = lastTimestamp - 1;
 
                                 // Update scope id is set to server side
                                 Guid? update_scope_id = row["update_scope_id"] != DBNull.Value ? (Guid?)row["update_scope_id"] : null;
@@ -466,9 +468,9 @@ namespace Dotmim.Sync
                 bool operationComplete = false;
 
                 // create a localscope to override values
-                var localScope = new ScopeInfo { Name = scope.Name, Timestamp = fromScopeLocalTimeStamp };
+                //var localScope = new ScopeInfo { Name = scope.Name, LastSyncTimestamp = fromScopeLocalTimeStamp };
 
-                DbCommandType commandType = DbCommandType.InsertMetadata;
+                var commandType = DbCommandType.InsertMetadata;
                 bool needToUpdateMetadata = true;
 
                 switch (conflict.Type)
@@ -476,7 +478,7 @@ namespace Dotmim.Sync
                     // Remote source has row, Local don't have the row, so insert it
                     case ConflictType.RemoteUpdateLocalNoRow:
                     case ConflictType.RemoteInsertLocalNoRow:
-                        operationComplete = syncAdapter.ApplyInsert(conflict.RemoteRow, localScope, true);
+                        operationComplete = syncAdapter.ApplyInsert(conflict.RemoteRow, applyingScopeId, lastTimestamp, true);
                         commandType = DbCommandType.InsertMetadata;
                         break;
 
@@ -491,7 +493,7 @@ namespace Dotmim.Sync
                     // So delete the local row
                     case ConflictType.RemoteDeleteLocalUpdate:
                     case ConflictType.RemoteDeleteLocalInsert:
-                        operationComplete = syncAdapter.ApplyDelete(conflict.RemoteRow, localScope, true);
+                        operationComplete = syncAdapter.ApplyDelete(conflict.RemoteRow, applyingScopeId, lastTimestamp, true);
                         commandType = DbCommandType.UpdateMetadata;
                         break;
 
@@ -500,7 +502,7 @@ namespace Dotmim.Sync
                     // but tracking line exist, so make an update on metadata
                     case ConflictType.RemoteInsertLocalDelete:
                     case ConflictType.RemoteUpdateLocalDelete:
-                        operationComplete = syncAdapter.ApplyInsert(conflict.RemoteRow, localScope, true);
+                        operationComplete = syncAdapter.ApplyInsert(conflict.RemoteRow, applyingScopeId, lastTimestamp, true);
                         commandType = DbCommandType.UpdateMetadata;
                         break;
 
@@ -509,7 +511,7 @@ namespace Dotmim.Sync
                     case ConflictType.RemoteUpdateLocalUpdate:
                     case ConflictType.RemoteInsertLocalInsert:
                     case ConflictType.RemoteInsertLocalUpdate:
-                        operationComplete = syncAdapter.ApplyUpdate(conflict.RemoteRow, localScope, true);
+                        operationComplete = syncAdapter.ApplyUpdate(conflict.RemoteRow, applyingScopeId, lastTimestamp, true);
                         commandType = DbCommandType.UpdateMetadata;
                         break;
 
@@ -526,7 +528,7 @@ namespace Dotmim.Sync
                         syncAdapter.SetCommandParameters(commandType, metadataCommand);
 
                         // force applying client row, so apply scope.id (client scope here)
-                        var rowsApplied = syncAdapter.InsertOrUpdateMetadatas(metadataCommand, conflict.RemoteRow, scope.Id);
+                        var rowsApplied = syncAdapter.InsertOrUpdateMetadatas(metadataCommand, conflict.RemoteRow, applyingScopeId);
                         if (!rowsApplied)
                             throw new Exception("No metadatas rows found, can't update the server side");
                     }

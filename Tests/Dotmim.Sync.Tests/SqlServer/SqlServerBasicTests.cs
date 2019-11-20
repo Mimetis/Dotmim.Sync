@@ -26,6 +26,12 @@ namespace Dotmim.Sync.Tests.SqlServer
                     "PricesList", "PriceListCategory", "PriceListDetail"
                 };
 
+                //// Set tables to be used for your provider
+                //var sqlTables = new string[]
+                //{
+                //    "SalesLT.ProductCategory", "SalesLT.Product"
+                //};
+
                 // 1) Add database name
                 providerFixture.AddDatabaseName("SqlAdventureWorks");
                 // 2) Add tables

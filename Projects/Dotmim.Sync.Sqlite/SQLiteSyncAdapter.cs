@@ -199,7 +199,7 @@ namespace Dotmim.Sync.Sqlite
         {
             DbParameter p;
 
-            foreach (DmColumn column in this.TableDescription.PrimaryKey.Columns.Where(c => !c.IsReadOnly))
+            foreach (var column in this.TableDescription.PrimaryKey.Columns.Where(c => !c.IsReadOnly))
             {
                 var unquotedColumn = ParserName.Parse(column).Normalized().Unquoted().ToString();
                 p = command.CreateParameter();
@@ -309,7 +309,7 @@ namespace Dotmim.Sync.Sqlite
             command.Parameters.Add(p);
         }
 
-        public override void ExecuteBatchCommand(DbCommand cmd, DmView applyTable, DmTable failedRows, ScopeInfo scope)
+        public override void ExecuteBatchCommand(DbCommand cmd, DmView applyTable, DmTable failedRows, Guid applyingScopeId, long lastTimestamp)
         {
             throw new NotImplementedException();
         }

@@ -48,10 +48,10 @@ namespace Dotmim.Sync.Web.Server
                 throw new SyncException($"Can't find any session id in the header");
 
             // Check if we have already a cached Sync Memory provider
-            var syncMemoryProvider = GetCachedOrchestrator(context, sessionId);
+            var syncMemoryOrchestrator = GetCachedOrchestrator(context, sessionId);
 
             // we don't have any provider for this session id, so create it
-            if (syncMemoryProvider == null)
+            if (syncMemoryOrchestrator == null)
                 AddNewOrchestratorToCache(context, provider, conf, options, sessionId);
 
             return defaultInstance;
@@ -186,7 +186,7 @@ namespace Dotmim.Sync.Web.Server
         }
 
 
-        private static WebServerOrchestrator AddNewOrchestratorToCache(HttpContext context, CoreProvider provider, Action<SyncSchema> conf, Action<SyncOptions> options, string sessionId)
+        private static WebServerOrchestrator AddNewOrchestratorToCache(HttpContext context, CoreProvider provider, Action<SyncSchema> schema, Action<SyncOptions> options, string sessionId)
         {
             WebServerOrchestrator remoteOrchestrator;
             var cache = context.RequestServices.GetService<IMemoryCache>();
@@ -196,8 +196,8 @@ namespace Dotmim.Sync.Web.Server
 
             remoteOrchestrator = new WebServerOrchestrator(provider);
 
-            remoteOrchestrator.SetSchema(conf);
-            remoteOrchestrator.SetOptions(options);
+            schema(remoteOrchestrator.Schema);
+            options(remoteOrchestrator.Options);
 
             cache.Set(sessionId, remoteOrchestrator, TimeSpan.FromHours(1));
             return remoteOrchestrator;

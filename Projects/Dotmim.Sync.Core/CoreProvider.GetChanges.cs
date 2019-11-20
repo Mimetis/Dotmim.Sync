@@ -33,9 +33,6 @@ namespace Dotmim.Sync
         {
             try
             {
-                if (message.ScopeInfo == null)
-                    throw new ArgumentNullException("scopeInfo", "Client scope info is null");
-
                 // Check if the provider is not outdated
                 var isOutdated = this.IsRemoteOutdated();
 
@@ -67,11 +64,11 @@ namespace Dotmim.Sync
                 // if we try a Reinitialize action, don't get any changes from client
                 // else get changes from batch or in memory methods
                 if (context.SyncWay == SyncWay.Upload && context.SyncType == SyncType.Reinitialize)
-                    (batchInfo, changesSelected) = this.GetEmptyChanges(context, message.ScopeInfo, message.BatchSize, message.BatchDirectory);
+                    (batchInfo, changesSelected) = this.GetEmptyChanges(message.BatchSize, message.BatchDirectory);
                 else if (message.BatchSize == 0)
-                    (batchInfo, changesSelected) = await this.EnumerateChangesInternalAsync(context, message.ScopeInfo, message.Schema, message.BatchDirectory, message.Policy, message.Filters, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    (batchInfo, changesSelected) = await this.EnumerateChangesInternalAsync(context, message.ExcludingScopeId, message.IsNew, message.LastTimestamp,  message.Schema, message.Filters, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 else
-                    (batchInfo, changesSelected) = await this.EnumerateChangesInBatchesInternalAsync(context, message.ScopeInfo, message.BatchSize, message.Schema, message.BatchDirectory, message.Policy, message.Filters, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    (batchInfo, changesSelected) = await this.EnumerateChangesInBatchesInternalAsync(context, message.ExcludingScopeId, message.IsNew, message.LastTimestamp, message.BatchSize, message.Schema, message.BatchDirectory, message.Filters, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 return (context, batchInfo, changesSelected);
             }
@@ -84,66 +81,9 @@ namespace Dotmim.Sync
 
 
         /// <summary>
-        /// Gets a batch of changes to synchronize when given batch size, 
-        /// destination knowledge, and change data retriever parameters.
-        /// </summary>
-        /// <returns>A DbSyncContext object that will be used to retrieve the modified data.</returns>
-        //public virtual async Task<TimeSpan> PrepareArchiveAsync(string[] tables, int downloadBatchSizeInKB, string batchDirectory, ConflictResolutionPolicy policy, ICollection<FilterClause> filters)
-        //{
-        //    try
-        //    {
-        //        // We need to save 
-        //        // the lasttimestamp when the zip generated for the client to be able to launch a sync since this ts
-
-        //        // IF the client is new and the SyncConfiguration object has the Archive property
-
-        //        var stopwatch = new Stopwatch();
-        //        stopwatch.Start();
-
-        //        SyncContext context;
-        //        ScopeInfo scopeInfo;
-
-        //        context = new SyncContext(Guid.NewGuid())
-        //        {
-        //            SyncType = SyncType.Normal,
-        //            SyncWay = SyncWay.Download,
-
-        //        };
-        //        scopeInfo = new ScopeInfo
-        //        {
-        //            IsNewScope = true
-        //        };
-
-        //        // Read configuration
-        //        var config = this.ReadSchemaAsync(tables);
-
-        //        // We want a batch zip
-        //        if (downloadBatchSizeInKB <= 0)
-        //            downloadBatchSizeInKB = 10000;
-
-        //        (var batchInfo, var changesSelected) =
-        //            await this.EnumerateChangesInBatchesInternal(context, scopeInfo, downloadBatchSizeInKB, config.Schema, batchDirectory, policy, filters).ConfigureAwait(false);
-
-        //        var dir = batchInfo.GetDirectoryFullPath();
-        //        var archiveFullName = string.Concat(batchDirectory, "\\", Path.GetRandomFileName());
-
-        //        ZipFile.CreateFromDirectory(dir, archiveFullName, CompressionLevel.Fastest, false);
-
-        //        stopwatch.Stop();
-        //        return stopwatch.Elapsed;
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        throw new SyncException(ex, SyncStage.TableChangesSelecting, this.ProviderTypeName);
-        //    }
-        //}
-
-
-        /// <summary>
         /// Generate an empty BatchInfo
         /// </summary>
-        internal (BatchInfo, DatabaseChangesSelected) GetEmptyChanges(SyncContext context, ScopeInfo scopeInfo,
-            int downloadBatchSizeInKB, string batchDirectory)
+        internal (BatchInfo, DatabaseChangesSelected) GetEmptyChanges(int downloadBatchSizeInKB, string batchDirectory)
         {
             // Get config
             var isBatched = downloadBatchSizeInKB > 0;
@@ -166,7 +106,7 @@ namespace Dotmim.Sync
         /// Enumerate all internal changes, no batch mode
         /// </summary>
         internal async Task<(BatchInfo, DatabaseChangesSelected)> EnumerateChangesInternalAsync(
-            SyncContext context, ScopeInfo scopeInfo, DmSet configTables, string batchDirectory, ConflictResolutionPolicy policy, ICollection<FilterClause> filters,
+            SyncContext context, Guid excludingScopeId, bool isNew, long lastTimestamp, DmSet configTables, ICollection<FilterClause> filters,
             DbConnection connection, DbTransaction transaction,
             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
@@ -246,7 +186,7 @@ namespace Dotmim.Sync
                     // Get a clone of the table with tracking columns
                     var dmTableChanges = this.BuildChangesTable(tableDescription.TableName, configTables);
 
-                    SetSelectChangesCommonParameters(context, scopeInfo, selectIncrementalChangesCommand);
+                    SetSelectChangesCommonParameters(context, excludingScopeId, isNew, lastTimestamp, selectIncrementalChangesCommand);
 
                     // Set filter parameters if any
                     if (this.CanBeServerProvider && context.Parameters != null && context.Parameters.Count > 0 && filters != null && filters.Count > 0)
@@ -281,7 +221,7 @@ namespace Dotmim.Sync
                             var state = DmRowState.Unchanged;
 
                             // get if the current row is inserted, modified, deleted
-                            state = this.GetStateFromDmRow(dataRow, scopeInfo);
+                            state = this.GetStateFromDmRow(dataRow, excludingScopeId, isNew, lastTimestamp);
 
                             if (state != DmRowState.Deleted && state != DmRowState.Modified && state != DmRowState.Added)
                                 continue;
@@ -349,13 +289,10 @@ namespace Dotmim.Sync
         /// <summary>
         /// Set common parameters to SelectChanges Sql command
         /// </summary>
-        private static void SetSelectChangesCommonParameters(SyncContext context, ScopeInfo scopeInfo, DbCommand selectIncrementalChangesCommand)
+        private static void SetSelectChangesCommonParameters(SyncContext context, Guid excludingScopeId, bool isNew, long lastTimestamp, DbCommand selectIncrementalChangesCommand)
         {
             // Generate the isNewScope Flag.
-            var isNewScope = scopeInfo.IsNewScope ? 1 : 0;
-            var lastTimeStamp = scopeInfo.Timestamp;
-            //var lastTimeStampExcludedBegin = scopeInfo.LastSyncTimestampExcludedBegin;
-            //var lastTimeStampExcludedEnd = scopeInfo.LastSyncTimestampExcludedEnd;
+            var isNewScope = isNew ? 1 : 0;
             var isReinit = context.SyncType == SyncType.Reinitialize ? 1 : 0;
 
             switch (context.SyncWay)
@@ -363,13 +300,13 @@ namespace Dotmim.Sync
                 case SyncWay.Upload:
                     // Overwrite if we are in Reinitialize mode (not RenitializeWithUpload)
                     isNewScope = context.SyncType == SyncType.Reinitialize ? 1 : isNewScope;
-                    lastTimeStamp = context.SyncType == SyncType.Reinitialize ? 0 : lastTimeStamp;
+                    lastTimestamp = context.SyncType == SyncType.Reinitialize ? 0 : lastTimestamp;
                     isReinit = context.SyncType == SyncType.Reinitialize ? 1 : 0;
                     break;
                 case SyncWay.Download:
                     // Ovewrite on bot Reinitialize and ReinitializeWithUpload
                     isNewScope = context.SyncType != SyncType.Normal ? 1 : isNewScope;
-                    lastTimeStamp = context.SyncType != SyncType.Normal ? 0 : lastTimeStamp;
+                    lastTimestamp = context.SyncType != SyncType.Normal ? 0 : lastTimestamp;
                     isReinit = context.SyncType != SyncType.Normal ? 1 : 0;
                     break;
                 default:
@@ -377,21 +314,17 @@ namespace Dotmim.Sync
             }
 
             // Set the parameters
-            DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_min_timestamp", lastTimeStamp);
-            DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_id", scopeInfo.Id);
+            DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_min_timestamp", lastTimestamp);
+            DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_id", excludingScopeId);
             DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_is_new", isNewScope);
             DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_is_reinit", isReinit);
-
-            scopeInfo.IsNewScope = isNewScope == 1 ? true : false;
-            scopeInfo.Timestamp = lastTimeStamp;
-
         }
 
         /// <summary>
         /// Enumerate all internal changes, no batch mode
         /// </summary>
         internal async Task<(BatchInfo, DatabaseChangesSelected)> EnumerateChangesInBatchesInternalAsync(
-             SyncContext context, ScopeInfo scopeInfo, int downloadBatchSizeInKB, DmSet configTables, string batchDirectory, ConflictResolutionPolicy policy, ICollection<FilterClause> filters,
+             SyncContext context, Guid excludingScopeId, bool isNew, long lastTimestamp, int downloadBatchSizeInKB, DmSet configTables, string batchDirectory,  ICollection<FilterClause> filters,
              DbConnection connection, DbTransaction transaction,
              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
@@ -473,7 +406,7 @@ namespace Dotmim.Sync
                     try
                     {
                         // Set commons parameters
-                        SetSelectChangesCommonParameters(context, scopeInfo, selectIncrementalChangesCommand);
+                        SetSelectChangesCommonParameters(context, excludingScopeId, isNew, lastTimestamp, selectIncrementalChangesCommand);
 
                         // Set filter parameters if any
                         // Only on server side
@@ -512,7 +445,7 @@ namespace Dotmim.Sync
 
                                 var state = DmRowState.Unchanged;
 
-                                state = this.GetStateFromDmRow(dmRow, scopeInfo);
+                                state = this.GetStateFromDmRow(dmRow, excludingScopeId, isNew, lastTimestamp);
 
                                 // If the row is not deleted inserted or modified, go next
                                 if (state != DmRowState.Deleted && state != DmRowState.Modified && state != DmRowState.Added)
@@ -729,7 +662,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get a DmRow state to know is we have an inserted, updated, or deleted row to apply
         /// </summary>
-        private DmRowState GetStateFromDmRow(DmRow dataRow, ScopeInfo scopeInfo)
+        private DmRowState GetStateFromDmRow(DmRow dataRow, Guid excludingScopeId, bool isNew, long lastTimestamp)
         {
             var dmRowState = DmRowState.Unchanged;
 
@@ -748,25 +681,25 @@ namespace Dotmim.Sync
                 var createScopeId = (createScopeIdRow != DBNull.Value && createScopeIdRow != null) ? (Guid)createScopeIdRow : (Guid?)null;
 
                 var isLocallyCreated = !createScopeId.HasValue;
-                var islocallyUpdated = !updateScopeId.HasValue || updateScopeId.Value != scopeInfo.Id;
+                var islocallyUpdated = !updateScopeId.HasValue || updateScopeId.Value != excludingScopeId;
 
 
                 // Check if a row is modified :
                 // 1) Row is not new
                 // 2) Row update is AFTER last sync of asker
                 // 3) Row insert is BEFORE last sync of asker (if insert is after last sync, it's not an update, it's an insert)
-                if (!scopeInfo.IsNewScope && islocallyUpdated && updatedTimeStamp > scopeInfo.Timestamp && (createdTimeStamp <= scopeInfo.Timestamp || !isLocallyCreated))
+                if (!isNew && islocallyUpdated && updatedTimeStamp > lastTimestamp && (createdTimeStamp <= lastTimestamp || !isLocallyCreated))
                     dmRowState = DmRowState.Modified;
-                else if (scopeInfo.IsNewScope || (isLocallyCreated && createdTimeStamp >= scopeInfo.Timestamp))
+                else if (isNew || (isLocallyCreated && createdTimeStamp >= lastTimestamp))
                     dmRowState = DmRowState.Added;
                 // The line has been updated from an other host
-                else if (islocallyUpdated && updateScopeId.HasValue && updateScopeId.Value != scopeInfo.Id)
+                else if (islocallyUpdated && updateScopeId.HasValue && updateScopeId.Value != excludingScopeId)
                     dmRowState = DmRowState.Modified;
                 else
                 {
                     dmRowState = DmRowState.Unchanged;
                     Debug.WriteLine($"Row is in Unchanegd state. " +
-                        $"\tscopeInfo.Id:{scopeInfo.Id}, scopeInfo.IsNewScope :{scopeInfo.IsNewScope}, scopeInfo.LastTimestamp:{scopeInfo.Timestamp}" +
+                        $"\tscopeInfo.Id:{excludingScopeId}, scopeInfo.IsNewScope :{isNew}, scopeInfo.LastTimestamp:{lastTimestamp}" +
                         $"\tcreateScopeId:{createScopeId}, updateScopeId:{updateScopeId}, createdTimeStamp:{createdTimeStamp}, updatedTimeStamp:{updatedTimeStamp}.");
                 }
             }

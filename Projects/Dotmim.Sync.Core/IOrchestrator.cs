@@ -47,8 +47,7 @@ namespace Dotmim.Sync
         /// Get configuration to ensure local provider has everything needed
         /// </summary>
         /// <returns></returns>
-        Task<(SyncContext context,
-              ScopeInfo localScopeInfo)>
+        Task<(SyncContext context, ScopeInfo localScopeInfo)>
             EnsureScopeAsync(SyncContext context, SyncSchema schema, SyncOptions options,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null);
 
@@ -59,7 +58,7 @@ namespace Dotmim.Sync
               long clientTimestamp,
               BatchInfo clientBatchInfo,
               DatabaseChangesSelected clientChangesSelected)>
-            GetChangesAsync(SyncContext context, SyncSchema schema, ScopeInfo localScopeInfo, ScopeInfo serverScopeInfo,
+            GetChangesAsync(SyncContext context, SyncSchema schema, ScopeInfo localScopeInfo,
                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null);
 
         /// <summary>
@@ -69,7 +68,8 @@ namespace Dotmim.Sync
               DatabaseChangesApplied clientChangesApplied)>
             ApplyChangesAsync(SyncContext context,
                               long clientTimestamp,
-                              Guid serverScopeId, ScopeInfo localScopeInfo,
+                              long remoteClientTimestamp,
+                              ScopeInfo scope,
                               BatchInfo serverBatchInfo,
                               CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null);
     }
@@ -84,22 +84,19 @@ namespace Dotmim.Sync
         /// Get configuration from remote to ensure local provider has everything needed
         /// </summary>
         /// <returns></returns>
-        Task<(SyncContext context,
-              ScopeInfo serverScopeInfo,
-              ScopeInfo localScopeReferenceInfo,
-              SyncSchema schema)>
-            EnsureScopeAsync(SyncContext context, SyncSchema schema, SyncOptions options, Guid clientScopeId,
+        Task<(SyncContext context, SyncSchema schema)>
+            EnsureSchemaAsync(SyncContext context, SyncSchema schema, SyncOptions options,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null);
 
         /// <summary>
         /// Send all changes and get new changes in return
         /// </summary>
         Task<(SyncContext context,
+              long remoteClientTimestamp,
               BatchInfo serverBatchInfo,
               DatabaseChangesSelected serverChangesSelected)>
-            ApplyThenGetChangesAsync(SyncContext context, 
-                                     Guid clientScopeId, ScopeInfo localScopeReferenceInfo,
-                                     ScopeInfo serverScopeInfo, BatchInfo clientBatchInfo,
+            ApplyThenGetChangesAsync(SyncContext context,
+                                     ScopeInfo scope, BatchInfo clientBatchInfo,
                                      CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null);
     }
 }
