@@ -122,11 +122,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         /// <summary>
         /// Executing a batch command
         /// </summary>
-        /// <param name="cmd">the DbCommand already prepared</param>
-        /// <param name="applyTable">the table rows to apply</param>
-        /// <param name="failedRows">the failed rows dmTable to store failed rows</param>
-        /// <param name="scope">the current scope</param>
-        public override void ExecuteBatchCommand(DbCommand cmd, DmView applyTable, DmTable failedRows, ScopeInfo scope)
+        public override void ExecuteBatchCommand(DbCommand cmd, DmView applyTable, DmTable failedRows, Guid applyingScopeId, long lastTimestamp)
         {
             if (applyTable.Count <= 0)
                 return;
@@ -349,8 +345,8 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             ((SqlParameterCollection)cmd.Parameters)["@changeTable"].TypeName = string.Empty;
             ((SqlParameterCollection)cmd.Parameters)["@changeTable"].Value = records;
-            ((SqlParameterCollection)cmd.Parameters)["@sync_scope_id"].Value = scope.Id;
-            ((SqlParameterCollection)cmd.Parameters)["@sync_min_timestamp"].Value = scope.Timestamp;
+            ((SqlParameterCollection)cmd.Parameters)["@sync_scope_id"].Value = applyingScopeId;
+            ((SqlParameterCollection)cmd.Parameters)["@sync_min_timestamp"].Value = lastTimestamp;
 
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 

@@ -228,7 +228,9 @@ namespace Dotmim.Sync
                 var beforeArgs = new DatabaseProvisioningArgs(context, SyncProvision.All, message.Schema, connection, transaction);
                 await this.InterceptAsync(beforeArgs).ConfigureAwait(false);
 
-                if (message.ScopeInfo.LastSync.HasValue && !beforeArgs.OverwriteSchema)
+                // Checking if schema already exists may be 
+
+                if (!message.CheckSchema && !beforeArgs.OverwriteSchema)
                     return context;
 
                 // Sorting tables based on dependencies between them

@@ -13,21 +13,36 @@ namespace Dotmim.Sync.Messages
     /// </summary>
     public class MessageGetChangesBatch
     {
-        public MessageGetChangesBatch(ScopeInfo scopeInfo, DmSet schema, int batchSize, string batchDirectory, ConflictResolutionPolicy policy, ICollection<FilterClause> filters, SerializationFormat serializationFormat)
+        public MessageGetChangesBatch(Guid excludingScopeId, bool isNew, long lastTimestamp,  DmSet schema, int batchSize, 
+            string batchDirectory, ICollection<FilterClause> filters, SerializationFormat serializationFormat)
         {
-            this.ScopeInfo = scopeInfo ?? throw new ArgumentNullException(nameof(scopeInfo));
             this.Schema = schema ?? throw new ArgumentNullException(nameof(schema));
-            this.BatchSize = batchSize;
             this.BatchDirectory = batchDirectory ?? throw new ArgumentNullException(nameof(batchDirectory));
-            this.Policy = policy;
+            this.ExcludingScopeId = excludingScopeId;
+            this.IsNew = isNew;
+            this.LastTimestamp = lastTimestamp;
+            this.BatchSize = batchSize;
             this.Filters = filters;
             this.SerializationFormat = serializationFormat;
         }
 
         /// <summary>
-        /// Gets or Sets the scope info for the current sync
+        /// Gets or Sets the Scope Id that should be excluded when we get lines from the local store
+        /// IE : When we get lines on the client, we don't want all lines where last updates have been made by the server.
         /// </summary>
-        public ScopeInfo ScopeInfo { get; set; }
+        public Guid ExcludingScopeId { get; set; }
+
+
+        /// <summary>
+        /// Gets or Sets if the sync is a first sync. In this case, the last sync timestamp is ignored
+        /// </summary>
+        public bool IsNew { get; set; }
+
+
+        /// <summary>
+        /// Gets or Sets the last date timestamp from where we want rows
+        /// </summary>
+        public long LastTimestamp { get; set; }
 
         /// <summary>
         /// Gets or Sets the schema used for this sync
@@ -44,10 +59,10 @@ namespace Dotmim.Sync.Messages
         /// </summary>
         public string BatchDirectory { get; set; }
 
-        /// <summary>
-        /// Gets or Sets the current Conflict resolution policy
-        /// </summary>
-        public ConflictResolutionPolicy Policy { get; set; }
+        ///// <summary>
+        ///// Gets or Sets the current Conflict resolution policy
+        ///// </summary>
+        //public ConflictResolutionPolicy Policy { get; set; }
 
         /// <summary>
         /// Gets or Sets the Batch Info used for this sync session

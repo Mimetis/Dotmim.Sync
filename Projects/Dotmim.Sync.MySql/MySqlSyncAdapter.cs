@@ -365,7 +365,7 @@ namespace Dotmim.Sync.MySql
         }
 
 
-        public override void ExecuteBatchCommand(DbCommand cmd, DmView applyTable, DmTable failedRows, ScopeInfo scope)
+        public override void ExecuteBatchCommand(DbCommand cmd, DmView applyTable, DmTable failedRows, Guid applyingScopeId, long lastTimestamp)
         {
             throw new NotImplementedException();
         }

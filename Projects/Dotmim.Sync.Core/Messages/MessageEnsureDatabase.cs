@@ -15,18 +15,18 @@ namespace Dotmim.Sync.Messages
     {
         private DmSet _schema;
 
-        public MessageEnsureDatabase(ScopeInfo scopeInfo, DmSet schema, ICollection<FilterClause> filters, SerializationFormat serializationFormat)
+        public MessageEnsureDatabase(bool checkSchema, DmSet schema, ICollection<FilterClause> filters, SerializationFormat serializationFormat)
         {
-            this.ScopeInfo = scopeInfo ?? throw new ArgumentNullException(nameof(scopeInfo));
+            this.CheckSchema = checkSchema;
             this.Schema = schema ?? throw new ArgumentNullException(nameof(schema));
             this.Filters = filters;
             this.SerializationFormat = serializationFormat;
         }
 
         /// <summary>
-        /// Gets or Sets he scope info used during the ensure database sync stage
+        /// Gets or Sets if we need to check all tables
         /// </summary>
-        public ScopeInfo ScopeInfo { get; set; }
+        public bool CheckSchema { get; set; }
 
         /// <summary>
         /// Gets or Sets the database schema
