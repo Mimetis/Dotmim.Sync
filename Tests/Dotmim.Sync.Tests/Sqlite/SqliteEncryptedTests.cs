@@ -23,7 +23,7 @@ namespace Dotmim.Sync.Tests.Sqlite
         private SqlSyncProvider serverProvider;
         private SqliteSyncProvider clientProvider;
         private string serverCString = HelperDB.GetConnectionString(ProviderType.Sql, "AdvWorksForEncrypted");
-        private string clientCString = HelperDB.GetConnectionString(ProviderType.Sqlite, "EncryptedAdventureWorks.db");
+        private string clientCString = HelperDB.GetConnectionString(ProviderType.Sqlite, "EncryptedAdventureWorks");
 
         public SqliteEncryptedTests()
         {

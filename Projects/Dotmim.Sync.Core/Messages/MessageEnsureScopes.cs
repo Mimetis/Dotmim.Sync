@@ -10,17 +10,11 @@ namespace Dotmim.Sync.Messages
     /// </summary>
     public class MessageEnsureScopes
     {
-        public MessageEnsureScopes(string scopeInfoTableName, string scopeName, Guid? clientReferenceId = null)
+        public MessageEnsureScopes(string scopeInfoTableName, string scopeName)
         {
-            this.ClientReferenceId = clientReferenceId;
             this.ScopeInfoTableName = scopeInfoTableName ?? throw new ArgumentNullException(nameof(scopeInfoTableName));
             this.ScopeName = scopeName ?? throw new ArgumentNullException(nameof(scopeName));
         }
-
-        /// <summary>
-        /// Gets or Sets the client id. If null, the ensure scope step is occuring on the client. If not null, we are on the server
-        /// </summary>
-        public Guid? ClientReferenceId { get; private set; }
 
         /// <summary>
         /// Gets or Sets the scope info table name used for ensuring scopes

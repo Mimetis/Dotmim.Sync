@@ -12,9 +12,11 @@ namespace Dotmim.Sync.Messages
     public class MessageApplyChanges
     {
 
-        public MessageApplyChanges(ScopeInfo fromScope, SyncSchema schema, ConflictResolutionPolicy policy, bool disableConstraintsOnApplyChanges, bool useBulkOperations, bool cleanMetadatas, string scopeInfoTableName, BatchInfo changes)
+        public MessageApplyChanges(Guid applyingScopeId, bool isNew, long lastTimestamp, SyncSchema schema, ConflictResolutionPolicy policy, bool disableConstraintsOnApplyChanges, bool useBulkOperations, bool cleanMetadatas, string scopeInfoTableName, BatchInfo changes)
         {
-            this.FromScope = fromScope ?? throw new ArgumentNullException(nameof(fromScope));
+            this.ApplyingScopeId = applyingScopeId;
+            this.IsNew = isNew;
+            this.LastTimestamp = lastTimestamp;
             this.Schema = schema ?? throw new ArgumentNullException(nameof(schema));
             this.Policy = policy;
             this.DisableConstraintsOnApplyChanges = disableConstraintsOnApplyChanges;
@@ -24,10 +26,22 @@ namespace Dotmim.Sync.Messages
             this.Changes = changes ?? throw new ArgumentNullException(nameof(changes));
         }
 
+
         /// <summary>
-        /// Gets or Sets the scope info for the current sync
+        /// Gets or Sets the Scope Id that should be identified as the applier
+        /// IE : When we apply lines on the client, we want to be sure that the Server scope id (ie Guid.Empty) is the one used as id.
         /// </summary>
-        public ScopeInfo FromScope { get; set; }
+        public Guid ApplyingScopeId { get; }
+        
+        /// <summary>
+        /// Gets or Sets if the sync is a first sync. In this case, the last sync timestamp is ignored
+        /// </summary>
+        public bool IsNew { get; }
+
+        /// <summary>
+        /// Gets or Sets the last date timestamp from where we want rows
+        /// </summary>
+        public long LastTimestamp { get; }
 
         /// <summary>
         /// Gets or Sets the schema used for this sync

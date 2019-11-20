@@ -16,7 +16,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Called when the sync ensure scopes are created
         /// </summary>
-        public virtual async Task<(SyncContext, List<ScopeInfo>)> EnsureScopesAsync(SyncContext context, MessageEnsureScopes message,
+        public virtual async Task<(SyncContext, ScopeInfo)> EnsureScopesAsync(SyncContext context, MessageEnsureScopes message,
                              DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
@@ -38,12 +38,7 @@ namespace Dotmim.Sync
                 if (!needToCreateScopeInfoTable)
                 {
                     // get all scopes shared by all (identified by scopeName)
-                    var lstScopes = scopeInfoBuilder.GetAllScopes(message.ScopeName);
-
-                    // try to get the scopes from database
-                    // could be two scopes if from server or a single scope if from client
-                    scopes = lstScopes.Where(s => s.IsLocal == true || (message.ClientReferenceId.HasValue && s.Id == message.ClientReferenceId.Value)).ToList();
-
+                    scopes = scopeInfoBuilder.GetAllScopes(message.ScopeName);
                 }
 
                 // If no scope found, create it on the local provider
@@ -56,13 +51,11 @@ namespace Dotmim.Sync
                     {
                         Id = Guid.NewGuid(),
                         Name = message.ScopeName,
-                        IsLocal = true,
                         IsNewScope = true,
-                        LastSync = null
+                        LastSync = null,
                     };
 
                     scope = scopeInfoBuilder.InsertOrUpdateScopeInfo(scope);
-
                     scopes.Add(scope);
                 }
                 else
@@ -71,45 +64,16 @@ namespace Dotmim.Sync
                     scopes.ForEach(sc => sc.IsNewScope = sc.LastSync == null);
                 }
 
-                // if we are not on the server, we have to check that we only have one scope
-                if (!message.ClientReferenceId.HasValue && scopes.Count > 1)
-                    throw new InvalidOperationException("On Local provider, we should have only one scope info");
-
-
-                // if we have a reference in args, we need to get this specific line from database
-                // this happen only on the server side
-                if (message.ClientReferenceId.HasValue)
-                {
-                    var refScope = scopes.FirstOrDefault(s => s.Id == message.ClientReferenceId);
-
-                    if (refScope == null)
-                    {
-                        refScope = new ScopeInfo
-                        {
-                            Id = message.ClientReferenceId.Value,
-                            Name = message.ScopeName,
-                            IsLocal = false,
-                            IsNewScope = true,
-                            LastSync = null
-                        };
-
-                        refScope = scopeInfoBuilder.InsertOrUpdateScopeInfo(refScope);
-
-                        scopes.Add(refScope);
-                    }
-                    else
-                    {
-                        refScope.IsNewScope = refScope.LastSync == null;
-                    }
-                }
+                // get first scope
+                var localScope = scopes.FirstOrDefault();
 
                 // Progress & Interceptor
                 context.SyncStage = SyncStage.ScopeLoading;
-                var scopeArgs = new ScopeArgs(context, scopes.FirstOrDefault(s => s.IsLocal), connection, transaction);
+                var scopeArgs = new ScopeArgs(context, localScope, connection, transaction);
                 this.ReportProgress(context, progress, scopeArgs);
                 await this.InterceptAsync(scopeArgs).ConfigureAwait(false);
 
-                return (context, scopes);
+                return (context, localScope);
             }
             catch (Exception ex)
             {
@@ -129,14 +93,11 @@ namespace Dotmim.Sync
                 var scopeBuilder = this.GetScopeBuilder();
                 var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(message.ScopeInfoTableName, connection, transaction);
 
-                var lstScopes = new List<ScopeInfo>();
-
-                foreach (var scope in message.Scopes)
-                    lstScopes.Add(scopeInfoBuilder.InsertOrUpdateScopeInfo(scope));
+                scopeInfoBuilder.InsertOrUpdateScopeInfo(message.Scope);
 
                 // Progress & Interceptor
                 context.SyncStage = SyncStage.ScopeSaved;
-                var scopeArgs = new ScopeArgs(context, lstScopes.FirstOrDefault(s => s.IsLocal), connection, transaction);
+                var scopeArgs = new ScopeArgs(context, message.Scope, connection, transaction);
                 this.ReportProgress(context, progress, scopeArgs);
                 await this.InterceptAsync(scopeArgs).ConfigureAwait(false);
 

@@ -46,7 +46,7 @@ namespace Dotmim.Sync.Tests.Core
             return await RunTestsAsync(this.providerFixture.Tables, conf, reuseAgent);
         }
 
-        public async Task<List<ProviderRun>> RunTestsAsync(string[] tables = null, Action<SyncSchema> conf = null,
+        public async Task<List<ProviderRun>> RunTestsAsync(string[] tables = null, Action<SyncSchema> schema = null,
                                                            bool reuseAgent = true)
         {
             foreach (var tra in this.providerFixture.ClientRuns)
@@ -56,7 +56,7 @@ namespace Dotmim.Sync.Tests.Core
                     tra.BeginRun = this.BeginRun;
                     tra.EndRun = this.EndRun;
 
-                    await tra.RunAsync(this.providerFixture, tables, conf, reuseAgent);
+                    await tra.RunAsync(this.providerFixture, tables, schema, reuseAgent);
                 }
                 catch (Exception ex)
                 {

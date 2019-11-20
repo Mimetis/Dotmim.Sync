@@ -80,6 +80,7 @@ namespace Dotmim.Sync.Tests.Core
         public async Task<ProviderRun> RunAsync(ProviderFixture serverFixture, string[] tables = null,
             Action<SyncSchema> schema = null, bool reuseAgent = true)
         {
+            schema = schema ?? new Action<SyncSchema>(s => { });
 
             var syncTables = tables ?? serverFixture.Tables;
 
@@ -140,22 +141,22 @@ namespace Dotmim.Sync.Tests.Core
                             var proxyServerOrchestrator = WebProxyServerOrchestrator.Create(
                                 context, serverFixture.ServerProvider, schema, options);
 
-                            var serverOrchestrator = proxyServerOrchestrator.GetLocalOrchestrator(context);
+                            var webServerOrchestrator = proxyServerOrchestrator.GetLocalOrchestrator(context);
 
-                            serverOrchestrator.Schema.Add(syncTables);
+                            webServerOrchestrator.Schema.Add(syncTables);
 
                             // Add Filers
                             if (serverFixture.Filters != null && serverFixture.Filters.Count > 0)
                                 serverFixture.Filters.ForEach(f =>
                                 {
-                                    if (!serverOrchestrator.Schema.Filters.Contains(f))
-                                        serverOrchestrator.Schema.Filters.Add(f);
+                                    if (!webServerOrchestrator.Schema.Filters.Contains(f))
+                                        webServerOrchestrator.Schema.Filters.Add(f);
                                 });
 
 
-                            this.BeginRun?.Invoke(serverOrchestrator);
+                            this.BeginRun?.Invoke(webServerOrchestrator);
                             await proxyServerOrchestrator.HandleRequestAsync(context);
-                            this.EndRun?.Invoke(serverOrchestrator);
+                            this.EndRun?.Invoke(webServerOrchestrator);
 
                         }
                         catch (Exception ew)
