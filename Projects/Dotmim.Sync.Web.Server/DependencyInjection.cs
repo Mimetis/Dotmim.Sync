@@ -13,7 +13,7 @@ namespace Microsoft.Extensions.DependencyInjection
     {
         private static Type providerType;
         private static string connectionString;
-        private static Action<SyncSchema> configuration;
+        private static Action<SyncSchema> schema;
         private static Action<SyncOptions> options;
 
         /// <summary>
@@ -23,12 +23,12 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <typeparam name="TProvider">Provider inherited from CoreProvider (SqlSyncProvider, MySqlSyncProvider, OracleSyncProvider) Should have [CanBeServerProvider=true] </typeparam>
         /// <param name="serviceCollection"></param>
         /// <param name="connectionString">Provider connection string</param>
-        /// <param name="configuration">Configuration server side. Adding at least tables to be synchronized</param>
+        /// <param name="schema">Configuration server side. Adding at least tables to be synchronized</param>
         /// <param name="options">Options, not shared with client, but only applied locally. Can be null</param>
         public static IServiceCollection AddSyncServer<TProvider>(
                     this IServiceCollection serviceCollection,
                     string connectionString,
-                    Action<SyncSchema> configuration,
+                    Action<SyncSchema> schema,
                     Action<SyncOptions> options = null) where TProvider : CoreProvider, new()
         {
             if (string.IsNullOrWhiteSpace(connectionString))
@@ -37,7 +37,7 @@ namespace Microsoft.Extensions.DependencyInjection
             providerType = typeof(TProvider);
             DependencyInjection.connectionString = connectionString;
             DependencyInjection.options = options;
-            DependencyInjection.configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+            DependencyInjection.schema = schema ?? throw new ArgumentNullException(nameof(schema));
 
             serviceCollection.AddOptions();
             serviceCollection.AddSingleton(new WebProxyServerOrchestrator());
@@ -56,8 +56,8 @@ namespace Microsoft.Extensions.DependencyInjection
             var webProvider = new WebServerOrchestrator(provider);
 
             // Sets the options / configurations
-            webProvider.SetSchema(configuration);
-            webProvider.SetOptions(options);
+            schema(webProvider.Schema);
+            options(webProvider.Options);
 
             return webProvider;
         }

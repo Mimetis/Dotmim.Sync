@@ -105,7 +105,7 @@ namespace Dotmim.Sync
             : this(SyncOptions.DefaultScopeName, new LocalOrchestrator(clientProvider), remoteOrchestrator, tables)
         {
         }
-        
+
         public SyncAgent(ILocalOrchestrator localOrchestrator, IRemoteOrchestrator remoteOrchestrator, string[] tables = null)
             : this(SyncOptions.DefaultScopeName, localOrchestrator, remoteOrchestrator, tables)
         {
@@ -143,6 +143,14 @@ namespace Dotmim.Sync
             return SynchronizeAsync(SyncType.Normal, CancellationToken.None);
         }
 
+        /// <summary>
+        /// Launch a normal synchronization without any IProgess or CancellationToken
+        /// </summary>
+        public Task<SyncContext> SynchronizeAsync(IProgress<ProgressArgs> progress)
+        {
+            return SynchronizeAsync(SyncType.Normal, CancellationToken.None, progress);
+        }
+
 
         /// <summary>
         /// Launch a synchronization with the specified mode
@@ -169,38 +177,36 @@ namespace Dotmim.Sync
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
+                ScopeInfo scope = null;
+
                 // Starts sync by :
                 // - Getting local config we have set by code
                 // - Ensure local scope is created (table and values)
-                var clientScope = await this.LocalOrchestrator.EnsureScopeAsync
+                (context, scope) = await this.LocalOrchestrator.EnsureScopeAsync
                         (context, schema, options, cancellationToken, progress);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
-                context = clientScope.context;
-
                 // FIRST call to server
                 // Get the server scope info and server reference id to local scope
                 // Be sure options / schema from client are passed if needed
                 // Then the configuration with full schema
-                var serverScope = await this.RemoteOrchestrator.EnsureScopeAsync(
-                        context, schema, options, clientScope.localScopeInfo.Id,
-                        cancellationToken, remoteProgress);
+                var serverSchema = await this.RemoteOrchestrator.EnsureSchemaAsync(
+                        context, schema, options, cancellationToken, remoteProgress);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
-                context = serverScope.context;
-                this.schema = serverScope.schema;
+                context = serverSchema.context;
+                this.schema = serverSchema.schema;
 
 
                 // on local orchestrator, get local changes
                 // Most probably the schema has changed, so we passed it again (coming from Server)
                 // Don't need to pass again Options since we are not modifying it between server and client
                 var clientChanges = await this.LocalOrchestrator.GetChangesAsync(
-                    context, schema, clientScope.localScopeInfo, serverScope.serverScopeInfo,
-                    cancellationToken, progress);
+                    context, schema, scope, cancellationToken, progress);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -210,8 +216,7 @@ namespace Dotmim.Sync
 
                 // SECOND call to server
                 var serverChanges = await this.RemoteOrchestrator.ApplyThenGetChangesAsync(
-                    context, clientScope.localScopeInfo.Id, serverScope.localScopeReferenceInfo,
-                    serverScope.serverScopeInfo, clientChanges.clientBatchInfo,
+                    context, scope, clientChanges.clientBatchInfo,
                     cancellationToken, remoteProgress);
 
                 if (cancellationToken.IsCancellationRequested)
@@ -221,10 +226,9 @@ namespace Dotmim.Sync
                 context = serverChanges.context;
 
                 var localChanges = await this.LocalOrchestrator.ApplyChangesAsync(
-                    context, clientChanges.clientTimestamp,
-                    serverScope.serverScopeInfo.Id, clientScope.localScopeInfo, serverChanges.serverBatchInfo,
+                    context, clientChanges.clientTimestamp, serverChanges.remoteClientTimestamp,
+                    scope, serverChanges.serverBatchInfo,
                     cancellationToken, progress);
-
 
                 context.TotalChangesDownloaded = localChanges.clientChangesApplied.TotalAppliedChanges;
                 context.TotalChangesUploaded = clientChanges.clientChangesSelected.TotalChangesSelected;

@@ -20,23 +20,10 @@ namespace Dotmim.Sync
         public Guid Id { get; set; }
 
         /// <summary>
-        /// Gets or Sets a boolean indicating if the scope info is local to the provider (or remote)
-        /// </summary>
-        public Boolean IsLocal { get; set; }
-
-        /// <summary>
-        /// Gets or Sets the Timestamp. basically the timestamp "AFTER" the sync has occured
-        /// IF it's a new scope force to Zero to be sure, the first sync will get all datas
-        /// </summary>
-        public long Timestamp { get; set; }
-
-
-
-        /// <summary>
         /// Gets or Sets if the current provider is newly created one in database.
         /// If new, we will override timestamp for first synchronisation to be sure to get all datas from server
         /// </summary>
-        public Boolean IsNewScope { get; set; }
+        public bool IsNewScope { get; set; }
 
         /// <summary>
         /// Gets or Sets the last datetime when a sync has successfully ended.
@@ -48,14 +35,10 @@ namespace Dotmim.Sync
         /// </summary>
         public long LastSyncTimestamp { get; set; }
 
-        ///// <summary>
-        ///// Gets or Sets an excluded range of ts
-        ///// </summary>
-        //public long LastSyncTimestampExcludedBegin { get; set; }
-        ///// <summary>
-        ///// Gets or Sets an excluded range of ts
-        ///// </summary>
-        //public long LastSyncTimestampExcludedEnd { get; set; }
+        /// <summary>
+        /// Gets or Sets the last server timestamp a sync has occured for this scope client.
+        /// </summary>
+        public long LastServerSyncTimestamp { get; set; }
 
         /// <summary>
         /// Gets or Sets the last duration a sync has occured. 

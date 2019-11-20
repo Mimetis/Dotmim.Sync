@@ -10,10 +10,10 @@ namespace Dotmim.Sync.Messages
     /// </summary>
     public class MessageWriteScopes
     {
-        public MessageWriteScopes(string scopeInfoTableName, List<ScopeInfo> scopes, SerializationFormat serializationFormat)
+        public MessageWriteScopes(string scopeInfoTableName, ScopeInfo scope, SerializationFormat serializationFormat)
         {
             this.ScopeInfoTableName = scopeInfoTableName ?? throw new ArgumentNullException(nameof(scopeInfoTableName));
-            this.Scopes = scopes ?? throw new ArgumentNullException(nameof(scopes));
+            this.Scope = scope ?? throw new ArgumentNullException(nameof(scope));
             this.SerializationFormat = serializationFormat;
         }
 
@@ -23,9 +23,9 @@ namespace Dotmim.Sync.Messages
         public String ScopeInfoTableName { get; set; }
 
         /// <summary>
-        /// Gets or Sets the Scopes to write in the database
+        /// Gets or Sets the Scope to write in the database
         /// </summary>
-        public List<ScopeInfo> Scopes { get; set; }
+        public ScopeInfo Scope { get; set; }
 
         /// <summary>
         /// Gets or Sets the Serialization format used during the sync

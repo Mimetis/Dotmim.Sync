@@ -25,7 +25,7 @@ using SerializationFormat = Dotmim.Sync.Enumerations.SerializationFormat;
 
 internal class Program
 {
-    public static string serverDbName = "Server";
+    public static string serverDbName = "AdventureWorks";
     public static string clientDbName = "Client";
     public static string[] allTables = new string[] {"ProductCategory",
                                                     "ProductModel", "Product",
@@ -33,7 +33,7 @@ internal class Program
                                                     "SalesOrderHeader", "SalesOrderDetail" };
     private static void Main(string[] args)
     {
-        SyncHttpThroughKestellAsync().GetAwaiter().GetResult();
+        SynchronizeAsync().GetAwaiter().GetResult();
 
         Console.ReadLine();
     }
@@ -215,63 +215,61 @@ internal class Program
     /// <returns></returns>
     private static async Task SynchronizeAsync()
     {
-        //// Create 2 Sql Sync providers
-        //var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
+        // Create 2 Sql Sync providers
+        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
         //var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
+        var clientProvider = new SqliteSyncProvider("advworks.db");
 
-        //// Tables involved in the sync process:
-        //var tables = allTables;
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, new string[] { "Product" });
 
-        //// Creating an agent that will handle all the process
-        //var agent = new SyncAgent(clientProvider, serverProvider, tables);
-
-        //// Using the Progress pattern to handle progession during the synchronization
-        //var progress = new Progress<ProgressArgs>(s => Console.WriteLine($"[client]: {s.Context.SyncStage}:\t{s.Message}"));
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new Progress<ProgressArgs>(s => Console.WriteLine($"[client]: {s.Context.SyncStage}:\t{s.Message}"));
 
 
-        //// Setting configuration options
-        //agent.SetConfiguration(s =>
-        //{
-        //    s.ScopeInfoTableName = "tscopeinfo";
-        //    s.SerializationFormat = Dotmim.Sync.Enumerations.SerializationFormat.Binary;
-        //    s.StoredProceduresPrefix = "s";
-        //    s.StoredProceduresSuffix = "";
-        //    s.TrackingTablesPrefix = "t";
-        //    s.TrackingTablesSuffix = "";
-        //});
+        // Setting configuration options
+        agent.SetSchema(s =>
+        {
+            s.SerializationFormat = Dotmim.Sync.Enumerations.SerializationFormat.Binary;
+            s.StoredProceduresPrefix = "s";
+            s.StoredProceduresSuffix = "";
+            s.TrackingTablesPrefix = "t";
+            s.TrackingTablesSuffix = "";
+        });
 
-        //agent.SetOptions(opt =>
-        //{
-        //    opt.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync");
-        //    opt.BatchSize = 100;
-        //    opt.CleanMetadatas = true;
-        //    opt.UseBulkOperations = true;
-        //    opt.UseVerboseErrors = false;
-        //});
-
-
-        //do
-        //{
-        //    Console.Clear();
-        //    Console.WriteLine("Sync Start");
-        //    try
-        //    {
-        //        // Launch the sync process
-        //        var s1 = await agent.SynchronizeAsync(progress);
-
-        //        // Write results
-        //        Console.WriteLine(s1);
-        //    }
-        //    catch (Exception e)
-        //    {
-        //        Console.WriteLine(e.Message);
-        //    }
+        agent.SetOptions(opt =>
+        {
+            opt.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync");
+            opt.BatchSize = 100;
+            opt.CleanMetadatas = true;
+            opt.UseBulkOperations = true;
+            opt.UseVerboseErrors = false;
+            opt.ScopeInfoTableName = "tscopeinfo";
+        });
 
 
-        //    //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
-        //} while (Console.ReadKey().Key != ConsoleKey.Escape);
+        do
+        {
+            Console.Clear();
+            Console.WriteLine("Sync Start");
+            try
+            {
+                // Launch the sync process
+                var s1 = await agent.SynchronizeAsync(progress);
 
-        //Console.WriteLine("End");
+                // Write results
+                Console.WriteLine(s1);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+            }
+
+
+            //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+        Console.WriteLine("End");
     }
 
     /// <summary>
@@ -444,7 +442,7 @@ internal class Program
         var schema = new Action<SyncSchema>(s =>
         {
             s.Add(tables);
-            s.SerializationFormat = Dotmim.Sync.Enumerations.SerializationFormat.Json;
+            s.SerializationFormat = SerializationFormat.Json;
             s.StoredProceduresPrefix = "s";
             s.StoredProceduresSuffix = "";
             s.TrackingTablesPrefix = "t";
@@ -453,7 +451,6 @@ internal class Program
 
         var optionsServer = new Action<SyncOptions>(opt =>
         {
-            opt.ScopeInfoTableName = "server_scopeinfo";
             opt.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync_server");
             opt.BatchSize = 0;
             opt.CleanMetadatas = true;
