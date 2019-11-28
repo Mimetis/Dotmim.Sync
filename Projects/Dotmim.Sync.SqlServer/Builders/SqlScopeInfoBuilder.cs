@@ -169,7 +169,9 @@ namespace Dotmim.Sync.SqlServer.Scope
             bool alreadyOpened = connection.State == ConnectionState.Open;
             try
             {
-                command.CommandText = "SELECT @sync_new_timestamp = min_active_rowversion() - 1";
+                // UPDATE Nov 2019 : We don't use min_active_rowversion anymore, since we are in a transaction
+                // and we still need the last row version, so check back to @@DBTS
+                command.CommandText = "SELECT @sync_new_timestamp = @@DBTS";
                 DbParameter p = command.CreateParameter();
                 p.ParameterName = "@sync_new_timestamp";
                 p.DbType = DbType.Int64;

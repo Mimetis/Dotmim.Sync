@@ -296,9 +296,9 @@ namespace Dotmim.Sync.MySql
 
             this.AddColumnParametersToCommand(sqlCommand);
 
-            stringBuilder.Append(string.Concat("IF ((SELECT COUNT(*) FROM ", trackingName.Quoted().ToString(), " WHERE "));
-            stringBuilder.Append(MySqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKey.Columns, string.Empty));
-            stringBuilder.AppendLine(") <= 0) THEN");
+            //stringBuilder.Append(string.Concat("IF ((SELECT COUNT(*) FROM ", trackingName.Quoted().ToString(), " WHERE "));
+            //stringBuilder.Append(MySqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKey.Columns, string.Empty));
+            //stringBuilder.AppendLine(") <= 0) THEN");
 
             string empty = string.Empty;
             foreach (var mutableColumn in this.tableDescription.Columns.Where(c => !c.IsReadOnly))
@@ -315,7 +315,8 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine($"\tVALUES ({stringBuilderParameters.ToString()});");
             stringBuilder.AppendLine();
 
-            stringBuilder.AppendLine("END IF;");
+            //stringBuilder.AppendLine("END IF;");
+
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
