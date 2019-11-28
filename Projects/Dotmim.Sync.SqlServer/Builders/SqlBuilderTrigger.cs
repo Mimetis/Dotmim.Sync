@@ -229,6 +229,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("UPDATE [side] ");
             stringBuilder.AppendLine("SET \t[sync_row_is_tombstone] = 0");
             stringBuilder.AppendLine("\t,[update_scope_id] = NULL -- since the update if from local, it's a NULL");
+            stringBuilder.AppendLine("\t,[update_timestamp] = @@DBTS+1");
             stringBuilder.AppendLine("\t,[last_change_datetime] = GetUtcDate()");
             // Filter columns
             if (this.Filters != null && Filters.Count > 0)

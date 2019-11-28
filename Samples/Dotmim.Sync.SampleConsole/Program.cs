@@ -216,9 +216,9 @@ internal class Program
     private static async Task SynchronizeAsync()
     {
         // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
-        //var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
-        var clientProvider = new SqliteSyncProvider("advworks.db");
+        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString("TestServer"));
+        var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString("TestClient"));
+        //var clientProvider = new SqliteSyncProvider("advworks.db");
 
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, new string[] { "Product" });
