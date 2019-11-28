@@ -1101,10 +1101,10 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             stringBuilder.AppendLine($"SET {sqlParameter.ParameterName} = 0;");
 
-            stringBuilder.Append(string.Concat("IF NOT EXISTS (SELECT * FROM ", trackingName.Schema().Quoted().ToString(), " WHERE "));
-            stringBuilder.Append(SqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKey.Columns, string.Empty));
-            stringBuilder.AppendLine(") ");
-            stringBuilder.AppendLine("BEGIN ");
+            //stringBuilder.Append(string.Concat("IF NOT EXISTS (SELECT * FROM ", trackingName.Schema().Quoted().ToString(), " WHERE "));
+            //stringBuilder.Append(SqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKey.Columns, string.Empty));
+            //stringBuilder.AppendLine(") ");
+            //stringBuilder.AppendLine("BEGIN ");
 
             if (this.tableDescription.HasAutoIncrementColumns)
             {
@@ -1133,7 +1133,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 stringBuilder.AppendLine($"\tSET IDENTITY_INSERT {tableName.Quoted().ToString()} OFF;");
             }
 
-            stringBuilder.AppendLine("END ");
+            //stringBuilder.AppendLine("END ");
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
