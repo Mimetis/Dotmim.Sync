@@ -11,7 +11,7 @@ namespace Dotmim.Sync.Data
     /// </summary>
     public abstract class DmColumn
     {
-        internal Int32 maxLength = -1;
+        internal int maxLength = -1;
         internal DbType dbType;
         internal bool dbTypeAllowed;
         byte precision;
@@ -50,7 +50,7 @@ namespace Dotmim.Sync.Data
             StorageClassType.Add(typeof(char[]), false);
 
             // test to add object type
-            StorageClassType.Add(typeof(Object), false);
+            StorageClassType.Add(typeof(object), false);
 
         }
 
@@ -135,7 +135,7 @@ namespace Dotmim.Sync.Data
         /// <summary>
         /// Optional string indicating the orginal ADO.NET Db type from the database involved
         /// </summary>
-        public String OriginalDbType { get; set; }
+        public string OriginalDbType { get; set; }
 
         /// <summary>
         /// Gets or sets the column datastore type name

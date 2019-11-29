@@ -197,7 +197,7 @@ namespace Dotmim.Sync
 
                         // Client could have, or not, the tables
                         context = await this.Provider.EnsureDatabaseAsync(context,
-                            new MessageEnsureDatabase(checkIfSchemaExists, schema.Set, schema.Filters, schema.SerializationFormat),
+                            new MessageEnsureDatabase(checkIfSchemaExists, schema.Set, schema.Filters),
                             connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                         // Here we know schema is created, that's why we don't need to check again on next run
@@ -224,8 +224,7 @@ namespace Dotmim.Sync
 
                         // JUST before the whole process, get the timestamp, to be sure to 
                         // get rows inserted / updated elsewhere since the sync is not over
-                        (context, clientTimestamp) = this.Provider.GetLocalTimestampAsync(context,
-                            new MessageTimestamp(options.ScopeInfoTableName, schema.SerializationFormat),
+                        (context, clientTimestamp) = this.Provider.GetLocalTimestampAsync(context, options.ScopeInfoTableName,
                             connection, transaction, cancellationToken, progress);
 
                         if (cancellationToken.IsCancellationRequested)
@@ -235,7 +234,7 @@ namespace Dotmim.Sync
                             await this.Provider.GetChangeBatchAsync(context,
                                     new MessageGetChangesBatch(remoteScopeId, isNew, lastSyncTS,
                                         schema.Set, this.options.BatchSize, this.options.BatchDirectory,
-                                        schema.Filters, schema.SerializationFormat),
+                                        schema.Filters),
                                     connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                         if (cancellationToken.IsCancellationRequested)
@@ -331,7 +330,7 @@ namespace Dotmim.Sync
 
                         // Write scopes locally
                         context = await this.Provider.WriteScopesAsync(context,
-                                        new MessageWriteScopes(options.ScopeInfoTableName, scope, schema.SerializationFormat),
+                                        new MessageWriteScopes(options.ScopeInfoTableName, scope),
                                         connection, transaction, cancellationToken, progress
                                         ).ConfigureAwait(false);
 

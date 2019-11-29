@@ -98,9 +98,6 @@ namespace Dotmim.Sync.Data.Surrogate
             return dmSet;
         }
 
-
-   
-
         /// <summary>
         /// Clone the originla DmSet and copy datas from the DmSetSurrogate
         /// </summary>
