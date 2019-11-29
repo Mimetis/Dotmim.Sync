@@ -15,12 +15,11 @@ namespace Dotmim.Sync.Messages
     {
         private DmSet _schema;
 
-        public MessageEnsureDatabase(bool checkSchema, DmSet schema, ICollection<FilterClause> filters, SerializationFormat serializationFormat)
+        public MessageEnsureDatabase(bool checkSchema, DmSet schema, ICollection<FilterClause> filters)
         {
             this.CheckSchema = checkSchema;
             this.Schema = schema ?? throw new ArgumentNullException(nameof(schema));
             this.Filters = filters;
-            this.SerializationFormat = serializationFormat;
         }
 
         /// <summary>
@@ -37,11 +36,6 @@ namespace Dotmim.Sync.Messages
         /// Gets or Sets the filters used during the sync, to be applied on the database
         /// </summary>
         public ICollection<FilterClause> Filters { get; set; }
-
-        /// <summary>
-        /// Gets or Sets the Serialization format used during the sync
-        /// </summary>
-        public SerializationFormat SerializationFormat { get; set; }
 
     }
 }

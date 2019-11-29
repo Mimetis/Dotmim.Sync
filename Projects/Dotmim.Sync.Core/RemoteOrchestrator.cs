@@ -85,7 +85,7 @@ namespace Dotmim.Sync
 
                         // Server should have already the schema
                         context = await this.Provider.EnsureDatabaseAsync(context,
-                            new MessageEnsureDatabase(checkSchema, schema.Set, schema.Filters, schema.SerializationFormat),
+                            new MessageEnsureDatabase(checkSchema, schema.Set, schema.Filters),
                             connection, transaction,
                             cancellationToken, progress).ConfigureAwait(false);
 
@@ -168,7 +168,7 @@ namespace Dotmim.Sync
                         // JUST Before get changes, get the timestamp, to be sure to 
                         // get rows inserted / updated elsewhere since the sync is not over
                         (context, remoteClientTimestamp) = this.Provider.GetLocalTimestampAsync(context,
-                            new MessageTimestamp(options.ScopeInfoTableName, schema.SerializationFormat), connection, transaction, cancellationToken, progress);
+                            options.ScopeInfoTableName, connection, transaction, cancellationToken, progress);
 
                         if (cancellationToken.IsCancellationRequested)
                             cancellationToken.ThrowIfCancellationRequested();
@@ -178,7 +178,7 @@ namespace Dotmim.Sync
                             await this.Provider.GetChangeBatchAsync(context,
                                 new MessageGetChangesBatch(scope.Id, scope.IsNewScope, scope.LastServerSyncTimestamp,
                                     this.schema.Set, this.options.BatchSize, this.options.BatchDirectory, 
-                                    this.schema.Filters, this.schema.SerializationFormat),
+                                    this.schema.Filters),
                                     connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                         if (cancellationToken.IsCancellationRequested)

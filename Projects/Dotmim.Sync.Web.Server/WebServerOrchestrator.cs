@@ -41,7 +41,7 @@ namespace Dotmim.Sync.Web.Server
                 return schema;
 
             }
-            private set
+            set
             {
                 if (this.Provider == null || this.Provider.CacheManager == null)
                     return;
@@ -73,7 +73,7 @@ namespace Dotmim.Sync.Web.Server
 
                 return options;
             }
-            private set
+            set
             {
                 if (this.Provider == null || this.Provider.CacheManager == null)
                     return;
@@ -111,6 +111,7 @@ namespace Dotmim.Sync.Web.Server
         private async Task<HttpMessage> EnsureScopeAsync(HttpMessage httpMessage, CancellationToken cancellationToken)
         {
             HttpMessageEnsureScopesRequest httpMessageEnsureScopes;
+
             if (httpMessage.Content is HttpMessageEnsureScopesRequest)
                 httpMessageEnsureScopes = httpMessage.Content as HttpMessageEnsureScopesRequest;
             else

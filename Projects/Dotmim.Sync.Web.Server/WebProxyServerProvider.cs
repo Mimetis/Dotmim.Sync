@@ -100,10 +100,10 @@ namespace Dotmim.Sync.Web.Server
             var httpResponse = context.Response;
             var streamArray = GetBody(httpRequest);
 
-            var serializationFormat = SerializationFormat.Json;
+            string clientSerializationFormat = "json";
             // Get the serialization format
             if (TryGetHeaderValue(context.Request.Headers, "dotmim-sync-serialization-format", out var vs))
-                serializationFormat = vs.ToLowerInvariant() == "json" ? SerializationFormat.Json : SerializationFormat.Binary;
+                clientSerializationFormat = vs.ToLowerInvariant();
 
             if (!TryGetHeaderValue(context.Request.Headers, "dotmim-sync-session-id", out var sessionId))
                 throw new SyncException($"Can't find any session id in the header");
@@ -112,19 +112,21 @@ namespace Dotmim.Sync.Web.Server
             
             try
             {
-                var serializer = BaseConverter<HttpMessage>.GetConverter(serializationFormat);
-                var httpMessage = serializer.Deserialize(streamArray);
-                var syncSessionId = httpMessage.SyncContext.SessionId.ToString();
-
-                if (!httpMessage.SyncContext.SessionId.Equals(Guid.Parse(sessionId)))
-                    throw new SyncException($"Session id is not matching correctly between header and message");
 
                 // get cached provider instance if not defined byt web proxy server provider
                 if (remoteOrchestrator == null)
-                    remoteOrchestrator = GetCachedOrchestrator(context, syncSessionId);
+                    remoteOrchestrator = GetCachedOrchestrator(context, sessionId);
 
                 if (remoteOrchestrator == null)
-                    remoteOrchestrator = AddNewOrchestratorToCacheFromDI(context, syncSessionId);
+                    remoteOrchestrator = AddNewOrchestratorToCacheFromDI(context, sessionId);
+
+                var clientSerializer = remoteOrchestrator.Options.GetSerializer<HttpMessage>(clientSerializationFormat);
+                var httpMessage = clientSerializer.Deserialize(streamArray);
+                var syncSessionId = httpMessage.SyncContext.SessionId.ToString();
+
+
+                if (!httpMessage.SyncContext.SessionId.Equals(Guid.Parse(sessionId)))
+                    throw new SyncException($"Session id is not matching correctly between header and message");
 
                 // action from user if available
                 action?.Invoke(remoteOrchestrator);
@@ -132,7 +134,13 @@ namespace Dotmim.Sync.Web.Server
                 var httpMessageResponse =
                     await remoteOrchestrator.GetResponseMessageAsync(httpMessage, cancellationToken).ConfigureAwait(false);
 
-                var binaryData = serializer.Serialize(httpMessageResponse);
+                // Adding the serialization format used and session id
+                httpResponse.Headers.Add("dotmim-sync-session-id", sessionId.ToString());
+                httpResponse.Headers.Add("dotmim-sync-serialization-format", remoteOrchestrator.Options.Serializers.CurrentKey);
+
+                var serverSerializer = remoteOrchestrator.Options.GetSerializer<HttpMessage>() ;
+
+                var binaryData = serverSerializer.Serialize(httpMessageResponse);
 
                 await GetBody(httpResponse).WriteAsync(binaryData, 0, binaryData.Length).ConfigureAwait(false);
 
@@ -196,8 +204,13 @@ namespace Dotmim.Sync.Web.Server
 
             remoteOrchestrator = new WebServerOrchestrator(provider);
 
-            schema(remoteOrchestrator.Schema);
-            options(remoteOrchestrator.Options);
+            var syncSchema = new SyncSchema();
+            schema(syncSchema);
+            remoteOrchestrator.Schema = syncSchema;
+
+            var syncOptions = new SyncOptions();
+            options(syncOptions);
+            remoteOrchestrator.Options = syncOptions;
 
             cache.Set(sessionId, remoteOrchestrator, TimeSpan.FromHours(1));
             return remoteOrchestrator;

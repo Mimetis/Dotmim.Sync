@@ -152,11 +152,12 @@ namespace Dotmim.Sync.Tools
 
                 agent.SetOptions(o => o.BatchDirectory = string.IsNullOrEmpty(project.Configuration.BatchDirectory) ? null : project.Configuration.BatchDirectory);
                 agent.SetOptions(o => o.BatchSize = (int)Math.Min(Int32.MaxValue, project.Configuration.DownloadBatchSizeInKB));
+                //agent.SetOptions(o => o.SerializationFormat = project.Configuration.SerializationFormat);
+
                 //agent.Options.UseBulkOperations = project.Configuration.UseBulkOperation;
 
                 agent.SetSchema(agentSchema =>
                 {
-                    agentSchema.SerializationFormat = project.Configuration.SerializationFormat;
                     agentSchema.ConflictResolutionPolicy = project.Configuration.ConflictResolutionPolicy;
                 });
 

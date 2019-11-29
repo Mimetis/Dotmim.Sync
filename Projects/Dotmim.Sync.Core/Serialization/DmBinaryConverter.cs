@@ -2,7 +2,7 @@
 
 namespace Dotmim.Sync.Serialization
 {
-    public class DmBinaryConverter<T> : BaseConverter<T>
+    public class DmBinaryConverter<T> : ISerializer<T>
     {
         DmSerializer serializer;
 
@@ -11,12 +11,12 @@ namespace Dotmim.Sync.Serialization
             serializer = new DmSerializer();
         }
 
-        public override T Deserialize(Stream ms)
+        public T Deserialize(Stream ms)
         {
             return serializer.Deserialize<T>(ms);
         }
 
-        public override byte[] Serialize(T obj)
+        public byte[] Serialize(T obj)
         {
             return serializer.Serialize(obj);
         }

@@ -51,7 +51,7 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// Process a request message with HttpClient object. 
         /// </summary>
-        public async Task<T> ProcessRequestAsync<T>(T content, Guid sessionId, SerializationFormat serializationFormat, CancellationToken cancellationToken)
+        public async Task<T> ProcessRequestAsync<T>(T content, Guid sessionId, SyncOptions options, CancellationToken cancellationToken)
         {
             if (this.BaseUri == null)
                 throw new ArgumentException("BaseUri is not defined");
@@ -84,7 +84,7 @@ namespace Dotmim.Sync.Web.Client
                 var httpClientHandler = this.Handler ?? new HttpClientHandler();
 
                 // serialize dmSet content to bytearraycontent
-                var serializer = BaseConverter<T>.GetConverter(serializationFormat);
+                var serializer = options.GetSerializer<T>();
                 var binaryData = serializer.Serialize(content);
                 var arrayContent = new ByteArrayContent(binaryData);
 
@@ -106,7 +106,7 @@ namespace Dotmim.Sync.Web.Client
 
                 // Adding the serialization format used and session id
                 requestMessage.Headers.Add("dotmim-sync-session-id", sessionId.ToString());
-                requestMessage.Headers.Add("dotmim-sync-serialization-format", serializationFormat.ToString());
+                requestMessage.Headers.Add("dotmim-sync-serialization-format", options.Serializers.CurrentKey);
 
                 // Adding others headers
                 if (this.CustomHeaders != null && this.CustomHeaders.Count > 0)
@@ -115,7 +115,7 @@ namespace Dotmim.Sync.Web.Client
                             requestMessage.Headers.Add(kvp.Key, kvp.Value);
 
                 //request.AddHeader("content-type", "application/json");
-                if (serializationFormat == SerializationFormat.Json && !requestMessage.Content.Headers.Contains("content-type"))
+                if (options.Serializers.CurrentKey == "json" && !requestMessage.Content.Headers.Contains("content-type"))
                     requestMessage.Content.Headers.Add("content-type", "application/json");
 
                 response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
@@ -135,9 +135,11 @@ namespace Dotmim.Sync.Web.Client
 
                 // try to set the cookie for http session
                 var headers = response?.Headers;
+                var serverSerializationFormat = options.Serializers.CurrentKey;
+
                 if (headers != null)
                 {
-                    if (headers.TryGetValues("Set-Cookie", out IEnumerable<string> tmpList))
+                    if (headers.TryGetValues("Set-Cookie", out var tmpList))
                     {
                         var cookieList = tmpList.ToList();
 
@@ -155,11 +157,21 @@ namespace Dotmim.Sync.Web.Client
                         }
                     }
 
+                    // Get the serialization format
+                    if (headers.TryGetValues("dotmim-sync-serialization-format", out var vs))
+                        serverSerializationFormat = vs.ToList()[0].ToLowerInvariant();
+
                 }
 
                 using (var streamResponse = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
+                {
                     if (streamResponse.CanRead && streamResponse.Length > 0)
-                        responseMessage = serializer.Deserialize(streamResponse);
+                    {
+                        var serverSerializer = options.GetSerializer<T>(serverSerializationFormat);
+
+                        responseMessage = serverSerializer.Deserialize(streamResponse);
+                    }
+                }
 
                 return responseMessage;
 

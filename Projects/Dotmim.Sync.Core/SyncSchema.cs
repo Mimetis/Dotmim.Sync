@@ -36,11 +36,6 @@ namespace Dotmim.Sync
             get; set;
         }
 
-        /// <summary>
-        /// Gets/Sets the serialization converter object. Default is Json
-        /// </summary>
-        [DataMember(Name = "SF")]
-        public SerializationFormat SerializationFormat { get; set; }
 
         /// <summary>
         /// Gets or Sets the current scope name
@@ -213,7 +208,6 @@ namespace Dotmim.Sync
         {
             this.Set = new DmSet(DMSET_NAME);
             this.ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
-            this.SerializationFormat = SerializationFormat.Json;
             this.Filters = new List<FilterClause>();
             this.ScopeName = SyncOptions.DefaultScopeName;
         }
@@ -233,7 +227,6 @@ namespace Dotmim.Sync
             {
                 ConflictResolutionPolicy = this.ConflictResolutionPolicy,
                 Set = this.Set.Clone(),
-                SerializationFormat = this.SerializationFormat,
                 TrackingTablesSuffix = this.TrackingTablesSuffix,
                 TrackingTablesPrefix = this.TrackingTablesPrefix,
                 StoredProceduresPrefix = this.StoredProceduresPrefix,
