@@ -15,7 +15,7 @@ namespace Dotmim.Sync.Data
 {
 
     [Serializable]
-    public class DmSet : ISerializable
+    public class DmSet : ISerializable, ISerializationSurrogateProvider
     {
         string dmSetName = "NewDataSet";
 
@@ -80,10 +80,7 @@ namespace Dotmim.Sync.Data
         /// <summary>
         /// Compare string with the table CultureInfo and CaseSensitive flags
         /// </summary>
-        public bool IsEqual(string s1, string s2)
-        {
-            return this.culture.CompareInfo.Compare(s1, s2, this.compareFlags) == 0;
-        }
+        public bool IsEqual(string s1, string s2) => this.culture.CompareInfo.Compare(s1, s2, this.compareFlags) == 0;
 
         public CultureInfo Culture
         {
@@ -127,6 +124,22 @@ namespace Dotmim.Sync.Data
             : this()
         {
             this.DmSetName = dataSetName;
+        }
+
+
+        public object GetDeserializedObject(object obj, Type targetType)
+        {
+            return new DmSet();
+        }
+
+        public object GetObjectToSerialize(object obj, Type targetType)
+        {
+            return new DmSetSurrogate();
+        }
+
+        public Type GetSurrogateType(Type type)
+        {
+            return typeof(DmSetSurrogate);
         }
 
         public DmSet(SerializationInfo info, StreamingContext context) : this()
@@ -407,6 +420,6 @@ namespace Dotmim.Sync.Data
             }
         }
 
-       
+
     }
 }

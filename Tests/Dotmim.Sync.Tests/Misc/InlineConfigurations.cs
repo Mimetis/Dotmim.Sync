@@ -17,7 +17,6 @@ namespace Dotmim.Sync.Test.Misc
                 new Action<SyncSchema>( sc => {
                     sc.ConflictResolutionPolicy = Enumerations.ConflictResolutionPolicy.ServerWins;
                     sc.Filters.Clear();
-                    sc.SerializationFormat = Enumerations.SerializationFormat.Json;
                     sc.StoredProceduresPrefix = "";
                     sc.StoredProceduresSuffix = "";
                     sc.TrackingTablesPrefix = "";
@@ -29,7 +28,6 @@ namespace Dotmim.Sync.Test.Misc
                 new Action<SyncSchema>( sc => {
                     sc.ConflictResolutionPolicy = Enumerations.ConflictResolutionPolicy.ServerWins;
                     sc.Filters.Clear();
-                    sc.SerializationFormat = Enumerations.SerializationFormat.Binary;
                     sc.StoredProceduresPrefix = "";
                     sc.StoredProceduresSuffix = "";
                     sc.TrackingTablesPrefix = "";

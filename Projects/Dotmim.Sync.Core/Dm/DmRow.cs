@@ -17,11 +17,7 @@ namespace Dotmim.Sync.Data
     /// </summary>
     public class DmRow
     {
-        readonly DmTable table;
         readonly DmColumnCollection columns;
-
-        // représente l'id de la ligne 
-        int rowId = -1;
 
         // représente l'index de la version avant modification de la ligne
         internal int oldRecord = -1;
@@ -39,17 +35,8 @@ namespace Dotmim.Sync.Data
         // si oldRecord == -1 && newRecord == -1 alors l'enregisrement est Detached
 
 
-        internal int RowId
-        {
-            get
-            {
-                return rowId;
-            }
-            set
-            {
-                rowId = value;
-            }
-        }
+        // représente l'id de la ligne 
+        internal int RowId { get; set; } = -1;
 
         /// <devdoc>
         ///    <para>Gets the current state of the row in regards to its relationship to the table.</para>
@@ -72,52 +59,12 @@ namespace Dotmim.Sync.Data
 
             }
         }
-        public DmTable Table
-        {
-            get
-            {
-                return table;
-            }
 
-        }
-
-        //protected internal DmRow(DmTable table, DmRowState state)
-        //{
-        //    this.table = table;
-        //    this.columns = table.Columns;
-        //    var record = this.Table.Rows.GetNewVersionId();
-
-        //    this.tempRecord = record;
-
-        //    // si oldRecord == -1 && newRecord != -1 alors l'enregistrement est Added
-        //    // si oldRecord != -1 && newRecord == -1 alors l'enregistrement est Deleted
-        //    // si oldRecord != -1 && newRecord != -1 alors l'enregistrement est Modified
-        //    // si oldRecord == -1 && newRecord == -1 alors l'enregisrement est Detached
-        //    switch (state)
-        //    {
-        //        case DmRowState.Added:
-        //            this.oldRecord = -1;
-        //            this.newRecord = this.Table.Rows.GetNewVersionId();
-        //            break;
-        //        case DmRowState.Deleted:
-        //            this.oldRecord = this.Table.Rows.GetNewVersionId();
-        //            this.newRecord = -1;
-        //            break;
-        //        case DmRowState.Modified:
-        //            this.newRecord = this.Table.Rows.GetNewVersionId();
-        //            this.oldRecord = this.Table.Rows.GetNewVersionId();
-        //            break;
-        //        case DmRowState.Detached:
-        //            this.oldRecord = -1;
-        //            this.newRecord = -1;
-        //            break;
-        //    }
-
-        //}
+        public DmTable Table { get; }
 
         protected internal DmRow(DmTable table, bool initColumns = true)
         {
-            this.table = table;
+            this.Table = table;
             this.columns = table.Columns;
 
             // Init each columns and create a tempRecord
@@ -205,7 +152,6 @@ namespace Dotmim.Sync.Data
             }
         }
 
-
         /// <summary>
         /// Gets the data stored in the row, specified by index and version of the data to retrieve.
         /// </summary>
@@ -226,7 +172,7 @@ namespace Dotmim.Sync.Data
         {
             get
             {
-                DmColumn row = GetDataColumn(rowName);
+                var row = GetDataColumn(rowName);
                 int record = GetRecordFromVersion(version);
                 return row[record];
             }
@@ -290,7 +236,7 @@ namespace Dotmim.Sync.Data
 
                 for (int i = 0; i < values.Length; i++)
                 {
-                    DmColumn row = columns[i];
+                    var row = columns[i];
                     values[i] = row[record];
                 }
                 return values;
@@ -317,9 +263,9 @@ namespace Dotmim.Sync.Data
                             throw new Exception($"ReadOnly {column.ColumnName}");
 
 
-                        if (column.Table != table)
+                        if (column.Table != Table)
                             // user removed row from table during OnColumnChanging event
-                            throw new Exception($"ColumnNotInTheTable {column.ColumnName} , {table.TableName}");
+                            throw new Exception($"ColumnNotInTheTable {column.ColumnName} , {Table.TableName}");
 
                         if (tempRecord == -1)
                             // user affected CancelEdit or EndEdit during OnColumnChanging event of the last value
@@ -424,7 +370,7 @@ namespace Dotmim.Sync.Data
         internal void RemoveColumnsRecord(int recordId)
         {
             // Remove the value from the internal storage
-            foreach (var c in this.table.Columns)
+            foreach (var c in this.Table.Columns)
                 c.RemoveRecord(recordId);
         }
 
@@ -445,8 +391,8 @@ namespace Dotmim.Sync.Data
             if (column == null)
                 throw new ArgumentNullException(nameof(column));
 
-            if (column.Table != table)
-                throw new Exception($"ColumnNotInTheTable {column.ColumnName} : {table.TableName}");
+            if (column.Table != Table)
+                throw new Exception($"ColumnNotInTheTable {column.ColumnName} : {Table.TableName}");
 
         }
 
@@ -491,14 +437,14 @@ namespace Dotmim.Sync.Data
         /// specified DmRelation.
         /// </summary>
         public DmRow[] GetChildRows(string relationName) =>
-            GetChildRows(this.table.ChildRelations.FirstOrDefault(r => r.RelationName == relationName), DmRowVersion.Default);
+            GetChildRows(this.Table.ChildRelations.FirstOrDefault(r => r.RelationName == relationName), DmRowVersion.Default);
 
         /// <summary>
         /// Gets the child rows of this DmRow using the
         /// specified DmRelation.
         /// </summary>
         public DmRow[] GetChildRows(string relationName, DmRowVersion version) =>
-            GetChildRows(table.ChildRelations.FirstOrDefault(r => r.RelationName == relationName), version);
+            GetChildRows(Table.ChildRelations.FirstOrDefault(r => r.RelationName == relationName), version);
 
         /// <summary>
         /// Gets the child rows of this DmRow using the
@@ -513,22 +459,22 @@ namespace Dotmim.Sync.Data
         public DmRow[] GetChildRows(DmRelation relation, DmRowVersion version)
         {
             if (relation == null)
-                return new DmRow[] { table.NewRow() };
+                return new DmRow[] { Table.NewRow() };
 
-            if (relation.DmSet != table.DmSet)
+            if (relation.DmSet != Table.DmSet)
                 throw new Exception("RowNotInTheDataSet");
 
-            if (relation.ParentKey.Table != table)
+            if (relation.ParentKey.Table != Table)
                 throw new Exception("RelationForeignTable");
 
             return DmRelation.GetChildRows(relation.ParentKey, relation.ChildKey, this, version);
         }
 
         public DmRow GetParentRow(string relationName) =>
-            GetParentRow(table.ParentRelations.FirstOrDefault(r => r.RelationName == relationName), DmRowVersion.Default);
+            GetParentRow(Table.ParentRelations.FirstOrDefault(r => r.RelationName == relationName), DmRowVersion.Default);
 
         public DmRow GetParentRow(string relationName, DmRowVersion version) =>
-            GetParentRow(table.ParentRelations.FirstOrDefault(r => r.RelationName == relationName), version);
+            GetParentRow(Table.ParentRelations.FirstOrDefault(r => r.RelationName == relationName), version);
 
         /// <summary>
         /// Gets the parent row of this DmRow using the specified DmRelation .
@@ -540,13 +486,13 @@ namespace Dotmim.Sync.Data
         /// Gets the parent rows of this DmRow using the specified DmRelation .
         /// </summary>
         public DmRow[] GetParentRows(string relationName) =>
-                    GetParentRows(table.ParentRelations.FirstOrDefault(r => r.RelationName == relationName), DmRowVersion.Default);
+                    GetParentRows(Table.ParentRelations.FirstOrDefault(r => r.RelationName == relationName), DmRowVersion.Default);
 
         /// <summary>
         /// Gets the parent rows of this DmRow using the specified DmRelation .
         /// </summary>
         public DmRow[] GetParentRows(string relationName, DmRowVersion version) =>
-            GetParentRows(table.ParentRelations.FirstOrDefault(r => r.RelationName == relationName), version);
+            GetParentRows(Table.ParentRelations.FirstOrDefault(r => r.RelationName == relationName), version);
 
         /// <summary>
         /// Gets the parent rows of this DmRow using the specified DmRelation .
@@ -560,12 +506,12 @@ namespace Dotmim.Sync.Data
         public DmRow[] GetParentRows(DmRelation relation, DmRowVersion version)
         {
             if (relation == null)
-                return new DmRow[] { table.NewRow() };
+                return new DmRow[] { Table.NewRow() };
 
-            if (relation.DmSet != table.DmSet)
+            if (relation.DmSet != Table.DmSet)
                 throw new Exception("RowNotInTheDataSet");
 
-            if (relation.ChildKey.Table != table)
+            if (relation.ChildKey.Table != Table)
                 throw new Exception("RelationForeignTable");
 
             return DmRelation.GetParentRows(relation.ParentKey, relation.ChildKey, this, version);
@@ -581,10 +527,10 @@ namespace Dotmim.Sync.Data
             if (relation == null)
                 return null;
 
-            if (relation.DmSet != table.DmSet)
+            if (relation.DmSet != Table.DmSet)
                 throw new Exception("RowNotInTheDataSet");
 
-            if (relation.ChildKey.Table != table)
+            if (relation.ChildKey.Table != Table)
                 throw new Exception("RelationForeignTable");
 
 
@@ -611,13 +557,13 @@ namespace Dotmim.Sync.Data
 
         public object[] GetKeyValues()
         {
-            return GetKeyValues(this.table.PrimaryKey);
+            return GetKeyValues(this.Table.PrimaryKey);
         }
 
         internal object[] GetKeyValues(DmRowVersion version)
         {
             int record = GetRecordFromVersion(version);
-            return this.table.PrimaryKey.GetKeyValues(record);
+            return this.Table.PrimaryKey.GetKeyValues(record);
         }
         internal object[] GetKeyValues(DmKey key)
         {

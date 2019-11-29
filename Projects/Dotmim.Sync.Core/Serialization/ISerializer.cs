@@ -1,14 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Text;
+﻿using System.IO;
 
 namespace Dotmim.Sync.Serialization
 {
-    public interface ISerializer
+
+    public interface ISerializerFactory
     {
-        void Serialize<T>(T obj, Stream ms);
-        T Deserialize<T>(Stream ms);
-        byte[] Serialize<T>(T obj);
+        ISerializer<T> GetSerializer<T>();
+    }
+
+    public interface ISerializer<T>
+    {
+        T Deserialize(Stream ms);
+        byte[] Serialize(T obj);
     }
 }

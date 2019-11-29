@@ -9,6 +9,7 @@ using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Tests.Models;
 using Dotmim.Sync.Web.Client;
 using Dotmim.Sync.Web.Server;
+using MessagePack;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -17,10 +18,12 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.IO;
+using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml;
 using SerializationFormat = Dotmim.Sync.Enumerations.SerializationFormat;
 
 internal class Program
@@ -33,11 +36,283 @@ internal class Program
                                                     "SalesOrderHeader", "SalesOrderDetail" };
     private static void Main(string[] args)
     {
-        SynchronizeAsync().GetAwaiter().GetResult();
+        // SyncHttpThroughKestellAsync().GetAwaiter().GetResult();
+
+        var dslight = new DmSetLight(GetSet());
+
+        var serializer = new JsonConverter<DmSetLight>();
+
+        var bin = serializer.Serialize(dslight);
+
+        //using (var ms = new MemoryStream(bin))
+        //{
+        //    using (var sr = new StreamReader(ms))
+        //    {
+        //        var json = sr.ReadToEnd();
+        //    }
+        //}
+
+        DmSetLight newDmSetLight;
+        using (var ms = new MemoryStream(bin))
+        {
+            newDmSetLight = serializer.Deserialize(ms);
+        }
+
+
+        var newDmSet = CreateDmSet();
+        newDmSetLight.WriteToDmSet(newDmSet);
 
         Console.ReadLine();
     }
 
+
+    private static void Test()
+    {
+        var record1 = new Record(1, 2, "+", 3);
+        Console.WriteLine("Original record: {0}", record1.ToString());
+
+        
+
+        var stream1 = new MemoryStream();
+
+        //Serialize the Record object to a memory stream using DataContractSerializer.  
+        DataContractSerializer serializer = new DataContractSerializer(typeof(Record));
+        serializer.WriteObject(stream1, record1);
+
+        MemoryStream stream2 = new MemoryStream();
+
+        var binaryDictionaryWriter = XmlDictionaryWriter.CreateBinaryWriter(stream2);
+        serializer.WriteObject(binaryDictionaryWriter, record1);
+        binaryDictionaryWriter.Flush();
+
+        //report the length of the streams  
+        Console.WriteLine("Text Stream is {0} bytes long", stream1.Length);
+        Console.WriteLine("Binary Stream is {0} bytes long", stream2.Length);
+    }
+
+
+    private static DmSet CreateDmSet()
+    {
+        var set = new DmSet("ClientDmSet");
+
+        var tbl = new DmTable("ServiceTickets");
+        set.Tables.Add(tbl);
+        var id = new DmColumn<Guid>("ServiceTicketID");
+        tbl.Columns.Add(id);
+        var key = new DmKey(new DmColumn[] { id });
+        tbl.PrimaryKey = key;
+        tbl.Columns.Add(new DmColumn<string>("Title"));
+        tbl.Columns.Add(new DmColumn<string>("Description"));
+        tbl.Columns.Add(new DmColumn<int>("StatusValue"));
+        tbl.Columns.Add(new DmColumn<int>("EscalationLevel"));
+        tbl.Columns.Add(new DmColumn<DateTime>("Opened"));
+        tbl.Columns.Add(new DmColumn<DateTime>("Closed"));
+        tbl.Columns.Add(new DmColumn<int>("CustomerID"));
+
+        return set;
+    }
+
+    private static DmSet GetSet()
+    {
+        var set = CreateDmSet();
+        var tbl = set.Tables[0];
+
+        #region adding rows
+        var st = tbl.NewRow();
+        st["ServiceTicketID"] = Guid.NewGuid();
+        st["Title"] = "Titre AER";
+        st["Description"] = "Description 2";
+        st["EscalationLevel"] = 1;
+        st["StatusValue"] = 2;
+        st["Opened"] = DateTime.Now;
+        st["Closed"] = null;
+        st["CustomerID"] = 1;
+        tbl.Rows.Add(st);
+
+        st = tbl.NewRow();
+        st["ServiceTicketID"] = Guid.NewGuid();
+        st["Title"] = "Titre DE";
+        st["Description"] = "Description 2";
+        st["EscalationLevel"] = 3;
+        st["StatusValue"] = 2;
+        st["Opened"] = DateTime.Now;
+        st["Closed"] = null;
+        st["CustomerID"] = 1;
+        tbl.Rows.Add(st);
+
+        st = tbl.NewRow();
+        st["ServiceTicketID"] = Guid.NewGuid();
+        st["Title"] = "Titre FF";
+        st["Description"] = "Description 2";
+        st["EscalationLevel"] = 3;
+        st["StatusValue"] = 4;
+        st["Opened"] = DateTime.Now;
+        st["Closed"] = null;
+        st["CustomerID"] = 2;
+        tbl.Rows.Add(st);
+
+        st = tbl.NewRow();
+        st["ServiceTicketID"] = Guid.NewGuid();
+        st["Title"] = "Titre AC";
+        st["Description"] = "Description 2";
+        st["EscalationLevel"] = 1;
+        st["StatusValue"] = 2;
+        st["Opened"] = DateTime.Now;
+        st["Closed"] = null;
+        st["CustomerID"] = 2;
+        tbl.Rows.Add(st);
+
+        st = tbl.NewRow();
+        st["ServiceTicketID"] = Guid.NewGuid();
+        st["Title"] = "Titre ZDZDZ";
+        st["Description"] = "Description 2";
+        st["EscalationLevel"] = 0;
+        st["StatusValue"] = 1;
+        st["Opened"] = DateTime.Now;
+        st["Closed"] = null;
+        st["CustomerID"] = 2;
+        tbl.Rows.Add(st);
+
+        st = tbl.NewRow();
+        st["ServiceTicketID"] = Guid.NewGuid();
+        st["Title"] = "Titre VGH";
+        st["Description"] = "Description 2";
+        st["EscalationLevel"] = 0;
+        st["StatusValue"] = 1;
+        st["Opened"] = DateTime.Now;
+        st["Closed"] = null;
+        st["CustomerID"] = 3;
+        tbl.Rows.Add(st);
+
+        st = tbl.NewRow();
+        st["ServiceTicketID"] = Guid.NewGuid();
+        st["Title"] = "Titre ETTG";
+        st["Description"] = "Description 2";
+        st["EscalationLevel"] = 2;
+        st["StatusValue"] = 1;
+        st["Opened"] = DateTime.Now;
+        st["Closed"] = null;
+        st["CustomerID"] = 3;
+        tbl.Rows.Add(st);
+
+        st = tbl.NewRow();
+        st["ServiceTicketID"] = Guid.NewGuid();
+        st["Title"] = "Titre SADZD";
+        st["Description"] = "Description 2";
+        st["EscalationLevel"] = 1;
+        st["StatusValue"] = 1;
+        st["Opened"] = DateTime.Now;
+        st["Closed"] = null;
+        st["CustomerID"] = 3;
+        tbl.Rows.Add(st);
+
+        st = tbl.NewRow();
+        st["ServiceTicketID"] = Guid.NewGuid();
+        st["Title"] = "Titre AEEE";
+        st["Description"] = "Description 2";
+        st["EscalationLevel"] = 0;
+        st["StatusValue"] = 0;
+        st["Opened"] = DateTime.Now;
+        st["Closed"] = null;
+        st["CustomerID"] = 1;
+        tbl.Rows.Add(st);
+
+        st = tbl.NewRow();
+        st["ServiceTicketID"] = Guid.NewGuid();
+        st["Title"] = "Titre CZDADA";
+        st["Description"] = "Description 2";
+        st["EscalationLevel"] = 0;
+        st["StatusValue"] = 0;
+        st["Opened"] = DateTime.Now;
+        st["Closed"] = null;
+        st["CustomerID"] = 3;
+        tbl.Rows.Add(st);
+
+        st = tbl.NewRow();
+        st["ServiceTicketID"] = Guid.NewGuid();
+        st["Title"] = "Titre AFBBB";
+        st["Description"] = "Description 2";
+        st["EscalationLevel"] = 0;
+        st["StatusValue"] = 3;
+        st["Opened"] = DateTime.Now;
+        st["Closed"] = null;
+        st["CustomerID"] = 3;
+        tbl.Rows.Add(st);
+
+        st = tbl.NewRow();
+        st["ServiceTicketID"] = Guid.NewGuid();
+        st["Title"] = "Titre AZDCV";
+        st["Description"] = "Description 2";
+        st["EscalationLevel"] = 2;
+        st["StatusValue"] = 2;
+        st["Opened"] = DateTime.Now;
+        st["Closed"] = null;
+        st["CustomerID"] = 2;
+        tbl.Rows.Add(st);
+
+        st = tbl.NewRow();
+        st["ServiceTicketID"] = Guid.NewGuid();
+        st["Title"] = "Titre UYTR";
+        st["Description"] = "Description 2";
+        st["EscalationLevel"] = 0;
+        st["StatusValue"] = 1;
+        st["Opened"] = DateTime.Now;
+        st["Closed"] = null;
+        st["CustomerID"] = 3;
+        tbl.Rows.Add(st);
+
+        st = tbl.NewRow();
+        st["ServiceTicketID"] = Guid.NewGuid();
+        st["Title"] = "Titre NHJK";
+        st["Description"] = "Description 2";
+        st["EscalationLevel"] = 0;
+        st["StatusValue"] = 1;
+        st["Opened"] = DateTime.Now;
+        st["Closed"] = null;
+        st["CustomerID"] = 1;
+        tbl.Rows.Add(st);
+
+        st = tbl.NewRow();
+        st["ServiceTicketID"] = Guid.NewGuid();
+        st["Title"] = "Titre XCVBN";
+        st["Description"] = "Description 2";
+        st["EscalationLevel"] = 0;
+        st["StatusValue"] = 1;
+        st["Opened"] = DateTime.Now;
+        st["Closed"] = null;
+        st["CustomerID"] = 2;
+        tbl.Rows.Add(st);
+
+        st = tbl.NewRow();
+        st["ServiceTicketID"] = Guid.NewGuid();
+        st["Title"] = "Titre LKNB";
+        st["Description"] = "Description 2";
+        st["EscalationLevel"] = 3;
+        st["StatusValue"] = 2;
+        st["Opened"] = DateTime.Now;
+        st["Closed"] = null;
+        st["CustomerID"] = 3;
+        tbl.Rows.Add(st);
+
+        st = tbl.NewRow();
+        st["ServiceTicketID"] = Guid.NewGuid();
+        st["Title"] = "Titre ADFVB";
+        st["Description"] = "Description 2";
+        st["EscalationLevel"] = 0;
+        st["StatusValue"] = 2;
+        st["Opened"] = DateTime.Now;
+        st["Closed"] = null;
+        st["CustomerID"] = 1;
+        tbl.Rows.Add(st);
+        #endregion
+
+        tbl.AcceptChanges();
+
+        st.Delete();
+
+
+        return set;
+    }
 
 
     private static async Task SynchronizeWithSyncAgent2Async()
@@ -71,7 +346,6 @@ internal class Program
         // Setting configuration options
         agent.SetSchema(s =>
         {
-            s.SerializationFormat = Dotmim.Sync.Enumerations.SerializationFormat.Json;
             s.StoredProceduresPrefix = "s";
             s.StoredProceduresSuffix = "";
             s.TrackingTablesPrefix = "t";
@@ -230,7 +504,6 @@ internal class Program
         // Setting configuration options
         agent.SetSchema(s =>
         {
-            s.SerializationFormat = Dotmim.Sync.Enumerations.SerializationFormat.Binary;
             s.StoredProceduresPrefix = "s";
             s.StoredProceduresSuffix = "";
             s.TrackingTablesPrefix = "t";
@@ -411,13 +684,13 @@ internal class Program
     {
         // server provider
         // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString("AdventureWorks"));
-        var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString("Client"));
+        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
 
         var proxyClientProvider = new WebClientOrchestrator();
 
         // Tables involved in the sync process:
-        var tables = new string[] { "ProductCategory", "ProductModel", "Product" };
+        var tables = allTables;
 
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, proxyClientProvider);
@@ -434,6 +707,7 @@ internal class Program
             opt.CleanMetadatas = true;
             opt.UseBulkOperations = true;
             opt.UseVerboseErrors = false;
+            opt.Serializers.Add("messagepack", new CustomMessagePackSerializerFactory(), true);
         });
 
         // ----------------------------------
@@ -442,7 +716,6 @@ internal class Program
         var schema = new Action<SyncSchema>(s =>
         {
             s.Add(tables);
-            s.SerializationFormat = SerializationFormat.Json;
             s.StoredProceduresPrefix = "s";
             s.StoredProceduresSuffix = "";
             s.TrackingTablesPrefix = "t";
@@ -456,7 +729,7 @@ internal class Program
             opt.CleanMetadatas = true;
             opt.UseBulkOperations = true;
             opt.UseVerboseErrors = false;
-
+            opt.Serializers.Add("messagepack", new CustomMessagePackSerializerFactory(), true);
         });
 
 
@@ -581,4 +854,55 @@ internal class Program
 
 
 
+}
+
+
+[DataContract(Namespace = "http://Microsoft.ServiceModel.Samples")]
+internal class Record
+{
+    private double n1;
+    private double n2;
+    private string operation;
+    private double result;
+
+    internal Record(double n1, double n2, string operation, double result)
+    {
+        this.n1 = n1;
+        this.n2 = n2;
+        this.operation = operation;
+        this.result = result;
+    }
+
+    [DataMember]
+    internal double OperandNumberOne
+    {
+        get { return n1; }
+        set { n1 = value; }
+    }
+
+    [DataMember]
+    internal double OperandNumberTwo
+    {
+        get { return n2; }
+        set { n2 = value; }
+    }
+
+    [DataMember]
+    internal string Operation
+    {
+        get { return operation; }
+        set { operation = value; }
+    }
+
+    [DataMember]
+    internal double Result
+    {
+        get { return result; }
+        set { result = value; }
+    }
+
+    public override string ToString()
+    {
+        return $"Record: {n1} {operation} {n2} = {result}";
+    }
 }

@@ -38,7 +38,7 @@ namespace Dotmim.Sync.Tests.StandAlone
         public void Serialize_Object_With_Bin()
         {
 
-            BaseConverter<Client> serializer = new DmBinaryConverter<Client>();
+            var serializer = new DmBinaryConverter<Client>();
 
             Guid guid = Guid.NewGuid();
             var client = new Client
@@ -161,7 +161,7 @@ namespace Dotmim.Sync.Tests.StandAlone
         public void Serialize_Object_With_Json()
         {
 
-            BaseConverter<Client> serializer = new Serialization.JsonConverter<Client>();
+            var serializer = new Serialization.JsonConverter<Client>();
 
             var guid = Guid.NewGuid();
             var client = new Client

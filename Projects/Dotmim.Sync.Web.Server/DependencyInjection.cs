@@ -56,8 +56,14 @@ namespace Microsoft.Extensions.DependencyInjection
             var webProvider = new WebServerOrchestrator(provider);
 
             // Sets the options / configurations
-            schema(webProvider.Schema);
-            options(webProvider.Options);
+            var syncSchema = new SyncSchema();
+            schema(syncSchema);
+            webProvider.Schema = syncSchema;
+
+            var syncOptions = new SyncOptions();
+            options(syncOptions);
+            webProvider.Options = syncOptions;
+
 
             return webProvider;
         }
