@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Dotmim.Sync.Batch;
+using Dotmim.Sync.Data;
 using Dotmim.Sync.Data.Surrogate;
 using Microsoft.Net.Http.Headers;
 using Newtonsoft.Json.Linq;
@@ -118,7 +119,6 @@ namespace Dotmim.Sync.Web.Client
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
 
-
             // Create the message to be sent
             var httpMessage = new HttpMessage
             {
@@ -129,7 +129,7 @@ namespace Dotmim.Sync.Web.Client
 
             // Post the request and get the response from server
             var httpMessageResponse = await this.httpRequestHandler.ProcessRequestAsync(httpMessage, context.SessionId,
-                    schema.SerializationFormat, cancellationToken).ConfigureAwait(false);
+                    options, cancellationToken).ConfigureAwait(false);
 
             if (httpMessageResponse == null)
                 throw new Exception("Can't have an empty body");
@@ -168,7 +168,7 @@ namespace Dotmim.Sync.Web.Client
 
             //Post request and get response
             var httpMessageResponse = await this.httpRequestHandler.ProcessRequestAsync(
-                httpMessage, context.SessionId, this.Schema.SerializationFormat, cancellationToken).ConfigureAwait(false);
+                httpMessage, context.SessionId, this.Options, cancellationToken).ConfigureAwait(false);
 
             if (httpMessageResponse == null)
                 throw new Exception("Can't have an empty body");
@@ -280,6 +280,7 @@ namespace Dotmim.Sync.Web.Client
                 context = httpMessageResponse == null ? context : httpMessageResponse.SyncContext;
                 remoteClientTimestamp = httpMessageContent.RemoteClientTimestamp;
 
+
                 // Create a BatchPartInfo instance
                 serverBatchInfo.AddChanges(httpMessageContent.Changes, httpMessageContent.BatchIndex, false);
 
@@ -306,7 +307,7 @@ namespace Dotmim.Sync.Web.Client
                     };
 
                     httpMessageResponse = await this.httpRequestHandler.ProcessRequestAsync(
-                                httpMessage, context.SessionId, this.Schema.SerializationFormat, cancellationToken).ConfigureAwait(false);
+                                httpMessage, context.SessionId, this.Options, cancellationToken).ConfigureAwait(false);
 
                     if (httpMessageResponse == null)
                         throw new Exception("Can't have an empty body");
@@ -324,6 +325,7 @@ namespace Dotmim.Sync.Web.Client
             return (context, remoteClientTimestamp, serverBatchInfo, serverChangesSelected);
         }
 
+        
 
     }
 }

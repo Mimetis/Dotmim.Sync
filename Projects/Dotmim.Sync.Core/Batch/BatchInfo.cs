@@ -108,9 +108,9 @@ namespace Dotmim.Sync.Batch
                         // return the table
                         if (batchPartinInfo.Data.Tables.Any(t => string.Equals(tableName, t.TableName, stringComparison)))
                         {
-                            var tableSurrogate = batchPartinInfo.Data.Tables.First(tbl => string.Equals(tableName, tbl.TableName, stringComparison));
+                            var table = batchPartinInfo.Data.Tables.First(tbl => string.Equals(tableName, tbl.TableName, stringComparison));
 
-                            yield return tableSurrogate;
+                            yield return table;
 
                             batchPartinInfo.Data.Clear();
                             batchPartinInfo.Data = null;

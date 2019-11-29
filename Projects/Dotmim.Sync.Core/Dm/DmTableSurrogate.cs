@@ -95,8 +95,6 @@ namespace Dotmim.Sync.Data.Surrogate
         /// </summary>
         public String TrackingTablesSuffix { get; set; }
 
-
-
         public long GetEmptyBytesLength()
         {
             long bytesLength = String.IsNullOrEmpty(CultureInfoName) ? 1L : Encoding.UTF8.GetBytes(CultureInfoName).Length;
@@ -214,7 +212,6 @@ namespace Dotmim.Sync.Data.Surrogate
             }
         }
 
-
         /// <summary>
         /// Copies the table schema from a DmTableSurrogate object into a DmTable object.
         /// </summary>
@@ -247,7 +244,6 @@ namespace Dotmim.Sync.Data.Surrogate
 
             return dmTable;
         }
-
 
         private DmRow ConvertToDmRow(DmTable dt, int bitIndex)
         {
@@ -382,7 +378,6 @@ namespace Dotmim.Sync.Data.Surrogate
                 this.Records[i].Add(row[i, rowVersion]);
 
         }
-
 
         /// <summary>
         /// Get a row size

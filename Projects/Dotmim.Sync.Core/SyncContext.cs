@@ -1,6 +1,7 @@
 ﻿using Dotmim.Sync.Enumerations;
 using System;
 using Dotmim.Sync.Filter;
+using System.Runtime.Serialization;
 
 namespace Dotmim.Sync
 {
@@ -8,31 +9,36 @@ namespace Dotmim.Sync
     /// Context of the current Sync session
     /// Encapsulates data changes and metadata for a synchronization session.
     /// </summary>
-    [Serializable]
+    [DataContract]
     public class SyncContext
     {
         /// <summary>
         /// Current Session, in progress
         /// </summary>
+        [DataMember]
         public Guid SessionId { get; set; }
 
         /// <summary>Gets or sets the time when a sync sessionn started.
         /// </summary>
+        [DataMember]
         public DateTime StartTime { get; set; }
 
         /// <summary>
         /// Gets or Sets the ScopeName for this sync session
         /// </summary>
-        public String ScopeName { get; set; }
+        [DataMember]
+        public string ScopeName { get; set; }
 
         /// <summary>
         /// <summary>Gets or sets the time when a sync session ended.
         /// </summary>
+        [DataMember]
         public DateTime CompleteTime { get; set; }
 
         /// <summary>
         /// Gets or sets the sync type used during this session. Can be : Normal, Reinitialize, ReinitializeWithUpload
         /// </summary>
+        [DataMember]
         public SyncType SyncType { get; set; }
 
         /// <summary>
@@ -41,36 +47,43 @@ namespace Dotmim.Sync
         /// When remote GetChanges and locally ApplyChanges, we are in Download direction
         /// this Property is used to check SyncDirection on each table.
         /// </summary>
+        [DataMember]
         public SyncWay SyncWay { get; set; }
 
         /// <summary>
         /// Total number of change sets downloaded
         /// </summary>
+        [DataMember]
         public int TotalChangesDownloaded { get; set; }
 
         /// <summary>
         /// Total number of change sets uploaded
         /// </summary>
+        [DataMember]
         public int TotalChangesUploaded { get; set; }
 
         /// <summary>
         /// Total number of Sync Conflicts
         /// </summary>
+        [DataMember]
         public int TotalSyncConflicts { get; set; }
 
         /// <summary>
         /// Total number of Sync Conflicts
         /// </summary>
+        [DataMember]
         public int TotalSyncErrors { get; set; }
 
         /// <summary>
         /// Actual sync stage
         /// </summary>
+        [DataMember]
         public SyncStage SyncStage { get; set; }
 
         /// <summary>
         /// Get or Sets the Sync parameter to pass to Remote provider for filtering rows
         /// </summary>
+        [DataMember]
         public SyncParameterCollection Parameters { get; set; }
 
         /// <summary>
