@@ -9,6 +9,7 @@ namespace Dotmim.Sync.Web.Client
     /// </summary>
     public enum HttpStep
     {
+        None,
         EnsureScopes,
         SendChanges,
         SendChangesInProgress,

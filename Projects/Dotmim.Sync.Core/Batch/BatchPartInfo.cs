@@ -53,14 +53,14 @@ namespace Dotmim.Sync.Batch
         /// </summary>
         public string[] Tables { get; set; }
 
-        public DmSet Data { get; set; }
+        public DmSetLight Data { get; set; }
 
 
         public BatchPartInfo()
         {
         }
 
-        public static DmSet Deserialize(string fileName)
+        public static DmSetLight Deserialize(string fileName)
         {
             if (string.IsNullOrEmpty(fileName))
                 throw new ArgumentNullException("Cant get a Batch part if fileName doesn't exist");
@@ -71,14 +71,14 @@ namespace Dotmim.Sync.Batch
             using (var fs = new FileStream(fileName, FileMode.Open, FileAccess.Read))
             {
                 var serializer = new BinaryFormatter();
-                return serializer.Deserialize(fs) as DmSet;
+                return serializer.Deserialize(fs) as DmSetLight;
             }
         }
 
         /// <summary>
         /// Serialize the DmSet data (acutally serialize a DmSetSurrogate)
         /// </summary>
-        public static void Serialize(DmSet set, string fileName)
+        public static void Serialize(DmSetLight set, string fileName)
         {
             if (set == null)
                 return;
@@ -99,7 +99,7 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Create a new BPI, and serialize the changeset if not in memory
         /// </summary>
-        internal static BatchPartInfo CreateBatchPartInfo(int batchIndex, DmSet set, string fileName, bool isLastBatch)
+        internal static BatchPartInfo CreateBatchPartInfo(int batchIndex, DmSetLight set, string fileName, bool isLastBatch)
         {
             BatchPartInfo bpi = null;
 

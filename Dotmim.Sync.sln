@@ -208,8 +208,8 @@ Global
 		{5D23F616-DBAD-40EC-B588-2925C96DB9A0} = {2E7CD7E6-8D9F-47E0-B5E3-4CF58C85F273}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {348020ED-748B-4CC8-AA1D-9F7D36E2AC12}
 		BuildVersion_StartDate = 2000/1/1
+		SolutionGuid = {348020ED-748B-4CC8-AA1D-9F7D36E2AC12}
 	EndGlobalSection
 	GlobalSection(Performance) = preSolution
 		HasPerformanceSessions = true

@@ -212,8 +212,8 @@ namespace Dotmim.Sync.Data
         internal DmRelation Clone(DmSet destination)
         {
 
-            DmTable parent = destination.Tables[ParentTable.TableName];
-            DmTable child = destination.Tables[ChildTable.TableName];
+            DmTable parent = destination.Tables[ParentTable.TableName, ParentTable.Schema];
+            DmTable child = destination.Tables[ChildTable.TableName, ChildTable.Schema];
             int keyLength = parentKey.Columns.Length;
 
             DmColumn[] parentColumns = new DmColumn[keyLength];

@@ -24,7 +24,7 @@ using System.Runtime.Serialization.Formatters.Binary;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
-using SerializationFormat = Dotmim.Sync.Enumerations.SerializationFormat;
+
 
 internal class Program
 {
@@ -36,58 +36,62 @@ internal class Program
                                                     "SalesOrderHeader", "SalesOrderDetail" };
     private static void Main(string[] args)
     {
-        // SyncHttpThroughKestellAsync().GetAwaiter().GetResult();
+        SyncHttpThroughKestellAsync().GetAwaiter().GetResult();
 
-        var dslight = new DmSetLight(GetSet());
-
-        var serializer = new JsonConverter<DmSetLight>();
-
-        var bin = serializer.Serialize(dslight);
-
-        //using (var ms = new MemoryStream(bin))
-        //{
-        //    using (var sr = new StreamReader(ms))
-        //    {
-        //        var json = sr.ReadToEnd();
-        //    }
-        //}
-
-        DmSetLight newDmSetLight;
-        using (var ms = new MemoryStream(bin))
-        {
-            newDmSetLight = serializer.Deserialize(ms);
-        }
-
-
-        var newDmSet = CreateDmSet();
-        newDmSetLight.WriteToDmSet(newDmSet);
-
+ 
         Console.ReadLine();
     }
 
 
-    private static void Test()
+    private static void TestSerializers()
     {
-        var record1 = new Record(1, 2, "+", 3);
-        Console.WriteLine("Original record: {0}", record1.ToString());
+        var dslight = new DmSetLight(GetSet());
 
-        
+        var serializer1 = new ContractSerializer<DmSetLight>();
+        var serializer2 = new JsonConverter<DmSetLight>();
+        var serializer3 = new CustomMessagePackSerializer<DmSetLight>();
 
-        var stream1 = new MemoryStream();
+        var bin1 = serializer1.Serialize(dslight);
+        var bin2 = serializer2.Serialize(dslight);
+        var bin3 = serializer3.Serialize(dslight);
 
-        //Serialize the Record object to a memory stream using DataContractSerializer.  
-        DataContractSerializer serializer = new DataContractSerializer(typeof(Record));
-        serializer.WriteObject(stream1, record1);
+        var json3 = MessagePack.MessagePackSerializer.ToJson(bin3);
+        string json2;
+        using (var ms = new MemoryStream(bin2))
+        {
+            using (var sr = new StreamReader(ms))
+            {
+                json2 = sr.ReadToEnd();
+            }
+        }
 
-        MemoryStream stream2 = new MemoryStream();
 
-        var binaryDictionaryWriter = XmlDictionaryWriter.CreateBinaryWriter(stream2);
-        serializer.WriteObject(binaryDictionaryWriter, record1);
-        binaryDictionaryWriter.Flush();
 
-        //report the length of the streams  
-        Console.WriteLine("Text Stream is {0} bytes long", stream1.Length);
-        Console.WriteLine("Binary Stream is {0} bytes long", stream2.Length);
+        DmSetLight newDmSetLight1;
+        DmSetLight newDmSetLight2;
+        DmSetLight newDmSetLight3;
+        DmSet newDmSet1;
+        DmSet newDmSet2;
+        DmSet newDmSet3;
+        using (var ms1 = new MemoryStream(bin1))
+        {
+            newDmSetLight1 = serializer1.Deserialize(ms1);
+            newDmSet1 = CreateDmSet();
+            newDmSetLight1.WriteToDmSet(newDmSet1);
+        }
+        using (var ms2 = new MemoryStream(bin2))
+        {
+            newDmSetLight2 = serializer2.Deserialize(ms2);
+            newDmSet2 = CreateDmSet();
+            newDmSetLight2.WriteToDmSet(newDmSet2);
+        }
+        using (var ms3 = new MemoryStream(bin3))
+        {
+            newDmSetLight3 = serializer3.Deserialize(ms3);
+            newDmSet3 = CreateDmSet();
+            newDmSetLight3.WriteToDmSet(newDmSet3);
+        }
+
     }
 
 
@@ -690,7 +694,8 @@ internal class Program
         var proxyClientProvider = new WebClientOrchestrator();
 
         // Tables involved in the sync process:
-        var tables = allTables;
+        //var tables = allTables;
+        var tables = new string[] { "ProductCategory" };
 
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, proxyClientProvider);
@@ -707,7 +712,7 @@ internal class Program
             opt.CleanMetadatas = true;
             opt.UseBulkOperations = true;
             opt.UseVerboseErrors = false;
-            opt.Serializers.Add("messagepack", new CustomMessagePackSerializerFactory(), true);
+            //opt.Serializers.Add(new CustomMessagePackSerializerFactory(), true);
         });
 
         // ----------------------------------
@@ -729,7 +734,8 @@ internal class Program
             opt.CleanMetadatas = true;
             opt.UseBulkOperations = true;
             opt.UseVerboseErrors = false;
-            opt.Serializers.Add("messagepack", new CustomMessagePackSerializerFactory(), true);
+            opt.Serializers.Add(new CustomMessagePackSerializerFactory());
+
         });
 
 
@@ -744,7 +750,6 @@ internal class Program
             var clientHandler = new ResponseDelegate(async (serviceUri) =>
             {
                 proxyClientProvider.ServiceUri = new Uri(serviceUri);
-        
                 do
                 {
                     Console.Clear();

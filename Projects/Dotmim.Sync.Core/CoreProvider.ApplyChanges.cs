@@ -218,12 +218,15 @@ namespace Dotmim.Sync
                 // getting the table to be applied
                 // we may have multiple batch files, so we can have multipe dmTable with the same Name
                 // We can say that dmTable may be contained in several files
-                foreach (var dmTablePart in message.Changes.GetTable(table.TableName))
+                foreach (var dmTableLightPart in message.Changes.GetTable(table.TableName, table.Schema))
                 {
-                    if (dmTablePart == null || dmTablePart.Rows.Count == 0)
+                    if (dmTableLightPart == null || dmTableLightPart.Rows.Count == 0)
                         continue;
 
-                    // check and filter
+                    // Get a clone of the table with tracking columns
+                    var dmTablePart = this.BuildChangesTable(table);
+
+                    dmTableLightPart.WriteToDmTable(dmTablePart);
                     var dmChangesView = new DmView(dmTablePart, (r) => r.RowState == applyType);
 
                     if (dmChangesView.Count == 0)

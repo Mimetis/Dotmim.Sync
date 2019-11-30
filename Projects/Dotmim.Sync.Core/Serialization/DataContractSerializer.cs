@@ -12,6 +12,7 @@ namespace Dotmim.Sync.Serialization
 
     public class ContractSerializerFactory : ISerializerFactory
     {
+        public string Key => "dc";
         private static ContractSerializerFactory instance = null;
         public static ContractSerializerFactory Current => instance ?? new ContractSerializerFactory();
 
@@ -28,10 +29,7 @@ namespace Dotmim.Sync.Serialization
         {
 
             var serializer = new DataContractSerializer(typeof(T));
-            using (var decompress = new GZipStream(ms, CompressionMode.Decompress))
-            {
-                return (T)serializer.ReadObject(decompress);
-            }
+            return (T)serializer.ReadObject(ms);
 
         }
 
@@ -42,12 +40,8 @@ namespace Dotmim.Sync.Serialization
 
             using (var ms = new MemoryStream())
             {
-                using (var compress = new GZipStream(ms, CompressionMode.Compress))
-                {
-                    serializer.WriteObject(compress, obj);
-
-                    return ms.ToArray();
-                }
+                serializer.WriteObject(ms, obj);
+                return ms.ToArray();
             }
 
         }
