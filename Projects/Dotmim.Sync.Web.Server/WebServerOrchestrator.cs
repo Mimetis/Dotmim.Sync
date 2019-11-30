@@ -18,8 +18,6 @@ namespace Dotmim.Sync.Web.Server
             this.Provider = provider;
         }
 
-
-
         /// <summary>
         /// Set Sync Schema parameters, manually
         /// </summary>
@@ -85,39 +83,16 @@ namespace Dotmim.Sync.Web.Server
             }
         }
 
-
-
-
-        internal async Task<HttpMessage> GetResponseMessageAsync(HttpMessage httpMessage,
-              CancellationToken cancellationToken)
+        internal async Task<HttpMessageEnsureScopesResponse> EnsureScopeAsync(HttpMessageEnsureScopesRequest httpMessage, CancellationToken cancellationToken)
         {
-            HttpMessage httpMessageResponse = null;
-            switch (httpMessage.Step)
-            {
-                case HttpStep.EnsureScopes:
-                    httpMessageResponse = await this.EnsureScopeAsync(httpMessage, cancellationToken).ConfigureAwait(false);
-                    break;
-                case HttpStep.SendChanges:
-                    httpMessageResponse = await this.ApplyThenGetChangesAsync(httpMessage, cancellationToken).ConfigureAwait(false);
-                    break;
-                case HttpStep.GetChanges:
-                    httpMessageResponse = this.GetMoreChanges(httpMessage, cancellationToken);
-                    break;
-            }
+            //HttpMessageEnsureScopesRequest httpMessageEnsureScopes;
 
-            return httpMessageResponse;
-        }
+            //if (httpMessage.Content is HttpMessageEnsureScopesRequest)
+            //    httpMessageEnsureScopes = httpMessage.Content as HttpMessageEnsureScopesRequest;
+            //else
+            //    httpMessageEnsureScopes = (httpMessage.Content as JObject).ToObject<HttpMessageEnsureScopesRequest>();
 
-        private async Task<HttpMessage> EnsureScopeAsync(HttpMessage httpMessage, CancellationToken cancellationToken)
-        {
-            HttpMessageEnsureScopesRequest httpMessageEnsureScopes;
-
-            if (httpMessage.Content is HttpMessageEnsureScopesRequest)
-                httpMessageEnsureScopes = httpMessage.Content as HttpMessageEnsureScopesRequest;
-            else
-                httpMessageEnsureScopes = (httpMessage.Content as JObject).ToObject<HttpMessageEnsureScopesRequest>();
-
-            if (httpMessageEnsureScopes == null)
+            if (httpMessage == null)
                 throw new ArgumentException("EnsureScopesAsync message could not be null");
 
             if (this.Schema == null)
@@ -132,55 +107,24 @@ namespace Dotmim.Sync.Web.Server
             this.Schema = newSchema;
 
             // Create the return value
-            var returnValue = new HttpMessageEnsureScopesResponse(newSchema);
+            var httpResponse = new HttpMessageEnsureScopesResponse(syncContext, newSchema);
 
-            httpMessage.SyncContext = syncContext;
-            httpMessage.Content = returnValue;
-
-            return httpMessage;
+            return httpResponse;
         }
 
-
-        /// <summary>
-        /// This method is only used when batch mode is enabled on server and we need to send back mor BatchPartInfo 
-        /// </summary>
-        private HttpMessage GetMoreChanges(HttpMessage httpMessage, CancellationToken cancellationToken)
-        {
-            HttpMessageGetMoreChangesRequest httpMessageContent;
-            if (httpMessage.Content is HttpMessageGetMoreChangesRequest)
-                httpMessageContent = httpMessage.Content as HttpMessageGetMoreChangesRequest;
-            else
-                httpMessageContent = (httpMessage.Content as JObject).ToObject<HttpMessageGetMoreChangesRequest>();
-
-            // We are in batch mode here
-            var serverBatchInfo = this.Provider.CacheManager.GetValue<BatchInfo>("GetChangeBatch_BatchInfo");
-            var serverChangesSelected = this.Provider.CacheManager.GetValue<DatabaseChangesSelected>("GetChangeBatch_ChangesSelected");
-            var remoteClienTimestamp = this.Provider.CacheManager.GetValue<long>("GetChangeBatch_RemoteClientTimestamp");
-
-            if (serverBatchInfo == null)
-                throw new ArgumentNullException("batchInfo stored in session can't be null if request more batch part info.");
-
-            return GetChangesResponse(httpMessage.SyncContext, remoteClienTimestamp, serverBatchInfo, serverChangesSelected, httpMessageContent.BatchIndexRequested);
-        }
 
 
         /// <summary>
         /// Create a response message content based on a requested index in a server batch info
         /// </summary>
-        private HttpMessage GetChangesResponse(SyncContext context, long remoteClientTimestamp, BatchInfo serverBatchInfo,
+        private HttpMessageSendChangesResponse GetChangesResponse(SyncContext context, long remoteClientTimestamp, BatchInfo serverBatchInfo,
                                 DatabaseChangesSelected serverChangesSelected, int batchIndexRequested)
         {
 
-            // 1) Create the http message response
-            var response = new HttpMessage();
-            response.SyncContext = context;
-            response.Step = HttpStep.GetChanges;
-
-            // 2) Create the http message content response
-            var changesResponse = new HttpMessageSendChangesResponse();
-
+            // 1) Create the http message content response
+            var changesResponse = new HttpMessageSendChangesResponse(context);
             changesResponse.ChangesSelected = serverChangesSelected;
-            response.Content = changesResponse;
+            changesResponse.ServerStep = HttpStep.GetChanges;
 
             // If nothing to do, just send back
             if (serverBatchInfo.InMemory || serverBatchInfo.BatchPartsInfo.Count == 0)
@@ -189,7 +133,7 @@ namespace Dotmim.Sync.Web.Server
                 changesResponse.BatchIndex = 0;
                 changesResponse.IsLastBatch = true;
                 changesResponse.RemoteClientTimestamp = remoteClientTimestamp;
-                return response;
+                return changesResponse;
             }
 
             // Get the batch part index requested
@@ -202,7 +146,7 @@ namespace Dotmim.Sync.Web.Server
             changesResponse.BatchIndex = batchIndexRequested;
             changesResponse.IsLastBatch = batchPartInfo.IsLastBatch;
             changesResponse.RemoteClientTimestamp = remoteClientTimestamp;
-            response.Step = batchPartInfo.IsLastBatch ? HttpStep.GetChanges : HttpStep.GetChangesInProgress;
+            changesResponse.ServerStep = batchPartInfo.IsLastBatch ? HttpStep.GetChanges : HttpStep.GetChangesInProgress;
 
             // If we have only one bpi, we can safely delete it
             if (batchPartInfo.IsLastBatch)
@@ -216,27 +160,27 @@ namespace Dotmim.Sync.Web.Server
                     serverBatchInfo.TryRemoveDirectory();
             }
 
-            return response;
+            return changesResponse;
         }
 
         /// <summary>
         /// Get changes from 
         /// </summary>
-        private async Task<HttpMessage> ApplyThenGetChangesAsync(HttpMessage httpMessage, CancellationToken cancellationToken)
+        internal async Task<HttpMessageSendChangesResponse> ApplyThenGetChangesAsync(HttpMessageSendChangesRequest httpMessage, CancellationToken cancellationToken)
         {
             #region Load content
             // ------------------------------------------------------------
             // FIRST STEP : receive client changes
             // ------------------------------------------------------------
 
-            HttpMessageSendChangesRequest httpMessageContent;
-            if (httpMessage.Content is HttpMessageSendChangesRequest)
-                httpMessageContent = httpMessage.Content as HttpMessageSendChangesRequest;
-            else
-                httpMessageContent = (httpMessage.Content as JObject).ToObject<HttpMessageSendChangesRequest>();
+            //HttpMessageSendChangesRequest httpMessageContent;
+            //if (httpMessage.Content is HttpMessageSendChangesRequest)
+            //    httpMessageContent = httpMessage.Content as HttpMessageSendChangesRequest;
+            //else
+            //    httpMessageContent = (httpMessage.Content as JObject).ToObject<HttpMessageSendChangesRequest>();
 
-            if (httpMessageContent == null)
-                throw new ArgumentException("ApplyChanges message could not be null");
+            //if (httpMessageContent == null)
+            //    throw new ArgumentException("ApplyChanges message could not be null");
 
             // BatchInfo containing all the changes from the client 
             BatchInfo batchInfo = null;
@@ -246,30 +190,27 @@ namespace Dotmim.Sync.Web.Server
             #endregion
 
             // We are receiving changes from client
-            if (httpMessage.Step == HttpStep.SendChanges)
-            {
-                // BatchInfo containing all BatchPartInfo objects
-                // Retrieve batchinfo instance if exists
-                batchInfo = this.Provider.CacheManager.GetValue<BatchInfo>("ApplyChanges_BatchInfo");
+            // BatchInfo containing all BatchPartInfo objects
+            // Retrieve batchinfo instance if exists
+            batchInfo = this.Provider.CacheManager.GetValue<BatchInfo>("ApplyChanges_BatchInfo");
 
-                // Create a new batch info
-                if (batchInfo == null)
-                    batchInfo = new BatchInfo(workInMemory, this.Options.BatchDirectory);
+            // Create a new batch info
+            if (batchInfo == null)
+                batchInfo = new BatchInfo(workInMemory, this.Options.BatchDirectory);
 
-                // add changes to the batch info
-                batchInfo.AddChanges(httpMessageContent.Changes, httpMessageContent.BatchIndex, httpMessageContent.IsLastBatch);
+            // add changes to the batch info
+            batchInfo.AddChanges(httpMessage.Changes, httpMessage.BatchIndex, httpMessage.IsLastBatch);
 
-                // Save the BatchInfo
-                this.Provider.CacheManager.Set("ApplyChanges_BatchInfo", batchInfo);
+            // Save the BatchInfo
+            this.Provider.CacheManager.Set("ApplyChanges_BatchInfo", batchInfo);
 
-                // Clear the httpMessage set
-                if (!workInMemory && httpMessageContent != null && httpMessageContent.Changes != null)
-                    httpMessageContent.Changes.Clear();
+            // Clear the httpMessage set
+            if (!workInMemory && httpMessage.Changes != null)
+                httpMessage.Changes.Clear();
 
-                // Until we don't have received all the batches, wait for more
-                if (!httpMessageContent.IsLastBatch)
-                    return new HttpMessage() { SyncContext = httpMessage.SyncContext, Step = HttpStep.SendChangesInProgress, Content = null };
-            }
+            // Until we don't have received all the batches, wait for more
+            if (!httpMessage.IsLastBatch)
+                return new HttpMessageSendChangesResponse(httpMessage.SyncContext) { ServerStep = HttpStep.SendChangesInProgress };
 
             // Now all the batchs have been sent from client
             this.Provider.CacheManager.Remove("ApplyChanges_BatchInfo");
@@ -281,7 +222,7 @@ namespace Dotmim.Sync.Web.Server
             // get changes
             var (context, remoteClientTimestamp, serverBatchInfo, serverChangesSelected) =
                await this.ApplyThenGetChangesAsync(httpMessage.SyncContext,
-                           httpMessageContent.Scope, batchInfo, cancellationToken).ConfigureAwait(false);
+                           httpMessage.Scope, batchInfo, cancellationToken).ConfigureAwait(false);
 
 
             // Save the server batch info object to cache if not working in memory
@@ -297,5 +238,30 @@ namespace Dotmim.Sync.Web.Server
             return GetChangesResponse(context, remoteClientTimestamp, serverBatchInfo, serverChangesSelected, 0);
 
         }
+
+
+        /// <summary>
+        /// This method is only used when batch mode is enabled on server and we need to send back mor BatchPartInfo 
+        /// </summary>
+        internal HttpMessageSendChangesResponse GetMoreChanges(HttpMessageGetMoreChangesRequest httpMessage, CancellationToken cancellationToken)
+        {
+            //HttpMessageGetMoreChangesRequest httpMessageContent;
+            //if (httpMessage.Content is HttpMessageGetMoreChangesRequest)
+            //    httpMessageContent = httpMessage.Content as HttpMessageGetMoreChangesRequest;
+            //else
+            //    httpMessageContent = (httpMessage.Content as JObject).ToObject<HttpMessageGetMoreChangesRequest>();
+
+            // We are in batch mode here
+            var serverBatchInfo = this.Provider.CacheManager.GetValue<BatchInfo>("GetChangeBatch_BatchInfo");
+            var serverChangesSelected = this.Provider.CacheManager.GetValue<DatabaseChangesSelected>("GetChangeBatch_ChangesSelected");
+            var remoteClienTimestamp = this.Provider.CacheManager.GetValue<long>("GetChangeBatch_RemoteClientTimestamp");
+
+            if (serverBatchInfo == null)
+                throw new ArgumentNullException("batchInfo stored in session can't be null if request more batch part info.");
+
+            return GetChangesResponse(httpMessage.SyncContext, remoteClienTimestamp, serverBatchInfo, serverChangesSelected, httpMessage.BatchIndexRequested);
+        }
+
+
     }
 }

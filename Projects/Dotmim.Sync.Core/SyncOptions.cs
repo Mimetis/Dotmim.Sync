@@ -3,6 +3,7 @@ using Dotmim.Sync.Serialization;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.Serialization;
 
 namespace Dotmim.Sync
@@ -16,7 +17,6 @@ namespace Dotmim.Sync
 
         public const string DefaultScopeInfoTableName = "scope_info";
         public const string DefaultScopeName = "DefaultScope";
-        private string serializationFormatName = "json";
 
         /// <summary>
         /// Gets or Sets the directory used for batch mode.
@@ -95,29 +95,24 @@ namespace Dotmim.Sync
         /// <summary>
         /// Return serializer configured. Default is Json
         /// </summary>
-        public ISerializer<T> GetSerializer<T>()
-        {
-            var key = serializationFormatName.ToLowerInvariant();
-            return GetSerializer<T>(key);
-        }
+        public ISerializerFactory GetSerializerFactory() => this.Serializers.CurrentSerializerFactory;
 
         /// <summary>
         /// Return special serializer.
         /// </summary>
-        public ISerializer<T> GetSerializer<T>(string key)
+        public ISerializerFactory GetSerializerFactory(string key)
         {
             switch (key)
             {
                 case "json":
-                    return JsonConverterFactory.Current.GetSerializer<T>();
+                    return JsonConverterFactory.Current;
                 case "binary":
-                    return BinarySerializerFactory.Current.GetSerializer<T>();
+                    return BinarySerializerFactory.Current;
             }
 
-            if (this.Serializers.TryGetValue(key, out var serializer))
-                return serializer.GetSerializer<T>();
+            var serializer = this.Serializers.FirstOrDefault(s => s.Key == key);
 
-            return JsonConverterFactory.Current.GetSerializer<T>();
+            return serializer == null ? JsonConverterFactory.Current : serializer;
         }
     }
 }

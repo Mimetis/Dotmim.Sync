@@ -145,12 +145,14 @@ namespace Dotmim.Sync.Data.Surrogate
                         var columnName = dmRelationSurrogate.ParentKeySurrogates[i].ColumnName;
                         var tableName = dmRelationSurrogate.ParentKeySurrogates[i].TableName;
 
-                        parentColumns[i]  = ds.Tables[tableName].Columns[columnName];
+                        // TODO: Import schema in dm relations
+                        parentColumns[i]  = ds.Tables[tableName, ""].Columns[columnName];
 
                         columnName = dmRelationSurrogate.ChildKeySurrogates[i].ColumnName;
                         tableName = dmRelationSurrogate.ChildKeySurrogates[i].TableName;
 
-                        childColumns[i] = ds.Tables[tableName].Columns[columnName];
+                        // TODO: Import schema in dm relations
+                        childColumns[i] = ds.Tables[tableName, ""].Columns[columnName];
 
                     }
 

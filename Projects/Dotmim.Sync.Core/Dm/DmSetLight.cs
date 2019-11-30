@@ -1,6 +1,8 @@
 ﻿using Dotmim.Sync.Serialization;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
 using System.Runtime.Serialization;
 using System.Text;
 
@@ -13,24 +15,64 @@ namespace Dotmim.Sync.Data
         [DataMember(Name = "n")]
         public string DmSetName { get; set; }
 
+        /// <summary>Gets or sets the Case sensitive rul of the DmSet that the DmSetSurrogate object represents.</summary>
+        [DataMember(Name = "c")]
+        public bool CaseSensitive { get; set; }
+
+        /// <summary>
+        /// List of tables
+        /// </summary>
+        [DataMember(Name = "t")]
+        public IList<DmTableLight> Tables { get; set; } = new List<DmTableLight>();
+
+        /// <summary>
+        /// Get Table by name
+        /// </summary>
+        public DmTableLight GetTable(string name, string schema)
+        {
+            if (string.IsNullOrEmpty(name))
+                throw new ArgumentNullException("name");
+
+            if (string.IsNullOrEmpty(schema))
+                schema = string.Empty;
+
+            var sc = this.CaseSensitive? StringComparison.InvariantCulture: StringComparison.InvariantCultureIgnoreCase;
+
+            return Tables.FirstOrDefault(c => string.Equals(c.TableName, name, sc) && string.Equals(c.Schema, schema, sc));
+
+        }
+
+        public bool HasTables => this.Tables?.Count > 0;
+
         public DmSetLight()
         {
 
         }
 
+        public DmSetLight(string name, bool caseSensitive = false)
+        {
+            this.DmSetName = name;
+            this.CaseSensitive = caseSensitive;
+        }
+
+
         public DmSetLight(DmSet ds)
         {
+            this.DmSetName = ds.DmSetName;
+            this.CaseSensitive = ds.CaseSensitive;
+
             foreach (var dt in ds.Tables)
             {
-                this.DmSetName = ds.DmSetName;
-
-                var tbl = new DmTableLight(dt)
+                if (dt.Rows != null && dt.Rows.Count > 0)
                 {
-                    TableName = dt.TableName,
-                    Schema = dt.Schema
-                };
+                    var tbl = new DmTableLight(dt)
+                    {
+                        TableName = dt.TableName,
+                        Schema = dt.Schema
+                    };
 
-                this.Tables.Add(tbl);
+                    this.Tables.Add(tbl);
+                }
             }
         }
 
@@ -39,18 +81,25 @@ namespace Dotmim.Sync.Data
             for (int i = 0; i < this.Tables.Count; i++)
             {
                 var dmTableLight = this.Tables[i];
-                var dmTable = set.Tables[i];
+
+                var dmTable = set.Tables[dmTableLight.TableName, dmTableLight.Schema];
+
+                if (dmTable == null)
+                    continue;
+
                 dmTableLight.WriteToDmTable(dmTable);
             }
         }
 
-        /// <summary>
-        /// List of tables
-        /// </summary>
-        [DataMember(Name = "t")]
-        public List<DmTableLight> Tables { get; set; } = new List<DmTableLight>();
+        public void Clear()
+        {
+            foreach (var t in Tables)
+                t.Clear();
+        }
 
     }
+
+
 
     [DataContract(Name = "dt")]
     public class DmTableLight
@@ -60,27 +109,33 @@ namespace Dotmim.Sync.Data
 
         }
 
+        public void ImportRow(DmRow row)
+        {
+            // array with one more space for state
+            var itemArray = new object[row.Table.Columns.Count + 1];
+
+            // save row state on position 0
+            itemArray[0] = (int)row.RowState;
+
+            var rowVersion = row.RowState == DmRowState.Deleted ? DmRowVersion.Original : DmRowVersion.Current;
+
+            for (int i = 0; i < row.Table.Columns.Count; i++)
+            {
+                var val = row[i, rowVersion];
+                itemArray[i + 1] = val;
+            }
+
+            this.Rows.Add(itemArray);
+
+        }
+
         public DmTableLight(DmTable dt)
         {
+            this.TableName = dt.TableName;
+            this.Schema = dt.Schema;
 
             foreach (var row in dt.Rows)
-            {
-                // array with one more space for state
-                var itemArray = new object[dt.Columns.Count +1];
-
-                // save row state on position 0
-                itemArray[0] = (int)row.RowState;
-
-                var rowVersion = row.RowState == DmRowState.Deleted ? DmRowVersion.Original : DmRowVersion.Current;
-
-                for (int i=0; i < dt.Columns.Count; i++)
-                {
-                    var val = row[i, rowVersion];
-                    itemArray[i + 1] = val;
-                }
-
-                this.Rows.Add(itemArray);
-            }
+                this.ImportRow(row);
         }
 
         /// <summary>
@@ -102,24 +157,31 @@ namespace Dotmim.Sync.Data
         public List<object[]> Rows { get; set; } = new List<object[]>();
 
 
+        /// <summary>
+        /// Import all rows in a DataTable
+        /// </summary>
         public void WriteToDmTable(DmTable dt)
         {
-            foreach(var row in this.Rows)
+            foreach (var row in this.Rows)
                 this.ConstructRow(dt, row);
 
         }
 
+
+        /// <summary>
+        /// Create a DmRow from an array based on the schema from the Dmtable argument
+        /// </summary>
         private DmRow ConstructRow(DmTable dt, object[] row)
         {
             var dmRow = dt.NewRow();
             int count = dt.Columns.Count;
 
-            var rowState = (DmRowState)row[0];
+            var rowState = (DmRowState)Convert.ToInt32(row[0]);
 
             dmRow.BeginEdit();
             for (int i = 0; i < count; i++)
             {
-                object dmRowObject = row[i+1];
+                object dmRowObject = row[i + 1];
 
                 // Sometimes, a serializer could potentially serialize type into string
                 // For example JSON.Net will serialize GUID into STRING
@@ -225,6 +287,7 @@ namespace Dotmim.Sync.Data
             }
         }
 
+        public void Clear() => Rows.Clear();
 
     }
 
