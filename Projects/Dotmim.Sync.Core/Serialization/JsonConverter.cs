@@ -9,6 +9,7 @@ namespace Dotmim.Sync.Serialization
 
     public class JsonConverterFactory : ISerializerFactory
     {
+        public string Key => "json";
         private static JsonConverterFactory instance = null;
         public static JsonConverterFactory Current => instance ?? new JsonConverterFactory();
 
@@ -18,6 +19,7 @@ namespace Dotmim.Sync.Serialization
 
     public class JsonConverter<T> : ISerializer<T>
     {
+
         public T Deserialize(Stream ms)
         {
             using (var sr = new StreamReader(ms))

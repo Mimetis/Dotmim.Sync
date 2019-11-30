@@ -95,7 +95,7 @@ namespace Dotmim.Sync
             var batchInfo = new BatchInfo(!isBatched, batchDirectory);
 
             // add changes to batchInfo
-            batchInfo.AddChanges(changesSet);
+            batchInfo.AddChanges(new DmSetLight(changesSet));
 
             // Create a new in-memory batch info with an the changes DmSet
             return (batchInfo, new DatabaseChangesSelected());
@@ -106,12 +106,12 @@ namespace Dotmim.Sync
         /// Enumerate all internal changes, no batch mode
         /// </summary>
         internal async Task<(BatchInfo, DatabaseChangesSelected)> EnumerateChangesInternalAsync(
-            SyncContext context, Guid excludingScopeId, bool isNew, long lastTimestamp, DmSet configTables, ICollection<FilterClause> filters,
+            SyncContext context, Guid excludingScopeId, bool isNew, long lastTimestamp, DmSet schemaSet, ICollection<FilterClause> filters,
             DbConnection connection, DbTransaction transaction,
             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
             // create the in memory changes set
-            var changesSet = new DmSet(SyncSchema.DMSET_NAME);
+            var changesSet = new DmSetLight(schemaSet.DmSetName, schemaSet.CaseSensitive);
 
             // Create the batch info, in memory
             // No need to geneate a directory name, since we are in memory
@@ -122,7 +122,7 @@ namespace Dotmim.Sync
                 // changes that will be returned as selected changes
                 var changes = new DatabaseChangesSelected();
 
-                foreach (var tableDescription in configTables.Tables)
+                foreach (var tableDescription in schemaSet.Tables)
                 {
                     // if we are in upload stage, so check if table is not download only
                     if (context.SyncWay == SyncWay.Upload && tableDescription.SyncDirection == SyncDirection.DownloadOnly)
@@ -184,7 +184,7 @@ namespace Dotmim.Sync
 
 
                     // Get a clone of the table with tracking columns
-                    var dmTableChanges = this.BuildChangesTable(tableDescription.TableName, configTables);
+                    var dmTableChanges = this.BuildChangesTable(tableDescription);
 
                     SetSelectChangesCommonParameters(context, excludingScopeId, isNew, lastTimestamp, selectIncrementalChangesCommand);
 
@@ -214,8 +214,6 @@ namespace Dotmim.Sync
                         while (dataReader.Read())
                         {
                             var dataRow = this.CreateRowFromReader(dataReader, dmTableChanges);
-
-                            //DmRow dataRow = dmTableChanges.NewRow();
 
                             // assuming the row is not inserted / modified
                             var state = DmRowState.Unchanged;
@@ -249,13 +247,13 @@ namespace Dotmim.Sync
                                 dataRow.SetModified();
                                 tableSelectedChanges.Updates++;
                             }
-                        }
+                        } 
 
                         // Since we dont need this column anymore, remove it
                         this.RemoveTrackingColumns(dmTableChanges, "sync_row_is_tombstone");
 
                         // add it to the DmSet
-                        changesSet.Tables.Add(dmTableChanges);
+                        changesSet.Tables.Add(new DmTableLight(dmTableChanges));
 
                     }
 
@@ -324,7 +322,7 @@ namespace Dotmim.Sync
         /// Enumerate all internal changes, no batch mode
         /// </summary>
         internal async Task<(BatchInfo, DatabaseChangesSelected)> EnumerateChangesInBatchesInternalAsync(
-             SyncContext context, Guid excludingScopeId, bool isNew, long lastTimestamp, int downloadBatchSizeInKB, DmSet configTables, string batchDirectory,  ICollection<FilterClause> filters,
+             SyncContext context, Guid excludingScopeId, bool isNew, long lastTimestamp, int downloadBatchSizeInKB, DmSet schemaSet, string batchDirectory,  ICollection<FilterClause> filters,
              DbConnection connection, DbTransaction transaction,
              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
@@ -343,9 +341,9 @@ namespace Dotmim.Sync
             try
             {
                 // create the in memory changes set
-                var changesSet = new DmSet(configTables.DmSetName);
+                var changesSet = new DmSetLight(schemaSet.DmSetName, schemaSet.CaseSensitive);
 
-                foreach (var tableDescription in configTables.Tables)
+                foreach (var tableDescription in schemaSet.Tables)
                 {
                     // if we are in upload stage, so check if table is not download only
                     if (context.SyncWay == SyncWay.Upload && tableDescription.SyncDirection == SyncDirection.DownloadOnly)
@@ -401,7 +399,7 @@ namespace Dotmim.Sync
 
 
 
-                    dmTable = this.BuildChangesTable(tableDescription.TableName, configTables);
+                    dmTable = this.BuildChangesTable(tableDescription);
 
                     try
                     {
@@ -493,7 +491,7 @@ namespace Dotmim.Sync
                                     // Since we dont need this column anymore, remove it
                                     this.RemoveTrackingColumns(dmTable, "sync_row_is_tombstone");
 
-                                    changesSet.Tables.Add(dmTable);
+                                    changesSet.Tables.Add(new DmTableLight(dmTable));
 
                                     // add changes to batchinfo
                                     batchInfo.AddChanges(changesSet, batchIndex, false);
@@ -501,10 +499,13 @@ namespace Dotmim.Sync
                                     // increment batch index
                                     batchIndex++;
 
+                                    // we know the datas are serialized here, so we can flush  the set
+                                    dmTable.Clear();
                                     changesSet.Clear();
 
                                     // Recreate an empty DmSet, then a dmTable clone
-                                    changesSet = new DmSet(configTables.DmSetName);
+                                    changesSet = new DmSetLight(schemaSet.DmSetName, schemaSet.CaseSensitive);
+
                                     dmTable = dmTable.Clone();
                                     this.AddTrackingColumns<int>(dmTable, "sync_row_is_tombstone");
 
@@ -524,7 +525,7 @@ namespace Dotmim.Sync
 
                             context.SyncStage = SyncStage.TableChangesSelected;
 
-                            changesSet.Tables.Add(dmTable);
+                            changesSet.Tables.Add(new DmTableLight(dmTable));
 
                             // Init the row memory size
                             memorySizeFromDmRows = 0L;
@@ -546,7 +547,7 @@ namespace Dotmim.Sync
                 }
 
                 // We are in batch mode, and we are at the last batchpart info
-                if (changesSet != null && changesSet.HasTables && changesSet.HasChanges())
+                if (changesSet != null && changesSet.HasTables)
                     batchInfo.AddChanges(changesSet, batchIndex, true);
 
             }
@@ -561,6 +562,7 @@ namespace Dotmim.Sync
             return (batchInfo, changes);
 
         }
+
 
         /// <summary>
         /// Create a DmRow from a IDataReader
@@ -634,9 +636,9 @@ namespace Dotmim.Sync
             return dataRow;
         }
 
-        private DmTable BuildChangesTable(string tableName, DmSet configTables)
+        private DmTable BuildChangesTable(DmTable table)
         {
-            var dmTable = configTables.Tables[tableName].Clone();
+            var dmTable = table.Clone();
 
             // Adding the tracking columns
             this.AddTrackingColumns<Guid>(dmTable, "create_scope_id");
@@ -664,10 +666,9 @@ namespace Dotmim.Sync
         /// </summary>
         private DmRowState GetStateFromDmRow(DmRow dataRow, Guid excludingScopeId, bool isNew, long lastTimestamp)
         {
-            var dmRowState = DmRowState.Unchanged;
-
             var isTombstone = Convert.ToInt64(dataRow["sync_row_is_tombstone"]) > 0;
 
+            DmRowState dmRowState;
             if (isTombstone)
                 dmRowState = DmRowState.Deleted;
             else

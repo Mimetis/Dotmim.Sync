@@ -93,14 +93,16 @@ namespace Dotmim.Sync.Tests.StandAlone
         [Fact]
         public void Composite_ForeignKey_FindRow()
         {
-            var spaghettiDish = _compositeFkSet.Tables["MenusCategoriesRows"].FindByKey(new object[] { 6, 2, 4 });
+            //TODO: Fix schema in DmRElation
+            var spaghettiDish = _compositeFkSet.Tables["MenusCategoriesRows", ""].FindByKey(new object[] { 6, 2, 4 });
             Assert.True((spaghettiDish?.ItemArray[3])?.ToString() == "Spaghetti with tomato", "Row not be found.");
         }
 
         [Fact]
         public void Composite_ForeignKey_Navigation()
         {
-            var hollydayMenu = _compositeFkSet.Tables["Menus"].FindByKey(2);
+            //TODO: Fix schema in DmRElation
+            var hollydayMenu = _compositeFkSet.Tables["Menus", ""].FindByKey(2);
 
             Assert.True(hollydayMenu != null, "The child row could not be found.");
 
@@ -175,9 +177,10 @@ namespace Dotmim.Sync.Tests.StandAlone
 
         private static void BuilCompositeFKdSampleData(DmSet set)
         {
-            var menuTable = set.Tables["Menus"];
-            var menuCategoryTable = set.Tables["MenusCategories"];
-            var menuCategoryRowTable = set.Tables["MenusCategoriesRows"];
+            //TODO: Fix schema in DmRElation
+            var menuTable = set.Tables["Menus",""];
+            var menuCategoryTable = set.Tables["MenusCategories", ""];
+            var menuCategoryRowTable = set.Tables["MenusCategoriesRows", ""];
             // Build sample data
 
             var menu1 = menuTable.NewRow();

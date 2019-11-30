@@ -1,114 +1,85 @@
-﻿using System;
+﻿using Dotmim.Sync.Enumerations;
+using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
 using System.Text;
 
 namespace Dotmim.Sync.Serialization
 {
-    public class SerializationFactoryCollection : IDictionary<string, ISerializerFactory>
+    public class SerializationFactoryCollection : ICollection<ISerializerFactory>
     {
-        private const string DEFAULT_KEY = "json";
         private static ISerializerFactory DEFAULT_FACTORY = new JsonConverterFactory();
 
-        private Dictionary<string, ISerializerFactory> serializers = new Dictionary<string, ISerializerFactory>();
-
-        public ISerializerFactory this[string key]
-        {
-            get => serializers[key];
-            set => serializers[key] = value;
-        }
-
         public ISerializerFactory CurrentSerializerFactory { get; private set; }
-        public string CurrentKey { get; private set; }
+        public ISerializerFactory DefaultSerializerFactory => DEFAULT_FACTORY;
 
-        public ICollection<string> Keys => serializers.Keys;
 
-        public ICollection<ISerializerFactory> Values => serializers.Values;
-
-        public int Count => serializers.Count;
-
-        public bool IsReadOnly => false;
-
-        public void Add(string key, ISerializerFactory value) => this.Add(key, value, false);
-
-        public void Add(string key, ISerializerFactory value, bool isDefault)
+        public void Add(ISerializerFactory value, bool isDefault)
         {
             if (isDefault)
-                this.SetDefaultSerializer(key, value);
+                this.SetDefaultSerializer(value);
 
-            serializers.Add(key, value);
+            Add(value);
         }
 
+ 
         public SerializationFactoryCollection()
         {
             // add json serializer, as default
-            this.Add(DEFAULT_KEY, DEFAULT_FACTORY, true);
+            this.Add(DEFAULT_FACTORY, true);
             // add binary serializer;
-            this.Add("binary", new BinarySerializerFactory());
+            this.Add(new ContractSerializerFactory());
         }
-                
+
+        public void SetDefaultSerializer(SerializationFormat serializationFormat)
+        {
+            switch (serializationFormat)
+            {
+                case SerializationFormat.Binary:
+                    this.CurrentSerializerFactory = this["dc"];
+                    break;
+                case SerializationFormat.Json:
+                default:
+                    this.CurrentSerializerFactory = this["json"];
+                    break;
+            }
+
+        }
 
         /// <summary>
         /// Set default serializer
         /// </summary>
-        private void SetDefaultSerializer(string key, ISerializerFactory value)
+        private void SetDefaultSerializer(ISerializerFactory value) => this.CurrentSerializerFactory = value;
+
+
+        Collection<ISerializerFactory> collection = new Collection<ISerializerFactory>();
+
+
+        public ISerializerFactory this[string key]
         {
-            this.CurrentKey = key;
-            this.CurrentSerializerFactory = value;
-
-        }
-
-        public void Add(KeyValuePair<string, ISerializerFactory> item) => this.Add(item, false);
-
-        public void Add(KeyValuePair<string, ISerializerFactory> item, bool isDefault)
-        {
-            if (isDefault)
-                this.SetDefaultSerializer(item.Key, item.Value);
-
-            serializers.Add(item.Key, item.Value);
-        }
-
-        public void Clear() => serializers.Clear();
-
-        public bool Contains(KeyValuePair<string, ISerializerFactory> item) => serializers.ContainsKey(item.Key);
-
-        public bool ContainsKey(string key) => serializers.ContainsKey(key);
-
-        public void CopyTo(KeyValuePair<string, ISerializerFactory>[] array, int index)
-        {
-            if (array == null)
-                throw new ArgumentNullException("array");
-
-            if (index < 0 || index > array.Length)
-                throw new ArgumentOutOfRangeException("index", index, "Index out of range");
-
-            if (array.Length - index < Count)
-                throw new ArgumentException("Array too small");
-
-            foreach (var item in this)
-                array[index++] = new KeyValuePair<string, ISerializerFactory>(item.Key, item.Value);
-
-        }
-
-        public IEnumerator<KeyValuePair<string, ISerializerFactory>> GetEnumerator() => serializers.GetEnumerator();
-
-        public bool Remove(string key)
-        {
-            var isDeleted = serializers.Remove(key);
-
-            if (isDeleted && this.CurrentKey == key)
+            get
             {
-                this.CurrentKey = DEFAULT_KEY;
-                this.CurrentSerializerFactory = DEFAULT_FACTORY;
-            }
+                if (string.IsNullOrEmpty(key))
+                    throw new ArgumentNullException("key");
 
-            return isDeleted;
+                return collection.FirstOrDefault(c => c.Key.ToLowerInvariant() == key);
+            }
         }
 
-        public bool Remove(KeyValuePair<string, ISerializerFactory> item) => this.Remove(item.Key);
-
-        public bool TryGetValue(string key, out ISerializerFactory value) => this.TryGetValue(key, out value);
-
-        IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
+        public void Add(ISerializerFactory factory) => collection.Add(factory);
+        public ISerializerFactory this[int index] => collection[index];
+        public int Count => collection.Count;
+        public bool IsReadOnly => false;
+        public bool Remove(ISerializerFactory factory) => collection.Remove(factory);
+        public void Clear() => collection.Clear();
+        public bool Contains(ISerializerFactory item) => collection.Contains(item);
+        public void CopyTo(ISerializerFactory[] array, int arrayIndex) => collection.CopyTo(array, arrayIndex);
+        public int IndexOf(ISerializerFactory factory) => collection.IndexOf(factory);
+        public void RemoveAt(int index) => collection.RemoveAt(index);
+        IEnumerator IEnumerable.GetEnumerator() => collection.GetEnumerator();
+        public IEnumerator<ISerializerFactory> GetEnumerator() => collection.GetEnumerator();
+        public override string ToString() => this.collection.Count.ToString();
     }
 }

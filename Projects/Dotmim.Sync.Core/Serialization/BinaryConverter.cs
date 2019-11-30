@@ -10,6 +10,7 @@ namespace Dotmim.Sync.Serialization
 
     public class BinarySerializerFactory : ISerializerFactory
     {
+        public string Key => "binary";
         private static BinarySerializerFactory instance = null;
         public static BinarySerializerFactory Current => instance ?? new BinarySerializerFactory();
 
