@@ -223,7 +223,8 @@ namespace Dotmim.Sync.Tests.StandAlone
         [Fact]
         private void DmView_Constructor()
         {
-            var t = set.Tables["ServiceTickets"];
+            //TODO: Fix schema in DmRElation
+            var t = set.Tables["ServiceTickets", ""];
 
             var view = new DmView(t);
             Assert.Equal(17, view.Count);
@@ -246,7 +247,7 @@ namespace Dotmim.Sync.Tests.StandAlone
         [Fact]
         private void DmView_Order()
         {
-            var view = new DmView(set.Tables["ServiceTickets"]);
+            var view = new DmView(set.Tables["ServiceTickets", ""]);
             view = view.Order((r1, r2) => string.Compare(((string)r1["Title"]), (string)r2["Title"], StringComparison.Ordinal));
             Assert.Equal(17, view.Count);
 
@@ -273,7 +274,7 @@ namespace Dotmim.Sync.Tests.StandAlone
                 return false;
             });
 
-            var view = new DmView(set.Tables["ServiceTickets"], filter);
+            var view = new DmView(set.Tables["ServiceTickets", ""], filter);
             Assert.Equal(5, view.Count);
 
             // Second Filter
@@ -286,7 +287,7 @@ namespace Dotmim.Sync.Tests.StandAlone
         [Fact]
         private void DmView_Skip()
         {
-            var view = new DmView(set.Tables["ServiceTickets"]);
+            var view = new DmView(set.Tables["ServiceTickets", ""]);
             view = view.Order((r1, r2) => string.Compare(((string)r1["Title"]), (string)r2["Title"], StringComparison.Ordinal));
             Assert.Equal(17, view.Count);
 

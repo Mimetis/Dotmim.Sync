@@ -160,7 +160,8 @@ namespace Dotmim.Sync
                 foreach (var r in relations)
                 {
                     // Get table from the relation where we need to work on
-                    var dmTable = set.Tables[r.TableName];
+                    // TODO: Be able to get schema name when get relations
+                    var dmTable = set.Tables[r.TableName, ""];
 
                     // get DmColumn from DmTable, based on the columns from relations
                     var tblColumns = r.Columns.OrderBy(kc => kc.Order)
@@ -168,7 +169,8 @@ namespace Dotmim.Sync
                         .ToArray();
 
                     // then Get the foreign table as well
-                    var foreignTable = syncConfiguration[r.ReferenceTableName];
+                    // TODO: Be able to get schema name when get relations
+                    var foreignTable = syncConfiguration[r.ReferenceTableName, ""];
 
                     // Since we can have a table with a foreign key but not the parent table
                     // It's not a problem, just forget it

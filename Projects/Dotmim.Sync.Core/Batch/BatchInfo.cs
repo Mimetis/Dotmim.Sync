@@ -45,9 +45,9 @@ namespace Dotmim.Sync.Batch
         public bool InMemory { get; set; }
 
         /// <summary>
-        /// If in memory, return the in memory dataset
+        /// If in memory, return the in memory Dm
         /// </summary>
-        public DmSet InMemoryData { get; set; }
+        public DmSetLight InMemoryData { get; set; }
 
 
         /// <summary>
@@ -80,19 +80,16 @@ namespace Dotmim.Sync.Batch
         }
 
 
-
-
-
         /// <summary>
         /// Get all parts containing this table
         /// Could be multiple parts, since the table may be spread across multiples files
         /// </summary>
-        public IEnumerable<DmTable> GetTable(string tableName)
+        public IEnumerable<DmTableLight> GetTable(string tableName, string schema)
         {
             if (InMemory)
             {
                 if (this.InMemoryData.HasTables)
-                    yield return this.InMemoryData.Tables[tableName];
+                    yield return this.InMemoryData.GetTable(tableName, schema);
             }
             else
             {
@@ -106,9 +103,9 @@ namespace Dotmim.Sync.Batch
                         var stringComparison = caseSensitive ? StringComparison.InvariantCulture : StringComparison.InvariantCultureIgnoreCase;
 
                         // return the table
-                        if (batchPartinInfo.Data.Tables.Any(t => string.Equals(tableName, t.TableName, stringComparison)))
+                        if (batchPartinInfo.Data.Tables.Any(t => string.Equals(tableName, t.TableName, stringComparison) && string.Equals(schema, t.Schema, stringComparison)))
                         {
-                            var table = batchPartinInfo.Data.Tables.First(tbl => string.Equals(tableName, tbl.TableName, stringComparison));
+                            var table = batchPartinInfo.Data.Tables.First(tbl => string.Equals(tableName, tbl.TableName, stringComparison) && string.Equals(schema, tbl.Schema, stringComparison));
 
                             yield return table;
 
@@ -144,7 +141,7 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Add changes to batch info.
         /// </summary>
-        public void AddChanges(DmSet changes, int batchIndex = 0, bool isLastBatch = true)
+        public void AddChanges(DmSetLight changes, int batchIndex = 0, bool isLastBatch = true)
         {
             if (this.InMemory)
             {

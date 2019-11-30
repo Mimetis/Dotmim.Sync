@@ -24,17 +24,20 @@ namespace Dotmim.Sync.Data
                 return collection[index];
             }
         }
-        public DmTable this[string name]
+        public DmTable this[string name, string schema]
         {
             get
             {
                 if (string.IsNullOrEmpty(name))
                     throw new ArgumentNullException("name");
 
-                if (this.innerSet != null)
-                    return collection.FirstOrDefault(c => this.innerSet.IsEqual(c.TableName, name));
-                else
-                    return collection.FirstOrDefault(c => String.Equals(c.TableName, name, StringComparison.InvariantCultureIgnoreCase));
+                if (string.IsNullOrEmpty(schema))
+                    schema = string.Empty;
+
+                var isCS = this.innerSet != null ? this.innerSet.CaseSensitive : false;
+                var sc = isCS ? StringComparison.InvariantCulture : StringComparison.InvariantCultureIgnoreCase;
+
+                return collection.FirstOrDefault(c => string.Equals(c.TableName, name, sc) && string.Equals(c.Schema, schema, sc));
             }
         }
         public int Count
@@ -151,13 +154,7 @@ namespace Dotmim.Sync.Data
 
             Remove(dc);
         }
-        public void Remove(string name)
-        {
-            DmTable dc = this[name];
-            if (dc == null)
-                throw new Exception($"ColumnNotInTheTable({name}, {dc.TableName}");
-            Remove(dc);
-        }
+
 
         IEnumerator IEnumerable.GetEnumerator()
         {

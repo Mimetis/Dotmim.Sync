@@ -5,6 +5,7 @@ namespace Dotmim.Sync.Serialization
 
     public interface ISerializerFactory
     {
+        string Key { get; }
         ISerializer<T> GetSerializer<T>();
     }
 

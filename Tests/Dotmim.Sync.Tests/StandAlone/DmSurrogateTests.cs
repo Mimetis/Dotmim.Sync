@@ -418,23 +418,24 @@ namespace Dotmim.Sync.Tests.StandAlone
             Assert.Equal(set.Tables.Count, set2.Tables.Count);
 
             //Assertions on Table properties
-            var productsTable2 = set2.Tables["Products"];
-            var clientsTable2 = set2.Tables["Clients"];
+            //TODO: Fix schema in DmRElation
+            var productsTable2 = set2.Tables["Products", ""];
+            var clientsTable2 = set2.Tables["Clients", ""];
             AssertIsEqual(productsTable, productsTable2);
             AssertIsEqual(clientsTable, clientsTable2);
 
             // Assertions on columns
-            var productId2 = set2.Tables["Products"].Columns["Id"];
+            var productId2 = set2.Tables["Products", ""].Columns["Id"];
             AssertIsEqual(productId, productId2);
-            var fkClientId2 = set2.Tables["Products"].Columns["clientId"];
+            var fkClientId2 = set2.Tables["Products", ""].Columns["clientId"];
             AssertIsEqual(fkClientId, fkClientId2);
-            var productName2 = set2.Tables["Products"].Columns["name"];
+            var productName2 = set2.Tables["Products", ""].Columns["name"];
             AssertIsEqual(productName, productName2);
-            var productPrice2 = set2.Tables["Products"].Columns["price"];
+            var productPrice2 = set2.Tables["Products", ""].Columns["price"];
             AssertIsEqual(productPrice, productPrice2);
-            var clientId2 = set2.Tables["Clients"].Columns["Id"];
+            var clientId2 = set2.Tables["Clients", ""].Columns["Id"];
             AssertIsEqual(clientId, clientId2);
-            var clientName2 = set2.Tables["Clients"].Columns["Name"];
+            var clientName2 = set2.Tables["Clients", ""].Columns["Name"];
             AssertIsEqual(clientName, clientName2);
 
 

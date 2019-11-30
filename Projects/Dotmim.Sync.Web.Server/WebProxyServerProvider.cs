@@ -19,6 +19,7 @@ using Microsoft.AspNetCore.Session;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Dotmim.Sync.Cache;
+using System.IO.Compression;
 
 namespace Dotmim.Sync.Web.Server
 {
@@ -101,6 +102,7 @@ namespace Dotmim.Sync.Web.Server
             var streamArray = GetBody(httpRequest);
 
             string clientSerializationFormat = "json";
+
             // Get the serialization format
             if (TryGetHeaderValue(context.Request.Headers, "dotmim-sync-serialization-format", out var vs))
                 clientSerializationFormat = vs.ToLowerInvariant();
@@ -108,11 +110,14 @@ namespace Dotmim.Sync.Web.Server
             if (!TryGetHeaderValue(context.Request.Headers, "dotmim-sync-session-id", out var sessionId))
                 throw new SyncException($"Can't find any session id in the header");
 
+            if (!TryGetHeaderValue(context.Request.Headers, "dotmim-sync-step", out string iStep))
+                throw new SyncException($"Can't find any step in the header");
+
+            var step = (HttpStep)Convert.ToInt32(iStep);
             WebServerOrchestrator remoteOrchestrator = null;
-            
+
             try
             {
-
                 // get cached provider instance if not defined byt web proxy server provider
                 if (remoteOrchestrator == null)
                     remoteOrchestrator = GetCachedOrchestrator(context, sessionId);
@@ -120,29 +125,66 @@ namespace Dotmim.Sync.Web.Server
                 if (remoteOrchestrator == null)
                     remoteOrchestrator = AddNewOrchestratorToCacheFromDI(context, sessionId);
 
-                var clientSerializer = remoteOrchestrator.Options.GetSerializer<HttpMessage>(clientSerializationFormat);
-                var httpMessage = clientSerializer.Deserialize(streamArray);
-                var syncSessionId = httpMessage.SyncContext.SessionId.ToString();
-
-
-                if (!httpMessage.SyncContext.SessionId.Equals(Guid.Parse(sessionId)))
-                    throw new SyncException($"Session id is not matching correctly between header and message");
-
                 // action from user if available
                 action?.Invoke(remoteOrchestrator);
 
-                var httpMessageResponse =
-                    await remoteOrchestrator.GetResponseMessageAsync(httpMessage, cancellationToken).ConfigureAwait(false);
+                // Get serializer requested by the client
+                var clientSerializerFactory = remoteOrchestrator.Options.GetSerializerFactory(clientSerializationFormat);
+
+                if (clientSerializerFactory == null)
+                    throw new SyncException($"No serializer available on server side, corresponding to request from client : {clientSerializationFormat}");
+
+                byte[] binaryData = null;
+                switch (step)
+                {
+                    case HttpStep.EnsureScopes:
+                        var m1 = clientSerializerFactory.GetSerializer<HttpMessageEnsureScopesRequest>().Deserialize(streamArray);
+                        var s1 = await remoteOrchestrator.EnsureScopeAsync(m1, cancellationToken).ConfigureAwait(false);
+                        binaryData = clientSerializerFactory.GetSerializer<HttpMessageEnsureScopesResponse>().Serialize(s1);
+                        break;
+                    case HttpStep.SendChanges:
+                        var m2 = clientSerializerFactory.GetSerializer<HttpMessageSendChangesRequest>().Deserialize(streamArray);
+                        var s2 = await remoteOrchestrator.ApplyThenGetChangesAsync(m2, cancellationToken).ConfigureAwait(false);
+                        binaryData = clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().Serialize(s2);
+                        break;
+                    case HttpStep.GetChanges:
+                        var m3 = clientSerializerFactory.GetSerializer<HttpMessageGetMoreChangesRequest>().Deserialize(streamArray);
+                        var s3 = remoteOrchestrator.GetMoreChanges(m3, cancellationToken);
+                        binaryData = clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().Serialize(s3);
+                        break;
+                }
 
                 // Adding the serialization format used and session id
                 httpResponse.Headers.Add("dotmim-sync-session-id", sessionId.ToString());
-                httpResponse.Headers.Add("dotmim-sync-serialization-format", remoteOrchestrator.Options.Serializers.CurrentKey);
+                httpResponse.Headers.Add("dotmim-sync-serialization-format", clientSerializerFactory.Key);
 
-                var serverSerializer = remoteOrchestrator.Options.GetSerializer<HttpMessage>() ;
+                // data to send back, as the response
+                byte[] data;
 
-                var binaryData = serverSerializer.Serialize(httpMessageResponse);
+                // Compress data if client accept Gzip / Deflate
+                string encoding = httpRequest.Headers["Accept-Encoding"];
 
-                await GetBody(httpResponse).WriteAsync(binaryData, 0, binaryData.Length).ConfigureAwait(false);
+                if (!string.IsNullOrEmpty(encoding) && (encoding.Contains("gzip") || encoding.Contains("deflate")))
+                {
+                    using (var writeSteam = new MemoryStream())
+                    {
+                        using (var compress = new GZipStream(writeSteam, CompressionMode.Compress))
+                        {
+                            compress.Write(binaryData, 0, binaryData.Length);
+                        }
+
+                        data = writeSteam.ToArray();
+                    }
+
+                    httpResponse.Headers.Add("Content-Encoding", "gzip");
+                }
+                else
+                {
+                    data = binaryData;
+                }
+
+
+                await GetBody(httpResponse).WriteAsync(data, 0, data.Length).ConfigureAwait(false);
 
             }
             catch (Exception ex)

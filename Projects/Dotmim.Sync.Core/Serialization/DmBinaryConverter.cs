@@ -4,6 +4,8 @@ namespace Dotmim.Sync.Serialization
 {
     public class DmBinaryConverter<T> : ISerializer<T>
     {
+        public string key => "dmbin";
+
         DmSerializer serializer;
 
         public DmBinaryConverter()
