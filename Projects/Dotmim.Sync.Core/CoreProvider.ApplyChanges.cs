@@ -198,15 +198,11 @@ namespace Dotmim.Sync
 
             // if we are in upload stage, so check if table is not download only
             if (context.SyncWay == SyncWay.Upload && table.SyncDirection == SyncDirection.DownloadOnly)
-            {
                 return ChangeApplicationAction.Continue;
-            }
 
             // if we are in download stage, so check if table is not download only
             if (context.SyncWay == SyncWay.Download && table.SyncDirection == SyncDirection.UploadOnly)
-            {
                 return ChangeApplicationAction.Continue;
-            }
 
             var builder = this.GetDatabaseBuilder(table);
 
@@ -256,9 +252,6 @@ namespace Dotmim.Sync
                     {
                         foreach (var conflict in conflicts)
                         {
-                            //var scopeBuilder = this.GetScopeBuilder();
-                            //var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(message.ScopeInfoTableName, connection, transaction);
-                            //var localTimeStamp = scopeInfoBuilder.GetLocalTimestamp();
                             var fromScopeLocalTimeStamp = message.LastTimestamp;
 
                             var conflictCount = 0;

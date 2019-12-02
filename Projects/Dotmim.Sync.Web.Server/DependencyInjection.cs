@@ -13,8 +13,8 @@ namespace Microsoft.Extensions.DependencyInjection
     {
         private static Type providerType;
         private static string connectionString;
-        private static Action<SyncSchema> schema;
-        private static Action<SyncOptions> options;
+        private static SyncSchema schema;
+        private static WebServerOptions options;
 
         /// <summary>
         /// Add the server provider (inherited from CoreProvider) and register in the DI a WebProxyServerProvider.
@@ -28,15 +28,15 @@ namespace Microsoft.Extensions.DependencyInjection
         public static IServiceCollection AddSyncServer<TProvider>(
                     this IServiceCollection serviceCollection,
                     string connectionString,
-                    Action<SyncSchema> schema,
-                    Action<SyncOptions> options = null) where TProvider : CoreProvider, new()
+                    SyncSchema schema,
+                    WebServerOptions options = null) where TProvider : CoreProvider, new()
         {
             if (string.IsNullOrWhiteSpace(connectionString))
                 throw new ArgumentNullException(nameof(connectionString));
 
             providerType = typeof(TProvider);
             DependencyInjection.connectionString = connectionString;
-            DependencyInjection.options = options;
+            DependencyInjection.options = options ?? new WebServerOptions();
             DependencyInjection.schema = schema ?? throw new ArgumentNullException(nameof(schema));
 
             serviceCollection.AddOptions();
@@ -45,6 +45,27 @@ namespace Microsoft.Extensions.DependencyInjection
             return serviceCollection;
         }
 
+        public static IServiceCollection AddSyncServer<TProvider>(
+            this IServiceCollection serviceCollection,
+            string connectionString,
+            string[] tables,
+            WebServerOptions options = null) where TProvider : CoreProvider, new()
+        {
+            if (string.IsNullOrWhiteSpace(connectionString))
+                throw new ArgumentNullException(nameof(connectionString));
+
+            providerType = typeof(TProvider);
+            DependencyInjection.connectionString = connectionString;
+            DependencyInjection.options = options ?? new WebServerOptions();
+            DependencyInjection.schema = new SyncSchema(tables);
+
+            serviceCollection.AddOptions();
+            serviceCollection.AddSingleton(new WebProxyServerOrchestrator());
+
+            return serviceCollection;
+        }
+
+
         /// <summary>
         /// Create a new instance of Sync Memory Provider
         /// </summary>
@@ -52,19 +73,7 @@ namespace Microsoft.Extensions.DependencyInjection
         {
             var provider = (CoreProvider)Activator.CreateInstance(providerType);
             provider.ConnectionString = connectionString;
-
-            var webProvider = new WebServerOrchestrator(provider);
-
-            // Sets the options / configurations
-            var syncSchema = new SyncSchema();
-            schema(syncSchema);
-            webProvider.Schema = syncSchema;
-
-            var syncOptions = new SyncOptions();
-            options(syncOptions);
-            webProvider.Options = syncOptions;
-
-
+            var webProvider = new WebServerOrchestrator(provider, DependencyInjection.options, DependencyInjection.schema);
             return webProvider;
         }
 

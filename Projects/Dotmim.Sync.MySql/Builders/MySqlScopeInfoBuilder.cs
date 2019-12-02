@@ -40,6 +40,7 @@ namespace Dotmim.Sync.MySql
                     $@"CREATE TABLE {scopeTableName.Quoted().ToString()}(
                         sync_scope_id varchar(36) NOT NULL,
 	                    sync_scope_name varchar(100) NOT NULL,
+	                    sync_scope_schema longtext NULL,
                         scope_last_sync datetime NULL,
                         scope_last_server_sync_timestamp bigint NULL,
                         scope_last_sync_timestamp bigint NULL,

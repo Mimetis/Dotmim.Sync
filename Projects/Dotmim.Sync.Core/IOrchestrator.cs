@@ -1,4 +1,5 @@
 ﻿using Dotmim.Sync.Batch;
+using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Messages;
 using System;
 using System.Collections.Generic;
@@ -58,7 +59,7 @@ namespace Dotmim.Sync
               long clientTimestamp,
               BatchInfo clientBatchInfo,
               DatabaseChangesSelected clientChangesSelected)>
-            GetChangesAsync(SyncContext context, SyncSchema schema, ScopeInfo localScopeInfo,
+            GetChangesAsync(SyncContext context, SyncSchema schema, ScopeInfo localScopeInfo, int batchSize, string batchDirectory,
                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null);
 
         /// <summary>
@@ -66,11 +67,9 @@ namespace Dotmim.Sync
         /// </summary>
         Task<(SyncContext context,
               DatabaseChangesApplied clientChangesApplied)>
-            ApplyChangesAsync(SyncContext context,
-                              long clientTimestamp,
-                              long remoteClientTimestamp,
-                              ScopeInfo scope,
-                              BatchInfo serverBatchInfo,
+            ApplyChangesAsync(SyncContext context, ScopeInfo scope, SyncSchema schema, BatchInfo serverBatchInfo,
+                              ConflictResolutionPolicy clientPolicy, long clientTimestamp, long remoteClientTimestamp,
+                              bool disableConstraintsOnApplyChanges, bool useBulkOperations, bool cleanMetadatas, string scopeInfoTableName,
                               CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null);
     }
 
@@ -85,7 +84,7 @@ namespace Dotmim.Sync
         /// </summary>
         /// <returns></returns>
         Task<(SyncContext context, SyncSchema schema)>
-            EnsureSchemaAsync(SyncContext context, SyncSchema schema, SyncOptions options,
+            EnsureSchemaAsync(SyncContext context, SyncSchema schema, 
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null);
 
         /// <summary>
@@ -95,8 +94,10 @@ namespace Dotmim.Sync
               long remoteClientTimestamp,
               BatchInfo serverBatchInfo,
               DatabaseChangesSelected serverChangesSelected)>
-            ApplyThenGetChangesAsync(SyncContext context,
-                                     ScopeInfo scope, BatchInfo clientBatchInfo,
+            ApplyThenGetChangesAsync(SyncContext context, ScopeInfo scope, SyncSchema schema, BatchInfo clientBatchInfo,
+                                     bool disableConstraintsOnApplyChanges, bool useBulkOperations, bool cleanMetadatas,
+                                     int clientBatchSize, string batchDirectory,
                                      CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null);
+
     }
 }

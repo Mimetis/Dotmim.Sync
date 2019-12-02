@@ -10,31 +10,29 @@ namespace Dotmim.Sync.Test.Misc
         /// Always return a new list of configurations.
         /// To be sure that no tests will update a property that will be used (instead of default property) in the next test
         /// </summary>
-        public static List<Action<SyncSchema>> GetSchemas()
+        public static List<SyncSchema> GetSchemas()
         {
-            var Configurations = new List<Action<SyncSchema>>
+            var Configurations = new List<SyncSchema>
             {
-                new Action<SyncSchema>( sc => {
-                    sc.ConflictResolutionPolicy = Enumerations.ConflictResolutionPolicy.ServerWins;
-                    sc.Filters.Clear();
-                    sc.StoredProceduresPrefix = "";
-                    sc.StoredProceduresSuffix = "";
-                    sc.TrackingTablesPrefix = "";
-                    sc.TrackingTablesSuffix = "";
-                    sc.TriggersPrefix = "";
-                    sc.TriggersSuffix = "";
-                }),
+                new SyncSchema{
+                    ConflictResolutionPolicy = Enumerations.ConflictResolutionPolicy.ServerWins,
+                    StoredProceduresPrefix = "",
+                    StoredProceduresSuffix = "",
+                    TrackingTablesPrefix = "",
+                    TrackingTablesSuffix = "",
+                    TriggersPrefix = "",
+                    TriggersSuffix = ""
+                },
 
-                new Action<SyncSchema>( sc => {
-                    sc.ConflictResolutionPolicy = Enumerations.ConflictResolutionPolicy.ServerWins;
-                    sc.Filters.Clear();
-                    sc.StoredProceduresPrefix = "";
-                    sc.StoredProceduresSuffix = "";
-                    sc.TrackingTablesPrefix = "";
-                    sc.TrackingTablesSuffix = "";
-                    sc.TriggersPrefix = "";
-                    sc.TriggersSuffix = "";
-                }),
+                new SyncSchema{
+                   ConflictResolutionPolicy = Enumerations.ConflictResolutionPolicy.ServerWins,
+                   StoredProceduresPrefix = "",
+                   StoredProceduresSuffix = "",
+                   TrackingTablesPrefix = "",
+                   TrackingTablesSuffix = "",
+                   TriggersPrefix = "",
+                   TriggersSuffix = ""
+                }
             };
 
             return Configurations;

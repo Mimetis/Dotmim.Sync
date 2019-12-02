@@ -76,7 +76,7 @@ namespace Dotmim.Sync.Tests
             {
                 var s = new Action<SyncSchema>(c => { });
 
-                var results = await this.testRunner.RunTestsAsync(s);
+                var results = await this.testRunner.RunTestsAsync();
 
                 foreach (var trr in results)
                 {

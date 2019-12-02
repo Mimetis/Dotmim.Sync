@@ -12,7 +12,9 @@ namespace Dotmim.Sync.Messages
     public class MessageApplyChanges
     {
 
-        public MessageApplyChanges(Guid applyingScopeId, bool isNew, long lastTimestamp, SyncSchema schema, ConflictResolutionPolicy policy, bool disableConstraintsOnApplyChanges, bool useBulkOperations, bool cleanMetadatas, string scopeInfoTableName, BatchInfo changes)
+        public MessageApplyChanges(Guid applyingScopeId, bool isNew, long lastTimestamp, SyncSchema schema, 
+                                    ConflictResolutionPolicy policy, bool disableConstraintsOnApplyChanges, 
+                                    bool useBulkOperations, bool cleanMetadatas, BatchInfo changes)
         {
             this.ApplyingScopeId = applyingScopeId;
             this.IsNew = isNew;
@@ -22,7 +24,6 @@ namespace Dotmim.Sync.Messages
             this.DisableConstraintsOnApplyChanges = disableConstraintsOnApplyChanges;
             this.UseBulkOperations = useBulkOperations;
             this.CleanMetadatas = cleanMetadatas;
-            this.ScopeInfoTableName = scopeInfoTableName ?? throw new ArgumentNullException(nameof(scopeInfoTableName));
             this.Changes = changes ?? throw new ArgumentNullException(nameof(changes));
         }
 
@@ -67,11 +68,6 @@ namespace Dotmim.Sync.Messages
         /// Gets or Sets if we should cleaning tmp dir files after sync.
         /// </summary>
         public bool CleanMetadatas { get; set; }
-
-        /// <summary>
-        /// Gets ors Sets the Scope info table name used for the sync
-        /// </summary>
-        public string ScopeInfoTableName { get; set; }
 
         /// <summary>
         /// Gets or Sets the Batch Info used for this sync session

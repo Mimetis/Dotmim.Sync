@@ -40,6 +40,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                     $@"CREATE TABLE [dbo].{scopeTableName.Quoted().ToString()}(
                         [sync_scope_id] [uniqueidentifier] NOT NULL,
 	                    [sync_scope_name] [nvarchar](100) NOT NULL,
+	                    [sync_scope_schema] [nvarchar](max) NULL,
                         [scope_last_server_sync_timestamp] [bigint] NULL,
                         [scope_last_sync_timestamp] [bigint] NULL,
                         [scope_last_sync_duration] [bigint] NULL,
@@ -111,6 +112,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                 command.CommandText =
                     $@"SELECT [sync_scope_id]
                            , [sync_scope_name]
+                           , [sync_scope_schema]
                            , [scope_last_sync]
                            , [scope_last_server_sync_timestamp]
                            , [scope_last_sync_timestamp]
@@ -132,7 +134,8 @@ namespace Dotmim.Sync.SqlServer.Scope
                         while (reader.Read())
                         {
                             var scopeInfo = new ScopeInfo();
-                            scopeInfo.Name = reader["sync_scope_name"] as String;
+                            scopeInfo.Name = reader["sync_scope_name"] as string;
+                            scopeInfo.Schema = reader["sync_scope_schema"] as string;
                             scopeInfo.Id = (Guid)reader["sync_scope_id"];
                             scopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value ? (DateTime?)reader["scope_last_sync"] : null;
                             scopeInfo.LastServerSyncTimestamp = reader["scope_last_server_sync_timestamp"] != DBNull.Value ? (long)reader["scope_last_server_sync_timestamp"] : 0;
@@ -227,6 +230,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                     USING (
                                SELECT  @sync_scope_id AS sync_scope_id,  
 	                                   @sync_scope_name AS sync_scope_name,  
+	                                   @sync_scope_schema AS sync_scope_schema,  
                                        @scope_last_sync AS scope_last_sync,
                                        @scope_last_sync_timestamp AS scope_last_sync_timestamp,
                                        @scope_last_server_sync_timestamp AS scope_last_server_sync_timestamp,
@@ -234,15 +238,17 @@ namespace Dotmim.Sync.SqlServer.Scope
                            ) AS [changes] 
                     ON [base].[sync_scope_id] = [changes].[sync_scope_id]
                     WHEN NOT MATCHED THEN
-	                    INSERT ([sync_scope_name],           [sync_scope_id],           [scope_last_sync],            [scope_last_sync_timestamp],           [scope_last_server_sync_timestamp],           [scope_last_sync_duration])
-	                    VALUES ([changes].[sync_scope_name], [changes].[sync_scope_id], [changes].[scope_last_sync],  [changes].[scope_last_sync_timestamp], [changes].[scope_last_server_sync_timestamp], [changes].[scope_last_sync_duration])
+	                    INSERT ([sync_scope_name], [sync_scope_schema], [sync_scope_id], [scope_last_sync], [scope_last_sync_timestamp],           [scope_last_server_sync_timestamp],           [scope_last_sync_duration])
+	                    VALUES ([changes].[sync_scope_name], [changes].[sync_scope_schema], [changes].[sync_scope_id], [changes].[scope_last_sync],  [changes].[scope_last_sync_timestamp], [changes].[scope_last_server_sync_timestamp], [changes].[scope_last_sync_duration])
                     WHEN MATCHED THEN
 	                    UPDATE SET [sync_scope_name] = [changes].[sync_scope_name], 
+                                   [sync_scope_schema] = [changes].[sync_scope_schema], 
                                    [scope_last_sync] = [changes].[scope_last_sync],
                                    [scope_last_sync_timestamp] = [changes].[scope_last_sync_timestamp],
                                    [scope_last_server_sync_timestamp] = [changes].[scope_last_server_sync_timestamp],
                                    [scope_last_sync_duration] = [changes].[scope_last_sync_duration]
                     OUTPUT  INSERTED.[sync_scope_name], 
+                            INSERTED.[sync_scope_schema], 
                             INSERTED.[sync_scope_id], 
                             INSERTED.[scope_last_sync],
                             INSERTED.[scope_last_sync_timestamp],
@@ -253,6 +259,12 @@ namespace Dotmim.Sync.SqlServer.Scope
                 var p = command.CreateParameter();
                 p.ParameterName = "@sync_scope_name";
                 p.Value = scopeInfo.Name;
+                p.DbType = DbType.String;
+                command.Parameters.Add(p);
+
+                p = command.CreateParameter();
+                p.ParameterName = "@sync_scope_schema";
+                p.Value = string.IsNullOrEmpty(scopeInfo.Schema) ? DBNull.Value : (object)scopeInfo.Schema;
                 p.DbType = DbType.String;
                 command.Parameters.Add(p);
 
@@ -294,6 +306,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                         while (reader.Read())
                         {
                             scopeInfo.Name = reader["sync_scope_name"] as String;
+                            scopeInfo.Schema = reader["sync_scope_schema"] as String;
                             scopeInfo.Id = (Guid)reader["sync_scope_id"];
                             scopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value ? (DateTime?)reader["scope_last_sync"] : null;
                             scopeInfo.LastSyncTimestamp = reader["scope_last_sync_timestamp"] != DBNull.Value ? (long)reader["scope_last_sync_timestamp"] : 0;

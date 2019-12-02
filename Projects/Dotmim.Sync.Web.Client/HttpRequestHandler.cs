@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Net;
+using Dotmim.Sync.Serialization.Serializers;
 
 #if NETSTANDARD
 using Microsoft.Net.Http.Headers;
@@ -23,38 +24,36 @@ namespace Dotmim.Sync.Web.Client
     /// </summary>
     public class HttpRequestHandler : IDisposable
     {
-        private HttpClient client;
 
         internal Dictionary<string, string> CustomHeaders { get; } = new Dictionary<string, string>();
 
         internal Dictionary<string, string> ScopeParameters { get; } = new Dictionary<string, string>();
 
-        internal Uri BaseUri { get; set; }
-
-        internal CancellationToken CancellationToken { get; set; }
-
-        internal HttpClientHandler Handler { get; set; } = new HttpClientHandler();
-
         internal CookieHeaderValue Cookie { get; set; }
 
-        public HttpRequestHandler()
-        {
-            this.CancellationToken = CancellationToken.None;
-        }
 
-        public HttpRequestHandler(Uri serviceUri, CancellationToken cancellationToken)
-        {
-            this.BaseUri = serviceUri;
-            this.CancellationToken = cancellationToken;
-        }
-
+        ///// <summary>
+        ///// Ensure that Gzip stream is supported. If not (or if client disable it, explicitly) plain text is used
+        ///// </summary>
+        ///// <param name="overridenValue"></param>
+        //private void EnsureGzipStream(bool overridenValue = true)
+        //{
+        //    if (!this.Handler.SupportsAutomaticDecompression || !overridenValue)
+        //        this.Handler.AutomaticDecompression = DecompressionMethods.None;
+        //    else
+        //        this.Handler.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
+        //}
 
         /// <summary>
         /// Process a request message with HttpClient object. 
         /// </summary>
-        public async Task<U> ProcessRequestAsync<T, U>(T content, HttpStep step, Guid sessionId, ISerializerFactory serializerFactory, CancellationToken cancellationToken)
+        public async Task<U> ProcessRequestAsync<T, U>(HttpClient client, string baseUri, T content, HttpStep step, Guid sessionId,
+            ISerializerFactory serializerFactory, int batchSize, CancellationToken cancellationToken)
         {
-            if (this.BaseUri == null)
+            if (client is null)
+                throw new ArgumentNullException(nameof(client));
+
+            if (baseUri == null)
                 throw new ArgumentException("BaseUri is not defined");
 
             HttpResponseMessage response = null;
@@ -65,8 +64,8 @@ namespace Dotmim.Sync.Web.Client
                     cancellationToken.ThrowIfCancellationRequested();
 
                 var requestUri = new StringBuilder();
-                requestUri.Append(this.BaseUri.ToString());
-                requestUri.Append(this.BaseUri.ToString().EndsWith("/", StringComparison.CurrentCultureIgnoreCase) ? string.Empty : "/");
+                requestUri.Append(baseUri);
+                requestUri.Append(baseUri.EndsWith("/", StringComparison.CurrentCultureIgnoreCase) ? string.Empty : "/");
 
                 // Add params if any
                 if (ScopeParameters != null && ScopeParameters.Count > 0)
@@ -86,10 +85,6 @@ namespace Dotmim.Sync.Web.Client
                 var binaryData = serializer.Serialize(content);
                 var arrayContent = new ByteArrayContent(binaryData);
 
-                // do not dispose HttpClient for performance issue
-                if (client == null)
-                    client = new HttpClient(this.Handler);
-
                 // reinit client
                 client.DefaultRequestHeaders.Clear();
 
@@ -103,7 +98,10 @@ namespace Dotmim.Sync.Web.Client
                 // Adding the serialization format used and session id
                 requestMessage.Headers.Add("dotmim-sync-session-id", sessionId.ToString());
                 requestMessage.Headers.Add("dotmim-sync-step", ((int)step).ToString());
-                requestMessage.Headers.Add("dotmim-sync-serialization-format", serializerFactory.Key);
+
+                // serialize the serialization format and the batchsize we want.
+                var ser = JsonConvert.SerializeObject(new { f = serializerFactory.Key, s = batchSize });
+                requestMessage.Headers.Add("dotmim-sync-serialization-format", ser);
 
                 // Adding others headers
                 if (this.CustomHeaders != null && this.CustomHeaders.Count > 0)
@@ -111,10 +109,11 @@ namespace Dotmim.Sync.Web.Client
                         if (!requestMessage.Headers.Contains(kvp.Key))
                             requestMessage.Headers.Add(kvp.Key, kvp.Value);
 
-                //request.AddHeader("content-type", "application/json");
-                if (serializerFactory.Key == "json" && !requestMessage.Content.Headers.Contains("content-type"))
+                // If Json, specify header
+                if (serializerFactory.Key == SerializersCollection.JsonSerializer.Key && !requestMessage.Content.Headers.Contains("content-type"))
                     requestMessage.Content.Headers.Add("content-type", "application/json");
 
+                // Eventually, send the request
                 response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
                 if (cancellationToken.IsCancellationRequested)
@@ -196,8 +195,6 @@ namespace Dotmim.Sync.Web.Client
             {
                 if (disposing)
                 {
-                    if (client != null)
-                        client.Dispose();
                 }
                 disposedValue = true;
             }
