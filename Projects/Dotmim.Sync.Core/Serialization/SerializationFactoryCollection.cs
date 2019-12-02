@@ -8,54 +8,31 @@ using System.Text;
 
 namespace Dotmim.Sync.Serialization
 {
-    public class SerializationFactoryCollection : ICollection<ISerializerFactory>
+    public class SerializersCollection : ICollection<ISerializerFactory>
     {
-        private static ISerializerFactory DEFAULT_FACTORY = new JsonConverterFactory();
-
-        public ISerializerFactory CurrentSerializerFactory { get; private set; }
-        public ISerializerFactory DefaultSerializerFactory => DEFAULT_FACTORY;
-
-
-        public void Add(ISerializerFactory value, bool isDefault)
-        {
-            if (isDefault)
-                this.SetDefaultSerializer(value);
-
-            Add(value);
-        }
-
- 
-        public SerializationFactoryCollection()
-        {
-            // add json serializer, as default
-            this.Add(DEFAULT_FACTORY, true);
-            // add binary serializer;
-            this.Add(new ContractSerializerFactory());
-        }
-
-        public void SetDefaultSerializer(SerializationFormat serializationFormat)
-        {
-            switch (serializationFormat)
-            {
-                case SerializationFormat.Binary:
-                    this.CurrentSerializerFactory = this["dc"];
-                    break;
-                case SerializationFormat.Json:
-                default:
-                    this.CurrentSerializerFactory = this["json"];
-                    break;
-            }
-
-        }
+        private Collection<ISerializerFactory> collection = new Collection<ISerializerFactory>();
 
         /// <summary>
-        /// Set default serializer
+        /// Get the default Json serializer
         /// </summary>
-        private void SetDefaultSerializer(ISerializerFactory value) => this.CurrentSerializerFactory = value;
+        public static ISerializerFactory JsonSerializer { get; } = new JsonConverterFactory();
+
+        /// <summary>
+        /// Get the default Json serializer
+        /// </summary>
+        public static ISerializerFactory DataContractSerializer { get; } = new ContractSerializerFactory();
 
 
-        Collection<ISerializerFactory> collection = new Collection<ISerializerFactory>();
-
+        /// <summary>
+        /// Create a default collection with 2 known serializers
+        /// </summary>
+        public SerializersCollection()
+        {
+            // add json serializer, as default
+            this.Add(JsonSerializer);
+            // add binary serializer;
+            this.Add(DataContractSerializer);
+        }
 
         public ISerializerFactory this[string key]
         {

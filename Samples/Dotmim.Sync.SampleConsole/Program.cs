@@ -18,6 +18,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.IO;
+using System.Net;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters;
 using System.Runtime.Serialization.Formatters.Binary;
@@ -38,7 +39,7 @@ internal class Program
     {
         SyncHttpThroughKestellAsync().GetAwaiter().GetResult();
 
- 
+
         Console.ReadLine();
     }
 
@@ -348,25 +349,17 @@ internal class Program
         agent.AddRemoteProgress(remoteProgress);
 
         // Setting configuration options
-        agent.SetSchema(s =>
-        {
-            s.StoredProceduresPrefix = "s";
-            s.StoredProceduresSuffix = "";
-            s.TrackingTablesPrefix = "t";
-            s.TrackingTablesSuffix = "";
-        });
+        agent.Schema.StoredProceduresPrefix = "s";
+        agent.Schema.StoredProceduresSuffix = "";
+        agent.Schema.TrackingTablesPrefix = "t";
+        agent.Schema.TrackingTablesSuffix = "";
 
-        agent.SetOptions(opt =>
-        {
-            opt.ScopeInfoTableName = "tscopeinfo";
-            opt.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync");
-            opt.BatchSize = 100;
-            opt.CleanMetadatas = true;
-            opt.UseBulkOperations = true;
-            opt.UseVerboseErrors = false;
-        });
-
-
+        agent.Options.ScopeInfoTableName = "tscopeinfo";
+        agent.Options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync");
+        agent.Options.BatchSize = 100;
+        agent.Options.CleanMetadatas = true;
+        agent.Options.UseBulkOperations = true;
+        agent.Options.UseVerboseErrors = false;
 
         agent.LocalOrchestrator.OnTransactionOpen(to =>
         {
@@ -506,23 +499,17 @@ internal class Program
 
 
         // Setting configuration options
-        agent.SetSchema(s =>
-        {
-            s.StoredProceduresPrefix = "s";
-            s.StoredProceduresSuffix = "";
-            s.TrackingTablesPrefix = "t";
-            s.TrackingTablesSuffix = "";
-        });
+        agent.Schema.StoredProceduresPrefix = "s";
+        agent.Schema.StoredProceduresSuffix = "";
+        agent.Schema.TrackingTablesPrefix = "t";
+        agent.Schema.TrackingTablesSuffix = "";
 
-        agent.SetOptions(opt =>
-        {
-            opt.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync");
-            opt.BatchSize = 100;
-            opt.CleanMetadatas = true;
-            opt.UseBulkOperations = true;
-            opt.UseVerboseErrors = false;
-            opt.ScopeInfoTableName = "tscopeinfo";
-        });
+        agent.Options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync");
+        agent.Options.BatchSize = 100;
+        agent.Options.CleanMetadatas = true;
+        agent.Options.UseBulkOperations = true;
+        agent.Options.UseVerboseErrors = false;
+        agent.Options.ScopeInfoTableName = "tscopeinfo";
 
 
         do
@@ -691,57 +678,58 @@ internal class Program
         var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
         var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
 
-        var proxyClientProvider = new WebClientOrchestrator();
-
         // Tables involved in the sync process:
         //var tables = allTables;
         var tables = new string[] { "ProductCategory" };
-
-        // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, proxyClientProvider);
 
 
         // ----------------------------------
         // Client side
         // ----------------------------------
-        agent.SetOptions(opt =>
+        var clientOptions = new SyncOptions
         {
-            opt.ScopeInfoTableName = "client_scopeinfo";
-            opt.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync_client");
-            opt.BatchSize = 0;
-            opt.CleanMetadatas = true;
-            opt.UseBulkOperations = true;
-            opt.UseVerboseErrors = false;
-            //opt.Serializers.Add(new CustomMessagePackSerializerFactory(), true);
-        });
+            ScopeInfoTableName = "client_scopeinfo",
+            BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync_client"),
+            BatchSize = 0,
+            CleanMetadatas = true,
+            UseBulkOperations = true,
+            UseVerboseErrors = false,
+        };
 
         // ----------------------------------
-        // Server side
+        // Web Server side
         // ----------------------------------
-        var schema = new Action<SyncSchema>(s =>
+        var schema = new SyncSchema(tables)
         {
-            s.Add(tables);
-            s.StoredProceduresPrefix = "s";
-            s.StoredProceduresSuffix = "";
-            s.TrackingTablesPrefix = "t";
-            s.TrackingTablesSuffix = "";
-        });
+            StoredProceduresPrefix = "s",
+            StoredProceduresSuffix = "",
+            TrackingTablesPrefix = "t",
+            TrackingTablesSuffix = ""
+        };
 
-        var optionsServer = new Action<SyncOptions>(opt =>
+        var webServerOptions = new WebServerOptions
         {
-            opt.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync_server");
-            opt.BatchSize = 0;
-            opt.CleanMetadatas = true;
-            opt.UseBulkOperations = true;
-            opt.UseVerboseErrors = false;
-            opt.Serializers.Add(new CustomMessagePackSerializerFactory());
+            BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync_server"),
+            CleanMetadatas = true,
+            UseBulkOperations = true,
+            UseVerboseErrors = false
+        };
+        webServerOptions.Serializers.Add(new CustomMessagePackSerializerFactory());
 
-        });
+        // Create the web proxy client provider with specific options
+        var proxyClientProvider = new WebClientOrchestrator
+        {
+            SerializerFactory = new CustomMessagePackSerializerFactory()
+        };
+
+
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, proxyClientProvider, null, clientOptions);
 
 
         var serverHandler = new RequestDelegate(async context =>
         {
-            var proxyServerProvider = WebProxyServerOrchestrator.Create(context, serverProvider, schema, optionsServer);
+            var proxyServerProvider = WebProxyServerOrchestrator.Create(context, serverProvider, schema, webServerOptions);
 
             await proxyServerProvider.HandleRequestAsync(context);
         });
@@ -749,7 +737,7 @@ internal class Program
         {
             var clientHandler = new ResponseDelegate(async (serviceUri) =>
             {
-                proxyClientProvider.ServiceUri = new Uri(serviceUri);
+                proxyClientProvider.ServiceUri = serviceUri;
                 do
                 {
                     Console.Clear();

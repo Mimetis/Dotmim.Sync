@@ -26,6 +26,11 @@ namespace Dotmim.Sync
         public bool IsNewScope { get; set; }
 
         /// <summary>
+        /// Scope schema. stored locally on the client
+        /// </summary>
+        public string Schema { get; set; }
+
+        /// <summary>
         /// Gets or Sets the last datetime when a sync has successfully ended.
         /// </summary>
         public DateTime? LastSync { get; set; }

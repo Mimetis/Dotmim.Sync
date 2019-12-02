@@ -10,7 +10,7 @@ using System.Runtime.Serialization;
 
 namespace Dotmim.Sync
 {
-    [Serializable]
+    [DataContract]
     public class SyncSchema
     {
         public const string DMSET_NAME = "DotmimSync";
@@ -30,7 +30,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets or Sets the DmSet Schema used for synchronization
         /// </summary>
-        [DataMember(Name = "S")]
+        [DataMember(Name = "s")]
         public DmSet Set
         {
             get; set;
@@ -40,19 +40,19 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets or Sets the current scope name
         /// </summary>
-        [DataMember(Name = "SN")]
+        [DataMember(Name = "sn")]
         public string ScopeName { get; set; }
 
         /// <summary>
         /// Filters applied on tables
         /// </summary>
-        [DataMember(Name = "F")]
+        [DataMember(Name = "f")]
         public ICollection<FilterClause> Filters { get; set; }
 
         /// <summary>
         /// Specify a prefix for naming stored procedure. Default is empty string
         /// </summary>
-        [DataMember(Name = "SPP")]
+        [DataMember(Name = "spp")]
         public string StoredProceduresPrefix
         {
             get => this._storedProceduresPrefix;
@@ -76,7 +76,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Specify a suffix for naming stored procedures. Default is empty string
         /// </summary>
-        [DataMember(Name = "SPS")]
+        [DataMember(Name = "sps")]
         public string StoredProceduresSuffix
         {
             get => this._storedProceduresSuffix;
@@ -100,7 +100,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Specify a prefix for naming stored procedure. Default is empty string
         /// </summary>
-        [DataMember(Name = "TP")]
+        [DataMember(Name = "tp")]
         public string TriggersPrefix
         {
             get => this._triggersPrefix;
@@ -124,7 +124,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Specify a suffix for naming stored procedures. Default is empty string
         /// </summary>
-        [DataMember(Name = "TS")]
+        [DataMember(Name = "ts")]
         public string TriggersSuffix
         {
             get => this._triggersSuffix;
@@ -148,7 +148,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Specify a prefix for naming tracking tables. Default is empty string
         /// </summary>
-        [DataMember(Name = "TTP")]
+        [DataMember(Name = "ttp")]
         public string TrackingTablesPrefix
         {
             get => this._trackingTablesPrefix;
@@ -172,7 +172,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Specify a suffix for naming tracking tables.
         /// </summary>
-        [DataMember(Name = "TTS")]
+        [DataMember(Name = "tts")]
         public string TrackingTablesSuffix
         {
             get => this._trackingTablesSuffix;
@@ -214,7 +214,7 @@ namespace Dotmim.Sync
 
         public SyncSchema(string[] tables) : this()
         {
-            if (tables.Length <= 0)
+            if (tables == null || tables.Length <= 0)
                 return;
 
             foreach (var table in tables)
@@ -223,7 +223,7 @@ namespace Dotmim.Sync
 
         public SyncSchema Clone()
         {
-            var syncConfiguration = new SyncSchema
+            var clone = new SyncSchema
             {
                 ConflictResolutionPolicy = this.ConflictResolutionPolicy,
                 Set = this.Set.Clone(),
@@ -238,9 +238,9 @@ namespace Dotmim.Sync
 
             if (this.Filters != null)
                 foreach (var p in this.Filters)
-                    syncConfiguration.Filters.Add(new FilterClause(p.TableName, p.ColumnName, p.ColumnType));
+                    clone.Filters.Add(new FilterClause(p.TableName, p.ColumnName, p.ColumnType));
 
-            return syncConfiguration;
+            return clone;
         }
         public int Count
         {

@@ -20,6 +20,7 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Dotmim.Sync.Cache;
 using System.IO.Compression;
+using System.Text;
 
 namespace Dotmim.Sync.Web.Server
 {
@@ -29,21 +30,18 @@ namespace Dotmim.Sync.Web.Server
     /// </summary>
     public class WebProxyServerOrchestrator
     {
-
         private static WebProxyServerOrchestrator defaultInstance = new WebProxyServerOrchestrator();
-
 
         /// <summary>
         /// Default constructor for DI
         /// </summary>
         public WebProxyServerOrchestrator() { }
 
-
         /// <summary>
         /// Create a new WebProxyServerProvider with a first instance of an in memory CoreProvider
         /// Use this method to create your WebProxyServerProvider if you don't use the DI stuff from ASP.NET
         /// </summary>
-        public static WebProxyServerOrchestrator Create(HttpContext context, CoreProvider provider, Action<SyncSchema> conf, Action<SyncOptions> options)
+        public static WebProxyServerOrchestrator Create(HttpContext context, CoreProvider provider, SyncSchema schema, WebServerOptions options)
         {
             if (!TryGetHeaderValue(context.Request.Headers, "dotmim-sync-session-id", out var sessionId))
                 throw new SyncException($"Can't find any session id in the header");
@@ -53,7 +51,7 @@ namespace Dotmim.Sync.Web.Server
 
             // we don't have any provider for this session id, so create it
             if (syncMemoryOrchestrator == null)
-                AddNewOrchestratorToCache(context, provider, conf, options, sessionId);
+                AddNewOrchestratorToCache(context, provider, schema, options, sessionId);
 
             return defaultInstance;
         }
@@ -100,12 +98,11 @@ namespace Dotmim.Sync.Web.Server
             var httpRequest = context.Request;
             var httpResponse = context.Response;
             var streamArray = GetBody(httpRequest);
+            var serAndsizeString = string.Empty;
 
-            string clientSerializationFormat = "json";
-
-            // Get the serialization format
+            // Get the serialization and batch size format
             if (TryGetHeaderValue(context.Request.Headers, "dotmim-sync-serialization-format", out var vs))
-                clientSerializationFormat = vs.ToLowerInvariant();
+                serAndsizeString = vs.ToLowerInvariant();
 
             if (!TryGetHeaderValue(context.Request.Headers, "dotmim-sync-session-id", out var sessionId))
                 throw new SyncException($"Can't find any session id in the header");
@@ -128,11 +125,9 @@ namespace Dotmim.Sync.Web.Server
                 // action from user if available
                 action?.Invoke(remoteOrchestrator);
 
-                // Get serializer requested by the client
-                var clientSerializerFactory = remoteOrchestrator.Options.GetSerializerFactory(clientSerializationFormat);
+                // Get the serializer and batchsize
+                (var clientBatchSize, var clientSerializerFactory) = GetClientSerializer(serAndsizeString, remoteOrchestrator);
 
-                if (clientSerializerFactory == null)
-                    throw new SyncException($"No serializer available on server side, corresponding to request from client : {clientSerializationFormat}");
 
                 byte[] binaryData = null;
                 switch (step)
@@ -144,7 +139,7 @@ namespace Dotmim.Sync.Web.Server
                         break;
                     case HttpStep.SendChanges:
                         var m2 = clientSerializerFactory.GetSerializer<HttpMessageSendChangesRequest>().Deserialize(streamArray);
-                        var s2 = await remoteOrchestrator.ApplyThenGetChangesAsync(m2, cancellationToken).ConfigureAwait(false);
+                        var s2 = await remoteOrchestrator.ApplyThenGetChangesAsync(m2, clientBatchSize, cancellationToken).ConfigureAwait(false);
                         binaryData = clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().Serialize(s2);
                         break;
                     case HttpStep.GetChanges:
@@ -236,7 +231,7 @@ namespace Dotmim.Sync.Web.Server
         }
 
 
-        private static WebServerOrchestrator AddNewOrchestratorToCache(HttpContext context, CoreProvider provider, Action<SyncSchema> schema, Action<SyncOptions> options, string sessionId)
+        private static WebServerOrchestrator AddNewOrchestratorToCache(HttpContext context, CoreProvider provider, SyncSchema schema, WebServerOptions options, string sessionId)
         {
             WebServerOrchestrator remoteOrchestrator;
             var cache = context.RequestServices.GetService<IMemoryCache>();
@@ -244,20 +239,37 @@ namespace Dotmim.Sync.Web.Server
             if (cache == null)
                 throw new SyncException("Cache is not configured! Please add memory cache, distributed or not (see https://docs.microsoft.com/en-us/aspnet/core/performance/caching/response?view=aspnetcore-2.2)");
 
-            remoteOrchestrator = new WebServerOrchestrator(provider);
-
-            var syncSchema = new SyncSchema();
-            schema(syncSchema);
-            remoteOrchestrator.Schema = syncSchema;
-
-            var syncOptions = new SyncOptions();
-            options(syncOptions);
-            remoteOrchestrator.Options = syncOptions;
+            remoteOrchestrator = new WebServerOrchestrator(provider, options, schema);
 
             cache.Set(sessionId, remoteOrchestrator, TimeSpan.FromHours(1));
             return remoteOrchestrator;
         }
 
+
+        private (int clientBatchSize, ISerializerFactory clientSerializer) GetClientSerializer(string serAndsizeString, WebServerOrchestrator serverOrchestrator)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(serAndsizeString))
+                    throw new Exception();
+
+                var serAndsize = JsonConvert.DeserializeAnonymousType(serAndsizeString, new { f = "", s = 0 });
+
+                var clientBatchSize = serAndsize.s;
+                var clientSerializerFactory = serverOrchestrator.Options.Serializers[serAndsize.f];
+
+                return (clientBatchSize, clientSerializerFactory);
+            }
+            catch
+            {
+                var sb = new StringBuilder("Unexpected value for serializer. Available serializers on the server:");
+                foreach (var factory in serverOrchestrator.Options.Serializers)
+                    sb.Append($" {factory.Key}");
+                var error = sb.ToString();
+
+                throw new SyncException(error);
+            }
+        }
 
 
         /// <summary>

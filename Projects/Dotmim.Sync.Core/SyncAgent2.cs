@@ -2,6 +2,7 @@
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Filter;
 using Dotmim.Sync.Messages;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -17,8 +18,6 @@ namespace Dotmim.Sync
     /// </summary>
     public class SyncAgent : IDisposable
     {
-        private SyncSchema schema = new SyncSchema();
-        private SyncOptions options = new SyncOptions();
         private IProgress<ProgressArgs> remoteProgress = null;
 
         /// <summary>
@@ -47,36 +46,23 @@ namespace Dotmim.Sync
         public event EventHandler<SyncSessionState> SessionStateChanged = null;
 
         /// <summary>
-        /// Set Sync Configuration parameters
+        /// Gets or Sets the schema used for this sync process.
         /// </summary>
-        public void SetSchema(Action<SyncSchema> onSchema)
-            => onSchema?.Invoke(this.schema);
+        public SyncSchema Schema { get; set; }
 
         /// <summary>
-        /// Set Sync Options parameters
+        /// Gets or Sets the options used on this sync process.
         /// </summary>
-        public void SetOptions(Action<SyncOptions> onOptions)
-            => onOptions?.Invoke(this.options);
-
-        public void AddFilter(FilterClause filter)
-        {
-            if (!this.schema.Filters.Any(f => f.TableName == filter.TableName && f.ColumnName == filter.ColumnName))
-                this.schema.Filters.Add(filter);
-        }
+        public SyncOptions Options { get; set; }
 
         public void SetInterceptors(Interceptors interceptors)
             => this.LocalOrchestrator.On(interceptors);
 
-
-
         /// <summary>
-        /// If you want to see remote progress as well (only on direct connection)
+        /// If you want to see remote progress as well (only available RemoteOrchestrator)
         /// </summary>
         /// <param name="remoteProgress"></param>
-        public void AddRemoteProgress(IProgress<ProgressArgs> remoteProgress)
-        {
-            this.remoteProgress = remoteProgress;
-        }
+        public void AddRemoteProgress(IProgress<ProgressArgs> remoteProgress) => this.remoteProgress = remoteProgress;
 
         /// <summary>
         /// Shortcut to Apply changed failed (supported by the local orchestrator)
@@ -89,29 +75,28 @@ namespace Dotmim.Sync
         public void OnApplyChangesFailed(Action<ApplyChangesFailedArgs> action) => this.LocalOrchestrator.OnApplyChangesFailed(action);
 
 
-        public SyncAgent(string scopeName, CoreProvider clientProvider, CoreProvider serverProvider, string[] tables = null)
-            : this(scopeName, new LocalOrchestrator(clientProvider), new RemoteOrchestrator(serverProvider), tables)
+        public SyncAgent(string scopeName, CoreProvider clientProvider, CoreProvider serverProvider, string[] tables = null, SyncOptions options = null)
+            : this(scopeName, new LocalOrchestrator(clientProvider), new RemoteOrchestrator(serverProvider), tables, options)
         {
         }
-        public SyncAgent(CoreProvider clientProvider, CoreProvider serverProvider, string[] tables = null)
-            : this(SyncOptions.DefaultScopeName, clientProvider, serverProvider, tables)
+        public SyncAgent(CoreProvider clientProvider, CoreProvider serverProvider, string[] tables = null, SyncOptions options = null)
+            : this(SyncOptions.DefaultScopeName, clientProvider, serverProvider, tables, options)
         {
         }
-        public SyncAgent(string scopeName, CoreProvider clientProvider, IRemoteOrchestrator remoteOrchestrator, string[] tables = null)
-            : this(scopeName, new LocalOrchestrator(clientProvider), remoteOrchestrator, tables)
+        public SyncAgent(string scopeName, CoreProvider clientProvider, IRemoteOrchestrator remoteOrchestrator, string[] tables = null, SyncOptions options = null)
+            : this(scopeName, new LocalOrchestrator(clientProvider), remoteOrchestrator, tables, options)
         {
         }
-        public SyncAgent(CoreProvider clientProvider, IRemoteOrchestrator remoteOrchestrator, string[] tables = null)
-            : this(SyncOptions.DefaultScopeName, new LocalOrchestrator(clientProvider), remoteOrchestrator, tables)
+        public SyncAgent(CoreProvider clientProvider, IRemoteOrchestrator remoteOrchestrator, string[] tables = null, SyncOptions options = null)
+            : this(SyncOptions.DefaultScopeName, new LocalOrchestrator(clientProvider), remoteOrchestrator, tables, options)
+        {
+        }
+        public SyncAgent(ILocalOrchestrator localOrchestrator, IRemoteOrchestrator remoteOrchestrator, string[] tables = null, SyncOptions options = null)
+            : this(SyncOptions.DefaultScopeName, localOrchestrator, remoteOrchestrator, tables, options)
         {
         }
 
-        public SyncAgent(ILocalOrchestrator localOrchestrator, IRemoteOrchestrator remoteOrchestrator, string[] tables = null)
-            : this(SyncOptions.DefaultScopeName, localOrchestrator, remoteOrchestrator, tables)
-        {
-        }
-
-        public SyncAgent(string scopeName, ILocalOrchestrator localOrchestrator, IRemoteOrchestrator remoteOrchestrator, string[] tables = null)
+        public SyncAgent(string scopeName, ILocalOrchestrator localOrchestrator, IRemoteOrchestrator remoteOrchestrator, string[] tables = null, SyncOptions options = null)
         {
             if (string.IsNullOrEmpty(scopeName))
                 throw new ArgumentNullException("scopeName");
@@ -119,44 +104,35 @@ namespace Dotmim.Sync
             if (remoteOrchestrator.Provider != null && !remoteOrchestrator.Provider.CanBeServerProvider)
                 throw new NotSupportedException();
 
+            // Create schema based on list of tables
+            this.Schema = new SyncSchema(tables) { ScopeName = scopeName };
+
+            // Create sync options if needed
+            this.Options = options ?? new SyncOptions();
+
+            // Add parameters
+            this.Parameters = new SyncParameterCollection();
+
+            // Affect local and remote orchestrators
             this.LocalOrchestrator = localOrchestrator;
             this.RemoteOrchestrator = remoteOrchestrator;
-
-            this.SetSchema(c =>
-            {
-                c.ScopeName = scopeName;
-
-                if (tables != null && tables.Length > 0)
-                    foreach (var tbl in tables)
-                        c.Add(tbl);
-            });
-
-            this.Parameters = new SyncParameterCollection();
         }
 
 
         /// <summary>
         /// Launch a normal synchronization without any IProgess or CancellationToken
         /// </summary>
-        public Task<SyncContext> SynchronizeAsync()
-        {
-            return SynchronizeAsync(SyncType.Normal, CancellationToken.None);
-        }
+        public Task<SyncContext> SynchronizeAsync() => SynchronizeAsync(SyncType.Normal, CancellationToken.None);
 
         /// <summary>
         /// Launch a normal synchronization without any IProgess or CancellationToken
         /// </summary>
-        public Task<SyncContext> SynchronizeAsync(IProgress<ProgressArgs> progress)
-        {
-            return SynchronizeAsync(SyncType.Normal, CancellationToken.None, progress);
-        }
-
+        public Task<SyncContext> SynchronizeAsync(IProgress<ProgressArgs> progress) => SynchronizeAsync(SyncType.Normal, CancellationToken.None, progress);
 
         /// <summary>
         /// Launch a synchronization with the specified mode
         /// </summary>
-        public async Task<SyncContext> SynchronizeAsync(SyncType syncType,
-            CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+        public async Task<SyncContext> SynchronizeAsync(SyncType syncType, CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
             // Context, used to back and forth data between servers
             var context = new SyncContext(Guid.NewGuid())
@@ -183,30 +159,37 @@ namespace Dotmim.Sync
                 // - Getting local config we have set by code
                 // - Ensure local scope is created (table and values)
                 (context, scope) = await this.LocalOrchestrator.EnsureScopeAsync
-                        (context, schema, options, cancellationToken, progress);
+                        (context, this.Schema, this.Options, cancellationToken, progress);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
-                // FIRST call to server
-                // Get the server scope info and server reference id to local scope
-                // Be sure options / schema from client are passed if needed
-                // Then the configuration with full schema
-                var serverSchema = await this.RemoteOrchestrator.EnsureSchemaAsync(
-                        context, schema, options, cancellationToken, remoteProgress);
+                // check if we already have a schema from local 
+                if (!string.IsNullOrEmpty(scope.Schema))
+                {
+                    this.Schema = JsonConvert.DeserializeObject<SyncSchema>(scope.Schema);
+                }
+                else
+                {
+                    // FIRST call to server
+                    // Get the server scope info and server reference id to local scope
+                    // Be sure options / schema from client are passed if needed
+                    // Then the configuration with full schema
+                    var serverSchema = await this.RemoteOrchestrator.EnsureSchemaAsync(
+                            context, this.Schema, cancellationToken, remoteProgress);
+                    context = serverSchema.context;
+                    this.Schema = serverSchema.schema;
+                }
+
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
-
-                context = serverSchema.context;
-                this.schema = serverSchema.schema;
-
 
                 // on local orchestrator, get local changes
                 // Most probably the schema has changed, so we passed it again (coming from Server)
                 // Don't need to pass again Options since we are not modifying it between server and client
                 var clientChanges = await this.LocalOrchestrator.GetChangesAsync(
-                    context, schema, scope, cancellationToken, progress);
+                    context, this.Schema, scope, this.Options.BatchSize, this.Options.BatchDirectory, cancellationToken, progress);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -216,18 +199,25 @@ namespace Dotmim.Sync
 
                 // SECOND call to server
                 var serverChanges = await this.RemoteOrchestrator.ApplyThenGetChangesAsync(
-                    context, scope, clientChanges.clientBatchInfo,
-                    cancellationToken, remoteProgress);
+                    context, scope, this.Schema, clientChanges.clientBatchInfo, this.Options.DisableConstraintsOnApplyChanges, this.Options.UseBulkOperations,
+                    this.Options.CleanMetadatas, this.Options.BatchSize, this.Options.BatchDirectory, cancellationToken, remoteProgress);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
                 // set context
                 context = serverChanges.context;
+                // Serialize schema to be able to save it in client db
+                if (string.IsNullOrEmpty(scope.Schema))
+                    scope.Schema = JsonConvert.SerializeObject(this.Schema);
+
+                var clientPolicy = this.Schema.ConflictResolutionPolicy == ConflictResolutionPolicy.ServerWins ? ConflictResolutionPolicy.ClientWins : ConflictResolutionPolicy.ServerWins;
 
                 var localChanges = await this.LocalOrchestrator.ApplyChangesAsync(
-                    context, clientChanges.clientTimestamp, serverChanges.remoteClientTimestamp,
-                    scope, serverChanges.serverBatchInfo,
+                    context, scope, this.Schema, serverChanges.serverBatchInfo,
+                    clientPolicy, clientChanges.clientTimestamp, serverChanges.remoteClientTimestamp,
+                    this.Options.DisableConstraintsOnApplyChanges, this.Options.UseBulkOperations,
+                    this.Options.CleanMetadatas, this.Options.ScopeInfoTableName,
                     cancellationToken, progress);
 
                 context.TotalChangesDownloaded = localChanges.clientChangesApplied.TotalAppliedChanges;
@@ -274,7 +264,6 @@ namespace Dotmim.Sync
 
         /// <summary>
         /// Releases the unmanaged resources used 
-        /// by the <see cref="T:Microsoft.Synchronization.Data.DbSyncBatchInfo" /> and optionally releases the managed resources.
         /// </summary>
         protected virtual void Dispose(bool cleanup)
         {
