@@ -195,12 +195,14 @@ namespace Dotmim.Sync
         /// <summary>
         /// Read a scope info
         /// </summary>
-        public virtual (SyncContext, long) GetLocalTimestampAsync(SyncContext context, string scopeInfoTableName,
+        public virtual (SyncContext, long) GetLocalTimestampAsync(SyncContext context,
                              DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
             var scopeBuilder = this.GetScopeBuilder();
-            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName, connection, transaction);
+            // Create a scopeInfo builder based on default scope inf table, since we don't use it to retrieve local time stamp, even if scope info table
+            // in client database is not the DefaultScopeInfoTableName
+            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(SyncOptions.DefaultScopeInfoTableName, connection, transaction);
             var localTime = scopeInfoBuilder.GetLocalTimestamp();
             return (context, localTime);
         }

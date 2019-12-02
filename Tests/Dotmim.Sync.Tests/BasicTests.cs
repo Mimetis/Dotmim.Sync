@@ -122,9 +122,7 @@ namespace Dotmim.Sync.Tests
         {
             try
             {
-                var s = new Action<SyncSchema>(c => { });
-
-                var results = await this.testRunner.RunTestsAsync(s);
+                var results = await this.testRunner.RunTestsAsync();
 
                 foreach (var trr in results)
                 {
@@ -586,7 +584,7 @@ namespace Dotmim.Sync.Tests
             // reset
             await this.testRunner.RunTestsAsync();
 
-            var schema = new Action<SyncSchema>(sc => sc.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins);
+            var schema = new SyncSchema { ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins };
 
             // generate a conflict product category id
             var conflictProductCategoryId = Path.GetRandomFileName().Replace(".", "").ToUpperInvariant().Substring(0, 6);
@@ -745,7 +743,7 @@ namespace Dotmim.Sync.Tests
             // reset
             await this.testRunner.RunTestsAsync();
 
-            var conf = new Action<SyncSchema>(sc => sc.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins);
+            var schema = new SyncSchema { ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins };
 
             // generate a conflict product category id
             var conflictProductCategoryId = "BIKES";
@@ -782,7 +780,7 @@ namespace Dotmim.Sync.Tests
             }
 
             // use a new agent since we modify conf
-            var results = await this.testRunner.RunTestsAsync(conf, false);
+            var results = await this.testRunner.RunTestsAsync(schema, false);
 
             for (var i = 0; i < this.fixture.ClientRuns.Count; i++)
             {

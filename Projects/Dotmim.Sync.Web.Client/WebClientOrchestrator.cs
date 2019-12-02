@@ -16,14 +16,7 @@ namespace Dotmim.Sync.Web.Client
 {
     public class WebClientOrchestrator : IRemoteOrchestrator
     {
-        private readonly HttpRequestHandler httpRequestHandler;
-
-        public Dictionary<string, string> CustomHeaders => this.httpRequestHandler.CustomHeaders;
-        public Dictionary<string, string> ScopeParameters => this.httpRequestHandler.ScopeParameters;
-
-
-        public SyncOptions Options { get; private set; }
-        public SyncSchema Schema { get; private set; }
+        private readonly HttpRequestHandler httpRequestHandler = new HttpRequestHandler();
 
         /// <summary>
         /// Gets or Sets the provider used in this proxy Orchestrator
@@ -31,84 +24,54 @@ namespace Dotmim.Sync.Web.Client
         /// </summary>
         public CoreProvider Provider { get => null; set => throw new NotSupportedException("Proxy Web does not need any provider. Everything is made on the server side"); }
 
+        public void On<T>(Func<T, Task> interceptorFunc) where T : ProgressArgs => throw new NotSupportedException("Proxy Web does support interceptors, yet.");
+        public void On<T>(Action<T> interceptorAction) where T : ProgressArgs => throw new NotSupportedException("Proxy Web does support interceptors, yet.");
+        public void On(Interceptors interceptors) => throw new NotSupportedException("Proxy Web does support interceptors, yet.");
+
+        public Dictionary<string, string> CustomHeaders => this.httpRequestHandler.CustomHeaders;
+        public Dictionary<string, string> ScopeParameters => this.httpRequestHandler.ScopeParameters;
+
+
         /// <summary>
-        /// Gets or Sets the service uri to the server side
+        /// Gets or Sets Serializer used by the web client orchestrator. Default is Json
         /// </summary>
-        public Uri ServiceUri
+        public ISerializerFactory SerializerFactory { get; set; }
+
+        /// <summary>
+        /// Gets or Sets the service uri used to reach the server api.
+        /// </summary>
+        public string ServiceUri { get; set; }
+
+        /// <summary>
+        /// Gets or Sets the HttpClient instanced used for this web client orchestrator
+        /// </summary>
+        public HttpClient HttpClient { get; set; }
+
+
+
+        /// <summary>
+        /// Gets a new web proxy orchestrator
+        /// </summary>
+        public WebClientOrchestrator(string serviceUri = null, ISerializerFactory serializerFactory = null, HttpClient client = null)
         {
-            get => this.httpRequestHandler.BaseUri;
-            set => this.httpRequestHandler.BaseUri = value;
-        }
-
-        public HttpClientHandler Handler => this.httpRequestHandler.Handler;
-
-        public CookieHeaderValue Cookie
-        {
-            get => this.httpRequestHandler.Cookie;
-            set => this.httpRequestHandler.Cookie = value;
-        }
-
-        public bool GzipStream(bool enabled)
-        {
-            if (!this.httpRequestHandler.Handler.SupportsAutomaticDecompression)
-                return false;
-
-            if (!enabled)
+            // if no HttpClient provisionned, create a new one
+            if (client == null)
             {
-                this.httpRequestHandler.Handler.AutomaticDecompression = DecompressionMethods.None;
-                return false;
+                var handler = new HttpClientHandler();
+
+                // Activated by default
+                if (handler.SupportsAutomaticDecompression)
+                    handler.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
+
+                this.HttpClient = new HttpClient(handler);
             }
-
-            this.httpRequestHandler.Handler.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
-            return true;
+            this.SerializerFactory = serializerFactory ?? SerializersCollection.JsonSerializer;
+            this.ServiceUri = serviceUri;
         }
 
-
-        public void On<T>(Func<T, Task> interceptorFunc) where T : ProgressArgs
-        {
-            throw new NotSupportedException("Proxy Web does support interceptors, yet.");
-        }
-
-        public void On<T>(Action<T> interceptorAction) where T : ProgressArgs
-        {
-            throw new NotSupportedException("Proxy Web does support interceptors, yet.");
-        }
-
-        public void On(Interceptors interceptors)
-        {
-            throw new NotSupportedException("Proxy Web does support interceptors, yet.");
-        }
-
-        public WebClientOrchestrator()
-        {
-            this.httpRequestHandler = new HttpRequestHandler();
-            this.GzipStream(true);
-
-        }
-        public WebClientOrchestrator(string serviceUri) : this(new Uri(serviceUri)) { }
-
-
-        public WebClientOrchestrator(Uri serviceUri) : this()
-        {
-            this.httpRequestHandler.BaseUri = serviceUri;
-        }
-
-        /// <summaryWebProxyClientOrchestrator
-        /// Use this constructor when you are on the Remote Side, only
+        /// <summary>
+        /// Adds some scope parameters
         /// </summary>
-        public WebClientOrchestrator(Uri serviceUri,
-                                      Dictionary<string, string> scopeParameters = null,
-                                      Dictionary<string, string> customHeaders = null) : this()
-        {
-            this.httpRequestHandler.BaseUri = serviceUri;
-
-            foreach (var sp in scopeParameters)
-                this.AddScopeParameter(sp.Key, sp.Value);
-
-            foreach (var ch in customHeaders)
-                this.AddCustomHeader(ch.Key, ch.Value);
-        }
-
         public void AddScopeParameter(string key, string value)
         {
             if (this.httpRequestHandler.ScopeParameters.ContainsKey(key))
@@ -118,6 +81,9 @@ namespace Dotmim.Sync.Web.Client
 
         }
 
+        /// <summary>
+        /// Adds some custom headers
+        /// </summary>
         public void AddCustomHeader(string key, string value)
         {
             if (this.httpRequestHandler.CustomHeaders.ContainsKey(key))
@@ -131,30 +97,25 @@ namespace Dotmim.Sync.Web.Client
         /// Send a request to remote web proxy for First step : Ensure scopes and schema
         /// </summary>
         public async Task<(SyncContext context, SyncSchema schema)>
-            EnsureSchemaAsync(SyncContext context, SyncSchema schema, SyncOptions options,
-                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+            EnsureSchemaAsync(SyncContext context, SyncSchema schema, CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
-
-
             // Create the message to be sent
             var httpMessage = new HttpMessageEnsureScopesRequest(context, schema.ScopeName);
 
             // Post the request and get the response from server
 
-            // Since it's the schema, and DmSet does not support DataContract serialization (yet !), use a json serializer
-            var overridenSerializerFactory = new JsonConverterFactory();
+            // Since it's the schema, and DmSet does not support serializers using [DataContract] attribute (not yet !), so use a json serializer
+            var overridenSerializerFactory = SerializersCollection.JsonSerializer;
 
+            // No batch size submitted here, because the schema will be generated in memory and send back to the user.
             var ensureScopesResponse = await this.httpRequestHandler.ProcessRequestAsync<HttpMessageEnsureScopesRequest, HttpMessageEnsureScopesResponse>
-                (httpMessage, HttpStep.EnsureScopes, context.SessionId, overridenSerializerFactory, cancellationToken).ConfigureAwait(false);
+                (this.HttpClient, this.ServiceUri, httpMessage, HttpStep.EnsureScopes, context.SessionId, overridenSerializerFactory, 0, cancellationToken).ConfigureAwait(false);
 
             if (ensureScopesResponse == null)
                 throw new ArgumentException("Http Message content for Ensure scope can't be null");
 
             if (ensureScopesResponse.Schema == null || ensureScopesResponse.Schema.Set == null || ensureScopesResponse.Schema.Set.Tables.Count <= 0)
                 throw new ArgumentException("Schema from EnsureScope can't be null and may contains at least one table");
-
-            this.Options = options;
-            this.Schema = ensureScopesResponse.Schema;
 
             // Return scopes and new shema
             return (ensureScopesResponse.SyncContext, ensureScopesResponse.Schema);
@@ -163,14 +124,20 @@ namespace Dotmim.Sync.Web.Client
 
 
         public async Task<(SyncContext, long, BatchInfo, DatabaseChangesSelected)>
-            ApplyThenGetChangesAsync(SyncContext context, ScopeInfo scope,
-                                     BatchInfo clientBatchInfo, CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+            ApplyThenGetChangesAsync(SyncContext context, ScopeInfo scope, SyncSchema schema, BatchInfo clientBatchInfo,
+                                     bool disableConstraintsOnApplyChanges, bool useBulkOperations, bool cleanMetadatas,
+                                     int clientBatchSize, string batchDirectory,
+                                     CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
+
+            // disableConstraintsOnApplyChanges, useBulkOperations, cleanMetadatas are not used, since it's handled by server side
+            // clientBatchSize is sent to server to specify if the client wants a batch in return
 
             // if we don't have any BatchPartsInfo, just generate a new one to get, at least, something to send to the server
             // and get a response with new data from server
             if (clientBatchInfo == null)
                 clientBatchInfo = new BatchInfo(true);
+
 
             // --------------------------------------------------------------
             // STEP 1 : Send everything to the server side
@@ -190,7 +157,7 @@ namespace Dotmim.Sync.Web.Client
                 changesToSend.BatchIndex = 0;
 
                 httpMessageContent = await this.httpRequestHandler.ProcessRequestAsync<HttpMessageSendChangesRequest, HttpMessageSendChangesResponse>
-                    (changesToSend, HttpStep.SendChanges, context.SessionId, this.Options.GetSerializerFactory(), cancellationToken).ConfigureAwait(false);
+                    (this.HttpClient, this.ServiceUri, changesToSend, HttpStep.SendChanges, context.SessionId, this.SerializerFactory, clientBatchSize, cancellationToken).ConfigureAwait(false);
 
             }
             else
@@ -211,7 +178,7 @@ namespace Dotmim.Sync.Web.Client
                     changesToSend.BatchIndex = bpi.Index;
 
                     httpMessageContent = await this.httpRequestHandler.ProcessRequestAsync<HttpMessageSendChangesRequest, HttpMessageSendChangesResponse>
-                        (changesToSend, HttpStep.SendChanges, context.SessionId, this.Options.GetSerializerFactory(), cancellationToken).ConfigureAwait(false);
+                        (this.HttpClient, this.ServiceUri, changesToSend, HttpStep.SendChanges, context.SessionId, this.SerializerFactory, clientBatchSize, cancellationToken).ConfigureAwait(false);
 
 
                     // for some reasons, if server don't want to wait for more, just break
@@ -236,11 +203,11 @@ namespace Dotmim.Sync.Web.Client
             var isLastBatch = false;
 
             // Get if we need to work in memory or serialize things
-            var workInMemoryLocally = this.Options.BatchSize == 0;
+            var workInMemoryLocally = clientBatchSize == 0;
 
             // Create the BatchInfo and SyncContext to return at the end
             // Set InMemory by default to "true", but the real value is coming from server side
-            var serverBatchInfo = new BatchInfo(workInMemoryLocally, this.Options.BatchDirectory);
+            var serverBatchInfo = new BatchInfo(workInMemoryLocally, batchDirectory);
 
             // stats
             DatabaseChangesSelected serverChangesSelected = null;
@@ -274,7 +241,7 @@ namespace Dotmim.Sync.Web.Client
                     var httpMessage = new HttpMessageGetMoreChangesRequest(context, requestBatchIndex);
 
                     var httpMessageResponse = await this.httpRequestHandler.ProcessRequestAsync<HttpMessageGetMoreChangesRequest, HttpMessageSendChangesResponse>(
-                                httpMessage, HttpStep.GetChanges, context.SessionId, this.Options.GetSerializerFactory(), cancellationToken).ConfigureAwait(false);
+                               this.HttpClient, this.ServiceUri, httpMessage, HttpStep.GetChanges, context.SessionId, this.SerializerFactory, clientBatchSize, cancellationToken).ConfigureAwait(false);
 
                 }
 
