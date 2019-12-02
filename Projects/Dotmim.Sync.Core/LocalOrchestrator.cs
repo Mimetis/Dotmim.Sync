@@ -15,9 +15,6 @@ namespace Dotmim.Sync
     {
         public CoreProvider Provider { get; set; }
 
-        private SyncOptions options;
-        private SyncSchema schema;
-
         // this private boole is used to check the first time if the tables are already created.
         // otherwise we assume they are created
         bool checkIfSchemaExists = true;
@@ -60,7 +57,6 @@ namespace Dotmim.Sync
             // Lock sync to prevent multi call to sync at the same time
             LockSync();
 
-            this.options = options;
             // ----------------------------------------
             // 0) Begin Session 
             // ----------------------------------------
@@ -142,23 +138,23 @@ namespace Dotmim.Sync
             }
         }
 
-        /// <summary>
-        /// Save locally configuration and options to be reused later
-        /// The schema has been modified probably by server, so reaffect it again.
-        /// </summary>
-        public Task SetSchemaAsync(SyncContext context, SyncSchema configuration, SyncOptions options, CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
-        {
-            this.schema = configuration;
-            this.options = options;
-            return Task.CompletedTask;
-        }
+        ///// <summary>
+        ///// Save locally configuration and options to be reused later
+        ///// The schema has been modified probably by server, so reaffect it again.
+        ///// </summary>
+        //public Task SetSchemaAsync(SyncContext context, SyncSchema configuration, SyncOptions options, CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+        //{
+        //    this.schema = configuration;
+        //    this.options = options;
+        //    return Task.CompletedTask;
+        //}
 
         /// <summary>
         /// Input : localScopeInfo
         /// </summary>
         /// <returns></returns>
         public async Task<(SyncContext, long, BatchInfo, DatabaseChangesSelected)>
-            GetChangesAsync(SyncContext context, SyncSchema schema, ScopeInfo scope,
+            GetChangesAsync(SyncContext context, SyncSchema schema, ScopeInfo scope, int batchSize, string batchDirectory,
                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
 
@@ -224,8 +220,7 @@ namespace Dotmim.Sync
 
                         // JUST before the whole process, get the timestamp, to be sure to 
                         // get rows inserted / updated elsewhere since the sync is not over
-                        (context, clientTimestamp) = this.Provider.GetLocalTimestampAsync(context, options.ScopeInfoTableName,
-                            connection, transaction, cancellationToken, progress);
+                        (context, clientTimestamp) = this.Provider.GetLocalTimestampAsync(context, connection, transaction, cancellationToken, progress);
 
                         if (cancellationToken.IsCancellationRequested)
                             cancellationToken.ThrowIfCancellationRequested();
@@ -233,15 +228,12 @@ namespace Dotmim.Sync
                         (context, clientBatchInfo, clientChangesSelected) =
                             await this.Provider.GetChangeBatchAsync(context,
                                     new MessageGetChangesBatch(remoteScopeId, isNew, lastSyncTS,
-                                        schema.Set, this.options.BatchSize, this.options.BatchDirectory,
+                                        schema.Set, batchSize, batchDirectory,
                                         schema.Filters),
                                     connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                         if (cancellationToken.IsCancellationRequested)
                             cancellationToken.ThrowIfCancellationRequested();
-
-                        // Set the local schema to the new one coming from remote
-                        this.schema = schema;
 
                         await this.Provider.InterceptAsync(new TransactionCommitArgs(context, connection, transaction)).ConfigureAwait(false);
                         transaction.Commit();
@@ -272,9 +264,9 @@ namespace Dotmim.Sync
 
 
         public async Task<(SyncContext, DatabaseChangesApplied)>
-            ApplyChangesAsync(SyncContext context,
-                              long clientTimestamp, long remoteClientTimestamp, ScopeInfo scope,
-                              BatchInfo serverBatchInfo,
+            ApplyChangesAsync(SyncContext context, ScopeInfo scope, SyncSchema schema, BatchInfo serverBatchInfo,
+                              ConflictResolutionPolicy clientPolicy, long clientTimestamp, long remoteClientTimestamp,
+                              bool disableConstraintsOnApplyChanges, bool useBulkOperations, bool cleanMetadatas, string scopeInfoTableName,
                               CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
 
@@ -302,14 +294,12 @@ namespace Dotmim.Sync
                             // isNew : if IsNew, don't apply deleted rows from server
                             var isNew = scope.IsNewScope;
 
-                            var clientPolicy = schema.ConflictResolutionPolicy == ConflictResolutionPolicy.ServerWins ? ConflictResolutionPolicy.ClientWins : ConflictResolutionPolicy.ServerWins;
 
 
                             (context, clientChangesApplied) =
                                 await this.Provider.ApplyChangesAsync(context,
-                                    new MessageApplyChanges(fromId, isNew, lastSyncTS, schema, clientPolicy, this.options.DisableConstraintsOnApplyChanges,
-                                            this.options.UseBulkOperations, this.options.CleanMetadatas, options.ScopeInfoTableName,
-                                            serverBatchInfo),
+                                    new MessageApplyChanges(fromId, isNew, lastSyncTS, schema, clientPolicy, disableConstraintsOnApplyChanges,
+                                            useBulkOperations, cleanMetadatas, serverBatchInfo),
                                         connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                         }
                         else
@@ -330,7 +320,7 @@ namespace Dotmim.Sync
 
                         // Write scopes locally
                         context = await this.Provider.WriteScopesAsync(context,
-                                        new MessageWriteScopes(options.ScopeInfoTableName, scope),
+                                        new MessageWriteScopes(scopeInfoTableName, scope),
                                         connection, transaction, cancellationToken, progress
                                         ).ConfigureAwait(false);
 

@@ -38,6 +38,7 @@ namespace Dotmim.Sync.Sqlite
                     $@"CREATE TABLE {scopeTableName.Quoted().ToString()}(
                         sync_scope_id blob NOT NULL PRIMARY KEY,
 	                    sync_scope_name text NOT NULL,
+	                    sync_scope_schema text NULL,
                         scope_last_server_sync_timestamp integer NULL,
                         scope_last_sync_timestamp integer NULL,
                         scope_last_sync_duration integer NULL,
@@ -111,6 +112,7 @@ namespace Dotmim.Sync.Sqlite
                 command.CommandText =
                     $@"SELECT sync_scope_id
                            , sync_scope_name
+                           , sync_scope_schema
                            , scope_last_sync
                            , scope_last_server_sync_timestamp
                            , scope_last_sync_timestamp
@@ -133,6 +135,7 @@ namespace Dotmim.Sync.Sqlite
                         {
                             var scopeInfo = new ScopeInfo();
                             scopeInfo.Name = reader["sync_scope_name"] as String;
+                            scopeInfo.Schema = reader["sync_scope_schema"] as String;
                             scopeInfo.Id = reader.GetGuid(reader.GetOrdinal("sync_scope_id"));
                             scopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value
                                             ? (DateTime?)reader.GetDateTime(reader.GetOrdinal("scope_last_sync"))
@@ -219,8 +222,8 @@ namespace Dotmim.Sync.Sqlite
                 var exist = (long)command.ExecuteScalar() > 0;
 
                 string stmtText = exist
-                    ? $"Update {scopeTableName.Unquoted().ToString()} set sync_scope_name=@sync_scope_name, scope_last_sync=@scope_last_sync, scope_last_server_sync_timestamp=@scope_last_server_sync_timestamp,  scope_last_sync_timestamp=@scope_last_sync_timestamp, scope_last_sync_duration=@scope_last_sync_duration where sync_scope_id=@sync_scope_id"
-                    : $"Insert into {scopeTableName.Unquoted().ToString()} (sync_scope_name, scope_last_sync, scope_last_sync_duration, scope_last_server_sync_timestamp, scope_last_sync_timestamp, sync_scope_id) values (@sync_scope_name, @scope_last_sync, @scope_last_sync_duration, @scope_last_server_sync_timestamp, @scope_last_sync_timestamp, @sync_scope_id)";
+                    ? $"Update {scopeTableName.Unquoted().ToString()} set sync_scope_name=@sync_scope_name, sync_scope_schema=@sync_scope_schema, scope_last_sync=@scope_last_sync, scope_last_server_sync_timestamp=@scope_last_server_sync_timestamp,  scope_last_sync_timestamp=@scope_last_sync_timestamp, scope_last_sync_duration=@scope_last_sync_duration where sync_scope_id=@sync_scope_id"
+                    : $"Insert into {scopeTableName.Unquoted().ToString()} (sync_scope_name, sync_scope_schema, scope_last_sync, scope_last_sync_duration, scope_last_server_sync_timestamp, scope_last_sync_timestamp, sync_scope_id) values (@sync_scope_name, @sync_scope_schema, @scope_last_sync, @scope_last_sync_duration, @scope_last_server_sync_timestamp, @scope_last_sync_timestamp, @sync_scope_id)";
 
                 command = connection.CreateCommand();
                 command.CommandText = stmtText;
@@ -228,6 +231,12 @@ namespace Dotmim.Sync.Sqlite
                 p = command.CreateParameter();
                 p.ParameterName = "@sync_scope_name";
                 p.Value = scopeInfo.Name;
+                p.DbType = DbType.String;
+                command.Parameters.Add(p);
+
+                p = command.CreateParameter();
+                p.ParameterName = "@sync_scope_name";
+                p.Value = string.IsNullOrEmpty(scopeInfo.Schema) ? DBNull.Value : (object)scopeInfo.Schema;
                 p.DbType = DbType.String;
                 command.Parameters.Add(p);
 
@@ -269,6 +278,7 @@ namespace Dotmim.Sync.Sqlite
                         {
 
                             scopeInfo.Name = reader["sync_scope_name"] as String;
+                            scopeInfo.Schema = reader["sync_scope_schema"] as String;
                             scopeInfo.Id = reader.GetGuid(reader.GetOrdinal("sync_scope_id"));
                             scopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value
                                         ? (DateTime?)reader.GetDateTime(reader.GetOrdinal("scope_last_sync"))

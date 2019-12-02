@@ -1,4 +1,5 @@
 ﻿using Dotmim.Sync.Batch;
+using Dotmim.Sync.Serialization;
 using Dotmim.Sync.Web.Client;
 using Newtonsoft.Json.Linq;
 using System;
@@ -13,85 +14,32 @@ namespace Dotmim.Sync.Web.Server
 {
     public class WebServerOrchestrator : RemoteOrchestrator
     {
-        public WebServerOrchestrator(CoreProvider provider)
+
+        /// <summary>
+        /// Default ctor. Using default options and schema
+        /// </summary>
+        /// <param name="provider"></param>
+        public WebServerOrchestrator(CoreProvider provider, WebServerOptions options = null, SyncSchema schema = null) 
         {
+            this.Schema = schema ?? new SyncSchema();
+            this.Options = options ?? new WebServerOptions();
             this.Provider = provider;
+
         }
 
         /// <summary>
-        /// Set Sync Schema parameters, manually
+        /// Gets or Sets the Schema 
         /// </summary>
-        public SyncSchema Schema
-        {
-            get
-            {
-                if (this.Provider == null || this.Provider.CacheManager == null)
-                    return null;
-
-                var schema = this.Provider.CacheManager.GetValue<SyncSchema>("schema");
-
-                if (schema == null)
-                {
-                    schema = new SyncSchema();
-                    this.Provider.CacheManager.Set("schema", new SyncSchema());
-                }
-
-                return schema;
-
-            }
-            set
-            {
-                if (this.Provider == null || this.Provider.CacheManager == null)
-                    return;
-
-                if (value == null)
-                    this.Provider.CacheManager.Remove("schema");
-                else
-                    this.Provider.CacheManager.Set("schema", value);
-            }
-        }
+        public SyncSchema Schema { get; private set; }
 
         /// <summary>
-        /// Set Sync Options parameters, manually
+        /// Get or Set Web server options parameters
         /// </summary>
-        public SyncOptions Options
-        {
-            get
-            {
-                if (this.Provider == null || this.Provider.CacheManager == null)
-                    return null;
+        public WebServerOptions Options { get; private set; }
 
-                var options = this.Provider.CacheManager.GetValue<SyncOptions>("options");
-
-                if (options == null)
-                {
-                    options = new SyncOptions();
-                    this.Provider.CacheManager.Set("options", new SyncOptions());
-                }
-
-                return options;
-            }
-            set
-            {
-                if (this.Provider == null || this.Provider.CacheManager == null)
-                    return;
-
-                if (value == null)
-                    this.Provider.CacheManager.Remove("options");
-                else
-                    this.Provider.CacheManager.Set("options", value);
-            }
-        }
 
         internal async Task<HttpMessageEnsureScopesResponse> EnsureScopeAsync(HttpMessageEnsureScopesRequest httpMessage, CancellationToken cancellationToken)
         {
-            //HttpMessageEnsureScopesRequest httpMessageEnsureScopes;
-
-            //if (httpMessage.Content is HttpMessageEnsureScopesRequest)
-            //    httpMessageEnsureScopes = httpMessage.Content as HttpMessageEnsureScopesRequest;
-            //else
-            //    httpMessageEnsureScopes = (httpMessage.Content as JObject).ToObject<HttpMessageEnsureScopesRequest>();
-
             if (httpMessage == null)
                 throw new ArgumentException("EnsureScopesAsync message could not be null");
 
@@ -102,7 +50,7 @@ namespace Dotmim.Sync.Web.Server
                 throw new ArgumentException("You need to set the optins used on server side");
 
             var (syncContext, newSchema) = await this.EnsureSchemaAsync(
-                httpMessage.SyncContext, this.Schema, this.Options, cancellationToken).ConfigureAwait(false);
+                httpMessage.SyncContext, this.Schema, cancellationToken).ConfigureAwait(false);
 
             this.Schema = newSchema;
 
@@ -111,7 +59,6 @@ namespace Dotmim.Sync.Web.Server
 
             return httpResponse;
         }
-
 
 
         /// <summary>
@@ -166,37 +113,24 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// Get changes from 
         /// </summary>
-        internal async Task<HttpMessageSendChangesResponse> ApplyThenGetChangesAsync(HttpMessageSendChangesRequest httpMessage, CancellationToken cancellationToken)
+        internal async Task<HttpMessageSendChangesResponse> ApplyThenGetChangesAsync(
+            HttpMessageSendChangesRequest httpMessage, int clientBatchSize, CancellationToken cancellationToken)
         {
-            #region Load content
+
+            // Get if we need to serialize data or making everything in memory
+            var clientWorkInMemory = clientBatchSize == 0;
             // ------------------------------------------------------------
             // FIRST STEP : receive client changes
             // ------------------------------------------------------------
 
-            //HttpMessageSendChangesRequest httpMessageContent;
-            //if (httpMessage.Content is HttpMessageSendChangesRequest)
-            //    httpMessageContent = httpMessage.Content as HttpMessageSendChangesRequest;
-            //else
-            //    httpMessageContent = (httpMessage.Content as JObject).ToObject<HttpMessageSendChangesRequest>();
-
-            //if (httpMessageContent == null)
-            //    throw new ArgumentException("ApplyChanges message could not be null");
-
-            // BatchInfo containing all the changes from the client 
-            BatchInfo batchInfo = null;
-
-            // Get if we need to serialize data or making everything in memory
-            var workInMemory = this.Options.BatchSize == 0;
-            #endregion
-
             // We are receiving changes from client
             // BatchInfo containing all BatchPartInfo objects
             // Retrieve batchinfo instance if exists
-            batchInfo = this.Provider.CacheManager.GetValue<BatchInfo>("ApplyChanges_BatchInfo");
+            var batchInfo = this.Provider.CacheManager.GetValue<BatchInfo>("ApplyChanges_BatchInfo");
 
             // Create a new batch info
             if (batchInfo == null)
-                batchInfo = new BatchInfo(workInMemory, this.Options.BatchDirectory);
+                batchInfo = new BatchInfo(clientWorkInMemory, this.Options.BatchDirectory);
 
             // add changes to the batch info
             batchInfo.AddChanges(httpMessage.Changes, httpMessage.BatchIndex, httpMessage.IsLastBatch);
@@ -205,7 +139,7 @@ namespace Dotmim.Sync.Web.Server
             this.Provider.CacheManager.Set("ApplyChanges_BatchInfo", batchInfo);
 
             // Clear the httpMessage set
-            if (!workInMemory && httpMessage.Changes != null)
+            if (!clientWorkInMemory && httpMessage.Changes != null)
                 httpMessage.Changes.Clear();
 
             // Until we don't have received all the batches, wait for more
@@ -222,11 +156,12 @@ namespace Dotmim.Sync.Web.Server
             // get changes
             var (context, remoteClientTimestamp, serverBatchInfo, serverChangesSelected) =
                await this.ApplyThenGetChangesAsync(httpMessage.SyncContext,
-                           httpMessage.Scope, batchInfo, cancellationToken).ConfigureAwait(false);
+                           httpMessage.Scope, this.Schema, batchInfo, this.Options.DisableConstraintsOnApplyChanges,
+                           this.Options.UseBulkOperations, this.Options.CleanMetadatas, clientBatchSize, this.Options.BatchDirectory, cancellationToken).ConfigureAwait(false);
 
 
             // Save the server batch info object to cache if not working in memory
-            if (!workInMemory)
+            if (!clientWorkInMemory)
             {
                 // Save the BatchInfo
                 this.Provider.CacheManager.Set("GetChangeBatch_RemoteClientTimestamp", remoteClientTimestamp);
@@ -245,12 +180,6 @@ namespace Dotmim.Sync.Web.Server
         /// </summary>
         internal HttpMessageSendChangesResponse GetMoreChanges(HttpMessageGetMoreChangesRequest httpMessage, CancellationToken cancellationToken)
         {
-            //HttpMessageGetMoreChangesRequest httpMessageContent;
-            //if (httpMessage.Content is HttpMessageGetMoreChangesRequest)
-            //    httpMessageContent = httpMessage.Content as HttpMessageGetMoreChangesRequest;
-            //else
-            //    httpMessageContent = (httpMessage.Content as JObject).ToObject<HttpMessageGetMoreChangesRequest>();
-
             // We are in batch mode here
             var serverBatchInfo = this.Provider.CacheManager.GetValue<BatchInfo>("GetChangeBatch_BatchInfo");
             var serverChangesSelected = this.Provider.CacheManager.GetValue<DatabaseChangesSelected>("GetChangeBatch_ChangesSelected");

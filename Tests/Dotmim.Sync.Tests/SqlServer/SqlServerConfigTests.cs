@@ -54,13 +54,13 @@ namespace Dotmim.Sync.Tests.SqlServer
             try
             {
 
-                var conf = new Action<SyncSchema>(s =>
+                var conf = new SyncSchema
                 {
-                    s.StoredProceduresPrefix = "s";
-                    s.StoredProceduresSuffix = "";
-                    s.TrackingTablesPrefix = "t";
-                    s.TrackingTablesSuffix = "";
-                });
+                    StoredProceduresPrefix = "s",
+                    StoredProceduresSuffix = "",
+                    TrackingTablesPrefix = "t",
+                    TrackingTablesSuffix = ""
+                };
 
                 var results = await this.testRunner.RunTestsAsync(conf);
 

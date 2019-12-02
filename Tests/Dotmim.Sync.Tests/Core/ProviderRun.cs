@@ -1,4 +1,5 @@
 ﻿using Dotmim.Sync.MySql;
+using Dotmim.Sync.Serialization;
 using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Web.Client;
@@ -78,10 +79,8 @@ namespace Dotmim.Sync.Tests.Core
 
 
         public async Task<ProviderRun> RunAsync(ProviderFixture serverFixture, string[] tables = null,
-            Action<SyncSchema> schema = null, bool reuseAgent = true)
+            SyncSchema schema = null, bool reuseAgent = true)
         {
-            schema = schema ?? new Action<SyncSchema>(s => { });
-
             var syncTables = tables ?? serverFixture.Tables;
 
             // local test, through tcp
@@ -93,11 +92,11 @@ namespace Dotmim.Sync.Tests.Core
 
                 // copy conf settings
                 if (schema != null)
-                    this.Agent.SetSchema(schema);
+                    this.Agent.Schema =schema;
 
                 // Add Filers
                 if (serverFixture.Filters != null && serverFixture.Filters.Count > 0)
-                    serverFixture.Filters.ForEach(f => this.Agent.AddFilter(f));
+                    serverFixture.Filters.ForEach(f => this.Agent.Schema.Filters.Add(f));
 
                 // Add Filers values
                 if (serverFixture.FilterParameters != null && serverFixture.FilterParameters.Count > 0)
@@ -132,7 +131,10 @@ namespace Dotmim.Sync.Tests.Core
                     var serverHandler = new RequestDelegate(async context =>
                     {
                         // test if <> directory name works
-                        var options = new Action<SyncOptions>( o => o.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "server"));
+                        var options = new WebServerOptions
+                        {
+                            BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "server")
+                        };
 
                         // sync
                         try
@@ -176,7 +178,7 @@ namespace Dotmim.Sync.Tests.Core
                             this.Agent = new SyncAgent(this.ClientProvider, proxyClientOrchestrator);
 
                         // Just set the correct serviceUri if my kestrell server changed it
-                        ((WebClientOrchestrator)this.Agent.RemoteOrchestrator).ServiceUri = new Uri(serviceUri);
+                        ((WebClientOrchestrator)this.Agent.RemoteOrchestrator).ServiceUri = serviceUri;
 
                         if (serverFixture.FilterParameters != null && serverFixture.FilterParameters.Count > 0)
                             foreach (var syncParam in serverFixture.FilterParameters)

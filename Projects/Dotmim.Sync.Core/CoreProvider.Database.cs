@@ -219,19 +219,22 @@ namespace Dotmim.Sync
         {
             try
             {
+                // Checking if schema already exists may be 
+                if (!message.CheckSchema)
+                    return context;
+
                 // Event progress
                 context.SyncStage = SyncStage.SchemaApplying;
 
                 var script = new StringBuilder();
 
-
                 var beforeArgs = new DatabaseProvisioningArgs(context, SyncProvision.All, message.Schema, connection, transaction);
                 await this.InterceptAsync(beforeArgs).ConfigureAwait(false);
 
-                // Checking if schema already exists may be 
-
-                if (!message.CheckSchema && !beforeArgs.OverwriteSchema)
-                    return context;
+                // TODO : What to expect with overwrite schema here ?
+                // Since we pass here only if the schema does not exists...
+                //if (!beforeArgs.OverwriteSchema)
+                //    return context;
 
                 // Sorting tables based on dependencies between them
                 var dmTables = message.Schema.Tables

@@ -14,8 +14,6 @@ namespace Dotmim.Sync
     public class RemoteOrchestrator : IRemoteOrchestrator
     {
         public CoreProvider Provider { get; set; }
-        private SyncSchema schema;
-        private SyncOptions options;
 
         public RemoteOrchestrator() { }
 
@@ -42,7 +40,7 @@ namespace Dotmim.Sync
         /// Get the scope infos from remote
         /// </summary>
         public async Task<(SyncContext, SyncSchema)>
-            EnsureSchemaAsync(SyncContext context, SyncSchema schema, SyncOptions options,
+            EnsureSchemaAsync(SyncContext context, SyncSchema schema,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
             using (var connection = this.Provider.CreateConnection())
@@ -92,10 +90,6 @@ namespace Dotmim.Sync
                         if (cancellationToken.IsCancellationRequested)
                             cancellationToken.ThrowIfCancellationRequested();
 
-                        // Save locally the configuration
-                        this.schema = schema;
-                        this.options = options;
-
                         await this.Provider.InterceptAsync(new TransactionCommitArgs(context, connection, transaction)).ConfigureAwait(false);
                         transaction.Commit();
 
@@ -124,8 +118,9 @@ namespace Dotmim.Sync
         }
 
         public async Task<(SyncContext, long, BatchInfo, DatabaseChangesSelected)>
-            ApplyThenGetChangesAsync(SyncContext context, 
-            ScopeInfo scope, BatchInfo clientBatchInfo,
+            ApplyThenGetChangesAsync(SyncContext context, ScopeInfo scope, SyncSchema schema, BatchInfo clientBatchInfo,
+                                     bool disableConstraintsOnApplyChanges, bool useBulkOperations, bool cleanMetadatas,
+                                     int clientBatchSize, string batchDirectory,
                                      CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
 
@@ -149,9 +144,8 @@ namespace Dotmim.Sync
                         
                         (context, changesApplied) =
                             await this.Provider.ApplyChangesAsync(context,
-                             new MessageApplyChanges(scope.Id, false, scope.LastServerSyncTimestamp, schema, this.schema.ConflictResolutionPolicy, this.options.DisableConstraintsOnApplyChanges,
-                                        this.options.UseBulkOperations, this.options.CleanMetadatas, options.ScopeInfoTableName,
-                                        clientBatchInfo),
+                             new MessageApplyChanges(scope.Id, false, scope.LastServerSyncTimestamp, schema, schema.ConflictResolutionPolicy, 
+                                        disableConstraintsOnApplyChanges, useBulkOperations, cleanMetadatas, clientBatchInfo),
                              connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                         // if ConflictResolutionPolicy.ClientWins or Handler set to Client wins
@@ -167,18 +161,17 @@ namespace Dotmim.Sync
 
                         // JUST Before get changes, get the timestamp, to be sure to 
                         // get rows inserted / updated elsewhere since the sync is not over
-                        (context, remoteClientTimestamp) = this.Provider.GetLocalTimestampAsync(context,
-                            options.ScopeInfoTableName, connection, transaction, cancellationToken, progress);
+                        (context, remoteClientTimestamp) = this.Provider.GetLocalTimestampAsync(context, connection, transaction, cancellationToken, progress);
 
                         if (cancellationToken.IsCancellationRequested)
                             cancellationToken.ThrowIfCancellationRequested();
 
-                        // don't care about progress ?
+                        // When we get the chnages from server, we create the batches if it's requested by the client
+                        // the batch decision comes from batchsize from client
                         (context, serverBatchInfo, serverChangesSelected) =
                             await this.Provider.GetChangeBatchAsync(context,
                                 new MessageGetChangesBatch(scope.Id, scope.IsNewScope, scope.LastServerSyncTimestamp,
-                                    this.schema.Set, this.options.BatchSize, this.options.BatchDirectory, 
-                                    this.schema.Filters),
+                                    schema.Set, clientBatchSize, batchDirectory,  schema.Filters),
                                     connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                         if (cancellationToken.IsCancellationRequested)
@@ -186,23 +179,6 @@ namespace Dotmim.Sync
 
                         // now the sync is complete, remember the time
                         context.CompleteTime = DateTime.Now;
-
-                        // Scope is not a return value, so not the correct place to set these values
-
-                        // Eventually we know now, it's not a new sync anymore
-                        // scope.IsNewScope = false;
-                        // scope.LastSync = context.CompleteTime;
-                        // Set the right timestamp
-                        // scope.LastServerSyncTimestamp = remoteClientTimestamp;
-                        // Calculate server duration
-                        // var duration = context.CompleteTime.Subtract(context.StartTime);
-                        // scope.LastSyncDuration = duration.Ticks;
-
-                        //// Write server scopes
-                        //context = await this.Provider.WriteScopesAsync(context,
-                        //                new MessageWriteScopes(this.Options.ScopeInfoTableName, new List<ScopeInfo> { scope }, this.Schema.SerializationFormat),
-                        //                connection, transaction, cancellationToken, progress
-                        //                ).ConfigureAwait(false);
 
                         await this.Provider.InterceptAsync(new TransactionCommitArgs(context, connection, transaction)).ConfigureAwait(false);
                         transaction.Commit();
