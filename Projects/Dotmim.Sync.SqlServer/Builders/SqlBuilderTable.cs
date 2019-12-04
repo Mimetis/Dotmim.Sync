@@ -83,7 +83,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 if (!alreadyOpened)
                     connection.Open();
 
-                var dmTable = SqlManagementUtils.RelationsForTable(connection, transaction, parentFullName);
+                var dmTable = SqlManagementUtils.RelationsForTable(connection, transaction, parentFullName, parentSchema);
 
                 var foreignKeyExist = dmTable.Rows.Any(r =>
                    dmTable.IsEqual(r["ForeignKey"].ToString(), relationName));

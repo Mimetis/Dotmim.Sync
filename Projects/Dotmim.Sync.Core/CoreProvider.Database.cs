@@ -28,7 +28,7 @@ namespace Dotmim.Sync
             DbTransaction transaction = null;
             try
             {
-                if (schema.Set == null || !schema.Set.HasTables)
+                if (schema.GetSet() == null || !schema.GetSet().HasTables)
                     throw new ArgumentNullException("tables", "You must set the tables you want to provision");
 
 
@@ -43,15 +43,15 @@ namespace Dotmim.Sync
                         await this.InterceptAsync(new TransactionOpenArgs(null, connection, transaction)).ConfigureAwait(false);
 
                         // Load the configuration
-                        this.ReadSchema(schema.Set, connection, transaction);
+                        this.ReadSchema(schema.GetSet(), connection, transaction);
 
                         // Launch any interceptor if available
-                        await this.InterceptAsync(new DatabaseDeprovisioningArgs(null, provision, schema.Set, connection, transaction)).ConfigureAwait(false);
+                        await this.InterceptAsync(new DatabaseDeprovisioningArgs(null, provision, schema.GetSet(), connection, transaction)).ConfigureAwait(false);
 
                         for (var i = schema.Count - 1; i >= 0; i--)
                         {
                             // Get the table
-                            var dmTable = schema.Set.Tables[i];
+                            var dmTable = schema.GetSet().Tables[i];
 
                             // call any interceptor
                             await this.InterceptAsync(new TableDeprovisioningArgs(null, provision, dmTable, connection, transaction)).ConfigureAwait(false);
@@ -88,7 +88,7 @@ namespace Dotmim.Sync
                         }
 
                         // Launch any interceptor if available
-                        await this.InterceptAsync(new DatabaseDeprovisionedArgs(null, provision, schema.Set, null, connection, transaction)).ConfigureAwait(false);
+                        await this.InterceptAsync(new DatabaseDeprovisionedArgs(null, provision, schema.GetSet(), null, connection, transaction)).ConfigureAwait(false);
 
                         await this.InterceptAsync(new TransactionCommitArgs(null, connection, transaction)).ConfigureAwait(false);
                         transaction.Commit();
@@ -119,7 +119,7 @@ namespace Dotmim.Sync
 
             try
             {
-                if (schema.Set == null || !schema.Set.HasTables)
+                if (schema.GetSet() == null || !schema.GetSet().HasTables)
                     throw new ArgumentNullException("tables", "You must set the tables you want to provision");
 
 
@@ -134,10 +134,10 @@ namespace Dotmim.Sync
                         await this.InterceptAsync(new TransactionOpenArgs(null, connection, transaction)).ConfigureAwait(false);
 
                         // Load the configuration
-                        this.ReadSchema(schema.Set, connection, transaction);
+                        this.ReadSchema(schema.GetSet(), connection, transaction);
 
                         var beforeArgs =
-                            new DatabaseProvisioningArgs(null, provision, schema.Set, connection, transaction);
+                            new DatabaseProvisioningArgs(null, provision, schema.GetSet(), connection, transaction);
 
                         // Launch any interceptor if available
                         await this.InterceptAsync(beforeArgs).ConfigureAwait(false);
@@ -150,7 +150,7 @@ namespace Dotmim.Sync
                         }
 
                         // Sorting tables based on dependencies between them
-                        var dmTables = schema.Set.Tables
+                        var dmTables = schema.GetSet().Tables
                             .SortByDependencies(tab => tab.ChildRelations
                                 .Select(r => r.ChildTable));
 
@@ -186,7 +186,7 @@ namespace Dotmim.Sync
                         }
 
                         // call any interceptor
-                        await this.InterceptAsync(new DatabaseProvisionedArgs(null, provision, schema.Set, null, connection, transaction)).ConfigureAwait(false);
+                        await this.InterceptAsync(new DatabaseProvisionedArgs(null, provision, schema.GetSet(), null, connection, transaction)).ConfigureAwait(false);
                         await this.InterceptAsync(new TransactionCommitArgs(null, connection, transaction)).ConfigureAwait(false);
 
                         transaction.Commit();

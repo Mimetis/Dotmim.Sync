@@ -6,7 +6,7 @@ namespace Dotmim.Sync.MySql
 {
     public class MySqlManager : DbManager
     {
-        public MySqlManager(string tableName) : base(tableName)
+        public MySqlManager(string tableName) : base(tableName, "")
         {
 
         }

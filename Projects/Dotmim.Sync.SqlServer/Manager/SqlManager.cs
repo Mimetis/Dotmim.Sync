@@ -6,7 +6,7 @@ namespace Dotmim.Sync.SqlServer.Manager
     public class SqlManager : DbManager
     {
 
-        public SqlManager(string tableName) : base(tableName)
+        public SqlManager(string tableName, string schemaName) : base(tableName, schemaName)
         {
 
         }
@@ -16,6 +16,7 @@ namespace Dotmim.Sync.SqlServer.Manager
             return new SqlManagerTable(connection, transaction)
             {
                 TableName = this.TableName,
+                SchemaName = this.SchemaName
             };
         }
 
