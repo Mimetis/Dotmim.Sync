@@ -223,7 +223,6 @@ namespace Dotmim.Sync.Tests.StandAlone
         [Fact]
         private void DmView_Constructor()
         {
-            //TODO: Fix schema in DmRElation
             var t = set.Tables["ServiceTickets", ""];
 
             var view = new DmView(t);

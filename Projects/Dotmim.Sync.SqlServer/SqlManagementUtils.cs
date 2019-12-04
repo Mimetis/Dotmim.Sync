@@ -72,25 +72,37 @@ namespace Dotmim.Sync.SqlServer
             return dmTable;
         }
 
-        internal static DmTable RelationsForTable(SqlConnection connection, SqlTransaction transaction, string tableName)
+        internal static DmTable RelationsForTable(SqlConnection connection, SqlTransaction transaction, string tableName, string schemaName)
         {
-            var commandRelations = @"SELECT f.name AS ForeignKey,
-                                        constraint_column_id as ForeignKeyOrder,
-                                        OBJECT_NAME (f.referenced_object_id)  AS TableName,
-                                        COL_NAME(fc.referenced_object_id, fc.referenced_column_id) AS ColumnName,
-                                        OBJECT_NAME(f.parent_object_id) AS ReferenceTableName,
-                                        COL_NAME(fc.parent_object_id, fc.parent_column_id) AS ReferenceColumnName
-                                    FROM sys.foreign_keys AS f
-                                    INNER JOIN sys.foreign_key_columns AS fc ON f.OBJECT_ID = fc.constraint_object_id
-                                    WHERE OBJECT_NAME(f.referenced_object_id) = @tableName";
+
+
+            var commandRelations = @"
+                SELECT f.name AS ForeignKey,
+                    constraint_column_id as ForeignKeyOrder,
+                    SCHEMA_NAME (reft.schema_id) AS SchemaName,
+                    OBJECT_NAME (f.referenced_object_id)  AS TableName,
+                    COL_NAME(fc.referenced_object_id, fc.referenced_column_id) AS ColumnName,
+                    SCHEMA_NAME (f.schema_id)  AS ReferenceSchemaName,
+                    OBJECT_NAME(f.parent_object_id) AS ReferenceTableName,
+                    COL_NAME(fc.parent_object_id, fc.parent_column_id) AS ReferenceColumnName
+                FROM sys.foreign_keys AS f
+                INNER JOIN sys.foreign_key_columns AS fc ON f.OBJECT_ID = fc.constraint_object_id
+                INNER JOIN sys.tables reft on reft.object_id =  f.referenced_object_id
+                WHERE OBJECT_NAME(f.referenced_object_id) = @tableName AND SCHEMA_NAME(reft.schema_id) = @schemaName";
 
             var tableNameNormalized = ParserName.Parse(tableName).Unquoted().Normalized().ToString();
             var tableNameString = ParserName.Parse(tableName).ToString();
+
+            var schemaNameString = ParserName.Parse(schemaName).ToString();
+            // default as dbo
+            schemaNameString = string.IsNullOrEmpty(schemaNameString) ? "dbo" : schemaNameString;
+
 
             var dmTable = new DmTable(tableNameNormalized);
             using (var sqlCommand = new SqlCommand(commandRelations, connection, transaction))
             {
                 sqlCommand.Parameters.AddWithValue("@tableName", tableNameString);
+                sqlCommand.Parameters.AddWithValue("@schemaName", schemaNameString);
 
                 using (var reader = sqlCommand.ExecuteReader())
                 {

@@ -12,10 +12,12 @@ namespace Dotmim.Sync.SqlServer.Manager
     public class SqlManagerTable : IDbManagerTable
     {
         private string tableName;
+        private string schemaName;
         private readonly SqlTransaction sqlTransaction;
         private readonly SqlConnection sqlConnection;
 
         public string TableName { set => this.tableName = value; }
+        public string SchemaName { set => this.schemaName = value; }
 
         public SqlManagerTable(DbConnection connection, DbTransaction transaction = null)
         {
@@ -25,17 +27,25 @@ namespace Dotmim.Sync.SqlServer.Manager
 
         public IEnumerable<DbRelationDefinition> GetTableRelations()
         {
-            List<DbRelationDefinition> relations = new List<DbRelationDefinition>();
-            var dmRelations = SqlManagementUtils.RelationsForTable(this.sqlConnection, this.sqlTransaction, this.tableName);
+            var relations = new List<DbRelationDefinition>();
+            var dmRelations = SqlManagementUtils.RelationsForTable(this.sqlConnection, this.sqlTransaction, this.tableName, this.schemaName);
 
             if (dmRelations != null && dmRelations.Rows.Count > 0)
-                foreach (var fk in dmRelations.Rows.GroupBy(row => new { Name = (string)row["ForeignKey"], TableName = (string)row["TableName"], ReferenceTableName = (string)row["ReferenceTableName"] }))
+                foreach (var fk in dmRelations.Rows.GroupBy(row => 
+                new { Name = (string)row["ForeignKey"],
+                    TableName = (string)row["TableName"],
+                    SchemaName = (string)row["SchemaName"] == "dbo" ? "" : (string)row["SchemaName"],
+                    ReferenceTableName = (string)row["ReferenceTableName"],
+                    ReferenceSchemaName = (string)row["ReferenceSchemaName"] == "dbo" ? "" : (string)row["ReferenceSchemaName"],
+                }))
                 {
                     var relationDefinition = new DbRelationDefinition()
                     {
                         ForeignKey = fk.Key.Name,
                         TableName = fk.Key.TableName,
+                        SchemaName = fk.Key.SchemaName,
                         ReferenceTableName = fk.Key.ReferenceTableName,
+                        ReferenceSchemaName = fk.Key.ReferenceSchemaName,
                     };
 
                     relationDefinition.Columns.AddRange(fk.Select(dmRow =>

@@ -418,7 +418,6 @@ namespace Dotmim.Sync.Tests.StandAlone
             Assert.Equal(set.Tables.Count, set2.Tables.Count);
 
             //Assertions on Table properties
-            //TODO: Fix schema in DmRElation
             var productsTable2 = set2.Tables["Products", ""];
             var clientsTable2 = set2.Tables["Clients", ""];
             AssertIsEqual(productsTable, productsTable2);

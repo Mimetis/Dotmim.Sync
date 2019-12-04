@@ -13,11 +13,13 @@ namespace Dotmim.Sync.MySql
     public class MySqlManagerTable : IDbManagerTable
     {
         private string tableName;
+        private string schemaName;
         private readonly MySqlTransaction sqlTransaction;
         private readonly MySqlConnection sqlConnection;
         private readonly MySqlDbMetadata mySqlDbMetadata;
 
         public string TableName { set => this.tableName = value; }
+        public string SchemaName { set => this.schemaName = value; }
 
         public MySqlManagerTable(DbConnection connection, DbTransaction transaction = null)
         {

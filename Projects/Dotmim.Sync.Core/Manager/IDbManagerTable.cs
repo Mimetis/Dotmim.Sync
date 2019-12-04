@@ -9,6 +9,7 @@ namespace Dotmim.Sync.Manager
         /// Sets the current tableName
         /// </summary>
         string TableName { set; }
+        string SchemaName { set; }
 
         /// <summary>
         /// Gets a columns list from the datastore

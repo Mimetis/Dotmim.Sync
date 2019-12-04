@@ -9,7 +9,7 @@ namespace Dotmim.Sync.Sqlite
 {
     public class SqliteManager : DbManager
     {
-        public SqliteManager(string tableName) : base(tableName)
+        public SqliteManager(string tableName) : base(tableName, "")
         {
 
         }

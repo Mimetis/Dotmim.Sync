@@ -1,4 +1,5 @@
 ﻿using Dotmim.Sync.Batch;
+using Dotmim.Sync.Data.Surrogate;
 using Dotmim.Sync.Serialization;
 using Dotmim.Sync.Web.Client;
 using Newtonsoft.Json.Linq;
@@ -55,6 +56,7 @@ namespace Dotmim.Sync.Web.Server
             this.Schema = newSchema;
 
             // Create the return value
+            this.Schema.SetLight = new DmSetLightSchema(this.Schema.GetSet());
             var httpResponse = new HttpMessageEnsureScopesResponse(syncContext, newSchema);
 
             return httpResponse;

@@ -235,7 +235,7 @@ namespace Dotmim.Sync.Sqlite
                 command.Parameters.Add(p);
 
                 p = command.CreateParameter();
-                p.ParameterName = "@sync_scope_name";
+                p.ParameterName = "@sync_scope_schema";
                 p.Value = string.IsNullOrEmpty(scopeInfo.Schema) ? DBNull.Value : (object)scopeInfo.Schema;
                 p.DbType = DbType.String;
                 command.Parameters.Add(p);

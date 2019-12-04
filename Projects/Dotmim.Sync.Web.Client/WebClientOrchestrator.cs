@@ -114,8 +114,11 @@ namespace Dotmim.Sync.Web.Client
             if (ensureScopesResponse == null)
                 throw new ArgumentException("Http Message content for Ensure scope can't be null");
 
-            if (ensureScopesResponse.Schema == null || ensureScopesResponse.Schema.Set == null || ensureScopesResponse.Schema.Set.Tables.Count <= 0)
+            if (ensureScopesResponse.Schema == null || ensureScopesResponse.Schema.SetLight == null || ensureScopesResponse.Schema.SetLight.Tables.Count <= 0)
                 throw new ArgumentException("Schema from EnsureScope can't be null and may contains at least one table");
+
+            // Read schema in DmSet
+            ensureScopesResponse.Schema.SetLight.ReadSchemaIntoDmSet(ensureScopesResponse.Schema.GetSet());
 
             // Return scopes and new shema
             return (ensureScopesResponse.SyncContext, ensureScopesResponse.Schema);

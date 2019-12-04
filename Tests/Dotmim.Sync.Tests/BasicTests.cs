@@ -1314,7 +1314,7 @@ namespace Dotmim.Sync.Tests
                 }
 
                 // get the db manager
-                foreach (var dmTable in syncSchema.Set.Tables)
+                foreach (var dmTable in syncSchema.GetSet().Tables)
                 {
                     var tableName = dmTable.TableName;
                     using (var dbConnection = localProvider.CreateConnection())
@@ -1370,7 +1370,7 @@ namespace Dotmim.Sync.Tests
                 await localProvider.DeprovisionAsync(syncSchema, SyncProvision.All);
 
                 // get the db manager
-                foreach (var dmTable in syncSchema.Set.Tables)
+                foreach (var dmTable in syncSchema.GetSet().Tables)
                 {
                     var tableName = dmTable.TableName;
                     using (var dbConnection = localProvider.CreateConnection())
@@ -1458,7 +1458,7 @@ namespace Dotmim.Sync.Tests
                 {
                     connection.Open();
                     var tableManger = provider
-                        .GetDbManager("PriceListCategory")
+                        .GetDbManager("PriceListCategory", "")
                         ?.CreateManagerTable(connection);
 
                     if (tableManger == null)
