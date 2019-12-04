@@ -1,5 +1,6 @@
 ﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Data;
+using Dotmim.Sync.Data.Surrogate;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Filter;
 using Newtonsoft.Json;
@@ -15,12 +16,13 @@ namespace Dotmim.Sync
     {
         public const string DMSET_NAME = "DotmimSync";
 
-        private string _trackingTablesSuffix;
-        private string _trackingTablesPrefix;
-        private string _storedProceduresSuffix;
-        private string _storedProceduresPrefix;
-        private string _triggersSuffix;
-        private string _triggersPrefix;
+        private string trackingTablesSuffix;
+        private string trackingTablesPrefix;
+        private string storedProceduresSuffix;
+        private string storedProceduresPrefix;
+        private string triggersSuffix;
+        private string triggersPrefix;
+        private DmSet dmSet = null;
 
         /// <summary>
         /// Gets or Sets the default conflict resolution policy.
@@ -30,12 +32,16 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets or Sets the DmSet Schema used for synchronization
         /// </summary>
-        [DataMember(Name = "s")]
-        public DmSet Set
+        public DmSet GetSet() 
         {
-            get; set;
+            if (this.dmSet == null)
+                this.dmSet = this.SetLight.ConvertToDmSet();
+
+            return this.dmSet;
         }
 
+        [DataMember(Name = "s")]
+        public DmSetLightSchema SetLight { get; set; }
 
         /// <summary>
         /// Gets or Sets the current scope name
@@ -55,18 +61,18 @@ namespace Dotmim.Sync
         [DataMember(Name = "spp")]
         public string StoredProceduresPrefix
         {
-            get => this._storedProceduresPrefix;
+            get => this.storedProceduresPrefix;
             set
             {
-                if (this._storedProceduresPrefix != value)
+                if (this.storedProceduresPrefix != value)
                 {
-                    this._storedProceduresPrefix = value;
+                    this.storedProceduresPrefix = value;
 
-                    if (this.Set != null || this.Set.Tables != null)
+                    if (this.GetSet() != null || this.GetSet().Tables != null)
                     {
-                        foreach (var tbl in this.Set.Tables)
+                        foreach (var tbl in this.GetSet().Tables)
                         {
-                            tbl.StoredProceduresPrefix = this._storedProceduresPrefix;
+                            tbl.StoredProceduresPrefix = this.storedProceduresPrefix;
                         }
                     }
                 }
@@ -79,18 +85,18 @@ namespace Dotmim.Sync
         [DataMember(Name = "sps")]
         public string StoredProceduresSuffix
         {
-            get => this._storedProceduresSuffix;
+            get => this.storedProceduresSuffix;
             set
             {
-                if (this._storedProceduresSuffix != value)
+                if (this.storedProceduresSuffix != value)
                 {
-                    this._storedProceduresSuffix = value;
+                    this.storedProceduresSuffix = value;
 
-                    if (this.Set != null || this.Set.Tables != null)
+                    if (this.GetSet() != null || this.GetSet().Tables != null)
                     {
-                        foreach (var tbl in this.Set.Tables)
+                        foreach (var tbl in this.GetSet().Tables)
                         {
-                            tbl.StoredProceduresSuffix = this._storedProceduresSuffix;
+                            tbl.StoredProceduresSuffix = this.storedProceduresSuffix;
                         }
                     }
                 }
@@ -103,18 +109,18 @@ namespace Dotmim.Sync
         [DataMember(Name = "tp")]
         public string TriggersPrefix
         {
-            get => this._triggersPrefix;
+            get => this.triggersPrefix;
             set
             {
-                if (this._triggersPrefix != value)
+                if (this.triggersPrefix != value)
                 {
-                    this._triggersPrefix = value;
+                    this.triggersPrefix = value;
 
-                    if (this.Set != null || this.Set.Tables != null)
+                    if (this.GetSet() != null || this.GetSet().Tables != null)
                     {
-                        foreach (var tbl in this.Set.Tables)
+                        foreach (var tbl in this.GetSet().Tables)
                         {
-                            tbl.TriggersPrefix = this._triggersPrefix;
+                            tbl.TriggersPrefix = this.triggersPrefix;
                         }
                     }
                 }
@@ -127,18 +133,18 @@ namespace Dotmim.Sync
         [DataMember(Name = "ts")]
         public string TriggersSuffix
         {
-            get => this._triggersSuffix;
+            get => this.triggersSuffix;
             set
             {
-                if (this._triggersSuffix != value)
+                if (this.triggersSuffix != value)
                 {
-                    this._triggersSuffix = value;
+                    this.triggersSuffix = value;
 
-                    if (this.Set != null || this.Set.Tables != null)
+                    if (this.GetSet() != null || this.GetSet().Tables != null)
                     {
-                        foreach (var tbl in this.Set.Tables)
+                        foreach (var tbl in this.GetSet().Tables)
                         {
-                            tbl.TriggersSuffix = this._triggersSuffix;
+                            tbl.TriggersSuffix = this.triggersSuffix;
                         }
                     }
                 }
@@ -151,18 +157,18 @@ namespace Dotmim.Sync
         [DataMember(Name = "ttp")]
         public string TrackingTablesPrefix
         {
-            get => this._trackingTablesPrefix;
+            get => this.trackingTablesPrefix;
             set
             {
-                if (this._trackingTablesPrefix != value)
+                if (this.trackingTablesPrefix != value)
                 {
-                    this._trackingTablesPrefix = value;
+                    this.trackingTablesPrefix = value;
 
-                    if (this.Set != null || this.Set.Tables != null)
+                    if (this.GetSet() != null || this.GetSet().Tables != null)
                     {
-                        foreach (var tbl in this.Set.Tables)
+                        foreach (var tbl in this.GetSet().Tables)
                         {
-                            tbl.TrackingTablesPrefix = this._trackingTablesPrefix;
+                            tbl.TrackingTablesPrefix = this.trackingTablesPrefix;
                         }
                     }
                 }
@@ -175,18 +181,18 @@ namespace Dotmim.Sync
         [DataMember(Name = "tts")]
         public string TrackingTablesSuffix
         {
-            get => this._trackingTablesSuffix;
+            get => this.trackingTablesSuffix;
             set
             {
-                if (this._trackingTablesSuffix != value)
+                if (this.trackingTablesSuffix != value)
                 {
-                    this._trackingTablesSuffix = value;
+                    this.trackingTablesSuffix = value;
 
-                    if (this.Set != null || this.Set.Tables != null)
+                    if (this.GetSet() != null || this.GetSet().Tables != null)
                     {
-                        foreach (var tbl in this.Set.Tables)
+                        foreach (var tbl in this.GetSet().Tables)
                         {
-                            tbl.TrackingTablesSuffix = this._trackingTablesSuffix;
+                            tbl.TrackingTablesSuffix = this.trackingTablesSuffix;
                         }
                     }
 
@@ -206,7 +212,7 @@ namespace Dotmim.Sync
 
         public SyncSchema()
         {
-            this.Set = new DmSet(DMSET_NAME);
+            this.dmSet = new DmSet(DMSET_NAME);
             this.ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
             this.Filters = new List<FilterClause>();
             this.ScopeName = SyncOptions.DefaultScopeName;
@@ -221,36 +227,15 @@ namespace Dotmim.Sync
                 this.Add(table);
         }
 
-        public SyncSchema Clone()
-        {
-            var clone = new SyncSchema
-            {
-                ConflictResolutionPolicy = this.ConflictResolutionPolicy,
-                Set = this.Set.Clone(),
-                TrackingTablesSuffix = this.TrackingTablesSuffix,
-                TrackingTablesPrefix = this.TrackingTablesPrefix,
-                StoredProceduresPrefix = this.StoredProceduresPrefix,
-                StoredProceduresSuffix = this.StoredProceduresSuffix,
-                TriggersPrefix = this.TriggersPrefix,
-                TriggersSuffix = this.TriggersSuffix,
-                ScopeName = this.ScopeName
-            };
-
-            if (this.Filters != null)
-                foreach (var p in this.Filters)
-                    clone.Filters.Add(new FilterClause(p.TableName, p.ColumnName, p.ColumnType));
-
-            return clone;
-        }
         public int Count
         {
             get
             {
-                if (this.Set == null)
+                if (this.GetSet() == null)
                     return 0;
-                if (this.Set.Tables == null)
+                if (this.GetSet().Tables == null)
                     return 0;
-                return this.Set.Tables.Count;
+                return this.GetSet().Tables.Count;
             }
         }
 
@@ -270,7 +255,7 @@ namespace Dotmim.Sync
         /// </summary>
         public void Add(string table)
         {
-            if (this.Set == null || this.Set.Tables == null)
+            if (this.GetSet() == null || this.GetSet().Tables == null)
                 throw new InvalidOperationException($"Can't add new table {table} in Configuration, ScopeSet is null");
 
             // Potentially user can pass something like [SalesLT].[Product]
@@ -280,7 +265,7 @@ namespace Dotmim.Sync
             var tableName = parser.ObjectName;
             var schema = parser.SchemaName;
 
-            if (!this.Set.Tables.Contains(tableName))
+            if (!this.GetSet().Tables.Contains(tableName))
             {
                 var dmTable = new DmTable(tableName);
                 if (!string.IsNullOrEmpty(schema))
@@ -291,7 +276,7 @@ namespace Dotmim.Sync
                 dmTable.TrackingTablesPrefix = this.TrackingTablesPrefix;
                 dmTable.TrackingTablesSuffix = this.TrackingTablesSuffix;
 
-                this.Set.Tables.Add(dmTable);
+                this.GetSet().Tables.Add(dmTable);
             }
         }
 
@@ -300,7 +285,7 @@ namespace Dotmim.Sync
         /// </summary>
         public void Add(DmTable item)
         {
-            if (this.Set == null || this.Set.Tables == null)
+            if (this.GetSet() == null || this.GetSet().Tables == null)
                 throw new InvalidOperationException("Can't add a dmTable in Configuration, ScopeSet is null");
 
             item.StoredProceduresPrefix = this.StoredProceduresPrefix;
@@ -308,7 +293,7 @@ namespace Dotmim.Sync
             item.TrackingTablesPrefix = this.TrackingTablesPrefix;
             item.TrackingTablesSuffix = this.TrackingTablesSuffix;
 
-            this.Set.Tables.Add(item);
+            this.GetSet().Tables.Add(item);
         }
 
     }

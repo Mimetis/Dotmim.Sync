@@ -15,7 +15,7 @@ namespace Dotmim.Sync.Data
 {
 
     [Serializable]
-    public class DmSet : ISerializable, ISerializationSurrogateProvider
+    public class DmSet : ISerializable
     {
         string dmSetName = "NewDataSet";
 
@@ -112,7 +112,7 @@ namespace Dotmim.Sync.Data
         public DmSet()
         {
             this.Tables = new DmTableCollection(this);
-            this.Culture = CultureInfo.CurrentCulture; // Set default locale
+            this.Culture = CultureInfo.InvariantCulture; // Set default locale
             this.CaseSensitive = false;
             this.compareFlags = CompareOptions.IgnoreCase | CompareOptions.IgnoreKanaType | CompareOptions.IgnoreWidth;
             this.Relations = new List<DmRelation>();
@@ -124,22 +124,6 @@ namespace Dotmim.Sync.Data
             : this()
         {
             this.DmSetName = dataSetName;
-        }
-
-
-        public object GetDeserializedObject(object obj, Type targetType)
-        {
-            return new DmSet();
-        }
-
-        public object GetObjectToSerialize(object obj, Type targetType)
-        {
-            return new DmSetSurrogate();
-        }
-
-        public Type GetSurrogateType(Type type)
-        {
-            return typeof(DmSetSurrogate);
         }
 
         public DmSet(SerializationInfo info, StreamingContext context) : this()

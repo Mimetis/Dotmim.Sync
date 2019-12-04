@@ -1,4 +1,6 @@
 ﻿using Dotmim.Sync.Batch;
+using Dotmim.Sync.Data;
+using Dotmim.Sync.Data.Surrogate;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Filter;
 using Dotmim.Sync.Messages;
@@ -168,6 +170,7 @@ namespace Dotmim.Sync
                 if (!string.IsNullOrEmpty(scope.Schema))
                 {
                     this.Schema = JsonConvert.DeserializeObject<SyncSchema>(scope.Schema);
+                    this.Schema.SetLight.ReadSchemaIntoDmSet(this.Schema.GetSet());
                 }
                 else
                 {
@@ -209,7 +212,11 @@ namespace Dotmim.Sync
                 context = serverChanges.context;
                 // Serialize schema to be able to save it in client db
                 if (string.IsNullOrEmpty(scope.Schema))
-                    scope.Schema = JsonConvert.SerializeObject(this.Schema);
+                {
+                    this.Schema.SetLight = new DmSetLightSchema(this.Schema.GetSet());
+                    var schemaLight = JsonConvert.SerializeObject(this.Schema);
+                    scope.Schema = schemaLight;
+                }
 
                 var clientPolicy = this.Schema.ConflictResolutionPolicy == ConflictResolutionPolicy.ServerWins ? ConflictResolutionPolicy.ClientWins : ConflictResolutionPolicy.ServerWins;
 

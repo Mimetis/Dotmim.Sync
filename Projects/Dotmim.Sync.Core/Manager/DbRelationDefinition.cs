@@ -10,9 +10,11 @@ namespace Dotmim.Sync.Manager
     {
         public string ForeignKey { get; set; }
         public string TableName { get; set; }
-       
+        public string SchemaName { get; set; }
+
         public List<DbRelationColumnDefinition> Columns { get; set; } = new List<DbRelationColumnDefinition>();
         public string ReferenceTableName { get; set; }
+        public string ReferenceSchemaName { get; set; }
 
     }
 

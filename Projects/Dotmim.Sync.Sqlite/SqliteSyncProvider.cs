@@ -135,7 +135,7 @@ namespace Dotmim.Sync.Sqlite
 
         public override DbBuilder GetDatabaseBuilder(DmTable tableDescription) => new SqliteBuilder(tableDescription);
 
-        public override DbManager GetDbManager(string tableName) => new SqliteManager(tableName);
+        public override DbManager GetDbManager(string tableName, string schemaName) => new SqliteManager(tableName);
 
         public override DbScopeBuilder GetScopeBuilder() => new SqliteScopeBuilder();
     }

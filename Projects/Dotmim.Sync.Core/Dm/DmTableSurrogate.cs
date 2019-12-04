@@ -279,35 +279,35 @@ namespace Dotmim.Sync.Data.Surrogate
                         if (columnType == typeof(Guid) && (dmRowObject.GetType() == typeof(byte[])))
                             dmRowObject = new Guid((byte[])dmRowObject);
                         else if (columnType == typeof(Int32) && dmRowObjectType != typeof(Int32))
-                            dmRowObject = Convert.ToInt32(dmRowObject);
+                            dmRowObject = Convert.ToInt32(dmRowObject, dt.Culture);
                         else if (columnType == typeof(UInt32) && dmRowObjectType != typeof(UInt32))
-                            dmRowObject = Convert.ToUInt32(dmRowObject);
+                            dmRowObject = Convert.ToUInt32(dmRowObject, dt.Culture);
                         else if (columnType == typeof(Int16) && dmRowObjectType != typeof(Int16))
-                            dmRowObject = Convert.ToInt16(dmRowObject);
+                            dmRowObject = Convert.ToInt16(dmRowObject, dt.Culture);
                         else if (columnType == typeof(UInt16) && dmRowObjectType != typeof(UInt16))
-                            dmRowObject = Convert.ToUInt16(dmRowObject);
+                            dmRowObject = Convert.ToUInt16(dmRowObject, dt.Culture);
                         else if (columnType == typeof(Int64) && dmRowObjectType != typeof(Int64))
-                            dmRowObject = Convert.ToInt64(dmRowObject);
+                            dmRowObject = Convert.ToInt64(dmRowObject, dt.Culture);
                         else if (columnType == typeof(UInt64) && dmRowObjectType != typeof(UInt64))
-                            dmRowObject = Convert.ToUInt64(dmRowObject);
+                            dmRowObject = Convert.ToUInt64(dmRowObject, dt.Culture);
                         else if (columnType == typeof(Byte) && dmRowObjectType != typeof(Byte))
-                            dmRowObject = Convert.ToByte(dmRowObject);
+                            dmRowObject = Convert.ToByte(dmRowObject, dt.Culture);
                         else if (columnType == typeof(Char) && dmRowObjectType != typeof(Char))
-                            dmRowObject = Convert.ToChar(dmRowObject);
+                            dmRowObject = Convert.ToChar(dmRowObject, dt.Culture);
                         else if (columnType == typeof(DateTime) && dmRowObjectType != typeof(DateTime))
-                            dmRowObject = Convert.ToDateTime(dmRowObject);
+                            dmRowObject = Convert.ToDateTime(dmRowObject, dt.Culture);
                         else if (columnType == typeof(Decimal) && dmRowObjectType != typeof(Decimal))
-                            dmRowObject = Convert.ToDecimal(dmRowObject);
+                            dmRowObject = Convert.ToDecimal(dmRowObject, dt.Culture);
                         else if (columnType == typeof(Double) && dmRowObjectType != typeof(Double))
-                            dmRowObject = Convert.ToDouble(dmRowObject);
+                            dmRowObject = Convert.ToDouble(dmRowObject, dt.Culture);
                         else if (columnType == typeof(SByte) && dmRowObjectType != typeof(SByte))
-                            dmRowObject = Convert.ToSByte(dmRowObject);
+                            dmRowObject = Convert.ToSByte(dmRowObject, dt.Culture);
                         else if (columnType == typeof(Single) && dmRowObjectType != typeof(Single))
-                            dmRowObject = Convert.ToSingle(dmRowObject);
+                            dmRowObject = Convert.ToSingle(dmRowObject, dt.Culture);
                         else if (columnType == typeof(String) && dmRowObjectType != typeof(String))
-                            dmRowObject = Convert.ToString(dmRowObject);
+                            dmRowObject = Convert.ToString(dmRowObject, dt.Culture);
                         else if (columnType == typeof(Boolean) && dmRowObjectType != typeof(Boolean))
-                            dmRowObject = Convert.ToBoolean(dmRowObject);
+                            dmRowObject = Convert.ToBoolean(dmRowObject, dt.Culture);
                         else if (columnType == typeof(Byte[]) && dmRowObjectType != typeof(Byte[]) && dmRowObjectType == typeof(String))
                             dmRowObject = Convert.FromBase64String(dmRowObject.ToString());
                         else if (dmRowObjectType != columnType)
