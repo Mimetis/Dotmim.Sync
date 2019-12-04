@@ -193,7 +193,7 @@ namespace Dotmim.Sync
 
                         // Client could have, or not, the tables
                         context = await this.Provider.EnsureDatabaseAsync(context,
-                            new MessageEnsureDatabase(checkIfSchemaExists, schema.Set, schema.Filters),
+                            new MessageEnsureDatabase(checkIfSchemaExists, schema.GetSet(), schema.Filters),
                             connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                         // Here we know schema is created, that's why we don't need to check again on next run
@@ -228,7 +228,7 @@ namespace Dotmim.Sync
                         (context, clientBatchInfo, clientChangesSelected) =
                             await this.Provider.GetChangeBatchAsync(context,
                                     new MessageGetChangesBatch(remoteScopeId, isNew, lastSyncTS,
-                                        schema.Set, batchSize, batchDirectory,
+                                        schema.GetSet(), batchSize, batchDirectory,
                                         schema.Filters),
                                     connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 

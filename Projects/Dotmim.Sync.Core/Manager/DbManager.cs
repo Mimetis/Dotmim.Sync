@@ -13,10 +13,12 @@ namespace Dotmim.Sync.Manager
     {
 
         public string TableName { get; }
+        public string SchemaName { get; }
 
-        public DbManager(string tableName)
+        public DbManager(string tableName, string schemaName)
         {
             this.TableName = tableName;
+            this.SchemaName = schemaName;
         }
 
         /// <summary>

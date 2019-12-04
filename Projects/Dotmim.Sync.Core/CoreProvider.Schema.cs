@@ -139,11 +139,11 @@ namespace Dotmim.Sync
                 throw new ArgumentNullException("syncConfiguration", "Configuration should contains Tables, at least tables with a name");
 
             var relations = new List<DbRelationDefinition>(20);
-            var syncConfiguration = set.Tables;
+            var schemaTables = set.Tables;
 
-            foreach (var dmTable in syncConfiguration)
+            foreach (var dmTable in schemaTables)
             {
-                var builderTable = this.GetDbManager(dmTable.TableName);
+                var builderTable = this.GetDbManager(dmTable.TableName, dmTable.Schema);
                 var tblManager = builderTable.CreateManagerTable(connection, transaction);
 
                 // get columns list
@@ -160,8 +160,7 @@ namespace Dotmim.Sync
                 foreach (var r in relations)
                 {
                     // Get table from the relation where we need to work on
-                    // TODO: Be able to get schema name when get relations
-                    var dmTable = set.Tables[r.TableName, ""];
+                    var dmTable = set.Tables[r.TableName, r.SchemaName];
 
                     // get DmColumn from DmTable, based on the columns from relations
                     var tblColumns = r.Columns.OrderBy(kc => kc.Order)
@@ -169,8 +168,7 @@ namespace Dotmim.Sync
                         .ToArray();
 
                     // then Get the foreign table as well
-                    // TODO: Be able to get schema name when get relations
-                    var foreignTable = syncConfiguration[r.ReferenceTableName, ""];
+                    var foreignTable = schemaTables[r.ReferenceTableName, r.ReferenceSchemaName];
 
                     // Since we can have a table with a foreign key but not the parent table
                     // It's not a problem, just forget it
@@ -206,12 +204,12 @@ namespace Dotmim.Sync
                 context.SyncStage = SyncStage.SchemaReading;
 
                 // if we dont have already read the tables || we want to overwrite the current config
-                if (schema.Set.HasTables && !schema.Set.HasColumns)
-                    this.ReadSchema(schema.Set, connection, transaction);
+                if (schema.GetSet().HasTables && !schema.GetSet().HasColumns)
+                    this.ReadSchema(schema.GetSet(), connection, transaction);
 
                 // Progress & Interceptor
                 context.SyncStage = SyncStage.SchemaRead;
-                var schemaArgs = new SchemaArgs(context, schema.Set, connection, transaction);
+                var schemaArgs = new SchemaArgs(context, schema.GetSet(), connection, transaction);
                 this.ReportProgress(context, progress, schemaArgs);
                 await this.InterceptAsync(schemaArgs).ConfigureAwait(false);
 

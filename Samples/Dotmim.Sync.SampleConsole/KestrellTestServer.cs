@@ -57,7 +57,7 @@ namespace Dotmim.Sync.SampleConsole
 
             this.host = this.builder.Build();
             this.host.Start();
-            string serviceUrl = $"http://localhost.fiddler:{host.GetPort()}/";
+            string serviceUrl = $"http://localhost:{host.GetPort()}/";
             await clientHandler(serviceUrl);
         }
 

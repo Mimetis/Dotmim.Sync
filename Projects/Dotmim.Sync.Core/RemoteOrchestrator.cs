@@ -65,7 +65,7 @@ namespace Dotmim.Sync
                         context = await this.Provider.BeginSessionAsync(context, cancellationToken, progress).ConfigureAwait(false);
 
                         // Is it the first time we come to ensure schema ?
-                        var checkSchema = schema.Set.HasTables && !schema.Set.HasColumns;
+                        var checkSchema = schema.GetSet().HasTables && !schema.GetSet().HasColumns;
 
                         // ----------------------------------------
                         // 2) Get Schema from remote provider
@@ -83,7 +83,7 @@ namespace Dotmim.Sync
 
                         // Server should have already the schema
                         context = await this.Provider.EnsureDatabaseAsync(context,
-                            new MessageEnsureDatabase(checkSchema, schema.Set, schema.Filters),
+                            new MessageEnsureDatabase(checkSchema, schema.GetSet(), schema.Filters),
                             connection, transaction,
                             cancellationToken, progress).ConfigureAwait(false);
 
@@ -171,7 +171,7 @@ namespace Dotmim.Sync
                         (context, serverBatchInfo, serverChangesSelected) =
                             await this.Provider.GetChangeBatchAsync(context,
                                 new MessageGetChangesBatch(scope.Id, scope.IsNewScope, scope.LastServerSyncTimestamp,
-                                    schema.Set, clientBatchSize, batchDirectory,  schema.Filters),
+                                    schema.GetSet(), clientBatchSize, batchDirectory,  schema.Filters),
                                     connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                         if (cancellationToken.IsCancellationRequested)

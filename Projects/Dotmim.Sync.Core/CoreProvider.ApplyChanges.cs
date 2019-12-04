@@ -56,7 +56,7 @@ namespace Dotmim.Sync
                 if (!message.IsNew)
                 {
                     // for delete we must go from Up to Down
-                    foreach (var table in message.Schema.Set.Tables.Reverse())
+                    foreach (var table in message.Schema.GetSet().Tables.Reverse())
                     {
                         changeApplicationAction = await this.ApplyChangesInternalAsync(table, context, message, connection,
                             transaction, DmRowState.Deleted, changesApplied, cancellationToken, progress).ConfigureAwait(false);
@@ -70,7 +70,7 @@ namespace Dotmim.Sync
                 // -----------------------------------------------------
                 // 2) Applying Inserts and Updates. Apply in table order
                 // -----------------------------------------------------
-                foreach (var table in message.Schema.Set.Tables)
+                foreach (var table in message.Schema.GetSet().Tables)
                 {
                     changeApplicationAction = await this.ApplyChangesInternalAsync(table, context, message, connection,
                         transaction, DmRowState.Added, changesApplied, cancellationToken, progress).ConfigureAwait(false);
@@ -115,12 +115,12 @@ namespace Dotmim.Sync
         /// </summary>
         private ChangeApplicationAction ResetInternal(SyncContext context, SyncSchema schema, DbConnection connection, DbTransaction transaction)
         {
-            if (schema == null || schema.Set.Tables.Count <= 0)
+            if (schema == null || schema.GetSet().Tables.Count <= 0)
                 return ChangeApplicationAction.Continue;
 
-            for (var i = 0; i < schema.Set.Tables.Count; i++)
+            for (var i = 0; i < schema.GetSet().Tables.Count; i++)
             {
-                var tableDescription = schema.Set.Tables[schema.Set.Tables.Count - i - 1];
+                var tableDescription = schema.GetSet().Tables[schema.GetSet().Tables.Count - i - 1];
 
                 var builder = this.GetDatabaseBuilder(tableDescription);
                 var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
@@ -139,12 +139,12 @@ namespace Dotmim.Sync
         /// </summary>
         private ChangeApplicationAction DisableConstraints(SyncContext context, SyncSchema schema, DbConnection connection, DbTransaction transaction)
         {
-            if (schema == null || schema.Set.Tables.Count <= 0)
+            if (schema == null || schema.GetSet().Tables.Count <= 0)
                 return ChangeApplicationAction.Continue;
 
-            for (var i = 0; i < schema.Set.Tables.Count; i++)
+            for (var i = 0; i < schema.GetSet().Tables.Count; i++)
             {
-                var tableDescription = schema.Set.Tables[schema.Set.Tables.Count - i - 1];
+                var tableDescription = schema.GetSet().Tables[schema.GetSet().Tables.Count - i - 1];
 
                 var builder = this.GetDatabaseBuilder(tableDescription);
                 var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
@@ -162,12 +162,12 @@ namespace Dotmim.Sync
         /// </summary>
         private ChangeApplicationAction EnableConstraints(SyncContext context, SyncSchema schema, DbConnection connection, DbTransaction transaction)
         {
-            if (schema == null || schema.Set.Tables.Count <= 0)
+            if (schema == null || schema.GetSet().Tables.Count <= 0)
                 return ChangeApplicationAction.Continue;
 
-            for (var i = 0; i < schema.Set.Tables.Count; i++)
+            for (var i = 0; i < schema.GetSet().Tables.Count; i++)
             {
-                var tableDescription = schema.Set.Tables[schema.Set.Tables.Count - i - 1];
+                var tableDescription = schema.GetSet().Tables[schema.GetSet().Tables.Count - i - 1];
 
                 var builder = this.GetDatabaseBuilder(tableDescription);
                 var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
