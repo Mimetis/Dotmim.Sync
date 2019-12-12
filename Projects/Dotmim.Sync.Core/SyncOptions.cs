@@ -79,6 +79,10 @@ namespace Dotmim.Sync
         /// </summary>
         public string ScopeInfoTableName { get; set; }
 
+        /// <summary>
+        /// Gets or Sets the default conflict resolution policy. This value could potentially be ovewritten and replaced by the server
+        /// </summary>
+        public ConflictResolutionPolicy ConflictResolutionPolicy { get; set; }
 
         /// <summary>
         /// Create a new instance of options with default values
@@ -92,6 +96,7 @@ namespace Dotmim.Sync
             this.UseVerboseErrors = false;
             this.DisableConstraintsOnApplyChanges = true;
             this.ScopeInfoTableName = DefaultScopeInfoTableName;
+            this.ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
         }
 
 

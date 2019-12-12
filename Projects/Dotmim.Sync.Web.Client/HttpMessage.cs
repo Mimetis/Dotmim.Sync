@@ -67,6 +67,14 @@ namespace Dotmim.Sync.Web.Client
         [DataMember(Name = "cs")]
         public DatabaseChangesSelected ChangesSelected { get; set; }
 
+        /// <summary>
+        /// Gets or Sets the conflict resolution policy from the server
+        /// </summary>
+
+        [DataMember(Name = "crp")]
+        public ConflictResolutionPolicy ConflictResolutionPolicy { get; set; }
+
+
     }
 
     [DataContract]

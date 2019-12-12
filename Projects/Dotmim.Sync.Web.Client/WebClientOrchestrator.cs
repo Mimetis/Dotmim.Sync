@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Dotmim.Sync.Batch;
 using Dotmim.Sync.Data.Surrogate;
+using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Serialization;
 using Microsoft.Net.Http.Headers;
 using Newtonsoft.Json.Linq;
@@ -126,14 +127,15 @@ namespace Dotmim.Sync.Web.Client
 
 
 
-        public async Task<(SyncContext, long, BatchInfo, DatabaseChangesSelected)>
+        public async Task<(SyncContext, long, BatchInfo, ConflictResolutionPolicy,  DatabaseChangesSelected)>
             ApplyThenGetChangesAsync(SyncContext context, ScopeInfo scope, SyncSchema schema, BatchInfo clientBatchInfo,
                                      bool disableConstraintsOnApplyChanges, bool useBulkOperations, bool cleanMetadatas,
-                                     int clientBatchSize, string batchDirectory,
+                                     int clientBatchSize, string batchDirectory, ConflictResolutionPolicy policy,
                                      CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
 
-            // disableConstraintsOnApplyChanges, useBulkOperations, cleanMetadatas are not used, since it's handled by server side
+            // disableConstraintsOnApplyChanges, useBulkOperations, cleanMetadatas, client policy
+            // are not used, since it's handled by server side
             // clientBatchSize is sent to server to specify if the client wants a batch in return
 
             // if we don't have any BatchPartsInfo, just generate a new one to get, at least, something to send to the server
@@ -250,7 +252,7 @@ namespace Dotmim.Sync.Web.Client
 
             } while (!isLastBatch);
 
-            return (context, remoteClientTimestamp, serverBatchInfo, serverChangesSelected);
+            return (context, remoteClientTimestamp, serverBatchInfo, httpMessageContent.ConflictResolutionPolicy, serverChangesSelected);
         }
 
     }

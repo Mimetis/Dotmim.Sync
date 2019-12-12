@@ -79,7 +79,7 @@ namespace Dotmim.Sync.Tests.Core
 
 
         public async Task<ProviderRun> RunAsync(ProviderFixture serverFixture, string[] tables = null,
-            SyncSchema schema = null, bool reuseAgent = true)
+            SyncSchema schema = null, SyncOptions options = null, bool reuseAgent = true)
         {
             var syncTables = tables ?? serverFixture.Tables;
 
@@ -88,11 +88,14 @@ namespace Dotmim.Sync.Tests.Core
             {
                 // create agent
                 if (this.Agent == null || !reuseAgent)
-                    this.Agent = new SyncAgent(this.ClientProvider, serverFixture.ServerProvider, syncTables);
+                    this.Agent = new SyncAgent(this.ClientProvider, serverFixture.ServerProvider, syncTables, options);
+
+                if (options != null)
+                    this.Agent.Options = options;
 
                 // copy conf settings
                 if (schema != null)
-                    this.Agent.Schema =schema;
+                    this.Agent.Schema = schema;
 
                 // Add Filers
                 if (serverFixture.Filters != null && serverFixture.Filters.Count > 0)
@@ -131,17 +134,21 @@ namespace Dotmim.Sync.Tests.Core
                     var serverHandler = new RequestDelegate(async context =>
                     {
                         // test if <> directory name works
-                        var options = new WebServerOptions
+                        var serverOptions = new WebServerOptions
                         {
                             BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "server")
                         };
+
+                        // get policy from test options
+                        if (options != null)
+                            serverOptions.ConflictResolutionPolicy = options.ConflictResolutionPolicy;
 
                         // sync
                         try
                         {
 
                             var proxyServerOrchestrator = WebProxyServerOrchestrator.Create(
-                                context, serverFixture.ServerProvider, schema, options);
+                                context, serverFixture.ServerProvider, schema, serverOptions);
 
                             var webServerOrchestrator = proxyServerOrchestrator.GetLocalOrchestrator(context);
 
@@ -175,7 +182,14 @@ namespace Dotmim.Sync.Tests.Core
 
                         // create agent
                         if (this.Agent == null || !reuseAgent)
-                            this.Agent = new SyncAgent(this.ClientProvider, proxyClientOrchestrator);
+                            this.Agent = new SyncAgent(this.ClientProvider, proxyClientOrchestrator, null, options);
+
+                        if (options != null)
+                            this.Agent.Options = options;
+
+                        // copy conf settings
+                        if (schema != null)
+                            this.Agent.Schema = schema;
 
                         // Just set the correct serviceUri if my kestrell server changed it
                         ((WebClientOrchestrator)this.Agent.RemoteOrchestrator).ServiceUri = serviceUri;

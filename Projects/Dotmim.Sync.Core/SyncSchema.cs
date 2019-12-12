@@ -24,10 +24,6 @@ namespace Dotmim.Sync
         private string triggersPrefix;
         private DmSet dmSet = null;
 
-        /// <summary>
-        /// Gets or Sets the default conflict resolution policy.
-        /// </summary>
-        public ConflictResolutionPolicy ConflictResolutionPolicy { get; set; } = ConflictResolutionPolicy.ServerWins;
 
         /// <summary>
         /// Gets or Sets the DmSet Schema used for synchronization
@@ -213,7 +209,6 @@ namespace Dotmim.Sync
         public SyncSchema()
         {
             this.dmSet = new DmSet(DMSET_NAME);
-            this.ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
             this.Filters = new List<FilterClause>();
             this.ScopeName = SyncOptions.DefaultScopeName;
         }

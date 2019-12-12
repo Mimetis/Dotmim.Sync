@@ -32,22 +32,13 @@ namespace Dotmim.Sync.Tests.Core
             this.serverProvider = serverProvider;
         }
 
-        public async Task<List<ProviderRun>> RunTestsAsync()
+        public async Task<List<ProviderRun>> RunTestsAsync(SyncOptions options = null, bool reuseAgent = true)
         {
-            return await RunTestsAsync(this.providerFixture.Tables, null, true);
-        }
-        public async Task<List<ProviderRun>> RunTestsAsync(bool reuseAgent)
-        {
-            return await RunTestsAsync(this.providerFixture.Tables, null, reuseAgent);
+            return await RunTestsAsync(this.providerFixture.Tables, null, options, reuseAgent);
         }
 
-        public async Task<List<ProviderRun>> RunTestsAsync(SyncSchema schema, bool reuseAgent = true)
-        {
-            return await RunTestsAsync(this.providerFixture.Tables, schema, reuseAgent);
-        }
-
-        public async Task<List<ProviderRun>> RunTestsAsync(string[] tables = null, SyncSchema schema = null,
-                                                           bool reuseAgent = true)
+        public async Task<List<ProviderRun>> RunTestsAsync(string[] tables, SyncSchema schema = null,
+            SyncOptions options = null, bool reuseAgent = true)
         {
             foreach (var tra in this.providerFixture.ClientRuns)
             {
@@ -56,7 +47,7 @@ namespace Dotmim.Sync.Tests.Core
                     tra.BeginRun = this.BeginRun;
                     tra.EndRun = this.EndRun;
 
-                    await tra.RunAsync(this.providerFixture, tables, schema, reuseAgent);
+                    await tra.RunAsync(this.providerFixture, tables, schema, options, reuseAgent);
                 }
                 catch (Exception ex)
                 {
