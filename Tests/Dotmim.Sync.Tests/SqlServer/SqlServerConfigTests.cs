@@ -54,7 +54,7 @@ namespace Dotmim.Sync.Tests.SqlServer
             try
             {
 
-                var conf = new SyncSchema
+                var schema = new SyncSchema
                 {
                     StoredProceduresPrefix = "s",
                     StoredProceduresSuffix = "",
@@ -62,7 +62,7 @@ namespace Dotmim.Sync.Tests.SqlServer
                     TrackingTablesSuffix = ""
                 };
 
-                var results = await this.testRunner.RunTestsAsync(conf);
+                var results = await this.testRunner.RunTestsAsync(this.fixture.Tables, schema);
 
                 foreach (var trr in results)
                 {

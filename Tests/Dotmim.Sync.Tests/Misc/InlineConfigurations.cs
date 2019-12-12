@@ -10,29 +10,15 @@ namespace Dotmim.Sync.Test.Misc
         /// Always return a new list of configurations.
         /// To be sure that no tests will update a property that will be used (instead of default property) in the next test
         /// </summary>
-        public static List<SyncSchema> GetSchemas()
+        public static List<SyncOptions> GetOptions()
         {
-            var Configurations = new List<SyncSchema>
+            var Configurations = new List<SyncOptions>
             {
-                new SyncSchema{
-                    ConflictResolutionPolicy = Enumerations.ConflictResolutionPolicy.ServerWins,
-                    StoredProceduresPrefix = "",
-                    StoredProceduresSuffix = "",
-                    TrackingTablesPrefix = "",
-                    TrackingTablesSuffix = "",
-                    TriggersPrefix = "",
-                    TriggersSuffix = ""
-                },
+                // First options with batch enabled
+                new SyncOptions{ BatchSize = 1000 },
 
-                new SyncSchema{
-                   ConflictResolutionPolicy = Enumerations.ConflictResolutionPolicy.ServerWins,
-                   StoredProceduresPrefix = "",
-                   StoredProceduresSuffix = "",
-                   TrackingTablesPrefix = "",
-                   TrackingTablesSuffix = "",
-                   TriggersPrefix = "",
-                   TriggersSuffix = ""
-                }
+                // Second options without batch enabled
+                new SyncOptions{ BatchSize = 0 }
             };
 
             return Configurations;

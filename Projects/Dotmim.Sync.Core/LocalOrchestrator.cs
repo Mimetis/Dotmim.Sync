@@ -203,11 +203,6 @@ namespace Dotmim.Sync
                             cancellationToken.ThrowIfCancellationRequested();
 
 
-                        // ----------------------------------------
-                        // 5) Get local changes
-                        // ----------------------------------------
-                        var clientPolicy = schema.ConflictResolutionPolicy == ConflictResolutionPolicy.ServerWins ? ConflictResolutionPolicy.ClientWins : ConflictResolutionPolicy.ServerWins;
-
                         // Fom local provider all rows not "last updated" by the Server
                         // Server scope is identified by Guid.Empty
                         var remoteScopeId = Guid.Empty;
