@@ -1,4 +1,5 @@
-﻿using Dotmim.Sync.Serialization;
+﻿using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.Serialization;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -59,6 +60,12 @@ namespace Dotmim.Sync.Web.Server
         /// </summary>
         public SerializersCollection Serializers { get; set; }
 
+        /// <summary>
+        /// Gets or Sets the default conflict resolution policy
+        /// </summary>
+        public ConflictResolutionPolicy ConflictResolutionPolicy { get; set; }
+
+
 
         /// <summary>
         /// Create a new instance of options with default values
@@ -71,6 +78,7 @@ namespace Dotmim.Sync.Web.Server
             this.UseVerboseErrors = false;
             this.DisableConstraintsOnApplyChanges = true;
             this.Serializers = new SerializersCollection();
+            this.ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
         }
 
     }
