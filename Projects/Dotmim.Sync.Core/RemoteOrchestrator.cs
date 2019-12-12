@@ -117,10 +117,10 @@ namespace Dotmim.Sync
 
         }
 
-        public async Task<(SyncContext, long, BatchInfo, DatabaseChangesSelected)>
+        public async Task<(SyncContext, long, BatchInfo, ConflictResolutionPolicy, DatabaseChangesSelected)>
             ApplyThenGetChangesAsync(SyncContext context, ScopeInfo scope, SyncSchema schema, BatchInfo clientBatchInfo,
                                      bool disableConstraintsOnApplyChanges, bool useBulkOperations, bool cleanMetadatas,
-                                     int clientBatchSize, string batchDirectory,
+                                     int clientBatchSize, string batchDirectory, ConflictResolutionPolicy policy,
                                      CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
 
@@ -144,7 +144,7 @@ namespace Dotmim.Sync
                         
                         (context, changesApplied) =
                             await this.Provider.ApplyChangesAsync(context,
-                             new MessageApplyChanges(scope.Id, false, scope.LastServerSyncTimestamp, schema, schema.ConflictResolutionPolicy, 
+                             new MessageApplyChanges(scope.Id, false, scope.LastServerSyncTimestamp, schema, policy, 
                                         disableConstraintsOnApplyChanges, useBulkOperations, cleanMetadatas, clientBatchInfo),
                              connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -202,7 +202,7 @@ namespace Dotmim.Sync
                 }
             }
 
-            return (context, remoteClientTimestamp, serverBatchInfo, serverChangesSelected);
+            return (context, remoteClientTimestamp, serverBatchInfo, policy, serverChangesSelected);
         }
 
     }

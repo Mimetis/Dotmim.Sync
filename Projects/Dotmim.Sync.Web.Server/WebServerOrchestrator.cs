@@ -1,5 +1,6 @@
 ﻿using Dotmim.Sync.Batch;
 using Dotmim.Sync.Data.Surrogate;
+using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Serialization;
 using Dotmim.Sync.Web.Client;
 using Newtonsoft.Json.Linq;
@@ -67,13 +68,14 @@ namespace Dotmim.Sync.Web.Server
         /// Create a response message content based on a requested index in a server batch info
         /// </summary>
         private HttpMessageSendChangesResponse GetChangesResponse(SyncContext context, long remoteClientTimestamp, BatchInfo serverBatchInfo,
-                                DatabaseChangesSelected serverChangesSelected, int batchIndexRequested)
+                                DatabaseChangesSelected serverChangesSelected, int batchIndexRequested, ConflictResolutionPolicy policy)
         {
 
             // 1) Create the http message content response
             var changesResponse = new HttpMessageSendChangesResponse(context);
             changesResponse.ChangesSelected = serverChangesSelected;
             changesResponse.ServerStep = HttpStep.GetChanges;
+            changesResponse.ConflictResolutionPolicy = policy;
 
             // If nothing to do, just send back
             if (serverBatchInfo.InMemory || serverBatchInfo.BatchPartsInfo.Count == 0)
@@ -156,10 +158,11 @@ namespace Dotmim.Sync.Web.Server
             // ------------------------------------------------------------
 
             // get changes
-            var (context, remoteClientTimestamp, serverBatchInfo, serverChangesSelected) =
+            var (context, remoteClientTimestamp, serverBatchInfo, policy, serverChangesSelected) =
                await this.ApplyThenGetChangesAsync(httpMessage.SyncContext,
                            httpMessage.Scope, this.Schema, batchInfo, this.Options.DisableConstraintsOnApplyChanges,
-                           this.Options.UseBulkOperations, this.Options.CleanMetadatas, clientBatchSize, this.Options.BatchDirectory, cancellationToken).ConfigureAwait(false);
+                           this.Options.UseBulkOperations, this.Options.CleanMetadatas, clientBatchSize, 
+                           this.Options.BatchDirectory, this.Options.ConflictResolutionPolicy, cancellationToken).ConfigureAwait(false);
 
 
             // Save the server batch info object to cache if not working in memory
@@ -172,7 +175,7 @@ namespace Dotmim.Sync.Web.Server
             }
 
             // Get the firt response to send back to client
-            return GetChangesResponse(context, remoteClientTimestamp, serverBatchInfo, serverChangesSelected, 0);
+            return GetChangesResponse(context, remoteClientTimestamp, serverBatchInfo, serverChangesSelected, 0, policy);
 
         }
 
@@ -190,7 +193,8 @@ namespace Dotmim.Sync.Web.Server
             if (serverBatchInfo == null)
                 throw new ArgumentNullException("batchInfo stored in session can't be null if request more batch part info.");
 
-            return GetChangesResponse(httpMessage.SyncContext, remoteClienTimestamp, serverBatchInfo, serverChangesSelected, httpMessage.BatchIndexRequested);
+            return GetChangesResponse(httpMessage.SyncContext, remoteClienTimestamp, serverBatchInfo, 
+                serverChangesSelected, httpMessage.BatchIndexRequested, this.Options.ConflictResolutionPolicy);
         }
 
 

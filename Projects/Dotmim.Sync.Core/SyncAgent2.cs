@@ -203,7 +203,8 @@ namespace Dotmim.Sync
                 // SECOND call to server
                 var serverChanges = await this.RemoteOrchestrator.ApplyThenGetChangesAsync(
                     context, scope, this.Schema, clientChanges.clientBatchInfo, this.Options.DisableConstraintsOnApplyChanges, this.Options.UseBulkOperations,
-                    this.Options.CleanMetadatas, this.Options.BatchSize, this.Options.BatchDirectory, cancellationToken, remoteProgress);
+                    this.Options.CleanMetadatas, this.Options.BatchSize, this.Options.BatchDirectory,
+                    this.Options.ConflictResolutionPolicy, cancellationToken, remoteProgress);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -218,7 +219,8 @@ namespace Dotmim.Sync
                     scope.Schema = schemaLight;
                 }
 
-                var clientPolicy = this.Schema.ConflictResolutionPolicy == ConflictResolutionPolicy.ServerWins ? ConflictResolutionPolicy.ClientWins : ConflictResolutionPolicy.ServerWins;
+                // Policy is always Server policy, so reverse this policy to get the client policy
+                var clientPolicy = this.Options.ConflictResolutionPolicy == ConflictResolutionPolicy.ServerWins ? ConflictResolutionPolicy.ClientWins : ConflictResolutionPolicy.ServerWins;
 
                 var localChanges = await this.LocalOrchestrator.ApplyChangesAsync(
                     context, scope, this.Schema, serverChanges.serverBatchInfo,
