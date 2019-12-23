@@ -253,13 +253,13 @@ namespace Dotmim.Sync.Tests.SqlServer
             using (var sqlConnection = new SqlConnection(fixture.ServerConnectionString))
             {
                 sqlConnection.Open();
-                dmColumnsListServer = SqlManagementUtils.ColumnsForTable(sqlConnection, null, "AllColumns");
+                dmColumnsListServer = SqlManagementUtils.ColumnsForTable(sqlConnection, null, "AllColumns", null);
                 sqlConnection.Close();
             }
             using (var sqlConnection = new SqlConnection(fixture.Client1ConnectionString))
             {
                 sqlConnection.Open();
-                dmColumnsListClient = SqlManagementUtils.ColumnsForTable(sqlConnection, null, "AllColumns");
+                dmColumnsListClient = SqlManagementUtils.ColumnsForTable(sqlConnection, null, "AllColumns", null);
                 sqlConnection.Close();
             }
 

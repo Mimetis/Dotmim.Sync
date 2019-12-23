@@ -97,8 +97,8 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// Send a request to remote web proxy for First step : Ensure scopes and schema
         /// </summary>
-        public async Task<(SyncContext context, SyncSchema schema)>
-            EnsureSchemaAsync(SyncContext context, SyncSchema schema, CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+        public async Task<(SyncContext context, SyncSet schema)>
+            EnsureSchemaAsync(SyncContext context, SyncSet schema, CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
             // Create the message to be sent
             var httpMessage = new HttpMessageEnsureScopesRequest(context, schema.ScopeName);
@@ -115,11 +115,8 @@ namespace Dotmim.Sync.Web.Client
             if (ensureScopesResponse == null)
                 throw new ArgumentException("Http Message content for Ensure scope can't be null");
 
-            if (ensureScopesResponse.Schema == null || ensureScopesResponse.Schema.SetLight == null || ensureScopesResponse.Schema.SetLight.Tables.Count <= 0)
+            if (ensureScopesResponse.Schema == null || ensureScopesResponse.Schema.Tables.Count <= 0)
                 throw new ArgumentException("Schema from EnsureScope can't be null and may contains at least one table");
-
-            // Read schema in DmSet
-            ensureScopesResponse.Schema.SetLight.ReadSchemaIntoDmSet(ensureScopesResponse.Schema.GetSet());
 
             // Return scopes and new shema
             return (ensureScopesResponse.SyncContext, ensureScopesResponse.Schema);
@@ -128,7 +125,7 @@ namespace Dotmim.Sync.Web.Client
 
 
         public async Task<(SyncContext, long, BatchInfo, ConflictResolutionPolicy,  DatabaseChangesSelected)>
-            ApplyThenGetChangesAsync(SyncContext context, ScopeInfo scope, SyncSchema schema, BatchInfo clientBatchInfo,
+            ApplyThenGetChangesAsync(SyncContext context, ScopeInfo scope, SyncSet schema, BatchInfo clientBatchInfo,
                                      bool disableConstraintsOnApplyChanges, bool useBulkOperations, bool cleanMetadatas,
                                      int clientBatchSize, string batchDirectory, ConflictResolutionPolicy policy,
                                      CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
@@ -157,7 +154,7 @@ namespace Dotmim.Sync.Web.Client
             if (clientBatchInfo.InMemory || (!clientBatchInfo.InMemory && clientBatchInfo.BatchPartsInfo.Count == 0))
             {
                 var changesToSend = new HttpMessageSendChangesRequest(context, scope);
-                changesToSend.Changes = clientBatchInfo.InMemoryData;
+                changesToSend.Changes = clientBatchInfo.InMemoryData.GetContainerSet();
                 changesToSend.IsLastBatch = true;
                 changesToSend.BatchIndex = 0;
 
@@ -173,12 +170,12 @@ namespace Dotmim.Sync.Web.Client
                 {
                     // If BPI is InMempory, no need to deserialize from disk
                     // othewise load it
-                    bpi.LoadBatch();
+                    bpi.LoadBatch(schema);
 
                     var changesToSend = new HttpMessageSendChangesRequest(context, scope);
 
                     // Set the change request properties
-                    changesToSend.Changes = bpi.Data;
+                    changesToSend.Changes = bpi.Data.GetContainerSet();
                     changesToSend.IsLastBatch = bpi.IsLastBatch;
                     changesToSend.BatchIndex = bpi.Index;
 
@@ -212,7 +209,7 @@ namespace Dotmim.Sync.Web.Client
 
             // Create the BatchInfo and SyncContext to return at the end
             // Set InMemory by default to "true", but the real value is coming from server side
-            var serverBatchInfo = new BatchInfo(workInMemoryLocally, batchDirectory);
+            var serverBatchInfo = new BatchInfo(workInMemoryLocally, schema, batchDirectory);
 
             // stats
             DatabaseChangesSelected serverChangesSelected = null;
@@ -230,8 +227,11 @@ namespace Dotmim.Sync.Web.Client
                 context = httpMessageContent.SyncContext;
                 remoteClientTimestamp = httpMessageContent.RemoteClientTimestamp;
 
+                var changes = schema.Clone();
+                changes.ImportContainerSet(httpMessageContent.Changes);
+
                 // Create a BatchPartInfo instance
-                serverBatchInfo.AddChanges(httpMessageContent.Changes, httpMessageContent.BatchIndex, false);
+                serverBatchInfo.AddChanges(changes, httpMessageContent.BatchIndex, false);
 
                 // free some memory
                 if (!workInMemoryLocally && httpMessageContent.Changes != null)

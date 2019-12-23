@@ -10,7 +10,6 @@ namespace Dotmim.Sync
     public class ApplyChangesFailedArgs : ProgressArgs
     {
         ConflictResolution resolution;
-        DmTable finalRowTable;
 
         /// <summary>
         /// Gets or Sets the action to be taken when resolving the conflict. 
@@ -26,9 +25,15 @@ namespace Dotmim.Sync
                     this.resolution = value;
 
                     if (this.resolution == ConflictResolution.MergeRow)
-                        this.FinalRow = this.finalRowTable.ImportRow(this.Conflict.RemoteRow);
-                    else if (this.FinalRow != null && this.finalRowTable.Rows.Count > 0)
-                        this.finalRowTable.Clear();
+                    {
+                        var finalRowArray = this.Conflict.RemoteRow.ToArray();
+                        var finalTable = this.Conflict.RemoteRow.Table.Clone();
+                        this.FinalRow = new SyncRow(finalTable, finalRowArray);
+                    }
+                    else if (this.FinalRow != null)
+                    {
+                        this.FinalRow.Clear();
+                    }
                 }
             }
         }
@@ -41,7 +46,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// If we have a merge action, the final row represents the merged row
         /// </summary>
-        public DmRow FinalRow { get; set; }
+        public SyncRow FinalRow { get; set; }
 
 
         public ApplyChangesFailedArgs(SyncContext context, SyncConflict dbSyncConflict, ConflictResolution action, DbConnection connection, DbTransaction transaction)
@@ -49,9 +54,6 @@ namespace Dotmim.Sync
         {
             this.Conflict = dbSyncConflict;
             this.resolution = action;
-
-            this.finalRowTable = dbSyncConflict.RemoteRow.Table.Clone();
-            this.finalRowTable.TableName = dbSyncConflict.RemoteRow.Table.TableName;
         }
 
         public override string Message => $"{this.Conflict.Type}";

@@ -3,6 +3,7 @@ using Dotmim.Sync.Data.Surrogate;
 using Dotmim.Sync.Enumerations;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Data.Common;
 
 namespace Dotmim.Sync
@@ -90,24 +91,30 @@ namespace Dotmim.Sync
     /// </summary>
     public class TableChangesApplyingArgs : ProgressArgs
     {
-        public TableChangesApplyingArgs(SyncContext context, DmTable table, DmRowState state, DbConnection connection, DbTransaction transaction) 
+        public TableChangesApplyingArgs(SyncContext context, IEnumerable<SyncRow> rows, SyncTable schemaTable, DataRowState state, DbConnection connection, DbTransaction transaction) 
             : base(context, connection, transaction)
         {
-            this.Table = table;
+            this.Rows = rows;
             this.State = state;
+            this.SchemaTable = schemaTable;
         }
 
         /// <summary>
         /// Gets the RowState of the applied rows
         /// </summary>
-        public DmRowState State { get; set; }
+        public DataRowState State { get;  }
 
         /// <summary>
-        /// Gets the table name where changes are going to be applied
+        /// Schema table of the applied rows
         /// </summary>
-        public DmTable Table { get; }
+        public SyncTable SchemaTable { get; }
 
-        public override string Message => $"{this.Table.TableName} State:{this.State}";
+        /// <summary>
+        /// Gets the table containing changes that are going to be applied
+        /// </summary>
+        public IEnumerable<SyncRow> Rows { get; }
+
+        public override string Message => $"{this.SchemaTable.TableName} State:{this.State}";
 
     }
 
@@ -164,12 +171,12 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the table where changes were applied
         /// </summary>
-        public DmTable Table { get; set; }
+        public SyncTable Table { get; set; }
 
         /// <summary>
         /// Gets the RowState of the applied rows
         /// </summary>
-        public DmRowState State { get; set; }
+        public DataRowState State { get; set; }
 
         /// <summary>
         /// Gets the rows changes applied count
@@ -263,6 +270,14 @@ namespace Dotmim.Sync
     [Serializable]
     public class TableChangesSelected
     {
+        public TableChangesSelected()
+        {
+
+        }
+        public TableChangesSelected(string tableName)
+        {
+            this.TableName = tableName;
+        }
         /// <summary>
         /// Gets the table name
         /// </summary>

@@ -17,12 +17,12 @@ namespace Dotmim.Sync.Builders
         /// <summary>
         /// Gets the table description for the current DbBuilder
         /// </summary>
-        public DmTable TableDescription { get; set; }
+        public SyncTable TableDescription { get; set; }
 
         /// <summary>
         /// Filtered Columns
         /// </summary>
-        public ICollection<FilterClause> FilterColumns { get; set; } = new List<FilterClause>();
+        public SyncFilters FilterColumns { get; set; } = new SyncFilters();
 
         /// <summary>
         /// Gets or Sets if the Database builder supports bulk procedures
@@ -57,7 +57,7 @@ namespace Dotmim.Sync.Builders
         /// <summary>
         /// Construct a DbBuilder
         /// </summary>
-        public DbBuilder(DmTable tableDescription)
+        public DbBuilder(SyncTable tableDescription)
         {
             this.TableDescription = tableDescription;
         }
@@ -69,7 +69,7 @@ namespace Dotmim.Sync.Builders
         /// </summary>
         public void CreateForeignKeys(DbConnection connection, DbTransaction transaction = null)
         {
-            if (!TableDescription.PrimaryKey.HasValue)
+            if (TableDescription.PrimaryKeys.Count <= 0)
                 throw new InvalidOperationException($"Create foreign keys: Table {TableDescription.TableName} must have at least one dmColumn as Primary key");
 
             var alreadyOpened = connection.State != ConnectionState.Closed;
@@ -81,15 +81,12 @@ namespace Dotmim.Sync.Builders
 
                 var tableBuilder = CreateTableBuilder(connection, transaction);
 
-                if (this.TableDescription.ChildRelations != null && this.TableDescription.ChildRelations.Count > 0)
+                foreach (var constraint in this.TableDescription.GetChildRelations())
                 {
-                    foreach (DmRelation constraint in this.TableDescription.ChildRelations)
+                    // Check if we need to create the foreign key constraint
+                    if (tableBuilder.NeedToCreateForeignKeyConstraints(constraint))
                     {
-                        // Check if we need to create the foreign key constraint
-                        if (tableBuilder.NeedToCreateForeignKeyConstraints(constraint))
-                        {
-                            tableBuilder.CreateForeignKeyConstraints(constraint);
-                        }
+                        tableBuilder.CreateForeignKeyConstraints(constraint);
                     }
                 }
             }
@@ -103,7 +100,7 @@ namespace Dotmim.Sync.Builders
 
         public void CreateTrackingTable(DbConnection connection, DbTransaction transaction = null)
         {
-            if (!TableDescription.PrimaryKey.HasValue)
+            if (TableDescription.PrimaryKeys.Count <= 0)
                 throw new InvalidOperationException($"Create tracking table: Table {TableDescription.TableName} must have at least one dmColumn as Primary key");
 
             var alreadyOpened = connection.State != ConnectionState.Closed;
@@ -133,7 +130,7 @@ namespace Dotmim.Sync.Builders
 
         public void CreateTriggers(DbConnection connection, DbTransaction transaction = null)
         {
-            if (!TableDescription.PrimaryKey.HasValue)
+            if (TableDescription.PrimaryKeys.Count <= 0)
                 throw new InvalidOperationException($"Create triggers: Table {TableDescription.TableName} must have at least one dmColumn as Primary key");
 
             var alreadyOpened = connection.State != ConnectionState.Closed;
@@ -159,11 +156,11 @@ namespace Dotmim.Sync.Builders
 
         public void CreateStoredProcedures(DbConnection connection, DbTransaction transaction = null)
         {
-            if (!TableDescription.PrimaryKey.HasValue)
+            if (TableDescription.PrimaryKeys.Count <= 0)
                 throw new InvalidOperationException($"Create stored procedures: Table {TableDescription.TableName} must have at least one dmColumn as Primary key");
 
             // Check if we have mutables columns
-            var hasMutableColumns = TableDescription.MutableColumnsAndNotAutoInc.Any();
+            var hasMutableColumns = TableDescription.GetMutableColumns(false).Any();
 
             var alreadyOpened = connection.State != ConnectionState.Closed;
 
@@ -218,7 +215,7 @@ namespace Dotmim.Sync.Builders
 
         public void CreateTable(DbConnection connection, DbTransaction transaction = null)
         {
-            if (!TableDescription.PrimaryKey.HasValue)
+            if (TableDescription.PrimaryKeys.Count <= 0)
                 throw new InvalidOperationException($"Create table: Table {TableDescription.TableName} must have at least one dmColumn as Primary key");
 
             var tableBuilder = CreateTableBuilder(connection, transaction);
@@ -255,7 +252,7 @@ namespace Dotmim.Sync.Builders
         /// </summary>
         public void Create(DbConnection connection, DbTransaction transaction = null)
         {
-            if (!TableDescription.PrimaryKey.HasValue)
+            if (TableDescription.PrimaryKeys.Count <= 0)
                 throw new InvalidOperationException($"Before creating table: Table {TableDescription.TableName} must have at least one dmColumn as Primary key");
 
             var alreadyOpened = connection.State != ConnectionState.Closed;
@@ -289,7 +286,7 @@ namespace Dotmim.Sync.Builders
             var alreadyOpened = connection.State != ConnectionState.Closed;
 
             // Check if we have mutables columns
-            var hasMutableColumns = TableDescription.MutableColumnsAndNotAutoInc.Any();
+            var hasMutableColumns = TableDescription.GetMutableColumns(false).Any();
 
             try
             {
@@ -459,13 +456,10 @@ namespace Dotmim.Sync.Builders
 
                 var tableBuilder = CreateTableBuilder(connection, transaction);
 
-                if (this.TableDescription.ChildRelations != null && this.TableDescription.ChildRelations.Count > 0)
+                foreach (var constraint in this.TableDescription.GetChildRelations())
                 {
-                    foreach (DmRelation constraint in this.TableDescription.ChildRelations)
-                    {
-                        if (tableBuilder.NeedToCreateForeignKeyConstraints(constraint))
-                            stringBuilder.Append(tableBuilder.CreateForeignKeyConstraintsScriptText(constraint));
-                    }
+                    if (tableBuilder.NeedToCreateForeignKeyConstraints(constraint))
+                        stringBuilder.Append(tableBuilder.CreateForeignKeyConstraintsScriptText(constraint));
                 }
 
                 return stringBuilder.ToString();
@@ -496,7 +490,7 @@ namespace Dotmim.Sync.Builders
                 var tableBuilder = CreateTableBuilder(connection, transaction);
 
                 // Check if we have mutables columns
-                var hasMutableColumns = TableDescription.MutableColumnsAndNotAutoInc.Any();
+                var hasMutableColumns = TableDescription.GetMutableColumns(false).Any();
 
                 // Check if we need to create the tables
                 if (tableBuilder.NeedToCreateTable())

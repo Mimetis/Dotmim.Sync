@@ -36,7 +36,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         internal const string enableConstraintsText = "ALTER TABLE {0} CHECK CONSTRAINT ALL";
 
         Dictionary<DbCommandType, (string name, bool isStoredProcedure)> names = new Dictionary<DbCommandType, (string name, bool isStoredProcedure)>();
-        public DmTable TableDescription { get; }
+        public SyncTable TableDescription { get; }
 
 
         public void AddName(DbCommandType objectType, string name, bool isStoredProcedure)
@@ -46,7 +46,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             names.Add(objectType, (name, isStoredProcedure));
         }
-        public (string name, bool isStoredProcedure) GetCommandName(DbCommandType objectType, IEnumerable<FilterClause> filters = null)
+        public (string name, bool isStoredProcedure) GetCommandName(DbCommandType objectType, IEnumerable<SyncFilter> filters = null)
         {
             if (!names.ContainsKey(objectType))
                 throw new Exception("Yous should provide a value for all DbCommandName");
@@ -69,7 +69,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             return (commandName, isStoredProc);
         }
 
-        public SqlObjectNames(DmTable tableDescription)
+        public SqlObjectNames(SyncTable tableDescription)
         {
             this.TableDescription = tableDescription;
             SetDefaultNames();
@@ -82,10 +82,10 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
             
 
-            var pref = this.TableDescription.StoredProceduresPrefix;
-            var suf = this.TableDescription.StoredProceduresSuffix;
-            var tpref = this.TableDescription.TriggersPrefix;
-            var tsuf = this.TableDescription.TriggersSuffix;
+            var pref = this.TableDescription.Schema.StoredProceduresPrefix;
+            var suf = this.TableDescription.Schema.StoredProceduresSuffix;
+            var tpref = this.TableDescription.Schema.TriggersPrefix;
+            var tsuf = this.TableDescription.Schema.TriggersSuffix;
 
             var tableName = ParserName.Parse(TableDescription);
 

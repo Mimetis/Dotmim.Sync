@@ -12,7 +12,7 @@ namespace Dotmim.Sync.Builders
     /// </summary>
     public interface IDbBuilderTrackingTableHelper
     {
-        ICollection<FilterClause> Filters { get; set; }
+        IEnumerable<SyncFilter> Filters { get; set; }
         bool NeedToCreateTrackingTable();
         void CreateTable();
         void DropTable();
@@ -23,10 +23,8 @@ namespace Dotmim.Sync.Builders
         string DropTableScriptText();
         string CreatePkScriptText();
         string CreateIndexScriptText();
-        string ScriptAddFilterColumn(DmColumn filterColumn);
-        string ScriptPopulateNewFilterColumnFromBaseTable(DmColumn filterColumn);
+        string ScriptAddFilterColumn(SyncColumn filterColumn);
         string CreatePopulateFromBaseTableScriptText();
-        void AddFilterColumn(DmColumn filterColumn);
-        void PopulateNewFilterColumnFromBaseTable(DmColumn filterColumn);
+        void AddFilterColumn(SyncColumn filterColumn);
     }
 }

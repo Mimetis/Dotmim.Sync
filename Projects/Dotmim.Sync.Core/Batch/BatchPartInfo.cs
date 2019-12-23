@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 
@@ -18,7 +19,7 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Loads the batch file and set the DmSet in memory
         /// </summary>
-        public void LoadBatch()
+        public void LoadBatch(SyncSet schema)
         {
             if (this.Data != null && this.Data.Tables != null && this.Data.Tables.Count > 0)
                 return;
@@ -26,8 +27,16 @@ namespace Dotmim.Sync.Batch
             if (string.IsNullOrEmpty(this.FileName))
                 return;
 
+
+            // Clone the schema to get a unique instance
+            var set = schema.Clone();
+
             // Get a Batch part, and deserialise the file into a the BatchPartInfo Set property
-            this.Data = Deserialize(this.FileName);
+            var data = Deserialize(this.FileName);
+
+            // Import data in a typed Set
+            set.ImportContainerSet(data);
+
         }
 
         /// <summary>
@@ -36,10 +45,7 @@ namespace Dotmim.Sync.Batch
         public void Clear()
         {
             if (this.Data != null)
-            {
-                this.Data.Clear();
-                this.Data = null;
-            }
+                this.Data.Dispose();
         }
 
         public string FileName { get; set; }
@@ -51,16 +57,20 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Tables contained in the DmSet (serialiazed or not)
         /// </summary>
-        public string[] Tables { get; set; }
+        public (string tableName, string schemaName)[] Tables { get; set; }
 
-        public DmSetLight Data { get; set; }
+        /// <summary>
+        /// Get a SyncSet corresponding to this batch part info
+        /// </summary>
+        public SyncSet Data { get; set; }
 
 
         public BatchPartInfo()
         {
         }
 
-        public static DmSetLight Deserialize(string fileName)
+
+        private static ContainerSet Deserialize(string fileName)
         {
             if (string.IsNullOrEmpty(fileName))
                 throw new ArgumentNullException("Cant get a Batch part if fileName doesn't exist");
@@ -70,15 +80,15 @@ namespace Dotmim.Sync.Batch
 
             using (var fs = new FileStream(fileName, FileMode.Open, FileAccess.Read))
             {
-                var serializer = new BinaryFormatter();
-                return serializer.Deserialize(fs) as DmSetLight;
+                var serializer = new DataContractSerializer(typeof(ContainerSet));
+                return serializer.ReadObject(fs) as ContainerSet;
             }
         }
 
         /// <summary>
         /// Serialize the DmSet data (acutally serialize a DmSetSurrogate)
         /// </summary>
-        public static void Serialize(DmSetLight set, string fileName)
+        private static void Serialize(ContainerSet set, string fileName)
         {
             if (set == null)
                 return;
@@ -91,15 +101,15 @@ namespace Dotmim.Sync.Batch
             // Serialize on disk.
             using (var f = new FileStream(fileName, FileMode.CreateNew, FileAccess.ReadWrite))
             {
-                var serializer = new BinaryFormatter();
-                serializer.Serialize(f, set);
+                var serializer = new DataContractSerializer(typeof(ContainerSet));
+                serializer.WriteObject(f, set);
             }
         }
 
         /// <summary>
         /// Create a new BPI, and serialize the changeset if not in memory
         /// </summary>
-        internal static BatchPartInfo CreateBatchPartInfo(int batchIndex, DmSetLight set, string fileName, bool isLastBatch)
+        internal static BatchPartInfo CreateBatchPartInfo(int batchIndex, SyncSet set, string fileName, bool isLastBatch)
         {
             BatchPartInfo bpi = null;
 
@@ -107,7 +117,7 @@ namespace Dotmim.Sync.Batch
             // The batch part creation process will serialize the changesSet to the disk
 
             // Serialize the file !
-            Serialize(set, fileName);
+            Serialize(set.GetContainerSet(), fileName);
 
             bpi = new BatchPartInfo { FileName = fileName };
 
@@ -115,8 +125,8 @@ namespace Dotmim.Sync.Batch
             bpi.IsLastBatch = isLastBatch;
 
             // Even if the set is empty (serialized on disk), we should retain the tables names
-            if (set != null && set.Tables != null && set.Tables.Count > 0)
-                bpi.Tables = set.Tables.Select(t => t.TableName).ToArray();
+            if (set != null)
+                bpi.Tables = set.Tables.Select(t => (t.TableName, t.SchemaName)).ToArray();
 
             return bpi;
         }

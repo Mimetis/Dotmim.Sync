@@ -6,6 +6,7 @@ using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Tests.Models;
 using Microsoft.EntityFrameworkCore;
 using System;
+using System.Data;
 using System.Data.Common;
 using System.Data.SqlClient;
 using System.Diagnostics;
@@ -1288,7 +1289,7 @@ namespace Dotmim.Sync.Tests
                     await ctx.Database.EnsureCreatedAsync();
 
                 // generate a sync conf to host the schema
-                var syncSchema = new SyncSchema(this.fixture.Tables);
+                var syncSchema = new SyncSet(this.fixture.Tables);
 
 
                 // just check interceptor
@@ -1312,7 +1313,7 @@ namespace Dotmim.Sync.Tests
                 }
 
                 // get the db manager
-                foreach (var dmTable in syncSchema.GetSet().Tables)
+                foreach (var dmTable in syncSchema.Tables)
                 {
                     var tableName = dmTable.TableName;
                     using (var dbConnection = localProvider.CreateConnection())
@@ -1342,7 +1343,7 @@ namespace Dotmim.Sync.Tests
                         Assert.False(spBuider.NeedToCreateProcedure(Builders.DbCommandType.DeleteRow));
 
                         // Check if we have mutables columns to see if the update row / metadata have been generated
-                        if (dbTableBuilder.TableDescription.MutableColumnsAndNotAutoInc.Any())
+                        if (dbTableBuilder.TableDescription.GetMutableColumns(false).Any())
                         {
                             Assert.False(spBuider.NeedToCreateProcedure(Builders.DbCommandType.UpdateRow));
                             Assert.False(spBuider.NeedToCreateProcedure(Builders.DbCommandType.UpdateMetadata));
@@ -1368,7 +1369,7 @@ namespace Dotmim.Sync.Tests
                 await localProvider.DeprovisionAsync(syncSchema, SyncProvision.All);
 
                 // get the db manager
-                foreach (var dmTable in syncSchema.GetSet().Tables)
+                foreach (var dmTable in syncSchema.Tables)
                 {
                     var tableName = dmTable.TableName;
                     using (var dbConnection = localProvider.CreateConnection())
@@ -1396,7 +1397,7 @@ namespace Dotmim.Sync.Tests
                         Assert.True(spBuider.NeedToCreateProcedure(Builders.DbCommandType.DeleteRow));
 
                         // Check if we have mutables columns to see if the update row / metadata have been generated
-                        if (dbTableBuilder.TableDescription.MutableColumnsAndNotAutoInc.Any())
+                        if (dbTableBuilder.TableDescription.GetMutableColumns(false).Any())
                         {
                             Assert.True(spBuider.NeedToCreateProcedure(Builders.DbCommandType.UpdateRow));
                             Assert.True(spBuider.NeedToCreateProcedure(Builders.DbCommandType.UpdateMetadata));
@@ -1673,23 +1674,23 @@ namespace Dotmim.Sync.Tests
                     interceptor.OnSessionEnd(sea => sessionString += "end");
                     interceptor.OnTableChangesApplying(args =>
                     {
-                        if (args.Table.TableName == "ProductCategory")
-                            Assert.Equal(DmRowState.Added, args.State);
+                        if (args.SchemaTable.TableName == "ProductCategory")
+                            Assert.Equal(DataRowState.Added, args.State);
 
-                        if (args.Table.TableName == "Product")
-                            Assert.Equal(DmRowState.Added, args.State);
+                        if (args.SchemaTable.TableName == "Product")
+                            Assert.Equal(DataRowState.Added, args.State);
                     });
                     interceptor.OnTableChangesApplied(args =>
                     {
                         if (args.TableChangesApplied.Table.TableName == "ProductCategory")
                         {
-                            Assert.Equal(DmRowState.Added, args.TableChangesApplied.State);
+                            Assert.Equal(DataRowState.Added, args.TableChangesApplied.State);
                             Assert.Equal(1, args.TableChangesApplied.Applied);
                         }
 
                         if (args.TableChangesApplied.Table.TableName == "Product")
                         {
-                            Assert.Equal(DmRowState.Added, args.TableChangesApplied.State);
+                            Assert.Equal(DataRowState.Added, args.TableChangesApplied.State);
                             Assert.Equal(1, args.TableChangesApplied.Applied);
                         }
                     });

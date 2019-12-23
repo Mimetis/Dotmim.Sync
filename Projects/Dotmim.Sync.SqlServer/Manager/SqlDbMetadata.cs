@@ -559,7 +559,7 @@ namespace Dotmim.Sync.SqlServer.Manager
             return false;
         }
 
-        public override bool IsValid(DmColumn columnDefinition)
+        public override bool IsValid(SyncColumn columnDefinition)
         {
             switch (columnDefinition.OriginalTypeName.ToLowerInvariant())
             {
@@ -607,13 +607,13 @@ namespace Dotmim.Sync.SqlServer.Manager
             return false;
         }
 
-        public override bool ValidateIsReadonly(DmColumn columnDefinition)
+        public override bool ValidateIsReadonly(SyncColumn columnDefinition)
         {
             return columnDefinition.OriginalTypeName.ToLowerInvariant() == "timestamp" ||
                    columnDefinition.IsCompute;
         }
 
-        public override byte ValidatePrecision(DmColumn columnDefinition)
+        public override byte ValidatePrecision(SyncColumn columnDefinition)
         {
             var (p, s) = CoercePrecisionAndScale(columnDefinition.Precision, columnDefinition.Scale);
             
@@ -674,7 +674,7 @@ namespace Dotmim.Sync.SqlServer.Manager
             return 0;
         }
 
-        public override (byte precision, byte scale) ValidatePrecisionAndScale(DmColumn columnDefinition)
+        public override (byte precision, byte scale) ValidatePrecisionAndScale(SyncColumn columnDefinition)
         {
             return CoercePrecisionAndScale(columnDefinition.Precision, columnDefinition.Scale);
         }

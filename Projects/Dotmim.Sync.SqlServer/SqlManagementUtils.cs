@@ -16,23 +16,38 @@ namespace Dotmim.Sync.SqlServer
         /// <summary>
         /// Get columns for table
         /// </summary>
-        public static DmTable ColumnsForTable(SqlConnection connection, SqlTransaction transaction, string tableName)
+        public static DmTable ColumnsForTable(SqlConnection connection, SqlTransaction transaction, string tableName, string schemaName)
         {
 
-            var commandColumn = $"Select col.name as name, col.column_id, typ.name as [type], col.max_length, col.precision, col.scale, col.is_nullable, col.is_computed, col.is_identity, ind.is_unique " +
-                                $"from sys.columns as col " +
-                                $"Inner join sys.tables as tbl on tbl.object_id = col.object_id " +
-                                $"Inner Join sys.systypes typ on typ.xusertype = col.system_type_id " +
-                                $"Left outer join sys.indexes ind on ind.object_id = col.object_id and ind.index_id = col.column_id " +
-                                $"Where tbl.name = @tableName";
+            var commandColumn = $"Select col.name as name, " +
+                                $"col.column_id,  " +
+                                $"typ.name as [type],  " +
+                                $"col.max_length,  " +
+                                $"col.precision,  " +
+                                $"col.scale,  " +
+                                $"col.is_nullable,  " +
+                                $"col.is_computed,  " +
+                                $"col.is_identity,  " +
+                                $"ind.is_unique,  " +
+                                $"ident_seed(sch.name + '.' + tbl.name) AS seed, " +
+                                $"ident_incr(sch.name + '.' + tbl.name) AS step " +
+                                $"  from sys.columns as col " +
+                                $"  Inner join sys.tables as tbl on tbl.object_id = col.object_id " +
+                                $"  Inner join sys.schemas as sch on tbl.schema_id = sch.schema_id " +
+                                $"  Inner Join sys.systypes typ on typ.xusertype = col.system_type_id " +
+                                $"  Left outer join sys.indexes ind on ind.object_id = col.object_id and ind.index_id = col.column_id " +
+                                $"  Where tbl.name = @tableName and sch.name = @schemaName ";
 
             var tableNameNormalized = ParserName.Parse(tableName).Unquoted().Normalized().ToString();
             var tableNameString = ParserName.Parse(tableName).ToString();
+            var schemaNameString = ParserName.Parse(schemaName).ToString();
+            schemaNameString = string.IsNullOrWhiteSpace(schemaNameString) ? "dbo" : schemaNameString;
 
             var dmTable = new DmTable(tableNameNormalized);
             using (var sqlCommand = new SqlCommand(commandColumn, connection, transaction))
             {
                 sqlCommand.Parameters.AddWithValue("@tableName", tableNameString);
+                sqlCommand.Parameters.AddWithValue("@schemaName", schemaNameString);
 
                 using (var reader = sqlCommand.ExecuteReader())
                 {
@@ -325,7 +340,7 @@ namespace Dotmim.Sync.SqlServer
             return typeExist;
         }
 
-        internal static string JoinTwoTablesOnClause(IEnumerable<DmColumn> columns, string leftName, string rightName)
+        internal static string JoinTwoTablesOnClause(IEnumerable<string> columns, string leftName, string rightName)
         {
             var stringBuilder = new StringBuilder();
             string strRightName = (string.IsNullOrEmpty(rightName) ? string.Empty : string.Concat(rightName, "."));
@@ -348,12 +363,12 @@ namespace Dotmim.Sync.SqlServer
             return stringBuilder.ToString();
         }
 
-        internal static string ColumnsAndParameters(IEnumerable<DmColumn> columns, string fromPrefix)
+        internal static string ColumnsAndParameters(IEnumerable<string> columns, string fromPrefix)
         {
             StringBuilder stringBuilder = new StringBuilder();
             string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));
             string str1 = "";
-            foreach (DmColumn column in columns)
+            foreach (var column in columns)
             {
                 var quotedColumn = ParserName.Parse(column).Quoted().ToString();
                 var unquotedColumn = ParserName.Parse(column).Unquoted().Normalized().ToString();
@@ -368,12 +383,12 @@ namespace Dotmim.Sync.SqlServer
             return stringBuilder.ToString();
         }
 
-        internal static string CommaSeparatedUpdateFromParameters(DmTable table, string fromPrefix = "")
+        internal static string CommaSeparatedUpdateFromParameters(SyncTable table, string fromPrefix = "")
         {
             StringBuilder stringBuilder = new StringBuilder();
             string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));
             string strSeparator = "";
-            foreach (DmColumn mutableColumn in table.MutableColumnsAndNotAutoInc)
+            foreach (var mutableColumn in table.GetMutableColumns(false))
             {
                 var quotedColumn = ParserName.Parse(mutableColumn).Quoted().ToString();
                 var unquotedColumn = ParserName.Parse(mutableColumn).Unquoted().Normalized().ToString();

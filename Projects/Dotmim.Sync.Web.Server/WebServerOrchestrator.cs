@@ -21,9 +21,9 @@ namespace Dotmim.Sync.Web.Server
         /// Default ctor. Using default options and schema
         /// </summary>
         /// <param name="provider"></param>
-        public WebServerOrchestrator(CoreProvider provider, WebServerOptions options = null, SyncSchema schema = null) 
+        public WebServerOrchestrator(CoreProvider provider, WebServerOptions options = null, SyncSet schema = null) 
         {
-            this.Schema = schema ?? new SyncSchema();
+            this.Schema = schema ?? new SyncSet();
             this.Options = options ?? new WebServerOptions();
             this.Provider = provider;
 
@@ -32,7 +32,7 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// Gets or Sets the Schema 
         /// </summary>
-        public SyncSchema Schema { get; private set; }
+        public SyncSet Schema { get; private set; }
 
         /// <summary>
         /// Get or Set Web server options parameters
@@ -56,8 +56,6 @@ namespace Dotmim.Sync.Web.Server
 
             this.Schema = newSchema;
 
-            // Create the return value
-            this.Schema.SetLight = new DmSetLightSchema(this.Schema.GetSet());
             var httpResponse = new HttpMessageEnsureScopesResponse(syncContext, newSchema);
 
             return httpResponse;
@@ -80,7 +78,7 @@ namespace Dotmim.Sync.Web.Server
             // If nothing to do, just send back
             if (serverBatchInfo.InMemory || serverBatchInfo.BatchPartsInfo.Count == 0)
             {
-                changesResponse.Changes = serverBatchInfo.InMemoryData;
+                changesResponse.Changes = serverBatchInfo.InMemoryData.GetContainerSet();
                 changesResponse.BatchIndex = 0;
                 changesResponse.IsLastBatch = true;
                 changesResponse.RemoteClientTimestamp = remoteClientTimestamp;
@@ -91,9 +89,9 @@ namespace Dotmim.Sync.Web.Server
             var batchPartInfo = serverBatchInfo.BatchPartsInfo.First(d => d.Index == batchIndexRequested);
 
             // if we are not in memory, we set the BI in session, to be able to get it back on next request
-            batchPartInfo.LoadBatch();
+            batchPartInfo.LoadBatch(Schema);
 
-            changesResponse.Changes = batchPartInfo.Data;
+            changesResponse.Changes = batchPartInfo.Data.GetContainerSet();
             changesResponse.BatchIndex = batchIndexRequested;
             changesResponse.IsLastBatch = batchPartInfo.IsLastBatch;
             changesResponse.RemoteClientTimestamp = remoteClientTimestamp;
@@ -134,10 +132,13 @@ namespace Dotmim.Sync.Web.Server
 
             // Create a new batch info
             if (batchInfo == null)
-                batchInfo = new BatchInfo(clientWorkInMemory, this.Options.BatchDirectory);
+                batchInfo = new BatchInfo(clientWorkInMemory, Schema, this.Options.BatchDirectory);
+
+            var changes = Schema.Clone();
+            changes.ImportContainerSet(httpMessage.Changes);
 
             // add changes to the batch info
-            batchInfo.AddChanges(httpMessage.Changes, httpMessage.BatchIndex, httpMessage.IsLastBatch);
+            batchInfo.AddChanges(changes, httpMessage.BatchIndex, httpMessage.IsLastBatch);
 
             // Save the BatchInfo
             this.Provider.CacheManager.Set("ApplyChanges_BatchInfo", batchInfo);

@@ -9,289 +9,7 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Builders
 {
-    /// <summary>
-    /// Parse a database object (like Fabrikam.dbo.Client or dbo.Client or [dbo].[Client] etc ...
-    /// </summary>
-    //public class ObjectNameParser
-    //{
-    //    /// <summary>
-    //    /// Get or Set the prefix used (Default is "[")
-    //    /// </summary>
-    //    public string QuotePrefix { get; set; } = "[";
-
-    //    /// <summary>
-    //    /// Get or Set the suffix used (Default is "]")
-    //    /// </summary>
-    //    public string QuoteSuffix { get; set; } = "]";
-    //    public string SchemaName { get; private set; }
-    //    public string DatabaseName { get; private set; }
-    //    public string ObjectName { get; private set; }
-
-    //    /// <summary>
-    //    /// Get the Object name normalized. Replacing spaces and dot with underscore
-    //    /// </summary>
-    //    public string ObjectNameNormalized
-    //    {
-    //        get
-    //        {
-    //            return this.ObjectName.Replace(" ", "_").Replace(".", "_");
-
-    //        }
-    //    }
-    //    public string QuotedDatabaseName { get; private set; }
-    //    public string QuotedObjectName { get; private set; }
-    //    public string QuotedSchemaName { get; private set; }
-    //    public string FullQuotedString
-    //    {
-    //        get
-    //        {
-    //            StringBuilder stringBuilder = new StringBuilder();
-
-    //            if (!string.IsNullOrEmpty(this.DatabaseName))
-    //            {
-    //                stringBuilder.Append(this.QuotedDatabaseName);
-    //                stringBuilder.Append(".");
-    //            }
-
-    //            if (!string.IsNullOrEmpty(this.SchemaName))
-    //            {
-    //                stringBuilder.Append(this.QuotedSchemaName);
-    //                stringBuilder.Append(".");
-    //            }
-    //            else if (!string.IsNullOrEmpty(this.DatabaseName) && !string.IsNullOrEmpty(this.ObjectName))
-    //            {
-    //                // Double .. when we have a database and a table without schema
-    //                // Fabrikam..Client (instead of Fabrikam.dbo.Client)
-    //                stringBuilder.Append(".");
-    //            }
-    //            if (!string.IsNullOrEmpty(this.ObjectName))
-    //            {
-    //                stringBuilder.Append(this.QuotedObjectName);
-    //            }
-    //            return stringBuilder.ToString();
-    //        }
-    //    }
-    //    public string FullUnquotedString
-    //    {
-    //        get
-    //        {
-    //            StringBuilder stringBuilder = new StringBuilder();
-    //            if (!string.IsNullOrEmpty(this.DatabaseName))
-    //            {
-    //                stringBuilder.Append(this.DatabaseName);
-    //                stringBuilder.Append(".");
-    //            }
-    //            if (!string.IsNullOrEmpty(this.SchemaName))
-    //            {
-    //                stringBuilder.Append(this.SchemaName);
-    //                stringBuilder.Append(".");
-    //            }
-    //            else if (!string.IsNullOrEmpty(this.DatabaseName) && !string.IsNullOrEmpty(this.ObjectName))
-    //            {
-    //                stringBuilder.Append(".");
-    //            }
-    //            if (!string.IsNullOrEmpty(this.ObjectName))
-    //            {
-    //                stringBuilder.Append(this.ObjectName.Replace(" ", "_"));
-    //            }
-    //            return stringBuilder.ToString();
-    //        }
-    //    }
-    //    public string FullUnquotedStringWithUnderScore
-    //    {
-    //        get
-    //        {
-    //            StringBuilder stringBuilder = new StringBuilder();
-    //            if (!string.IsNullOrEmpty(this.DatabaseName))
-    //            {
-    //                stringBuilder.Append(this.DatabaseName);
-    //                stringBuilder.Append("_");
-    //            }
-    //            if (!string.IsNullOrEmpty(this.SchemaName))
-    //            {
-    //                stringBuilder.Append(this.SchemaName);
-    //                stringBuilder.Append("_");
-    //            }
-    //            else if (!string.IsNullOrEmpty(this.DatabaseName) && !string.IsNullOrEmpty(this.ObjectName))
-    //            {
-    //                stringBuilder.Append("_");
-    //            }
-    //            if (!string.IsNullOrEmpty(this.ObjectName))
-    //            {
-    //                stringBuilder.Append(this.ObjectName.Replace(" ", "_"));
-    //            }
-    //            return stringBuilder.ToString();
-    //        }
-    //    }
-
-    //    public ObjectNameParser()
-    //    {
-    //    }
-
-
-    //    /// <summary>
-    //    /// Parse a column. Will take care of spaces in column name (not replacing it with a schema)
-    //    /// </summary>
-    //    public ObjectNameParser(DmColumn column)
-    //    {
-    //        this.ObjectName = column.ColumnName;
-
-    //        this.ParseObjectName(column.ColumnName);
-    //        if (!String.IsNullOrEmpty(column.Table?.Schema))
-    //            this.ParseSchemaName(column.Table.Schema);
-
-    //    }
-
-    //    /// <summary>
-    //    /// Parse a column. Will take care of spaces in column name (not replacing it with a schema)
-    //    /// </summary>
-    //    public ObjectNameParser(DmColumn column, string quotePrefix, string quoteSuffix)
-    //    {
-    //        this.QuotePrefix = quotePrefix;
-    //        this.QuoteSuffix = quoteSuffix;
-
-    //        this.ParseObjectName(column.ColumnName);
-    //        if (!String.IsNullOrEmpty(column.Table?.Schema))
-    //            this.ParseSchemaName(column.Table.Schema);
-
-    //    }
-
-
-
-
-    //    /// <summary>
-    //    /// Parse the input string and Get a non bracket object name :
-    //    ///   "[Client] ==> Client "
-    //    ///   "[dbo].[client] === > dbo client "
-    //    ///   "dbo.client === > dbo client "
-    //    ///   "Fabrikam.[dbo].[client] === > Fabrikam dbo client "
-    //    /// </summary>
-    //    public ObjectNameParser(string input)
-    //    {
-    //        this.ParseString(input);
-    //    }
-
-    //    /// <summary>
-    //    /// Parse the input string and Get a non bracket object name :
-    //    ///   "[Client] ==> Client "
-    //    ///   "[dbo].[client] === > dbo client "
-    //    ///   "dbo.client === > dbo client "
-    //    ///   "Fabrikam.[dbo].[client] === > Fabrikam dbo client "
-    //    /// </summary>
-    //    public ObjectNameParser(string quotePrefix, string quoteSuffix)
-    //    {
-    //        this.QuotePrefix = quotePrefix;
-    //        this.QuoteSuffix = quoteSuffix;
-    //    }
-
-    //    /// <summary>
-    //    /// Parse the input string and Get a non bracket object name :
-    //    ///   "[Client] ==> Client "
-    //    ///   "[dbo].[client] === > dbo client "
-    //    ///   "dbo.client === > dbo client "
-    //    ///   "Fabrikam.[dbo].[client] === > Fabrikam dbo client "
-    //    /// </summary>
-    //    public ObjectNameParser(string input, string quotePrefix, string quoteSuffix)
-    //    {
-    //        this.QuotePrefix = quotePrefix;
-    //        this.QuoteSuffix = quoteSuffix;
-    //        this.ParseString(input);
-    //    }
-
-    //    public void ParseString(string input)
-    //    {
-    //        this.DatabaseName = string.Empty;
-    //        this.QuotedDatabaseName = string.Empty;
-    //        this.SchemaName = string.Empty;
-    //        this.QuotedSchemaName = string.Empty;
-    //        this.ObjectName = string.Empty;
-    //        this.QuotedObjectName = string.Empty;
-
-    //        Regex regex = new Regex(string.Format(CultureInfo.InvariantCulture,
-    //             "(?:(?<space>\\s+)*)*(?:(?<open>\\[)*)*(?(open)(?<quoted>[^\\]]+)*|(?<unquoted>[^\\.\\s\\]]+)*)",
-    //             Regex.Escape(this.QuotePrefix), Regex.Escape(this.QuoteSuffix)), RegexOptions.IgnorePatternWhitespace);
-
-    //        MatchCollection matchCollections = regex.Matches(input);
-
-    //        string[] strMatches = new string[3];
-    //        int matchCounts = 0;
-    //        foreach (Match match in matchCollections)
-    //        {
-    //            if (matchCounts >= 3)
-    //                break;
-
-    //            if (!match.Success || string.IsNullOrWhiteSpace(match.Value))
-    //                continue;
-
-    //            strMatches[matchCounts] = (string.IsNullOrEmpty(match.Groups["quoted"].ToString()) ? match.Groups["unquoted"].Value : match.Groups["quoted"].Value);
-    //            matchCounts++;
-    //        }
-    //        switch (matchCounts)
-    //        {
-    //            case 1:
-    //                {
-    //                    this.ParseObjectName(strMatches[0]);
-    //                    return;
-    //                }
-    //            case 2:
-    //                {
-
-    //                    this.ParseSchemaName(strMatches[0]);
-    //                    this.ParseObjectName(strMatches[1]);
-    //                    return;
-    //                }
-    //            case 3:
-    //                {
-    //                    this.DatabaseName = strMatches[0];
-    //                    if (this.DatabaseName.StartsWith(this.QuotePrefix))
-    //                        this.DatabaseName = this.DatabaseName.Substring(1);
-    //                    if (this.DatabaseName.EndsWith(this.QuotePrefix))
-    //                        this.DatabaseName = this.DatabaseName.Substring(0, this.DatabaseName.Length - 1);
-    //                    this.QuotedDatabaseName = string.Concat(this.QuotePrefix, this.DatabaseName, this.QuoteSuffix);
-
-    //                    this.ParseSchemaName(strMatches[1]);
-    //                    this.ParseObjectName(strMatches[2]);
-    //                    return;
-    //                }
-    //            default:
-    //                {
-    //                    return;
-    //                }
-    //        }
-    //    }
-
-    //    private void ParseObjectName(string name)
-    //    {
-    //        this.ObjectName = name;
-
-    //        if (this.ObjectName.StartsWith(this.QuotePrefix))
-    //            this.ObjectName = this.ObjectName.Substring(1);
-    //        if (this.ObjectName.EndsWith(this.QuotePrefix))
-    //            this.ObjectName = this.ObjectName.Substring(0, this.ObjectName.Length - 1);
-    //        this.QuotedObjectName = string.Concat(this.QuotePrefix, this.ObjectName, this.QuoteSuffix);
-
-    //    }
-
-    //    private void ParseSchemaName(string name)
-    //    {
-    //        this.SchemaName = name;
-    //        if (!String.IsNullOrEmpty(this.SchemaName))
-    //        {
-    //            if (this.SchemaName.StartsWith(this.QuotePrefix))
-    //                this.SchemaName = this.SchemaName.Substring(1);
-    //            if (this.SchemaName.EndsWith(this.QuotePrefix))
-    //                this.SchemaName = this.SchemaName.Substring(0, this.SchemaName.Length - 1);
-    //            this.QuotedSchemaName = string.Concat(this.QuotePrefix, this.SchemaName, this.QuoteSuffix);
-
-    //        }
-    //    }
-
-    //    public override string ToString()
-    //    {
-    //        return this.FullQuotedString;
-    //    }
-    //}
-
+   
 
     public class ParserName
     {
@@ -383,11 +101,17 @@ namespace Dotmim.Sync.Builders
             return sb.ToString();
         }
 
+        public static ParserName Parse(SyncTable input) => new ParserName(input);
+        public static ParserName Parse(SyncTable input, string quote) => new ParserName(input, quote);
+        public static ParserName Parse(SyncColumn input) => new ParserName(input);
+        public static ParserName Parse(SyncColumn input, string quote) => new ParserName(input, quote);
+
+
         public static ParserName Parse(DmTable input) => new ParserName(input);
         public static ParserName Parse(DmTable input, string quote) => new ParserName(input, quote);
         public static ParserName Parse(string input) => new ParserName(input);
-        public static ParserName Parse(DmColumn input) => new ParserName(input);
         public static ParserName Parse(string input, string quote) => new ParserName(input, quote);
+        public static ParserName Parse(DmColumn input) => new ParserName(input);
         public static ParserName Parse(DmColumn input, string quote) => new ParserName(input, quote);
 
         private ParserName(string input)
@@ -429,6 +153,35 @@ namespace Dotmim.Sync.Builders
             this.ParseDmTable(table);
         }
 
+
+        private ParserName(SyncTable table)
+        {
+            this.ParseSchemaTable(table);
+        }
+
+        private ParserName(SyncTable table, string quote)
+        {
+            this.quotePrefix = quote;
+            this.quoteSuffix = quote;
+
+            this.ParseSchemaTable(table);
+        }
+
+        private ParserName(SyncColumn column)
+        {
+            this.ParseSchemaColumn(column);
+        }
+
+        private ParserName(SyncColumn column, string quote)
+        {
+            this.quotePrefix = quote;
+            this.quoteSuffix = quote;
+
+            this.ParseSchemaColumn(column);
+        }
+
+
+
         private void ParseDmColumn(DmColumn column)
         {
             // parse object name
@@ -459,7 +212,34 @@ namespace Dotmim.Sync.Builders
 
         }
 
+        private void ParseSchemaColumn(SyncColumn column)
+        {
+            // parse object name
+            this.ParseObjectName(column.ColumnName);
 
+            // parse schema
+            if (!String.IsNullOrEmpty(column.Table?.SchemaName))
+                this.ParseSchemaName(column.Table.SchemaName);
+
+            // parse database name
+            if (!String.IsNullOrEmpty(column.Table?.Schema?.DataSourceName))
+                this.ParseDatabaseName(column.Table.Schema.DataSourceName);
+
+        }
+        private void ParseSchemaTable(SyncTable table)
+        {
+            // parse object name
+            this.ParseObjectName(table.TableName);
+
+            // parse schema
+            if (!String.IsNullOrEmpty(table?.SchemaName))
+                this.ParseSchemaName(table.SchemaName);
+
+            // parse database name
+            if (!String.IsNullOrEmpty(table.Schema?.DataSourceName))
+                this.ParseDatabaseName(table.Schema.DataSourceName);
+
+        }
         /// <summary>
         /// Parse the input string and Get a non bracket object name :
         ///   "[Client] ==> Client "

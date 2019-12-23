@@ -8,22 +8,22 @@ namespace Dotmim.Sync
     public class TableProvisionedArgs : ProgressArgs
     {
         public SyncProvision Provision { get; }
-        public DmTable DmTable { get; }
+        public SyncTable SchemaTable { get; }
 
-        public TableProvisionedArgs(SyncContext context, SyncProvision provision, DmTable dmTable, DbConnection connection, DbTransaction transaction)
+        public TableProvisionedArgs(SyncContext context, SyncProvision provision, SyncTable schemaTable, DbConnection connection, DbTransaction transaction)
             : base(context, connection, transaction)
         {
             Provision = provision;
-            DmTable = dmTable;
+            SchemaTable = schemaTable;
         }
 
-        public override string Message => $"TableName: {DmTable.TableName} Provision:{Provision}";
+        public override string Message => $"TableName: {SchemaTable.TableName} Provision:{Provision}";
 
     }
 
     public class TableProvisioningArgs : TableProvisionedArgs
     {
-        public TableProvisioningArgs(SyncContext context, SyncProvision provision, DmTable dmTable, DbConnection connection, DbTransaction transaction) : base(context, provision, dmTable, connection, transaction)
+        public TableProvisioningArgs(SyncContext context, SyncProvision provision, SyncTable schemaTable, DbConnection connection, DbTransaction transaction) : base(context, provision, schemaTable, connection, transaction)
         {
         }
     }
@@ -31,14 +31,14 @@ namespace Dotmim.Sync
     public class DatabaseProvisionedArgs : ProgressArgs
     {
         public SyncProvision Provision { get; }
-        public DmSet Schema { get; }
+        public SyncSet Schema { get; }
 
         /// <summary>
         /// Gets the script generated before applying on database
         /// </summary>
         public string Script { get; }
 
-        public DatabaseProvisionedArgs(SyncContext context, SyncProvision provision, DmSet schema, string script, DbConnection connection, DbTransaction transaction)
+        public DatabaseProvisionedArgs(SyncContext context, SyncProvision provision, SyncSet schema, string script, DbConnection connection, DbTransaction transaction)
         : base(context, connection, transaction)
 
         {
@@ -61,7 +61,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the schema to be applied in the database
         /// </summary>
-        public DmSet Schema { get; }
+        public SyncSet Schema { get; }
 
         /// <summary>
         /// Gets or Sets a boolean for overwriting the current schema. If True, all scripts are generated and applied
@@ -73,7 +73,7 @@ namespace Dotmim.Sync
         /// </summary>
         public bool GenerateScript { get; set; }
 
-        public DatabaseProvisioningArgs(SyncContext context, SyncProvision provision, DmSet schema, DbConnection connection, DbTransaction transaction)
+        public DatabaseProvisioningArgs(SyncContext context, SyncProvision provision, SyncSet schema, DbConnection connection, DbTransaction transaction)
         : base(context, connection, transaction)
 
         {
@@ -88,20 +88,20 @@ namespace Dotmim.Sync
 
     public class TableDeprovisioningArgs : TableProvisioningArgs
     {
-        public TableDeprovisioningArgs(SyncContext context, SyncProvision provision, DmTable dmTable, DbConnection connection, DbTransaction transaction) : base(context, provision, dmTable, connection, transaction)
+        public TableDeprovisioningArgs(SyncContext context, SyncProvision provision, SyncTable schemaTable, DbConnection connection, DbTransaction transaction) : base(context, provision, schemaTable, connection, transaction)
         {
         }
     }
     public class TableDeprovisionedArgs : TableProvisionedArgs
     {
-        public TableDeprovisionedArgs(SyncContext context, SyncProvision provision, DmTable dmTable, DbConnection connection, DbTransaction transaction) : base(context, provision, dmTable, connection, transaction)
+        public TableDeprovisionedArgs(SyncContext context, SyncProvision provision, SyncTable schemaTable, DbConnection connection, DbTransaction transaction) : base(context, provision, schemaTable, connection, transaction)
         {
         }
     }
 
     public class DatabaseDeprovisionedArgs : DatabaseProvisionedArgs
     {
-        public DatabaseDeprovisionedArgs(SyncContext context, SyncProvision provision, DmSet schema, string script, DbConnection connection, DbTransaction transaction) 
+        public DatabaseDeprovisionedArgs(SyncContext context, SyncProvision provision, SyncSet schema, string script, DbConnection connection, DbTransaction transaction) 
             : base(context, provision, schema, script, connection, transaction)
         {
         }
@@ -109,7 +109,7 @@ namespace Dotmim.Sync
 
     public class DatabaseDeprovisioningArgs : DatabaseProvisioningArgs
     {
-        public DatabaseDeprovisioningArgs(SyncContext context, SyncProvision provision, DmSet schema, DbConnection connection, DbTransaction transaction) : base(context, provision, schema, connection, transaction)
+        public DatabaseDeprovisioningArgs(SyncContext context, SyncProvision provision, SyncSet schema, DbConnection connection, DbTransaction transaction) : base(context, provision, schema, connection, transaction)
         {
         }
     }

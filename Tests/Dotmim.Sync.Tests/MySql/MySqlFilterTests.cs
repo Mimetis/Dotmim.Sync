@@ -33,10 +33,10 @@ namespace Dotmim.Sync.Tests.MySql
                 // providerFixture.DeleteAllDatabasesOnDispose = false;
 
                 // add a filter
-                providerFixture.Filters.Add(new Filter.FilterClause("Customer", "CustomerID"));
-                providerFixture.FilterParameters.Add(new Filter.SyncParameter("Customer", "CustomerID", AdventureWorksContext.CustomerIdForFilter));
-                providerFixture.Filters.Add(new Filter.FilterClause("CustomerAddress", "CustomerID"));
-                providerFixture.FilterParameters.Add(new Filter.SyncParameter("CustomerAddress", "CustomerID", AdventureWorksContext.CustomerIdForFilter));
+                providerFixture.Filters.Add(new SyncFilter("Customer", "CustomerID"));
+                providerFixture.FilterParameters.Add(new Filter.SyncParameter("Customer", "CustomerID", null, AdventureWorksContext.CustomerIdForFilter));
+                providerFixture.Filters.Add(new SyncFilter("CustomerAddress", "CustomerID"));
+                providerFixture.FilterParameters.Add(new Filter.SyncParameter("CustomerAddress", "CustomerID", null, AdventureWorksContext.CustomerIdForFilter));
 
                 if (!Setup.IsOnAzureDev)
                 {
