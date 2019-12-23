@@ -10,11 +10,12 @@ using Dotmim.Sync.Enumerations;
 using System.Data.Common;
 using System.Runtime.Serialization;
 using Dotmim.Sync.Data.Surrogate;
+using System.Text;
+using Dotmim.Sync.Serialization;
 
 namespace Dotmim.Sync.Data
 {
-    [Serializable]
-    public class DmTable : ISerializable
+    public class DmTable
     {
 
         /// <summary>
@@ -58,37 +59,31 @@ namespace Dotmim.Sync.Data
             this.tableName = tableName ?? "";
         }
 
-        public DmTable(SerializationInfo info, StreamingContext context) : this()
-        {
-            var dmTableSurrogate = info.GetValue("surrogate", typeof(DmTableSurrogate)) as DmTableSurrogate;
+        //public DmTable(SerializationInfo info, StreamingContext context) : this()
+        //{
+        //    var dmTableSurrogate = info.GetValue("surrogate", typeof(DmTableSurrogate)) as DmTableSurrogate;
 
-            if (dmTableSurrogate == null)
-                return;
+        //    if (dmTableSurrogate == null)
+        //        return;
 
-            this.Culture = new CultureInfo(dmTableSurrogate.CultureInfoName);
-            this.CaseSensitive = dmTableSurrogate.CaseSensitive;
-            this.TableName = dmTableSurrogate.TableName;
+        //    this.Culture = new CultureInfo(dmTableSurrogate.CultureInfoName);
+        //    this.CaseSensitive = dmTableSurrogate.CaseSensitive;
+        //    this.TableName = dmTableSurrogate.TableName;
 
-            dmTableSurrogate.ReadSchemaIntoDmTable(this);
-            dmTableSurrogate.ReadDatasIntoDmTable(this);
+        //    dmTableSurrogate.ReadSchemaIntoDmTable(this);
+        //    dmTableSurrogate.ReadDatasIntoDmTable(this);
 
-        }
+        //}
 
-        public DmTable(DmTableSurrogate dmTableSurrogate)
-        {
+        // /// <summary>
+        ///// How to serialize
+        ///// </summary>
+        //public void GetObjectData(SerializationInfo info, StreamingContext context)
+        //{
+        //    var surrogate = new DmTableSurrogate(this);
+        //    info.AddValue("surrogate", surrogate);
 
-        }
-
-
-        /// <summary>
-        /// How to serialize
-        /// </summary>
-        public void GetObjectData(SerializationInfo info, StreamingContext context)
-        {
-            var surrogate = new DmTableSurrogate(this);
-            info.AddValue("surrogate", surrogate);
-            
-        }
+        //}
 
 
         /// <summary>
@@ -133,37 +128,6 @@ namespace Dotmim.Sync.Data
         /// Default is Bidirectional
         /// </summary>
         public SyncDirection SyncDirection { get; set; } = SyncDirection.Bidirectional;
-
-        /// <summary>
-        /// Specify a prefix for naming stored procedure. Default is empty string
-        /// </summary>
-        public String StoredProceduresPrefix { get; set; }
-
-        /// <summary>
-        /// Specify a suffix for naming triggers. Default is empty string
-        /// </summary>
-        public String TriggersSuffix { get; set; }
-
-        /// <summary>
-        /// Specify a prefix for triggers. Default is empty string
-        /// </summary>
-        public String TriggersPrefix { get; set; }
-
-        /// <summary>
-        /// Specify a suffix for naming stored procedures. Default is empty string
-        /// </summary>
-        public String StoredProceduresSuffix { get; set; }
-
-        /// <summary>
-        /// Specify a prefix for naming tracking tables. Default is empty string
-        /// </summary>
-        public String TrackingTablesPrefix { get; set; }
-
-        /// <summary>
-        /// Specify a suffix for naming tracking tables. Default is empty string
-        /// </summary>
-        public String TrackingTablesSuffix { get; set; }
-
 
         /// <summary>
         /// Set the culture used to make comparison
@@ -445,13 +409,7 @@ namespace Dotmim.Sync.Data
                 Culture = culture,
                 CaseSensitive = caseSensitive,
                 OriginalProvider = OriginalProvider,
-                SyncDirection = SyncDirection,
-                TrackingTablesPrefix = TrackingTablesPrefix,
-                TrackingTablesSuffix = TrackingTablesSuffix,
-                StoredProceduresPrefix = StoredProceduresPrefix,
-                StoredProceduresSuffix = StoredProceduresSuffix,
-                TriggersPrefix = TriggersPrefix,
-                TriggersSuffix = TriggersSuffix
+                SyncDirection = SyncDirection
             };
 
             // add all columns
@@ -474,6 +432,141 @@ namespace Dotmim.Sync.Data
             return clone;
         }
 
+        public static long GetRowSizeFromDataRow(DmRow row)
+        {
+            bool isRowDeleted = false;
+
+            if (row.RowState == DmRowState.Deleted)
+            {
+                row.RejectChanges();
+                isRowDeleted = true;
+            }
+
+            long byteCount = 0;
+            object[] itemArray = row.ItemArray;
+
+            for (int i = 0; i < itemArray.Length; i++)
+            {
+                // Size for the value
+                object obj = itemArray[i];
+                var objType = obj?.GetType();
+
+
+                if (obj == null)
+                    byteCount = byteCount + 5;
+                else if (obj is DBNull)
+                    byteCount = byteCount + 5;
+                else if (objType == stringType)
+                    byteCount = byteCount + Encoding.UTF8.GetByteCount((string)obj);
+                else if (objType == byteArrayType)
+                    byteCount = byteCount + ((byte[])obj).Length;
+                else
+                    byteCount = byteCount + GetSizeForType(obj.GetType());
+
+                // Size for the type
+                var typeofobject = row.Table.Columns[i].DataType;
+                var byteslengthtype = Encoding.UTF8.GetBytes(DmUtils.GetAssemblyQualifiedName(typeofobject)).Length;
+                byteCount += byteslengthtype;
+
+                // State
+                byteCount += 4L;
+
+                // Index
+                byteCount += 4L;
+
+
+
+            }
+            if (isRowDeleted)
+            {
+                row.Delete();
+            }
+            return byteCount;
+        }
+
+
+        public static long GetRowSizeFromDataRow(Dictionary<string, object> row)
+        {
+            long byteCount = 0;
+
+            foreach(var kvp in row)
+            {
+                var obj = kvp.Value;
+                var objType = obj?.GetType();
+
+                if (obj == null)
+                    byteCount += 5;
+                else if (obj is DBNull)
+                    byteCount += 5;
+                else if (objType == stringType)
+                    byteCount += Encoding.UTF8.GetByteCount((string)obj);
+                else if (objType == byteArrayType)
+                    byteCount += ((byte[])obj).Length;
+                else
+                    byteCount += GetSizeForType(obj.GetType());
+
+                // Size for the type
+                if (objType != null)
+                    byteCount += Encoding.UTF8.GetBytes(DmUtils.GetAssemblyQualifiedName(objType)).Length;
+
+                // State
+                byteCount += 4L;
+
+                // Index
+                byteCount += 4L;
+
+            }
+            return byteCount;
+        }
+
+        private static readonly Type stringType = typeof(string);
+        private static readonly Type objectType = typeof(object);
+        private static readonly Type byteType = typeof(Byte);
+        private static readonly Type byteArrayType = typeof(Byte[]);
+        private static readonly Type longType = typeof(long);
+        private static readonly Type ulongType = typeof(ulong);
+        private static readonly Type doubleType = typeof(double);
+        private static readonly Type datetimeType = typeof(DateTime);
+        private static readonly Type dbnullType = typeof(DBNull);
+        private static readonly Type boolType = typeof(Boolean);
+        private static readonly Type sbyteType = typeof(sbyte);
+        private static readonly Type charType = typeof(char);
+        private static readonly Type shortType = typeof(short);
+        private static readonly Type ushortType = typeof(ushort);
+        private static readonly Type intType = typeof(int);
+        private static readonly Type uintType = typeof(uint);
+        private static readonly Type floatType = typeof(float);
+        private static readonly Type decimalType = typeof(decimal);
+        private static readonly Type guidType = typeof(Guid);
+
+        /// <summary>
+        /// Gets a size for a given type
+        /// </summary>
+        public static long GetSizeForType(Type type)
+        {
+
+            if (type == objectType || type == longType || type == ulongType ||
+                type == doubleType || type == datetimeType)
+                return 8L;
+
+            if (type == dbnullType)
+                return 0L;
+
+            if (type == boolType || type == sbyteType || type == byteType)
+                return 1L;
+
+            if (type == charType || type == shortType || type == ushortType)
+                return 2L;
+
+            if (type == intType || type == uintType || type == floatType)
+                return 4L;
+
+            if (type == decimalType || type == guidType)
+                return 16L;
+
+            return 0L;
+
+        }
         /// <summary>
         /// Clone then import rows
         /// </summary>
@@ -850,7 +943,7 @@ namespace Dotmim.Sync.Data
                     object[] readerDataValues = new object[reader.FieldCount];
 
                     reader.GetValues(readerDataValues);
-                    var dataRow = this.LoadDataRow(readerDataValues, true);
+                    this.LoadDataRow(readerDataValues, true);
                 }
             }
         }

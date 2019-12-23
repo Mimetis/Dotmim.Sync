@@ -79,7 +79,7 @@ namespace Dotmim.Sync.Tests.Core
 
 
         public async Task<ProviderRun> RunAsync(ProviderFixture serverFixture, string[] tables = null,
-            SyncSchema schema = null, SyncOptions options = null, bool reuseAgent = true)
+            SyncSet schema = null, SyncOptions options = null, bool reuseAgent = true)
         {
             var syncTables = tables ?? serverFixture.Tables;
 
@@ -152,7 +152,7 @@ namespace Dotmim.Sync.Tests.Core
 
                             var webServerOrchestrator = proxyServerOrchestrator.GetLocalOrchestrator(context);
 
-                            webServerOrchestrator.Schema.Add(syncTables);
+                            webServerOrchestrator.Schema.Tables.Add(syncTables);
 
                             // Add Filers
                             if (serverFixture.Filters != null && serverFixture.Filters.Count > 0)

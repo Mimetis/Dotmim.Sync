@@ -41,7 +41,7 @@ namespace Dotmim.Sync.Web.Server
         /// Create a new WebProxyServerProvider with a first instance of an in memory CoreProvider
         /// Use this method to create your WebProxyServerProvider if you don't use the DI stuff from ASP.NET
         /// </summary>
-        public static WebProxyServerOrchestrator Create(HttpContext context, CoreProvider provider, SyncSchema schema, WebServerOptions options)
+        public static WebProxyServerOrchestrator Create(HttpContext context, CoreProvider provider, SyncSet schema, WebServerOptions options)
         {
             if (!TryGetHeaderValue(context.Request.Headers, "dotmim-sync-session-id", out var sessionId))
                 throw new SyncException($"Can't find any session id in the header");
@@ -231,7 +231,7 @@ namespace Dotmim.Sync.Web.Server
         }
 
 
-        private static WebServerOrchestrator AddNewOrchestratorToCache(HttpContext context, CoreProvider provider, SyncSchema schema, WebServerOptions options, string sessionId)
+        private static WebServerOrchestrator AddNewOrchestratorToCache(HttpContext context, CoreProvider provider, SyncSet schema, WebServerOptions options, string sessionId)
         {
             WebServerOrchestrator remoteOrchestrator;
             var cache = context.RequestServices.GetService<IMemoryCache>();

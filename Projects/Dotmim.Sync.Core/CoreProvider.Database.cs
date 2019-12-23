@@ -22,13 +22,13 @@ namespace Dotmim.Sync
         /// <summary>
         /// Deprovision a database. You have to passe a configuration object, containing at least the dmTables
         /// </summary>
-        public async Task DeprovisionAsync(SyncSchema schema, SyncProvision provision, string scopeInfoTableName = SyncOptions.DefaultScopeInfoTableName)
+        public async Task DeprovisionAsync(SyncSet schema, SyncProvision provision, string scopeInfoTableName = SyncOptions.DefaultScopeInfoTableName)
         {
             DbConnection connection = null;
             DbTransaction transaction = null;
             try
             {
-                if (schema.GetSet() == null || !schema.GetSet().HasTables)
+                if (schema == null || !schema.HasTables)
                     throw new ArgumentNullException("tables", "You must set the tables you want to provision");
 
 
@@ -43,25 +43,25 @@ namespace Dotmim.Sync
                         await this.InterceptAsync(new TransactionOpenArgs(null, connection, transaction)).ConfigureAwait(false);
 
                         // Load the configuration
-                        this.ReadSchema(schema.GetSet(), connection, transaction);
+                        this.ReadSchema(schema, connection, transaction);
 
                         // Launch any interceptor if available
-                        await this.InterceptAsync(new DatabaseDeprovisioningArgs(null, provision, schema.GetSet(), connection, transaction)).ConfigureAwait(false);
+                        await this.InterceptAsync(new DatabaseDeprovisioningArgs(null, provision, schema, connection, transaction)).ConfigureAwait(false);
 
-                        for (var i = schema.Count - 1; i >= 0; i--)
+                        for (var i = schema.Tables.Count - 1; i >= 0; i--)
                         {
                             // Get the table
-                            var dmTable = schema.GetSet().Tables[i];
+                            var schemaTable = schema.Tables[i];
 
                             // call any interceptor
-                            await this.InterceptAsync(new TableDeprovisioningArgs(null, provision, dmTable, connection, transaction)).ConfigureAwait(false);
+                            await this.InterceptAsync(new TableDeprovisioningArgs(null, provision, schemaTable, connection, transaction)).ConfigureAwait(false);
 
                             // get the builder
-                            var builder = this.GetDatabaseBuilder(dmTable);
+                            var builder = this.GetDatabaseBuilder(schemaTable);
                             builder.UseBulkProcedures = this.SupportBulkOperations;
 
                             // adding filters
-                            this.AddFilters(schema.Filters, dmTable, builder);
+                            this.AddFilters(schemaTable, builder);
 
                             if (provision.HasFlag(SyncProvision.TrackingTable) || provision.HasFlag(SyncProvision.All))
                                 builder.DropTrackingTable(connection, transaction);
@@ -77,7 +77,7 @@ namespace Dotmim.Sync
                                 builder.DropTable(connection, transaction);
 
                             // call any interceptor
-                            await this.InterceptAsync(new TableDeprovisionedArgs(null, provision, dmTable, connection, transaction)).ConfigureAwait(false);
+                            await this.InterceptAsync(new TableDeprovisionedArgs(null, provision, schemaTable, connection, transaction)).ConfigureAwait(false);
                         }
 
                         if (provision.HasFlag(SyncProvision.Scope) || provision.HasFlag(SyncProvision.All))
@@ -88,7 +88,7 @@ namespace Dotmim.Sync
                         }
 
                         // Launch any interceptor if available
-                        await this.InterceptAsync(new DatabaseDeprovisionedArgs(null, provision, schema.GetSet(), null, connection, transaction)).ConfigureAwait(false);
+                        await this.InterceptAsync(new DatabaseDeprovisionedArgs(null, provision, schema, null, connection, transaction)).ConfigureAwait(false);
 
                         await this.InterceptAsync(new TransactionCommitArgs(null, connection, transaction)).ConfigureAwait(false);
                         transaction.Commit();
@@ -112,14 +112,14 @@ namespace Dotmim.Sync
         /// <summary>
         /// Deprovision a database
         /// </summary>
-        public async Task ProvisionAsync(SyncSchema schema, SyncProvision provision, string scopeInfoTableName = SyncOptions.DefaultScopeInfoTableName)
+        public async Task ProvisionAsync(SyncSet schema, SyncProvision provision, string scopeInfoTableName = SyncOptions.DefaultScopeInfoTableName)
         {
             DbConnection connection = null;
             DbTransaction transaction = null;
 
             try
             {
-                if (schema.GetSet() == null || !schema.GetSet().HasTables)
+                if (schema == null || !schema.HasTables)
                     throw new ArgumentNullException("tables", "You must set the tables you want to provision");
 
 
@@ -134,10 +134,10 @@ namespace Dotmim.Sync
                         await this.InterceptAsync(new TransactionOpenArgs(null, connection, transaction)).ConfigureAwait(false);
 
                         // Load the configuration
-                        this.ReadSchema(schema.GetSet(), connection, transaction);
+                        this.ReadSchema(schema, connection, transaction);
 
                         var beforeArgs =
-                            new DatabaseProvisioningArgs(null, provision, schema.GetSet(), connection, transaction);
+                            new DatabaseProvisioningArgs(null, provision, schema, connection, transaction);
 
                         // Launch any interceptor if available
                         await this.InterceptAsync(beforeArgs).ConfigureAwait(false);
@@ -150,22 +150,22 @@ namespace Dotmim.Sync
                         }
 
                         // Sorting tables based on dependencies between them
-                        var dmTables = schema.GetSet().Tables
-                            .SortByDependencies(tab => tab.ChildRelations
-                                .Select(r => r.ChildTable));
+                        var schemaTables = schema.Tables
+                            .SortByDependencies(tab => tab.GetChildRelations()
+                                .Select(r => r.GetChildTable()));
 
-                        foreach (var dmTable in dmTables)
+                        foreach (var schemaTable in schemaTables)
                         {
                             // get the builder
-                            var builder = this.GetDatabaseBuilder(dmTable);
+                            var builder = this.GetDatabaseBuilder(schemaTable);
 
                             // call any interceptor
-                            await this.InterceptAsync(new TableProvisioningArgs(null, provision, dmTable, connection, transaction)).ConfigureAwait(false);
+                            await this.InterceptAsync(new TableProvisioningArgs(null, provision, schemaTable, connection, transaction)).ConfigureAwait(false);
 
                             builder.UseBulkProcedures = this.SupportBulkOperations;
 
                             // adding filters
-                            this.AddFilters(schema.Filters, dmTable, builder);
+                            this.AddFilters(schemaTable, builder);
 
                             // On purpose, the flag SyncProvision.All does not include the SyncProvision.Table, too dangerous...
                             if (provision.HasFlag(SyncProvision.Table))
@@ -181,12 +181,12 @@ namespace Dotmim.Sync
                                 builder.CreateStoredProcedures(connection, transaction);
 
                             // call any interceptor
-                            await this.InterceptAsync(new TableProvisionedArgs(null, provision, dmTable, connection, transaction)).ConfigureAwait(false);
+                            await this.InterceptAsync(new TableProvisionedArgs(null, provision, schemaTable, connection, transaction)).ConfigureAwait(false);
 
                         }
 
                         // call any interceptor
-                        await this.InterceptAsync(new DatabaseProvisionedArgs(null, provision, schema.GetSet(), null, connection, transaction)).ConfigureAwait(false);
+                        await this.InterceptAsync(new DatabaseProvisionedArgs(null, provision, schema, null, connection, transaction)).ConfigureAwait(false);
                         await this.InterceptAsync(new TransactionCommitArgs(null, connection, transaction)).ConfigureAwait(false);
 
                         transaction.Commit();
@@ -213,47 +213,39 @@ namespace Dotmim.Sync
         /// Be sure all tables are ready and configured for sync
         /// the ScopeSet Configuration MUST be filled by the schema form Database
         /// </summary>
-        public virtual async Task<SyncContext> EnsureDatabaseAsync(SyncContext context, MessageEnsureDatabase message,
+        public virtual async Task<SyncContext> EnsureDatabaseAsync(SyncContext context, SyncSet schema,
                              DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
             try
             {
-                // Checking if schema already exists may be 
-                if (!message.CheckSchema)
-                    return context;
 
                 // Event progress
                 context.SyncStage = SyncStage.SchemaApplying;
 
                 var script = new StringBuilder();
 
-                var beforeArgs = new DatabaseProvisioningArgs(context, SyncProvision.All, message.Schema, connection, transaction);
+                var beforeArgs = new DatabaseProvisioningArgs(context, SyncProvision.All, schema, connection, transaction);
                 await this.InterceptAsync(beforeArgs).ConfigureAwait(false);
 
-                // TODO : What to expect with overwrite schema here ?
-                // Since we pass here only if the schema does not exists...
-                //if (!beforeArgs.OverwriteSchema)
-                //    return context;
-
                 // Sorting tables based on dependencies between them
-                var dmTables = message.Schema.Tables
-                    .SortByDependencies(tab => tab.ChildRelations
-                        .Select(r => r.ChildTable));
+                var schemaTables = schema.Tables
+                    .SortByDependencies(tab => tab.GetChildRelations()
+                        .Select(r => r.GetChildTable()));
 
-                foreach (var dmTable in dmTables)
+                foreach (var schemaTable in schemaTables)
                 {
-                    var builder = this.GetDatabaseBuilder(dmTable);
+                    var builder = this.GetDatabaseBuilder(schemaTable);
                     // set if the builder supports creating the bulk operations proc stock
                     builder.UseBulkProcedures = this.SupportBulkOperations;
 
                     // adding filter
-                    this.AddFilters(message.Filters, dmTable, builder);
+                    this.AddFilters(schemaTable, builder);
 
                     context.SyncStage = SyncStage.TableSchemaApplying;
 
                     // Launch any interceptor if available
-                    await this.InterceptAsync(new TableProvisioningArgs(context, SyncProvision.All, dmTable, connection, transaction)).ConfigureAwait(false);
+                    await this.InterceptAsync(new TableProvisioningArgs(context, SyncProvision.All, schemaTable, connection, transaction)).ConfigureAwait(false);
 
                     string currentScript = null;
                     if (beforeArgs.GenerateScript)
@@ -268,14 +260,14 @@ namespace Dotmim.Sync
 
                     // Report & Interceptor
                     context.SyncStage = SyncStage.TableSchemaApplied;
-                    var tableProvisionedArgs = new TableProvisionedArgs(context, SyncProvision.All, dmTable, connection, transaction);
+                    var tableProvisionedArgs = new TableProvisionedArgs(context, SyncProvision.All, schemaTable, connection, transaction);
                     this.ReportProgress(context, progress, tableProvisionedArgs);
                     await this.InterceptAsync(tableProvisionedArgs).ConfigureAwait(false);
                 }
 
                 // Report & Interceptor
                 context.SyncStage = SyncStage.SchemaApplied;
-                var args = new DatabaseProvisionedArgs(context, SyncProvision.All, message.Schema, script.ToString(), connection, transaction);
+                var args = new DatabaseProvisionedArgs(context, SyncProvision.All, schema, script.ToString(), connection, transaction);
                 this.ReportProgress(context, progress, args);
                 await this.InterceptAsync(args).ConfigureAwait(false);
 
@@ -293,20 +285,27 @@ namespace Dotmim.Sync
         /// <summary>
         /// Adding filters to an existing configuration
         /// </summary>
-        private void AddFilters(ICollection<FilterClause> filters, DmTable dmTable, DbBuilder builder)
+        private void AddFilters(SyncTable schemaTable, DbBuilder builder)
         {
-            if (filters != null && filters.Count > 0)
+            var schema = schemaTable.Schema;
+
+            if (schema.Filters != null && schema.Filters.Count > 0)
             {
-                var tableFilters = filters.Where(f => dmTable.TableName.Equals(f.TableName, StringComparison.InvariantCultureIgnoreCase));
+                // get the all the filters for the table
+                var tableFilters = schema.Filters.Where(schemaTable);
+
+                if (tableFilters == null)
+                    return;
 
                 foreach (var filter in tableFilters)
                 {
-                    var columnFilter = dmTable.Columns[filter.ColumnName];
+                    // Get the column
+                    var columnFilter = schemaTable.Columns.FirstOrDefault(filter.ColumnName);
 
                     if (columnFilter == null && !filter.IsVirtual)
-                        throw new InvalidExpressionException($"Column {filter.ColumnName} does not exist in Table {dmTable.TableName}");
+                        throw new InvalidExpressionException($"Column {filter.ColumnName} does not exist in Table {schemaTable.TableName}");
 
-                    builder.FilterColumns.Add(new FilterClause(filter.TableName, filter.ColumnName, filter.ColumnType));
+                    builder.FilterColumns.Add(new SyncFilter(columnFilter, filter.ColumnType));
                 }
             }
 

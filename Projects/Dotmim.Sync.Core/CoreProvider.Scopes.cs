@@ -14,9 +14,10 @@ namespace Dotmim.Sync
     {
 
         /// <summary>
-        /// Called when the sync ensure scopes are created
+        /// Ensure the scope is created on the local provider.
+        /// The scope contains all about last sync, schema and scope and local / remote timestamp 
         /// </summary>
-        public virtual async Task<(SyncContext, ScopeInfo)> EnsureScopesAsync(SyncContext context, MessageEnsureScopes message,
+        public virtual async Task<(SyncContext, ScopeInfo)> EnsureScopesAsync(SyncContext context, string scopeInfoTableName, string scopeName,
                              DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
@@ -25,8 +26,7 @@ namespace Dotmim.Sync
                 var scopes = new List<ScopeInfo>();
 
                 var scopeBuilder = this.GetScopeBuilder();
-                var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(
-                    message.ScopeInfoTableName, connection, transaction);
+                var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName, connection, transaction);
 
                 var needToCreateScopeInfoTable = scopeInfoBuilder.NeedToCreateScopeInfoTable();
 
@@ -38,7 +38,7 @@ namespace Dotmim.Sync
                 if (!needToCreateScopeInfoTable)
                 {
                     // get all scopes shared by all (identified by scopeName)
-                    scopes = scopeInfoBuilder.GetAllScopes(message.ScopeName);
+                    scopes = scopeInfoBuilder.GetAllScopes(scopeName);
                 }
 
                 // If no scope found, create it on the local provider
@@ -50,7 +50,7 @@ namespace Dotmim.Sync
                     var scope = new ScopeInfo
                     {
                         Id = Guid.NewGuid(),
-                        Name = message.ScopeName,
+                        Name = scopeName,
                         IsNewScope = true,
                         LastSync = null,
                     };
@@ -82,22 +82,22 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Write scope in the provider datasource
+        /// Write scope in the local data source
         /// </summary>
-        public virtual async Task<SyncContext> WriteScopesAsync(SyncContext context, MessageWriteScopes message,
+        public virtual async Task<SyncContext> WriteScopesAsync(SyncContext context, string scopeInfoTableName, ScopeInfo scope,
                              DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
             try
             {
                 var scopeBuilder = this.GetScopeBuilder();
-                var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(message.ScopeInfoTableName, connection, transaction);
+                var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName, connection, transaction);
 
-                scopeInfoBuilder.InsertOrUpdateScopeInfo(message.Scope);
+                scopeInfoBuilder.InsertOrUpdateScopeInfo(scope);
 
                 // Progress & Interceptor
                 context.SyncStage = SyncStage.ScopeSaved;
-                var scopeArgs = new ScopeArgs(context, message.Scope, connection, transaction);
+                var scopeArgs = new ScopeArgs(context, scope, connection, transaction);
                 this.ReportProgress(context, progress, scopeArgs);
                 await this.InterceptAsync(scopeArgs).ConfigureAwait(false);
 

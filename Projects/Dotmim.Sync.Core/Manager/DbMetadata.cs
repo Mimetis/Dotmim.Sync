@@ -11,7 +11,7 @@ namespace Dotmim.Sync.Manager
         /// <summary>
         /// Validate if a column definition is actualy supported by the provider
         /// </summary>
-        public abstract bool IsValid(DmColumn columnDefinition);
+        public abstract bool IsValid(SyncColumn columnDefinition);
 
         /// <summary>
         /// Get the datastore type name from a DbType for generating scripts
@@ -94,14 +94,14 @@ namespace Dotmim.Sync.Manager
         public abstract bool SupportScale(string typeName);
 
         /// <summary>
-        /// Get precision and scale from a dmColumn
+        /// Get precision and scale from a SchemaColumn
         /// </summary>
-        public abstract (byte precision, byte scale) ValidatePrecisionAndScale(DmColumn columnDefinition);
+        public abstract (byte precision, byte scale) ValidatePrecisionAndScale(SyncColumn columnDefinition);
 
         /// <summary>
         /// Get precision if supported (MySql supports int(10))
         /// </summary>
-        public abstract byte ValidatePrecision(DmColumn columnDefinition);
+        public abstract byte ValidatePrecision(SyncColumn columnDefinition);
 
 
         /// <summary>
@@ -109,7 +109,7 @@ namespace Dotmim.Sync.Manager
         /// </summary>
         /// <param name="columnDefinition"></param>
         /// <returns></returns>
-        public abstract bool ValidateIsReadonly(DmColumn columnDefinition);
+        public abstract bool ValidateIsReadonly(SyncColumn columnDefinition);
 
         /// <summary>
         /// Returns the corresponding Owner DbType. Because it could be lower case, we should handle it

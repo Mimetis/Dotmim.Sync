@@ -14,45 +14,21 @@ namespace Dotmim.Sync
     /// </summary>
     public class SyncConflict
     {
-        private DmTable localRows;
-        private DmTable remoteRows;
-
+  
         /// <summary>
         /// Gets or sets the error message that is returned when a conflict is set to ConflictType.ErrorsOccurred
         /// </summary>
         public string ErrorMessage { get; set; }
 
         /// <summary>
-        /// Gets the DmRow row that contains the conflicting row from the local database.
+        /// Gets the row that contains the conflicting row from the local database.
         /// </summary>
-        public DmRow LocalRow
-        {
-            get
-            {
-                var rows = this.localRows?.Rows;
-
-                if (rows != null && rows.Count > 0)
-                    return rows[0];
-
-                return null;
-            }
-        }
-
+        public SyncRow LocalRow { get; set; }
+      
         /// <summary>
-        /// Gets the DmRow row that contains the conflicting row from the remote database.
+        /// Gets the row that contains the conflicting row from the remote database.
         /// </summary>
-        public DmRow RemoteRow
-        {
-            get
-            {
-                var rows = this.remoteRows?.Rows;
-
-                if (rows != null && rows.Count > 0)
-                    return rows[0];
-
-                return null;
-            }
-        }
+        public SyncRow RemoteRow { get; set; }
 
         /// <summary>
         /// Gets or sets the ConflictType enumeration value that represents the type of synchronization conflict.
@@ -75,34 +51,14 @@ namespace Dotmim.Sync
         }
 
 
-        private void EnsureTables(DmRow row)
-        {
-            if (this.localRows == null)
-            {
-                this.localRows = row.Table.Clone();
-                this.localRows.TableName = row.Table.TableName;
-            }
+        /// <summary>
+        /// add a local row
+        /// </summary>
+        internal void AddLocalRow(SyncRow row) => this.LocalRow = row;
 
-            if (this.remoteRows == null)
-            {
-                this.remoteRows = row.Table.Clone();
-                this.remoteRows.TableName = row.Table.TableName;
-            }
-
-        }
-
-        internal void AddLocalRow(DmRow row)
-        {
-            this.EnsureTables(row);
-
-            this.localRows.ImportRow(row);
-        }
-
-        internal void AddRemoteRow(DmRow row)
-        {
-            this.EnsureTables(row);
-
-            this.remoteRows.ImportRow(row);
-        }
+        /// <summary>
+        /// add a remote row
+        /// </summary>
+        internal void AddRemoteRow(SyncRow row) => this.RemoteRow = row;
     }
 }

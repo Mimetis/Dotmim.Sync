@@ -49,7 +49,7 @@ namespace Dotmim.Sync
         /// </summary>
         /// <returns></returns>
         Task<(SyncContext context, ScopeInfo localScopeInfo)>
-            EnsureScopeAsync(SyncContext context, SyncSchema schema, SyncOptions options,
+            EnsureScopeAsync(SyncContext context, SyncSet schema, SyncOptions options,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null);
 
         /// <summary>
@@ -59,7 +59,7 @@ namespace Dotmim.Sync
               long clientTimestamp,
               BatchInfo clientBatchInfo,
               DatabaseChangesSelected clientChangesSelected)>
-            GetChangesAsync(SyncContext context, SyncSchema schema, ScopeInfo localScopeInfo, int batchSize, string batchDirectory,
+            GetChangesAsync(SyncContext context, SyncSet schema, ScopeInfo localScopeInfo, int batchSize, string batchDirectory,
                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null);
 
         /// <summary>
@@ -67,7 +67,7 @@ namespace Dotmim.Sync
         /// </summary>
         Task<(SyncContext context,
               DatabaseChangesApplied clientChangesApplied)>
-            ApplyChangesAsync(SyncContext context, ScopeInfo scope, SyncSchema schema, BatchInfo serverBatchInfo,
+            ApplyChangesAsync(SyncContext context, ScopeInfo scope, SyncSet schema, BatchInfo serverBatchInfo,
                               ConflictResolutionPolicy clientPolicy, long clientTimestamp, long remoteClientTimestamp,
                               bool disableConstraintsOnApplyChanges, bool useBulkOperations, 
                               bool cleanMetadatas, string scopeInfoTableName, 
@@ -84,8 +84,8 @@ namespace Dotmim.Sync
         /// Get configuration from remote to ensure local provider has everything needed
         /// </summary>
         /// <returns></returns>
-        Task<(SyncContext context, SyncSchema schema)>
-            EnsureSchemaAsync(SyncContext context, SyncSchema schema, 
+        Task<(SyncContext context, SyncSet schema)>
+            EnsureSchemaAsync(SyncContext context, SyncSet schema, 
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null);
 
         /// <summary>
@@ -96,7 +96,7 @@ namespace Dotmim.Sync
               BatchInfo serverBatchInfo,
               ConflictResolutionPolicy policy,
               DatabaseChangesSelected serverChangesSelected)>
-            ApplyThenGetChangesAsync(SyncContext context, ScopeInfo scope, SyncSchema schema, BatchInfo clientBatchInfo,
+            ApplyThenGetChangesAsync(SyncContext context, ScopeInfo scope, SyncSet schema, BatchInfo clientBatchInfo,
                                      bool disableConstraintsOnApplyChanges, bool useBulkOperations, bool cleanMetadatas,
                                      int clientBatchSize, string batchDirectory, ConflictResolutionPolicy policy,
                                      CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null);

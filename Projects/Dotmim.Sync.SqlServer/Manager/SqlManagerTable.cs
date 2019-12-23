@@ -62,11 +62,11 @@ namespace Dotmim.Sync.SqlServer.Manager
             return relations.ToArray();
         }
 
-        public IEnumerable<DmColumn> GetTableDefinition()
+        public IEnumerable<SyncColumn> GetTableDefinition()
         {
-            List<DmColumn> columns = new List<DmColumn>();
+            var columns = new List<SyncColumn>();
             // Get the columns definition
-            var dmColumnsList = SqlManagementUtils.ColumnsForTable(this.sqlConnection, this.sqlTransaction, this.tableName);
+            var dmColumnsList = SqlManagementUtils.ColumnsForTable(this.sqlConnection, this.sqlTransaction, this.tableName, this.schemaName);
             var sqlDbMetadata = new SqlDbMetadata();
 
             foreach (var c in dmColumnsList.Rows.OrderBy(r => (int)r["column_id"]))
@@ -76,54 +76,58 @@ namespace Dotmim.Sync.SqlServer.Manager
                 var maxLengthLong = Convert.ToInt64(c["max_length"]);
 
                 // Gets the datastore owner dbType 
-                SqlDbType datastoreDbType = (SqlDbType)sqlDbMetadata.ValidateOwnerDbType(typeName, false, false, maxLengthLong);
+                var datastoreDbType = (SqlDbType)sqlDbMetadata.ValidateOwnerDbType(typeName, false, false, maxLengthLong);
                 // once we have the datastore type, we can have the managed type
-                Type columnType = sqlDbMetadata.ValidateType(datastoreDbType);
+                var columnType = sqlDbMetadata.ValidateType(datastoreDbType);
 
-                var dbColumn = DmColumn.CreateColumn(name, columnType);
+                var sColumn = new SyncColumn(name, columnType);
+                sColumn.OriginalDbType = datastoreDbType.ToString();
+                sColumn.Ordinal = ((int)c["column_id"]);
+                sColumn.OriginalTypeName = c["type"].ToString();
+                sColumn.MaxLength = maxLengthLong > int.MaxValue ? int.MaxValue : (int)maxLengthLong;
+                sColumn.Precision = (byte)c["precision"];
+                sColumn.Scale = (byte)c["scale"];
+                sColumn.AllowDBNull = (bool)c["is_nullable"];
+                sColumn.IsAutoIncrement = (bool)c["is_identity"];
+                sColumn.IsUnique = c["is_unique"] != DBNull.Value ? (bool)c["is_unique"] : false;
+                sColumn.IsCompute = (bool)c["is_computed"];
 
-                dbColumn.SetOrdinal((int)c["column_id"]);
-                dbColumn.OriginalTypeName = c["type"].ToString();
+                if (sColumn.IsAutoIncrement)
+                {
+                    sColumn.AutoIncrementSeed = Convert.ToInt32(c["seed"]);
+                    sColumn.AutoIncrementStep = Convert.ToInt32(c["step"]);
+                }
 
-                dbColumn.MaxLength = maxLengthLong > int.MaxValue ? int.MaxValue : (int)maxLengthLong;
-                dbColumn.Precision = (byte)c["precision"];
-                dbColumn.Scale = (byte)c["scale"];
-                dbColumn.AllowDBNull = (bool)c["is_nullable"];
-                dbColumn.IsAutoIncrement = (bool)c["is_identity"];
-                dbColumn.IsUnique = c["is_unique"] != DBNull.Value ? (bool)c["is_unique"] : false;
-
-                dbColumn.IsCompute = (bool)c["is_computed"];
-
-                switch (dbColumn.OriginalTypeName.ToLowerInvariant())
+                switch (sColumn.OriginalTypeName.ToLowerInvariant())
                 {
                     case "nchar":
                     case "nvarchar":
-                        dbColumn.IsUnicode = true;
+                        sColumn.IsUnicode = true;
                         break;
                     default:
-                        dbColumn.IsUnicode = false;
+                        sColumn.IsUnicode = false;
                         break;
                 }
 
                 // No unsigned type in SQL Server
-                dbColumn.IsUnsigned = false;
+                sColumn.IsUnsigned = false;
 
-                columns.Add(dbColumn);
-
+                columns.Add(sColumn);
             }
-            return columns.ToArray();
+
+            return columns;
         }
 
-        public IEnumerable<DmColumn> GetTablePrimaryKeys()
+        public IEnumerable<SyncColumn> GetTablePrimaryKeys()
         {
             var dmTableKeys = SqlManagementUtils.PrimaryKeysForTable(this.sqlConnection, this.sqlTransaction, this.tableName);
 
-            var lstKeys = new List<DmColumn>();
+            var lstKeys = new List<SyncColumn>();
 
             foreach (var dmKey in dmTableKeys.Rows)
             {
-                var keyColumn = new DmColumn<string>((string)dmKey["columnName"]);
-                keyColumn.SetOrdinal(Convert.ToInt32(dmKey["key_ordinal"]));
+                var keyColumn = SyncColumn.Create<string>((string)dmKey["columnName"]);
+                keyColumn.Ordinal = Convert.ToInt32(dmKey["key_ordinal"]);
                 lstKeys.Add(keyColumn);
             }
 
