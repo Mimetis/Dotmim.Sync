@@ -29,6 +29,10 @@ namespace Dotmim.Sync
 
             try
             {
+                // Check if we have some data available
+                if (!message.Changes.HasData())
+                    return (context, changesApplied);
+
                 context.SyncStage = SyncStage.DatabaseChangesApplying;
 
                 // Launch any interceptor if available
@@ -56,10 +60,10 @@ namespace Dotmim.Sync
                 if (!message.IsNew)
                 {
                     // for delete we must go from Up to Down
-                    foreach (var table in message.Schema.GetSet().Tables.Reverse())
+                    foreach (var table in message.Schema.Tables.Reverse())
                     {
                         changeApplicationAction = await this.ApplyChangesInternalAsync(table, context, message, connection,
-                            transaction, DmRowState.Deleted, changesApplied, cancellationToken, progress).ConfigureAwait(false);
+                            transaction, DataRowState.Deleted, changesApplied, cancellationToken, progress).ConfigureAwait(false);
                     }
 
                     // Rollback
@@ -70,17 +74,17 @@ namespace Dotmim.Sync
                 // -----------------------------------------------------
                 // 2) Applying Inserts and Updates. Apply in table order
                 // -----------------------------------------------------
-                foreach (var table in message.Schema.GetSet().Tables)
+                foreach (var table in message.Schema.Tables)
                 {
                     changeApplicationAction = await this.ApplyChangesInternalAsync(table, context, message, connection,
-                        transaction, DmRowState.Added, changesApplied, cancellationToken, progress).ConfigureAwait(false);
+                        transaction, DataRowState.Added, changesApplied, cancellationToken, progress).ConfigureAwait(false);
 
                     // Rollback
                     if (changeApplicationAction == ChangeApplicationAction.Rollback)
                         RaiseRollbackException(context, "Rollback during applying inserts");
 
                     changeApplicationAction = await this.ApplyChangesInternalAsync(table, context, message, connection,
-                        transaction, DmRowState.Modified, changesApplied, cancellationToken, progress).ConfigureAwait(false);
+                        transaction, DataRowState.Modified, changesApplied, cancellationToken, progress).ConfigureAwait(false);
 
                     // Rollback
                     if (changeApplicationAction == ChangeApplicationAction.Rollback)
@@ -98,6 +102,9 @@ namespace Dotmim.Sync
                 if (message.DisableConstraintsOnApplyChanges)
                     changeApplicationAction = this.EnableConstraints(context, message.Schema, connection, transaction);
 
+                // clear the changes because we don't need them anymore
+                message.Changes.Clear(false);
+
                 return (context, changesApplied);
             }
             catch (SyncException)
@@ -113,20 +120,19 @@ namespace Dotmim.Sync
         /// <summary>
         /// Here we are reseting all tables and tracking tables to be able to Reinitialize completely
         /// </summary>
-        private ChangeApplicationAction ResetInternal(SyncContext context, SyncSchema schema, DbConnection connection, DbTransaction transaction)
+        private ChangeApplicationAction ResetInternal(SyncContext context, SyncSet schema, DbConnection connection, DbTransaction transaction)
         {
-            if (schema == null || schema.GetSet().Tables.Count <= 0)
+            if (schema == null || schema.Tables.Count <= 0)
                 return ChangeApplicationAction.Continue;
 
-            for (var i = 0; i < schema.GetSet().Tables.Count; i++)
+            for (var i = 0; i < schema.Tables.Count; i++)
             {
-                var tableDescription = schema.GetSet().Tables[schema.GetSet().Tables.Count - i - 1];
-
+                var tableDescription = schema.Tables[schema.Tables.Count - i - 1];
                 var builder = this.GetDatabaseBuilder(tableDescription);
                 var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
 
                 // reset table
-                syncAdapter.ResetTable(tableDescription);
+                syncAdapter.ResetTable();
 
             }
             return ChangeApplicationAction.Continue;
@@ -137,14 +143,14 @@ namespace Dotmim.Sync
         /// <summary>
         /// Disabling all constraints on synced tables
         /// </summary>
-        private ChangeApplicationAction DisableConstraints(SyncContext context, SyncSchema schema, DbConnection connection, DbTransaction transaction)
+        private ChangeApplicationAction DisableConstraints(SyncContext context, SyncSet schema, DbConnection connection, DbTransaction transaction)
         {
-            if (schema == null || schema.GetSet().Tables.Count <= 0)
+            if (schema == null || schema.Tables.Count <= 0)
                 return ChangeApplicationAction.Continue;
 
-            for (var i = 0; i < schema.GetSet().Tables.Count; i++)
+            for (var i = 0; i < schema.Tables.Count; i++)
             {
-                var tableDescription = schema.GetSet().Tables[schema.GetSet().Tables.Count - i - 1];
+                var tableDescription = schema.Tables[schema.Tables.Count - i - 1];
 
                 var builder = this.GetDatabaseBuilder(tableDescription);
                 var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
@@ -160,15 +166,14 @@ namespace Dotmim.Sync
         /// <summary>
         /// Disabling all constraints on synced tables
         /// </summary>
-        private ChangeApplicationAction EnableConstraints(SyncContext context, SyncSchema schema, DbConnection connection, DbTransaction transaction)
+        private ChangeApplicationAction EnableConstraints(SyncContext context, SyncSet schema, DbConnection connection, DbTransaction transaction)
         {
-            if (schema == null || schema.GetSet().Tables.Count <= 0)
+            if (schema == null || schema.Tables.Count <= 0)
                 return ChangeApplicationAction.Continue;
 
-            for (var i = 0; i < schema.GetSet().Tables.Count; i++)
+            for (var i = 0; i < schema.Tables.Count; i++)
             {
-                var tableDescription = schema.GetSet().Tables[schema.GetSet().Tables.Count - i - 1];
-
+                var tableDescription = schema.Tables[schema.Tables.Count - i - 1];
                 var builder = this.GetDatabaseBuilder(tableDescription);
                 var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
 
@@ -184,12 +189,12 @@ namespace Dotmim.Sync
         /// Apply changes internal method for one Insert or Update or Delete for every dbSyncAdapter
         /// </summary>
         internal async Task<ChangeApplicationAction> ApplyChangesInternalAsync(
-            DmTable table,
+            SyncTable schemaTable,
             SyncContext context,
             MessageApplyChanges message,
             DbConnection connection,
             DbTransaction transaction,
-            DmRowState applyType,
+            DataRowState applyType,
             DatabaseChangesApplied changesApplied,
             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
@@ -197,14 +202,14 @@ namespace Dotmim.Sync
             var changeApplicationAction = ChangeApplicationAction.Continue;
 
             // if we are in upload stage, so check if table is not download only
-            if (context.SyncWay == SyncWay.Upload && table.SyncDirection == SyncDirection.DownloadOnly)
+            if (context.SyncWay == SyncWay.Upload && schemaTable.SyncDirection == SyncDirection.DownloadOnly)
                 return ChangeApplicationAction.Continue;
 
             // if we are in download stage, so check if table is not download only
-            if (context.SyncWay == SyncWay.Download && table.SyncDirection == SyncDirection.UploadOnly)
+            if (context.SyncWay == SyncWay.Download && schemaTable.SyncDirection == SyncDirection.UploadOnly)
                 return ChangeApplicationAction.Continue;
 
-            var builder = this.GetDatabaseBuilder(table);
+            var builder = this.GetDatabaseBuilder(schemaTable);
 
             var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
             syncAdapter.ApplyType = applyType;
@@ -214,37 +219,35 @@ namespace Dotmim.Sync
                 // getting the table to be applied
                 // we may have multiple batch files, so we can have multipe dmTable with the same Name
                 // We can say that dmTable may be contained in several files
-                foreach (var dmTableLightPart in message.Changes.GetTable(table.TableName, table.Schema))
+                foreach (var syncTable in message.Changes.GetTable(schemaTable.TableName, schemaTable.SchemaName))
                 {
-                    if (dmTableLightPart == null || dmTableLightPart.Rows.Count == 0)
+                    if (syncTable == null || syncTable.Rows.Count == 0)
                         continue;
 
-                    // Get a clone of the table with tracking columns
-                    var dmTablePart = this.BuildChangesTable(table);
+                    // Creating a filtered view of my rows with the correct applyType
+                    var filteredRows = syncTable.Rows.Where(r => r.RowState == applyType);
 
-                    dmTableLightPart.WriteToDmTable(dmTablePart);
-                    var dmChangesView = new DmView(dmTablePart, (r) => r.RowState == applyType);
-
-                    if (dmChangesView.Count == 0)
-                    {
-                        dmChangesView.Dispose();
-                        dmChangesView = null;
+                    // no filtered rows, go next container table
+                    if (filteredRows.Count() == 0)
                         continue;
-                    }
 
                     // Conflicts occured when trying to apply rows
                     var conflicts = new List<SyncConflict>();
 
                     context.SyncStage = SyncStage.TableChangesApplying;
                     // Launch any interceptor if available
-                    await this.InterceptAsync(new TableChangesApplyingArgs(context, table, applyType, connection, transaction)).ConfigureAwait(false);
+                    await this.InterceptAsync(new TableChangesApplyingArgs(context, filteredRows, schemaTable, applyType, connection, transaction)).ConfigureAwait(false);
 
-                    int rowsApplied;
+                    // Getting the right columns that will be used to update tables
+                    var schemaChangesTable = DbSyncAdapter.CreateChangesTable(schemaTable);
+                    schemaChangesTable.Rows.AddRange(filteredRows.ToList());
+
+                    int rowsApplied=0;
                     // applying the bulkchanges command
                     if (message.UseBulkOperations && this.SupportBulkOperations)
-                        rowsApplied = syncAdapter.ApplyBulkChanges(dmChangesView, message.ApplyingScopeId, message.LastTimestamp, conflicts);
+                        rowsApplied = syncAdapter.ApplyBulkChanges(schemaChangesTable, message.ApplyingScopeId, message.LastTimestamp, conflicts);
                     else
-                        rowsApplied = syncAdapter.ApplyChanges(dmChangesView, message.ApplyingScopeId, message.LastTimestamp, conflicts);
+                        rowsApplied = syncAdapter.ApplyChanges(schemaChangesTable, message.ApplyingScopeId, message.LastTimestamp, conflicts);
 
                     // If conflicts occured
                     // Eventuall, conflicts are resolved on server side.
@@ -255,7 +258,7 @@ namespace Dotmim.Sync
                             var fromScopeLocalTimeStamp = message.LastTimestamp;
 
                             var conflictCount = 0;
-                            DmRow resolvedRow = null;
+                            SyncRow resolvedRow = null;
                             (changeApplicationAction, conflictCount, resolvedRow) =
                                 await this.HandleConflictAsync(syncAdapter, context, conflict, message.Policy, message.ApplyingScopeId, fromScopeLocalTimeStamp, connection, transaction).ConfigureAwait(false);
 
@@ -278,17 +281,17 @@ namespace Dotmim.Sync
                     }
 
                     // Handle sync progress for this syncadapter (so this table)
-                    var changedFailed = dmChangesView.Count - rowsApplied;
+                    var changedFailed = filteredRows.Count() - rowsApplied;
 
                     // raise SyncProgress Event
                     var existAppliedChanges = changesApplied.TableChangesApplied.FirstOrDefault(
-                            sc => string.Equals(sc.Table.TableName, table.TableName) && sc.State == applyType);
+                            sc => string.Equals(sc.Table.TableName, schemaTable.TableName) && sc.State == applyType);
 
                     if (existAppliedChanges == null)
                     {
                         existAppliedChanges = new TableChangesApplied
                         {
-                            Table = table,
+                            Table = schemaTable,
                             Applied = rowsApplied,
                             Failed = changedFailed,
                             State = applyType
@@ -318,7 +321,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// A conflict has occured, we try to ask for the solution to the user
         /// </summary>
-        internal async Task<(ApplyAction, DmRow)> GetConflictActionAsync(SyncContext context, SyncConflict conflict, ConflictResolutionPolicy policy, DbConnection connection, DbTransaction transaction = null)
+        internal async Task<(ApplyAction, SyncRow)> GetConflictActionAsync(SyncContext context, SyncConflict conflict, ConflictResolutionPolicy policy, DbConnection connection, DbTransaction transaction = null)
         {
             var conflictAction = ConflictResolution.ServerWins;
 
@@ -345,11 +348,13 @@ namespace Dotmim.Sync
         /// Handle a conflict
         /// The int returned is the conflict count I need 
         /// </summary>
-        internal async Task<(ChangeApplicationAction, int, DmRow)> 
-            HandleConflictAsync(
-            DbSyncAdapter syncAdapter, SyncContext context, SyncConflict conflict, ConflictResolutionPolicy policy, Guid applyingScopeId, long lastTimestamp, DbConnection connection, DbTransaction transaction)
+        internal async Task<(ChangeApplicationAction, int, SyncRow)>HandleConflictAsync(
+                                DbSyncAdapter syncAdapter, SyncContext context, SyncConflict conflict, 
+                                ConflictResolutionPolicy policy, Guid applyingScopeId, long lastTimestamp, 
+                                DbConnection connection, DbTransaction transaction)
         {
-            DmRow finalRow;
+
+            SyncRow finalRow;
             ApplyAction conflictApplyAction;
             (conflictApplyAction, finalRow) = await this.GetConflictActionAsync(context, conflict, policy, connection, transaction).ConfigureAwait(false);
 
@@ -387,10 +392,10 @@ namespace Dotmim.Sync
                         if (!isUpdated)
                         {
                             // Insert the row
-                            isInserted = syncAdapter.ApplyInsert(row,  applyingScopeId,  lastTimestamp, true);
+                            isInserted = syncAdapter.ApplyInsert(row, applyingScopeId, lastTimestamp, true);
                             // Then update the row to mark this row as updated from server
                             // and get it back to client 
-                            isUpdated = syncAdapter.ApplyUpdate(row,  applyingScopeId,  lastTimestamp, true);
+                            isUpdated = syncAdapter.ApplyUpdate(row, applyingScopeId, lastTimestamp, true);
 
                             commandType = DbCommandType.InsertMetadata;
                         }
@@ -406,8 +411,7 @@ namespace Dotmim.Sync
                             using (var metadataCommand = syncAdapter.GetCommand(commandType))
                             {
                                 // getting the row updated from server
-                                var dmTableRow = syncAdapter.GetRow(row);
-                                row = dmTableRow.Rows[0];
+                                row = syncAdapter.GetRow(row, syncAdapter.TableDescription);
 
                                 // Deriving Parameters
                                 syncAdapter.SetCommandParameters(commandType, metadataCommand);
@@ -415,10 +419,8 @@ namespace Dotmim.Sync
                                 // Set the id parameter
                                 syncAdapter.SetColumnParametersValues(metadataCommand, row);
 
-                                var version = row.RowState == DmRowState.Deleted ? DmRowVersion.Original : DmRowVersion.Current;
-
                                 Guid? create_scope_id = row["create_scope_id"] != DBNull.Value ? (Guid?)row["create_scope_id"] : null;
-                                long createTimestamp = row["create_timestamp", version] != DBNull.Value ? Convert.ToInt64(row["create_timestamp", version]) : 0;
+                                long createTimestamp = row["create_timestamp"] != DBNull.Value ? Convert.ToInt64(row["create_timestamp"]) : 0;
 
                                 // The trick is to force the row to be "created before last sync"
                                 // Even if we just inserted it
@@ -428,7 +430,7 @@ namespace Dotmim.Sync
 
                                 // Update scope id is set to server side
                                 Guid? update_scope_id = row["update_scope_id"] != DBNull.Value ? (Guid?)row["update_scope_id"] : null;
-                                long updateTimestamp = row["update_timestamp", version] != DBNull.Value ? Convert.ToInt64(row["update_timestamp", version]) : 0;
+                                long updateTimestamp = row["update_timestamp"] != DBNull.Value ? Convert.ToInt64(row["update_timestamp"]) : 0;
 
                                 row["update_scope_id"] = null;
                                 row["update_timestamp"] = updateTimestamp;
@@ -547,6 +549,7 @@ namespace Dotmim.Sync
             return (ChangeApplicationAction.Rollback, 0, finalRow);
 
         }
+
 
 
 

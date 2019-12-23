@@ -10,7 +10,7 @@ namespace Dotmim.Sync
     /// </summary>
     public class SchemaArgs : ProgressArgs
     {
-        public SchemaArgs(SyncContext context, DmSet schema, DbConnection connection, DbTransaction transaction)
+        public SchemaArgs(SyncContext context, SyncSet schema, DbConnection connection, DbTransaction transaction)
             : base(context, connection, transaction) => this.Schema = schema;
 
         /// <summary>
@@ -21,7 +21,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the schema to be applied. If no tables are filled, the schema will be read.
         /// </summary>
-        public DmSet Schema { get; }
+        public SyncSet Schema { get; }
         public override string Message => $"Synced tables count: {this.Schema.Tables.Count}";
 
     }

@@ -19,7 +19,7 @@ namespace Dotmim.Sync
 
         public RemoteOrchestrator(CoreProvider serverProvider) => this.Provider = serverProvider;
 
-          /// <summary>
+        /// <summary>
         /// Set an interceptor to get info on the current sync process
         /// </summary>
         public void On<T>(Func<T, Task> interceptorFunc) where T : ProgressArgs => this.Provider.On(interceptorFunc);
@@ -39,10 +39,17 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get the scope infos from remote
         /// </summary>
-        public async Task<(SyncContext, SyncSchema)>
-            EnsureSchemaAsync(SyncContext context, SyncSchema schema,
+        public async Task<(SyncContext, SyncSet)>
+            EnsureSchemaAsync(SyncContext context, SyncSet schema,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
+
+            // Is it the first time we come to ensure schema ?
+            var checkSchema = schema.HasTables && !schema.HasColumns;
+
+            if (!checkSchema)
+                return (context, schema);
+
             using (var connection = this.Provider.CreateConnection())
             {
                 await connection.OpenAsync().ConfigureAwait(false);
@@ -57,35 +64,18 @@ namespace Dotmim.Sync
                         // Interceptors
                         await this.Provider.InterceptAsync(new TransactionOpenArgs(context, connection, transaction)).ConfigureAwait(false);
 
-                        // ----------------------------------------
-                        // 0) Begin Session 
-                        // ----------------------------------------
-
-                        // Send the configuration to remote provider and get back a new one if needed
+                        // Begin Session 
                         context = await this.Provider.BeginSessionAsync(context, cancellationToken, progress).ConfigureAwait(false);
 
-                        // Is it the first time we come to ensure schema ?
-                        var checkSchema = schema.GetSet().HasTables && !schema.GetSet().HasColumns;
 
-                        // ----------------------------------------
-                        // 2) Get Schema from remote provider
-                        // ----------------------------------------
-                        (context, schema) = await this.Provider.EnsureSchemaAsync(context, schema, 
-                                                    connection, transaction, cancellationToken, progress
-                                                ).ConfigureAwait(false);
+                        // Get Schema from remote provider
+                        (context, schema) = await this.Provider.EnsureSchemaAsync(context, schema, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                         if (cancellationToken.IsCancellationRequested)
                             cancellationToken.ThrowIfCancellationRequested();
 
-                        // ----------------------------------------
-                        // 3) Ensure databases are ready
-                        // ----------------------------------------
-
-                        // Server should have already the schema
-                        context = await this.Provider.EnsureDatabaseAsync(context,
-                            new MessageEnsureDatabase(checkSchema, schema.GetSet(), schema.Filters),
-                            connection, transaction,
-                            cancellationToken, progress).ConfigureAwait(false);
+                        // Ensure databases are ready
+                        context = await this.Provider.EnsureDatabaseAsync(context, schema, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                         if (cancellationToken.IsCancellationRequested)
                             cancellationToken.ThrowIfCancellationRequested();
@@ -118,7 +108,7 @@ namespace Dotmim.Sync
         }
 
         public async Task<(SyncContext, long, BatchInfo, ConflictResolutionPolicy, DatabaseChangesSelected)>
-            ApplyThenGetChangesAsync(SyncContext context, ScopeInfo scope, SyncSchema schema, BatchInfo clientBatchInfo,
+            ApplyThenGetChangesAsync(SyncContext context, ScopeInfo scope, SyncSet schema, BatchInfo clientBatchInfo,
                                      bool disableConstraintsOnApplyChanges, bool useBulkOperations, bool cleanMetadatas,
                                      int clientBatchSize, string batchDirectory, ConflictResolutionPolicy policy,
                                      CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
@@ -139,12 +129,12 @@ namespace Dotmim.Sync
                     try
                     {
                         await this.Provider.InterceptAsync(new TransactionOpenArgs(context, connection, transaction)).ConfigureAwait(false);
-                       
+
                         DatabaseChangesApplied changesApplied;
-                        
+
                         (context, changesApplied) =
                             await this.Provider.ApplyChangesAsync(context,
-                             new MessageApplyChanges(scope.Id, false, scope.LastServerSyncTimestamp, schema, policy, 
+                             new MessageApplyChanges(scope.Id, false, scope.LastServerSyncTimestamp, schema, policy,
                                         disableConstraintsOnApplyChanges, useBulkOperations, cleanMetadatas, clientBatchInfo),
                              connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -171,7 +161,7 @@ namespace Dotmim.Sync
                         (context, serverBatchInfo, serverChangesSelected) =
                             await this.Provider.GetChangeBatchAsync(context,
                                 new MessageGetChangesBatch(scope.Id, scope.IsNewScope, scope.LastServerSyncTimestamp,
-                                    schema.GetSet(), clientBatchSize, batchDirectory,  schema.Filters),
+                                    schema, clientBatchSize, batchDirectory),
                                     connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                         if (cancellationToken.IsCancellationRequested)

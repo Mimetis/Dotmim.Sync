@@ -18,9 +18,9 @@ namespace Dotmim.Sync
         /// Generate the DmTable configuration from a given columns list
         /// Validate that all columns are currently supported by the provider
         /// </summary>
-        private void ValidateTableFromColumns(DmTable dmTable, IEnumerable<DmColumn> columns, IDbManagerTable dbManagerTable)
+        private void ValidateTableFromColumns(SyncTable schemaTable, IEnumerable<SyncColumn> columns, SyncSet schema, IDbManagerTable dbManagerTable)
         {
-            dmTable.OriginalProvider = this.ProviderTypeName;
+            schemaTable.OriginalProvider = this.ProviderTypeName;
 
             var ordinal = 0;
 
@@ -29,10 +29,10 @@ namespace Dotmim.Sync
                 return;
 
             // Get PrimaryKey
-            var dmTableKeys = dbManagerTable.GetTablePrimaryKeys();
+            var schemaPrimaryKeys = dbManagerTable.GetTablePrimaryKeys();
 
-            if (dmTableKeys == null || dmTableKeys.Any() == false)
-                throw new MissingPrimaryKeyException($"No Primary Keys in table {dmTable.TableName}, Can't make a synchronization with a table without primary keys.");
+            if (schemaPrimaryKeys == null || schemaPrimaryKeys.Any() == false)
+                throw new MissingPrimaryKeyException($"No Primary Keys in table {schemaTable.TableName}, Can't make a synchronization with a table without primary keys.");
 
             //// Check if we have more than one column (excepting primarykeys)
             //var columnsNotPkeys = columns.Count(c => !dmTableKeys.Contains(c.ColumnName));
@@ -41,11 +41,11 @@ namespace Dotmim.Sync
             //    throw new NotSupportedException($"{dmTable.TableName} does not contains any columns, excepting primary keys.");
 
             // Delete all existing columns
-            if (dmTable.PrimaryKey != null && dmTable.PrimaryKey.Columns != null && dmTable.PrimaryKey.Columns.Length > 0)
-                dmTable.PrimaryKey = new DmKey();
+            if (schemaTable.PrimaryKeys.Count > 0)
+                schemaTable.PrimaryKeys.Clear();
 
-            if (dmTable.Columns.Count > 0)
-                dmTable.Columns.Clear();
+            if (schemaTable.Columns.Count > 0)
+                schemaTable.Columns.Clear();
 
             foreach (var column in columns.OrderBy(c => c.Ordinal))
             {
@@ -70,7 +70,7 @@ namespace Dotmim.Sync
                     )
                     throw new NotSupportedException($"The Column name {column.ColumnName} from provider {this.ProviderTypeName} is a reserved column name. Please choose another column name.");
 
-                dmTable.Columns.Add(column);
+                schemaTable.Columns.Add(column);
 
                 // Validate max length
                 column.MaxLength = this.Metadata.ValidateMaxLength(column.OriginalTypeName, column.IsUnsigned, column.IsUnicode, column.MaxLength);
@@ -82,7 +82,7 @@ namespace Dotmim.Sync
                 var columnType = this.Metadata.ValidateType(datastoreDbType);
 
                 // and the DbType
-                column.DbType = this.Metadata.ValidateDbType(column.OriginalTypeName, column.IsUnsigned, column.IsUnicode, column.MaxLength);
+                column.DbType = (int)this.Metadata.ValidateDbType(column.OriginalTypeName, column.IsUnsigned, column.IsUnicode, column.MaxLength);
 
                 // Gets the owner dbtype (SqlDbType, OracleDbType, MySqlDbType, NpsqlDbType & so on ...)
                 // Sqlite does not have it's own type, so it's DbType too
@@ -117,40 +117,40 @@ namespace Dotmim.Sync
 
             }
 
-            var columnsForKey = new DmColumn[dmTableKeys.Count()];
-
-            var i = 0;
-            foreach (var rowColumn in dmTableKeys.OrderBy(r => r.Ordinal))
+            // Set the primary Key
+            foreach (var rowColumn in schemaPrimaryKeys.OrderBy(r => r.Ordinal))
             {
-                var columnKey = dmTable.Columns.FirstOrDefault(c => string.Equals(c.ColumnName, rowColumn.ColumnName, StringComparison.InvariantCultureIgnoreCase));
-                columnsForKey[i++] = columnKey ?? throw new MissingPrimaryKeyException("Primary key found is not present in the columns list");
+                var columnKey = schemaTable.Columns.FirstOrDefault(rowColumn.ColumnName);
+
+                if (columnKey == null)
+                    throw new ArgumentException($"Column {rowColumn.ColumnName} does not exist in {schemaTable.TableName}");
+
+                schemaTable.PrimaryKeys.Add(columnKey.ColumnName);
             }
 
-            // Set the primary Key
-            dmTable.PrimaryKey = new DmKey(columnsForKey);
         }
 
         /// <summary>
         /// update configuration object with tables desc from server database
         /// </summary>
-        private void ReadSchema(DmSet set, DbConnection connection, DbTransaction transaction)
+        private void ReadSchema(SyncSet schema, DbConnection connection, DbTransaction transaction)
         {
-            if (set == null || set.Tables.Count <= 0)
+            if (schema == null || schema.Tables.Count <= 0)
                 throw new ArgumentNullException("syncConfiguration", "Configuration should contains Tables, at least tables with a name");
 
             var relations = new List<DbRelationDefinition>(20);
-            var schemaTables = set.Tables;
+            var schemaTables = schema.Tables;
 
-            foreach (var dmTable in schemaTables)
+            foreach (var schemaTable in schemaTables)
             {
-                var builderTable = this.GetDbManager(dmTable.TableName, dmTable.Schema);
+                var builderTable = this.GetDbManager(schemaTable.TableName, schemaTable.SchemaName);
                 var tblManager = builderTable.CreateManagerTable(connection, transaction);
 
                 // get columns list
                 var lstColumns = tblManager.GetTableDefinition();
 
                 // Validate the column list and get the dmTable configuration object.
-                this.ValidateTableFromColumns(dmTable, lstColumns, tblManager);
+                this.ValidateTableFromColumns(schemaTable, lstColumns, schema, tblManager);
 
                 relations.AddRange(tblManager.GetTableRelations());
             }
@@ -160,12 +160,14 @@ namespace Dotmim.Sync
                 foreach (var r in relations)
                 {
                     // Get table from the relation where we need to work on
-                    var dmTable = set.Tables[r.TableName, r.SchemaName];
+                    var schemaTable = schema.Tables[r.TableName, r.SchemaName];
 
-                    // get DmColumn from DmTable, based on the columns from relations
-                    var tblColumns = r.Columns.OrderBy(kc => kc.Order)
-                        .Select(kc => dmTable.Columns[kc.KeyColumnName])
-                        .ToArray();
+                    // get SchemaColumn from SchemaTable, based on the columns from relations
+                    var schemaColumns = r.Columns.OrderBy(kc => kc.Order)
+                        .Select(kc => {
+                            var schemaColumn = schemaTable.Columns[kc.KeyColumnName];
+                            return new SyncColumnIdentifier(schemaColumn.ColumnName, schemaTable.TableName, schemaTable.SchemaName);
+                        });
 
                     // then Get the foreign table as well
                     var foreignTable = schemaTables[r.ReferenceTableName, r.ReferenceSchemaName];
@@ -176,17 +178,20 @@ namespace Dotmim.Sync
                         continue;
 
                     var foreignColumns = r.Columns.OrderBy(kc => kc.Order)
-                         .Select(fc => foreignTable.Columns[fc.ReferenceColumnName])
-                         .ToArray();
+                         .Select(fc =>
+                         {
+                             var schemaColumn = foreignTable.Columns[fc.ReferenceColumnName];
+                             return new SyncColumnIdentifier(schemaColumn.ColumnName, foreignTable.TableName, foreignTable.SchemaName);
+                         });
 
 
                     if (foreignColumns == null || foreignColumns.Any(c => c == null))
                         throw new NotSupportedException(
                             $"Foreign columns {string.Join(",", r.Columns.Select(kc => kc.ReferenceColumnName))} does not exist in table {r.ReferenceTableName}");
 
-                    var dmRelation = new DmRelation(r.ForeignKey, tblColumns, foreignColumns);
+                    var schemaRelation = new SyncRelation(r.ForeignKey, schemaColumns.ToList(), foreignColumns.ToList());
 
-                    set.Relations.Add(dmRelation);
+                    schema.Relations.Add(schemaRelation);
                 }
             }
 
@@ -195,7 +200,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Ensure configuration is correct on both server and client side
         /// </summary>
-        public virtual async Task<(SyncContext, SyncSchema)> EnsureSchemaAsync(SyncContext context, SyncSchema schema,
+        public virtual async Task<(SyncContext, SyncSet)> EnsureSchemaAsync(SyncContext context, SyncSet schema,
                              DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
@@ -204,12 +209,12 @@ namespace Dotmim.Sync
                 context.SyncStage = SyncStage.SchemaReading;
 
                 // if we dont have already read the tables || we want to overwrite the current config
-                if (schema.GetSet().HasTables && !schema.GetSet().HasColumns)
-                    this.ReadSchema(schema.GetSet(), connection, transaction);
+                if (schema.HasTables && !schema.HasColumns)
+                    this.ReadSchema(schema, connection, transaction);
 
                 // Progress & Interceptor
                 context.SyncStage = SyncStage.SchemaRead;
-                var schemaArgs = new SchemaArgs(context, schema.GetSet(), connection, transaction);
+                var schemaArgs = new SchemaArgs(context, schema, connection, transaction);
                 this.ReportProgress(context, progress, schemaArgs);
                 await this.InterceptAsync(schemaArgs).ConfigureAwait(false);
 

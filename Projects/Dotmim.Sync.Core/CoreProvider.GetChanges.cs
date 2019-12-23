@@ -64,11 +64,11 @@ namespace Dotmim.Sync
                 // if we try a Reinitialize action, don't get any changes from client
                 // else get changes from batch or in memory methods
                 if (context.SyncWay == SyncWay.Upload && context.SyncType == SyncType.Reinitialize)
-                    (batchInfo, changesSelected) = this.GetEmptyChanges(message.BatchSize, message.BatchDirectory);
+                    (batchInfo, changesSelected) = this.GetEmptyChanges(message);
                 else if (message.BatchSize == 0)
-                    (batchInfo, changesSelected) = await this.EnumerateChangesInternalAsync(context, message.ExcludingScopeId, message.IsNew, message.LastTimestamp,  message.Schema, message.Filters, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    (batchInfo, changesSelected) = await this.EnumerateChangesInternalAsync(context, message.ExcludingScopeId, message.IsNew, message.LastTimestamp, message.Schema, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 else
-                    (batchInfo, changesSelected) = await this.EnumerateChangesInBatchesInternalAsync(context, message.ExcludingScopeId, message.IsNew, message.LastTimestamp, message.BatchSize, message.Schema, message.BatchDirectory, message.Filters, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    (batchInfo, changesSelected) = await this.EnumerateChangesInBatchesInternalAsync(context, message.ExcludingScopeId, message.IsNew, message.LastTimestamp, message.BatchSize, message.Schema, message.BatchDirectory, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 return (context, batchInfo, changesSelected);
             }
@@ -83,21 +83,18 @@ namespace Dotmim.Sync
         /// <summary>
         /// Generate an empty BatchInfo
         /// </summary>
-        internal (BatchInfo, DatabaseChangesSelected) GetEmptyChanges(int downloadBatchSizeInKB, string batchDirectory)
+        internal (BatchInfo, DatabaseChangesSelected) GetEmptyChanges(MessageGetChangesBatch message)
         {
             // Get config
-            var isBatched = downloadBatchSizeInKB > 0;
-
-            // create the in memory changes set
-            var changesSet = new DmSet(SyncSchema.DMSET_NAME);
+            var isBatched = message.BatchSize > 0;
 
             // Create the batch info, in memory
-            var batchInfo = new BatchInfo(!isBatched, batchDirectory);
+            var batchInfo = new BatchInfo(!isBatched, message.Schema, message.BatchDirectory); ;
 
             // add changes to batchInfo
-            batchInfo.AddChanges(new DmSetLight(changesSet));
+            batchInfo.AddChanges(new SyncSet());
 
-            // Create a new in-memory batch info with an the changes DmSet
+            // Create a new empty in-memory batch info
             return (batchInfo, new DatabaseChangesSelected());
 
         }
@@ -106,12 +103,18 @@ namespace Dotmim.Sync
         /// Enumerate all internal changes, no batch mode
         /// </summary>
         internal async Task<(BatchInfo, DatabaseChangesSelected)> EnumerateChangesInternalAsync(
-            SyncContext context, Guid excludingScopeId, bool isNew, long lastTimestamp, DmSet schemaSet, ICollection<FilterClause> filters,
+            SyncContext context, Guid excludingScopeId, bool isNew, long lastTimestamp, SyncSet schema,
             DbConnection connection, DbTransaction transaction,
             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
             // create the in memory changes set
-            var changesSet = new DmSetLight(schemaSet.DmSetName, schemaSet.CaseSensitive);
+            var changesSet = new SyncSet
+            {
+                CaseSensitive = schema.CaseSensitive,
+                CultureInfoName = schema.CultureInfoName,
+                ScopeName = schema.ScopeName,
+                DataSourceName = schema.DataSourceName
+            };
 
             // Create the batch info, in memory
             // No need to geneate a directory name, since we are in memory
@@ -122,38 +125,36 @@ namespace Dotmim.Sync
                 // changes that will be returned as selected changes
                 var changes = new DatabaseChangesSelected();
 
-                foreach (var tableDescription in schemaSet.Tables)
+                foreach (var syncTable in schema.Tables)
                 {
                     // if we are in upload stage, so check if table is not download only
-                    if (context.SyncWay == SyncWay.Upload && tableDescription.SyncDirection == SyncDirection.DownloadOnly)
+                    if (context.SyncWay == SyncWay.Upload && syncTable.SyncDirection == SyncDirection.DownloadOnly)
                         continue;
 
                     // if we are in download stage, so check if table is not download only
-                    if (context.SyncWay == SyncWay.Download && tableDescription.SyncDirection == SyncDirection.UploadOnly)
+                    if (context.SyncWay == SyncWay.Download && syncTable.SyncDirection == SyncDirection.UploadOnly)
                         continue;
 
-                    var builder = this.GetDatabaseBuilder(tableDescription);
+                    var builder = this.GetDatabaseBuilder(syncTable);
                     var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
 
                     // raise before event
                     context.SyncStage = SyncStage.TableChangesSelecting;
                     // launch any interceptor
-                    await this.InterceptAsync(new TableChangesSelectingArgs(context, tableDescription.TableName, connection, transaction)).ConfigureAwait(false);
+                    await this.InterceptAsync(new TableChangesSelectingArgs(context, syncTable.TableName, connection, transaction)).ConfigureAwait(false);
 
                     // selected changes for the current table
-                    var tableSelectedChanges = new TableChangesSelected
-                    {
-                        TableName = tableDescription.TableName
-                    };
+                    var tableSelectedChanges = new TableChangesSelected(syncTable.TableName);
 
                     // Get Command
                     DbCommand selectIncrementalChangesCommand;
                     DbCommandType dbCommandType;
 
-                    if (this.CanBeServerProvider && context.Parameters != null && context.Parameters.Count > 0 && filters != null && filters.Count > 0)
+                    if (this.CanBeServerProvider && context.Parameters != null
+                        && context.Parameters.Count > 0
+                        && schema.Filters != null && schema.Filters.Count > 0)
                     {
-                        var tableFilters = filters
-                                        .Where(f => f.TableName.Equals(tableDescription.TableName, StringComparison.InvariantCultureIgnoreCase));
+                        var tableFilters = schema.Filters.Where(syncTable);
 
                         if (tableFilters != null && tableFilters.Count() > 0)
                         {
@@ -181,81 +182,55 @@ namespace Dotmim.Sync
                         syncAdapter.SetCommandParameters(dbCommandType, selectIncrementalChangesCommand);
                     }
 
-
-
-                    // Get a clone of the table with tracking columns
-                    var dmTableChanges = this.BuildChangesTable(tableDescription);
-
                     SetSelectChangesCommonParameters(context, excludingScopeId, isNew, lastTimestamp, selectIncrementalChangesCommand);
 
                     // Set filter parameters if any
-                    if (this.CanBeServerProvider && context.Parameters != null && context.Parameters.Count > 0 && filters != null && filters.Count > 0)
+                    if (this.CanBeServerProvider && context.Parameters != null && context.Parameters.Count > 0
+                        && schema.Filters != null && schema.Filters.Count > 0)
                     {
-                        var tableFilters = filters
-                            .Where(f => f.TableName.Equals(tableDescription.TableName, StringComparison.InvariantCultureIgnoreCase)).ToList();
+                        var tableFilters = schema.Filters.Where(syncTable);
 
-                        if (tableFilters != null && tableFilters.Count > 0)
+                        foreach (var filter in tableFilters)
                         {
-                            foreach (var filter in tableFilters)
-                            {
-                                var parameter = context.Parameters.FirstOrDefault(p => p.ColumnName.Equals(filter.ColumnName, StringComparison.InvariantCultureIgnoreCase) && p.TableName.Equals(filter.TableName, StringComparison.InvariantCultureIgnoreCase));
+                            var parameter = context.Parameters.FirstOrDefault(p => p.ColumnName.Equals(filter.ColumnName, StringComparison.InvariantCultureIgnoreCase) && p.TableName.Equals(filter.TableName, StringComparison.InvariantCultureIgnoreCase));
 
-                                if (parameter != null)
-                                    DbManager.SetParameterValue(selectIncrementalChangesCommand, parameter.ColumnName, parameter.Value);
-                            }
+                            if (parameter != null)
+                                DbManager.SetParameterValue(selectIncrementalChangesCommand, parameter.ColumnName, parameter.Value);
                         }
                     }
 
-                    this.AddTrackingColumns<int>(dmTableChanges, "sync_row_is_tombstone");
+
+                    var changesTable = DbSyncAdapter.CreateChangesTable(syncTable) ;
+                    changesSet.Tables.Add(changesTable);
 
                     // Get the reader
                     using (var dataReader = selectIncrementalChangesCommand.ExecuteReader())
                     {
+                        // Create the container that will contains all the rows for this table
+
                         while (dataReader.Read())
                         {
-                            var dataRow = this.CreateRowFromReader(dataReader, dmTableChanges);
+                            var row = CreateSyncRowFromReader(dataReader, changesTable,excludingScopeId, isNew, lastTimestamp);
 
-                            // assuming the row is not inserted / modified
-                            var state = DmRowState.Unchanged;
-
-                            // get if the current row is inserted, modified, deleted
-                            state = this.GetStateFromDmRow(dataRow, excludingScopeId, isNew, lastTimestamp);
-
-                            if (state != DmRowState.Deleted && state != DmRowState.Modified && state != DmRowState.Added)
+                            if (row.RowState != DataRowState.Deleted && row.RowState != DataRowState.Modified && row.RowState != DataRowState.Added)
                                 continue;
 
-                            // add row
-                            dmTableChanges.Rows.Add(dataRow);
-
-                            // acceptchanges before modifying 
-                            dataRow.AcceptChanges();
                             tableSelectedChanges.TotalChanges++;
 
                             // Set the correct state to be applied
-                            if (state == DmRowState.Deleted)
-                            {
-                                dataRow.Delete();
+                            if (row.RowState == DataRowState.Deleted)
                                 tableSelectedChanges.Deletes++;
-                            }
-                            else if (state == DmRowState.Added)
-                            {
-                                dataRow.SetAdded();
+                            else if (row.RowState == DataRowState.Added)
                                 tableSelectedChanges.Inserts++;
-                            }
-                            else if (state == DmRowState.Modified)
-                            {
-                                dataRow.SetModified();
+                            else if (row.RowState == DataRowState.Modified)
                                 tableSelectedChanges.Updates++;
-                            }
-                        } 
 
-                        // Since we dont need this column anymore, remove it
-                        this.RemoveTrackingColumns(dmTableChanges, "sync_row_is_tombstone");
+                            changesTable.Rows.Add(row);
+                        }
 
-                        // add it to the DmSet
-                        changesSet.Tables.Add(new DmTableLight(dmTableChanges));
-
+                        dataReader.Close();
                     }
+
 
                     selectIncrementalChangesCommand.Dispose();
                     // add the stats to global stats
@@ -271,7 +246,7 @@ namespace Dotmim.Sync
                 // add changes to batchinfo
                 batchInfo.AddChanges(changesSet);
 
-                // Create a new in-memory batch info with an the changes DmSet
+                // Create a new in-memory batch info with an the changes
                 return (batchInfo, changes);
 
             }
@@ -322,18 +297,19 @@ namespace Dotmim.Sync
         /// Enumerate all internal changes, no batch mode
         /// </summary>
         internal async Task<(BatchInfo, DatabaseChangesSelected)> EnumerateChangesInBatchesInternalAsync(
-             SyncContext context, Guid excludingScopeId, bool isNew, long lastTimestamp, int downloadBatchSizeInKB, DmSet schemaSet, string batchDirectory,  ICollection<FilterClause> filters,
+             SyncContext context, Guid excludingScopeId, bool isNew, long lastTimestamp, int downloadBatchSizeInKB,
+             SyncSet schema, string batchDirectory,
              DbConnection connection, DbTransaction transaction,
              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
-            DmTable dmTable = null;
             // memory size total
-            double memorySizeFromDmRows = 0L;
+            double rowsMemorySize = 0L;
 
+            // numbers of batch files generated
             var batchIndex = 0;
 
             // this batch info won't be in memory, it will be be batched
-            var batchInfo = new BatchInfo(false, batchDirectory);
+            var batchInfo = new BatchInfo(false, schema, batchDirectory);
 
             // Create stats object to store changes count
             var changes = new DatabaseChangesSelected();
@@ -341,24 +317,33 @@ namespace Dotmim.Sync
             try
             {
                 // create the in memory changes set
-                var changesSet = new DmSetLight(schemaSet.DmSetName, schemaSet.CaseSensitive);
+                var changesSet = new SyncSet
+                {
+                    CaseSensitive = schema.CaseSensitive,
+                    CultureInfoName = schema.CultureInfoName,
+                    ScopeName = schema.ScopeName,
+                    DataSourceName = schema.DataSourceName
+                };
 
-                foreach (var tableDescription in schemaSet.Tables)
+                foreach (var syncTable in schema.Tables)
                 {
                     // if we are in upload stage, so check if table is not download only
-                    if (context.SyncWay == SyncWay.Upload && tableDescription.SyncDirection == SyncDirection.DownloadOnly)
+                    if (context.SyncWay == SyncWay.Upload && syncTable.SyncDirection == SyncDirection.DownloadOnly)
                         continue;
 
                     // if we are in download stage, so check if table is not download only
-                    if (context.SyncWay == SyncWay.Download && tableDescription.SyncDirection == SyncDirection.UploadOnly)
+                    if (context.SyncWay == SyncWay.Download && syncTable.SyncDirection == SyncDirection.UploadOnly)
                         continue;
 
-                    var builder = this.GetDatabaseBuilder(tableDescription);
+                    var builder = this.GetDatabaseBuilder(syncTable);
                     var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
+
+                    // get ordered columns that are mutables and pkeys
+                    var orderedNames = syncTable.GetMutableColumnsWithPrimaryKeys().Select(c => c.ColumnName);
 
                     // raise before event
                     context.SyncStage = SyncStage.TableChangesSelecting;
-                    var tableChangesSelectingArgs = new TableChangesSelectingArgs(context, tableDescription.TableName, connection, transaction);
+                    var tableChangesSelectingArgs = new TableChangesSelectingArgs(context, syncTable.TableName, connection, transaction);
                     // launc interceptor if any
                     await this.InterceptAsync(tableChangesSelectingArgs).ConfigureAwait(false);
 
@@ -366,10 +351,9 @@ namespace Dotmim.Sync
                     DbCommand selectIncrementalChangesCommand;
                     DbCommandType dbCommandType;
 
-                    if (this.CanBeServerProvider && context.Parameters != null && context.Parameters.Count > 0 && filters != null && filters.Count > 0)
+                    if (this.CanBeServerProvider && context.Parameters != null && context.Parameters.Count > 0 && schema.Filters.Count > 0)
                     {
-                        var tableFilters = filters
-                                        .Where(f => f.TableName.Equals(tableDescription.TableName, StringComparison.InvariantCultureIgnoreCase));
+                        var tableFilters = schema.Filters.Where(syncTable);
 
                         if (tableFilters != null && tableFilters.Count() > 0)
                         {
@@ -397,10 +381,6 @@ namespace Dotmim.Sync
                         syncAdapter.SetCommandParameters(dbCommandType, selectIncrementalChangesCommand);
                     }
 
-
-
-                    dmTable = this.BuildChangesTable(tableDescription);
-
                     try
                     {
                         // Set commons parameters
@@ -408,90 +388,68 @@ namespace Dotmim.Sync
 
                         // Set filter parameters if any
                         // Only on server side
-                        if (this.CanBeServerProvider && context.Parameters != null && context.Parameters.Count > 0 && filters != null && filters.Count > 0)
+                        if (this.CanBeServerProvider && context.Parameters != null && context.Parameters.Count > 0 && schema.Filters.Count > 0)
                         {
-                            var filterTable = filters.Where(f => f.TableName.Equals(tableDescription.TableName, StringComparison.InvariantCultureIgnoreCase)).ToList();
+                            var filterTable = schema.Filters.Where(syncTable);
 
-                            if (filterTable != null && filterTable.Count > 0)
+                            foreach (var filter in filterTable)
                             {
-                                foreach (var filter in filterTable)
-                                {
-                                    var parameter = context.Parameters.FirstOrDefault(p => p.ColumnName.Equals(filter.ColumnName, StringComparison.InvariantCultureIgnoreCase) && p.TableName.Equals(filter.TableName, StringComparison.InvariantCultureIgnoreCase));
+                                var parameter = context.Parameters.FirstOrDefault(p => p.ColumnName.Equals(filter.ColumnName, StringComparison.InvariantCultureIgnoreCase) && p.TableName.Equals(filter.TableName, StringComparison.InvariantCultureIgnoreCase));
 
-                                    if (parameter != null)
-                                        DbManager.SetParameterValue(selectIncrementalChangesCommand, parameter.ColumnName, parameter.Value);
-                                }
+                                if (parameter != null)
+                                    DbManager.SetParameterValue(selectIncrementalChangesCommand, parameter.ColumnName, parameter.Value);
                             }
                         }
 
-                        this.AddTrackingColumns<int>(dmTable, "sync_row_is_tombstone");
-
                         // Statistics
-                        var tableChangesSelected = new TableChangesSelected
-                        {
-                            TableName = tableDescription.TableName
-                        };
+                        var tableChangesSelected = new TableChangesSelected(syncTable.TableName);
 
                         changes.TableChangesSelected.Add(tableChangesSelected);
 
                         // Get the reader
                         using (var dataReader = selectIncrementalChangesCommand.ExecuteReader())
                         {
+                            // get the table
+                            var changesSetTable = DbSyncAdapter.CreateChangesTable(syncTable);
+                            changesSetTable.Schema = changesSet;
+
                             while (dataReader.Read())
                             {
-                                var dmRow = this.CreateRowFromReader(dataReader, dmTable);
+                                var row = CreateSyncRowFromReader(dataReader, changesSetTable, excludingScopeId, isNew, lastTimestamp);
 
-                                var state = DmRowState.Unchanged;
-
-                                state = this.GetStateFromDmRow(dmRow, excludingScopeId, isNew, lastTimestamp);
-
-                                // If the row is not deleted inserted or modified, go next
-                                if (state != DmRowState.Deleted && state != DmRowState.Modified && state != DmRowState.Added)
+                                if (row.RowState != DataRowState.Deleted && row.RowState != DataRowState.Modified && row.RowState != DataRowState.Added)
                                     continue;
 
-                                var fieldsSize = DmTableSurrogate.GetRowSizeFromDataRow(dmRow);
-                                var dmRowSize = fieldsSize / 1024d;
-
-                                if (dmRowSize > downloadBatchSizeInKB)
+                                var fieldsSize = ContainerTable.GetRowSizeFromDataRow(row.ToArray());
+                                var finalFieldSize = fieldsSize / 1024d;
+                       
+                                if (finalFieldSize > downloadBatchSizeInKB)
                                 {
-                                    var exc = $"Row is too big ({dmRowSize} kb.) for the current Configuration.DownloadBatchSizeInKB ({downloadBatchSizeInKB} kb.) Aborting Sync...";
+                                    var exc = $"Row is too big ({finalFieldSize} kb.) for the current Configuration.DownloadBatchSizeInKB ({downloadBatchSizeInKB} kb.) Aborting Sync...";
                                     throw new Exception(exc);
                                 }
 
                                 // Calculate the new memory size
-                                memorySizeFromDmRows = memorySizeFromDmRows + dmRowSize;
+                                rowsMemorySize += finalFieldSize;
 
-                                // add row
-                                dmTable.Rows.Add(dmRow);
+                                tableChangesSelected.TotalChanges++;
                                 tableChangesSelected.TotalChanges++;
 
-                                // acceptchanges before modifying 
-                                dmRow.AcceptChanges();
-
                                 // Set the correct state to be applied
-                                if (state == DmRowState.Deleted)
-                                {
-                                    dmRow.Delete();
+                                if (row.RowState == DataRowState.Deleted)
                                     tableChangesSelected.Deletes++;
-                                }
-                                else if (state == DmRowState.Added)
-                                {
-                                    dmRow.SetAdded();
+                                else if (row.RowState == DataRowState.Added)
                                     tableChangesSelected.Inserts++;
-                                }
-                                else if (state == DmRowState.Modified)
-                                {
-                                    dmRow.SetModified();
+                                else if (row.RowState == DataRowState.Modified)
                                     tableChangesSelected.Updates++;
-                                }
+
+                                // Create an ordered item array
+                                changesSetTable.Rows.Add(row);
 
                                 // We exceed the memorySize, so we can add it to a batch
-                                if (memorySizeFromDmRows > downloadBatchSizeInKB)
+                                if (rowsMemorySize > downloadBatchSizeInKB)
                                 {
-                                    // Since we dont need this column anymore, remove it
-                                    this.RemoveTrackingColumns(dmTable, "sync_row_is_tombstone");
-
-                                    changesSet.Tables.Add(new DmTableLight(dmTable));
+                                    changesSet.Tables.Add(changesSetTable);
 
                                     // add changes to batchinfo
                                     batchInfo.AddChanges(changesSet, batchIndex, false);
@@ -500,17 +458,22 @@ namespace Dotmim.Sync
                                     batchIndex++;
 
                                     // we know the datas are serialized here, so we can flush  the set
-                                    dmTable.Clear();
                                     changesSet.Clear();
 
-                                    // Recreate an empty DmSet, then a dmTable clone
-                                    changesSet = new DmSetLight(schemaSet.DmSetName, schemaSet.CaseSensitive);
+                                    // Recreate an empty ContainerSet and a ContainerTable
+                                    changesSet = new SyncSet
+                                    {
+                                        CaseSensitive = schema.CaseSensitive,
+                                        CultureInfoName = schema.CultureInfoName,
+                                        ScopeName = schema.ScopeName,
+                                        DataSourceName = schema.DataSourceName
+                                    };
 
-                                    dmTable = dmTable.Clone();
-                                    this.AddTrackingColumns<int>(dmTable, "sync_row_is_tombstone");
+                                    changesSetTable = changesSetTable.Clone();
+                                    changesSetTable.Schema = changesSet;
 
                                     // Init the row memory size
-                                    memorySizeFromDmRows = 0L;
+                                    rowsMemorySize = 0L;
 
                                     // SyncProgress & interceptor
                                     context.SyncStage = SyncStage.TableChangesSelected;
@@ -520,15 +483,12 @@ namespace Dotmim.Sync
                                 }
                             }
 
-                            // Since we dont need this column anymore, remove it
-                            this.RemoveTrackingColumns(dmTable, "sync_row_is_tombstone");
-
                             context.SyncStage = SyncStage.TableChangesSelected;
 
-                            changesSet.Tables.Add(new DmTableLight(dmTable));
+                            changesSet.Tables.Add(changesSetTable);
 
                             // Init the row memory size
-                            memorySizeFromDmRows = 0L;
+                            rowsMemorySize = 0L;
 
                             // Event progress & interceptor
                             context.SyncStage = SyncStage.TableChangesSelected;
@@ -564,119 +524,51 @@ namespace Dotmim.Sync
         }
 
 
+      
+
+
+
         /// <summary>
-        /// Create a DmRow from a IDataReader
+        /// Read a row from a reader and set a dictionary with all column name / column value
         /// </summary>
-        private DmRow CreateRowFromReader(IDataReader dataReader, DmTable dmTable)
+        private SyncRow CreateSyncRowFromReader(IDataReader dataReader, SyncTable table, Guid excludingScopeId, bool isNew, long lastTimestamp)
         {
-            // we have an insert / update or delete
-            var dataRow = dmTable.NewRow();
+
+            // Create a new row, based on table structure
+            var row = table.NewRow();
+
+            bool isTombstone = false;
 
             for (var i = 0; i < dataReader.FieldCount; i++)
             {
                 var columnName = dataReader.GetName(i);
-                var dmRowObject = dataReader.GetValue(i);
 
-                if (dmRowObject != DBNull.Value)
+                // if we have the tombstone value, do not add it to the table
+                if (columnName == "sync_row_is_tombstone")
                 {
-                    if (dmRowObject != null)
-                    {
-                        var columnType = dmTable.Columns[columnName].DataType;
-                        var dmRowObjectType = dmRowObject.GetType();
-
-                        if (dmRowObjectType != columnType && columnType != typeof(object))
-                        {
-                            if (columnType == typeof(Guid) && (dmRowObject as string) != null)
-                                dmRowObject = new Guid(dmRowObject.ToString());
-                            else if (columnType == typeof(Guid) && dmRowObject.GetType() == typeof(byte[]))
-                                dmRowObject = dataReader.GetGuid(i);
-                            else if (columnType == typeof(int) && dmRowObjectType != typeof(int))
-                                dmRowObject = Convert.ToInt32(dmRowObject);
-                            else if (columnType == typeof(uint) && dmRowObjectType != typeof(uint))
-                                dmRowObject = Convert.ToUInt32(dmRowObject);
-                            else if (columnType == typeof(short) && dmRowObjectType != typeof(short))
-                                dmRowObject = Convert.ToInt16(dmRowObject);
-                            else if (columnType == typeof(ushort) && dmRowObjectType != typeof(ushort))
-                                dmRowObject = Convert.ToUInt16(dmRowObject);
-                            else if (columnType == typeof(long) && dmRowObjectType != typeof(long))
-                                dmRowObject = Convert.ToInt64(dmRowObject);
-                            else if (columnType == typeof(ulong) && dmRowObjectType != typeof(ulong))
-                                dmRowObject = Convert.ToUInt64(dmRowObject);
-                            else if (columnType == typeof(byte) && dmRowObjectType != typeof(byte))
-                                dmRowObject = Convert.ToByte(dmRowObject);
-                            else if (columnType == typeof(char) && dmRowObjectType != typeof(char))
-                                dmRowObject = Convert.ToChar(dmRowObject);
-                            else if (columnType == typeof(DateTime) && dmRowObjectType != typeof(DateTime))
-                                dmRowObject = Convert.ToDateTime(dmRowObject);
-                            else if (columnType == typeof(decimal) && dmRowObjectType != typeof(decimal))
-                                dmRowObject = Convert.ToDecimal(dmRowObject);
-                            else if (columnType == typeof(double) && dmRowObjectType != typeof(double))
-                                dmRowObject = Convert.ToDouble(dmRowObject);
-                            else if (columnType == typeof(sbyte) && dmRowObjectType != typeof(sbyte))
-                                dmRowObject = Convert.ToSByte(dmRowObject);
-                            else if (columnType == typeof(float) && dmRowObjectType != typeof(float))
-                                dmRowObject = Convert.ToSingle(dmRowObject);
-                            else if (columnType == typeof(string) && dmRowObjectType != typeof(string))
-                                dmRowObject = Convert.ToString(dmRowObject);
-                            else if (columnType == typeof(bool) && dmRowObjectType != typeof(bool))
-                                dmRowObject = Convert.ToBoolean(dmRowObject);
-                            else if (dmRowObjectType != columnType)
-                            {
-                                var t = dmRowObject.GetType();
-                                var converter = columnType.GetConverter();
-                                if (converter != null && converter.CanConvertFrom(t))
-                                    dmRowObject = converter.ConvertFrom(dmRowObject);
-                            }
-                        }
-                    }
-                    dataRow[columnName] = dmRowObject;
+                    isTombstone = Convert.ToInt64(dataReader.GetValue(i)) > 0;
+                    continue;
                 }
+                
+                var columnValueObject = dataReader.GetValue(i);
+                var columnValue = columnValueObject == DBNull.Value ? null : columnValueObject;
+
+                row[columnName] = columnValue;
+
             }
 
-            return dataRow;
-        }
-
-        private DmTable BuildChangesTable(DmTable table)
-        {
-            var dmTable = table.Clone();
-
-            // Adding the tracking columns
-            this.AddTrackingColumns<Guid>(dmTable, "create_scope_id");
-            this.AddTrackingColumns<long>(dmTable, "create_timestamp");
-            this.AddTrackingColumns<Guid>(dmTable, "update_scope_id");
-            this.AddTrackingColumns<long>(dmTable, "update_timestamp");
-
-            // Since we can have some deleted rows, the Changes table should have only null columns (except PrimaryKeys)
-
-            foreach (var c in dmTable.Columns)
-            {
-                var isPrimaryKey = dmTable.PrimaryKey.Columns.Any(cc => dmTable.IsEqual(cc.ColumnName, c.ColumnName));
-
-                if (!isPrimaryKey)
-                    c.AllowDBNull = true;
-            }
-
-            return dmTable;
-
-        }
-
-
-        /// <summary>
-        /// Get a DmRow state to know is we have an inserted, updated, or deleted row to apply
-        /// </summary>
-        private DmRowState GetStateFromDmRow(DmRow dataRow, Guid excludingScopeId, bool isNew, long lastTimestamp)
-        {
-            var isTombstone = Convert.ToInt64(dataRow["sync_row_is_tombstone"]) > 0;
-
-            DmRowState dmRowState;
+            // Check Row State
+            DataRowState dataRowState;
             if (isTombstone)
-                dmRowState = DmRowState.Deleted;
+            { 
+                row.RowState = DataRowState.Deleted;
+            }
             else
             {
-                var createdTimeStamp = DbManager.ParseTimestamp(dataRow["create_timestamp"]);
-                var updatedTimeStamp = DbManager.ParseTimestamp(dataRow["update_timestamp"]);
-                var updateScopeIdRow = dataRow["update_scope_id"];
-                var createScopeIdRow = dataRow["create_scope_id"];
+                var createdTimeStamp = DbManager.ParseTimestamp(row["create_timestamp"]);
+                var updatedTimeStamp = DbManager.ParseTimestamp(row["update_timestamp"]);
+                var updateScopeIdRow = row["update_scope_id"];
+                var createScopeIdRow = row["create_scope_id"];
 
                 var updateScopeId = (updateScopeIdRow != DBNull.Value && updateScopeIdRow != null) ? (Guid)updateScopeIdRow : (Guid?)null;
                 var createScopeId = (createScopeIdRow != DBNull.Value && createScopeIdRow != null) ? (Guid)createScopeIdRow : (Guid?)null;
@@ -684,29 +576,311 @@ namespace Dotmim.Sync
                 var isLocallyCreated = !createScopeId.HasValue;
                 var islocallyUpdated = !updateScopeId.HasValue || updateScopeId.Value != excludingScopeId;
 
-
                 // Check if a row is modified :
                 // 1) Row is not new
                 // 2) Row update is AFTER last sync of asker
                 // 3) Row insert is BEFORE last sync of asker (if insert is after last sync, it's not an update, it's an insert)
                 if (!isNew && islocallyUpdated && updatedTimeStamp > lastTimestamp && (createdTimeStamp <= lastTimestamp || !isLocallyCreated))
-                    dmRowState = DmRowState.Modified;
+                    dataRowState = DataRowState.Modified;
                 else if (isNew || (isLocallyCreated && createdTimeStamp >= lastTimestamp))
-                    dmRowState = DmRowState.Added;
+                    dataRowState = DataRowState.Added;
                 // The line has been updated from an other host
                 else if (islocallyUpdated && updateScopeId.HasValue && updateScopeId.Value != excludingScopeId)
-                    dmRowState = DmRowState.Modified;
+                    dataRowState = DataRowState.Modified;
                 else
                 {
-                    dmRowState = DmRowState.Unchanged;
+                    dataRowState = DataRowState.Unchanged;
                     Debug.WriteLine($"Row is in Unchanegd state. " +
                         $"\tscopeInfo.Id:{excludingScopeId}, scopeInfo.IsNewScope :{isNew}, scopeInfo.LastTimestamp:{lastTimestamp}" +
                         $"\tcreateScopeId:{createScopeId}, updateScopeId:{updateScopeId}, createdTimeStamp:{createdTimeStamp}, updatedTimeStamp:{updatedTimeStamp}.");
                 }
+
+                row.RowState = dataRowState;
             }
 
-            return dmRowState;
+            return row;
         }
+
+
+        //private object[] CreateRowArray(Dictionary<string, object> dictionary, IEnumerable<string> iterableOrderedNames)
+        //{
+
+        //    // Generate a new array
+        //    // + 1 for state
+        //    // + 1 for	[side].[create_scope_id], 
+        //    // + 1 for	[side].[create_timestamp], 
+        //    // + 1 for	[side].[update_scope_id], 
+        //    // + 1 for	[side].[update_timestamp]
+
+        //    var orderedNames = iterableOrderedNames.ToList();
+
+        //    var itemArray = new object[orderedNames.Count + 5];
+
+        //    // set state
+        //    itemArray[0] = dictionary["state"];
+        //    // Reoder array to fit correctly
+        //    for (int i = 0; i < orderedNames.Count; i++)
+        //        itemArray[i + 1] = dictionary[orderedNames[i]];
+
+        //    itemArray[orderedNames.Count + 1] = dictionary["create_scope_id"];
+        //    itemArray[orderedNames.Count + 2] = dictionary["create_timestamp"];
+        //    itemArray[orderedNames.Count + 3] = dictionary["update_scope_id"];
+        //    itemArray[orderedNames.Count + 4] = dictionary["update_timestamp"];
+
+
+        //    return itemArray;
+        //}
+
+        //private DataRow CreateRowFromReader(IDataReader dataReader, DataTable dmTable)
+        //{
+        //    // we have an insert / update or delete
+        //    var dataRow = dmTable.NewRow();
+
+        //    for (var i = 0; i < dataReader.FieldCount; i++)
+        //    {
+        //        var columnName = dataReader.GetName(i);
+        //        var dmRowObject = dataReader.GetValue(i);
+
+        //        if (dmRowObject != DBNull.Value)
+        //        {
+        //            if (dmRowObject != null)
+        //            {
+        //                var columnType = dmTable.Columns[columnName].DataType;
+        //                var dmRowObjectType = dmRowObject.GetType();
+
+        //                if (dmRowObjectType != columnType && columnType != typeof(object))
+        //                {
+        //                    if (columnType == typeof(Guid) && (dmRowObject as string) != null)
+        //                        dmRowObject = new Guid(dmRowObject.ToString());
+        //                    else if (columnType == typeof(Guid) && dmRowObject.GetType() == typeof(byte[]))
+        //                        dmRowObject = dataReader.GetGuid(i);
+        //                    else if (columnType == typeof(int) && dmRowObjectType != typeof(int))
+        //                        dmRowObject = Convert.ToInt32(dmRowObject);
+        //                    else if (columnType == typeof(uint) && dmRowObjectType != typeof(uint))
+        //                        dmRowObject = Convert.ToUInt32(dmRowObject);
+        //                    else if (columnType == typeof(short) && dmRowObjectType != typeof(short))
+        //                        dmRowObject = Convert.ToInt16(dmRowObject);
+        //                    else if (columnType == typeof(ushort) && dmRowObjectType != typeof(ushort))
+        //                        dmRowObject = Convert.ToUInt16(dmRowObject);
+        //                    else if (columnType == typeof(long) && dmRowObjectType != typeof(long))
+        //                        dmRowObject = Convert.ToInt64(dmRowObject);
+        //                    else if (columnType == typeof(ulong) && dmRowObjectType != typeof(ulong))
+        //                        dmRowObject = Convert.ToUInt64(dmRowObject);
+        //                    else if (columnType == typeof(byte) && dmRowObjectType != typeof(byte))
+        //                        dmRowObject = Convert.ToByte(dmRowObject);
+        //                    else if (columnType == typeof(char) && dmRowObjectType != typeof(char))
+        //                        dmRowObject = Convert.ToChar(dmRowObject);
+        //                    else if (columnType == typeof(DateTime) && dmRowObjectType != typeof(DateTime))
+        //                        dmRowObject = Convert.ToDateTime(dmRowObject);
+        //                    else if (columnType == typeof(decimal) && dmRowObjectType != typeof(decimal))
+        //                        dmRowObject = Convert.ToDecimal(dmRowObject);
+        //                    else if (columnType == typeof(double) && dmRowObjectType != typeof(double))
+        //                        dmRowObject = Convert.ToDouble(dmRowObject);
+        //                    else if (columnType == typeof(sbyte) && dmRowObjectType != typeof(sbyte))
+        //                        dmRowObject = Convert.ToSByte(dmRowObject);
+        //                    else if (columnType == typeof(float) && dmRowObjectType != typeof(float))
+        //                        dmRowObject = Convert.ToSingle(dmRowObject);
+        //                    else if (columnType == typeof(string) && dmRowObjectType != typeof(string))
+        //                        dmRowObject = Convert.ToString(dmRowObject);
+        //                    else if (columnType == typeof(bool) && dmRowObjectType != typeof(bool))
+        //                        dmRowObject = Convert.ToBoolean(dmRowObject);
+        //                    else if (dmRowObjectType != columnType)
+        //                    {
+        //                        var t = dmRowObject.GetType();
+        //                        var converter = columnType.GetConverter();
+        //                        if (converter != null && converter.CanConvertFrom(t))
+        //                            dmRowObject = converter.ConvertFrom(dmRowObject);
+        //                    }
+        //                }
+        //            }
+        //            dataRow[columnName] = dmRowObject;
+        //        }
+        //    }
+
+        //    return dataRow;
+        //}
+
+
+        ///// <summary>
+        ///// Create a DmRow from a IDataReader
+        ///// </summary>
+        //private DmRow CreateRowFromReader(IDataReader dataReader, DmTable dmTable)
+        //{
+        //    // we have an insert / update or delete
+        //    var dataRow = dmTable.NewRow();
+
+        //    for (var i = 0; i < dataReader.FieldCount; i++)
+        //    {
+        //        var columnName = dataReader.GetName(i);
+        //        var dmRowObject = dataReader.GetValue(i);
+
+        //        if (dmRowObject != DBNull.Value)
+        //        {
+        //            if (dmRowObject != null)
+        //            {
+        //                var columnType = dmTable.Columns[columnName].DataType;
+        //                var dmRowObjectType = dmRowObject.GetType();
+
+        //                if (dmRowObjectType != columnType && columnType != typeof(object))
+        //                {
+        //                    if (columnType == typeof(Guid) && (dmRowObject as string) != null)
+        //                        dmRowObject = new Guid(dmRowObject.ToString());
+        //                    else if (columnType == typeof(Guid) && dmRowObject.GetType() == typeof(byte[]))
+        //                        dmRowObject = dataReader.GetGuid(i);
+        //                    else if (columnType == typeof(int) && dmRowObjectType != typeof(int))
+        //                        dmRowObject = Convert.ToInt32(dmRowObject);
+        //                    else if (columnType == typeof(uint) && dmRowObjectType != typeof(uint))
+        //                        dmRowObject = Convert.ToUInt32(dmRowObject);
+        //                    else if (columnType == typeof(short) && dmRowObjectType != typeof(short))
+        //                        dmRowObject = Convert.ToInt16(dmRowObject);
+        //                    else if (columnType == typeof(ushort) && dmRowObjectType != typeof(ushort))
+        //                        dmRowObject = Convert.ToUInt16(dmRowObject);
+        //                    else if (columnType == typeof(long) && dmRowObjectType != typeof(long))
+        //                        dmRowObject = Convert.ToInt64(dmRowObject);
+        //                    else if (columnType == typeof(ulong) && dmRowObjectType != typeof(ulong))
+        //                        dmRowObject = Convert.ToUInt64(dmRowObject);
+        //                    else if (columnType == typeof(byte) && dmRowObjectType != typeof(byte))
+        //                        dmRowObject = Convert.ToByte(dmRowObject);
+        //                    else if (columnType == typeof(char) && dmRowObjectType != typeof(char))
+        //                        dmRowObject = Convert.ToChar(dmRowObject);
+        //                    else if (columnType == typeof(DateTime) && dmRowObjectType != typeof(DateTime))
+        //                        dmRowObject = Convert.ToDateTime(dmRowObject);
+        //                    else if (columnType == typeof(decimal) && dmRowObjectType != typeof(decimal))
+        //                        dmRowObject = Convert.ToDecimal(dmRowObject);
+        //                    else if (columnType == typeof(double) && dmRowObjectType != typeof(double))
+        //                        dmRowObject = Convert.ToDouble(dmRowObject);
+        //                    else if (columnType == typeof(sbyte) && dmRowObjectType != typeof(sbyte))
+        //                        dmRowObject = Convert.ToSByte(dmRowObject);
+        //                    else if (columnType == typeof(float) && dmRowObjectType != typeof(float))
+        //                        dmRowObject = Convert.ToSingle(dmRowObject);
+        //                    else if (columnType == typeof(string) && dmRowObjectType != typeof(string))
+        //                        dmRowObject = Convert.ToString(dmRowObject);
+        //                    else if (columnType == typeof(bool) && dmRowObjectType != typeof(bool))
+        //                        dmRowObject = Convert.ToBoolean(dmRowObject);
+        //                    else if (dmRowObjectType != columnType)
+        //                    {
+        //                        var t = dmRowObject.GetType();
+        //                        var converter = columnType.GetConverter();
+        //                        if (converter != null && converter.CanConvertFrom(t))
+        //                            dmRowObject = converter.ConvertFrom(dmRowObject);
+        //                    }
+        //                }
+        //            }
+        //            dataRow[columnName] = dmRowObject;
+        //        }
+        //    }
+
+        //    return dataRow;
+        //}
+
+        //private DataTable BuildChangesDataTable(SchemaTable table)
+        //{
+        //    var dtTable = new DataTable(table.TableName);
+
+        //    foreach (var col in table.Columns)
+        //        dtTable.Columns.Add(col.ColumnName, col.GetDataType());
+
+        //    dtTable.Columns.Add("create_scope_id", typeof(Guid));
+        //    dtTable.Columns.Add("create_timestamp", typeof(long));
+        //    dtTable.Columns.Add("update_scope_id", typeof(Guid));
+        //    dtTable.Columns.Add("update_timestamp", typeof(long));
+
+        //    return dtTable;
+        //}
+
+
+
+        ///// <summary>
+        ///// Get a DmRow state to know is we have an inserted, updated, or deleted row to apply
+        ///// </summary>
+        //private DmRowState GetStateFromDmRow(DmRow dataRow, Guid excludingScopeId, bool isNew, long lastTimestamp)
+        //{
+        //    var isTombstone = Convert.ToInt64(dataRow["sync_row_is_tombstone"]) > 0;
+
+        //    DmRowState dmRowState;
+        //    if (isTombstone)
+        //        dmRowState = DmRowState.Deleted;
+        //    else
+        //    {
+        //        var createdTimeStamp = DbManager.ParseTimestamp(dataRow["create_timestamp"]);
+        //        var updatedTimeStamp = DbManager.ParseTimestamp(dataRow["update_timestamp"]);
+        //        var updateScopeIdRow = dataRow["update_scope_id"];
+        //        var createScopeIdRow = dataRow["create_scope_id"];
+
+        //        var updateScopeId = (updateScopeIdRow != DBNull.Value && updateScopeIdRow != null) ? (Guid)updateScopeIdRow : (Guid?)null;
+        //        var createScopeId = (createScopeIdRow != DBNull.Value && createScopeIdRow != null) ? (Guid)createScopeIdRow : (Guid?)null;
+
+        //        var isLocallyCreated = !createScopeId.HasValue;
+        //        var islocallyUpdated = !updateScopeId.HasValue || updateScopeId.Value != excludingScopeId;
+
+
+        //        // Check if a row is modified :
+        //        // 1) Row is not new
+        //        // 2) Row update is AFTER last sync of asker
+        //        // 3) Row insert is BEFORE last sync of asker (if insert is after last sync, it's not an update, it's an insert)
+        //        if (!isNew && islocallyUpdated && updatedTimeStamp > lastTimestamp && (createdTimeStamp <= lastTimestamp || !isLocallyCreated))
+        //            dmRowState = DmRowState.Modified;
+        //        else if (isNew || (isLocallyCreated && createdTimeStamp >= lastTimestamp))
+        //            dmRowState = DmRowState.Added;
+        //        // The line has been updated from an other host
+        //        else if (islocallyUpdated && updateScopeId.HasValue && updateScopeId.Value != excludingScopeId)
+        //            dmRowState = DmRowState.Modified;
+        //        else
+        //        {
+        //            dmRowState = DmRowState.Unchanged;
+        //            Debug.WriteLine($"Row is in Unchanegd state. " +
+        //                $"\tscopeInfo.Id:{excludingScopeId}, scopeInfo.IsNewScope :{isNew}, scopeInfo.LastTimestamp:{lastTimestamp}" +
+        //                $"\tcreateScopeId:{createScopeId}, updateScopeId:{updateScopeId}, createdTimeStamp:{createdTimeStamp}, updatedTimeStamp:{updatedTimeStamp}.");
+        //        }
+        //    }
+
+        //    return dmRowState;
+        //}
+
+
+        //private DataRowState GetStateFromDictionaryRow(SyncRow row, Guid excludingScopeId, bool isNew, long lastTimestamp)
+        //{
+        //    var isTombstone = Convert.ToInt64(row["sync_row_is_tombstone"]) > 0;
+
+        //    DataRowState dataRowState;
+        //    if (isTombstone)
+        //        dataRowState = DataRowState.Deleted;
+        //    else
+        //    {
+        //        var createdTimeStamp = DbManager.ParseTimestamp(row["create_timestamp"]);
+        //        var updatedTimeStamp = DbManager.ParseTimestamp(row["update_timestamp"]);
+        //        var updateScopeIdRow = row["update_scope_id"];
+        //        var createScopeIdRow = row["create_scope_id"];
+
+        //        var updateScopeId = (updateScopeIdRow != DBNull.Value && updateScopeIdRow != null) ? (Guid)updateScopeIdRow : (Guid?)null;
+        //        var createScopeId = (createScopeIdRow != DBNull.Value && createScopeIdRow != null) ? (Guid)createScopeIdRow : (Guid?)null;
+
+        //        var isLocallyCreated = !createScopeId.HasValue;
+        //        var islocallyUpdated = !updateScopeId.HasValue || updateScopeId.Value != excludingScopeId;
+
+
+        //        // Check if a row is modified :
+        //        // 1) Row is not new
+        //        // 2) Row update is AFTER last sync of asker
+        //        // 3) Row insert is BEFORE last sync of asker (if insert is after last sync, it's not an update, it's an insert)
+        //        if (!isNew && islocallyUpdated && updatedTimeStamp > lastTimestamp && (createdTimeStamp <= lastTimestamp || !isLocallyCreated))
+        //            dataRowState = DataRowState.Modified;
+        //        else if (isNew || (isLocallyCreated && createdTimeStamp >= lastTimestamp))
+        //            dataRowState = DataRowState.Added;
+        //        // The line has been updated from an other host
+        //        else if (islocallyUpdated && updateScopeId.HasValue && updateScopeId.Value != excludingScopeId)
+        //            dataRowState = DataRowState.Modified;
+        //        else
+        //        {
+        //            dataRowState = DataRowState.Unchanged;
+        //            Debug.WriteLine($"Row is in Unchanegd state. " +
+        //                $"\tscopeInfo.Id:{excludingScopeId}, scopeInfo.IsNewScope :{isNew}, scopeInfo.LastTimestamp:{lastTimestamp}" +
+        //                $"\tcreateScopeId:{createScopeId}, updateScopeId:{updateScopeId}, createdTimeStamp:{createdTimeStamp}, updatedTimeStamp:{updatedTimeStamp}.");
+        //        }
+        //    }
+
+        //    return dataRowState;
+        //}
 
     }
 }

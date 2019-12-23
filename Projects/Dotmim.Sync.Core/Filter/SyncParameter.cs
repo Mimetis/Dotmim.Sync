@@ -24,6 +24,11 @@ namespace Dotmim.Sync.Filter
         public string TableName { get; set; }
 
         /// <summary>
+        /// Gets or sets the name of the table schema involved in filter
+        /// </summary>
+        public string SchemaName { get; set; }
+
+        /// <summary>
         /// Gets or sets the value of the parameter.
         /// </summary>
         public Object Value { get; set; }
@@ -39,10 +44,11 @@ namespace Dotmim.Sync.Filter
         /// Initializes a new instance of the <see cref="T:Microsoft.Synchronization.Data.SyncParameter" /> class by 
         /// using name and value parameters.
         /// </summary>
-        public SyncParameter(string tableName, string columnName, Object value)
+        public SyncParameter(string tableName, string columnName, string schemaName, Object value)
         {
             this.ColumnName = columnName;
             this.TableName = tableName;
+            this.SchemaName = schemaName;
             this.Value = value;
         }
 

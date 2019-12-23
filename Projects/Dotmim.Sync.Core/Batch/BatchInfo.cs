@@ -14,13 +14,15 @@ namespace Dotmim.Sync.Batch
     {
         private string directoryName;
         private string directoryRoot;
+        private SyncSet schema;
 
         /// <summary>
         /// Create a new BatchInfo, containing all BatchPartInfo
         /// </summary>
-        public BatchInfo(bool isInMemory, string rootDirectory = null)
+        public BatchInfo(bool isInMemory, SyncSet schema = null,string rootDirectory = null)
         {
             this.InMemory = isInMemory;
+            this.schema = schema;
 
             // If not in memory, generate a directory name and initialize batch parts list
             if (!this.InMemory)
@@ -47,7 +49,7 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// If in memory, return the in memory Dm
         /// </summary>
-        public DmSetLight InMemoryData { get; set; }
+        public SyncSet InMemoryData { get; set; }
 
 
         /// <summary>
@@ -69,14 +71,26 @@ namespace Dotmim.Sync.Batch
         /// <returns></returns>
         public bool HasData()
         {
-            if (InMemory && InMemoryData != null && InMemoryData.HasTables)
+            if (InMemory && InMemoryData != null && InMemoryData.HasTables && InMemoryData.HasRows)
                 return true;
 
             if (!InMemory && BatchPartsInfo != null && BatchPartsInfo.Count > 0)
-                return true;
+            {
+                foreach (var bpi in BatchPartsInfo)
+                {
+                    bpi.LoadBatch(schema);
+
+                    if (bpi.Data.HasRows)
+                    {
+                        bpi.Clear();
+                        return true;
+                    }
+
+                    bpi.Clear();
+                }
+            }
 
             return false;
-
         }
 
 
@@ -84,33 +98,32 @@ namespace Dotmim.Sync.Batch
         /// Get all parts containing this table
         /// Could be multiple parts, since the table may be spread across multiples files
         /// </summary>
-        public IEnumerable<DmTableLight> GetTable(string tableName, string schema)
+        public IEnumerable<SyncTable> GetTable(string tableName, string schemaName)
         {
             if (InMemory)
             {
                 if (this.InMemoryData.HasTables)
-                    yield return this.InMemoryData.GetTable(tableName, schema);
+                    yield return this.InMemoryData.Tables[tableName, schemaName];
             }
             else
             {
                 foreach (var batchPartinInfo in this.BatchPartsInfo.OrderBy(bpi => bpi.Index))
                 {
-                    if (batchPartinInfo.Tables != null && batchPartinInfo.Tables.Contains(tableName))
+                    if (batchPartinInfo.Tables != null && batchPartinInfo.Tables.Contains((tableName, schemaName)))
                     {
-                        batchPartinInfo.LoadBatch();
+                        batchPartinInfo.LoadBatch(schema);
 
-                        var caseSensitive = batchPartinInfo.Data.CaseSensitive;
-                        var stringComparison = caseSensitive ? StringComparison.InvariantCulture : StringComparison.InvariantCultureIgnoreCase;
+                        // Get the table from the batchPartInfo
+                        var batchTable = batchPartinInfo.Data.Tables.FirstOrDefault(tableName, schemaName);
 
-                        // return the table
-                        if (batchPartinInfo.Data.Tables.Any(t => string.Equals(tableName, t.TableName, stringComparison) && string.Equals(schema, t.Schema, stringComparison)))
+                        if (batchTable != null)
                         {
-                            var table = batchPartinInfo.Data.Tables.First(tbl => string.Equals(tableName, tbl.TableName, stringComparison) && string.Equals(schema, tbl.Schema, stringComparison));
+                            yield return batchTable;
 
-                            yield return table;
-
+                            // Once read, clear it
                             batchPartinInfo.Data.Clear();
                             batchPartinInfo.Data = null;
+
                         }
                     }
                 }
@@ -141,7 +154,7 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Add changes to batch info.
         /// </summary>
-        public void AddChanges(DmSetLight changes, int batchIndex = 0, bool isLastBatch = true)
+        public void AddChanges(SyncSet changes, int batchIndex = 0, bool isLastBatch = true)
         {
             if (this.InMemory)
             {
@@ -206,11 +219,15 @@ namespace Dotmim.Sync.Batch
         public void Clear(bool deleteFolder)
         {
             if (this.InMemory)
+            {
+                this.InMemoryData.Dispose();
                 return;
+            }
 
             // Delete folders before deleting batch parts
             if (deleteFolder)
                 this.TryRemoveDirectory();
+
             foreach (var bpi in this.BatchPartsInfo)
                 bpi.Clear();
 

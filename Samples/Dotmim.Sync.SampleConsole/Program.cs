@@ -4,7 +4,6 @@ using Dotmim.Sync.Data.Surrogate;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.SampleConsole;
 using Dotmim.Sync.Serialization;
-using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Tests.Models;
 using Dotmim.Sync.Web.Client;
@@ -13,11 +12,14 @@ using MessagePack;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
+using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters;
@@ -37,64 +39,97 @@ internal class Program
                                                     "SalesOrderHeader", "SalesOrderDetail" };
     private static void Main(string[] args)
     {
-        SyncHttpThroughKestellAsync().GetAwaiter().GetResult();
+        SynchronizeAsync().GetAwaiter().GetResult();
+
+        //TestSyncTable();
 
 
-        Console.ReadLine();
+      
     }
 
 
-    private static void TestSerializers()
+    //private static void TestSerializers()
+    //{
+    //    var dslight = new DmSetLight(GetSet());
+
+    //    var serializer1 = new ContractSerializer<DmSetLight>();
+    //    var serializer2 = new JsonConverter<DmSetLight>();
+    //    var serializer3 = new CustomMessagePackSerializer<DmSetLight>();
+
+    //    var bin1 = serializer1.Serialize(dslight);
+    //    var bin2 = serializer2.Serialize(dslight);
+    //    var bin3 = serializer3.Serialize(dslight);
+
+    //    var json3 = MessagePack.MessagePackSerializer.ToJson(bin3);
+    //    string json2;
+    //    using (var ms = new MemoryStream(bin2))
+    //    {
+    //        using (var sr = new StreamReader(ms))
+    //        {
+    //            json2 = sr.ReadToEnd();
+    //        }
+    //    }
+
+
+
+    //    DmSetLight newDmSetLight1;
+    //    DmSetLight newDmSetLight2;
+    //    DmSetLight newDmSetLight3;
+    //    DmSet newDmSet1;
+    //    DmSet newDmSet2;
+    //    DmSet newDmSet3;
+    //    using (var ms1 = new MemoryStream(bin1))
+    //    {
+    //        newDmSetLight1 = serializer1.Deserialize(ms1);
+    //        newDmSet1 = CreateDmSet();
+    //        newDmSetLight1.WriteToDmSet(newDmSet1);
+    //    }
+    //    using (var ms2 = new MemoryStream(bin2))
+    //    {
+    //        newDmSetLight2 = serializer2.Deserialize(ms2);
+    //        newDmSet2 = CreateDmSet();
+    //        newDmSetLight2.WriteToDmSet(newDmSet2);
+    //    }
+    //    using (var ms3 = new MemoryStream(bin3))
+    //    {
+    //        newDmSetLight3 = serializer3.Deserialize(ms3);
+    //        newDmSet3 = CreateDmSet();
+    //        newDmSetLight3.WriteToDmSet(newDmSet3);
+    //    }
+
+    //}
+
+
+    private static void TestSyncTable()
     {
-        var dslight = new DmSetLight(GetSet());
+        var set = GetSet();
 
-        var serializer1 = new ContractSerializer<DmSetLight>();
-        var serializer2 = new JsonConverter<DmSetLight>();
-        var serializer3 = new CustomMessagePackSerializer<DmSetLight>();
+        var rows = set.Tables[0].Rows.Select(r => r.ItemArray);
 
-        var bin1 = serializer1.Serialize(dslight);
-        var bin2 = serializer2.Serialize(dslight);
-        var bin3 = serializer3.Serialize(dslight);
+        var schemaSet = new SyncSet("Adv", SyncOptions.DefaultScopeName, false, CultureInfo.InvariantCulture.Name);
+        var schemaTable = new SyncTable("ServiceTickets");
+        schemaTable.Columns.Add(SyncColumn.Create<Guid>("ServiceTicketID"));
+        schemaTable.Columns.Add(SyncColumn.Create<string>("Title"));
+        schemaTable.Columns.Add(SyncColumn.Create<string>("Description"));
+        schemaTable.Columns.Add(SyncColumn.Create<int>("EscalationLevel"));
+        schemaTable.Columns.Add(SyncColumn.Create<int>("StatusValue"));
+        schemaTable.Columns.Add(SyncColumn.Create<DateTime>("Opened"));
+        schemaTable.Columns.Add(SyncColumn.Create<DateTime>("Closed"));
+        schemaTable.Columns.Add(SyncColumn.Create<int>("CustomerID"));
+        schemaSet.Tables.Add(schemaTable);
 
-        var json3 = MessagePack.MessagePackSerializer.ToJson(bin3);
-        string json2;
-        using (var ms = new MemoryStream(bin2))
-        {
-            using (var sr = new StreamReader(ms))
-            {
-                json2 = sr.ReadToEnd();
-            }
-        }
+        schemaTable.Rows.AddRange(rows);
 
+        var row = schemaTable.NewRow();
 
+        row[0] = Guid.NewGuid();
 
-        DmSetLight newDmSetLight1;
-        DmSetLight newDmSetLight2;
-        DmSetLight newDmSetLight3;
-        DmSet newDmSet1;
-        DmSet newDmSet2;
-        DmSet newDmSet3;
-        using (var ms1 = new MemoryStream(bin1))
-        {
-            newDmSetLight1 = serializer1.Deserialize(ms1);
-            newDmSet1 = CreateDmSet();
-            newDmSetLight1.WriteToDmSet(newDmSet1);
-        }
-        using (var ms2 = new MemoryStream(bin2))
-        {
-            newDmSetLight2 = serializer2.Deserialize(ms2);
-            newDmSet2 = CreateDmSet();
-            newDmSetLight2.WriteToDmSet(newDmSet2);
-        }
-        using (var ms3 = new MemoryStream(bin3))
-        {
-            newDmSetLight3 = serializer3.Deserialize(ms3);
-            newDmSet3 = CreateDmSet();
-            newDmSetLight3.WriteToDmSet(newDmSet3);
-        }
+        schemaTable.Rows.Add(row);
+
+        var schemaJson = JsonConvert.SerializeObject(schemaSet);
+        var rowsJson = JsonConvert.SerializeObject(schemaSet.GetContainerSet());
 
     }
-
 
     private static DmSet CreateDmSet()
     {
@@ -102,7 +137,7 @@ internal class Program
 
         var tbl = new DmTable("ServiceTickets");
         set.Tables.Add(tbl);
-        var id = new DmColumn<Guid>("ServiceTicketID");
+        var id = new DmColumn<string>("ServiceTicketID");
         tbl.Columns.Add(id);
         var key = new DmKey(new DmColumn[] { id });
         tbl.PrimaryKey = key;
@@ -124,7 +159,7 @@ internal class Program
 
         #region adding rows
         var st = tbl.NewRow();
-        st["ServiceTicketID"] = Guid.NewGuid();
+        st["ServiceTicketID"] = Guid.NewGuid().ToString();
         st["Title"] = "Titre AER";
         st["Description"] = "Description 2";
         st["EscalationLevel"] = 1;
@@ -135,7 +170,7 @@ internal class Program
         tbl.Rows.Add(st);
 
         st = tbl.NewRow();
-        st["ServiceTicketID"] = Guid.NewGuid();
+        st["ServiceTicketID"] = Guid.NewGuid().ToString();
         st["Title"] = "Titre DE";
         st["Description"] = "Description 2";
         st["EscalationLevel"] = 3;
@@ -146,7 +181,7 @@ internal class Program
         tbl.Rows.Add(st);
 
         st = tbl.NewRow();
-        st["ServiceTicketID"] = Guid.NewGuid();
+        st["ServiceTicketID"] = Guid.NewGuid().ToString();
         st["Title"] = "Titre FF";
         st["Description"] = "Description 2";
         st["EscalationLevel"] = 3;
@@ -157,7 +192,7 @@ internal class Program
         tbl.Rows.Add(st);
 
         st = tbl.NewRow();
-        st["ServiceTicketID"] = Guid.NewGuid();
+        st["ServiceTicketID"] = Guid.NewGuid().ToString();
         st["Title"] = "Titre AC";
         st["Description"] = "Description 2";
         st["EscalationLevel"] = 1;
@@ -168,7 +203,7 @@ internal class Program
         tbl.Rows.Add(st);
 
         st = tbl.NewRow();
-        st["ServiceTicketID"] = Guid.NewGuid();
+        st["ServiceTicketID"] = Guid.NewGuid().ToString();
         st["Title"] = "Titre ZDZDZ";
         st["Description"] = "Description 2";
         st["EscalationLevel"] = 0;
@@ -179,7 +214,7 @@ internal class Program
         tbl.Rows.Add(st);
 
         st = tbl.NewRow();
-        st["ServiceTicketID"] = Guid.NewGuid();
+        st["ServiceTicketID"] = Guid.NewGuid().ToString();
         st["Title"] = "Titre VGH";
         st["Description"] = "Description 2";
         st["EscalationLevel"] = 0;
@@ -190,7 +225,7 @@ internal class Program
         tbl.Rows.Add(st);
 
         st = tbl.NewRow();
-        st["ServiceTicketID"] = Guid.NewGuid();
+        st["ServiceTicketID"] = Guid.NewGuid().ToString();
         st["Title"] = "Titre ETTG";
         st["Description"] = "Description 2";
         st["EscalationLevel"] = 2;
@@ -201,7 +236,7 @@ internal class Program
         tbl.Rows.Add(st);
 
         st = tbl.NewRow();
-        st["ServiceTicketID"] = Guid.NewGuid();
+        st["ServiceTicketID"] = Guid.NewGuid().ToString();
         st["Title"] = "Titre SADZD";
         st["Description"] = "Description 2";
         st["EscalationLevel"] = 1;
@@ -212,7 +247,7 @@ internal class Program
         tbl.Rows.Add(st);
 
         st = tbl.NewRow();
-        st["ServiceTicketID"] = Guid.NewGuid();
+        st["ServiceTicketID"] = Guid.NewGuid().ToString();
         st["Title"] = "Titre AEEE";
         st["Description"] = "Description 2";
         st["EscalationLevel"] = 0;
@@ -223,7 +258,7 @@ internal class Program
         tbl.Rows.Add(st);
 
         st = tbl.NewRow();
-        st["ServiceTicketID"] = Guid.NewGuid();
+        st["ServiceTicketID"] = Guid.NewGuid().ToString();
         st["Title"] = "Titre CZDADA";
         st["Description"] = "Description 2";
         st["EscalationLevel"] = 0;
@@ -234,7 +269,7 @@ internal class Program
         tbl.Rows.Add(st);
 
         st = tbl.NewRow();
-        st["ServiceTicketID"] = Guid.NewGuid();
+        st["ServiceTicketID"] = Guid.NewGuid().ToString();
         st["Title"] = "Titre AFBBB";
         st["Description"] = "Description 2";
         st["EscalationLevel"] = 0;
@@ -245,7 +280,7 @@ internal class Program
         tbl.Rows.Add(st);
 
         st = tbl.NewRow();
-        st["ServiceTicketID"] = Guid.NewGuid();
+        st["ServiceTicketID"] = Guid.NewGuid().ToString();
         st["Title"] = "Titre AZDCV";
         st["Description"] = "Description 2";
         st["EscalationLevel"] = 2;
@@ -256,7 +291,7 @@ internal class Program
         tbl.Rows.Add(st);
 
         st = tbl.NewRow();
-        st["ServiceTicketID"] = Guid.NewGuid();
+        st["ServiceTicketID"] = Guid.NewGuid().ToString();
         st["Title"] = "Titre UYTR";
         st["Description"] = "Description 2";
         st["EscalationLevel"] = 0;
@@ -267,7 +302,7 @@ internal class Program
         tbl.Rows.Add(st);
 
         st = tbl.NewRow();
-        st["ServiceTicketID"] = Guid.NewGuid();
+        st["ServiceTicketID"] = Guid.NewGuid().ToString();
         st["Title"] = "Titre NHJK";
         st["Description"] = "Description 2";
         st["EscalationLevel"] = 0;
@@ -278,7 +313,7 @@ internal class Program
         tbl.Rows.Add(st);
 
         st = tbl.NewRow();
-        st["ServiceTicketID"] = Guid.NewGuid();
+        st["ServiceTicketID"] = Guid.NewGuid().ToString();
         st["Title"] = "Titre XCVBN";
         st["Description"] = "Description 2";
         st["EscalationLevel"] = 0;
@@ -289,7 +324,7 @@ internal class Program
         tbl.Rows.Add(st);
 
         st = tbl.NewRow();
-        st["ServiceTicketID"] = Guid.NewGuid();
+        st["ServiceTicketID"] = Guid.NewGuid().ToString();
         st["Title"] = "Titre LKNB";
         st["Description"] = "Description 2";
         st["EscalationLevel"] = 3;
@@ -300,7 +335,7 @@ internal class Program
         tbl.Rows.Add(st);
 
         st = tbl.NewRow();
-        st["ServiceTicketID"] = Guid.NewGuid();
+        st["ServiceTicketID"] = Guid.NewGuid().ToString();
         st["Title"] = "Titre ADFVB";
         st["Description"] = "Description 2";
         st["EscalationLevel"] = 0;
@@ -313,7 +348,7 @@ internal class Program
 
         tbl.AcceptChanges();
 
-        st.Delete();
+      //  st.Delete();
 
 
         return set;
@@ -463,16 +498,15 @@ internal class Program
     private static async Task SynchronizeAsync()
     {
         // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString("TestServer"));
-        var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString("TestClient"));
+        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
         //var clientProvider = new SqliteSyncProvider("advworks.db");
 
         // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, new string[] { "Product" });
+        var agent = new SyncAgent(clientProvider, serverProvider, allTables);
 
         // Using the Progress pattern to handle progession during the synchronization
         var progress = new Progress<ProgressArgs>(s => Console.WriteLine($"[client]: {s.Context.SyncStage}:\t{s.Message}"));
-
 
         // Setting configuration options
         agent.Schema.StoredProceduresPrefix = "s";
@@ -481,7 +515,7 @@ internal class Program
         agent.Schema.TrackingTablesSuffix = "";
 
         agent.Options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync");
-        agent.Options.BatchSize = 100;
+        agent.Options.BatchSize = 0;
         agent.Options.CleanMetadatas = true;
         agent.Options.UseBulkOperations = true;
         agent.Options.UseVerboseErrors = false;
@@ -494,6 +528,31 @@ internal class Program
             Console.WriteLine("Sync Start");
             try
             {
+                agent.RemoteOrchestrator.OnSchema(args =>
+                {
+                    var serializer = new JsonSerializer();
+                    byte[] bin = null;
+
+                    using (var ms = new MemoryStream())
+                    {
+                        using (var writer = new StreamWriter(ms))
+                        {
+                            using (var jsonWriter = new JsonTextWriter(writer))
+                            {
+                                serializer.Serialize(jsonWriter, args.Schema);
+                            }
+                        }
+                        bin = ms.ToArray();
+                    }
+
+                    // for readiness
+                    using (var fs = new FileStream("Json_schema.json", FileMode.Create))
+                    {
+                        fs.Write(bin, 0, bin.Length);
+                    }
+
+                });
+
                 // Launch the sync process
                 var s1 = await agent.SynchronizeAsync(progress);
 
@@ -675,13 +734,14 @@ internal class Program
         // ----------------------------------
         // Web Server side
         // ----------------------------------
-        var schema = new SyncSchema(tables)
+        var schema = new SyncSet()
         {
             StoredProceduresPrefix = "s",
             StoredProceduresSuffix = "",
             TrackingTablesPrefix = "t",
             TrackingTablesSuffix = ""
         };
+        schema.Tables.Add(tables);
 
         var webServerOptions = new WebServerOptions
         {

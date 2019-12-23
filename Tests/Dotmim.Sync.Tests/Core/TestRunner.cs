@@ -37,7 +37,7 @@ namespace Dotmim.Sync.Tests.Core
             return await RunTestsAsync(this.providerFixture.Tables, null, options, reuseAgent);
         }
 
-        public async Task<List<ProviderRun>> RunTestsAsync(string[] tables, SyncSchema schema = null,
+        public async Task<List<ProviderRun>> RunTestsAsync(string[] tables, SyncSet schema = null,
             SyncOptions options = null, bool reuseAgent = true)
         {
             foreach (var tra in this.providerFixture.ClientRuns)

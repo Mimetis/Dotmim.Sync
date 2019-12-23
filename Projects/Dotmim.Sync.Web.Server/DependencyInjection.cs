@@ -13,7 +13,7 @@ namespace Microsoft.Extensions.DependencyInjection
     {
         private static Type providerType;
         private static string connectionString;
-        private static SyncSchema schema;
+        private static SyncSet schema;
         private static WebServerOptions options;
 
         /// <summary>
@@ -28,7 +28,7 @@ namespace Microsoft.Extensions.DependencyInjection
         public static IServiceCollection AddSyncServer<TProvider>(
                     this IServiceCollection serviceCollection,
                     string connectionString,
-                    SyncSchema schema,
+                    SyncSet schema,
                     WebServerOptions options = null) where TProvider : CoreProvider, new()
         {
             if (string.IsNullOrWhiteSpace(connectionString))
@@ -57,7 +57,7 @@ namespace Microsoft.Extensions.DependencyInjection
             providerType = typeof(TProvider);
             DependencyInjection.connectionString = connectionString;
             DependencyInjection.options = options ?? new WebServerOptions();
-            DependencyInjection.schema = new SyncSchema(tables);
+            DependencyInjection.schema = new SyncSet(tables);
 
             serviceCollection.AddOptions();
             serviceCollection.AddSingleton(new WebProxyServerOrchestrator());

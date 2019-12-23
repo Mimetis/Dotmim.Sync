@@ -195,6 +195,8 @@ namespace Dotmim.Sync.SqlServer.Scope
 
                 long.TryParse(outputParameter.Value.ToString(), out result);
 
+                command.Dispose();
+
                 return result;
             }
             catch (Exception ex)

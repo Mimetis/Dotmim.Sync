@@ -422,7 +422,7 @@ namespace Dotmim.Sync.Data
         {
             get
             {
-                return ((null != autoInc) && (autoInc.Auto));
+                return (null != autoInc) && autoInc.Auto;
             }
             set
             {
