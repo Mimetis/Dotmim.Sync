@@ -11,27 +11,6 @@ namespace Dotmim.Sync
     /// </summary>
     public static class SyncExtensions
     {
-        /// <summary>
-        ///  Shortcut to add a new filter clause in a base list
-        /// </summary>
-        /// <param name="tableName">Table name involved in the filter</param>
-        /// <param name="columnName">Column name involved in the filter</param>
-        public static void Add(this ICollection<FilterClause> list, string tableName, string columnName)
-        {
-            list.Add(new FilterClause(tableName, columnName));
-        }
-
-        /// <summary>
-        /// Shortcut to add a new virtualfilter clause in a base list.
-        /// This filter must not exist as a column on the target table. It is only provided to the select_changs stored procedure
-        /// </summary>
-        /// <param name="tableName">Table name involved in the filter</param>
-        /// <param name="columnName">Column name involved in the filter</param>
-        /// <param name="type"></param>
-        public static void Add(this ICollection<FilterClause> list, string tableName, string columnName, DbType type)
-        {
-            list.Add(new FilterClause(tableName, columnName, type));
-        }
 
         /// <summary>
         ///  Shortcut to add a new parameter value to a filter
@@ -40,9 +19,9 @@ namespace Dotmim.Sync
         /// <param name="tableName">Table name involved in the filter</param>
         /// <param name="columnName">Column name involved in the filter</param>
         /// <param name="value">Parameter value</param>
-        public static void Add<T>(this ICollection<SyncParameter> paramsList, string tableName, string columnName, T value)
+        public static void Add<T>(this ICollection<SyncParameter> paramsList, string tableName, string columnName, string schemaName, T value)
         {
-            paramsList.Add(new SyncParameter(tableName, columnName, value));
+            paramsList.Add(new SyncParameter(tableName, columnName, schemaName, value));
         }
 
         /// <summary>
@@ -51,9 +30,9 @@ namespace Dotmim.Sync
         /// <typeparam name="T">Parameter type</typeparam>
         /// <param name="filterClause">Filter clause, containing the table name and the column name</param>
         /// <param name="value">Parameter value</param>
-        public static void Add<T>(this ICollection<SyncParameter> paramsList, FilterClause filterClause, T value)
+        public static void Add<T>(this ICollection<SyncParameter> paramsList, SyncFilter filterClause, T value)
         {
-            paramsList.Add(new SyncParameter(filterClause.TableName, filterClause.ColumnName, value));
+            paramsList.Add(new SyncParameter(filterClause.TableName, filterClause.ColumnName, filterClause.SchemaName, value));
         }
 
         /// <summary>
@@ -61,10 +40,10 @@ namespace Dotmim.Sync
         /// </summary>
         /// <param name="list"></param>
         /// <returns></returns>
-        public static ICollection<FilterClause> GetColumnFilters(this ICollection<FilterClause> list)
+        public static ICollection<SyncFilter> GetColumnFilters(this ICollection<SyncFilter> list)
         {
             if (list == null)
-                return new List<FilterClause>();
+                return new List<SyncFilter>();
 
             return list.Where(f => !f.IsVirtual).ToList();
         }
@@ -74,7 +53,7 @@ namespace Dotmim.Sync
         /// </summary>
         /// <param name="filters"></param>
         /// <param name="tableDescription"></param>
-        public static void ValidateColumnFilters(this ICollection<FilterClause> filters, DmTable tableDescription)
+        public static void ValidateColumnFilters(this SyncFilters filters, SyncTable tableDescription)
         {
             if (filters == null)
                 return;

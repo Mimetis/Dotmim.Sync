@@ -13,8 +13,8 @@ namespace Dotmim.Sync.Messages
     /// </summary>
     public class MessageGetChangesBatch
     {
-        public MessageGetChangesBatch(Guid excludingScopeId, bool isNew, long lastTimestamp,  DmSet schema, int batchSize, 
-            string batchDirectory, ICollection<FilterClause> filters)
+        public MessageGetChangesBatch(Guid excludingScopeId, bool isNew, long lastTimestamp,  SyncSet schema, 
+                                      int batchSize, string batchDirectory)
         {
             this.Schema = schema ?? throw new ArgumentNullException(nameof(schema));
             this.BatchDirectory = batchDirectory ?? throw new ArgumentNullException(nameof(batchDirectory));
@@ -22,7 +22,6 @@ namespace Dotmim.Sync.Messages
             this.IsNew = isNew;
             this.LastTimestamp = lastTimestamp;
             this.BatchSize = batchSize;
-            this.Filters = filters;
         }
 
         /// <summary>
@@ -46,7 +45,7 @@ namespace Dotmim.Sync.Messages
         /// <summary>
         /// Gets or Sets the schema used for this sync
         /// </summary>
-        public DmSet Schema { get; set; }
+        public SyncSet Schema { get; set; }
 
         /// <summary>
         /// Gets or Sets the download batch size, if needed
@@ -62,10 +61,5 @@ namespace Dotmim.Sync.Messages
         ///// Gets or Sets the current Conflict resolution policy
         ///// </summary>
         //public ConflictResolutionPolicy Policy { get; set; }
-
-        /// <summary>
-        /// Gets or Sets the Batch Info used for this sync session
-        /// </summary>
-        public ICollection<FilterClause> Filters { get; set; }
     }
 }

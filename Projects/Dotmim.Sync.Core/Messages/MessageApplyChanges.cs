@@ -12,7 +12,11 @@ namespace Dotmim.Sync.Messages
     public class MessageApplyChanges
     {
 
-        public MessageApplyChanges(Guid applyingScopeId, bool isNew, long lastTimestamp, SyncSchema schema, 
+        /// <summary>
+        /// Applying changes message.
+        /// Be careful policy could be differente from the schema (especially on client side, it's the reverse one, by default)
+        /// </summary>
+        public MessageApplyChanges(Guid applyingScopeId, bool isNew, long lastTimestamp, SyncSet schema, 
                                     ConflictResolutionPolicy policy, bool disableConstraintsOnApplyChanges, 
                                     bool useBulkOperations, bool cleanMetadatas, BatchInfo changes)
         {
@@ -47,7 +51,7 @@ namespace Dotmim.Sync.Messages
         /// <summary>
         /// Gets or Sets the schema used for this sync
         /// </summary>
-        public SyncSchema Schema { get; set; }
+        public SyncSet Schema { get; set; }
 
         /// <summary>
         /// Gets or Sets the current Conflict resolution policy

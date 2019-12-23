@@ -16,17 +16,17 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         public SqlObjectNames ObjectNames { get; private set; }
 
-        public SqlBuilder(DmTable tableDescription) : base(tableDescription)
+        public SqlBuilder(SyncTable tableDescription) : base(tableDescription)
         {
             ObjectNames = new SqlObjectNames(tableDescription);
         }
 
-        internal static (ParserName tableName, ParserName trackingName) GetParsers(DmTable tableDescription)
+        internal static (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription)
         {
             var originalTableName = ParserName.Parse(tableDescription);
 
-            var pref = tableDescription.TrackingTablesPrefix;
-            var suf = tableDescription.TrackingTablesSuffix;
+            var pref = tableDescription.Schema.TrackingTablesPrefix;
+            var suf = tableDescription.Schema.TrackingTablesSuffix;
 
             // be sure, at least, we have a suffix if we have empty values. 
             // othewise, we have the same name for both table and tracking table

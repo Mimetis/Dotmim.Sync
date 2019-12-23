@@ -59,7 +59,7 @@ namespace Dotmim.Sync.Web.Client
         /// Gets the BatchParInfo send from the server 
         /// </summary>
         [DataMember(Name = "c")]
-        public DmSetLight Changes { get; set; }
+        public ContainerSet Changes { get; set; }
 
         /// <summary>
         /// Gets the changes applied stats from the server
@@ -137,7 +137,7 @@ namespace Dotmim.Sync.Web.Client
         /// Changes to send
         /// </summary>
         [DataMember]
-        public DmSetLight Changes { get; set; }
+        public ContainerSet Changes { get; set; }
     }
 
     [DataContract]
@@ -147,7 +147,7 @@ namespace Dotmim.Sync.Web.Client
         {
 
         }
-        public HttpMessageEnsureScopesResponse(SyncContext context, SyncSchema schema)
+        public HttpMessageEnsureScopesResponse(SyncContext context, SyncSet schema)
         {
             this.SyncContext = context ?? throw new ArgumentNullException(nameof(context));
             this.Schema = schema ?? throw new ArgumentNullException(nameof(schema));
@@ -160,7 +160,7 @@ namespace Dotmim.Sync.Web.Client
         /// Gets or Sets the schema option (without schema itself, that is not serializable)
         /// </summary>
         [DataMember]
-        public SyncSchema Schema { get; set; }
+        public SyncSet Schema { get; set; }
     }
 
     [DataContract]

@@ -14,10 +14,11 @@ using Dotmim.Sync.Data.Surrogate;
 namespace Dotmim.Sync.Data
 {
 
-    [Serializable]
-    public class DmSet : ISerializable
+    public class DmSet
     {
-        string dmSetName = "NewDataSet";
+        public const string DMSET_NAME = "dmset";
+
+        private string dmSetName;
 
         // globalization stuff
         bool caseSensitive;
@@ -96,6 +97,38 @@ namespace Dotmim.Sync.Data
             }
         }
 
+
+
+        /// <summary>
+        /// Specify a prefix for naming stored procedure. Default is empty string
+        /// </summary>
+        public String StoredProceduresPrefix { get; set; }
+
+        /// <summary>
+        /// Specify a suffix for naming triggers. Default is empty string
+        /// </summary>
+        public String TriggersSuffix { get; set; }
+
+        /// <summary>
+        /// Specify a prefix for triggers. Default is empty string
+        /// </summary>
+        public String TriggersPrefix { get; set; }
+
+        /// <summary>
+        /// Specify a suffix for naming stored procedures. Default is empty string
+        /// </summary>
+        public String StoredProceduresSuffix { get; set; }
+
+        /// <summary>
+        /// Specify a prefix for naming tracking tables. Default is empty string
+        /// </summary>
+        public String TrackingTablesPrefix { get; set; }
+
+        /// <summary>
+        /// Specify a suffix for naming tracking tables. Default is empty string
+        /// </summary>
+        public String TrackingTablesSuffix { get; set; }
+
         /// <summary>
         /// Gets the collection of tables contained in the DmSet
         /// </summary>
@@ -108,7 +141,6 @@ namespace Dotmim.Sync.Data
 
 
 
-
         public DmSet()
         {
             this.Tables = new DmTableCollection(this);
@@ -116,7 +148,7 @@ namespace Dotmim.Sync.Data
             this.CaseSensitive = false;
             this.compareFlags = CompareOptions.IgnoreCase | CompareOptions.IgnoreKanaType | CompareOptions.IgnoreWidth;
             this.Relations = new List<DmRelation>();
-            this.DmSetName = "NewDmSet";
+            this.DmSetName = DMSET_NAME;
 
         }
 
@@ -126,30 +158,30 @@ namespace Dotmim.Sync.Data
             this.DmSetName = dataSetName;
         }
 
-        public DmSet(SerializationInfo info, StreamingContext context) : this()
-        {
-            var dmSetSurrogate = info.GetValue("surrogate", typeof(DmSetSurrogate)) as DmSetSurrogate;
+        //public DmSet(SerializationInfo info, StreamingContext context) : this()
+        //{
+        //    var dmSetSurrogate = info.GetValue("surrogate", typeof(DmSetSurrogate)) as DmSetSurrogate;
 
-            if (dmSetSurrogate != null)
-            {
-                this.Culture = new CultureInfo(dmSetSurrogate.CultureInfoName);
-                this.CaseSensitive = dmSetSurrogate.CaseSensitive;
-                this.DmSetName = dmSetSurrogate.DmSetName;
-                dmSetSurrogate.ReadSchemaIntoDmSet(this);
-                dmSetSurrogate.ReadDataIntoDmSet(this);
-            }
-        }
+        //    if (dmSetSurrogate != null)
+        //    {
+        //        this.Culture = new CultureInfo(dmSetSurrogate.CultureInfoName);
+        //        this.CaseSensitive = dmSetSurrogate.CaseSensitive;
+        //        this.DmSetName = dmSetSurrogate.DmSetName;
+        //        dmSetSurrogate.ReadSchemaIntoDmSet(this);
+        //        dmSetSurrogate.ReadDataIntoDmSet(this);
+        //    }
+        //}
 
 
-        /// <summary>
-        /// How to serialize
-        /// </summary>
-        public void GetObjectData(SerializationInfo info, StreamingContext context)
-        {
-            var surrogate = new DmSetSurrogate(this);
+        ///// <summary>
+        ///// How to serialize
+        ///// </summary>
+        //public void GetObjectData(SerializationInfo info, StreamingContext context)
+        //{
+        //    var surrogate = new DmSetSurrogate(this);
 
-            info.AddValue("surrogate", surrogate, typeof(DmSetSurrogate));
-        }
+        //    info.AddValue("surrogate", surrogate, typeof(DmSetSurrogate));
+        //}
 
         
 

@@ -54,7 +54,7 @@ namespace Dotmim.Sync.Tests.SqlServer
             try
             {
 
-                var schema = new SyncSchema
+                var schema = new SyncSet
                 {
                     StoredProceduresPrefix = "s",
                     StoredProceduresSuffix = "",

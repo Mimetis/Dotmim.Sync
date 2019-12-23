@@ -42,7 +42,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         }
 
-        public SqlSyncAdapter(DmTable tableDescription, DbConnection connection, DbTransaction transaction) : base(tableDescription)
+        public SqlSyncAdapter(SyncTable tableDescription, DbConnection connection, DbTransaction transaction) : base(tableDescription)
         {
             var sqlc = connection as SqlConnection;
             this.connection = sqlc ?? throw new InvalidCastException("Connection should be a SqlConnection");
@@ -53,12 +53,13 @@ namespace Dotmim.Sync.SqlServer.Builders
             this.sqlMetadata = new SqlDbMetadata();
         }
 
-        private SqlMetaData GetSqlMetadaFromType(DmColumn column)
+        private SqlMetaData GetSqlMetadaFromType(SyncColumn column)
         {
-            var dbType = column.DbType;
             long maxLength = column.MaxLength;
+            var dataType = column.GetDataType();
+            var dbType = column.GetDbType();
 
-            SqlDbType sqlDbType = (SqlDbType)this.sqlMetadata.TryGetOwnerDbType(column.OriginalDbType, column.DbType, false, false, column.MaxLength, this.TableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+            var sqlDbType = (SqlDbType)this.sqlMetadata.TryGetOwnerDbType(column.OriginalDbType, dbType, false, false, column.MaxLength, this.TableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
 
             // TODO : Since we validate length before, is it mandatory here ?
 
@@ -74,7 +75,8 @@ namespace Dotmim.Sync.SqlServer.Builders
                 return new SqlMetaData(column.ColumnName, sqlDbType, maxLength);
             }
 
-            if (column.DataType == typeof(char))
+
+            if (dataType == typeof(char))
                 return new SqlMetaData(column.ColumnName, sqlDbType, 1);
 
             if (sqlDbType == SqlDbType.Char || sqlDbType == SqlDbType.NChar)
@@ -122,50 +124,36 @@ namespace Dotmim.Sync.SqlServer.Builders
         /// <summary>
         /// Executing a batch command
         /// </summary>
-        public override void ExecuteBatchCommand(DbCommand cmd, DmView applyTable, DmTable failedRows, Guid applyingScopeId, long lastTimestamp)
+        public override void ExecuteBatchCommand(DbCommand cmd, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable, SyncTable failedRows, Guid applyingScopeId, long lastTimestamp)
         {
-            if (applyTable.Count <= 0)
+
+            var applyRowsCount = applyRows.Count();
+
+            if (applyRowsCount <= 0)
                 return;
 
-            var lstMutableColumns = applyTable.Table.Columns.Where(c => !c.IsReadOnly).ToList();
+            var records = new List<SqlDataRecord>(applyRowsCount);
+            SqlMetaData[] metadatas = new SqlMetaData[schemaChangesTable.Columns.Count];
 
-            List<SqlDataRecord> records = new List<SqlDataRecord>(applyTable.Count);
-            SqlMetaData[] metadatas = new SqlMetaData[lstMutableColumns.Count];
+            for (int i = 0; i < schemaChangesTable.Columns.Count; i++)
+                metadatas[i] = GetSqlMetadaFromType(schemaChangesTable.Columns[i]); ;
 
-            for (int i = 0; i < lstMutableColumns.Count; i++)
-            {
-                var column = lstMutableColumns[i];
-
-                SqlMetaData metadata = GetSqlMetadaFromType(column);
-                metadatas[i] = metadata;
-            }
             try
             {
-                foreach (var dmRow in applyTable)
+                foreach (var row in applyRows)
                 {
-                    SqlDataRecord record = new SqlDataRecord(metadatas);
+                    var record = new SqlDataRecord(metadatas);
 
                     int sqlMetadataIndex = 0;
-                    bool isDeleted = false;
 
-                    // Cancel the delete state to be able to get the row, more simplier
-                    if (dmRow.RowState == DmRowState.Deleted)
+                    for (int i = 0; i < schemaChangesTable.Columns.Count; i++)
                     {
-                        isDeleted = true;
-                        dmRow.RejectChanges();
-                    }
-
-                    for (int i = 0; i < dmRow.ItemArray.Length; i++)
-                    {
-                        // check if it's readonly
-                        if (applyTable.Table.Columns[i].IsReadOnly)
-                            continue;
+                        var schemaColumn = schemaChangesTable.Columns[i];
 
                         // Get the default value
-                        // Since we have the readonly values in ItemArray, get the value from original column
-                        dynamic defaultValue = applyTable.Table.Columns[i].DefaultValue;
-                        dynamic rowValue = dmRow[i];
-                        var columnType = applyTable.Table.Columns[i].DataType;
+                        var columnType = schemaColumn.GetDataType();
+                        dynamic defaultValue = schemaColumn.GetDefaultValue();
+                        dynamic rowValue = row[i];
 
                         // metadatas don't have readonly values, so get from sqlMetadataIndex
                         var sqlMetadataType = metadatas[sqlMetadataIndex].SqlDbType;
@@ -321,7 +309,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                             }
                         }
 
-                        if (applyTable.Table.Columns[i].AllowDBNull && rowValue == null)
+                        if (schemaColumn.AllowDBNull && rowValue == null)
                             rowValue = DBNull.Value;
                         else if (rowValue == null)
                             rowValue = defaultValue;
@@ -330,12 +318,6 @@ namespace Dotmim.Sync.SqlServer.Builders
                         sqlMetadataIndex++;
                     }
                     records.Add(record);
-
-                    // Apply the delete
-                    // is it mandatory ?
-                    if (isDeleted)
-                        dmRow.Delete();
-
                 }
             }
             catch (Exception ex)
@@ -358,24 +340,30 @@ namespace Dotmim.Sync.SqlServer.Builders
                 if (this.transaction != null)
                     cmd.Transaction = this.transaction;
 
-
-                using (DbDataReader dataReader = cmd.ExecuteReader())
+                using (var dataReader = cmd.ExecuteReader())
                 {
-                    failedRows.Fill(dataReader);
+                    while (dataReader.Read())
+                    {
+                        var itemArray = new object[dataReader.FieldCount];
+                        for (var i = 0; i < dataReader.FieldCount; i++)
+                        {
+                            var columnValueObject = dataReader.GetValue(i);
+                            var columnValue = columnValueObject == DBNull.Value ? null : columnValueObject;
+                            itemArray[i] = columnValue;
+                        }
+
+                        failedRows.Rows.Add(itemArray);
+                    }
                 }
             }
             catch (DbException ex)
             {
                 Debug.WriteLine(ex.Message);
-                //DbException dbException = dbException1;
-                //Error = CheckZombieTransaction(tvpCommandNameForApplyType, Adapter.TableName, dbException);
-                //this.AddFailedRowsAfterRIFailure(applyTable, failedRows);
                 throw;
             }
             finally
             {
                 records.Clear();
-                records = null;
 
                 if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
                     this.connection.Close();
@@ -403,7 +391,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             return false;
         }
 
-        public override DbCommand GetCommand(DbCommandType nameType, IEnumerable<FilterClause> filters = null)
+        public override DbCommand GetCommand(DbCommandType nameType, IEnumerable<SyncFilter> filters = null)
         {
             var command = this.Connection.CreateCommand();
 
@@ -427,7 +415,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         /// <summary>
         /// Set a stored procedure parameters
         /// </summary>
-        public override void SetCommandParameters(DbCommandType commandType, DbCommand command, IEnumerable<FilterClause> filters = null)
+        public override void SetCommandParameters(DbCommandType commandType, DbCommand command, IEnumerable<SyncFilter> filters = null)
         {
             if (command == null)
                 return;
@@ -462,7 +450,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                     var parameters = connection.DeriveParameters((SqlCommand)command, false, transaction);
 
                     var arrayParameters = new List<SqlParameter>();
-                    foreach(var p in command.Parameters)
+                    foreach (var p in command.Parameters)
                         arrayParameters.Add(((SqlParameter)p).Clone());
 
                     derivingParameters.TryAdd(textParser, arrayParameters);
@@ -488,7 +476,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             {
                 var sqlParameter = (SqlParameter)parameter;
 
-                // try to get the source column (from the dmTable)
+                // try to get the source column (from the SchemaTable)
                 var sqlParameterName = sqlParameter.ParameterName.Replace("@", "");
                 var colDesc = TableDescription.Columns.FirstOrDefault(c => string.Equals(c.ColumnName, sqlParameterName, StringComparison.CurrentCultureIgnoreCase));
 

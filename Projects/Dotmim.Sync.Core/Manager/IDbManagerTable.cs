@@ -14,7 +14,7 @@ namespace Dotmim.Sync.Manager
         /// <summary>
         /// Gets a columns list from the datastore
         /// </summary>
-        IEnumerable<DmColumn> GetTableDefinition();
+        IEnumerable<SyncColumn> GetTableDefinition();
 
         /// <summary>
         /// Gets all relations from a current table. If composite, must be ordered
@@ -24,7 +24,7 @@ namespace Dotmim.Sync.Manager
         /// <summary>
         /// Get all primary keys. If composite, must be ordered
         /// </summary>
-        IEnumerable<DmColumn> GetTablePrimaryKeys();
+        IEnumerable<SyncColumn> GetTablePrimaryKeys();
 
     }
 }
