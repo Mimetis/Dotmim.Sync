@@ -113,7 +113,7 @@ namespace Dotmim.Sync.Sqlite
             return false;
         }
 
-        public override bool IsValid(DmColumn columnDefinition)
+        public override bool IsValid(SyncColumn columnDefinition)
         {
             switch (columnDefinition.OriginalTypeName.ToLowerInvariant())
             {
@@ -151,7 +151,7 @@ namespace Dotmim.Sync.Sqlite
             throw new Exception($"this type name {typeName} is not supported");
         }
 
-        public override bool ValidateIsReadonly(DmColumn columnDefinition)
+        public override bool ValidateIsReadonly(SyncColumn columnDefinition)
         {
             return false;
         }
@@ -167,12 +167,12 @@ namespace Dotmim.Sync.Sqlite
             return ValidateDbType(typeName, isUnsigned, isUnicode, maxLength);
         }
 
-        public override byte ValidatePrecision(DmColumn columnDefinition)
+        public override byte ValidatePrecision(SyncColumn columnDefinition)
         {
             return columnDefinition.Precision;
         }
 
-        public override (byte precision, byte scale) ValidatePrecisionAndScale(DmColumn columnDefinition)
+        public override (byte precision, byte scale) ValidatePrecisionAndScale(SyncColumn columnDefinition)
         {
             return (columnDefinition.Precision, columnDefinition.Scale);
         }

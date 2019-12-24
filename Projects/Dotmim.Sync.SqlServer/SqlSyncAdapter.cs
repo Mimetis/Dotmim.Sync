@@ -11,6 +11,7 @@ using System.Data;
 using System.Data.Common;
 using System.Data.SqlClient;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 
 
@@ -151,7 +152,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                         var schemaColumn = schemaChangesTable.Columns[i];
 
                         // Get the default value
-                        var columnType = schemaColumn.GetDataType();
+                        //var columnType = schemaColumn.GetDataType();
                         dynamic defaultValue = schemaColumn.GetDefaultValue();
                         dynamic rowValue = row[i];
 
@@ -159,20 +160,24 @@ namespace Dotmim.Sync.SqlServer.Builders
                         var sqlMetadataType = metadatas[sqlMetadataIndex].SqlDbType;
                         if (rowValue != null)
                         {
+                            var columnType = rowValue.GetType();
+
                             switch (sqlMetadataType)
                             {
                                 case SqlDbType.BigInt:
                                     if (columnType != typeof(long))
-                                        if (Int64.TryParse(rowValue.ToString(), out Int64 v))
-                                            rowValue = v;
+                                    {
+                                        if (SyncTypeConverter.TryConvertTo<long>(rowValue, out object r))
+                                            rowValue = r;
                                         else
                                             throw new InvalidCastException($"Can't convert value {rowValue} to Int64");
+                                    }
                                     break;
                                 case SqlDbType.Bit:
                                     if (columnType != typeof(bool))
                                     {
                                         string rowValueString = rowValue.ToString();
-                                        if (Boolean.TryParse(rowValueString.Trim(), out Boolean v))
+                                        if (bool.TryParse(rowValueString.Trim(), out var v))
                                         {
                                             rowValue = v;
                                             break;
@@ -190,10 +195,9 @@ namespace Dotmim.Sync.SqlServer.Builders
                                             break;
                                         }
 
-                                        var converter = TypeDescriptor.GetConverter(typeof(bool));
-                                        if (converter.CanConvertFrom(columnType))
+                                        if (BoolConverter.CanConvertFrom(columnType))
                                         {
-                                            rowValue = converter.ConvertFrom(rowValue);
+                                            rowValue = BoolConverter.ConvertFrom(rowValue);
                                             break;
                                         }
 
@@ -205,63 +209,75 @@ namespace Dotmim.Sync.SqlServer.Builders
                                 case SqlDbType.DateTime2:
                                 case SqlDbType.SmallDateTime:
                                     if (columnType != typeof(DateTime))
-                                        if (DateTime.TryParse(rowValue.ToString(), out DateTime v))
-                                            rowValue = v;
+                                    {
+                                        if (SyncTypeConverter.TryConvertTo<DateTime>(rowValue, out object r))
+                                            rowValue = r;
                                         else
                                             throw new InvalidCastException($"Can't convert value {rowValue} to DateTime");
+                                    }
                                     break;
                                 case SqlDbType.DateTimeOffset:
                                     if (columnType != typeof(DateTimeOffset))
                                     {
-                                        if (DateTimeOffset.TryParse(rowValue.ToString(), out DateTimeOffset dt))
-                                            rowValue = dt;
+                                        if (SyncTypeConverter.TryConvertTo<DateTime>(rowValue, out object r))
+                                            rowValue = r;
                                         else
                                             throw new InvalidCastException($"Can't convert value {rowValue} to DateTimeOffset");
                                     }
                                     break;
                                 case SqlDbType.Decimal:
-                                    if (columnType != typeof(Decimal))
-                                        if (Decimal.TryParse(rowValue.ToString(), out decimal v))
-                                            rowValue = v;
+                                    if (columnType != typeof(decimal))
+                                    {
+                                        if (SyncTypeConverter.TryConvertTo<decimal>(rowValue, out object r))
+                                            rowValue = r;
                                         else
                                             throw new InvalidCastException($"Can't convert value {rowValue} to Decimal");
+                                    }
                                     break;
                                 case SqlDbType.Float:
-                                    if (columnType != typeof(Double))
-                                        if (Double.TryParse(rowValue.ToString(), out Double v))
-                                            rowValue = v;
+                                    if (columnType != typeof(double))
+                                    {
+                                        if (SyncTypeConverter.TryConvertTo<float>(rowValue, out object r))
+                                            rowValue = r;
                                         else
                                             throw new InvalidCastException($"Can't convert value {rowValue} to Double");
+                                    }
                                     break;
                                 case SqlDbType.Real:
                                     if (columnType != typeof(float))
-                                        if (float.TryParse(rowValue.ToString(), out float v))
-                                            rowValue = v;
+                                    {
+                                        if (SyncTypeConverter.TryConvertTo<float>(rowValue, out object r))
+                                            rowValue = r;
                                         else
                                             throw new InvalidCastException($"Can't convert value {rowValue} to Double");
+                                    }
                                     break;
                                 case SqlDbType.Image:
                                 case SqlDbType.Binary:
                                 case SqlDbType.VarBinary:
-                                    if (columnType != typeof(Byte[]))
+                                    if (columnType != typeof(byte[]))
                                         rowValue = BitConverter.GetBytes(rowValue);
                                     break;
                                 case SqlDbType.Variant:
                                     break;
                                 case SqlDbType.Int:
-                                    if (columnType != typeof(Int32))
-                                        if (Int32.TryParse(rowValue.ToString(), out int v))
-                                            rowValue = v;
+                                    if (columnType != typeof(int))
+                                    {
+                                        if (SyncTypeConverter.TryConvertTo<int>(rowValue, out object r))
+                                            rowValue = r;
                                         else
-                                            throw new InvalidCastException($"Can't convert value {rowValue} to Int32");
+                                            throw new InvalidCastException($"Can't convert value {rowValue} to int");
+                                    }
                                     break;
                                 case SqlDbType.Money:
                                 case SqlDbType.SmallMoney:
-                                    if (columnType != typeof(Decimal))
-                                        if (Decimal.TryParse(rowValue.ToString(), out Decimal v))
-                                            rowValue = v;
+                                    if (columnType != typeof(decimal))
+                                    {
+                                        if (SyncTypeConverter.TryConvertTo<decimal>(rowValue, out object r))
+                                            rowValue = r;
                                         else
                                             throw new InvalidCastException($"Can't convert value {rowValue} to Decimal");
+                                    }
                                     break;
                                 case SqlDbType.NChar:
                                 case SqlDbType.NText:
@@ -275,36 +291,44 @@ namespace Dotmim.Sync.SqlServer.Builders
                                     break;
 
                                 case SqlDbType.SmallInt:
-                                    if (columnType != typeof(Int16))
-                                        if (Int16.TryParse(rowValue.ToString(), out Int16 v))
-                                            rowValue = v;
+                                    if (columnType != typeof(short))
+                                    {
+                                        if (SyncTypeConverter.TryConvertTo<short>(rowValue, out object r))
+                                            rowValue = r;
                                         else
                                             throw new InvalidCastException($"Can't convert value {rowValue} to Int16");
+                                    }
                                     break;
                                 case SqlDbType.Time:
                                     if (columnType != typeof(TimeSpan))
-                                        if (TimeSpan.TryParse(rowValue.ToString(), out TimeSpan v))
-                                            rowValue = v;
+                                    {
+                                        if (SyncTypeConverter.TryConvertTo<TimeSpan>(rowValue, out object r))
+                                            rowValue = r;
                                         else
                                             throw new InvalidCastException($"Can't convert value {rowValue} to TimeSpan");
+                                    }
                                     break;
                                 case SqlDbType.Timestamp:
                                     break;
                                 case SqlDbType.TinyInt:
-                                    if (columnType != typeof(Byte))
-                                        if (Byte.TryParse(rowValue.ToString(), out byte v))
-                                            rowValue = v;
+                                    if (columnType != typeof(byte))
+                                    {
+                                        if (SyncTypeConverter.TryConvertTo<byte>(rowValue, out object r))
+                                            rowValue = r;
                                         else
                                             throw new InvalidCastException($"Can't convert value {rowValue} to Byte");
+                                    }
                                     break;
                                 case SqlDbType.Udt:
                                     throw new ArgumentException($"Can't use UDT as SQL Type");
                                 case SqlDbType.UniqueIdentifier:
                                     if (columnType != typeof(Guid))
-                                        if (Guid.TryParse(rowValue.ToString(), out Guid v))
-                                            rowValue = v;
+                                    {
+                                        if (SyncTypeConverter.TryConvertTo<Guid>(rowValue, out object r))
+                                            rowValue = r;
                                         else
                                             throw new InvalidCastException($"Can't convert value {rowValue} to Guid");
+                                    }
                                     break;
                             }
                         }
@@ -370,6 +394,26 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             }
         }
+
+
+        private static TypeConverter Int16Converter = TypeDescriptor.GetConverter(typeof(short));
+        private static TypeConverter Int32Converter = TypeDescriptor.GetConverter(typeof(int));
+        private static TypeConverter Int64Converter = TypeDescriptor.GetConverter(typeof(long));
+        private static TypeConverter UInt16Converter = TypeDescriptor.GetConverter(typeof(ushort));
+        private static TypeConverter UInt32Converter = TypeDescriptor.GetConverter(typeof(uint));
+        private static TypeConverter UInt64Converter = TypeDescriptor.GetConverter(typeof(ulong));
+        private static TypeConverter DateTimeConverter = TypeDescriptor.GetConverter(typeof(DateTime));
+        private static TypeConverter StringConverter = TypeDescriptor.GetConverter(typeof(string));
+        private static TypeConverter ByteConverter = TypeDescriptor.GetConverter(typeof(byte));
+        private static TypeConverter BoolConverter = TypeDescriptor.GetConverter(typeof(bool));
+        private static TypeConverter GuidConverter = TypeDescriptor.GetConverter(typeof(Guid));
+        private static TypeConverter CharConverter = TypeDescriptor.GetConverter(typeof(char));
+        private static TypeConverter DecimalConverter = TypeDescriptor.GetConverter(typeof(decimal));
+        private static TypeConverter DoubleConverter = TypeDescriptor.GetConverter(typeof(double));
+        private static TypeConverter FloatConverter = TypeDescriptor.GetConverter(typeof(float));
+        private static TypeConverter SByteConverter = TypeDescriptor.GetConverter(typeof(sbyte));
+        private static TypeConverter TimeSpanConverter = TypeDescriptor.GetConverter(typeof(TimeSpan));
+
 
         /// <summary>
         /// Check if an exception is a primary key exception

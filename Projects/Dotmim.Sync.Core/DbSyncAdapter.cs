@@ -136,8 +136,37 @@ namespace Dotmim.Sync
 
             long createTimestamp = row[createTimestampIndex] != null ? Convert.ToInt64(row[createTimestampIndex]) : 0;
             long updateTimestamp = row[updateTimestampIndex] != null ? Convert.ToInt64(row[updateTimestampIndex]) : 0;
-            Guid? create_scope_id = row[createScopeIdIndex] != null ? (Guid?)row[createScopeIdIndex] : null;
-            Guid? update_scope_id = row[updateScopeIdIndex] != null ? (Guid?)row[updateScopeIdIndex] : null;
+
+
+
+            Guid? create_scope_id = null;
+
+            if (row[createScopeIdIndex] != null && row[createScopeIdIndex] != DBNull.Value)
+            {
+                if (SyncTypeConverter.TryConvertTo<Guid>(row[createScopeIdIndex], out var csid))
+                {
+                    create_scope_id = (Guid)csid;
+                }
+                else
+                {
+                    create_scope_id = null;
+                }
+            }
+
+            Guid? update_scope_id = null;
+
+            if (row[updateScopeIdIndex] != null && row[updateScopeIdIndex] != DBNull.Value)
+            {
+                if (SyncTypeConverter.TryConvertTo<Guid>(row[updateScopeIdIndex], out var usid))
+                {
+                    update_scope_id = (Guid)usid;
+                }
+                else
+                {
+                    update_scope_id = null;
+                }
+            }
+
 
             // Override create and update scope id to reflect who change the value
             // if it's an update, the createscope is staying the same (because not present in dbCommand)
@@ -154,7 +183,7 @@ namespace Dotmim.Sync
             bool isTombstone = false;
 
             // Firstly check the state
-            isTombstone = (DataRowState)(int)row[0] == DataRowState.Deleted;
+            isTombstone = row.RowState == DataRowState.Deleted;
 
             // TODO : Secondly check the sync is tombstone column. Should we do this ?
             var isTombstoneColumn = schemaTable.Columns.FirstOrDefault("sync_row_is_tombstone");
@@ -219,7 +248,8 @@ namespace Dotmim.Sync
                     selectCommand.Transaction = Transaction;
 
                 // Create a select table based on the schema in parameter + scope columns
-                var selectTable = CreateChangesTable(schema);
+                var changesSet = schema.Schema.Clone(false);
+                var selectTable = CreateChangesTable(schema, changesSet);
 
                 // Create a new empty row
                 var syncRow = selectTable.NewRow();
@@ -400,45 +430,6 @@ namespace Dotmim.Sync
         }
 
 
-        /// <summary>
-        /// Create a change table with scope columns and tombstone column
-        /// </summary>
-        internal static SyncTable CreateChangesTable(SyncTable syncTable)
-        {
-            if (syncTable.Schema == null)
-                throw new ArgumentException("Schema can't be null when creating a changes table");
-
-            // Create an empty Set
-            var changesSet = syncTable.Schema.Clone(false);
-
-            // Create an empty sync table without columns
-            var changesTable = new SyncTable(syncTable.TableName, syncTable.SchemaName)
-            {
-                OriginalProvider = syncTable.OriginalProvider,
-                SyncDirection = syncTable.SyncDirection
-            };
-
-            // Adding primary keys
-            foreach (var pkey in syncTable.PrimaryKeys)
-                changesTable.PrimaryKeys.Add(pkey);
-
-            // Adding the table
-            changesSet.Tables.Add(changesTable);
-
-            // get ordered columns that are mutables and pkeys
-            var orderedNames = syncTable.GetMutableColumnsWithPrimaryKeys();
-
-            foreach (var c in orderedNames)
-                changesTable.Columns.Add(c.Clone());
-
-            changesTable.Columns.Add("create_scope_id", typeof(Guid));
-            changesTable.Columns.Add("create_timestamp", typeof(long));
-            changesTable.Columns.Add("update_scope_id", typeof(Guid));
-            changesTable.Columns.Add("update_timestamp", typeof(long));
-
-            return changesTable;
-
-        }
 
 
         private void UpdateMetadatas(DbCommandType dbCommandType, SyncRow row, Guid applyingScopeId)
@@ -540,7 +531,7 @@ namespace Dotmim.Sync
                 this.SetColumnParametersValues(command, row);
 
                 // Set the special parameters for insert
-                AddCommonParametersValues(command, applyingScopeId, lastTimestamp, false, forceWrite);
+                AddScopeParametersValues(command, applyingScopeId, lastTimestamp, false, forceWrite);
 
                 var alreadyOpened = Connection.State == ConnectionState.Open;
 
@@ -586,7 +577,7 @@ namespace Dotmim.Sync
                 this.SetColumnParametersValues(command, row);
 
                 // Set the special parameters for update
-                this.AddCommonParametersValues(command, applyingScopeId, lastTimestamp, true, forceWrite);
+                this.AddScopeParametersValues(command, applyingScopeId, lastTimestamp, true, forceWrite);
 
                 var alreadyOpened = Connection.State == ConnectionState.Open;
 
@@ -636,7 +627,7 @@ namespace Dotmim.Sync
                 this.SetColumnParametersValues(command, row);
 
                 // Set the special parameters for update
-                AddCommonParametersValues(command, applyingScopeId, lastTimestamp, false, forceWrite);
+                AddScopeParametersValues(command, applyingScopeId, lastTimestamp, false, forceWrite);
 
                 var alreadyOpened = Connection.State == ConnectionState.Open;
 
@@ -754,7 +745,7 @@ namespace Dotmim.Sync
         /// Add common parameters which could be part of the command
         /// if not found, no set done
         /// </summary>
-        private void AddCommonParametersValues(DbCommand command, Guid id, long lastTimestamp, bool isDeleted, bool forceWrite)
+        private void AddScopeParametersValues(DbCommand command, Guid id, long lastTimestamp, bool isDeleted, bool forceWrite)
         {
             // Dotmim.Sync parameters
             DbManager.SetParameterValue(command, "sync_force_write", (forceWrite ? 1 : 0));
@@ -763,7 +754,44 @@ namespace Dotmim.Sync
             DbManager.SetParameterValue(command, "sync_row_is_tombstone", isDeleted);
         }
 
+        /// <summary>
+        /// Create a change table with scope columns and tombstone column
+        /// </summary>
+        public static SyncTable CreateChangesTable(SyncTable syncTable, SyncSet owner)
+        {
+            if (syncTable.Schema == null)
+                throw new ArgumentException("Schema can't be null when creating a changes table");
 
+            // Create an empty sync table without columns
+            var changesTable = new SyncTable(syncTable.TableName, syncTable.SchemaName)
+            {
+                OriginalProvider = syncTable.OriginalProvider,
+                SyncDirection = syncTable.SyncDirection
+            };
+
+            // Adding primary keys
+            foreach (var pkey in syncTable.PrimaryKeys)
+                changesTable.PrimaryKeys.Add(pkey);
+
+            // get ordered columns that are mutables and pkeys
+            var orderedNames = syncTable.GetMutableColumnsWithPrimaryKeys();
+
+            foreach (var c in orderedNames)
+                changesTable.Columns.Add(c.Clone());
+
+            owner.Tables.Add(changesTable);
+
+            if (changesTable.Columns["create_scope_id"] == null)
+            {
+                changesTable.Columns.Add("create_scope_id", typeof(Guid));
+                changesTable.Columns.Add("create_timestamp", typeof(long));
+                changesTable.Columns.Add("update_scope_id", typeof(Guid));
+                changesTable.Columns.Add("update_timestamp", typeof(long));
+            }
+
+            return changesTable;
+
+        }
 
     }
 }

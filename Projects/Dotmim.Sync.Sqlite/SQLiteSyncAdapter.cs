@@ -33,7 +33,7 @@ namespace Dotmim.Sync.Sqlite
 
         }
 
-        public SqliteSyncAdapter(DmTable tableDescription, DbConnection connection, DbTransaction transaction) : base(tableDescription)
+        public SqliteSyncAdapter(SyncTable tableDescription, DbConnection connection, DbTransaction transaction) : base(tableDescription)
         {
             var sqlc = connection as SqliteConnection;
             this.connection = sqlc ?? throw new InvalidCastException("Connection should be a SqliteConnection");
@@ -49,7 +49,7 @@ namespace Dotmim.Sync.Sqlite
             return false;
         }
 
-        public override DbCommand GetCommand(DbCommandType commandType, IEnumerable<FilterClause> filters = null)
+        public override DbCommand GetCommand(DbCommandType commandType, IEnumerable<SyncFilter> filters = null)
         {
             var command = this.Connection.CreateCommand();
             string text;
@@ -70,7 +70,7 @@ namespace Dotmim.Sync.Sqlite
             return command;
         }
 
-        public override void SetCommandParameters(DbCommandType commandType, DbCommand command, IEnumerable<FilterClause> filters = null)
+        public override void SetCommandParameters(DbCommandType commandType, DbCommand command, IEnumerable<SyncFilter> filters = null)
         {
             switch (commandType)
             {
@@ -127,12 +127,12 @@ namespace Dotmim.Sync.Sqlite
         {
             DbParameter p;
 
-            foreach (DmColumn column in this.TableDescription.Columns.Where(c => !c.IsReadOnly))
+            foreach (var column in this.TableDescription.Columns.Where(c => !c.IsReadOnly))
             {
                 var unquotedColumn = ParserName.Parse(column).Normalized().Unquoted().ToString();
                 p = command.CreateParameter();
                 p.ParameterName = $"@{unquotedColumn}";
-                p.DbType = GetValidDbType(column.DbType);
+                p.DbType = GetValidDbType(column.GetDbType());
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
             }
@@ -153,12 +153,12 @@ namespace Dotmim.Sync.Sqlite
         {
             DbParameter p;
 
-            foreach (var column in this.TableDescription.PrimaryKey.Columns.Where(c => !c.IsReadOnly))
+            foreach (var column in this.TableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
             {
                 var unquotedColumn = ParserName.Parse(column).Normalized().Unquoted().ToString();
                 p = command.CreateParameter();
                 p.ParameterName = $"@{unquotedColumn}";
-                p.DbType = GetValidDbType(column.DbType);
+                p.DbType = GetValidDbType(column.GetDbType());
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
             }
@@ -189,7 +189,7 @@ namespace Dotmim.Sync.Sqlite
 
                 p = command.CreateParameter();
                 p.ParameterName = $"@{unquotedColumn}";
-                p.DbType = GetValidDbType(column.DbType);
+                p.DbType = GetValidDbType(column.GetDbType());
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
             }
@@ -199,12 +199,12 @@ namespace Dotmim.Sync.Sqlite
         {
             DbParameter p;
 
-            foreach (var column in this.TableDescription.PrimaryKey.Columns.Where(c => !c.IsReadOnly))
+            foreach (var column in this.TableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
             {
                 var unquotedColumn = ParserName.Parse(column).Normalized().Unquoted().ToString();
                 p = command.CreateParameter();
                 p.ParameterName = $"@{unquotedColumn}";
-                p.DbType = column.DbType;
+                p.DbType = column.GetDbType();
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
             }
@@ -239,12 +239,12 @@ namespace Dotmim.Sync.Sqlite
         {
             DbParameter p;
 
-            foreach (var column in this.TableDescription.PrimaryKey.Columns.Where(c => !c.IsReadOnly))
+            foreach (var column in this.TableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
             {
                 var unquotedColumn = ParserName.Parse(column).Normalized().Unquoted().ToString();
                 p = command.CreateParameter();
                 p.ParameterName = $"@{unquotedColumn}";
-                p.DbType = GetValidDbType(column.DbType);
+                p.DbType = GetValidDbType(column.GetDbType());
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
             }
@@ -264,12 +264,12 @@ namespace Dotmim.Sync.Sqlite
         {
             DbParameter p;
 
-            foreach (var column in this.TableDescription.PrimaryKey.Columns.Where(c => !c.IsReadOnly))
+            foreach (var column in this.TableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
             {
                 var unquotedColumn = ParserName.Parse(column).Normalized().Unquoted().ToString();
                 p = command.CreateParameter();
                 p.ParameterName = $"@{unquotedColumn}";
-                p.DbType = GetValidDbType(column.DbType);
+                p.DbType = GetValidDbType(column.GetDbType());
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
             }
@@ -309,7 +309,7 @@ namespace Dotmim.Sync.Sqlite
             command.Parameters.Add(p);
         }
 
-        public override void ExecuteBatchCommand(DbCommand cmd, DmView applyTable, DmTable failedRows, Guid applyingScopeId, long lastTimestamp)
+        public override void ExecuteBatchCommand(DbCommand cmd, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable, SyncTable failedRows, Guid applyingScopeId, long lastTimestamp)
         {
             throw new NotImplementedException();
         }

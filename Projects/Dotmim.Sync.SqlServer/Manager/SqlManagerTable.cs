@@ -82,7 +82,7 @@ namespace Dotmim.Sync.SqlServer.Manager
 
                 var sColumn = new SyncColumn(name, columnType);
                 sColumn.OriginalDbType = datastoreDbType.ToString();
-                sColumn.Ordinal = ((int)c["column_id"]);
+                sColumn.Ordinal = (int)c["column_id"];
                 sColumn.OriginalTypeName = c["type"].ToString();
                 sColumn.MaxLength = maxLengthLong > int.MaxValue ? int.MaxValue : (int)maxLengthLong;
                 sColumn.Precision = (byte)c["precision"];
