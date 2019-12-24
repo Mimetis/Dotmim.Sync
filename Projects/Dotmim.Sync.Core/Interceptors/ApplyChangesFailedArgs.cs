@@ -28,11 +28,18 @@ namespace Dotmim.Sync
                     {
                         var finalRowArray = this.Conflict.RemoteRow.ToArray();
                         var finalTable = this.Conflict.RemoteRow.Table.Clone();
-                        this.FinalRow = new SyncRow(finalTable, finalRowArray);
+                        var finalSet = this.Conflict.RemoteRow.Table.Schema.Clone(false);
+                        finalSet.Tables.Add(finalTable);
+                        this.FinalRow = new SyncRow(finalTable);
+                        this.FinalRow.FromArray(finalRowArray);
+                        finalTable.Rows.Add(this.FinalRow);
                     }
                     else if (this.FinalRow != null)
                     {
+                        var finalSet = this.FinalRow.Table.Schema;
                         this.FinalRow.Clear();
+                        finalSet.Clear();
+                        finalSet.Dispose();
                     }
                 }
             }

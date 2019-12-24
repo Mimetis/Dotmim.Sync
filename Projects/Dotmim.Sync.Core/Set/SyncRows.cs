@@ -49,7 +49,7 @@ namespace Dotmim.Sync
         {
             foreach(var item in rows)
             {
-                TryEnsureData(item);
+                // TryEnsureData(item);
                 item.Table = this.Table;
                 this.rows.Add(item);
 
@@ -60,15 +60,34 @@ namespace Dotmim.Sync
         /// </summary>
         public void Add(SyncRow item)
         {
-            TryEnsureData(item);
+            // TryEnsureData(item);
             item.Table = this.Table;
             this.rows.Add(item);
+        }
+
+
+        /// <summary>
+        /// Import a containerTable
+        /// </summary>
+        /// <param name="containerTable"></param>
+        internal void ImportContainerTable(ContainerTable containerTable)
+        {
+            foreach(var row in containerTable.Rows)
+            {
+                var length = Table.Columns.Count;
+                var itemArray = new object[length];
+                Array.Copy(row, 1, itemArray, 0, length);
+                var state = (DataRowState)Convert.ToInt32(row[0]);
+
+                var schemaRow = new SyncRow(this.Table, itemArray, state);
+                this.rows.Add(schemaRow);
+            }
         }
 
         /// <summary>
         /// Gets the inner rows for serialization
         /// </summary>
-        internal IEnumerable<object[]> ToEnumerable()
+        internal IEnumerable<object[]> ExportToContainerTable()
         {
             foreach (var row in this.rows)
                 yield return row.ToArray();

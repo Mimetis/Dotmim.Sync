@@ -124,7 +124,7 @@ namespace Dotmim.Sync.Web.Client
 
 
 
-        public async Task<(SyncContext, long, BatchInfo, ConflictResolutionPolicy,  DatabaseChangesSelected)>
+        public async Task<(SyncContext, long, BatchInfo, ConflictResolutionPolicy, DatabaseChangesSelected)>
             ApplyThenGetChangesAsync(SyncContext context, ScopeInfo scope, SyncSet schema, BatchInfo clientBatchInfo,
                                      bool disableConstraintsOnApplyChanges, bool useBulkOperations, bool cleanMetadatas,
                                      int clientBatchSize, string batchDirectory, ConflictResolutionPolicy policy,
@@ -138,7 +138,7 @@ namespace Dotmim.Sync.Web.Client
             // if we don't have any BatchPartsInfo, just generate a new one to get, at least, something to send to the server
             // and get a response with new data from server
             if (clientBatchInfo == null)
-                clientBatchInfo = new BatchInfo(true);
+                clientBatchInfo = new BatchInfo(true, schema);
 
 
             // --------------------------------------------------------------
@@ -227,11 +227,29 @@ namespace Dotmim.Sync.Web.Client
                 context = httpMessageContent.SyncContext;
                 remoteClientTimestamp = httpMessageContent.RemoteClientTimestamp;
 
-                var changes = schema.Clone();
-                changes.ImportContainerSet(httpMessageContent.Changes);
+                // create the in memory changes set
+                var changesSet = new SyncSet
+                {
+                    CaseSensitive = schema.CaseSensitive,
+                    CultureInfoName = schema.CultureInfoName,
+                    ScopeName = schema.ScopeName,
+                    DataSourceName = schema.DataSourceName
+                };
+                foreach(var table in httpMessageContent.Changes.Tables)
+                {
+                    DbSyncAdapter.CreateChangesTable(schema.Tables[table.TableName, table.SchemaName], changesSet);
+                }
+
+                changesSet.ImportContainerSet(httpMessageContent.Changes);
 
                 // Create a BatchPartInfo instance
-                serverBatchInfo.AddChanges(changes, httpMessageContent.BatchIndex, false);
+                serverBatchInfo.AddChanges(changesSet, httpMessageContent.BatchIndex, false);
+
+
+                //var changes = schema.Clone();
+                //changes.ImportContainerSet(httpMessageContent.Changes);
+                //serverBatchInfo.AddChanges(changes, httpMessageContent.BatchIndex, false);
+
 
                 // free some memory
                 if (!workInMemoryLocally && httpMessageContent.Changes != null)

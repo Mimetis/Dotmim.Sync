@@ -140,7 +140,7 @@ namespace Dotmim.Sync
             var context = new SyncContext(Guid.NewGuid())
             {
                 // set start time
-                StartTime = DateTime.Now,
+                StartTime = DateTime.UtcNow,
                 // if any parameters, set in context
                 Parameters = this.Parameters,
                 // set sync type (Normal, Reinitialize, ReinitializeWithUpload)
@@ -231,6 +231,7 @@ namespace Dotmim.Sync
                 context.TotalChangesDownloaded = localChanges.clientChangesApplied.TotalAppliedChanges;
                 context.TotalChangesUploaded = clientChanges.clientChangesSelected.TotalChangesSelected;
                 context.TotalSyncErrors = localChanges.clientChangesApplied.TotalAppliedChangesFailed;
+
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();

@@ -19,11 +19,11 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Create a new BatchInfo, containing all BatchPartInfo
         /// </summary>
-        public BatchInfo(bool isInMemory, SyncSet schema = null,string rootDirectory = null)
+        public BatchInfo(bool isInMemory, SyncSet inSchema, string rootDirectory = null)
         {
             this.InMemory = isInMemory;
-            this.schema = schema;
-
+            this.schema = inSchema.Clone();
+            
             // If not in memory, generate a directory name and initialize batch parts list
             if (!this.InMemory)
             {
@@ -32,6 +32,19 @@ namespace Dotmim.Sync.Batch
                 // To simplify things, even if not used, just generate a random directory name for this batchinfo
                 this.directoryName = string.Concat(DateTime.UtcNow.ToString("yyyy_MM_dd_ss"), Path.GetRandomFileName().Replace(".", ""));
             }
+
+            // Message changes contains scope columns, so add them in the schema
+            foreach (var table in schema.Tables)
+            {
+                if (table.Columns["create_scope_id"] == null)
+                {
+                    table.Columns.Add("create_scope_id", typeof(Guid));
+                    table.Columns.Add("create_timestamp", typeof(long));
+                    table.Columns.Add("update_scope_id", typeof(Guid));
+                    table.Columns.Add("update_timestamp", typeof(long));
+                }
+            }
+
         }
 
         /// <summary>
@@ -68,7 +81,6 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Check if this batchinfo has some data (in memory or not)
         /// </summary>
-        /// <returns></returns>
         public bool HasData()
         {
             if (InMemory && InMemoryData != null && InMemoryData.HasTables && InMemoryData.HasRows)
@@ -80,13 +92,12 @@ namespace Dotmim.Sync.Batch
                 {
                     bpi.LoadBatch(schema);
 
-                    if (bpi.Data.HasRows)
-                    {
-                        bpi.Clear();
-                        return true;
-                    }
-
+                    var hasData = bpi.Data.HasRows;
+                    
                     bpi.Clear();
+                    bpi.Data = null;
+
+                    return hasData;
                 }
             }
 

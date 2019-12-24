@@ -86,7 +86,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Ctor for serialization purpose
         /// </summary>
-        public SyncColumn() => this.AllowDBNull = true;
+        public SyncColumn() { }
 
         /// <summary>
         /// Create a new column with the given name

@@ -39,7 +39,7 @@ internal class Program
                                                     "SalesOrderHeader", "SalesOrderDetail" };
     private static void Main(string[] args)
     {
-        SynchronizeAsync().GetAwaiter().GetResult();
+        SyncHttpThroughKestellAsync().GetAwaiter().GetResult();
 
         //TestSyncTable();
 
@@ -106,7 +106,7 @@ internal class Program
 
         var rows = set.Tables[0].Rows.Select(r => r.ItemArray);
 
-        var schemaSet = new SyncSet("Adv", SyncOptions.DefaultScopeName, false, CultureInfo.InvariantCulture.Name);
+        var schemaSet = new SyncSet("Adv", false);
         var schemaTable = new SyncTable("ServiceTickets");
         schemaTable.Columns.Add(SyncColumn.Create<Guid>("ServiceTicketID"));
         schemaTable.Columns.Add(SyncColumn.Create<string>("Title"));
@@ -458,7 +458,7 @@ internal class Program
         await DbHelper.CreateDatabaseAsync(clientDbName);
 
         // Launch Sync
-        await SynchronizeAsync();
+        await SyncHttpThroughKestellAsync();
     }
 
 
@@ -505,8 +505,22 @@ internal class Program
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, allTables);
 
+
         // Using the Progress pattern to handle progession during the synchronization
-        var progress = new Progress<ProgressArgs>(s => Console.WriteLine($"[client]: {s.Context.SyncStage}:\t{s.Message}"));
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
+            Console.ResetColor();
+        });
+
+        var remoteProgress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
+            Console.ResetColor();
+        });
+       // agent.AddRemoteProgress(remoteProgress);
 
         // Setting configuration options
         agent.Schema.StoredProceduresPrefix = "s";
@@ -528,30 +542,30 @@ internal class Program
             Console.WriteLine("Sync Start");
             try
             {
-                agent.RemoteOrchestrator.OnSchema(args =>
-                {
-                    var serializer = new JsonSerializer();
-                    byte[] bin = null;
+                //agent.RemoteOrchestrator.OnSchema(args =>
+                //{
+                //    var serializer = new JsonSerializer();
+                //    byte[] bin = null;
 
-                    using (var ms = new MemoryStream())
-                    {
-                        using (var writer = new StreamWriter(ms))
-                        {
-                            using (var jsonWriter = new JsonTextWriter(writer))
-                            {
-                                serializer.Serialize(jsonWriter, args.Schema);
-                            }
-                        }
-                        bin = ms.ToArray();
-                    }
+                //    using (var ms = new MemoryStream())
+                //    {
+                //        using (var writer = new StreamWriter(ms))
+                //        {
+                //            using (var jsonWriter = new JsonTextWriter(writer))
+                //            {
+                //                serializer.Serialize(jsonWriter, args.Schema);
+                //            }
+                //        }
+                //        bin = ms.ToArray();
+                //    }
 
-                    // for readiness
-                    using (var fs = new FileStream("Json_schema.json", FileMode.Create))
-                    {
-                        fs.Write(bin, 0, bin.Length);
-                    }
+                //    // for readiness
+                //    using (var fs = new FileStream("Json_schema.json", FileMode.Create))
+                //    {
+                //        fs.Write(bin, 0, bin.Length);
+                //    }
 
-                });
+                //});
 
                 // Launch the sync process
                 var s1 = await agent.SynchronizeAsync(progress);
