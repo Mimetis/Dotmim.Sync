@@ -17,7 +17,7 @@ namespace Dotmim.Sync.MySql
     {
         private readonly ParserName tableName;
         private readonly ParserName trackingName;
-        private readonly DmTable tableDescription;
+        private readonly SyncTable tableDescription;
         private readonly MySqlConnection connection;
         private readonly MySqlTransaction transaction;
         private readonly MySqlDbMetadata mySqlDbMetadata;
@@ -46,7 +46,7 @@ namespace Dotmim.Sync.MySql
 
             return name;
         }
-        public MySqlBuilderTable(DmTable tableDescription, DbConnection connection, DbTransaction transaction = null)
+        public MySqlBuilderTable(SyncTable tableDescription, DbConnection connection, DbTransaction transaction = null)
         {
 
             this.connection = connection as MySqlConnection;
@@ -57,17 +57,17 @@ namespace Dotmim.Sync.MySql
         }
 
 
-        private MySqlCommand BuildForeignKeyConstraintsCommand(DmRelation foreignKey)
+        private MySqlCommand BuildForeignKeyConstraintsCommand(SyncRelation foreignKey)
         {
             var sqlCommand = new MySqlCommand();
 
-            var childTableName = ParserName.Parse(foreignKey.ChildTable, "`").Quoted().ToString();
-            var parentTableName = ParserName.Parse(foreignKey.ParentTable, "`").Quoted().ToString();
+            var childTableName = ParserName.Parse(foreignKey.GetChildTable(), "`").Quoted().ToString();
+            var parentTableName = ParserName.Parse(foreignKey.GetParentTable(), "`").Quoted().ToString();
 
             var relationName = NormalizeRelationName(foreignKey.RelationName);
 
-            DmColumn[] foreignKeyColumns = foreignKey.ChildColumns;
-            DmColumn[] referencesColumns = foreignKey.ParentColumns;
+            var foreignKeyColumns = foreignKey.ChildKeys;
+            var referencesColumns = foreignKey.ParentKeys;
 
             var stringBuilder = new StringBuilder();
             stringBuilder.Append("ALTER TABLE ");
@@ -79,7 +79,7 @@ namespace Dotmim.Sync.MySql
             string empty = string.Empty;
             foreach (var foreignKeyColumn in foreignKeyColumns)
             {
-                var foreignKeyColumnName = ParserName.Parse(foreignKeyColumn, "`").Quoted().ToString();
+                var foreignKeyColumnName = ParserName.Parse(foreignKeyColumn.ColumnName, "`").Quoted().ToString();
                 stringBuilder.Append($"{empty} {foreignKeyColumnName}");
                 empty = ", ";
             }
@@ -89,7 +89,7 @@ namespace Dotmim.Sync.MySql
             empty = string.Empty;
             foreach (var referencesColumn in referencesColumns)
             {
-                var referencesColumnName = ParserName.Parse(referencesColumn, "`").Quoted().ToString();
+                var referencesColumnName = ParserName.Parse(referencesColumn.ColumnName, "`").Quoted().ToString();
                 stringBuilder.Append($"{empty} {referencesColumnName}");
                 empty = ", ";
             }
@@ -99,10 +99,10 @@ namespace Dotmim.Sync.MySql
             return sqlCommand;
         }
 
-        public bool NeedToCreateForeignKeyConstraints(DmRelation foreignKey)
+        public bool NeedToCreateForeignKeyConstraints(SyncRelation foreignKey)
         {
-            string parentTable = foreignKey.ParentTable.TableName;
-            string parentSchema = foreignKey.ParentTable.Schema;
+            string parentTable = foreignKey.GetParentTable().TableName;
+            string parentSchema = foreignKey.GetParentTable().SchemaName;
             string parentFullName = string.IsNullOrEmpty(parentSchema) ? parentTable : $"{parentSchema}.{parentTable}";
 
             var relationName = NormalizeRelationName(foreignKey.RelationName);
@@ -111,7 +111,7 @@ namespace Dotmim.Sync.MySql
 
             // Don't want foreign key on same table since it could be a problem on first 
             // sync. We are not sure that parent row will be inserted in first position
-            if (string.Equals(parentTable, foreignKey.ChildTable.TableName, StringComparison.CurrentCultureIgnoreCase))
+            if (string.Equals(parentTable, foreignKey.GetChildTable().TableName, StringComparison.CurrentCultureIgnoreCase))
                 return false;
 
             try
@@ -138,7 +138,7 @@ namespace Dotmim.Sync.MySql
             }
         }
 
-        public void CreateForeignKeyConstraints(DmRelation constraint)
+        public void CreateForeignKeyConstraints(SyncRelation constraint)
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
@@ -173,12 +173,12 @@ namespace Dotmim.Sync.MySql
 
         }
 
-        public string CreateForeignKeyConstraintsScriptText(DmRelation constraint)
+        public string CreateForeignKeyConstraintsScriptText(SyncRelation constraint)
         {
             var stringBuilder = new StringBuilder();
             var relationName = NormalizeRelationName(constraint.RelationName);
 
-            var constraintName = $"Create Constraint {constraint.RelationName} between parent {constraint.ParentTable.TableName} and child {constraint.ChildTable.TableName}";
+            var constraintName = $"Create Constraint {constraint.RelationName} between parent {constraint.GetParentTable().TableName} and child {constraint.GetChildTable().TableName}";
             var constraintScript = this.BuildForeignKeyConstraintsCommand(constraint).CommandText;
             stringBuilder.Append(MySqlBuilder.WrapScriptTextWithComments(constraintScript, constraintName));
             stringBuilder.AppendLine();
@@ -206,8 +206,8 @@ namespace Dotmim.Sync.MySql
             foreach (var column in this.tableDescription.Columns)
             {
                 var columnName = ParserName.Parse(column, "`").Quoted().ToString();
-                var stringType = this.mySqlDbMetadata.TryGetOwnerDbTypeString(column.OriginalDbType, column.DbType, false, false, column.MaxLength, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
-                var stringPrecision = this.mySqlDbMetadata.TryGetOwnerDbTypePrecision(column.OriginalDbType, column.DbType, false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
+                var stringType = this.mySqlDbMetadata.TryGetOwnerDbTypeString(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
+                var stringPrecision = this.mySqlDbMetadata.TryGetOwnerDbTypePrecision(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
                 var columnType = $"{stringType} {stringPrecision}";
 
                 var identity = string.Empty;
@@ -230,31 +230,31 @@ namespace Dotmim.Sync.MySql
                 empty = ",";
             }
 
-            if (this.tableDescription.MutableColumns.Any(mc => mc.IsAutoIncrement))
+            if (this.tableDescription.GetMutableColumns().Any(mc => mc.IsAutoIncrement))
                 stringBuilder.Append("\t, KEY (");
 
             empty = string.Empty;
-            foreach (var column in this.tableDescription.MutableColumns.Where(c => c.IsAutoIncrement))
+            foreach (var column in this.tableDescription.GetMutableColumns().Where(c => c.IsAutoIncrement))
             {
                 var columnName = ParserName.Parse(column, "`").Quoted().ToString();
                 stringBuilder.Append($"{empty} {columnName}");
                 empty = ",";
             }
 
-            if (this.tableDescription.MutableColumns.Any(mc => mc.IsAutoIncrement))
+            if (this.tableDescription.GetMutableColumns().Any(mc => mc.IsAutoIncrement))
                 stringBuilder.AppendLine(")");
 
             stringBuilder.Append("\t,PRIMARY KEY (");
 
             int i = 0;
             // It seems we need to specify the increment column in first place
-            foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns.OrderByDescending(pk => pk.IsAutoIncrement))
+            foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns().OrderByDescending(pk => pk.IsAutoIncrement))
             {
                 var columnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
 
                 stringBuilder.Append(columnName);
 
-                if (i < this.tableDescription.PrimaryKey.Columns.Length - 1)
+                if (i < this.tableDescription.PrimaryKeys.Count - 1)
                     stringBuilder.Append(", ");
                 i++;
             }
@@ -320,19 +320,19 @@ namespace Dotmim.Sync.MySql
         /// <summary>
         /// For a foreign key, check if the Parent table exists
         /// </summary>
-        private bool EnsureForeignKeysTableExist(DmRelation foreignKey)
+        private bool EnsureForeignKeysTableExist(SyncRelation foreignKey)
         {
-            var childTable = foreignKey.ChildTable;
-            var parentTable = foreignKey.ParentTable;
+            var childTable = foreignKey.GetChildTable();
+            var parentTable = foreignKey.GetParentTable();
 
             // The foreignkey comes from the child table
-            var ds = foreignKey.ChildTable.DmSet;
+            var ds = foreignKey.GetChildTable().Schema;
 
             if (ds == null)
                 return false;
 
             // Check if the parent table is part of the sync configuration
-            var exist = ds.Tables.Any(t => ds.IsEqual(t.TableName.ToLowerInvariant(), parentTable.TableName.ToLowerInvariant()));
+            var exist = ds.Tables.Any(t => ds.StringEquals(t.TableName.ToLowerInvariant(), parentTable.TableName.ToLowerInvariant()));
 
             if (!exist)
                 return false;

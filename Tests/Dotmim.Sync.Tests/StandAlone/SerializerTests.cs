@@ -237,7 +237,7 @@ namespace Dotmim.Sync.Tests.StandAlone
 
         private static SyncSet CreateSchema()
         {
-            var set = new SyncSet("AdventureWorks");
+            var set = new SyncSet() { DataSourceName = "AdventureWorks" };
             set.CaseSensitive = false;
             set.StoredProceduresPrefix = "spp";
             set.StoredProceduresSuffix = "sps";

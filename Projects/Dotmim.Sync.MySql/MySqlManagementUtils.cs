@@ -152,7 +152,7 @@ namespace Dotmim.Sync.MySql
                 if (transaction != null)
                     dbCommand.Transaction = transaction;
 
-                MySqlParameter sqlParameter = new MySqlParameter()
+                var sqlParameter = new MySqlParameter()
                 {
                     ParameterName = "@tableName",
                     Value = table.Unquoted().ToString()
@@ -172,7 +172,7 @@ namespace Dotmim.Sync.MySql
             var triggerName = ParserName.Parse(quotedTriggerName, "`");
 
 
-            using (MySqlCommand dbCommand = connection.CreateCommand())
+            using (var dbCommand = connection.CreateCommand())
             {
                 dbCommand.CommandText = "select count(*) from information_schema.TRIGGERS where trigger_name = @triggerName AND trigger_schema = schema()";
 
@@ -191,7 +191,7 @@ namespace Dotmim.Sync.MySql
             bool procExist;
             var commandNameString = ParserName.Parse(commandName, "`");
 
-            using (MySqlCommand dbCommand = connection.CreateCommand())
+            using (var dbCommand = connection.CreateCommand())
             {
                 dbCommand.CommandText = @"select count(*) from information_schema.ROUTINES
                                         where ROUTINE_TYPE = 'PROCEDURE'
@@ -208,14 +208,14 @@ namespace Dotmim.Sync.MySql
             return procExist;
         }
 
-        internal static string JoinTwoTablesOnClause(IEnumerable<DmColumn> columns, string leftName, string rightName)
+        internal static string JoinTwoTablesOnClause(IEnumerable<string> pkeys, string leftName, string rightName)
         {
-            StringBuilder stringBuilder = new StringBuilder();
+            var stringBuilder = new StringBuilder();
             string strRightName = (string.IsNullOrEmpty(rightName) ? string.Empty : string.Concat(rightName, "."));
             string strLeftName = (string.IsNullOrEmpty(leftName) ? string.Empty : string.Concat(leftName, "."));
 
             string str = "";
-            foreach (DmColumn column in columns)
+            foreach (var column in pkeys)
             {
                 var quotedColumn = ParserName.Parse(column, "`");
 
@@ -231,12 +231,31 @@ namespace Dotmim.Sync.MySql
             return stringBuilder.ToString();
         }
 
-        internal static string ColumnsAndParameters(IEnumerable<DmColumn> columns, string fromPrefix)
+        internal static string ColumnsAndParameters(IEnumerable<string> pkeys, string fromPrefix)
+        {
+            var stringBuilder = new StringBuilder();
+            string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));
+            string str1 = "";
+            foreach (var pkey in pkeys)
+            {
+                var quotedColumn = ParserName.Parse(pkey, "`");
+
+                stringBuilder.Append(str1);
+                stringBuilder.Append(strFromPrefix);
+                stringBuilder.Append(quotedColumn.Quoted().ToString());
+                stringBuilder.Append(" = ");
+                stringBuilder.Append($"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{pkey}");
+                str1 = " AND ";
+            }
+            return stringBuilder.ToString();
+        }
+
+        internal static string WhereColumnAndParameters(IEnumerable<string> primaryKeys, string fromPrefix)
         {
             StringBuilder stringBuilder = new StringBuilder();
             string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));
             string str1 = "";
-            foreach (DmColumn column in columns)
+            foreach (var column in primaryKeys)
             {
                 var quotedColumn = ParserName.Parse(column, "`");
 
@@ -244,37 +263,18 @@ namespace Dotmim.Sync.MySql
                 stringBuilder.Append(strFromPrefix);
                 stringBuilder.Append(quotedColumn.Quoted().ToString());
                 stringBuilder.Append(" = ");
-                stringBuilder.Append($"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{column.ColumnName}");
+                stringBuilder.Append($"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{column}");
                 str1 = " AND ";
             }
             return stringBuilder.ToString();
         }
 
-        internal static string WhereColumnAndParameters(IEnumerable<DmColumn> columns, string fromPrefix)
-        {
-            StringBuilder stringBuilder = new StringBuilder();
-            string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));
-            string str1 = "";
-            foreach (DmColumn column in columns)
-            {
-                var quotedColumn = ParserName.Parse(column, "`");
-
-                stringBuilder.Append(str1);
-                stringBuilder.Append(strFromPrefix);
-                stringBuilder.Append(quotedColumn.Quoted().ToString());
-                stringBuilder.Append(" = ");
-                stringBuilder.Append($"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{column.ColumnName}");
-                str1 = " AND ";
-            }
-            return stringBuilder.ToString();
-        }
-
-        internal static string CommaSeparatedUpdateFromParameters(DmTable table, string fromPrefix = "")
+        internal static string CommaSeparatedUpdateFromParameters(SyncTable table, string fromPrefix = "")
         {
             var stringBuilder = new StringBuilder();
             string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));
             string strSeparator = "";
-            foreach (var mutableColumn in table.MutableColumns)
+            foreach (var mutableColumn in table.GetMutableColumns())
             {
                 var quotedColumn = ParserName.Parse(mutableColumn, "`");
                 stringBuilder.AppendLine($"{strSeparator} {strFromPrefix}{quotedColumn.Quoted().ToString()} = {MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{quotedColumn.Unquoted().Normalized().ToString()}");

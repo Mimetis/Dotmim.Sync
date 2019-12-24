@@ -43,18 +43,18 @@ namespace Dotmim.Sync
         /// </summary>
         public static bool StringEquals(this SyncSet schema, string s1, string s2)
         {
-            var parser1 = ParserName.Parse(s1);
-            var table1Name = parser1.ObjectName;
-            var schema1Name = parser1.SchemaName;
+            //var parser1 = ParserName.Parse(s1);
+            //var table1Name = parser1.ObjectName;
+            //var schema1Name = parser1.SchemaName;
 
-            var parser2 = ParserName.Parse(s2);
-            var table2Name = parser2.ObjectName;
-            var schema2Name = parser2.SchemaName;
+            //var parser2 = ParserName.Parse(s2);
+            //var table2Name = parser2.ObjectName;
+            //var schema2Name = parser2.SchemaName;
 
             var sc = schema.CaseSensitive ? StringComparison.InvariantCulture
                                          : StringComparison.InvariantCultureIgnoreCase;
 
-            return string.Equals(table1Name, table2Name, sc) && string.Equals(schema1Name, schema2Name, sc);
+            return string.Equals(s1, s2, sc);
 
         }
 

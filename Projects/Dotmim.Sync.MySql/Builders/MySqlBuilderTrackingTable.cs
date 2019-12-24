@@ -18,14 +18,14 @@ namespace Dotmim.Sync.MySql
     {
         private ParserName tableName;
         private ParserName trackingName;
-        private DmTable tableDescription;
+        private SyncTable tableDescription;
         private MySqlConnection connection;
         private MySqlTransaction transaction;
-        public ICollection<FilterClause> Filters { get; set; }
+        public IEnumerable<SyncFilter> Filters { get; set; }
         private MySqlDbMetadata mySqlDbMetadata;
 
 
-        public MySqlBuilderTrackingTable(DmTable tableDescription, DbConnection connection, DbTransaction transaction = null)
+        public MySqlBuilderTrackingTable(SyncTable tableDescription, DbConnection connection, DbTransaction transaction = null)
         {
             this.connection = connection as MySqlConnection;
             this.transaction = transaction as MySqlTransaction;
@@ -142,13 +142,13 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine($"CREATE TABLE {trackingName.Quoted().ToString()} (");
 
             // Adding the primary key
-            foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
+            foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
-                var columnTypeString = this.mySqlDbMetadata.TryGetOwnerDbTypeString(pkColumn.OriginalDbType, pkColumn.DbType, false, false, pkColumn.MaxLength, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
+                var columnTypeString = this.mySqlDbMetadata.TryGetOwnerDbTypeString(pkColumn.OriginalDbType, pkColumn.GetDbType(), false, false, pkColumn.MaxLength, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
                 var unQuotedColumnType = ParserName.Parse(columnTypeString, "`").Unquoted().Normalized().ToString();
 
-                var columnPrecisionString = this.mySqlDbMetadata.TryGetOwnerDbTypePrecision(pkColumn.OriginalDbType, pkColumn.DbType, false, false, pkColumn.MaxLength, pkColumn.Precision, pkColumn.Scale, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
+                var columnPrecisionString = this.mySqlDbMetadata.TryGetOwnerDbTypePrecision(pkColumn.OriginalDbType, pkColumn.GetDbType(), false, false, pkColumn.MaxLength, pkColumn.Precision, pkColumn.Scale, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
                 var columnType = $"{unQuotedColumnType} {columnPrecisionString}";
 
                 stringBuilder.AppendLine($"{columnName} {columnType} NOT NULL, ");
@@ -163,7 +163,7 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine($"`sync_row_is_tombstone` BIT NOT NULL default 0 , ");
             stringBuilder.AppendLine($"`last_change_datetime` DATETIME NULL, ");
 
-            if (this.Filters != null && this.Filters.Count > 0)
+            if (this.Filters != null && this.Filters.Count() > 0)
                 foreach (var filter in this.Filters)
                 {
                     var columnFilter = this.tableDescription.Columns[filter.ColumnName];
@@ -171,16 +171,16 @@ namespace Dotmim.Sync.MySql
                     if (columnFilter == null)
                         throw new InvalidExpressionException($"Column {filter.ColumnName} does not exist in Table {this.tableDescription.TableName}");
 
-                    var isPk = this.tableDescription.PrimaryKey.Columns.Any(dm => this.tableDescription.IsEqual(dm.ColumnName, filter.ColumnName));
+                    var isPk = this.tableDescription.GetPrimaryKeysColumns().Any(pk => this.tableDescription.Schema.StringEquals(pk.ColumnName, filter.ColumnName));
                     if (isPk)
                         continue;
 
 
                     var quotedColumnName = ParserName.Parse(columnFilter, "`").Quoted().ToString();
-                    var columnTypeString = this.mySqlDbMetadata.TryGetOwnerDbTypeString(columnFilter.OriginalDbType, columnFilter.DbType, false, false, columnFilter.MaxLength, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
+                    var columnTypeString = this.mySqlDbMetadata.TryGetOwnerDbTypeString(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
                     var unQuotedColumnType = ParserName.Parse(columnTypeString, "`").Unquoted().Normalized().ToString();
 
-                    var columnPrecisionString = this.mySqlDbMetadata.TryGetOwnerDbTypePrecision(columnFilter.OriginalDbType, columnFilter.DbType, false, false, columnFilter.MaxLength, columnFilter.Precision, columnFilter.Scale, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
+                    var columnPrecisionString = this.mySqlDbMetadata.TryGetOwnerDbTypePrecision(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, columnFilter.Precision, columnFilter.Scale, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
                     var columnType = $"{unQuotedColumnType} {columnPrecisionString}";
 
                     var nullableColumn = columnFilter.AllowDBNull ? "NULL" : "NOT NULL";
@@ -189,14 +189,14 @@ namespace Dotmim.Sync.MySql
                 }
 
             stringBuilder.Append(" PRIMARY KEY (");
-            for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
+            for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
             {
-                DmColumn pkColumn = this.tableDescription.PrimaryKey.Columns[i];
+                var pkColumn = this.tableDescription.PrimaryKeys[i];
                 var quotedColumnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
 
                 stringBuilder.Append(quotedColumnName);
 
-                if (i < this.tableDescription.PrimaryKey.Columns.Length - 1)
+                if (i < this.tableDescription.PrimaryKeys.Count - 1)
                     stringBuilder.Append(", ");
             }
             stringBuilder.Append("))");
@@ -257,7 +257,7 @@ namespace Dotmim.Sync.MySql
             string str = string.Empty;
             string baseTable = "`base`";
             string sideTable = "`side`";
-            foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
+            foreach (var pkColumn in this.tableDescription.PrimaryKeys)
             {
                 var quotedColumnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
 
@@ -278,7 +278,7 @@ namespace Dotmim.Sync.MySql
             if (Filters != null)
                 foreach (var filterColumn in this.Filters)
                 {
-                    var isPk = this.tableDescription.PrimaryKey.Columns.Any(dm => this.tableDescription.IsEqual(dm.ColumnName, filterColumn.ColumnName));
+                    var isPk = this.tableDescription.PrimaryKeys.Any(pk => this.tableDescription.Schema.StringEquals(pk, filterColumn.ColumnName));
                     if (isPk)
                         continue;
 
@@ -319,17 +319,17 @@ namespace Dotmim.Sync.MySql
             return MySqlBuilder.WrapScriptTextWithComments(this.CreatePopulateFromBaseTableCommandText(), str);
         }
 
-        public void PopulateNewFilterColumnFromBaseTable(DmColumn filterColumn)
+        public void PopulateNewFilterColumnFromBaseTable(SyncColumn filterColumn)
         {
             throw new NotImplementedException();
         }
 
-        public string ScriptPopulateNewFilterColumnFromBaseTable(DmColumn filterColumn)
+        public string ScriptPopulateNewFilterColumnFromBaseTable(SyncColumn filterColumn)
         {
             throw new NotImplementedException();
         }
 
-        public void AddFilterColumn(DmColumn filterColumn)
+        public void AddFilterColumn(SyncColumn filterColumn)
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
@@ -364,17 +364,17 @@ namespace Dotmim.Sync.MySql
 
         }
 
-        private string AddFilterColumnCommandText(DmColumn col)
+        private string AddFilterColumnCommandText(SyncColumn col)
         {
             var quotedColumnName = ParserName.Parse(col, "`").Quoted().ToString();
 
-            var columnTypeString = this.mySqlDbMetadata.TryGetOwnerDbTypeString(col.OriginalDbType, col.DbType, false, false, col.MaxLength, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
-            var columnPrecisionString = this.mySqlDbMetadata.TryGetOwnerDbTypePrecision(col.OriginalDbType, col.DbType, false, false, col.MaxLength, col.Precision, col.Scale, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
+            var columnTypeString = this.mySqlDbMetadata.TryGetOwnerDbTypeString(col.OriginalDbType, col.GetDbType(), false, false, col.MaxLength, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
+            var columnPrecisionString = this.mySqlDbMetadata.TryGetOwnerDbTypePrecision(col.OriginalDbType, col.GetDbType(), false, false, col.MaxLength, col.Precision, col.Scale, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
             var columnType = $"{columnTypeString} {columnPrecisionString}";
 
             return string.Concat("ALTER TABLE ", quotedColumnName, " ADD ", columnType);
         }
-        public string ScriptAddFilterColumn(DmColumn filterColumn)
+        public string ScriptAddFilterColumn(SyncColumn filterColumn)
         {
             var quotedColumnName = ParserName.Parse(filterColumn, "`").Quoted().ToString();
 

@@ -16,17 +16,15 @@ namespace Dotmim.Sync.Batch
     /// </summary>
     public class BatchPartInfo
     {
+        // TODO : Set the serializer to the one choosed by user
+
         /// <summary>
         /// Loads the batch file and set the DmSet in memory
         /// </summary>
         public void LoadBatch(SyncSet schema)
         {
-            if (this.Data != null && this.Data.Tables != null && this.Data.Tables.Count > 0)
-                return;
-
             if (string.IsNullOrEmpty(this.FileName))
                 return;
-
 
             // Clone the schema to get a unique instance
             var set = schema.Clone();
@@ -37,6 +35,7 @@ namespace Dotmim.Sync.Batch
             // Import data in a typed Set
             set.ImportContainerSet(data);
 
+            this.Data = set;
         }
 
         /// <summary>

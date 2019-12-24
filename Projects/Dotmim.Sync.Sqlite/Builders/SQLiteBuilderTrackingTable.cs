@@ -16,15 +16,15 @@ namespace Dotmim.Sync.Sqlite
     {
         private ParserName tableName;
         private ParserName trackingName;
-        private DmTable tableDescription;
+        private SyncTable tableDescription;
         private SqliteConnection connection;
         private SqliteTransaction transaction;
         private SqliteDbMetadata sqliteDbMetadata;
 
-        public ICollection<FilterClause> Filters { get; set; }
+        public IEnumerable<SyncFilter> Filters { get; set; }
 
 
-        public SqliteBuilderTrackingTable(DmTable tableDescription, DbConnection connection, DbTransaction transaction = null)
+        public SqliteBuilderTrackingTable(SyncTable tableDescription, DbConnection connection, DbTransaction transaction = null)
         {
             this.connection = connection as SqliteConnection;
             this.transaction = transaction as SqliteTransaction;
@@ -139,12 +139,12 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine($"CREATE TABLE {trackingName.Quoted().ToString()} (");
 
             // Adding the primary key
-            foreach (DmColumn pkColumn in this.tableDescription.PrimaryKey.Columns)
+            foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
                 var quotedColumnName = ParserName.Parse(pkColumn).Quoted().ToString();
 
-                var columnTypeString = this.sqliteDbMetadata.TryGetOwnerDbTypeString(pkColumn.OriginalDbType, pkColumn.DbType, false, false, pkColumn.MaxLength, this.tableDescription.OriginalProvider, SqliteSyncProvider.ProviderType);
-                var columnPrecisionString = this.sqliteDbMetadata.TryGetOwnerDbTypePrecision(pkColumn.OriginalDbType, pkColumn.DbType, false, false, pkColumn.MaxLength, pkColumn.Precision, pkColumn.Scale, this.tableDescription.OriginalProvider, SqliteSyncProvider.ProviderType);
+                var columnTypeString = this.sqliteDbMetadata.TryGetOwnerDbTypeString(pkColumn.OriginalDbType, pkColumn.GetDbType(), false, false, pkColumn.MaxLength, this.tableDescription.OriginalProvider, SqliteSyncProvider.ProviderType);
+                var columnPrecisionString = this.sqliteDbMetadata.TryGetOwnerDbTypePrecision(pkColumn.OriginalDbType, pkColumn.GetDbType(), false, false, pkColumn.MaxLength, pkColumn.Precision, pkColumn.Scale, this.tableDescription.OriginalProvider, SqliteSyncProvider.ProviderType);
                 var quotedColumnType = ParserName.Parse(columnTypeString).Quoted().ToString();
                 quotedColumnType += columnPrecisionString;
 
@@ -180,14 +180,14 @@ namespace Dotmim.Sync.Sqlite
             //    }
 
             stringBuilder.Append(" PRIMARY KEY (");
-            for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
+            for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
             {
-                var pkColumn = this.tableDescription.PrimaryKey.Columns[i];
+                var pkColumn = this.tableDescription.PrimaryKeys[i];
                 var quotedColumnName = ParserName.Parse(pkColumn).Quoted().ToString();
 
                 stringBuilder.Append(quotedColumnName);
 
-                if (i < this.tableDescription.PrimaryKey.Columns.Length - 1)
+                if (i < this.tableDescription.PrimaryKeys.Count- 1)
                     stringBuilder.Append(", ");
             }
             stringBuilder.Append(")");
@@ -250,7 +250,7 @@ namespace Dotmim.Sync.Sqlite
             string str = string.Empty;
             string baseTable = "[base]";
             string sideTable = "[side]";
-            foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
+            foreach (var pkColumn in this.tableDescription.PrimaryKeys)
             {
                 var quotedColumnName = ParserName.Parse(pkColumn).Quoted().ToString();
 
@@ -324,7 +324,7 @@ namespace Dotmim.Sync.Sqlite
             throw new NotImplementedException();
         }
 
-        public void AddFilterColumn(DmColumn filterColumn)
+        public void AddFilterColumn(SyncColumn filterColumn)
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
@@ -359,18 +359,18 @@ namespace Dotmim.Sync.Sqlite
 
         }
 
-        private string AddFilterColumnCommandText(DmColumn col)
+        private string AddFilterColumnCommandText(SyncColumn col)
         {
             var quotedColumnName = ParserName.Parse(col).Quoted().ToString();
 
-            var columnTypeString = this.sqliteDbMetadata.TryGetOwnerDbTypeString(col.OriginalDbType, col.DbType, false, false, col.MaxLength, this.tableDescription.OriginalProvider, SqliteSyncProvider.ProviderType);
-            var columnPrecisionString = this.sqliteDbMetadata.TryGetOwnerDbTypePrecision(col.OriginalDbType, col.DbType, false, false, col.MaxLength, col.Precision, col.Scale, this.tableDescription.OriginalProvider, SqliteSyncProvider.ProviderType);
+            var columnTypeString = this.sqliteDbMetadata.TryGetOwnerDbTypeString(col.OriginalDbType, col.GetDbType(), false, false, col.MaxLength, this.tableDescription.OriginalProvider, SqliteSyncProvider.ProviderType);
+            var columnPrecisionString = this.sqliteDbMetadata.TryGetOwnerDbTypePrecision(col.OriginalDbType, col.GetDbType(), false, false, col.MaxLength, col.Precision, col.Scale, this.tableDescription.OriginalProvider, SqliteSyncProvider.ProviderType);
             var quotedColumnType = ParserName.Parse(columnTypeString).Quoted().ToString(); 
             quotedColumnType += columnPrecisionString;
 
             return string.Concat("ALTER TABLE ", quotedColumnName, " ADD ", quotedColumnType);
         }
-        public string ScriptAddFilterColumn(DmColumn filterColumn)
+        public string ScriptAddFilterColumn(SyncColumn filterColumn)
         {
             var quotedColumnName = ParserName.Parse(filterColumn.ColumnName).Quoted().ToString();
 

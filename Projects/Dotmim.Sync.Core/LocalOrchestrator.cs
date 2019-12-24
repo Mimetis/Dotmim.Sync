@@ -281,7 +281,7 @@ namespace Dotmim.Sync
                                     connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                         // now the sync is complete, remember the time
-                        context.CompleteTime = DateTime.Now;
+                        context.CompleteTime = DateTime.UtcNow;
 
                         // generate the new scope item
                         scope.IsNewScope = false;

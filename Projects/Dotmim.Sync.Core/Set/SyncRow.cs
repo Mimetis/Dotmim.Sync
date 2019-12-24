@@ -26,7 +26,7 @@ namespace Dotmim.Sync
         /// Creates an instance, in which data can be written to,
         /// with the default initial capacity.
         /// </summary>
-        public SyncRow() => this.buffer = new object[MinimumBufferSize];
+        public SyncRow() { }
 
         /// <summary>
         /// Add a new buffer row
@@ -79,16 +79,8 @@ namespace Dotmim.Sync
         /// </summary>
         public object this[int index]
         {
-            get
-            {
-                CheckLength(index + 1);
-                return buffer[index];
-            }
-            set
-            {
-                CheckLength(index + 1);
-                this.buffer[index] = value;
-            }
+            get => buffer[index];
+            set => this.buffer[index] = value;
         }
 
         /// <summary>
@@ -96,14 +88,14 @@ namespace Dotmim.Sync
         /// If not, resizing the buffer
         /// It implies a copy of the whole buffer, so the less we do, the better it is
         /// </summary>
-        private void CheckLength(int maxLength)
-        {
-            while (maxLength > this.buffer.Length)
-            {
-                Debug.WriteLine($"Resizing buffer to {this.Length} to {this.Length + BufferGrowthSize }");
-                Array.Resize(ref buffer, this.Length + BufferGrowthSize);
-            }
-        }
+        //private void CheckLength(int maxLength)
+        //{
+        //    while (maxLength > this.buffer.Length)
+        //    {
+        //        Debug.WriteLine($"Resizing buffer to {this.Length} to {this.Length + BufferGrowthSize }");
+        //        Array.Resize(ref buffer, this.Length + BufferGrowthSize);
+        //    }
+        //}
 
         /// <summary>
         /// Get the value in the array that correspond to the SchemaColumn instance given
@@ -140,7 +132,7 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Get the inner array. Need to replace with ReadOnlySpan<object> !!!!
+        /// Get the inner array with state on Index 0. Need to replace with ReadOnlySpan<object> !!!!
         /// </summary>
         /// <returns></returns>
         public object[] ToArray()
@@ -152,6 +144,20 @@ namespace Dotmim.Sync
             array[0] = (int)this.RowState;
 
             return array;
+        }
+
+        /// <summary>
+        /// Import a raw array, containing state on Index 0
+        /// </summary>
+        public void FromArray(object[] row)
+        {
+            var length = Table.Columns.Count;
+
+            if (row.Length != length + 1)
+                throw new Exception("row must contains State on position 0");
+
+            Array.Copy(row, 1, this.buffer, 0, length);
+            this.RowState = (DataRowState)Convert.ToInt32(row[0]);
         }
 
         /// <summary>

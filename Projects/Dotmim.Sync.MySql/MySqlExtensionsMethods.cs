@@ -71,12 +71,12 @@ namespace Dotmim.Sync.MySql
         /// <summary>
         /// Return schema information about parameters for procedures and functions
         /// </summary>
-        internal static DmTable GetProcedureParameters(this MySqlConnection connection, string schema, string procName)
+        internal static SyncTable GetProcedureParameters(this MySqlConnection connection, string schema, string procName)
         {
             // we want to avoid using IS if  we can as it is painfully slow
-            DmTable parametersTable = CreateParametersTable();
+            var parametersTable = CreateParametersTable();
 
-            MySqlCommand cmd = connection.CreateCommand();
+            var cmd = connection.CreateCommand();
 
             string showCreateSql = $"SHOW CREATE PROCEDURE `{schema}`.`{procName}`";
             cmd.CommandText = showCreateSql;
@@ -101,7 +101,7 @@ namespace Dotmim.Sync.MySql
         }
 
 
-        private static void InitParameterRow(DmRow parameter, string schema, string procName)
+        private static void InitParameterRow(SyncRow parameter, string schema, string procName)
         {
             parameter["SPECIFIC_CATALOG"] = null;
             parameter["SPECIFIC_SCHEMA"] = schema;
@@ -110,12 +110,12 @@ namespace Dotmim.Sync.MySql
             parameter["ORDINAL_POSITION"] = 0;
         }
 
-        private static void ParseProcedureBody(DmTable parametersTable, string body, string sqlMode, string schema, string procName)
+        private static void ParseProcedureBody(SyncTable parametersTable, string body, string sqlMode, string schema, string procName)
         {
-            List<string> modes = new List<string>(new string[3] { "IN", "OUT", "INOUT" });
+            var modes = new List<string>(new string[3] { "IN", "OUT", "INOUT" });
 
             int pos = 1;
-            MySqlTokenizer tokenizer = new MySqlTokenizer(body)
+            var tokenizer = new MySqlTokenizer(body)
             {
                 AnsiQuotes = sqlMode.IndexOf("ANSI_QUOTES") != -1,
                 BackslashEscapes = sqlMode.IndexOf("NO_BACKSLASH_ESCAPES") == -1,
@@ -141,7 +141,7 @@ namespace Dotmim.Sync.MySql
 
             while (token != ")")
             {
-                DmRow parmRow = parametersTable.NewRow();
+                var parmRow = parametersTable.NewRow();
                 InitParameterRow(parmRow, schema, procName);
                 parmRow["ORDINAL_POSITION"] = pos++;
 
@@ -169,15 +169,15 @@ namespace Dotmim.Sync.MySql
 
             if (String.Compare(token, "RETURNS", StringComparison.OrdinalIgnoreCase) == 0)
             {
-                DmRow parameterRow = parametersTable.Rows[0];
+                var parameterRow = parametersTable.Rows[0];
                 parameterRow["PARAMETER_NAME"] = "RETURN_VALUE";
                 ParseDataType(parameterRow, tokenizer);
             }
         }
 
-        private static DmTable CreateParametersTable()
+        private static SyncTable CreateParametersTable()
         {
-            DmTable dt = new DmTable("Procedure Parameters");
+            var dt = new SyncTable("Procedure Parameters");
             dt.Columns.Add("SPECIFIC_CATALOG", typeof(string));
             dt.Columns.Add("SPECIFIC_SCHEMA", typeof(string));
             dt.Columns.Add("SPECIFIC_NAME", typeof(string));
@@ -196,7 +196,7 @@ namespace Dotmim.Sync.MySql
             return dt;
         }
 
-        private static string ParseDataType(DmRow row, MySqlTokenizer tokenizer)
+        private static string ParseDataType(SyncRow row, MySqlTokenizer tokenizer)
         {
             StringBuilder dtd = new StringBuilder(tokenizer.NextToken().ToUpperInvariant());
 
@@ -260,9 +260,9 @@ namespace Dotmim.Sync.MySql
             return token;
         }
 
-        private static string GetDataTypeDefaults(string type, DmRow row)
+        private static string GetDataTypeDefaults(string type, SyncRow row)
         {
-            MySqlDbMetadata metadata = new MySqlDbMetadata();
+            var metadata = new MySqlDbMetadata();
 
             string format = "({0},{1})";
             object precision = row["NUMERIC_PRECISION"];
@@ -281,9 +281,9 @@ namespace Dotmim.Sync.MySql
             return String.Empty;
         }
 
-        private static void ParseDataTypeSize(DmRow row, string size)
+        private static void ParseDataTypeSize(SyncRow row, string size)
         {
-            MySqlDbMetadata metadata = new MySqlDbMetadata();
+            var metadata = new MySqlDbMetadata();
 
             size = size.Trim('(', ')');
             string[] parts = size.Split(',');
@@ -301,20 +301,20 @@ namespace Dotmim.Sync.MySql
             }
         }
 
-        internal static MySqlParameter GetMySqlParameter(this DmColumn column)
+        internal static MySqlParameter GetMySqlParameter(this SyncColumn column)
         {
-            MySqlDbMetadata mySqlDbMetadata = new MySqlDbMetadata();
+            var mySqlDbMetadata = new MySqlDbMetadata();
 
             var parameterName = ParserName.Parse(column).Unquoted().Normalized().ToString();
 
-            MySqlParameter sqlParameter = new MySqlParameter
+            var sqlParameter = new MySqlParameter
             {
                 ParameterName = $"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{parameterName}",
-                DbType = column.DbType,
+                DbType = column.GetDbType(),
                 IsNullable = column.AllowDBNull
             };
 
-            (byte precision, byte scale) = mySqlDbMetadata.TryGetOwnerPrecisionAndScale(column.OriginalDbType, column.DbType, false, false, column.MaxLength, column.Precision, column.Scale, column.Table.OriginalProvider, MySqlSyncProvider.ProviderType);
+            (byte precision, byte scale) = mySqlDbMetadata.TryGetOwnerPrecisionAndScale(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, column.Precision, column.Scale, column.Table.OriginalProvider, MySqlSyncProvider.ProviderType);
 
             if ((sqlParameter.DbType == DbType.Decimal || sqlParameter.DbType == DbType.Double
                  || sqlParameter.DbType == DbType.Single || sqlParameter.DbType == DbType.VarNumeric) && precision > 0)

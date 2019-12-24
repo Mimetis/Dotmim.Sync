@@ -1604,7 +1604,7 @@ namespace Dotmim.Sync.Tests
 
                     Assert.Equal(cpt, trr.Results.TotalChangesDownloaded);
                     Assert.Equal(1, trr.Results.TotalChangesUploaded);
-                    cpt = cpt + 2;
+                    cpt += 2;
 
                     clientRun.ClientProvider.On<TableChangesSelectedArgs>(null);
 

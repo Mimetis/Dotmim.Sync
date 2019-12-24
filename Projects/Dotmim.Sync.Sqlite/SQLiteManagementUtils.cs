@@ -101,7 +101,7 @@ namespace Dotmim.Sync.Sqlite
             return triggerExist;
         }
 
-        internal static string JoinTwoTablesOnClause(IEnumerable<DmColumn> columns, string leftName, string rightName)
+        internal static string JoinTwoTablesOnClause(IEnumerable<string> columns, string leftName, string rightName)
         {
             var stringBuilder = new StringBuilder();
             string strRightName = (string.IsNullOrEmpty(rightName) ? string.Empty : string.Concat(rightName, "."));
@@ -124,7 +124,7 @@ namespace Dotmim.Sync.Sqlite
             return stringBuilder.ToString();
         }
 
-        internal static string WhereColumnAndParameters(IEnumerable<DmColumn> columns, string fromPrefix)
+        internal static string WhereColumnAndParameters(IEnumerable<string> columns, string fromPrefix)
         {
             var stringBuilder = new StringBuilder();
             string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));
@@ -144,12 +144,12 @@ namespace Dotmim.Sync.Sqlite
             return stringBuilder.ToString();
         }
 
-        internal static string CommaSeparatedUpdateFromParameters(DmTable table, string fromPrefix = "")
+        internal static string CommaSeparatedUpdateFromParameters(SyncTable table, string fromPrefix = "")
         {
             var stringBuilder = new StringBuilder();
             string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));
             string strSeparator = "";
-            foreach (var mutableColumn in table.MutableColumns)
+            foreach (var mutableColumn in table.GetMutableColumns())
             {
                 var quotedColumn = ParserName.Parse(mutableColumn).Quoted().ToString();
                 var unquotedColumn = ParserName.Parse(mutableColumn).Unquoted().Normalized().ToString();
