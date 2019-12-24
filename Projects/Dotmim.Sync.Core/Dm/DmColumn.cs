@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Data;
 using System.Reflection;
 
@@ -714,6 +715,7 @@ namespace Dotmim.Sync.Data
 
             if (typeof(T) == typeof(string))
                 return this.Table.Culture.CompareInfo.Compare((string)o1, (string)o2, this.Table.compareFlags);
+
 
             return Comparer<T>.Default.Compare(v1, v2);
         }

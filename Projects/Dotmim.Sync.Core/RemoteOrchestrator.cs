@@ -167,8 +167,6 @@ namespace Dotmim.Sync
                         if (cancellationToken.IsCancellationRequested)
                             cancellationToken.ThrowIfCancellationRequested();
 
-                        // now the sync is complete, remember the time
-                        context.CompleteTime = DateTime.Now;
 
                         await this.Provider.InterceptAsync(new TransactionCommitArgs(context, connection, transaction)).ConfigureAwait(false);
                         transaction.Commit();

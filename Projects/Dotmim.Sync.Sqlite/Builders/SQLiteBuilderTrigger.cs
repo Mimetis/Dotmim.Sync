@@ -17,16 +17,16 @@ namespace Dotmim.Sync.Sqlite
     {
         private ParserName tableName;
         private ParserName trackingName;
-        private DmTable tableDescription;
+        private SyncTable tableDescription;
         private SqliteConnection connection;
         private SqliteTransaction transaction;
         private SqliteObjectNames sqliteObjectNames;
 
-        public ICollection<FilterClause> Filters { get; set; }
+        public IEnumerable<SyncFilter> Filters { get; set; }
 
 
 
-        public SqliteBuilderTrigger(DmTable tableDescription, DbConnection connection, DbTransaction transaction = null)
+        public SqliteBuilderTrigger(SyncTable tableDescription, DbConnection connection, DbTransaction transaction = null)
         {
             this.connection = connection as SqliteConnection;
             this.transaction = transaction as SqliteTransaction;
@@ -69,7 +69,7 @@ namespace Dotmim.Sync.Sqlite
             //}
 
             stringBuilder.Append($"WHERE ");
-            stringBuilder.Append(SqliteManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, trackingName.Quoted().ToString(), "old"));
+            stringBuilder.Append(SqliteManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, trackingName.Quoted().ToString(), "old"));
             stringBuilder.AppendLine(";");
             stringBuilder.AppendLine("END;");
             return stringBuilder.ToString();
@@ -148,7 +148,7 @@ namespace Dotmim.Sync.Sqlite
 
             string argComma = string.Empty;
             string argAnd = string.Empty;
-            foreach (var mutableColumn in this.tableDescription.PrimaryKey.Columns.Where(c => !c.IsReadOnly))
+            foreach (var mutableColumn in this.tableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
             {
                 var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
 
@@ -199,7 +199,7 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine("\t\t,0");
             stringBuilder.AppendLine("\t\t,datetime('now')");
 
-            if (Filters != null && Filters.Count > 0)
+            if (Filters != null && Filters.Count() > 0)
                 stringBuilder.AppendLine(filterColumnsString.ToString());
 
             stringBuilder.AppendLine("\t);");
@@ -299,7 +299,7 @@ namespace Dotmim.Sync.Sqlite
             //}
 
             stringBuilder.Append($"\tWhere ");
-            stringBuilder.Append(SqliteManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, trackingName.Quoted().ToString(), "new"));
+            stringBuilder.Append(SqliteManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, trackingName.Quoted().ToString(), "new"));
             stringBuilder.AppendLine($"; ");
             stringBuilder.AppendLine($"End; ");
             return stringBuilder.ToString();

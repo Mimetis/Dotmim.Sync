@@ -214,14 +214,16 @@ namespace Dotmim.Sync
             var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
             syncAdapter.ApplyType = applyType;
 
+
+            // Each table in the messages contains scope columns. Don't forget it
             if (message.Changes.HasData())
             {
                 // getting the table to be applied
-                // we may have multiple batch files, so we can have multipe dmTable with the same Name
+                // we may have multiple batch files, so we can have multipe sync tables with the same name
                 // We can say that dmTable may be contained in several files
                 foreach (var syncTable in message.Changes.GetTable(schemaTable.TableName, schemaTable.SchemaName))
                 {
-                    if (syncTable == null || syncTable.Rows.Count == 0)
+                    if (syncTable == null || syncTable.Rows == null || syncTable.Rows.Count == 0)
                         continue;
 
                     // Creating a filtered view of my rows with the correct applyType
@@ -238,12 +240,15 @@ namespace Dotmim.Sync
                     // Launch any interceptor if available
                     await this.InterceptAsync(new TableChangesApplyingArgs(context, filteredRows, schemaTable, applyType, connection, transaction)).ConfigureAwait(false);
 
-                    // Getting the right columns that will be used to update tables
-                    var schemaChangesTable = DbSyncAdapter.CreateChangesTable(schemaTable);
+                    // Create an empty Set that wil contains filtered rows to apply
+                    // Need Schema for culture & case sensitive properties
+                    var changesSet = syncTable.Schema.Clone(false);
+                    var schemaChangesTable = syncTable.Clone() ;
+                    changesSet.Tables.Add(schemaChangesTable);
                     schemaChangesTable.Rows.AddRange(filteredRows.ToList());
 
                     int rowsApplied=0;
-                    // applying the bulkchanges command
+
                     if (message.UseBulkOperations && this.SupportBulkOperations)
                         rowsApplied = syncAdapter.ApplyBulkChanges(schemaChangesTable, message.ApplyingScopeId, message.LastTimestamp, conflicts);
                     else
@@ -419,7 +424,22 @@ namespace Dotmim.Sync
                                 // Set the id parameter
                                 syncAdapter.SetColumnParametersValues(metadataCommand, row);
 
-                                Guid? create_scope_id = row["create_scope_id"] != DBNull.Value ? (Guid?)row["create_scope_id"] : null;
+
+
+                                Guid? create_scope_id = null;
+
+                                if (row["create_scope_id"] != null && row["create_scope_id"] != DBNull.Value)
+                                {
+                                    if (SyncTypeConverter.TryConvertTo<Guid>(row["create_scope_id"], out var usid))
+                                    {
+                                        create_scope_id = (Guid)usid;
+                                    }
+                                    else
+                                    {
+                                        create_scope_id = null;
+                                    }
+                                }
+
                                 long createTimestamp = row["create_timestamp"] != DBNull.Value ? Convert.ToInt64(row["create_timestamp"]) : 0;
 
                                 // The trick is to force the row to be "created before last sync"
@@ -429,7 +449,22 @@ namespace Dotmim.Sync
                                 row["create_timestamp"] = lastTimestamp - 1;
 
                                 // Update scope id is set to server side
-                                Guid? update_scope_id = row["update_scope_id"] != DBNull.Value ? (Guid?)row["update_scope_id"] : null;
+                                Guid? update_scope_id = null;
+
+                                if (row["update_scope_id"] != null && row["update_scope_id"] != DBNull.Value)
+                                {
+                                    if (SyncTypeConverter.TryConvertTo<Guid>(row["update_scope_id"], out var usid))
+                                    {
+                                        update_scope_id = (Guid)usid;
+                                    }
+                                    else
+                                    {
+                                        update_scope_id = null;
+                                    }
+                                }
+
+
+
                                 long updateTimestamp = row["update_timestamp"] != DBNull.Value ? Convert.ToInt64(row["update_timestamp"]) : 0;
 
                                 row["update_scope_id"] = null;

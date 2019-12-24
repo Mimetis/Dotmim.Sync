@@ -107,6 +107,7 @@ namespace Dotmim.Sync
             DbConnection connection, DbTransaction transaction,
             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
+
             // create the in memory changes set
             var changesSet = new SyncSet
             {
@@ -118,7 +119,8 @@ namespace Dotmim.Sync
 
             // Create the batch info, in memory
             // No need to geneate a directory name, since we are in memory
-            var batchInfo = new BatchInfo(true);
+            // Batch info clone the schema and adds scopes columns
+            var batchInfo = new BatchInfo(true, schema);
 
             try
             {
@@ -199,9 +201,8 @@ namespace Dotmim.Sync
                         }
                     }
 
-
-                    var changesTable = DbSyncAdapter.CreateChangesTable(syncTable) ;
-                    changesSet.Tables.Add(changesTable);
+                    // Create a changes table with Sync scopes columns
+                    var changesTable = DbSyncAdapter.CreateChangesTable(syncTable, changesSet) ;
 
                     // Get the reader
                     using (var dataReader = selectIncrementalChangesCommand.ExecuteReader())
@@ -309,6 +310,7 @@ namespace Dotmim.Sync
             var batchIndex = 0;
 
             // this batch info won't be in memory, it will be be batched
+            // batchinfo generate a schema clone with scope columns
             var batchInfo = new BatchInfo(false, schema, batchDirectory);
 
             // Create stats object to store changes count
@@ -403,16 +405,14 @@ namespace Dotmim.Sync
 
                         // Statistics
                         var tableChangesSelected = new TableChangesSelected(syncTable.TableName);
-
                         changes.TableChangesSelected.Add(tableChangesSelected);
 
                         // Get the reader
                         using (var dataReader = selectIncrementalChangesCommand.ExecuteReader())
                         {
-                            // get the table
-                            var changesSetTable = DbSyncAdapter.CreateChangesTable(syncTable);
-                            changesSetTable.Schema = changesSet;
-
+                            // Create a chnages table with scope columns
+                            var changesSetTable = DbSyncAdapter.CreateChangesTable(syncTable, changesSet);
+                            
                             while (dataReader.Read())
                             {
                                 var row = CreateSyncRowFromReader(dataReader, changesSetTable, excludingScopeId, isNew, lastTimestamp);
@@ -433,7 +433,6 @@ namespace Dotmim.Sync
                                 rowsMemorySize += finalFieldSize;
 
                                 tableChangesSelected.TotalChanges++;
-                                tableChangesSelected.TotalChanges++;
 
                                 // Set the correct state to be applied
                                 if (row.RowState == DataRowState.Deleted)
@@ -449,8 +448,6 @@ namespace Dotmim.Sync
                                 // We exceed the memorySize, so we can add it to a batch
                                 if (rowsMemorySize > downloadBatchSizeInKB)
                                 {
-                                    changesSet.Tables.Add(changesSetTable);
-
                                     // add changes to batchinfo
                                     batchInfo.AddChanges(changesSet, batchIndex, false);
 
@@ -469,26 +466,21 @@ namespace Dotmim.Sync
                                         DataSourceName = schema.DataSourceName
                                     };
 
-                                    changesSetTable = changesSetTable.Clone();
-                                    changesSetTable.Schema = changesSet;
+                                    changesSetTable = DbSyncAdapter.CreateChangesTable(syncTable, changesSet);
 
                                     // Init the row memory size
                                     rowsMemorySize = 0L;
 
-                                    // SyncProgress & interceptor
-                                    context.SyncStage = SyncStage.TableChangesSelected;
-                                    var loopTableChangesSelectedArgs = new TableChangesSelectedArgs(context, tableChangesSelected, connection, transaction);
-                                    this.ReportProgress(context, progress, loopTableChangesSelectedArgs);
-                                    await this.InterceptAsync(loopTableChangesSelectedArgs).ConfigureAwait(false);
                                 }
                             }
 
                             context.SyncStage = SyncStage.TableChangesSelected;
 
-                            changesSet.Tables.Add(changesSetTable);
-
                             // Init the row memory size
                             rowsMemorySize = 0L;
+
+                            // close reader to be able to use connection in interceptor 
+                            dataReader.Close();
 
                             // Event progress & interceptor
                             context.SyncStage = SyncStage.TableChangesSelected;
@@ -533,6 +525,8 @@ namespace Dotmim.Sync
         /// </summary>
         private SyncRow CreateSyncRowFromReader(IDataReader dataReader, SyncTable table, Guid excludingScopeId, bool isNew, long lastTimestamp)
         {
+            //if (dataReader.FieldCount != table.Columns.Count)
+            //    throw new Exception("data reader field count != from schema table columns count");
 
             // Create a new row, based on table structure
             var row = table.NewRow();
@@ -570,8 +564,32 @@ namespace Dotmim.Sync
                 var updateScopeIdRow = row["update_scope_id"];
                 var createScopeIdRow = row["create_scope_id"];
 
-                var updateScopeId = (updateScopeIdRow != DBNull.Value && updateScopeIdRow != null) ? (Guid)updateScopeIdRow : (Guid?)null;
-                var createScopeId = (createScopeIdRow != DBNull.Value && createScopeIdRow != null) ? (Guid)createScopeIdRow : (Guid?)null;
+                Guid? updateScopeId;
+                if (updateScopeIdRow != DBNull.Value && updateScopeIdRow != null)
+                {
+                    if (SyncTypeConverter.TryConvertTo<Guid>(updateScopeIdRow, out var res))
+                        updateScopeId = (Guid)res;
+                    else
+                        throw new Exception($"Can't convert value {updateScopeIdRow} to Guid");
+                }
+                else
+                {
+                    updateScopeId = null;
+                }
+
+
+                Guid? createScopeId;
+                if (createScopeIdRow != DBNull.Value && createScopeIdRow != null)
+                {
+                    if (SyncTypeConverter.TryConvertTo<Guid>(createScopeIdRow, out var res))
+                        createScopeId = (Guid)res;
+                    else
+                        throw new Exception($"Can't convert value {createScopeIdRow} to Guid");
+                }
+                else
+                {
+                    createScopeId = null;
+                }
 
                 var isLocallyCreated = !createScopeId.HasValue;
                 var islocallyUpdated = !updateScopeId.HasValue || updateScopeId.Value != excludingScopeId;

@@ -133,7 +133,7 @@ namespace Dotmim.Sync.Sqlite
 
         public override DbConnection CreateConnection() => new SqliteConnection(this.ConnectionString);
 
-        public override DbBuilder GetDatabaseBuilder(DmTable tableDescription) => new SqliteBuilder(tableDescription);
+        public override DbBuilder GetDatabaseBuilder(SyncTable tableDescription) => new SqliteBuilder(tableDescription);
 
         public override DbManager GetDbManager(string tableName, string schemaName) => new SqliteManager(tableName);
 

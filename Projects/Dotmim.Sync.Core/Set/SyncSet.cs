@@ -94,6 +94,7 @@ namespace Dotmim.Sync
         [DataMember(Name = "f", IsRequired = false, EmitDefaultValue = false, Order = 13)]
         public SyncFilters Filters { get; set; }
 
+
         /// <summary>
         /// Only used for Serialization
         /// </summary>
@@ -102,11 +103,10 @@ namespace Dotmim.Sync
             this.Tables = new SyncTables(this);
             this.Relations = new SyncRelations(this);
             this.Filters = new SyncFilters(this);
-
+            this.ScopeName = SyncOptions.DefaultScopeName;
         }
 
-        public SyncSet(string dataSourceName = null, string scopeName = SyncOptions.DefaultScopeName,
-                      bool caseSensitive = false, string cultureInfoName = null)  :this()
+        public SyncSet(string dataSourceName, bool caseSensitive, string cultureInfoName = null, string scopeName = SyncOptions.DefaultScopeName) : this()
         {
             this.DataSourceName = dataSourceName;
             this.CultureInfoName = cultureInfoName;
@@ -174,11 +174,10 @@ namespace Dotmim.Sync
         }
 
 
-      
+
         /// <summary>
         /// Import a container set in a SyncSet instance
         /// </summary>
-        /// <param name="containerSet"></param>
         public void ImportContainerSet(ContainerSet containerSet)
         {
             this.DataSourceName = containerSet.DataSourceName;
@@ -190,7 +189,7 @@ namespace Dotmim.Sync
                 if (syncTable == null)
                     throw new ArgumentNullException($"Table {table.TableName} does not exist in the SyncSet");
 
-                syncTable.Rows.AddRange(table.Rows);
+                syncTable.Rows.ImportContainerTable(table);
             }
 
         }
@@ -199,15 +198,14 @@ namespace Dotmim.Sync
         /// Get the rows inside a container.
         /// ContainerSet is a serialization container for rows
         /// </summary>
-        /// <returns></returns>
         public ContainerSet GetContainerSet()
         {
             var containerSet = new ContainerSet(this.DataSourceName);
-            foreach(var table in this.Tables) 
+            foreach (var table in this.Tables)
             {
                 var containerTable = new ContainerTable(table)
                 {
-                    Rows = table.Rows.ToEnumerable().ToList()
+                    Rows = table.Rows.ExportToContainerTable().ToList()
                 };
                 containerSet.Tables.Add(containerTable);
             }
@@ -276,7 +274,7 @@ namespace Dotmim.Sync
                     return false;
 
                 // Check if any of the tables has rows inside
-                return this.Tables.Any(t => t.Rows.Count > 0);
+                return this.Tables.Any(t => t.Rows != null && t.Rows.Count > 0);
             }
         }
 

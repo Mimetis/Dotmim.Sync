@@ -454,7 +454,7 @@ namespace Dotmim.Sync.MySql.Builders
             return false;
         }
 
-        public override bool IsValid(DmColumn columnDefinition)
+        public override bool IsValid(SyncColumn columnDefinition)
         {
             switch (columnDefinition.OriginalTypeName.ToLowerInvariant())
             {
@@ -608,7 +608,7 @@ namespace Dotmim.Sync.MySql.Builders
             throw new Exception($"this type name {typeName} is not supported");
         }
 
-        public override bool ValidateIsReadonly(DmColumn columnDefinition)
+        public override bool ValidateIsReadonly(SyncColumn columnDefinition)
         {
             return columnDefinition.OriginalTypeName.ToLowerInvariant() == "timestamp";
         }
@@ -721,7 +721,7 @@ namespace Dotmim.Sync.MySql.Builders
             throw new Exception("Unhandled type encountered");
         }
 
-        public override byte ValidatePrecision(DmColumn columnDefinition)
+        public override byte ValidatePrecision(SyncColumn columnDefinition)
         {
             if (IsNumericType(columnDefinition.OriginalTypeName) && columnDefinition.Precision == 0)
                 return 10;
@@ -729,7 +729,7 @@ namespace Dotmim.Sync.MySql.Builders
             return columnDefinition.Precision;
         }
 
-        public override (byte precision, byte scale) ValidatePrecisionAndScale(DmColumn columnDefinition)
+        public override (byte precision, byte scale) ValidatePrecisionAndScale(SyncColumn columnDefinition)
         {
             var precision = columnDefinition.Precision;
             var scale = columnDefinition.Scale;

@@ -62,7 +62,7 @@ namespace Dotmim.Sync
         /// Gets the ShemaTable's rows
         /// </summary>
         [IgnoreDataMember]
-        public SyncRows Rows { get; private set; } 
+        public SyncRows Rows { get; private set; }
 
         /// <summary>
         /// Gets the ShemaTable's SyncSchema
@@ -105,6 +105,9 @@ namespace Dotmim.Sync
         /// </summary>
         public void Clear()
         {
+            if (this.Rows == null)
+                return;
+
             foreach (var row in this.Rows)
                 row.Table = null;
 
@@ -123,17 +126,22 @@ namespace Dotmim.Sync
             // Dispose managed ressources
             if (cleanup)
             {
-                foreach (var column in this.Columns)
-                    column.Table = null;
+                if (this.Columns != null)
+                {
+                    foreach (var column in this.Columns)
+                        column.Table = null;
 
-                // delete reference to the current Table
-                this.Rows.Table = null;
-                this.Columns.Table = null;
+                    this.Columns.Clear();
+                    this.Columns.Table = null;
+                    this.Columns = null;
+                }
 
-                this.Columns.Clear();
-                this.Columns = null;
-
-                this.Rows = null;
+                if (this.Rows != null)
+                {
+                    // delete reference to the current Table
+                    this.Rows.Table = null;
+                    this.Rows = null;
+                }
             }
 
             // Dispose unmanaged ressources
@@ -346,6 +354,13 @@ namespace Dotmim.Sync
         /// </summary>
         public bool HasAutoIncrementColumns => this.Columns.Any(c => c.IsAutoIncrement);
 
+        public override string ToString()
+        {
+            if (!string.IsNullOrEmpty(this.SchemaName))
+                return $"{this.SchemaName}.{this.TableName}";
+            else
+                return this.TableName;
+        }
 
     }
 

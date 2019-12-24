@@ -15,19 +15,19 @@ namespace Dotmim.Sync.MySql
 
         MySqlObjectNames sqlObjectNames;
        
-        public MySqlBuilder(DmTable tableDescription) : base(tableDescription)
+        public MySqlBuilder(SyncTable tableDescription) : base(tableDescription)
         {
             sqlObjectNames = new MySqlObjectNames(tableDescription);
         }
 
-        internal static (ParserName tableName, ParserName trackingName) GetParsers(DmTable tableDescription)
+        internal static (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription)
         {
             string tableAndPrefixName = tableDescription.TableName;
 
             var originalTableName = ParserName.Parse(tableDescription, "`");
 
-            var pref = tableDescription.TrackingTablesPrefix != null ? tableDescription.TrackingTablesPrefix : "";
-            var suf = tableDescription.TrackingTablesSuffix != null ? tableDescription.TrackingTablesSuffix : "";
+            var pref = tableDescription.Schema.TrackingTablesPrefix != null ? tableDescription.Schema.TrackingTablesPrefix : "";
+            var suf = tableDescription.Schema.TrackingTablesSuffix != null ? tableDescription.Schema.TrackingTablesSuffix : "";
 
             // be sure, at least, we have a suffix if we have empty values. 
             // othewise, we have the same name for both table and tracking table

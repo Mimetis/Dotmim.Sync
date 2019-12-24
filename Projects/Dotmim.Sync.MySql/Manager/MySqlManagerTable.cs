@@ -31,9 +31,9 @@ namespace Dotmim.Sync.MySql
 
   
 
-        IEnumerable<DmColumn> IDbManagerTable.GetTableDefinition()
+        IEnumerable<SyncColumn> IDbManagerTable.GetTableDefinition()
         {
-            List<DmColumn> columns = new List<DmColumn>();
+            var columns = new List<SyncColumn>();
 
             // Get the columns definition
 
@@ -49,30 +49,34 @@ namespace Dotmim.Sync.MySql
                 var maxLengthLong = c["character_maximum_length"] != DBNull.Value ? Convert.ToInt64(c["character_maximum_length"]) : 0;
 
                 // Gets the datastore owner dbType 
-                MySqlDbType datastoreDbType = (MySqlDbType)mySqlDbMetadata.ValidateOwnerDbType(typeName, isUnsigned, false, maxLengthLong);
+                var datastoreDbType = (MySqlDbType)mySqlDbMetadata.ValidateOwnerDbType(typeName, isUnsigned, false, maxLengthLong);
 
                 // once we have the datastore type, we can have the managed type
-                Type columnType = mySqlDbMetadata.ValidateType(datastoreDbType);
+                var columnType = mySqlDbMetadata.ValidateType(datastoreDbType);
 
-                var dbColumn = DmColumn.CreateColumn(name, columnType);
-                dbColumn.OriginalTypeName = typeName;
-                dbColumn.SetOrdinal(Convert.ToInt32(c["ordinal_position"]));
-                dbColumn.MaxLength = maxLengthLong > int.MaxValue ? int.MaxValue : (int)maxLengthLong;
-                dbColumn.Precision = c["numeric_precision"] != DBNull.Value ? Convert.ToByte(c["numeric_precision"]) : (byte)0;
-                dbColumn.Scale = c["numeric_scale"] != DBNull.Value ? Convert.ToByte(c["numeric_scale"]) : (byte)0;
-                dbColumn.AllowDBNull = (string)c["is_nullable"] == "NO" ? false : true;
+                var sColumn = new SyncColumn(name, columnType);
+                sColumn.OriginalTypeName = typeName;
+                sColumn.Ordinal = Convert.ToInt32(c["ordinal_position"]);
+                sColumn.MaxLength = maxLengthLong > int.MaxValue ? int.MaxValue : (int)maxLengthLong;
+                sColumn.Precision = c["numeric_precision"] != DBNull.Value ? Convert.ToByte(c["numeric_precision"]) : (byte)0;
+                sColumn.Scale = c["numeric_scale"] != DBNull.Value ? Convert.ToByte(c["numeric_scale"]) : (byte)0;
+                sColumn.AllowDBNull = (string)c["is_nullable"] == "NO" ? false : true;
 
-                String extra = c["extra"] != DBNull.Value ? ((string)c["extra"]).ToLowerInvariant() : null;
+                var extra = c["extra"] != DBNull.Value ? ((string)c["extra"]).ToLowerInvariant() : null;
 
                 if (!string.IsNullOrEmpty(extra) && (extra.Contains("auto increment") || extra.Contains("auto_increment")))
-                    dbColumn.IsAutoIncrement = true;
+                {
+                    sColumn.IsAutoIncrement = true;
+                    sColumn.AutoIncrementSeed = 1;
+                    sColumn.AutoIncrementStep = 1;
+                }
 
-                dbColumn.IsUnsigned = isUnsigned;
-                dbColumn.IsUnique = c["column_key"] != DBNull.Value ? ((string)c["column_key"]).ToLowerInvariant().Contains("uni") : false;
+                sColumn.IsUnsigned = isUnsigned;
+                sColumn.IsUnique = c["column_key"] != DBNull.Value ? ((string)c["column_key"]).ToLowerInvariant().Contains("uni") : false;
 
 
 
-                columns.Add(dbColumn);
+                columns.Add(sColumn);
 
             }
 
@@ -111,7 +115,7 @@ namespace Dotmim.Sync.MySql
             return relations.ToArray();
         }
 
-        public IEnumerable<DmColumn> GetTablePrimaryKeys()
+        public IEnumerable<SyncColumn> GetTablePrimaryKeys()
         {
             // Get PrimaryKey
             var dmTableKeys = MySqlManagementUtils.PrimaryKeysForTable(this.sqlConnection, this.sqlTransaction, this.tableName);
@@ -119,12 +123,12 @@ namespace Dotmim.Sync.MySql
             if (dmTableKeys == null || dmTableKeys.Rows.Count == 0)
                 throw new Exception("No Primary Keys in this table, it' can't happen :) ");
 
-            var lstKeys = new List<DmColumn>();
+            var lstKeys = new List<SyncColumn>();
 
             foreach (var dmKey in dmTableKeys.Rows)
             {
-                var keyColumn = new DmColumn<string>((string)dmKey["COLUMN_NAME"]);
-                keyColumn.SetOrdinal(Convert.ToInt32(dmKey["ORDINAL_POSITION"]));
+                var keyColumn = new SyncColumn((string)dmKey["COLUMN_NAME"], typeof(string));
+                keyColumn.Ordinal = Convert.ToInt32(dmKey["ORDINAL_POSITION"]);
                 lstKeys.Add(keyColumn);
             }
 
