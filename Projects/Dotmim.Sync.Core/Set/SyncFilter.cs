@@ -25,6 +25,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets whether the filter is targeting an existing column of the target table (not virtual) or it is only used as a parameter in the selectchanges stored procedure (virtual)
         /// </summary>
+        [IgnoreDataMember]
         public bool IsVirtual => ColumnType.HasValue;
 
         /// <summary>

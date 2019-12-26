@@ -135,19 +135,29 @@ namespace Dotmim.Sync.Sqlite
 
         private string InsertTriggerBodyText()
         {
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine("-- If row was deleted before, it already exists, so just make an update");
-            stringBuilder.AppendLine("BEGIN");
-
-            stringBuilder.AppendLine($"\tINSERT OR REPLACE INTO {trackingName.Quoted().ToString()} (");
-
-            StringBuilder stringBuilderArguments = new StringBuilder();
-            StringBuilder stringBuilderArguments2 = new StringBuilder();
-            StringBuilder stringPkAreNull = new StringBuilder();
-
+            var stringBuilder = new StringBuilder();
+            var stringBuilderArguments = new StringBuilder();
+            var stringBuilderArguments2 = new StringBuilder();
+            var stringPkAreNull = new StringBuilder();
             string argComma = string.Empty;
             string argAnd = string.Empty;
+
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine("BEGIN");
+            stringBuilder.AppendLine("-- If row was deleted before, it already exists, so just make an update");
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($"\tUPDATE {trackingName.Quoted().ToString()} ");
+            stringBuilder.AppendLine("\tSET [sync_row_is_tombstone] = 0 = NULL ");
+            stringBuilder.AppendLine($"\t\t,[update_scope_id] = NULL -- since the update if from local, it's a NULL");
+            stringBuilder.AppendLine($"\t\t,[update_timestamp] = {SqliteObjectNames.TimestampValue}");
+            stringBuilder.AppendLine($"\t\t,[timestamp] = {SqliteObjectNames.TimestampValue}");
+            stringBuilder.AppendLine($"\t\t,[last_change_datetime] = datetime('now')");
+            stringBuilder.Append($"\tWhere ");
+            stringBuilder.Append(SqliteManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, trackingName.Quoted().ToString(), "new"));
+            stringBuilder.AppendLine($"; ");
+            stringBuilder.AppendLine($"");
+
+            stringBuilder.AppendLine($"\tINSERT OR IGNORE INTO {trackingName.Quoted().ToString()} (");
             foreach (var mutableColumn in this.tableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
             {
                 var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
@@ -168,26 +178,6 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine("\t\t,[sync_row_is_tombstone]");
             stringBuilder.AppendLine("\t\t,[last_change_datetime]");
 
-            StringBuilder filterColumnsString = new StringBuilder();
-
-            // --------------------------------------------------------------------------------
-            // SQLITE doesnot support (yet) filtering columns, since it's only a client provider
-            // --------------------------------------------------------------------------------
-            //// Filter columns
-            //if (this.Filters != null && this.Filters.Count > 0)
-            //{
-            //    for (int i = 0; i < this.Filters.Count; i++)
-            //    {
-            //        var filterColumn = this.Filters[i];
-            //        if (this.tableDescription.PrimaryKey.Columns.Any(c => c.ColumnName == filterColumn.ColumnName))
-            //            continue;
-
-            //        ObjectNameParser columnName = new ObjectNameParser(filterColumn.ColumnName);
-            //        filterColumnsString.AppendLine($"\t,[i].{columnName.QuotedString}");
-            //    }
-            //    stringBuilder.AppendLine(filterColumnsString.ToString());
-            //}
-
             stringBuilder.AppendLine("\t) ");
             stringBuilder.AppendLine("\tVALUES (");
             stringBuilder.Append(stringBuilderArguments2.ToString());
@@ -198,10 +188,6 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine($"\t\t,{SqliteObjectNames.TimestampValue}");
             stringBuilder.AppendLine("\t\t,0");
             stringBuilder.AppendLine("\t\t,datetime('now')");
-
-            if (Filters != null && Filters.Count() > 0)
-                stringBuilder.AppendLine(filterColumnsString.ToString());
-
             stringBuilder.AppendLine("\t);");
             stringBuilder.AppendLine("END;");
             return stringBuilder.ToString();
@@ -265,7 +251,7 @@ namespace Dotmim.Sync.Sqlite
             return "";
         }
 
-
+      
         private string UpdateTriggerBodyText()
         {
             StringBuilder stringBuilder = new StringBuilder();
@@ -276,27 +262,6 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine($"\t\t,[update_timestamp] = {SqliteObjectNames.TimestampValue}");
             stringBuilder.AppendLine($"\t\t,[timestamp] = {SqliteObjectNames.TimestampValue}");
             stringBuilder.AppendLine("\t\t,[last_change_datetime] = datetime('now')");
-
-            // --------------------------------------------------------------------------------
-            // SQLITE doesnot support (yet) filtering columns, since it's only a client provider
-            // --------------------------------------------------------------------------------
-            // Filter columns
-            //if (this.Filters != null && Filters.Count > 0)
-            //{
-            //    for (int i = 0; i < this.Filters.Count; i++)
-            //    {
-            //        var filterColumn = this.Filters[i];
-
-            //        if (this.tableDescription.PrimaryKey.Columns.Any(c => c.ColumnName == filterColumn.ColumnName))
-            //            continue;
-
-            //        ObjectNameParser columnName = new ObjectNameParser(filterColumn.ColumnName);
-
-            //        stringBuilder.AppendLine($"\t,{columnName.QuotedString} = [i].{columnName.QuotedString}");
-
-            //    }
-            //    stringBuilder.AppendLine();
-            //}
 
             stringBuilder.Append($"\tWhere ");
             stringBuilder.Append(SqliteManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, trackingName.Quoted().ToString(), "new"));

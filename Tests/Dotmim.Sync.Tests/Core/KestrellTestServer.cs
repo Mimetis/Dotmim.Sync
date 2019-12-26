@@ -32,7 +32,13 @@ namespace Dotmim.Sync.Tests.Core
                 .ConfigureServices(services =>
                 {
                     services.AddMemoryCache();
-                });
+                    services.AddSession(options =>
+                    {
+                        // Set a long timeout for easy testing.
+                        options.IdleTimeout = TimeSpan.FromDays(10);
+                        options.Cookie.HttpOnly = true;
+                    });
+                }) ;
             this.useFiddler = useFiddler;
             this.builder = hostBuilder;
 

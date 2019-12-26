@@ -133,6 +133,8 @@ namespace Dotmim.Sync.SqlServer.Builders
             if (applyRowsCount <= 0)
                 return;
 
+            DataRowState dataRowState = DataRowState.Unchanged;
+
             var records = new List<SqlDataRecord>(applyRowsCount);
             SqlMetaData[] metadatas = new SqlMetaData[schemaChangesTable.Columns.Count];
 
@@ -143,6 +145,8 @@ namespace Dotmim.Sync.SqlServer.Builders
             {
                 foreach (var row in applyRows)
                 {
+                    dataRowState = row.RowState;
+
                     var record = new SqlDataRecord(metadatas);
 
                     int sqlMetadataIndex = 0;
@@ -333,10 +337,8 @@ namespace Dotmim.Sync.SqlServer.Builders
                             }
                         }
 
-                        if (schemaColumn.AllowDBNull && rowValue == null)
+                        if (rowValue == null)
                             rowValue = DBNull.Value;
-                        else if (rowValue == null)
-                            rowValue = defaultValue;
 
                         record.SetValue(sqlMetadataIndex, rowValue);
                         sqlMetadataIndex++;
@@ -376,7 +378,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                             itemArray[i] = columnValue;
                         }
 
-                        failedRows.Rows.Add(itemArray);
+                        failedRows.Rows.Add(itemArray, dataRowState);
                     }
                 }
             }

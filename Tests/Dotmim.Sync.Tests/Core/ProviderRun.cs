@@ -128,7 +128,7 @@ namespace Dotmim.Sync.Tests.Core
             // tests through http proxy
             if (this.NetworkType == NetworkType.Http)
             {
-                using (var server = new KestrellTestServer())
+                using (var server = new KestrellTestServer(true))
                 {
                     // server handler
                     var serverHandler = new RequestDelegate(async context =>
@@ -146,15 +146,14 @@ namespace Dotmim.Sync.Tests.Core
                         // sync
                         try
                         {
+                            schema = new SyncSet(syncTables);
 
                             var proxyServerOrchestrator = WebProxyServerOrchestrator.Create(
                                 context, serverFixture.ServerProvider, schema, serverOptions);
 
                             var webServerOrchestrator = proxyServerOrchestrator.GetLocalOrchestrator(context);
 
-                            webServerOrchestrator.Schema.Tables.Add(syncTables);
-
-                            // Add Filers
+                           // Add Filers
                             if (serverFixture.Filters != null && serverFixture.Filters.Count > 0)
                                 serverFixture.Filters.ForEach(f =>
                                 {

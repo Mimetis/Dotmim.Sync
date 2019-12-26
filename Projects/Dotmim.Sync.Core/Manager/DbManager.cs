@@ -65,10 +65,10 @@ namespace Dotmim.Sync.Manager
 
                 try
                 {
-
-
                     if (columnType == DbType.Guid && valueType != typeof(Guid) && (value as string) != null)
                         value = new Guid(value.ToString());
+                    else if (columnType == DbType.Guid && valueType != typeof(Guid) && value.GetType() == typeof(byte[]))
+                        value = new Guid((byte[])value);
                     else if (columnType == DbType.Int32 && valueType != typeof(int))
                         value = Convert.ToInt32(value);
                     else if (columnType == DbType.UInt32 && valueType != typeof(uint))

@@ -103,14 +103,9 @@ namespace Dotmim.Sync.Web.Client
             // Create the message to be sent
             var httpMessage = new HttpMessageEnsureScopesRequest(context, schema.ScopeName);
 
-            // Post the request and get the response from server
-
-            // Since it's the schema, and DmSet does not support serializers using [DataContract] attribute (not yet !), so use a json serializer
-            var overridenSerializerFactory = SerializersCollection.JsonSerializer;
-
             // No batch size submitted here, because the schema will be generated in memory and send back to the user.
             var ensureScopesResponse = await this.httpRequestHandler.ProcessRequestAsync<HttpMessageEnsureScopesRequest, HttpMessageEnsureScopesResponse>
-                (this.HttpClient, this.ServiceUri, httpMessage, HttpStep.EnsureScopes, context.SessionId, overridenSerializerFactory, 0, cancellationToken).ConfigureAwait(false);
+                (this.HttpClient, this.ServiceUri, httpMessage, HttpStep.EnsureScopes, context.SessionId, this.SerializerFactory, 0, cancellationToken).ConfigureAwait(false);
 
             if (ensureScopesResponse == null)
                 throw new ArgumentException("Http Message content for Ensure scope can't be null");
@@ -118,6 +113,7 @@ namespace Dotmim.Sync.Web.Client
             if (ensureScopesResponse.Schema == null || ensureScopesResponse.Schema.Tables.Count <= 0)
                 throw new ArgumentException("Schema from EnsureScope can't be null and may contains at least one table");
 
+            ensureScopesResponse.Schema.EnsureSchema();
             // Return scopes and new shema
             return (ensureScopesResponse.SyncContext, ensureScopesResponse.Schema);
         }
