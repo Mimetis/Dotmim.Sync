@@ -223,10 +223,10 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("DECLARE ts BIGINT;");
             stringBuilder.AppendLine("SET ts = 0;");
-            stringBuilder.AppendLine($"SELECT `timestamp` FROM {trackingName.Quoted().ToString()} WHERE {MySqlManagementUtils.WhereColumnAndParameters(this.tableDescription.PrimaryKeys, trackingName.Quoted().ToString())} LIMIT 1 INTO ts;");
+            stringBuilder.AppendLine($"SELECT `timestamp`, `update_scope_id` FROM {trackingName.Quoted().ToString()} WHERE {MySqlManagementUtils.WhereColumnAndParameters(this.tableDescription.PrimaryKeys, trackingName.Quoted().ToString())} LIMIT 1 INTO ts, updatescopeid;");
             stringBuilder.AppendLine($"DELETE FROM {tableName.Quoted().ToString()} WHERE");
             stringBuilder.AppendLine(MySqlManagementUtils.WhereColumnAndParameters(this.tableDescription.PrimaryKeys, ""));
-            stringBuilder.AppendLine("AND (ts <= sync_min_timestamp  OR sync_force_write = 1);");
+            stringBuilder.AppendLine("AND (ts <= sync_min_timestamp OR updatescopeid IS NULL OR sync_force_write = 1);");
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
@@ -502,20 +502,34 @@ namespace Dotmim.Sync.MySql
 
             stringBuilder.AppendLine("DECLARE ts BIGINT;");
             stringBuilder.AppendLine("SET ts = 0;");
-            stringBuilder.AppendLine($"SELECT `timestamp` FROM {trackingName.Quoted().ToString()} WHERE {MySqlManagementUtils.WhereColumnAndParameters(this.tableDescription.PrimaryKeys, trackingName.Quoted().ToString())} LIMIT 1 INTO ts;");
+            stringBuilder.AppendLine($"SELECT `timestamp`, `update_scope_id` FROM {trackingName.Quoted().ToString()} WHERE {MySqlManagementUtils.WhereColumnAndParameters(this.tableDescription.PrimaryKeys, trackingName.Quoted().ToString())} LIMIT 1 INTO ts, updatescopeid;");
 
             stringBuilder.AppendLine($"UPDATE {tableName.Quoted().ToString()}");
             stringBuilder.Append($"SET {MySqlManagementUtils.CommaSeparatedUpdateFromParameters(this.tableDescription)}");
             stringBuilder.Append($"WHERE {MySqlManagementUtils.WhereColumnAndParameters(this.tableDescription.PrimaryKeys, "")}");
-            stringBuilder.AppendLine($" AND (ts <= sync_min_timestamp OR sync_force_write = 1);");
-
+            stringBuilder.AppendLine($" AND (ts <= sync_min_timestamp OR updatescopeid IS NULL OR sync_force_write = 1);");
             stringBuilder.AppendLine();
-            // Can't rely on rows count since MySql will return 0 if an update don't update any columns
 
-            //stringBuilder.AppendLine($"/* Since the update 'could' potentially returns 0 as row affected count when we make a double update with the same values, to be sure, make a fake update on metadatas time column */");
-            //stringBuilder.AppendLine($"UPDATE {trackingName.QuotedObjectName} ");
-            //stringBuilder.AppendLine($"SET `timestamp` = {MySqlObjectNames.TimestampValue}");
-            //stringBuilder.AppendLine($"WHERE {MySqlManagementUtils.WhereColumnAndParameters(this.tableDescription.PrimaryKeys, "")} AND (ts <= sync_min_timestamp OR sync_force_write = 1);");
+            string empty = string.Empty;
+            var stringBuilderArguments = new StringBuilder();
+            var stringBuilderParameters = new StringBuilder();
+            foreach (var mutableColumn in this.tableDescription.Columns.Where(c => !c.IsReadOnly))
+            {
+                var columnName = ParserName.Parse(mutableColumn, "`").Quoted().ToString();
+                var parameterName = ParserName.Parse(mutableColumn, "`").Unquoted().Normalized().ToString();
+
+                stringBuilderArguments.Append(string.Concat(empty, columnName));
+                stringBuilderParameters.Append(string.Concat(empty, $"{MYSQL_PREFIX_PARAMETER}{parameterName}"));
+                empty = ", ";
+            }
+            stringBuilder.AppendLine($"INSERT INTO {tableName.Quoted().ToString()}");
+            stringBuilder.AppendLine($"({stringBuilderArguments.ToString()})");
+            stringBuilder.AppendLine($"SELECT * FROM ( SELECT {stringBuilderParameters.ToString()}) as TMP ");
+            stringBuilder.AppendLine($"WHERE NOT EXISTS ( ");
+            stringBuilder.AppendLine($"  SELECT * FROM {tableName.Quoted().ToString()} ");
+            stringBuilder.AppendLine($"  WHERE {MySqlManagementUtils.WhereColumnAndParameters(this.tableDescription.PrimaryKeys, "")}");
+            stringBuilder.AppendLine($") LIMIT 1");
+            stringBuilder.AppendLine();
 
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;

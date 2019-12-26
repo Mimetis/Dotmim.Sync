@@ -18,7 +18,7 @@ namespace Dotmim.Sync.Test.Misc
                 new SyncOptions{ BatchSize = 1000 },
 
                 // Second options without batch enabled
-                new SyncOptions{ BatchSize = 0 }
+                //new SyncOptions{ BatchSize = 0 }
             };
 
             return Configurations;

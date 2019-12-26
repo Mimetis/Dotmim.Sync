@@ -1,37 +1,29 @@
 ﻿using Dotmim.Sync;
 using Dotmim.Sync.Data;
-using Dotmim.Sync.Data.Surrogate;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.SampleConsole;
-using Dotmim.Sync.Serialization;
+using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
-using Dotmim.Sync.Tests.Models;
 using Dotmim.Sync.Web.Client;
 using Dotmim.Sync.Web.Server;
-using MessagePack;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Data.Sqlite;
-using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using System;
-using System.Collections.Generic;
 using System.Data;
+using System.Data.Common;
 using System.Data.SqlClient;
-using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Runtime.Serialization;
-using System.Runtime.Serialization.Formatters;
-using System.Runtime.Serialization.Formatters.Binary;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Xml;
 
 
 internal class Program
 {
     public static string serverDbName = "AdventureWorks";
+    public static string serverProductCategoryDbName = "AdventureWorksProductCategory";
     public static string clientDbName = "Client";
     public static string[] allTables = new string[] {"ProductCategory",
                                                     "ProductModel", "Product",
@@ -39,13 +31,134 @@ internal class Program
                                                     "SalesOrderHeader", "SalesOrderDetail" };
     private static void Main(string[] args)
     {
+
         SyncHttpThroughKestellAsync().GetAwaiter().GetResult();
+
 
         //TestSyncTable();
 
 
-      
+
     }
+
+    private static async Task TestDeleteWithoutBulkAsync()
+    {
+        var cs = DbHelper.GetDatabaseConnectionString(serverProductCategoryDbName);
+        var cc = DbHelper.GetDatabaseConnectionString(clientDbName);
+
+        // Create 2 Sql Sync providers
+        var serverProvider = new SqlSyncProvider(cs);
+        var serverConnection = new SqlConnection(cs);
+
+        //var clientProvider = new SqlSyncProvider(cc);
+        //var clientConnection = new SqlConnection(cc);
+
+        var clientProvider = new SqliteSyncProvider("advworks2.db");
+        var clientConnection = new SqliteConnection(clientProvider.ConnectionString);
+
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, new string[] { "ProductCategory" });
+
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
+            Console.ResetColor();
+        });
+
+        var remoteProgress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
+            Console.ResetColor();
+        });
+        // agent.AddRemoteProgress(remoteProgress);
+
+        agent.Options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync");
+        agent.Options.BatchSize = 0;
+        agent.Options.UseBulkOperations = false;
+        agent.Options.DisableConstraintsOnApplyChanges = false;
+        agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
+
+        Console.WriteLine("Sync Start");
+        var s1 = await agent.SynchronizeAsync(progress);
+        Console.WriteLine(s1);
+
+        Console.WriteLine("Insert product category on Server");
+        var id = InsertOneProductCategoryId(serverConnection, "GLASSES");
+        Console.WriteLine("Update Done.");
+
+        Console.WriteLine("Update product category on Server");
+        UpdateOneProductCategoryId(serverConnection, id, "OVERGLASSES");
+        Console.WriteLine("Update Done.");
+
+        Console.WriteLine("Sync Start");
+        s1 = await agent.SynchronizeAsync(progress);
+        Console.WriteLine(s1);
+
+        Console.WriteLine("End");
+    }
+
+
+    private static int InsertOneProductCategoryId(IDbConnection c, string updatedName)
+    {
+        using (var command = c.CreateCommand())
+        {
+            command.CommandText = "Insert Into ProductCategory (Name) Values (@Name); SELECT SCOPE_IDENTITY();";
+            var p = command.CreateParameter();
+            p.DbType = DbType.String;
+            p.Value = updatedName;
+            p.ParameterName = "@Name";
+            command.Parameters.Add(p);
+
+            c.Open();
+            var id = command.ExecuteScalar();
+            c.Close();
+
+            return Convert.ToInt32(id);
+        }
+    }
+    private static void UpdateOneProductCategoryId(IDbConnection c, int productCategoryId, string updatedName)
+    {
+        using (var command = c.CreateCommand())
+        {
+            command.CommandText = "Update ProductCategory Set Name = @Name Where ProductCategoryId = @Id";
+            var p = command.CreateParameter();
+            p.DbType = DbType.String;
+            p.Value = updatedName;
+            p.ParameterName = "@Name";
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.DbType = DbType.Int32;
+            p.Value = productCategoryId;
+            p.ParameterName = "@Id";
+            command.Parameters.Add(p);
+
+            c.Open();
+            command.ExecuteNonQuery();
+            c.Close();
+        }
+    }
+    private static void DeleteOneLine(DbConnection c, int productCategoryId)
+    {
+        using (var command = c.CreateCommand())
+        {
+            command.CommandText = "Delete from ProductCategory Where ProductCategoryId = @Id";
+
+            var p = command.CreateParameter();
+            p.DbType = DbType.Int32;
+            p.Value = productCategoryId;
+            p.ParameterName = "@Id";
+            command.Parameters.Add(p);
+
+            c.Open();
+            command.ExecuteNonQuery();
+            c.Close();
+        }
+    }
+
 
 
     //private static void TestSerializers()
@@ -348,7 +461,7 @@ internal class Program
 
         tbl.AcceptChanges();
 
-      //  st.Delete();
+        //  st.Delete();
 
 
         return set;
@@ -520,7 +633,7 @@ internal class Program
             Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
             Console.ResetColor();
         });
-       // agent.AddRemoteProgress(remoteProgress);
+        // agent.AddRemoteProgress(remoteProgress);
 
         // Setting configuration options
         agent.Schema.StoredProceduresPrefix = "s";
@@ -724,12 +837,14 @@ internal class Program
     {
         // server provider
         // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
+        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverProductCategoryDbName));
         var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
 
+
+
         // Tables involved in the sync process:
-        var tables = allTables;
-        //var tables = new string[] { "ProductCategory" };
+        //var tables = allTables;
+        var tables = new string[] { "ProductCategory" };
 
 
         // ----------------------------------
@@ -761,7 +876,7 @@ internal class Program
         {
             BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync_server"),
             CleanMetadatas = true,
-            UseBulkOperations = true,
+            UseBulkOperations = false,
             UseVerboseErrors = false
         };
         webServerOptions.Serializers.Add(new CustomMessagePackSerializerFactory());
@@ -788,62 +903,21 @@ internal class Program
             var clientHandler = new ResponseDelegate(async (serviceUri) =>
             {
                 proxyClientProvider.ServiceUri = serviceUri;
-                do
-                {
-                    Console.Clear();
-                    Console.WriteLine("Sync Start");
-                    try
-                    {
-                        var cts = new CancellationTokenSource();
-
-                        Console.WriteLine("--------------------------------------------------");
-                        Console.WriteLine("1 : Normal synchronization.");
-                        Console.WriteLine("2 : Synchronization with reinitialize");
-                        Console.WriteLine("3 : Synchronization with upload and reinitialize");
-                        Console.WriteLine("--------------------------------------------------");
-                        Console.WriteLine("What's your choice ? ");
-                        Console.WriteLine("--------------------------------------------------");
-                        var choice = Console.ReadLine();
-
-                        if (int.TryParse(choice, out var choiceNumber))
-                        {
-                            Console.WriteLine($"You choose {choice}. Start operation....");
-                            switch (choiceNumber)
-                            {
-                                case 1:
-                                    var s1 = await agent.SynchronizeAsync(SyncType.Normal, cts.Token);
-                                    Console.WriteLine(s1);
-                                    break;
-                                case 2:
-                                    s1 = await agent.SynchronizeAsync(SyncType.Reinitialize, cts.Token);
-                                    Console.WriteLine(s1);
-                                    break;
-                                case 3:
-                                    s1 = await agent.SynchronizeAsync(SyncType.ReinitializeWithUpload, cts.Token);
-                                    Console.WriteLine(s1);
-                                    break;
-
-                                default:
-                                    break;
-
-                            }
-                        }
-                    }
-                    catch (SyncException e)
-                    {
-                        Console.WriteLine(e.ToString());
-                    }
-                    catch (Exception e)
-                    {
-                        Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
-                    }
+                Console.Clear();
+                Console.WriteLine("Sync Start");
+                var s1 = await agent.SynchronizeAsync();
+                Console.WriteLine(s1);
+                Console.WriteLine("--------------------------------------------------");
 
 
-                    Console.WriteLine("--------------------------------------------------");
-                    Console.WriteLine("Press a key to choose again, or Escapte to end");
+                Console.WriteLine("Insert product category on Client");
+                var id = InsertOneProductCategoryId(new SqlConnection(clientProvider.ConnectionString), "GLASSES");
+                Console.WriteLine("Insert Done.");
 
-                } while (Console.ReadKey().Key != ConsoleKey.Escape);
-
+                Console.WriteLine("Sync Start");
+                s1 = await agent.SynchronizeAsync();
+                Console.WriteLine(s1);
+                Console.WriteLine("--------------------------------------------------");
 
             });
             await server.Run(serverHandler, clientHandler);

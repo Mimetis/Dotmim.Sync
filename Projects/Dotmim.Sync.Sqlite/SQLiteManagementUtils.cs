@@ -127,7 +127,7 @@ namespace Dotmim.Sync.Sqlite
         internal static string WhereColumnAndParameters(IEnumerable<string> columns, string fromPrefix)
         {
             var stringBuilder = new StringBuilder();
-            string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));
+            string strFromPrefix = string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, ".");
             string str1 = "";
             foreach (var column in columns)
             {

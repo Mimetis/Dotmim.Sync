@@ -21,6 +21,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Column's schema
         /// </summary>
+        [IgnoreDataMember]
         public SyncTable Table { get; internal set; }
 
         /// <summary>

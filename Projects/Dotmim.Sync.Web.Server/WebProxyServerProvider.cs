@@ -113,8 +113,12 @@ namespace Dotmim.Sync.Web.Server
             var step = (HttpStep)Convert.ToInt32(iStep);
             WebServerOrchestrator remoteOrchestrator = null;
 
+
+
             try
             {
+                var cache = context.RequestServices.GetService<IMemoryCache>();
+
                 // get cached provider instance if not defined byt web proxy server provider
                 if (remoteOrchestrator == null)
                     remoteOrchestrator = GetCachedOrchestrator(context, sessionId);
@@ -148,6 +152,9 @@ namespace Dotmim.Sync.Web.Server
                         binaryData = clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().Serialize(s3);
                         break;
                 }
+
+                // Save orchestrator again
+                cache.Set(sessionId, remoteOrchestrator, TimeSpan.FromHours(1));
 
                 // Adding the serialization format used and session id
                 httpResponse.Headers.Add("dotmim-sync-session-id", sessionId.ToString());

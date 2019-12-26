@@ -80,8 +80,6 @@ namespace Dotmim.Sync.SqlServer.Builders
         /// </summary>
         private void SetDefaultNames()
         {
-            
-
             var pref = this.TableDescription.Schema.StoredProceduresPrefix;
             var suf = this.TableDescription.Schema.StoredProceduresSuffix;
             var tpref = this.TableDescription.Schema.TriggersPrefix;

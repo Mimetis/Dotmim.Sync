@@ -34,7 +34,7 @@ namespace Dotmim.Sync.Sqlite
             if (string.IsNullOrEmpty(pref) && string.IsNullOrEmpty(suf))
                 suf = "_tracking";
 
-            var trackingTableName = ParserName.Parse($"{pref}{tableAndPrefixName}{suf}", "`");
+            var trackingTableName = ParserName.Parse($"{pref}{tableAndPrefixName}{suf}");
 
             return (originalTableName, trackingTableName);
         }
