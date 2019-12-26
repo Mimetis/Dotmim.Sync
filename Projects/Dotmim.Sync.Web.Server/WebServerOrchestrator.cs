@@ -29,10 +29,15 @@ namespace Dotmim.Sync.Web.Server
 
         }
 
+        public WebServerOrchestrator()
+        {
+                
+        }
+
         /// <summary>
         /// Gets or Sets the Schema 
         /// </summary>
-        public SyncSet Schema { get; private set; }
+        public SyncSet Schema { get; set; }
 
         /// <summary>
         /// Get or Set Web server options parameters
@@ -89,9 +94,26 @@ namespace Dotmim.Sync.Web.Server
             var batchPartInfo = serverBatchInfo.BatchPartsInfo.First(d => d.Index == batchIndexRequested);
 
             // if we are not in memory, we set the BI in session, to be able to get it back on next request
-            batchPartInfo.LoadBatch(Schema);
+
+            // create the in memory changes set
+            var changesSet = new SyncSet
+            {
+                CaseSensitive = Schema.CaseSensitive,
+                CultureInfoName = Schema.CultureInfoName,
+                ScopeName = Schema.ScopeName,
+                DataSourceName = Schema.DataSourceName
+            };
+            foreach (var table in Schema.Tables)
+            {
+                DbSyncAdapter.CreateChangesTable(Schema.Tables[table.TableName, table.SchemaName], changesSet);
+            }
+
+            batchPartInfo.LoadBatch(changesSet);
 
             changesResponse.Changes = batchPartInfo.Data.GetContainerSet();
+            
+            
+            
             changesResponse.BatchIndex = batchIndexRequested;
             changesResponse.IsLastBatch = batchPartInfo.IsLastBatch;
             changesResponse.RemoteClientTimestamp = remoteClientTimestamp;
@@ -121,6 +143,20 @@ namespace Dotmim.Sync.Web.Server
 
             // Get if we need to serialize data or making everything in memory
             var clientWorkInMemory = clientBatchSize == 0;
+            
+            // Check schema.
+            // If client has stored the schema, the EnsureScope will not be called on server.
+            // So use the schema from the client
+            if (this.Schema == null || !this.Schema.HasTables || !this.Schema.HasColumns)
+            {
+                var (_, newSchema) = await this.EnsureSchemaAsync(
+                    httpMessage.SyncContext, this.Schema, cancellationToken).ConfigureAwait(false);
+                
+                newSchema.EnsureSchema();
+                this.Schema = newSchema;
+            }
+
+
             // ------------------------------------------------------------
             // FIRST STEP : receive client changes
             // ------------------------------------------------------------
@@ -134,11 +170,24 @@ namespace Dotmim.Sync.Web.Server
             if (batchInfo == null)
                 batchInfo = new BatchInfo(clientWorkInMemory, Schema, this.Options.BatchDirectory);
 
-            var changes = Schema.Clone();
-            changes.ImportContainerSet(httpMessage.Changes);
+            // create the in memory changes set
+            var changesSet = new SyncSet
+            {
+                CaseSensitive = Schema.CaseSensitive,
+                CultureInfoName = Schema.CultureInfoName,
+                ScopeName = Schema.ScopeName,
+                DataSourceName = Schema.DataSourceName
+            };
+            foreach (var table in httpMessage.Changes.Tables)
+            {
+                DbSyncAdapter.CreateChangesTable(Schema.Tables[table.TableName, table.SchemaName], changesSet);
+            }
 
+            changesSet.ImportContainerSet(httpMessage.Changes);
+
+       
             // add changes to the batch info
-            batchInfo.AddChanges(changes, httpMessage.BatchIndex, httpMessage.IsLastBatch);
+            batchInfo.AddChanges(changesSet, httpMessage.BatchIndex, httpMessage.IsLastBatch);
 
             // Save the BatchInfo
             this.Provider.CacheManager.Set("ApplyChanges_BatchInfo", batchInfo);

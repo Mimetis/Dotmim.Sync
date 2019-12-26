@@ -111,9 +111,8 @@ namespace Dotmim.Sync
         /// <summary>
         /// Insert or update a metadata line
         /// </summary>
-        internal bool InsertOrUpdateMetadatas(DbCommand command, SyncRow row, Guid? fromScopeId)
+        internal bool InsertOrUpdateMetadatas(DbCommand command, SyncRow row, Guid? fromScopeId, long lastTimestamp)
         {
-
             if (row.Table == null)
                 throw new ArgumentException("Schema table columns does not exist");
 
@@ -132,7 +131,6 @@ namespace Dotmim.Sync
             var updateTimestampIndex = schemaTable.Columns.IndexOf(schemaTable.Columns.First(c => c.ColumnName == "update_timestamp"));
             var createScopeIdIndex = schemaTable.Columns.IndexOf(schemaTable.Columns.First(c => c.ColumnName == "create_scope_id"));
             var updateScopeIdIndex = schemaTable.Columns.IndexOf(schemaTable.Columns.First(c => c.ColumnName == "update_scope_id"));
-
 
             long createTimestamp = row[createTimestampIndex] != null ? Convert.ToInt64(row[createTimestampIndex]) : 0;
             long updateTimestamp = row[updateTimestampIndex] != null ? Convert.ToInt64(row[updateTimestampIndex]) : 0;
@@ -175,6 +173,7 @@ namespace Dotmim.Sync
 
             // some proc stock does not differentiate update_scope_id and create_scope_id and use sync_scope_id
             DbManager.SetParameterValue(command, "sync_scope_id", createScopeId);
+            DbManager.SetParameterValue(command, "timestamp", lastTimestamp);
             // else they use create_scope_id and update_scope_id
             DbManager.SetParameterValue(command, "create_scope_id", createScopeId);
             DbManager.SetParameterValue(command, "update_scope_id", updateScopeId);
@@ -429,15 +428,12 @@ namespace Dotmim.Sync
 
         }
 
-
-
-
-        private void UpdateMetadatas(DbCommandType dbCommandType, SyncRow row, Guid applyingScopeId)
+        private void UpdateMetadatas(DbCommandType dbCommandType, SyncRow row, Guid applyingScopeId, long lastTimestamp)
         {
             using (var dbCommand = this.GetCommand(dbCommandType))
             {
                 this.SetCommandParameters(dbCommandType, dbCommand);
-                this.InsertOrUpdateMetadatas(dbCommand, row, applyingScopeId);
+                this.InsertOrUpdateMetadatas(dbCommand, row, applyingScopeId, lastTimestamp);
             }
         }
 
@@ -461,19 +457,25 @@ namespace Dotmim.Sync
                     {
                         operationComplete = this.ApplyInsert(row, applyingScopeId, lastTimestamp, false);
                         if (operationComplete)
-                            UpdateMetadatas(DbCommandType.InsertMetadata, row, applyingScopeId);
+                        {
+                            UpdateMetadatas(DbCommandType.InsertMetadata, row, applyingScopeId, lastTimestamp);
+                        }
                     }
                     else if (ApplyType == DataRowState.Modified)
                     {
                         operationComplete = this.ApplyUpdate(row, applyingScopeId, lastTimestamp, false);
                         if (operationComplete)
-                            UpdateMetadatas(DbCommandType.UpdateMetadata, row, applyingScopeId);
+                        {
+                            UpdateMetadatas(DbCommandType.UpdateMetadata, row, applyingScopeId, lastTimestamp);
+                        }
                     }
                     else if (ApplyType == DataRowState.Deleted)
                     {
                         operationComplete = this.ApplyDelete(row, applyingScopeId, lastTimestamp, false);
                         if (operationComplete)
-                            UpdateMetadatas(DbCommandType.UpdateMetadata, row, applyingScopeId);
+                        {
+                            UpdateMetadatas(DbCommandType.UpdateMetadata, row, applyingScopeId, lastTimestamp);
+                        }
                     }
 
                     if (operationComplete)

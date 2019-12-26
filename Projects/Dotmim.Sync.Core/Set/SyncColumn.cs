@@ -57,13 +57,13 @@ namespace Dotmim.Sync
         [DataMember(Name = "ps", IsRequired = false, EmitDefaultValue = false, Order = 14)]
         public bool PrecisionSpecified { get; set; }
 
-        [DataMember(Name = "p", IsRequired = false, EmitDefaultValue = false, Order = 15)]
+        [DataMember(Name = "p1", Order = 15)]
         public byte Precision { get; set; }
 
         [DataMember(Name = "ss", IsRequired = false, EmitDefaultValue = false, Order = 16)]
         public bool ScaleSpecified { get; set; }
 
-        [DataMember(Name = "sc", IsRequired = false, EmitDefaultValue = false, Order = 17)]
+        [DataMember(Name = "sc", EmitDefaultValue = false, Order = 17)]
         public byte Scale { get; set; }
 
         [DataMember(Name = "odb", IsRequired = false, EmitDefaultValue = false, Order = 18)]

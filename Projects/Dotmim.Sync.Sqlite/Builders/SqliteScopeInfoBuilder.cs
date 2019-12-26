@@ -179,7 +179,7 @@ namespace Dotmim.Sync.Sqlite
                 if (!alreadyOpened)
                     connection.Open();
 
-                long result = Convert.ToInt64(command.ExecuteScalar());
+                    long result = Convert.ToInt64(command.ExecuteScalar());
 
                 return result;
             }

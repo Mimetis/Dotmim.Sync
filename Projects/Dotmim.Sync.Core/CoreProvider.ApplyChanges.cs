@@ -424,8 +424,6 @@ namespace Dotmim.Sync
                                 // Set the id parameter
                                 syncAdapter.SetColumnParametersValues(metadataCommand, row);
 
-
-
                                 Guid? create_scope_id = null;
 
                                 if (row["create_scope_id"] != null && row["create_scope_id"] != DBNull.Value)
@@ -472,7 +470,7 @@ namespace Dotmim.Sync
 
 
                                 // apply local row, set scope.id to null becoz applied locally
-                                var rowsApplied = syncAdapter.InsertOrUpdateMetadatas(metadataCommand, row, null);
+                                var rowsApplied = syncAdapter.InsertOrUpdateMetadatas(metadataCommand, row, null, lastTimestamp);
 
                                 if (!rowsApplied)
                                     throw new Exception("No metadatas rows found, can't update the server side");
@@ -561,7 +559,7 @@ namespace Dotmim.Sync
                         syncAdapter.SetCommandParameters(commandType, metadataCommand);
 
                         // force applying client row, so apply scope.id (client scope here)
-                        var rowsApplied = syncAdapter.InsertOrUpdateMetadatas(metadataCommand, conflict.RemoteRow, applyingScopeId);
+                        var rowsApplied = syncAdapter.InsertOrUpdateMetadatas(metadataCommand, conflict.RemoteRow, applyingScopeId, lastTimestamp);
                         if (!rowsApplied)
                             throw new Exception("No metadatas rows found, can't update the server side");
                     }

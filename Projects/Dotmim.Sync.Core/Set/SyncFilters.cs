@@ -21,6 +21,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Filter's schema
         /// </summary>
+        [IgnoreDataMember]
         public SyncSet Schema { get; private set; }
 
         /// <summary>

@@ -112,7 +112,12 @@ namespace Dotmim.Sync
                 {
                     var syncColumn = primaryKeysColumn[i];
 
-                    if (!criteria[syncColumn.ColumnName].Equals(itemRow[syncColumn.ColumnName]))
+                    object critValue;
+                    object itemValue;
+                    SyncTypeConverter.TryConvertTo(criteria[syncColumn.ColumnName], syncColumn.GetDataType(), out critValue);
+                    SyncTypeConverter.TryConvertTo(itemRow[syncColumn.ColumnName], syncColumn.GetDataType(), out itemValue);
+
+                    if (!critValue.Equals(itemValue))
                         return false;
                 }
                 return true;

@@ -102,14 +102,18 @@ namespace Dotmim.Sync.Sqlite
         private void CreateUpdateCommandText()
         {
 
-            StringBuilder stringBuilder = new StringBuilder();
+            var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine($"UPDATE {tableName.Quoted().ToString()}");
             stringBuilder.Append($"SET {SqliteManagementUtils.CommaSeparatedUpdateFromParameters(this.TableDescription)}");
             stringBuilder.Append($"WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, "")}");
-            stringBuilder.AppendLine($" AND ((SELECT [timestamp] FROM {trackingName.Quoted().ToString()} ");
-            stringBuilder.AppendLine($"  WHERE {SqliteManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, tableName.Quoted().ToString(), trackingName.Quoted().ToString())}");
-            stringBuilder.AppendLine(" ) <= @sync_min_timestamp OR @sync_force_write = 1");
-            stringBuilder.AppendLine(");");
+            stringBuilder.AppendLine($" AND ( EXISTS (");
+            stringBuilder.AppendLine($"    SELECT * FROM {trackingName.Quoted().ToString()} ");
+            stringBuilder.AppendLine($"    WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, "")}");
+            stringBuilder.AppendLine($"    AND (timestamp < @sync_min_timestamp OR update_scope_id IS NOT NULL)");
+            stringBuilder.AppendLine($" )");
+            stringBuilder.AppendLine($"OR @sync_force_write = 1);");
+
+
             this.AddName(DbCommandType.UpdateRow, stringBuilder.ToString());
 
         }
@@ -192,14 +196,16 @@ namespace Dotmim.Sync.Sqlite
         }
         private void CreateDeleteCommandText()
         {
-            StringBuilder stringBuilder = new StringBuilder();
+            var stringBuilder = new StringBuilder();
 
             stringBuilder.AppendLine($"DELETE FROM {tableName.Quoted().ToString()} ");
-            stringBuilder.Append($"WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, "")}");
-            stringBuilder.AppendLine($" AND ((SELECT [timestamp] FROM {trackingName.Quoted().ToString()} ");
-            stringBuilder.AppendLine($"  WHERE {SqliteManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, tableName.Quoted().ToString(), trackingName.Quoted().ToString())}");
-            stringBuilder.AppendLine(" ) <= @sync_min_timestamp OR @sync_force_write = 1");
-            stringBuilder.AppendLine(");");
+            stringBuilder.AppendLine($"WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, "")}");
+            stringBuilder.AppendLine($"AND (EXISTS (");
+            stringBuilder.AppendLine($" SELECT * FROM {trackingName.Quoted().ToString()} ");
+            stringBuilder.AppendLine($" WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, "")}");
+            stringBuilder.AppendLine($" AND (timestamp < @sync_min_timestamp OR update_scope_id IS NOT NULL)");
+            stringBuilder.AppendLine($" )");
+            stringBuilder.AppendLine($"OR @sync_force_write = 1);");
 
             this.AddName(DbCommandType.DeleteRow, stringBuilder.ToString());
         }
