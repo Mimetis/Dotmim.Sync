@@ -260,7 +260,13 @@ namespace Dotmim.Sync.SqlServer.Builders
                                 case SqlDbType.Binary:
                                 case SqlDbType.VarBinary:
                                     if (columnType != typeof(byte[]))
-                                        rowValue = BitConverter.GetBytes(rowValue);
+                                    {
+                                        if (columnType == typeof(string))
+                                            rowValue = Convert.FromBase64String(rowValue);
+                                        else
+                                            rowValue = BitConverter.GetBytes(rowValue);
+                                    }
+                                        
                                     break;
                                 case SqlDbType.Variant:
                                     break;

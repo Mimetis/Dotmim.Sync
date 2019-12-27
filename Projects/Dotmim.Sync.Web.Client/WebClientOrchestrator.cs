@@ -131,10 +131,23 @@ namespace Dotmim.Sync.Web.Client
             // are not used, since it's handled by server side
             // clientBatchSize is sent to server to specify if the client wants a batch in return
 
+            // create the in memory changes set
+            var changesSet = new SyncSet
+            {
+                CaseSensitive = schema.CaseSensitive,
+                CultureInfoName = schema.CultureInfoName,
+                ScopeName = schema.ScopeName,
+                DataSourceName = schema.DataSourceName
+            };
+            foreach (var table in schema.Tables)
+            {
+                DbSyncAdapter.CreateChangesTable(schema.Tables[table.TableName, table.SchemaName], changesSet);
+            }
+
             // if we don't have any BatchPartsInfo, just generate a new one to get, at least, something to send to the server
             // and get a response with new data from server
             if (clientBatchInfo == null)
-                clientBatchInfo = new BatchInfo(true, schema);
+                clientBatchInfo = new BatchInfo(true, changesSet);
 
 
             // --------------------------------------------------------------
@@ -166,7 +179,7 @@ namespace Dotmim.Sync.Web.Client
                 {
                     // If BPI is InMempory, no need to deserialize from disk
                     // othewise load it
-                    bpi.LoadBatch(schema);
+                    bpi.LoadBatch(changesSet);
 
                     var changesToSend = new HttpMessageSendChangesRequest(context, scope);
 
@@ -205,7 +218,7 @@ namespace Dotmim.Sync.Web.Client
 
             // Create the BatchInfo and SyncContext to return at the end
             // Set InMemory by default to "true", but the real value is coming from server side
-            var serverBatchInfo = new BatchInfo(workInMemoryLocally, schema, batchDirectory);
+            var serverBatchInfo = new BatchInfo(workInMemoryLocally, changesSet, batchDirectory);
 
             // stats
             DatabaseChangesSelected serverChangesSelected = null;
@@ -223,29 +236,12 @@ namespace Dotmim.Sync.Web.Client
                 context = httpMessageContent.SyncContext;
                 remoteClientTimestamp = httpMessageContent.RemoteClientTimestamp;
 
-                // create the in memory changes set
-                var changesSet = new SyncSet
-                {
-                    CaseSensitive = schema.CaseSensitive,
-                    CultureInfoName = schema.CultureInfoName,
-                    ScopeName = schema.ScopeName,
-                    DataSourceName = schema.DataSourceName
-                };
-                foreach(var table in httpMessageContent.Changes.Tables)
-                {
-                    DbSyncAdapter.CreateChangesTable(schema.Tables[table.TableName, table.SchemaName], changesSet);
-                }
+                changesSet = changesSet.Clone();
 
                 changesSet.ImportContainerSet(httpMessageContent.Changes);
 
                 // Create a BatchPartInfo instance
-                serverBatchInfo.AddChanges(changesSet, httpMessageContent.BatchIndex, false);
-
-
-                //var changes = schema.Clone();
-                //changes.ImportContainerSet(httpMessageContent.Changes);
-                //serverBatchInfo.AddChanges(changes, httpMessageContent.BatchIndex, false);
-
+                serverBatchInfo.AddChanges(changesSet, httpMessageContent.BatchIndex, isLastBatch);
 
                 // free some memory
                 if (!workInMemoryLocally && httpMessageContent.Changes != null)
@@ -259,7 +255,7 @@ namespace Dotmim.Sync.Web.Client
                     // Create the message enveloppe
                     var httpMessage = new HttpMessageGetMoreChangesRequest(context, requestBatchIndex);
 
-                    var httpMessageResponse = await this.httpRequestHandler.ProcessRequestAsync<HttpMessageGetMoreChangesRequest, HttpMessageSendChangesResponse>(
+                    httpMessageContent = await this.httpRequestHandler.ProcessRequestAsync<HttpMessageGetMoreChangesRequest, HttpMessageSendChangesResponse>(
                                this.HttpClient, this.ServiceUri, httpMessage, HttpStep.GetChanges, context.SessionId, this.SerializerFactory, clientBatchSize, cancellationToken).ConfigureAwait(false);
 
                 }

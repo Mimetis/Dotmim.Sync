@@ -211,5 +211,23 @@ namespace Dotmim.Sync.Tests.MySql
         }
 
 
+        [Fact, TestPriority(26)]
+        public override Task Insert_Then_Update_Server_Then_Sync()
+        {
+            return base.Insert_Then_Update_Server_Then_Sync();
+        }
+
+        [Fact, TestPriority(27)]
+        public override Task Insert_Thousand_Client()
+        {
+            return base.Insert_Thousand_Client();
+        }
+        [Fact, TestPriority(28)]
+        public override Task Conflict_Insert_Delete_Insert_On_Server_Should_Wins()
+        {
+            return base.Conflict_Insert_Delete_Insert_On_Server_Should_Wins();
+        }
+
+
     }
 }

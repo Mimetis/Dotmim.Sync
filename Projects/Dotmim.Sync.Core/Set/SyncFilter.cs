@@ -47,11 +47,11 @@ namespace Dotmim.Sync
         /// If you specify the columnType, Dotmim.Sync will expect that the column does not exist on the table, and the filter is only
         /// used as a parameter for the selectchanges stored procedure. Thus, IsVirtual would be true
         /// </summary>
-        public SyncFilter(string columnName, string tableName, string schemaName = null,  int? columnType = null)
+        public SyncFilter(string tableName, string columnName, string schemaName = null,  int? columnType = null)
         {
             this.ColumnName = columnName;
             this.TableName = tableName;
-            this.SchemaName = schemaName;
+            this.SchemaName = schemaName ?? string.Empty;
             this.ColumnType = columnType;
         }
 

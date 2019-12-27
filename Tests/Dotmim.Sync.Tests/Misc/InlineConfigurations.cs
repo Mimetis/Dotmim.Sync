@@ -14,11 +14,10 @@ namespace Dotmim.Sync.Test.Misc
         {
             var Configurations = new List<SyncOptions>
             {
-                // First options with batch enabled
-                new SyncOptions{ BatchSize = 1000 },
-
-                // Second options without batch enabled
-                //new SyncOptions{ BatchSize = 0 }
+                new SyncOptions{ BatchSize = 0 },
+                new SyncOptions{ BatchSize = 500 },
+                new SyncOptions{ BatchSize = 500, UseBulkOperations = false },
+                new SyncOptions{ BatchSize = 0, UseBulkOperations = false  }
             };
 
             return Configurations;
