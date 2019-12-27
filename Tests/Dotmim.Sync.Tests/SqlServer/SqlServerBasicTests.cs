@@ -35,18 +35,20 @@ namespace Dotmim.Sync.Tests.SqlServer
                 // 1) Add database name
                 providerFixture.AddDatabaseName("SqlAdventureWorks");
                 // 2) Add tables
-                providerFixture.AddTables(sqlTables, 109);
-                // 3) Options
-                providerFixture.DeleteAllDatabasesOnDispose = false;
+                providerFixture.AddTables(sqlTables, 2109);
 
                 if (!Setup.IsOnAzureDev)
                 {
-                    providerFixture.AddRun(NetworkType.Http, ProviderType.Sql);
+                    providerFixture.AddRun(NetworkType.Tcp, ProviderType.Sql | ProviderType.Sqlite);
+                    providerFixture.AddRun(NetworkType.Http, ProviderType.Sqlite | ProviderType.Sql);
+                    providerFixture.DeleteAllDatabasesOnDispose = false;
                 }
                 else
                 {
                     providerFixture.AddRun(NetworkType.Tcp, ProviderType.MySql | ProviderType.Sql | ProviderType.Sqlite);
                     providerFixture.AddRun(NetworkType.Http, ProviderType.MySql | ProviderType.Sql | ProviderType.Sqlite);
+
+                    providerFixture.DeleteAllDatabasesOnDispose = true;
                 }
             };
 
@@ -212,5 +214,23 @@ namespace Dotmim.Sync.Tests.SqlServer
         {
             return base.Force_Failing_Constraints();
         }
+        [Fact, TestPriority(26)]
+        public override Task Insert_Then_Update_Server_Then_Sync()
+        {
+            return base.Insert_Then_Update_Server_Then_Sync();
+        }
+        [Fact, TestPriority(27)]
+        public override Task Insert_Thousand_Client()
+        {
+            return base.Insert_Thousand_Client();
+        }
+
+        [Fact, TestPriority(28)]
+        public override Task Conflict_Insert_Delete_Insert_On_Server_Should_Wins()
+        {
+            return base.Conflict_Insert_Delete_Insert_On_Server_Should_Wins();
+        }
+
+
     }
 }

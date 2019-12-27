@@ -7,6 +7,7 @@ using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Web.Client;
 using Dotmim.Sync.Web.Server;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Http2.HPack;
 using Microsoft.Data.Sqlite;
 using Newtonsoft.Json;
 using System;
@@ -32,7 +33,7 @@ internal class Program
     private static void Main(string[] args)
     {
 
-        SyncHttpThroughKestellAsync().GetAwaiter().GetResult();
+        TestSqliteDoubleStatement().GetAwaiter().GetResult();
 
 
         //TestSyncTable();
@@ -40,6 +41,47 @@ internal class Program
 
 
     }
+
+    private static async Task TestSqliteDoubleStatement()
+    {
+        var clientProvider = new SqliteSyncProvider(@"C:\PROJECTS\DOTMIM.SYNC\Tests\Dotmim.Sync.Tests\bin\Debug\netcoreapp2.0\st_r55jmmolvwg.db");
+        var clientConnection = new SqliteConnection(clientProvider.ConnectionString);
+
+        var commandText = "Update ProductCategory Set Name=@Name Where ProductCategoryId=@Id; " +
+                          "Select * from ProductCategory Where ProductCategoryId=@Id;";
+
+        using (DbCommand command = clientConnection.CreateCommand())
+        {
+            command.Connection = clientConnection;
+            command.CommandText = commandText;
+            var p = command.CreateParameter();
+            p.ParameterName = "@Id";
+            p.DbType = DbType.String;
+            p.Value = "FTNLBJ";
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@Name";
+            p.DbType = DbType.String;
+            p.Value = "Awesom Bike";
+            command.Parameters.Add(p);
+
+            clientConnection.Open();
+
+            using (var reader = command.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    var name = reader["Name"];
+                    Console.WriteLine(name);
+                }
+            }
+
+            clientConnection.Close();
+        }
+
+    }
+
 
     private static async Task TestDeleteWithoutBulkAsync()
     {
@@ -837,14 +879,12 @@ internal class Program
     {
         // server provider
         // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverProductCategoryDbName));
+        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
         var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
 
-
-
         // Tables involved in the sync process:
-        //var tables = allTables;
-        var tables = new string[] { "ProductCategory" };
+        var tables = allTables;
+        //var tables = new string[] { "SalesLT.Product", "SalesLT.ProductCategory" };
 
 
         // ----------------------------------
@@ -911,7 +951,8 @@ internal class Program
 
 
                 Console.WriteLine("Insert product category on Client");
-                var id = InsertOneProductCategoryId(new SqlConnection(clientProvider.ConnectionString), "GLASSES");
+                var name = Path.GetRandomFileName().Replace(".", "").ToUpperInvariant().Substring(0, 6);
+                var id = InsertOneProductCategoryId(new SqlConnection(clientProvider.ConnectionString), name.ToUpperInvariant());
                 Console.WriteLine("Insert Done.");
 
                 Console.WriteLine("Sync Start");

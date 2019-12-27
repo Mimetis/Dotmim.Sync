@@ -30,7 +30,7 @@ namespace Dotmim.Sync.Tests.SqlServer
                 // 2) Add tables
                 providerFixture.AddTables(sqlTables, 28);
                 // 3) Options
-                // providerFixture.DeleteAllDatabasesOnDispose = false;
+                 providerFixture.DeleteAllDatabasesOnDispose = false;
 
                 // add a filter
                 providerFixture.Filters.Add(new SyncFilter("Customer", "CustomerID"));

@@ -131,7 +131,11 @@ namespace Dotmim.Sync.Sqlite
             this.ConnectionString = sQLiteConnectionStringBuilder.ConnectionString;
         }
 
-        public override DbConnection CreateConnection() => new SqliteConnection(this.ConnectionString);
+        public override DbConnection CreateConnection()
+        {
+         var sqliteConnection =   new SqliteConnection(this.ConnectionString);
+            return sqliteConnection;
+        }
 
         public override DbBuilder GetDatabaseBuilder(SyncTable tableDescription) => new SqliteBuilder(tableDescription);
 
