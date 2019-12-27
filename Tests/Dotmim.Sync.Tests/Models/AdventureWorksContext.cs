@@ -2,6 +2,7 @@ using Dotmim.Sync.Tests.Core;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using System;
+using System.Collections.Generic;
 using System.Data.Common;
 using System.Linq;
 
@@ -887,7 +888,27 @@ namespace Dotmim.Sync.Tests.Models
             var p2 = Guid.NewGuid();
             var p3 = Guid.NewGuid();
 
-            var products = new[] {
+            var products = new List<Product>();
+            for (var i = 0; i < 2000; i++)
+            {
+                products.Add(
+                    new Product
+                    {
+                        ProductId = Guid.NewGuid(),
+                        Name = $"Generated N° {i.ToString()}",
+                        ProductNumber = $"FR-{i.ToString()}",
+                        Color = "Black",
+                        StandardCost = 1059.3100M,
+                        ListPrice = 1431.5000M,
+                        Size = "58",
+                        Weight = 1016.04M,
+                        ProductCategoryId = "ROADFR",
+                        ProductModelId = 6
+                    }
+                );
+            }
+
+            products.AddRange(new[] {
                 new Product { ProductId = Guid.NewGuid(), Name = "HL Road Frame - Black, 58", ProductNumber = "FR-R92B-58", Color = "Black", StandardCost = 1059.3100M, ListPrice = 1431.5000M, Size = "58", Weight = 1016.04M, ProductCategoryId = "ROADFR", ProductModelId = 6 },
                 new Product { ProductId = p1, Name = "HL Road Frame - Red, 58", ProductNumber = "FR-R92R-58", Color = "Red", StandardCost = 1059.3100M, ListPrice = 1431.5000M, Size = "58", Weight = 1016.04M, ProductCategoryId = "ROADFR", ProductModelId = 6 },
                 new Product { ProductId = p2, Name = "Road-150 Red, 62", ProductNumber = "BK-R93R-62", Color = "Red", StandardCost = 2171.2942M, ListPrice = 3578.2700M, Size = "62", Weight = 6803.85M, ProductCategoryId = "ROADB", ProductModelId = 25 },
@@ -902,7 +923,8 @@ namespace Dotmim.Sync.Tests.Models
                 new Product { ProductId = p3, Name = "LL Mountain Handlebars", ProductNumber = "HB-M243", StandardCost = 19.7758M, ListPrice = 44.5400M, ProductCategoryId = "HANDLB", ProductModelId = 52 },
                 new Product { ProductId = Guid.NewGuid(), Name = "ML Mountain Handlebars", ProductNumber = "HB-M763", StandardCost = 27.4925M, ListPrice = 61.9200M, ProductCategoryId = "HANDLB", ProductModelId = 54 },
                 new Product { ProductId = Guid.NewGuid(), Name = "HL Mountain Handlebars", ProductNumber = "HB-M918", StandardCost = 53.3999M, ListPrice = 120.2700M, ProductCategoryId = "HANDLB", ProductModelId = 55 }
-            }.ToArray();
+            });
+
 
             modelBuilder.Entity<Product>()
                 .HasData(products);

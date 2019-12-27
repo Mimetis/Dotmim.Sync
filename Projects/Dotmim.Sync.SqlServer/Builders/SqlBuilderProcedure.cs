@@ -1129,7 +1129,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             if (this.tableDescription.HasAutoIncrementColumns)
             {
                 stringBuilder.AppendLine();
-                stringBuilder.AppendLine($"\tSET IDENTITY_INSERT {tableName.Quoted().ToString()} OFF;");
+                stringBuilder.AppendLine($"\tSET IDENTITY_INSERT {tableName.Schema().Quoted().ToString()} OFF;");
             }
 
             //stringBuilder.AppendLine("END ");
@@ -1617,7 +1617,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             if (this.tableDescription.HasAutoIncrementColumns)
             {
                 stringBuilder.AppendLine();
-                stringBuilder.AppendLine($"SET IDENTITY_INSERT {tableName.Quoted().ToString()} OFF;");
+                stringBuilder.AppendLine($"SET IDENTITY_INSERT {tableName.Schema().Quoted().ToString()} OFF;");
             }
 
             stringBuilder.AppendLine();

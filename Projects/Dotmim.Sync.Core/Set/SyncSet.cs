@@ -207,7 +207,9 @@ namespace Dotmim.Sync
                 {
                     Rows = table.Rows.ExportToContainerTable().ToList()
                 };
-                containerSet.Tables.Add(containerTable);
+
+                if (containerTable.Rows.Count > 0)
+                    containerSet.Tables.Add(containerTable);
             }
 
             return containerSet;

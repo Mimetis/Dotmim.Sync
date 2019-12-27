@@ -40,8 +40,13 @@ namespace Dotmim.Sync.SqlServer
 
             var tableNameNormalized = ParserName.Parse(tableName).Unquoted().Normalized().ToString();
             var tableNameString = ParserName.Parse(tableName).ToString();
-            var schemaNameString = ParserName.Parse(schemaName).ToString();
-            schemaNameString = string.IsNullOrWhiteSpace(schemaNameString) ? "dbo" : schemaNameString;
+
+            var schemaNameString = "dbo";
+            if (!string.IsNullOrEmpty(schemaName))
+            {
+                schemaNameString = ParserName.Parse(schemaName).ToString();
+                schemaNameString = string.IsNullOrWhiteSpace(schemaNameString) ? "dbo" : schemaNameString;
+            }
 
             var dmTable = new DmTable(tableNameNormalized);
             using (var sqlCommand = new SqlCommand(commandColumn, connection, transaction))

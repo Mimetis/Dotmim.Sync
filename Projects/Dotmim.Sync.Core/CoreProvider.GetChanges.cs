@@ -117,10 +117,16 @@ namespace Dotmim.Sync
                 DataSourceName = schema.DataSourceName
             };
 
+            foreach (var table in schema.Tables)
+            {
+                DbSyncAdapter.CreateChangesTable(schema.Tables[table.TableName, table.SchemaName], changesSet);
+            }
+
+
             // Create the batch info, in memory
             // No need to geneate a directory name, since we are in memory
             // Batch info clone the schema and adds scopes columns
-            var batchInfo = new BatchInfo(true, schema);
+            var batchInfo = new BatchInfo(true, changesSet);
 
             try
             {
@@ -202,7 +208,7 @@ namespace Dotmim.Sync
                     }
 
                     // Create a changes table with Sync scopes columns
-                    var changesTable = DbSyncAdapter.CreateChangesTable(syncTable, changesSet) ;
+                    var changesTable = changesSet.Tables[syncTable.TableName, syncTable.SchemaName];
 
                     // Get the reader
                     using (var dataReader = selectIncrementalChangesCommand.ExecuteReader())
@@ -211,7 +217,7 @@ namespace Dotmim.Sync
 
                         while (dataReader.Read())
                         {
-                            var row = CreateSyncRowFromReader(dataReader, changesTable,excludingScopeId, isNew, lastTimestamp);
+                            var row = CreateSyncRowFromReader(dataReader, changesTable, excludingScopeId, isNew, lastTimestamp);
 
                             if (row.RowState != DataRowState.Deleted && row.RowState != DataRowState.Modified && row.RowState != DataRowState.Added)
                                 continue;
@@ -235,7 +241,8 @@ namespace Dotmim.Sync
 
                     selectIncrementalChangesCommand.Dispose();
                     // add the stats to global stats
-                    changes.TableChangesSelected.Add(tableSelectedChanges);
+                    if (tableSelectedChanges.Deletes > 0 || tableSelectedChanges.Inserts > 0 || tableSelectedChanges.Updates > 0)
+                        changes.TableChangesSelected.Add(tableSelectedChanges);
 
                     // Progress & Interceptor
                     context.SyncStage = SyncStage.TableChangesSelected;
@@ -405,14 +412,13 @@ namespace Dotmim.Sync
 
                         // Statistics
                         var tableChangesSelected = new TableChangesSelected(syncTable.TableName);
-                        changes.TableChangesSelected.Add(tableChangesSelected);
 
                         // Get the reader
                         using (var dataReader = selectIncrementalChangesCommand.ExecuteReader())
                         {
                             // Create a chnages table with scope columns
                             var changesSetTable = DbSyncAdapter.CreateChangesTable(syncTable, changesSet);
-                            
+
                             while (dataReader.Read())
                             {
                                 var row = CreateSyncRowFromReader(dataReader, changesSetTable, excludingScopeId, isNew, lastTimestamp);
@@ -422,7 +428,7 @@ namespace Dotmim.Sync
 
                                 var fieldsSize = ContainerTable.GetRowSizeFromDataRow(row.ToArray());
                                 var finalFieldSize = fieldsSize / 1024d;
-                       
+
                                 if (finalFieldSize > downloadBatchSizeInKB)
                                 {
                                     var exc = $"Row is too big ({finalFieldSize} kb.) for the current Configuration.DownloadBatchSizeInKB ({downloadBatchSizeInKB} kb.) Aborting Sync...";
@@ -482,6 +488,9 @@ namespace Dotmim.Sync
                             // close reader to be able to use connection in interceptor 
                             dataReader.Close();
 
+                            if (tableChangesSelected.Deletes > 0 || tableChangesSelected.Inserts > 0 || tableChangesSelected.Updates > 0)
+                                changes.TableChangesSelected.Add(tableChangesSelected);
+
                             // Event progress & interceptor
                             context.SyncStage = SyncStage.TableChangesSelected;
                             var tableChangesSelectedArgs = new TableChangesSelectedArgs(context, tableChangesSelected, connection, transaction);
@@ -516,7 +525,7 @@ namespace Dotmim.Sync
         }
 
 
-      
+
 
 
 
@@ -543,7 +552,7 @@ namespace Dotmim.Sync
                     isTombstone = Convert.ToInt64(dataReader.GetValue(i)) > 0;
                     continue;
                 }
-                
+
                 var columnValueObject = dataReader.GetValue(i);
                 var columnValue = columnValueObject == DBNull.Value ? null : columnValueObject;
 
@@ -554,7 +563,7 @@ namespace Dotmim.Sync
             // Check Row State
             DataRowState dataRowState;
             if (isTombstone)
-            { 
+            {
                 row.RowState = DataRowState.Deleted;
             }
             else
