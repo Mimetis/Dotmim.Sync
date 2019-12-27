@@ -84,7 +84,7 @@ namespace Dotmim.Sync.Sqlite
             this.CreateUpdatedMetadataCommandText();
             this.CreateResetCommandText();
 
-            // SQLite does not have any constraints, so just return a simple statement
+            // Sqlite does not have any constraints, so just return a simple statement
             this.AddName(DbCommandType.DisableConstraints, "Select 0"); // PRAGMA foreign_keys = OFF
             this.AddName(DbCommandType.EnableConstraints, "Select 0");
 
@@ -101,7 +101,12 @@ namespace Dotmim.Sync.Sqlite
 
         private void CreateUpdateCommandText()
         {
+            var stringBuilderArguments = new StringBuilder();
+            var stringBuilderParameters = new StringBuilder();
+            string empty = string.Empty;
+            string str1 = "";
 
+            // Generate Update command
             var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine($"UPDATE {tableName.Quoted().ToString()}");
             stringBuilder.Append($"SET {SqliteManagementUtils.CommaSeparatedUpdateFromParameters(this.TableDescription)}");
@@ -112,6 +117,28 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine($"    AND (timestamp < @sync_min_timestamp OR update_scope_id IS NOT NULL)");
             stringBuilder.AppendLine($" )");
             stringBuilder.AppendLine($"OR @sync_force_write = 1);");
+
+            stringBuilder.AppendLine($"");
+
+            // Generate Insert command
+            foreach (var mutableColumn in this.TableDescription.Columns.Where(c => !c.IsReadOnly))
+            {
+                var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+                var unquotedColumnName = ParserName.Parse(mutableColumn).Unquoted().Normalized().ToString();
+
+                stringBuilderArguments.Append(string.Concat(empty, columnName));
+                stringBuilderParameters.Append(string.Concat(empty, $"@{unquotedColumnName}"));
+                empty = ", ";
+            }
+            stringBuilder.AppendLine($"INSERT OR IGNORE INTO {tableName.Quoted().ToString()}");
+            stringBuilder.AppendLine($"SELECT {stringBuilderParameters.ToString()} ");
+            stringBuilder.AppendLine($"WHERE ( EXISTS (");
+            stringBuilder.AppendLine($"    SELECT * FROM {trackingName.Quoted().ToString()} ");
+            stringBuilder.AppendLine($"    WHERE ({SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, "")}) ");
+            stringBuilder.AppendLine($"    AND (timestamp < @sync_min_timestamp OR update_scope_id IS NOT NULL)");
+            stringBuilder.AppendLine($")");
+            stringBuilder.AppendLine($"OR @sync_force_write = 1);");
+
 
 
             this.AddName(DbCommandType.UpdateRow, stringBuilder.ToString());

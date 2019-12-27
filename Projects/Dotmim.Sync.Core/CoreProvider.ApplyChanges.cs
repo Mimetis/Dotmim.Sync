@@ -542,6 +542,7 @@ namespace Dotmim.Sync
                     case ConflictType.RemoteUpdateLocalUpdate:
                     case ConflictType.RemoteInsertLocalInsert:
                     case ConflictType.RemoteInsertLocalUpdate:
+                    case ConflictType.UniqueKeyConstraint:
                         operationComplete = syncAdapter.ApplyUpdate(conflict.RemoteRow, applyingScopeId, lastTimestamp, true);
                         commandType = DbCommandType.UpdateMetadata;
                         break;

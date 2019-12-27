@@ -249,15 +249,16 @@ namespace Dotmim.Sync
                 // Create a select table based on the schema in parameter + scope columns
                 var changesSet = schema.Schema.Clone(false);
                 var selectTable = CreateChangesTable(schema, changesSet);
-
-                // Create a new empty row
-                var syncRow = selectTable.NewRow();
+                SyncRow syncRow = null;
                 try
                 {
                     using (var dataReader = selectCommand.ExecuteReader())
                     {
                         while (dataReader.Read())
                         {
+                            // Create a new empty row
+                            syncRow = selectTable.NewRow();
+
                             for (var i = 0; i < dataReader.FieldCount; i++)
                             {
                                 var columnName = dataReader.GetName(i);
@@ -284,7 +285,9 @@ namespace Dotmim.Sync
                         Connection.Close();
                 }
 
-                syncRow.RowState = primaryKeyRow.RowState;
+                if (syncRow != null)
+                    syncRow.RowState = primaryKeyRow.RowState;
+
                 return syncRow;
             }
 
@@ -333,7 +336,7 @@ namespace Dotmim.Sync
                 // get upper bound max value
                 var taken = step + BATCH_SIZE >= itemsArrayCount ? itemsArrayCount - step : BATCH_SIZE;
 
-                var arrayStepChanges = changesTable.Rows.ToList().Take(taken).Skip(step * taken);
+                var arrayStepChanges = changesTable.Rows.ToList().Skip(step).Take(taken);
 
                 // execute the batch, through the provider
                 ExecuteBatchCommand(bulkCommand, arrayStepChanges, changesTable, failedPrimaryKeysTable, applyingScopeId, lastTimestamp);
@@ -633,7 +636,7 @@ namespace Dotmim.Sync
 
                 var alreadyOpened = Connection.State == ConnectionState.Open;
 
-                int rowInsertedCount = 0;
+                int rowUpdatedCount = 0;
                 try
                 {
                     if (!alreadyOpened)
@@ -642,14 +645,14 @@ namespace Dotmim.Sync
                     if (Transaction != null)
                         command.Transaction = Transaction;
 
-                    rowInsertedCount = command.ExecuteNonQuery();
+                    rowUpdatedCount = command.ExecuteNonQuery();
                 }
                 finally
                 {
                     if (!alreadyOpened)
                         Connection.Close();
                 }
-                return rowInsertedCount > 0;
+                return rowUpdatedCount > 0;
             }
         }
 
