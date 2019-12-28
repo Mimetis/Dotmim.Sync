@@ -124,7 +124,7 @@ namespace Dotmim.Sync.Tests.Core
             // -----------------------------------------------------------------------
             // HTTP
             // -----------------------------------------------------------------------
-
+             
             // tests through http proxy
             if (this.NetworkType == NetworkType.Http)
             {

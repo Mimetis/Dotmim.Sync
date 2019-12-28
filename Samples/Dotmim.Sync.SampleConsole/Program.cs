@@ -33,7 +33,7 @@ internal class Program
     private static void Main(string[] args)
     {
 
-        TestSqliteDoubleStatement().GetAwaiter().GetResult();
+        SynchronizeAsync().GetAwaiter().GetResult();
 
 
         //TestSyncTable();
@@ -653,12 +653,13 @@ internal class Program
     private static async Task SynchronizeAsync()
     {
         // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
+        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverProductCategoryDbName));
         var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
-        //var clientProvider = new SqliteSyncProvider("advworks.db");
+        var clientProvider2 = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString("Client2"));
 
         // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, allTables);
+        var agent = new SyncAgent(clientProvider, serverProvider, new string[] { "ProductCategory" });
+        var agent2 = new SyncAgent(clientProvider2, serverProvider, new string[] { "ProductCategory" });
 
 
         // Using the Progress pattern to handle progession during the synchronization
@@ -677,12 +678,6 @@ internal class Program
         });
         // agent.AddRemoteProgress(remoteProgress);
 
-        // Setting configuration options
-        agent.Schema.StoredProceduresPrefix = "s";
-        agent.Schema.StoredProceduresSuffix = "";
-        agent.Schema.TrackingTablesPrefix = "t";
-        agent.Schema.TrackingTablesSuffix = "";
-
         agent.Options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync");
         agent.Options.BatchSize = 0;
         agent.Options.CleanMetadatas = true;
@@ -697,36 +692,16 @@ internal class Program
             Console.WriteLine("Sync Start");
             try
             {
-                //agent.RemoteOrchestrator.OnSchema(args =>
-                //{
-                //    var serializer = new JsonSerializer();
-                //    byte[] bin = null;
-
-                //    using (var ms = new MemoryStream())
-                //    {
-                //        using (var writer = new StreamWriter(ms))
-                //        {
-                //            using (var jsonWriter = new JsonTextWriter(writer))
-                //            {
-                //                serializer.Serialize(jsonWriter, args.Schema);
-                //            }
-                //        }
-                //        bin = ms.ToArray();
-                //    }
-
-                //    // for readiness
-                //    using (var fs = new FileStream("Json_schema.json", FileMode.Create))
-                //    {
-                //        fs.Write(bin, 0, bin.Length);
-                //    }
-
-                //});
 
                 // Launch the sync process
                 var s1 = await agent.SynchronizeAsync(progress);
+                var s2 = await agent2.SynchronizeAsync(progress);
 
                 // Write results
                 Console.WriteLine(s1);
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine(s2);
+                Console.ResetColor();
             }
             catch (Exception e)
             {
