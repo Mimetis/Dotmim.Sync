@@ -128,7 +128,7 @@ namespace Dotmim.Sync.Tests.Core
             // tests through http proxy
             if (this.NetworkType == NetworkType.Http)
             {
-                using (var server = new KestrellTestServer(true))
+                using (var server = new KestrellTestServer())
                 {
                     // server handler
                     var serverHandler = new RequestDelegate(async context =>
