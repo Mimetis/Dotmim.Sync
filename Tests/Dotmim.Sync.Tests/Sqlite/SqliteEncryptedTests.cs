@@ -23,7 +23,7 @@ namespace Dotmim.Sync.Tests.Sqlite
         private SqlSyncProvider serverProvider;
         private SqliteSyncProvider clientProvider;
         private string serverCString = HelperDB.GetConnectionString(ProviderType.Sql, "AdvWorksForEncrypted");
-        private string clientCString = HelperDB.GetConnectionString(ProviderType.Sqlite, "EncryptedAdventureWorks");
+        private string clientCString = HelperDB.GetConnectionString(ProviderType.Sqlite, ProviderFixture.GetRandomDatabaseName());
 
         public SqliteEncryptedTests()
         {
@@ -63,12 +63,11 @@ namespace Dotmim.Sync.Tests.Sqlite
                     var keyCommand = args.Connection.CreateCommand();
                     keyCommand.CommandText = "PRAGMA key = 'password';";
                     keyCommand.ExecuteNonQuery();
-
                 });
 
                 var s = await agent.SynchronizeAsync();
 
-                Assert.Equal(109, s.TotalChangesDownloaded);
+                Assert.Equal(2109, s.TotalChangesDownloaded);
             }
             catch (Exception ex)
             {

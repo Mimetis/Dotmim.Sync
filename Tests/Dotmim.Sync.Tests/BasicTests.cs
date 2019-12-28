@@ -1880,7 +1880,7 @@ namespace Dotmim.Sync.Tests
                         for (var i = 0; i < 5000; i++)
                         {
                             var productCategoryName = Path.GetRandomFileName().Replace(".", "");
-                            var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
+                            var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, Math.Min(12, productCategoryName.Length));
 
                             var pc = new ProductCategory
                             {
