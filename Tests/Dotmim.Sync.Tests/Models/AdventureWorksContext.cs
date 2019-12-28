@@ -391,7 +391,7 @@ namespace Dotmim.Sync.Tests.Models
 
                 entity.Property(e => e.ProductCategoryId)
                     .HasColumnName("ProductCategoryID")
-                    .HasMaxLength(6);
+                    .HasMaxLength(12);
 
                 entity.Property(e => e.ProductModelId).HasColumnName("ProductModelID");
 
@@ -438,7 +438,7 @@ namespace Dotmim.Sync.Tests.Models
 
                 entity.Property(e => e.ProductCategoryId)
                     .HasColumnName("ProductCategoryID")
-                    .HasMaxLength(6)
+                    .HasMaxLength(12)
                     .ValueGeneratedNever();
 
                 entity.Property(e => e.ModifiedDate)
@@ -456,7 +456,7 @@ namespace Dotmim.Sync.Tests.Models
 
                 entity.Property(e => e.ParentProductCategoryId)
                     .HasColumnName("ParentProductCategoryID")
-                    .HasMaxLength(6);
+                    .HasMaxLength(12);
 
                 entity.Property(e => e.Rowguid)
                     .HasColumnName("rowguid");
