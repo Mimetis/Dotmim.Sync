@@ -534,9 +534,6 @@ namespace Dotmim.Sync
         /// </summary>
         private SyncRow CreateSyncRowFromReader(IDataReader dataReader, SyncTable table, Guid excludingScopeId, bool isNew, long lastTimestamp)
         {
-            //if (dataReader.FieldCount != table.Columns.Count)
-            //    throw new Exception("data reader field count != from schema table columns count");
-
             // Create a new row, based on table structure
             var row = table.NewRow();
 
@@ -561,353 +558,83 @@ namespace Dotmim.Sync
             }
 
             // Check Row State
-            DataRowState dataRowState;
             if (isTombstone)
-            {
                 row.RowState = DataRowState.Deleted;
-            }
             else
-            {
-                var createdTimeStamp = DbManager.ParseTimestamp(row["create_timestamp"]);
-                var updatedTimeStamp = DbManager.ParseTimestamp(row["update_timestamp"]);
-                var updateScopeIdRow = row["update_scope_id"];
-                var createScopeIdRow = row["create_scope_id"];
-
-                Guid? updateScopeId;
-                if (updateScopeIdRow != DBNull.Value && updateScopeIdRow != null)
-                {
-                    if (SyncTypeConverter.TryConvertTo<Guid>(updateScopeIdRow, out var res))
-                        updateScopeId = (Guid)res;
-                    else
-                        throw new Exception($"Can't convert value {updateScopeIdRow} to Guid");
-                }
-                else
-                {
-                    updateScopeId = null;
-                }
-
-
-                Guid? createScopeId;
-                if (createScopeIdRow != DBNull.Value && createScopeIdRow != null)
-                {
-                    if (SyncTypeConverter.TryConvertTo<Guid>(createScopeIdRow, out var res))
-                        createScopeId = (Guid)res;
-                    else
-                        throw new Exception($"Can't convert value {createScopeIdRow} to Guid");
-                }
-                else
-                {
-                    createScopeId = null;
-                }
-
-                var isLocallyCreated = !createScopeId.HasValue;
-                var islocallyUpdated = !updateScopeId.HasValue || updateScopeId.Value != excludingScopeId;
-
-                // Check if a row is modified :
-                // 1) Row is not new
-                // 2) Row update is AFTER last sync of asker
-                // 3) Row insert is BEFORE last sync of asker (if insert is after last sync, it's not an update, it's an insert)
-                if (!isNew && islocallyUpdated && updatedTimeStamp > lastTimestamp && (createdTimeStamp <= lastTimestamp || !isLocallyCreated))
-                    dataRowState = DataRowState.Modified;
-                else if (isNew || (isLocallyCreated && createdTimeStamp >= lastTimestamp))
-                    dataRowState = DataRowState.Added;
-                // The line has been updated from an other host
-                else if (islocallyUpdated && updateScopeId.HasValue && updateScopeId.Value != excludingScopeId)
-                    dataRowState = DataRowState.Modified;
-                else
-                {
-                    dataRowState = DataRowState.Unchanged;
-                    Debug.WriteLine($"Row is in Unchanegd state. " +
-                        $"\tscopeInfo.Id:{excludingScopeId}, scopeInfo.IsNewScope :{isNew}, scopeInfo.LastTimestamp:{lastTimestamp}" +
-                        $"\tcreateScopeId:{createScopeId}, updateScopeId:{updateScopeId}, createdTimeStamp:{createdTimeStamp}, updatedTimeStamp:{updatedTimeStamp}.");
-                }
-
-                row.RowState = dataRowState;
-            }
+                row.RowState = DataRowState.Modified;
 
             return row;
+
+
+            //DataRowState dataRowState;
+            //if (isTombstone)
+            //{
+            //    row.RowState = DataRowState.Deleted;
+            //}
+            //else
+            //{
+            //    var createdTimeStamp = DbManager.ParseTimestamp(row["create_timestamp"]);
+            //    var updatedTimeStamp = DbManager.ParseTimestamp(row["update_timestamp"]);
+            //    var updateScopeIdRow = row["update_scope_id"];
+            //    var createScopeIdRow = row["create_scope_id"];
+
+            //    Guid? updateScopeId;
+            //    if (updateScopeIdRow != DBNull.Value && updateScopeIdRow != null)
+            //    {
+            //        if (SyncTypeConverter.TryConvertTo<Guid>(updateScopeIdRow, out var res))
+            //            updateScopeId = (Guid)res;
+            //        else
+            //            throw new Exception($"Can't convert value {updateScopeIdRow} to Guid");
+            //    }
+            //    else
+            //    {
+            //        updateScopeId = null;
+            //    }
+
+
+            //    Guid? createScopeId;
+            //    if (createScopeIdRow != DBNull.Value && createScopeIdRow != null)
+            //    {
+            //        if (SyncTypeConverter.TryConvertTo<Guid>(createScopeIdRow, out var res))
+            //            createScopeId = (Guid)res;
+            //        else
+            //            throw new Exception($"Can't convert value {createScopeIdRow} to Guid");
+            //    }
+            //    else
+            //    {
+            //        createScopeId = null;
+            //    }
+
+            //    var isLocallyCreated = !createScopeId.HasValue;
+            //    var islocallyUpdated = !updateScopeId.HasValue || updateScopeId.Value != excludingScopeId;
+
+            //    // Check if a row is modified :
+            //    // 1) Row is not new
+            //    // 2) Row update is AFTER last sync of asker
+            //    // 3) Row insert is BEFORE last sync of asker (if insert is after last sync, it's not an update, it's an insert)
+            //    if (!isNew && islocallyUpdated && updatedTimeStamp > lastTimestamp && (createdTimeStamp <= lastTimestamp || !isLocallyCreated))
+            //        dataRowState = DataRowState.Modified;
+            //    else if (isNew || (isLocallyCreated && createdTimeStamp >= lastTimestamp))
+            //        dataRowState = DataRowState.Added;
+            //    // The line has been updated from an other host
+            //    else if (islocallyUpdated && updateScopeId.HasValue && updateScopeId.Value != excludingScopeId)
+            //        dataRowState = DataRowState.Modified;
+            //    else
+            //    {
+            //        dataRowState = DataRowState.Unchanged;
+            //        Debug.WriteLine($"Row is in Unchanegd state. " +
+            //            $"\tscopeInfo.Id:{excludingScopeId}, scopeInfo.IsNewScope :{isNew}, scopeInfo.LastTimestamp:{lastTimestamp}" +
+            //            $"\tcreateScopeId:{createScopeId}, updateScopeId:{updateScopeId}, createdTimeStamp:{createdTimeStamp}, updatedTimeStamp:{updatedTimeStamp}.");
+            //    }
+
+            //    row.RowState = dataRowState;
+            //}
+
+
+
         }
 
 
-        //private object[] CreateRowArray(Dictionary<string, object> dictionary, IEnumerable<string> iterableOrderedNames)
-        //{
-
-        //    // Generate a new array
-        //    // + 1 for state
-        //    // + 1 for	[side].[create_scope_id], 
-        //    // + 1 for	[side].[create_timestamp], 
-        //    // + 1 for	[side].[update_scope_id], 
-        //    // + 1 for	[side].[update_timestamp]
-
-        //    var orderedNames = iterableOrderedNames.ToList();
-
-        //    var itemArray = new object[orderedNames.Count + 5];
-
-        //    // set state
-        //    itemArray[0] = dictionary["state"];
-        //    // Reoder array to fit correctly
-        //    for (int i = 0; i < orderedNames.Count; i++)
-        //        itemArray[i + 1] = dictionary[orderedNames[i]];
-
-        //    itemArray[orderedNames.Count + 1] = dictionary["create_scope_id"];
-        //    itemArray[orderedNames.Count + 2] = dictionary["create_timestamp"];
-        //    itemArray[orderedNames.Count + 3] = dictionary["update_scope_id"];
-        //    itemArray[orderedNames.Count + 4] = dictionary["update_timestamp"];
-
-
-        //    return itemArray;
-        //}
-
-        //private DataRow CreateRowFromReader(IDataReader dataReader, DataTable dmTable)
-        //{
-        //    // we have an insert / update or delete
-        //    var dataRow = dmTable.NewRow();
-
-        //    for (var i = 0; i < dataReader.FieldCount; i++)
-        //    {
-        //        var columnName = dataReader.GetName(i);
-        //        var dmRowObject = dataReader.GetValue(i);
-
-        //        if (dmRowObject != DBNull.Value)
-        //        {
-        //            if (dmRowObject != null)
-        //            {
-        //                var columnType = dmTable.Columns[columnName].DataType;
-        //                var dmRowObjectType = dmRowObject.GetType();
-
-        //                if (dmRowObjectType != columnType && columnType != typeof(object))
-        //                {
-        //                    if (columnType == typeof(Guid) && (dmRowObject as string) != null)
-        //                        dmRowObject = new Guid(dmRowObject.ToString());
-        //                    else if (columnType == typeof(Guid) && dmRowObject.GetType() == typeof(byte[]))
-        //                        dmRowObject = dataReader.GetGuid(i);
-        //                    else if (columnType == typeof(int) && dmRowObjectType != typeof(int))
-        //                        dmRowObject = Convert.ToInt32(dmRowObject);
-        //                    else if (columnType == typeof(uint) && dmRowObjectType != typeof(uint))
-        //                        dmRowObject = Convert.ToUInt32(dmRowObject);
-        //                    else if (columnType == typeof(short) && dmRowObjectType != typeof(short))
-        //                        dmRowObject = Convert.ToInt16(dmRowObject);
-        //                    else if (columnType == typeof(ushort) && dmRowObjectType != typeof(ushort))
-        //                        dmRowObject = Convert.ToUInt16(dmRowObject);
-        //                    else if (columnType == typeof(long) && dmRowObjectType != typeof(long))
-        //                        dmRowObject = Convert.ToInt64(dmRowObject);
-        //                    else if (columnType == typeof(ulong) && dmRowObjectType != typeof(ulong))
-        //                        dmRowObject = Convert.ToUInt64(dmRowObject);
-        //                    else if (columnType == typeof(byte) && dmRowObjectType != typeof(byte))
-        //                        dmRowObject = Convert.ToByte(dmRowObject);
-        //                    else if (columnType == typeof(char) && dmRowObjectType != typeof(char))
-        //                        dmRowObject = Convert.ToChar(dmRowObject);
-        //                    else if (columnType == typeof(DateTime) && dmRowObjectType != typeof(DateTime))
-        //                        dmRowObject = Convert.ToDateTime(dmRowObject);
-        //                    else if (columnType == typeof(decimal) && dmRowObjectType != typeof(decimal))
-        //                        dmRowObject = Convert.ToDecimal(dmRowObject);
-        //                    else if (columnType == typeof(double) && dmRowObjectType != typeof(double))
-        //                        dmRowObject = Convert.ToDouble(dmRowObject);
-        //                    else if (columnType == typeof(sbyte) && dmRowObjectType != typeof(sbyte))
-        //                        dmRowObject = Convert.ToSByte(dmRowObject);
-        //                    else if (columnType == typeof(float) && dmRowObjectType != typeof(float))
-        //                        dmRowObject = Convert.ToSingle(dmRowObject);
-        //                    else if (columnType == typeof(string) && dmRowObjectType != typeof(string))
-        //                        dmRowObject = Convert.ToString(dmRowObject);
-        //                    else if (columnType == typeof(bool) && dmRowObjectType != typeof(bool))
-        //                        dmRowObject = Convert.ToBoolean(dmRowObject);
-        //                    else if (dmRowObjectType != columnType)
-        //                    {
-        //                        var t = dmRowObject.GetType();
-        //                        var converter = columnType.GetConverter();
-        //                        if (converter != null && converter.CanConvertFrom(t))
-        //                            dmRowObject = converter.ConvertFrom(dmRowObject);
-        //                    }
-        //                }
-        //            }
-        //            dataRow[columnName] = dmRowObject;
-        //        }
-        //    }
-
-        //    return dataRow;
-        //}
-
-
-        ///// <summary>
-        ///// Create a DmRow from a IDataReader
-        ///// </summary>
-        //private DmRow CreateRowFromReader(IDataReader dataReader, DmTable dmTable)
-        //{
-        //    // we have an insert / update or delete
-        //    var dataRow = dmTable.NewRow();
-
-        //    for (var i = 0; i < dataReader.FieldCount; i++)
-        //    {
-        //        var columnName = dataReader.GetName(i);
-        //        var dmRowObject = dataReader.GetValue(i);
-
-        //        if (dmRowObject != DBNull.Value)
-        //        {
-        //            if (dmRowObject != null)
-        //            {
-        //                var columnType = dmTable.Columns[columnName].DataType;
-        //                var dmRowObjectType = dmRowObject.GetType();
-
-        //                if (dmRowObjectType != columnType && columnType != typeof(object))
-        //                {
-        //                    if (columnType == typeof(Guid) && (dmRowObject as string) != null)
-        //                        dmRowObject = new Guid(dmRowObject.ToString());
-        //                    else if (columnType == typeof(Guid) && dmRowObject.GetType() == typeof(byte[]))
-        //                        dmRowObject = dataReader.GetGuid(i);
-        //                    else if (columnType == typeof(int) && dmRowObjectType != typeof(int))
-        //                        dmRowObject = Convert.ToInt32(dmRowObject);
-        //                    else if (columnType == typeof(uint) && dmRowObjectType != typeof(uint))
-        //                        dmRowObject = Convert.ToUInt32(dmRowObject);
-        //                    else if (columnType == typeof(short) && dmRowObjectType != typeof(short))
-        //                        dmRowObject = Convert.ToInt16(dmRowObject);
-        //                    else if (columnType == typeof(ushort) && dmRowObjectType != typeof(ushort))
-        //                        dmRowObject = Convert.ToUInt16(dmRowObject);
-        //                    else if (columnType == typeof(long) && dmRowObjectType != typeof(long))
-        //                        dmRowObject = Convert.ToInt64(dmRowObject);
-        //                    else if (columnType == typeof(ulong) && dmRowObjectType != typeof(ulong))
-        //                        dmRowObject = Convert.ToUInt64(dmRowObject);
-        //                    else if (columnType == typeof(byte) && dmRowObjectType != typeof(byte))
-        //                        dmRowObject = Convert.ToByte(dmRowObject);
-        //                    else if (columnType == typeof(char) && dmRowObjectType != typeof(char))
-        //                        dmRowObject = Convert.ToChar(dmRowObject);
-        //                    else if (columnType == typeof(DateTime) && dmRowObjectType != typeof(DateTime))
-        //                        dmRowObject = Convert.ToDateTime(dmRowObject);
-        //                    else if (columnType == typeof(decimal) && dmRowObjectType != typeof(decimal))
-        //                        dmRowObject = Convert.ToDecimal(dmRowObject);
-        //                    else if (columnType == typeof(double) && dmRowObjectType != typeof(double))
-        //                        dmRowObject = Convert.ToDouble(dmRowObject);
-        //                    else if (columnType == typeof(sbyte) && dmRowObjectType != typeof(sbyte))
-        //                        dmRowObject = Convert.ToSByte(dmRowObject);
-        //                    else if (columnType == typeof(float) && dmRowObjectType != typeof(float))
-        //                        dmRowObject = Convert.ToSingle(dmRowObject);
-        //                    else if (columnType == typeof(string) && dmRowObjectType != typeof(string))
-        //                        dmRowObject = Convert.ToString(dmRowObject);
-        //                    else if (columnType == typeof(bool) && dmRowObjectType != typeof(bool))
-        //                        dmRowObject = Convert.ToBoolean(dmRowObject);
-        //                    else if (dmRowObjectType != columnType)
-        //                    {
-        //                        var t = dmRowObject.GetType();
-        //                        var converter = columnType.GetConverter();
-        //                        if (converter != null && converter.CanConvertFrom(t))
-        //                            dmRowObject = converter.ConvertFrom(dmRowObject);
-        //                    }
-        //                }
-        //            }
-        //            dataRow[columnName] = dmRowObject;
-        //        }
-        //    }
-
-        //    return dataRow;
-        //}
-
-        //private DataTable BuildChangesDataTable(SchemaTable table)
-        //{
-        //    var dtTable = new DataTable(table.TableName);
-
-        //    foreach (var col in table.Columns)
-        //        dtTable.Columns.Add(col.ColumnName, col.GetDataType());
-
-        //    dtTable.Columns.Add("create_scope_id", typeof(Guid));
-        //    dtTable.Columns.Add("create_timestamp", typeof(long));
-        //    dtTable.Columns.Add("update_scope_id", typeof(Guid));
-        //    dtTable.Columns.Add("update_timestamp", typeof(long));
-
-        //    return dtTable;
-        //}
-
-
-
-        ///// <summary>
-        ///// Get a DmRow state to know is we have an inserted, updated, or deleted row to apply
-        ///// </summary>
-        //private DmRowState GetStateFromDmRow(DmRow dataRow, Guid excludingScopeId, bool isNew, long lastTimestamp)
-        //{
-        //    var isTombstone = Convert.ToInt64(dataRow["sync_row_is_tombstone"]) > 0;
-
-        //    DmRowState dmRowState;
-        //    if (isTombstone)
-        //        dmRowState = DmRowState.Deleted;
-        //    else
-        //    {
-        //        var createdTimeStamp = DbManager.ParseTimestamp(dataRow["create_timestamp"]);
-        //        var updatedTimeStamp = DbManager.ParseTimestamp(dataRow["update_timestamp"]);
-        //        var updateScopeIdRow = dataRow["update_scope_id"];
-        //        var createScopeIdRow = dataRow["create_scope_id"];
-
-        //        var updateScopeId = (updateScopeIdRow != DBNull.Value && updateScopeIdRow != null) ? (Guid)updateScopeIdRow : (Guid?)null;
-        //        var createScopeId = (createScopeIdRow != DBNull.Value && createScopeIdRow != null) ? (Guid)createScopeIdRow : (Guid?)null;
-
-        //        var isLocallyCreated = !createScopeId.HasValue;
-        //        var islocallyUpdated = !updateScopeId.HasValue || updateScopeId.Value != excludingScopeId;
-
-
-        //        // Check if a row is modified :
-        //        // 1) Row is not new
-        //        // 2) Row update is AFTER last sync of asker
-        //        // 3) Row insert is BEFORE last sync of asker (if insert is after last sync, it's not an update, it's an insert)
-        //        if (!isNew && islocallyUpdated && updatedTimeStamp > lastTimestamp && (createdTimeStamp <= lastTimestamp || !isLocallyCreated))
-        //            dmRowState = DmRowState.Modified;
-        //        else if (isNew || (isLocallyCreated && createdTimeStamp >= lastTimestamp))
-        //            dmRowState = DmRowState.Added;
-        //        // The line has been updated from an other host
-        //        else if (islocallyUpdated && updateScopeId.HasValue && updateScopeId.Value != excludingScopeId)
-        //            dmRowState = DmRowState.Modified;
-        //        else
-        //        {
-        //            dmRowState = DmRowState.Unchanged;
-        //            Debug.WriteLine($"Row is in Unchanegd state. " +
-        //                $"\tscopeInfo.Id:{excludingScopeId}, scopeInfo.IsNewScope :{isNew}, scopeInfo.LastTimestamp:{lastTimestamp}" +
-        //                $"\tcreateScopeId:{createScopeId}, updateScopeId:{updateScopeId}, createdTimeStamp:{createdTimeStamp}, updatedTimeStamp:{updatedTimeStamp}.");
-        //        }
-        //    }
-
-        //    return dmRowState;
-        //}
-
-
-        //private DataRowState GetStateFromDictionaryRow(SyncRow row, Guid excludingScopeId, bool isNew, long lastTimestamp)
-        //{
-        //    var isTombstone = Convert.ToInt64(row["sync_row_is_tombstone"]) > 0;
-
-        //    DataRowState dataRowState;
-        //    if (isTombstone)
-        //        dataRowState = DataRowState.Deleted;
-        //    else
-        //    {
-        //        var createdTimeStamp = DbManager.ParseTimestamp(row["create_timestamp"]);
-        //        var updatedTimeStamp = DbManager.ParseTimestamp(row["update_timestamp"]);
-        //        var updateScopeIdRow = row["update_scope_id"];
-        //        var createScopeIdRow = row["create_scope_id"];
-
-        //        var updateScopeId = (updateScopeIdRow != DBNull.Value && updateScopeIdRow != null) ? (Guid)updateScopeIdRow : (Guid?)null;
-        //        var createScopeId = (createScopeIdRow != DBNull.Value && createScopeIdRow != null) ? (Guid)createScopeIdRow : (Guid?)null;
-
-        //        var isLocallyCreated = !createScopeId.HasValue;
-        //        var islocallyUpdated = !updateScopeId.HasValue || updateScopeId.Value != excludingScopeId;
-
-
-        //        // Check if a row is modified :
-        //        // 1) Row is not new
-        //        // 2) Row update is AFTER last sync of asker
-        //        // 3) Row insert is BEFORE last sync of asker (if insert is after last sync, it's not an update, it's an insert)
-        //        if (!isNew && islocallyUpdated && updatedTimeStamp > lastTimestamp && (createdTimeStamp <= lastTimestamp || !isLocallyCreated))
-        //            dataRowState = DataRowState.Modified;
-        //        else if (isNew || (isLocallyCreated && createdTimeStamp >= lastTimestamp))
-        //            dataRowState = DataRowState.Added;
-        //        // The line has been updated from an other host
-        //        else if (islocallyUpdated && updateScopeId.HasValue && updateScopeId.Value != excludingScopeId)
-        //            dataRowState = DataRowState.Modified;
-        //        else
-        //        {
-        //            dataRowState = DataRowState.Unchanged;
-        //            Debug.WriteLine($"Row is in Unchanegd state. " +
-        //                $"\tscopeInfo.Id:{excludingScopeId}, scopeInfo.IsNewScope :{isNew}, scopeInfo.LastTimestamp:{lastTimestamp}" +
-        //                $"\tcreateScopeId:{createScopeId}, updateScopeId:{updateScopeId}, createdTimeStamp:{createdTimeStamp}, updatedTimeStamp:{updatedTimeStamp}.");
-        //        }
-        //    }
-
-        //    return dataRowState;
-        //}
 
     }
 }

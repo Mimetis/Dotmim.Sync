@@ -424,53 +424,52 @@ namespace Dotmim.Sync
                                 // Set the id parameter
                                 syncAdapter.SetColumnParametersValues(metadataCommand, row);
 
-                                Guid? create_scope_id = null;
+                                //Guid? create_scope_id = null;
+                                //if (row["create_scope_id"] != null && row["create_scope_id"] != DBNull.Value)
+                                //{
+                                //    if (SyncTypeConverter.TryConvertTo<Guid>(row["create_scope_id"], out var usid))
+                                //    {
+                                //        create_scope_id = (Guid)usid;
+                                //    }
+                                //    else
+                                //    {
+                                //        create_scope_id = null;
+                                //    }
+                                //}
 
-                                if (row["create_scope_id"] != null && row["create_scope_id"] != DBNull.Value)
-                                {
-                                    if (SyncTypeConverter.TryConvertTo<Guid>(row["create_scope_id"], out var usid))
-                                    {
-                                        create_scope_id = (Guid)usid;
-                                    }
-                                    else
-                                    {
-                                        create_scope_id = null;
-                                    }
-                                }
-
-                                long createTimestamp = row["create_timestamp"] != DBNull.Value ? Convert.ToInt64(row["create_timestamp"]) : 0;
+                                //long createTimestamp = row["create_timestamp"] != DBNull.Value ? Convert.ToInt64(row["create_timestamp"]) : 0;
 
                                 // The trick is to force the row to be "created before last sync"
                                 // Even if we just inserted it
                                 // to be able to get the row in state Updated (and not Added)
-                                row["create_scope_id"] = create_scope_id;
-                                row["create_timestamp"] = lastTimestamp - 1;
+                                //row["create_scope_id"] = create_scope_id;
+                                //row["create_timestamp"] = lastTimestamp - 1;
 
                                 // Update scope id is set to server side
-                                Guid? update_scope_id = null;
+                                //Guid? update_scope_id = null;
 
-                                if (row["update_scope_id"] != null && row["update_scope_id"] != DBNull.Value)
-                                {
-                                    if (SyncTypeConverter.TryConvertTo<Guid>(row["update_scope_id"], out var usid))
-                                    {
-                                        update_scope_id = (Guid)usid;
-                                    }
-                                    else
-                                    {
-                                        update_scope_id = null;
-                                    }
-                                }
+                                //if (row["update_scope_id"] != null && row["update_scope_id"] != DBNull.Value)
+                                //{
+                                //    if (SyncTypeConverter.TryConvertTo<Guid>(row["update_scope_id"], out var usid))
+                                //    {
+                                //        update_scope_id = (Guid)usid;
+                                //    }
+                                //    else
+                                //    {
+                                //        update_scope_id = null;
+                                //    }
+                                //}
 
 
 
-                                long updateTimestamp = row["update_timestamp"] != DBNull.Value ? Convert.ToInt64(row["update_timestamp"]) : 0;
+                                //long updateTimestamp = row["update_timestamp"] != DBNull.Value ? Convert.ToInt64(row["update_timestamp"]) : 0;
 
-                                row["update_scope_id"] = null;
-                                row["update_timestamp"] = updateTimestamp;
+                                //row["update_scope_id"] = null;
+                                //row["update_timestamp"] = updateTimestamp;
 
 
                                 // apply local row, set scope.id to null becoz applied locally
-                                var rowsApplied = syncAdapter.InsertOrUpdateMetadatas(metadataCommand, row, null, lastTimestamp);
+                                var rowsApplied = syncAdapter.InsertOrUpdateMetadatas(metadataCommand, row, null);
 
                                 if (!rowsApplied)
                                     throw new Exception("No metadatas rows found, can't update the server side");
@@ -560,7 +559,7 @@ namespace Dotmim.Sync
                         syncAdapter.SetCommandParameters(commandType, metadataCommand);
 
                         // force applying client row, so apply scope.id (client scope here)
-                        var rowsApplied = syncAdapter.InsertOrUpdateMetadatas(metadataCommand, conflict.RemoteRow, applyingScopeId, lastTimestamp);
+                        var rowsApplied = syncAdapter.InsertOrUpdateMetadatas(metadataCommand, conflict.RemoteRow, applyingScopeId);
                         if (!rowsApplied)
                             throw new Exception("No metadatas rows found, can't update the server side");
                     }
