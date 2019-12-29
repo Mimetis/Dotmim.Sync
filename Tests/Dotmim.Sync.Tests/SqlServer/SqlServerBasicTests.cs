@@ -228,6 +228,10 @@ namespace Dotmim.Sync.Tests.SqlServer
             return base.Conflict_Insert_Delete_Insert_On_Server_Should_Wins();
         }
 
-
+        [Fact, TestPriority(29)]
+        public override Task Delete_Client_Sync_Insert_Server_Sync_Client_Should_Have_Insert()
+        {
+            return base.Delete_Client_Sync_Insert_Server_Sync_Client_Should_Have_Insert();
+        }
     }
 }
