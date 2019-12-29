@@ -155,10 +155,7 @@ namespace Dotmim.Sync.MySql
             }
 
             // adding the tracking columns
-            stringBuilder.AppendLine($"`create_scope_id` VARCHAR(36) NULL, ");
             stringBuilder.AppendLine($"`update_scope_id` VARCHAR(36) NULL, ");
-            stringBuilder.AppendLine($"`create_timestamp` BIGINT NULL, ");
-            stringBuilder.AppendLine($"`update_timestamp` BIGINT NULL, ");
             stringBuilder.AppendLine($"`timestamp` BIGINT NULL, ");
             stringBuilder.AppendLine($"`sync_row_is_tombstone` BIT NOT NULL default 0 , ");
             stringBuilder.AppendLine($"`last_change_datetime` DATETIME NULL, ");
@@ -291,20 +288,14 @@ namespace Dotmim.Sync.MySql
             // (list of pkeys)
             stringBuilder.Append(string.Concat(stringBuilder1.ToString(), ", "));
 
-            stringBuilder.Append("`create_scope_id`, ");
             stringBuilder.Append("`update_scope_id`, ");
-            stringBuilder.Append("`create_timestamp`, ");
-            stringBuilder.Append("`update_timestamp`, ");
-            stringBuilder.Append("`timestamp`, "); // timestamp is not a column we update, it's auto
+            stringBuilder.Append("`timestamp`, "); 
             stringBuilder.Append("`sync_row_is_tombstone` ");
             stringBuilder.AppendLine(string.Concat(stringBuilder6.ToString(), ") "));
             stringBuilder.Append(string.Concat("SELECT ", stringBuilder2.ToString(), ", "));
             stringBuilder.Append("NULL, ");
-            stringBuilder.Append("NULL, ");
             stringBuilder.Append($"{MySqlObjectNames.TimestampValue}, ");
-            stringBuilder.Append("0, ");
-            stringBuilder.Append($"{MySqlObjectNames.TimestampValue}, ");
-            stringBuilder.Append("0");
+            stringBuilder.Append("0 ");
             stringBuilder.AppendLine(string.Concat(stringBuilder5.ToString(), " "));
             string[] localName = new string[] { "FROM ", tableName.Quoted().ToString(), " ", baseTable, " LEFT OUTER JOIN ", trackingName.Quoted().ToString(), " ", sideTable, " " };
             stringBuilder.AppendLine(string.Concat(localName));

@@ -23,8 +23,7 @@ namespace Dotmim.Sync.Tests.StandAlone
             var inSchema = CreateSchema();
             byte[] bin = null;
             SyncSet outSchema;
-
-            MessagePackSerializer.SetDefaultResolver(MessagePack.Resolvers.ContractlessStandardResolver.Instance);
+            MessagePackSerializer.DefaultOptions.WithResolver(MessagePack.Resolvers.ContractlessStandardResolver.Instance);
 
             using (var ms = new MemoryStream())
             {
