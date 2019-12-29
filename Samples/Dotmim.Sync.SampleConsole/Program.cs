@@ -25,11 +25,13 @@ internal class Program
 {
     public static string serverDbName = "AdventureWorks";
     public static string serverProductCategoryDbName = "AdventureWorksProductCategory";
-    public static string clientDbName = "ClientVersionFive";
+    public static string clientDbName = "Client";
     public static string[] allTables = new string[] {"ProductCategory",
                                                     "ProductModel", "Product",
                                                     "Address", "Customer", "CustomerAddress",
                                                     "SalesOrderHeader", "SalesOrderDetail" };
+
+    public static string[] oneTable = new string[] { "ProductTag" };
     private static void Main(string[] args)
     {
 
@@ -653,14 +655,13 @@ internal class Program
     private static async Task SynchronizeAsync()
     {
         // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString("ServerVersionFive"));
-        var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString("ClientVersionFive"));
-        var clientProvider2 = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString("ClientVersionFive2"));
+        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverProductCategoryDbName));
+        var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
+        //var clientProvider = new SqliteSyncProvider("adv2.db");
 
         // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, new string[] { "ProductCategory" });
-        var agent2 = new SyncAgent(clientProvider2, serverProvider, new string[] { "ProductCategory" });
-
+        var agent = new SyncAgent(clientProvider, serverProvider, oneTable);
+  
 
         // Using the Progress pattern to handle progession during the synchronization
         var progress = new SynchronousProgress<ProgressArgs>(s =>
@@ -682,7 +683,7 @@ internal class Program
         //agent.Options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync");
         //agent.Options.BatchSize = 0;
         //agent.Options.CleanMetadatas = true;
-        agent.Options.UseBulkOperations = false;
+        agent.Options.UseBulkOperations = true;
         // agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
         //agent.Options.UseVerboseErrors = false;
         //agent.Options.ScopeInfoTableName = "tscopeinfo";
@@ -697,13 +698,9 @@ internal class Program
 
                 // Launch the sync process
                 var s1 = await agent.SynchronizeAsync(progress);
-                var s2 = await agent2.SynchronizeAsync(progress);
 
                 // Write results
                 Console.WriteLine(s1);
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine(s2);
-                Console.ResetColor();
             }
             catch (Exception e)
             {

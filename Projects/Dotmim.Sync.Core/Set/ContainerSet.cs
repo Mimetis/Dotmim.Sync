@@ -63,44 +63,6 @@ namespace Dotmim.Sync
         public ContainerSet() { }
 
         public ContainerSet(string name) => this.DataSourceName = name;
-
-
-        //public ContainerSet(DmSet ds)
-        //{
-        //    this.DataSourceName = ds.DmSetName;
-
-        //    foreach (var dt in ds.Tables)
-        //    {
-        //        if (dt.Rows != null && dt.Rows.Count > 0)
-        //        {
-        //            var tbl = new ContainerTable(dt)
-        //            {
-        //                TableName = dt.TableName,
-        //                SchemaName = dt.Schema
-        //            };
-
-        //            this.Tables.Add(tbl);
-        //        }
-        //    }
-        //}
-
-        public ContainerSet(DataSet ds)
-        {
-            this.DataSourceName = ds.DataSetName;
-
-            foreach (DataTable dt in ds.Tables)
-            {
-                if (dt.Rows != null && dt.Rows.Count > 0)
-                {
-                    var tbl = new ContainerTable(dt)
-                    {
-                        TableName = dt.TableName,
-                        SchemaName = dt.Namespace
-                    };
-
-                    this.Tables.Add(tbl);
-                }
-            }
-        }
+     
     }
 }

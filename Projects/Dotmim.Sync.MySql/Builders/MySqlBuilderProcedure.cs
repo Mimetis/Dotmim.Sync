@@ -287,126 +287,126 @@ namespace Dotmim.Sync.MySql
         //------------------------------------------------------------------
         // Insert command
         //------------------------------------------------------------------
-        private MySqlCommand BuildInsertCommand()
-        {
-            MySqlCommand sqlCommand = new MySqlCommand();
-            StringBuilder stringBuilder = new StringBuilder();
-            StringBuilder stringBuilderArguments = new StringBuilder();
-            StringBuilder stringBuilderParameters = new StringBuilder();
+        //private MySqlCommand BuildInsertCommand()
+        //{
+        //    MySqlCommand sqlCommand = new MySqlCommand();
+        //    StringBuilder stringBuilder = new StringBuilder();
+        //    StringBuilder stringBuilderArguments = new StringBuilder();
+        //    StringBuilder stringBuilderParameters = new StringBuilder();
 
-            this.AddColumnParametersToCommand(sqlCommand);
+        //    this.AddColumnParametersToCommand(sqlCommand);
 
-            //stringBuilder.Append(string.Concat("IF ((SELECT COUNT(*) FROM ", trackingName.Quoted().ToString(), " WHERE "));
-            //stringBuilder.Append(MySqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKeys, string.Empty));
-            //stringBuilder.AppendLine(") <= 0) THEN");
+        //    //stringBuilder.Append(string.Concat("IF ((SELECT COUNT(*) FROM ", trackingName.Quoted().ToString(), " WHERE "));
+        //    //stringBuilder.Append(MySqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKeys, string.Empty));
+        //    //stringBuilder.AppendLine(") <= 0) THEN");
 
-            string empty = string.Empty;
-            foreach (var mutableColumn in this.tableDescription.Columns.Where(c => !c.IsReadOnly))
-            {
-                var columnName = ParserName.Parse(mutableColumn, "`").Quoted().ToString();
-                var parameterName = ParserName.Parse(mutableColumn, "`").Unquoted().Normalized().ToString();
+        //    string empty = string.Empty;
+        //    foreach (var mutableColumn in this.tableDescription.Columns.Where(c => !c.IsReadOnly))
+        //    {
+        //        var columnName = ParserName.Parse(mutableColumn, "`").Quoted().ToString();
+        //        var parameterName = ParserName.Parse(mutableColumn, "`").Unquoted().Normalized().ToString();
 
-                stringBuilderArguments.Append(string.Concat(empty, columnName));
-                stringBuilderParameters.Append(string.Concat(empty, $"{MYSQL_PREFIX_PARAMETER}{parameterName}"));
-                empty = ", ";
-            }
-            stringBuilder.AppendLine($"\tINSERT INTO {tableName.Quoted().ToString()}");
-            stringBuilder.AppendLine($"\t({stringBuilderArguments.ToString()})");
-            stringBuilder.AppendLine($"\tVALUES ({stringBuilderParameters.ToString()});");
-            stringBuilder.AppendLine();
+        //        stringBuilderArguments.Append(string.Concat(empty, columnName));
+        //        stringBuilderParameters.Append(string.Concat(empty, $"{MYSQL_PREFIX_PARAMETER}{parameterName}"));
+        //        empty = ", ";
+        //    }
+        //    stringBuilder.AppendLine($"\tINSERT INTO {tableName.Quoted().ToString()}");
+        //    stringBuilder.AppendLine($"\t({stringBuilderArguments.ToString()})");
+        //    stringBuilder.AppendLine($"\tVALUES ({stringBuilderParameters.ToString()});");
+        //    stringBuilder.AppendLine();
 
-            //stringBuilder.AppendLine("END IF;");
+        //    //stringBuilder.AppendLine("END IF;");
 
-            sqlCommand.CommandText = stringBuilder.ToString();
-            return sqlCommand;
-        }
+        //    sqlCommand.CommandText = stringBuilder.ToString();
+        //    return sqlCommand;
+        //}
 
-        public void CreateInsert()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertRow).name;
-            CreateProcedureCommand(BuildInsertCommand, commandName);
-        }
+        //public void CreateInsert()
+        //{
+        //    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertRow).name;
+        //    CreateProcedureCommand(BuildInsertCommand, commandName);
+        //}
 
-        public string CreateInsertScriptText()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertRow).name;
-            return CreateProcedureCommandScriptText(BuildInsertCommand, commandName);
-        }
+        //public string CreateInsertScriptText()
+        //{
+        //    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertRow).name;
+        //    return CreateProcedureCommandScriptText(BuildInsertCommand, commandName);
+        //}
 
         //------------------------------------------------------------------
         // Insert Metadata command
         //------------------------------------------------------------------
-        private MySqlCommand BuildInsertMetadataCommand()
-        {
-            StringBuilder stringBuilderArguments = new StringBuilder();
-            StringBuilder stringBuilderParameters = new StringBuilder();
-            MySqlCommand sqlCommand = new MySqlCommand();
+        //private MySqlCommand BuildInsertMetadataCommand()
+        //{
+        //    StringBuilder stringBuilderArguments = new StringBuilder();
+        //    StringBuilder stringBuilderParameters = new StringBuilder();
+        //    MySqlCommand sqlCommand = new MySqlCommand();
 
-            StringBuilder stringBuilder = new StringBuilder();
-            this.AddPkColumnParametersToCommand(sqlCommand);
-            MySqlParameter sqlParameter = new MySqlParameter();
-            sqlParameter.ParameterName = "sync_scope_id";
-            sqlParameter.MySqlDbType = MySqlDbType.Guid;
-            sqlParameter.Size = 36;
-            sqlCommand.Parameters.Add(sqlParameter);
+        //    StringBuilder stringBuilder = new StringBuilder();
+        //    this.AddPkColumnParametersToCommand(sqlCommand);
+        //    MySqlParameter sqlParameter = new MySqlParameter();
+        //    sqlParameter.ParameterName = "sync_scope_id";
+        //    sqlParameter.MySqlDbType = MySqlDbType.Guid;
+        //    sqlParameter.Size = 36;
+        //    sqlCommand.Parameters.Add(sqlParameter);
 
-            MySqlParameter sqlParameter1 = new MySqlParameter();
-            sqlParameter1.ParameterName = "sync_row_is_tombstone";
-            sqlParameter1.MySqlDbType = MySqlDbType.Int32;
-            sqlCommand.Parameters.Add(sqlParameter1);
+        //    MySqlParameter sqlParameter1 = new MySqlParameter();
+        //    sqlParameter1.ParameterName = "sync_row_is_tombstone";
+        //    sqlParameter1.MySqlDbType = MySqlDbType.Int32;
+        //    sqlCommand.Parameters.Add(sqlParameter1);
 
-            MySqlParameter sqlParameter3 = new MySqlParameter();
-            sqlParameter3.ParameterName = "create_timestamp";
-            sqlParameter3.MySqlDbType = MySqlDbType.Int64;
+        //    MySqlParameter sqlParameter3 = new MySqlParameter();
+        //    sqlParameter3.ParameterName = "create_timestamp";
+        //    sqlParameter3.MySqlDbType = MySqlDbType.Int64;
 
-            sqlCommand.Parameters.Add(sqlParameter3);
-            MySqlParameter sqlParameter4 = new MySqlParameter();
-            sqlParameter4.ParameterName = "update_timestamp";
-            sqlParameter4.MySqlDbType = MySqlDbType.Int64;
-            sqlCommand.Parameters.Add(sqlParameter4);
+        //    sqlCommand.Parameters.Add(sqlParameter3);
+        //    MySqlParameter sqlParameter4 = new MySqlParameter();
+        //    sqlParameter4.ParameterName = "update_timestamp";
+        //    sqlParameter4.MySqlDbType = MySqlDbType.Int64;
+        //    sqlCommand.Parameters.Add(sqlParameter4);
 
-            stringBuilder.AppendLine($"\tINSERT INTO {trackingName.Quoted().ToString()}");
+        //    stringBuilder.AppendLine($"\tINSERT INTO {trackingName.Quoted().ToString()}");
 
-            string empty = string.Empty;
-            foreach (var pkColumn in this.tableDescription.PrimaryKeys)
-            {
-                var columnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
-                var parameterName = ParserName.Parse(pkColumn, "`").Unquoted().Normalized().ToString();
+        //    string empty = string.Empty;
+        //    foreach (var pkColumn in this.tableDescription.PrimaryKeys)
+        //    {
+        //        var columnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
+        //        var parameterName = ParserName.Parse(pkColumn, "`").Unquoted().Normalized().ToString();
 
-                stringBuilderArguments.Append(string.Concat(empty, columnName));
-                stringBuilderParameters.Append(string.Concat(empty, $"{MYSQL_PREFIX_PARAMETER}{parameterName}"));
-                empty = ", ";
-            }
-            stringBuilder.Append($"\t({stringBuilderArguments.ToString()}, ");
-            stringBuilder.AppendLine($"`create_scope_id`, `create_timestamp`, `update_scope_id`, `update_timestamp`,");
-            stringBuilder.AppendLine($"\t`sync_row_is_tombstone`, `timestamp`, `last_change_datetime`)");
-            stringBuilder.Append($"\tVALUES ({stringBuilderParameters.ToString()}, ");
-            stringBuilder.AppendLine($"\tcreate_scope_id, create_timestamp, update_scope_id, update_timestamp, ");
-            stringBuilder.AppendLine($"\tsync_row_is_tombstone, {MySqlObjectNames.TimestampValue}, now())");
-            stringBuilder.AppendLine($"\tON DUPLICATE KEY UPDATE");
-            stringBuilder.AppendLine($"\t `create_scope_id` = sync_scope_id, ");
-            stringBuilder.AppendLine($"\t `create_timestamp` = create_timestamp, ");
-            stringBuilder.AppendLine($"\t `update_scope_id` = sync_scope_id, ");
-            stringBuilder.AppendLine($"\t `update_timestamp` = update_timestamp, ");
-            stringBuilder.AppendLine($"\t `sync_row_is_tombstone` = sync_row_is_tombstone, ");
-            stringBuilder.AppendLine($"\t `timestamp` = {MySqlObjectNames.TimestampValue}, ");
-            stringBuilder.AppendLine($"\t `last_change_datetime` = now(); ");
+        //        stringBuilderArguments.Append(string.Concat(empty, columnName));
+        //        stringBuilderParameters.Append(string.Concat(empty, $"{MYSQL_PREFIX_PARAMETER}{parameterName}"));
+        //        empty = ", ";
+        //    }
+        //    stringBuilder.Append($"\t({stringBuilderArguments.ToString()}, ");
+        //    stringBuilder.AppendLine($"`create_scope_id`, `create_timestamp`, `update_scope_id`, `update_timestamp`,");
+        //    stringBuilder.AppendLine($"\t`sync_row_is_tombstone`, `timestamp`, `last_change_datetime`)");
+        //    stringBuilder.Append($"\tVALUES ({stringBuilderParameters.ToString()}, ");
+        //    stringBuilder.AppendLine($"\tcreate_scope_id, create_timestamp, update_scope_id, update_timestamp, ");
+        //    stringBuilder.AppendLine($"\tsync_row_is_tombstone, {MySqlObjectNames.TimestampValue}, now())");
+        //    stringBuilder.AppendLine($"\tON DUPLICATE KEY UPDATE");
+        //    stringBuilder.AppendLine($"\t `create_scope_id` = sync_scope_id, ");
+        //    stringBuilder.AppendLine($"\t `create_timestamp` = create_timestamp, ");
+        //    stringBuilder.AppendLine($"\t `update_scope_id` = sync_scope_id, ");
+        //    stringBuilder.AppendLine($"\t `update_timestamp` = update_timestamp, ");
+        //    stringBuilder.AppendLine($"\t `sync_row_is_tombstone` = sync_row_is_tombstone, ");
+        //    stringBuilder.AppendLine($"\t `timestamp` = {MySqlObjectNames.TimestampValue}, ");
+        //    stringBuilder.AppendLine($"\t `last_change_datetime` = now(); ");
 
-            sqlCommand.CommandText = stringBuilder.ToString();
-            return sqlCommand;
-        }
+        //    sqlCommand.CommandText = stringBuilder.ToString();
+        //    return sqlCommand;
+        //}
 
-        public void CreateInsertMetadata()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertMetadata).name;
-            CreateProcedureCommand(BuildInsertMetadataCommand, commandName);
-        }
+        //public void CreateInsertMetadata()
+        //{
+        //    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertMetadata).name;
+        //    CreateProcedureCommand(BuildInsertMetadataCommand, commandName);
+        //}
 
-        public string CreateInsertMetadataScriptText()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertMetadata).name;
-            return CreateProcedureCommandScriptText(BuildInsertMetadataCommand, commandName);
-        }
+        //public string CreateInsertMetadataScriptText()
+        //{
+        //    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertMetadata).name;
+        //    return CreateProcedureCommandScriptText(BuildInsertMetadataCommand, commandName);
+        //}
 
 
         //------------------------------------------------------------------
@@ -535,13 +535,13 @@ namespace Dotmim.Sync.MySql
             return sqlCommand;
         }
 
-        public void CreateUpdate()
+        public void CreateUpdate(bool hasMutableColumns)
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateRow).name;
             this.CreateProcedureCommand(BuildUpdateCommand, commandName);
         }
 
-        public string CreateUpdateScriptText()
+        public string CreateUpdateScriptText(bool hasMutableColumns)
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateRow).name;
             return CreateProcedureCommandScriptText(BuildUpdateCommand, commandName);
@@ -609,13 +609,13 @@ namespace Dotmim.Sync.MySql
             return sqlCommand;
         }
 
-        public void CreateUpdateMetadata()
+        public void CreateUpdateMetadata(bool hasMutableColumns)
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata).name;
             CreateProcedureCommand(BuildUpdateMetadataCommand, commandName);
         }
 
-        public string CreateUpdateMetadataScriptText()
+        public string CreateUpdateMetadataScriptText(bool hasMutableColumns)
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata).name;
             return CreateProcedureCommandScriptText(BuildUpdateMetadataCommand, commandName);
@@ -843,12 +843,8 @@ namespace Dotmim.Sync.MySql
             throw new NotImplementedException();
         }
 
-        public void CreateBulkInsert()
-        {
-            throw new NotImplementedException();
-        }
-
-        public void CreateBulkUpdate()
+  
+        public void CreateBulkUpdate(bool hasMutableColumns)
         {
             throw new NotImplementedException();
         }
@@ -863,12 +859,7 @@ namespace Dotmim.Sync.MySql
             throw new NotImplementedException();
         }
 
-        public string CreateBulkInsertScriptText()
-        {
-            throw new NotImplementedException();
-        }
-
-        public string CreateBulkUpdateScriptText()
+        public string CreateBulkUpdateScriptText(bool hasMutableColumns)
         {
             throw new NotImplementedException();
         }
@@ -967,11 +958,6 @@ namespace Dotmim.Sync.MySql
 
         }
 
-        public void DropInsert()
-        {
-            DropProcedure(DbCommandType.InsertRow);
-        }
-
         public void DropUpdate()
         {
             DropProcedure(DbCommandType.UpdateRow);
@@ -980,11 +966,6 @@ namespace Dotmim.Sync.MySql
         public void DropDelete()
         {
             DropProcedure(DbCommandType.DeleteRow);
-        }
-
-        public void DropInsertMetadata()
-        {
-            DropProcedure(DbCommandType.InsertMetadata);
         }
 
         public void DropUpdateMetadata()
@@ -998,11 +979,6 @@ namespace Dotmim.Sync.MySql
         }
 
         public void DropTVPType()
-        {
-            return;
-        }
-
-        public void DropBulkInsert()
         {
             return;
         }
@@ -1032,12 +1008,6 @@ namespace Dotmim.Sync.MySql
             return DropProcedureText(DbCommandType.SelectChanges);
         }
 
-        public string DropInsertScriptText()
-        {
-            return DropProcedureText(DbCommandType.InsertRow);
-
-        }
-
         public string DropUpdateScriptText()
         {
             return DropProcedureText(DbCommandType.UpdateRow);
@@ -1046,12 +1016,6 @@ namespace Dotmim.Sync.MySql
         public string DropDeleteScriptText()
         {
             return DropProcedureText(DbCommandType.DeleteRow);
-        }
-
-        public string DropInsertMetadataScriptText()
-        {
-            return DropProcedureText(DbCommandType.InsertMetadata);
-
         }
 
         public string DropUpdateMetadataScriptText()
@@ -1065,11 +1029,6 @@ namespace Dotmim.Sync.MySql
         }
 
         public string DropTVPTypeScriptText()
-        {
-            throw new NotImplementedException();
-        }
-
-        public string DropBulkInsertScriptText()
         {
             throw new NotImplementedException();
         }

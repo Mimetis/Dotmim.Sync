@@ -22,11 +22,6 @@ namespace Dotmim.Sync.Enumerations
         UniqueKeyConstraint,
 
         /// <summary>
-        /// The Remote datasource update a row and the Local datasource insert a row with same key
-        /// </summary>
-        RemoteUpdateLocalInsert,
-
-        /// <summary>
         /// The Remote and Local datasources both updated the same row.
         /// </summary>
         RemoteUpdateLocalUpdate,
@@ -51,21 +46,7 @@ namespace Dotmim.Sync.Enumerations
         /// </summary>
         RemoteDeleteLocalDelete,
 
-        /// <summary>
-        /// The Remote and Local datasource both inserted a row that has the same primary key value. This caused a primary key violation.
-        /// </summary>
-        RemoteInsertLocalInsert,
-
-        /// <summary>
-        /// The Remote datasource insert a row that the Local datasource updated.
-        /// </summary>
-        RemoteInsertLocalUpdate,
-
-        /// <summary>
-        /// The Remote datasource insert a row that the Local datasource delete.
-        /// </summary>
-        RemoteInsertLocalDelete,
-
+ 
         /// <summary>
         /// The Remote peer deleted a row that the Local peer updated, and the metadata for that row was cleaned up.
         /// </summary>
@@ -75,11 +56,6 @@ namespace Dotmim.Sync.Enumerations
         /// The Remote peer update a row that the Local never had.
         /// </summary>
         RemoteUpdateLocalNoRow,
-
-        /// <summary>
-        /// The Remote peer insert a row that the Local never had.
-        /// </summary>
-        RemoteInsertLocalNoRow,
 
         /// <summary>
         /// The Remote peer delete a row that the Local never had.

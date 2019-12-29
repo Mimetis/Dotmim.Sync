@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Runtime.Serialization;
+using System.Linq;
 
 namespace Dotmim.Sync
 {
@@ -48,7 +49,7 @@ namespace Dotmim.Sync
 
         public TableChangesSelected TableChangesSelected { get; set; }
 
-        public override string Message => $"{this.TableChangesSelected.TableName} Inserts:{this.TableChangesSelected.Inserts} Updates:{this.TableChangesSelected.Updates} Deletes:{this.TableChangesSelected.Deletes} TotalChanges:{this.TableChangesSelected.TotalChanges}" ;
+        public override string Message => $"{this.TableChangesSelected.TableName} Upserts:{this.TableChangesSelected.Upserts} Deletes:{this.TableChangesSelected.Deletes} TotalChanges:{this.TableChangesSelected.TotalChanges}" ;
     }
 
     /// <summary>
@@ -207,66 +208,19 @@ namespace Dotmim.Sync
         /// Gets the total number of changes that are to be applied during the synchronization session.
         /// </summary>
         [IgnoreDataMember]
-        public int TotalChangesSelected
-        {
-            get
-            {
-                var totalChanges = 0;
-
-                foreach (var tableProgress in this.TableChangesSelected)
-                    totalChanges = totalChanges + tableProgress.TotalChanges;
-
-                return totalChanges;
-            }
-        }
+        public int TotalChangesSelected => this.TableChangesSelected.Sum(t => t.TotalChanges);
 
         /// <summary>
         /// Gets the total number of deletes that are to be applied during the synchronization session.
         /// </summary>
         [IgnoreDataMember]
-        public int TotalChangesSelectedDeletes
-        {
-            get
-            {
-                var deletes = 0;
-                foreach (var tableProgress in this.TableChangesSelected)
-                    deletes = deletes + tableProgress.Deletes;
-
-                return deletes;
-            }
-        }
+        public int TotalChangesSelectedDeletes => this.TableChangesSelected.Sum(t => t.Deletes);
 
         /// <summary>
-        /// Gets the total number of inserts that are to be applied during the synchronization session.
+        /// Gets the total number of updates OR inserts that are to be applied during the synchronization session.
         /// </summary>
         [IgnoreDataMember]
-        public int TotalChangesSelectedInserts
-        {
-            get
-            {
-                var inserts = 0;
-                foreach (var tableProgress in this.TableChangesSelected)
-                    inserts = inserts + tableProgress.Inserts;
-
-                return inserts;
-            }
-        }
-
-        /// <summary>
-        /// Gets the total number of updates that are to be applied during the synchronization session.
-        /// </summary>
-        [IgnoreDataMember]
-        public int TotalChangesSelectedUpdates
-        {
-            get
-            {
-                var updates = 0;
-                foreach (var tableProgress in this.TableChangesSelected)
-                    updates = updates + tableProgress.Updates;
-
-                return updates;
-            }
-        }
+        public int TotalChangesSelectedUpdates => this.TableChangesSelected.Sum(t => t.Upserts);
 
     }
 
@@ -297,23 +251,17 @@ namespace Dotmim.Sync
         public int Deletes { get; set; }
 
         /// <summary>
-        /// Gets or sets the number of inserts that should be applied to a table during the synchronization session.
+        /// Gets or sets the number of updates OR inserts that should be applied to a table during the synchronization session.
         /// </summary>
-        [DataMember(Name = "i", IsRequired = false, EmitDefaultValue = false, Order = 3)]
-        public int Inserts { get; set; }
-
-        /// <summary>
-        /// Gets or sets the number of updates that should be applied to a table during the synchronization session.
-        /// </summary>
-        [DataMember(Name = "u", IsRequired = false, EmitDefaultValue = false, Order = 4)]
-        public int Updates { get; set; }
+        [DataMember(Name = "u", IsRequired = false, EmitDefaultValue = false, Order = 3)]
+        public int Upserts { get; set; }
 
         /// <summary>
         /// Gets the total number of changes that are applied to a table during the synchronization session.
         /// TODO : DEBUG TIME : To be sure we have the correct number, I set this value from CoreProvider
         /// </summary>
-        [DataMember(Name = "tot", IsRequired = false, EmitDefaultValue = false, Order = 5)]
-        public int TotalChanges { get; set; } // => this.Inserts + this.Updates + this.Deletes;
+        [DataMember(Name = "tot", IsRequired = false, EmitDefaultValue = false, Order = 4)]
+        public int TotalChanges { get; set; } // => this.Upserts + this.Deletes;
     }
 
 }
