@@ -25,7 +25,7 @@ So you must use it on classic .NET Framework ( &gt; 4.5)</Description>
 
   <ItemGroup>
     <PackageReference Include="MySqlConnector">
-      <Version>0.48.2</Version>
+      <Version>0.61.0</Version>
     </PackageReference>
   </ItemGroup>  
   

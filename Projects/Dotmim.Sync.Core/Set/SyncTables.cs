@@ -81,6 +81,7 @@ namespace Dotmim.Sync
                 if (this.Schema == null)
                     throw new ArgumentNullException("Schema");
 
+
                 return InnerCollection.FirstOrDefault(c =>
                         Schema.StringEquals(tableName, schemaName, c.TableName, c.SchemaName));
             }

@@ -44,8 +44,8 @@ namespace Dotmim.Sync.Tests.SqlServer
                 }
                 else
                 {
-                    providerFixture.AddRun(NetworkType.Tcp, ProviderType.Sql | ProviderType.Sqlite);
-                    providerFixture.AddRun(NetworkType.Http, ProviderType.Sqlite | ProviderType.Sql);
+                    providerFixture.AddRun(NetworkType.Tcp, ProviderType.Sql | ProviderType.MySql | ProviderType.Sqlite);
+                    providerFixture.AddRun(NetworkType.Http, ProviderType.MySql | ProviderType.Sqlite | ProviderType.Sql);
                     providerFixture.DeleteAllDatabasesOnDispose = true;
                 }
             };
