@@ -9,13 +9,9 @@ namespace Dotmim.Sync
 {
     public class SyncRow
     {
-        private const int MinimumBufferSize = 32;
-        private const int BufferGrowthSize = 16;
-
 
         // all the values for this line
         private object[] buffer;
-        private readonly int length;
 
         /// <summary>
         /// Gets or Sets the row's table
@@ -36,7 +32,7 @@ namespace Dotmim.Sync
             this.buffer = new object[table.Columns.Count];
 
             // set correct length
-            this.length = table.Columns.Count;
+            this.Length = table.Columns.Count;
 
             // Get a ref
             this.Table = table;
@@ -55,7 +51,7 @@ namespace Dotmim.Sync
             this.buffer = row;
 
             // set correct length
-            this.length = row.Length;
+            this.Length = row.Length;
 
             // Get a ref
             this.Table = table;
@@ -72,7 +68,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the row Length
         /// </summary>
-        public int Length => this.length;
+        public int Length { get; }
 
         /// <summary>
         /// Get the value in the array that correspond to the column index given
@@ -137,8 +133,8 @@ namespace Dotmim.Sync
         /// <returns></returns>
         public object[] ToArray()
         {
-            var array = new object[this.length + 1];
-            Array.Copy(this.buffer, 0, array, 1, this.length);
+            var array = new object[this.Length + 1];
+            Array.Copy(this.buffer, 0, array, 1, this.Length);
             
             // set row state on index 0 of my buffer
             array[0] = (int)this.RowState;

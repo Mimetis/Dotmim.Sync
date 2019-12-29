@@ -177,18 +177,14 @@ namespace Dotmim.Sync.Builders
                     procBuilder.CreateSelectIncrementalChanges();
                 if (procBuilder.NeedToCreateProcedure(DbCommandType.SelectRow))
                     procBuilder.CreateSelectRow();
-                if (procBuilder.NeedToCreateProcedure(DbCommandType.InsertRow))
-                    procBuilder.CreateInsert();
 
-                if (hasMutableColumns && procBuilder.NeedToCreateProcedure(DbCommandType.UpdateRow))
-                    procBuilder.CreateUpdate();
+                if (procBuilder.NeedToCreateProcedure(DbCommandType.UpdateRow))
+                    procBuilder.CreateUpdate(hasMutableColumns);
 
                 if (procBuilder.NeedToCreateProcedure(DbCommandType.DeleteRow))
                     procBuilder.CreateDelete();
-                //if (procBuilder.NeedToCreateProcedure(DbCommandType.InsertMetadata))
-                //    procBuilder.CreateInsertMetadata();
                 if (procBuilder.NeedToCreateProcedure(DbCommandType.UpdateMetadata))
-                    procBuilder.CreateUpdateMetadata();
+                    procBuilder.CreateUpdateMetadata(hasMutableColumns);
                 if (procBuilder.NeedToCreateProcedure(DbCommandType.DeleteMetadata))
                     procBuilder.CreateDeleteMetadata();
                 if (procBuilder.NeedToCreateProcedure(DbCommandType.Reset))
@@ -197,11 +193,7 @@ namespace Dotmim.Sync.Builders
                 if (this.UseBulkProcedures && procBuilder.NeedToCreateType(DbCommandType.BulkTableType))
                 {
                     procBuilder.CreateTVPType();
-                    //procBuilder.CreateBulkInsert();
-
-                    if (hasMutableColumns)
-                        procBuilder.CreateBulkUpdate();
-
+                    procBuilder.CreateBulkUpdate(hasMutableColumns);
                     procBuilder.CreateBulkDelete();
                 }
             }
@@ -305,14 +297,10 @@ namespace Dotmim.Sync.Builders
                     procBuilder.DropSelectIncrementalChanges();
                 if (!procBuilder.NeedToCreateProcedure(DbCommandType.SelectRow))
                     procBuilder.DropSelectRow();
-                if (!procBuilder.NeedToCreateProcedure(DbCommandType.InsertRow))
-                    procBuilder.DropInsert();
-                if (hasMutableColumns && !procBuilder.NeedToCreateProcedure(DbCommandType.UpdateRow))
+                if (!procBuilder.NeedToCreateProcedure(DbCommandType.UpdateRow))
                     procBuilder.DropUpdate();
                 if (!procBuilder.NeedToCreateProcedure(DbCommandType.DeleteRow))
                     procBuilder.DropDelete();
-                if (!procBuilder.NeedToCreateProcedure(DbCommandType.InsertMetadata))
-                    procBuilder.DropInsertMetadata();
                 if (!procBuilder.NeedToCreateProcedure(DbCommandType.UpdateMetadata))
                     procBuilder.DropUpdateMetadata();
                 if (!procBuilder.NeedToCreateProcedure(DbCommandType.DeleteMetadata))
@@ -322,11 +310,7 @@ namespace Dotmim.Sync.Builders
 
                 if (this.UseBulkProcedures && !procBuilder.NeedToCreateType(DbCommandType.BulkTableType))
                 {
-                    procBuilder.DropBulkInsert();
-
-                    if (hasMutableColumns)
-                        procBuilder.DropBulkUpdate();
-
+                    procBuilder.DropBulkUpdate();
                     procBuilder.DropBulkDelete();
                     procBuilder.DropTVPType();
                 }
@@ -533,16 +517,12 @@ namespace Dotmim.Sync.Builders
                         stringBuilder.Append(procBuilder.CreateSelectIncrementalChangesScriptText());
                     if (procBuilder.NeedToCreateProcedure(DbCommandType.SelectRow))
                         stringBuilder.Append(procBuilder.CreateSelectRowScriptText());
-                    if (procBuilder.NeedToCreateProcedure(DbCommandType.InsertRow))
-                        stringBuilder.Append(procBuilder.CreateInsertScriptText());
-                    if (hasMutableColumns && procBuilder.NeedToCreateProcedure(DbCommandType.UpdateRow))
-                        stringBuilder.Append(procBuilder.CreateUpdateScriptText());
+                    if (procBuilder.NeedToCreateProcedure(DbCommandType.UpdateRow))
+                        stringBuilder.Append(procBuilder.CreateUpdateScriptText(hasMutableColumns));
                     if (procBuilder.NeedToCreateProcedure(DbCommandType.DeleteRow))
                         stringBuilder.Append(procBuilder.CreateDeleteScriptText());
-                    if (procBuilder.NeedToCreateProcedure(DbCommandType.InsertMetadata))
-                        stringBuilder.Append(procBuilder.CreateInsertMetadataScriptText());
                     if (procBuilder.NeedToCreateProcedure(DbCommandType.UpdateMetadata))
-                        stringBuilder.Append(procBuilder.CreateUpdateMetadataScriptText());
+                        stringBuilder.Append(procBuilder.CreateUpdateMetadataScriptText(hasMutableColumns));
                     if (procBuilder.NeedToCreateProcedure(DbCommandType.DeleteMetadata))
                         stringBuilder.Append(procBuilder.CreateDeleteMetadataScriptText());
                     if (procBuilder.NeedToCreateProcedure(DbCommandType.Reset))
@@ -551,11 +531,7 @@ namespace Dotmim.Sync.Builders
                     if (this.UseBulkProcedures && procBuilder.NeedToCreateType(DbCommandType.BulkTableType))
                     {
                         stringBuilder.Append(procBuilder.CreateTVPTypeScriptText());
-                        stringBuilder.Append(procBuilder.CreateBulkInsertScriptText());
-
-                        if (hasMutableColumns)
-                            stringBuilder.Append(procBuilder.CreateBulkUpdateScriptText());
-
+                        stringBuilder.Append(procBuilder.CreateBulkUpdateScriptText(hasMutableColumns));
                         stringBuilder.Append(procBuilder.CreateBulkDeleteScriptText());
                     }
                     if (needToCreateTrackingTable)

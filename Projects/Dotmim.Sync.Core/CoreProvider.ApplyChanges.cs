@@ -77,13 +77,6 @@ namespace Dotmim.Sync
                 foreach (var table in message.Schema.Tables)
                 {
                     changeApplicationAction = await this.ApplyChangesInternalAsync(table, context, message, connection,
-                        transaction, DataRowState.Added, changesApplied, cancellationToken, progress).ConfigureAwait(false);
-
-                    // Rollback
-                    if (changeApplicationAction == ChangeApplicationAction.Rollback)
-                        RaiseRollbackException(context, "Rollback during applying inserts");
-
-                    changeApplicationAction = await this.ApplyChangesInternalAsync(table, context, message, connection,
                         transaction, DataRowState.Modified, changesApplied, cancellationToken, progress).ConfigureAwait(false);
 
                     // Rollback
@@ -243,11 +236,11 @@ namespace Dotmim.Sync
                     // Create an empty Set that wil contains filtered rows to apply
                     // Need Schema for culture & case sensitive properties
                     var changesSet = syncTable.Schema.Clone(false);
-                    var schemaChangesTable = syncTable.Clone() ;
+                    var schemaChangesTable = syncTable.Clone();
                     changesSet.Tables.Add(schemaChangesTable);
                     schemaChangesTable.Rows.AddRange(filteredRows.ToList());
 
-                    int rowsApplied=0;
+                    int rowsApplied = 0;
 
                     if (message.UseBulkOperations && this.SupportBulkOperations)
                         rowsApplied = syncAdapter.ApplyBulkChanges(schemaChangesTable, message.ApplyingScopeId, message.LastTimestamp, conflicts);
@@ -353,9 +346,9 @@ namespace Dotmim.Sync
         /// Handle a conflict
         /// The int returned is the conflict count I need 
         /// </summary>
-        internal async Task<(ChangeApplicationAction, int, SyncRow)>HandleConflictAsync(
-                                DbSyncAdapter syncAdapter, SyncContext context, SyncConflict conflict, 
-                                ConflictResolutionPolicy policy, Guid applyingScopeId, long lastTimestamp, 
+        internal async Task<(ChangeApplicationAction, int, SyncRow)> HandleConflictAsync(
+                                DbSyncAdapter syncAdapter, SyncContext context, SyncConflict conflict,
+                                ConflictResolutionPolicy policy, Guid applyingScopeId, long lastTimestamp,
                                 DbConnection connection, DbTransaction transaction)
         {
 
@@ -388,93 +381,34 @@ namespace Dotmim.Sync
                     if (isMergeAction)
                     {
                         bool isUpdated = false;
-                        bool isInserted = false;
                         // Insert metadata is a merge, actually
                         var commandType = DbCommandType.UpdateMetadata;
 
                         isUpdated = syncAdapter.ApplyUpdate(row, applyingScopeId, lastTimestamp, true);
 
                         if (!isUpdated)
-                        {
-                            // Insert the row
-                            isInserted = syncAdapter.ApplyInsert(row, applyingScopeId, lastTimestamp, true);
-                            // Then update the row to mark this row as updated from server
-                            // and get it back to client 
-                            isUpdated = syncAdapter.ApplyUpdate(row, applyingScopeId, lastTimestamp, true);
-
-                            commandType = DbCommandType.InsertMetadata;
-                        }
-
-                        if (!isUpdated && !isInserted)
                             throw new Exception("Can't update the merge row.");
-
 
                         // IF we have insert the row in the server side, to resolve the conflict
                         // Whe should update the metadatas correctly
-                        if (isUpdated || isInserted)
+
+                        using (var metadataCommand = syncAdapter.GetCommand(commandType))
                         {
-                            using (var metadataCommand = syncAdapter.GetCommand(commandType))
-                            {
-                                // getting the row updated from server
-                                row = syncAdapter.GetRow(row, syncAdapter.TableDescription);
+                            // getting the row updated from server
+                            row = syncAdapter.GetRow(row, syncAdapter.TableDescription);
 
-                                // Deriving Parameters
-                                syncAdapter.SetCommandParameters(commandType, metadataCommand);
+                            // Deriving Parameters
+                            syncAdapter.SetCommandParameters(commandType, metadataCommand);
 
-                                // Set the id parameter
-                                syncAdapter.SetColumnParametersValues(metadataCommand, row);
+                            // Set the id parameter
+                            syncAdapter.SetColumnParametersValues(metadataCommand, row);
 
-                                //Guid? create_scope_id = null;
-                                //if (row["create_scope_id"] != null && row["create_scope_id"] != DBNull.Value)
-                                //{
-                                //    if (SyncTypeConverter.TryConvertTo<Guid>(row["create_scope_id"], out var usid))
-                                //    {
-                                //        create_scope_id = (Guid)usid;
-                                //    }
-                                //    else
-                                //    {
-                                //        create_scope_id = null;
-                                //    }
-                                //}
+                            // apply local row, set scope.id to null becoz applied locally
+                            var rowsApplied = syncAdapter.InsertOrUpdateMetadatas(metadataCommand, row, null);
 
-                                //long createTimestamp = row["create_timestamp"] != DBNull.Value ? Convert.ToInt64(row["create_timestamp"]) : 0;
+                            if (!rowsApplied)
+                                throw new Exception("No metadatas rows found, can't update the server side");
 
-                                // The trick is to force the row to be "created before last sync"
-                                // Even if we just inserted it
-                                // to be able to get the row in state Updated (and not Added)
-                                //row["create_scope_id"] = create_scope_id;
-                                //row["create_timestamp"] = lastTimestamp - 1;
-
-                                // Update scope id is set to server side
-                                //Guid? update_scope_id = null;
-
-                                //if (row["update_scope_id"] != null && row["update_scope_id"] != DBNull.Value)
-                                //{
-                                //    if (SyncTypeConverter.TryConvertTo<Guid>(row["update_scope_id"], out var usid))
-                                //    {
-                                //        update_scope_id = (Guid)usid;
-                                //    }
-                                //    else
-                                //    {
-                                //        update_scope_id = null;
-                                //    }
-                                //}
-
-
-
-                                //long updateTimestamp = row["update_timestamp"] != DBNull.Value ? Convert.ToInt64(row["update_timestamp"]) : 0;
-
-                                //row["update_scope_id"] = null;
-                                //row["update_timestamp"] = updateTimestamp;
-
-
-                                // apply local row, set scope.id to null becoz applied locally
-                                var rowsApplied = syncAdapter.InsertOrUpdateMetadatas(metadataCommand, row, null);
-
-                                if (!rowsApplied)
-                                    throw new Exception("No metadatas rows found, can't update the server side");
-
-                            }
                         }
                     }
 
@@ -500,16 +434,18 @@ namespace Dotmim.Sync
                 // create a localscope to override values
                 //var localScope = new ScopeInfo { Name = scope.Name, LastSyncTimestamp = fromScopeLocalTimeStamp };
 
-                var commandType = DbCommandType.InsertMetadata;
+                var commandType = DbCommandType.UpdateMetadata;
                 bool needToUpdateMetadata = true;
 
                 switch (conflict.Type)
                 {
                     // Remote source has row, Local don't have the row, so insert it
                     case ConflictType.RemoteUpdateLocalNoRow:
-                    case ConflictType.RemoteInsertLocalNoRow:
-                        operationComplete = syncAdapter.ApplyInsert(conflict.RemoteRow, applyingScopeId, lastTimestamp, true);
-                        commandType = DbCommandType.InsertMetadata;
+                    case ConflictType.RemoteUpdateLocalDelete:
+                    case ConflictType.RemoteUpdateLocalUpdate:
+                    case ConflictType.UniqueKeyConstraint:
+                        operationComplete = syncAdapter.ApplyUpdate(conflict.RemoteRow, applyingScopeId, lastTimestamp, true);
+                        commandType = DbCommandType.UpdateMetadata;
                         break;
 
                     // Conflict, but both have delete the row, so nothing to do
@@ -527,24 +463,6 @@ namespace Dotmim.Sync
                         commandType = DbCommandType.UpdateMetadata;
                         break;
 
-
-                    // Remote insert and local delete, sor insert again on local
-                    // but tracking line exist, so make an update on metadata
-                    case ConflictType.RemoteInsertLocalDelete:
-                    case ConflictType.RemoteUpdateLocalDelete:
-                        operationComplete = syncAdapter.ApplyInsert(conflict.RemoteRow, applyingScopeId, lastTimestamp, true);
-                        commandType = DbCommandType.UpdateMetadata;
-                        break;
-
-                    // Remote insert and local insert/ update, take the remote row and update the local row
-                    case ConflictType.RemoteUpdateLocalInsert:
-                    case ConflictType.RemoteUpdateLocalUpdate:
-                    case ConflictType.RemoteInsertLocalInsert:
-                    case ConflictType.RemoteInsertLocalUpdate:
-                    case ConflictType.UniqueKeyConstraint:
-                        operationComplete = syncAdapter.ApplyUpdate(conflict.RemoteRow, applyingScopeId, lastTimestamp, true);
-                        commandType = DbCommandType.UpdateMetadata;
-                        break;
 
                     case ConflictType.RemoteCleanedupDeleteLocalUpdate:
                     case ConflictType.ErrorsOccurred:
