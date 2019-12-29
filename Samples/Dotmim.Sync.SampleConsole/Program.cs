@@ -31,7 +31,7 @@ internal class Program
                                                     "Address", "Customer", "CustomerAddress",
                                                     "SalesOrderHeader", "SalesOrderDetail" };
 
-    public static string[] oneTable = new string[] { "ProductTag" };
+    public static string[] oneTable = new string[] { "ProductCategory" };
     private static void Main(string[] args)
     {
 

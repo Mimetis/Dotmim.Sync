@@ -324,9 +324,9 @@ namespace Dotmim.Sync
             if (localConflictRow == null)
             {
                 if (ApplyType == DataRowState.Modified)
-                    dbConflictType = ConflictType.RemoteUpdateLocalNoRow;
+                    dbConflictType = ConflictType.RemoteExistsLocalNotExists;
                 else if (ApplyType == DataRowState.Deleted)
-                    dbConflictType = ConflictType.RemoteDeleteLocalNoRow;
+                    dbConflictType = ConflictType.RemoteIsDeletedLocalNotExists;
             }
             else
             {
@@ -334,13 +334,13 @@ namespace Dotmim.Sync
                 if (localConflictRow.RowState == DataRowState.Deleted)
                 {
                     if (ApplyType == DataRowState.Modified)
-                        dbConflictType = ConflictType.RemoteUpdateLocalDelete;
+                        dbConflictType = ConflictType.RemoteExistsLocalIsDeleted;
                     else if (ApplyType == DataRowState.Deleted)
-                        dbConflictType = ConflictType.RemoteDeleteLocalDelete;
+                        dbConflictType = ConflictType.RemoteIsDeletedLocalIsDeleted;
                 }
                 else
                 {
-                    dbConflictType = ConflictType.RemoteUpdateLocalUpdate;
+                    dbConflictType = ConflictType.RemoteExistsLocalExists;
                 }
             }
             // Generate the conflict

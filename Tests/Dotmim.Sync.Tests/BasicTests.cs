@@ -578,7 +578,6 @@ namespace Dotmim.Sync.Tests
         }
 
 
-
         /// <summary>
         /// Conflict resolution on insert-insert. 
         /// Use the default behavior where server should always wins conflict.
@@ -660,6 +659,105 @@ namespace Dotmim.Sync.Tests
                 }
             }
         }
+
+
+
+
+        /// <summary>
+        /// Delete a row on client, then sync, then Insert SAME row on Server, then Sync again. 
+        /// Client should have the row again
+        /// </summary>
+        public virtual async Task Delete_Client_Sync_Insert_Server_Sync_Client_Should_Have_Insert()
+        {
+            foreach (var options in TestConfigurations.GetOptions())
+            {
+                // reset
+                await this.testRunner.RunTestsAsync(options);
+
+                var productCategoryId = Path.GetRandomFileName().Replace(".", "").ToUpperInvariant().Substring(0, 6);
+                var productCategoryName = Path.GetRandomFileName().Replace(".", "").ToUpperInvariant().Substring(0, 6);
+
+                // Insert on Server
+                using (var ctx = this.GetServerDbContext())
+                {
+                    ctx.Add(new ProductCategory
+                    {
+                        ProductCategoryId = productCategoryId,
+                        Name = productCategoryName
+                    });
+
+                    await ctx.SaveChangesAsync();
+                }
+
+                // Insert this new product on all clients
+                var results = await this.testRunner.RunTestsAsync(options);
+
+                foreach (var testRunner in this.fixture.ClientRuns)
+                {
+                    Assert.Equal(1, testRunner.Results.TotalChangesDownloaded);
+                    Assert.Equal(0, testRunner.Results.TotalChangesUploaded);
+                    Assert.Equal(0, testRunner.Results.TotalSyncConflicts);
+                }
+
+                // Delete on all Clients
+                foreach (var testRun in this.fixture.ClientRuns)
+                {
+                    using (var ctx = this.GetClientDbContext(testRun))
+                    {
+                        // get the client address with ID=i
+                        var pc = await ctx.ProductCategory.SingleAsync(p => p.ProductCategoryId == productCategoryId);
+                        ctx.ProductCategory.Remove(pc);
+                        await ctx.SaveChangesAsync();
+                    }
+
+                }
+
+                // Server should have row deleted this new product on all clients
+                await this.testRunner.RunTestsAsync(options);
+
+                foreach (var testRunner in this.fixture.ClientRuns)
+                {
+                    Assert.Equal(0, testRunner.Results.TotalChangesDownloaded);
+                    Assert.Equal(1, testRunner.Results.TotalChangesUploaded);
+                }
+
+                // Insert on Server, again
+                using (var ctx = this.GetServerDbContext())
+                {
+                    ctx.Add(new ProductCategory
+                    {
+                        ProductCategoryId = productCategoryId,
+                        Name = productCategoryName
+                    });
+
+                    await ctx.SaveChangesAsync();
+                }
+
+                // Sync
+                await this.testRunner.RunTestsAsync(options);
+
+                // All clients should have again the row inserted
+                foreach (var testRunner in this.fixture.ClientRuns)
+                {
+                    Assert.Equal(1, testRunner.Results.TotalChangesDownloaded);
+                    Assert.Equal(0, testRunner.Results.TotalChangesUploaded);
+                    Assert.Equal(0, testRunner.Results.TotalSyncConflicts);
+                }
+
+                // check client product category row
+                foreach (var testRun in this.fixture.ClientRuns)
+                {
+                    using (var ctx = this.GetClientDbContext(testRun))
+                    {
+                        // check client product category
+                        var checkProductCategoryClient = await ctx.ProductCategory.AsNoTracking().SingleAsync(pc => pc.ProductCategoryId == productCategoryId);
+                        Assert.Equal(productCategoryName, checkProductCategoryClient.Name);
+                    }
+                }
+            }
+        }
+
+
 
 
         /// <summary>
@@ -1283,7 +1381,7 @@ namespace Dotmim.Sync.Tests
 
                 foreach (var trr in results)
                 {
-                    Assert.Equal(1, trr.Results.TotalChangesDownloaded);
+                    Assert.Equal(0, trr.Results.TotalChangesDownloaded);
                     Assert.Equal(0, trr.Results.TotalChangesUploaded);
                 }
             }
@@ -1696,7 +1794,6 @@ namespace Dotmim.Sync.Tests
             }
         }
 
-
         public virtual async Task Check_Interceptors()
         {
             // create new ProductCategory on server
@@ -1901,10 +1998,6 @@ namespace Dotmim.Sync.Tests
             }
 
         }
-
-
-
-
 
         public virtual async Task Force_Failing_Constraints()
         {
