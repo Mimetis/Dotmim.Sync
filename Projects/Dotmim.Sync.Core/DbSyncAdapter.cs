@@ -111,7 +111,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Insert or update a metadata line
         /// </summary>
-        internal bool InsertOrUpdateMetadatas(DbCommand command, SyncRow row, Guid? fromScopeId, long lastTimestamp)
+        internal bool InsertOrUpdateMetadatas(DbCommand command, SyncRow row, Guid? fromScopeId)
         {
             if (row.Table == null)
                 throw new ArgumentException("Schema table columns does not exist");
@@ -125,58 +125,6 @@ namespace Dotmim.Sync
 
             // Set the id parameter
             this.SetColumnParametersValues(command, row);
-
-            // Getting the index
-            var createTimestampIndex = schemaTable.Columns.IndexOf(schemaTable.Columns.First(c => c.ColumnName == "create_timestamp"));
-            var updateTimestampIndex = schemaTable.Columns.IndexOf(schemaTable.Columns.First(c => c.ColumnName == "update_timestamp"));
-            var createScopeIdIndex = schemaTable.Columns.IndexOf(schemaTable.Columns.First(c => c.ColumnName == "create_scope_id"));
-            var updateScopeIdIndex = schemaTable.Columns.IndexOf(schemaTable.Columns.First(c => c.ColumnName == "update_scope_id"));
-
-            long createTimestamp = row[createTimestampIndex] != null ? Convert.ToInt64(row[createTimestampIndex]) : 0;
-            long updateTimestamp = row[updateTimestampIndex] != null ? Convert.ToInt64(row[updateTimestampIndex]) : 0;
-
-
-
-            Guid? create_scope_id = null;
-
-            if (row[createScopeIdIndex] != null && row[createScopeIdIndex] != DBNull.Value)
-            {
-                if (SyncTypeConverter.TryConvertTo<Guid>(row[createScopeIdIndex], out var csid))
-                {
-                    create_scope_id = (Guid)csid;
-                }
-                else
-                {
-                    create_scope_id = null;
-                }
-            }
-
-            Guid? update_scope_id = null;
-
-            if (row[updateScopeIdIndex] != null && row[updateScopeIdIndex] != DBNull.Value)
-            {
-                if (SyncTypeConverter.TryConvertTo<Guid>(row[updateScopeIdIndex], out var usid))
-                {
-                    update_scope_id = (Guid)usid;
-                }
-                else
-                {
-                    update_scope_id = null;
-                }
-            }
-
-
-            // Override create and update scope id to reflect who change the value
-            // if it's an update, the createscope is staying the same (because not present in dbCommand)
-            Guid? createScopeId = fromScopeId.HasValue ? fromScopeId : create_scope_id;
-            Guid? updateScopeId = fromScopeId.HasValue ? fromScopeId : update_scope_id;
-
-            // some proc stock does not differentiate update_scope_id and create_scope_id and use sync_scope_id
-            DbManager.SetParameterValue(command, "sync_scope_id", createScopeId);
-            DbManager.SetParameterValue(command, "timestamp", lastTimestamp);
-            // else they use create_scope_id and update_scope_id
-            DbManager.SetParameterValue(command, "create_scope_id", createScopeId);
-            DbManager.SetParameterValue(command, "update_scope_id", updateScopeId);
 
             // 2 choices for getting deleted
             bool isTombstone = false;
@@ -198,8 +146,7 @@ namespace Dotmim.Sync
             }
 
             DbManager.SetParameterValue(command, "sync_row_is_tombstone", isTombstone ? 1 : 0);
-            DbManager.SetParameterValue(command, "create_timestamp", createTimestamp);
-            DbManager.SetParameterValue(command, "update_timestamp", updateTimestamp);
+            DbManager.SetParameterValue(command, "sync_scope_id", fromScopeId);
 
             var alreadyOpened = Connection.State == ConnectionState.Open;
 
@@ -402,20 +349,20 @@ namespace Dotmim.Sync
                 }
                 else
                 {
-                    var createTimestamp = localConflictRow["create_timestamp"] != DBNull.Value ? (long)localConflictRow["create_timestamp"] : 0L;
-                    var updateTimestamp = localConflictRow["update_timestamp"] != DBNull.Value ? (long)localConflictRow["update_timestamp"] : 0L;
-                    switch (ApplyType)
-                    {
-                        case DataRowState.Added:
-                            dbConflictType = updateTimestamp == 0 ? ConflictType.RemoteInsertLocalInsert : ConflictType.RemoteInsertLocalUpdate;
-                            break;
-                        case DataRowState.Modified:
-                            dbConflictType = updateTimestamp == 0 ? ConflictType.RemoteUpdateLocalInsert : ConflictType.RemoteUpdateLocalUpdate;
-                            break;
-                        case DataRowState.Deleted:
-                            dbConflictType = updateTimestamp == 0 ? ConflictType.RemoteDeleteLocalInsert : ConflictType.RemoteDeleteLocalUpdate;
-                            break;
-                    }
+                    dbConflictType = ConflictType.RemoteUpdateLocalUpdate;
+                    //switch (ApplyType)
+                    //{
+
+                    //    case DataRowState.Added:
+                    //        dbConflictType = updateTimestamp == 0 ? ConflictType.RemoteInsertLocalInsert : ConflictType.RemoteInsertLocalUpdate;
+                    //        break;
+                    //    case DataRowState.Modified:
+                    //        dbConflictType = updateTimestamp == 0 ? ConflictType.RemoteUpdateLocalInsert : ConflictType.RemoteUpdateLocalUpdate;
+                    //        break;
+                    //    case DataRowState.Deleted:
+                    //        dbConflictType = updateTimestamp == 0 ? ConflictType.RemoteDeleteLocalInsert : ConflictType.RemoteDeleteLocalUpdate;
+                    //        break;
+                    //}
                 }
             }
             // Generate the conflict
@@ -436,7 +383,7 @@ namespace Dotmim.Sync
             using (var dbCommand = this.GetCommand(dbCommandType))
             {
                 this.SetCommandParameters(dbCommandType, dbCommand);
-                this.InsertOrUpdateMetadatas(dbCommand, row, applyingScopeId, lastTimestamp);
+                this.InsertOrUpdateMetadatas(dbCommand, row, applyingScopeId);
             }
         }
 
@@ -786,17 +733,10 @@ namespace Dotmim.Sync
 
             owner.Tables.Add(changesTable);
 
-            if (changesTable.Columns["create_scope_id"] == null)
-            {
-                changesTable.Columns.Add("create_scope_id", typeof(Guid));
-                changesTable.Columns.Add("create_timestamp", typeof(long));
+            if (changesTable.Columns["update_scope_id"] == null)
                 changesTable.Columns.Add("update_scope_id", typeof(Guid));
-                changesTable.Columns.Add("update_timestamp", typeof(long));
-            }
 
             return changesTable;
-
         }
-
     }
 }

@@ -25,7 +25,7 @@ internal class Program
 {
     public static string serverDbName = "AdventureWorks";
     public static string serverProductCategoryDbName = "AdventureWorksProductCategory";
-    public static string clientDbName = "Client";
+    public static string clientDbName = "ClientVersionFive";
     public static string[] allTables = new string[] {"ProductCategory",
                                                     "ProductModel", "Product",
                                                     "Address", "Customer", "CustomerAddress",
@@ -653,9 +653,9 @@ internal class Program
     private static async Task SynchronizeAsync()
     {
         // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverProductCategoryDbName));
-        var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
-        var clientProvider2 = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString("Client2"));
+        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString("ServerVersionFive"));
+        var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString("ClientVersionFive"));
+        var clientProvider2 = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString("ClientVersionFive2"));
 
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, new string[] { "ProductCategory" });
@@ -665,25 +665,27 @@ internal class Program
         // Using the Progress pattern to handle progession during the synchronization
         var progress = new SynchronousProgress<ProgressArgs>(s =>
         {
-            Console.ForegroundColor = ConsoleColor.Red;
+            Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
             Console.ResetColor();
         });
 
         var remoteProgress = new SynchronousProgress<ProgressArgs>(s =>
         {
-            Console.ForegroundColor = ConsoleColor.Green;
+            Console.ForegroundColor = ConsoleColor.Yellow;
             Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
             Console.ResetColor();
         });
-        // agent.AddRemoteProgress(remoteProgress);
 
-        agent.Options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync");
-        agent.Options.BatchSize = 0;
-        agent.Options.CleanMetadatas = true;
-        agent.Options.UseBulkOperations = true;
-        agent.Options.UseVerboseErrors = false;
-        agent.Options.ScopeInfoTableName = "tscopeinfo";
+        //agent.AddRemoteProgress(remoteProgress);
+
+        //agent.Options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync");
+        //agent.Options.BatchSize = 0;
+        //agent.Options.CleanMetadatas = true;
+        agent.Options.UseBulkOperations = false;
+        // agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
+        //agent.Options.UseVerboseErrors = false;
+        //agent.Options.ScopeInfoTableName = "tscopeinfo";
 
 
         do
