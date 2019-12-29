@@ -42,31 +42,9 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine("BEGIN");
             stringBuilder.AppendLine($"UPDATE {trackingName.Quoted().ToString()} ");
             stringBuilder.AppendLine("SET [sync_row_is_tombstone] = 1");
-            stringBuilder.AppendLine("\t,[update_scope_id] = NULL -- since the update if from local, it's a NULL");
-            stringBuilder.AppendLine($"\t,[update_timestamp] = {SqliteObjectNames.TimestampValue}");
+            stringBuilder.AppendLine("\t,[update_scope_id] = NULL -- scope id is always NULL when update is made locally");
             stringBuilder.AppendLine($"\t,[timestamp] = {SqliteObjectNames.TimestampValue}");
             stringBuilder.AppendLine("\t,[last_change_datetime] = datetime('now')");
-
-            // --------------------------------------------------------------------------------
-            // SQLITE doesnot support (yet) filtering columns, since it's only a client provider
-            // --------------------------------------------------------------------------------
-            //// Filter columns
-            //if (this.Filters != null)
-            //{
-            //    for (int i = 0; i < this.Filters.Count; i++)
-            //    {
-            //        var filterColumn = this.Filters[i];
-
-            //        if (this.tableDescription.PrimaryKey.Columns.Any(c => c.ColumnName == filterColumn.ColumnName))
-            //            continue;
-
-            //        ObjectNameParser columnName = new ObjectNameParser(filterColumn.ColumnName);
-
-            //        stringBuilder.AppendLine($"\t,{columnName.QuotedString} = [d].{columnName.QuotedString}");
-
-            //    }
-            //    stringBuilder.AppendLine();
-            //}
 
             stringBuilder.Append($"WHERE ");
             stringBuilder.Append(SqliteManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, trackingName.Quoted().ToString(), "old"));
@@ -145,19 +123,8 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("BEGIN");
             stringBuilder.AppendLine("-- If row was deleted before, it already exists, so just make an update");
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"\tUPDATE {trackingName.Quoted().ToString()} ");
-            stringBuilder.AppendLine("\tSET [sync_row_is_tombstone] = 0 = NULL ");
-            stringBuilder.AppendLine($"\t\t,[update_scope_id] = NULL -- since the update if from local, it's a NULL");
-            stringBuilder.AppendLine($"\t\t,[update_timestamp] = {SqliteObjectNames.TimestampValue}");
-            stringBuilder.AppendLine($"\t\t,[timestamp] = {SqliteObjectNames.TimestampValue}");
-            stringBuilder.AppendLine($"\t\t,[last_change_datetime] = datetime('now')");
-            stringBuilder.Append($"\tWhere ");
-            stringBuilder.Append(SqliteManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, trackingName.Quoted().ToString(), "new"));
-            stringBuilder.AppendLine($"; ");
-            stringBuilder.AppendLine($"");
 
-            stringBuilder.AppendLine($"\tINSERT OR IGNORE INTO {trackingName.Quoted().ToString()} (");
+            stringBuilder.AppendLine($"\tINSERT OR REPLACE INTO {trackingName.Quoted().ToString()} (");
             foreach (var mutableColumn in this.tableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
             {
                 var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
@@ -170,10 +137,7 @@ namespace Dotmim.Sync.Sqlite
             }
 
             stringBuilder.Append(stringBuilderArguments.ToString());
-            stringBuilder.AppendLine("\t\t,[create_scope_id]");
-            stringBuilder.AppendLine("\t\t,[create_timestamp]");
             stringBuilder.AppendLine("\t\t,[update_scope_id]");
-            stringBuilder.AppendLine("\t\t,[update_timestamp]");
             stringBuilder.AppendLine("\t\t,[timestamp]");
             stringBuilder.AppendLine("\t\t,[sync_row_is_tombstone]");
             stringBuilder.AppendLine("\t\t,[last_change_datetime]");
@@ -182,9 +146,6 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine("\tVALUES (");
             stringBuilder.Append(stringBuilderArguments2.ToString());
             stringBuilder.AppendLine("\t\t,NULL");
-            stringBuilder.AppendLine($"\t\t,{SqliteObjectNames.TimestampValue}");
-            stringBuilder.AppendLine("\t\t,NULL");
-            stringBuilder.AppendLine("\t\t,0");
             stringBuilder.AppendLine($"\t\t,{SqliteObjectNames.TimestampValue}");
             stringBuilder.AppendLine("\t\t,0");
             stringBuilder.AppendLine("\t\t,datetime('now')");
@@ -258,8 +219,7 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($"Begin ");
             stringBuilder.AppendLine($"\tUPDATE {trackingName.Quoted().ToString()} ");
-            stringBuilder.AppendLine("\tSET [update_scope_id] = NULL -- since the update if from local, it's a NULL");
-            stringBuilder.AppendLine($"\t\t,[update_timestamp] = {SqliteObjectNames.TimestampValue}");
+            stringBuilder.AppendLine("\tSET [update_scope_id] = NULL -- scope id is always NULL when update is made locally");
             stringBuilder.AppendLine($"\t\t,[timestamp] = {SqliteObjectNames.TimestampValue}");
             stringBuilder.AppendLine("\t\t,[last_change_datetime] = datetime('now')");
 
@@ -394,7 +354,6 @@ namespace Dotmim.Sync.Sqlite
 
             }
         }
-
 
         public string CreateDropTriggerScriptText(DbCommandType triggerType)
         {

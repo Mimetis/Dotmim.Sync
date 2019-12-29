@@ -152,32 +152,10 @@ namespace Dotmim.Sync.Sqlite
             }
 
             // adding the tracking columns
-            stringBuilder.AppendLine($"[create_scope_id] [blob] NULL COLLATE NOCASE, ");
-            stringBuilder.AppendLine($"[update_scope_id] [blob] NULL COLLATE NOCASE, ");
-            stringBuilder.AppendLine($"[create_timestamp] [integer] NULL, ");
-            stringBuilder.AppendLine($"[update_timestamp] [integer] NULL, ");
+            stringBuilder.AppendLine($"[update_scope_id] [text] NULL COLLATE NOCASE, ");
             stringBuilder.AppendLine($"[timestamp] [integer] NULL, ");
             stringBuilder.AppendLine($"[sync_row_is_tombstone] [integer] NOT NULL default(0), ");
             stringBuilder.AppendLine($"[last_change_datetime] [datetime] NULL, ");
-
-            // adding the filter columns
-            // --------------------------------------------------------------------------------
-            // SQLITE doesnot support (yet) filtering columns, since it's only a client provider
-            // --------------------------------------------------------------------------------
-            //if (this.FilterColumns != null)
-            //    foreach (DmColumn filterColumn in this.FilterColumns)
-            //    {
-            //        var isPk = this.tableDescription.PrimaryKey.Columns.Any(dm => this.tableDescription.IsEqual(dm.ColumnName, filterColumn.ColumnName));
-            //        if (isPk)
-            //            continue;
-
-            //        var quotedColumnName = new ObjectNameParser(filterColumn.ColumnName, "[", "]").QuotedString;
-            //        var quotedColumnType = new ObjectNameParser(filterColumn.GetSqliteDbTypeString(), "[", "]").QuotedString;
-            //        quotedColumnType += filterColumn.GetSqliteTypePrecisionString();
-            //        var nullableColumn = filterColumn.AllowDBNull ? "NULL" : "NOT NULL";
-
-            //        stringBuilder.AppendLine($"{quotedColumnName} {quotedColumnType} {nullableColumn}, ");
-            //    }
 
             stringBuilder.Append(" PRIMARY KEY (");
             for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
@@ -264,42 +242,19 @@ namespace Dotmim.Sync.Sqlite
                 empty = ", ";
                 str = " AND ";
             }
-            StringBuilder stringBuilder5 = new StringBuilder();
-            StringBuilder stringBuilder6 = new StringBuilder();
-
-            // --------------------------------------------------------------------------------
-            // SQLITE doesnot support (yet) filtering columns, since it's only a client provider
-            // --------------------------------------------------------------------------------
-            //if (FilterColumns != null)
-            //    foreach (var filterColumn in this.FilterColumns)
-            //    {
-            //        var isPk = this.tableDescription.PrimaryKey.Columns.Any(dm => this.tableDescription.IsEqual(dm.ColumnName, filterColumn.ColumnName));
-            //        if (isPk)
-            //            continue;
-
-            //        var quotedColumnName = new ObjectNameParser(filterColumn.ColumnName, "[", "]").QuotedString;
-
-            //        stringBuilder6.Append(string.Concat(empty, quotedColumnName));
-            //        stringBuilder5.Append(string.Concat(empty, baseTable, ".", quotedColumnName));
-            //    }
-
+            var stringBuilder5 = new StringBuilder();
+            var stringBuilder6 = new StringBuilder();
             // (list of pkeys)
             stringBuilder.Append(string.Concat(stringBuilder1.ToString(), ", "));
 
-            stringBuilder.Append("[create_scope_id], ");
             stringBuilder.Append("[update_scope_id], ");
-            stringBuilder.Append("[create_timestamp], ");
-            stringBuilder.Append("[update_timestamp], ");
-            stringBuilder.Append("[timestamp], "); // timestamp is not a column we update, it's auto
+            stringBuilder.Append("[timestamp], ");
             stringBuilder.Append("[sync_row_is_tombstone] ");
             stringBuilder.AppendLine(string.Concat(stringBuilder6.ToString(), ") "));
             stringBuilder.Append(string.Concat("SELECT ", stringBuilder2.ToString(), ", "));
             stringBuilder.Append("NULL, ");
-            stringBuilder.Append("NULL, ");
             stringBuilder.Append($"{SqliteObjectNames.TimestampValue}, ");
-            stringBuilder.Append("0, ");
-            stringBuilder.Append($"{SqliteObjectNames.TimestampValue}, ");
-            stringBuilder.Append("0");
+            stringBuilder.Append("0 ");
             stringBuilder.AppendLine(string.Concat(stringBuilder5.ToString(), " "));
             string[] localName = new string[] { "FROM ", tableName.Quoted().ToString(), " ", baseTable, " LEFT OUTER JOIN ", trackingName.Quoted().ToString(), " ", sideTable, " " };
             stringBuilder.AppendLine(string.Concat(localName));

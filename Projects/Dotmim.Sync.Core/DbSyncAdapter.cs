@@ -247,12 +247,7 @@ namespace Dotmim.Sync
         public int ApplyBulkChanges(SyncTable changesTable, Guid applyingScopeId, long lastTimestamp, List<SyncConflict> conflicts)
         {
             DbCommand bulkCommand;
-            if (this.ApplyType == DataRowState.Added)
-            {
-                bulkCommand = this.GetCommand(DbCommandType.BulkInsertRows);
-                this.SetCommandParameters(DbCommandType.BulkInsertRows, bulkCommand);
-            }
-            else if (this.ApplyType == DataRowState.Modified)
+            if (this.ApplyType == DataRowState.Modified)
             {
                 bulkCommand = this.GetCommand(DbCommandType.BulkUpdateRows);
                 this.SetCommandParameters(DbCommandType.BulkUpdateRows, bulkCommand);
@@ -328,9 +323,7 @@ namespace Dotmim.Sync
             // Can't find the row on the server datastore
             if (localConflictRow == null)
             {
-                if (ApplyType == DataRowState.Added)
-                    dbConflictType = ConflictType.RemoteInsertLocalNoRow;
-                else if (ApplyType == DataRowState.Modified)
+                if (ApplyType == DataRowState.Modified)
                     dbConflictType = ConflictType.RemoteUpdateLocalNoRow;
                 else if (ApplyType == DataRowState.Deleted)
                     dbConflictType = ConflictType.RemoteDeleteLocalNoRow;
@@ -340,9 +333,7 @@ namespace Dotmim.Sync
                 // the row on local is deleted
                 if (localConflictRow.RowState == DataRowState.Deleted)
                 {
-                    if (ApplyType == DataRowState.Added)
-                        dbConflictType = ConflictType.RemoteInsertLocalDelete;
-                    else if (ApplyType == DataRowState.Modified)
+                    if (ApplyType == DataRowState.Modified)
                         dbConflictType = ConflictType.RemoteUpdateLocalDelete;
                     else if (ApplyType == DataRowState.Deleted)
                         dbConflictType = ConflictType.RemoteDeleteLocalDelete;
@@ -350,19 +341,6 @@ namespace Dotmim.Sync
                 else
                 {
                     dbConflictType = ConflictType.RemoteUpdateLocalUpdate;
-                    //switch (ApplyType)
-                    //{
-
-                    //    case DataRowState.Added:
-                    //        dbConflictType = updateTimestamp == 0 ? ConflictType.RemoteInsertLocalInsert : ConflictType.RemoteInsertLocalUpdate;
-                    //        break;
-                    //    case DataRowState.Modified:
-                    //        dbConflictType = updateTimestamp == 0 ? ConflictType.RemoteUpdateLocalInsert : ConflictType.RemoteUpdateLocalUpdate;
-                    //        break;
-                    //    case DataRowState.Deleted:
-                    //        dbConflictType = updateTimestamp == 0 ? ConflictType.RemoteDeleteLocalInsert : ConflictType.RemoteDeleteLocalUpdate;
-                    //        break;
-                    //}
                 }
             }
             // Generate the conflict
@@ -372,10 +350,7 @@ namespace Dotmim.Sync
             if (localConflictRow != null)
                 conflict.AddLocalRow(localConflictRow);
 
-
             return conflict;
-
-
         }
 
         private void UpdateMetadatas(DbCommandType dbCommandType, SyncRow row, Guid applyingScopeId, long lastTimestamp)
@@ -403,15 +378,7 @@ namespace Dotmim.Sync
 
                 try
                 {
-                    if (ApplyType == DataRowState.Added)
-                    {
-                        operationComplete = this.ApplyInsert(row, applyingScopeId, lastTimestamp, false);
-                        if (operationComplete)
-                        {
-                            UpdateMetadatas(DbCommandType.InsertMetadata, row, applyingScopeId, lastTimestamp);
-                        }
-                    }
-                    else if (ApplyType == DataRowState.Modified)
+                    if (ApplyType == DataRowState.Modified)
                     {
                         operationComplete = this.ApplyUpdate(row, applyingScopeId, lastTimestamp, false);
                         if (operationComplete)
@@ -466,53 +433,6 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Apply a single insert in the current data source
-        /// </summary>
-        internal bool ApplyInsert(SyncRow row, Guid applyingScopeId, long lastTimestamp, bool forceWrite)
-        {
-            if (row.Table == null)
-                throw new ArgumentException("Schema table is not present in the row");
-
-            using (var command = this.GetCommand(DbCommandType.InsertRow))
-            {
-
-                // Deriving Parameters
-                this.SetCommandParameters(DbCommandType.InsertRow, command);
-
-                // Set the parameters value from row
-                this.SetColumnParametersValues(command, row);
-
-                // Set the special parameters for insert
-                AddScopeParametersValues(command, applyingScopeId, lastTimestamp, false, forceWrite);
-
-                var alreadyOpened = Connection.State == ConnectionState.Open;
-
-                // Open Connection
-                if (!alreadyOpened)
-                    Connection.Open();
-
-                int rowInsertedCount = 0;
-                try
-                {
-                    if (Transaction != null)
-                        command.Transaction = Transaction;
-
-                    rowInsertedCount = command.ExecuteNonQuery();
-                }
-
-                finally
-                {
-                    // Open Connection
-                    if (!alreadyOpened)
-                        Connection.Close();
-
-                }
-
-                return rowInsertedCount > 0;
-            }
-        }
-
-        /// <summary>
         /// Apply a delete on a row
         /// </summary>
         internal bool ApplyDelete(SyncRow row, Guid applyingScopeId, long lastTimestamp, bool forceWrite)
@@ -563,12 +483,6 @@ namespace Dotmim.Sync
         {
             if (row.Table == null)
                 throw new ArgumentException("Schema table is not present in the row");
-
-
-            bool hasUpdatableColumns = row.Table.GetMutableColumns(false).Any(c => c.ColumnName.ToLowerInvariant() != "create_timestamp" && c.ColumnName.ToLowerInvariant() != "update_timestamp" && c.ColumnName.ToLowerInvariant() != "create_scope_id" && c.ColumnName.ToLowerInvariant() != "update_scope_id");
-
-            if (!hasUpdatableColumns)
-                return false;
 
             using (var command = this.GetCommand(DbCommandType.UpdateRow))
             {
@@ -732,9 +646,6 @@ namespace Dotmim.Sync
                 changesTable.Columns.Add(c.Clone());
 
             owner.Tables.Add(changesTable);
-
-            if (changesTable.Columns["update_scope_id"] == null)
-                changesTable.Columns.Add("update_scope_id", typeof(Guid));
 
             return changesTable;
         }
