@@ -50,7 +50,7 @@ namespace Dotmim.Sync
         /// Ensure scopes are created on both local and remote 
         /// If clientReferenceId is specified, we are on the server side and we need the client reference scope (with server timestamp)
         /// </summary>
-        Task<(SyncContext, List<ScopeInfo>)> EnsureScopesAsync(SyncContext context, MessageEnsureScopes messsage);
+        Task<(SyncContext, List<ScopeInfo>)> EnsureScopesAsync(SyncContext context, MessageEnsureScopes message);
 
         /// <summary>
         /// Ensure tables are get from datastore
