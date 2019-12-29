@@ -35,13 +35,13 @@ namespace Dotmim.Sync.Tests.MySql
                 // 1) Add database name
                 providerFixture.AddDatabaseName("mysqladventureworks");
                 // 2) Add tables
-                providerFixture.AddTables(mySqlTables, 109);
+                providerFixture.AddTables(mySqlTables, 2109);
                 // 3) Options
-                // providerFixture.DeleteAllDatabasesOnDispose = false;
+                providerFixture.DeleteAllDatabasesOnDispose = false;
 
                 if (!Setup.IsOnAzureDev)
                 {
-                    providerFixture.AddRun(NetworkType.Tcp, ProviderType.MySql);
+                    providerFixture.AddRun(NetworkType.Http, ProviderType.Sqlite);
                 }
                 else
                 {
