@@ -219,7 +219,7 @@ namespace Dotmim.Sync
                         {
                             var row = CreateSyncRowFromReader(dataReader, changesTable, excludingScopeId, isNew, lastTimestamp);
 
-                            if (row.RowState != DataRowState.Deleted && row.RowState != DataRowState.Modified && row.RowState != DataRowState.Added)
+                            if (row.RowState != DataRowState.Deleted && row.RowState != DataRowState.Modified)
                                 continue;
 
                             tableSelectedChanges.TotalChanges++;
@@ -227,10 +227,8 @@ namespace Dotmim.Sync
                             // Set the correct state to be applied
                             if (row.RowState == DataRowState.Deleted)
                                 tableSelectedChanges.Deletes++;
-                            else if (row.RowState == DataRowState.Added)
-                                tableSelectedChanges.Inserts++;
                             else if (row.RowState == DataRowState.Modified)
-                                tableSelectedChanges.Updates++;
+                                tableSelectedChanges.Upserts++;
 
                             changesTable.Rows.Add(row);
                         }
@@ -241,7 +239,7 @@ namespace Dotmim.Sync
 
                     selectIncrementalChangesCommand.Dispose();
                     // add the stats to global stats
-                    if (tableSelectedChanges.Deletes > 0 || tableSelectedChanges.Inserts > 0 || tableSelectedChanges.Updates > 0)
+                    if (tableSelectedChanges.Deletes > 0 || tableSelectedChanges.Upserts > 0)
                         changes.TableChangesSelected.Add(tableSelectedChanges);
 
                     // Progress & Interceptor
@@ -423,7 +421,7 @@ namespace Dotmim.Sync
                             {
                                 var row = CreateSyncRowFromReader(dataReader, changesSetTable, excludingScopeId, isNew, lastTimestamp);
 
-                                if (row.RowState != DataRowState.Deleted && row.RowState != DataRowState.Modified && row.RowState != DataRowState.Added)
+                                if (row.RowState != DataRowState.Deleted && row.RowState != DataRowState.Modified)
                                     continue;
 
                                 var fieldsSize = ContainerTable.GetRowSizeFromDataRow(row.ToArray());
@@ -443,10 +441,8 @@ namespace Dotmim.Sync
                                 // Set the correct state to be applied
                                 if (row.RowState == DataRowState.Deleted)
                                     tableChangesSelected.Deletes++;
-                                else if (row.RowState == DataRowState.Added)
-                                    tableChangesSelected.Inserts++;
                                 else if (row.RowState == DataRowState.Modified)
-                                    tableChangesSelected.Updates++;
+                                    tableChangesSelected.Upserts++;
 
                                 // Create an ordered item array
                                 changesSetTable.Rows.Add(row);
@@ -488,7 +484,7 @@ namespace Dotmim.Sync
                             // close reader to be able to use connection in interceptor 
                             dataReader.Close();
 
-                            if (tableChangesSelected.Deletes > 0 || tableChangesSelected.Inserts > 0 || tableChangesSelected.Updates > 0)
+                            if (tableChangesSelected.Deletes > 0 || tableChangesSelected.Upserts > 0)
                                 changes.TableChangesSelected.Add(tableChangesSelected);
 
                             // Event progress & interceptor
@@ -549,6 +545,8 @@ namespace Dotmim.Sync
                     isTombstone = Convert.ToInt64(dataReader.GetValue(i)) > 0;
                     continue;
                 }
+                if (columnName == "update_scope_id")
+                    continue;
 
                 var columnValueObject = dataReader.GetValue(i);
                 var columnValue = columnValueObject == DBNull.Value ? null : columnValueObject;
@@ -557,84 +555,9 @@ namespace Dotmim.Sync
 
             }
 
-            // Check Row State
-            if (isTombstone)
-                row.RowState = DataRowState.Deleted;
-            else
-                row.RowState = DataRowState.Modified;
+            row.RowState = isTombstone ? DataRowState.Deleted : DataRowState.Modified;
 
             return row;
-
-
-            //DataRowState dataRowState;
-            //if (isTombstone)
-            //{
-            //    row.RowState = DataRowState.Deleted;
-            //}
-            //else
-            //{
-            //    var createdTimeStamp = DbManager.ParseTimestamp(row["create_timestamp"]);
-            //    var updatedTimeStamp = DbManager.ParseTimestamp(row["update_timestamp"]);
-            //    var updateScopeIdRow = row["update_scope_id"];
-            //    var createScopeIdRow = row["create_scope_id"];
-
-            //    Guid? updateScopeId;
-            //    if (updateScopeIdRow != DBNull.Value && updateScopeIdRow != null)
-            //    {
-            //        if (SyncTypeConverter.TryConvertTo<Guid>(updateScopeIdRow, out var res))
-            //            updateScopeId = (Guid)res;
-            //        else
-            //            throw new Exception($"Can't convert value {updateScopeIdRow} to Guid");
-            //    }
-            //    else
-            //    {
-            //        updateScopeId = null;
-            //    }
-
-
-            //    Guid? createScopeId;
-            //    if (createScopeIdRow != DBNull.Value && createScopeIdRow != null)
-            //    {
-            //        if (SyncTypeConverter.TryConvertTo<Guid>(createScopeIdRow, out var res))
-            //            createScopeId = (Guid)res;
-            //        else
-            //            throw new Exception($"Can't convert value {createScopeIdRow} to Guid");
-            //    }
-            //    else
-            //    {
-            //        createScopeId = null;
-            //    }
-
-            //    var isLocallyCreated = !createScopeId.HasValue;
-            //    var islocallyUpdated = !updateScopeId.HasValue || updateScopeId.Value != excludingScopeId;
-
-            //    // Check if a row is modified :
-            //    // 1) Row is not new
-            //    // 2) Row update is AFTER last sync of asker
-            //    // 3) Row insert is BEFORE last sync of asker (if insert is after last sync, it's not an update, it's an insert)
-            //    if (!isNew && islocallyUpdated && updatedTimeStamp > lastTimestamp && (createdTimeStamp <= lastTimestamp || !isLocallyCreated))
-            //        dataRowState = DataRowState.Modified;
-            //    else if (isNew || (isLocallyCreated && createdTimeStamp >= lastTimestamp))
-            //        dataRowState = DataRowState.Added;
-            //    // The line has been updated from an other host
-            //    else if (islocallyUpdated && updateScopeId.HasValue && updateScopeId.Value != excludingScopeId)
-            //        dataRowState = DataRowState.Modified;
-            //    else
-            //    {
-            //        dataRowState = DataRowState.Unchanged;
-            //        Debug.WriteLine($"Row is in Unchanegd state. " +
-            //            $"\tscopeInfo.Id:{excludingScopeId}, scopeInfo.IsNewScope :{isNew}, scopeInfo.LastTimestamp:{lastTimestamp}" +
-            //            $"\tcreateScopeId:{createScopeId}, updateScopeId:{updateScopeId}, createdTimeStamp:{createdTimeStamp}, updatedTimeStamp:{updatedTimeStamp}.");
-            //    }
-
-            //    row.RowState = dataRowState;
-            //}
-
-
-
         }
-
-
-
     }
 }

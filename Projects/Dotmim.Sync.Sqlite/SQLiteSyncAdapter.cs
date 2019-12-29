@@ -87,12 +87,6 @@ namespace Dotmim.Sync.Sqlite
                 case DbCommandType.DeleteRow:
                     this.SetDeleteRowParameters(command);
                     break;
-                case DbCommandType.InsertMetadata:
-                    this.SetInsertMetadataParameters(command);
-                    break;
-                case DbCommandType.InsertRow:
-                    this.SetInsertRowParameters(command);
-                    break;
                 case DbCommandType.UpdateMetadata:
                     this.SetUpdateMetadataParameters(command);
                     break;
@@ -164,7 +158,7 @@ namespace Dotmim.Sync.Sqlite
             }
 
             p = command.CreateParameter();
-            p.ParameterName = "@update_scope_id";
+            p.ParameterName = "@sync_scope_id";
             p.DbType = DbType.Guid;
             command.Parameters.Add(p);
 
@@ -215,7 +209,7 @@ namespace Dotmim.Sync.Sqlite
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
-            p.ParameterName = "@update_scope_id";
+            p.ParameterName = "@sync_scope_id";
             p.DbType = DbType.Guid;
             command.Parameters.Add(p);
 

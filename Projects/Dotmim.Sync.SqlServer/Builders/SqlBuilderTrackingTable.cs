@@ -74,7 +74,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.AppendLine($"CREATE NONCLUSTERED INDEX [{trackingName.Schema().Unquoted().Normalized().ToString()}_timestamp_index] ON {trackingName.Schema().Quoted().ToString()} (");
-            stringBuilder.AppendLine($"\t[update_timestamp] ASC");
+            stringBuilder.AppendLine($"\t [timestamp_bigint] ASC");
             stringBuilder.AppendLine($"\t,[update_scope_id] ASC");
             stringBuilder.AppendLine($"\t,[sync_row_is_tombstone] ASC");
             // Filter columns
@@ -276,11 +276,9 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
 
             // adding the tracking columns
-            stringBuilder.AppendLine($"[create_scope_id] [uniqueidentifier] NULL, ");
             stringBuilder.AppendLine($"[update_scope_id] [uniqueidentifier] NULL, ");
-            stringBuilder.AppendLine($"[create_timestamp] [bigint] NULL, ");
-            stringBuilder.AppendLine($"[update_timestamp] [bigint] NULL, ");
             stringBuilder.AppendLine($"[timestamp] [timestamp] NULL, ");
+            stringBuilder.AppendLine($"[timestamp_bigint] AS (CONVERT([bigint],[timestamp])) PERSISTED, ");
             stringBuilder.AppendLine($"[sync_row_is_tombstone] [bit] NOT NULL default(0), ");
             stringBuilder.AppendLine($"[last_change_datetime] [datetime] NULL, ");
 
@@ -399,18 +397,12 @@ namespace Dotmim.Sync.SqlServer.Builders
             // (list of pkeys)
             stringBuilder.Append(string.Concat(stringBuilder1.ToString(), ", "));
 
-            stringBuilder.Append("[create_scope_id], ");
             stringBuilder.Append("[update_scope_id], ");
-            stringBuilder.Append("[create_timestamp], ");
-            stringBuilder.Append("[update_timestamp], ");
             //stringBuilder.Append("[timestamp], "); // timestamp is not a column we update, it's auto
             stringBuilder.Append("[sync_row_is_tombstone] ");
             stringBuilder.AppendLine(string.Concat(stringBuilder6.ToString(), ") "));
             stringBuilder.Append(string.Concat("SELECT ", stringBuilder2.ToString(), ", "));
             stringBuilder.Append("NULL, ");
-            stringBuilder.Append("NULL, ");
-            stringBuilder.Append("@@DBTS-1, ");
-            stringBuilder.Append("0, ");
             //stringBuilder.Append("@@DBTS+1, "); // timestamp is not a column we update, it's auto
             stringBuilder.Append("0");
             stringBuilder.AppendLine(string.Concat(stringBuilder5.ToString(), " "));

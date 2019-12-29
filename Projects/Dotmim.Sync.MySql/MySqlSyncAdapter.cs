@@ -99,12 +99,6 @@ namespace Dotmim.Sync.MySql
                 case DbCommandType.DeleteRow:
                     this.SetDeleteRowParameters(command);
                     break;
-                case DbCommandType.InsertMetadata:
-                    this.SetInsertMetadataParameters(command);
-                    break;
-                case DbCommandType.InsertRow:
-                    this.SetInsertRowParameters(command);
-                    break;
                 case DbCommandType.UpdateMetadata:
                     this.SetUpdateMetadataParameters(command);
                     break;

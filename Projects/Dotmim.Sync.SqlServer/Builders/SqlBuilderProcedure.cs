@@ -159,6 +159,41 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         }
 
+
+        private void CreateProcedureCommand<T>(Func<T, SqlCommand> BuildCommand, string procName, T t)
+        {
+
+            bool alreadyOpened = connection.State == ConnectionState.Open;
+
+            try
+            {
+                if (!alreadyOpened)
+                    connection.Open();
+
+                var str = CreateProcedureCommandText(BuildCommand(t), procName);
+                using (var command = new SqlCommand(str, connection))
+                {
+                    if (transaction != null)
+                        command.Transaction = transaction;
+
+                    command.ExecuteNonQuery();
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error during CreateProcedureCommand : {ex}");
+                throw;
+            }
+            finally
+            {
+                if (!alreadyOpened && connection.State != ConnectionState.Closed)
+                    connection.Close();
+
+            }
+
+        }
+
+
         private string CreateProcedureCommandScriptText(Func<SqlCommand> BuildCommand, string procName)
         {
 
@@ -184,6 +219,33 @@ namespace Dotmim.Sync.SqlServer.Builders
                     connection.Close();
             }
         }
+
+        private string CreateProcedureCommandScriptText<T>(Func<T, SqlCommand> BuildCommand, string procName, T t)
+        {
+
+            bool alreadyOpened = connection.State == ConnectionState.Open;
+
+            try
+            {
+                if (!alreadyOpened)
+                    connection.Open();
+
+                var str1 = $"Command {procName} for table {tableName.Schema().Quoted().ToString()}";
+                var str = CreateProcedureCommandText(BuildCommand(t), procName);
+                return SqlBuilder.WrapScriptTextWithComments(str, str1);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error during CreateProcedureCommand : {ex}");
+                throw;
+            }
+            finally
+            {
+                if (!alreadyOpened && connection.State != ConnectionState.Closed)
+                    connection.Close();
+            }
+        }
+
 
         /// <summary>
         /// Check if we need to create the stored procedure
@@ -215,7 +277,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         private string BulkSelectUnsuccessfulRows()
         {
             var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine("--Select all ids not deleted for conflict");
+            stringBuilder.AppendLine("--Select all ids not inserted / deleted / updated as conflict");
             stringBuilder.Append("SELECT ");
             for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
             {
@@ -264,24 +326,25 @@ namespace Dotmim.Sync.SqlServer.Builders
         //------------------------------------------------------------------
         private SqlCommand BuildBulkDeleteCommand()
         {
-            SqlCommand sqlCommand = new SqlCommand();
+            var sqlCommand = new SqlCommand();
 
-            SqlParameter sqlParameter = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt);
+            var sqlParameter = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt);
             sqlCommand.Parameters.Add(sqlParameter);
-            SqlParameter sqlParameter1 = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
+            var sqlParameter1 = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
             sqlCommand.Parameters.Add(sqlParameter1);
-            SqlParameter sqlParameter2 = new SqlParameter("@changeTable", SqlDbType.Structured)
+            var sqlParameter2 = new SqlParameter("@changeTable", SqlDbType.Structured)
             {
                 TypeName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkTableType).name
             };
             sqlCommand.Parameters.Add(sqlParameter2);
 
 
-            string str4 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "p", "t");
-            string str5 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "changes", "base");
-            string str6 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "changes", "side");
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine("-- use a temp table to store the list of PKs that successfully got updated/inserted");
+            string str4 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[p]", "[t]");
+            string str5 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[changes]", "[base]");
+            string str6 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[t]", "[side]");
+
+            var stringBuilder = new StringBuilder();
+            stringBuilder.AppendLine("-- use a temp table to store the list of PKs that successfully got deleted");
             stringBuilder.Append("declare @changed TABLE (");
             foreach (var c in this.tableDescription.GetPrimaryKeysColumns())
             {
@@ -331,43 +394,26 @@ namespace Dotmim.Sync.SqlServer.Builders
                 stringBuilder.Append($"{str}[p].{columnName}");
                 str = ", ";
             }
-            stringBuilder.AppendLine("\t, [p].[create_timestamp], [p].[update_timestamp]");
             stringBuilder.AppendLine("\t, [t].[update_scope_id], [t].[timestamp]");
-
             stringBuilder.AppendLine($"\tFROM @changeTable p ");
-
-
-            //stringBuilder.AppendLine($"\tSELECT p.*, t.update_scope_id, t.timestamp");
-            //stringBuilder.AppendLine($"\tFROM @changeTable p ");
             stringBuilder.AppendLine($"\tJOIN {trackingName.Schema().Quoted().ToString()} t ON ");
             stringBuilder.AppendLine($"\t{str4}");
             stringBuilder.AppendLine("\t)");
-            stringBuilder.AppendLine("\tAS changes ON ");
+            stringBuilder.AppendLine("\tAS [changes] ON ");
             stringBuilder.AppendLine(str5);
             stringBuilder.AppendLine("WHERE");
-            stringBuilder.AppendLine("-- Last changes was not made locally, so we can delete it since we are local db did not touch it");
-            stringBuilder.AppendLine("changes.update_scope_id is not null");
-            stringBuilder.AppendLine("-- no change since the last time the current scope has sync (so no one has update the row)");
+            stringBuilder.AppendLine("-- Last changes was not made locally (update_scope_id is not null means update was made by a remote db)");
+            stringBuilder.AppendLine("changes.update_scope_id IS NOT NULL");
+            stringBuilder.AppendLine("-- no change since the last sync time");
             stringBuilder.AppendLine("OR [changes].[timestamp] <= @sync_min_timestamp;");
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("-- Since the delete trigger is passed, we update the tracking table to reflect the real scope deleter");
             stringBuilder.AppendLine("UPDATE [side] SET");
             stringBuilder.AppendLine("\tsync_row_is_tombstone = 1, ");
             stringBuilder.AppendLine("\tupdate_scope_id = @sync_scope_id,");
-            stringBuilder.AppendLine("\tupdate_timestamp = [changes].update_timestamp");
-            stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()} side");
-            stringBuilder.AppendLine("JOIN (");
-            stringBuilder.Append("\tSELECT ");
-            for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
-            {
-                var cc = ParserName.Parse(this.tableDescription.PrimaryKeys[i]).Quoted().ToString();
-                stringBuilder.Append($"p.{cc}, ");
-            }
-            stringBuilder.AppendLine(" p.update_timestamp, p.create_timestamp ");
-            stringBuilder.AppendLine("\tFROM @changed t JOIN @changeTable p ON ");
-            stringBuilder.AppendLine($"\t{str4}");
-            stringBuilder.Append("\t) AS changes ON ");
-            stringBuilder.Append(str6);
+            stringBuilder.AppendLine("\tlast_change_datetime = GETUTCDATE()");
+            stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()} [side]");
+            stringBuilder.AppendLine($"JOIN @changed [t] on {str6}");
             stringBuilder.AppendLine();
             stringBuilder.AppendLine();
             stringBuilder.Append(BulkSelectUnsuccessfulRows());
@@ -431,231 +477,31 @@ namespace Dotmim.Sync.SqlServer.Builders
             return $"DROP PROCEDURE {commandName};";
         }
 
-
-        //------------------------------------------------------------------
-        // Bulk Insert command
-        //------------------------------------------------------------------
-        private SqlCommand BuildBulkInsertCommand()
-        {
-            SqlCommand sqlCommand = new SqlCommand();
-
-            SqlParameter sqlParameter = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt);
-            sqlCommand.Parameters.Add(sqlParameter);
-            SqlParameter sqlParameter1 = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
-            sqlCommand.Parameters.Add(sqlParameter1);
-            SqlParameter sqlParameter2 = new SqlParameter("@changeTable", SqlDbType.Structured)
-            {
-                TypeName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkTableType).name
-            };
-            sqlCommand.Parameters.Add(sqlParameter2);
-
-
-            string str4 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[p]", "[t]");
-            string str5 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[changes]", "[base]");
-            string str6 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[changes]", "[side]");
-
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine("-- use a temp table to store the list of PKs that successfully got updated/inserted");
-            stringBuilder.Append("declare @changed TABLE (");
-            foreach (var c in this.tableDescription.GetPrimaryKeysColumns())
-            {
-                var cc = ParserName.Parse(c).Quoted().ToString();
-
-                // Get the good SqlDbType (even if we are not from Sql Server def)
-                var sqlDbTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(c.OriginalDbType, c.GetDbType(), false, false, c.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-                var quotedColumnType = ParserName.Parse(sqlDbTypeString).Quoted().ToString();
-                quotedColumnType += this.sqlDbMetadata.TryGetOwnerDbTypePrecision(c.OriginalDbType, c.GetDbType(), false, false, c.MaxLength, c.Precision, c.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-
-                stringBuilder.Append($"{cc} {quotedColumnType}, ");
-            }
-            stringBuilder.Append(" PRIMARY KEY (");
-            for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
-            {
-                var cc = ParserName.Parse(this.tableDescription.PrimaryKeys[i]).Quoted().ToString();
-                stringBuilder.Append($"{cc}");
-                if (i < this.tableDescription.PrimaryKeys.Count - 1)
-                    stringBuilder.Append(", ");
-            }
-            stringBuilder.AppendLine("));");
-            stringBuilder.AppendLine();
-
-            // Check if we have auto inc column
-            if (this.tableDescription.HasAutoIncrementColumns)
-            {
-                stringBuilder.AppendLine();
-                stringBuilder.AppendLine($"SET IDENTITY_INSERT {tableName.Schema().Quoted().ToString()} ON;");
-                stringBuilder.AppendLine();
-            }
-
-            stringBuilder.AppendLine("-- update/insert into the base table");
-            stringBuilder.AppendLine($"MERGE {tableName.Schema().Quoted().ToString()} AS base USING");
-            stringBuilder.AppendLine("\t-- join done here against the side table to get the local timestamp for concurrency check\n");
-
-
-            //   stringBuilder.AppendLine("\t(SELECT p.*, t.timestamp FROM @changeTable p ");
-
-            stringBuilder.AppendLine($"\t(SELECT ");
-            string str = "";
-            stringBuilder.Append("\t");
-            foreach (var c in this.tableDescription.Columns.Where(col => !col.IsReadOnly))
-            {
-                var columnName = ParserName.Parse(c).Quoted().ToString();
-                stringBuilder.Append($"{str}[p].{columnName}");
-                str = ", ";
-            }
-            stringBuilder.AppendLine("\t, [p].[create_timestamp], [p].[update_timestamp]");
-            stringBuilder.AppendLine("\t, [t].[update_scope_id], [t].[timestamp]");
-
-            stringBuilder.AppendLine($"\tFROM @changeTable p ");
-
-
-            stringBuilder.Append($"\tLEFT JOIN {trackingName.Schema().Quoted().ToString()} t ON ");
-            stringBuilder.AppendLine($"\t{str4}");
-            stringBuilder.AppendLine($"\t) AS changes ON {str5}");
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine("-- Si la ligne n'existe pas en local et qu'elle a été créé avant le timestamp de référence");
-            stringBuilder.Append("WHEN NOT MATCHED BY TARGET AND (changes.[timestamp] <= @sync_min_timestamp OR changes.[timestamp] IS NULL) THEN");
-
-            StringBuilder stringBuilderArguments = new StringBuilder();
-            StringBuilder stringBuilderParameters = new StringBuilder();
-
-            string empty = string.Empty;
-            foreach (var mutableColumn in this.tableDescription.Columns.Where(c => !c.IsReadOnly))
-            {
-                var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
-
-                stringBuilderArguments.Append(string.Concat(empty, columnName));
-                stringBuilderParameters.Append(string.Concat(empty, $"changes.{columnName}"));
-                empty = ", ";
-            }
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"\tINSERT");
-            stringBuilder.AppendLine($"\t({stringBuilderArguments.ToString()})");
-            stringBuilder.AppendLine($"\tVALUES ({stringBuilderParameters.ToString()})");
-            stringBuilder.Append($"\tOUTPUT ");
-            for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
-            {
-                var columnName = ParserName.Parse(this.tableDescription.PrimaryKeys[i]).Quoted().ToString();
-
-                stringBuilder.Append($"INSERTED.{columnName}");
-                if (i < this.tableDescription.PrimaryKeys.Count - 1)
-                    stringBuilder.Append(", ");
-                else
-                    stringBuilder.AppendLine();
-            }
-            stringBuilder.AppendLine($"\tINTO @changed; -- populates the temp table with successful PKs");
-            stringBuilder.AppendLine();
-
-            if (this.tableDescription.HasAutoIncrementColumns)
-            {
-                stringBuilder.AppendLine();
-                stringBuilder.AppendLine($"SET IDENTITY_INSERT {tableName.Schema().Quoted().ToString()} OFF;");
-                stringBuilder.AppendLine();
-            }
-
-            stringBuilder.AppendLine("-- Since the insert trigger is passed, we update the tracking table to reflect the real scope inserter");
-            stringBuilder.AppendLine("UPDATE side SET");
-            stringBuilder.AppendLine("\tupdate_scope_id = @sync_scope_id,");
-            stringBuilder.AppendLine("\tcreate_scope_id = @sync_scope_id,");
-            stringBuilder.AppendLine("\tupdate_timestamp = changes.update_timestamp,");
-            stringBuilder.AppendLine("\tcreate_timestamp = changes.create_timestamp");
-            stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()} side");
-            stringBuilder.AppendLine("JOIN (");
-            stringBuilder.Append("\tSELECT ");
-            for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
-            {
-                var columnName = ParserName.Parse(this.tableDescription.PrimaryKeys[i]).Quoted().ToString();
-                stringBuilder.Append($"p.{columnName}, ");
-            }
-
-            stringBuilder.AppendLine(" p.update_timestamp, p.create_timestamp ");
-            stringBuilder.AppendLine("\tFROM @changed t");
-            stringBuilder.AppendLine("\tJOIN @changeTable p ON ");
-            stringBuilder.Append(str4);
-            stringBuilder.AppendLine(") AS [changes] ON ");
-            stringBuilder.AppendLine(str6);
-            stringBuilder.Append(BulkSelectUnsuccessfulRows());
-
-
-            sqlCommand.CommandText = stringBuilder.ToString();
-            return sqlCommand;
-        }
-        public void CreateBulkInsert()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkInsertRows).name;
-            CreateProcedureCommand(BuildBulkInsertCommand, commandName);
-        }
-        public string CreateBulkInsertScriptText()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkInsertRows).name;
-            return CreateProcedureCommandScriptText(BuildBulkInsertCommand, commandName);
-        }
-        public void DropBulkInsert()
-        {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
-
-            try
-            {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        this.connection.Open();
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkInsertRows).name;
-
-                    command.CommandText = $"DROP PROCEDURE {commandName};";
-                    command.Connection = this.connection;
-                    command.ExecuteNonQuery();
-
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during DropBulkDelete : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
-        }
-        public string DropBulkInsertScriptText()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkInsertRows).name;
-
-            return $"DROP PROCEDURE {commandName};";
-        }
-
         //------------------------------------------------------------------
         // Bulk Update command
         //------------------------------------------------------------------
-        private SqlCommand BuildBulkUpdateCommand()
+        private SqlCommand BuildBulkUpdateCommand(bool hasMutableColumns)
         {
-            SqlCommand sqlCommand = new SqlCommand();
+            var sqlCommand = new SqlCommand();
+            var stringBuilderArguments = new StringBuilder();
+            var stringBuilderParameters = new StringBuilder();
+            string empty = string.Empty;
 
-            SqlParameter sqlParameter = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt);
+            var sqlParameter = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt);
             sqlCommand.Parameters.Add(sqlParameter);
-            SqlParameter sqlParameter1 = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
+            var sqlParameter1 = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
             sqlCommand.Parameters.Add(sqlParameter1);
-            SqlParameter sqlParameter2 = new SqlParameter("@changeTable", SqlDbType.Structured)
+            var sqlParameter2 = new SqlParameter("@changeTable", SqlDbType.Structured)
             {
                 TypeName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkTableType).name
             };
             sqlCommand.Parameters.Add(sqlParameter2);
 
-
             string str4 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[p]", "[t]");
             string str5 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[changes]", "[base]");
-            string str6 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[changes]", "[side]");
+            string str6 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[t]", "[side]");
 
-            StringBuilder stringBuilder = new StringBuilder();
+            var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine("-- use a temp table to store the list of PKs that successfully got updated/inserted");
             stringBuilder.Append("declare @changed TABLE (");
             foreach (var c in this.tableDescription.GetPrimaryKeysColumns())
@@ -680,12 +526,17 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("));");
             stringBuilder.AppendLine();
 
+            // Check if we have auto inc column
+            if (this.tableDescription.HasAutoIncrementColumns)
+            {
+                stringBuilder.AppendLine();
+                stringBuilder.AppendLine($"SET IDENTITY_INSERT {tableName.Schema().Quoted().ToString()} ON;");
+                stringBuilder.AppendLine();
+            }
 
             stringBuilder.AppendLine("-- update the base table");
             stringBuilder.AppendLine($"MERGE {tableName.Schema().Quoted().ToString()} AS base USING");
             stringBuilder.AppendLine("\t-- join done here against the side table to get the local timestamp for concurrency check\n");
-
-            //stringBuilder.AppendLine("\t(SELECT p.*, t.update_scope_id, t.timestamp FROM @changeTable p ");
 
             stringBuilder.AppendLine($"\t(SELECT ");
             string str = "";
@@ -696,38 +547,55 @@ namespace Dotmim.Sync.SqlServer.Builders
                 stringBuilder.Append($"{str}[p].{columnName}");
                 str = ", ";
             }
-            stringBuilder.AppendLine("\t, [p].[create_timestamp], [p].[update_timestamp]");
             stringBuilder.AppendLine("\t, [t].[update_scope_id], [t].[timestamp]");
-
             stringBuilder.AppendLine($"\tFROM @changeTable p ");
             stringBuilder.Append($"\tLEFT JOIN {trackingName.Schema().Quoted().ToString()} t ON ");
             stringBuilder.AppendLine($" {str4}");
             stringBuilder.AppendLine($"\t) AS changes ON {str5}");
             stringBuilder.AppendLine();
+            if (hasMutableColumns)
+            {
+                stringBuilder.AppendLine("WHEN MATCHED AND ([changes].[update_scope_id] IS NOT NULL OR [changes].[timestamp] <= @sync_min_timestamp) THEN");
+                foreach (var mutableColumn in this.tableDescription.Columns.Where(c => !c.IsReadOnly))
+                {
+                    var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+                    stringBuilderArguments.Append(string.Concat(empty, columnName));
+                    stringBuilderParameters.Append(string.Concat(empty, $"changes.{columnName}"));
+                    empty = ", ";
+                }
+                stringBuilder.AppendLine();
+                stringBuilder.AppendLine($"\tUPDATE SET");
 
-            stringBuilder.AppendLine("WHEN MATCHED AND ([changes].[update_scope_id] is not null OR [changes].[timestamp] <= @sync_min_timestamp) THEN");
+                string strSeparator = "";
+                foreach (var mutableColumn in this.tableDescription.GetMutableColumns(false))
+                {
+                    var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+                    stringBuilder.AppendLine($"\t{strSeparator}{columnName} = [changes].{columnName}");
+                    strSeparator = ", ";
+                }
+            }
 
-            StringBuilder stringBuilderArguments = new StringBuilder();
-            StringBuilder stringBuilderParameters = new StringBuilder();
+            stringBuilder.AppendLine("WHEN NOT MATCHED BY TARGET AND ([changes].[timestamp] <= @sync_min_timestamp OR changes.[timestamp] IS NULL) THEN");
 
-            string empty = string.Empty;
+
+            stringBuilderArguments = new StringBuilder();
+            stringBuilderParameters = new StringBuilder();
+            empty = string.Empty;
+
             foreach (var mutableColumn in this.tableDescription.Columns.Where(c => !c.IsReadOnly))
             {
                 var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+
                 stringBuilderArguments.Append(string.Concat(empty, columnName));
                 stringBuilderParameters.Append(string.Concat(empty, $"changes.{columnName}"));
                 empty = ", ";
             }
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"\tUPDATE SET");
+            stringBuilder.AppendLine($"\tINSERT");
+            stringBuilder.AppendLine($"\t({stringBuilderArguments.ToString()})");
+            stringBuilder.AppendLine($"\tVALUES ({stringBuilderParameters.ToString()})");
 
-            string strSeparator = "";
-            foreach (var mutableColumn in this.tableDescription.GetMutableColumns(false))
-            {
-                var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
-                stringBuilder.AppendLine($"\t{strSeparator}{columnName} = [changes].{columnName}");
-                strSeparator = ", ";
-            }
+
             stringBuilder.Append($"\tOUTPUT ");
             for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
             {
@@ -741,41 +609,36 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"\tINTO @changed; -- populates the temp table with successful PKs");
             stringBuilder.AppendLine();
 
+            // Check if we have auto inc column
+            if (this.tableDescription.HasAutoIncrementColumns)
+            {
+                stringBuilder.AppendLine();
+                stringBuilder.AppendLine($"SET IDENTITY_INSERT {tableName.Schema().Quoted().ToString()} ON;");
+                stringBuilder.AppendLine();
+            }
 
             stringBuilder.AppendLine("-- Since the update trigger is passed, we update the tracking table to reflect the real scope updater");
             stringBuilder.AppendLine("UPDATE side SET");
             stringBuilder.AppendLine("\tupdate_scope_id = @sync_scope_id,");
-            stringBuilder.AppendLine("\tupdate_timestamp = changes.update_timestamp");
-            stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()} side");
-            stringBuilder.AppendLine("JOIN (");
-            stringBuilder.Append("\tSELECT ");
-            for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
-            {
-                var columnName = ParserName.Parse(this.tableDescription.PrimaryKeys[i]).Quoted().ToString();
-                stringBuilder.Append($"p.{columnName}, ");
-            }
-
-            stringBuilder.AppendLine(" p.update_timestamp, p.create_timestamp ");
-            stringBuilder.AppendLine("\tFROM @changed t");
-            stringBuilder.AppendLine("\tJOIN @changeTable p ON ");
-            stringBuilder.AppendLine($"\t{str4}");
-            stringBuilder.AppendLine(") AS [changes] ON ");
-            stringBuilder.AppendLine($"\t{str6}");
+            stringBuilder.AppendLine("\tsync_row_is_tombstone = 0,");
+            stringBuilder.AppendLine("\tlast_change_datetime = GETUTCDATE()");
+            stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()} [side]");
+            stringBuilder.AppendLine($"JOIN @changed [t] on {str6}");
             stringBuilder.AppendLine();
             stringBuilder.Append(BulkSelectUnsuccessfulRows());
 
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
-        public void CreateBulkUpdate()
+        public void CreateBulkUpdate(bool hasMutableColumns)
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkUpdateRows).name;
-            CreateProcedureCommand(BuildBulkUpdateCommand, commandName);
+            CreateProcedureCommand(BuildBulkUpdateCommand, commandName, hasMutableColumns);
         }
-        public string CreateBulkUpdateScriptText()
+        public string CreateBulkUpdateScriptText(bool hasMutableColumns)
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkUpdateRows).name;
-            return CreateProcedureCommandScriptText(BuildBulkUpdateCommand, commandName);
+            return CreateProcedureCommandScriptText(BuildBulkUpdateCommand, commandName, hasMutableColumns);
         }
         public void DropBulkUpdate()
         {
@@ -938,7 +801,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[base]", "[side]"));
 
-            stringBuilder.AppendLine("WHERE ([side].[timestamp] <= @sync_min_timestamp  OR [side].[update_scope_id] is not null  OR @sync_force_write = 1)");
+            stringBuilder.AppendLine("WHERE ([side].[timestamp] <= @sync_min_timestamp  OR [side].[update_scope_id] IS NOT NULL OR @sync_force_write = 1)");
             stringBuilder.Append("AND ");
             stringBuilder.AppendLine(string.Concat("(", SqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKeys, "[base]"), ");"));
             stringBuilder.AppendLine();
@@ -1080,250 +943,19 @@ namespace Dotmim.Sync.SqlServer.Builders
             return $"DROP PROCEDURE {commandName};";
         }
 
-
-        //------------------------------------------------------------------
-        // Insert command
-        //------------------------------------------------------------------
-        private SqlCommand BuildInsertCommand()
-        {
-            SqlCommand sqlCommand = new SqlCommand();
-            StringBuilder stringBuilder = new StringBuilder();
-            StringBuilder stringBuilderArguments = new StringBuilder();
-            StringBuilder stringBuilderParameters = new StringBuilder();
-
-            this.AddColumnParametersToCommand(sqlCommand);
-            SqlParameter sqlParameter = new SqlParameter("@sync_row_count", SqlDbType.Int)
-            {
-                Direction = ParameterDirection.Output
-            };
-            sqlCommand.Parameters.Add(sqlParameter);
-
-            stringBuilder.AppendLine($"SET {sqlParameter.ParameterName} = 0;");
-
-            //stringBuilder.Append(string.Concat("IF NOT EXISTS (SELECT * FROM ", trackingName.Schema().Quoted().ToString(), " WHERE "));
-            //stringBuilder.Append(SqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKeys, string.Empty));
-            //stringBuilder.AppendLine(") ");
-            //stringBuilder.AppendLine("BEGIN ");
-
-            if (this.tableDescription.HasAutoIncrementColumns)
-            {
-                stringBuilder.AppendLine($"\tSET IDENTITY_INSERT {tableName.Schema().Quoted().ToString()} ON;");
-                stringBuilder.AppendLine();
-            }
-
-            string empty = string.Empty;
-            foreach (var mutableColumn in this.tableDescription.Columns.Where(c => !c.IsReadOnly))
-            {
-                var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
-                var parameterName = ParserName.Parse(mutableColumn).Unquoted().Normalized().ToString();
-                stringBuilderArguments.Append(string.Concat(empty, columnName));
-                stringBuilderParameters.Append(string.Concat(empty, $"@{parameterName}"));
-                empty = ", ";
-            }
-            stringBuilder.AppendLine($"\tINSERT INTO {tableName.Schema().Quoted().ToString()}");
-            stringBuilder.AppendLine($"\t({stringBuilderArguments.ToString()})");
-            stringBuilder.AppendLine($"\tVALUES ({stringBuilderParameters.ToString()});");
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine(string.Concat("\tSET ", sqlParameter.ParameterName, " = @@rowcount; "));
-
-            if (this.tableDescription.HasAutoIncrementColumns)
-            {
-                stringBuilder.AppendLine();
-                stringBuilder.AppendLine($"\tSET IDENTITY_INSERT {tableName.Schema().Quoted().ToString()} OFF;");
-            }
-
-            //stringBuilder.AppendLine("END ");
-            sqlCommand.CommandText = stringBuilder.ToString();
-            return sqlCommand;
-        }
-        public void CreateInsert()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertRow).name;
-            CreateProcedureCommand(BuildInsertCommand, commandName);
-        }
-        public string CreateInsertScriptText()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertRow).name;
-            return CreateProcedureCommandScriptText(BuildInsertCommand, commandName);
-        }
-        public void DropInsert()
-        {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
-
-            try
-            {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        this.connection.Open();
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertRow).name;
-
-                    command.CommandText = $"DROP PROCEDURE {commandName};";
-                    command.Connection = this.connection;
-                    command.ExecuteNonQuery();
-
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during Drop InsertRow : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
-        }
-        public string DropInsertScriptText()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertRow).name;
-
-            return $"DROP PROCEDURE {commandName};";
-        }
-
-        //------------------------------------------------------------------
-        // Insert Metadata command
-        //------------------------------------------------------------------
-        private SqlCommand BuildInsertMetadataCommand()
-        {
-            StringBuilder stringBuilderArguments = new StringBuilder();
-            StringBuilder stringBuilderParameters = new StringBuilder();
-            SqlCommand sqlCommand = new SqlCommand();
-
-            StringBuilder stringBuilder = new StringBuilder();
-            this.AddPkColumnParametersToCommand(sqlCommand);
-            SqlParameter sqlParameter = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
-            sqlCommand.Parameters.Add(sqlParameter);
-            SqlParameter sqlParameter1 = new SqlParameter("@sync_row_is_tombstone", SqlDbType.Int);
-            sqlCommand.Parameters.Add(sqlParameter1);
-            SqlParameter sqlParameter3 = new SqlParameter("@create_timestamp", SqlDbType.BigInt);
-            sqlCommand.Parameters.Add(sqlParameter3);
-            SqlParameter sqlParameter4 = new SqlParameter("@update_timestamp", SqlDbType.BigInt);
-            sqlCommand.Parameters.Add(sqlParameter4);
-            SqlParameter sqlParameter8 = new SqlParameter("@sync_row_count", SqlDbType.Int)
-            {
-                Direction = ParameterDirection.Output
-            };
-            sqlCommand.Parameters.Add(sqlParameter8);
-
-            stringBuilder.AppendLine($"SET {sqlParameter8.ParameterName} = 0;");
-            stringBuilder.AppendLine();
-
-            stringBuilder.AppendLine($"UPDATE {trackingName.Schema().Quoted().ToString()} SET ");
-            stringBuilder.AppendLine("\t[create_scope_id] = @sync_scope_id, ");
-            stringBuilder.AppendLine("\t[create_timestamp] = @create_timestamp, ");
-            stringBuilder.AppendLine("\t[update_scope_id] = @sync_scope_id, ");
-            stringBuilder.AppendLine("\t[update_timestamp] = @update_timestamp, ");
-            stringBuilder.AppendLine("\t[sync_row_is_tombstone] = @sync_row_is_tombstone ");
-            stringBuilder.AppendLine($"WHERE ({SqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKeys, "")})");
-            stringBuilder.AppendLine();
-
-            stringBuilder.AppendLine($"SET {sqlParameter8.ParameterName} = @@rowcount; ");
-            stringBuilder.AppendLine();
-
-            stringBuilder.AppendLine($"IF ({sqlParameter8.ParameterName} = 0)");
-            stringBuilder.AppendLine("BEGIN ");
-            stringBuilder.AppendLine($"\tINSERT INTO {trackingName.Schema().Quoted().ToString()}");
-
-            string empty = string.Empty;
-            foreach (var pkColumn in this.tableDescription.PrimaryKeys)
-            {
-                var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
-                var parameterName = ParserName.Parse(pkColumn).Unquoted().Normalized().ToString();
-
-                stringBuilderArguments.Append(string.Concat(empty, columnName));
-                stringBuilderParameters.Append(string.Concat(empty, $"@{parameterName}"));
-                empty = ", ";
-            }
-            stringBuilder.AppendLine($"\t({stringBuilderArguments.ToString()}, ");
-            stringBuilder.AppendLine($"\t[create_scope_id], [create_timestamp], [update_scope_id], [update_timestamp],");
-            stringBuilder.AppendLine($"\t[sync_row_is_tombstone], [last_change_datetime])");
-            stringBuilder.AppendLine($"\tVALUES ({stringBuilderParameters.ToString()}, ");
-            stringBuilder.AppendLine($"\t@sync_scope_id, @create_timestamp, @sync_scope_id, @update_timestamp, ");
-            stringBuilder.AppendLine($"\t@sync_row_is_tombstone, GetDate());");
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"\tSET {sqlParameter8.ParameterName} = @@rowcount; ");
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine("END");
-
-            sqlCommand.CommandText = stringBuilder.ToString();
-            return sqlCommand;
-        }
-        public void CreateInsertMetadata()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertMetadata).name;
-            CreateProcedureCommand(BuildInsertMetadataCommand, commandName);
-        }
-        public string CreateInsertMetadataScriptText()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertMetadata).name;
-            return CreateProcedureCommandScriptText(BuildInsertMetadataCommand, commandName);
-        }
-        public void DropInsertMetadata()
-        {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
-
-            try
-            {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        this.connection.Open();
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertMetadata).name;
-
-                    command.CommandText = $"DROP PROCEDURE {commandName};";
-                    command.Connection = this.connection;
-                    command.ExecuteNonQuery();
-
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during Drop InsertMetadata : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
-        }
-        public string DropInsertMetadataScriptText()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertMetadata).name;
-
-            return $"DROP PROCEDURE {commandName};";
-        }
-
-
         //------------------------------------------------------------------
         // Select Row command
         //------------------------------------------------------------------
         private SqlCommand BuildSelectRowCommand()
         {
-            SqlCommand sqlCommand = new SqlCommand();
+            var sqlCommand = new SqlCommand();
             this.AddPkColumnParametersToCommand(sqlCommand);
-            SqlParameter sqlParameter = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
+            var sqlParameter = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
             sqlCommand.Parameters.Add(sqlParameter);
 
-            StringBuilder stringBuilder = new StringBuilder("SELECT ");
+            var stringBuilder = new StringBuilder("SELECT ");
             stringBuilder.AppendLine();
-            StringBuilder stringBuilder1 = new StringBuilder();
+            var stringBuilder1 = new StringBuilder();
             string empty = string.Empty;
             foreach (var pkColumn in this.tableDescription.PrimaryKeys)
             {
@@ -1339,11 +971,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
                 stringBuilder.AppendLine($"\t[base].{columnName}, ");
             }
-            stringBuilder.AppendLine("\t[side].[sync_row_is_tombstone],");
-            stringBuilder.AppendLine("\t[side].[create_scope_id],");
-            stringBuilder.AppendLine("\t[side].[create_timestamp],");
-            stringBuilder.AppendLine("\t[side].[update_scope_id],");
-            stringBuilder.AppendLine("\t[side].[update_timestamp]");
+            stringBuilder.AppendLine("\t[side].[sync_row_is_tombstone]");
 
             stringBuilder.AppendLine($"FROM {tableName.Schema().Quoted().ToString()} [base]");
             stringBuilder.AppendLine($"RIGHT JOIN {trackingName.Schema().Quoted().ToString()} [side] ON");
@@ -1437,10 +1065,6 @@ namespace Dotmim.Sync.SqlServer.Builders
                 stringBuilder.AppendLine($"{str}{columnName} {quotedColumnType} {nullString}");
                 str = ", ";
             }
-            stringBuilder.AppendLine(", [create_scope_id] [uniqueidentifier] NULL");
-            stringBuilder.AppendLine(", [create_timestamp] [bigint] NULL");
-            stringBuilder.AppendLine(", [update_scope_id] [uniqueidentifier] NULL");
-            stringBuilder.AppendLine(", [update_timestamp] [bigint] NULL");
             stringBuilder.Append(string.Concat(str, "PRIMARY KEY ("));
             str = "";
             foreach (var c in this.tableDescription.PrimaryKeys)
@@ -1535,20 +1159,20 @@ namespace Dotmim.Sync.SqlServer.Builders
         //------------------------------------------------------------------
         // Update command
         //------------------------------------------------------------------
-        private SqlCommand BuildUpdateCommand()
+        private SqlCommand BuildUpdateCommand(bool hasMutableColumns)
         {
-            SqlCommand sqlCommand = new SqlCommand();
-            StringBuilder stringBuilderArguments = new StringBuilder();
-            StringBuilder stringBuilderParameters = new StringBuilder();
-            StringBuilder stringBuilder = new StringBuilder();
+            var sqlCommand = new SqlCommand();
+            var stringBuilderArguments = new StringBuilder();
+            var stringBuilderParameters = new StringBuilder();
+            var stringBuilder = new StringBuilder();
 
             this.AddColumnParametersToCommand(sqlCommand);
 
-            SqlParameter sqlParameter = new SqlParameter("@sync_force_write", SqlDbType.Int);
+            var sqlParameter = new SqlParameter("@sync_force_write", SqlDbType.Int);
             sqlCommand.Parameters.Add(sqlParameter);
-            SqlParameter sqlParameter1 = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt);
+            var sqlParameter1 = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt);
             sqlCommand.Parameters.Add(sqlParameter1);
-            SqlParameter sqlParameter2 = new SqlParameter("@sync_row_count", SqlDbType.Int)
+            var sqlParameter2 = new SqlParameter("@sync_row_count", SqlDbType.Int)
             {
                 Direction = ParameterDirection.Output
             };
@@ -1557,23 +1181,32 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"SET {sqlParameter2.ParameterName} = 0;");
             stringBuilder.AppendLine();
 
+            if (hasMutableColumns)
+            {
 
-            stringBuilder.AppendLine($"UPDATE {tableName.Schema().Quoted().ToString()}");
-            stringBuilder.Append($"SET {SqlManagementUtils.CommaSeparatedUpdateFromParameters(this.tableDescription)}");
-            stringBuilder.AppendLine($"FROM {tableName.Schema().Quoted().ToString()} [base]");
-            stringBuilder.AppendLine($"JOIN {trackingName.Schema().Quoted().ToString()} [side]");
-            stringBuilder.Append($"ON ");
-            stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[base]", "[side]"));
-            stringBuilder.AppendLine("WHERE ([side].[timestamp] <= @sync_min_timestamp OR [side].[update_scope_id] is not null OR @sync_force_write = 1)");
-            stringBuilder.Append("AND (");
-            stringBuilder.Append(SqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKeys, "[base]"));
-            stringBuilder.AppendLine(");");
-            stringBuilder.AppendLine();
+                stringBuilder.AppendLine($"UPDATE {tableName.Schema().Quoted().ToString()}");
+                stringBuilder.Append($"SET {SqlManagementUtils.CommaSeparatedUpdateFromParameters(this.tableDescription)}");
+                stringBuilder.AppendLine($"FROM {tableName.Schema().Quoted().ToString()} [base]");
+                stringBuilder.AppendLine($"JOIN {trackingName.Schema().Quoted().ToString()} [side]");
+                stringBuilder.Append($"ON ");
+                stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[base]", "[side]"));
+                stringBuilder.AppendLine("WHERE ([side].[timestamp] <= @sync_min_timestamp OR [side].[update_scope_id] IS NOT NULL OR @sync_force_write = 1)");
+                stringBuilder.Append("AND (");
+                stringBuilder.Append(SqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKeys, "[base]"));
+                stringBuilder.AppendLine(");");
+                stringBuilder.AppendLine();
 
+                stringBuilder.AppendLine();
+                stringBuilder.AppendLine($"SET {sqlParameter2.ParameterName} = @@ROWCOUNT;");
+                stringBuilder.AppendLine();
+                stringBuilder.AppendLine($"IF ({sqlParameter2.ParameterName} = 0)");
+                stringBuilder.AppendLine($"BEGIN");
+
+            }
 
             if (this.tableDescription.HasAutoIncrementColumns)
             {
-                stringBuilder.AppendLine($"SET IDENTITY_INSERT {tableName.Schema().Quoted().ToString()} ON;");
+                stringBuilder.AppendLine($"\tSET IDENTITY_INSERT {tableName.Schema().Quoted().ToString()} ON;");
                 stringBuilder.AppendLine();
             }
 
@@ -1586,54 +1219,44 @@ namespace Dotmim.Sync.SqlServer.Builders
                 stringBuilderParameters.Append(string.Concat(empty, $"@{parameterName}"));
                 empty = ", ";
             }
-            stringBuilder.AppendLine($"INSERT INTO {tableName.Schema().Quoted().ToString()}");
-            stringBuilder.AppendLine($"({stringBuilderArguments.ToString()})");
-            stringBuilder.AppendLine($"SELECT {stringBuilderParameters.ToString()}");
-            stringBuilder.AppendLine($"FROM {tableName.Schema().Quoted().ToString()} [base]");
-            stringBuilder.AppendLine($"RIGHT JOIN {trackingName.Schema().Quoted().ToString()} [side]");
-            stringBuilder.Append($"ON ");
-            stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[base]", "[side]"));
-            stringBuilder.AppendLine("WHERE ([side].[timestamp] <= @sync_min_timestamp OR [side].[update_scope_id] is not null OR @sync_force_write = 1)");
-            stringBuilder.Append("AND (");
-            string strFromPrefix = "[base].";
-            string str1 = "";
-            foreach (var column in this.tableDescription.PrimaryKeys)
-            {
-                var quotedColumn = ParserName.Parse(column).Quoted().ToString();
-                var unquotedColumn = ParserName.Parse(column).Unquoted().Normalized().ToString();
+            stringBuilder.AppendLine($"\tINSERT INTO {tableName.Schema().Quoted().ToString()}");
+            stringBuilder.AppendLine($"\t({stringBuilderArguments.ToString()})");
+            stringBuilder.AppendLine($"\tSELECT {stringBuilderParameters.ToString()}");
+            stringBuilder.AppendLine($"\tWHERE (");
+            stringBuilder.AppendLine($"\t EXISTS (SELECT 1 FROM {trackingName.Schema().Quoted().ToString()} [side]");
+            stringBuilder.AppendLine($"\t    WHERE ({SqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKeys, "[side]")}) ");
+            stringBuilder.AppendLine($"\t    AND ([side].[timestamp] <= @sync_min_timestamp OR [side].[update_scope_id] IS NOT NULL))");
+            stringBuilder.AppendLine($"\t OR NOT EXISTS (SELECT 1 FROM {trackingName.Schema().Quoted().ToString()} [side]");
+            stringBuilder.AppendLine($"\t    WHERE ({SqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKeys, "[side]")})) ");
+            stringBuilder.AppendLine($"\t OR @sync_force_write = 1");
+            stringBuilder.AppendLine($"\t )");
 
-                stringBuilder.Append(str1);
-                stringBuilder.Append(strFromPrefix);
-                stringBuilder.Append(quotedColumn);
-                stringBuilder.Append(" IS NULL ");
-                str1 = " AND ";
-            }
-            stringBuilder.Append("AND ");
-            stringBuilder.Append(SqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKeys, "[side]"));
-
-            stringBuilder.AppendLine(");");
             stringBuilder.AppendLine();
 
             if (this.tableDescription.HasAutoIncrementColumns)
             {
                 stringBuilder.AppendLine();
-                stringBuilder.AppendLine($"SET IDENTITY_INSERT {tableName.Schema().Quoted().ToString()} OFF;");
+                stringBuilder.AppendLine($"\tSET IDENTITY_INSERT {tableName.Schema().Quoted().ToString()} OFF;");
             }
 
             stringBuilder.AppendLine();
-            stringBuilder.Append(string.Concat("SET ", sqlParameter2.ParameterName, " = @@ROWCOUNT;"));
+            stringBuilder.AppendLine($"\tSET {sqlParameter2.ParameterName} = @@ROWCOUNT;");
+
+            if (hasMutableColumns)
+                stringBuilder.AppendLine($"END");
+
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
-        public void CreateUpdate()
+        public void CreateUpdate(bool hasMutableColumns)
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateRow).name;
-            this.CreateProcedureCommand(BuildUpdateCommand, commandName);
+            this.CreateProcedureCommand(BuildUpdateCommand, commandName, hasMutableColumns);
         }
-        public string CreateUpdateScriptText()
+        public string CreateUpdateScriptText(bool hasMutableColumns)
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateRow).name;
-            return CreateProcedureCommandScriptText(BuildUpdateCommand, commandName);
+            return CreateProcedureCommandScriptText(BuildUpdateCommand, commandName, hasMutableColumns);
         }
         public void DropUpdate()
         {
@@ -1681,20 +1304,20 @@ namespace Dotmim.Sync.SqlServer.Builders
         //------------------------------------------------------------------
         // Update Metadata command
         //------------------------------------------------------------------
-        private SqlCommand BuildUpdateMetadataCommand()
+        private SqlCommand BuildUpdateMetadataCommand(bool hasMutableColumns)
         {
-            SqlCommand sqlCommand = new SqlCommand();
-            StringBuilder stringBuilder = new StringBuilder();
+            var sqlCommand = new SqlCommand();
+            var stringBuilder = new StringBuilder();
             this.AddPkColumnParametersToCommand(sqlCommand);
-            SqlParameter sqlParameter = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
+            var sqlParameter = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
             sqlCommand.Parameters.Add(sqlParameter);
-            SqlParameter sqlParameter1 = new SqlParameter("@sync_row_is_tombstone", SqlDbType.Int);
+            var sqlParameter1 = new SqlParameter("@sync_row_is_tombstone", SqlDbType.Int);
             sqlCommand.Parameters.Add(sqlParameter1);
-            SqlParameter sqlParameter3 = new SqlParameter("@create_timestamp", SqlDbType.BigInt);
+            var sqlParameter3 = new SqlParameter("@create_timestamp", SqlDbType.BigInt);
             sqlCommand.Parameters.Add(sqlParameter3);
-            SqlParameter sqlParameter5 = new SqlParameter("@update_timestamp", SqlDbType.BigInt);
+            var sqlParameter5 = new SqlParameter("@update_timestamp", SqlDbType.BigInt);
             sqlCommand.Parameters.Add(sqlParameter5);
-            SqlParameter sqlParameter8 = new SqlParameter("@sync_row_count", SqlDbType.Int)
+            var sqlParameter8 = new SqlParameter("@sync_row_count", SqlDbType.Int)
             {
                 Direction = ParameterDirection.Output
             };
@@ -1705,44 +1328,58 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"SET {sqlParameter8.ParameterName} = 0;");
             stringBuilder.AppendLine();
 
-            stringBuilder.AppendLine("DECLARE @was_tombstone int; ");
+            if (hasMutableColumns)
+            {
+                stringBuilder.AppendLine($"UPDATE {trackingName.Schema().Quoted().ToString()} SET ");
+                stringBuilder.AppendLine("\t [update_scope_id] = @sync_scope_id, ");
+                stringBuilder.AppendLine("\t [sync_row_is_tombstone] = @sync_row_is_tombstone, ");
+                stringBuilder.AppendLine("\t [last_change_datetime] = GETUTCDATE() ");
+                stringBuilder.AppendLine($"WHERE ({str1})");
+                stringBuilder.AppendLine();
+                stringBuilder.AppendLine($"SET {sqlParameter8.ParameterName} = @@ROWCOUNT;");
+                stringBuilder.AppendLine();
+                stringBuilder.AppendLine($"IF ({sqlParameter8.ParameterName} = 0)");
+                stringBuilder.AppendLine($"BEGIN");
+            }
 
-            stringBuilder.AppendLine($"SELECT @was_tombstone = [sync_row_is_tombstone]");
-            stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()}");
-            stringBuilder.AppendLine($"WHERE ({str1})");
+            stringBuilder.AppendLine($"\tINSERT INTO {trackingName.Schema().Quoted().ToString()}");
+
+            string empty = string.Empty;
+            var stringBuilderArguments = new StringBuilder();
+            var stringBuilderParameters = new StringBuilder();
+
+            foreach (var pkColumn in this.tableDescription.PrimaryKeys)
+            {
+                var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
+                var parameterName = ParserName.Parse(pkColumn).Unquoted().Normalized().ToString();
+
+                stringBuilderArguments.Append(string.Concat(empty, columnName));
+                stringBuilderParameters.Append(string.Concat(empty, $"@{parameterName}"));
+                empty = ", ";
+            }
+            stringBuilder.AppendLine($"\t({stringBuilderArguments.ToString()}, ");
+            stringBuilder.AppendLine($"\t[update_scope_id], [sync_row_is_tombstone], [last_change_datetime])");
+            stringBuilder.AppendLine($"\tVALUES ({stringBuilderParameters.ToString()}, ");
+            stringBuilder.AppendLine($"\t@sync_scope_id, @sync_row_is_tombstone, GetDate());");
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine("IF (@was_tombstone IS NOT NULL AND @was_tombstone = 1 AND @sync_row_is_tombstone = 0)");
-            stringBuilder.AppendLine("BEGIN ");
-            stringBuilder.AppendLine($"UPDATE {trackingName.Schema().Quoted().ToString()} SET ");
-            stringBuilder.AppendLine("\t [create_scope_id] = @sync_scope_id, ");
-            stringBuilder.AppendLine("\t [update_scope_id] = @sync_scope_id, ");
-            stringBuilder.AppendLine("\t [create_timestamp] = @create_timestamp, ");
-            stringBuilder.AppendLine("\t [update_timestamp] = @update_timestamp, ");
-            stringBuilder.AppendLine("\t [sync_row_is_tombstone] = @sync_row_is_tombstone ");
-            stringBuilder.AppendLine($"WHERE ({str1})");
-            stringBuilder.AppendLine("END");
-            stringBuilder.AppendLine("ELSE");
-            stringBuilder.AppendLine("BEGIN ");
-            stringBuilder.AppendLine($"UPDATE {trackingName.Schema().Quoted().ToString()} SET ");
-            stringBuilder.AppendLine("\t [update_scope_id] = @sync_scope_id, ");
-            stringBuilder.AppendLine("\t [update_timestamp] = @update_timestamp, ");
-            stringBuilder.AppendLine("\t [sync_row_is_tombstone] = @sync_row_is_tombstone ");
-            stringBuilder.AppendLine($"WHERE ({str1})");
-            stringBuilder.AppendLine("END;");
+            stringBuilder.AppendLine($"\tSET {sqlParameter8.ParameterName} = @@rowcount; ");
             stringBuilder.AppendLine();
-            stringBuilder.Append($"SET {sqlParameter8.ParameterName} = @@ROWCOUNT;");
+
+            if (hasMutableColumns)
+                stringBuilder.AppendLine($"END");
+
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
-        public void CreateUpdateMetadata()
+        public void CreateUpdateMetadata(bool hasMutableColumns)
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata).name;
-            CreateProcedureCommand(BuildUpdateMetadataCommand, commandName);
+            CreateProcedureCommand(BuildUpdateMetadataCommand, commandName, hasMutableColumns);
         }
-        public string CreateUpdateMetadataScriptText()
+        public string CreateUpdateMetadataScriptText(bool hasMutableColumns)
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata).name;
-            return CreateProcedureCommandScriptText(BuildUpdateMetadataCommand, commandName);
+            return CreateProcedureCommandScriptText(BuildUpdateMetadataCommand, commandName, hasMutableColumns);
         }
         public void DropUpdateMetadata()
         {
@@ -1793,11 +1430,12 @@ namespace Dotmim.Sync.SqlServer.Builders
         //------------------------------------------------------------------
         private SqlCommand BuildSelectIncrementalChangesCommand(bool withFilter = false)
         {
-            SqlCommand sqlCommand = new SqlCommand();
-            SqlParameter pTimestamp = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt);
-            SqlParameter pScopeId = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
-            SqlParameter pScopeNew = new SqlParameter("@sync_scope_is_new", SqlDbType.Bit);
-            SqlParameter pReinit = new SqlParameter("@sync_scope_is_reinit", SqlDbType.Bit);
+            var sqlCommand = new SqlCommand();
+            var pTimestamp = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt);
+            var pScopeId = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
+            var pScopeNew = new SqlParameter("@sync_scope_is_new", SqlDbType.Bit);
+            var pReinit = new SqlParameter("@sync_scope_is_reinit", SqlDbType.Bit);
+
             sqlCommand.Parameters.Add(pTimestamp);
             sqlCommand.Parameters.Add(pScopeId);
             sqlCommand.Parameters.Add(pScopeNew);
@@ -1818,21 +1456,21 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                         // Get the good SqlDbType (even if we are not from Sql Server def)
 
-                        SqlDbType sqlDbType = (SqlDbType)this.sqlDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-                        SqlParameter sqlParamFilter = new SqlParameter($"@{columnName}", sqlDbType);
+                        var sqlDbType = (SqlDbType)this.sqlDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+                        var sqlParamFilter = new SqlParameter($"@{columnName}", sqlDbType);
                         sqlCommand.Parameters.Add(sqlParamFilter);
                     }
                     else
                     {
-                        SqlDbType sqlDbType = (SqlDbType)this.sqlDbMetadata.TryGetOwnerDbType(null, c.GetDbType().Value, false, false, 0, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+                        var sqlDbType = (SqlDbType)this.sqlDbMetadata.TryGetOwnerDbType(null, c.GetDbType().Value, false, false, 0, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
                         var columnFilterName = ParserName.Parse(c.ColumnName).Unquoted().Normalized().ToString();
-                        SqlParameter sqlParamFilter = new SqlParameter($"@{columnFilterName}", sqlDbType);
+                        var sqlParamFilter = new SqlParameter($"@{columnFilterName}", sqlDbType);
                         sqlCommand.Parameters.Add(sqlParamFilter);
                     }
                 }
             }
 
-            StringBuilder stringBuilder = new StringBuilder("SELECT ");
+            var stringBuilder = new StringBuilder("SELECT ");
             foreach (var pkColumn in this.tableDescription.PrimaryKeys)
             {
                 var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
@@ -1843,11 +1481,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
                 stringBuilder.AppendLine($"\t[base].{columnName}, ");
             }
-            stringBuilder.AppendLine($"\t[side].[sync_row_is_tombstone], ");
-            stringBuilder.AppendLine($"\t[side].[create_scope_id], ");
-            stringBuilder.AppendLine($"\t[side].[create_timestamp], ");
-            stringBuilder.AppendLine($"\t[side].[update_scope_id], ");
-            stringBuilder.AppendLine($"\t[side].[update_timestamp] ");
+            stringBuilder.AppendLine($"\t[side].[sync_row_is_tombstone] ");
             stringBuilder.AppendLine($"FROM {tableName.Schema().Quoted().ToString()} [base]");
             stringBuilder.AppendLine($"RIGHT JOIN {trackingName.Schema().Quoted().ToString()} [side]");
             stringBuilder.Append($"ON ");
@@ -1910,43 +1544,12 @@ namespace Dotmim.Sync.SqlServer.Builders
                 stringBuilder.Append(builderFilter.ToString());
             }
 
-            stringBuilder.AppendLine("\t-- Update made by the local instance");
-            stringBuilder.AppendLine("\t[side].[update_scope_id] IS NULL");
-            stringBuilder.AppendLine("\t-- Or Update different from remote");
-            stringBuilder.AppendLine("\tOR [side].[update_scope_id] <> @sync_scope_id");
-            stringBuilder.AppendLine("\t-- Or we are in reinit mode so we take rows even thoses updated by the scope");
-            stringBuilder.AppendLine("\tOR @sync_scope_is_reinit = 1");
-            stringBuilder.AppendLine("    )");
-            stringBuilder.AppendLine("AND (");
-            stringBuilder.AppendLine("\t-- And Timestamp is > from remote timestamp");
             stringBuilder.AppendLine("\t[side].[timestamp] > @sync_min_timestamp");
-            stringBuilder.AppendLine("\tOR");
-            stringBuilder.AppendLine("\t-- remote instance is new, so we don't take the last timestamp");
-            stringBuilder.AppendLine("\t@sync_scope_is_new = 1");
-            stringBuilder.AppendLine("\t)");
-            stringBuilder.AppendLine("AND (");
-            stringBuilder.AppendLine("\t[side].[sync_row_is_tombstone] = 1 ");
-            stringBuilder.AppendLine("\tOR");
-            stringBuilder.Append("\t([side].[sync_row_is_tombstone] = 0");
-
-            empty = " AND ";
-            foreach (var pkColumn in this.tableDescription.PrimaryKeys)
-            {
-                var pkColumnName = ParserName.Parse(pkColumn).Quoted().ToString();
-                stringBuilder.Append($"{empty}[base].{pkColumnName} is not null");
-            }
-            stringBuilder.AppendLine("\t)");
+            stringBuilder.AppendLine("\tAND ([side].[update_scope_id] <> @sync_scope_id OR [side].[update_scope_id] IS NULL)");
             stringBuilder.AppendLine(")");
 
             sqlCommand.CommandText = stringBuilder.ToString();
 
-            //if (this._filterParameters != null)
-            //{
-            //    foreach (SqlParameter _filterParameter in this._filterParameters)
-            //    {
-            //        sqlCommand.Parameters.Add(((ICloneable)_filterParameter).Clone());
-            //    }
-            //}
             return sqlCommand;
         }
         public void CreateSelectIncrementalChanges()

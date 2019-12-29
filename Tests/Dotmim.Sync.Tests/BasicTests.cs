@@ -714,10 +714,7 @@ namespace Dotmim.Sync.Tests
             {
                 var testRunner = this.fixture.ClientRuns[i];
 
-                // 0+i : Download is false on sqlite
-                //Assert.Equal(0 + i, testRunner.Results.TotalChangesDownloaded);
                 Assert.Equal(1, testRunner.Results.TotalChangesUploaded);
-                Assert.Equal(1, testRunner.Results.TotalSyncConflicts);
             }
 
             using (var serverDbCtx = this.GetServerDbContext())
@@ -798,7 +795,6 @@ namespace Dotmim.Sync.Tests
                 foreach (var testRunner in this.fixture.ClientRuns)
                 {
                     Assert.Equal(1, testRunner.Results.TotalChangesUploaded);
-                    Assert.Equal(1, testRunner.Results.TotalSyncConflicts);
                 }
 
                 using (var serverDbCtx = this.GetServerDbContext())
@@ -1421,8 +1417,6 @@ namespace Dotmim.Sync.Tests
                         Assert.False(triggersBuilder.NeedToCreateTrigger(Builders.DbTriggerType.Delete));
                         Assert.False(triggersBuilder.NeedToCreateTrigger(Builders.DbTriggerType.Update));
 
-                        Assert.False(spBuider.NeedToCreateProcedure(Builders.DbCommandType.InsertMetadata));
-                        Assert.False(spBuider.NeedToCreateProcedure(Builders.DbCommandType.InsertRow));
                         Assert.False(spBuider.NeedToCreateProcedure(Builders.DbCommandType.Reset));
                         Assert.False(spBuider.NeedToCreateProcedure(Builders.DbCommandType.SelectChanges));
                         Assert.False(spBuider.NeedToCreateProcedure(Builders.DbCommandType.SelectRow));
@@ -1439,8 +1433,7 @@ namespace Dotmim.Sync.Tests
                         if (this.fixture.ProviderType == ProviderType.Sql)
                         {
                             Assert.False(spBuider.NeedToCreateProcedure(Builders.DbCommandType.BulkDeleteRows));
-                            Assert.False(spBuider.NeedToCreateProcedure(Builders.DbCommandType.BulkInsertRows));
-                            Assert.False(spBuider.NeedToCreateProcedure(Builders.DbCommandType.BulkInsertRows));
+                            Assert.False(spBuider.NeedToCreateProcedure(Builders.DbCommandType.BulkUpdateRows));
                         }
 
                         dbConnection.Close();
@@ -1475,8 +1468,6 @@ namespace Dotmim.Sync.Tests
                         Assert.True(triggersBuilder.NeedToCreateTrigger(Builders.DbTriggerType.Insert));
                         Assert.True(triggersBuilder.NeedToCreateTrigger(Builders.DbTriggerType.Delete));
                         Assert.True(triggersBuilder.NeedToCreateTrigger(Builders.DbTriggerType.Update));
-                        Assert.True(spBuider.NeedToCreateProcedure(Builders.DbCommandType.InsertMetadata));
-                        Assert.True(spBuider.NeedToCreateProcedure(Builders.DbCommandType.InsertRow));
                         Assert.True(spBuider.NeedToCreateProcedure(Builders.DbCommandType.Reset));
                         Assert.True(spBuider.NeedToCreateProcedure(Builders.DbCommandType.SelectChanges));
                         Assert.True(spBuider.NeedToCreateProcedure(Builders.DbCommandType.SelectRow));
@@ -1493,8 +1484,7 @@ namespace Dotmim.Sync.Tests
                         if (this.fixture.ProviderType == ProviderType.Sql)
                         {
                             Assert.True(spBuider.NeedToCreateProcedure(Builders.DbCommandType.BulkDeleteRows));
-                            Assert.True(spBuider.NeedToCreateProcedure(Builders.DbCommandType.BulkInsertRows));
-                            Assert.True(spBuider.NeedToCreateProcedure(Builders.DbCommandType.BulkInsertRows));
+                            Assert.True(spBuider.NeedToCreateProcedure(Builders.DbCommandType.BulkUpdateRows));
                         }
 
                         dbConnection.Close();
@@ -1762,22 +1752,22 @@ namespace Dotmim.Sync.Tests
                     interceptor.OnTableChangesApplying(args =>
                     {
                         if (args.SchemaTable.TableName == "ProductCategory")
-                            Assert.Equal(DataRowState.Added, args.State);
+                            Assert.Equal(DataRowState.Modified, args.State);
 
                         if (args.SchemaTable.TableName == "Product")
-                            Assert.Equal(DataRowState.Added, args.State);
+                            Assert.Equal(DataRowState.Modified, args.State);
                     });
                     interceptor.OnTableChangesApplied(args =>
                     {
                         if (args.TableChangesApplied.Table.TableName == "ProductCategory")
                         {
-                            Assert.Equal(DataRowState.Added, args.TableChangesApplied.State);
+                            Assert.Equal(DataRowState.Modified, args.TableChangesApplied.State);
                             Assert.Equal(1, args.TableChangesApplied.Applied);
                         }
 
                         if (args.TableChangesApplied.Table.TableName == "Product")
                         {
-                            Assert.Equal(DataRowState.Added, args.TableChangesApplied.State);
+                            Assert.Equal(DataRowState.Modified, args.TableChangesApplied.State);
                             Assert.Equal(1, args.TableChangesApplied.Applied);
                         }
                     });
@@ -1785,10 +1775,10 @@ namespace Dotmim.Sync.Tests
                     interceptor.OnTableChangesSelected(args =>
                     {
                         if (args.TableChangesSelected.TableName == "ProductCategory")
-                            Assert.Equal(1, args.TableChangesSelected.Inserts);
+                            Assert.Equal(1, args.TableChangesSelected.Upserts);
 
                         if (args.TableChangesSelected.TableName == "Product")
-                            Assert.Equal(1, args.TableChangesSelected.Inserts);
+                            Assert.Equal(1, args.TableChangesSelected.Upserts);
                     });
 
                     interceptor.OnSchema(args =>
