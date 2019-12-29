@@ -36,12 +36,12 @@ namespace Dotmim.Sync.Batch
             // Message changes contains scope columns, so add them in the schema
             foreach (var table in schema.Tables)
             {
-                if (table.Columns["create_scope_id"] == null)
+                if (table.Columns["update_scope_id"] == null)
                 {
-                    table.Columns.Add("create_scope_id", typeof(Guid));
-                    table.Columns.Add("create_timestamp", typeof(long));
+                    //table.Columns.Add("create_scope_id", typeof(Guid));
+                    //table.Columns.Add("create_timestamp", typeof(long));
                     table.Columns.Add("update_scope_id", typeof(Guid));
-                    table.Columns.Add("update_timestamp", typeof(long));
+                    //table.Columns.Add("update_timestamp", typeof(long));
                 }
             }
 
