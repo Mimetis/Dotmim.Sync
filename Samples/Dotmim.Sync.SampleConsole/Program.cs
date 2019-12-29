@@ -1,6 +1,7 @@
 ﻿using Dotmim.Sync;
 using Dotmim.Sync.Data;
 using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.MySql;
 using Dotmim.Sync.SampleConsole;
 using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
@@ -656,7 +657,7 @@ internal class Program
     {
         // Create 2 Sql Sync providers
         var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverProductCategoryDbName));
-        var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
+        var clientProvider = new MySqlSyncProvider(DbHelper.GetMySqlDatabaseConnectionString(clientDbName));
         //var clientProvider = new SqliteSyncProvider("adv2.db");
 
         // Creating an agent that will handle all the process

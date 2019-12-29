@@ -34,8 +34,11 @@ namespace Dotmim.Sync
             var sc = schema.CaseSensitive ? StringComparison.InvariantCulture
                                          : StringComparison.InvariantCultureIgnoreCase;
 
+            var schema1Normalized = string.IsNullOrWhiteSpace(schema1) ? string.Empty : schema1;
+            var schema2Normalized = string.IsNullOrWhiteSpace(schema2) ? string.Empty : schema2;
 
-            return string.Equals(table1, table2, sc) && string.Equals(schema1, schema2, sc);
+
+            return string.Equals(table1, table2, sc) && string.Equals(schema1Normalized, schema2Normalized, sc);
 
         }
         /// <summary>

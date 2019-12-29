@@ -135,8 +135,7 @@ namespace Dotmim.Sync.Tests.Models
 
                 entity.Property(e => e.ModifiedDate)
                     .HasColumnType("datetime")
-                    .ValueGeneratedOnAdd()
-                    .HasDefaultValue(DateTime.Now);
+                    .ValueGeneratedOnAdd();
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");

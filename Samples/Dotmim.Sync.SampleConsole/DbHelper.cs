@@ -1,4 +1,5 @@
 ﻿using Dotmim.Sync.Tests.Models;
+using MySql.Data.MySqlClient;
 using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
@@ -12,6 +13,25 @@ namespace Dotmim.Sync.SampleConsole
 
         public static string GetDatabaseConnectionString(string dbName) =>
             $"Data Source=(localdb)\\mssqllocaldb; Initial Catalog={dbName}; Integrated Security=true;";
+
+
+
+        public static string GetMySqlDatabaseConnectionString(string dbName)
+        {
+
+            var builder = new MySqlConnectionStringBuilder
+            {
+                Server = "127.0.0.1",
+                Port = 3306,
+                UserID = "root",
+                Password = "Password12!",
+                Database = dbName
+            };
+
+            builder.Port = 3307;
+
+            return builder.ToString();
+        }
 
 
         /// <summary>
@@ -37,7 +57,7 @@ namespace Dotmim.Sync.SampleConsole
             masterConnection.Close();
         }
 
-      
+
 
         public static async Task CreateDatabaseAsync(string dbName, bool recreateDb = true)
         {
