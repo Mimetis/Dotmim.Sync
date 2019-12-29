@@ -185,8 +185,8 @@ namespace Dotmim.Sync.Builders
 
                 if (procBuilder.NeedToCreateProcedure(DbCommandType.DeleteRow))
                     procBuilder.CreateDelete();
-                if (procBuilder.NeedToCreateProcedure(DbCommandType.InsertMetadata))
-                    procBuilder.CreateInsertMetadata();
+                //if (procBuilder.NeedToCreateProcedure(DbCommandType.InsertMetadata))
+                //    procBuilder.CreateInsertMetadata();
                 if (procBuilder.NeedToCreateProcedure(DbCommandType.UpdateMetadata))
                     procBuilder.CreateUpdateMetadata();
                 if (procBuilder.NeedToCreateProcedure(DbCommandType.DeleteMetadata))
@@ -197,7 +197,7 @@ namespace Dotmim.Sync.Builders
                 if (this.UseBulkProcedures && procBuilder.NeedToCreateType(DbCommandType.BulkTableType))
                 {
                     procBuilder.CreateTVPType();
-                    procBuilder.CreateBulkInsert();
+                    //procBuilder.CreateBulkInsert();
 
                     if (hasMutableColumns)
                         procBuilder.CreateBulkUpdate();

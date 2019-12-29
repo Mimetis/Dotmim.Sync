@@ -133,7 +133,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             if (applyRowsCount <= 0)
                 return;
 
-            DataRowState dataRowState = DataRowState.Unchanged;
+            var dataRowState = DataRowState.Unchanged;
 
             var records = new List<SqlDataRecord>(applyRowsCount);
             SqlMetaData[] metadatas = new SqlMetaData[schemaChangesTable.Columns.Count];
@@ -154,6 +154,8 @@ namespace Dotmim.Sync.SqlServer.Builders
                     for (int i = 0; i < schemaChangesTable.Columns.Count; i++)
                     {
                         var schemaColumn = schemaChangesTable.Columns[i];
+
+
 
                         // Get the default value
                         //var columnType = schemaColumn.GetDataType();
