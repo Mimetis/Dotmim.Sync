@@ -36,7 +36,7 @@ internal class Program
     private static void Main(string[] args)
     {
 
-        SynchronizeAsync().GetAwaiter().GetResult();
+        TestSyncThroughWebApi().GetAwaiter().GetResult();
 
 
         //TestSyncTable();
@@ -203,59 +203,6 @@ internal class Program
             c.Close();
         }
     }
-
-
-
-    //private static void TestSerializers()
-    //{
-    //    var dslight = new DmSetLight(GetSet());
-
-    //    var serializer1 = new ContractSerializer<DmSetLight>();
-    //    var serializer2 = new JsonConverter<DmSetLight>();
-    //    var serializer3 = new CustomMessagePackSerializer<DmSetLight>();
-
-    //    var bin1 = serializer1.Serialize(dslight);
-    //    var bin2 = serializer2.Serialize(dslight);
-    //    var bin3 = serializer3.Serialize(dslight);
-
-    //    var json3 = MessagePack.MessagePackSerializer.ToJson(bin3);
-    //    string json2;
-    //    using (var ms = new MemoryStream(bin2))
-    //    {
-    //        using (var sr = new StreamReader(ms))
-    //        {
-    //            json2 = sr.ReadToEnd();
-    //        }
-    //    }
-
-
-
-    //    DmSetLight newDmSetLight1;
-    //    DmSetLight newDmSetLight2;
-    //    DmSetLight newDmSetLight3;
-    //    DmSet newDmSet1;
-    //    DmSet newDmSet2;
-    //    DmSet newDmSet3;
-    //    using (var ms1 = new MemoryStream(bin1))
-    //    {
-    //        newDmSetLight1 = serializer1.Deserialize(ms1);
-    //        newDmSet1 = CreateDmSet();
-    //        newDmSetLight1.WriteToDmSet(newDmSet1);
-    //    }
-    //    using (var ms2 = new MemoryStream(bin2))
-    //    {
-    //        newDmSetLight2 = serializer2.Deserialize(ms2);
-    //        newDmSet2 = CreateDmSet();
-    //        newDmSetLight2.WriteToDmSet(newDmSet2);
-    //    }
-    //    using (var ms3 = new MemoryStream(bin3))
-    //    {
-    //        newDmSetLight3 = serializer3.Deserialize(ms3);
-    //        newDmSet3 = CreateDmSet();
-    //        newDmSetLight3.WriteToDmSet(newDmSet3);
-    //    }
-
-    //}
 
 
     private static void TestSyncTable()
@@ -946,42 +893,42 @@ internal class Program
     /// </summary>
     private static async Task TestSyncThroughWebApi()
     {
-        //var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
+        var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
 
-        //var proxyClientProvider = new WebProxyClientProvider(
-        //    new Uri("http://localhost:52288/api/Sync"));
+        var proxyClientProvider = new WebClientOrchestrator("http://localhost:52288/api/Sync");
+        
 
-        //var agent = new SyncAgent(clientProvider, proxyClientProvider);
+        var agent = new SyncAgent(clientProvider, proxyClientProvider);
 
-        //Console.WriteLine("Press a key to start (be sure web api is running ...)");
-        //Console.ReadKey();
-        //do
-        //{
-        //    Console.Clear();
-        //    Console.WriteLine("Web sync start");
-        //    try
-        //    {
-        //        var progress = new Progress<ProgressArgs>(pa => Console.WriteLine($"{pa.Context.SessionId} - {pa.Context.SyncStage}\t {pa.Message}"));
+        Console.WriteLine("Press a key to start (be sure web api is running ...)");
+        Console.ReadKey();
+        do
+        {
+            Console.Clear();
+            Console.WriteLine("Web sync start");
+            try
+            {
+                var progress = new Progress<ProgressArgs>(pa => Console.WriteLine($"{pa.Context.SessionId} - {pa.Context.SyncStage}\t {pa.Message}"));
 
-        //        var s = await agent.SynchronizeAsync(progress);
+                var s = await agent.SynchronizeAsync(progress);
 
-        //        Console.WriteLine(s);
+                Console.WriteLine(s);
 
-        //    }
-        //    catch (SyncException e)
-        //    {
-        //        Console.WriteLine(e.ToString());
-        //    }
-        //    catch (Exception e)
-        //    {
-        //        Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
-        //    }
+            }
+            catch (SyncException e)
+            {
+                Console.WriteLine(e.ToString());
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+            }
 
 
-        //    Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
-        //} while (Console.ReadKey().Key != ConsoleKey.Escape);
+            Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
 
-        //Console.WriteLine("End");
+        Console.WriteLine("End");
 
     }
 
@@ -989,53 +936,3 @@ internal class Program
 
 }
 
-
-[DataContract(Namespace = "http://Microsoft.ServiceModel.Samples")]
-internal class Record
-{
-    private double n1;
-    private double n2;
-    private string operation;
-    private double result;
-
-    internal Record(double n1, double n2, string operation, double result)
-    {
-        this.n1 = n1;
-        this.n2 = n2;
-        this.operation = operation;
-        this.result = result;
-    }
-
-    [DataMember]
-    internal double OperandNumberOne
-    {
-        get { return n1; }
-        set { n1 = value; }
-    }
-
-    [DataMember]
-    internal double OperandNumberTwo
-    {
-        get { return n2; }
-        set { n2 = value; }
-    }
-
-    [DataMember]
-    internal string Operation
-    {
-        get { return operation; }
-        set { operation = value; }
-    }
-
-    [DataMember]
-    internal double Result
-    {
-        get { return result; }
-        set { result = value; }
-    }
-
-    public override string ToString()
-    {
-        return $"Record: {n1} {operation} {n2} = {result}";
-    }
-}

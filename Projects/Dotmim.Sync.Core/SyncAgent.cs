@@ -132,6 +132,11 @@ namespace Dotmim.Sync
         public Task<SyncContext> SynchronizeAsync(IProgress<ProgressArgs> progress) => SynchronizeAsync(SyncType.Normal, CancellationToken.None, progress);
 
         /// <summary>
+        /// Launch a synchronization with a SyncType specified
+        /// </summary>
+        public Task<SyncContext> SynchronizeAsync(SyncType syncType, IProgress<ProgressArgs> progress = null) => SynchronizeAsync(syncType, CancellationToken.None, progress);
+
+        /// <summary>
         /// Launch a synchronization with the specified mode
         /// </summary>
         public async Task<SyncContext> SynchronizeAsync(SyncType syncType, CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)

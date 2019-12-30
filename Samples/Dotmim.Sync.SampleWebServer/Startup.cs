@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Dotmim.Sync.SqlServer;
+using Dotmim.Sync.Web.Server;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpsPolicy;
@@ -33,28 +34,26 @@ namespace Dotmim.Sync.SampleWebServer
 
             var connectionString = Configuration.GetSection("ConnectionStrings")["DefaultConnection"];
 
-            services.AddSyncServer<SqlSyncProvider>(connectionString,
-                c =>
-                {
-                    var tables = new string[] {"ProductCategory",
+            var options = new WebServerOptions()
+            {
+                BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "server"),
+            };
+
+            var tables = new string[] {"ProductCategory",
                             "ProductDescription", "ProductModel",
                             "Product", "ProductModelProductDescription",
                             "Address", "Customer", "CustomerAddress",
                             "SalesOrderHeader", "SalesOrderDetail" };
-                    c.Add(tables);
-                    c.ScopeInfoTableName = "tscopeinfo";
-                    c.SerializationFormat = Dotmim.Sync.Enumerations.SerializationFormat.Binary;
-                    c.StoredProceduresPrefix = "s";
-                    c.StoredProceduresSuffix = "";
-                    c.TrackingTablesPrefix = "t";
-                    c.TrackingTablesSuffix = "";
 
+            var schema = new SyncSet(tables)
+            {
+                StoredProceduresPrefix = "s",
+                StoredProceduresSuffix = "",
+                TrackingTablesPrefix = "t",
+                TrackingTablesSuffix = ""
+            };
 
-                }, options =>
-                {
-                    options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "server");
-                    options.BatchSize = 100;
-                });
+            services.AddSyncServer<SqlSyncProvider>(connectionString, schema, options);
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

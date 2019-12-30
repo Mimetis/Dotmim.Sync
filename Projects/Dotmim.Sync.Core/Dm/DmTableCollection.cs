@@ -66,8 +66,8 @@ namespace Dotmim.Sync.Data
         {
             // Affect correct Culture / CaseSensitive
             table.DmSet = innerSet;
-            table.Culture = innerSet.Culture;
             table.CaseSensitive = innerSet.CaseSensitive;
+            table.Culture = innerSet.Culture;
             table.CheckNameCompliance(table.TableName);
             collection.Add(table);
         }

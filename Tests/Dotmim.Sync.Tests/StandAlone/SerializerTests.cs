@@ -23,11 +23,12 @@ namespace Dotmim.Sync.Tests.StandAlone
             var inSchema = CreateSchema();
             byte[] bin = null;
             SyncSet outSchema;
-            MessagePackSerializer.DefaultOptions.WithResolver(MessagePack.Resolvers.ContractlessStandardResolver.Instance);
+
+            var options = MessagePack.Resolvers.ContractlessStandardResolver.Options;
 
             using (var ms = new MemoryStream())
             {
-                MessagePackSerializer.Serialize(ms, inSchema);
+                MessagePackSerializer.Serialize(ms, inSchema, options);
                 bin = ms.ToArray();
             }
 
@@ -38,7 +39,7 @@ namespace Dotmim.Sync.Tests.StandAlone
 
             using (var ms = new MemoryStream(bin))
             {
-                outSchema = MessagePackSerializer.Deserialize<SyncSet>(ms);
+                outSchema = MessagePackSerializer.Deserialize<SyncSet>(ms, options);
             }
 
             Assertions(outSchema);
@@ -248,7 +249,7 @@ namespace Dotmim.Sync.Tests.StandAlone
             var tbl = new SyncTable("ServiceTickets", null);
             tbl.OriginalProvider = "SqlServerProvider";
             tbl.SyncDirection = Enumerations.SyncDirection.Bidirectional;
-            
+
             set.Tables.Add(tbl);
 
             var c = SyncColumn.Create<int>("ServiceTicketID");
@@ -273,7 +274,7 @@ namespace Dotmim.Sync.Tests.StandAlone
 
             // Add Second tables
             var tbl2 = new SyncTable("Product", "SalesLT");
-            tbl2.SyncDirection = Enumerations.SyncDirection.UploadOnly;
+            tbl2.SyncDirection = SyncDirection.UploadOnly;
 
             tbl2.Columns.Add(SyncColumn.Create<int>("Id"));
             tbl2.Columns.Add(SyncColumn.Create<string>("Title"));
@@ -283,7 +284,7 @@ namespace Dotmim.Sync.Tests.StandAlone
 
 
             // Add Filters
-            var sf = new SyncFilter("Title", "Product", "SalesLT", (int)DbType.String);
+            var sf = new SyncFilter("Product", "Title", "SalesLT", (int)DbType.String);
             set.Filters.Add(sf);
 
             // Add Relations
@@ -296,6 +297,6 @@ namespace Dotmim.Sync.Tests.StandAlone
             return set;
         }
 
-     
+
     }
 }

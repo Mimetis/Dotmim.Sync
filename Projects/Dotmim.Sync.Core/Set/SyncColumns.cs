@@ -42,8 +42,10 @@ namespace Dotmim.Sync
         public void EnsureColumns(SyncTable table)
         {
             this.Table = table;
-            foreach (var column in this)
-                column.Table = table;
+
+            if (InnerCollection != null)
+                foreach (var column in this)
+                    column.Table = table;
         }
 
         /// <summary>
@@ -101,7 +103,7 @@ namespace Dotmim.Sync
 
         }
 
-    
+
         /// <summary>
         /// Reorganize columns order
         /// </summary>
