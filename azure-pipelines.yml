@@ -114,6 +114,7 @@ jobs:
       - script: |
           dotnet build Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Core --version-suffix $(buildBetaId) 
           dotnet build Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServer --version-suffix $(buildBetaId) 
+          dotnet build Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MySql --version-suffix $(buildBetaId) 
           dotnet build Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Sqlite --version-suffix $(buildBetaId) 
           dotnet build Projects/Dotmim.Sync.Web.Client/Dotmim.Sync.Web.Client.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Client --version-suffix $(buildBetaId) 
           dotnet build Projects/Dotmim.Sync.Web.Server/Dotmim.Sync.Web.Server.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Server --version-suffix $(buildBetaId) 
@@ -141,6 +142,7 @@ jobs:
       - script: |
           dotnet build Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Core 
           dotnet build Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServer 
+          dotnet build Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MySql 
           dotnet build Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Sqlite 
           dotnet build Projects/Dotmim.Sync.Web.Client/Dotmim.Sync.Web.Client.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Client 
           dotnet build Projects/Dotmim.Sync.Web.Server/Dotmim.Sync.Web.Server.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Server 
