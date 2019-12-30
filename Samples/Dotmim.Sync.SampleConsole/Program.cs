@@ -36,7 +36,7 @@ internal class Program
     private static void Main(string[] args)
     {
 
-        TestSyncThroughWebApi().GetAwaiter().GetResult();
+        SynchronizeAsync().GetAwaiter().GetResult();
 
 
         //TestSyncTable();
@@ -603,14 +603,13 @@ internal class Program
     private static async Task SynchronizeAsync()
     {
         // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverProductCategoryDbName));
+        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
         var clientProvider = new MySqlSyncProvider(DbHelper.GetMySqlDatabaseConnectionString(clientDbName));
         //var clientProvider = new SqliteSyncProvider("adv2.db");
 
         // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, oneTable);
+        var agent = new SyncAgent(clientProvider, serverProvider, allTables);
   
-
         // Using the Progress pattern to handle progession during the synchronization
         var progress = new SynchronousProgress<ProgressArgs>(s =>
         {
@@ -626,13 +625,21 @@ internal class Program
             Console.ResetColor();
         });
 
-        //agent.AddRemoteProgress(remoteProgress);
+        agent.AddRemoteProgress(remoteProgress);
 
+        agent.Schema.Filters.Add("ProductCategory", "ParentProductCategoryID");
+        agent.Schema.Filters.Add("ProductCategory", "Name");
+
+        agent.Schema.StoredProceduresPrefix = "s";
+        agent.Schema.StoredProceduresSuffix = "";
+        agent.Schema.TrackingTablesPrefix = "t";
+        agent.Schema.TrackingTablesSuffix = "";
+        
         //agent.Options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync");
-        //agent.Options.BatchSize = 0;
+        //agent.Options.BatchSize = 1000;
         //agent.Options.CleanMetadatas = true;
         agent.Options.UseBulkOperations = true;
-        // agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
+        agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
         //agent.Options.UseVerboseErrors = false;
         //agent.Options.ScopeInfoTableName = "tscopeinfo";
 
@@ -643,8 +650,10 @@ internal class Program
             Console.WriteLine("Sync Start");
             try
             {
-
                 // Launch the sync process
+                agent.Parameters.Add("ProductCategory", "ParentProductCategoryID", "", 1);
+                agent.Parameters.Add("ProductCategory", "Name", "", "Touring Bikes");
+
                 var s1 = await agent.SynchronizeAsync(progress);
 
                 // Write results
@@ -870,7 +879,6 @@ internal class Program
                 var s1 = await agent.SynchronizeAsync();
                 Console.WriteLine(s1);
                 Console.WriteLine("--------------------------------------------------");
-
 
                 Console.WriteLine("Insert product category on Client");
                 var name = Path.GetRandomFileName().Replace(".", "").ToUpperInvariant().Substring(0, 6);

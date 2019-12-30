@@ -74,6 +74,39 @@ namespace Dotmim.Sync.Tests
 
         }
 
+        /// <summary>
+        /// Get the server database rows count
+        /// </summary>
+        /// <returns></returns>
+        public int GetServerDatabaseRowsCount()
+        {
+            int totalCountRows = 0;
+
+            using (var serverDbCtx = this.GetServerDbContext())
+            {
+                totalCountRows += serverDbCtx.Address.Count();
+                totalCountRows += serverDbCtx.Customer.Count();
+                totalCountRows += serverDbCtx.CustomerAddress.Count();
+                totalCountRows += serverDbCtx.Employee.Count();
+                totalCountRows += serverDbCtx.EmployeeAddress.Count();
+                totalCountRows += serverDbCtx.Log.Count();
+                totalCountRows += serverDbCtx.Posts.Count();
+                totalCountRows += serverDbCtx.PostTag.Count();
+                totalCountRows += serverDbCtx.PricesList.Count();
+                totalCountRows += serverDbCtx.PricesListCategory.Count();
+                totalCountRows += serverDbCtx.PricesListDetail.Count();
+                totalCountRows += serverDbCtx.Product.Count();
+                totalCountRows += serverDbCtx.ProductCategory.Count();
+                totalCountRows += serverDbCtx.ProductModel.Count();
+                totalCountRows += serverDbCtx.SalesOrderDetail.Count();
+                totalCountRows += serverDbCtx.SalesOrderHeader.Count();
+                totalCountRows += serverDbCtx.Sql.Count();
+                totalCountRows += serverDbCtx.Tags.Count();
+            }
+
+            return totalCountRows;
+        }
+
 
         public virtual async Task CheckHealthDatabase()
         {
@@ -1000,7 +1033,7 @@ namespace Dotmim.Sync.Tests
             {
                 // reset
                 await this.testRunner.RunTestsAsync(options);
-        
+
                 // generate a conflict product category id
                 var conflictProductCategoryId = "BIKES";
 
@@ -1632,7 +1665,7 @@ namespace Dotmim.Sync.Tests
                 {
                     connection.Open();
                     var tableManger = provider
-                        .GetDbManager("PriceListCategory", "")
+                        .GetDbManager("PricesListCategory", "")
                         ?.CreateManagerTable(connection);
 
                     if (tableManger == null)
@@ -1640,7 +1673,7 @@ namespace Dotmim.Sync.Tests
 
                     var relations = tableManger.GetTableRelations().ToArray();
                     Assert.Single(relations);
-                    Assert.StartsWith("FK_PriceListDetail_PriceListCategory_", relations[0].ForeignKey);
+                    Assert.StartsWith("FK_PricesListDetail_PricesListCategory_", relations[0].ForeignKey);
                     Assert.Equal(2, relations[0].Columns.Count());
                 }
             }
@@ -1950,8 +1983,6 @@ namespace Dotmim.Sync.Tests
             }
         }
 
-
-
         public virtual async Task Insert_Thousand_Client()
         {
             foreach (var options in TestConfigurations.GetOptions())
@@ -2094,5 +2125,115 @@ namespace Dotmim.Sync.Tests
 
             }
         }
+
+  
+        public virtual async Task Reinitialize_Client_Database()
+        {
+            // not sure of the count of rows (since previous tests may have insert / delete rows)
+            // so count them !
+            var rowsCount = GetServerDatabaseRowsCount();
+
+            var options = TestConfigurations.GetOptions();
+
+            // reset all
+            await this.testRunner.RunTestsAsync(options[0]);
+
+            foreach (var option in options)
+            {
+                foreach (var run in this.fixture.ClientRuns)
+                {
+                    // Insert a row in the client database
+                    using (var ctx = this.GetClientDbContext(run))
+                    {
+                        var productCategoryName = Path.GetRandomFileName().Replace(".", "");
+                        var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, Math.Min(12, productCategoryName.Length));
+
+                        var pc = new ProductCategory
+                        {
+                            ProductCategoryId = productCategoryId,
+                            Name = productCategoryName,
+                            AttributeWithSpace = productCategoryName,
+                            ModifiedDate = DateTime.Now,
+                            Rowguid = Guid.NewGuid()
+                        };
+
+                        ctx.Add(pc);
+
+                        await ctx.SaveChangesAsync();
+                    }
+
+                    var agent = new SyncAgent(run.ClientProvider, this.fixture.ServerProvider,
+                                              this.fixture.Tables, option);
+
+                    // Upload this row, before making a reinit
+                    var res = await agent.SynchronizeAsync();
+
+                    Assert.Equal(0, res.TotalChangesDownloaded);
+                    Assert.Equal(1, res.TotalChangesUploaded);
+
+                    // one new row in server.
+                    rowsCount += 1;
+
+                    // Reinit
+                    res = await agent.SynchronizeAsync(SyncType.Reinitialize);
+
+                    Assert.Equal(rowsCount, res.TotalChangesDownloaded);
+                    Assert.Equal(0, res.TotalChangesUploaded);
+                }
+            }
+        }
+
+
+        public virtual async Task ReinitializeWithUpload_Client_Database()
+        {
+
+            // not sure of the count of rows (since previous tests may have insert / delete rows)
+            // so count them !
+            var rowsCount = GetServerDatabaseRowsCount();
+
+            var options = TestConfigurations.GetOptions();
+
+            // reset all
+            await this.testRunner.RunTestsAsync(options[0]);
+
+            foreach (var option in options)
+            {
+                foreach (var run in this.fixture.ClientRuns)
+                {
+                    // Insert a row in the client database
+                    using (var ctx = this.GetClientDbContext(run))
+                    {
+                        var productCategoryName = Path.GetRandomFileName().Replace(".", "");
+                        var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, Math.Min(12, productCategoryName.Length));
+
+                        var pc = new ProductCategory
+                        {
+                            ProductCategoryId = productCategoryId,
+                            Name = productCategoryName,
+                            AttributeWithSpace = productCategoryName,
+                            ModifiedDate = DateTime.Now,
+                            Rowguid = Guid.NewGuid()
+                        };
+
+                        ctx.Add(pc);
+
+                        await ctx.SaveChangesAsync();
+                    }
+
+                    var agent = new SyncAgent(run.ClientProvider, this.fixture.ServerProvider,
+                                              this.fixture.Tables, option);
+
+                    // one new row in server.
+                    rowsCount += 1;
+
+                    // Reinit with upload
+                    var res = await agent.SynchronizeAsync(SyncType.ReinitializeWithUpload);
+
+                    Assert.Equal(rowsCount, res.TotalChangesDownloaded);
+                    Assert.Equal(1, res.TotalChangesUploaded);
+                }
+            }
+        }
+
     }
 }

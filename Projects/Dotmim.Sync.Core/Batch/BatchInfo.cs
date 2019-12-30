@@ -32,12 +32,6 @@ namespace Dotmim.Sync.Batch
                 // To simplify things, even if not used, just generate a random directory name for this batchinfo
                 this.directoryName = string.Concat(DateTime.UtcNow.ToString("yyyy_MM_dd_ss"), Path.GetRandomFileName().Replace(".", ""));
             }
-
-            // Message changes contains scope columns, so add them in the schema
-            //foreach (var table in schema.Tables)
-            //    if (table.Columns["update_scope_id"] == null)
-            //        table.Columns.Add("update_scope_id", typeof(Guid));
-
         }
 
         /// <summary>

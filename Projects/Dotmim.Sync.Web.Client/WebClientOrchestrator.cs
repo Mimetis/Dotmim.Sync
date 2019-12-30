@@ -139,16 +139,14 @@ namespace Dotmim.Sync.Web.Client
                 ScopeName = schema.ScopeName,
                 DataSourceName = schema.DataSourceName
             };
+            
             foreach (var table in schema.Tables)
-            {
                 DbSyncAdapter.CreateChangesTable(schema.Tables[table.TableName, table.SchemaName], changesSet);
-            }
-
+            
             // if we don't have any BatchPartsInfo, just generate a new one to get, at least, something to send to the server
             // and get a response with new data from server
             if (clientBatchInfo == null)
                 clientBatchInfo = new BatchInfo(true, changesSet);
-
 
             // --------------------------------------------------------------
             // STEP 1 : Send everything to the server side

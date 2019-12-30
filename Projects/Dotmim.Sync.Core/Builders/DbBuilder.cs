@@ -175,6 +175,9 @@ namespace Dotmim.Sync.Builders
 
                 if (procBuilder.NeedToCreateProcedure(DbCommandType.SelectChanges))
                     procBuilder.CreateSelectIncrementalChanges();
+                if (procBuilder.NeedToCreateProcedure(DbCommandType.SelectInitializedChanges))
+                    procBuilder.CreateSelectInitializedChanges();
+
                 if (procBuilder.NeedToCreateProcedure(DbCommandType.SelectRow))
                     procBuilder.CreateSelectRow();
 
@@ -184,7 +187,7 @@ namespace Dotmim.Sync.Builders
                 if (procBuilder.NeedToCreateProcedure(DbCommandType.DeleteRow))
                     procBuilder.CreateDelete();
                 if (procBuilder.NeedToCreateProcedure(DbCommandType.UpdateMetadata))
-                    procBuilder.CreateUpdateMetadata(hasMutableColumns);
+                    procBuilder.CreateUpdateMetadata();
                 if (procBuilder.NeedToCreateProcedure(DbCommandType.DeleteMetadata))
                     procBuilder.CreateDeleteMetadata();
                 if (procBuilder.NeedToCreateProcedure(DbCommandType.Reset))
@@ -295,6 +298,8 @@ namespace Dotmim.Sync.Builders
 
                 if (!procBuilder.NeedToCreateProcedure(DbCommandType.SelectChanges))
                     procBuilder.DropSelectIncrementalChanges();
+                if (!procBuilder.NeedToCreateProcedure(DbCommandType.SelectInitializedChanges))
+                    procBuilder.DropSelectInitializedChanges();
                 if (!procBuilder.NeedToCreateProcedure(DbCommandType.SelectRow))
                     procBuilder.DropSelectRow();
                 if (!procBuilder.NeedToCreateProcedure(DbCommandType.UpdateRow))
@@ -515,6 +520,8 @@ namespace Dotmim.Sync.Builders
 
                     if (procBuilder.NeedToCreateProcedure(DbCommandType.SelectChanges))
                         stringBuilder.Append(procBuilder.CreateSelectIncrementalChangesScriptText());
+                    if (procBuilder.NeedToCreateProcedure(DbCommandType.SelectInitializedChanges))
+                        stringBuilder.Append(procBuilder.CreateSelectInitializedChangesScriptText());
                     if (procBuilder.NeedToCreateProcedure(DbCommandType.SelectRow))
                         stringBuilder.Append(procBuilder.CreateSelectRowScriptText());
                     if (procBuilder.NeedToCreateProcedure(DbCommandType.UpdateRow))
@@ -522,7 +529,7 @@ namespace Dotmim.Sync.Builders
                     if (procBuilder.NeedToCreateProcedure(DbCommandType.DeleteRow))
                         stringBuilder.Append(procBuilder.CreateDeleteScriptText());
                     if (procBuilder.NeedToCreateProcedure(DbCommandType.UpdateMetadata))
-                        stringBuilder.Append(procBuilder.CreateUpdateMetadataScriptText(hasMutableColumns));
+                        stringBuilder.Append(procBuilder.CreateUpdateMetadataScriptText());
                     if (procBuilder.NeedToCreateProcedure(DbCommandType.DeleteMetadata))
                         stringBuilder.Append(procBuilder.CreateDeleteMetadataScriptText());
                     if (procBuilder.NeedToCreateProcedure(DbCommandType.Reset))

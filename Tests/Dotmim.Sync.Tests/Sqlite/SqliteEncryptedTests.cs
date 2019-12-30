@@ -29,9 +29,9 @@ namespace Dotmim.Sync.Tests.Sqlite
         {
             this.sqlTables = new string[]
              {
-                "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "Employee", "Customer", "Address", "CustomerAddress", "EmployeeAddress",
-                "SalesLT.SalesOrderHeader", "SalesLT.SalesOrderDetail", "dbo.Sql", "Posts", "Tags", "PostTag",
-                "PricesList", "PriceListCategory", "PriceListDetail"
+                    "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "Employee", "Customer", "Address", "CustomerAddress", "EmployeeAddress",
+                    "SalesLT.SalesOrderHeader", "SalesLT.SalesOrderDetail", "dbo.Sql", "Posts", "Tags", "PostTag",
+                    "PricesList", "PricesListCategory", "PricesListDetail"
              };
 
 

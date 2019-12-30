@@ -451,7 +451,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             string text;
             bool isStoredProc;
-            if (filters != null)
+            if (filters != null && filters.Count() > 0)
                 (text, isStoredProc) = this.sqlObjectNames.GetCommandName(nameType, filters);
             else
                 (text, isStoredProc) = this.sqlObjectNames.GetCommandName(nameType);

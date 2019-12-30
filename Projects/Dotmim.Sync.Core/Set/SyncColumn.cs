@@ -136,62 +136,7 @@ namespace Dotmim.Sync
             return clone;
         }
 
-        ///// <summary>
-        ///// Initializes a new instance of the DmColumnSurrogate class.
-        ///// </summary>
-        //public SyncColumn(DmColumn dc)
-        //{
-        //    if (dc is null)
-        //        throw new ArgumentNullException(nameof(dc));
-
-        //    this.DbType = (int)dc.dbType;
-        //    this.AllowDBNull = dc.AllowDBNull;
-        //    this.ColumnName = dc.ColumnName;
-        //    this.IsReadOnly = dc.IsReadOnly;
-        //    this.MaxLength = dc.MaxLength;
-        //    this.IsAutoIncrement = dc.IsAutoIncrement;
-        //    this.Precision = dc.Precision;
-        //    this.PrecisionSpecified = dc.PrecisionSpecified;
-        //    this.Scale = dc.Scale;
-        //    this.ScaleSpecified = dc.ScaleSpecified;
-        //    this.IsUnique = dc.IsUnique;
-        //    this.IsUnsigned = dc.IsUnsigned;
-        //    this.IsCompute = dc.IsCompute;
-        //    this.IsUnicode = dc.IsUnicode;
-        //    this.DataType = dc.DataType.GetAssemblyQualifiedName();
-        //    this.Ordinal = dc.Ordinal;
-        //    this.OriginalDbType = dc.OriginalDbType;
-        //    this.OriginalTypeName = dc.OriginalTypeName;
-
-        //}
-
-        /// <summary>
-        /// Constructs a DmColumn object based on a DmColumnSurrogate object.
-        /// </summary>
-        //public DmColumn ConvertToDmColumn()
-        //{
-        //    var dmColumn = DmColumn.CreateColumn(this.ColumnName, DmUtils.GetTypeFromAssemblyQualifiedName(this.DataType));
-
-        //    dmColumn.DbType = (DbType)this.DbType;
-        //    dmColumn.AllowDBNull = this.AllowDBNull;
-        //    dmColumn.IsReadOnly = this.IsReadOnly;
-        //    dmColumn.MaxLength = this.MaxLength;
-        //    dmColumn.IsAutoIncrement = this.IsAutoIncrement;
-        //    dmColumn.Precision = this.Precision;
-        //    dmColumn.PrecisionSpecified = this.PrecisionSpecified;
-        //    dmColumn.Scale = this.Scale;
-        //    dmColumn.ScaleSpecified = this.ScaleSpecified;
-        //    dmColumn.IsUnique = this.IsUnique;
-        //    dmColumn.IsUnicode = this.IsUnicode;
-        //    dmColumn.IsCompute = this.IsCompute;
-        //    dmColumn.IsUnsigned = this.IsUnsigned;
-        //    dmColumn.OriginalDbType = this.OriginalDbType;
-        //    dmColumn.OriginalTypeName = this.OriginalTypeName;
-        //    dmColumn.SetOrdinal(this.Ordinal);
-
-        //    return dmColumn;
-        //}
-
+ 
         /// <summary>
         /// Get the DbType in a normal DbType type
         /// </summary>
@@ -401,7 +346,6 @@ namespace Dotmim.Sync
 
             return (seed, step);
         }
-
 
         /// <summary>
         /// Gets or Sets the default value

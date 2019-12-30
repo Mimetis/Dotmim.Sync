@@ -54,7 +54,7 @@ namespace Dotmim.Sync.Sqlite
             var command = this.Connection.CreateCommand();
             string text;
 
-            if (filters != null)
+            if (filters != null && filters.Count() > 0)
                 text = this.sqliteObjectNames.GetCommandName(commandType, filters);
             else
                 text = this.sqliteObjectNames.GetCommandName(commandType);
@@ -75,7 +75,7 @@ namespace Dotmim.Sync.Sqlite
             switch (commandType)
             {
                 case DbCommandType.SelectChanges:
-                case DbCommandType.SelectChangesWitFilters:
+                case DbCommandType.SelectChangesWithFilters:
                     this.SetSelecteChangesParameters(command);
                     break;
                 case DbCommandType.SelectRow:

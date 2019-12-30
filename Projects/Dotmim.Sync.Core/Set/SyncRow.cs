@@ -159,7 +159,11 @@ namespace Dotmim.Sync
         /// <summary>
         /// Clear the data in the buffer
         /// </summary>
-        public void Clear() => Array.Clear(this.buffer, 0, this.buffer.Length);
+        public void Clear()
+        {
+            Array.Clear(this.buffer, 0, this.buffer.Length);
+            this.Table = null;
+        }
 
 
         /// <summary>

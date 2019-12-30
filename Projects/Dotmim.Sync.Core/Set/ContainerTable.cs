@@ -52,26 +52,12 @@ namespace Dotmim.Sync
                 this.Rows = rows;
         }
 
-
-        //public ContainerTable(DmTable dt)
-        //{
-        //    this.TableName = dt.TableName;
-        //    this.SchemaName = dt.Schema;
-
-        //    foreach (DmRow row in dt.Rows)
-        //        this.ImportRow(row);
-        //}
-
-       
-
         /// <summary>
         /// Check if we have rows in this container table
         /// </summary>
         public bool HasRows => this.Rows.Count > 0;
-
  
         public void Clear() => Rows.Clear();
-
  
         /// <summary>
         /// Calculate an estimation of the dictionary values size
@@ -158,10 +144,7 @@ namespace Dotmim.Sync
 
         }
 
-
-
     }
-
 
     /// <summary>
     /// Extensions methods for ContainerTable

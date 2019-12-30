@@ -194,10 +194,7 @@ namespace Dotmim.Sync
         public void Clear()
         {
             foreach (var row in rows)
-            {
                 row.Clear();
-                row.Table = null;
-            }
 
             rows.Clear();
         }
