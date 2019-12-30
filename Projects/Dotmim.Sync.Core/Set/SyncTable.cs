@@ -20,6 +20,9 @@ namespace Dotmim.Sync
     [DataContract(Name = "st"), Serializable]
     public class SyncTable : IDisposable
     {
+        [NonSerialized]
+        private SyncRows rows;
+
         /// <summary>
         /// Gets or sets the name of the table that the DmTableSurrogate object represents.
         /// </summary>
@@ -62,7 +65,12 @@ namespace Dotmim.Sync
         /// Gets the ShemaTable's rows
         /// </summary>
         [IgnoreDataMember]
-        public SyncRows Rows { get; private set; }
+        public SyncRows Rows
+        {
+            // Use of field property because of attribute [NonSerialized] necessary for binaryformatter
+            get => rows;
+            private set => rows = value;
+        }
 
         /// <summary>
         /// Gets the ShemaTable's SyncSchema
@@ -96,8 +104,12 @@ namespace Dotmim.Sync
         public void EnsureTable(SyncSet schema)
         {
             this.Schema = schema;
-            this.Columns.EnsureColumns(this);
-            this.Rows.EnsureRows(this);
+
+            if (this.Columns != null)
+                this.Columns.EnsureColumns(this);
+
+            if (this.Rows != null)
+                this.Rows.EnsureRows(this);
         }
 
         /// <summary>

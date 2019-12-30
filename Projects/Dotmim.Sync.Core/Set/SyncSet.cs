@@ -133,9 +133,14 @@ namespace Dotmim.Sync
         /// </summary>
         public void EnsureSchema()
         {
-            this.Tables.EnsureTables(this);
-            this.Relations.EnsureRelations(this);
-            this.Filters.EnsureFilters(this);
+            if (this.Tables != null)
+                this.Tables.EnsureTables(this);
+
+            if (this.Relations != null)
+                this.Relations.EnsureRelations(this);
+
+            if (this.Filters != null)
+                this.Filters.EnsureFilters(this);
         }
 
         /// <summary>
