@@ -93,6 +93,12 @@ namespace Dotmim.Sync
             return (DbType)this.ColumnType.Value;
         }
 
+        /// <summary>
+        /// Clear
+        /// </summary>
+        public void Clear() => this.Dispose(true);
+
+
         public void Dispose()
         {
             this.Dispose(true);

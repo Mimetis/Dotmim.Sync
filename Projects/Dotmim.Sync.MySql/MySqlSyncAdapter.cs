@@ -64,7 +64,7 @@ namespace Dotmim.Sync.MySql
             string text;
             bool isStoredProc;
 
-            if (additionals != null)
+            if (additionals != null && additionals.Count() > 0)
                 (text, isStoredProc) = this.mySqlObjectNames.GetCommandName(commandType, additionals);
             else
                 (text, isStoredProc) = this.mySqlObjectNames.GetCommandName(commandType);
@@ -87,7 +87,7 @@ namespace Dotmim.Sync.MySql
             switch (commandType)
             {
                 case DbCommandType.SelectChanges:
-                case DbCommandType.SelectChangesWitFilters:
+                case DbCommandType.SelectChangesWithFilters:
                     this.SetSelecteChangesParameters(command, filters);
                     break;
                 case DbCommandType.SelectRow:

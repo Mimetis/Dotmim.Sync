@@ -8,7 +8,9 @@ namespace Dotmim.Sync.Builders
     public enum DbCommandType
     {
         SelectChanges,
-        SelectChangesWitFilters,
+        SelectInitializedChanges,
+        SelectInitializedChangesWithFilters,
+        SelectChangesWithFilters,
         SelectRow,
         UpdateRow,
         DeleteRow,

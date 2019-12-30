@@ -29,7 +29,7 @@ namespace Dotmim.Sync.Tests.MySql
                {
                 "ProductCategory", "ProductModel", "Product", "Employee", "Customer", "Address", "CustomerAddress","EmployeeAddress",
                 "SalesOrderHeader", "SalesOrderDetail", "Sql", "Posts", "Tags", "PostTag",
-                "PricesList", "PriceListCategory", "PriceListDetail"
+                "PricesList", "PricesListCategory", "PricesListDetail"
                };
 
                 // 1) Add database name
@@ -41,7 +41,7 @@ namespace Dotmim.Sync.Tests.MySql
 
                 if (!Setup.IsOnAzureDev)
                 {
-                    providerFixture.AddRun(NetworkType.Http, ProviderType.Sqlite);
+                    providerFixture.AddRun(NetworkType.Tcp, ProviderType.MySql);
                 }
                 else
                 {
@@ -233,6 +233,15 @@ namespace Dotmim.Sync.Tests.MySql
         {
             return base.Delete_Client_Sync_Insert_Server_Sync_Client_Should_Have_Insert();
         }
-
+        [Fact, TestPriority(30)]
+        public override Task Reinitialize_Client_Database()
+        {
+            return base.Reinitialize_Client_Database();
+        }
+        [Fact, TestPriority(31)]
+        public override Task ReinitializeWithUpload_Client_Database()
+        {
+            return base.ReinitializeWithUpload_Client_Database();
+        }
     }
 }

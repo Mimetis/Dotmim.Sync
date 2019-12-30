@@ -18,9 +18,10 @@ namespace Dotmim.Sync.Builders
         bool NeedToCreateType(DbCommandType typeName);
         void CreateSelectRow();
         void CreateSelectIncrementalChanges();
+        void CreateSelectInitializedChanges();
         void CreateUpdate(bool hasMutableColumns);
         void CreateDelete();
-        void CreateUpdateMetadata(bool hasMutableColumns);
+        void CreateUpdateMetadata();
         void CreateDeleteMetadata();
         void CreateTVPType();
         void CreateBulkUpdate(bool hasMutableColumns);
@@ -28,6 +29,7 @@ namespace Dotmim.Sync.Builders
         void CreateReset();
         void DropSelectRow();
         void DropSelectIncrementalChanges();
+        void DropSelectInitializedChanges();
         void DropUpdate();
         void DropDelete();
         void DropUpdateMetadata();
@@ -38,9 +40,10 @@ namespace Dotmim.Sync.Builders
         void DropReset();
         String CreateSelectRowScriptText();
         String CreateSelectIncrementalChangesScriptText();
+        String CreateSelectInitializedChangesScriptText();
         String CreateUpdateScriptText(bool hasMutableColumns);
         String CreateDeleteScriptText();
-        String CreateUpdateMetadataScriptText(bool hasMutableColumns);
+        String CreateUpdateMetadataScriptText();
         String CreateDeleteMetadataScriptText();
         String CreateTVPTypeScriptText();
         String CreateBulkUpdateScriptText(bool hasMutableColumns);

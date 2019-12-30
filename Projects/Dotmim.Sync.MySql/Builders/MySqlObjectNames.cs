@@ -18,6 +18,10 @@ namespace Dotmim.Sync.MySql
 
         internal const string selectChangesProcName = "`{0}_selectchanges`";
         internal const string selectChangesProcNameWithFilters = "`{0}_{1}_selectchanges`";
+
+        internal const string initializeChangesProcName = "`{0}_initialize`";
+        internal const string initializeChangesProcNameWithFilters = "`{0}_{1}_initialize`";
+
         internal const string selectRowProcName = "`{0}_selectrow`";
 
         internal const string insertProcName = "`{0}_insert`";
@@ -95,7 +99,11 @@ namespace Dotmim.Sync.MySql
             this.AddName(DbCommandType.DeleteTrigger, string.Format(deleteTriggerName, $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}"), true);
 
             this.AddName(DbCommandType.SelectChanges, string.Format(selectChangesProcName, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
-            this.AddName(DbCommandType.SelectChangesWitFilters, string.Format(selectChangesProcNameWithFilters, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}", "{0}"), true);
+            this.AddName(DbCommandType.SelectChangesWithFilters, string.Format(selectChangesProcNameWithFilters, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}", "{0}"), true);
+
+            this.AddName(DbCommandType.SelectInitializedChanges, string.Format(initializeChangesProcName, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
+            this.AddName(DbCommandType.SelectInitializedChangesWithFilters, string.Format(initializeChangesProcNameWithFilters, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}", "{0}"), true);
+
             this.AddName(DbCommandType.SelectRow, string.Format(selectRowProcName, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
             this.AddName(DbCommandType.UpdateRow, string.Format(updateProcName, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
             this.AddName(DbCommandType.DeleteRow, string.Format(deleteProcName, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
@@ -343,7 +351,7 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine("\t);");
 
             this.AddName(DbCommandType.SelectChanges, stringBuilder.ToString(), false);
-            this.AddName(DbCommandType.SelectChangesWitFilters, stringBuilder.ToString(), false);
+            this.AddName(DbCommandType.SelectChangesWithFilters, stringBuilder.ToString(), false);
         }
 
     }

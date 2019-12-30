@@ -110,6 +110,8 @@ namespace Dotmim.Sync.Tests.Models
         public virtual DbSet<PostTag> PostTag { get; set; }
         public virtual DbSet<Tags> Tags { get; set; }
         public virtual DbSet<PriceList> PricesList { get; set; }
+        public virtual DbSet<PriceListDetail> PricesListDetail { get; set; }
+        public virtual DbSet<PriceListCategory> PricesListCategory { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -430,6 +432,9 @@ namespace Dotmim.Sync.Tests.Models
             {
                 if (this.useSchema)
                     entity.ToTable("ProductCategory", "SalesLT");
+
+                entity.HasKey(e => e.ProductCategoryId);
+
 
                 entity.HasIndex(e => e.Name)
                     .HasName("AK_ProductCategory_Name")
