@@ -8,6 +8,7 @@ using System.Text;
 
 namespace Dotmim.Sync
 {
+
     public class SyncRows : ICollection<SyncRow>, IList<SyncRow>
     {
         public SyncTable Table { get; set; }
@@ -20,8 +21,10 @@ namespace Dotmim.Sync
         public void EnsureRows(SyncTable table)
         {
             this.Table = table;
-            foreach (SyncRow row in this)
-                row.Table = table;
+
+            if (rows != null)
+                foreach (var row in this)
+                    row.Table = table;
         }
 
         /// <summary>
@@ -47,7 +50,7 @@ namespace Dotmim.Sync
 
         public void AddRange(List<SyncRow> rows)
         {
-            foreach(var item in rows)
+            foreach (var item in rows)
             {
                 // TryEnsureData(item);
                 item.Table = this.Table;
@@ -72,7 +75,7 @@ namespace Dotmim.Sync
         /// <param name="containerTable"></param>
         internal void ImportContainerTable(ContainerTable containerTable)
         {
-            foreach(var row in containerTable.Rows)
+            foreach (var row in containerTable.Rows)
             {
                 var length = Table.Columns.Count;
                 var itemArray = new object[length];
@@ -223,6 +226,6 @@ namespace Dotmim.Sync
         IEnumerator<SyncRow> IEnumerable<SyncRow>.GetEnumerator() => this.rows.GetEnumerator();
         IEnumerator IEnumerable.GetEnumerator() => this.rows.GetEnumerator();
 
-      
+
     }
 }

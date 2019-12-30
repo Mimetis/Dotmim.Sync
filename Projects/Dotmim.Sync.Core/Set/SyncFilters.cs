@@ -42,8 +42,10 @@ namespace Dotmim.Sync
         public void EnsureFilters(SyncSet schema)
         {
             this.Schema = schema;
-            foreach (var item in this)
-                item.EnsureFilter(schema);
+
+            if (InnerCollection != null)
+                foreach (var item in this)
+                    item.EnsureFilter(schema);
         }
 
         /// <summary>

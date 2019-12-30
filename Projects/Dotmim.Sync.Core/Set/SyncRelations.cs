@@ -42,8 +42,10 @@ namespace Dotmim.Sync
         public void EnsureRelations(SyncSet schema)
         {
             this.Schema = schema;
-            foreach (var item in this)
-                item.EnsureRelation(schema);
+
+            if (InnerCollection != null)
+                foreach (var item in this)
+                    item.EnsureRelation(schema);
         }
 
 
