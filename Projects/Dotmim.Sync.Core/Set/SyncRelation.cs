@@ -65,6 +65,10 @@ namespace Dotmim.Sync
             return clone;
         }
 
+        /// <summary>
+        /// Clear 
+        /// </summary>
+        public void Clear() => this.Dispose(true);
 
         public void Dispose()
         {

@@ -222,18 +222,24 @@ namespace Dotmim.Sync
 
 
         /// <summary>
-        /// Clear the SyncSet's rows
+        /// Clear the SyncSet
         /// </summary>
-        public void Clear()
-        {
-            foreach (var table in this.Tables)
-                table.Clear();
-        }
+        public void Clear() => this.Dispose(true);
 
 
+        /// <summary>
+        /// Dispose the whole SyncSet
+        /// </summary>
         public void Dispose()
         {
             this.Dispose(true);
+            if (this.Tables != null)
+                this.Tables.Schema = null;
+            if (this.Relations != null)
+                this.Relations.Schema = null;
+            if (this.Filters != null)
+                this.Filters.Schema = null;
+
             GC.SuppressFinalize(this);
         }
 
@@ -242,17 +248,14 @@ namespace Dotmim.Sync
             // Dispose managed ressources
             if (cleanup)
             {
-                // clean rows
-                this.Clear();
+                if (this.Tables != null)
+                    this.Tables.Clear();
 
-                foreach (var table in this.Tables)
-                    table.Dispose();
+                if (this.Relations != null)
+                    this.Relations.Clear();
 
-                foreach (var rel in this.Relations)
-                    rel.Dispose();
-
-                foreach (var f in this.Filters)
-                    f.Dispose();
+                if (this.Filters != null)
+                    this.Filters.Clear();
             }
 
             // Dispose unmanaged ressources
@@ -284,77 +287,5 @@ namespace Dotmim.Sync
                 return this.Tables.Any(t => t.Rows != null && t.Rows.Count > 0);
             }
         }
-
-        /// <summary>
-        /// Constructs a DmSet object based on a DmSetSurrogate object.
-        /// </summary>
-        //public DmSet ConvertToDmSet()
-        //{
-        //    var dmSet = new DmSet()
-        //    {
-        //        Culture = string.IsNullOrEmpty(this.CultureInfoName) ? CultureInfo.InvariantCulture : new CultureInfo(this.CultureInfoName),
-        //        CaseSensitive = this.CaseSensitive,
-        //        DmSetName = this.DataSourceName ?? DmSet.DMSET_NAME,
-        //        TrackingTablesPrefix = this.TrackingTablesPrefix,
-        //        TrackingTablesSuffix = this.TrackingTablesSuffix,
-        //        StoredProceduresPrefix = this.StoredProceduresPrefix,
-        //        StoredProceduresSuffix = this.StoredProceduresSuffix,
-        //        TriggersPrefix = this.TriggersPrefix,
-        //        TriggersSuffix = this.TriggersSuffix
-
-        //};
-        //    this.ReadSchemaIntoDmSet(dmSet);
-        //    return dmSet;
-        //}
-
-        ///// <summary>
-        ///// Read schema in an existing DmSet
-        ///// </summary>
-        ///// <param name="ds"></param>
-        //public void ReadSchemaIntoDmSet(DmSet ds)
-        //{
-        //    var schemaTable = this.Tables;
-        //    for (int i = 0; i < schemaTable.Count; i++)
-        //    {
-        //        var dmTableSurrogate = schemaTable[i];
-        //        var dmTable = new DmTable();
-        //        dmTableSurrogate.ReadSchemaIntoDmTable(dmTable);
-
-        //        dmTable.Culture = new CultureInfo(dmTableSurrogate.CultureInfoName);
-        //        dmTable.CaseSensitive = ds.CaseSensitive;
-        //        dmTable.TableName = dmTableSurrogate.TableName;
-
-        //        ds.Tables.Add(dmTable);
-        //    }
-
-        //    if (this.Relations != null && this.Relations.Count > 0)
-        //    {
-        //        foreach (var schemarRelation in this.Relations)
-        //        {
-        //            DmColumn[] parentColumns = new DmColumn[schemarRelation.ParentKeys.Count];
-        //            DmColumn[] childColumns = new DmColumn[schemarRelation.ChildKeys.Count];
-
-        //            for (int i = 0; i < parentColumns.Length; i++)
-        //            {
-        //                var columnName = schemarRelation.ParentKeys[i].ColumnName;
-        //                var tableName = schemarRelation.ParentKeys[i].Table.TableName;
-        //                var schemaName = schemarRelation.ParentKeys[i].Table.SchemaName;
-
-        //                parentColumns[i] = ds.Tables[tableName, schemaName].Columns[columnName];
-
-        //                columnName = schemarRelation.ChildKeys[i].ColumnName;
-        //                tableName = schemarRelation.ChildKeys[i].Table.TableName;
-        //                schemaName = schemarRelation.ChildKeys[i].Table.SchemaName;
-
-        //                childColumns[i] = ds.Tables[tableName, schemaName].Columns[columnName];
-
-        //            }
-
-        //            var relation = new DmRelation(schemarRelation.RelationName, parentColumns, childColumns);
-        //            ds.Relations.Add(relation);
-        //        }
-        //    }
-        //}
     }
-
 }

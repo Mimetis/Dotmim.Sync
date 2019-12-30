@@ -115,16 +115,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Clear the Table's rows
         /// </summary>
-        public void Clear()
-        {
-            if (this.Rows == null)
-                return;
-
-            foreach (var row in this.Rows)
-                row.Table = null;
-
-            this.Rows.Clear();
-        }
+        public void Clear() => this.Dispose(true);
 
 
         public void Dispose()
@@ -138,22 +129,13 @@ namespace Dotmim.Sync
             // Dispose managed ressources
             if (cleanup)
             {
-                if (this.Columns != null)
-                {
-                    foreach (var column in this.Columns)
-                        column.Table = null;
-
-                    this.Columns.Clear();
-                    this.Columns.Table = null;
-                    this.Columns = null;
-                }
-
                 if (this.Rows != null)
-                {
-                    // delete reference to the current Table
-                    this.Rows.Table = null;
-                    this.Rows = null;
-                }
+                    this.Rows.Clear();
+
+                if (this.Columns != null)
+                    this.Columns.Clear();
+
+                this.Schema = null;
             }
 
             // Dispose unmanaged ressources
@@ -312,15 +294,17 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get all columns that can be updated
         /// </summary>
-        public IEnumerable<SyncColumn> GetMutableColumns(bool includeAutoIncrement = true)
+        public IEnumerable<SyncColumn> GetMutableColumns(bool includeAutoIncrement = true, bool includePrimaryKeys = false)
         {
             foreach (var column in this.Columns.OrderBy(c => c.Ordinal))
             {
-                var isPrimaryKey = this.PrimaryKeys.Any(pkey => this.Schema.StringEquals(column.ColumnName, pkey));
-
-                if (!isPrimaryKey && !column.IsCompute && !column.IsReadOnly)
+                if (!column.IsCompute && !column.IsReadOnly)
                 {
-                    if (includeAutoIncrement || (!includeAutoIncrement && !column.IsAutoIncrement))
+                    var isPrimaryKey = this.PrimaryKeys.Any(pkey => this.Schema.StringEquals(column.ColumnName, pkey));
+
+                    if (includePrimaryKeys && isPrimaryKey)
+                        yield return column;
+                    else if (!isPrimaryKey && (includeAutoIncrement || (!includeAutoIncrement && !column.IsAutoIncrement)))
                         yield return column;
                 }
             }

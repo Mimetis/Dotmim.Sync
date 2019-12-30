@@ -22,7 +22,7 @@ namespace Dotmim.Sync
         /// Table's schema
         /// </summary>
         [IgnoreDataMember]
-        public SyncSet Schema { get; private set; }
+        public SyncSet Schema { get; internal set; }
 
         /// <summary>
         /// Create a default collection for Serializers
@@ -130,7 +130,7 @@ namespace Dotmim.Sync
         public void Clear()
         {
             foreach (var table in this)
-                table.Rows.Clear();
+                table.Clear();
 
             InnerCollection.Clear();
         }

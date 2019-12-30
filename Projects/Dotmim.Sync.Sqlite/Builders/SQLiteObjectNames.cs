@@ -282,7 +282,34 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine(")");
 
             this.AddName(DbCommandType.SelectChanges, stringBuilder.ToString());
-            this.AddName(DbCommandType.SelectChangesWitFilters, stringBuilder.ToString());
+            this.AddName(DbCommandType.SelectChangesWithFilters, stringBuilder.ToString());
+        }
+
+
+        private void CreateSelectInitializedCommandText()
+        {
+            StringBuilder stringBuilder = new StringBuilder("SELECT ");
+            foreach (var pkColumn in this.TableDescription.PrimaryKeys)
+            {
+                var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
+                stringBuilder.AppendLine($"\t[base].{columnName}, ");
+            }
+            var columns = this.TableDescription.GetMutableColumns().ToList();
+
+            for (var i = 0; i < columns.Count; i++)
+            {
+                var mutableColumn = columns[i];
+                var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+                stringBuilder.Append($"\t[base].{columnName}");
+
+                if (i < columns.Count - 1)
+                    stringBuilder.AppendLine(", ");
+            }
+            stringBuilder.AppendLine($"FROM {tableName.Quoted().ToString()} [base]");
+
+
+            this.AddName(DbCommandType.SelectInitializedChanges, stringBuilder.ToString());
+            this.AddName(DbCommandType.SelectInitializedChangesWithFilters, stringBuilder.ToString());
         }
 
     }

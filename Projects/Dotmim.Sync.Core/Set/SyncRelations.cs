@@ -22,7 +22,7 @@ namespace Dotmim.Sync
         /// Relation's schema
         /// </summary>
         [IgnoreDataMember]
-        public SyncSet Schema { get; private set; }
+        public SyncSet Schema { get; internal set; }
 
         /// <summary>
         /// Create a default collection for Serializers
@@ -48,7 +48,6 @@ namespace Dotmim.Sync
                     item.EnsureRelation(schema);
         }
 
-
         /// <summary>
         /// Add a new table to the Schema table collection
         /// </summary>
@@ -58,11 +57,21 @@ namespace Dotmim.Sync
             InnerCollection.Add(item);
         }
 
+        /// <summary>
+        /// Clear all the relations
+        /// </summary>
+        public void Clear()
+        {
+            foreach (var item in InnerCollection)
+                item.Clear();
+
+            InnerCollection.Clear();
+        }
+
         public SyncRelation this[int index] => InnerCollection[index];
         public int Count => InnerCollection.Count;
         public bool IsReadOnly => false;
         public bool Remove(SyncRelation item) => InnerCollection.Remove(item);
-        public void Clear() => InnerCollection.Clear();
         public bool Contains(SyncRelation item) => InnerCollection.Contains(item);
         public void CopyTo(SyncRelation[] array, int arrayIndex) => InnerCollection.CopyTo(array, arrayIndex);
         public int IndexOf(SyncRelation item) => InnerCollection.IndexOf(item);

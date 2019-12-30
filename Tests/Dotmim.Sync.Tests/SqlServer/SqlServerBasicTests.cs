@@ -23,7 +23,7 @@ namespace Dotmim.Sync.Tests.SqlServer
                {
                     "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "Employee", "Customer", "Address", "CustomerAddress", "EmployeeAddress",
                     "SalesLT.SalesOrderHeader", "SalesLT.SalesOrderDetail", "dbo.Sql", "Posts", "Tags", "PostTag",
-                    "PricesList", "PriceListCategory", "PriceListDetail"
+                    "PricesList", "PricesListCategory", "PricesListDetail"
                };
 
                 //// Set tables to be used for your provider
@@ -39,7 +39,7 @@ namespace Dotmim.Sync.Tests.SqlServer
 
                 if (!Setup.IsOnAzureDev)
                 {
-                    providerFixture.AddRun(NetworkType.Tcp, ProviderType.Sqlite | ProviderType.Sql);
+                    providerFixture.AddRun(NetworkType.Http,  ProviderType.Sqlite);
                     providerFixture.DeleteAllDatabasesOnDispose = false;
                 }
                 else
@@ -232,6 +232,18 @@ namespace Dotmim.Sync.Tests.SqlServer
         public override Task Delete_Client_Sync_Insert_Server_Sync_Client_Should_Have_Insert()
         {
             return base.Delete_Client_Sync_Insert_Server_Sync_Client_Should_Have_Insert();
+        }
+
+        [Fact, TestPriority(30)]
+        public override Task Reinitialize_Client_Database()
+        {
+            return base.Reinitialize_Client_Database();
+        }
+
+        [Fact, TestPriority(31)]
+        public override Task ReinitializeWithUpload_Client_Database()
+        {
+            return base.ReinitializeWithUpload_Client_Database();
         }
     }
 }

@@ -1304,7 +1304,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         //------------------------------------------------------------------
         // Update Metadata command
         //------------------------------------------------------------------
-        private SqlCommand BuildUpdateMetadataCommand(bool hasMutableColumns)
+        private SqlCommand BuildUpdateMetadataCommand()
         {
             var sqlCommand = new SqlCommand();
             var stringBuilder = new StringBuilder();
@@ -1328,19 +1328,16 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"SET {sqlParameter8.ParameterName} = 0;");
             stringBuilder.AppendLine();
 
-            if (hasMutableColumns)
-            {
-                stringBuilder.AppendLine($"UPDATE {trackingName.Schema().Quoted().ToString()} SET ");
-                stringBuilder.AppendLine("\t [update_scope_id] = @sync_scope_id, ");
-                stringBuilder.AppendLine("\t [sync_row_is_tombstone] = @sync_row_is_tombstone, ");
-                stringBuilder.AppendLine("\t [last_change_datetime] = GETUTCDATE() ");
-                stringBuilder.AppendLine($"WHERE ({str1})");
-                stringBuilder.AppendLine();
-                stringBuilder.AppendLine($"SET {sqlParameter8.ParameterName} = @@ROWCOUNT;");
-                stringBuilder.AppendLine();
-                stringBuilder.AppendLine($"IF ({sqlParameter8.ParameterName} = 0)");
-                stringBuilder.AppendLine($"BEGIN");
-            }
+            stringBuilder.AppendLine($"UPDATE {trackingName.Schema().Quoted().ToString()} SET ");
+            stringBuilder.AppendLine("\t [update_scope_id] = @sync_scope_id, ");
+            stringBuilder.AppendLine("\t [sync_row_is_tombstone] = @sync_row_is_tombstone, ");
+            stringBuilder.AppendLine("\t [last_change_datetime] = GETUTCDATE() ");
+            stringBuilder.AppendLine($"WHERE ({str1})");
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($"SET {sqlParameter8.ParameterName} = @@ROWCOUNT;");
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($"IF ({sqlParameter8.ParameterName} = 0)");
+            stringBuilder.AppendLine($"BEGIN");
 
             stringBuilder.AppendLine($"\tINSERT INTO {trackingName.Schema().Quoted().ToString()}");
 
@@ -1365,21 +1362,20 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"\tSET {sqlParameter8.ParameterName} = @@rowcount; ");
             stringBuilder.AppendLine();
 
-            if (hasMutableColumns)
-                stringBuilder.AppendLine($"END");
+            stringBuilder.AppendLine($"END");
 
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
-        public void CreateUpdateMetadata(bool hasMutableColumns)
+        public void CreateUpdateMetadata()
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata).name;
-            CreateProcedureCommand(BuildUpdateMetadataCommand, commandName, hasMutableColumns);
+            CreateProcedureCommand(BuildUpdateMetadataCommand, commandName);
         }
-        public string CreateUpdateMetadataScriptText(bool hasMutableColumns)
+        public string CreateUpdateMetadataScriptText()
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata).name;
-            return CreateProcedureCommandScriptText(BuildUpdateMetadataCommand, commandName, hasMutableColumns);
+            return CreateProcedureCommandScriptText(BuildUpdateMetadataCommand, commandName);
         }
         public void DropUpdateMetadata()
         {
@@ -1521,15 +1517,13 @@ namespace Dotmim.Sync.SqlServer.Builders
                 }
                 builderFilter.AppendLine(")");
                 builderFilter.Append("\tOR (");
-                builderFilter.AppendLine("([side].[update_scope_id] = @sync_scope_id or [side].[update_scope_id] IS NULL)");
-                builderFilter.Append("\t\tAND (");
 
                 isFirst = true;
 
                 foreach (var c in columnFilters)
                 {
                     if (!isFirst)
-                        builderFilter.Append(" OR ");
+                        builderFilter.Append(" AND ");
                     isFirst = false;
 
                     var columnFilter = this.tableDescription.Columns[c.ColumnName];
@@ -1537,8 +1531,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                     builderFilter.Append($"[side].{columnFilterName} IS NULL");
                 }
-
-                builderFilter.AppendLine("))");
+                builderFilter.AppendLine(")");
                 builderFilter.AppendLine("\t)");
                 builderFilter.AppendLine("AND (");
                 stringBuilder.Append(builderFilter.ToString());
@@ -1562,7 +1555,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             {
                 this.Filters.ValidateColumnFilters(this.tableDescription);
 
-                commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWitFilters, this.Filters).name;
+                commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWithFilters, this.Filters).name;
                 SqlCommand cmdWithFilter() => BuildSelectIncrementalChangesCommand(true);
                 CreateProcedureCommand(cmdWithFilter, commandName);
 
@@ -1580,7 +1573,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             if (this.Filters != null && this.Filters.Count > 0)
             {
-                commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWitFilters).name;
+                commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWithFilters).name;
                 string name = "";
                 string sep = "";
 
@@ -1649,7 +1642,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                         this.Filters.ValidateColumnFilters(this.tableDescription);
 
-                        var commandNameWithFilter = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWitFilters, this.Filters).name;
+                        var commandNameWithFilter = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWithFilters, this.Filters).name;
 
                         command.CommandText = $"DROP PROCEDURE {commandNameWithFilter};";
                         command.Connection = this.connection;
@@ -1687,7 +1680,250 @@ namespace Dotmim.Sync.SqlServer.Builders
                 using (var command = new SqlCommand())
                 {
                     this.Filters.ValidateColumnFilters(this.tableDescription);
-                    var commandNameWithFilter = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWitFilters, this.Filters).name;
+                    var commandNameWithFilter = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWithFilters, this.Filters).name;
+                    dropProcedure += Environment.NewLine + $"DROP PROCEDURE {commandNameWithFilter};";
+
+                }
+            }
+            return dropProcedure;
+        }
+
+
+
+        //------------------------------------------------------------------
+        // Select initialized changes command
+        //------------------------------------------------------------------
+        private SqlCommand BuildSelectInitializedChangesCommand(bool withFilter = false)
+        {
+            var sqlCommand = new SqlCommand();
+
+            if (withFilter && this.Filters != null && this.Filters.Count > 0)
+            {
+                foreach (var c in this.Filters)
+                {
+                    if (!c.IsVirtual)
+                    {
+                        var columnFilter = this.tableDescription.Columns[c.ColumnName];
+
+                        if (columnFilter == null)
+                            throw new InvalidExpressionException($"Column {c.ColumnName} does not exist in Table {this.tableDescription.TableName}");
+
+                        var columnName = ParserName.Parse(columnFilter).Unquoted().Normalized().ToString();
+
+                        // Get the good SqlDbType (even if we are not from Sql Server def)
+
+                        var sqlDbType = (SqlDbType)this.sqlDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+                        var sqlParamFilter = new SqlParameter($"@{columnName}", sqlDbType);
+                        sqlCommand.Parameters.Add(sqlParamFilter);
+                    }
+                    else
+                    {
+                        var sqlDbType = (SqlDbType)this.sqlDbMetadata.TryGetOwnerDbType(null, c.GetDbType().Value, false, false, 0, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+                        var columnFilterName = ParserName.Parse(c.ColumnName).Unquoted().Normalized().ToString();
+                        var sqlParamFilter = new SqlParameter($"@{columnFilterName}", sqlDbType);
+                        sqlCommand.Parameters.Add(sqlParamFilter);
+                    }
+                }
+            }
+
+            var stringBuilder = new StringBuilder("SELECT ");
+            var columns = this.tableDescription.GetMutableColumns(false, true).ToList();
+            for (var i = 0; i < columns.Count; i++)
+            {
+                var mutableColumn = columns[i];
+                var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+                stringBuilder.Append($"\t[base].{columnName}");
+
+                if (i < columns.Count - 1)
+                    stringBuilder.AppendLine(", ");
+            }
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($"FROM {tableName.Schema().Quoted().ToString()} [base]");
+
+            var columnFilters = this.Filters.GetColumnFilters();
+            if (withFilter && columnFilters.Count() != 0)
+            {
+                stringBuilder.AppendLine();
+                stringBuilder.AppendLine("WHERE ");
+
+                stringBuilder.Append("\t(");
+                bool isFirst = true;
+                foreach (var c in columnFilters)
+                {
+                    if (!isFirst)
+                        stringBuilder.Append(" AND ");
+
+                    isFirst = false;
+
+                    var columnFilter = this.tableDescription.Columns[c.ColumnName];
+
+                    if (columnFilter == null)
+                        throw new InvalidExpressionException($"Column {c.ColumnName} does not exist in Table {this.tableDescription.TableName}");
+
+                    var columnFilterName = ParserName.Parse(c.ColumnName).Quoted().ToString();
+                    var columnFilterParameterName = ParserName.Parse(c.ColumnName).Unquoted().Normalized().ToString();
+
+                    stringBuilder.Append($"[base].{columnFilterName} = @{columnFilterParameterName}");
+                }
+                stringBuilder.AppendLine(")");
+
+                stringBuilder.Append(" OR (");
+
+                isFirst = true;
+                foreach (var c in columnFilters)
+                {
+                    if (!isFirst)
+                        stringBuilder.Append(" AND ");
+
+                    isFirst = false;
+
+                    var columnFilter = this.tableDescription.Columns[c.ColumnName];
+                    var columnFilterName = ParserName.Parse(c.ColumnName).Quoted().ToString();
+
+                    stringBuilder.Append($"[base].{columnFilterName} IS NULL");
+                }
+
+                stringBuilder.AppendLine(")");
+            }
+
+            sqlCommand.CommandText = stringBuilder.ToString();
+
+            return sqlCommand;
+        }
+        public void CreateSelectInitializedChanges()
+        {
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChanges).name;
+            SqlCommand cmdWithoutFilter() => BuildSelectInitializedChangesCommand(false);
+            CreateProcedureCommand(cmdWithoutFilter, commandName);
+
+            if (this.Filters != null && this.Filters.Count > 0)
+            {
+                this.Filters.ValidateColumnFilters(this.tableDescription);
+
+                commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChangesWithFilters, this.Filters).name;
+                SqlCommand cmdWithFilter() => BuildSelectInitializedChangesCommand(true);
+                CreateProcedureCommand(cmdWithFilter, commandName);
+            }
+        }
+        public string CreateSelectInitializedChangesScriptText()
+        {
+            StringBuilder sbSelecteChanges = new StringBuilder();
+
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChanges).name;
+            SqlCommand cmdWithoutFilter() => BuildSelectInitializedChangesCommand(false);
+            sbSelecteChanges.AppendLine(CreateProcedureCommandScriptText(cmdWithoutFilter, commandName));
+
+
+            if (this.Filters != null && this.Filters.Count > 0)
+            {
+                commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChangesWithFilters).name;
+                string name = "";
+                string sep = "";
+
+                foreach (var c in this.Filters)
+                {
+                    string unquotedColumnName;
+                    if (!c.IsVirtual)
+                    {
+                        var columnFilter = this.tableDescription.Columns[c.ColumnName];
+
+                        if (columnFilter == null)
+                            throw new InvalidExpressionException(
+                                $"Column {c.ColumnName} does not exist in Table {this.tableDescription.TableName}");
+
+
+                        unquotedColumnName = ParserName.Parse(columnFilter).Unquoted().Normalized().ToString();
+                    }
+                    else
+                    {
+                        unquotedColumnName = ParserName.Parse(c.ColumnName).Unquoted().Normalized().ToString();
+                    }
+
+                    name += $"{unquotedColumnName}{sep}";
+                    sep = "_";
+                }
+
+                commandName = String.Format(commandName, name);
+                SqlCommand cmdWithFilter() => BuildSelectInitializedChangesCommand(true);
+                sbSelecteChanges.AppendLine(CreateProcedureCommandScriptText(cmdWithFilter, commandName));
+
+            }
+            return sbSelecteChanges.ToString();
+        }
+        public void DropSelectInitializedChanges()
+        {
+            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+
+            try
+            {
+                using (var command = new SqlCommand())
+                {
+                    if (!alreadyOpened)
+                        this.connection.Open();
+
+                    if (this.transaction != null)
+                        command.Transaction = this.transaction;
+
+                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChanges).name;
+
+                    command.CommandText = $"DROP PROCEDURE {commandName};";
+                    command.Connection = this.connection;
+                    command.ExecuteNonQuery();
+
+                }
+
+                if (this.Filters != null && this.Filters.Count > 0)
+                {
+
+                    using (var command = new SqlCommand())
+                    {
+                        if (!alreadyOpened)
+                            this.connection.Open();
+
+                        if (this.transaction != null)
+                            command.Transaction = this.transaction;
+
+                        this.Filters.ValidateColumnFilters(this.tableDescription);
+
+                        var commandNameWithFilter = this.sqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChangesWithFilters, this.Filters).name;
+
+                        command.CommandText = $"DROP PROCEDURE {commandNameWithFilter};";
+                        command.Connection = this.connection;
+                        command.ExecuteNonQuery();
+
+                    }
+
+
+                }
+
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error during DropBulkDelete : {ex}");
+                throw;
+
+            }
+            finally
+            {
+                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
+                    this.connection.Close();
+
+            }
+
+        }
+        public string DropSelectInitializedChangesScriptText()
+        {
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChanges).name;
+
+            string dropProcedure = $"DROP PROCEDURE {commandName};";
+
+            if (this.Filters != null && this.Filters.Count > 0)
+            {
+
+                using (var command = new SqlCommand())
+                {
+                    this.Filters.ValidateColumnFilters(this.tableDescription);
+                    var commandNameWithFilter = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWithFilters, this.Filters).name;
                     dropProcedure += Environment.NewLine + $"DROP PROCEDURE {commandNameWithFilter};";
 
                 }

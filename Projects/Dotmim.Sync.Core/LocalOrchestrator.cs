@@ -134,17 +134,6 @@ namespace Dotmim.Sync
             }
         }
 
-        ///// <summary>
-        ///// Save locally configuration and options to be reused later
-        ///// The schema has been modified probably by server, so reaffect it again.
-        ///// </summary>
-        //public Task SetSchemaAsync(SyncContext context, SyncSchema configuration, SyncOptions options, CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
-        //{
-        //    this.schema = configuration;
-        //    this.options = options;
-        //    return Task.CompletedTask;
-        //}
-
         /// <summary>
         /// Input : localScopeInfo
         /// </summary>
@@ -209,11 +198,16 @@ namespace Dotmim.Sync
                         if (cancellationToken.IsCancellationRequested)
                             cancellationToken.ThrowIfCancellationRequested();
 
-                        (context, clientBatchInfo, clientChangesSelected) =
-                            await this.Provider.GetChangeBatchAsync(context,
-                                    new MessageGetChangesBatch(remoteScopeId, isNew, lastSyncTS,
-                                        schema, batchSize, batchDirectory),
-                                    connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        // Creating the message
+                        var message = new MessageGetChangesBatch(remoteScopeId, isNew, lastSyncTS, schema, batchSize, batchDirectory);
+
+                        // Locally, if we are new, no need to get changes
+                        if (isNew)
+                            (clientBatchInfo, clientChangesSelected) = this.Provider.GetEmptyChanges(message);
+                        else
+                            (context, clientBatchInfo, clientChangesSelected) =
+                                await this.Provider.GetChangeBatchAsync(context, message,
+                                        connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                         if (cancellationToken.IsCancellationRequested)
                             cancellationToken.ThrowIfCancellationRequested();

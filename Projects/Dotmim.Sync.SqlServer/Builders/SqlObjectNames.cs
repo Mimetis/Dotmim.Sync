@@ -15,6 +15,10 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         internal const string selectChangesProcName = "[{0}].[{1}_selectchanges]";
         internal const string selectChangesProcNameWithFilters = "[{0}].[{1}_{2}_selectchanges]";
+        
+        internal const string initializeChangesProcName = "[{0}].[{1}_initialize]";
+        internal const string initializeChangesProcNameWithFilters = "[{0}].[{1}_{2}_initialize]";
+        
         internal const string selectRowProcName = "[{0}].[{1}_selectrow]";
 
         internal const string insertProcName = "[{0}].[{1}_insert]";
@@ -90,7 +94,11 @@ namespace Dotmim.Sync.SqlServer.Builders
             var schema = string.IsNullOrEmpty(tableName.SchemaName) ? "dbo" : tableName.SchemaName;
 
             this.AddName(DbCommandType.SelectChanges, string.Format(selectChangesProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
-            this.AddName(DbCommandType.SelectChangesWitFilters, string.Format(selectChangesProcNameWithFilters, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}", "{0}"), true);
+            this.AddName(DbCommandType.SelectChangesWithFilters, string.Format(selectChangesProcNameWithFilters, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}", "{0}"), true);
+
+            this.AddName(DbCommandType.SelectInitializedChanges, string.Format(initializeChangesProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
+            this.AddName(DbCommandType.SelectInitializedChangesWithFilters, string.Format(initializeChangesProcNameWithFilters, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}", "{0}"), true);
+
             this.AddName(DbCommandType.SelectRow, string.Format(selectRowProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
             this.AddName(DbCommandType.UpdateRow, string.Format(updateProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
             this.AddName(DbCommandType.DeleteRow, string.Format(deleteProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
