@@ -42,8 +42,9 @@ namespace Dotmim.Sync
         public void EnsureTables(SyncSet schema)
         {
             this.Schema = schema;
-            foreach (var table in this)
-                table.EnsureTable(schema);
+            if (InnerCollection != null)
+                foreach (var table in this)
+                    table.EnsureTable(schema);
         }
 
         /// <summary>
@@ -128,7 +129,7 @@ namespace Dotmim.Sync
         /// </summary>
         public void Clear()
         {
-            foreach(var table in this)
+            foreach (var table in this)
                 table.Rows.Clear();
 
             InnerCollection.Clear();

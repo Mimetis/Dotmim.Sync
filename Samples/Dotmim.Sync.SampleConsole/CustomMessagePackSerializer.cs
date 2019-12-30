@@ -19,9 +19,12 @@ namespace Dotmim.Sync.SampleConsole
 
     public class CustomMessagePackSerializer<T> : ISerializer<T>
     {
-        public CustomMessagePackSerializer() => MessagePackSerializer.DefaultOptions.WithResolver(MessagePack.Resolvers.ContractlessStandardResolver.Instance);
-        public T Deserialize(Stream ms) => MessagePackSerializer.Deserialize<T>(ms);
-        public byte[] Serialize(T obj) => MessagePackSerializer.Serialize(obj);
+        private MessagePackSerializerOptions options;
+
+        public CustomMessagePackSerializer() => this.options = MessagePack.Resolvers.ContractlessStandardResolver.Options;
+
+        public T Deserialize(Stream ms) => MessagePackSerializer.Deserialize<T>(ms, options);
+        public byte[] Serialize(T obj) => MessagePackSerializer.Serialize(obj, options);
     }
 }
 

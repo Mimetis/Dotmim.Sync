@@ -12,35 +12,12 @@ namespace Dotmim.Sync.SampleWebServer.Controllers
     [ApiController]
     public class SyncController : ControllerBase
     {
-        private WebProxyServerProvider webProxyServer;
+        private WebProxyServerOrchestrator webProxyServer;
 
         // Injected thanks to Dependency Injection
-        public SyncController(WebProxyServerProvider proxy)
-        {
-            webProxyServer = proxy;
-        }
+        public SyncController(WebProxyServerOrchestrator proxy) => this.webProxyServer = proxy;
 
         [HttpPost]
-        public async Task Post()
-        {
-            // Get the underline local provider
-            var provider = webProxyServer.GetLocalProvider(this.HttpContext);
-            provider.SetConfiguration(c =>c.Filters.Add("Customer", "CustomerId"));
-
-            provider.OnApplyChangesFailed(e =>
-            {
-                if (e.Conflict.RemoteRow.Table.TableName == "Region")
-                {
-                    e.Resolution = ConflictResolution.MergeRow;
-                    e.FinalRow["RegionDescription"] = "Eastern alone !";
-                }
-                else
-                {
-                    e.Resolution = ConflictResolution.ServerWins;
-                }
-            });
-
-            await webProxyServer.HandleRequestAsync(this.HttpContext);
-        }
+        public async Task Post() => await webProxyServer.HandleRequestAsync(this.HttpContext);
     }
 }
