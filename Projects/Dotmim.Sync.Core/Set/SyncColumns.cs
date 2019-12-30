@@ -131,6 +131,16 @@ namespace Dotmim.Sync
 
         }
 
+        /// <summary>
+        /// Clear all the relations
+        /// </summary>
+        public void Clear()
+        {
+            foreach (var item in InnerCollection)
+                item.Table = null;
+
+            InnerCollection.Clear();
+        }
 
         public SyncColumn this[int index] => InnerCollection[index];
         public int Count => InnerCollection.Count;
@@ -141,7 +151,6 @@ namespace Dotmim.Sync
             set => this.InnerCollection[index] = value;
         }
         public bool Remove(SyncColumn item) => InnerCollection.Remove(item);
-        public void Clear() => InnerCollection.Clear();
         public bool Contains(SyncColumn item) => InnerCollection.Contains(item);
         public void CopyTo(SyncColumn[] array, int arrayIndex) => InnerCollection.CopyTo(array, arrayIndex);
         public int IndexOf(SyncColumn item) => InnerCollection.IndexOf(item);

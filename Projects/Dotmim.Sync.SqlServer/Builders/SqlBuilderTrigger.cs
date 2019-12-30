@@ -225,7 +225,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("-- If row was deleted before, it already exists, so just make an update");
             stringBuilder.AppendLine("UPDATE [side] ");
-            stringBuilder.AppendLine("SET \t[sync_row_is_tombstone] = 0");
+            stringBuilder.AppendLine("SET  [sync_row_is_tombstone] = 0");
             stringBuilder.AppendLine("\t,[update_scope_id] = NULL -- scope id is always NULL when update is made locally");
             stringBuilder.AppendLine("\t,[last_change_datetime] = GetUtcDate()");
 
@@ -243,9 +243,6 @@ namespace Dotmim.Sync.SqlServer.Builders
                 stringBuilder.AppendLine($"\t,{columnName} = [i].{columnName}");
 
             }
-
-            stringBuilder.AppendLine();
-
             stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()} [side]");
             stringBuilder.Append($"JOIN INSERTED AS [i] ON ");
             stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[side]", "[i]"));
@@ -254,9 +251,10 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"INSERT INTO {trackingName.Schema().Quoted().ToString()} (");
 
             var stringBuilderArguments = new StringBuilder();
+            var stringBuilderArguments2 = new StringBuilder();
             var stringPkAreNull = new StringBuilder();
 
-            string argComma = string.Empty;
+            string argComma = " ";
             string argAnd = string.Empty;
             var primaryKeys = this.tableDescription.GetPrimaryKeysColumns();
 
@@ -264,17 +262,19 @@ namespace Dotmim.Sync.SqlServer.Builders
             {
                 var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
                 stringBuilderArguments.AppendLine($"\t{argComma}[i].{columnName}");
+                stringBuilderArguments2.AppendLine($"\t{argComma}{columnName}");
                 stringPkAreNull.Append($"{argAnd}[side].{columnName} IS NULL");
                 argComma = ",";
                 argAnd = " AND ";
             }
 
-            stringBuilder.Append(stringBuilderArguments.ToString());
+            stringBuilder.Append(stringBuilderArguments2.ToString());
             stringBuilder.AppendLine("\t,[update_scope_id]");
             stringBuilder.AppendLine("\t,[sync_row_is_tombstone]");
             stringBuilder.AppendLine("\t,[last_change_datetime]");
 
             var filterColumnsString = new StringBuilder();
+            var filterColumnsString2 = new StringBuilder();
 
             foreach (var filter in Filters)
             {
@@ -287,8 +287,12 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                 var columnName = ParserName.Parse(columnFilter).Quoted().ToString();
                 filterColumnsString.AppendLine($"\t,[i].{columnName}");
+                filterColumnsString2.AppendLine($"\t,{columnName}");
             }
-
+            
+            if (Filters != null)
+                stringBuilder.Append(filterColumnsString2.ToString());
+        
             stringBuilder.AppendLine(") ");
             stringBuilder.AppendLine("SELECT");
             stringBuilder.Append(stringBuilderArguments.ToString());

@@ -22,7 +22,7 @@ namespace Dotmim.Sync
         /// Filter's schema
         /// </summary>
         [IgnoreDataMember]
-        public SyncSet Schema { get; private set; }
+        public SyncSet Schema { get; internal set; }
 
         /// <summary>
         /// Create a default collection for Serializers
@@ -58,20 +58,41 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Add a new table to the Schema table collection
+        /// Add a new filter 
         /// </summary>
         public void Add(SyncFilter item)
         {
             item.Schema = Schema;
             InnerCollection.Add(item);
         }
+
+        /// <summary>
+        /// Add a new filter 
+        /// </summary>
+        public void Add(string tableName, string columnName, string schemaName = null)
+        {
+            var item = new SyncFilter(tableName, columnName, schemaName);
+            item.Schema = Schema;
+            InnerCollection.Add(item);
+        }
+
+        /// <summary>
+        /// Clear
+        /// </summary>
+        public void Clear()
+        {
+            foreach (var item in InnerCollection)
+                item.Clear();
+
+            InnerCollection.Clear();
+        }
+
         public SyncFilter this[int index] => InnerCollection[index];
         public int Count => InnerCollection.Count;
         public bool IsReadOnly => false;
         SyncFilter IList<SyncFilter>.this[int index] { get => InnerCollection[index]; set => InnerCollection[index] = value; }
         public void Insert(int index, SyncFilter item) => InnerCollection.Insert(index, item);
         public bool Remove(SyncFilter item) => InnerCollection.Remove(item);
-        public void Clear() => InnerCollection.Clear();
         public bool Contains(SyncFilter item) => InnerCollection.Contains(item);
         public void CopyTo(SyncFilter[] array, int arrayIndex) => InnerCollection.CopyTo(array, arrayIndex);
         public int IndexOf(SyncFilter item) => InnerCollection.IndexOf(item);

@@ -138,11 +138,6 @@ namespace Dotmim.Sync
                                         disableConstraintsOnApplyChanges, useBulkOperations, cleanMetadatas, clientBatchInfo),
                              connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                        // if ConflictResolutionPolicy.ClientWins or Handler set to Client wins
-                        // Conflict occurs here and server loose. 
-                        // Conflicts count should be temp saved because applychanges on client side won't raise any conflicts (and so property Context.TotalSyncConflicts will be reset to 0)
-                        // var conflictsOnRemoteCount = context.TotalSyncConflicts;
-
                         if (cancellationToken.IsCancellationRequested)
                             cancellationToken.ThrowIfCancellationRequested();
 
@@ -156,11 +151,14 @@ namespace Dotmim.Sync
                         if (cancellationToken.IsCancellationRequested)
                             cancellationToken.ThrowIfCancellationRequested();
 
+                        // Get if we need to get all rows from the datasource
+                        var fromScratch = scope.IsNewScope || context.SyncType == SyncType.Reinitialize || context.SyncType == SyncType.ReinitializeWithUpload;
+
                         // When we get the chnages from server, we create the batches if it's requested by the client
                         // the batch decision comes from batchsize from client
                         (context, serverBatchInfo, serverChangesSelected) =
                             await this.Provider.GetChangeBatchAsync(context,
-                                new MessageGetChangesBatch(scope.Id, scope.IsNewScope, scope.LastServerSyncTimestamp,
+                                new MessageGetChangesBatch(scope.Id, fromScratch, scope.LastServerSyncTimestamp,
                                     schema, clientBatchSize, batchDirectory),
                                     connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 

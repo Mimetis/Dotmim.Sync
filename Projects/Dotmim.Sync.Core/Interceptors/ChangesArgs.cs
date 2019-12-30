@@ -234,10 +234,8 @@ namespace Dotmim.Sync
         {
 
         }
-        public TableChangesSelected(string tableName)
-        {
-            this.TableName = tableName;
-        }
+        public TableChangesSelected(string tableName) => this.TableName = tableName;
+        
         /// <summary>
         /// Gets the table name
         /// </summary>
@@ -258,10 +256,9 @@ namespace Dotmim.Sync
 
         /// <summary>
         /// Gets the total number of changes that are applied to a table during the synchronization session.
-        /// TODO : DEBUG TIME : To be sure we have the correct number, I set this value from CoreProvider
         /// </summary>
-        [DataMember(Name = "tot", IsRequired = false, EmitDefaultValue = false, Order = 4)]
-        public int TotalChanges { get; set; } // => this.Upserts + this.Deletes;
+        [IgnoreDataMember()]
+        public int TotalChanges => this.Upserts + this.Deletes;
     }
 
 }
