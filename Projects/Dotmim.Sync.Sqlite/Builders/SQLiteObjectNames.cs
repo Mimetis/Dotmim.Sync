@@ -112,7 +112,6 @@ namespace Dotmim.Sync.Sqlite
             if (hasMutableColumns)
             {
 
-
                 stringBuilder.AppendLine($"UPDATE {tableName.Quoted().ToString()}");
                 stringBuilder.Append($"SET {SqliteManagementUtils.CommaSeparatedUpdateFromParameters(this.TableDescription)}");
                 stringBuilder.Append($"WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, "")}");
@@ -129,7 +128,7 @@ namespace Dotmim.Sync.Sqlite
             }
 
             // Generate Insert command
-            foreach (var mutableColumn in this.TableDescription.Columns.Where(c => !c.IsReadOnly))
+            foreach (var mutableColumn in this.TableDescription.GetMutableColumns(false, true))
             {
                 var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
                 var unquotedColumnName = ParserName.Parse(mutableColumn).Unquoted().Normalized().ToString();

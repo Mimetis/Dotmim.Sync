@@ -604,8 +604,8 @@ internal class Program
     {
         // Create 2 Sql Sync providers
         var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
-        var clientProvider = new MySqlSyncProvider(DbHelper.GetMySqlDatabaseConnectionString(clientDbName));
-        //var clientProvider = new SqliteSyncProvider("adv2.db");
+        //var clientProvider = new MySqlSyncProvider(DbHelper.GetMySqlDatabaseConnectionString(clientDbName));
+        var clientProvider = new SqliteSyncProvider("adv2.db");
 
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, allTables);
@@ -627,8 +627,8 @@ internal class Program
 
         agent.AddRemoteProgress(remoteProgress);
 
-        agent.Schema.Filters.Add("ProductCategory", "ParentProductCategoryID");
-        agent.Schema.Filters.Add("ProductCategory", "Name");
+        //agent.Schema.Filters.Add("ProductCategory", "ParentProductCategoryID");
+        //agent.Schema.Filters.Add("ProductCategory", "Name");
 
         agent.Schema.StoredProceduresPrefix = "s";
         agent.Schema.StoredProceduresSuffix = "";
