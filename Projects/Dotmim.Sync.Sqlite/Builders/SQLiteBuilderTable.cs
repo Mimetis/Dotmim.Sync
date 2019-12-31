@@ -82,7 +82,7 @@ namespace Dotmim.Sync.Sqlite
             var stringBuilder = new StringBuilder($"CREATE TABLE IF NOT EXISTS {tableName.Quoted().ToString()} (");
             string empty = string.Empty;
             stringBuilder.AppendLine();
-            foreach (var column in this.tableDescription.Columns)
+            foreach (var column in this.tableDescription.GetMutableColumns(false, true))
             {
                 var columnName = ParserName.Parse(column).Quoted().ToString();
 

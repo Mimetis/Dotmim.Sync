@@ -9,6 +9,7 @@ using Microsoft.Data.Sqlite;
 using Dotmim.Sync.Filter;
 using System.Diagnostics;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Dotmim.Sync.Sqlite
 {
@@ -36,8 +37,6 @@ namespace Dotmim.Sync.Sqlite
 
         public void CreateIndex()
         {
-
-
         }
 
         private string CreateIndexCommandText()
@@ -171,8 +170,18 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.Append(")");
 
 
-            stringBuilder.Append(")");
+            stringBuilder.Append(");");
 
+            stringBuilder.AppendLine($"CREATE INDEX [{trackingName.Schema().Unquoted().Normalized().ToString()}_timestamp_index] ON {trackingName.Schema().Quoted().ToString()} (");
+            stringBuilder.AppendLine($"\t [timestamp] ASC");
+            stringBuilder.AppendLine($"\t,[update_scope_id] ASC");
+            stringBuilder.AppendLine($"\t,[sync_row_is_tombstone] ASC");
+            foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
+            {
+                var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
+                stringBuilder.AppendLine($"\t,{columnName} ASC");
+            }
+            stringBuilder.Append(");");
             return stringBuilder.ToString();
         }
 
