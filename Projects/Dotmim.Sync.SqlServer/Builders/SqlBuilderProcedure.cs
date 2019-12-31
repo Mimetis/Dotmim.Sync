@@ -1429,13 +1429,9 @@ namespace Dotmim.Sync.SqlServer.Builders
             var sqlCommand = new SqlCommand();
             var pTimestamp = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt);
             var pScopeId = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
-            var pScopeNew = new SqlParameter("@sync_scope_is_new", SqlDbType.Bit);
-            var pReinit = new SqlParameter("@sync_scope_is_reinit", SqlDbType.Bit);
 
             sqlCommand.Parameters.Add(pTimestamp);
             sqlCommand.Parameters.Add(pScopeId);
-            sqlCommand.Parameters.Add(pScopeNew);
-            sqlCommand.Parameters.Add(pReinit);
 
             if (withFilter && this.Filters != null && this.Filters.Count > 0)
             {
