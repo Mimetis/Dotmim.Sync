@@ -836,8 +836,8 @@ internal class Program
         // Create the web proxy client provider with specific options
         var proxyClientProvider = new WebClientOrchestrator
         {
-            //SerializerFactory = new CustomMessagePackSerializerFactory(),
-            //Converter = new CustomConverter()
+            SerializerFactory = new CustomMessagePackSerializerFactory(),
+            Converter = new CustomConverter()
         };
 
 
