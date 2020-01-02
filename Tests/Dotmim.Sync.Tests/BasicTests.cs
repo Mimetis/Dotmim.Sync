@@ -161,9 +161,12 @@ namespace Dotmim.Sync.Tests
                 // reset
                 var results = await this.testRunner.RunTestsAsync(option);
 
+                // Get db rows count
+                var count = GetServerDatabaseRowsCount();
+
                 foreach (var trr in results)
                 {
-                    Assert.Equal(this.fixture.RowsCount, trr.Results.TotalChangesDownloaded);
+                    Assert.Equal(count, trr.Results.TotalChangesDownloaded);
                     Assert.Equal(0, trr.Results.TotalChangesUploaded);
                 }
             }
@@ -2003,7 +2006,7 @@ namespace Dotmim.Sync.Tests
                     // insert 1000 rows
                     using (var ctx = this.GetClientDbContext(clientRun))
                     {
-                        for (var i = 0; i < 5000; i++)
+                        for (var i = 0; i < 1000; i++)
                         {
                             var productCategoryName = Path.GetRandomFileName().Replace(".", "");
                             var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, Math.Min(12, productCategoryName.Length));
@@ -2029,8 +2032,8 @@ namespace Dotmim.Sync.Tests
                 {
                     var testRunner = this.fixture.ClientRuns[i];
 
-                    Assert.Equal(i * 5000, testRunner.Results.TotalChangesDownloaded);
-                    Assert.Equal(5000, testRunner.Results.TotalChangesUploaded);
+                    Assert.Equal(i * 1000, testRunner.Results.TotalChangesDownloaded);
+                    Assert.Equal(1000, testRunner.Results.TotalChangesUploaded);
                 }
 
 

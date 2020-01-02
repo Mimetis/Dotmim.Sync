@@ -40,11 +40,6 @@ namespace Dotmim.Sync.Tests.Core
         public String[] Tables { get; set; }
 
         /// <summary>
-        /// Gets or Sets the rows count for the tables & filters selected
-        /// </summary>
-        public int RowsCount { get; set; }
-
-        /// <summary>
         /// Gets or Sets the server provider.
         /// </summary>
         public CoreProvider ServerProvider { get; set; }
@@ -52,10 +47,9 @@ namespace Dotmim.Sync.Tests.Core
         /// <summary>
         /// Sets the tables used for this server provider
         /// </summary>
-        internal void AddTables(string[] tables, int rowsCount)
+        internal void AddTables(string[] tables)
         {
             this.Tables = tables;
-            this.RowsCount = rowsCount;
         }
 
         internal void AddFilter(SyncFilter filter)

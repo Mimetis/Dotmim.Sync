@@ -35,17 +35,17 @@ namespace Dotmim.Sync.Tests.SqlServer
                 // 1) Add database name
                 providerFixture.AddDatabaseName("SqlAdventureWorks");
                 // 2) Add tables
-                providerFixture.AddTables(sqlTables, 2109);
+                providerFixture.AddTables(sqlTables);
 
                 if (!Setup.IsOnAzureDev)
                 {
-                    providerFixture.AddRun(NetworkType.Http, ProviderType.Sql);
+                    providerFixture.AddRun(NetworkType.Tcp, ProviderType.Sqlite);
                     providerFixture.DeleteAllDatabasesOnDispose = false;
                 }
                 else
                 {
-                    providerFixture.AddRun(NetworkType.Tcp, ProviderType.Sql | ProviderType.MySql | ProviderType.Sqlite);
-                    providerFixture.AddRun(NetworkType.Http, ProviderType.MySql | ProviderType.Sqlite | ProviderType.Sql);
+                    providerFixture.AddRun(NetworkType.Tcp, ProviderType.Sql | ProviderType.Sqlite);
+                    providerFixture.AddRun(NetworkType.Http, ProviderType.MySql | ProviderType.Sqlite);
                     providerFixture.DeleteAllDatabasesOnDispose = true;
                 }
             };
