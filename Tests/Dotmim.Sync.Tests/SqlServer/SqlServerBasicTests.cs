@@ -18,13 +18,13 @@ namespace Dotmim.Sync.Tests.SqlServer
         {
             Configure = providerFixture =>
             {
-               // Set tables to be used for your provider
-               var sqlTables = new string[]
-               {
+                // Set tables to be used for your provider
+                var sqlTables = new string[]
+                {
                     "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "Employee", "Customer", "Address", "CustomerAddress", "EmployeeAddress",
                     "SalesLT.SalesOrderHeader", "SalesLT.SalesOrderDetail", "dbo.Sql", "Posts", "Tags", "PostTag",
                     "PricesList", "PricesListCategory", "PricesListDetail"
-               };
+                };
 
                 //// Set tables to be used for your provider
                 //var sqlTables = new string[]
@@ -39,7 +39,7 @@ namespace Dotmim.Sync.Tests.SqlServer
 
                 if (!Setup.IsOnAzureDev)
                 {
-                    providerFixture.AddRun(NetworkType.Http,  ProviderType.MySql);
+                    providerFixture.AddRun(NetworkType.Http, ProviderType.Sql);
                     providerFixture.DeleteAllDatabasesOnDispose = false;
                 }
                 else

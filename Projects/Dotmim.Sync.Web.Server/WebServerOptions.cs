@@ -2,6 +2,7 @@
 using Dotmim.Sync.Serialization;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Text;
 
@@ -65,7 +66,10 @@ namespace Dotmim.Sync.Web.Server
         /// </summary>
         public ConflictResolutionPolicy ConflictResolutionPolicy { get; set; }
 
-
+        /// <summary>
+        /// Gets or Sets Converters used by different clients
+        /// </summary>
+        public Collection<IConverter> Converters { get; set; }
 
         /// <summary>
         /// Create a new instance of options with default values
@@ -78,6 +82,7 @@ namespace Dotmim.Sync.Web.Server
             this.UseVerboseErrors = false;
             this.DisableConstraintsOnApplyChanges = true;
             this.Serializers = new SerializersCollection();
+            this.Converters = new Collection<IConverter>();
             this.ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
         }
 

@@ -11,6 +11,7 @@ using Dotmim.Sync.Data.Surrogate;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Serialization;
 using Microsoft.Net.Http.Headers;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 namespace Dotmim.Sync.Web.Client
@@ -39,6 +40,11 @@ namespace Dotmim.Sync.Web.Client
         public ISerializerFactory SerializerFactory { get; set; }
 
         /// <summary>
+        /// Gets or Sets custom converter for all rows
+        /// </summary>
+        public IConverter Converter { get; set; }
+
+        /// <summary>
         /// Gets or Sets the service uri used to reach the server api.
         /// </summary>
         public string ServiceUri { get; set; }
@@ -53,7 +59,7 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// Gets a new web proxy orchestrator
         /// </summary>
-        public WebClientOrchestrator(string serviceUri = null, ISerializerFactory serializerFactory = null, HttpClient client = null)
+        public WebClientOrchestrator(string serviceUri = null, ISerializerFactory serializerFactory = null, IConverter customConverter = null,   HttpClient client = null)
         {
             // if no HttpClient provisionned, create a new one
             if (client == null)
@@ -66,6 +72,8 @@ namespace Dotmim.Sync.Web.Client
 
                 this.HttpClient = new HttpClient(handler);
             }
+
+            this.Converter = customConverter;
             this.SerializerFactory = serializerFactory ?? SerializersCollection.JsonSerializer;
             this.ServiceUri = serviceUri;
         }
@@ -105,7 +113,8 @@ namespace Dotmim.Sync.Web.Client
 
             // No batch size submitted here, because the schema will be generated in memory and send back to the user.
             var ensureScopesResponse = await this.httpRequestHandler.ProcessRequestAsync<HttpMessageEnsureScopesRequest, HttpMessageEnsureScopesResponse>
-                (this.HttpClient, this.ServiceUri, httpMessage, HttpStep.EnsureScopes, context.SessionId, this.SerializerFactory, 0, cancellationToken).ConfigureAwait(false);
+                (this.HttpClient, this.ServiceUri, httpMessage, HttpStep.EnsureScopes, context.SessionId, 
+                 this.SerializerFactory, this.Converter, 0, cancellationToken).ConfigureAwait(false);
 
             if (ensureScopesResponse == null)
                 throw new ArgumentException("Http Message content for Ensure scope can't be null");
@@ -136,7 +145,7 @@ namespace Dotmim.Sync.Web.Client
 
             foreach (var table in schema.Tables)
                 DbSyncAdapter.CreateChangesTable(schema.Tables[table.TableName, table.SchemaName], changesSet);
-            
+
             // if we don't have any BatchPartsInfo, just generate a new one to get, at least, something to send to the server
             // and get a response with new data from server
             if (clientBatchInfo == null)
@@ -155,12 +164,21 @@ namespace Dotmim.Sync.Web.Client
             if (clientBatchInfo.InMemory || (!clientBatchInfo.InMemory && clientBatchInfo.BatchPartsInfo.Count == 0))
             {
                 var changesToSend = new HttpMessageSendChangesRequest(context, scope);
-                changesToSend.Changes = clientBatchInfo.InMemoryData.GetContainerSet();
+
+                if (this.Converter != null && clientBatchInfo.InMemoryData.HasRows)
+                    this.BeforeSerializeRows(clientBatchInfo.InMemoryData);
+
+                var containerSet = clientBatchInfo.InMemoryData.GetContainerSet();
+                changesToSend.Changes = containerSet;
                 changesToSend.IsLastBatch = true;
                 changesToSend.BatchIndex = 0;
 
+                var tm = typeof(HttpMessageSendChangesResponse);
+                var changesField = tm.GetField("Changes");
+
                 httpMessageContent = await this.httpRequestHandler.ProcessRequestAsync<HttpMessageSendChangesRequest, HttpMessageSendChangesResponse>
-                    (this.HttpClient, this.ServiceUri, changesToSend, HttpStep.SendChanges, context.SessionId, this.SerializerFactory, clientBatchSize, cancellationToken).ConfigureAwait(false);
+                    (this.HttpClient, this.ServiceUri, changesToSend, HttpStep.SendChanges, context.SessionId, 
+                     this.SerializerFactory, this.Converter, clientBatchSize, cancellationToken).ConfigureAwait(false);
 
             }
             else
@@ -175,13 +193,18 @@ namespace Dotmim.Sync.Web.Client
 
                     var changesToSend = new HttpMessageSendChangesRequest(context, scope);
 
+                    if (this.Converter != null && bpi.Data.HasRows)
+                        BeforeSerializeRows(bpi.Data);
+
                     // Set the change request properties
                     changesToSend.Changes = bpi.Data.GetContainerSet();
                     changesToSend.IsLastBatch = bpi.IsLastBatch;
                     changesToSend.BatchIndex = bpi.Index;
 
+
                     httpMessageContent = await this.httpRequestHandler.ProcessRequestAsync<HttpMessageSendChangesRequest, HttpMessageSendChangesResponse>
-                        (this.HttpClient, this.ServiceUri, changesToSend, HttpStep.SendChanges, context.SessionId, this.SerializerFactory, clientBatchSize, cancellationToken).ConfigureAwait(false);
+                        (this.HttpClient, this.ServiceUri, changesToSend, HttpStep.SendChanges, context.SessionId, 
+                         this.SerializerFactory, this.Converter, clientBatchSize, cancellationToken).ConfigureAwait(false);
 
 
                     // for some reasons, if server don't want to wait for more, just break
@@ -232,6 +255,9 @@ namespace Dotmim.Sync.Web.Client
 
                 changesSet.ImportContainerSet(httpMessageContent.Changes);
 
+                if (this.Converter != null && changesSet.HasRows)
+                    AfterDeserializedRows(changesSet);
+
                 // Create a BatchPartInfo instance
                 serverBatchInfo.AddChanges(changesSet, httpMessageContent.BatchIndex, isLastBatch);
 
@@ -247,15 +273,50 @@ namespace Dotmim.Sync.Web.Client
                     // Create the message enveloppe
                     var httpMessage = new HttpMessageGetMoreChangesRequest(context, requestBatchIndex);
 
+
                     httpMessageContent = await this.httpRequestHandler.ProcessRequestAsync<HttpMessageGetMoreChangesRequest, HttpMessageSendChangesResponse>(
-                               this.HttpClient, this.ServiceUri, httpMessage, HttpStep.GetChanges, context.SessionId, this.SerializerFactory, clientBatchSize, cancellationToken).ConfigureAwait(false);
+                               this.HttpClient, this.ServiceUri, httpMessage, HttpStep.GetChanges, context.SessionId, 
+                               this.SerializerFactory, this.Converter, clientBatchSize, cancellationToken).ConfigureAwait(false);
 
                 }
 
             } while (!isLastBatch);
 
+
+
+
+
+
             return (context, remoteClientTimestamp, serverBatchInfo, httpMessageContent.ConflictResolutionPolicy, serverChangesSelected);
         }
 
+
+
+        public void BeforeSerializeRows(SyncSet data)
+        {
+            foreach (var table in data.Tables)
+            {
+                if (table.Rows.Count > 0)
+                {
+                    foreach (var row in table.Rows)
+                        this.Converter.BeforeSerialize(row);
+
+                }
+            }
+        }
+
+        public void AfterDeserializedRows(SyncSet data)
+        {
+            foreach (var table in data.Tables)
+            {
+                if (table.Rows.Count > 0)
+                {
+                    foreach (var row in table.Rows)
+                        this.Converter.AfterDeserialized(row);
+
+                }
+            }
+
+        }
     }
 }
