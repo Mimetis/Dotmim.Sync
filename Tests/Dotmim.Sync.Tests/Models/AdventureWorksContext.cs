@@ -897,24 +897,24 @@ namespace Dotmim.Sync.Tests.Models
             var p3 = Guid.NewGuid();
 
             var products = new List<Product>();
-            for (var i = 0; i < 2000; i++)
-            {
-                products.Add(
-                    new Product
-                    {
-                        ProductId = Guid.NewGuid(),
-                        Name = $"Generated N° {i.ToString()}",
-                        ProductNumber = $"FR-{i.ToString()}",
-                        Color = "Black",
-                        StandardCost = 1059.3100M,
-                        ListPrice = 1431.5000M,
-                        Size = "58",
-                        Weight = 1016.04M,
-                        ProductCategoryId = "ROADFR",
-                        ProductModelId = 6
-                    }
-                );
-            }
+            //for (var i = 0; i < 2000; i++)
+            //{
+            //    products.Add(
+            //        new Product
+            //        {
+            //            ProductId = Guid.NewGuid(),
+            //            Name = $"Generated N° {i.ToString()}",
+            //            ProductNumber = $"FR-{i.ToString()}",
+            //            Color = "Black",
+            //            StandardCost = 1059.3100M,
+            //            ListPrice = 1431.5000M,
+            //            Size = "58",
+            //            Weight = 1016.04M,
+            //            ProductCategoryId = "ROADFR",
+            //            ProductModelId = 6
+            //        }
+            //    );
+            //}
 
             products.AddRange(new[] {
                 new Product { ProductId = Guid.NewGuid(), Name = "HL Road Frame - Black, 58", ProductNumber = "FR-R92B-58", Color = "Black", StandardCost = 1059.3100M, ListPrice = 1431.5000M, Size = "58", Weight = 1016.04M, ProductCategoryId = "ROADFR", ProductModelId = 6 },

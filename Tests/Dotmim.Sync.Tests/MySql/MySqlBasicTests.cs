@@ -35,7 +35,7 @@ namespace Dotmim.Sync.Tests.MySql
                 // 1) Add database name
                 providerFixture.AddDatabaseName("mysqladventureworks");
                 // 2) Add tables
-                providerFixture.AddTables(mySqlTables, 2109);
+                providerFixture.AddTables(mySqlTables);
                 // 3) Options
                 providerFixture.DeleteAllDatabasesOnDispose = false;
 
@@ -45,8 +45,8 @@ namespace Dotmim.Sync.Tests.MySql
                 }
                 else
                 {
-                    providerFixture.AddRun(NetworkType.Tcp, ProviderType.MySql | ProviderType.Sql | ProviderType.Sqlite);
-                    providerFixture.AddRun(NetworkType.Http, ProviderType.MySql | ProviderType.Sql | ProviderType.Sqlite);
+                    providerFixture.AddRun(NetworkType.Tcp, ProviderType.MySql | ProviderType.Sqlite);
+                    providerFixture.AddRun(NetworkType.Http, ProviderType.MySql | ProviderType.Sql );
                 }
             };
         }

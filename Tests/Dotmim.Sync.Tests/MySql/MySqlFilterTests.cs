@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
+using Dotmim.Sync.Test.Misc;
 using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Tests.Misc;
 using Dotmim.Sync.Tests.Models;
@@ -28,7 +29,7 @@ namespace Dotmim.Sync.Tests.MySql
                 // 1) Add database name
                 providerFixture.AddDatabaseName("MySqlAdventureWorksFilter");
                 // 2) Add tables
-                providerFixture.AddTables(tables, 28);
+                providerFixture.AddTables(tables);
                 // 3) Options
                 // providerFixture.DeleteAllDatabasesOnDispose = false;
 
@@ -56,9 +57,26 @@ namespace Dotmim.Sync.Tests.MySql
         }
 
         [Fact, TestPriority(1)]
-        public override Task Initialize()
+        public override async Task Initialize()
         {
-            return base.Initialize();
+            try
+            {
+                var option = TestConfigurations.GetOptions()[0];
+
+                // reset
+                var results = await this.testRunner.RunTestsAsync(option);
+
+                foreach (var trr in results)
+                {
+                    Assert.Equal(28, trr.Results.TotalChangesDownloaded);
+                    Assert.Equal(0, trr.Results.TotalChangesUploaded);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                throw;
+            }
         }
     }
 }
