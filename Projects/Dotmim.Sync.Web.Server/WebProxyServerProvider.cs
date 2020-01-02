@@ -41,7 +41,7 @@ namespace Dotmim.Sync.Web.Server
         /// Create a new WebProxyServerProvider with a first instance of an in memory CoreProvider
         /// Use this method to create your WebProxyServerProvider if you don't use the DI stuff from ASP.NET
         /// </summary>
-        public static WebProxyServerOrchestrator Create(HttpContext context, CoreProvider provider, SyncSet schema, WebServerOptions options)
+        public static WebProxyServerOrchestrator Create(HttpContext context, CoreProvider provider, SyncSetup setup, WebServerOptions options)
         {
             if (!TryGetHeaderValue(context.Request.Headers, "dotmim-sync-session-id", out var sessionId))
                 throw new SyncException($"Can't find any session id in the header");
@@ -51,7 +51,7 @@ namespace Dotmim.Sync.Web.Server
 
             // we don't have any provider for this session id, so create it
             if (syncMemoryOrchestrator == null)
-                AddNewOrchestratorToCache(context, provider, schema, options, sessionId);
+                AddNewOrchestratorToCache(context, provider, setup, options, sessionId);
 
             return defaultInstance;
         }
@@ -238,7 +238,7 @@ namespace Dotmim.Sync.Web.Server
         }
 
 
-        private static WebServerOrchestrator AddNewOrchestratorToCache(HttpContext context, CoreProvider provider, SyncSet schema, WebServerOptions options, string sessionId)
+        private static WebServerOrchestrator AddNewOrchestratorToCache(HttpContext context, CoreProvider provider, SyncSetup setup, WebServerOptions options, string sessionId)
         {
             WebServerOrchestrator remoteOrchestrator;
             var cache = context.RequestServices.GetService<IMemoryCache>();
@@ -246,7 +246,7 @@ namespace Dotmim.Sync.Web.Server
             if (cache == null)
                 throw new SyncException("Cache is not configured! Please add memory cache, distributed or not (see https://docs.microsoft.com/en-us/aspnet/core/performance/caching/response?view=aspnetcore-2.2)");
 
-            remoteOrchestrator = new WebServerOrchestrator(provider, options, schema);
+            remoteOrchestrator = new WebServerOrchestrator(provider, options, setup);
 
             cache.Set(sessionId, remoteOrchestrator, TimeSpan.FromHours(1));
             return remoteOrchestrator;

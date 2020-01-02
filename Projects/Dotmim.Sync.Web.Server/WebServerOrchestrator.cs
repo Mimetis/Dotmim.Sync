@@ -21,9 +21,9 @@ namespace Dotmim.Sync.Web.Server
         /// Default ctor. Using default options and schema
         /// </summary>
         /// <param name="provider"></param>
-        public WebServerOrchestrator(CoreProvider provider, WebServerOptions options = null, SyncSet schema = null) 
+        public WebServerOrchestrator(CoreProvider provider, WebServerOptions options = null, SyncSetup setup = null) 
         {
-            this.Schema = schema ?? new SyncSet();
+            this.Setup = setup ?? new SyncSetup();
             this.Options = options ?? new WebServerOptions();
             this.Provider = provider;
 
@@ -35,29 +35,29 @@ namespace Dotmim.Sync.Web.Server
         }
 
         /// <summary>
-        /// Gets or Sets the Schema 
+        /// Gets or Sets the Setup 
         /// </summary>
-        public SyncSet Schema { get; set; }
+        public SyncSetup Setup { get; set; }
 
         /// <summary>
         /// Get or Set Web server options parameters
         /// </summary>
         public WebServerOptions Options { get; private set; }
-
+        public SyncSet Schema { get; private set; }
 
         internal async Task<HttpMessageEnsureScopesResponse> EnsureScopeAsync(HttpMessageEnsureScopesRequest httpMessage, CancellationToken cancellationToken)
         {
             if (httpMessage == null)
                 throw new ArgumentException("EnsureScopesAsync message could not be null");
 
-            if (this.Schema == null)
+            if (this.Setup == null)
                 throw new ArgumentException("You need to set the tables to sync on server side");
 
             if (this.Options == null)
                 throw new ArgumentException("You need to set the optins used on server side");
 
             var (syncContext, newSchema) = await this.EnsureSchemaAsync(
-                httpMessage.SyncContext, this.Schema, cancellationToken).ConfigureAwait(false);
+                httpMessage.SyncContext, this.Setup, cancellationToken).ConfigureAwait(false);
 
             this.Schema = newSchema;
 
@@ -96,17 +96,10 @@ namespace Dotmim.Sync.Web.Server
             // if we are not in memory, we set the BI in session, to be able to get it back on next request
 
             // create the in memory changes set
-            var changesSet = new SyncSet
-            {
-                CaseSensitive = Schema.CaseSensitive,
-                CultureInfoName = Schema.CultureInfoName,
-                ScopeName = Schema.ScopeName,
-                DataSourceName = Schema.DataSourceName
-            };
+            var changesSet = new SyncSet(Schema.ScopeName);
+
             foreach (var table in Schema.Tables)
-            {
                 DbSyncAdapter.CreateChangesTable(Schema.Tables[table.TableName, table.SchemaName], changesSet);
-            }
 
             batchPartInfo.LoadBatch(changesSet);
 
@@ -146,11 +139,10 @@ namespace Dotmim.Sync.Web.Server
             
             // Check schema.
             // If client has stored the schema, the EnsureScope will not be called on server.
-            // So use the schema from the client
             if (this.Schema == null || !this.Schema.HasTables || !this.Schema.HasColumns)
             {
                 var (_, newSchema) = await this.EnsureSchemaAsync(
-                    httpMessage.SyncContext, this.Schema, cancellationToken).ConfigureAwait(false);
+                    httpMessage.SyncContext, this.Setup, cancellationToken).ConfigureAwait(false);
                 
                 newSchema.EnsureSchema();
                 this.Schema = newSchema;
@@ -171,13 +163,8 @@ namespace Dotmim.Sync.Web.Server
                 batchInfo = new BatchInfo(clientWorkInMemory, Schema, this.Options.BatchDirectory);
 
             // create the in memory changes set
-            var changesSet = new SyncSet
-            {
-                CaseSensitive = Schema.CaseSensitive,
-                CultureInfoName = Schema.CultureInfoName,
-                ScopeName = Schema.ScopeName,
-                DataSourceName = Schema.DataSourceName
-            };
+            var changesSet = new SyncSet(Schema.ScopeName);
+
             foreach (var table in httpMessage.Changes.Tables)
             {
                 DbSyncAdapter.CreateChangesTable(Schema.Tables[table.TableName, table.SchemaName], changesSet);

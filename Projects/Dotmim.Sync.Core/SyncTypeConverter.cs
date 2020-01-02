@@ -14,7 +14,13 @@ namespace Dotmim.Sync
         {
             res = default;
             var cul = CultureInfo.InvariantCulture;
+
             var typeConverter = TypeDescriptor.GetConverter(typeOfT);
+
+            var nfi = new NumberFormatInfo
+            {
+                NumberDecimalSeparator = SyncGlobalization.DataSourceNumberDecimalSeparator
+            };
 
             if (typeOfT == typeof(short))
                 res = Convert.ToInt16(o);
@@ -48,11 +54,11 @@ namespace Dotmim.Sync
             else if (typeOfT == typeof(char))
                 res = Convert.ToChar(o);
             else if (typeOfT == typeof(decimal))
-                res = Convert.ToDecimal(o);
+                    res = Convert.ToDecimal(o, nfi);
             else if (typeOfT == typeof(double))
-                res = Convert.ToDouble(o);
+                    res = Convert.ToDecimal(o, nfi);
             else if (typeOfT == typeof(float))
-                res = Convert.ToSingle(o);
+                    res = Convert.ToDecimal(o, nfi);
             else if (typeOfT == typeof(sbyte))
                 res = Convert.ToSByte(o);
             else if (typeOfT == typeof(TimeSpan) && TimeSpan.TryParse(o.ToString(), cul, out var q))

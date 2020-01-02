@@ -40,16 +40,9 @@ namespace Dotmim.Sync
         /// Get the scope infos from remote
         /// </summary>
         public async Task<(SyncContext, SyncSet)>
-            EnsureSchemaAsync(SyncContext context, SyncSet schema,
+            EnsureSchemaAsync(SyncContext context, SyncSetup setup,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
-
-            // Is it the first time we come to ensure schema ?
-            var checkSchema = schema.HasTables && !schema.HasColumns;
-
-            if (!checkSchema)
-                return (context, schema);
-
             using (var connection = this.Provider.CreateConnection())
             {
                 await connection.OpenAsync().ConfigureAwait(false);
@@ -67,9 +60,9 @@ namespace Dotmim.Sync
                         // Begin Session 
                         context = await this.Provider.BeginSessionAsync(context, cancellationToken, progress).ConfigureAwait(false);
 
-
+                        SyncSet schema;
                         // Get Schema from remote provider
-                        (context, schema) = await this.Provider.EnsureSchemaAsync(context, schema, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        (context, schema) = await this.Provider.EnsureSchemaAsync(context, setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                         if (cancellationToken.IsCancellationRequested)
                             cancellationToken.ThrowIfCancellationRequested();

@@ -13,7 +13,7 @@ namespace Microsoft.Extensions.DependencyInjection
     {
         private static Type providerType;
         private static string connectionString;
-        private static SyncSet schema;
+        private static SyncSetup setup;
         private static WebServerOptions options;
 
         /// <summary>
@@ -28,7 +28,7 @@ namespace Microsoft.Extensions.DependencyInjection
         public static IServiceCollection AddSyncServer<TProvider>(
                     this IServiceCollection serviceCollection,
                     string connectionString,
-                    SyncSet schema,
+                    SyncSetup setup,
                     WebServerOptions options = null) where TProvider : CoreProvider, new()
         {
             if (string.IsNullOrWhiteSpace(connectionString))
@@ -37,7 +37,7 @@ namespace Microsoft.Extensions.DependencyInjection
             providerType = typeof(TProvider);
             DependencyInjection.connectionString = connectionString;
             DependencyInjection.options = options ?? new WebServerOptions();
-            DependencyInjection.schema = schema ?? throw new ArgumentNullException(nameof(schema));
+            DependencyInjection.setup = setup ?? throw new ArgumentNullException(nameof(setup));
 
             serviceCollection.AddOptions();
             serviceCollection.AddSingleton(new WebProxyServerOrchestrator());
@@ -57,7 +57,7 @@ namespace Microsoft.Extensions.DependencyInjection
             providerType = typeof(TProvider);
             DependencyInjection.connectionString = connectionString;
             DependencyInjection.options = options ?? new WebServerOptions();
-            DependencyInjection.schema = new SyncSet(tables);
+            DependencyInjection.setup = new SyncSetup(tables);
 
             serviceCollection.AddOptions();
             serviceCollection.AddSingleton(new WebProxyServerOrchestrator());
@@ -73,7 +73,7 @@ namespace Microsoft.Extensions.DependencyInjection
         {
             var provider = (CoreProvider)Activator.CreateInstance(providerType);
             provider.ConnectionString = connectionString;
-            var webProvider = new WebServerOrchestrator(provider, DependencyInjection.options, DependencyInjection.schema);
+            var webProvider = new WebServerOrchestrator(provider, DependencyInjection.options, DependencyInjection.setup);
             return webProvider;
         }
 

@@ -12,7 +12,7 @@ using System.Text;
 namespace Dotmim.Sync
 {
     [DataContract(Name = "ct"), Serializable]
-    public class ContainerTable
+    public class ContainerTable : IEquatable<ContainerTable>
     {
         /// <summary>
         /// Gets or sets the name of the table that the DmTableSurrogate object represents.
@@ -56,9 +56,9 @@ namespace Dotmim.Sync
         /// Check if we have rows in this container table
         /// </summary>
         public bool HasRows => this.Rows.Count > 0;
- 
+
         public void Clear() => Rows.Clear();
- 
+
         /// <summary>
         /// Calculate an estimation of the dictionary values size
         /// </summary>
@@ -144,43 +144,42 @@ namespace Dotmim.Sync
 
         }
 
-    }
-
-    /// <summary>
-    /// Extensions methods for ContainerTable
-    /// </summary>
-    public static class ContainerTableExtensions
-    {
-        public static ContainerTable FirstOrDefault(this Collection<ContainerTable> containerTables, string tableName, string schemaName, SyncSet schema)
+        public override bool Equals(object obj)
         {
-            return containerTables.FirstOrDefault(ct =>
-            {
-                return schema.StringEquals(tableName, schemaName, ct.TableName, ct.SchemaName);
-            });
+            return this.Equals(obj as ContainerTable);
         }
 
-        public static ContainerTable FirstOrDefault(this Collection<ContainerTable> containerTables, ContainerTable containerTable, SyncSet schema)
+        public bool Equals(ContainerTable other)
         {
-            return containerTables.FirstOrDefault(ct =>
-            {
-                return schema.StringEquals(containerTable.TableName, containerTable.SchemaName, ct.TableName, ct.SchemaName);
-            });
+            if (other == null)
+                return false;
+
+            var sc = SyncGlobalization.DataSourceStringComparison;
+
+            var sn = this.SchemaName == null ? string.Empty : this.SchemaName;
+            var otherSn = other.SchemaName == null ? string.Empty : other.SchemaName;
+
+            return other != null &&
+                   this.TableName.Equals(other.TableName, sc) &&
+                   sn.Equals(otherSn, sc);
         }
 
-        public static ContainerTable FirstOrDefault(this Collection<ContainerTable> containerTables, SyncTable schemaTable)
+        public override int GetHashCode()
         {
-            return containerTables.FirstOrDefault(ct =>
-            {
-                return schemaTable.Schema.StringEquals(schemaTable.TableName, schemaTable.SchemaName, ct.TableName, ct.SchemaName);
-            });
+            var hashCode = 1627045777;
+            hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(this.TableName);
+            hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(this.SchemaName);
+            return hashCode;
         }
 
-        public static ContainerTable FirstOrDefault(this Collection<ContainerTable> containerTables, string tableName, SyncSet schema)
+        public static bool operator ==(ContainerTable left, ContainerTable right)
         {
-            return containerTables.FirstOrDefault(ct =>
-            {
-                return schema.StringEquals(ParserName.Parse(tableName).ObjectName, ParserName.Parse(tableName).SchemaName, ct.TableName, ct.SchemaName);
-            });
+            return EqualityComparer<ContainerTable>.Default.Equals(left, right);
+        }
+
+        public static bool operator !=(ContainerTable left, ContainerTable right)
+        {
+            return !(left == right);
         }
     }
 

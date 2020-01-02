@@ -77,13 +77,7 @@ namespace Dotmim.Sync
                 var changes = new DatabaseChangesSelected();
 
                 // create the in memory changes set
-                var changesSet = new SyncSet
-                {
-                    CaseSensitive = message.Schema.CaseSensitive,
-                    CultureInfoName = message.Schema.CultureInfoName,
-                    ScopeName = message.Schema.ScopeName,
-                    DataSourceName = message.Schema.DataSourceName
-                };
+                var changesSet = new SyncSet(message.Schema.ScopeName);
 
                 // Create a Schema set without readonly tables, attached to memory changes
                 foreach (var table in message.Schema.Tables)
@@ -173,13 +167,7 @@ namespace Dotmim.Sync
                                 changesSet.Clear();
 
                                 // Recreate an empty ContainerSet and a ContainerTable
-                                changesSet = new SyncSet
-                                {
-                                    CaseSensitive = message.Schema.CaseSensitive,
-                                    CultureInfoName = message.Schema.CultureInfoName,
-                                    ScopeName = message.Schema.ScopeName,
-                                    DataSourceName = message.Schema.DataSourceName
-                                };
+                                changesSet = new SyncSet(message.Schema.ScopeName);
 
                                 changesSetTable = DbSyncAdapter.CreateChangesTable(message.Schema.Tables[syncTable.TableName, syncTable.SchemaName], changesSet);
 
@@ -230,13 +218,7 @@ namespace Dotmim.Sync
             var isBatched = message.BatchSize > 0;
 
             // create the in memory changes set
-            var changesSet = new SyncSet
-            {
-                CaseSensitive = message.Schema.CaseSensitive,
-                CultureInfoName = message.Schema.CultureInfoName,
-                ScopeName = message.Schema.ScopeName,
-                DataSourceName = message.Schema.DataSourceName
-            };
+            var changesSet = new SyncSet(message.Schema.ScopeName);
 
             // Create a Schema set without readonly tables, attached to memory changes
             foreach (var table in message.Schema.Tables)
@@ -274,7 +256,7 @@ namespace Dotmim.Sync
 
             // Sqlite does not have any filter, since he can't be server side
             if (this.CanBeServerProvider && hasValidParameters)
-                tableFilters = syncTable.Schema.Filters.Where(syncTable).ToList();
+                tableFilters = syncTable.GetFilters();
 
             var hasFilters = tableFilters != null && tableFilters.Count > 0;
 
@@ -342,8 +324,8 @@ namespace Dotmim.Sync
 
             // Sqlite does not have any filter, since he can't be server side
             if (this.CanBeServerProvider && hasValidParameters)
-                tableFilters = syncTable.Schema.Filters.Where(syncTable).ToList();
-
+                tableFilters = syncTable.GetFilters();
+            
             var hasFilters = tableFilters != null && tableFilters.Count > 0;
 
             if (!hasFilters)
@@ -351,7 +333,17 @@ namespace Dotmim.Sync
 
             foreach (var filter in tableFilters)
             {
-                var parameter = context.Parameters.FirstOrDefault(p => p.ColumnName.Equals(filter.ColumnName, StringComparison.InvariantCultureIgnoreCase) && p.TableName.Equals(filter.TableName, StringComparison.InvariantCultureIgnoreCase));
+                var parameter = context.Parameters.FirstOrDefault(p => {
+
+                    var sc = SyncGlobalization.DataSourceStringComparison;
+
+                    var sn = filter.SchemaName == null ? string.Empty : filter.SchemaName;
+                    var otherSn = p.SchemaName == null ? string.Empty : p.SchemaName;
+
+                    return p.ColumnName.Equals(filter.ColumnName, sc) &&
+                           p.TableName.Equals(filter.TableName, sc) &&
+                           sn.Equals(otherSn, sc);
+                });
 
                 if (parameter != null)
                     DbManager.SetParameterValue(selectIncrementalChangesCommand, parameter.ColumnName, parameter.Value);
@@ -394,261 +386,7 @@ namespace Dotmim.Sync
         }
 
 
-        ///// <summary>
-        ///// Enumerate all internal changes, no batch mode
-        ///// </summary>
-        //internal async Task<(BatchInfo, DatabaseChangesSelected)> EnumerateChangesInternalAsync(
-        //    SyncContext context, Guid excludingScopeId, bool isNew, long lastTimestamp, SyncSet schema,
-        //    DbConnection connection, DbTransaction transaction,
-        //    CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
-        //{
-
-        //    // changes that will be returned as selected changes
-        //    var changes = new DatabaseChangesSelected();
-
-        //    // create the in memory changes set
-        //    var changesSet = new SyncSet
-        //    {
-        //        CaseSensitive = schema.CaseSensitive,
-        //        CultureInfoName = schema.CultureInfoName,
-        //        ScopeName = schema.ScopeName,
-        //        DataSourceName = schema.DataSourceName
-        //    };
-
-        //    // Create the batch info, in memory
-        //    // No need to geneate a directory name, since we are in memory
-        //    // Batch info clone the schema and adds scopes columns
-        //    var batchInfo = new BatchInfo(true, changesSet);
-
-
-        //    foreach (var syncTable in schema.Tables)
-        //    {
-        //        // if we are in upload stage, so check if table is not download only
-        //        if (context.SyncWay == SyncWay.Upload && syncTable.SyncDirection == SyncDirection.DownloadOnly)
-        //            continue;
-
-        //        // if we are in download stage, so check if table is not download only
-        //        if (context.SyncWay == SyncWay.Download && syncTable.SyncDirection == SyncDirection.UploadOnly)
-        //            continue;
-
-        //        var builder = this.GetDatabaseBuilder(syncTable);
-        //        var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
-
-        //        // raise before event
-        //        context.SyncStage = SyncStage.TableChangesSelecting;
-        //        // launch any interceptor
-        //        await this.InterceptAsync(new TableChangesSelectingArgs(context, syncTable.TableName, connection, transaction)).ConfigureAwait(false);
-
-        //        // Get Command
-        //        var selectIncrementalChangesCommand = this.GetSelectChangesCommand(context, syncAdapter, syncTable, isNew);
-
-        //        // Set parameters
-        //        this.SetSelectChangesCommonParameters(context, syncTable, excludingScopeId, isNew, lastTimestamp, selectIncrementalChangesCommand);
-
-        //        // selected changes for the current table
-        //        var tableChangesSelected = new TableChangesSelected(syncTable.TableName);
-
-        //        // Get the reader
-        //        using (var dataReader = selectIncrementalChangesCommand.ExecuteReader())
-        //        {
-        //            // Create a change table with scope columns
-        //            var changesTable = DbSyncAdapter.CreateChangesTable(syncTable, changesSet);
-
-        //            while (dataReader.Read())
-        //            {
-        //                var row = CreateSyncRowFromReader(dataReader, changesTable, excludingScopeId, isNew, lastTimestamp);
-
-        //                if (row.RowState != DataRowState.Deleted && row.RowState != DataRowState.Modified)
-        //                    continue;
-
-        //                tableChangesSelected.TotalChanges++;
-
-        //                // Set the correct state to be applied
-        //                if (row.RowState == DataRowState.Deleted)
-        //                    tableChangesSelected.Deletes++;
-        //                else if (row.RowState == DataRowState.Modified)
-        //                    tableChangesSelected.Upserts++;
-
-        //                changesTable.Rows.Add(row);
-        //            }
-
-        //            dataReader.Close();
-        //        }
-
-        //        selectIncrementalChangesCommand.Dispose();
-
-        //        // add the stats to global stats
-        //        if (tableChangesSelected.Deletes > 0 || tableChangesSelected.Upserts > 0)
-        //            changes.TableChangesSelected.Add(tableChangesSelected);
-
-        //        // Progress & Interceptor
-        //        context.SyncStage = SyncStage.TableChangesSelected;
-        //        var args = new TableChangesSelectedArgs(context, tableChangesSelected, connection, transaction);
-        //        this.ReportProgress(context, progress, args);
-        //        await this.InterceptAsync(args).ConfigureAwait(false);
-        //    }
-
-        //    // add changes to batchinfo
-        //    batchInfo.AddChanges(changesSet);
-
-        //    // Create a new in-memory batch info with an the changes
-        //    return (batchInfo, changes);
-
-        //}
-
-
-        ///// <summary>
-        ///// Enumerate all internal changes, no batch mode
-        ///// </summary>
-        //internal async Task<(BatchInfo, DatabaseChangesSelected)> EnumerateChangesInBatchesInternalAsync(
-        //     SyncContext context, Guid excludingScopeId, bool isNew, long lastTimestamp, int downloadBatchSizeInKB,
-        //     SyncSet schema, string batchDirectory,
-        //     DbConnection connection, DbTransaction transaction,
-        //     CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
-        //{
-        //    // numbers of batch files generated
-        //    var batchIndex = 0;
-
-        //    // Check if we are in batch mode
-        //    var isBatch = downloadBatchSizeInKB > 0;
-
-        //    // batchinfo generate a schema clone with scope columns if needed
-        //    var batchInfo = isBatch ? new BatchInfo(false, schema, batchDirectory) : new BatchInfo(true, schema);
-
-        //    // Create stats object to store changes count
-        //    var changes = new DatabaseChangesSelected();
-
-        //    // create the in memory changes set
-        //    var changesSet = new SyncSet
-        //    {
-        //        CaseSensitive = schema.CaseSensitive,
-        //        CultureInfoName = schema.CultureInfoName,
-        //        ScopeName = schema.ScopeName,
-        //        DataSourceName = schema.DataSourceName
-        //    };
-
-        //    foreach (var syncTable in schema.Tables)
-        //    {
-        //        // if we are in upload stage, so check if table is not download only
-        //        if (context.SyncWay == SyncWay.Upload && syncTable.SyncDirection == SyncDirection.DownloadOnly)
-        //            continue;
-
-        //        // if we are in download stage, so check if table is not download only
-        //        if (context.SyncWay == SyncWay.Download && syncTable.SyncDirection == SyncDirection.UploadOnly)
-        //            continue;
-
-        //        var builder = this.GetDatabaseBuilder(syncTable);
-        //        var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
-
-        //        // raise before event
-        //        context.SyncStage = SyncStage.TableChangesSelecting;
-        //        var tableChangesSelectingArgs = new TableChangesSelectingArgs(context, syncTable.TableName, connection, transaction);
-        //        // launch interceptor if any
-        //        await this.InterceptAsync(tableChangesSelectingArgs).ConfigureAwait(false);
-
-        //        // Get Command
-        //        var selectIncrementalChangesCommand = this.GetSelectChangesCommand(context, syncAdapter, syncTable, isNew);
-
-        //        // Set parameters
-        //        this.SetSelectChangesCommonParameters(context, syncTable, excludingScopeId, isNew, lastTimestamp, selectIncrementalChangesCommand);
-
-        //        // Statistics
-        //        var tableChangesSelected = new TableChangesSelected(syncTable.TableName);
-
-        //        // Get the reader
-        //        using (var dataReader = selectIncrementalChangesCommand.ExecuteReader())
-        //        {
-        //            // memory size total
-        //            double rowsMemorySize = 0L;
-
-        //            // Create a chnages table with scope columns
-        //            var changesSetTable = DbSyncAdapter.CreateChangesTable(syncTable, changesSet);
-
-        //            while (dataReader.Read())
-        //            {
-        //                var row = CreateSyncRowFromReader(dataReader, changesSetTable, excludingScopeId, isNew, lastTimestamp);
-
-        //                if (row.RowState != DataRowState.Deleted && row.RowState != DataRowState.Modified)
-        //                    continue;
-
-        //                if (isBatch)
-        //                {
-        //                    var fieldsSize = ContainerTable.GetRowSizeFromDataRow(row.ToArray());
-        //                    var finalFieldSize = fieldsSize / 1024d;
-
-        //                    if (finalFieldSize > downloadBatchSizeInKB)
-        //                        throw new Exception($"Row is too big ({finalFieldSize} kb.) for the current Configuration.DownloadBatchSizeInKB ({downloadBatchSizeInKB} kb.) Aborting Sync...");
-
-        //                    // Calculate the new memory size
-        //                    rowsMemorySize += finalFieldSize;
-        //                }
-
-        //                // Create an ordered item array
-        //                changesSetTable.Rows.Add(row);
-
-        //                tableChangesSelected.TotalChanges++;
-
-        //                // Set the correct state to be applied
-        //                if (row.RowState == DataRowState.Deleted)
-        //                    tableChangesSelected.Deletes++;
-        //                else if (row.RowState == DataRowState.Modified)
-        //                    tableChangesSelected.Upserts++;
-
-
-        //                // We exceed the memorySize, so we can add it to a batch
-        //                if (isBatch && rowsMemorySize > downloadBatchSizeInKB)
-        //                {
-        //                    // add changes to batchinfo
-        //                    batchInfo.AddChanges(changesSet, batchIndex, false);
-
-        //                    // increment batch index
-        //                    batchIndex++;
-
-        //                    // we know the datas are serialized here, so we can flush  the set
-        //                    changesSet.Clear();
-
-        //                    // Recreate an empty ContainerSet and a ContainerTable
-        //                    changesSet = new SyncSet
-        //                    {
-        //                        CaseSensitive = schema.CaseSensitive,
-        //                        CultureInfoName = schema.CultureInfoName,
-        //                        ScopeName = schema.ScopeName,
-        //                        DataSourceName = schema.DataSourceName
-        //                    };
-
-        //                    changesSetTable = DbSyncAdapter.CreateChangesTable(syncTable, changesSet);
-
-        //                    // Init the row memory size
-        //                    rowsMemorySize = 0L;
-        //                }
-        //            }
-        //        }
-
-        //        selectIncrementalChangesCommand.Dispose();
-
-        //        context.SyncStage = SyncStage.TableChangesSelected;
-
-        //        if (tableChangesSelected.Deletes > 0 || tableChangesSelected.Upserts > 0)
-        //            changes.TableChangesSelected.Add(tableChangesSelected);
-
-        //        // Event progress & interceptor
-        //        context.SyncStage = SyncStage.TableChangesSelected;
-        //        var tableChangesSelectedArgs = new TableChangesSelectedArgs(context, tableChangesSelected, connection, transaction);
-        //        this.ReportProgress(context, progress, tableChangesSelectedArgs);
-        //        await this.InterceptAsync(tableChangesSelectedArgs).ConfigureAwait(false);
-
-        //    }
-
-        //    // We are in batch mode, and we are at the last batchpart info
-        //    if (changesSet != null && changesSet.HasTables)
-        //        batchInfo.AddChanges(changesSet, batchIndex, true);
-
-        //    // Check the last index as the last batch
-        //    batchInfo.EnsureLastBatch();
-
-        //    return (batchInfo, changes);
-        //}
-
-
+       
+   
     }
 }

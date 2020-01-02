@@ -7,6 +7,7 @@ using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Web.Client;
 using Dotmim.Sync.Web.Server;
+using MessagePack;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Http2.HPack;
 using Microsoft.Data.Sqlite;
@@ -18,6 +19,8 @@ using System.Data.SqlClient;
 using System.IO;
 using System.Linq;
 using System.Runtime.Serialization;
+using System.Runtime.Serialization.Formatters;
+using System.Runtime.Serialization.Formatters.Binary;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -35,15 +38,10 @@ internal class Program
     public static string[] oneTable = new string[] { "ProductCategory" };
     private static void Main(string[] args)
     {
-
-        SynchronizeAsync().GetAwaiter().GetResult();
-
-
-        //TestSyncTable();
-
-
-
+        SyncHttpThroughKestellAsync().GetAwaiter().GetResult();
     }
+
+
 
     private static async Task TestSqliteDoubleStatement()
     {
@@ -84,8 +82,6 @@ internal class Program
         }
 
     }
-
-
     private static async Task TestDeleteWithoutBulkAsync()
     {
         var cs = DbHelper.GetDatabaseConnectionString(serverProductCategoryDbName);
@@ -144,8 +140,6 @@ internal class Program
 
         Console.WriteLine("End");
     }
-
-
     private static int InsertOneProductCategoryId(IDbConnection c, string updatedName)
     {
         using (var command = c.CreateCommand())
@@ -211,7 +205,7 @@ internal class Program
 
         var rows = set.Tables[0].Rows.Select(r => r.ItemArray);
 
-        var schemaSet = new SyncSet("Adv", false);
+        var schemaSet = new SyncSet("AdvScope");
         var schemaTable = new SyncTable("ServiceTickets");
         schemaTable.Columns.Add(SyncColumn.Create<Guid>("ServiceTicketID"));
         schemaTable.Columns.Add(SyncColumn.Create<string>("Title"));
@@ -604,12 +598,29 @@ internal class Program
     {
         // Create 2 Sql Sync providers
         var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
-        //var clientProvider = new MySqlSyncProvider(DbHelper.GetMySqlDatabaseConnectionString(clientDbName));
-        var clientProvider = new SqliteSyncProvider("adv2.db");
+        var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
+        //var clientProvider = new SqliteSyncProvider("adv2.db");
+
+        // specific Setup with only 2 tables, and one filtered
+        var setup = new SyncSetup(new[] { "ProductCategory", "ProductModel" });
+
+        // Add a table with less columns
+        setup.Tables.Add("Product")
+            .Columns.AddRange(new string[] { "ProductId", "Name", "ProductCategoryID", "ProductNumber", "StandardCost", "ListPrice", "SellStartDate", "rowguid", "ModifiedDate" });
+
+        // Add filters
+        setup.Filters.Add("ProductCategory", "ParentProductCategoryID")
+                     .Add("ProductCategory", "Name");
+
+        // Add pref suf
+        setup.StoredProceduresPrefix = "s";
+        setup.StoredProceduresSuffix = "";
+        setup.TrackingTablesPrefix = "t";
+        setup.TrackingTablesSuffix = "";
 
         // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, allTables);
-  
+        var agent = new SyncAgent(clientProvider, serverProvider, setup);
+
         // Using the Progress pattern to handle progession during the synchronization
         var progress = new SynchronousProgress<ProgressArgs>(s =>
         {
@@ -627,14 +638,6 @@ internal class Program
 
         agent.AddRemoteProgress(remoteProgress);
 
-        //agent.Schema.Filters.Add("ProductCategory", "ParentProductCategoryID");
-        //agent.Schema.Filters.Add("ProductCategory", "Name");
-
-        agent.Schema.StoredProceduresPrefix = "s";
-        agent.Schema.StoredProceduresSuffix = "";
-        agent.Schema.TrackingTablesPrefix = "t";
-        agent.Schema.TrackingTablesSuffix = "";
-        
         //agent.Options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync");
         //agent.Options.BatchSize = 1000;
         //agent.Options.CleanMetadatas = true;
@@ -814,7 +817,7 @@ internal class Program
         var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
 
         // Tables involved in the sync process:
-        var tables = allTables;
+        // var tables = allTables;
         //var tables = new string[] { "SalesLT.Product", "SalesLT.ProductCategory" };
 
 
@@ -831,17 +834,25 @@ internal class Program
             UseVerboseErrors = false,
         };
 
+        // Create the web proxy client provider with specific options
+        var proxyClientProvider = new WebClientOrchestrator
+        {
+            SerializerFactory = new CustomMessagePackSerializerFactory()
+        };
+
+
         // ----------------------------------
         // Web Server side
         // ----------------------------------
-        var schema = new SyncSet()
-        {
-            StoredProceduresPrefix = "s",
-            StoredProceduresSuffix = "",
-            TrackingTablesPrefix = "t",
-            TrackingTablesSuffix = ""
-        };
-        schema.Tables.Add(tables);
+        // specific Setup with only 2 tables, and one filtered
+        var setup = new SyncSetup(allTables);
+        setup.Tables["Product"].Columns.AddRange(new string[] { "ProductId", "Name", "ProductCategoryID", "ProductNumber", "StandardCost", "ListPrice", "SellStartDate", "rowguid", "ModifiedDate" });
+
+        // Add pref suf
+        setup.StoredProceduresPrefix = "s";
+        setup.StoredProceduresSuffix = "";
+        setup.TrackingTablesPrefix = "t";
+        setup.TrackingTablesSuffix = "";
 
         var webServerOptions = new WebServerOptions
         {
@@ -852,20 +863,14 @@ internal class Program
         };
         webServerOptions.Serializers.Add(new CustomMessagePackSerializerFactory());
 
-        // Create the web proxy client provider with specific options
-        var proxyClientProvider = new WebClientOrchestrator
-        {
-            SerializerFactory = new CustomMessagePackSerializerFactory()
-        };
-
-
         // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, proxyClientProvider, null, clientOptions);
+        var agent = new SyncAgent(clientProvider, proxyClientProvider);
+        agent.Options = clientOptions;
 
 
         var serverHandler = new RequestDelegate(async context =>
         {
-            var proxyServerProvider = WebProxyServerOrchestrator.Create(context, serverProvider, schema, webServerOptions);
+            var proxyServerProvider = WebProxyServerOrchestrator.Create(context, serverProvider, setup, webServerOptions);
 
             await proxyServerProvider.HandleRequestAsync(context);
         });
@@ -904,7 +909,7 @@ internal class Program
         var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
 
         var proxyClientProvider = new WebClientOrchestrator("http://localhost:52288/api/Sync");
-        
+
 
         var agent = new SyncAgent(clientProvider, proxyClientProvider);
 

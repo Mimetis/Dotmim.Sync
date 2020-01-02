@@ -28,7 +28,7 @@ namespace Dotmim.Sync
             DbTransaction transaction = null;
             try
             {
-                if (schema == null || !schema.HasTables)
+                if (schema.Tables == null || !schema.HasTables)
                     throw new ArgumentNullException("tables", "You must set the tables you want to provision");
 
 
@@ -41,9 +41,6 @@ namespace Dotmim.Sync
                     using (transaction = connection.BeginTransaction())
                     {
                         await this.InterceptAsync(new TransactionOpenArgs(null, connection, transaction)).ConfigureAwait(false);
-
-                        // Load the configuration
-                        this.ReadSchema(schema, connection, transaction);
 
                         // Launch any interceptor if available
                         await this.InterceptAsync(new DatabaseDeprovisioningArgs(null, provision, schema, connection, transaction)).ConfigureAwait(false);
@@ -119,7 +116,7 @@ namespace Dotmim.Sync
 
             try
             {
-                if (schema == null || !schema.HasTables)
+                if (schema.Tables == null || !schema.HasTables)
                     throw new ArgumentNullException("tables", "You must set the tables you want to provision");
 
 
@@ -132,9 +129,6 @@ namespace Dotmim.Sync
                     using (transaction = connection.BeginTransaction())
                     {
                         await this.InterceptAsync(new TransactionOpenArgs(null, connection, transaction)).ConfigureAwait(false);
-
-                        // Load the configuration
-                        this.ReadSchema(schema, connection, transaction);
 
                         var beforeArgs =
                             new DatabaseProvisioningArgs(null, provision, schema, connection, transaction);
@@ -292,7 +286,7 @@ namespace Dotmim.Sync
             if (schema.Filters != null && schema.Filters.Count > 0)
             {
                 // get the all the filters for the table
-                var tableFilters = schema.Filters.Where(schemaTable);
+                var tableFilters = schemaTable.GetFilters();
 
                 if (tableFilters == null)
                     return;
@@ -300,12 +294,12 @@ namespace Dotmim.Sync
                 foreach (var filter in tableFilters)
                 {
                     // Get the column
-                    var columnFilter = schemaTable.Columns.FirstOrDefault(filter.ColumnName);
+                    var columnFilter = schemaTable.Columns.FirstOrDefault(c => c.ColumnName.Equals(filter.ColumnName, SyncGlobalization.DataSourceStringComparison));
 
                     if (columnFilter == null && !filter.IsVirtual)
                         throw new InvalidExpressionException($"Column {filter.ColumnName} does not exist in Table {schemaTable.TableName}");
 
-                    builder.FilterColumns.Add(new SyncFilter(columnFilter, filter.ColumnType));
+                    builder.FilterColumns.Add(new SyncFilter(columnFilter.ColumnName, schemaTable.TableName, schemaTable.SchemaName, filter.ColumnType));
                 }
             }
 

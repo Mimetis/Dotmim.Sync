@@ -11,7 +11,6 @@ namespace Dotmim.Sync
     /// </summary>
     public static class SyncExtensions
     {
-
         /// <summary>
         ///  Shortcut to add a new parameter value to a filter
         /// </summary>

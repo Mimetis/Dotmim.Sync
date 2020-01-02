@@ -79,7 +79,7 @@ namespace Dotmim.Sync.Tests.Core
 
 
         public async Task<ProviderRun> RunAsync(ProviderFixture serverFixture, string[] tables = null,
-            SyncSet schema = null, SyncOptions options = null, bool reuseAgent = true)
+            SyncOptions options = null, bool reuseAgent = true)
         {
             var syncTables = tables ?? serverFixture.Tables;
 
@@ -88,14 +88,10 @@ namespace Dotmim.Sync.Tests.Core
             {
                 // create agent
                 if (this.Agent == null || !reuseAgent)
-                    this.Agent = new SyncAgent(this.ClientProvider, serverFixture.ServerProvider, syncTables, options);
+                    this.Agent = new SyncAgent(this.ClientProvider, serverFixture.ServerProvider, new Dotmim.Sync.SyncSetup(syncTables), options);
 
                 if (options != null)
                     this.Agent.Options = options;
-
-                // copy conf settings
-                if (schema != null)
-                    this.Agent.Schema = schema;
 
                 // Add Filers
                 if (serverFixture.Filters != null && serverFixture.Filters.Count > 0)
@@ -146,10 +142,9 @@ namespace Dotmim.Sync.Tests.Core
                         // sync
                         try
                         {
-                            schema = new SyncSet(syncTables);
-
+                        
                             var proxyServerOrchestrator = WebProxyServerOrchestrator.Create(
-                                context, serverFixture.ServerProvider, schema, serverOptions);
+                                context, serverFixture.ServerProvider, new Sync.SyncSetup(syncTables), serverOptions);
 
                             var webServerOrchestrator = proxyServerOrchestrator.GetLocalOrchestrator(context);
 
@@ -185,10 +180,6 @@ namespace Dotmim.Sync.Tests.Core
 
                         if (options != null)
                             this.Agent.Options = options;
-
-                        // copy conf settings
-                        if (schema != null)
-                            this.Agent.Schema = schema;
 
                         // Just set the correct serviceUri if my kestrell server changed it
                         ((WebClientOrchestrator)this.Agent.RemoteOrchestrator).ServiceUri = serviceUri;

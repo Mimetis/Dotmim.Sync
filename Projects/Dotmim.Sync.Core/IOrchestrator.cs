@@ -49,7 +49,7 @@ namespace Dotmim.Sync
         /// </summary>
         /// <returns></returns>
         Task<(SyncContext context, ScopeInfo localScopeInfo)>
-            EnsureScopeAsync(SyncContext context, SyncSet schema, SyncOptions options,
+            EnsureScopeAsync(SyncContext context, string scopeName, SyncOptions options,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null);
 
         /// <summary>
@@ -85,7 +85,7 @@ namespace Dotmim.Sync
         /// </summary>
         /// <returns></returns>
         Task<(SyncContext context, SyncSet schema)>
-            EnsureSchemaAsync(SyncContext context, SyncSet schema, 
+            EnsureSchemaAsync(SyncContext context, SyncSetup setup, 
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null);
 
         /// <summary>

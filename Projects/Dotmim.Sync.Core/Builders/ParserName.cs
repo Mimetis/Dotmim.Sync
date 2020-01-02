@@ -116,7 +116,8 @@ namespace Dotmim.Sync.Builders
 
         private ParserName(string input)
         {
-            this.ParseString(input);
+            
+            this.ParseString(input == null ? string.Empty : input);
         }
 
         private ParserName(string input, string quote)
@@ -124,7 +125,7 @@ namespace Dotmim.Sync.Builders
             this.quotePrefix = quote;
             this.quoteSuffix = quote;
 
-            this.ParseString(input);
+            this.ParseString(input == null ? string.Empty : input);
         }
 
         private ParserName(DmColumn column)
@@ -217,14 +218,6 @@ namespace Dotmim.Sync.Builders
             // parse object name
             this.ParseObjectName(column.ColumnName);
 
-            // parse schema
-            if (!String.IsNullOrEmpty(column.Table?.SchemaName))
-                this.ParseSchemaName(column.Table.SchemaName);
-
-            // parse database name
-            if (!String.IsNullOrEmpty(column.Table?.Schema?.DataSourceName))
-                this.ParseDatabaseName(column.Table.Schema.DataSourceName);
-
         }
         private void ParseSchemaTable(SyncTable table)
         {
@@ -234,10 +227,6 @@ namespace Dotmim.Sync.Builders
             // parse schema
             if (!String.IsNullOrEmpty(table?.SchemaName))
                 this.ParseSchemaName(table.SchemaName);
-
-            // parse database name
-            if (!String.IsNullOrEmpty(table.Schema?.DataSourceName))
-                this.ParseDatabaseName(table.Schema.DataSourceName);
 
         }
         /// <summary>

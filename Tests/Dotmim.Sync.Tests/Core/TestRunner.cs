@@ -47,7 +47,7 @@ namespace Dotmim.Sync.Tests.Core
                     tra.BeginRun = this.BeginRun;
                     tra.EndRun = this.EndRun;
 
-                    await tra.RunAsync(this.providerFixture, tables, schema, options, reuseAgent);
+                    await tra.RunAsync(this.providerFixture, tables, options, reuseAgent) ;
                 }
                 catch (Exception ex)
                 {
