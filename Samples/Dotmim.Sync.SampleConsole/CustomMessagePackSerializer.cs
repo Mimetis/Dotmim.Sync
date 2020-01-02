@@ -23,8 +23,18 @@ namespace Dotmim.Sync.SampleConsole
 
         public CustomMessagePackSerializer() => this.options = MessagePack.Resolvers.ContractlessStandardResolver.Options;
 
-        public T Deserialize(Stream ms) => MessagePackSerializer.Deserialize<T>(ms, options);
-        public byte[] Serialize(T obj) => MessagePackSerializer.Serialize(obj, options);
+        public T Deserialize(Stream ms)
+        {
+            T t = MessagePackSerializer.Deserialize<T>(ms, options);
+
+            return t;
+
+        }
+        public byte[] Serialize(T obj)
+        {
+            var bin = MessagePackSerializer.Serialize(obj, options);
+            return bin;
+        }
     }
 }
 

@@ -80,20 +80,6 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Check if the buffer size is enough.
-        /// If not, resizing the buffer
-        /// It implies a copy of the whole buffer, so the less we do, the better it is
-        /// </summary>
-        //private void CheckLength(int maxLength)
-        //{
-        //    while (maxLength > this.buffer.Length)
-        //    {
-        //        Debug.WriteLine($"Resizing buffer to {this.Length} to {this.Length + BufferGrowthSize }");
-        //        Array.Resize(ref buffer, this.Length + BufferGrowthSize);
-        //    }
-        //}
-
-        /// <summary>
         /// Get the value in the array that correspond to the SchemaColumn instance given
         /// </summary>
         public object this[SyncColumn column] => this[column.ColumnName];

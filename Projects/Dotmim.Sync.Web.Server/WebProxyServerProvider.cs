@@ -99,10 +99,15 @@ namespace Dotmim.Sync.Web.Server
             var httpResponse = context.Response;
             var streamArray = GetBody(httpRequest);
             var serAndsizeString = string.Empty;
+            var converter = string.Empty;
 
             // Get the serialization and batch size format
             if (TryGetHeaderValue(context.Request.Headers, "dotmim-sync-serialization-format", out var vs))
                 serAndsizeString = vs.ToLowerInvariant();
+
+            // Get the serialization and batch size format
+            if (TryGetHeaderValue(context.Request.Headers, "dotmim-sync-converter", out var cs))
+                converter = cs.ToLowerInvariant();
 
             if (!TryGetHeaderValue(context.Request.Headers, "dotmim-sync-session-id", out var sessionId))
                 throw new SyncException($"Can't find any session id in the header");
@@ -132,6 +137,10 @@ namespace Dotmim.Sync.Web.Server
                 // Get the serializer and batchsize
                 (var clientBatchSize, var clientSerializerFactory) = GetClientSerializer(serAndsizeString, remoteOrchestrator);
 
+                // Get converter used by client
+                // Can be null
+                var clientConverter = GetClientConverter(converter, remoteOrchestrator);
+                remoteOrchestrator.ClientConverter = clientConverter;
 
                 byte[] binaryData = null;
                 switch (step)
@@ -277,6 +286,31 @@ namespace Dotmim.Sync.Web.Server
                 throw new SyncException(error);
             }
         }
+
+        private IConverter GetClientConverter(string cs, WebServerOrchestrator serverOrchestrator)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(cs))
+                    return null;
+
+                var clientConverter = serverOrchestrator.Options.Converters.First(c => c.Key == cs);
+
+                return clientConverter;
+            }
+            catch
+            {
+                var sb = new StringBuilder("Unexpected value for Converter. Available converters on the server:");
+                
+                foreach (var conv in serverOrchestrator.Options.Converters)
+                    sb.Append($" {conv.Key}");
+
+                var error = sb.ToString();
+
+                throw new SyncException(error);
+            }
+        }
+
 
 
         /// <summary>
