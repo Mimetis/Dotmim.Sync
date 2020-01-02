@@ -2149,6 +2149,8 @@ namespace Dotmim.Sync.Tests
             // reset all
             await this.testRunner.RunTestsAsync(options[0]);
 
+            var downloadedRows = 0;
+
             foreach (var option in options)
             {
                 foreach (var run in this.fixture.ClientRuns)
@@ -2179,7 +2181,6 @@ namespace Dotmim.Sync.Tests
                     // Upload this row, before making a reinit
                     var res = await agent.SynchronizeAsync();
 
-                    Assert.Equal(0, res.TotalChangesDownloaded);
                     Assert.Equal(1, res.TotalChangesUploaded);
 
                     // one new row in server.
