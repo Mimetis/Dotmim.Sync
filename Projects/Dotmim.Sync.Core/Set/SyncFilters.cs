@@ -69,9 +69,9 @@ namespace Dotmim.Sync
         /// <summary>
         /// Add a new filter 
         /// </summary>
-        public void Add(string tableName, string columnName, string schemaName = null)
+        public void Add(string tableName, string columnName, string schemaName = null, int? columnType = null)
         {
-            var item = new SyncFilter(tableName, columnName, schemaName);
+            var item = new SyncFilter(tableName, columnName, schemaName, columnType);
             item.Schema = Schema;
             InnerCollection.Add(item);
         }

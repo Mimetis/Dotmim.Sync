@@ -111,8 +111,10 @@ namespace Dotmim.Sync.Batch
                     {
                         batchPartinInfo.LoadBatch(schema);
 
+
                         // Get the table from the batchPartInfo
-                        var batchTable = batchPartinInfo.Data.Tables.FirstOrDefault(tableName, schemaName);
+                        // generate a tmp SyncTable for 
+                        var batchTable = batchPartinInfo.Data.Tables.FirstOrDefault(bt => bt == new SyncTable(tableName, schemaName));
 
                         if (batchTable != null)
                         {

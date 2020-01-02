@@ -15,7 +15,7 @@ namespace Dotmim.Sync.Tests.Models
         internal bool useSchema = false;
         internal bool useSeeding = false;
         public ProviderType ProviderType { get; set; }
-        public string ConnectionString { get; set;  }
+        public string ConnectionString { get; set; }
 
         private DbConnection Connection { get; }
 
@@ -185,7 +185,7 @@ namespace Dotmim.Sync.Tests.Models
                 entity.Property(e => e.LastName)
                     .IsRequired()
                     .HasMaxLength(50);
-                
+
                 // Creating a column with space in it
                 entity.Property(e => e.AttributeWithSpace)
                     .HasColumnName("Attribute With Space");
@@ -748,6 +748,10 @@ namespace Dotmim.Sync.Tests.Models
 
                 entity.HasOne(d => d.Category)
                     .WithMany(c => c.Details);
+
+                // Adding a compute column
+                entity.Property(d => d.Total)
+                    .HasComputedColumnSql("Amount - Discount");
 
                 entity.Property(d => d.ProductId)
                     .IsRequired();

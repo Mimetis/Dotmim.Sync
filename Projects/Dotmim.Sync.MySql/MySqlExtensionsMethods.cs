@@ -301,42 +301,5 @@ namespace Dotmim.Sync.MySql
             }
         }
 
-        internal static MySqlParameter GetMySqlParameter(this SyncColumn column)
-        {
-            var mySqlDbMetadata = new MySqlDbMetadata();
-
-            var parameterName = ParserName.Parse(column).Unquoted().Normalized().ToString();
-
-            var sqlParameter = new MySqlParameter
-            {
-                ParameterName = $"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{parameterName}",
-                DbType = column.GetDbType(),
-                IsNullable = column.AllowDBNull
-            };
-
-            (byte precision, byte scale) = mySqlDbMetadata.TryGetOwnerPrecisionAndScale(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, column.Precision, column.Scale, column.Table.OriginalProvider, MySqlSyncProvider.ProviderType);
-
-            if ((sqlParameter.DbType == DbType.Decimal || sqlParameter.DbType == DbType.Double
-                 || sqlParameter.DbType == DbType.Single || sqlParameter.DbType == DbType.VarNumeric) && precision > 0)
-            {
-                sqlParameter.Precision = precision;
-                if (scale > 0)
-                    sqlParameter.Scale = scale;
-            }
-            else if (column.MaxLength > 0)
-            {
-                sqlParameter.Size = (int)column.MaxLength;
-            }
-            else if (sqlParameter.DbType == DbType.Guid)
-            {
-                sqlParameter.Size = 36;
-            }
-            else
-            {
-                sqlParameter.Size = -1;
-            }
-
-            return sqlParameter;
-        }
     }
 }

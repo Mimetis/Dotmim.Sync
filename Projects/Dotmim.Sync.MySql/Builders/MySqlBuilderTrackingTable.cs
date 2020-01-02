@@ -168,7 +168,7 @@ namespace Dotmim.Sync.MySql
                     if (columnFilter == null)
                         throw new InvalidExpressionException($"Column {filter.ColumnName} does not exist in Table {this.tableDescription.TableName}");
 
-                    var isPk = this.tableDescription.GetPrimaryKeysColumns().Any(pk => this.tableDescription.Schema.StringEquals(pk.ColumnName, filter.ColumnName));
+                    var isPk = this.tableDescription.GetPrimaryKeysColumns().Any(pk => pk.ColumnName.Equals(filter.ColumnName, SyncGlobalization.DataSourceStringComparison));
                     if (isPk)
                         continue;
 
@@ -275,7 +275,7 @@ namespace Dotmim.Sync.MySql
             if (Filters != null)
                 foreach (var filterColumn in this.Filters)
                 {
-                    var isPk = this.tableDescription.PrimaryKeys.Any(pk => this.tableDescription.Schema.StringEquals(pk, filterColumn.ColumnName));
+                    var isPk = this.tableDescription.PrimaryKeys.Any(pk => pk.Equals(filterColumn.ColumnName, SyncGlobalization.DataSourceStringComparison));
                     if (isPk)
                         continue;
 

@@ -57,9 +57,5 @@ namespace Dotmim.Sync.Messages
         /// </summary>
         public string BatchDirectory { get; set; }
 
-        ///// <summary>
-        ///// Gets or Sets the current Conflict resolution policy
-        ///// </summary>
-        //public ConflictResolutionPolicy Policy { get; set; }
-    }
+     }
 }

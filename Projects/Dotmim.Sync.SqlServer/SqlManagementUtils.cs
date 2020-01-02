@@ -2,6 +2,7 @@ using Dotmim.Sync.Builders;
 using Dotmim.Sync.Data;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Data.Common;
 using System.Data.SqlClient;
 using System.Globalization;
@@ -49,15 +50,28 @@ namespace Dotmim.Sync.SqlServer
             }
 
             var dmTable = new DmTable(tableNameNormalized);
-            using (var sqlCommand = new SqlCommand(commandColumn, connection, transaction))
+            using (var sqlCommand = new SqlCommand(commandColumn, connection))
             {
                 sqlCommand.Parameters.AddWithValue("@tableName", tableNameString);
                 sqlCommand.Parameters.AddWithValue("@schemaName", schemaNameString);
+
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    connection.Open();
+
+                if (transaction != null)
+                    sqlCommand.Transaction = transaction;
 
                 using (var reader = sqlCommand.ExecuteReader())
                 {
                     dmTable.Fill(reader);
                 }
+
+                
+                if (!alreadyOpened)
+                    connection.Close();
+
             }
             return dmTable;
         }
@@ -80,14 +94,28 @@ namespace Dotmim.Sync.SqlServer
             var tableNameString = ParserName.Parse(tableName).ToString();
 
             var dmTable = new DmTable(tableNameNormalized);
-            using (var sqlCommand = new SqlCommand(commandColumn, connection, transaction))
+            using (var sqlCommand = new SqlCommand(commandColumn, connection))
             {
                 sqlCommand.Parameters.AddWithValue("@tableName", tableNameString);
+
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    connection.Open();
+
+                if (transaction != null)
+                    sqlCommand.Transaction = transaction;
+
 
                 using (var reader = sqlCommand.ExecuteReader())
                 {
                     dmTable.Fill(reader);
                 }
+
+                if (!alreadyOpened)
+                    connection.Close();
+
+
             }
             return dmTable;
         }
@@ -119,15 +147,30 @@ namespace Dotmim.Sync.SqlServer
 
 
             var dmTable = new DmTable(tableNameNormalized);
-            using (var sqlCommand = new SqlCommand(commandRelations, connection, transaction))
+            using (var sqlCommand = new SqlCommand(commandRelations, connection))
             {
                 sqlCommand.Parameters.AddWithValue("@tableName", tableNameString);
                 sqlCommand.Parameters.AddWithValue("@schemaName", schemaNameString);
+
+
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    connection.Open();
+
+                if (transaction != null)
+                    sqlCommand.Transaction = transaction;
+
 
                 using (var reader = sqlCommand.ExecuteReader())
                 {
                     dmTable.Fill(reader);
                 }
+
+                if (!alreadyOpened)
+                    connection.Close();
+
+
             }
 
 
@@ -137,12 +180,27 @@ namespace Dotmim.Sync.SqlServer
         public static void DropProcedureIfExists(SqlConnection connection, SqlTransaction transaction, int commandTimout, string quotedProcedureName)
         {
             var procName = ParserName.Parse(quotedProcedureName).ToString();
-            using (var sqlCommand = new SqlCommand(string.Format(CultureInfo.InvariantCulture, "IF EXISTS (SELECT * FROM sys.procedures p JOIN sys.schemas s ON s.schema_id = p.schema_id WHERE p.name = @procName AND s.name = @schemaName) DROP PROCEDURE {0}", quotedProcedureName), connection, transaction))
+            using (var sqlCommand = new SqlCommand(string.Format(CultureInfo.InvariantCulture, "IF EXISTS (SELECT * FROM sys.procedures p JOIN sys.schemas s ON s.schema_id = p.schema_id WHERE p.name = @procName AND s.name = @schemaName) DROP PROCEDURE {0}", quotedProcedureName), connection))
             {
                 sqlCommand.CommandTimeout = commandTimout;
                 sqlCommand.Parameters.AddWithValue("@procName", procName);
                 sqlCommand.Parameters.AddWithValue("@schemaName", SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(quotedProcedureName)));
+
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    connection.Open();
+
+                if (transaction != null)
+                    sqlCommand.Transaction = transaction;
+
+
                 sqlCommand.ExecuteNonQuery();
+
+                if (!alreadyOpened)
+                    connection.Close();
+
+
             }
         }
 
@@ -154,12 +212,26 @@ namespace Dotmim.Sync.SqlServer
         public static void DropTableIfExists(SqlConnection connection, SqlTransaction transaction, int commandTimeout, string quotedTableName)
         {
             var tableName = ParserName.Parse(quotedTableName).ToString();
-            using (var sqlCommand = new SqlCommand(string.Format(CultureInfo.InvariantCulture, "IF EXISTS (SELECT t.name FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @tableName AND s.name = @schemaName) DROP TABLE {0}", quotedTableName), connection, transaction))
+            using (var sqlCommand = new SqlCommand(string.Format(CultureInfo.InvariantCulture, "IF EXISTS (SELECT t.name FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @tableName AND s.name = @schemaName) DROP TABLE {0}", quotedTableName), connection))
             {
                 sqlCommand.CommandTimeout = commandTimeout;
                 sqlCommand.Parameters.AddWithValue("@tableName", tableName);
                 sqlCommand.Parameters.AddWithValue("@schemaName", SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(quotedTableName)));
+
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    connection.Open();
+
+                if (transaction != null)
+                    sqlCommand.Transaction = transaction;
+
                 sqlCommand.ExecuteNonQuery();
+
+                if (!alreadyOpened)
+                    connection.Close();
+
+
             }
         }
 
@@ -182,12 +254,27 @@ namespace Dotmim.Sync.SqlServer
         {
             var triggerName = ParserName.Parse(quotedTriggerName).ToString();
 
-            using (var sqlCommand = new SqlCommand(string.Format(CultureInfo.InvariantCulture, "IF EXISTS (SELECT tr.name FROM sys.triggers tr JOIN sys.tables t ON tr.parent_id = t.object_id JOIN sys.schemas s ON t.schema_id = s.schema_id WHERE tr.name = @triggerName and s.name = @schemaName) DROP TRIGGER {0}", quotedTriggerName), connection, transaction))
+            using (var sqlCommand = new SqlCommand(string.Format(CultureInfo.InvariantCulture, "IF EXISTS (SELECT tr.name FROM sys.triggers tr JOIN sys.tables t ON tr.parent_id = t.object_id JOIN sys.schemas s ON t.schema_id = s.schema_id WHERE tr.name = @triggerName and s.name = @schemaName) DROP TRIGGER {0}", quotedTriggerName), connection))
             {
                 sqlCommand.CommandTimeout = commandTimeout;
                 sqlCommand.Parameters.AddWithValue("@triggerName", triggerName);
                 sqlCommand.Parameters.AddWithValue("@schemaName", SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(quotedTriggerName)));
+
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    connection.Open();
+
+                if (transaction != null)
+                    sqlCommand.Transaction = transaction;
+
+
                 sqlCommand.ExecuteNonQuery();
+
+                if (!alreadyOpened)
+                    connection.Close();
+
+
             }
         }
 
@@ -201,12 +288,26 @@ namespace Dotmim.Sync.SqlServer
         {
             var typeName = ParserName.Parse(quotedTypeName).ToString();
 
-            using (var sqlCommand = new SqlCommand(string.Format(CultureInfo.InvariantCulture, "IF EXISTS (SELECT * FROM sys.types t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @typeName AND s.name = @schemaName) DROP TYPE {0}", quotedTypeName), connection, transaction))
+            using (var sqlCommand = new SqlCommand(string.Format(CultureInfo.InvariantCulture, "IF EXISTS (SELECT * FROM sys.types t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @typeName AND s.name = @schemaName) DROP TYPE {0}", quotedTypeName), connection))
             {
                 sqlCommand.CommandTimeout = commandTimeout;
                 sqlCommand.Parameters.AddWithValue("@typeName", typeName);
                 sqlCommand.Parameters.AddWithValue("@schemaName", SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(quotedTypeName)));
+
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    connection.Open();
+
+                if (transaction != null)
+                    sqlCommand.Transaction = transaction;
+
                 sqlCommand.ExecuteNonQuery();
+
+                if (!alreadyOpened)
+                    connection.Close();
+
+
             }
         }
 
@@ -215,16 +316,6 @@ namespace Dotmim.Sync.SqlServer
             return string.Format(CultureInfo.InvariantCulture, "DROP TYPE {0};\n", quotedTypeName);
         }
 
-
-
-        internal static string GetObjectSchemaValue(string value)
-        {
-            string empty = value ?? string.Empty;
-            if (empty.Equals("dbo", StringComparison.OrdinalIgnoreCase))
-                empty = string.Empty;
-
-            return empty;
-        }
 
         public static string GetUnquotedSqlSchemaName(ParserName parser)
         {
@@ -248,11 +339,21 @@ namespace Dotmim.Sync.SqlServer
             {
                 sqlCommand.Parameters.AddWithValue("@procName", procedureName);
                 sqlCommand.Parameters.AddWithValue("@schemaName", SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(quotedProcedureName)));
+
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    connection.Open();
+
                 if (transaction != null)
-                {
                     sqlCommand.Transaction = transaction;
-                }
+
                 flag = (int)sqlCommand.ExecuteScalar() != 0;
+
+                if (!alreadyOpened)
+                    connection.Close();
+
+
             }
             return flag;
         }
@@ -280,10 +381,21 @@ namespace Dotmim.Sync.SqlServer
                 };
                 dbCommand.Parameters.Add(sqlParameter);
 
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    connection.Open();
+
                 if (transaction != null)
                     dbCommand.Transaction = transaction;
 
                 tableExist = (int)dbCommand.ExecuteScalar() != 0;
+
+                if (!alreadyOpened)
+                    connection.Close();
+
+
+
             }
             return tableExist;
         }
@@ -302,10 +414,19 @@ namespace Dotmim.Sync.SqlServer
                 };
                 dbCommand.Parameters.Add(sqlParameter);
 
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    connection.Open();
+
                 if (transaction != null)
                     dbCommand.Transaction = transaction;
 
                 schemaExist = (int)dbCommand.ExecuteScalar() != 0;
+
+                if (!alreadyOpened)
+                    connection.Close();
+
             }
             return schemaExist;
         }
@@ -319,10 +440,21 @@ namespace Dotmim.Sync.SqlServer
             {
                 sqlCommand.Parameters.AddWithValue("@triggerName", triggerName);
                 sqlCommand.Parameters.AddWithValue("@schemaName", SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(quotedTriggerName)));
+
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    connection.Open();
+
                 if (transaction != null)
                     sqlCommand.Transaction = transaction;
 
                 triggerExist = (int)sqlCommand.ExecuteScalar() != 0;
+
+                if (!alreadyOpened)
+                    connection.Close();
+
+
             }
             return triggerExist;
         }
@@ -337,10 +469,21 @@ namespace Dotmim.Sync.SqlServer
             {
                 sqlCommand.Parameters.AddWithValue("@typeName", columnName);
                 sqlCommand.Parameters.AddWithValue("@schemaName", SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(quotedTypeName)));
+
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    connection.Open();
+
                 if (transaction != null)
                     sqlCommand.Transaction = transaction;
 
                 typeExist = (int)sqlCommand.ExecuteScalar() != 0;
+
+                if (!alreadyOpened)
+                    connection.Close();
+
+
             }
             return typeExist;
         }

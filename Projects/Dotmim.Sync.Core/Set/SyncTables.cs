@@ -57,15 +57,13 @@ namespace Dotmim.Sync
                 if (string.IsNullOrEmpty(tableName))
                     throw new ArgumentNullException("tableName");
 
-                if (this.Schema == null)
-                    throw new ArgumentNullException("Schema");
-
                 var parser = ParserName.Parse(tableName);
                 var tblName = parser.ObjectName;
                 var schemaName = parser.SchemaName;
 
-                return InnerCollection.FirstOrDefault(
-                    c => Schema.StringEquals(tblName, schemaName, c.TableName, c.SchemaName));
+                // Create a tmp synctable to benefit the SyncTable.Equals() method
+                using (var tmpSt = new SyncTable(tblName, schemaName)) 
+                    return InnerCollection.FirstOrDefault(st => st == tmpSt);
             }
         }
 
@@ -79,12 +77,9 @@ namespace Dotmim.Sync
                 if (string.IsNullOrEmpty(tableName))
                     throw new ArgumentNullException("tableName");
 
-                if (this.Schema == null)
-                    throw new ArgumentNullException("Schema");
-
-
-                return InnerCollection.FirstOrDefault(c =>
-                        Schema.StringEquals(tableName, schemaName, c.TableName, c.SchemaName));
+                // Create a tmp synctable to benefit the SyncTable.Equals() method
+                using (var tmpSt = new SyncTable(tableName, schemaName))
+                    return InnerCollection.FirstOrDefault(c => c == tmpSt);
             }
         }
 
@@ -103,7 +98,7 @@ namespace Dotmim.Sync
         public void Add(string table)
         {
             // Potentially user can pass something like [SalesLT].[Product]
-            // or SalesLT.Product or Product. ObjectNameParser will handle it
+            // or SalesLT.Product or Product. ParserName will handle it
             var parser = ParserName.Parse(table);
 
             var tableName = parser.ObjectName;

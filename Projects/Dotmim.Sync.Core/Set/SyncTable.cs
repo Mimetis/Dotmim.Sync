@@ -18,7 +18,7 @@ namespace Dotmim.Sync
     /// Represents a table schema
     /// </summary>
     [DataContract(Name = "st"), Serializable]
-    public class SyncTable : IDisposable
+    public class SyncTable : IDisposable, IEquatable<SyncTable>
     {
         [NonSerialized]
         private SyncRows rows;
@@ -85,12 +85,12 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Create a new schema name with the given name
+        /// Create a new sync table with the given name
         /// </summary>
         public SyncTable(string tableName) : this(tableName, string.Empty) { }
 
         /// <summary>
-        /// Create a new schema name with the given name
+        /// Create a new sync table with the given name
         /// </summary>
         public SyncTable(string tableName, string schemaName) : this()
         {
@@ -160,97 +160,14 @@ namespace Dotmim.Sync
 
             return clone;
         }
-
-        ///// <summary>
-        ///// Initializes a new instance of the DmTableSurrogate class.
-        ///// </summary>
-        //public SyncTable(DmTable dt)
-        //{
-        //    if (dt == null)
-        //        throw new ArgumentNullException("dt", "DmTable");
-
-        //    this.TableName = dt.TableName;
-        //    this.SchemaName = dt.Schema;
-        //    this.OriginalProvider = dt.OriginalProvider;
-        //    this.SyncDirection = dt.SyncDirection;
-
-        //    for (int i = 0; i < dt.Columns.Count; i++)
-        //        this.Columns.Add(new SyncColumn(dt.Columns[i]));
-
-        //    // Primary Keys
-        //    if (dt.PrimaryKey != null && dt.PrimaryKey.Columns != null && dt.PrimaryKey.Columns.Length > 0)
-        //    {
-        //        for (int i = 0; i < dt.PrimaryKey.Columns.Length; i++)
-        //            this.PrimaryKeys.Add(dt.PrimaryKey.Columns[i].ColumnName);
-        //    }
-
-        //}
-
-        /// <summary>
-        /// Copies the table schema from a DmTableSurrogate object into a DmTable object.
-        /// </summary>
-        //public void ReadSchemaIntoDmTable(DmTable dt)
-        //{
-        //    if (dt == null)
-        //        throw new ArgumentNullException("dt", "DmTable");
-
-        //    dt.TableName = this.TableName;
-        //    dt.Schema = this.SchemaName;
-        //    dt.OriginalProvider = this.OriginalProvider;
-        //    dt.SyncDirection = this.SyncDirection;
-        //    dt.CaseSensitive = this.Schema == null ? true : this.Schema.CaseSensitive;
-
-        //    var cultureInfo = CultureInfo.CurrentCulture;
-
-        //    if (this.Schema != null && !String.IsNullOrEmpty(this.Schema.CultureInfoName))
-        //        cultureInfo = new CultureInfo(this.Schema.CultureInfoName);
-
-        //    dt.Culture = cultureInfo;
-
-        //    var orderedColumns = this.GetMutableColumnsWithPrimaryKeys();
-
-        //    for (int i = 0; i < orderedColumns.Count; i++)
-        //    {
-        //        var dmColumn = orderedColumns[i].ConvertToDmColumn();
-        //        dt.Columns.Add(dmColumn);
-        //    }
-
-        //    if (this.PrimaryKeys != null && this.PrimaryKeys.Count > 0)
-        //    {
-        //        DmColumn[] keyColumns = new DmColumn[this.PrimaryKeys.Count];
-
-        //        for (int i = 0; i < this.PrimaryKeys.Count; i++)
-        //        {
-        //            string columnName = this.PrimaryKeys[i];
-        //            keyColumns[i] = dt.Columns.First(c => dt.IsEqual(c.ColumnName, columnName));
-        //        }
-        //        var key = new DmKey(keyColumns);
-
-        //        dt.PrimaryKey = key;
-        //    }
-        //}
-
-        /// <summary>
-        /// Convert this surrogate to a DmTable
-        /// </summary>
-        //public DmTable ConvertToDmTable()
-        //{
-        //    var dmTable = new DmTable(this.TableName);
-        //    this.ReadSchemaIntoDmTable(dmTable);
-
-        //    return dmTable;
-        //}
-
-
+   
         /// <summary>
         /// Create a new row
         /// </summary>
         public SyncRow NewRow(DataRowState state = DataRowState.Unchanged) => new SyncRow(this, state);
 
-
-
         /// <summary>
-        /// Gets the collection of child relations for this SchemaTable.
+        /// Gets the collection of child relations for this SyncTable.
         /// </summary>
         public IEnumerable<SyncRelation> GetChildRelations()
         {
@@ -300,7 +217,7 @@ namespace Dotmim.Sync
             {
                 if (!column.IsCompute && !column.IsReadOnly)
                 {
-                    var isPrimaryKey = this.PrimaryKeys.Any(pkey => this.Schema.StringEquals(column.ColumnName, pkey));
+                    var isPrimaryKey = this.PrimaryKeys.Any(pkey => column.ColumnName.Equals(pkey, SyncGlobalization.DataSourceStringComparison));
 
                     if (includePrimaryKeys && isPrimaryKey)
                         yield return column;
@@ -330,7 +247,7 @@ namespace Dotmim.Sync
         {
             foreach (var column in this.Columns.OrderBy(c => c.Ordinal))
             {
-                var isPrimaryKey = this.PrimaryKeys.Any(pkey => this.Schema.StringEquals(column.ColumnName, pkey));
+                var isPrimaryKey = this.PrimaryKeys.Any(pkey => column.ColumnName.Equals(pkey, SyncGlobalization.DataSourceStringComparison));
 
                 if (isPrimaryKey)
                     yield return column;
@@ -338,11 +255,30 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
+        /// Get all filters for a selected sync table
+        /// </summary>
+        public List<SyncFilter> GetFilters()
+        {
+            return this.Schema.Filters.Where(sf =>
+            {
+                var sc = SyncGlobalization.DataSourceStringComparison;
+
+                var sn = sf.SchemaName == null ? string.Empty : sf.SchemaName;
+                var otherSn = this.SchemaName == null ? string.Empty : this.SchemaName;
+
+                return this.TableName.Equals(sf.TableName, sc) &&
+                       sn.Equals(otherSn, sc);
+
+
+            }).ToList();
+        }
+
+        /// <summary>
         /// Check if a column name is a primary key
         /// </summary>
         public bool IsPrimaryKey(string columnName)
         {
-            return this.PrimaryKeys.Any(pkey => this.Schema.StringEquals(columnName, pkey));
+            return this.PrimaryKeys.Any(pkey => columnName.Equals(pkey, SyncGlobalization.DataSourceStringComparison));
         }
 
         /// <summary>
@@ -358,6 +294,43 @@ namespace Dotmim.Sync
                 return this.TableName;
         }
 
+        public override bool Equals(object obj)
+        {
+            return this.Equals(obj as SyncTable);
+        }
+
+        public bool Equals(SyncTable other)
+        {
+            if (other == null)
+                return false;
+
+            var sc = SyncGlobalization.DataSourceStringComparison;
+
+            var sn = this.SchemaName == null ? string.Empty : this.SchemaName;
+            var otherSn = other.SchemaName == null ? string.Empty : other.SchemaName;
+
+            return other != null &&
+                   this.TableName.Equals(other.TableName, sc) &&
+                   sn.Equals(otherSn, sc);
+        }
+
+        public override int GetHashCode()
+        {
+            var hashCode = 1627045777;
+            hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(this.TableName);
+            hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(this.SchemaName);
+            return hashCode;
+        }
+
+        public static bool operator ==(SyncTable left, SyncTable right)
+        {
+            return EqualityComparer<SyncTable>.Default.Equals(left, right);
+        }
+
+        public static bool operator !=(SyncTable left, SyncTable right)
+        {
+            return !(left == right);
+        }
     }
 
 
