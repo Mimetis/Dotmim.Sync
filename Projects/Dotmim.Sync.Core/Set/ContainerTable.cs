@@ -43,15 +43,6 @@ namespace Dotmim.Sync
             this.SchemaName = table.SchemaName;
         }
 
-        public ContainerTable(string tableName, string schemaName = null, List<object[]> rows = null)
-        {
-            this.TableName = tableName;
-            this.SchemaName = schemaName;
-
-            if (rows != null)
-                this.Rows = rows;
-        }
-
         /// <summary>
         /// Check if we have rows in this container table
         /// </summary>

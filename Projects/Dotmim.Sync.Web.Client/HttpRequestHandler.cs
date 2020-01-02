@@ -32,23 +32,11 @@ namespace Dotmim.Sync.Web.Client
         internal CookieHeaderValue Cookie { get; set; }
 
 
-        ///// <summary>
-        ///// Ensure that Gzip stream is supported. If not (or if client disable it, explicitly) plain text is used
-        ///// </summary>
-        ///// <param name="overridenValue"></param>
-        //private void EnsureGzipStream(bool overridenValue = true)
-        //{
-        //    if (!this.Handler.SupportsAutomaticDecompression || !overridenValue)
-        //        this.Handler.AutomaticDecompression = DecompressionMethods.None;
-        //    else
-        //        this.Handler.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
-        //}
-
         /// <summary>
         /// Process a request message with HttpClient object. 
         /// </summary>
         public async Task<U> ProcessRequestAsync<T, U>(HttpClient client, string baseUri, T content, HttpStep step, Guid sessionId,
-            ISerializerFactory serializerFactory, int batchSize, CancellationToken cancellationToken)
+            ISerializerFactory serializerFactory, IConverter converter, int batchSize, CancellationToken cancellationToken)
         {
             if (client is null)
                 throw new ArgumentNullException(nameof(client));
@@ -102,6 +90,11 @@ namespace Dotmim.Sync.Web.Client
                 // serialize the serialization format and the batchsize we want.
                 var ser = JsonConvert.SerializeObject(new { f = serializerFactory.Key, s = batchSize });
                 requestMessage.Headers.Add("dotmim-sync-serialization-format", ser);
+
+                // if client specifies a converter, add it as header
+                if (converter != null)
+                    requestMessage.Headers.Add("dotmim-sync-converter", converter.Key);
+
 
                 // Adding others headers
                 if (this.CustomHeaders != null && this.CustomHeaders.Count > 0)
