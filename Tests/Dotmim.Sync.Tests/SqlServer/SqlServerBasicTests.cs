@@ -39,7 +39,7 @@ namespace Dotmim.Sync.Tests.SqlServer
 
                 if (!Setup.IsOnAzureDev)
                 {
-                    providerFixture.AddRun(NetworkType.Http,  ProviderType.Sqlite);
+                    providerFixture.AddRun(NetworkType.Http,  ProviderType.MySql);
                     providerFixture.DeleteAllDatabasesOnDispose = false;
                 }
                 else

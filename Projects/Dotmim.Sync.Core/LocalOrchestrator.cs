@@ -47,7 +47,7 @@ namespace Dotmim.Sync
         /// </summary>
         /// <returns>current context, the local scope info created or get from the database and the configuration from the client if changed </returns>
         public async Task<(SyncContext, ScopeInfo)>
-            EnsureScopeAsync(SyncContext context, SyncSet schema, SyncOptions options,
+            EnsureScopeAsync(SyncContext context, string scopeName, SyncOptions options,
                                   CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
             // Lock sync to prevent multi call to sync at the same time
@@ -80,7 +80,7 @@ namespace Dotmim.Sync
                         // get the scope from local provider 
                         ScopeInfo localScope;
                         (context, localScope) = await this.Provider.EnsureScopesAsync(
-                                            context, options.ScopeInfoTableName, schema.ScopeName,
+                                            context, options.ScopeInfoTableName, scopeName,
                                             connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                         await this.Provider.InterceptAsync(new TransactionCommitArgs(context, connection, transaction)).ConfigureAwait(false);
@@ -160,20 +160,11 @@ namespace Dotmim.Sync
                         BatchInfo clientBatchInfo;
                         DatabaseChangesSelected clientChangesSelected;
 
-
                         // If we have already done a sync, we have a lastsync value, so don't need to check schema and database
                         bool checkIfSchemaExists = !scope.LastSync.HasValue;
 
                         if (checkIfSchemaExists)
                         {
-                            // Ensure schema
-                            (context, schema) = await this.Provider.EnsureSchemaAsync(context, schema,
-                                connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                            if (cancellationToken.IsCancellationRequested)
-                                cancellationToken.ThrowIfCancellationRequested();
-
-
                             // Ensure Database
                             context = await this.Provider.EnsureDatabaseAsync(context, schema, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 

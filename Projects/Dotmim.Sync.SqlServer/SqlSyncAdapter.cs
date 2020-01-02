@@ -268,7 +268,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                                         else
                                             rowValue = BitConverter.GetBytes(rowValue);
                                     }
-                                        
+
                                     break;
                                 case SqlDbType.Variant:
                                     break;
@@ -532,7 +532,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                 // try to get the source column (from the SchemaTable)
                 var sqlParameterName = sqlParameter.ParameterName.Replace("@", "");
-                var colDesc = TableDescription.Columns.FirstOrDefault(c => string.Equals(c.ColumnName, sqlParameterName, StringComparison.CurrentCultureIgnoreCase));
+                var colDesc = TableDescription.Columns.FirstOrDefault(c => c.ColumnName.Equals(sqlParameterName, SyncGlobalization.DataSourceStringComparison));
 
                 if (colDesc != null && !string.IsNullOrEmpty(colDesc.ColumnName))
                     sqlParameter.SourceColumn = colDesc.ColumnName;

@@ -94,10 +94,10 @@ namespace Dotmim.Sync.Sqlite
                 string casesensitive = "";
                 if (this.sqliteDbMetadata.IsTextType(column.GetDbType()))
                 {
-                    casesensitive = this.tableDescription.Schema.CaseSensitive ? "" : "COLLATE NOCASE";
+                    casesensitive = SyncGlobalization.IsCaseSensitive() ? "" : "COLLATE NOCASE";
 
                     //check if it's a primary key, then, even if it's case sensitive, we turn on case insensitive
-                    if (this.tableDescription.Schema.CaseSensitive)
+                    if (SyncGlobalization.IsCaseSensitive())
                     {
                         if (this.tableDescription.PrimaryKeys.Contains(column.ColumnName))
                             casesensitive = "COLLATE NOCASE";
@@ -146,7 +146,7 @@ namespace Dotmim.Sync.Sqlite
             {
                 // Don't want foreign key on same table since it could be a problem on first 
                 // sync. We are not sure that parent row will be inserted in first position
-                if (string.Equals(constraint.GetParentTable().TableName, constraint.GetChildTable().TableName, StringComparison.CurrentCultureIgnoreCase))
+                if (constraint.GetParentTable() == constraint.GetChildTable())
                     continue;
 
                 var parentTable = constraint.GetParentTable();
@@ -235,7 +235,7 @@ namespace Dotmim.Sync.Sqlite
                 return false;
 
             // Check if the parent table is part of the sync configuration
-            var exist = ds.Tables.Any(t => ds.StringEquals(t.TableName, parentTable.TableName));
+            var exist = ds.Tables.Any(t => t == parentTable);
 
             if (!exist)
                 return false;

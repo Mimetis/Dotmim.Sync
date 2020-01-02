@@ -147,6 +147,124 @@ namespace Dotmim.Sync.Tests.StandAlone
             Assertions(outSchema);
         }
 
+    [Fact]
+        public void Test_Setup_JsonSerializer()
+        {
+            var inSchema = CreateSetup();
+
+            var serializer = new JsonSerializer();
+            byte[] bin = null;
+            Setup outSchema;
+
+            using (var ms = new MemoryStream())
+            {
+                using (var writer = new StreamWriter(ms))
+                {
+                    using (var jsonWriter = new JsonTextWriter(writer))
+                    {
+                        serializer.Serialize(jsonWriter, inSchema);
+                    }
+                }
+                bin = ms.ToArray();
+            }
+
+            // for readiness
+            using (var fs = new FileStream("Json_setup.json", FileMode.Create))
+            {
+                fs.Write(bin, 0, bin.Length);
+            }
+
+            using (var ms = new MemoryStream(bin))
+            {
+                using (var sr = new StreamReader(ms))
+                {
+                    using (var reader = new JsonTextReader(sr))
+                    {
+                        outSchema = serializer.Deserialize<Setup>(reader);
+                    }
+                }
+            }
+        }
+        [Fact]
+        public void Test_Setup_DataContractSerializer()
+        {
+            var schemaSerializer = new DataContractSerializer(typeof(Setup));
+            var inSchema = CreateSetup();
+            byte[] bin = null;
+            Setup outSchema;
+
+            using (var ms = new MemoryStream())
+            {
+                schemaSerializer.WriteObject(ms, inSchema);
+                bin = ms.ToArray();
+            }
+
+            using (var fs = new FileStream("Datacontract_Setup.xml", FileMode.Create))
+            {
+                fs.Write(bin, 0, bin.Length);
+            }
+
+            using (var ms = new MemoryStream(bin))
+            {
+                outSchema = schemaSerializer.ReadObject(ms) as Setup;
+            }
+        }
+        [Fact]
+        public void Test_Setup_MessagePackSerializer()
+        {
+            var inSchema = CreateSetup();
+            byte[] bin = null;
+            Setup outSchema;
+
+            var options = MessagePack.Resolvers.ContractlessStandardResolver.Options;
+
+            using (var ms = new MemoryStream())
+            {
+                MessagePackSerializer.Serialize(ms, inSchema, options);
+                bin = ms.ToArray();
+            }
+
+            using (var fs = new FileStream("MsgPach_Setup.json", FileMode.Create))
+            {
+                fs.Write(bin, 0, bin.Length);
+            }
+
+            using (var ms = new MemoryStream(bin))
+            {
+                outSchema = MessagePackSerializer.Deserialize<Setup>(ms, options);
+            }
+        }
+
+
+        [Fact]
+        public void Test_Setup_BinarryFormatter()
+        {
+            var inSchema = CreateSetup();
+            byte[] bin = null;
+            Setup outSchema;
+
+            var schemaSerializer = new BinaryFormatter
+            {
+                TypeFormat = FormatterTypeStyle.TypesAlways
+            };
+            using (var ms = new MemoryStream())
+            {
+                schemaSerializer.Serialize(ms, inSchema);
+                bin = ms.ToArray();
+            }
+
+            using (var fs = new FileStream("Binary_Setup.bin", FileMode.Create))
+            {
+                fs.Write(bin, 0, bin.Length);
+            }
+
+            using (var ms = new MemoryStream(bin))
+            {
+                outSchema = schemaSerializer.Deserialize(ms) as Setup;
+            }
+
+        }
+
 
         private void Assertions(SyncSet outSchema)
         {
@@ -154,8 +272,6 @@ namespace Dotmim.Sync.Tests.StandAlone
             outSchema.EnsureSchema();
 
             Assert.NotNull(outSchema);
-            Assert.Equal("AdventureWorks", outSchema.DataSourceName);
-            Assert.False(outSchema.CaseSensitive);
             Assert.Equal("spp", outSchema.StoredProceduresPrefix);
             Assert.Equal("sps", outSchema.StoredProceduresSuffix);
             Assert.Equal("ttp", outSchema.TrackingTablesPrefix);
@@ -189,7 +305,6 @@ namespace Dotmim.Sync.Tests.StandAlone
             Assert.False(col.IsCompute);
             Assert.True(col.IsReadOnly);
             Assert.Equal(0, col.Ordinal);
-            Assert.Equal(tbl1, col.Table);
 
             // check orders on others columns
             Assert.Equal(7, tbl1.Columns["CustomerID"].Ordinal);
@@ -205,9 +320,6 @@ namespace Dotmim.Sync.Tests.StandAlone
             Assert.NotEmpty(tbl2.Columns.InnerCollection);
             Assert.Single(tbl2.PrimaryKeys);
             Assert.Equal("Id", tbl2.PrimaryKeys[0]);
-
-            var col2 = tbl2.Columns[0];
-            Assert.Equal(tbl2, col2.Table);
 
             // Check Filters
             Assert.NotEmpty(outSchema.Filters);
@@ -237,8 +349,7 @@ namespace Dotmim.Sync.Tests.StandAlone
 
         private static SyncSet CreateSchema()
         {
-            var set = new SyncSet() { DataSourceName = "AdventureWorks" };
-            set.CaseSensitive = false;
+            var set = new SyncSet();
             set.StoredProceduresPrefix = "spp";
             set.StoredProceduresSuffix = "sps";
             set.TrackingTablesPrefix = "ttp";
@@ -297,6 +408,29 @@ namespace Dotmim.Sync.Tests.StandAlone
             return set;
         }
 
+
+        public static Sync.SyncSetup CreateSetup()
+        {
+            // specific Setup with only 2 tables, and one filtered
+            var setup = new Sync.SyncSetup(new[] { "ProductCategory", "ProductModel" });
+
+            // Add a table with less columns
+            setup.Tables.Add("Product")
+                .Columns.AddRange(new string[] { "ProductId", "Name", "ProductCategoryID", "ProductNumber", "StandardCost", "ListPrice", "SellStartDate", "rowguid", "ModifiedDate" });
+
+            // Add filters
+            setup.Filters.Add("ProductCategory", "ParentProductCategoryID")
+                         .Add("ProductCategory", "Name");
+
+            // Add pref suf
+            setup.StoredProceduresPrefix = "s";
+            setup.StoredProceduresSuffix = "";
+            setup.TrackingTablesPrefix = "t";
+            setup.TrackingTablesSuffix = "";
+
+            return setup;
+
+        }
 
     }
 }

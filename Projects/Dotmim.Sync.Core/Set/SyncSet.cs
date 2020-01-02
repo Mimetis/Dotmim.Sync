@@ -16,28 +16,10 @@ namespace Dotmim.Sync
     public class SyncSet : IDisposable
     {
         /// <summary>
-        /// Gets or Sets the name of the data source (database name)
-        /// </summary>
-        [DataMember(Name = "n", IsRequired = true, Order = 1)]
-        public string DataSourceName { get; set; }
-
-        /// <summary>
         /// Gets or Sets the current scope name
         /// </summary>
         [DataMember(Name = "sn", IsRequired = false, EmitDefaultValue = false, Order = 2)]
         public string ScopeName { get; set; }
-
-        /// <summary>
-        /// Gets or sets the locale information used to compare strings within the table.
-        /// </summary>
-        [DataMember(Name = "ci", IsRequired = false, EmitDefaultValue = false, Order = 3)]
-        public string CultureInfoName { get; set; }
-
-        /// <summary>
-        /// Gets or sets the Case sensitive rul of the DmSet that the DmSetSurrogate object represents.
-        /// </summary>
-        [DataMember(Name = "cs", IsRequired = false, EmitDefaultValue = false, Order = 4)]
-        public bool CaseSensitive { get; set; }
 
         /// <summary>
         /// Specify a prefix for naming stored procedure. Default is empty string
@@ -106,27 +88,11 @@ namespace Dotmim.Sync
             this.ScopeName = SyncOptions.DefaultScopeName;
         }
 
-        public SyncSet(string dataSourceName, bool caseSensitive, string cultureInfoName = null, string scopeName = SyncOptions.DefaultScopeName) : this()
-        {
-            this.DataSourceName = dataSourceName;
-            this.CultureInfoName = cultureInfoName;
-            this.CaseSensitive = caseSensitive;
-            this.ScopeName = scopeName;
-        }
-
         /// <summary>
-        /// Create a new Sync Schema with Tables to be read on server side
+        /// Create a SyncSet with a specific scope name
         /// </summary>
-        public SyncSet(string[] tables, string scopeName = SyncOptions.DefaultScopeName) : this()
-        {
-            this.ScopeName = scopeName;
-
-            if (tables == null || tables.Length <= 0)
-                return;
-
-            foreach (var table in tables)
-                this.Tables.Add(table);
-        }
+        /// <param name="scopeName"></param>
+        public SyncSet(string scopeName) : this() => this.ScopeName = scopeName;
 
         /// <summary>
         /// Ensure all tables, filters and relations has the correct reference to this schema
@@ -149,9 +115,6 @@ namespace Dotmim.Sync
         public SyncSet Clone(bool includeTables = true)
         {
             var clone = new SyncSet();
-            clone.CaseSensitive = this.CaseSensitive;
-            clone.CultureInfoName = this.CultureInfoName;
-            clone.DataSourceName = this.DataSourceName;
             clone.ScopeName = this.ScopeName;
             clone.StoredProceduresPrefix = this.StoredProceduresPrefix;
             clone.StoredProceduresSuffix = this.StoredProceduresSuffix;
@@ -185,8 +148,6 @@ namespace Dotmim.Sync
         /// </summary>
         public void ImportContainerSet(ContainerSet containerSet)
         {
-            this.DataSourceName = containerSet.DataSourceName;
-
             foreach (var table in containerSet.Tables)
             {
                 var syncTable = this.Tables[table.TableName, table.SchemaName];
@@ -205,7 +166,7 @@ namespace Dotmim.Sync
         /// </summary>
         public ContainerSet GetContainerSet()
         {
-            var containerSet = new ContainerSet(this.DataSourceName);
+            var containerSet = new ContainerSet();
             foreach (var table in this.Tables)
             {
                 var containerTable = new ContainerTable(table)

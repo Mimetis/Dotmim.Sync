@@ -42,13 +42,52 @@ namespace Dotmim.Sync.MySql
         private void AddPkColumnParametersToCommand(MySqlCommand sqlCommand)
         {
             foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
-                sqlCommand.Parameters.Add(pkColumn.GetMySqlParameter());
+                sqlCommand.Parameters.Add(GetMySqlParameter(pkColumn));
         }
         private void AddColumnParametersToCommand(MySqlCommand sqlCommand)
         {
             foreach (var column in this.tableDescription.Columns.Where(c => !c.IsReadOnly))
-                sqlCommand.Parameters.Add(column.GetMySqlParameter());
+                sqlCommand.Parameters.Add(GetMySqlParameter(column));
         }
+
+        internal MySqlParameter GetMySqlParameter(SyncColumn column)
+        {
+            var mySqlDbMetadata = new MySqlDbMetadata();
+
+            var parameterName = ParserName.Parse(column).Unquoted().Normalized().ToString();
+
+            var sqlParameter = new MySqlParameter
+            {
+                ParameterName = $"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{parameterName}",
+                DbType = column.GetDbType(),
+                IsNullable = column.AllowDBNull
+            };
+
+            (byte precision, byte scale) = mySqlDbMetadata.TryGetOwnerPrecisionAndScale(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
+
+            if ((sqlParameter.DbType == DbType.Decimal || sqlParameter.DbType == DbType.Double
+                 || sqlParameter.DbType == DbType.Single || sqlParameter.DbType == DbType.VarNumeric) && precision > 0)
+            {
+                sqlParameter.Precision = precision;
+                if (scale > 0)
+                    sqlParameter.Scale = scale;
+            }
+            else if (column.MaxLength > 0)
+            {
+                sqlParameter.Size = (int)column.MaxLength;
+            }
+            else if (sqlParameter.DbType == DbType.Guid)
+            {
+                sqlParameter.Size = 36;
+            }
+            else
+            {
+                sqlParameter.Size = -1;
+            }
+
+            return sqlParameter;
+        }
+
 
         /// <summary>
         /// From a SqlParameter, create the declaration
@@ -568,7 +607,7 @@ namespace Dotmim.Sync.MySql
                 if (lstPrimaryKeysColumns.IndexOf(column) == lstPrimaryKeysColumns.Count - 1)
                     and = "";
 
-                var param = column.GetMySqlParameter();
+                var param = GetMySqlParameter(column);
                 var declar = CreateParameterDeclaration(param);
                 var columnName = ParserName.Parse(column, "`").Quoted().ToString();
 

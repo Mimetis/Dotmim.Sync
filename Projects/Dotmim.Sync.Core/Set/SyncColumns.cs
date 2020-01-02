@@ -42,10 +42,6 @@ namespace Dotmim.Sync
         public void EnsureColumns(SyncTable table)
         {
             this.Table = table;
-
-            if (InnerCollection != null)
-                foreach (var column in this)
-                    column.Table = table;
         }
 
         /// <summary>
@@ -60,7 +56,7 @@ namespace Dotmim.Sync
                 if (schema == null)
                     throw new ArgumentException("Schema is null");
 
-                return InnerCollection.FirstOrDefault(c => schema.StringEquals(columnName, c.ColumnName));
+                return InnerCollection.FirstOrDefault(c => string.Equals(c.ColumnName, columnName, SyncGlobalization.DataSourceStringComparison));
             }
         }
 
@@ -70,7 +66,6 @@ namespace Dotmim.Sync
         /// </summary>
         public void Add(SyncColumn item)
         {
-            item.Table = this.Table;
             InnerCollection.Add(item);
             AffectOrder();
 
@@ -79,7 +74,6 @@ namespace Dotmim.Sync
         public void Add(string columnName, Type type = null)
         {
             var item = new SyncColumn(columnName, type);
-            item.Table = this.Table;
             InnerCollection.Add(item);
             AffectOrder();
 
@@ -94,10 +88,7 @@ namespace Dotmim.Sync
         public void AddRange(SyncColumn[] addedColumns)
         {
             foreach (var item in addedColumns)
-            {
-                item.Table = this.Table;
                 InnerCollection.Add(item);
-            }
 
             AffectOrder();
 
@@ -134,13 +125,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Clear all the relations
         /// </summary>
-        public void Clear()
-        {
-            foreach (var item in InnerCollection)
-                item.Table = null;
-
-            InnerCollection.Clear();
-        }
+        public void Clear() => this.InnerCollection.Clear();
 
         public SyncColumn this[int index] => InnerCollection[index];
         public int Count => InnerCollection.Count;

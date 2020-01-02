@@ -98,10 +98,10 @@ namespace Dotmim.Sync.Web.Client
         /// Send a request to remote web proxy for First step : Ensure scopes and schema
         /// </summary>
         public async Task<(SyncContext context, SyncSet schema)>
-            EnsureSchemaAsync(SyncContext context, SyncSet schema, CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+            EnsureSchemaAsync(SyncContext context, SyncSetup setup, CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
             // Create the message to be sent
-            var httpMessage = new HttpMessageEnsureScopesRequest(context, schema.ScopeName);
+            var httpMessage = new HttpMessageEnsureScopesRequest(context, setup.ScopeName);
 
             // No batch size submitted here, because the schema will be generated in memory and send back to the user.
             var ensureScopesResponse = await this.httpRequestHandler.ProcessRequestAsync<HttpMessageEnsureScopesRequest, HttpMessageEnsureScopesResponse>
@@ -132,14 +132,8 @@ namespace Dotmim.Sync.Web.Client
             // clientBatchSize is sent to server to specify if the client wants a batch in return
 
             // create the in memory changes set
-            var changesSet = new SyncSet
-            {
-                CaseSensitive = schema.CaseSensitive,
-                CultureInfoName = schema.CultureInfoName,
-                ScopeName = schema.ScopeName,
-                DataSourceName = schema.DataSourceName
-            };
-            
+            var changesSet = new SyncSet(schema.ScopeName);
+
             foreach (var table in schema.Tables)
                 DbSyncAdapter.CreateChangesTable(schema.Tables[table.TableName, table.SchemaName], changesSet);
             

@@ -1503,15 +1503,21 @@ namespace Dotmim.Sync.Tests
                     await ctx.Database.EnsureCreatedAsync();
 
                 // generate a sync conf to host the schema
-                var syncSchema = new SyncSet(this.fixture.Tables);
+                var setup = new Dotmim.Sync.SyncSetup(this.fixture.Tables);
 
 
                 // just check interceptor
                 localProvider.On<TableProvisioningArgs>(args => Assert.Equal(SyncProvision.All, args.Provision));
 
+                SyncSet schema = null;
+
+                using (var dbConnection = localProvider.CreateConnection())
+                {
+                    schema = localProvider.ReadSchema(setup, dbConnection, null);
+                };
 
                 // Provision the database with all tracking tables, stored procedures, triggers and scope
-                await localProvider.ProvisionAsync(syncSchema, SyncProvision.All);
+                await localProvider.ProvisionAsync(schema, SyncProvision.All);
 
                 //--------------------------
                 // ASSERTION
@@ -1519,9 +1525,11 @@ namespace Dotmim.Sync.Tests
 
                 // check if scope table is correctly created
                 var scopeBuilderFactory = localProvider.GetScopeBuilder();
+                SyncSet syncSchema;
 
                 using (var dbConnection = localProvider.CreateConnection())
                 {
+                    syncSchema = localProvider.ReadSchema(setup, dbConnection, null);
                     var scopeBuilder = scopeBuilderFactory.CreateScopeInfoBuilder(SyncOptions.DefaultScopeInfoTableName, dbConnection);
                     Assert.False(scopeBuilder.NeedToCreateScopeInfoTable());
                 }
@@ -1577,7 +1585,7 @@ namespace Dotmim.Sync.Tests
 
 
                 // Provision the database with all tracking tables, stored procedures, triggers and scope
-                await localProvider.DeprovisionAsync(syncSchema, SyncProvision.All);
+                await localProvider.DeprovisionAsync(schema, SyncProvision.All);
 
                 // get the db manager
                 foreach (var dmTable in syncSchema.Tables)
@@ -1736,7 +1744,7 @@ namespace Dotmim.Sync.Tests
                         await clientDbCtx.SaveChangesAsync();
                     }
 
-                    var trr = await clientRun.RunAsync(this.fixture, null, null, options, false);
+                    var trr = await clientRun.RunAsync(this.fixture, null, options, false);
                     Assert.Equal(2, trr.Results.TotalChangesUploaded);
                 }
 
@@ -1808,7 +1816,7 @@ namespace Dotmim.Sync.Tests
                     // during first run, add a new row during selection on client (very first step of whole sync process)
                     clientRun.ClientProvider.On<TableChangesSelectedArgs>(tableChangesSelected);
 
-                    var trr = await clientRun.RunAsync(this.fixture, null, null, options, false);
+                    var trr = await clientRun.RunAsync(this.fixture, null, options, false);
 
                     Assert.Equal(cpt, trr.Results.TotalChangesDownloaded);
                     Assert.Equal(1, trr.Results.TotalChangesUploaded);
@@ -1816,7 +1824,7 @@ namespace Dotmim.Sync.Tests
 
                     clientRun.ClientProvider.On<TableChangesSelectedArgs>(null);
 
-                    var trr2 = await clientRun.RunAsync(this.fixture, null, null, options, false);
+                    var trr2 = await clientRun.RunAsync(this.fixture, null, options, false);
                     Debug.WriteLine($"{trr2.ClientProvider.ConnectionString}: Upload={trr2.Results.TotalChangesUploaded}");
 
                     Assert.Equal(0, trr2.Results.TotalChangesDownloaded);
@@ -1919,7 +1927,7 @@ namespace Dotmim.Sync.Tests
 
                     clientRun.Agent.SetInterceptors(interceptor);
 
-                    await clientRun.RunAsync(this.fixture, null, null, options, false);
+                    await clientRun.RunAsync(this.fixture, null, options, false);
 
                     //Assert we have go through begin and end session
                     Assert.Equal("beginend", sessionString);
@@ -2069,7 +2077,7 @@ namespace Dotmim.Sync.Tests
                     }
 
                     // first sync
-                    await clientRun.RunAsync(this.fixture, null, null, options, false);
+                    await clientRun.RunAsync(this.fixture, null, options, false);
 
 
                     // Creating the fail constraint 
@@ -2119,14 +2127,14 @@ namespace Dotmim.Sync.Tests
                     //clientRun.Agent.SetInterceptor(interceptor);
 
                     // try sync
-                    await clientRun.RunAsync(this.fixture, null, null, options, false);
+                    await clientRun.RunAsync(this.fixture, null, options, false);
 
                 }
 
             }
         }
 
-  
+
         public virtual async Task Reinitialize_Client_Database()
         {
             // not sure of the count of rows (since previous tests may have insert / delete rows)
@@ -2162,8 +2170,8 @@ namespace Dotmim.Sync.Tests
                         await ctx.SaveChangesAsync();
                     }
 
-                    var agent = new SyncAgent(run.ClientProvider, this.fixture.ServerProvider,
-                                              this.fixture.Tables, option);
+                    var agent = new SyncAgent(run.ClientProvider, this.fixture.ServerProvider, this.fixture.Tables);
+                    agent.Options = option;
 
                     // Upload this row, before making a reinit
                     var res = await agent.SynchronizeAsync();
@@ -2220,8 +2228,8 @@ namespace Dotmim.Sync.Tests
                         await ctx.SaveChangesAsync();
                     }
 
-                    var agent = new SyncAgent(run.ClientProvider, this.fixture.ServerProvider,
-                                              this.fixture.Tables, option);
+                    var agent = new SyncAgent(run.ClientProvider, this.fixture.ServerProvider, this.fixture.Tables);
+                    agent.Options = option;
 
                     // one new row in server.
                     rowsCount += 1;

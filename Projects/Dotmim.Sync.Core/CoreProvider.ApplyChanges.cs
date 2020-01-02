@@ -261,7 +261,7 @@ namespace Dotmim.Sync
 
                     // raise SyncProgress Event
                     var existAppliedChanges = changesApplied.TableChangesApplied.FirstOrDefault(
-                            sc => string.Equals(sc.Table.TableName, schemaTable.TableName) && sc.State == applyType);
+                            sc => string.Equals(sc.Table.TableName, schemaTable.TableName, SyncGlobalization.DataSourceStringComparison) && sc.State == applyType);
 
                     if (existAppliedChanges == null)
                     {

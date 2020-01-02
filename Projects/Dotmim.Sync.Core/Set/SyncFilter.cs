@@ -10,7 +10,7 @@ namespace Dotmim.Sync
     /// Design a filter clause on Dmtable
     /// </summary>
     [DataContract(Name = "sf"), Serializable]
-    public class SyncFilter : SyncColumnIdentifier, IDisposable
+    public class SyncFilter : SyncColumnIdentifier, IDisposable, IEquatable<SyncFilter>
     {
         [DataMember(Name = "dt", IsRequired = false, EmitDefaultValue = false, Order = 4)]
         public int? ColumnType { get; set; }
@@ -33,27 +33,14 @@ namespace Dotmim.Sync
         /// If you specify the columnType, Dotmim.Sync will expect that the column does not exist on the table, and the filter is only
         /// used as a parameter for the selectchanges stored procedure. Thus, IsVirtual would be true
         /// </summary>
-        public SyncFilter(SyncColumn schemaColumn, int? columnType = null)
+        public SyncFilter(string columName, string tableName, string schemaName = null, int? columnType = null)
         {
-            this.ColumnName = schemaColumn.ColumnName;
-            this.TableName = schemaColumn.Table.TableName;
-            this.SchemaName = schemaColumn.Table.SchemaName;
-            this.ColumnType = columnType;
-        }
-
-
-        /// <summary>
-        /// Creates a filterclause allowing to specify a different DbType.
-        /// If you specify the columnType, Dotmim.Sync will expect that the column does not exist on the table, and the filter is only
-        /// used as a parameter for the selectchanges stored procedure. Thus, IsVirtual would be true
-        /// </summary>
-        public SyncFilter(string tableName, string columnName, string schemaName = null,  int? columnType = null)
-        {
-            this.ColumnName = columnName;
+            this.ColumnName = columName;
             this.TableName = tableName;
-            this.SchemaName = schemaName ?? string.Empty;
+            this.SchemaName = schemaName;
             this.ColumnType = columnType;
         }
+
 
         /// <summary>
         /// Clone the SyncFilter
@@ -115,6 +102,42 @@ namespace Dotmim.Sync
             }
 
             // Dispose unmanaged ressources
+        }
+
+        public override bool Equals(object obj)
+        {
+            return this.Equals(obj as SyncFilter);
+        }
+
+        public bool Equals(SyncFilter other)
+        {
+            if (other == null)
+                return false;
+
+            var sc = SyncGlobalization.DataSourceStringComparison;
+
+            var sn = this.SchemaName == null ? string.Empty : this.SchemaName;
+            var otherSn = other.SchemaName == null ? string.Empty : other.SchemaName;
+
+            return other != null &&
+                   this.ColumnName.Equals(other.ColumnName, sc) && 
+                   this.TableName.Equals(other.TableName, sc) &&
+                   sn.Equals(otherSn, sc);
+        }
+
+        public override int GetHashCode()
+        {
+            return 1951375558 + EqualityComparer<SyncSet>.Default.GetHashCode(this.Schema);
+        }
+
+        public static bool operator ==(SyncFilter left, SyncFilter right)
+        {
+            return EqualityComparer<SyncFilter>.Default.Equals(left, right);
+        }
+
+        public static bool operator !=(SyncFilter left, SyncFilter right)
+        {
+            return !(left == right);
         }
     }
 }

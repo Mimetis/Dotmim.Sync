@@ -50,7 +50,12 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets or Sets the schema used for this sync process.
         /// </summary>
-        public SyncSet Schema { get; set; }
+        public SyncSet Schema { get; private set; }
+        
+        /// <summary>
+        /// Gets or Sets the setup used for this sync
+        /// </summary>
+        public SyncSetup Setup { get; set; }
 
         /// <summary>
         /// Gets or Sets the options used on this sync process.
@@ -77,40 +82,37 @@ namespace Dotmim.Sync
         public void OnApplyChangesFailed(Action<ApplyChangesFailedArgs> action) => this.LocalOrchestrator.OnApplyChangesFailed(action);
 
 
-        public SyncAgent(string scopeName, CoreProvider clientProvider, CoreProvider serverProvider, string[] tables = null, SyncOptions options = null)
-            : this(scopeName, new LocalOrchestrator(clientProvider), new RemoteOrchestrator(serverProvider), tables, options)
+        public SyncAgent(CoreProvider clientProvider, CoreProvider serverProvider,  string[] tables = null) : this(new LocalOrchestrator(clientProvider), new RemoteOrchestrator(serverProvider), tables)
         {
         }
-        public SyncAgent(CoreProvider clientProvider, CoreProvider serverProvider, string[] tables = null, SyncOptions options = null)
-            : this(SyncOptions.DefaultScopeName, clientProvider, serverProvider, tables, options)
+        public SyncAgent(CoreProvider clientProvider, IRemoteOrchestrator remoteOrchestrator,  string[] tables = null) : this(new LocalOrchestrator(clientProvider), remoteOrchestrator, tables)
         {
         }
-        public SyncAgent(string scopeName, CoreProvider clientProvider, IRemoteOrchestrator remoteOrchestrator, string[] tables = null, SyncOptions options = null)
-            : this(scopeName, new LocalOrchestrator(clientProvider), remoteOrchestrator, tables, options)
-        {
-        }
-        public SyncAgent(CoreProvider clientProvider, IRemoteOrchestrator remoteOrchestrator, string[] tables = null, SyncOptions options = null)
-            : this(SyncOptions.DefaultScopeName, new LocalOrchestrator(clientProvider), remoteOrchestrator, tables, options)
-        {
-        }
-        public SyncAgent(ILocalOrchestrator localOrchestrator, IRemoteOrchestrator remoteOrchestrator, string[] tables = null, SyncOptions options = null)
-            : this(SyncOptions.DefaultScopeName, localOrchestrator, remoteOrchestrator, tables, options)
+        public SyncAgent(ILocalOrchestrator localOrchestrator, IRemoteOrchestrator remoteOrchestrator, string[] tables = null) : this(localOrchestrator, remoteOrchestrator, new SyncSetup(tables), new SyncOptions())
         {
         }
 
-        public SyncAgent(string scopeName, ILocalOrchestrator localOrchestrator, IRemoteOrchestrator remoteOrchestrator, string[] tables = null, SyncOptions options = null)
+        public SyncAgent(CoreProvider clientProvider, CoreProvider serverProvider,
+                         SyncSetup setup, SyncOptions options = null) : this(new LocalOrchestrator(clientProvider), new RemoteOrchestrator(serverProvider), setup, options)
         {
-            if (string.IsNullOrEmpty(scopeName))
-                throw new ArgumentNullException("scopeName");
+        }
 
+        public SyncAgent(CoreProvider clientProvider, IRemoteOrchestrator remoteOrchestrator,
+                         SyncSetup setup, SyncOptions options = null) : this(new LocalOrchestrator(clientProvider), remoteOrchestrator, setup, options)
+        {
+        }
+
+
+        public SyncAgent(ILocalOrchestrator localOrchestrator, IRemoteOrchestrator remoteOrchestrator, SyncSetup setup, SyncOptions options)
+        {
             if (remoteOrchestrator.Provider != null && !remoteOrchestrator.Provider.CanBeServerProvider)
                 throw new NotSupportedException();
 
-            // Create schema based on list of tables
-            this.Schema = new SyncSet(tables, scopeName) { ScopeName = scopeName };
+            // tables setup
+            this.Setup = setup;
 
-            // Create sync options if needed
-            this.Options = options ?? new SyncOptions();
+            // options
+            this.Options = options;
 
             // Add parameters
             this.Parameters = new SyncParameterCollection();
@@ -141,6 +143,14 @@ namespace Dotmim.Sync
         /// </summary>
         public async Task<SyncContext> SynchronizeAsync(SyncType syncType, CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
+
+            // tables to add
+            this.Setup = this.Setup ?? new SyncSetup();
+
+            // Create sync options if needed
+            this.Options = this.Options ?? new SyncOptions();
+
+
             // Context, used to back and forth data between servers
             var context = new SyncContext(Guid.NewGuid())
             {
@@ -166,7 +176,7 @@ namespace Dotmim.Sync
                 // - Getting local config we have set by code
                 // - Ensure local scope is created (table and values)
                 (context, scope) = await this.LocalOrchestrator.EnsureScopeAsync
-                        (context, this.Schema, this.Options, cancellationToken, progress);
+                        (context, this.Setup.ScopeName, this.Options, cancellationToken, progress);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -183,7 +193,7 @@ namespace Dotmim.Sync
                     // Be sure options / schema from client are passed if needed
                     // Then the configuration with full schema
                     var serverSchema = await this.RemoteOrchestrator.EnsureSchemaAsync(
-                            context, this.Schema, cancellationToken, remoteProgress);
+                            context, this.Setup, cancellationToken, remoteProgress);
                     context = serverSchema.context;
                     this.Schema = serverSchema.schema;
                 }
@@ -218,7 +228,7 @@ namespace Dotmim.Sync
                 // Serialize schema to be able to save it in client db
                 if (string.IsNullOrEmpty(scope.Schema))
                 {
-                   // this.Schema.SetLight = new DmSetLightSchema(this.Schema.GetSet());
+                    // this.Schema.SetLight = new DmSetLightSchema(this.Schema.GetSet());
                     var schemaLight = JsonConvert.SerializeObject(this.Schema);
                     scope.Schema = schemaLight;
                 }
