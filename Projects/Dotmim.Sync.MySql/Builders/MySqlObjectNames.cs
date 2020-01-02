@@ -16,8 +16,8 @@ namespace Dotmim.Sync.MySql
         internal const string updateTriggerName = "`{0}_update_trigger`";
         internal const string deleteTriggerName = "`{0}_delete_trigger`";
 
-        internal const string selectChangesProcName = "`{0}_selectchanges`";
-        internal const string selectChangesProcNameWithFilters = "`{0}_{1}_selectchanges`";
+        internal const string selectChangesProcName = "`{0}_changes`";
+        internal const string selectChangesProcNameWithFilters = "`{0}_{1}_changes`";
 
         internal const string initializeChangesProcName = "`{0}_initialize`";
         internal const string initializeChangesProcNameWithFilters = "`{0}_{1}_initialize`";

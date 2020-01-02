@@ -13,8 +13,8 @@ namespace Dotmim.Sync.SqlServer.Builders
         internal const string updateTriggerName = "[{0}].[{1}_update_trigger]";
         internal const string deleteTriggerName = "[{0}].[{1}_delete_trigger]";
 
-        internal const string selectChangesProcName = "[{0}].[{1}_selectchanges]";
-        internal const string selectChangesProcNameWithFilters = "[{0}].[{1}_{2}_selectchanges]";
+        internal const string selectChangesProcName = "[{0}].[{1}_changes]";
+        internal const string selectChangesProcNameWithFilters = "[{0}].[{1}_{2}_changes]";
         
         internal const string initializeChangesProcName = "[{0}].[{1}_initialize]";
         internal const string initializeChangesProcNameWithFilters = "[{0}].[{1}_{2}_initialize]";

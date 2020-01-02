@@ -43,7 +43,16 @@ namespace Dotmim.Sync.Web.Server
         /// Get or Set Web server options parameters
         /// </summary>
         public WebServerOptions Options { get; private set; }
+
+        /// <summary>
+        /// Schema database
+        /// </summary>
         public SyncSet Schema { get; private set; }
+
+        /// <summary>
+        /// Client converter used
+        /// </summary>
+        public IConverter ClientConverter { get; internal set; }
 
         internal async Task<HttpMessageEnsureScopesResponse> EnsureScopeAsync(HttpMessageEnsureScopesRequest httpMessage, CancellationToken cancellationToken)
         {
@@ -83,6 +92,9 @@ namespace Dotmim.Sync.Web.Server
             // If nothing to do, just send back
             if (serverBatchInfo.InMemory || serverBatchInfo.BatchPartsInfo.Count == 0)
             {
+                if (this.ClientConverter != null && serverBatchInfo.InMemoryData.HasRows)
+                    BeforeSerializeRows(serverBatchInfo.InMemoryData, this.ClientConverter);
+
                 changesResponse.Changes = serverBatchInfo.InMemoryData.GetContainerSet();
                 changesResponse.BatchIndex = 0;
                 changesResponse.IsLastBatch = true;
@@ -103,9 +115,11 @@ namespace Dotmim.Sync.Web.Server
 
             batchPartInfo.LoadBatch(changesSet);
 
+            // if client request a conversion on each row, apply the conversion
+            if (this.ClientConverter != null && batchPartInfo.Data.HasRows)
+                BeforeSerializeRows(batchPartInfo.Data, this.ClientConverter);
+
             changesResponse.Changes = batchPartInfo.Data.GetContainerSet();
-            
-            
             
             changesResponse.BatchIndex = batchIndexRequested;
             changesResponse.IsLastBatch = batchPartInfo.IsLastBatch;
@@ -172,7 +186,10 @@ namespace Dotmim.Sync.Web.Server
 
             changesSet.ImportContainerSet(httpMessage.Changes);
 
-       
+            // If client has made a conversion on each line, apply the reverse side of it
+            if (this.ClientConverter != null && changesSet.HasRows)
+                AfterDeserializedRows(changesSet, this.ClientConverter);
+
             // add changes to the batch info
             batchInfo.AddChanges(changesSet, httpMessage.BatchIndex, httpMessage.IsLastBatch);
 
@@ -234,6 +251,34 @@ namespace Dotmim.Sync.Web.Server
                 serverChangesSelected, httpMessage.BatchIndexRequested, this.Options.ConflictResolutionPolicy);
         }
 
+
+
+        public void BeforeSerializeRows(SyncSet data, IConverter converter)
+        {
+            foreach (var table in data.Tables)
+            {
+                if (table.Rows.Count > 0)
+                {
+                    foreach (var row in table.Rows)
+                        converter.BeforeSerialize(row);
+
+                }
+            }
+        }
+
+        public void AfterDeserializedRows(SyncSet data, IConverter converter)
+        {
+            foreach (var table in data.Tables)
+            {
+                if (table.Rows.Count > 0)
+                {
+                    foreach (var row in table.Rows)
+                        converter.AfterDeserialized(row);
+
+                }
+            }
+
+        }
 
     }
 }

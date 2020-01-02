@@ -11,6 +11,7 @@ using MessagePack;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Http2.HPack;
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Configuration.EnvironmentVariables;
 using Newtonsoft.Json;
 using System;
 using System.Data;
@@ -40,8 +41,6 @@ internal class Program
     {
         SyncHttpThroughKestellAsync().GetAwaiter().GetResult();
     }
-
-
 
     private static async Task TestSqliteDoubleStatement()
     {
@@ -837,7 +836,8 @@ internal class Program
         // Create the web proxy client provider with specific options
         var proxyClientProvider = new WebClientOrchestrator
         {
-            SerializerFactory = new CustomMessagePackSerializerFactory()
+            //SerializerFactory = new CustomMessagePackSerializerFactory(),
+            //Converter = new CustomConverter()
         };
 
 
@@ -845,23 +845,28 @@ internal class Program
         // Web Server side
         // ----------------------------------
         // specific Setup with only 2 tables, and one filtered
-        var setup = new SyncSetup(allTables);
-        setup.Tables["Product"].Columns.AddRange(new string[] { "ProductId", "Name", "ProductCategoryID", "ProductNumber", "StandardCost", "ListPrice", "SellStartDate", "rowguid", "ModifiedDate" });
+        var setup = new SyncSetup(new string[] { "Product" });
+        //setup.Tables["Product"].Columns.AddRange(new string[] { "ProductId", "Name", "ProductCategoryID", "ProductNumber", "StandardCost", "ListPrice", "SellStartDate", "rowguid", "ModifiedDate" });
 
-        // Add pref suf
+        // Add pref suf for v0.4
         setup.StoredProceduresPrefix = "s";
         setup.StoredProceduresSuffix = "";
+        // for tracking tables and suffix, we still want the same
+        // so replace with same values as v0.3
         setup.TrackingTablesPrefix = "t";
         setup.TrackingTablesSuffix = "";
+        setup.TriggersPrefix = "";
+        setup.TriggersSuffix = "";
 
         var webServerOptions = new WebServerOptions
         {
             BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync_server"),
             CleanMetadatas = true,
-            UseBulkOperations = false,
+            UseBulkOperations = true,
             UseVerboseErrors = false
         };
         webServerOptions.Serializers.Add(new CustomMessagePackSerializerFactory());
+        webServerOptions.Converters.Add(new CustomConverter());
 
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, proxyClientProvider);
@@ -885,15 +890,15 @@ internal class Program
                 Console.WriteLine(s1);
                 Console.WriteLine("--------------------------------------------------");
 
-                Console.WriteLine("Insert product category on Client");
-                var name = Path.GetRandomFileName().Replace(".", "").ToUpperInvariant().Substring(0, 6);
-                var id = InsertOneProductCategoryId(new SqlConnection(clientProvider.ConnectionString), name.ToUpperInvariant());
-                Console.WriteLine("Insert Done.");
+                //Console.WriteLine("Insert product category on Client");
+                //var name = Path.GetRandomFileName().Replace(".", "").ToUpperInvariant().Substring(0, 6);
+                //var id = InsertOneProductCategoryId(new SqlConnection(clientProvider.ConnectionString), name.ToUpperInvariant());
+                //Console.WriteLine("Insert Done.");
 
-                Console.WriteLine("Sync Start");
-                s1 = await agent.SynchronizeAsync();
-                Console.WriteLine(s1);
-                Console.WriteLine("--------------------------------------------------");
+                //Console.WriteLine("Sync Start");
+                //s1 = await agent.SynchronizeAsync();
+                //Console.WriteLine(s1);
+                //Console.WriteLine("--------------------------------------------------");
 
             });
             await server.Run(serverHandler, clientHandler);

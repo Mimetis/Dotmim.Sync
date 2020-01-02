@@ -164,6 +164,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                         // metadatas don't have readonly values, so get from sqlMetadataIndex
                         var sqlMetadataType = metadatas[sqlMetadataIndex].SqlDbType;
+
                         if (rowValue != null)
                         {
                             var columnType = rowValue.GetType();
