@@ -24,14 +24,6 @@ namespace Dotmim.Sync
         [DataMember(Name = "t", IsRequired = false, EmitDefaultValue = false, Order = 2)]
         public Collection<ContainerTable> Tables { get; set; } = new Collection<ContainerTable>();
 
-        /// <summary>
-        /// Get Table by name / schema / case sensitive
-        /// </summary>
-        public ContainerTable GetTable(SyncTable table)
-        {
-            return Tables.FirstOrDefault(t => table.Schema.StringEquals(table.TableName, table.SchemaName, t.TableName, t.SchemaName) );
-        }
-
         public void Clear()
         {
             foreach (var t in Tables)

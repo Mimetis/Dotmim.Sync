@@ -91,7 +91,7 @@ namespace Dotmim.Sync
                 // foreach parameter, check if we have a column 
                 if (!string.IsNullOrEmpty(parameter.SourceColumn))
                 {
-                    var column = schemaTable.Columns.FirstOrDefault(parameter.SourceColumn);
+                    var column = schemaTable.Columns.FirstOrDefault(sc => sc.ColumnName.Equals(parameter.SourceColumn, SyncGlobalization.DataSourceStringComparison));
                     if (column != null)
                     {
                         object value = row[column];
@@ -127,13 +127,11 @@ namespace Dotmim.Sync
             this.SetColumnParametersValues(command, row);
 
             // 2 choices for getting deleted
-            bool isTombstone = false;
-
             // Firstly check the state
-            isTombstone = row.RowState == DataRowState.Deleted;
+            var isTombstone = row.RowState == DataRowState.Deleted;
 
             // TODO : Secondly check the sync is tombstone column. Should we do this ?
-            var isTombstoneColumn = schemaTable.Columns.FirstOrDefault("sync_row_is_tombstone");
+            var isTombstoneColumn = schemaTable.Columns.FirstOrDefault(sc => sc.ColumnName.Equals("sync_row_is_tombstone", SyncGlobalization.DataSourceStringComparison));
 
             if (isTombstoneColumn != null)
             {

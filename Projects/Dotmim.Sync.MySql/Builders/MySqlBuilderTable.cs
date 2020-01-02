@@ -111,7 +111,7 @@ namespace Dotmim.Sync.MySql
 
             // Don't want foreign key on same table since it could be a problem on first 
             // sync. We are not sure that parent row will be inserted in first position
-            if (string.Equals(parentTable, foreignKey.GetChildTable().TableName, StringComparison.CurrentCultureIgnoreCase))
+            if (foreignKey.GetParentTable() == foreignKey.GetChildTable())
                 return false;
 
             try
@@ -332,7 +332,7 @@ namespace Dotmim.Sync.MySql
                 return false;
 
             // Check if the parent table is part of the sync configuration
-            var exist = ds.Tables.Any(t => ds.StringEquals(t.TableName.ToLowerInvariant(), parentTable.TableName.ToLowerInvariant()));
+            var exist = ds.Tables.Any(t => t == parentTable);
 
             if (!exist)
                 return false;

@@ -45,7 +45,7 @@ namespace Dotmim.Sync.SampleWebServer
                             "Address", "Customer", "CustomerAddress",
                             "SalesOrderHeader", "SalesOrderDetail" };
 
-            var schema = new SyncSet(tables)
+            var schema = new SyncSet()
             {
                 StoredProceduresPrefix = "s",
                 StoredProceduresSuffix = "",
@@ -53,7 +53,7 @@ namespace Dotmim.Sync.SampleWebServer
                 TrackingTablesSuffix = ""
             };
 
-            services.AddSyncServer<SqlSyncProvider>(connectionString, schema, options);
+            services.AddSyncServer<SqlSyncProvider>(connectionString, tables, options);
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

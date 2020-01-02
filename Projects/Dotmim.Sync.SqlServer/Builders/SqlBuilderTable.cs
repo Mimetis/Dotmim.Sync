@@ -75,7 +75,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             // Don't want foreign key on same table since it could be a problem on first 
             // sync. We are not sure that parent row will be inserted in first position
-            if (string.Equals(parentTable, foreignKey.GetChildTable().TableName, StringComparison.CurrentCultureIgnoreCase))
+            if (foreignKey.GetParentTable() == foreignKey.GetChildTable())
                 return false;
 
             try
@@ -116,22 +116,22 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine(relationName);
             stringBuilder.Append("FOREIGN KEY (");
             string empty = string.Empty;
-			foreach (var childColumn in foreignKey.ChildKeys)
-			{
+            foreach (var childColumn in foreignKey.ChildKeys)
+            {
                 var childColumnName = ParserName.Parse(childColumn.ColumnName).Quoted().ToString();
                 stringBuilder.Append($"{empty} {childColumnName}");
-				empty = ", ";
-			}
+                empty = ", ";
+            }
             stringBuilder.AppendLine(" )");
             stringBuilder.Append("REFERENCES ");
             stringBuilder.Append(parentTableName).Append(" (");
             empty = string.Empty;
-			foreach (var parentdColumn in foreignKey.ParentKeys)
-			{
+            foreach (var parentdColumn in foreignKey.ParentKeys)
+            {
                 var parentColumnName = ParserName.Parse(parentdColumn.ColumnName).Quoted().ToString();
                 stringBuilder.Append($"{empty} {parentColumnName}");
-				empty = ", ";
-			}
+                empty = ", ";
+            }
             stringBuilder.Append(" ) ");
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
@@ -441,7 +441,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 return false;
 
             // Check if the parent table is part of the sync configuration
-            var exist = ds.Tables.Any(t => ds.StringEquals(t.TableName, parentTable.TableName));
+            var exist = ds.Tables.Any(t => t == parentTable);
 
             if (!exist)
                 return false;

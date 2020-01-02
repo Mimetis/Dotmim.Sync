@@ -12,7 +12,7 @@ namespace Dotmim.Sync
 
 
     [DataContract(Name = "sc"), Serializable]
-    public class SyncColumn
+    public class SyncColumn : IEquatable<SyncColumn>
     {
         /// <summary>Gets or sets the name of the column</summary>
         [DataMember(Name = "n", IsRequired = true, Order = 1)]
@@ -75,14 +75,6 @@ namespace Dotmim.Sync
         [DataMember(Name = "db", IsRequired = false, EmitDefaultValue = false, Order = 20)]
         public int DbType { get; set; }
 
-
-        /// <summary>
-        /// Gets the ShemaColumn's SchemaTable
-        /// </summary>
-        [IgnoreDataMember]
-        public SyncTable Table { get; set; }
-
-
         /// <summary>
         /// Ctor for serialization purpose
         /// </summary>
@@ -131,8 +123,6 @@ namespace Dotmim.Sync
             clone.PrecisionSpecified = this.PrecisionSpecified;
             clone.Scale = this.Scale;
             clone.ScaleSpecified = this.ScaleSpecified;
-            clone.Table = this.Table;
-
             return clone;
         }
 
@@ -322,21 +312,6 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Change the ordinal by calling a Columns.Reorder
-        /// </summary>
-        public void SetOrdinal(int ordinal)
-        {
-            if (ordinal == -1)
-                throw new Exception("Ordinal must be 0 or more");
-
-            // check if we have to move
-            if (this.Ordinal != ordinal && Table != null)
-                Table.Columns.Reorder(this, ordinal);
-            else
-                this.Ordinal = ordinal;
-        }
-
-        /// <summary>
         /// Get auto inc values, coercing Step
         /// </summary>
         public (int Seed, int Step) GetAutoIncrementSeedAndStep()
@@ -379,34 +354,37 @@ namespace Dotmim.Sync
         {
             return string.Format($"{this.ColumnName} - {this.GetDataType().Name}");
         }
-        /// <summary>
-        /// Compare two boxed object
-        /// </summary>
-        //public bool IsEqual(object value1, object value2)
-        //{
-        //    var type = this.GetType();
 
-        //    Comparer.Default
+        public override bool Equals(object obj)
+        {
+            return this.Equals(obj as SyncColumn);
+        }
 
-        //    if (o1 == null && o2 == null)
-        //        return 0;
+        public bool Equals(SyncColumn other)
+        {
+            if (other == null)
+                return false;
 
-        //    if (o1 == null)
-        //        return -1;
+            var sc = SyncGlobalization.DataSourceStringComparison;
 
-        //    if (o2 == null)
-        //        return 1;
+            return this.ColumnName.Equals(other.ColumnName, sc);
+        }
 
-        //    T v1 = (T)o1;
-        //    T v2 = (T)o2;
-
-        //    if (typeof(T) == typeof(string))
-        //        return this.Table.Culture.CompareInfo.Compare((string)o1, (string)o2, this.Table.compareFlags);
-
-        //    return Comparer<T>.Default.Compare(v1, v2);
-        //}
+        public override int GetHashCode()
+        {
+            return -1862699260 + EqualityComparer<string>.Default.GetHashCode(this.ColumnName);
+        }
 
 
+        public static bool operator ==(SyncColumn left, SyncColumn right)
+        {
+            return EqualityComparer<SyncColumn>.Default.Equals(left, right);
+        }
+
+        public static bool operator !=(SyncColumn left, SyncColumn right)
+        {
+            return !(left == right);
+        }
 
         /// <summary>
         ///  Collection of autorized types
