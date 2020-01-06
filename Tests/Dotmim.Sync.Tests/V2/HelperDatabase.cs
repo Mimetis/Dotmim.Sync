@@ -8,13 +8,14 @@ using System.Data.SqlClient;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 
-namespace Dotmim.Sync.Tests
+namespace Dotmim.Sync.Tests.V2
 {
-    public static class HelperDB
+    public static class HelperDatabase
     {
 
-        public static string GetRandomDatabaseName(string pref = "st_")
+        public static string GetRandomName(string pref = default)
         {
             var str1 = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
             return $"{pref}{str1}";
@@ -25,7 +26,12 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         public static string GetSqliteFilePath(string dbName)
         {
-            return Path.Combine(Directory.GetCurrentDirectory(), $"{dbName}.db");
+            var fi = new FileInfo(dbName);
+            
+            if (string.IsNullOrEmpty(fi.Extension))
+                dbName = $"{dbName}.db";
+
+            return Path.Combine(Directory.GetCurrentDirectory(), dbName);
 
         }
 
@@ -54,10 +60,10 @@ namespace Dotmim.Sync.Tests
                     con = Setup.GetSqlAzureDatabaseConnectionString(dbName);
                     break;
                 case ProviderType.MySql:
-                    con =Setup.GetMySqlDatabaseConnectionString(dbName);
+                    con = Setup.GetMySqlDatabaseConnectionString(dbName);
                     break;
                 case ProviderType.Sqlite:
-                    con =GetSqliteDatabaseConnectionString(dbName);
+                    con = GetSqliteDatabaseConnectionString(dbName);
                     break;
             }
             Console.WriteLine($"[{providerType}]-[{dbName}]: {con}");
@@ -69,35 +75,31 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Create a database, depending the Provider type
         /// </summary>
-        public static void CreateDatabase(ProviderType providerType, string dbName, bool recreateDb = true)
+        public static Task CreateDatabaseAsync(ProviderType providerType, string dbName, bool recreateDb = true)
         {
             switch (providerType)
             {
                 case ProviderType.Sql:
-                    CreateSqlServerDatabase(dbName, recreateDb);
-                    break;
-                case ProviderType.SqlAzure:
-                    CreateSqlServerDatabase(dbName, recreateDb);
-                    break;
+                    return CreateSqlServerDatabaseAsync(dbName, recreateDb);
                 case ProviderType.MySql:
-                    CreateMySqlDatabase(dbName, recreateDb);
-                    break;
+                    return CreateMySqlDatabaseAsync(dbName, recreateDb);
+                case ProviderType.Sqlite:
+                    return Task.CompletedTask;
             }
 
-            // default 
-            CreateSqlServerDatabase(dbName, recreateDb);
+            throw new Exception($"Provider type {providerType} is not existing;");
         }
 
         /// <summary>
         /// Create a new Sql Server database
         /// </summary>
-        private static void CreateSqlServerDatabase(string dbName, bool recreateDb = true)
+        private static async Task CreateSqlServerDatabaseAsync(string dbName, bool recreateDb = true)
         {
             using (var masterConnection = new SqlConnection(Setup.GetSqlDatabaseConnectionString("master")))
             {
                 masterConnection.Open();
                 var cmdDb = new SqlCommand(GetSqlCreationScript(dbName, recreateDb), masterConnection);
-                cmdDb.ExecuteNonQuery();
+                await cmdDb.ExecuteNonQueryAsync();
                 masterConnection.Close();
             }
         }
@@ -105,7 +107,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Create a new MySql Server database
         /// </summary>
-        private static void CreateMySqlDatabase(string dbName, bool recreateDb = true)
+        private static async Task CreateMySqlDatabaseAsync(string dbName, bool recreateDb = true)
         {
             using (var sysConnection = new MySqlConnection(Setup.GetMySqlDatabaseConnectionString("sys")))
             {
@@ -116,7 +118,7 @@ namespace Dotmim.Sync.Tests
                     if (recreateDb)
                     {
                         var cmdDrop = new MySqlCommand($"Drop schema if exists  {dbName};", sysConnection);
-                        cmdDrop.ExecuteNonQuery();
+                        await cmdDrop.ExecuteNonQueryAsync();
                     }
 
                     var cmdDb = new MySqlCommand($"create schema {dbName};", sysConnection);
@@ -150,9 +152,6 @@ namespace Dotmim.Sync.Tests
                     DropSqliteDatabase(dbName);
                     break;
             }
-
-            // default 
-            DropSqlDatabase(dbName);
         }
 
         /// <summary>
@@ -174,22 +173,22 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         private static void DropSqliteDatabase(string dbName)
         {
-            string filePath=null;
+            string filePath = null;
             try
             {
                 GC.Collect();
                 GC.WaitForPendingFinalizers();
                 filePath = GetSqliteFilePath(dbName);
 
-                if (File.Exists(filePath))
-                    File.Delete(filePath);
+                if (File.Exists(dbName))
+                    File.Delete(dbName);
 
             }
             catch (Exception)
             {
-
                 Debug.WriteLine($"Sqlite file seems loked. ({filePath})");
             }
+
         }
 
         /// <summary>
@@ -199,25 +198,34 @@ namespace Dotmim.Sync.Tests
         {
             using (var masterConnection = new SqlConnection(Setup.GetSqlDatabaseConnectionString("master")))
             {
-                masterConnection.Open();
-                var cmdDb = new SqlCommand(GetSqlDropDatabaseScript(dbName), masterConnection);
-                cmdDb.ExecuteNonQuery();
-                masterConnection.Close();
+                try
+                {
+                    masterConnection.Open();
+                    var cmdDb = new SqlCommand(GetSqlDropDatabaseScript(dbName), masterConnection);
+                    cmdDb.ExecuteNonQuery();
+                    masterConnection.Close();
+
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine(ex.Message);
+                    throw;
+                }
             }
         }
 
 
-        public static void ExecuteMySqlScript(string dbName, string script)
+        public static async Task ExecuteMySqlScriptAsync(string dbName, string script)
         {
             using (var connection = new MySqlConnection(Setup.GetMySqlDatabaseConnectionString(dbName)))
             {
                 connection.Open();
                 var cmdDb = new MySqlCommand(script, connection);
-                cmdDb.ExecuteNonQuery();
+                await cmdDb.ExecuteNonQueryAsync();
                 connection.Close();
             }
         }
-        public static void ExecuteSqlScript(string dbName, string script)
+        public static async Task ExecuteSqlScriptAsync(string dbName, string script)
         {
             using (var connection = new SqlConnection(Setup.GetSqlDatabaseConnectionString(dbName)))
             {
@@ -230,18 +238,18 @@ namespace Dotmim.Sync.Tests
                 foreach (string commandText in commandTexts)
                 {
                     var cmdDb = new SqlCommand(commandText, connection);
-                    cmdDb.ExecuteNonQuery();
+                    await cmdDb.ExecuteNonQueryAsync();
                 }
                 connection.Close();
             }
         }
-        public static void ExecuteSqliteScript(string dbName, string script)
+        public static async Task ExecuteSqliteScriptAsync(string dbName, string script)
         {
             using (var connection = new SqliteConnection(dbName))
             {
                 connection.Open();
                 var cmdDb = new SqliteCommand(script, connection);
-                cmdDb.ExecuteNonQuery();
+                await cmdDb.ExecuteNonQueryAsync();
                 connection.Close();
             }
         }
@@ -316,10 +324,14 @@ namespace Dotmim.Sync.Tests
         private static string GetSqlDropDatabaseScript(string dbName)
         {
             return $@"if (exists (Select * from sys.databases where name = '{dbName}'))
-                    begin
-	                    alter database [{dbName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE
-	                    drop database {dbName}
-                    end";
+            begin
+	            alter database [{dbName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+	            drop database {dbName};
+            end";
+
+            //return $@"EXEC msdb.dbo.sp_delete_database_backuphistory @database_name = N'{dbName}'; " +
+            //         $"alter database [{dbName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; " + 
+            //         $"drop database {dbName};";
         }
 
     }

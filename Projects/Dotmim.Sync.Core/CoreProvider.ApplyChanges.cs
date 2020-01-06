@@ -39,8 +39,10 @@ namespace Dotmim.Sync
                 await this.InterceptAsync(new DatabaseChangesApplyingArgs(context, connection, transaction)).ConfigureAwait(false);
 
                 // Disable check constraints
+                // Because Sqlite does not support "PRAGMA foreign_keys=OFF" Inside a transaction
+                // Report this disabling constraints brefore opening a transaction
                 if (message.DisableConstraintsOnApplyChanges)
-                    changeApplicationAction = this.DisableConstraints(context, message.Schema, connection, transaction);
+                    this.DisableConstraints(context, message.Schema, connection, transaction);
 
                 // -----------------------------------------------------
                 // 0) Check if we are in a reinit mode
@@ -90,10 +92,10 @@ namespace Dotmim.Sync
                 var databaseChangesAppliedArgs = new DatabaseChangesAppliedArgs(context, changesApplied, connection, transaction);
                 this.ReportProgress(context, progress, databaseChangesAppliedArgs, connection, transaction);
                 await this.InterceptAsync(databaseChangesAppliedArgs).ConfigureAwait(false);
-
+                
                 // Re enable check constraints
                 if (message.DisableConstraintsOnApplyChanges)
-                    changeApplicationAction = this.EnableConstraints(context, message.Schema, connection, transaction);
+                    this.EnableConstraints(context, message.Schema, connection, transaction);
 
                 // clear the changes because we don't need them anymore
                 message.Changes.Clear(false);
@@ -133,50 +135,7 @@ namespace Dotmim.Sync
 
 
 
-        /// <summary>
-        /// Disabling all constraints on synced tables
-        /// </summary>
-        private ChangeApplicationAction DisableConstraints(SyncContext context, SyncSet schema, DbConnection connection, DbTransaction transaction)
-        {
-            if (schema == null || schema.Tables.Count <= 0)
-                return ChangeApplicationAction.Continue;
-
-            for (var i = 0; i < schema.Tables.Count; i++)
-            {
-                var tableDescription = schema.Tables[schema.Tables.Count - i - 1];
-
-                var builder = this.GetDatabaseBuilder(tableDescription);
-                var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
-
-                // reset table
-                syncAdapter.DisableConstraints();
-
-            }
-            return ChangeApplicationAction.Continue;
-        }
-
-
-        /// <summary>
-        /// Disabling all constraints on synced tables
-        /// </summary>
-        private ChangeApplicationAction EnableConstraints(SyncContext context, SyncSet schema, DbConnection connection, DbTransaction transaction)
-        {
-            if (schema == null || schema.Tables.Count <= 0)
-                return ChangeApplicationAction.Continue;
-
-            for (var i = 0; i < schema.Tables.Count; i++)
-            {
-                var tableDescription = schema.Tables[schema.Tables.Count - i - 1];
-                var builder = this.GetDatabaseBuilder(tableDescription);
-                var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
-
-                // reset table
-                syncAdapter.EnableConstraints();
-
-            }
-            return ChangeApplicationAction.Continue;
-        }
-
+     
 
         /// <summary>
         /// Apply changes internal method for one Insert or Update or Delete for every dbSyncAdapter
@@ -515,6 +474,50 @@ namespace Dotmim.Sync
         }
 
 
+        /// <summary>
+        /// Disabling all constraints on synced tables
+        /// Since we can disable at the database level
+        /// Just check for one available table and execute for the whole db
+        /// </summary>
+        internal void DisableConstraints(SyncContext context, SyncSet schema, DbConnection connection, DbTransaction transaction = null)
+        {
+            if (schema == null || schema.Tables.Count <= 0)
+                return;
+
+            // arbitrary table
+            var tableDescription = schema.Tables[0];
+
+            var builder = this.GetDatabaseBuilder(tableDescription);
+            var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
+
+            // disable constraints
+            syncAdapter.DisableConstraints();
+
+
+        }
+
+
+        /// <summary>
+        /// Enabling all constraints on synced tables
+        /// Since we can disable at the database level
+        /// Just check for one available table and execute for the whole db
+        /// </summary>
+        private ChangeApplicationAction EnableConstraints(SyncContext context, SyncSet schema, DbConnection connection, DbTransaction transaction)
+        {
+            if (schema == null || schema.Tables.Count <= 0)
+                return ChangeApplicationAction.Continue;
+
+            // arbitrary table
+            var tableDescription = schema.Tables[0];
+
+            var builder = this.GetDatabaseBuilder(tableDescription);
+            var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
+
+            // reset table
+            syncAdapter.EnableConstraints();
+
+            return ChangeApplicationAction.Continue;
+        }
 
 
     }

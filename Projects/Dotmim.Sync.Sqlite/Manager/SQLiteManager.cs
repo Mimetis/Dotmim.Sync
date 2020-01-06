@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Data.Common;
-
+using Dotmim.Sync.Sqlite.Manager;
 
 namespace Dotmim.Sync.Sqlite
 {
@@ -16,9 +16,7 @@ namespace Dotmim.Sync.Sqlite
 
         public override IDbManagerTable CreateManagerTable(DbConnection connection, DbTransaction transaction = null)
         {
-            // TODO : works with PRAGMA table_info('TableNAme');
-            Console.WriteLine("At this time, Sqlite does not support getting table structure from Sqlite metadatas");
-            return null;
+            return new SqliteManagerTable(connection, transaction) { TableName = this.TableName };
         }
 
 

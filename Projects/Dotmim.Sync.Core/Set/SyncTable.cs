@@ -169,44 +169,54 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the collection of child relations for this SyncTable.
         /// </summary>
-        public IEnumerable<SyncRelation> GetChildRelations()
-        {
-            if (this.Schema == null)
-                return Enumerable.Empty<SyncRelation>();
+        //public IEnumerable<SyncRelation> GetChildRelations()
+        //{
+        //    if (this.Schema == null)
+        //        return Enumerable.Empty<SyncRelation>();
 
-            var childRelations = this.Schema.Relations.Where(r =>
-            {
-                if (r.ParentKeys.Count() <= 0)
-                    return false;
+        //    var childRelations = this.Schema.Relations.Where(r =>
+        //    {
+        //        if (r.Keys.Count() <= 0)
+        //            return false;
 
-                var parentTable = r.GetParentTable();
+        //        var childTable = r.GetTable();
 
-                return parentTable == this;
-            });
+        //        return childTable == this;
+        //    });
 
-            return childRelations;
-        }
+        //    return childRelations;
+        //}
 
         /// <summary>
         /// Gets the collection of parent relations for this SchemaTable.
         /// </summary>
-        public IEnumerable<SyncRelation> GetParentRelations()
+        //public IEnumerable<SyncRelation> GetParentRelations()
+        //{
+        //    if (this.Schema == null)
+        //        return Enumerable.Empty<SyncRelation>();
+
+        //    var parentRelations = this.Schema.Relations.Where(r =>
+        //    {
+        //        if (r.ParentKeys.Count() <= 0)
+        //            return false;
+
+        //        var parentTable = r.GetParentTable();
+
+        //        return parentTable == this;
+        //    });
+
+        //    return parentRelations;
+        //}
+
+        public IEnumerable<SyncRelation> GetRelations()
         {
             if (this.Schema == null)
                 return Enumerable.Empty<SyncRelation>();
 
-            var childRelations = this.Schema.Relations.Where(r =>
-            {
-                if (r.ChildKeys.Count() <= 0)
-                    return false;
-
-                var childTable = r.GetChildTable();
-
-                return childTable == this;
-            });
-
-            return childRelations;
+            return this.Schema.Relations.Where(r => r.GetTable() == this);
         }
+
+
 
         /// <summary>
         /// Get all columns that can be updated

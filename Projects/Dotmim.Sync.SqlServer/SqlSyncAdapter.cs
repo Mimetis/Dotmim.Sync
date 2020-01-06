@@ -448,7 +448,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         public override DbCommand GetCommand(DbCommandType nameType, IEnumerable<SyncFilter> filters = null)
         {
-            var command = this.Connection.CreateCommand();
+            var command = this.Connection.CreateCommand() as SqlCommand;
 
             string text;
             bool isStoredProc;
@@ -459,10 +459,10 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             command.CommandType = isStoredProc ? CommandType.StoredProcedure : CommandType.Text;
             command.CommandText = text;
-            command.Connection = Connection;
+            command.Connection = Connection as SqlConnection;
 
             if (Transaction != null)
-                command.Transaction = Transaction;
+                command.Transaction = Transaction as SqlTransaction;
 
             return command;
         }
@@ -477,6 +477,24 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             if (command.Parameters != null && command.Parameters.Count > 0)
                 return;
+
+
+            // special case for constraint
+            if (commandType == DbCommandType.DisableConstraints || commandType == DbCommandType.EnableConstraints)
+            {
+                string check = commandType == DbCommandType.DisableConstraints ? "NOCHECK" : "CHECK";
+
+                var p = command.CreateParameter();
+                p.ParameterName = "@command1";
+                p.DbType = DbType.String;
+                p.Value = $"ALTER TABLE ? {check} CONSTRAINT ALL";
+                command.Parameters.Add(p);
+
+                return;
+            }
+
+
+
 
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 

@@ -3,6 +3,7 @@ using Dotmim.Sync.Data;
 using MySql.Data.MySqlClient;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Data.Common;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -12,20 +13,66 @@ namespace Dotmim.Sync.MySql
     public static class MySqlManagementUtils
     {
 
-        public static DmTable ColumnsForTable(MySqlConnection connection, MySqlTransaction transaction, string tableName)
+        public static DmTable Table(MySqlConnection connection, MySqlTransaction transaction, string tableName)
         {
-            string commandColumn = "select * from information_schema.COLUMNS where table_schema = schema() and table_name = @tableName";
+            string commandColumn = "select * from information_schema.TABLES where table_schema = schema() and table_name = @tableName limit 1;";
 
             var tableNameParser = ParserName.Parse(tableName, "`");
-            DmTable dmTable = new DmTable(tableNameParser.Unquoted().ToString());
-            using (MySqlCommand sqlCommand = new MySqlCommand(commandColumn, connection, transaction))
+            var dmTable = new DmTable(tableNameParser.Unquoted().ToString());
+            using (var sqlCommand = new MySqlCommand(commandColumn, connection))
             {
                 sqlCommand.Parameters.AddWithValue("@tableName", tableNameParser.Unquoted().ToString());
+
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    connection.Open();
+
+                if (transaction != null)
+                    sqlCommand.Transaction = transaction;
+
 
                 using (var reader = sqlCommand.ExecuteReader())
                 {
                     dmTable.Fill(reader);
                 }
+
+
+                if (!alreadyOpened)
+                    connection.Close();
+
+            }
+            return dmTable;
+        }
+
+        public static DmTable ColumnsForTable(MySqlConnection connection, MySqlTransaction transaction, string tableName)
+        {
+            string commandColumn = "select * from information_schema.COLUMNS where table_schema = schema() and table_name = @tableName";
+
+            var tableNameParser = ParserName.Parse(tableName, "`");
+            var dmTable = new DmTable(tableNameParser.Unquoted().ToString());
+            using (var sqlCommand = new MySqlCommand(commandColumn, connection))
+            {
+                sqlCommand.Parameters.AddWithValue("@tableName", tableNameParser.Unquoted().ToString());
+
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    connection.Open();
+
+                if (transaction != null)
+                    sqlCommand.Transaction = transaction;
+
+
+                using (var reader = sqlCommand.ExecuteReader())
+                {
+                    dmTable.Fill(reader);
+                }
+
+
+                if (!alreadyOpened)
+                    connection.Close();
+
             }
             return dmTable;
         }
@@ -37,14 +84,28 @@ namespace Dotmim.Sync.MySql
 
             var tableNameParser = ParserName.Parse(tableName, "`");
             var dmTable = new DmTable(tableNameParser.Unquoted().ToString());
-            using (var sqlCommand = new MySqlCommand(commandColumn, connection, transaction))
+            using (var sqlCommand = new MySqlCommand(commandColumn, connection))
             {
                 sqlCommand.Parameters.AddWithValue("@tableName", tableNameParser.Unquoted().ToString());
+
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    connection.Open();
+
+                if (transaction != null)
+                    sqlCommand.Transaction = transaction;
+
 
                 using (var reader = sqlCommand.ExecuteReader())
                 {
                     dmTable.Fill(reader);
                 }
+
+
+                if (!alreadyOpened)
+                    connection.Close();
+
             }
             return dmTable;
         }
@@ -55,30 +116,42 @@ namespace Dotmim.Sync.MySql
             SELECT
               ke.CONSTRAINT_NAME as ForeignKey,
               ke.POSITION_IN_UNIQUE_CONSTRAINT as ForeignKeyOrder,
-              ke.referenced_table_name as TableName,
-              ke.REFERENCED_COLUMN_NAME as ColumnName,
-              ke.table_name ReferenceTableName,
-              ke.COLUMN_NAME ReferenceColumnName
+              ke.referenced_table_name as ReferenceTableName,
+              ke.REFERENCED_COLUMN_NAME as ReferenceColumnName,
+              ke.table_name TableName,
+              ke.COLUMN_NAME ColumnName
             FROM
               information_schema.KEY_COLUMN_USAGE ke
             WHERE
               ke.referenced_table_name IS NOT NULL
-              and ke.REFERENCED_TABLE_SCHEMA = schema()
-              AND ke.REFERENCED_TABLE_NAME = @tableName
+              and ke.table_schema = schema()
+              AND ke.table_name = @tableName
             ORDER BY
               ke.referenced_table_name;";
 
             var tableNameParser = ParserName.Parse(tableName, "`");
 
             var dmTable = new DmTable(tableNameParser.Unquoted().ToString());
-            using (MySqlCommand sqlCommand = new MySqlCommand(commandRelations, connection, transaction))
+            using (var sqlCommand = new MySqlCommand(commandRelations, connection))
             {
                 sqlCommand.Parameters.AddWithValue("@tableName", tableNameParser.Unquoted().ToString());
+
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    connection.Open();
+
+                if (transaction != null)
+                    sqlCommand.Transaction = transaction;
 
                 using (var reader = sqlCommand.ExecuteReader())
                 {
                     dmTable.Fill(reader);
                 }
+
+                if (!alreadyOpened)
+                    connection.Close();
+
             }
 
 
@@ -96,10 +169,19 @@ namespace Dotmim.Sync.MySql
 
                 dbCommand.Parameters.AddWithValue("@tableName", tableNameParser.Unquoted().ToString());
 
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    connection.Open();
+
                 if (transaction != null)
                     dbCommand.Transaction = transaction;
 
                 dbCommand.ExecuteNonQuery();
+
+                if (!alreadyOpened)
+                    connection.Close();
+
             }
         }
 
@@ -149,6 +231,11 @@ namespace Dotmim.Sync.MySql
             {
                 dbCommand.CommandText = "select COUNT(*) from information_schema.TABLES where TABLE_NAME = @tableName and TABLE_SCHEMA = schema() and TABLE_TYPE = 'BASE TABLE'";
 
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    connection.Open();
+
                 if (transaction != null)
                     dbCommand.Transaction = transaction;
 
@@ -161,6 +248,11 @@ namespace Dotmim.Sync.MySql
                 dbCommand.Parameters.Add(sqlParameter);
 
                 tableExist = (Int64)dbCommand.ExecuteScalar() != 0;
+
+
+                if (!alreadyOpened)
+                    connection.Close();
+
 
             }
             return tableExist;
@@ -178,10 +270,20 @@ namespace Dotmim.Sync.MySql
 
                 dbCommand.Parameters.AddWithValue("@triggerName", triggerName.Unquoted().ToString());
 
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    connection.Open();
+
                 if (transaction != null)
                     dbCommand.Transaction = transaction;
 
                 triggerExist = (long)dbCommand.ExecuteScalar() != 0L;
+
+
+                if (!alreadyOpened)
+                    connection.Close();
+
             }
             return triggerExist;
         }
@@ -200,10 +302,20 @@ namespace Dotmim.Sync.MySql
 
                 dbCommand.Parameters.AddWithValue("@procName", commandNameString.Unquoted().ToString());
 
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    connection.Open();
+
                 if (transaction != null)
                     dbCommand.Transaction = transaction;
 
                 procExist = (long)dbCommand.ExecuteScalar() != 0L;
+
+
+                if (!alreadyOpened)
+                    connection.Close();
+
             }
             return procExist;
         }
