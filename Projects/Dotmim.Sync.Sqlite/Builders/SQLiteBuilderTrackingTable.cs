@@ -348,7 +348,7 @@ namespace Dotmim.Sync.Sqlite
 
             try
             {
-                using (var command = new SqliteCommand($"DROP TABLE IF EXISTS {tableName.Quoted().ToString()}", connection))
+                using (var command = new SqliteCommand($"DROP TABLE IF EXISTS {trackingName.Quoted().ToString()}", connection))
                 {
                     if (!alreadyOpened)
                         connection.Open();

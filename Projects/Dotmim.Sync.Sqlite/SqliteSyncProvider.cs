@@ -60,13 +60,7 @@ namespace Dotmim.Sync.Sqlite
         /// </summary>
         public override bool CanBeServerProvider => false;
 
-        public override string ProviderTypeName
-        {
-            get
-            {
-                return ProviderType;
-            }
-        }
+        public override string ProviderTypeName => ProviderType;
 
         public static string ProviderType
         {
@@ -85,7 +79,32 @@ namespace Dotmim.Sync.Sqlite
         public SqliteSyncProvider() : base()
         {
         }
-        public SqliteSyncProvider(string filePath) : base()
+
+        /// <summary>
+        /// Override Options for settings special PRAGMA stuff
+        /// </summary>
+        public override SyncOptions Options
+        {
+            get
+            {
+                return base.Options;
+            }
+            set
+            {
+                base.Options = value;
+
+                // Affect options
+                var builder = new SqliteConnectionStringBuilder(this.ConnectionString)
+                {
+                    // overriding connectionstring
+                    ForeignKeys = !this.Options.DisableConstraintsOnApplyChanges
+                };
+
+                this.ConnectionString = builder.ToString();
+            }
+        }
+
+        public SqliteSyncProvider(string filePath) : this()
         {
             this.filePath = filePath;
             var builder = new SqliteConnectionStringBuilder();
@@ -111,29 +130,29 @@ namespace Dotmim.Sync.Sqlite
 
         }
 
-        public SqliteSyncProvider(FileInfo fileInfo) : base()
+        public SqliteSyncProvider(FileInfo fileInfo) : this()
         {
             this.filePath = fileInfo.FullName;
             var builder = new SqliteConnectionStringBuilder { DataSource = filePath };
-            
+
             this.ConnectionString = builder.ConnectionString;
         }
 
 
 
-        public SqliteSyncProvider(SqliteConnectionStringBuilder sQLiteConnectionStringBuilder) : base()
+        public SqliteSyncProvider(SqliteConnectionStringBuilder sqliteConnectionStringBuilder) : this()
         {
-            if (String.IsNullOrEmpty(sQLiteConnectionStringBuilder.DataSource))
+            if (String.IsNullOrEmpty(sqliteConnectionStringBuilder.DataSource))
                 throw new Exception("You have to provide at least a DataSource property to be able to connect to your SQlite database.");
 
-            this.filePath = sQLiteConnectionStringBuilder.DataSource;
+            this.filePath = sqliteConnectionStringBuilder.DataSource;
 
-            this.ConnectionString = sQLiteConnectionStringBuilder.ConnectionString;
+            this.ConnectionString = sqliteConnectionStringBuilder.ConnectionString;
         }
 
         public override DbConnection CreateConnection()
         {
-         var sqliteConnection =   new SqliteConnection(this.ConnectionString);
+            var sqliteConnection = new SqliteConnection(this.ConnectionString);
             return sqliteConnection;
         }
 

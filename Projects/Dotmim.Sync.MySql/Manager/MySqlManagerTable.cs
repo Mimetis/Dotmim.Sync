@@ -13,13 +13,12 @@ namespace Dotmim.Sync.MySql
     public class MySqlManagerTable : IDbManagerTable
     {
         private string tableName;
-        private string schemaName;
         private readonly MySqlTransaction sqlTransaction;
         private readonly MySqlConnection sqlConnection;
         private readonly MySqlDbMetadata mySqlDbMetadata;
 
         public string TableName { set => this.tableName = value; }
-        public string SchemaName { set => this.schemaName = value; }
+        public string SchemaName { set { } }
 
         public MySqlManagerTable(DbConnection connection, DbTransaction transaction = null)
         {
@@ -28,10 +27,23 @@ namespace Dotmim.Sync.MySql
             this.mySqlDbMetadata = new MySqlDbMetadata();
         }
 
+        public SyncTable GetTable()
+        {
+            var dmTable = MySqlManagementUtils.Table(this.sqlConnection, this.sqlTransaction, this.tableName);
 
-  
+            if (dmTable == null || dmTable.Rows == null || dmTable.Rows.Count <= 0)
+                return null;
 
-        IEnumerable<SyncColumn> IDbManagerTable.GetTableDefinition()
+            // Get Table
+            var dmRow = dmTable.Rows[0];
+            var tblName = dmRow["TABLE_NAME"].ToString();
+
+            return new SyncTable(tblName);
+        }
+
+
+
+        public IEnumerable<SyncColumn> GetColumns()
         {
             var columns = new List<SyncColumn>();
 
@@ -83,7 +95,7 @@ namespace Dotmim.Sync.MySql
             return columns.ToArray();
         }
 
-        IEnumerable<DbRelationDefinition> IDbManagerTable.GetTableRelations()
+        public IEnumerable<DbRelationDefinition> GetRelations()
         {
             var relations = new List<DbRelationDefinition>();
 
@@ -91,7 +103,8 @@ namespace Dotmim.Sync.MySql
 
             if (dmRelations != null && dmRelations.Rows.Count > 0)
             {
-                foreach (var fk in dmRelations.Rows.GroupBy(row => new { Name = (string)row["ForeignKey"], TableName = (string)row["TableName"], ReferenceTableName = (string)row["ReferenceTableName"] }))
+                foreach (var fk in dmRelations.Rows.GroupBy(row => 
+                    new { Name = (string)row["ForeignKey"], TableName = (string)row["TableName"], ReferenceTableName = (string)row["ReferenceTableName"] }))
                 {
                     var relationDefinition = new DbRelationDefinition()
                     {
@@ -115,7 +128,7 @@ namespace Dotmim.Sync.MySql
             return relations.ToArray();
         }
 
-        public IEnumerable<SyncColumn> GetTablePrimaryKeys()
+        public IEnumerable<SyncColumn> GetPrimaryKeys()
         {
             // Get PrimaryKey
             var dmTableKeys = MySqlManagementUtils.PrimaryKeysForTable(this.sqlConnection, this.sqlTransaction, this.tableName);

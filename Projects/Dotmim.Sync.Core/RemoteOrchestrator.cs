@@ -46,6 +46,10 @@ namespace Dotmim.Sync
             using (var connection = this.Provider.CreateConnection())
             {
                 await connection.OpenAsync().ConfigureAwait(false);
+
+                // Let provider knows a connection is opened
+                this.Provider.OnConnectionOpened(connection);
+
                 await this.Provider.InterceptAsync(new ConnectionOpenArgs(context, connection)).ConfigureAwait(false);
 
                 // Create a transaction
@@ -93,6 +97,8 @@ namespace Dotmim.Sync
 
                         await this.Provider.InterceptAsync(new ConnectionCloseArgs(context, connection, transaction)).ConfigureAwait(false);
 
+                        // Let provider knows a connection is closed
+                        this.Provider.OnConnectionClosed(connection);
                     }
 
                 }
@@ -114,6 +120,10 @@ namespace Dotmim.Sync
             using (var connection = this.Provider.CreateConnection())
             {
                 await connection.OpenAsync().ConfigureAwait(false);
+
+                // Let provider knows a connection is opened
+                this.Provider.OnConnectionOpened(connection);
+
                 await this.Provider.InterceptAsync(new ConnectionOpenArgs(context, connection)).ConfigureAwait(false);
 
                 // Create a transaction
@@ -177,6 +187,8 @@ namespace Dotmim.Sync
 
                         await this.Provider.InterceptAsync(new ConnectionCloseArgs(context, connection, transaction)).ConfigureAwait(false);
 
+                        // Let provider knows a connection is closed
+                        this.Provider.OnConnectionClosed(connection);
                     }
                 }
             }

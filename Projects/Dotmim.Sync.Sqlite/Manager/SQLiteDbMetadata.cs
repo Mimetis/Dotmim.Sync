@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Data;
 using Dotmim.Sync.Data;
+using Microsoft.Data.Sqlite;
 
 namespace Dotmim.Sync.Sqlite
 {
@@ -91,12 +92,17 @@ namespace Dotmim.Sync.Sqlite
 
         public override bool IsNumericType(string typeName)
         {
-            return (typeName.ToLowerInvariant() == "numeric");
+            typeName = typeName.ToLowerInvariant();
+            
+            if (typeName.Contains("("))
+                typeName = typeName.Substring(0, typeName.IndexOf("("));
+
+            return typeName == "numeric" || typeName == "decimal";
         }
 
         public override bool IsTextType(string typeName)
         {
-            return (typeName.ToLowerInvariant() == "text");
+            return typeName.ToLowerInvariant() == "text";
         }
 
         public bool IsTextType(DbType dbType)
@@ -115,11 +121,20 @@ namespace Dotmim.Sync.Sqlite
 
         public override bool IsValid(SyncColumn columnDefinition)
         {
-            switch (columnDefinition.OriginalTypeName.ToLowerInvariant())
+            var typeName = columnDefinition.OriginalTypeName.ToLowerInvariant();
+
+            if (typeName.Contains("("))
+                typeName = typeName.Substring(0, typeName.IndexOf("("));
+
+            switch (typeName)
             {
                 case "integer":
+                case "decimal":
+                case "bit":
+                case "bigint":
                 case "numeric":
                 case "blob":
+                case "image":
                 case "datetime":
                 case "text":
                     return true;
@@ -129,18 +144,27 @@ namespace Dotmim.Sync.Sqlite
 
         public override bool SupportScale(string typeName)
         {
-            return typeName.ToLowerInvariant() == "numeric";
+            return typeName.ToLowerInvariant() == "numeric" || typeName.ToLowerInvariant() == "decimal";
         }
 
         public override DbType ValidateDbType(string typeName, bool isUnsigned, bool isUnicode, long maxLength)
         {
+            if (typeName.Contains("("))
+                typeName = typeName.Substring(0, typeName.IndexOf("("));
+
             switch (typeName.ToLowerInvariant())
             {
+                case "bit":
+                    return DbType.Boolean;
                 case "integer":
+                case "bigint":
                     return DbType.Int64;
                 case "numeric":
                     return DbType.Double;
+                case "decimal":
+                    return DbType.Decimal;
                 case "blob":
+                case "image":
                     return DbType.Binary;
                 case "datetime":
                     return DbType.DateTime;
@@ -164,7 +188,27 @@ namespace Dotmim.Sync.Sqlite
 
         public override object ValidateOwnerDbType(string typeName, bool isUnsigned, bool isUnicode, long maxLength)
         {
-            return ValidateDbType(typeName, isUnsigned, isUnicode, maxLength);
+            if (typeName.Contains("("))
+                typeName = typeName.Substring(0, typeName.IndexOf("("));
+
+            switch (typeName.ToLowerInvariant())
+            {
+                case "bit":
+                case "integer":
+                case "bigint":
+                    return SqliteType.Integer;
+                case "numeric":
+                case "decimal":
+                    return SqliteType.Real;
+                case "blob":
+                case "image":
+                    return SqliteType.Blob;
+                case "datetime":
+                case "text":
+                    return SqliteType.Text;
+
+            }
+            throw new Exception($"this type name {typeName} is not supported");
         }
 
         public override byte ValidatePrecision(SyncColumn columnDefinition)

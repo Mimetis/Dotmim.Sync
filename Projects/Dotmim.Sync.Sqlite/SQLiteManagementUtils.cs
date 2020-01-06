@@ -5,11 +5,145 @@ using System.Text;
 using System.Linq;
 using Microsoft.Data.Sqlite;
 using Dotmim.Sync.Builders;
+using System;
+using System.Data;
 
 namespace Dotmim.Sync.Sqlite
 {
     internal static class SqliteManagementUtils
     {
+
+        public static DmTable Table(SqliteConnection connection, SqliteTransaction transaction, string tableName)
+        {
+            string command = "select * from sqlite_master where name = @tableName limit 1";
+
+            var tableNameNormalized = ParserName.Parse(tableName).Unquoted().Normalized().ToString();
+            var tableNameString = ParserName.Parse(tableName).ToString();
+
+            var dmTable = new DmTable(tableNameNormalized);
+            using (var sqlCommand = new SqliteCommand(command, connection))
+            {
+                sqlCommand.Parameters.AddWithValue("@tableName", tableNameString);
+
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    connection.Open();
+
+                if (transaction != null)
+                    sqlCommand.Transaction = transaction;
+
+                using (var reader = sqlCommand.ExecuteReader())
+                {
+                    dmTable.Fill(reader);
+                }
+
+
+                if (!alreadyOpened)
+                    connection.Close();
+
+            }
+            return dmTable;
+        }
+
+
+        public static DmTable ColumnsForTable(SqliteConnection connection, SqliteTransaction transaction, string tableName)
+        {
+
+            var tableNameParser = ParserName.Parse(tableName, "`");
+            var tableNameString = tableNameParser.Unquoted().ToString();
+
+            string commandColumn = $"SELECT * FROM pragma_table_info('{tableName}');";
+            var dmTable = new DmTable(tableNameString);
+
+            using (var sqlCommand = new SqliteCommand(commandColumn, connection))
+            {
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    connection.Open();
+
+                if (transaction != null)
+                    sqlCommand.Transaction = transaction;
+
+
+                using (var reader = sqlCommand.ExecuteReader())
+                {
+                    dmTable.Fill(reader);
+                }
+
+
+                if (!alreadyOpened)
+                    connection.Close();
+
+            }
+            return dmTable;
+        }
+
+
+        public static DmTable PrimaryKeysForTable(SqliteConnection connection, SqliteTransaction transaction, string tableName)
+        {
+
+            var tableNameParser = ParserName.Parse(tableName, "`");
+            var tableNameString = tableNameParser.Unquoted().ToString();
+
+            string commandColumn = $"SELECT * FROM pragma_table_info('{tableName}') where pk = 1;";
+            var dmTable = new DmTable(tableNameString);
+
+            using (var sqlCommand = new SqliteCommand(commandColumn, connection))
+            {
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    connection.Open();
+
+                if (transaction != null)
+                    sqlCommand.Transaction = transaction;
+
+
+                using (var reader = sqlCommand.ExecuteReader())
+                {
+                    dmTable.Fill(reader);
+                }
+
+                if (!alreadyOpened)
+                    connection.Close();
+
+            }
+            return dmTable;
+        }
+
+        public static DmTable RelationsForTable(SqliteConnection connection, SqliteTransaction transaction, string tableName)
+        {
+            var tableNameParser = ParserName.Parse(tableName, "`");
+            var tableNameString = tableNameParser.Unquoted().ToString();
+
+            string commandColumn = $"SELECT * FROM pragma_foreign_key_list('{tableNameString}')";
+            var dmTable = new DmTable(tableNameString);
+
+            using (var sqlCommand = new SqliteCommand(commandColumn, connection))
+            {
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    connection.Open();
+
+                if (transaction != null)
+                    sqlCommand.Transaction = transaction;
+
+
+                using (var reader = sqlCommand.ExecuteReader())
+                {
+                    dmTable.Fill(reader);
+                }
+
+                if (!alreadyOpened)
+                    connection.Close();
+
+            }
+            return dmTable;
+        }
+
 
         public static void DropTableIfExists(SqliteConnection connection, SqliteTransaction transaction, string quotedTableName)
         {
@@ -56,7 +190,6 @@ namespace Dotmim.Sync.Sqlite
             var triggerName = ParserName.Parse(quotedTriggerName).ToString();
             return $"drop trigger {triggerName}";
         }
-
 
         public static bool TableExists(SqliteConnection connection, SqliteTransaction transaction, ParserName tableName)
         {

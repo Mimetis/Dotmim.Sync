@@ -1,4 +1,5 @@
 using Dotmim.Sync.Tests.Core;
+using Dotmim.Sync.Tests.V2;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using System;
@@ -21,29 +22,22 @@ namespace Dotmim.Sync.Tests.Models
 
         public static Guid CustomerIdForFilter = Guid.NewGuid();
 
-        public AdventureWorksContext(ProviderFixture fixture, bool fallbackUseSchema = true, bool useSeeding = true) : this()
+
+        public AdventureWorksContext((string DatabaseName, ProviderType ProviderType, IOrchestrator RemoteOrchestrator) t, bool fallbackUseSchema = true, bool useSeeding = false) : this()
         {
-            this.ProviderType = fixture.ProviderType;
-            this.ConnectionString = HelperDB.GetConnectionString(fixture.ProviderType, fixture.DatabaseName);
+            this.ProviderType = t.ProviderType;
+            this.ConnectionString = HelperDB.GetConnectionString(t.ProviderType, t.DatabaseName);
             this.useSeeding = useSeeding;
             this.useSchema = this.ProviderType == ProviderType.Sql && fallbackUseSchema;
+
         }
 
-        public AdventureWorksContext(ProviderRun providerRun, DbConnection connection, bool fallbackUseSchema = true, bool useSeeding = true) : this()
+        public AdventureWorksContext(ProviderType providerType, string databaseName, bool fallbackUseSchema = true, bool useSeeding = false) : this()
         {
-            this.ProviderType = providerRun.ClientProviderType;
-            this.Connection = connection;
+            this.ProviderType = providerType;
+            this.ConnectionString = HelperDB.GetConnectionString(providerType, databaseName);
             this.useSeeding = useSeeding;
             this.useSchema = this.ProviderType == ProviderType.Sql && fallbackUseSchema;
-        }
-        public AdventureWorksContext(ProviderRun providerRun, bool fallbackUseSchema = true, bool useSeeding = true) : this()
-        {
-
-            this.ProviderType = providerRun.ClientProviderType;
-            this.ConnectionString = providerRun.ConnectionString;
-
-            this.useSchema = this.ProviderType == ProviderType.Sql && fallbackUseSchema;
-            this.useSeeding = useSeeding;
         }
 
         public AdventureWorksContext(DbContextOptions<AdventureWorksContext> options)
@@ -704,7 +698,7 @@ namespace Dotmim.Sync.Tests.Models
 
                 // since mysql ef provider does not support Object as type in a property
                 // just ignore it for this provider
-                if (this.ProviderType == ProviderType.MySql)
+                if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.Sqlite)
                     entity.Ignore(e => e.Value);
                 else
                     entity.Property(e => e.Value).HasColumnType("sql_variant");
@@ -750,8 +744,11 @@ namespace Dotmim.Sync.Tests.Models
                     .WithMany(c => c.Details);
 
                 // Adding a compute column
-                entity.Property(d => d.Total)
-                    .HasComputedColumnSql("Amount - Discount");
+                if (this.ProviderType != ProviderType.Sqlite)
+                {
+                    entity.Property(d => d.Total)
+                        .HasComputedColumnSql("Amount - Discount");
+                }
 
                 entity.Property(d => d.ProductId)
                     .IsRequired();
