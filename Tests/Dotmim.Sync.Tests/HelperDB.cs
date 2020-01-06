@@ -60,7 +60,6 @@ namespace Dotmim.Sync.Tests
                     con =GetSqliteDatabaseConnectionString(dbName);
                     break;
             }
-            Console.WriteLine($"[{providerType}]-[{dbName}]: {con}");
 
             // default 
             return con;
