@@ -14,9 +14,11 @@ using System.Data;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace Dotmim.Sync.Tests.V2
 {
@@ -42,8 +44,11 @@ namespace Dotmim.Sync.Tests.V2
         /// </summary>
         public abstract int GetServerDatabaseRowsCount((string DatabaseName, ProviderType ProviderType, IOrchestrator Orchestrator) t);
 
+        private Stopwatch stopwatch;
+
         // abstract fixture used to run the tests
         protected readonly HelperProvider fixture;
+        private ITest test;
 
         /// <summary>
         /// Gets the remote orchestrator and its database name
@@ -55,12 +60,21 @@ namespace Dotmim.Sync.Tests.V2
         /// </summary>
         public List<(string DatabaseName, ProviderType ProviderType, LocalOrchestrator LocalOrchestrator)> Clients { get; set; }
 
-
         /// <summary>
         /// For each test, Create a server database and some clients databases, depending on ProviderType provided in concrete class
         /// </summary>
-        public TcpTests(HelperProvider fixture)
+        public TcpTests(HelperProvider fixture, ITestOutputHelper output)
         {
+
+            var type = output.GetType();
+            var testMember = type.GetField("test", BindingFlags.Instance | BindingFlags.NonPublic);
+            this.test = (ITest)testMember.GetValue(output);
+
+            Console.WriteLine($"{test.DisplayName}");
+            Debug.WriteLine(test.DisplayName);
+            this.stopwatch = Stopwatch.StartNew();
+
+
             this.fixture = fixture;
 
             // get the server provider (and db created) without seed
@@ -95,6 +109,13 @@ namespace Dotmim.Sync.Tests.V2
 
             foreach (var client in Clients)
                 HelperDatabase.DropDatabase(client.ProviderType, client.DatabaseName);
+
+            this.stopwatch.Stop();
+
+            var str = $"{this.stopwatch.Elapsed.Minutes}:{this.stopwatch.Elapsed.Seconds}.{this.stopwatch.Elapsed.Milliseconds}";
+            Console.WriteLine(str);
+            Debug.WriteLine(str);
+
         }
 
         [Theory]
