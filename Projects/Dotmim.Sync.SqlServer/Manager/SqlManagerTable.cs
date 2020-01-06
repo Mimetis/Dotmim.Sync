@@ -25,14 +25,36 @@ namespace Dotmim.Sync.SqlServer.Manager
             this.sqlTransaction = transaction as SqlTransaction;
         }
 
-        public IEnumerable<DbRelationDefinition> GetTableRelations()
+        public SyncTable GetTable()
+        {
+            var dmTable = SqlManagementUtils.Table(this.sqlConnection, this.sqlTransaction, this.tableName, this.schemaName);
+
+            if (dmTable == null || dmTable.Rows == null || dmTable.Rows.Count <= 0)
+                return null;
+
+            // Get Table
+            var dmRow = dmTable.Rows[0];
+            var tblName = dmRow["TableName"].ToString();
+            var schName = dmRow["SchemaName"].ToString();
+
+            if (schName == "dbo")
+                schName = null;
+
+            return new SyncTable(tblName, schName);
+        }
+
+        public IEnumerable<DbRelationDefinition> GetRelations()
         {
             var relations = new List<DbRelationDefinition>();
             var dmRelations = SqlManagementUtils.RelationsForTable(this.sqlConnection, this.sqlTransaction, this.tableName, this.schemaName);
 
             if (dmRelations != null && dmRelations.Rows.Count > 0)
-                foreach (var fk in dmRelations.Rows.GroupBy(row => 
-                new { Name = (string)row["ForeignKey"],
+            {
+
+                foreach (var fk in dmRelations.Rows.GroupBy(row =>
+                new
+                {
+                    Name = (string)row["ForeignKey"],
                     TableName = (string)row["TableName"],
                     SchemaName = (string)row["SchemaName"] == "dbo" ? "" : (string)row["SchemaName"],
                     ReferenceTableName = (string)row["ReferenceTableName"],
@@ -59,10 +81,11 @@ namespace Dotmim.Sync.SqlServer.Manager
                     relations.Add(relationDefinition);
                 }
 
+            }
             return relations.ToArray();
         }
 
-        public IEnumerable<SyncColumn> GetTableDefinition()
+        public IEnumerable<SyncColumn> GetColumns()
         {
             var columns = new List<SyncColumn>();
             // Get the columns definition
@@ -118,7 +141,7 @@ namespace Dotmim.Sync.SqlServer.Manager
             return columns;
         }
 
-        public IEnumerable<SyncColumn> GetTablePrimaryKeys()
+        public IEnumerable<SyncColumn> GetPrimaryKeys()
         {
             var dmTableKeys = SqlManagementUtils.PrimaryKeysForTable(this.sqlConnection, this.sqlTransaction, this.tableName);
 

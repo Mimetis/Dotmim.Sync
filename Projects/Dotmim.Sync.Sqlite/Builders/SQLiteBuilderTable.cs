@@ -31,7 +31,7 @@ namespace Dotmim.Sync.Sqlite
         {
             SqliteCommand sqlCommand = new SqliteCommand();
 
-            var childTable = foreignKey.GetChildTable();
+            var childTable = foreignKey.GetTable();
             var childTableName = ParserName.Parse(childTable.TableName).Quoted().ToString();
 
             var parentTable = foreignKey.GetParentTable();
@@ -44,7 +44,7 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine(foreignKey.RelationName);
             stringBuilder.Append("FOREIGN KEY (");
             string empty = string.Empty;
-            foreach (var childColumn in foreignKey.ChildKeys)
+            foreach (var childColumn in foreignKey.Keys)
             {
                 var childColumnName = ParserName.Parse(childColumn.ColumnName).Quoted().ToString();
                 stringBuilder.Append($"{empty} {childColumnName}");
@@ -142,11 +142,11 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.Append(")");
 
             // Constraints
-            foreach (var constraint in this.tableDescription.GetParentRelations())
+            foreach (var constraint in this.tableDescription.GetRelations())
             {
                 // Don't want foreign key on same table since it could be a problem on first 
                 // sync. We are not sure that parent row will be inserted in first position
-                if (constraint.GetParentTable() == constraint.GetChildTable())
+                if (constraint.GetParentTable() == constraint.GetTable())
                     continue;
 
                 var parentTable = constraint.GetParentTable();
@@ -155,7 +155,7 @@ namespace Dotmim.Sync.Sqlite
                 stringBuilder.AppendLine();
                 stringBuilder.Append($"\tFOREIGN KEY (");
                 empty = string.Empty;
-                foreach (var column in constraint.ChildKeys)
+                foreach (var column in constraint.Keys)
                 {
                     var columnName = ParserName.Parse(column.ColumnName).Quoted().ToString();
                     stringBuilder.Append($"{empty} {columnName}");
@@ -225,11 +225,11 @@ namespace Dotmim.Sync.Sqlite
         /// </summary>
         private bool EnsureForeignKeysTableExist(SyncRelation foreignKey)
         {
-            var childTable = foreignKey.GetChildTable();
+            var childTable = foreignKey.GetTable();
             var parentTable = foreignKey.GetParentTable();
 
             // The foreignkey comes from the child table
-            var ds = foreignKey.GetChildTable().Schema;
+            var ds = foreignKey.GetTable().Schema;
 
             if (ds == null)
                 return false;

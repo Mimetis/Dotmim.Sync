@@ -62,6 +62,9 @@ namespace Dotmim.Sync
         /// </summary>
         public SyncOptions Options { get; set; }
 
+        /// <summary>
+        /// Set interceptors on the LocalOrchestrator
+        /// </summary>
         public void SetInterceptors(Interceptors interceptors)
             => this.LocalOrchestrator.On(interceptors);
 
@@ -72,14 +75,16 @@ namespace Dotmim.Sync
         public void AddRemoteProgress(IProgress<ProgressArgs> remoteProgress) => this.remoteProgress = remoteProgress;
 
         /// <summary>
-        /// Shortcut to Apply changed failed (supported by the local orchestrator)
+        /// Shortcut to Apply changed failed if remote orchestrator supports it
         /// </summary>
-        public void OnApplyChangesFailed(Func<ApplyChangesFailedArgs, Task> func) => this.LocalOrchestrator.OnApplyChangesFailed(func);
+        public void OnApplyChangesFailed(Func<ApplyChangesFailedArgs, Task> func) 
+            => this.RemoteOrchestrator.OnApplyChangesFailed(func);
 
         /// <summary>
-        /// Shortcut to Apply changed failed (supported by the local orchestrator)
+        /// Shortcut to Apply changed failed if remote orchestrator supports it
         /// </summary>
-        public void OnApplyChangesFailed(Action<ApplyChangesFailedArgs> action) => this.LocalOrchestrator.OnApplyChangesFailed(action);
+        public void OnApplyChangesFailed(Action<ApplyChangesFailedArgs> action) 
+            => this.RemoteOrchestrator.OnApplyChangesFailed(action);
 
 
         public SyncAgent(CoreProvider clientProvider, CoreProvider serverProvider,  string[] tables = null) : this(new LocalOrchestrator(clientProvider), new RemoteOrchestrator(serverProvider), tables)
@@ -103,7 +108,7 @@ namespace Dotmim.Sync
         }
 
 
-        public SyncAgent(ILocalOrchestrator localOrchestrator, IRemoteOrchestrator remoteOrchestrator, SyncSetup setup, SyncOptions options)
+        public SyncAgent(ILocalOrchestrator localOrchestrator, IRemoteOrchestrator remoteOrchestrator, SyncSetup setup, SyncOptions options = null)
         {
             if (remoteOrchestrator.Provider != null && !remoteOrchestrator.Provider.CanBeServerProvider)
                 throw new NotSupportedException();
@@ -120,6 +125,7 @@ namespace Dotmim.Sync
             // Affect local and remote orchestrators
             this.LocalOrchestrator = localOrchestrator;
             this.RemoteOrchestrator = remoteOrchestrator;
+
         }
 
 
@@ -150,6 +156,9 @@ namespace Dotmim.Sync
             // Create sync options if needed
             this.Options = this.Options ?? new SyncOptions();
 
+            // for view purpose, if needed
+            this.LocalOrchestrator.Provider.Options = this.Options;
+            this.RemoteOrchestrator.Provider.Options = this.Options;
 
             // Context, used to back and forth data between servers
             var context = new SyncContext(Guid.NewGuid())

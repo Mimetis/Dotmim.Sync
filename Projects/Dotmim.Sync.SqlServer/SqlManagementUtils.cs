@@ -14,6 +14,57 @@ namespace Dotmim.Sync.SqlServer
     public static class SqlManagementUtils
     {
 
+
+        /// <summary>
+        /// Get Table
+        /// </summary>
+        public static DmTable Table(SqlConnection connection, SqlTransaction transaction, string tableName, string schemaName)
+        {
+
+            var command = $"Select top 1 tbl.name as TableName, " +
+                          $"sch.name as SchemaName " +
+                          $"  from sys.tables as tbl  " +
+                          $"  Inner join sys.schemas as sch on tbl.schema_id = sch.schema_id " +
+                          $"  Where tbl.name = @tableName and sch.name = @schemaName ";
+
+            var tableNameNormalized = ParserName.Parse(tableName).Unquoted().Normalized().ToString();
+            var tableNameString = ParserName.Parse(tableName).ToString();
+
+            var schemaNameString = "dbo";
+            if (!string.IsNullOrEmpty(schemaName))
+            {
+                schemaNameString = ParserName.Parse(schemaName).ToString();
+                schemaNameString = string.IsNullOrWhiteSpace(schemaNameString) ? "dbo" : schemaNameString;
+            }
+
+            var dmTable = new DmTable(tableNameNormalized);
+            using (var sqlCommand = new SqlCommand(command, connection))
+            {
+                sqlCommand.Parameters.AddWithValue("@tableName", tableNameString);
+                sqlCommand.Parameters.AddWithValue("@schemaName", schemaNameString);
+
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    connection.Open();
+
+                if (transaction != null)
+                    sqlCommand.Transaction = transaction;
+
+                using (var reader = sqlCommand.ExecuteReader())
+                {
+                    dmTable.Fill(reader);
+                }
+
+
+                if (!alreadyOpened)
+                    connection.Close();
+
+            }
+            return dmTable;
+        }
+
+
         /// <summary>
         /// Get columns for table
         /// </summary>
@@ -127,16 +178,16 @@ namespace Dotmim.Sync.SqlServer
             var commandRelations = @"
                 SELECT f.name AS ForeignKey,
                     constraint_column_id as ForeignKeyOrder,
-                    SCHEMA_NAME (reft.schema_id) AS SchemaName,
-                    OBJECT_NAME (f.referenced_object_id)  AS TableName,
-                    COL_NAME(fc.referenced_object_id, fc.referenced_column_id) AS ColumnName,
-                    SCHEMA_NAME (f.schema_id)  AS ReferenceSchemaName,
-                    OBJECT_NAME(f.parent_object_id) AS ReferenceTableName,
-                    COL_NAME(fc.parent_object_id, fc.parent_column_id) AS ReferenceColumnName
+                    SCHEMA_NAME (f.schema_id)  AS SchemaName,
+                    OBJECT_NAME(f.parent_object_id) AS TableName,
+                    COL_NAME(fc.parent_object_id, fc.parent_column_id) AS ColumnName,
+                    SCHEMA_NAME (reft.schema_id) AS ReferenceSchemaName,
+                    OBJECT_NAME (f.referenced_object_id)  AS ReferenceTableName,
+                    COL_NAME(fc.referenced_object_id, fc.referenced_column_id) AS ReferenceColumnName
                 FROM sys.foreign_keys AS f
                 INNER JOIN sys.foreign_key_columns AS fc ON f.OBJECT_ID = fc.constraint_object_id
                 INNER JOIN sys.tables reft on reft.object_id =  f.referenced_object_id
-                WHERE OBJECT_NAME(f.referenced_object_id) = @tableName AND SCHEMA_NAME(reft.schema_id) = @schemaName";
+                WHERE OBJECT_NAME(f.parent_object_id) = @tableName AND SCHEMA_NAME(f.schema_id) = @schemaName";
 
             var tableNameNormalized = ParserName.Parse(tableName).Unquoted().Normalized().ToString();
             var tableNameString = ParserName.Parse(tableName).ToString();

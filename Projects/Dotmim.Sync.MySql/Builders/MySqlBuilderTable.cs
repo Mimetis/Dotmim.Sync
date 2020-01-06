@@ -57,29 +57,29 @@ namespace Dotmim.Sync.MySql
         }
 
 
-        private MySqlCommand BuildForeignKeyConstraintsCommand(SyncRelation foreignKey)
+        private MySqlCommand BuildForeignKeyConstraintsCommand(SyncRelation constraint)
         {
             var sqlCommand = new MySqlCommand();
 
-            var childTableName = ParserName.Parse(foreignKey.GetChildTable(), "`").Quoted().ToString();
-            var parentTableName = ParserName.Parse(foreignKey.GetParentTable(), "`").Quoted().ToString();
+            var tableName = ParserName.Parse(constraint.GetTable(), "`").Quoted().ToString();
+            var parentTableName = ParserName.Parse(constraint.GetParentTable(), "`").Quoted().ToString();
 
-            var relationName = NormalizeRelationName(foreignKey.RelationName);
+            var relationName = NormalizeRelationName(constraint.RelationName);
 
-            var foreignKeyColumns = foreignKey.ChildKeys;
-            var referencesColumns = foreignKey.ParentKeys;
+            var keyColumns = constraint.Keys;
+            var referencesColumns = constraint.ParentKeys;
 
             var stringBuilder = new StringBuilder();
             stringBuilder.Append("ALTER TABLE ");
-            stringBuilder.AppendLine(childTableName);
+            stringBuilder.AppendLine(tableName);
             stringBuilder.Append("ADD CONSTRAINT ");
 
             stringBuilder.AppendLine($"`{relationName}`");
             stringBuilder.Append("FOREIGN KEY (");
             string empty = string.Empty;
-            foreach (var foreignKeyColumn in foreignKeyColumns)
+            foreach (var keyColumn in keyColumns)
             {
-                var foreignKeyColumnName = ParserName.Parse(foreignKeyColumn.ColumnName, "`").Quoted().ToString();
+                var foreignKeyColumnName = ParserName.Parse(keyColumn.ColumnName, "`").Quoted().ToString();
                 stringBuilder.Append($"{empty} {foreignKeyColumnName}");
                 empty = ", ";
             }
@@ -99,27 +99,25 @@ namespace Dotmim.Sync.MySql
             return sqlCommand;
         }
 
-        public bool NeedToCreateForeignKeyConstraints(SyncRelation foreignKey)
+        public bool NeedToCreateForeignKeyConstraints(SyncRelation relation)
         {
-            string parentTable = foreignKey.GetParentTable().TableName;
-            string parentSchema = foreignKey.GetParentTable().SchemaName;
-            string parentFullName = string.IsNullOrEmpty(parentSchema) ? parentTable : $"{parentSchema}.{parentTable}";
-
-            var relationName = NormalizeRelationName(foreignKey.RelationName);
-
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
-
             // Don't want foreign key on same table since it could be a problem on first 
             // sync. We are not sure that parent row will be inserted in first position
-            if (foreignKey.GetParentTable() == foreignKey.GetChildTable())
+            if (relation.GetParentTable() == relation.GetTable())
                 return false;
+
+            string tableName = relation.GetTable().TableName;
+
+            var relationName = NormalizeRelationName(relation.RelationName);
+
+            bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
             try
             {
                 if (!alreadyOpened)
                     this.connection.Open();
 
-                var dmTable = MySqlManagementUtils.RelationsForTable(this.connection, this.transaction, parentFullName);
+                var dmTable = MySqlManagementUtils.RelationsForTable(this.connection, this.transaction, tableName);
 
                 var foreignKeyExist = dmTable.Rows.Any(r =>
                    dmTable.IsEqual(r["ForeignKey"].ToString(), relationName));
@@ -178,7 +176,7 @@ namespace Dotmim.Sync.MySql
             var stringBuilder = new StringBuilder();
             var relationName = NormalizeRelationName(constraint.RelationName);
 
-            var constraintName = $"Create Constraint {constraint.RelationName} between parent {constraint.GetParentTable().TableName} and child {constraint.GetChildTable().TableName}";
+            var constraintName = $"Create Constraint {constraint.RelationName} between parent {constraint.GetParentTable().TableName} and child {constraint.GetTable().TableName}";
             var constraintScript = this.BuildForeignKeyConstraintsCommand(constraint).CommandText;
             stringBuilder.Append(MySqlBuilder.WrapScriptTextWithComments(constraintScript, constraintName));
             stringBuilder.AppendLine();
@@ -320,13 +318,13 @@ namespace Dotmim.Sync.MySql
         /// <summary>
         /// For a foreign key, check if the Parent table exists
         /// </summary>
-        private bool EnsureForeignKeysTableExist(SyncRelation foreignKey)
+        private bool EnsureForeignKeysTableExist(SyncRelation constraint)
         {
-            var childTable = foreignKey.GetChildTable();
-            var parentTable = foreignKey.GetParentTable();
+            var table = constraint.GetTable();
+            var parentTable = constraint.GetParentTable();
 
             // The foreignkey comes from the child table
-            var ds = foreignKey.GetChildTable().Schema;
+            var ds = constraint.GetTable().Schema;
 
             if (ds == null)
                 return false;

@@ -31,44 +31,9 @@ jobs:
       # Dont need anymore to pass the MySQL Ip Address, just let it here for memory
       # --logger trx;logfilename=TEST.xml : Unexplained arg to publish tests resuls
 
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter SqlServerBasicTests --logger trx
-        name: SqlServerBasicTests
-        displayName: "Tests with SQL Server acting as server"
-        env:
-          "MYSQLIP": $(setvarStep.mySQLIP)
-          "AZUREDEV": "true"
-
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter SyncAllColumnsTests --logger trx
-        name: SyncAllColumnsTests
-        displayName: "Tests with SQL Server acting as server and all columns possibilities"
-        env:
-          "MYSQLIP": $(setvarStep.mySQLIP)
-          "AZUREDEV": "true"
-
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter SqlServerFilterTests --logger trx
-        name: SqlServerFilterTests
-        displayName: "Tests with SQL Server acting as server and specific filters"
-        env:
-          "MYSQLIP": $(setvarStep.mySQLIP)
-          "AZUREDEV": "true"
-
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter SqliteEncryptedTests --logger trx
-        name: SqliteEncryptedTests
-        displayName: "Tests with SQL Server acting as server and encrypted SQLite database"
-        env:
-          "MYSQLIP": $(setvarStep.mySQLIP)
-          "AZUREDEV": "true"
-
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter MySqlBasicTests --logger trx
-        name: MySqlBasicTests
-        displayName: "Tests with MySQL Server acting as server"
-        env:
-          "MYSQLIP": $(setvarStep.mySQLIP)
-          "AZUREDEV": "true"
-
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter MySqlFilterTests --logger trx
-        name: MySqlFilterTests
-        displayName: "Tests with MySQL Server acting as server"
+      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj
+        name: All tests
+        displayName: "All Tests"
         env:
           "MYSQLIP": $(setvarStep.mySQLIP)
           "AZUREDEV": "true"

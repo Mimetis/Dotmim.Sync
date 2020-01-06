@@ -77,6 +77,8 @@ namespace Dotmim.Sync
                 if (string.IsNullOrEmpty(tableName))
                     throw new ArgumentNullException("tableName");
 
+                schemaName = schemaName ?? string.Empty;
+
                 // Create a tmp synctable to benefit the SyncTable.Equals() method
                 using (var tmpSt = new SyncTable(tableName, schemaName))
                     return InnerCollection.FirstOrDefault(c => c == tmpSt);

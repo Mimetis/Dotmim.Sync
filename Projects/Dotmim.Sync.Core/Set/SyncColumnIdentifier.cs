@@ -39,5 +39,14 @@ namespace Dotmim.Sync
             };
         }
 
+        public override string ToString()
+        {
+            if (String.IsNullOrEmpty(SchemaName))
+                return $"{TableName}-{ColumnName}";
+            else
+                return $"{SchemaName}.{TableName}-{ColumnName}";
+
+        }
+
     }
 }

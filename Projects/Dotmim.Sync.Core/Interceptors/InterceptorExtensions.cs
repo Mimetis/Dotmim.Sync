@@ -267,5 +267,30 @@ namespace Dotmim.Sync
         public static void OnTableChangesApplied(this IOrchestrator orchestrator, Action<TableChangesAppliedArgs> action)
             => orchestrator.SetInterceptor(action);
 
+        /// <summary>
+        /// Intercept the provider action when changes are going to be applied on each table defined in the configuration schema
+        /// </summary>
+        public static void OnDatabaseChangesApplying(this IOrchestrator orchestrator, Func<DatabaseChangesApplyingArgs, Task> func)
+            => orchestrator.SetInterceptor(func);
+
+        /// <summary>
+        /// Intercept the provider action when changes are going to be applied on each table defined in the configuration schema
+        /// </summary>
+        public static void OnDatabaseChangesApplying(this IOrchestrator orchestrator, Action<DatabaseChangesApplyingArgs> func)
+            => orchestrator.SetInterceptor(func);
+
+        /// <summary>
+        /// Intercept the provider action when changes are applied on each table defined in the configuration schema
+        /// </summary>
+        public static void OnDatabaseChangesApplied(this IOrchestrator orchestrator, Func<DatabaseChangesAppliedArgs, Task> func)
+            => orchestrator.SetInterceptor(func);
+
+        /// <summary>
+        /// Intercept the provider action when changes are applied on each table defined in the configuration schema
+        /// </summary>
+        public static void OnDatabaseChangesApplied(this IOrchestrator orchestrator, Action<DatabaseChangesAppliedArgs> func)
+            => orchestrator.SetInterceptor(func);
+
+
     }
 }

@@ -41,7 +41,7 @@ namespace Dotmim.Sync.Web.Server
         /// Create a new WebProxyServerProvider with a first instance of an in memory CoreProvider
         /// Use this method to create your WebProxyServerProvider if you don't use the DI stuff from ASP.NET
         /// </summary>
-        public static WebProxyServerOrchestrator Create(HttpContext context, CoreProvider provider, SyncSetup setup, WebServerOptions options)
+        public static WebProxyServerOrchestrator Create(HttpContext context, CoreProvider provider, SyncSetup setup, WebServerOptions options = null)
         {
             if (!TryGetHeaderValue(context.Request.Headers, "dotmim-sync-session-id", out var sessionId))
                 throw new SyncException($"Can't find any session id in the header");
@@ -51,10 +51,27 @@ namespace Dotmim.Sync.Web.Server
 
             // we don't have any provider for this session id, so create it
             if (syncMemoryOrchestrator == null)
-                AddNewOrchestratorToCache(context, provider, setup, options, sessionId);
+                AddNewOrchestratorToCache(context, provider, setup, sessionId, options);
 
             return defaultInstance;
         }
+
+
+        public static WebProxyServerOrchestrator Create(HttpContext context, WebServerOrchestrator provider)
+        {
+            if (!TryGetHeaderValue(context.Request.Headers, "dotmim-sync-session-id", out var sessionId))
+                throw new SyncException($"Can't find any session id in the header");
+
+            // Check if we have already a cached Sync Memory provider
+            var syncMemoryOrchestrator = GetCachedOrchestrator(context, sessionId);
+
+            // we don't have any provider for this session id, so create it
+            if (syncMemoryOrchestrator == null)
+                AddNewWebServerOrchestratorToCache(context, provider, sessionId);
+
+            return defaultInstance;
+        }
+
 
         /// <summary>
         /// Retrieve from cache the selected provider depending on the session id
@@ -247,7 +264,7 @@ namespace Dotmim.Sync.Web.Server
         }
 
 
-        private static WebServerOrchestrator AddNewOrchestratorToCache(HttpContext context, CoreProvider provider, SyncSetup setup, WebServerOptions options, string sessionId)
+        private static WebServerOrchestrator AddNewOrchestratorToCache(HttpContext context, CoreProvider provider, SyncSetup setup, string sessionId, WebServerOptions options = null)
         {
             WebServerOrchestrator remoteOrchestrator;
             var cache = context.RequestServices.GetService<IMemoryCache>();
@@ -260,6 +277,18 @@ namespace Dotmim.Sync.Web.Server
             cache.Set(sessionId, remoteOrchestrator, TimeSpan.FromHours(1));
             return remoteOrchestrator;
         }
+        private static WebServerOrchestrator AddNewWebServerOrchestratorToCache(HttpContext context, WebServerOrchestrator webServerOrchestrator, string sessionId)
+        {
+            var cache = context.RequestServices.GetService<IMemoryCache>();
+
+            if (cache == null)
+                throw new SyncException("Cache is not configured! Please add memory cache, distributed or not (see https://docs.microsoft.com/en-us/aspnet/core/performance/caching/response?view=aspnetcore-2.2)");
+
+
+            cache.Set(sessionId, webServerOrchestrator, TimeSpan.FromHours(1));
+            return webServerOrchestrator;
+        }
+
 
 
         private (int clientBatchSize, ISerializerFactory clientSerializer) GetClientSerializer(string serAndsizeString, WebServerOrchestrator serverOrchestrator)
