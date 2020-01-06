@@ -81,7 +81,8 @@ namespace Dotmim.Sync.Builders
 
                 var tableBuilder = CreateTableBuilder(connection, transaction);
 
-                foreach (var constraint in this.TableDescription.GetChildRelations())
+                // Get all parent table and create the foreign key on it
+                foreach (var constraint in this.TableDescription.GetRelations())
                 {
                     // Check if we need to create the foreign key constraint
                     if (tableBuilder.NeedToCreateForeignKeyConstraints(constraint))
@@ -126,7 +127,6 @@ namespace Dotmim.Sync.Builders
                     connection.Close();
             }
         }
-
 
         public void CreateTriggers(DbConnection connection, DbTransaction transaction = null)
         {
@@ -207,7 +207,6 @@ namespace Dotmim.Sync.Builders
             }
         }
 
-
         public void CreateTable(DbConnection connection, DbTransaction transaction = null)
         {
             if (TableDescription.PrimaryKeys.Count <= 0)
@@ -273,7 +272,6 @@ namespace Dotmim.Sync.Builders
 
 
         }
-
 
 
         public void DropProcedures(DbConnection connection, DbTransaction transaction = null)
@@ -441,11 +439,11 @@ namespace Dotmim.Sync.Builders
                 if (!alreadyOpened)
                     connection.Open();
 
-                StringBuilder stringBuilder = new StringBuilder();
+                var stringBuilder = new StringBuilder();
 
                 var tableBuilder = CreateTableBuilder(connection, transaction);
 
-                foreach (var constraint in this.TableDescription.GetChildRelations())
+                foreach (var constraint in this.TableDescription.GetRelations())
                 {
                     if (tableBuilder.NeedToCreateForeignKeyConstraints(constraint))
                         stringBuilder.Append(tableBuilder.CreateForeignKeyConstraintsScriptText(constraint));

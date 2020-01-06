@@ -1,6 +1,4 @@
 ﻿using Dotmim.Sync.Tests.Core;
-using Dotmim.Sync.Tests.MySql;
-using Dotmim.Sync.Tests.SqlServer;
 using MySql.Data.MySqlClient;
 using System;
 using System.Data.SqlClient;

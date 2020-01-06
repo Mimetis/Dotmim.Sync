@@ -554,6 +554,9 @@ namespace Dotmim.Sync
         {
             using (var command = this.GetCommand(DbCommandType.DisableConstraints))
             {
+                // set parameters if needed
+                this.SetCommandParameters(DbCommandType.DisableConstraints, command);
+
                 var alreadyOpened = Connection.State == ConnectionState.Open;
 
                 int rowCount = 0;
@@ -583,6 +586,9 @@ namespace Dotmim.Sync
         {
             using (var command = this.GetCommand(DbCommandType.EnableConstraints))
             {
+                // set parameters if needed
+                this.SetCommandParameters(DbCommandType.EnableConstraints, command);
+
                 var alreadyOpened = Connection.State == ConnectionState.Open;
 
                 int rowCount = 0;

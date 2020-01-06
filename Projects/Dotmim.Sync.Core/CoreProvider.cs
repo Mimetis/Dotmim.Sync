@@ -18,8 +18,26 @@ namespace Dotmim.Sync
     /// </summary>
     public abstract partial class CoreProvider
     {
+
         // Collection of Interceptors
         private Interceptors interceptors = new Interceptors();
+
+
+        /// <summary>
+        /// Connection is opened. this method is called before any interceptors
+        /// </summary>
+        public virtual void OnConnectionOpened(DbConnection connection) { }
+
+        /// <summary>
+        /// Connection is closed. this method is called after all interceptors
+        /// </summary>
+        public virtual void OnConnectionClosed(DbConnection connection) { }
+
+
+        /// <summary>
+        /// Gets or Sets options used during the sync
+        /// </summary>
+        public virtual SyncOptions Options { get; set; }
 
         /// <summary>
         /// Set an interceptor to get info on the current sync process
@@ -105,8 +123,6 @@ namespace Dotmim.Sync
         public abstract bool CanBeServerProvider { get; }
 
 
-
-
         /// <summary>
         /// Shortcut to raise a rollback error
         /// </summary>
@@ -143,8 +159,6 @@ namespace Dotmim.Sync
             if (progressArgs.Action == ChangeApplicationAction.Rollback)
                 RaiseRollbackException(context, "Rollback by user during a progress event");
         }
-
-
 
 
         /// <summary>

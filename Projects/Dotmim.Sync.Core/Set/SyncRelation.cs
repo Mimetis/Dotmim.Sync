@@ -26,7 +26,7 @@ namespace Dotmim.Sync
         /// Gets or Sets a list of columns that represent the parent key.
         /// </summary>
         [DataMember(Name = "cks", IsRequired = true, Order = 3)]
-        public IList<SyncColumnIdentifier> ChildKeys { get; set; } = new List<SyncColumnIdentifier>();
+        public IList<SyncColumnIdentifier> Keys { get; set; } = new List<SyncColumnIdentifier>();
 
         /// <summary>
         /// Gets the ShemaFilter's SyncSchema
@@ -42,11 +42,11 @@ namespace Dotmim.Sync
             this.Schema = schema;
         }
 
-        public SyncRelation(string relationName, IList<SyncColumnIdentifier> parentColumns, IList<SyncColumnIdentifier>  childColumns, SyncSet schema=null)
+        public SyncRelation(string relationName, IList<SyncColumnIdentifier>  columns, IList<SyncColumnIdentifier> parentColumns, SyncSet schema=null)
         {
             this.RelationName = relationName;
             this.ParentKeys = parentColumns;
-            this.ChildKeys = childColumns;
+            this.Keys = columns;
             this.Schema = schema;
         }
 
@@ -59,8 +59,8 @@ namespace Dotmim.Sync
             foreach (var pk in this.ParentKeys)
                 clone.ParentKeys.Add(pk.Clone());
 
-            foreach (var ck in this.ChildKeys)
-                clone.ChildKeys.Add(ck.Clone());
+            foreach (var ck in this.Keys)
+                clone.Keys.Add(ck.Clone());
 
             return clone;
         }
@@ -82,7 +82,7 @@ namespace Dotmim.Sync
             if (cleanup)
             {
                 // clean rows
-                this.ChildKeys.Clear() ;
+                this.Keys.Clear() ;
                 this.ParentKeys.Clear();
                 this.Schema = null;
             }
@@ -112,12 +112,12 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get child table
         /// </summary>
-        public SyncTable GetChildTable()
+        public SyncTable GetTable()
         {
-            if (this.Schema == null || this.ChildKeys.Count() <= 0)
+            if (this.Schema == null || this.Keys.Count() <= 0)
                 return null;
 
-            var id = this.ChildKeys.First();
+            var id = this.Keys.First();
 
             return this.Schema.Tables[id.TableName, id.SchemaName];
         }

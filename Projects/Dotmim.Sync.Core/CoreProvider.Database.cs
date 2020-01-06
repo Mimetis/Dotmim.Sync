@@ -36,6 +36,10 @@ namespace Dotmim.Sync
                 using (connection = this.CreateConnection())
                 {
                     await connection.OpenAsync().ConfigureAwait(false);
+
+                    // Let provider knows a connection is opened
+                    this.OnConnectionOpened(connection);
+
                     await this.InterceptAsync(new ConnectionOpenArgs(null, connection)).ConfigureAwait(false);
 
                     using (transaction = connection.BeginTransaction())
@@ -102,6 +106,9 @@ namespace Dotmim.Sync
                     connection.Close();
 
                 await this.InterceptAsync(new ConnectionCloseArgs(null, connection, transaction)).ConfigureAwait(false);
+
+                // Let provider knows a connection is closed
+                this.OnConnectionClosed(connection);
             }
 
         }
@@ -124,6 +131,10 @@ namespace Dotmim.Sync
                 using (connection = this.CreateConnection())
                 {
                     await connection.OpenAsync().ConfigureAwait(false);
+
+                    // Let provider knows a connection is opened
+                    this.OnConnectionOpened(connection);
+
                     await this.InterceptAsync(new ConnectionOpenArgs(null, connection)).ConfigureAwait(false);
 
                     using (transaction = connection.BeginTransaction())
@@ -145,8 +156,8 @@ namespace Dotmim.Sync
 
                         // Sorting tables based on dependencies between them
                         var schemaTables = schema.Tables
-                            .SortByDependencies(tab => tab.GetChildRelations()
-                                .Select(r => r.GetChildTable()));
+                            .SortByDependencies(tab => tab.GetRelations()
+                                .Select(r => r.GetParentTable()));
 
                         foreach (var schemaTable in schemaTables)
                         {
@@ -200,6 +211,9 @@ namespace Dotmim.Sync
                     connection.Close();
 
                 await this.InterceptAsync(new ConnectionCloseArgs(null, connection, transaction)).ConfigureAwait(false);
+
+                // Let provider knows a connection is closed
+                this.OnConnectionClosed(connection);
             }
         }
 
@@ -224,8 +238,8 @@ namespace Dotmim.Sync
 
                 // Sorting tables based on dependencies between them
                 var schemaTables = schema.Tables
-                    .SortByDependencies(tab => tab.GetChildRelations()
-                        .Select(r => r.GetChildTable()));
+                    .SortByDependencies(tab => tab.GetRelations()
+                        .Select(r => r.GetParentTable()));
 
                 foreach (var schemaTable in schemaTables)
                 {
@@ -299,7 +313,7 @@ namespace Dotmim.Sync
                     if (columnFilter == null && !filter.IsVirtual)
                         throw new InvalidExpressionException($"Column {filter.ColumnName} does not exist in Table {schemaTable.TableName}");
 
-                    builder.FilterColumns.Add(new SyncFilter(columnFilter.ColumnName, schemaTable.TableName, schemaTable.SchemaName, filter.ColumnType));
+                    builder.FilterColumns.Add(new SyncFilter(schemaTable.TableName, columnFilter.ColumnName, schemaTable.SchemaName, filter.ColumnType));
                 }
             }
 

@@ -147,124 +147,7 @@ namespace Dotmim.Sync.Tests.StandAlone
             Assertions(outSchema);
         }
 
-    [Fact]
-        public void Test_Setup_JsonSerializer()
-        {
-            var inSchema = CreateSetup();
-
-            var serializer = new JsonSerializer();
-            byte[] bin = null;
-            Setup outSchema;
-
-            using (var ms = new MemoryStream())
-            {
-                using (var writer = new StreamWriter(ms))
-                {
-                    using (var jsonWriter = new JsonTextWriter(writer))
-                    {
-                        serializer.Serialize(jsonWriter, inSchema);
-                    }
-                }
-                bin = ms.ToArray();
-            }
-
-            // for readiness
-            using (var fs = new FileStream("Json_setup.json", FileMode.Create))
-            {
-                fs.Write(bin, 0, bin.Length);
-            }
-
-            using (var ms = new MemoryStream(bin))
-            {
-                using (var sr = new StreamReader(ms))
-                {
-                    using (var reader = new JsonTextReader(sr))
-                    {
-                        outSchema = serializer.Deserialize<Setup>(reader);
-                    }
-                }
-            }
-        }
-        [Fact]
-        public void Test_Setup_DataContractSerializer()
-        {
-            var schemaSerializer = new DataContractSerializer(typeof(Setup));
-            var inSchema = CreateSetup();
-            byte[] bin = null;
-            Setup outSchema;
-
-            using (var ms = new MemoryStream())
-            {
-                schemaSerializer.WriteObject(ms, inSchema);
-                bin = ms.ToArray();
-            }
-
-            using (var fs = new FileStream("Datacontract_Setup.xml", FileMode.Create))
-            {
-                fs.Write(bin, 0, bin.Length);
-            }
-
-            using (var ms = new MemoryStream(bin))
-            {
-                outSchema = schemaSerializer.ReadObject(ms) as Setup;
-            }
-        }
-        [Fact]
-        public void Test_Setup_MessagePackSerializer()
-        {
-            var inSchema = CreateSetup();
-            byte[] bin = null;
-            Setup outSchema;
-
-            var options = MessagePack.Resolvers.ContractlessStandardResolver.Options;
-
-            using (var ms = new MemoryStream())
-            {
-                MessagePackSerializer.Serialize(ms, inSchema, options);
-                bin = ms.ToArray();
-            }
-
-            using (var fs = new FileStream("MsgPach_Setup.json", FileMode.Create))
-            {
-                fs.Write(bin, 0, bin.Length);
-            }
-
-            using (var ms = new MemoryStream(bin))
-            {
-                outSchema = MessagePackSerializer.Deserialize<Setup>(ms, options);
-            }
-        }
-
-
-        [Fact]
-        public void Test_Setup_BinarryFormatter()
-        {
-            var inSchema = CreateSetup();
-            byte[] bin = null;
-            Setup outSchema;
-
-            var schemaSerializer = new BinaryFormatter
-            {
-                TypeFormat = FormatterTypeStyle.TypesAlways
-            };
-            using (var ms = new MemoryStream())
-            {
-                schemaSerializer.Serialize(ms, inSchema);
-                bin = ms.ToArray();
-            }
-
-            using (var fs = new FileStream("Binary_Setup.bin", FileMode.Create))
-            {
-                fs.Write(bin, 0, bin.Length);
-            }
-
-            using (var ms = new MemoryStream(bin))
-            {
-                outSchema = schemaSerializer.Deserialize(ms) as Setup;
-            }
-
-        }
-
+   
 
         private void Assertions(SyncSet outSchema)
         {
@@ -335,8 +218,8 @@ namespace Dotmim.Sync.Tests.StandAlone
             var rel = outSchema.Relations[0];
             Assert.Equal("AdventureWorks_Product_ServiceTickets", rel.RelationName);
             Assert.NotEmpty(rel.ParentKeys);
-            Assert.NotEmpty(rel.ChildKeys);
-            var c = rel.ChildKeys.ToList()[0];
+            Assert.NotEmpty(rel.Keys);
+            var c = rel.Keys.ToList()[0];
             Assert.Equal("ProductId", c.ColumnName);
             Assert.Equal("ServiceTickets", c.TableName);
             Assert.Null(c.SchemaName);
@@ -399,37 +282,13 @@ namespace Dotmim.Sync.Tests.StandAlone
             set.Filters.Add(sf);
 
             // Add Relations
+            var keys = new[] { new SyncColumnIdentifier("ProductId", "ServiceTickets") };
             var parentKeys = new[] { new SyncColumnIdentifier("ProductId", "Product", "SalesLT") };
-            var childKeys = new[] { new SyncColumnIdentifier("ProductId", "ServiceTickets") };
-            var rel = new SyncRelation("AdventureWorks_Product_ServiceTickets", parentKeys, childKeys);
+            var rel = new SyncRelation("AdventureWorks_Product_ServiceTickets", keys, parentKeys);
 
             set.Relations.Add(rel);
 
             return set;
-        }
-
-
-        public static Sync.SyncSetup CreateSetup()
-        {
-            // specific Setup with only 2 tables, and one filtered
-            var setup = new Sync.SyncSetup(new[] { "ProductCategory", "ProductModel" });
-
-            // Add a table with less columns
-            setup.Tables.Add("Product")
-                .Columns.AddRange(new string[] { "ProductId", "Name", "ProductCategoryID", "ProductNumber", "StandardCost", "ListPrice", "SellStartDate", "rowguid", "ModifiedDate" });
-
-            // Add filters
-            setup.Filters.Add("ProductCategory", "ParentProductCategoryID")
-                         .Add("ProductCategory", "Name");
-
-            // Add pref suf
-            setup.StoredProceduresPrefix = "s";
-            setup.StoredProceduresSuffix = "";
-            setup.TrackingTablesPrefix = "t";
-            setup.TrackingTablesSuffix = "";
-
-            return setup;
-
         }
 
     }
