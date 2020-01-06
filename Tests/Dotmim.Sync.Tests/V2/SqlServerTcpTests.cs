@@ -10,12 +10,13 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace Dotmim.Sync.Tests.V2
 {
     public class SqlServerTcpTests : TcpTests
     {
-        public SqlServerTcpTests(HelperProvider fixture) : base(fixture)
+        public SqlServerTcpTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
         {
         }
 
