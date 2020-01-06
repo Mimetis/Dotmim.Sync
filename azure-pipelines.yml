@@ -32,7 +32,7 @@ jobs:
       # --logger trx;logfilename=TEST.xml : Unexplained arg to publish tests resuls
 
       - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj
-        name: All tests
+        name: alltests
         displayName: "All Tests"
         env:
           "MYSQLIP": $(setvarStep.mySQLIP)
