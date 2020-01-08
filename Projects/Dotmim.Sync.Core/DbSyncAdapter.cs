@@ -145,22 +145,18 @@ namespace Dotmim.Sync
 
             var alreadyOpened = Connection.State == ConnectionState.Open;
 
-            try
-            {
-                if (!alreadyOpened)
-                    Connection.Open();
+            if (!alreadyOpened)
+                Connection.Open();
 
-                if (Transaction != null)
-                    command.Transaction = Transaction;
+            if (Transaction != null)
+                command.Transaction = Transaction;
 
-                rowsApplied = command.ExecuteNonQuery();
-            }
-            finally
-            {
-                // Close Connection
-                if (!alreadyOpened)
-                    Connection.Close();
-            }
+            rowsApplied = command.ExecuteNonQuery();
+
+            // Close Connection
+            if (!alreadyOpened)
+                Connection.Close();
+
             return rowsApplied > 0;
         }
 
@@ -195,40 +191,36 @@ namespace Dotmim.Sync
                 var changesSet = schema.Schema.Clone(false);
                 var selectTable = CreateChangesTable(schema, changesSet);
                 SyncRow syncRow = null;
-                try
+                using (var dataReader = selectCommand.ExecuteReader())
                 {
-                    using (var dataReader = selectCommand.ExecuteReader())
+                    while (dataReader.Read())
                     {
-                        while (dataReader.Read())
+                        // Create a new empty row
+                        syncRow = selectTable.NewRow();
+
+                        for (var i = 0; i < dataReader.FieldCount; i++)
                         {
-                            // Create a new empty row
-                            syncRow = selectTable.NewRow();
+                            var columnName = dataReader.GetName(i);
 
-                            for (var i = 0; i < dataReader.FieldCount; i++)
+                            // if we have the tombstone value, do not add it to the table
+                            if (columnName == "sync_row_is_tombstone")
                             {
-                                var columnName = dataReader.GetName(i);
-
-                                // if we have the tombstone value, do not add it to the table
-                                if (columnName == "sync_row_is_tombstone")
-                                {
-                                    var isTombstone = Convert.ToInt64(dataReader.GetValue(i)) > 0;
-                                    syncRow.RowState = isTombstone ? DataRowState.Deleted : DataRowState.Unchanged;
-                                    continue;
-                                }
-
-                                var columnValueObject = dataReader.GetValue(i);
-                                var columnValue = columnValueObject == DBNull.Value ? null : columnValueObject;
-                                syncRow[columnName] = columnValue;
+                                var isTombstone = Convert.ToInt64(dataReader.GetValue(i)) > 0;
+                                syncRow.RowState = isTombstone ? DataRowState.Deleted : DataRowState.Unchanged;
+                                continue;
                             }
+
+                            var columnValueObject = dataReader.GetValue(i);
+                            var columnValue = columnValueObject == DBNull.Value ? null : columnValueObject;
+                            syncRow[columnName] = columnValue;
                         }
                     }
                 }
-                finally
-                {
-                    // Close Connection
-                    if (!alreadyOpened)
-                        Connection.Close();
-                }
+
+                // Close Connection
+                if (!alreadyOpened)
+                    Connection.Close();
+
 
                 if (syncRow != null)
                     syncRow.RowState = primaryKeyRow.RowState;
@@ -250,7 +242,7 @@ namespace Dotmim.Sync
                 bulkCommand = this.GetCommand(DbCommandType.BulkUpdateRows);
                 if (bulkCommand == null)
                     throw new MissingCommandException(DbCommandType.BulkUpdateRows.ToString());
-               
+
                 this.SetCommandParameters(DbCommandType.BulkUpdateRows, bulkCommand);
             }
             else if (this.ApplyType == DataRowState.Deleted)
@@ -258,7 +250,7 @@ namespace Dotmim.Sync
                 bulkCommand = this.GetCommand(DbCommandType.BulkDeleteRows);
                 if (bulkCommand == null)
                     throw new MissingCommandException(DbCommandType.BulkDeleteRows.ToString());
-                
+
                 this.SetCommandParameters(DbCommandType.BulkDeleteRows, bulkCommand);
             }
             else
@@ -305,7 +297,7 @@ namespace Dotmim.Sync
 
                 if (remoteConflictRows.Count() == 0)
                     throw new Exception("Cant find changes row who is in conflict");
-                
+
                 var remoteConflictRow = remoteConflictRows.ToList()[0];
 
                 var localConflictRow = GetRow(failedRow, changesTable);
@@ -365,7 +357,7 @@ namespace Dotmim.Sync
             {
                 if (dbCommand == null)
                     throw new MissingCommandException(dbCommandType.ToString());
-                
+
                 this.SetCommandParameters(dbCommandType, dbCommand);
                 this.InsertOrUpdateMetadatas(dbCommand, row, applyingScopeId);
             }
@@ -466,8 +458,7 @@ namespace Dotmim.Sync
                 var alreadyOpened = Connection.State == ConnectionState.Open;
 
                 int rowInsertedCount = 0;
-                try
-                {
+               
                     // OPen Connection
                     if (!alreadyOpened)
                         Connection.Open();
@@ -477,12 +468,10 @@ namespace Dotmim.Sync
 
                     rowInsertedCount = command.ExecuteNonQuery();
 
-                }
-                finally
-                {
+                
                     if (!alreadyOpened)
                         Connection.Close();
-                }
+                
 
                 return rowInsertedCount > 0;
             }
@@ -500,7 +489,7 @@ namespace Dotmim.Sync
             {
                 if (command == null)
                     throw new MissingCommandException(DbCommandType.UpdateRow.ToString());
-               
+
                 // Deriving Parameters
                 this.SetCommandParameters(DbCommandType.UpdateRow, command);
 
@@ -513,21 +502,15 @@ namespace Dotmim.Sync
                 var alreadyOpened = Connection.State == ConnectionState.Open;
 
                 int rowUpdatedCount = 0;
-                try
-                {
-                    if (!alreadyOpened)
-                        Connection.Open();
+                if (!alreadyOpened)
+                    Connection.Open();
 
-                    if (Transaction != null)
-                        command.Transaction = Transaction;
+                if (Transaction != null)
+                    command.Transaction = Transaction;
 
-                    rowUpdatedCount = command.ExecuteNonQuery();
-                }
-                finally
-                {
-                    if (!alreadyOpened)
-                        Connection.Close();
-                }
+                rowUpdatedCount = command.ExecuteNonQuery();
+                if (!alreadyOpened)
+                    Connection.Close();
                 return rowUpdatedCount > 0;
             }
         }
@@ -548,21 +531,17 @@ namespace Dotmim.Sync
                 var alreadyOpened = Connection.State == ConnectionState.Open;
 
                 int rowCount = 0;
-                try
-                {
-                    if (!alreadyOpened)
+                   if (!alreadyOpened)
                         Connection.Open();
 
                     if (Transaction != null)
                         command.Transaction = Transaction;
 
                     rowCount = command.ExecuteNonQuery();
-                }
-                finally
-                {
+               
                     if (!alreadyOpened)
                         Connection.Close();
-                }
+               
                 return rowCount > 0;
             }
         }
@@ -583,8 +562,7 @@ namespace Dotmim.Sync
                 var alreadyOpened = Connection.State == ConnectionState.Open;
 
                 int rowCount = 0;
-                try
-                {
+               
                     if (!alreadyOpened)
                         Connection.Open();
 
@@ -592,12 +570,10 @@ namespace Dotmim.Sync
                         command.Transaction = Transaction;
 
                     rowCount = command.ExecuteNonQuery();
-                }
-                finally
-                {
+              
                     if (!alreadyOpened)
                         Connection.Close();
-                }
+                
                 return rowCount > 0;
             }
         }
@@ -618,8 +594,7 @@ namespace Dotmim.Sync
                 var alreadyOpened = Connection.State == ConnectionState.Open;
 
                 int rowCount = 0;
-                try
-                {
+
                     if (!alreadyOpened)
                         Connection.Open();
 
@@ -627,12 +602,10 @@ namespace Dotmim.Sync
                         command.Transaction = Transaction;
 
                     rowCount = command.ExecuteNonQuery();
-                }
-                finally
-                {
+               
                     if (!alreadyOpened)
                         Connection.Close();
-                }
+                
                 return rowCount > 0;
             }
         }

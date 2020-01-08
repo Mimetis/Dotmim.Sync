@@ -1,7 +1,6 @@
 ﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.SqlServer;
-using Dotmim.Sync.Test.Misc;
 using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Tests.Models;
 using Dotmim.Sync.Web.Client;
@@ -269,7 +268,7 @@ namespace Dotmim.Sync.Tests.V2
             var setup = new SyncSetup(Tables);
 
             // Add a malformatted column name
-            setup.Tables["Employee"].Columns.AddRange(new string [] { "EmployeeID", "FirstName", "LastNam"});
+            setup.Tables["Employee"].Columns.AddRange(new string[] { "EmployeeID", "FirstName", "LastNam" });
 
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
@@ -298,7 +297,7 @@ namespace Dotmim.Sync.Tests.V2
 
             // Add a fake table to setup tables
             this.Tables.Append("WeirdTable");
-          
+
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
@@ -1443,6 +1442,12 @@ namespace Dotmim.Sync.Tests.V2
                 Assert.Equal(1, s.TotalSyncConflicts);
             }
 
+
+            // Now sync again to be sure all clients download all the lines from the server
+            foreach (var client in Clients)
+                await new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator, new SyncSetup(Tables), options)
+                    .SynchronizeAsync();
+
             // check rows count on server and on each client
             using (var ctx = new AdventureWorksContext(this.Server))
             {
@@ -1545,6 +1550,12 @@ namespace Dotmim.Sync.Tests.V2
                 Assert.Equal(1, s.TotalChangesUploaded);
                 Assert.Equal(1, s.TotalSyncConflicts);
             }
+
+            // Now sync again to be sure all clients download all the lines from the server
+            foreach (var client in Clients)
+                await new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator, new SyncSetup(Tables), options)
+                    .SynchronizeAsync();
+
 
             // check rows count on server and on each client
             using (var ctx = new AdventureWorksContext(this.Server))
