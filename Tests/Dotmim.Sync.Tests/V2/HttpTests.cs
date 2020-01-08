@@ -1,5 +1,4 @@
 ﻿using Dotmim.Sync.SqlServer;
-using Dotmim.Sync.Test.Misc;
 using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Web.Client;
 using Dotmim.Sync.Web.Server;
