@@ -22,11 +22,11 @@ namespace Dotmim.Sync.Tests.V2
         };
 
         public override List<ProviderType> ClientsType => new List<ProviderType>
-            { ProviderType.MySql, ProviderType.Sql, ProviderType.Sqlite};
+            { ProviderType.Sql};
 
         public override ProviderType ServerType => ProviderType.Sql;
 
-        public override bool UseFiddler =>  true;
+        public override bool UseFiddler => true;
 
         /// <summary>
         /// Get the server database rows count
