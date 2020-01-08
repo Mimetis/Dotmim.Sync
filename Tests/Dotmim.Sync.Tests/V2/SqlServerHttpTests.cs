@@ -26,7 +26,7 @@ namespace Dotmim.Sync.Tests.V2
 
         public override ProviderType ServerType => ProviderType.Sql;
 
-        public override bool UseFiddler => true;
+        public override bool UseFiddler => false;
 
         /// <summary>
         /// Get the server database rows count
