@@ -72,9 +72,6 @@ namespace Dotmim.Sync.Tests.V2
             var type = output.GetType();
             var testMember = type.GetField("test", BindingFlags.Instance | BindingFlags.NonPublic);
             this.test = (ITest)testMember.GetValue(output);
-
-            Console.WriteLine($"{test.DisplayName}");
-            Debug.WriteLine(test.DisplayName);
             this.stopwatch = Stopwatch.StartNew();
 
 
@@ -116,8 +113,8 @@ namespace Dotmim.Sync.Tests.V2
                 HelperDatabase.DropDatabase(client.ProviderType, client.DatabaseName);
 
             this.stopwatch.Stop();
-
-            var str = $"{this.stopwatch.Elapsed.Minutes}:{this.stopwatch.Elapsed.Seconds}.{this.stopwatch.Elapsed.Milliseconds}";
+            
+            var str = $"{test.TestCase.DisplayName} : {this.stopwatch.Elapsed.Minutes}:{this.stopwatch.Elapsed.Seconds}.{this.stopwatch.Elapsed.Milliseconds}";
             Console.WriteLine(str);
             Debug.WriteLine(str);
 
@@ -180,16 +177,12 @@ namespace Dotmim.Sync.Tests.V2
             {
                 var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator, new SyncSetup(Tables));
 
-                try
+                var se = await Assert.ThrowsAnyAsync<SyncException>(async () =>
                 {
                     var s = await agent.SynchronizeAsync();
-                }
-                catch (Exception ex)
-                {
-                    Assert.IsType<SyncException>(ex);
-                    var se = ex as SyncException;
-                    Assert.Equal(SyncExceptionSide.ServerSide, se.Side);
-                }
+                });
+
+                Assert.Equal(SyncExceptionSide.ServerSide, se.Side);
             }
         }
 
@@ -209,16 +202,12 @@ namespace Dotmim.Sync.Tests.V2
 
                 var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator, new SyncSetup(Tables));
 
-                try
+                var se = await Assert.ThrowsAnyAsync<SyncException>(async () =>
                 {
                     var s = await agent.SynchronizeAsync();
-                }
-                catch (Exception ex)
-                {
-                    Assert.IsType<SyncException>(ex);
-                    var se = ex as SyncException;
-                    Assert.Equal(SyncExceptionSide.ClientSide, se.Side);
-                }
+                });
+
+                Assert.Equal(SyncExceptionSide.ClientSide, se.Side);
             }
         }
 
@@ -242,19 +231,16 @@ namespace Dotmim.Sync.Tests.V2
             {
                 var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator, setup);
 
-                try
+
+                var se = await Assert.ThrowsAnyAsync<SyncException>(async () =>
                 {
                     var s = await agent.SynchronizeAsync();
-                }
-                catch (Exception ex)
-                {
-                    Assert.IsType<SyncException>(ex);
-                    var se = ex as SyncException;
-                    Assert.Equal(SyncExceptionSide.ServerSide, se.Side);
-                    Assert.Equal("MissingPrimaryKeyException", se.TypeName);
-                    Assert.Equal(this.Server.DatabaseName, se.InitialCatalog);
+                });
 
-                }
+                Assert.Equal(SyncExceptionSide.ServerSide, se.Side);
+                Assert.Equal("MissingPrimaryKeyException", se.TypeName);
+                Assert.Equal(this.Server.DatabaseName, se.InitialCatalog);
+
             }
         }
 
@@ -275,17 +261,13 @@ namespace Dotmim.Sync.Tests.V2
             {
                 var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator, setup);
 
-                try
+                var se = await Assert.ThrowsAnyAsync<SyncException>(async () =>
                 {
                     var s = await agent.SynchronizeAsync();
-                }
-                catch (Exception ex)
-                {
-                    Assert.IsType<SyncException>(ex);
-                    var se = ex as SyncException;
-                    Assert.Equal(SyncExceptionSide.ServerSide, se.Side);
-                    Assert.Equal("MissingColumnException", se.TypeName);
-                }
+                });
+
+                Assert.Equal(SyncExceptionSide.ServerSide, se.Side);
+                Assert.Equal("MissingColumnException", se.TypeName);
             }
         }
 
@@ -303,17 +285,13 @@ namespace Dotmim.Sync.Tests.V2
             {
                 var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator, this.Tables);
 
-                try
+                var se = await Assert.ThrowsAnyAsync<SyncException>(async () =>
                 {
                     var s = await agent.SynchronizeAsync();
-                }
-                catch (Exception ex)
-                {
-                    Assert.IsType<SyncException>(ex);
-                    var se = ex as SyncException;
-                    Assert.Equal(SyncExceptionSide.ServerSide, se.Side);
-                    Assert.Equal("MissingTableException", se.TypeName);
-                }
+                });
+
+                Assert.Equal(SyncExceptionSide.ServerSide, se.Side);
+                Assert.Equal("MissingTableException", se.TypeName);
             }
         }
 
