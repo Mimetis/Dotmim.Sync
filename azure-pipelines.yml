@@ -31,18 +31,27 @@ jobs:
       # Dont need anymore to pass the MySQL Ip Address, just let it here for memory
       # --logger trx;logfilename=TEST.xml : Unexplained arg to publish tests resuls
 
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj
-        name: alltests
-        displayName: "All Tests"
-        continueOnError: true
-        env:
-          "MYSQLIP": $(setvarStep.mySQLIP)
-          "AZUREDEV": "true"
-
-      - task: PublishTestResults@2
+      - task: VSTest@2
         inputs:
-          testRunner: VSTest
-          testResultsFiles: "**/*.trx"
+          testSelector: 'testAssemblies'
+          testAssemblyVer2: |
+            **\*test*.dll
+            !**\*TestAdapter.dll
+            !**\obj\**
+          searchFolder: '$(System.DefaultWorkingDirectory)'
+
+      # - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj
+      #   name: alltests
+      #   displayName: "All Tests"
+      #   continueOnError: true
+      #   env:
+      #     "MYSQLIP": $(setvarStep.mySQLIP)
+      #     "AZUREDEV": "true"
+
+      # - task: PublishTestResults@2
+      #   inputs:
+      #     testRunner: VSTest
+      #     testResultsFiles: "**/*.trx"
 
   - job: Beta
 
