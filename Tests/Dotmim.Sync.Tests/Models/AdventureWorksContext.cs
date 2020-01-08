@@ -484,8 +484,8 @@ namespace Dotmim.Sync.Tests.Models
 
                 entity.Property(e => e.ProductModelId).HasColumnName("ProductModelID");
 
-                if (this.ProviderType == ProviderType.Sql)
-                    entity.Property(e => e.CatalogDescription).HasColumnType("xml");
+                //if (this.ProviderType == ProviderType.Sql)
+                //    entity.Property(e => e.CatalogDescription).HasColumnType("xml");
 
                 entity.Property(e => e.ModifiedDate)
                     .HasColumnType("datetime");

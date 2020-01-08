@@ -28,7 +28,7 @@ namespace Dotmim.Sync.Tests.V2
         /// <summary>
         /// Gets the sync tables involved in the tests
         /// </summary>
-        public abstract string[] Tables { get; set; }
+        public abstract string[] Tables { get;  }
 
         /// <summary>
         /// Gets the clients type we want to tests

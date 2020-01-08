@@ -289,10 +289,10 @@ namespace Dotmim.Sync.SqlServer.Builders
                 filterColumnsString.AppendLine($"\t,[i].{columnName}");
                 filterColumnsString2.AppendLine($"\t,{columnName}");
             }
-            
+
             if (Filters != null)
                 stringBuilder.Append(filterColumnsString2.ToString());
-        
+
             stringBuilder.AppendLine(") ");
             stringBuilder.AppendLine("SELECT");
             stringBuilder.Append(stringBuilderArguments.ToString());
@@ -477,6 +477,30 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()} [side]");
             stringBuilder.Append($"JOIN INSERTED AS [i] ON ");
             stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[side]", "[i]"));
+
+            if (this.tableDescription.GetMutableColumns().Count() > 0)
+            {
+                stringBuilder.Append($"JOIN DELETED AS [d] ON ");
+                stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[d]", "[i]"));
+
+                stringBuilder.AppendLine("WHERE (");
+                string or = "";
+                foreach (var column in this.tableDescription.GetMutableColumns())
+                {
+                    var quotedColumn = ParserName.Parse(column).Quoted().ToString();
+
+                    stringBuilder.Append("\t");
+                    stringBuilder.Append(or);
+                    stringBuilder.Append("[d].");
+                    stringBuilder.Append(quotedColumn);
+                    stringBuilder.Append(" <> ");
+                    stringBuilder.Append("[i].");
+                    stringBuilder.AppendLine(quotedColumn);
+
+                    or = " OR ";
+                }
+                stringBuilder.AppendLine(") ");
+            }
             return stringBuilder.ToString();
         }
         public void CreateUpdateTrigger()
