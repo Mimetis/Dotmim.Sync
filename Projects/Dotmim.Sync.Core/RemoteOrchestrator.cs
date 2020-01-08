@@ -4,6 +4,7 @@ using Dotmim.Sync.Messages;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Data.Common;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -43,20 +44,25 @@ namespace Dotmim.Sync
             EnsureSchemaAsync(SyncContext context, SyncSetup setup,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
+            DbTransaction transaction = null;
+
             using (var connection = this.Provider.CreateConnection())
             {
-                await connection.OpenAsync().ConfigureAwait(false);
-
-                // Let provider knows a connection is opened
-                this.Provider.OnConnectionOpened(connection);
-
-                await this.Provider.InterceptAsync(new ConnectionOpenArgs(context, connection)).ConfigureAwait(false);
-
-                // Create a transaction
-                using (var transaction = connection.BeginTransaction())
+                // Encapsulate in a try catch for a better exception handling
+                // Especially whe called from web proxy
+                try
                 {
-                    try
+                    await connection.OpenAsync().ConfigureAwait(false);
+
+                    // Let provider knows a connection is opened
+                    this.Provider.OnConnectionOpened(connection);
+
+                    await this.Provider.InterceptAsync(new ConnectionOpenArgs(context, connection)).ConfigureAwait(false);
+
+                    // Create a transaction
+                    using (transaction = connection.BeginTransaction())
                     {
+
                         // Open the connection
                         // Interceptors
                         await this.Provider.InterceptAsync(new TransactionOpenArgs(context, connection, transaction)).ConfigureAwait(false);
@@ -81,30 +87,34 @@ namespace Dotmim.Sync
                         transaction.Commit();
 
                         return (context, schema);
+
                     }
-                    catch (Exception)
-                    {
+                }
+                catch (Exception ex)
+                {
+                    var syncException = new SyncException(ex, context.SyncStage);
+                    // try to let the provider enrich the exception
+                    this.Provider.EnsureSyncException(syncException);
+                    syncException.Side = SyncExceptionSide.ServerSide;
+                    throw syncException;
+                }
+                finally
+                {
+                    if (transaction != null)
+                        transaction.Dispose();
 
-                        throw;
-                    }
-                    finally
-                    {
-                        if (transaction != null)
-                            transaction.Dispose();
+                    if (connection != null && connection.State == ConnectionState.Open)
+                        connection.Close();
 
-                        if (connection != null && connection.State == ConnectionState.Open)
-                            connection.Close();
+                    await this.Provider.InterceptAsync(new ConnectionCloseArgs(context, connection, transaction)).ConfigureAwait(false);
 
-                        await this.Provider.InterceptAsync(new ConnectionCloseArgs(context, connection, transaction)).ConfigureAwait(false);
-
-                        // Let provider knows a connection is closed
-                        this.Provider.OnConnectionClosed(connection);
-                    }
-
+                    // Let provider knows a connection is closed
+                    this.Provider.OnConnectionClosed(connection);
                 }
             }
-
         }
+
+
 
         public async Task<(SyncContext, long, BatchInfo, ConflictResolutionPolicy, DatabaseChangesSelected)>
             ApplyThenGetChangesAsync(SyncContext context, ScopeInfo scope, SyncSet schema, BatchInfo clientBatchInfo,
@@ -116,20 +126,21 @@ namespace Dotmim.Sync
             long remoteClientTimestamp;
             DatabaseChangesSelected serverChangesSelected;
             BatchInfo serverBatchInfo;
+            DbTransaction transaction = null;
 
             using (var connection = this.Provider.CreateConnection())
             {
-                await connection.OpenAsync().ConfigureAwait(false);
-
-                // Let provider knows a connection is opened
-                this.Provider.OnConnectionOpened(connection);
-
-                await this.Provider.InterceptAsync(new ConnectionOpenArgs(context, connection)).ConfigureAwait(false);
-
-                // Create a transaction
-                using (var transaction = connection.BeginTransaction())
+                try
                 {
-                    try
+                    await connection.OpenAsync().ConfigureAwait(false);
+
+                    // Let provider knows a connection is opened
+                    this.Provider.OnConnectionOpened(connection);
+
+                    await this.Provider.InterceptAsync(new ConnectionOpenArgs(context, connection)).ConfigureAwait(false);
+
+                    // Create a transaction
+                    using (transaction = connection.BeginTransaction())
                     {
                         await this.Provider.InterceptAsync(new TransactionOpenArgs(context, connection, transaction)).ConfigureAwait(false);
 
@@ -172,24 +183,29 @@ namespace Dotmim.Sync
                         await this.Provider.InterceptAsync(new TransactionCommitArgs(context, connection, transaction)).ConfigureAwait(false);
                         transaction.Commit();
 
-                    }
-                    catch (Exception)
-                    {
-                        throw;
-                    }
-                    finally
-                    {
-                        if (transaction != null)
-                            transaction.Dispose();
 
-                        if (connection != null && connection.State != ConnectionState.Closed)
-                            connection.Close();
-
-                        await this.Provider.InterceptAsync(new ConnectionCloseArgs(context, connection, transaction)).ConfigureAwait(false);
-
-                        // Let provider knows a connection is closed
-                        this.Provider.OnConnectionClosed(connection);
                     }
+                }
+                catch (Exception ex)
+                {
+                    var syncException = new SyncException(ex, context.SyncStage);
+                    // try to let the provider enrich the exception
+                    this.Provider.EnsureSyncException(syncException);
+                    syncException.Side = SyncExceptionSide.ServerSide;
+                    throw syncException;
+                }
+                finally
+                {
+                    if (transaction != null)
+                        transaction.Dispose();
+
+                    if (connection != null && connection.State != ConnectionState.Closed)
+                        connection.Close();
+
+                    await this.Provider.InterceptAsync(new ConnectionCloseArgs(context, connection, transaction)).ConfigureAwait(false);
+
+                    // Let provider knows a connection is closed
+                    this.Provider.OnConnectionClosed(connection);
                 }
             }
 

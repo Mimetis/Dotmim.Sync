@@ -15,8 +15,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dotmim.Sync.MySql", "Projec
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dotmim.Sync.Tests", "Tests\Dotmim.Sync.Tests\Dotmim.Sync.Tests.csproj", "{3AEABB50-D3EA-428B-BF01-06CA578EDA73}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "dotnet-sync", "Projects\dotnet-sync\dotnet-sync.csproj", "{D7483F88-D0A3-41DB-B8CE-2C92600721E8}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dotmim.Sync.Web.Server", "Projects\Dotmim.Sync.Web.Server\Dotmim.Sync.Web.Server.csproj", "{48DBC5C6-B339-411C-870E-76F2489120C1}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dotmim.Sync.Web.Client", "Projects\Dotmim.Sync.Web.Client\Dotmim.Sync.Web.Client.csproj", "{270D05BA-80DB-4C45-A19B-75309EB6B839}"
@@ -118,22 +116,6 @@ Global
 		{3AEABB50-D3EA-428B-BF01-06CA578EDA73}.Release|x64.Build.0 = Release|Any CPU
 		{3AEABB50-D3EA-428B-BF01-06CA578EDA73}.Release|x86.ActiveCfg = Release|Any CPU
 		{3AEABB50-D3EA-428B-BF01-06CA578EDA73}.Release|x86.Build.0 = Release|Any CPU
-		{D7483F88-D0A3-41DB-B8CE-2C92600721E8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{D7483F88-D0A3-41DB-B8CE-2C92600721E8}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{D7483F88-D0A3-41DB-B8CE-2C92600721E8}.Debug|ARM.ActiveCfg = Debug|Any CPU
-		{D7483F88-D0A3-41DB-B8CE-2C92600721E8}.Debug|ARM.Build.0 = Debug|Any CPU
-		{D7483F88-D0A3-41DB-B8CE-2C92600721E8}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{D7483F88-D0A3-41DB-B8CE-2C92600721E8}.Debug|x64.Build.0 = Debug|Any CPU
-		{D7483F88-D0A3-41DB-B8CE-2C92600721E8}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{D7483F88-D0A3-41DB-B8CE-2C92600721E8}.Debug|x86.Build.0 = Debug|Any CPU
-		{D7483F88-D0A3-41DB-B8CE-2C92600721E8}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{D7483F88-D0A3-41DB-B8CE-2C92600721E8}.Release|Any CPU.Build.0 = Release|Any CPU
-		{D7483F88-D0A3-41DB-B8CE-2C92600721E8}.Release|ARM.ActiveCfg = Release|Any CPU
-		{D7483F88-D0A3-41DB-B8CE-2C92600721E8}.Release|ARM.Build.0 = Release|Any CPU
-		{D7483F88-D0A3-41DB-B8CE-2C92600721E8}.Release|x64.ActiveCfg = Release|Any CPU
-		{D7483F88-D0A3-41DB-B8CE-2C92600721E8}.Release|x64.Build.0 = Release|Any CPU
-		{D7483F88-D0A3-41DB-B8CE-2C92600721E8}.Release|x86.ActiveCfg = Release|Any CPU
-		{D7483F88-D0A3-41DB-B8CE-2C92600721E8}.Release|x86.Build.0 = Release|Any CPU
 		{48DBC5C6-B339-411C-870E-76F2489120C1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{48DBC5C6-B339-411C-870E-76F2489120C1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{48DBC5C6-B339-411C-870E-76F2489120C1}.Debug|ARM.ActiveCfg = Debug|Any CPU
@@ -208,8 +190,8 @@ Global
 		{5D23F616-DBAD-40EC-B588-2925C96DB9A0} = {2E7CD7E6-8D9F-47E0-B5E3-4CF58C85F273}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		BuildVersion_StartDate = 2000/1/1
 		SolutionGuid = {348020ED-748B-4CC8-AA1D-9F7D36E2AC12}
+		BuildVersion_StartDate = 2000/1/1
 	EndGlobalSection
 	GlobalSection(Performance) = preSolution
 		HasPerformanceSessions = true

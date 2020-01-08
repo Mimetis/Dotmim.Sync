@@ -95,10 +95,10 @@ namespace Dotmim.Sync.MySql
         {
 
             var builder = new MySqlConnectionStringBuilder(connectionString);
-            
+
             // Set the default behavior to use Found rows and not Affected rows !
             builder.UseAffectedRows = false;
-            
+
             this.ConnectionString = builder.ConnectionString;
         }
 
@@ -114,6 +114,25 @@ namespace Dotmim.Sync.MySql
             this.ConnectionString = builder.ConnectionString;
         }
 
+        public override void EnsureSyncException(SyncException syncException)
+        {
+            if (!string.IsNullOrEmpty(this.ConnectionString))
+            {
+                var builder = new MySqlConnectionStringBuilder(this.ConnectionString);
+
+                syncException.DataSource = builder.Server;
+                syncException.InitialCatalog = builder.Database;
+            }
+
+            var mySqlException = syncException.InnerException as MySqlException;
+
+            if (mySqlException == null)
+                return;
+
+            syncException.Number = mySqlException.Number;
+
+            return;
+        }
 
         public override DbConnection CreateConnection() => new MySqlConnection(this.ConnectionString);
 

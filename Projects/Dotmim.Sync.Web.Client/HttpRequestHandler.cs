@@ -10,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Net;
 using Dotmim.Sync.Serialization.Serializers;
+using System.Net.Sockets;
 
 #if NETSTANDARD
 using Microsoft.Net.Http.Headers;
@@ -50,6 +51,9 @@ namespace Dotmim.Sync.Web.Client
             {
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
+
+                // Get serializer
+                var serverSerializer = serializerFactory.GetSerializer<U>();
 
                 var requestUri = new StringBuilder();
                 requestUri.Append(baseUri);
@@ -112,16 +116,11 @@ namespace Dotmim.Sync.Web.Client
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
+                // throw exception if response is not successfull
                 // get response from server
                 if (!response.IsSuccessStatusCode && response.Content != null)
-                {
-                    var exrror = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-                    var syncException = JsonConvert.DeserializeObject<SyncException>(exrror);
-
-                    if (syncException != null)
-                        throw syncException;
-                }
-
+                   await HandleSyncError(response, serializerFactory);
+                
                 // try to set the cookie for http session
                 var headers = response?.Headers;
 
@@ -148,9 +147,8 @@ namespace Dotmim.Sync.Web.Client
                 }
 
                 if (response.Content == null)
-                    throw new Exception("Can't have an empty body");
+                    throw new HttpEmptyResponseContentException();
 
-                var serverSerializer = serializerFactory.GetSerializer<U>();
 
                 using (var streamResponse = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
                     if (streamResponse.CanRead && streamResponse.Length > 0)
@@ -159,10 +157,6 @@ namespace Dotmim.Sync.Web.Client
 
                 return responseMessage;
             }
-            catch (TaskCanceledException)
-            {
-                throw;
-            }
             catch (SyncException)
             {
                 throw;
@@ -170,11 +164,58 @@ namespace Dotmim.Sync.Web.Client
             catch (Exception e)
             {
                 if (response == null || response.Content == null)
-                    throw e;
+                    throw new HttpResponseContentException(e.Message);
 
                 var exrror = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-                throw new SyncException(exrror);
+
+                throw new HttpResponseContentException(exrror);
+
             }
+
+        }
+
+        /// <summary>
+        /// Handle a request error
+        /// </summary>
+        /// <returns></returns>
+        private async Task HandleSyncError(HttpResponseMessage response, ISerializerFactory serializerFactory)
+        {
+            try
+            {
+                using (var streamResponse = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
+                {
+                    if (streamResponse.CanRead && streamResponse.Length > 0)
+                    {
+                        // Error are always json formatted
+                        var webSyncErrorSerializer = new Serialization.JsonConverter<WebSyncException>();
+                        var webError = webSyncErrorSerializer.Deserialize(streamResponse);
+
+                        if (webError != null)
+                        {
+                            var syncException = new SyncException(webError.Message);
+                            syncException.DataSource = webError.DataSource;
+                            syncException.InitialCatalog = webError.InitialCatalog;
+                            syncException.Number = webError.Number;
+                            syncException.Side = webError.Side;
+                            syncException.SyncStage = webError.SyncStage;
+                            syncException.TypeName = webError.TypeName;
+
+                            throw syncException;
+                        }
+                    }
+
+                }
+
+            }
+            catch (SyncException sexc)
+            {
+                throw sexc;
+            }
+            catch (Exception ex)
+            {
+                throw new SyncException(ex);
+            }
+
 
         }
 

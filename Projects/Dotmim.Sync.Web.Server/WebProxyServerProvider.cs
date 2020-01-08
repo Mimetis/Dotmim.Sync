@@ -44,7 +44,7 @@ namespace Dotmim.Sync.Web.Server
         public static WebProxyServerOrchestrator Create(HttpContext context, CoreProvider provider, SyncSetup setup, WebServerOptions options = null)
         {
             if (!TryGetHeaderValue(context.Request.Headers, "dotmim-sync-session-id", out var sessionId))
-                throw new SyncException($"Can't find any session id in the header");
+                throw new HttpHeaderMissingExceptiopn("dotmim-sync-session-id");
 
             // Check if we have already a cached Sync Memory provider
             var syncMemoryOrchestrator = GetCachedOrchestrator(context, sessionId);
@@ -60,7 +60,7 @@ namespace Dotmim.Sync.Web.Server
         public static WebProxyServerOrchestrator Create(HttpContext context, WebServerOrchestrator provider)
         {
             if (!TryGetHeaderValue(context.Request.Headers, "dotmim-sync-session-id", out var sessionId))
-                throw new SyncException($"Can't find any session id in the header");
+                throw new HttpHeaderMissingExceptiopn("dotmim-sync-session-id");
 
             // Check if we have already a cached Sync Memory provider
             var syncMemoryOrchestrator = GetCachedOrchestrator(context, sessionId);
@@ -127,15 +127,13 @@ namespace Dotmim.Sync.Web.Server
                 converter = cs.ToLowerInvariant();
 
             if (!TryGetHeaderValue(context.Request.Headers, "dotmim-sync-session-id", out var sessionId))
-                throw new SyncException($"Can't find any session id in the header");
+                throw new HttpHeaderMissingExceptiopn("dotmim-sync-session-id");
 
             if (!TryGetHeaderValue(context.Request.Headers, "dotmim-sync-step", out string iStep))
-                throw new SyncException($"Can't find any step in the header");
+                throw new HttpHeaderMissingExceptiopn("dotmim-sync-step");
 
             var step = (HttpStep)Convert.ToInt32(iStep);
             WebServerOrchestrator remoteOrchestrator = null;
-
-
 
             try
             {
@@ -217,7 +215,7 @@ namespace Dotmim.Sync.Web.Server
             }
             catch (Exception ex)
             {
-                await WriteExceptionAsync(httpResponse, ex, remoteOrchestrator?.Provider?.ProviderTypeName ?? "ServerLocalProvider");
+                await WriteExceptionAsync(httpResponse, ex);
             }
             finally
             {
@@ -235,7 +233,7 @@ namespace Dotmim.Sync.Web.Server
 
             var cache = context.RequestServices.GetService<IMemoryCache>();
             if (cache == null)
-                throw new SyncException("Cache is not configured! Please add memory cache, distributed or not (see https://docs.microsoft.com/en-us/aspnet/core/performance/caching/response?view=aspnetcore-2.2)");
+                throw new HttpCacheNotConfiguredException();
 
             if (string.IsNullOrWhiteSpace(syncSessionId))
                 throw new ArgumentNullException(nameof(syncSessionId));
@@ -255,7 +253,7 @@ namespace Dotmim.Sync.Web.Server
             var cache = context.RequestServices.GetService<IMemoryCache>();
 
             if (cache == null)
-                throw new SyncException("Cache is not configured! Please add memory cache, distributed or not (see https://docs.microsoft.com/en-us/aspnet/core/performance/caching/response?view=aspnetcore-2.2)");
+                throw new HttpCacheNotConfiguredException();
 
             var remoteOrchestrator = DependencyInjection.GetNewOrchestrator();
             cache.Set(syncSessionId, remoteOrchestrator, TimeSpan.FromHours(1));
@@ -270,7 +268,7 @@ namespace Dotmim.Sync.Web.Server
             var cache = context.RequestServices.GetService<IMemoryCache>();
 
             if (cache == null)
-                throw new SyncException("Cache is not configured! Please add memory cache, distributed or not (see https://docs.microsoft.com/en-us/aspnet/core/performance/caching/response?view=aspnetcore-2.2)");
+                throw new HttpCacheNotConfiguredException();
 
             remoteOrchestrator = new WebServerOrchestrator(provider, options, setup);
 
@@ -282,8 +280,7 @@ namespace Dotmim.Sync.Web.Server
             var cache = context.RequestServices.GetService<IMemoryCache>();
 
             if (cache == null)
-                throw new SyncException("Cache is not configured! Please add memory cache, distributed or not (see https://docs.microsoft.com/en-us/aspnet/core/performance/caching/response?view=aspnetcore-2.2)");
-
+                throw new HttpCacheNotConfiguredException();
 
             cache.Set(sessionId, webServerOrchestrator, TimeSpan.FromHours(1));
             return webServerOrchestrator;
@@ -303,16 +300,14 @@ namespace Dotmim.Sync.Web.Server
                 var clientBatchSize = serAndsize.s;
                 var clientSerializerFactory = serverOrchestrator.Options.Serializers[serAndsize.f];
 
+                if (clientSerializerFactory == null)
+                    throw new ArgumentNullException();
+
                 return (clientBatchSize, clientSerializerFactory);
             }
             catch
             {
-                var sb = new StringBuilder("Unexpected value for serializer. Available serializers on the server:");
-                foreach (var factory in serverOrchestrator.Options.Serializers)
-                    sb.Append($" {factory.Key}");
-                var error = sb.ToString();
-
-                throw new SyncException(error);
+                throw new HttpSerializerNotConfiguredException(serverOrchestrator.Options.Serializers.Select(sf => sf.Key));
             }
         }
 
@@ -329,14 +324,7 @@ namespace Dotmim.Sync.Web.Server
             }
             catch
             {
-                var sb = new StringBuilder("Unexpected value for Converter. Available converters on the server:");
-                
-                foreach (var conv in serverOrchestrator.Options.Converters)
-                    sb.Append($" {conv.Key}");
-
-                var error = sb.ToString();
-
-                throw new SyncException(error);
+                throw new HttpConverterNotConfiguredException(serverOrchestrator.Options.Converters.Select(sf => sf.Key));
             }
         }
 
@@ -364,18 +352,29 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// Write exception to output message
         /// </summary>
-        public static async Task WriteExceptionAsync(HttpResponse httpResponse, Exception ex, string providerTypeName)
+        public async Task WriteExceptionAsync(HttpResponse httpResponse, Exception ex)
         {
             // Check if it's an unknown error, not managed (yet)
             if (!(ex is SyncException syncException))
-                syncException = new SyncException(ex.Message, SyncStage.None, SyncExceptionType.Unknown);
+                syncException = new SyncException(ex);
 
-            var webXMessage = JsonConvert.SerializeObject(syncException);
+
+            var webException = new WebSyncException
+            {
+                Message = syncException.Message,
+                SyncStage = syncException.SyncStage,
+                TypeName = syncException.TypeName,
+                DataSource = syncException.DataSource,
+                InitialCatalog = syncException.InitialCatalog,
+                Number = syncException.Number,
+                Side = syncException.Side
+            };
+
+            var webXMessage = JsonConvert.SerializeObject(webException);
 
             httpResponse.StatusCode = StatusCodes.Status400BadRequest;
             httpResponse.ContentLength = webXMessage.Length;
             await httpResponse.WriteAsync(webXMessage);
-            Console.WriteLine(syncException);
         }
 
 
