@@ -41,6 +41,8 @@ namespace Dotmim.Sync.Tests.V2
                 orchestrator = new RemoteOrchestrator();
             else if (typeof(T) == typeof(LocalOrchestrator))
                 orchestrator = new LocalOrchestrator();
+            else if (typeof(T) == typeof(WebServerOrchestrator))
+                orchestrator = new WebServerOrchestrator();
 
             if (orchestrator == null)
                 throw new Exception("Orchestrator does not exists");

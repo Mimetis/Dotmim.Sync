@@ -21,8 +21,7 @@ namespace Dotmim.Sync
                              DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
-            try
-            {
+           
                 var scopes = new List<ScopeInfo>();
 
                 var scopeBuilder = this.GetScopeBuilder();
@@ -74,11 +73,7 @@ namespace Dotmim.Sync
                 await this.InterceptAsync(scopeArgs).ConfigureAwait(false);
 
                 return (context, localScope);
-            }
-            catch (Exception ex)
-            {
-                throw new SyncException(ex, SyncStage.ScopeLoading);
-            }
+           
         }
 
         /// <summary>
@@ -88,8 +83,7 @@ namespace Dotmim.Sync
                              DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
-            try
-            {
+           
                 var scopeBuilder = this.GetScopeBuilder();
                 var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName, connection, transaction);
 
@@ -102,13 +96,7 @@ namespace Dotmim.Sync
                 await this.InterceptAsync(scopeArgs).ConfigureAwait(false);
 
                 return context;
-            }
-            catch (Exception ex)
-            {
-                throw new SyncException(ex, SyncStage.ScopeSaved);
-            }
-
-
+           
         }
 
     }

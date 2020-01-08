@@ -27,7 +27,7 @@ namespace Dotmim.Sync.Tests.V2
         public static string GetSqliteFilePath(string dbName)
         {
             var fi = new FileInfo(dbName);
-            
+
             if (string.IsNullOrEmpty(fi.Extension))
                 dbName = $"{dbName}.db";
 
@@ -66,7 +66,6 @@ namespace Dotmim.Sync.Tests.V2
                     con = GetSqliteDatabaseConnectionString(dbName);
                     break;
             }
-            Console.WriteLine($"[{providerType}]-[{dbName}]: {con}");
 
             // default 
             return con;
@@ -111,27 +110,18 @@ namespace Dotmim.Sync.Tests.V2
         {
             using (var sysConnection = new MySqlConnection(Setup.GetMySqlDatabaseConnectionString("sys")))
             {
-                try
+                sysConnection.Open();
+
+                if (recreateDb)
                 {
-                    sysConnection.Open();
-
-                    if (recreateDb)
-                    {
-                        var cmdDrop = new MySqlCommand($"Drop schema if exists  {dbName};", sysConnection);
-                        await cmdDrop.ExecuteNonQueryAsync();
-                    }
-
-                    var cmdDb = new MySqlCommand($"create schema {dbName};", sysConnection);
-
-                    cmdDb.ExecuteNonQuery();
-                    sysConnection.Close();
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine(ex);
-                    throw;
+                    var cmdDrop = new MySqlCommand($"Drop schema if exists  {dbName};", sysConnection);
+                    await cmdDrop.ExecuteNonQueryAsync();
                 }
 
+                var cmdDb = new MySqlCommand($"create schema {dbName};", sysConnection);
+
+                cmdDb.ExecuteNonQuery();
+                sysConnection.Close();
             }
         }
 
@@ -215,7 +205,21 @@ namespace Dotmim.Sync.Tests.V2
         }
 
 
-        public static async Task ExecuteMySqlScriptAsync(string dbName, string script)
+        public static Task ExecuteScriptAsync(ProviderType providerType, string dbName, string script)
+        {
+            switch (providerType)
+            {
+                case ProviderType.MySql:
+                    return ExecuteMySqlScriptAsync(dbName, script);
+                case ProviderType.Sqlite:
+                    return ExecuteSqliteScriptAsync(dbName, script);
+                case ProviderType.Sql:
+                default:
+                    return ExecuteSqlScriptAsync(dbName, script);
+            }
+        }
+
+        private static async Task ExecuteMySqlScriptAsync(string dbName, string script)
         {
             using (var connection = new MySqlConnection(Setup.GetMySqlDatabaseConnectionString(dbName)))
             {
@@ -225,7 +229,7 @@ namespace Dotmim.Sync.Tests.V2
                 connection.Close();
             }
         }
-        public static async Task ExecuteSqlScriptAsync(string dbName, string script)
+        private static async Task ExecuteSqlScriptAsync(string dbName, string script)
         {
             using (var connection = new SqlConnection(Setup.GetSqlDatabaseConnectionString(dbName)))
             {
@@ -243,7 +247,7 @@ namespace Dotmim.Sync.Tests.V2
                 connection.Close();
             }
         }
-        public static async Task ExecuteSqliteScriptAsync(string dbName, string script)
+        private static async Task ExecuteSqliteScriptAsync(string dbName, string script)
         {
             using (var connection = new SqliteConnection(dbName))
             {

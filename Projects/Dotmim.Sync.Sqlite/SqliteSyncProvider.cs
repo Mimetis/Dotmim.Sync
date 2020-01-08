@@ -150,11 +150,34 @@ namespace Dotmim.Sync.Sqlite
             this.ConnectionString = sqliteConnectionStringBuilder.ConnectionString;
         }
 
+        public override void EnsureSyncException(SyncException syncException)
+        {
+            if (!string.IsNullOrEmpty(this.ConnectionString))
+            {
+                var builder = new SqliteConnectionStringBuilder(this.ConnectionString);
+
+                syncException.DataSource = builder.DataSource;
+            }
+
+            var sqliteException = syncException.InnerException as SqliteException;
+
+            if (sqliteException == null)
+                return;
+
+            syncException.Number = sqliteException.SqliteErrorCode;
+            
+
+            return;
+        }
+
+
         public override DbConnection CreateConnection()
         {
             var sqliteConnection = new SqliteConnection(this.ConnectionString);
             return sqliteConnection;
         }
+
+
 
         public override DbBuilder GetDatabaseBuilder(SyncTable tableDescription) => new SqliteBuilder(tableDescription);
 

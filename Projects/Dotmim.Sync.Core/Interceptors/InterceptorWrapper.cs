@@ -57,7 +57,7 @@ namespace Dotmim.Sync
             await (this.wrapper == null ? Task.CompletedTask : this.wrapper(args));
 
             if (args.Action == ChangeApplicationAction.Rollback)
-                CoreProvider.RaiseRollbackException(args.Context, "Rollback by user during a progress event");
+                throw new RollbackException("Rollback by user during a progress event");
 
         }
 

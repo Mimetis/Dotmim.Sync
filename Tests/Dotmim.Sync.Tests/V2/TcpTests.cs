@@ -24,6 +24,8 @@ namespace Dotmim.Sync.Tests.V2
 {
     public abstract class TcpTests : IClassFixture<HelperProvider>, IDisposable
     {
+        private Stopwatch stopwatch;
+
         /// <summary>
         /// Gets the sync tables involved in the tests
         /// </summary>
@@ -32,7 +34,7 @@ namespace Dotmim.Sync.Tests.V2
         /// <summary>
         /// Gets the clients type we want to tests
         /// </summary>
-        public abstract ProviderType ClientsType { get; }
+        public abstract List<ProviderType> ClientsType { get; }
 
         /// <summary>
         /// Gets the server type we want to test
@@ -44,10 +46,11 @@ namespace Dotmim.Sync.Tests.V2
         /// </summary>
         public abstract int GetServerDatabaseRowsCount((string DatabaseName, ProviderType ProviderType, IOrchestrator Orchestrator) t);
 
-        private Stopwatch stopwatch;
 
         // abstract fixture used to run the tests
         protected readonly HelperProvider fixture;
+
+        // Current test running
         private ITest test;
 
         /// <summary>
@@ -66,6 +69,7 @@ namespace Dotmim.Sync.Tests.V2
         public TcpTests(HelperProvider fixture, ITestOutputHelper output)
         {
 
+            // Getting the test running
             var type = output.GetType();
             var testMember = type.GetField("test", BindingFlags.Instance | BindingFlags.NonPublic);
             this.test = (ITest)testMember.GetValue(output);
@@ -85,12 +89,14 @@ namespace Dotmim.Sync.Tests.V2
 
             this.Server = (serverDatabaseName, this.ServerType, remoteOrchestrator);
 
+            // Create an empty server database
             HelperDatabase.CreateDatabaseAsync(this.ServerType, serverDatabaseName, true);
 
             // Get all clients providers
-            Clients = new List<(string DatabaseName, ProviderType ProviderType, LocalOrchestrator LocalOrhcestrator)>();
+            Clients = new List<(string DatabaseName, ProviderType ProviderType, LocalOrchestrator LocalOrhcestrator)>(this.ClientsType.Count);
 
-            foreach (ProviderType clientType in this.ClientsType.GetFlags())
+            // Generate Client database
+            foreach (var clientType in this.ClientsType)
             {
                 var dbCliName = HelperDatabase.GetRandomName("cli_");
                 var localOrchestrator = this.fixture.CreateOrchestrator<LocalOrchestrator>(clientType, dbCliName);
@@ -165,7 +171,7 @@ namespace Dotmim.Sync.Tests.V2
         /// Check a bad connection should raise correct error
         /// </summary>
         [Fact]
-        public async Task BadConnection_ShouldRaiseError()
+        public async Task Bad_ConnectionFromServer_ShouldRaiseError()
         {
             // change the remote orchestrator connection string
             Server.RemoteOrchestrator.Provider.ConnectionString = $@"Server=unknown;Database=unknown;UID=sa;PWD=unknown";
@@ -183,10 +189,135 @@ namespace Dotmim.Sync.Tests.V2
                 {
                     Assert.IsType<SyncException>(ex);
                     var se = ex as SyncException;
-                    Assert.Equal(SyncExceptionType.Data, se.Type);
+                    Assert.Equal(SyncExceptionSide.ServerSide, se.Side);
                 }
             }
         }
+
+        /// <summary>
+        /// Check a bad connection should raise correct error
+        /// </summary>
+        [Fact]
+        public async Task Bad_ConnectionFromClient_ShouldRaiseError()
+        {
+
+            // Execute a sync on all clients and check results
+            foreach (var client in Clients)
+            {
+                // change the local orchestrator connection string
+                // Set a connection string that will faile everywhere (event Sqlite)
+                client.LocalOrchestrator.Provider.ConnectionString = $@"Data Source=d:\unknwon.db";
+
+                var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator, new SyncSetup(Tables));
+
+                try
+                {
+                    var s = await agent.SynchronizeAsync();
+                }
+                catch (Exception ex)
+                {
+                    Assert.IsType<SyncException>(ex);
+                    var se = ex as SyncException;
+                    Assert.Equal(SyncExceptionSide.ClientSide, se.Side);
+                }
+            }
+        }
+
+
+        [Fact]
+        public async Task Bad_TableWithoutPrimaryKeys_ShouldRaiseError()
+        {
+            // change the remote orchestrator connection string
+            // Server.RemoteOrchestrator.Provider.ConnectionString = $@"Server=unknown;Database=unknown;UID=sa;PWD=unknown";
+
+            string tableTestCreationScript = "Create Table TableTest (TestId int, TestName varchar(50))";
+
+            // Create the table on the server
+            await HelperDatabase.ExecuteScriptAsync(this.Server.ProviderType, this.Server.DatabaseName, tableTestCreationScript); ;
+
+            // Create setup
+            var setup = new SyncSetup(new string[] { "TableTest" });
+
+            // Execute a sync on all clients and check results
+            foreach (var client in Clients)
+            {
+                var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator, setup);
+
+                try
+                {
+                    var s = await agent.SynchronizeAsync();
+                }
+                catch (Exception ex)
+                {
+                    Assert.IsType<SyncException>(ex);
+                    var se = ex as SyncException;
+                    Assert.Equal(SyncExceptionSide.ServerSide, se.Side);
+                    Assert.Equal("MissingPrimaryKeyException", se.TypeName);
+                    Assert.Equal(this.Server.DatabaseName, se.InitialCatalog);
+
+                }
+            }
+        }
+
+        [Fact]
+        public async Task Bad_ColumnSetup_DoesNotExistInSchema_ShouldRaiseError()
+        {
+            // create a server db without seed
+            this.fixture.EnsureDatabaseSchemaAndSeed(Server, true, false);
+
+            // Create setup
+            var setup = new SyncSetup(Tables);
+
+            // Add a malformatted column name
+            setup.Tables["Employee"].Columns.AddRange(new string [] { "EmployeeID", "FirstName", "LastNam"});
+
+            // Execute a sync on all clients and check results
+            foreach (var client in Clients)
+            {
+                var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator, setup);
+
+                try
+                {
+                    var s = await agent.SynchronizeAsync();
+                }
+                catch (Exception ex)
+                {
+                    Assert.IsType<SyncException>(ex);
+                    var se = ex as SyncException;
+                    Assert.Equal(SyncExceptionSide.ServerSide, se.Side);
+                    Assert.Equal("MissingColumnException", se.TypeName);
+                }
+            }
+        }
+
+        [Fact]
+        public async Task Bad_TableSetup_DoesNotExistInSchema_ShouldRaiseError()
+        {
+            // create a server db without seed
+            this.fixture.EnsureDatabaseSchemaAndSeed(Server, true, false);
+
+            // Add a fake table to setup tables
+            this.Tables.Append("WeirdTable");
+          
+            // Execute a sync on all clients and check results
+            foreach (var client in Clients)
+            {
+                var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator, this.Tables);
+
+                try
+                {
+                    var s = await agent.SynchronizeAsync();
+                }
+                catch (Exception ex)
+                {
+                    Assert.IsType<SyncException>(ex);
+                    var se = ex as SyncException;
+                    Assert.Equal(SyncExceptionSide.ServerSide, se.Side);
+                    Assert.Equal("MissingTableException", se.TypeName);
+                }
+            }
+        }
+
 
         /// <summary>
         /// Check interceptors are correctly called
@@ -835,7 +966,7 @@ namespace Dotmim.Sync.Tests.V2
         }
 
         /// <summary>
-        /// Update one row on server, should be correctly sync on all clients
+        /// Delete rows on server, should be correctly sync on all clients
         /// </summary>
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
@@ -1025,7 +1156,7 @@ namespace Dotmim.Sync.Tests.V2
                     using (var cliCtx = new AdventureWorksContext(client))
                     {
                         // get all product categories
-                        var clientPC = await ctx.ProductCategory.AsNoTracking().ToListAsync();
+                        var clientPC = await cliCtx.ProductCategory.AsNoTracking().ToListAsync();
 
                         // check row count
                         Assert.Equal(serverPC.Count, clientPC.Count);
@@ -1126,7 +1257,7 @@ namespace Dotmim.Sync.Tests.V2
                     using (var cliCtx = new AdventureWorksContext(client))
                     {
                         // get all product categories
-                        var clientPC = await ctx.ProductCategory.AsNoTracking().ToListAsync();
+                        var clientPC = await cliCtx.ProductCategory.AsNoTracking().ToListAsync();
 
                         // check row count
                         Assert.Equal(serverPC.Count, clientPC.Count);
@@ -1224,7 +1355,7 @@ namespace Dotmim.Sync.Tests.V2
                     using (var cliCtx = new AdventureWorksContext(client))
                     {
                         // get all product categories
-                        var clientPC = await ctx.ProductCategory.AsNoTracking().ToListAsync();
+                        var clientPC = await cliCtx.ProductCategory.AsNoTracking().ToListAsync();
 
                         // check row count
                         Assert.Equal(serverPC.Count, clientPC.Count);
@@ -1323,7 +1454,7 @@ namespace Dotmim.Sync.Tests.V2
                     using (var cliCtx = new AdventureWorksContext(client))
                     {
                         // get all product categories
-                        var clientPC = await ctx.ProductCategory.AsNoTracking().ToListAsync();
+                        var clientPC = await cliCtx.ProductCategory.AsNoTracking().ToListAsync();
 
                         // check row count
                         Assert.Equal(serverPC.Count, clientPC.Count);
@@ -1426,7 +1557,7 @@ namespace Dotmim.Sync.Tests.V2
                     using (var cliCtx = new AdventureWorksContext(client))
                     {
                         // get all product categories
-                        var clientPC = await ctx.ProductCategory.AsNoTracking().ToListAsync();
+                        var clientPC = await cliCtx.ProductCategory.AsNoTracking().ToListAsync();
 
                         // check row count
                         Assert.Equal(serverPC.Count, clientPC.Count);
@@ -1526,7 +1657,7 @@ namespace Dotmim.Sync.Tests.V2
                     using (var cliCtx = new AdventureWorksContext(client))
                     {
                         // get all product categories
-                        var clientPC = await ctx.ProductCategory.AsNoTracking().ToListAsync();
+                        var clientPC = await cliCtx.ProductCategory.AsNoTracking().ToListAsync();
 
                         // check row count
                         Assert.Equal(serverPC.Count, clientPC.Count);
@@ -1631,7 +1762,7 @@ namespace Dotmim.Sync.Tests.V2
                     using (var cliCtx = new AdventureWorksContext(client))
                     {
                         // get all product categories
-                        var clientPC = await ctx.ProductCategory.AsNoTracking().ToListAsync();
+                        var clientPC = await cliCtx.ProductCategory.AsNoTracking().ToListAsync();
 
                         // check row count
                         Assert.Equal(serverPC.Count, clientPC.Count);
@@ -1747,7 +1878,7 @@ namespace Dotmim.Sync.Tests.V2
                     using (var cliCtx = new AdventureWorksContext(client))
                     {
                         // get all product categories
-                        var clientPC = await ctx.ProductCategory.AsNoTracking().ToListAsync();
+                        var clientPC = await cliCtx.ProductCategory.AsNoTracking().ToListAsync();
 
                         // check row count
                         Assert.Equal(serverPC.Count, clientPC.Count);
@@ -1871,7 +2002,7 @@ namespace Dotmim.Sync.Tests.V2
                     using (var cliCtx = new AdventureWorksContext(client))
                     {
                         // get all product categories
-                        var clientPC = await ctx.ProductCategory.AsNoTracking().ToListAsync();
+                        var clientPC = await cliCtx.ProductCategory.AsNoTracking().ToListAsync();
 
                         // check row count
                         Assert.Equal(serverPC.Count, clientPC.Count);
@@ -2342,7 +2473,7 @@ namespace Dotmim.Sync.Tests.V2
             }
 
         }
-       
+
         /// <summary>
         /// Force failing constraints.
         /// But since we set the correct options, shoudl work correctly
@@ -2430,7 +2561,7 @@ namespace Dotmim.Sync.Tests.V2
                 var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator,
                                           new SyncSetup(Tables), options);
 
-  
+
                 var s = await agent.SynchronizeAsync();
 
                 Assert.Equal(2, s.TotalChangesDownloaded);
@@ -2764,7 +2895,481 @@ namespace Dotmim.Sync.Tests.V2
                 download += 2;
             }
 
-      
+
+        }
+
+
+        /// <summary>
+        /// Configuring tables to be upload only
+        /// Server should receive lines but will not send back its own lines
+        /// </summary>
+        [Fact]
+        public async Task UploadOnly()
+        {
+            // create a server schema without seeding
+            this.fixture.EnsureDatabaseSchemaAndSeed(this.Server, true, false);
+
+
+            // Set Employee, Address, EmployeeAddress to Upload only
+            // All others are Bidirectional by default.
+            var setup = new SyncSetup(Tables);
+            setup.Tables["Employee"].SyncDirection = SyncDirection.UploadOnly;
+            setup.Tables["Address"].SyncDirection = SyncDirection.UploadOnly;
+            setup.Tables["EmployeeAddress"].SyncDirection = SyncDirection.UploadOnly;
+
+
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var client in Clients)
+            {
+                var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator, setup);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(0, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalSyncConflicts);
+            }
+
+            // Insert one line on each client
+            int index = 10;
+            foreach (var client in Clients)
+            {
+                // Insert one employee, address, employeeaddress
+                using (var ctx = new AdventureWorksContext(client))
+                {
+
+                    ctx.Database.OpenConnection();
+
+                    // Insert an employee
+                    var employee = new Employee
+                    {
+                        EmployeeId = index,
+                        FirstName = "John",
+                        LastName = "Doe"
+                    };
+
+                    ctx.Add(employee);
+
+                    if (client.ProviderType == ProviderType.Sql)
+                        ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Employee ON;");
+
+                    await ctx.SaveChangesAsync();
+
+                    if (client.ProviderType == ProviderType.Sql)
+                        ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Employee OFF");
+
+                    // Insert a new address for employee 
+                    var city = "Paris " + HelperDatabase.GetRandomName();
+                    var addressline1 = "Rue Monthieu " + HelperDatabase.GetRandomName();
+                    var stateProvince = "Ile de France";
+                    var countryRegion = "France";
+                    var postalCode = "75001";
+
+                    var address = new Address
+                    {
+                        AddressId = index,
+                        AddressLine1 = addressline1,
+                        City = city,
+                        StateProvince = stateProvince,
+                        CountryRegion = countryRegion,
+                        PostalCode = postalCode
+
+                    };
+
+                    ctx.Add(address);
+                    if (client.ProviderType == ProviderType.Sql)
+                        ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Address ON;");
+
+                    await ctx.SaveChangesAsync();
+
+                    if (client.ProviderType == ProviderType.Sql)
+                        ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Address OFF");
+
+
+                    var employeeAddress = new EmployeeAddress
+                    {
+                        EmployeeId = employee.EmployeeId,
+                        AddressId = address.AddressId,
+                        AddressType = "CLIENT"
+                    };
+
+                    ctx.EmployeeAddress.Add(employeeAddress);
+                    await ctx.SaveChangesAsync();
+
+
+                    ctx.Database.CloseConnection();
+
+                    index++;
+                }
+
+
+            }
+
+            // Insert one ProductCategory, Employee, Address, EmployeeAddress on server
+            using (var ctx = new AdventureWorksContext(this.Server))
+            {
+                ctx.Database.OpenConnection();
+
+                var productId = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 6);
+                var productCategoryNameServer = HelperDatabase.GetRandomName("SRV");
+
+
+                // ProductCategory
+                ctx.Add(new ProductCategory
+                {
+                    ProductCategoryId = productId,
+                    Name = productCategoryNameServer
+                });
+                await ctx.SaveChangesAsync();
+
+                // Insert an employee
+                var employee = new Employee
+                {
+                    EmployeeId = 1000,
+                    FirstName = "John",
+                    LastName = "Doe"
+                };
+
+                ctx.Add(employee);
+
+                if (this.ServerType == ProviderType.Sql)
+                    ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Employee ON;");
+
+                await ctx.SaveChangesAsync();
+
+                if (this.ServerType == ProviderType.Sql)
+                    ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Employee OFF");
+
+                // Insert a new address for employee 
+                var city = "Lyon " + HelperDatabase.GetRandomName();
+                var addressline1 = HelperDatabase.GetRandomName();
+                var stateProvince = "Rhones";
+                var countryRegion = "France";
+                var postalCode = "69001";
+
+                var address = new Address
+                {
+                    AddressId = 1000,
+                    AddressLine1 = addressline1,
+                    City = city,
+                    StateProvince = stateProvince,
+                    CountryRegion = countryRegion,
+                    PostalCode = postalCode
+
+                };
+
+                ctx.Add(address);
+                if (this.ServerType == ProviderType.Sql)
+                    ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Address ON;");
+
+                await ctx.SaveChangesAsync();
+
+                if (this.ServerType == ProviderType.Sql)
+                    ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Address OFF");
+
+                var employeeAddress = new EmployeeAddress
+                {
+                    EmployeeId = employee.EmployeeId,
+                    AddressId = address.AddressId,
+                    AddressType = "SERVER"
+                };
+
+                ctx.EmployeeAddress.Add(employeeAddress);
+                await ctx.SaveChangesAsync();
+
+                ctx.Database.CloseConnection();
+            }
+
+            // Execute a sync on all clients and check results
+            foreach (var client in Clients)
+            {
+                var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator, setup);
+
+
+                var s = await agent.SynchronizeAsync();
+
+                // Server shoud not sent back lines, so download equals 1 (just product category)
+                Assert.Equal(1, s.TotalChangesDownloaded);
+                Assert.Equal(3, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalSyncConflicts);
+            }
+
+            // check rows count on server and on each client
+            using (var ctx = new AdventureWorksContext(this.Server))
+            {
+                // get all product categories
+                var serverPC = await ctx.ProductCategory.AsNoTracking().ToListAsync();
+                Assert.Single(serverPC);
+
+                // get all employees
+                var employees = await ctx.Employee.AsNoTracking().ToListAsync();
+                Assert.Equal(Clients.Count + 1, employees.Count);
+                // get all employees address
+                var employeesAddresses = await ctx.EmployeeAddress.AsNoTracking().ToListAsync();
+                Assert.Equal(Clients.Count + 1, employeesAddresses.Count);
+                // get all addresses
+                var addresses = await ctx.Address.AsNoTracking().ToListAsync();
+                Assert.Equal(Clients.Count + 1, addresses.Count);
+
+            }
+            foreach (var client in Clients)
+            {
+                using (var cliCtx = new AdventureWorksContext(client))
+                {
+                    // get all product categories
+                    var clientPC = await cliCtx.ProductCategory.AsNoTracking().ToListAsync();
+                    Assert.Single(clientPC);
+
+                    // get all employees
+                    var employees = await cliCtx.Employee.AsNoTracking().ToListAsync();
+                    Assert.Single(employees);
+                    // get all employees address
+                    var employeesAddresses = await cliCtx.EmployeeAddress.AsNoTracking().ToListAsync();
+                    Assert.Single(employeesAddresses);
+                    // get all addresses
+                    var addresses = await cliCtx.Address.AsNoTracking().ToListAsync();
+                    Assert.Single(addresses);
+
+                }
+            }
+        }
+
+
+
+
+        /// <summary>
+        /// Configuring tables to be upload only
+        /// Server should receive lines but will not send back its own lines
+        /// </summary>
+        [Fact]
+        public async Task DownloadOnly()
+        {
+            // create a server schema without seeding
+            this.fixture.EnsureDatabaseSchemaAndSeed(this.Server, true, false);
+
+
+            // Set Employee, Address, EmployeeAddress to Upload only
+            // All others are Bidirectional by default.
+            var setup = new SyncSetup(Tables);
+            setup.Tables["Employee"].SyncDirection = SyncDirection.DownloadOnly;
+            setup.Tables["Address"].SyncDirection = SyncDirection.DownloadOnly;
+            setup.Tables["EmployeeAddress"].SyncDirection = SyncDirection.DownloadOnly;
+
+
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var client in Clients)
+            {
+                var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator, setup);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(0, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalSyncConflicts);
+            }
+
+            // Insert one line on each client
+            int index = 10;
+            foreach (var client in Clients)
+            {
+                // Insert one employee, address, employeeaddress
+                using (var ctx = new AdventureWorksContext(client))
+                {
+
+                    ctx.Database.OpenConnection();
+
+                    // Insert an employee
+                    var employee = new Employee
+                    {
+                        EmployeeId = index,
+                        FirstName = "John",
+                        LastName = "Doe"
+                    };
+
+                    ctx.Add(employee);
+
+                    if (client.ProviderType == ProviderType.Sql)
+                        ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Employee ON;");
+
+                    await ctx.SaveChangesAsync();
+
+                    if (client.ProviderType == ProviderType.Sql)
+                        ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Employee OFF");
+
+                    // Insert a new address for employee 
+                    var city = "Paris " + HelperDatabase.GetRandomName();
+                    var addressline1 = "Rue Monthieu " + HelperDatabase.GetRandomName();
+                    var stateProvince = "Ile de France";
+                    var countryRegion = "France";
+                    var postalCode = "75001";
+
+                    var address = new Address
+                    {
+                        AddressId = index,
+                        AddressLine1 = addressline1,
+                        City = city,
+                        StateProvince = stateProvince,
+                        CountryRegion = countryRegion,
+                        PostalCode = postalCode
+
+                    };
+
+                    ctx.Add(address);
+                    if (client.ProviderType == ProviderType.Sql)
+                        ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Address ON;");
+
+                    await ctx.SaveChangesAsync();
+
+                    if (client.ProviderType == ProviderType.Sql)
+                        ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Address OFF");
+
+
+                    var employeeAddress = new EmployeeAddress
+                    {
+                        EmployeeId = employee.EmployeeId,
+                        AddressId = address.AddressId,
+                        AddressType = "CLIENT"
+                    };
+
+                    ctx.EmployeeAddress.Add(employeeAddress);
+                    await ctx.SaveChangesAsync();
+
+
+                    ctx.Database.CloseConnection();
+
+                    index++;
+                }
+
+
+            }
+
+            // Insert one ProductCategory, Employee, Address, EmployeeAddress on server
+            using (var ctx = new AdventureWorksContext(this.Server))
+            {
+                ctx.Database.OpenConnection();
+
+                var productId = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 6);
+                var productCategoryNameServer = HelperDatabase.GetRandomName("SRV");
+
+
+                // ProductCategory
+                ctx.Add(new ProductCategory
+                {
+                    ProductCategoryId = productId,
+                    Name = productCategoryNameServer
+                });
+                await ctx.SaveChangesAsync();
+
+                // Insert an employee
+                var employee = new Employee
+                {
+                    EmployeeId = 1000,
+                    FirstName = "John",
+                    LastName = "Doe"
+                };
+
+                ctx.Add(employee);
+
+                if (this.ServerType == ProviderType.Sql)
+                    ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Employee ON;");
+
+                await ctx.SaveChangesAsync();
+
+                if (this.ServerType == ProviderType.Sql)
+                    ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Employee OFF");
+
+                // Insert a new address for employee 
+                var city = "Lyon " + HelperDatabase.GetRandomName();
+                var addressline1 = HelperDatabase.GetRandomName();
+                var stateProvince = "Rhones";
+                var countryRegion = "France";
+                var postalCode = "69001";
+
+                var address = new Address
+                {
+                    AddressId = 1000,
+                    AddressLine1 = addressline1,
+                    City = city,
+                    StateProvince = stateProvince,
+                    CountryRegion = countryRegion,
+                    PostalCode = postalCode
+
+                };
+
+                ctx.Add(address);
+                if (this.ServerType == ProviderType.Sql)
+                    ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Address ON;");
+
+                await ctx.SaveChangesAsync();
+
+                if (this.ServerType == ProviderType.Sql)
+                    ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Address OFF");
+
+                var employeeAddress = new EmployeeAddress
+                {
+                    EmployeeId = employee.EmployeeId,
+                    AddressId = address.AddressId,
+                    AddressType = "SERVER"
+                };
+
+                ctx.EmployeeAddress.Add(employeeAddress);
+                await ctx.SaveChangesAsync();
+
+                ctx.Database.CloseConnection();
+            }
+
+            // Execute a sync on all clients and check results
+            foreach (var client in Clients)
+            {
+                var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator, setup);
+
+
+                var s = await agent.SynchronizeAsync();
+
+                // Server send lines, but clients don't
+                Assert.Equal(4, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalSyncConflicts);
+            }
+
+            // check rows count on server and on each client
+            using (var ctx = new AdventureWorksContext(this.Server))
+            {
+                // get all product categories
+                var serverPC = await ctx.ProductCategory.AsNoTracking().ToListAsync();
+                Assert.Single(serverPC);
+
+                // get all employees
+                var employees = await ctx.Employee.AsNoTracking().ToListAsync();
+                Assert.Single(employees);
+                // get all employees address
+                var employeesAddresses = await ctx.EmployeeAddress.AsNoTracking().ToListAsync();
+                Assert.Single(employeesAddresses);
+                // get all addresses
+                var addresses = await ctx.Address.AsNoTracking().ToListAsync();
+                Assert.Single(addresses);
+
+            }
+            foreach (var client in Clients)
+            {
+                using (var cliCtx = new AdventureWorksContext(client))
+                {
+                    // get all product categories
+                    var clientPC = await cliCtx.ProductCategory.AsNoTracking().ToListAsync();
+                    Assert.Single(clientPC);
+
+                    // get all employees
+                    var employees = await cliCtx.Employee.AsNoTracking().ToListAsync();
+                    Assert.Equal(2, employees.Count);
+                    // get all employees address
+                    var employeesAddresses = await cliCtx.EmployeeAddress.AsNoTracking().ToListAsync();
+                    Assert.Equal(2, employeesAddresses.Count);
+                    // get all addresses
+                    var addresses = await cliCtx.Address.AsNoTracking().ToListAsync();
+                    Assert.Equal(2, addresses.Count);
+
+                }
+            }
         }
 
     }

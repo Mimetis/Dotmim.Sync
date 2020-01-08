@@ -93,6 +93,27 @@ namespace Dotmim.Sync.SqlServer
             }
         }
 
+        public override void EnsureSyncException(SyncException syncException)
+        {
+            if (!string.IsNullOrEmpty(this.ConnectionString))
+            {
+                var builder = new SqlConnectionStringBuilder(this.ConnectionString);
+
+                syncException.DataSource = builder.DataSource;
+                syncException.InitialCatalog = builder.InitialCatalog;
+            }
+
+            // Can add more info from SqlException
+            var sqlException = syncException.InnerException as SqlException;
+
+            if (sqlException == null)
+                return;
+
+            syncException.Number = sqlException.Number;
+
+            return;
+        }
+
         /// <summary>
         /// Sql server support bulk operations through Table Value parameter
         /// </summary>

@@ -4,12 +4,13 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using Xunit.Abstractions;
 
 namespace Dotmim.Sync.Tests.V2
 {
     public class SqlServerHttpTests : HttpTests
     {
-        public SqlServerHttpTests(HelperProvider fixture) : base(fixture)
+        public SqlServerHttpTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
         {
         }
 
@@ -20,21 +21,22 @@ namespace Dotmim.Sync.Tests.V2
             "PricesList", "PricesListCategory", "PricesListDetail"
         };
 
-        public override ProviderType ClientsType =>
-            ProviderType.Sql | ProviderType.Sqlite | ProviderType.MySql;
+        public override List<ProviderType> ClientsType => new List<ProviderType>
+            { ProviderType.MySql, ProviderType.Sql, ProviderType.Sqlite};
 
-        public override ProviderType ServerType =>
-            ProviderType.Sql;
+        public override ProviderType ServerType => ProviderType.Sql;
+
+        public override bool UseFiddler =>  true;
 
         /// <summary>
         /// Get the server database rows count
         /// </summary>
         /// <returns></returns>
-        public override int GetServerDatabaseRowsCount(ProviderType providerType, CoreProvider provider)
+        public override int GetServerDatabaseRowsCount((string DatabaseName, ProviderType ProviderType, IOrchestrator Orchestrator) t)
         {
             int totalCountRows = 0;
 
-            using (var serverDbCtx = new AdventureWorksContext(providerType, provider.ConnectionString, true, true))
+            using (var serverDbCtx = new AdventureWorksContext(t))
             {
                 totalCountRows += serverDbCtx.Address.Count();
                 totalCountRows += serverDbCtx.Customer.Count();
@@ -59,25 +61,25 @@ namespace Dotmim.Sync.Tests.V2
             return totalCountRows;
         }
 
-        /// <summary>
-        /// Get the server database rows count when filtered
-        /// </summary>
-        public int GetServerFilteredDatabaseRowsCount(ProviderType providerType, CoreProvider provider)
-        {
-            int totalCountRows = 0;
+        ///// <summary>
+        ///// Get the server database rows count when filtered
+        ///// </summary>
+        //public int GetServerFilteredDatabaseRowsCount(ProviderType providerType, CoreProvider provider)
+        //{
+        //    int totalCountRows = 0;
 
-            var filter = AdventureWorksContext.CustomerIdForFilter;
+        //    var filter = AdventureWorksContext.CustomerIdForFilter;
 
-            using (var serverDbCtx = new AdventureWorksContext(providerType, provider.ConnectionString, true, true))
-            {
-                totalCountRows += serverDbCtx.Address.Count();
-                totalCountRows += serverDbCtx.Customer.Where(c => c.CustomerId == filter).Count();
-                totalCountRows += serverDbCtx.CustomerAddress.Where(c => c.CustomerId == filter).Count();
-                totalCountRows += serverDbCtx.SalesOrderDetail.Count();
-                totalCountRows += serverDbCtx.SalesOrderHeader.Where(c => c.CustomerId == filter).Count();
-            }
+        //    using (var serverDbCtx = new AdventureWorksContext(providerType, provider.ConnectionString, true, true))
+        //    {
+        //        totalCountRows += serverDbCtx.Address.Count();
+        //        totalCountRows += serverDbCtx.Customer.Where(c => c.CustomerId == filter).Count();
+        //        totalCountRows += serverDbCtx.CustomerAddress.Where(c => c.CustomerId == filter).Count();
+        //        totalCountRows += serverDbCtx.SalesOrderDetail.Count();
+        //        totalCountRows += serverDbCtx.SalesOrderHeader.Where(c => c.CustomerId == filter).Count();
+        //    }
 
-            return totalCountRows;
-        }
+        //    return totalCountRows;
+        //}
     }
 }
