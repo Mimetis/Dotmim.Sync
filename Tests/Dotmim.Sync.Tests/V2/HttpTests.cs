@@ -78,10 +78,7 @@ namespace Dotmim.Sync.Tests.V2
             var testMember = type.GetField("test", BindingFlags.Instance | BindingFlags.NonPublic);
             this.test = (ITest)testMember.GetValue(output);
 
-            Console.WriteLine($"{test.DisplayName}");
-            Debug.WriteLine(test.DisplayName);
             this.stopwatch = Stopwatch.StartNew();
-
 
             this.fixture = fixture;
 
@@ -138,7 +135,7 @@ namespace Dotmim.Sync.Tests.V2
 
             this.stopwatch.Stop();
 
-            var str = $"{this.stopwatch.Elapsed.Minutes}:{this.stopwatch.Elapsed.Seconds}.{this.stopwatch.Elapsed.Milliseconds}";
+            var str = $"{test.TestCase.DisplayName} : {this.stopwatch.Elapsed.Minutes}:{this.stopwatch.Elapsed.Seconds}.{this.stopwatch.Elapsed.Milliseconds}";
             Console.WriteLine(str);
             Debug.WriteLine(str);
 
