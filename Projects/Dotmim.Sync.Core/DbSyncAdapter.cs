@@ -116,9 +116,6 @@ namespace Dotmim.Sync
             if (row.Table == null)
                 throw new ArgumentException("Schema table columns does not exist");
 
-            if (command == null)
-                throw new Exception("Missing command for apply metadata ");
-
             int rowsApplied = 0;
 
             var schemaTable = row.Table;
@@ -176,6 +173,9 @@ namespace Dotmim.Sync
             // Get the row in the local repository
             using (var selectCommand = GetCommand(DbCommandType.SelectRow))
             {
+                if (selectCommand == null)
+                    throw new MissingCommandException(DbCommandType.SelectRow.ToString());
+
                 // Deriving Parameters
                 this.SetCommandParameters(DbCommandType.SelectRow, selectCommand);
 
@@ -248,16 +248,22 @@ namespace Dotmim.Sync
             if (this.ApplyType == DataRowState.Modified)
             {
                 bulkCommand = this.GetCommand(DbCommandType.BulkUpdateRows);
+                if (bulkCommand == null)
+                    throw new MissingCommandException(DbCommandType.BulkUpdateRows.ToString());
+               
                 this.SetCommandParameters(DbCommandType.BulkUpdateRows, bulkCommand);
             }
             else if (this.ApplyType == DataRowState.Deleted)
             {
                 bulkCommand = this.GetCommand(DbCommandType.BulkDeleteRows);
+                if (bulkCommand == null)
+                    throw new MissingCommandException(DbCommandType.BulkDeleteRows.ToString());
+                
                 this.SetCommandParameters(DbCommandType.BulkDeleteRows, bulkCommand);
             }
             else
             {
-                throw new Exception("DmRowState not valid during ApplyBulkChanges operation");
+                throw new Exception("RowState not valid during ApplyBulkChanges operation");
             }
 
             if (Transaction != null && Transaction.Connection != null)
@@ -296,8 +302,10 @@ namespace Dotmim.Sync
 
                 // Get the row that caused the problem, from the remote side (client)
                 var remoteConflictRows = changesTable.Rows.GetRowsByPrimaryKeys(failedRow);
+
                 if (remoteConflictRows.Count() == 0)
                     throw new Exception("Cant find changes row who is in conflict");
+                
                 var remoteConflictRow = remoteConflictRows.ToList()[0];
 
                 var localConflictRow = GetRow(failedRow, changesTable);
@@ -355,6 +363,9 @@ namespace Dotmim.Sync
         {
             using (var dbCommand = this.GetCommand(dbCommandType))
             {
+                if (dbCommand == null)
+                    throw new MissingCommandException(dbCommandType.ToString());
+                
                 this.SetCommandParameters(dbCommandType, dbCommand);
                 this.InsertOrUpdateMetadatas(dbCommand, row, applyingScopeId);
             }
@@ -440,6 +451,9 @@ namespace Dotmim.Sync
 
             using (var command = this.GetCommand(DbCommandType.DeleteRow))
             {
+                if (command == null)
+                    throw new MissingCommandException(DbCommandType.DeleteRow.ToString());
+
                 // Deriving Parameters
                 this.SetCommandParameters(DbCommandType.DeleteRow, command);
 
@@ -484,6 +498,9 @@ namespace Dotmim.Sync
 
             using (var command = this.GetCommand(DbCommandType.UpdateRow))
             {
+                if (command == null)
+                    throw new MissingCommandException(DbCommandType.UpdateRow.ToString());
+               
                 // Deriving Parameters
                 this.SetCommandParameters(DbCommandType.UpdateRow, command);
 
@@ -522,6 +539,9 @@ namespace Dotmim.Sync
         {
             using (var command = this.GetCommand(DbCommandType.Reset))
             {
+                if (command == null)
+                    throw new MissingCommandException(DbCommandType.Reset.ToString());
+
                 // Deriving Parameters
                 this.SetCommandParameters(DbCommandType.Reset, command);
 
@@ -554,6 +574,9 @@ namespace Dotmim.Sync
         {
             using (var command = this.GetCommand(DbCommandType.DisableConstraints))
             {
+                if (command == null)
+                    throw new MissingCommandException(DbCommandType.DisableConstraints.ToString());
+
                 // set parameters if needed
                 this.SetCommandParameters(DbCommandType.DisableConstraints, command);
 
@@ -586,6 +609,9 @@ namespace Dotmim.Sync
         {
             using (var command = this.GetCommand(DbCommandType.EnableConstraints))
             {
+                if (command == null)
+                    throw new MissingCommandException(DbCommandType.EnableConstraints.ToString());
+
                 // set parameters if needed
                 this.SetCommandParameters(DbCommandType.EnableConstraints, command);
 

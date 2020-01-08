@@ -27,10 +27,10 @@ namespace Dotmim.Sync.Tests.V2
             "PricesList", "PricesListCategory", "PricesListDetail"
         };
 
-        public override ProviderType ClientsType =>
-              ProviderType.Sqlite | ProviderType.Sql | ProviderType.MySql;
-        
-        public override ProviderType ServerType => 
+        public override List<ProviderType> ClientsType => new List<ProviderType>
+            { ProviderType.MySql, ProviderType.Sql, ProviderType.Sqlite};
+
+        public override ProviderType ServerType =>
             ProviderType.Sql;
 
         /// <summary>
@@ -66,6 +66,6 @@ namespace Dotmim.Sync.Tests.V2
             return totalCountRows;
         }
 
-       
+
     }
 }

@@ -54,10 +54,10 @@ namespace Dotmim.Sync.Tests
                     con = Setup.GetSqlAzureDatabaseConnectionString(dbName);
                     break;
                 case ProviderType.MySql:
-                    con =Setup.GetMySqlDatabaseConnectionString(dbName);
+                    con = Setup.GetMySqlDatabaseConnectionString(dbName);
                     break;
                 case ProviderType.Sqlite:
-                    con =GetSqliteDatabaseConnectionString(dbName);
+                    con = GetSqliteDatabaseConnectionString(dbName);
                     break;
             }
 
@@ -108,26 +108,20 @@ namespace Dotmim.Sync.Tests
         {
             using (var sysConnection = new MySqlConnection(Setup.GetMySqlDatabaseConnectionString("sys")))
             {
-                try
+
+                sysConnection.Open();
+
+                if (recreateDb)
                 {
-                    sysConnection.Open();
-
-                    if (recreateDb)
-                    {
-                        var cmdDrop = new MySqlCommand($"Drop schema if exists  {dbName};", sysConnection);
-                        cmdDrop.ExecuteNonQuery();
-                    }
-
-                    var cmdDb = new MySqlCommand($"create schema {dbName};", sysConnection);
-
-                    cmdDb.ExecuteNonQuery();
-                    sysConnection.Close();
+                    var cmdDrop = new MySqlCommand($"Drop schema if exists  {dbName};", sysConnection);
+                    cmdDrop.ExecuteNonQuery();
                 }
-                catch (Exception ex)
-                {
-                    Console.WriteLine(ex);
-                    throw;
-                }
+
+                var cmdDb = new MySqlCommand($"create schema {dbName};", sysConnection);
+
+                cmdDb.ExecuteNonQuery();
+                sysConnection.Close();
+
 
             }
         }
@@ -173,7 +167,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         private static void DropSqliteDatabase(string dbName)
         {
-            string filePath=null;
+            string filePath = null;
             try
             {
                 GC.Collect();

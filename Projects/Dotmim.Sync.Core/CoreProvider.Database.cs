@@ -29,8 +29,7 @@ namespace Dotmim.Sync
             try
             {
                 if (schema.Tables == null || !schema.HasTables)
-                    throw new ArgumentNullException("tables", "You must set the tables you want to provision");
-
+                    throw new MissingTablesException();
 
                 // Open the connection
                 using (connection = this.CreateConnection())
@@ -124,8 +123,7 @@ namespace Dotmim.Sync
             try
             {
                 if (schema.Tables == null || !schema.HasTables)
-                    throw new ArgumentNullException("tables", "You must set the tables you want to provision");
-
+                    throw new MissingTablesException();
 
                 // Open the connection
                 using (connection = this.CreateConnection())
@@ -225,69 +223,63 @@ namespace Dotmim.Sync
                              DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
-            try
+
+            // Event progress
+            context.SyncStage = SyncStage.SchemaApplying;
+
+            var script = new StringBuilder();
+
+            var beforeArgs = new DatabaseProvisioningArgs(context, SyncProvision.All, schema, connection, transaction);
+            await this.InterceptAsync(beforeArgs).ConfigureAwait(false);
+
+            // Sorting tables based on dependencies between them
+            var schemaTables = schema.Tables
+                .SortByDependencies(tab => tab.GetRelations()
+                    .Select(r => r.GetParentTable()));
+
+            foreach (var schemaTable in schemaTables)
             {
+                var builder = this.GetDatabaseBuilder(schemaTable);
+                // set if the builder supports creating the bulk operations proc stock
+                builder.UseBulkProcedures = this.SupportBulkOperations;
 
-                // Event progress
-                context.SyncStage = SyncStage.SchemaApplying;
+                // adding filter
+                this.AddFilters(schemaTable, builder);
 
-                var script = new StringBuilder();
+                context.SyncStage = SyncStage.TableSchemaApplying;
 
-                var beforeArgs = new DatabaseProvisioningArgs(context, SyncProvision.All, schema, connection, transaction);
-                await this.InterceptAsync(beforeArgs).ConfigureAwait(false);
+                // Launch any interceptor if available
+                await this.InterceptAsync(new TableProvisioningArgs(context, SyncProvision.All, schemaTable, connection, transaction)).ConfigureAwait(false);
 
-                // Sorting tables based on dependencies between them
-                var schemaTables = schema.Tables
-                    .SortByDependencies(tab => tab.GetRelations()
-                        .Select(r => r.GetParentTable()));
-
-                foreach (var schemaTable in schemaTables)
+                string currentScript = null;
+                if (beforeArgs.GenerateScript)
                 {
-                    var builder = this.GetDatabaseBuilder(schemaTable);
-                    // set if the builder supports creating the bulk operations proc stock
-                    builder.UseBulkProcedures = this.SupportBulkOperations;
-
-                    // adding filter
-                    this.AddFilters(schemaTable, builder);
-
-                    context.SyncStage = SyncStage.TableSchemaApplying;
-
-                    // Launch any interceptor if available
-                    await this.InterceptAsync(new TableProvisioningArgs(context, SyncProvision.All, schemaTable, connection, transaction)).ConfigureAwait(false);
-
-                    string currentScript = null;
-                    if (beforeArgs.GenerateScript)
-                    {
-                        currentScript = builder.ScriptTable(connection, transaction);
-                        currentScript += builder.ScriptForeignKeys(connection, transaction);
-                        script.Append(currentScript);
-                    }
-
-                    builder.Create(connection, transaction);
-                    builder.CreateForeignKeys(connection, transaction);
-
-                    // Report & Interceptor
-                    context.SyncStage = SyncStage.TableSchemaApplied;
-                    var tableProvisionedArgs = new TableProvisionedArgs(context, SyncProvision.All, schemaTable, connection, transaction);
-                    this.ReportProgress(context, progress, tableProvisionedArgs);
-                    await this.InterceptAsync(tableProvisionedArgs).ConfigureAwait(false);
+                    currentScript = builder.ScriptTable(connection, transaction);
+                    currentScript += builder.ScriptForeignKeys(connection, transaction);
+                    script.Append(currentScript);
                 }
 
+                builder.Create(connection, transaction);
+                builder.CreateForeignKeys(connection, transaction);
+
                 // Report & Interceptor
-                context.SyncStage = SyncStage.SchemaApplied;
-                var args = new DatabaseProvisionedArgs(context, SyncProvision.All, schema, script.ToString(), connection, transaction);
-                this.ReportProgress(context, progress, args);
-                await this.InterceptAsync(args).ConfigureAwait(false);
-
-                await this.InterceptAsync(new TransactionCommitArgs(context, connection, transaction)).ConfigureAwait(false);
-
-                return context;
-
+                context.SyncStage = SyncStage.TableSchemaApplied;
+                var tableProvisionedArgs = new TableProvisionedArgs(context, SyncProvision.All, schemaTable, connection, transaction);
+                this.ReportProgress(context, progress, tableProvisionedArgs);
+                await this.InterceptAsync(tableProvisionedArgs).ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                throw new SyncException(ex, SyncStage.SchemaApplying);
-            }
+
+            // Report & Interceptor
+            context.SyncStage = SyncStage.SchemaApplied;
+            var args = new DatabaseProvisionedArgs(context, SyncProvision.All, schema, script.ToString(), connection, transaction);
+            this.ReportProgress(context, progress, args);
+            await this.InterceptAsync(args).ConfigureAwait(false);
+
+            await this.InterceptAsync(new TransactionCommitArgs(context, connection, transaction)).ConfigureAwait(false);
+
+            return context;
+
+
         }
 
         /// <summary>
@@ -311,7 +303,7 @@ namespace Dotmim.Sync
                     var columnFilter = schemaTable.Columns.FirstOrDefault(c => c.ColumnName.Equals(filter.ColumnName, SyncGlobalization.DataSourceStringComparison));
 
                     if (columnFilter == null && !filter.IsVirtual)
-                        throw new InvalidExpressionException($"Column {filter.ColumnName} does not exist in Table {schemaTable.TableName}");
+                        throw new MissingColumnException(filter.ColumnName, schemaTable.TableName);
 
                     builder.FilterColumns.Add(new SyncFilter(schemaTable.TableName, columnFilter.ColumnName, schemaTable.SchemaName, filter.ColumnType));
                 }

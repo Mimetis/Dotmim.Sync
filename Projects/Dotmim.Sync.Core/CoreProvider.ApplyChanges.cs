@@ -27,89 +27,81 @@ namespace Dotmim.Sync
             var changeApplicationAction = ChangeApplicationAction.Continue;
             var changesApplied = new DatabaseChangesApplied();
 
-            try
+
+            // Check if we have some data available
+            if (!message.Changes.HasData())
+                return (context, changesApplied);
+
+            context.SyncStage = SyncStage.DatabaseChangesApplying;
+
+            // Launch any interceptor if available
+            await this.InterceptAsync(new DatabaseChangesApplyingArgs(context, connection, transaction)).ConfigureAwait(false);
+
+            // Disable check constraints
+            // Because Sqlite does not support "PRAGMA foreign_keys=OFF" Inside a transaction
+            // Report this disabling constraints brefore opening a transaction
+            if (message.DisableConstraintsOnApplyChanges)
+                this.DisableConstraints(context, message.Schema, connection, transaction);
+
+            // -----------------------------------------------------
+            // 0) Check if we are in a reinit mode
+            // -----------------------------------------------------
+            if (context.SyncWay == SyncWay.Download && context.SyncType != SyncType.Normal)
             {
-                // Check if we have some data available
-                if (!message.Changes.HasData())
-                    return (context, changesApplied);
+                changeApplicationAction = this.ResetInternal(context, message.Schema, connection, transaction);
 
-                context.SyncStage = SyncStage.DatabaseChangesApplying;
 
-                // Launch any interceptor if available
-                await this.InterceptAsync(new DatabaseChangesApplyingArgs(context, connection, transaction)).ConfigureAwait(false);
+                // Rollback
+                if (changeApplicationAction == ChangeApplicationAction.Rollback)
+                    throw new RollbackException("Rollback during reset tables");
+            }
 
-                // Disable check constraints
-                // Because Sqlite does not support "PRAGMA foreign_keys=OFF" Inside a transaction
-                // Report this disabling constraints brefore opening a transaction
-                if (message.DisableConstraintsOnApplyChanges)
-                    this.DisableConstraints(context, message.Schema, connection, transaction);
-
-                // -----------------------------------------------------
-                // 0) Check if we are in a reinit mode
-                // -----------------------------------------------------
-                if (context.SyncWay == SyncWay.Download && context.SyncType != SyncType.Normal)
-                {
-                    changeApplicationAction = this.ResetInternal(context, message.Schema, connection, transaction);
-
-                    // Rollback
-                    if (changeApplicationAction == ChangeApplicationAction.Rollback)
-                        throw new SyncException("Rollback during reset tables", context.SyncStage, SyncExceptionType.Rollback);
-                }
-
-                // -----------------------------------------------------
-                // 1) Applying deletes. Do not apply deletes if we are in a new database
-                // -----------------------------------------------------
-                if (!message.IsNew)
-                {
-                    // for delete we must go from Up to Down
-                    foreach (var table in message.Schema.Tables.Reverse())
-                    {
-                        changeApplicationAction = await this.ApplyChangesInternalAsync(table, context, message, connection,
-                            transaction, DataRowState.Deleted, changesApplied, cancellationToken, progress).ConfigureAwait(false);
-                    }
-
-                    // Rollback
-                    if (changeApplicationAction == ChangeApplicationAction.Rollback)
-                        RaiseRollbackException(context, "Rollback during applying deletes");
-                }
-
-                // -----------------------------------------------------
-                // 2) Applying Inserts and Updates. Apply in table order
-                // -----------------------------------------------------
-                foreach (var table in message.Schema.Tables)
+            // -----------------------------------------------------
+            // 1) Applying deletes. Do not apply deletes if we are in a new database
+            // -----------------------------------------------------
+            if (!message.IsNew)
+            {
+                // for delete we must go from Up to Down
+                foreach (var table in message.Schema.Tables.Reverse())
                 {
                     changeApplicationAction = await this.ApplyChangesInternalAsync(table, context, message, connection,
-                        transaction, DataRowState.Modified, changesApplied, cancellationToken, progress).ConfigureAwait(false);
-
-                    // Rollback
-                    if (changeApplicationAction == ChangeApplicationAction.Rollback)
-                        RaiseRollbackException(context, "Rollback during applying updates");
+                        transaction, DataRowState.Deleted, changesApplied, cancellationToken, progress).ConfigureAwait(false);
                 }
 
-
-                // Progress & Interceptor
-                context.SyncStage = SyncStage.DatabaseChangesApplied;
-                var databaseChangesAppliedArgs = new DatabaseChangesAppliedArgs(context, changesApplied, connection, transaction);
-                this.ReportProgress(context, progress, databaseChangesAppliedArgs, connection, transaction);
-                await this.InterceptAsync(databaseChangesAppliedArgs).ConfigureAwait(false);
-                
-                // Re enable check constraints
-                if (message.DisableConstraintsOnApplyChanges)
-                    this.EnableConstraints(context, message.Schema, connection, transaction);
-
-                // clear the changes because we don't need them anymore
-                message.Changes.Clear(false);
-
-                return (context, changesApplied);
+                // Rollback
+                if (changeApplicationAction == ChangeApplicationAction.Rollback)
+                    throw new RollbackException("Rollback during applying deletes");
             }
-            catch (SyncException)
+
+            // -----------------------------------------------------
+            // 2) Applying Inserts and Updates. Apply in table order
+            // -----------------------------------------------------
+            foreach (var table in message.Schema.Tables)
             {
-                throw;
+                changeApplicationAction = await this.ApplyChangesInternalAsync(table, context, message, connection,
+                    transaction, DataRowState.Modified, changesApplied, cancellationToken, progress).ConfigureAwait(false);
+
+                // Rollback
+                if (changeApplicationAction == ChangeApplicationAction.Rollback)
+                    throw new RollbackException("Rollback during applying updates");
             }
-            catch (Exception ex)
-            {
-                throw new SyncException(ex, SyncStage.TableChangesApplying);
-            }
+
+
+            // Progress & Interceptor
+            context.SyncStage = SyncStage.DatabaseChangesApplied;
+            var databaseChangesAppliedArgs = new DatabaseChangesAppliedArgs(context, changesApplied, connection, transaction);
+            this.ReportProgress(context, progress, databaseChangesAppliedArgs, connection, transaction);
+            await this.InterceptAsync(databaseChangesAppliedArgs).ConfigureAwait(false);
+
+            // Re enable check constraints
+            if (message.DisableConstraintsOnApplyChanges)
+                this.EnableConstraints(context, message.Schema, connection, transaction);
+
+            // clear the changes because we don't need them anymore
+            message.Changes.Clear(false);
+
+            return (context, changesApplied);
+
         }
 
         /// <summary>
@@ -133,9 +125,6 @@ namespace Dotmim.Sync
             return ChangeApplicationAction.Continue;
         }
 
-
-
-     
 
         /// <summary>
         /// Apply changes internal method for one Insert or Update or Delete for every dbSyncAdapter
@@ -252,7 +241,6 @@ namespace Dotmim.Sync
 
             return ChangeApplicationAction.Continue;
         }
-
 
 
         private async Task<(ChangeApplicationAction, int)> ResolveConflictsAsync(SyncContext context, DbSyncAdapter syncAdapter, List<SyncConflict> conflicts, MessageApplyChanges message, DbConnection connection, DbTransaction transaction)
@@ -372,6 +360,9 @@ namespace Dotmim.Sync
 
                         using (var metadataCommand = syncAdapter.GetCommand(commandType))
                         {
+                            if (metadataCommand == null)
+                                throw new MissingCommandException(commandType.ToString());
+
                             // getting the row updated from server
                             row = syncAdapter.GetRow(row, syncAdapter.TableDescription);
 
@@ -385,7 +376,7 @@ namespace Dotmim.Sync
                             var rowsApplied = syncAdapter.InsertOrUpdateMetadatas(metadataCommand, row, null);
 
                             if (!rowsApplied)
-                                throw new Exception("No metadatas rows found, can't update the server side");
+                                throw new MetadataException(syncAdapter.TableDescription.TableName);
 
                         }
                     }
@@ -448,13 +439,17 @@ namespace Dotmim.Sync
                 {
                     using (var metadataCommand = syncAdapter.GetCommand(commandType))
                     {
+                        if (metadataCommand == null)
+                            throw new MissingCommandException(commandType.ToString());
+
                         // Deriving Parameters
                         syncAdapter.SetCommandParameters(commandType, metadataCommand);
 
                         // force applying client row, so apply scope.id (client scope here)
                         var rowsApplied = syncAdapter.InsertOrUpdateMetadatas(metadataCommand, conflict.RemoteRow, applyingScopeId);
+                        
                         if (!rowsApplied)
-                            throw new Exception("No metadatas rows found, can't update the server side");
+                            throw new MetadataException(syncAdapter.TableDescription.TableName);
                     }
                 }
 

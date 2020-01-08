@@ -72,10 +72,10 @@ namespace Dotmim.Sync.Batch
         private static ContainerSet Deserialize(string fileName)
         {
             if (string.IsNullOrEmpty(fileName))
-                throw new ArgumentNullException("Cant get a Batch part if fileName doesn't exist");
+                throw new ArgumentNullException(fileName);
 
             if (!File.Exists(fileName))
-                throw new ArgumentNullException($"file {fileName} doesn't exist");
+                throw new MissingFileException(fileName);
 
             using (var fs = new FileStream(fileName, FileMode.Open, FileAccess.Read))
             {

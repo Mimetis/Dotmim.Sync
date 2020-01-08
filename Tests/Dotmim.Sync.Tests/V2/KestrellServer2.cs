@@ -1,4 +1,5 @@
-﻿using Dotmim.Sync.Web.Server;
+﻿using Dotmim.Sync.Tests.Core;
+using Dotmim.Sync.Web.Server;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server.Features;
@@ -24,33 +25,39 @@ namespace Dotmim.Sync.Tests.V2
     public class KestrellTestServer : IDisposable
     {
         IWebHostBuilder builder;
+        private bool useFiddler;
         IWebHost host;
         private WebServerOrchestrator webServerOrchestrator;
+        private string databaseName;
+        private ProviderType providerType;
+        private (string DatabaseName, ProviderType ProviderType, WebServerOrchestrator WebServerOrchestrator) server;
 
-        public KestrellTestServer(WebServerOrchestrator webServerOrchestrator, WebHostBuilder builder = null)
+        public KestrellTestServer((string DatabaseName, ProviderType ProviderType, WebServerOrchestrator WebServerOrchestrator) server, bool useFidller = false)
         {
-            if (builder == null)
-            {
-                var hostBuilder = new WebHostBuilder()
-                    .UseKestrel()
-                    .UseUrls("http://127.0.0.1:0/")
-                    .ConfigureServices(services =>
+
+            var hostBuilder = new WebHostBuilder()
+                .UseKestrel()
+                .UseUrls("http://127.0.0.1:0/")
+                .ConfigureServices(services =>
+                {
+                    services.AddMemoryCache();
+                    services.AddDistributedMemoryCache();
+                    services.AddSession(options =>
                     {
-                        services.AddMemoryCache();
-                        services.AddDistributedMemoryCache();
-                        services.AddSession(options =>
-                        {
                             // Set a long timeout for easy testing.
                             options.IdleTimeout = TimeSpan.FromDays(10);
-                            options.Cookie.HttpOnly = true;
-                        });
+                        options.Cookie.HttpOnly = true;
                     });
-                this.builder = hostBuilder;
-            }
+                });
+            this.builder = hostBuilder;
 
-            this.webServerOrchestrator = webServerOrchestrator;
+            this.useFiddler = useFidller;
+            this.webServerOrchestrator = server.WebServerOrchestrator;
+            this.databaseName = server.DatabaseName;
+            this.providerType = server.ProviderType;
 
         }
+
 
         public string Run()
         {
@@ -75,9 +82,11 @@ namespace Dotmim.Sync.Tests.V2
 
             });
 
+            var fiddler = useFiddler ? ".fiddler" : "";
+
             this.host = this.builder.Build();
             this.host.Start();
-            string serviceUrl = $"http://localhost:{host.GetPort()}/";
+            string serviceUrl = $"http://localhost{fiddler}:{this.host.GetPort()}/";
             return serviceUrl;
         }
 
