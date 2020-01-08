@@ -225,6 +225,30 @@ namespace Dotmim.Sync.Sqlite
 
             stringBuilder.Append($"\tWhere ");
             stringBuilder.Append(SqliteManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, trackingName.Quoted().ToString(), "new"));
+
+
+            if (this.tableDescription.GetMutableColumns().Count() > 0)
+            {
+                stringBuilder.AppendLine();
+                stringBuilder.AppendLine("\t AND (");
+                string or = "    ";
+                foreach (var column in this.tableDescription.GetMutableColumns())
+                {
+                    var quotedColumn = ParserName.Parse(column).Quoted().ToString();
+
+                    stringBuilder.Append("\t\t");
+                    stringBuilder.Append(or);
+                    stringBuilder.Append("[new].");
+                    stringBuilder.Append(quotedColumn);
+                    stringBuilder.Append(" <> ");
+                    stringBuilder.Append("[old].");
+                    stringBuilder.AppendLine(quotedColumn);
+
+                    or = " OR ";
+                }
+                stringBuilder.AppendLine("\t ) ");
+            }
+
             stringBuilder.AppendLine($"; ");
             stringBuilder.AppendLine($"End; ");
             return stringBuilder.ToString();
