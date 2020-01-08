@@ -28,7 +28,7 @@ namespace Dotmim.Sync.Tests.V2
         /// <summary>
         /// Gets the sync tables involved in the tests
         /// </summary>
-        public abstract string[] Tables { get; }
+        public abstract string[] Tables { get; set; }
 
         /// <summary>
         /// Gets the clients type we want to tests
@@ -278,12 +278,13 @@ namespace Dotmim.Sync.Tests.V2
             this.fixture.EnsureDatabaseSchemaAndSeed(Server, true, false);
 
             // Add a fake table to setup tables
-            this.Tables.Append("WeirdTable");
+            var setup = new SyncSetup(this.Tables);
+            setup.Tables.Add("WeirdTable");
 
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator, this.Tables);
+                var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator, setup);
 
                 var se = await Assert.ThrowsAnyAsync<SyncException>(async () =>
                 {
