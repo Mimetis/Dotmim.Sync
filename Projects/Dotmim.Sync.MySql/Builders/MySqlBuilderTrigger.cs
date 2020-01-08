@@ -295,6 +295,8 @@ namespace Dotmim.Sync.MySql
 
             stringBuilder.Append($"\tWhere ");
             stringBuilder.Append(MySqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, trackingName.Quoted().ToString(), "new"));
+
+
             stringBuilder.AppendLine($"; ");
             stringBuilder.AppendLine($"End; ");
             return stringBuilder.ToString();
