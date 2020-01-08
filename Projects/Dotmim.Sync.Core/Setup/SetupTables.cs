@@ -91,7 +91,12 @@ namespace Dotmim.Sync
                 // Create a tmp SetupTable to benefit the use of SetupTable.Equals()
                 var tmpTable = new SetupTable(tblName, schemaName);
 
-                return innerCollection.FirstOrDefault(c => c == tmpTable);
+                var table = innerCollection.FirstOrDefault(c => c == tmpTable);
+
+                if (table == null)
+                    throw new MissingTableException(tmpTable.ToString());
+
+                return table;
             }
         }
 
@@ -105,9 +110,16 @@ namespace Dotmim.Sync
                 if (string.IsNullOrEmpty(tableName))
                     throw new ArgumentNullException("tableName");
 
-                var st = new SetupTable(tableName, schemaName);
+                // Create a tmp SetupTable to benefit the use of SetupTable.Equals()
+                var tmpTable = new SetupTable(tableName, schemaName);
 
-                return innerCollection.FirstOrDefault(c => c == st);
+
+                var table = innerCollection.FirstOrDefault(c => c == tmpTable);
+
+                if (table == null)
+                    throw new MissingTableException(tmpTable.ToString());
+
+                return table;
             }
         }
 

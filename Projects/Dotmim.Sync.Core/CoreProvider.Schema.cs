@@ -21,7 +21,7 @@ namespace Dotmim.Sync
         public SyncSet ReadSchema(SyncSetup setup, DbConnection connection, DbTransaction transaction)
         {
             if (setup == null || setup.Tables.Count <= 0)
-                throw new ArgumentNullException(nameof(setup), "You should add, at least on table to the sync process.");
+                throw new MissingTablesException();
 
             // Create the schema
             var schema = new SyncSet(setup.ScopeName)
@@ -49,7 +49,7 @@ namespace Dotmim.Sync
                 var syncTable = tblManager.GetTable();
 
                 if (syncTable == null)
-                    throw new SyncException($"Table {(string.IsNullOrEmpty(setupTable.SchemaName) ? "" : setupTable.SchemaName + ".")}{setupTable.TableName} does not exists.", SyncStage.SchemaReading, SyncExceptionType.Data);
+                    throw new MissingTableException(string.IsNullOrEmpty(setupTable.SchemaName) ? setupTable.TableName : setupTable.SchemaName + "." + setupTable.TableName);
 
                 // get columns list
                 var lstColumns = tblManager.GetColumns();
@@ -85,28 +85,19 @@ namespace Dotmim.Sync
                              DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
-            try
-            {
-                context.SyncStage = SyncStage.SchemaReading;
 
-                var schema = this.ReadSchema(setup, connection, transaction);
+            context.SyncStage = SyncStage.SchemaReading;
 
-                // Progress & Interceptor
-                context.SyncStage = SyncStage.SchemaRead;
-                var schemaArgs = new SchemaArgs(context, schema, connection, transaction);
-                this.ReportProgress(context, progress, schemaArgs);
-                await this.InterceptAsync(schemaArgs).ConfigureAwait(false);
+            var schema = this.ReadSchema(setup, connection, transaction);
 
-                return (context, schema);
-            }
-            catch (SyncException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                throw new SyncException(ex, SyncStage.SchemaReading);
-            }
+            // Progress & Interceptor
+            context.SyncStage = SyncStage.SchemaRead;
+            var schemaArgs = new SchemaArgs(context, schema, connection, transaction);
+            this.ReportProgress(context, progress, schemaArgs);
+            await this.InterceptAsync(schemaArgs).ConfigureAwait(false);
+
+            return (context, schema);
+
         }
 
 
@@ -118,6 +109,7 @@ namespace Dotmim.Sync
         private void FillSyncTableWithColumns(SetupTable setupTable, SyncTable schemaTable, IEnumerable<SyncColumn> columns, IDbManagerTable dbManagerTable)
         {
             schemaTable.OriginalProvider = this.ProviderTypeName;
+            schemaTable.SyncDirection = setupTable.SyncDirection;
 
             var ordinal = 0;
 
@@ -125,8 +117,19 @@ namespace Dotmim.Sync
             if (columns == null || columns.Any() == false)
                 return;
 
-            // Delete all existing columns
-            if (schemaTable.PrimaryKeys.Count > 0)
+
+            // Validate columns list from setup table if any
+            if (setupTable.Columns != null && setupTable.Columns.Count > 1)
+            {
+                foreach(var setupColumn in setupTable.Columns)
+                {
+                    if (!schemaTable.Columns.Any(c => c.ColumnName.Equals(setupColumn, SyncGlobalization.DataSourceStringComparison)))
+                        throw new MissingColumnException(setupColumn, schemaTable.TableName);
+                }
+            }
+
+                // Delete all existing columns
+                if (schemaTable.PrimaryKeys.Count > 0)
                 schemaTable.PrimaryKeys.Clear();
 
             if (schemaTable.Columns.Count > 0)
@@ -136,7 +139,7 @@ namespace Dotmim.Sync
             {
                 // First of all validate if the column is currently supported
                 if (!this.Metadata.IsValid(column))
-                    throw new NotSupportedException($"The Column {column.ColumnName} of type {column.OriginalTypeName} from provider {this.ProviderTypeName} is not currently supported.");
+                    throw new UnsupportedColumnTypeException(column.ColumnName, column.OriginalTypeName, this.ProviderTypeName);
 
                 var columnNameLower = column.ColumnName.ToLowerInvariant();
                 if (columnNameLower == "sync_scope_name"
@@ -153,7 +156,7 @@ namespace Dotmim.Sync
                     || columnNameLower == "sync_scope_name"
                     || columnNameLower == "sync_scope_name"
                     )
-                    throw new NotSupportedException($"The Column name {column.ColumnName} from provider {this.ProviderTypeName} is a reserved column name. Please choose another column name.");
+                    throw new UnsupportedColumnTypeException(column.ColumnName, column.OriginalTypeName, this.ProviderTypeName);
 
                 // Validate max length
                 column.MaxLength = this.Metadata.ValidateMaxLength(column.OriginalTypeName, column.IsUnsigned, column.IsUnicode, column.MaxLength);
@@ -220,7 +223,7 @@ namespace Dotmim.Sync
             var schemaPrimaryKeys = dbManagerTable.GetPrimaryKeys();
 
             if (schemaPrimaryKeys == null || schemaPrimaryKeys.Any() == false)
-                throw new MissingPrimaryKeyException($"No Primary Keys in table {schemaTable.TableName}, Can't make a synchronization with a table without primary keys.");
+                throw new MissingPrimaryKeyException(schemaTable.TableName);
 
             // Set the primary Key
             foreach (var rowColumn in schemaPrimaryKeys.OrderBy(r => r.Ordinal))
@@ -228,7 +231,7 @@ namespace Dotmim.Sync
                 var columnKey = schemaTable.Columns.FirstOrDefault(sc => sc == rowColumn);
 
                 if (columnKey == null)
-                    throw new ArgumentException($"Column {rowColumn.ColumnName} does not exist in {schemaTable.TableName}");
+                    throw new MissingColumnException(rowColumn.ColumnName, schemaTable.TableName);
 
                 schemaTable.PrimaryKeys.Add(columnKey.ColumnName);
             }

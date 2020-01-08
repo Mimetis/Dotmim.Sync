@@ -51,7 +51,7 @@ namespace Dotmim.Sync
         /// Gets or Sets the schema used for this sync process.
         /// </summary>
         public SyncSet Schema { get; private set; }
-        
+
         /// <summary>
         /// Gets or Sets the setup used for this sync
         /// </summary>
@@ -77,47 +77,86 @@ namespace Dotmim.Sync
         /// <summary>
         /// Shortcut to Apply changed failed if remote orchestrator supports it
         /// </summary>
-        public void OnApplyChangesFailed(Func<ApplyChangesFailedArgs, Task> func) 
+        public void OnApplyChangesFailed(Func<ApplyChangesFailedArgs, Task> func)
             => this.RemoteOrchestrator.OnApplyChangesFailed(func);
 
         /// <summary>
         /// Shortcut to Apply changed failed if remote orchestrator supports it
         /// </summary>
-        public void OnApplyChangesFailed(Action<ApplyChangesFailedArgs> action) 
+        public void OnApplyChangesFailed(Action<ApplyChangesFailedArgs> action)
             => this.RemoteOrchestrator.OnApplyChangesFailed(action);
 
 
-        public SyncAgent(CoreProvider clientProvider, CoreProvider serverProvider,  string[] tables = null) : this(new LocalOrchestrator(clientProvider), new RemoteOrchestrator(serverProvider), tables)
-        {
-        }
-        public SyncAgent(CoreProvider clientProvider, IRemoteOrchestrator remoteOrchestrator,  string[] tables = null) : this(new LocalOrchestrator(clientProvider), remoteOrchestrator, tables)
-        {
-        }
-        public SyncAgent(ILocalOrchestrator localOrchestrator, IRemoteOrchestrator remoteOrchestrator, string[] tables = null) : this(localOrchestrator, remoteOrchestrator, new SyncSetup(tables), new SyncOptions())
-        {
-        }
 
-        public SyncAgent(CoreProvider clientProvider, CoreProvider serverProvider,
-                         SyncSetup setup, SyncOptions options = null) : this(new LocalOrchestrator(clientProvider), new RemoteOrchestrator(serverProvider), setup, options)
-        {
-        }
-
-        public SyncAgent(CoreProvider clientProvider, IRemoteOrchestrator remoteOrchestrator,
-                         SyncSetup setup, SyncOptions options = null) : this(new LocalOrchestrator(clientProvider), remoteOrchestrator, setup, options)
+        /// <summary>
+        /// Create an agent based on TCP connection
+        /// </summary>
+        /// <param name="clientProvider">local provider to your client database</param>
+        /// <param name="serverProvider">local provider to your server database</param>
+        /// <param name="tables">tables list</param>
+        public SyncAgent(CoreProvider clientProvider, CoreProvider serverProvider, string[] tables)
+            : this(new LocalOrchestrator(clientProvider), new RemoteOrchestrator(serverProvider), new SyncSetup(tables))
         {
         }
 
 
-        public SyncAgent(ILocalOrchestrator localOrchestrator, IRemoteOrchestrator remoteOrchestrator, SyncSetup setup, SyncOptions options = null)
+        /// <summary>
+        /// Create an agent based on TCP connection
+        /// </summary>
+        /// <param name="clientProvider">local provider to your client database</param>
+        /// <param name="serverProvider">local provider to your server database</param>
+        /// <param name="setup">Contains list of your tables.</param>
+        public SyncAgent(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup)
+            : this(new LocalOrchestrator(clientProvider), new RemoteOrchestrator(serverProvider), setup)
+        {
+        }
+
+
+        /// <summary>
+        /// Create an agent based on orchestrators. The remote orchestrator could be of type RemoteOrchestrator (TCP connection) our WebClientOrchestrator (Http connection)
+        /// </summary>
+        /// <param name="localOrchestrator">local orchestrator using a local provider</param>
+        /// <param name="remoteOrchestrator">remote orchestrator : RemoteOrchestrator or WebClientOrchestrator) </param>
+        /// <param name="tables">tables list</param>
+        public SyncAgent(LocalOrchestrator localOrchestrator, IRemoteOrchestrator remoteOrchestrator, string[] tables)
+            : this(localOrchestrator, remoteOrchestrator, new SyncSetup(tables))
+
+        {
+
+        }
+
+        /// <summary>
+        /// Create an agent where the remote orchestrator could be of type RemoteOrchestrator (TCP connection) or WebClientOrchestrator (Http connection)
+        /// </summary>
+        /// <param name="clientProvider">local provider to your client database</param>
+        /// <param name="remoteOrchestrator">remote orchestrator : RemoteOrchestrator or WebClientOrchestrator) </param>
+        /// <param name="setup">Contains list of your tables. Not used if remote orchestrator is WebClientOrchestrator</param>
+        /// <param name="options">Options. Only used on locally if remote orchestrator is WebClientOrchestrator</param>
+        public SyncAgent(CoreProvider clientProvider, IRemoteOrchestrator remoteOrchestrator, 
+                         SyncSetup setup = null, SyncOptions options = null) 
+            : this(new LocalOrchestrator(clientProvider), remoteOrchestrator, setup, options)
+        {
+        }
+
+
+        /// <summary>
+        /// Create an agent based on orchestrators. The remote orchestrator could be of type RemoteOrchestrator (TCP connection) our WebClientOrchestrator (Http connection)
+        /// </summary>
+        /// <param name="localOrchestrator">local orchestrator using a local provider</param>
+        /// <param name="remoteOrchestrator">remote orchestrator : RemoteOrchestrator or WebClientOrchestrator) </param>
+        /// <param name="setup">Contains list of your tables. Not used if remote orchestrator is WebClientOrchestrator</param>
+        /// <param name="options">Options. Only used on locally if remote orchestrator is WebClientOrchestrator</param>
+        public SyncAgent(LocalOrchestrator localOrchestrator, IRemoteOrchestrator remoteOrchestrator, 
+                         SyncSetup setup = null, SyncOptions options = null)
         {
             if (remoteOrchestrator.Provider != null && !remoteOrchestrator.Provider.CanBeServerProvider)
                 throw new NotSupportedException();
 
-            // tables setup
-            this.Setup = setup;
+            // tables to add
+            this.Setup = setup ?? new SyncSetup();
 
-            // options
-            this.Options = options;
+            // Create sync options if needed
+            this.Options = options ?? new SyncOptions();
 
             // Add parameters
             this.Parameters = new SyncParameterCollection();
@@ -150,15 +189,12 @@ namespace Dotmim.Sync
         public async Task<SyncContext> SynchronizeAsync(SyncType syncType, CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
 
-            // tables to add
-            this.Setup = this.Setup ?? new SyncSetup();
-
-            // Create sync options if needed
-            this.Options = this.Options ?? new SyncOptions();
 
             // for view purpose, if needed
-            this.LocalOrchestrator.Provider.Options = this.Options;
-            this.RemoteOrchestrator.Provider.Options = this.Options;
+            if (this.LocalOrchestrator?.Provider != null)
+                this.LocalOrchestrator.Provider.Options = this.Options;
+            if (this.RemoteOrchestrator?.Provider != null)
+                this.RemoteOrchestrator.Provider.Options = this.Options;
 
             // Context, used to back and forth data between servers
             var context = new SyncContext(Guid.NewGuid())
@@ -203,6 +239,7 @@ namespace Dotmim.Sync
                     // Then the configuration with full schema
                     var serverSchema = await this.RemoteOrchestrator.EnsureSchemaAsync(
                             context, this.Setup, cancellationToken, remoteProgress);
+                    
                     context = serverSchema.context;
                     this.Schema = serverSchema.schema;
                 }
@@ -263,7 +300,7 @@ namespace Dotmim.Sync
             }
             catch (SyncException se)
             {
-                Console.WriteLine($"Sync Exception: {se.Message}. Type:{se.Type}.");
+                Console.WriteLine($"Sync Exception: {se.Message}. TypeName:{se.TypeName}.");
                 throw;
             }
             catch (Exception ex)

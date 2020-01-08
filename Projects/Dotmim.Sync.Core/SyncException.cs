@@ -1,10 +1,14 @@
 ﻿using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.Serialization;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
+using System.Net.Http;
+using System.Net.Sockets;
 using System.Runtime.Serialization;
 using System.Security.Permissions;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync
@@ -13,223 +17,252 @@ namespace Dotmim.Sync
     /// <summary>
     /// Exception
     /// </summary>
-    [Serializable()]
     public class SyncException : Exception
     {
-
-        public SyncException(string message, SyncStage stage) : base(message) => this.SyncStage = stage;
-        public SyncException(string message) : base(message) => this.SyncStage = SyncStage.None;
-        public SyncException(string message, SyncStage stage, SyncExceptionType type = SyncExceptionType.Unknown, int errorCode = -1) : base(message)
+        public SyncException(string message) : base(message)
         {
-            this.SyncStage = stage;
-            this.ErrorCode = errorCode;
-            this.Type = type;
+            
         }
 
-        public SyncException(Exception exception, SyncStage stage) : base(exception.Message, exception)
+        public SyncException(Exception exception, SyncStage stage = SyncStage.None) : base(exception.Message, exception)
         {
-
             this.SyncStage = stage;
-            if (exception is SyncException)
-            {
+
+            if (exception is null)
                 return;
-            }
-            else if (exception is DbException)
-            {
-                this.ErrorCode = ((DbException)exception).ErrorCode;
-                this.Type = SyncExceptionType.Data;
-            }
-            else if (exception is DataException)
-            {
-                this.Type = SyncExceptionType.Data;
-            }
-            else if (exception is ArgumentException)
-            {
-                this.Type = SyncExceptionType.Argument;
-            }
-            else if (exception is ArgumentOutOfRangeException)
-            {
-                this.Type = SyncExceptionType.ArgumentOutOfRange;
-            }
-            else if (exception is FormatException)
-            {
-                this.Type = SyncExceptionType.Format;
-            }
-            else if (exception is IndexOutOfRangeException)
-            {
-                this.Type = SyncExceptionType.IndexOutOfRange;
-            }
-            else if (exception is InsufficientMemoryException)
-            {
-                this.Type = SyncExceptionType.InsufficientMemory;
-            }
-            else if (exception is InProgressException)
-            {
-                this.Type = SyncExceptionType.InProgress;
-            }
-            else if (exception is InvalidCastException)
-            {
-                this.Type = SyncExceptionType.InvalidCast;
-            }
-            else if (exception is InvalidExpressionException)
-            {
-                this.Type = SyncExceptionType.InvalidExpression;
-            }
-            else if (exception is InvalidOperationException)
-            {
-                this.Type = SyncExceptionType.InvalidOperation;
-            }
-            else if (exception is KeyNotFoundException)
-            {
-                this.Type = SyncExceptionType.KeyNotFound;
-            }
-            else if (exception is NotImplementedException)
-            {
-                this.Type = SyncExceptionType.NotImplemented;
-            }
-            else if (exception is NotSupportedException)
-            {
-                this.Type = SyncExceptionType.NotSupported;
-            }
-            else if (exception is NullReferenceException)
-            {
-                this.Type = SyncExceptionType.NullReference;
-            }
-            else if (exception is ObjectDisposedException)
-            {
-                this.Type = SyncExceptionType.ObjectDisposed;
-            }
-            else if (exception is OperationCanceledException)
-            {
-                this.Type = SyncExceptionType.OperationCanceled;
-            }
-            else if (exception is TaskCanceledException)
-            {
-                this.Type = SyncExceptionType.TaskCanceled;
-            }
-            else if (exception is OutOfDateException)
-            {
-                this.Type = SyncExceptionType.OutOfDate;
-            }
-            else if (exception is OutOfMemoryException)
-            {
-                this.Type = SyncExceptionType.OutOfMemory;
-            }
-            else if (exception is OverflowException)
-            {
-                this.Type = SyncExceptionType.Overflow;
-            }
-            else if (exception is PlatformNotSupportedException)
-            {
-                this.Type = SyncExceptionType.PlatformNotSupported;
-            }
-            else if (exception is TimeoutException)
-            {
-                this.Type = SyncExceptionType.Timeout;
-            }
-            else if (exception is UnauthorizedAccessException)
-            {
-                this.Type = SyncExceptionType.UnauthorizedAccess;
-            }
-            else if (exception is UriFormatException)
-            {
-                this.Type = SyncExceptionType.UriFormat;
-            }
-            else
-            {
-                this.Type = SyncExceptionType.Unknown;
-            }
+
+            this.TypeName = exception.GetType().Name;
         }
 
         /// <summary>
-        /// Exception type
+        /// Gets or Sets type name of exception
         /// </summary>
-        public SyncExceptionType Type { get; set; }
-
-        /// <summary>
-        /// Number
-        /// </summary>
-        public int ErrorCode { get; set; }
+        public string TypeName { get; set; }
 
         /// <summary>
         /// Sync stage when exception occured
         /// </summary>
-        public SyncStage SyncStage { get; }
+        public SyncStage SyncStage { get; set; }
+
+        /// <summary>
+        /// Data source error number if available
+        /// </summary>
+        public int Number { get; set; }
+
+        /// <summary>
+        /// Gets or Sets data source if available
+        /// </summary>
+        public string DataSource { get; set; }
+
+        /// <summary>
+        /// Gets or Sets initial catalog if available
+        /// </summary>
+        public string InitialCatalog { get; set; }
+
+        /// <summary>
+        /// Gets or Sets if error is Local or Remote side
+        /// </summary>
+        public SyncExceptionSide Side { get; set; }
+
+    }
 
 
-        // Constructor should be protected for unsealed classes, private for sealed classes.
-        [SecurityPermission(SecurityAction.Demand, SerializationFormatter = true)]
-        protected SyncException(SerializationInfo info, StreamingContext context) : base(info, context)
-        {
+    /// <summary>
+    /// Defines where occured the exception
+    /// </summary>
+    public enum SyncExceptionSide
+    {
+        /// <summary>
+        /// Occurs when error comes from LocalOrchestrator
+        /// </summary>
+        ClientSide,
 
-            this.Type = (SyncExceptionType)info.GetInt32("SyncType");
-            this.SyncStage = (SyncStage)info.GetInt32("SyncStage");
-            this.ErrorCode = info.GetInt32("ErrorCode");
-        }
-
-
-        [SecurityPermissionAttribute(SecurityAction.Demand, SerializationFormatter = true)]
-        public override void GetObjectData(SerializationInfo info, StreamingContext context)
-        {
-            if (info == null)
-                throw new ArgumentNullException("info");
-
-            info.AddValue("SyncType", this.Type);
-            info.AddValue("SyncStage", this.SyncStage);
-            info.AddValue("ErrorCode", this.ErrorCode);
-
-            // MUST call through to the base class to let it save its own state
-            base.GetObjectData(info, context);
-        }
-
+        /// <summary>
+        /// Occurs when error comes from RemoteOrchestrator
+        /// </summary>
+        ServerSide
     }
 
     /// <summary>
-    /// Represents an out of date exception
+    /// Rollback Exception
+    /// </summary>
+    public class RollbackException : Exception
+    {
+        public RollbackException(string message) : base(message) { }
+    }
+
+    /// <summary>
+    /// Occurs when trying to launch another sync during an in progress sync.
+    /// </summary>
+    public class AlreadyInProgressException : Exception
+    {
+        const string message = "Synchronization already in progress";
+
+        public AlreadyInProgressException() : base(message) { }
+    }
+
+
+
+    /// <summary>
+    /// Occurs when a file is missing
+    /// </summary>
+    public class MissingFileException : Exception
+    {
+        const string message = "File {0} doesn't exist.";
+
+        public MissingFileException(string fileName) : base(string.Format(message, fileName)) { }
+    }
+
+
+    /// <summary>
+    /// Occurs when primary key is missing in the table schema
+    /// </summary>
+    public class MissingPrimaryKeyException : Exception
+    {
+        const string message = "Table {0} does not have any primary key.";
+
+        public MissingPrimaryKeyException(string tableName) : base(string.Format(message, tableName)) { }
+    }
+
+    /// <summary>
+    /// Setup table exception. Used when a setup table is defined that does not exist in the data source
+    /// </summary>
+    public class MissingTableException : Exception
+    {
+        const string message = "Table {0} does not exists.";
+
+        public MissingTableException(string tableName) : base(string.Format(message, tableName)) { }
+    }
+
+    /// <summary>
+    /// Setup column exception. Used when a setup column  is defined that does not exist in the data source table
+    /// </summary>
+    public class MissingColumnException : Exception
+    {
+        const string message = "Column {0} does not exists in the table {1}.";
+
+        public MissingColumnException(string columnName, string sourceTableName) : base(string.Format(message, columnName, sourceTableName)) { }
+    }
+
+
+    /// <summary>
+    /// Setup table exception. Used when a your setup does not contains any table
+    /// </summary>
+    public class MissingTablesException : Exception
+    {
+        const string message = "Your setup does not contains any table.";
+
+        public MissingTablesException() : base(message) { }
+    }
+
+    /// <summary>
+    /// Metadata exception.
+    /// </summary>
+    public class MetadataException : Exception
+    {
+        const string message = "No metadatas rows found for table {0}.";
+
+        public MetadataException(string tableName) : base(string.Format(message, tableName)) { }
+    }
+
+
+    /// <summary>
+    /// Occurs when a row is too big for download batch size
+    /// </summary>
+    public class RowOverSizedException : Exception
+    {
+        const string message = "Row is too big ({0} kb.) for the current DownloadBatchSizeInKB.";
+
+        public RowOverSizedException(string finalFieldSize) : base(string.Format(message, finalFieldSize)) { }
+    }
+
+    /// <summary>
+    /// Occurs when a command is missing
+    /// </summary>
+    public class MissingCommandException : Exception
+    {
+        const string message = "Missing command {0}.";
+
+        public MissingCommandException(string commandType) : base(string.Format(message, commandType)) { }
+    }
+
+    /// <summary>
+    /// Occurs when a column is not supported by the Dotmim.Sync framework
+    /// </summary>
+    public class UnsupportedColumnTypeException : Exception
+    {
+        const string message = "The Column {0} of type {1} from provider {2} is not currently supported.";
+
+        public UnsupportedColumnTypeException(string columnName, string columnType, string provider) : base(string.Format(message, columnName, columnType, provider)) { }
+    }
+
+
+
+    /// <summary>
+    /// [Not Used] Occurs when sync metadatas are out of date
     /// </summary>
     public class OutOfDateException : Exception
     {
-        public OutOfDateException() { }
-        public OutOfDateException(string message) : base(message) { }
-        public OutOfDateException(Exception exception) : base(exception.Message, exception) { }
+        const string message = "The provider is out of date ! Try to make a Reinitialize sync.";
 
+        public OutOfDateException() : base(message) { }
     }
 
-    public class InProgressException : Exception
+    /// <summary>
+    /// Http empty response exception.
+    /// </summary>
+    public class HttpEmptyResponseContentException : Exception
     {
-        public InProgressException() { }
-        public InProgressException(string message) : base(message) { }
-        public InProgressException(Exception exception) : base(exception.Message, exception) { }
+        const string message = "The reponse has an empty body.";
 
+        public HttpEmptyResponseContentException() : base(message) { }
     }
- 
-    public enum SyncExceptionType
+
+    /// <summary>
+    /// Http response exception.
+    /// </summary>
+    public class HttpResponseContentException : Exception
     {
-        ArgumentOutOfRange,
-        Argument,
-        Data,
-        Format,
-        IndexOutOfRange,
-        InProgress,
-        InsufficientMemory,
-        InvalidCast,
-        InvalidExpression,
-        InvalidOperation,
-        KeyNotFound,
-        NotImplemented,
-        NotSupported,
-        NullReference,
-        ObjectDisposed,
-        OperationCanceled,
-        OutOfDate,
-        OutOfMemory,
-        Overflow,
-        PlatformNotSupported,
-        Rollback,
-        TaskCanceled,
-        Timeout,
-        UnauthorizedAccess,
-        UriFormat,
-        Unknown,
+        public HttpResponseContentException(string content) : base(content) { }
     }
+
+    /// <summary>
+    /// Occurs when a header is missing in the http request
+    /// </summary>
+    public class HttpHeaderMissingExceptiopn : Exception
+    {
+        const string message = "Header {0} is missing.";
+
+        public HttpHeaderMissingExceptiopn(string header) : base(string.Format(message, header)) { }
+    }
+
+    /// <summary>
+    /// Occurs when a cache is not set on the server
+    /// </summary>
+    public class HttpCacheNotConfiguredException : Exception
+    {
+        const string message = "Cache is not configured! Please add memory cache (distributed or not). See https://docs.microsoft.com/en-us/aspnet/core/performance/caching/response?view=aspnetcore-2.2).";
+
+        public HttpCacheNotConfiguredException() : base(message) { }
+    }
+
+    /// <summary>
+    /// Occurs when a Serializer is not available on the server side
+    /// </summary>
+    public class HttpSerializerNotConfiguredException : Exception
+    {
+        const string message = "Unexpected value for serializer. Available serializers on the server: {0}";
+
+        public HttpSerializerNotConfiguredException(IEnumerable<string> serializers) : base(string.Format(message, string.Join(".", serializers))) { }
+    }
+    /// <summary>
+    /// Occurs when a Serializer is not available on the server side
+    /// </summary>
+    public class HttpConverterNotConfiguredException : Exception
+    {
+        const string message = "Unexpected value for converter. Available converters on the server: {0}";
+
+        public HttpConverterNotConfiguredException(IEnumerable<string> converters) : base(string.Format(message, string.Join(".", converters))) { }
+    }
+
 }

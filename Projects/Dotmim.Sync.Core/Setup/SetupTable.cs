@@ -1,4 +1,5 @@
 ﻿using Dotmim.Sync.Builders;
+using Dotmim.Sync.Enumerations;
 using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
@@ -23,6 +24,12 @@ namespace Dotmim.Sync
         /// Gets or Sets the table columns collection
         /// </summary>
         public SetupColumns Columns { get; set; }
+
+        /// <summary>
+        /// Gets or Sets the Sync direction (may be Bidirectional, DownloadOnly, UploadOnly) 
+        /// Default is Bidirectional
+        /// </summary>
+        public SyncDirection SyncDirection { get; set; }
 
         /// <summary>
         /// Specify a table to add to the sync process
@@ -60,12 +67,6 @@ namespace Dotmim.Sync
         {
             this.Columns.AddRange(columnsName);
         }
-
-        public SetupTable()
-        {
-
-        }
-
 
         public override string ToString()
         {

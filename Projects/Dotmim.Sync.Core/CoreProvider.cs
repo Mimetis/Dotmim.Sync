@@ -42,13 +42,13 @@ namespace Dotmim.Sync
         /// <summary>
         /// Set an interceptor to get info on the current sync process
         /// </summary>
-        public void On<T>(Func<T, Task> interceptorFunc) where T : ProgressArgs => 
+        public void On<T>(Func<T, Task> interceptorFunc) where T : ProgressArgs =>
             this.interceptors.GetInterceptor<T>().Set(interceptorFunc);
 
         /// <summary>
         /// Set an interceptor to get info on the current sync process
         /// </summary>
-        public void On<T>(Action<T> interceptorAction) where T : ProgressArgs => 
+        public void On<T>(Action<T> interceptorAction) where T : ProgressArgs =>
             this.interceptors.GetInterceptor<T>().Set(interceptorAction);
 
 
@@ -69,7 +69,6 @@ namespace Dotmim.Sync
             var interceptor = this.interceptors.GetInterceptor<T>();
             return interceptor.RunAsync(args);
         }
-
 
         /// <summary>
         /// Create a new instance of the implemented Connection provider
@@ -124,12 +123,6 @@ namespace Dotmim.Sync
 
 
         /// <summary>
-        /// Shortcut to raise a rollback error
-        /// </summary>
-        internal static void RaiseRollbackException(SyncContext context, string message) =>
-            throw new SyncException(message, context.SyncStage, SyncExceptionType.Rollback);
-
-        /// <summary>
         /// Try to report progress
         /// </summary>
         private void ReportProgress(SyncContext context, IProgress<ProgressArgs> progress, ProgressArgs args, DbConnection connection = null, DbTransaction transaction = null)
@@ -157,9 +150,14 @@ namespace Dotmim.Sync
             progress.Report(progressArgs);
 
             if (progressArgs.Action == ChangeApplicationAction.Rollback)
-                RaiseRollbackException(context, "Rollback by user during a progress event");
+                throw new RollbackException("Rollback by user during a progress event");
         }
 
+
+        /// <summary>
+        /// Let a chance to provider to enrich SyncExecption
+        /// </summary>
+        public virtual void EnsureSyncException(SyncException syncException) { }
 
         /// <summary>
         /// Called by the  to indicate that a 
@@ -168,23 +166,15 @@ namespace Dotmim.Sync
         public virtual async Task<SyncContext> BeginSessionAsync(SyncContext context,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
-            try
-            {
 
-                context.SyncStage = SyncStage.BeginSession;
+            context.SyncStage = SyncStage.BeginSession;
 
-                // Progress & interceptor
-                var sessionArgs = new SessionBeginArgs(context, null, null);
-                this.ReportProgress(context, progress, sessionArgs);
-                await this.InterceptAsync(sessionArgs).ConfigureAwait(false);
+            // Progress & interceptor
+            var sessionArgs = new SessionBeginArgs(context, null, null);
+            this.ReportProgress(context, progress, sessionArgs);
+            await this.InterceptAsync(sessionArgs).ConfigureAwait(false);
 
-                return context;
-            }
-            catch (Exception ex)
-            {
-                throw new SyncException(ex, SyncStage.BeginSession);
-            }
-
+            return context;
 
         }
 
@@ -227,27 +217,6 @@ namespace Dotmim.Sync
         internal virtual bool IsRemoteOutdated() =>
             //var lastCleanupTimeStamp = 0; // A établir comment récupérer la dernière date de clean up des metadatas
             //return (ScopeInfo.LastTimestamp < lastCleanupTimeStamp);
-
             false;
-
-        /// <summary>
-        /// Add metadata columns
-        /// </summary>
-        private void AddTrackingColumns<T>(DmTable table, string name)
-        {
-            if (!table.Columns.Contains(name))
-            {
-                var dc = new DmColumn<T>(name) { DefaultValue = default(T) };
-                table.Columns.Add(dc);
-            }
-        }
-
-        private void RemoveTrackingColumns(DmTable changes, string name)
-        {
-            if (changes.Columns.Contains(name))
-                changes.Columns.Remove(name);
-        }
-
-
     }
 }
