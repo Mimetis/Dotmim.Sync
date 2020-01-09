@@ -133,9 +133,6 @@ namespace Dotmim.Sync.MySql
             // Get PrimaryKey
             var dmTableKeys = MySqlManagementUtils.PrimaryKeysForTable(this.sqlConnection, this.sqlTransaction, this.tableName);
 
-            if (dmTableKeys == null || dmTableKeys.Rows.Count == 0)
-                throw new Exception("No Primary Keys in this table, it' can't happen :) ");
-
             var lstKeys = new List<SyncColumn>();
 
             foreach (var dmKey in dmTableKeys.Rows)

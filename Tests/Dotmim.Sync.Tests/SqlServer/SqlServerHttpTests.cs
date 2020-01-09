@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using Xunit.Abstractions;
 
-namespace Dotmim.Sync.Tests.V2
+namespace Dotmim.Sync.Tests
 {
     public class SqlServerHttpTests : HttpTests
     {
@@ -22,7 +22,7 @@ namespace Dotmim.Sync.Tests.V2
         };
 
         public override List<ProviderType> ClientsType => new List<ProviderType>
-            { ProviderType.Sql};
+            { ProviderType.Sql, ProviderType.Sqlite, ProviderType.MySql};
 
         public override ProviderType ServerType => ProviderType.Sql;
 
