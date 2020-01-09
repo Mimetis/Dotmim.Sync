@@ -97,8 +97,10 @@ namespace Dotmim.Sync.Tests
             using (var masterConnection = new SqlConnection(Setup.GetSqlDatabaseConnectionString("master")))
             {
                 masterConnection.Open();
-                var cmdDb = new SqlCommand(GetSqlCreationScript(dbName, recreateDb), masterConnection);
-                await cmdDb.ExecuteNonQueryAsync();
+                
+                using (var cmdDb = new SqlCommand(GetSqlCreationScript(dbName, recreateDb), masterConnection))
+                    await cmdDb.ExecuteNonQueryAsync();
+                
                 masterConnection.Close();
             }
         }
@@ -114,13 +116,13 @@ namespace Dotmim.Sync.Tests
 
                 if (recreateDb)
                 {
-                    var cmdDrop = new MySqlCommand($"Drop schema if exists  {dbName};", sysConnection);
-                    await cmdDrop.ExecuteNonQueryAsync();
+                    using (var cmdDrop = new MySqlCommand($"Drop schema if exists  {dbName};", sysConnection))
+                        await cmdDrop.ExecuteNonQueryAsync();
                 }
 
-                var cmdDb = new MySqlCommand($"create schema {dbName};", sysConnection);
+                using (var cmdDb = new MySqlCommand($"create schema {dbName};", sysConnection))
+                    cmdDb.ExecuteNonQuery();
 
-                cmdDb.ExecuteNonQuery();
                 sysConnection.Close();
             }
         }
@@ -152,8 +154,10 @@ namespace Dotmim.Sync.Tests
             using (var sysConnection = new MySqlConnection(Setup.GetMySqlDatabaseConnectionString("sys")))
             {
                 sysConnection.Open();
-                var cmdDb = new MySqlCommand($"drop database if exists {dbName};", sysConnection);
-                cmdDb.ExecuteNonQuery();
+
+                using (var cmdDb = new MySqlCommand($"drop database if exists {dbName};", sysConnection))
+                    cmdDb.ExecuteNonQuery();
+
                 sysConnection.Close();
             }
         }
@@ -191,8 +195,10 @@ namespace Dotmim.Sync.Tests
                 try
                 {
                     masterConnection.Open();
-                    var cmdDb = new SqlCommand(GetSqlDropDatabaseScript(dbName), masterConnection);
-                    cmdDb.ExecuteNonQuery();
+
+                    using (var cmdDb = new SqlCommand(GetSqlDropDatabaseScript(dbName), masterConnection))
+                        cmdDb.ExecuteNonQuery();
+
                     masterConnection.Close();
 
                 }
@@ -224,8 +230,10 @@ namespace Dotmim.Sync.Tests
             using (var connection = new MySqlConnection(Setup.GetMySqlDatabaseConnectionString(dbName)))
             {
                 connection.Open();
-                var cmdDb = new MySqlCommand(script, connection);
-                await cmdDb.ExecuteNonQueryAsync();
+
+                using (var cmdDb = new MySqlCommand(script, connection))
+                    await cmdDb.ExecuteNonQueryAsync();
+
                 connection.Close();
             }
         }
@@ -241,8 +249,10 @@ namespace Dotmim.Sync.Tests
 
                 foreach (string commandText in commandTexts)
                 {
-                    var cmdDb = new SqlCommand(commandText, connection);
-                    await cmdDb.ExecuteNonQueryAsync();
+                    using (var cmdDb = new SqlCommand(commandText, connection))
+                    {
+                        await cmdDb.ExecuteNonQueryAsync();
+                    }
                 }
                 connection.Close();
             }
@@ -252,8 +262,10 @@ namespace Dotmim.Sync.Tests
             using (var connection = new SqliteConnection(dbName))
             {
                 connection.Open();
-                var cmdDb = new SqliteCommand(script, connection);
-                await cmdDb.ExecuteNonQueryAsync();
+                using (var cmdDb = new SqliteCommand(script, connection))
+                {
+                    await cmdDb.ExecuteNonQueryAsync();
+                }
                 connection.Close();
             }
         }
@@ -295,11 +307,13 @@ namespace Dotmim.Sync.Tests
 
             using (var connection = new SqlConnection(Setup.GetSqlDatabaseConnectionString("master")))
             {
-                if (connection.State == ConnectionState.Closed)
-                    connection.Open();
+                connection.Open();
 
-                var cmdDb = new SqlCommand(script, connection);
-                cmdDb.ExecuteNonQuery();
+                using (var cmdDb = new SqlCommand(script, connection))
+                {
+                    cmdDb.ExecuteNonQuery();
+                }
+
                 connection.Close();
             }
         }
