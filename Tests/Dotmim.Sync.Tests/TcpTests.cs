@@ -110,9 +110,13 @@ namespace Dotmim.Sync.Tests
         public void Dispose()
         {
             HelperDatabase.DropDatabase(this.ServerType, Server.DatabaseName);
+            Console.WriteLine($"Delete {this.ServerType} database {Server.DatabaseName}");
 
             foreach (var client in Clients)
+            {
                 HelperDatabase.DropDatabase(client.ProviderType, client.DatabaseName);
+                Console.WriteLine($"Delete {client.ProviderType} database {client.DatabaseName}");
+            }
 
             this.stopwatch.Stop();
 
