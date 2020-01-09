@@ -124,9 +124,8 @@ namespace Dotmim.Sync.Tests
 
                 // create database
                 HelperDatabase.CreateDatabaseAsync(clientType, dbCliName, true);
-                Console.ForegroundColor = ConsoleColor.Green;
                 Console.WriteLine($"{test.TestCase.DisplayName} : Create {clientType} database {dbCliName}");
-                Console.ResetColor();
+                Debug.WriteLine($"{test.TestCase.DisplayName} : Create {clientType} database {dbCliName}");
 
                 this.Clients.Add((dbCliName, clientType, localOrchestrator, webclientOrchestrator));
             }
@@ -139,16 +138,15 @@ namespace Dotmim.Sync.Tests
         public void Dispose()
         {
             HelperDatabase.DropDatabase(this.ServerType, Server.DatabaseName);
-            Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine($"{test.TestCase.DisplayName} : Delete {this.ServerType} database {Server.DatabaseName}");
+            Debug.WriteLine($"{test.TestCase.DisplayName} : Delete {this.ServerType} database {Server.DatabaseName}");
 
             foreach (var client in Clients)
             {
                 HelperDatabase.DropDatabase(client.ProviderType, client.DatabaseName);
                 Console.WriteLine($"{test.TestCase.DisplayName} : Delete {client.ProviderType} database {client.DatabaseName}");
+                Debug.WriteLine($"{test.TestCase.DisplayName} : Delete {client.ProviderType} database {client.DatabaseName}");
             }
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.ResetColor();
 
             this.kestrell.Dispose();
 
@@ -241,9 +239,8 @@ namespace Dotmim.Sync.Tests
 
             // Create an empty server database
             await HelperDatabase.CreateDatabaseAsync(this.ServerType, this.Server.DatabaseName, true);
-            Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine($"{test.TestCase.DisplayName} : Create {this.ServerType} database {this.Server.DatabaseName}");
-            Console.ResetColor();
+            Debug.WriteLine($"{test.TestCase.DisplayName} : Create {this.ServerType} database {this.Server.DatabaseName}");
 
             // Create the table on the server
             await HelperDatabase.ExecuteScriptAsync(this.Server.ProviderType, this.Server.DatabaseName, tableTestCreationScript); ;
