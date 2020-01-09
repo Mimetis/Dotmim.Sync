@@ -73,6 +73,7 @@ namespace Dotmim.Sync.Tests
                         r.Read();
 
                         Console.WriteLine($"Max Used Connections : {r[1].ToString()}");
+                        Debug.WriteLine($"Max Used Connections : {r[1].ToString()}");
                     }
                     connection.Close();
                 }
@@ -86,6 +87,7 @@ namespace Dotmim.Sync.Tests
                         r.Read();
 
                         Console.WriteLine($"Max Connections : {r[1].ToString()}");
+                        Debug.WriteLine($"Max Used Connections : {r[1].ToString()}");
                     }
                     connection.Close();
                 }
