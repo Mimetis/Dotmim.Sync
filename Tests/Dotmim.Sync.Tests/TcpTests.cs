@@ -6,7 +6,9 @@ using Dotmim.Sync.Tests.Models;
 using Dotmim.Sync.Web.Client;
 using Dotmim.Sync.Web.Server;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using MySql.Data.MySqlClient;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -83,6 +85,15 @@ namespace Dotmim.Sync.Tests
             this.stopwatch = Stopwatch.StartNew();
 
             this.fixture = fixture;
+
+            // Since we are creating a lot of databases
+            // each database will have its own pool
+            // Droping database will not clear the pool associated
+            // So clear the pools on every start of a new test
+            SqlConnection.ClearAllPools();
+            MySqlConnection.ClearAllPools();
+
+
             Console.WriteLine(this.fixture.GetMySqlConnectionsInformations());
             Debug.WriteLine(this.fixture.GetMySqlConnectionsInformations());
 
@@ -120,6 +131,7 @@ namespace Dotmim.Sync.Tests
             Console.WriteLine($"{test.TestCase.DisplayName} : Delete {this.ServerType} database {Server.DatabaseName}");
             Debug.WriteLine($"{test.TestCase.DisplayName} : Delete {this.ServerType} database {Server.DatabaseName}");
 
+
             foreach (var client in Clients)
             {
                 HelperDatabase.DropDatabase(client.ProviderType, client.DatabaseName);
@@ -128,6 +140,10 @@ namespace Dotmim.Sync.Tests
             }
 
             this.stopwatch.Stop();
+
+            Console.WriteLine("Database dropped : " + this.fixture.GetMySqlConnectionsInformations());
+            Debug.WriteLine("Database dropped : " + this.fixture.GetMySqlConnectionsInformations());
+
 
             var str = $"{test.TestCase.DisplayName} : {this.stopwatch.Elapsed.Minutes}:{this.stopwatch.Elapsed.Seconds}.{this.stopwatch.Elapsed.Milliseconds}";
             Console.WriteLine(str);
