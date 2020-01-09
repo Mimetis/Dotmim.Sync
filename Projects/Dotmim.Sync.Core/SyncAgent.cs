@@ -7,6 +7,7 @@ using Dotmim.Sync.Messages;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -300,12 +301,12 @@ namespace Dotmim.Sync
             }
             catch (SyncException se)
             {
-                Console.WriteLine($"Sync Exception: {se.Message}. TypeName:{se.TypeName}.");
+                Debug.WriteLine($"Sync Exception: {se.Message}. TypeName:{se.TypeName}.");
                 throw;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Unknwon Exception: {ex.Message}.");
+                Debug.WriteLine($"Unknwon Exception: {ex.Message}.");
                 throw new SyncException(ex, SyncStage.None);
             }
             finally
