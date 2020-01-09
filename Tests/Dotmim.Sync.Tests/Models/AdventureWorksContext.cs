@@ -1,5 +1,5 @@
 using Dotmim.Sync.Tests.Core;
-using Dotmim.Sync.Tests.V2;
+using Dotmim.Sync.Web.Client;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using System;
@@ -23,21 +23,19 @@ namespace Dotmim.Sync.Tests.Models
         public static Guid CustomerIdForFilter = Guid.NewGuid();
 
 
-        public AdventureWorksContext((string DatabaseName, ProviderType ProviderType, IOrchestrator RemoteOrchestrator) t, bool fallbackUseSchema = true, bool useSeeding = false) : this()
+        public AdventureWorksContext((string DatabaseName, ProviderType ProviderType, LocalOrchestrator LocalOrchestrator, WebClientOrchestrator WebClientOrchestrator) t, bool fallbackUseSchema = true, bool useSeeding = false) 
+            : this((t.DatabaseName, t.ProviderType, t.LocalOrchestrator), fallbackUseSchema, useSeeding)
         {
-            this.ProviderType = t.ProviderType;
-            this.ConnectionString = HelperDB.GetConnectionString(t.ProviderType, t.DatabaseName);
-            this.useSeeding = useSeeding;
-            this.useSchema = this.ProviderType == ProviderType.Sql && fallbackUseSchema;
 
         }
 
-        public AdventureWorksContext(ProviderType providerType, string databaseName, bool fallbackUseSchema = true, bool useSeeding = false) : this()
+        public AdventureWorksContext((string DatabaseName, ProviderType ProviderType, IOrchestrator RemoteOrchestrator) t, bool fallbackUseSchema = true, bool useSeeding = false) : this()
         {
-            this.ProviderType = providerType;
-            this.ConnectionString = HelperDB.GetConnectionString(providerType, databaseName);
+            this.ProviderType = t.ProviderType;
+            this.ConnectionString = HelperDatabase.GetConnectionString(t.ProviderType, t.DatabaseName);
             this.useSeeding = useSeeding;
             this.useSchema = this.ProviderType == ProviderType.Sql && fallbackUseSchema;
+
         }
 
         public AdventureWorksContext(DbContextOptions<AdventureWorksContext> options)

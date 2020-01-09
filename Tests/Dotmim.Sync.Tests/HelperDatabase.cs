@@ -10,7 +10,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 
-namespace Dotmim.Sync.Tests.V2
+namespace Dotmim.Sync.Tests
 {
     public static class HelperDatabase
     {
