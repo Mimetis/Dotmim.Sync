@@ -78,7 +78,7 @@ namespace Dotmim.Sync.Tests
                 }
                 using (var command = connection.CreateCommand())
                 {
-                    command.CommandText = "SHOW VARIABLES LIKE 'max_connections';'";
+                    command.CommandText = "SHOW VARIABLES LIKE 'max_connections';";
                     command.Connection = connection;
                     connection.Open();
                     using (var r = command.ExecuteReader())
