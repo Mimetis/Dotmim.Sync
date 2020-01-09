@@ -64,17 +64,29 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         internal async Task EnsureDatabaseSchemaAndSeedAsync((string DatabaseName, ProviderType ProviderType, IOrchestrator Orchestrator) t, bool useSeeding = false)
         {
-            var fallbackUseSchema = t.ProviderType == ProviderType.Sql;
-            var ctx = new AdventureWorksContext(t, fallbackUseSchema, useSeeding);
-            await ctx.Database.EnsureCreatedAsync();
-            ctx.Dispose();
+            AdventureWorksContext ctx = null;
+            try
+            {
+                var fallbackUseSchema = t.ProviderType == ProviderType.Sql;
+                ctx = new AdventureWorksContext(t, fallbackUseSchema, useSeeding);
+                await ctx.Database.EnsureCreatedAsync();
+
+            }
+            catch (Exception)
+            {
+            }
+            finally
+            {
+                if (ctx != null)
+                    ctx.Dispose();
+            }
         }
 
         public void Dispose()
         {
         }
 
-       
+
     }
 
 }
