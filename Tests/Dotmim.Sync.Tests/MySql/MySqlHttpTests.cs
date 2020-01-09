@@ -22,7 +22,7 @@ namespace Dotmim.Sync.Tests
         };
 
         public override List<ProviderType> ClientsType => new List<ProviderType>
-            { ProviderType.MySql | ProviderType.Sql};
+            { ProviderType.MySql , ProviderType.Sql};
 
         public override ProviderType ServerType => ProviderType.MySql;
 
