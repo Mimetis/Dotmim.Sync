@@ -92,6 +92,8 @@ namespace Dotmim.Sync.Tests
 
             this.fixture = fixture;
 
+            this.fixture.GetMySqlConnectionsInformations();
+
             // get the server provider (and db created) without seed
             var serverDatabaseName = HelperDatabase.GetRandomName("sv_");
 
