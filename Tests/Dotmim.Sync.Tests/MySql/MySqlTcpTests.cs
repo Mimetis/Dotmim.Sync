@@ -12,26 +12,26 @@ using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Dotmim.Sync.Tests.V2
+namespace Dotmim.Sync.Tests
 {
-    public class SqlServerTcpTests : TcpTests
+    public class MySqlTcpTests : TcpTests
     {
-        public SqlServerTcpTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
+        public MySqlTcpTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
         {
         }
 
         public override string[] Tables => new string[]
         {
-            "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "Employee", "Customer", "Address", "CustomerAddress", "EmployeeAddress",
-            "SalesLT.SalesOrderHeader", "SalesLT.SalesOrderDetail", "dbo.Sql", "Posts", "Tags", "PostTag",
+            "ProductCategory", "ProductModel", "Product", "Employee", "Customer", "Address", "CustomerAddress", "EmployeeAddress",
+            "SalesOrderHeader", "SalesOrderDetail", "Sql", "Posts", "Tags", "PostTag",
             "PricesList", "PricesListCategory", "PricesListDetail"
         };
 
         public override List<ProviderType> ClientsType => new List<ProviderType>
-            { ProviderType.Sql, ProviderType.Sqlite, ProviderType.MySql}; 
+            { ProviderType.MySql | ProviderType.Sqlite}; 
 
         public override ProviderType ServerType =>
-            ProviderType.Sql;
+            ProviderType.MySql;
 
         /// <summary>
         /// Get the server database rows count
