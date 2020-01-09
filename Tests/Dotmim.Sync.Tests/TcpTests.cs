@@ -79,8 +79,9 @@ namespace Dotmim.Sync.Tests
             this.test = (ITest)testMember.GetValue(output);
             this.stopwatch = Stopwatch.StartNew();
 
-
             this.fixture = fixture;
+
+            this.fixture.GetMySqlConnectionsInformations();
 
             // get the server provider (and db created) without seed
             var serverDatabaseName = HelperDatabase.GetRandomName("sv_");

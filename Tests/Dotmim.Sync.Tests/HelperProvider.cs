@@ -59,6 +59,41 @@ namespace Dotmim.Sync.Tests
             return (T)orchestrator;
         }
 
+        public void GetMySqlConnectionsInformations()
+        {
+            using (var connection = new MySqlConnection(HelperDatabase.GetConnectionString(ProviderType.MySql, "sys")))
+            {
+                using (var command = connection.CreateCommand())
+                {
+                    command.CommandText = "SHOW STATUS LIKE 'max_used_connections';";
+                    command.Connection = connection;
+                    connection.Open();
+                    using (var r = command.ExecuteReader())
+                    {
+                        r.Read();
+
+                        Console.WriteLine($"Max Used Connections : {r[1].ToString()}");
+                    }
+                    connection.Close();
+                }
+                using (var command = connection.CreateCommand())
+                {
+                    command.CommandText = "SHOW VARIABLES LIKE 'max_connections';'";
+                    command.Connection = connection;
+                    connection.Open();
+                    using (var r = command.ExecuteReader())
+                    {
+                        r.Read();
+
+                        Console.WriteLine($"Max Connections : {r[1].ToString()}");
+                    }
+                    connection.Close();
+                }
+            }
+        }
+
+
+
         /// <summary>
         /// Create schema and seed the database
         /// </summary>
@@ -70,6 +105,7 @@ namespace Dotmim.Sync.Tests
                 var fallbackUseSchema = t.ProviderType == ProviderType.Sql;
                 ctx = new AdventureWorksContext(t, fallbackUseSchema, useSeeding);
                 await ctx.Database.EnsureCreatedAsync();
+
 
             }
             catch (Exception)
