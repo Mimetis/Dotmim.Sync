@@ -102,7 +102,8 @@ namespace Dotmim.Sync.Tests
             else
                 builder.Port = 3307;
 
-            return builder.ToString();
+            var cn = builder.ToString();
+            return cn;
         }
 
         /// <summary>
