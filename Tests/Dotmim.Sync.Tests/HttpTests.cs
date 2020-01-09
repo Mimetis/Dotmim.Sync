@@ -148,7 +148,7 @@ namespace Dotmim.Sync.Tests
         public virtual async Task SchemaIsCreated()
         {
             // create a server db without seed
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(Server, true, false);
+            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(Server, false);
 
             // configure server orchestrator
             this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
@@ -172,7 +172,7 @@ namespace Dotmim.Sync.Tests
         public virtual async Task RowsCount(SyncOptions options)
         {
             // create a server db and seed it
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, true);
+            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server,  true);
 
             // Get count of rows
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
@@ -259,7 +259,7 @@ namespace Dotmim.Sync.Tests
         public async Task Bad_ColumnSetup_DoesNotExistInSchema_ShouldRaiseError()
         {
             // create a server db without seed
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(Server, true, false);
+            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(Server,  false);
 
             // Create setup
             var setup = new SyncSetup(Tables);
@@ -289,7 +289,7 @@ namespace Dotmim.Sync.Tests
         public async Task Bad_TableSetup_DoesNotExistInSchema_ShouldRaiseError()
         {
             // create a server db without seed
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(Server, true, false);
+            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(Server,  false);
 
             // Add a fake table to setup tables
             var setup = new SyncSetup(this.Tables);
@@ -321,7 +321,7 @@ namespace Dotmim.Sync.Tests
         public async Task Insert_OneTable_FromServer(SyncOptions options)
         {
             // create a server schema without seeding
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, false);
+            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false);
 
             // configure server orchestrator
             this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
@@ -373,7 +373,7 @@ namespace Dotmim.Sync.Tests
         public async Task Insert_OneTable_FromClient(SyncOptions options)
         {
             // create a server schema without seeding
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, false);
+            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false);
           
             // configure server orchestrator
             this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
@@ -433,7 +433,7 @@ namespace Dotmim.Sync.Tests
         public async Task Delete_OneTable_FromServer(SyncOptions options)
         {
             // create a server schema with seeding
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, true);
+            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, true);
 
             // get rows count
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
@@ -563,7 +563,7 @@ namespace Dotmim.Sync.Tests
             this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
 
             // create a server schema without seeding
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, false);
+            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false);
 
             // Insert a product category and sync it on all clients
             using (var ctx = new AdventureWorksContext(this.Server))
@@ -653,7 +653,7 @@ namespace Dotmim.Sync.Tests
         public async Task Conflict_Insert_Insert_ServerShouldWins(SyncOptions options)
         {
             // create a server schema without seeding
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, false);
+            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false);
 
             // configure server orchestrator
             this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
@@ -753,7 +753,7 @@ namespace Dotmim.Sync.Tests
         public async Task Conflict_Update_Update_ServerShouldWins(SyncOptions options)
         {
             // create a server schema without seeding
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, false);
+            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false);
 
             // configure server orchestrator
             this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
@@ -856,7 +856,7 @@ namespace Dotmim.Sync.Tests
         public async Task Conflict_Update_Update_Resolved_ByMerge(SyncOptions options)
         {
             // create a server schema without seeding
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, false);
+            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false);
 
             // configure server orchestrator
             this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
@@ -984,7 +984,7 @@ namespace Dotmim.Sync.Tests
         public async Task Insert_ThousandRows_FromClient(SyncOptions options)
         {
             // create a server schema without seeding
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, false);
+            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false);
             
             // configure server orchestrator
             this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
@@ -1044,7 +1044,7 @@ namespace Dotmim.Sync.Tests
         public async Task Reinitialize_Client(SyncOptions options)
         {
             // create a server schema with seeding
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, true);
+            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, true);
 
             // configure server orchestrator
             this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
@@ -1109,7 +1109,7 @@ namespace Dotmim.Sync.Tests
         public async Task ReinitializeWithUpload_Client(SyncOptions options)
         {
             // create a server schema with seeding
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, true);
+            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, true);
 
             // configure server orchestrator
             this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
