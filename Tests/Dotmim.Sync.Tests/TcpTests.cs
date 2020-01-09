@@ -63,6 +63,11 @@ namespace Dotmim.Sync.Tests
         public List<(string DatabaseName, ProviderType ProviderType, LocalOrchestrator LocalOrchestrator)> Clients { get; set; }
 
         /// <summary>
+        /// Gets a bool indicating if we should generate the schema for tables
+        /// </summary>
+        public bool UseFallbackSchema => ServerType == ProviderType.Sql;
+
+        /// <summary>
         /// For each test, Create a server database and some clients databases, depending on ProviderType provided in concrete class
         /// </summary>
         public TcpTests(HelperProvider fixture, ITestOutputHelper output)
@@ -335,7 +340,7 @@ namespace Dotmim.Sync.Tests
                 var clientProductName = HelperDatabase.GetRandomName();
                 var clientProductNumber = clientProductName.ToUpperInvariant().Substring(0, 10);
 
-                using (var ctx = new AdventureWorksContext(client))
+                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
                 {
                     var pc = new ProductCategory { ProductCategoryId = clientProductCategoryId, Name = clientProductCategoryName };
                     ctx.Add(pc);
@@ -608,7 +613,7 @@ namespace Dotmim.Sync.Tests
 
                 var product = new Product { ProductId = Guid.NewGuid(), Name = name, ProductNumber = productNumber };
 
-                using (var serverDbCtx = new AdventureWorksContext(client))
+                using (var serverDbCtx = new AdventureWorksContext(client, this.UseFallbackSchema))
                 {
                     serverDbCtx.Product.Add(product);
                     await serverDbCtx.SaveChangesAsync();
@@ -722,7 +727,7 @@ namespace Dotmim.Sync.Tests
                 var productName = HelperDatabase.GetRandomName();
                 var productNumber = productName.ToUpperInvariant().Substring(0, 10);
 
-                using (var ctx = new AdventureWorksContext(client))
+                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
                 {
                     var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
                     ctx.Add(pc);
@@ -764,7 +769,7 @@ namespace Dotmim.Sync.Tests
                 var productCategoryCount = await ctx.ProductCategory.AsNoTracking().CountAsync();
                 foreach (var client in Clients)
                 {
-                    using (var cliCtx = new AdventureWorksContext(client))
+                    using (var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema))
                     {
                         var pCount = await cliCtx.Product.AsNoTracking().CountAsync();
                         Assert.Equal(productRowCount, pCount);
@@ -831,7 +836,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalSyncConflicts);
 
                 // check row updated values
-                using (var ctx = new AdventureWorksContext(client))
+                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
                 {
                     var cliAddress = await ctx.Address.AsNoTracking().SingleAsync(a => a.AddressId == 1);
                     Assert.Equal(cityName, cliAddress.City);
@@ -872,7 +877,7 @@ namespace Dotmim.Sync.Tests
             var addressId = 1;
             foreach (var client in Clients)
             {
-                using (var ctx = new AdventureWorksContext(client))
+                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
                 {
                     var address = await ctx.Address.SingleAsync(a => a.AddressId == addressId);
 
@@ -914,7 +919,7 @@ namespace Dotmim.Sync.Tests
 
                 foreach (var client in Clients)
                 {
-                    using (var cliCtx = new AdventureWorksContext(client))
+                    using (var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema))
                     {
                         // get all addresses
                         var clientAddresses = await cliCtx.Address.AsNoTracking().ToListAsync();
@@ -966,7 +971,7 @@ namespace Dotmim.Sync.Tests
             var addressId = 1;
             foreach (var client in Clients)
             {
-                using (var ctx = new AdventureWorksContext(client))
+                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
                 {
                     var address = await ctx.Address.SingleAsync(a => a.AddressId == addressId);
 
@@ -1008,7 +1013,7 @@ namespace Dotmim.Sync.Tests
 
                 foreach (var client in Clients)
                 {
-                    using (var cliCtx = new AdventureWorksContext(client))
+                    using (var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema))
                     {
                         // get all addresses
                         var clientAddresses = await cliCtx.Address.AsNoTracking().ToListAsync();
@@ -1078,7 +1083,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalSyncConflicts);
 
                 // check row updated values
-                using (var ctx = new AdventureWorksContext(client))
+                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
                 {
                     var cliAddress = await ctx.Address.AsNoTracking().SingleAsync(a => a.AddressId == 1);
                     Assert.Null(cliAddress.AddressLine2);
@@ -1110,7 +1115,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalSyncConflicts);
 
                 // check row updated values
-                using (var ctx = new AdventureWorksContext(client))
+                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
                 {
                     var cliAddress = await ctx.Address.AsNoTracking().SingleAsync(a => a.AddressId == 1);
                     Assert.Equal("NoT a null value !", cliAddress.AddressLine2);
@@ -1189,7 +1194,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalSyncConflicts);
 
                 // check rows are create on client
-                using (var ctx = new AdventureWorksContext(client))
+                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
                 {
                     var finalAddressesCount = await ctx.Address.AsNoTracking().CountAsync(a => a.AddressId == addressId);
                     var finalEmployeeAddressesCount = await ctx.EmployeeAddress.AsNoTracking().CountAsync(a => a.AddressId == addressId && a.EmployeeId == employeeId);
@@ -1228,7 +1233,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalSyncConflicts);
 
                 // check row deleted on client values
-                using (var ctx = new AdventureWorksContext(client))
+                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
                 {
                     var finalAddressesCount = await ctx.Address.AsNoTracking().CountAsync(a => a.AddressId == addressId);
                     var finalEmployeeAddressesCount = await ctx.EmployeeAddress.AsNoTracking().CountAsync(a => a.AddressId == addressId && a.EmployeeId == employeeId);
@@ -1268,7 +1273,7 @@ namespace Dotmim.Sync.Tests
             // Delete product category on each client
             foreach (var client in Clients)
             {
-                using (var ctx = new AdventureWorksContext(client))
+                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
                 {
                     var pcdel = ctx.ProductCategory.Single(pc => pc.ProductCategoryId == productId);
                     ctx.ProductCategory.Remove(pcdel);
@@ -1307,7 +1312,7 @@ namespace Dotmim.Sync.Tests
 
                 foreach (var client in Clients)
                 {
-                    using (var cliCtx = new AdventureWorksContext(client))
+                    using (var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema))
                     {
                         // get all product categories
                         var clientPC = await cliCtx.ProductCategory.AsNoTracking().ToListAsync();
@@ -1351,14 +1356,14 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // Insert product category on each client
-                using (var ctx = new AdventureWorksContext(client))
+                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
                 {
                     ctx.Add(new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryNameClient });
                     await ctx.SaveChangesAsync();
                 }
 
                 // Then delete it
-                using (var ctx = new AdventureWorksContext(client))
+                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
                 {
                     var pcdel = ctx.ProductCategory.Single(pc => pc.ProductCategoryId == productCategoryId);
                     ctx.ProductCategory.Remove(pcdel);
@@ -1408,7 +1413,7 @@ namespace Dotmim.Sync.Tests
 
                 foreach (var client in Clients)
                 {
-                    using (var cliCtx = new AdventureWorksContext(client))
+                    using (var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema))
                     {
                         // get all product categories
                         var clientPC = await cliCtx.ProductCategory.AsNoTracking().ToListAsync();
@@ -1462,7 +1467,7 @@ namespace Dotmim.Sync.Tests
                 var productCategoryNameClient = HelperDatabase.GetRandomName("CLI");
                 var productCategoryNameServer = HelperDatabase.GetRandomName("SRV");
 
-                using (var ctx = new AdventureWorksContext(client))
+                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
                 {
                     ctx.Add(new ProductCategory
                     {
@@ -1506,7 +1511,7 @@ namespace Dotmim.Sync.Tests
 
                 foreach (var client in Clients)
                 {
-                    using (var cliCtx = new AdventureWorksContext(client))
+                    using (var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema))
                     {
                         // get all product categories
                         var clientPC = await cliCtx.ProductCategory.AsNoTracking().ToListAsync();
@@ -1561,7 +1566,7 @@ namespace Dotmim.Sync.Tests
                 var productCategoryNameClient = HelperDatabase.GetRandomName("CLI");
                 var productCategoryNameServer = HelperDatabase.GetRandomName("SRV");
 
-                using (var ctx = new AdventureWorksContext(client))
+                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
                 {
                     ctx.Add(new ProductCategory
                     {
@@ -1611,7 +1616,7 @@ namespace Dotmim.Sync.Tests
 
                 foreach (var client in Clients)
                 {
-                    using (var cliCtx = new AdventureWorksContext(client))
+                    using (var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema))
                     {
                         // get all product categories
                         var clientPC = await cliCtx.ProductCategory.AsNoTracking().ToListAsync();
@@ -1664,7 +1669,7 @@ namespace Dotmim.Sync.Tests
                 var productCategoryNameClient = HelperDatabase.GetRandomName("CLI");
                 var productCategoryNameServer = HelperDatabase.GetRandomName("SRV");
 
-                using (var ctx = new AdventureWorksContext(client))
+                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
                 {
                     ctx.Add(new ProductCategory { ProductCategoryId = productId, Name = productCategoryNameClient });
                     await ctx.SaveChangesAsync();
@@ -1720,7 +1725,7 @@ namespace Dotmim.Sync.Tests
 
                 foreach (var client in Clients)
                 {
-                    using (var cliCtx = new AdventureWorksContext(client))
+                    using (var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema))
                     {
                         // get all product categories
                         var clientPC = await cliCtx.ProductCategory.AsNoTracking().ToListAsync();
@@ -1781,7 +1786,7 @@ namespace Dotmim.Sync.Tests
             // Update each client to generate an update conflict
             foreach (var client in Clients)
             {
-                using (var ctx = new AdventureWorksContext(client))
+                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
                 {
                     var pc = ctx.ProductCategory.Find(conflictProductCategoryId);
                     pc.Name = productCategoryNameClient;
@@ -1820,7 +1825,7 @@ namespace Dotmim.Sync.Tests
 
                 foreach (var client in Clients)
                 {
-                    using (var cliCtx = new AdventureWorksContext(client))
+                    using (var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema))
                     {
                         // get all product categories
                         var clientPC = await cliCtx.ProductCategory.AsNoTracking().ToListAsync();
@@ -1884,7 +1889,7 @@ namespace Dotmim.Sync.Tests
             // Update each client to generate an update conflict
             foreach (var client in Clients)
             {
-                using (var ctx = new AdventureWorksContext(client))
+                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
                 {
                     var pc = ctx.ProductCategory.Find(conflictProductCategoryId);
                     pc.Name = productCategoryNameClient;
@@ -1925,7 +1930,7 @@ namespace Dotmim.Sync.Tests
 
                 foreach (var client in Clients)
                 {
-                    using (var cliCtx = new AdventureWorksContext(client))
+                    using (var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema))
                     {
                         // get all product categories
                         var clientPC = await cliCtx.ProductCategory.AsNoTracking().ToListAsync();
@@ -1986,7 +1991,7 @@ namespace Dotmim.Sync.Tests
             // Update each client to generate an update conflict
             foreach (var client in Clients)
             {
-                using (var ctx = new AdventureWorksContext(client))
+                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
                 {
                     var pc = ctx.ProductCategory.Find(conflictProductCategoryId);
                     pc.Name = productCategoryNameClient;
@@ -2041,7 +2046,7 @@ namespace Dotmim.Sync.Tests
 
                 foreach (var client in Clients)
                 {
-                    using (var cliCtx = new AdventureWorksContext(client))
+                    using (var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema))
                     {
                         // get all product categories
                         var clientPC = await cliCtx.ProductCategory.AsNoTracking().ToListAsync();
@@ -2103,7 +2108,7 @@ namespace Dotmim.Sync.Tests
             // Update each client to generate an update conflict
             foreach (var client in Clients)
             {
-                using (var ctx = new AdventureWorksContext(client))
+                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
                 {
                     var pc = ctx.ProductCategory.Find(conflictProductCategoryId);
                     pc.Name = productCategoryNameClient;
@@ -2165,7 +2170,7 @@ namespace Dotmim.Sync.Tests
 
                 foreach (var client in Clients)
                 {
-                    using (var cliCtx = new AdventureWorksContext(client))
+                    using (var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema))
                     {
                         // get all product categories
                         var clientPC = await cliCtx.ProductCategory.AsNoTracking().ToListAsync();
@@ -2452,7 +2457,7 @@ namespace Dotmim.Sync.Tests
                 var productName = HelperDatabase.GetRandomName();
                 var productNumber = productName.ToUpperInvariant().Substring(0, 10);
 
-                using (var ctx = new AdventureWorksContext(client))
+                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
                 {
                     var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
                     ctx.Add(pc);
@@ -2566,7 +2571,7 @@ namespace Dotmim.Sync.Tests
                 var priceListCount = await ctx.PricesList.AsNoTracking().CountAsync();
                 foreach (var client in Clients)
                 {
-                    using (var cliCtx = new AdventureWorksContext(client))
+                    using (var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema))
                     {
                         var pCount = await cliCtx.Product.AsNoTracking().CountAsync();
                         Assert.Equal(productRowCount, pCount);
@@ -2600,7 +2605,7 @@ namespace Dotmim.Sync.Tests
             // Insert one thousand lines on each client
             foreach (var client in Clients)
             {
-                using (var ctx = new AdventureWorksContext(client))
+                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
                 {
                     for (var i = 0; i < 1000; i++)
                     {
@@ -2969,7 +2974,7 @@ namespace Dotmim.Sync.Tests
                 var productName = HelperDatabase.GetRandomName();
                 var productNumber = productName.ToUpperInvariant().Substring(0, 10);
 
-                using (var ctx = new AdventureWorksContext(client))
+                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
                 {
                     var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
                     ctx.Add(pc);
@@ -3031,7 +3036,7 @@ namespace Dotmim.Sync.Tests
                 var productName = HelperDatabase.GetRandomName();
                 var productNumber = productName.ToUpperInvariant().Substring(0, 10);
 
-                using (var ctx = new AdventureWorksContext(client))
+                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
                 {
                     var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
                     ctx.Add(pc);
@@ -3097,7 +3102,7 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // Insert one employee, address, employeeaddress
-                using (var ctx = new AdventureWorksContext(client))
+                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
                 {
 
                     ctx.Database.OpenConnection();
@@ -3276,7 +3281,7 @@ namespace Dotmim.Sync.Tests
             }
             foreach (var client in Clients)
             {
-                using (var cliCtx = new AdventureWorksContext(client))
+                using (var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema))
                 {
                     // get all product categories
                     var clientPC = await cliCtx.ProductCategory.AsNoTracking().ToListAsync();
@@ -3332,7 +3337,7 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // Insert one employee, address, employeeaddress
-                using (var ctx = new AdventureWorksContext(client))
+                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
                 {
 
                     ctx.Database.OpenConnection();
@@ -3511,7 +3516,7 @@ namespace Dotmim.Sync.Tests
             }
             foreach (var client in Clients)
             {
-                using (var cliCtx = new AdventureWorksContext(client))
+                using (var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema))
                 {
                     // get all product categories
                     var clientPC = await cliCtx.ProductCategory.AsNoTracking().ToListAsync();
