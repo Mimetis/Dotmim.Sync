@@ -59,8 +59,9 @@ namespace Dotmim.Sync.Tests
             return (T)orchestrator;
         }
 
-        public void GetMySqlConnectionsInformations()
+        public string GetMySqlConnectionsInformations()
         {
+            string res;
             using (var connection = new MySqlConnection(HelperDatabase.GetConnectionString(ProviderType.MySql, "sys")))
             {
                 using (var command = connection.CreateCommand())
@@ -71,9 +72,8 @@ namespace Dotmim.Sync.Tests
                     using (var r = command.ExecuteReader())
                     {
                         r.Read();
-
-                        Console.WriteLine($"Max Used Connections : {r[1].ToString()}");
-                        Debug.WriteLine($"Max Used Connections : {r[1].ToString()}");
+                        res = $"Max Used Connections : {r[1].ToString()}";
+                        res += Environment.NewLine;
                     }
                     connection.Close();
                 }
@@ -86,12 +86,13 @@ namespace Dotmim.Sync.Tests
                     {
                         r.Read();
 
-                        Console.WriteLine($"Max Connections : {r[1].ToString()}");
-                        Debug.WriteLine($"Max Used Connections : {r[1].ToString()}");
+                        res += $"Max Connections : {r[1].ToString()}";
                     }
                     connection.Close();
                 }
             }
+            return res;
+
         }
 
 
