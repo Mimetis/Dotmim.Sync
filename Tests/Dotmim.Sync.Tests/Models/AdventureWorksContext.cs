@@ -122,11 +122,9 @@ namespace Dotmim.Sync.Tests.Models
                     .IsRequired();
 
                 entity.Property(e => e.City)
-                    .IsRequired()
                     .HasMaxLength(30);
 
                 entity.Property(e => e.CountryRegion)
-                    .IsRequired()
                     .HasMaxLength(50);
 
                 entity.Property(e => e.ModifiedDate)
@@ -139,7 +137,6 @@ namespace Dotmim.Sync.Tests.Models
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
 
                 entity.Property(e => e.PostalCode)
-                    .IsRequired()
                     .IsUnicode()
                     .HasMaxLength(15);
 
@@ -151,7 +148,6 @@ namespace Dotmim.Sync.Tests.Models
                     entity.Property(e => e.Rowguid).HasDefaultValueSql("(newid())");
 
                 entity.Property(e => e.StateProvince)
-                    .IsRequired()
                     .HasMaxLength(50);
             });
 
@@ -391,7 +387,6 @@ namespace Dotmim.Sync.Tests.Models
                 entity.Property(e => e.ProductModelId).HasColumnName("ProductModelID");
 
                 entity.Property(e => e.ProductNumber)
-                    .IsRequired()
                     .HasMaxLength(25);
 
                 entity.Property(e => e.Rowguid)
@@ -788,27 +783,27 @@ namespace Dotmim.Sync.Tests.Models
         protected void OnSeeding(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Address>().HasData(
-                new Address { AddressId = 1, AddressLine1 = "8713 Yosemite Ct.", City = "Bothell", StateProvince = "Washington", CountryRegion = "United States", PostalCode = "98011" },
-                new Address { AddressId = 2, AddressLine1 = "1318 Lasalle Street", City = "Bothell", StateProvince = "Washington", CountryRegion = "United States", PostalCode = "98011" },
-                new Address { AddressId = 3, AddressLine1 = "9178 Jumping St.", City = "Dallas", StateProvince = "Texas", CountryRegion = "United States", PostalCode = "75201" },
-                new Address { AddressId = 4, AddressLine1 = "9228 Via Del Sol", City = "Phoenix", StateProvince = "Arizona", CountryRegion = "United States", PostalCode = "85004" },
-                new Address { AddressId = 5, AddressLine1 = "26910 Indela Road", City = "Montreal", StateProvince = "Quebec", CountryRegion = "Canada", PostalCode = "H1Y 2H5" },
-                new Address { AddressId = 6, AddressLine1 = "2681 Eagle Peak", City = "Bellevue", StateProvince = "Washington", CountryRegion = "United States", PostalCode = "98004" },
-                new Address { AddressId = 7, AddressLine1 = "7943 Walnut Ave", City = "Renton", StateProvince = "Washington", CountryRegion = "United States", PostalCode = "98055" },
-                new Address { AddressId = 8, AddressLine1 = "6388 Lake City Way", City = "Burnaby", StateProvince = "British Columbia", CountryRegion = "Canada", PostalCode = "V5A 3A6" },
-                new Address { AddressId = 9, AddressLine1 = "52560 Free Street", City = "Toronto", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "M4B 1V7" },
-                new Address { AddressId = 10, AddressLine1 = "22580 Free Street", City = "Toronto", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "M4B 1V7" },
-                new Address { AddressId = 11, AddressLine1 = "2575 Bloor Street East", City = "Toronto", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "M4B 1V6" },
-                new Address { AddressId = 12, AddressLine1 = "Station E", City = "Chalk Riber", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "K0J 1J0" },
-                new Address { AddressId = 13, AddressLine1 = "575 Rue St Amable", City = "Quebec", StateProvince = "Quebec", CountryRegion = "Canada", PostalCode = "G1R" },
-                new Address { AddressId = 14, AddressLine1 = "2512-4th Ave Sw", City = "Calgary", StateProvince = "Alberta", CountryRegion = "Canada", PostalCode = "T2P 2G8" },
-                new Address { AddressId = 15, AddressLine1 = "55 Lakeshore Blvd East", City = "Toronto", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "M4B 1V6" },
-                new Address { AddressId = 16, AddressLine1 = "6333 Cote Vertu", City = "Montreal", StateProvince = "Quebec", CountryRegion = "Canada", PostalCode = "H1Y 2H5" },
-                new Address { AddressId = 17, AddressLine1 = "3255 Front Street West", City = "Toronto", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "H1Y 2H5" },
-                new Address { AddressId = 18, AddressLine1 = "2550 Signet Drive", City = "Weston", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "H1Y 2H7" },
-                new Address { AddressId = 19, AddressLine1 = "6777 Kingsway", City = "Burnaby", StateProvince = "British Columbia", CountryRegion = "Canada", PostalCode = "H1Y 2H8" },
-                new Address { AddressId = 20, AddressLine1 = "5250-505 Burning St", City = "Vancouver", StateProvince = "British Columbia", CountryRegion = "Canada", PostalCode = "H1Y 2H9" },
-                new Address { AddressId = 21, AddressLine1 = "600 Slater Street", City = "Ottawa", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "M9V 4W3" }
+                new Address { AddressId = 1, AddressLine1 = "8713 Yosemite Ct.", AddressLine2 = "Appt 1", City = "Bothell", StateProvince = "Washington", CountryRegion = "United States", PostalCode = "98011" },
+                new Address { AddressId = 2, AddressLine1 = "1318 Lasalle Street", AddressLine2 = "Appt 2", City = "Bothell", StateProvince = "Washington", CountryRegion = "United States", PostalCode = "98011" },
+                new Address { AddressId = 3, AddressLine1 = "9178 Jumping St.", AddressLine2 = "Appt 3", City = "Dallas", StateProvince = "Texas", CountryRegion = "United States", PostalCode = "75201" },
+                new Address { AddressId = 4, AddressLine1 = "9228 Via Del Sol", AddressLine2 = "Appt 4", City = "Phoenix", StateProvince = "Arizona", CountryRegion = "United States", PostalCode = "85004" },
+                new Address { AddressId = 5, AddressLine1 = "26910 Indela Road", AddressLine2 = "Appt 5", City = "Montreal", StateProvince = "Quebec", CountryRegion = "Canada", PostalCode = "H1Y 2H5" },
+                new Address { AddressId = 6, AddressLine1 = "2681 Eagle Peak", AddressLine2 = "Appt 6", City = "Bellevue", StateProvince = "Washington", CountryRegion = "United States", PostalCode = "98004" },
+                new Address { AddressId = 7, AddressLine1 = "7943 Walnut Ave", AddressLine2 = "Appt 7", City = "Renton", StateProvince = "Washington", CountryRegion = "United States", PostalCode = "98055" },
+                new Address { AddressId = 8, AddressLine1 = "6388 Lake City Way", AddressLine2 = "Appt 8", City = "Burnaby", StateProvince = "British Columbia", CountryRegion = "Canada", PostalCode = "V5A 3A6" },
+                new Address { AddressId = 9, AddressLine1 = "52560 Free Street", AddressLine2 = "Appt 9", City = "Toronto", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "M4B 1V7" },
+                new Address { AddressId = 10, AddressLine1 = "22580 Free Street", AddressLine2 = "Appt 10", City = "Toronto", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "M4B 1V7" },
+                new Address { AddressId = 11, AddressLine1 = "2575 Bloor Street East", AddressLine2 = "Appt 11", City = "Toronto", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "M4B 1V6" },
+                new Address { AddressId = 12, AddressLine1 = "Station E", AddressLine2 = "Appt 12", City = "Chalk Riber", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "K0J 1J0" },
+                new Address { AddressId = 13, AddressLine1 = "575 Rue St Amable", AddressLine2 = "Appt 13", City = "Quebec", StateProvince = "Quebec", CountryRegion = "Canada", PostalCode = "G1R" },
+                new Address { AddressId = 14, AddressLine1 = "2512-4th Ave Sw", AddressLine2 = "Appt 14", City = "Calgary", StateProvince = "Alberta", CountryRegion = "Canada", PostalCode = "T2P 2G8" },
+                new Address { AddressId = 15, AddressLine1 = "55 Lakeshore Blvd East", AddressLine2 = "Appt 15", City = "Toronto", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "M4B 1V6" },
+                new Address { AddressId = 16, AddressLine1 = "6333 Cote Vertu", AddressLine2 = "Appt 16", City = "Montreal", StateProvince = "Quebec", CountryRegion = "Canada", PostalCode = "H1Y 2H5" },
+                new Address { AddressId = 17, AddressLine1 = "3255 Front Street West", AddressLine2 = "Appt 17", City = "Toronto", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "H1Y 2H5" },
+                new Address { AddressId = 18, AddressLine1 = "2550 Signet Drive", AddressLine2 = "Appt 18", City = "Weston", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "H1Y 2H7" },
+                new Address { AddressId = 19, AddressLine1 = "6777 Kingsway", AddressLine2 = "Appt 19", City = "Burnaby", StateProvince = "British Columbia", CountryRegion = "Canada", PostalCode = "H1Y 2H8" },
+                new Address { AddressId = 20, AddressLine1 = "5250-505 Burning St", AddressLine2 = "Appt 20", City = "Vancouver", StateProvince = "British Columbia", CountryRegion = "Canada", PostalCode = "H1Y 2H9" },
+                new Address { AddressId = 21, AddressLine1 = "600 Slater Street", AddressLine2 = "Appt 21", City = "Ottawa", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "M9V 4W3" }
             );
 
             modelBuilder.Entity<Employee>().HasData(
@@ -1019,7 +1014,7 @@ namespace Dotmim.Sync.Tests.Models
                     ProductId = item.ProductId,
                     ProductDescription = $"{item.Name}(Easter {DateTime.Now.Year})",
                     MinQuantity = generator.Next(0, 5),
-                    Amount = item.ListPrice,
+                    Amount = item.ListPrice.HasValue ? item.ListPrice.Value : 0,
                     Discount = discountlist[generator.Next(0, discountlist.Length - 1)],
                 }));
 
@@ -1033,7 +1028,7 @@ namespace Dotmim.Sync.Tests.Models
                     ProductId = item.ProductId,
                     ProductDescription = $"{item.Name}(Easter {DateTime.Now.Year})",
                     MinQuantity = generator.Next(0, 5),
-                    Amount = item.ListPrice,
+                    Amount = item.ListPrice.HasValue ? item.ListPrice.Value : 0,
                     Discount = discountlist[generator.Next(0, discountlist.Length - 1)],
                 }));
 
@@ -1048,7 +1043,7 @@ namespace Dotmim.Sync.Tests.Models
                     ProductId = item.ProductId,
                     ProductDescription = item.Name,
                     MinQuantity = generator.Next(0, 5),
-                    Amount = item.ListPrice,
+                    Amount = item.ListPrice.HasValue ? item.ListPrice.Value : 0,
                 }));
 
             dettails.AddRange(products
@@ -1061,7 +1056,7 @@ namespace Dotmim.Sync.Tests.Models
                     ProductId = item.ProductId,
                     ProductDescription = item.Name,
                     MinQuantity = generator.Next(0, 5),
-                    Amount = item.ListPrice,
+                    Amount = item.ListPrice.HasValue ? item.ListPrice.Value : 0,
                 }));
 
             modelBuilder.Entity<PriceListDetail>().HasData(dettails.ToArray());
