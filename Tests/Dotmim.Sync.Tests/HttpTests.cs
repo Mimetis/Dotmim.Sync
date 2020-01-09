@@ -218,9 +218,6 @@ namespace Dotmim.Sync.Tests
                     var s = await agent.SynchronizeAsync();
 
                 });
-
-                Assert.Equal(SyncExceptionSide.ServerSide, se.Side);
-
             }
         }
 
