@@ -28,8 +28,6 @@ namespace Dotmim.Sync.Tests
         private bool useFiddler;
         IWebHost host;
         private WebServerOrchestrator webServerOrchestrator;
-        private string databaseName;
-        private ProviderType providerType;
         private (string DatabaseName, ProviderType ProviderType, WebServerOrchestrator WebServerOrchestrator) server;
 
         public KestrellTestServer((string DatabaseName, ProviderType ProviderType, WebServerOrchestrator WebServerOrchestrator) server, bool useFidller = false)
@@ -53,8 +51,6 @@ namespace Dotmim.Sync.Tests
 
             this.useFiddler = useFidller;
             this.webServerOrchestrator = server.WebServerOrchestrator;
-            this.databaseName = server.DatabaseName;
-            this.providerType = server.ProviderType;
 
         }
 
