@@ -491,11 +491,23 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                     stringBuilder.Append("\t");
                     stringBuilder.Append(or);
+                    stringBuilder.Append("ISNULL(");
+                    stringBuilder.Append("NULLIF(");
                     stringBuilder.Append("[d].");
                     stringBuilder.Append(quotedColumn);
-                    stringBuilder.Append(" <> ");
+                    stringBuilder.Append(", ");
                     stringBuilder.Append("[i].");
-                    stringBuilder.AppendLine(quotedColumn);
+                    stringBuilder.Append(quotedColumn);
+                    stringBuilder.Append(")");
+                    stringBuilder.Append(", ");
+                    stringBuilder.Append("NULLIF(");
+                    stringBuilder.Append("[i].");
+                    stringBuilder.Append(quotedColumn);
+                    stringBuilder.Append(", ");
+                    stringBuilder.Append("[d].");
+                    stringBuilder.Append(quotedColumn);
+                    stringBuilder.Append(")");
+                    stringBuilder.AppendLine(") IS NOT NULL");
 
                     or = " OR ";
                 }

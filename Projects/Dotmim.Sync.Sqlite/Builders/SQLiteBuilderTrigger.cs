@@ -236,13 +236,25 @@ namespace Dotmim.Sync.Sqlite
                 {
                     var quotedColumn = ParserName.Parse(column).Quoted().ToString();
 
-                    stringBuilder.Append("\t\t");
+                    stringBuilder.Append("\t");
                     stringBuilder.Append(or);
+                    stringBuilder.Append("IFNULL(");
+                    stringBuilder.Append("NULLIF(");
+                    stringBuilder.Append("[old].");
+                    stringBuilder.Append(quotedColumn);
+                    stringBuilder.Append(", ");
                     stringBuilder.Append("[new].");
                     stringBuilder.Append(quotedColumn);
-                    stringBuilder.Append(" <> ");
+                    stringBuilder.Append(")");
+                    stringBuilder.Append(", ");
+                    stringBuilder.Append("NULLIF(");
+                    stringBuilder.Append("[new].");
+                    stringBuilder.Append(quotedColumn);
+                    stringBuilder.Append(", ");
                     stringBuilder.Append("[old].");
-                    stringBuilder.AppendLine(quotedColumn);
+                    stringBuilder.Append(quotedColumn);
+                    stringBuilder.Append(")");
+                    stringBuilder.AppendLine(") IS NOT NULL");
 
                     or = " OR ";
                 }
