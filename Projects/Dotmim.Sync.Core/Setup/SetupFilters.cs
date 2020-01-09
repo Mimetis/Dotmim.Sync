@@ -11,9 +11,6 @@ namespace Dotmim.Sync
 {
     public class SetupFilters : ICollection<SetupFilter>, IList<SetupFilter>
     {
-        // reference to setup's parent
-        private readonly SyncSetup setup;
-
         private Collection<SetupFilter> innerCollection = new Collection<SetupFilter>();
 
         /// <summary>

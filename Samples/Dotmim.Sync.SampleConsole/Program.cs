@@ -42,7 +42,7 @@ internal class Program
         SyncHttpThroughKestellAsync().GetAwaiter().GetResult();
     }
 
-    private static async Task TestSqliteDoubleStatement()
+    private static void TestSqliteDoubleStatement()
     {
         var clientProvider = new SqliteSyncProvider(@"C:\PROJECTS\DOTMIM.SYNC\Tests\Dotmim.Sync.Tests\bin\Debug\netcoreapp2.0\st_r55jmmolvwg.db");
         var clientConnection = new SqliteConnection(clientProvider.ConnectionString);
@@ -560,8 +560,8 @@ internal class Program
     }
 
 
-    private static async Task SyncAdvAsync()
-    {
+    //private static async Task SyncAdvAsync()
+    //{
         //// Sql Server provider, the master.
         //var serverProvider = new SqlSyncProvider(
         //    @"Data Source=.;Initial Catalog=AdventureWorks;User Id=sa;Password=Password12!;");
@@ -586,7 +586,7 @@ internal class Program
         //    Console.WriteLine($"Total Changes downloaded : {s.TotalChangesDownloaded}");
 
         //} while (Console.ReadKey().Key != ConsoleKey.Escape);
-    }
+   // }
 
 
     /// <summary>
@@ -677,8 +677,8 @@ internal class Program
     /// Launch a simple sync, over TCP network, each sql server (client and server are reachable through TCP cp
     /// </summary>
     /// <returns></returns>
-    private static async Task SynchronizeExistingTablesAsync()
-    {
+    //private static async Task SynchronizeExistingTablesAsync()
+    //{
         //string serverName = "ServerTablesExist";
         //string clientName = "ClientsTablesExist";
 
@@ -764,12 +764,12 @@ internal class Program
         //} while (Console.ReadKey().Key != ConsoleKey.Escape);
 
         //Console.WriteLine("End");
-    }
+    //}
 
 
 
-    private static async Task SynchronizeOSAsync()
-    {
+    //private static async Task SynchronizeOSAsync()
+    //{
         // Create 2 Sql Sync providers
         //var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString("OptionsServer"));
         //var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString("OptionsClient"));
@@ -805,7 +805,7 @@ internal class Program
         //} while (Console.ReadKey().Key != ConsoleKey.Escape);
 
         //Console.WriteLine("End");
-    }
+    //}
 
 
     public static async Task SyncHttpThroughKestellAsync()
