@@ -28,7 +28,7 @@ namespace Dotmim.Sync.Tests.V2
         /// <summary>
         /// Gets the sync tables involved in the tests
         /// </summary>
-        public abstract string[] Tables { get;  }
+        public abstract string[] Tables { get; }
 
         /// <summary>
         /// Gets the clients type we want to tests
@@ -113,7 +113,7 @@ namespace Dotmim.Sync.Tests.V2
                 HelperDatabase.DropDatabase(client.ProviderType, client.DatabaseName);
 
             this.stopwatch.Stop();
-            
+
             var str = $"{test.TestCase.DisplayName} : {this.stopwatch.Elapsed.Minutes}:{this.stopwatch.Elapsed.Seconds}.{this.stopwatch.Elapsed.Milliseconds}";
             Console.WriteLine(str);
             Debug.WriteLine(str);
@@ -942,6 +942,192 @@ namespace Dotmim.Sync.Tests.V2
                 }
             }
         }
+
+
+        /// <summary>
+        /// Update one row on client, should be correctly sync on server then all clients
+        /// </summary>
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Update_NullValue_FromClient(SyncOptions options)
+        {
+            // create a server schema with seeding
+            this.fixture.EnsureDatabaseSchemaAndSeed(this.Server, true, true);
+
+            // get rows count
+            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var client in Clients)
+            {
+                var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator,
+                                          new SyncSetup(Tables), options);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalSyncConflicts);
+            }
+
+            // Update one address on each client, with null value on addressline2 (which is not null when seed)
+            // To avoid conflicts, each client will update differents lines
+            var addressId = 1;
+            foreach (var client in Clients)
+            {
+                using (var ctx = new AdventureWorksContext(client))
+                {
+                    var address = await ctx.Address.SingleAsync(a => a.AddressId == addressId);
+
+                    // update to null value
+                    address.AddressLine2 = null;
+
+                    await ctx.SaveChangesAsync();
+                }
+                addressId++;
+            }
+            // Execute a sync on all clients and check results
+            // Each client will download the "upload from previous client"
+            int download = 0;
+            foreach (var client in Clients)
+            {
+                var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator,
+                                          new SyncSetup(Tables), options);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(download++, s.TotalChangesDownloaded);
+                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalSyncConflicts);
+            }
+
+            // Now sync again to be sure all clients have all lines
+            foreach (var client in Clients)
+            {
+                await new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator,
+                                    new SyncSetup(Tables), options).SynchronizeAsync();
+            }
+
+
+            // check rows count on server and on each client
+            using (var ctx = new AdventureWorksContext(this.Server))
+            {
+                // get all addresses
+                var serverAddresses = await ctx.Address.AsNoTracking().ToListAsync();
+
+                foreach (var client in Clients)
+                {
+                    using (var cliCtx = new AdventureWorksContext(client))
+                    {
+                        // get all addresses
+                        var clientAddresses = await cliCtx.Address.AsNoTracking().ToListAsync();
+
+                        // check row count
+                        Assert.Equal(serverAddresses.Count, clientAddresses.Count);
+
+                        foreach (var clientAddress in clientAddresses)
+                        {
+                            var serverAddress = serverAddresses.First(a => a.AddressId == clientAddress.AddressId);
+
+                            // check column value
+                            Assert.Equal(serverAddress.AddressLine2, clientAddress.AddressLine2);
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Update one row on server, should be correctly sync on all clients
+        /// </summary>
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Update_NullValue_FromServer(SyncOptions options)
+        {
+            // create a server schema with seeding
+            this.fixture.EnsureDatabaseSchemaAndSeed(this.Server, true, true);
+
+            // get rows count
+            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var client in Clients)
+            {
+                var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator,
+                                          new SyncSetup(Tables), options);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalSyncConflicts);
+            }
+
+            // Update one address on server with a null value which was not null before
+            using (var serverDbCtx = new AdventureWorksContext(this.Server))
+            {
+                var address = await serverDbCtx.Address.SingleAsync(a => a.AddressId == 1);
+
+                // set null to a previous value which was not null
+                address.AddressLine2 = null;
+
+                await serverDbCtx.SaveChangesAsync();
+            }
+
+            // Execute a sync on all clients and check results
+            foreach (var client in Clients)
+            {
+                var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator,
+                                          new SyncSetup(Tables), options);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(1, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalSyncConflicts);
+
+                // check row updated values
+                using (var ctx = new AdventureWorksContext(client))
+                {
+                    var cliAddress = await ctx.Address.AsNoTracking().SingleAsync(a => a.AddressId == 1);
+                    Assert.Null(cliAddress.AddressLine2);
+                }
+            }
+
+
+            // Update one address on server with a non null value (on a value which was null before)
+            using (var serverDbCtx = new AdventureWorksContext(this.Server))
+            {
+                var address = await serverDbCtx.Address.SingleAsync(a => a.AddressId == 1);
+
+                // set not null value to a previous value which was null
+                address.AddressLine2 = "NoT a null value !";
+
+                await serverDbCtx.SaveChangesAsync();
+            }
+
+            // Execute a sync on all clients and check results
+            foreach (var client in Clients)
+            {
+                var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator,
+                                          new SyncSetup(Tables), options);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(1, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalSyncConflicts);
+
+                // check row updated values
+                using (var ctx = new AdventureWorksContext(client))
+                {
+                    var cliAddress = await ctx.Address.AsNoTracking().SingleAsync(a => a.AddressId == 1);
+                    Assert.Equal("NoT a null value !", cliAddress.AddressLine2);
+                }
+            }
+
+        }
+
 
         /// <summary>
         /// Delete rows on server, should be correctly sync on all clients
