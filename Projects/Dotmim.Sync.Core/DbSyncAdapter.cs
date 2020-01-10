@@ -74,7 +74,7 @@ namespace Dotmim.Sync
         /// Create a Sync Adapter
         /// </summary>
         public DbSyncAdapter(SyncTable tableDescription) => this.TableDescription = tableDescription;
-
+        
 
         /// <summary>
         /// Set command parameters value mapped to Row

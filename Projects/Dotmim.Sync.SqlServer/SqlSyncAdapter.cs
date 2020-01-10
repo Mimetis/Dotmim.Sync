@@ -25,7 +25,12 @@ namespace Dotmim.Sync.SqlServer.Builders
         private SqlDbMetadata sqlMetadata;
 
         // Derive Parameters cache
-        private static ConcurrentDictionary<string, List<SqlParameter>> derivingParameters = new ConcurrentDictionary<string, List<SqlParameter>>();
+        // Be careful, we can have collision between databases
+        // this static class could be shared accross databases with same command name
+        // but different table schema
+        // So the string should contains the connection string as well
+        private static ConcurrentDictionary<string, List<SqlParameter>> derivingParameters 
+            = new ConcurrentDictionary<string, List<SqlParameter>>();
 
         public override DbConnection Connection
         {
@@ -507,6 +512,10 @@ namespace Dotmim.Sync.SqlServer.Builders
                     command.Transaction = this.transaction;
 
                 var textParser = ParserName.Parse(command.CommandText).Unquoted().Normalized().ToString();
+
+                var source = this.connection.Database;
+
+                textParser = $"{source}-{textParser}";
 
                 if (derivingParameters.ContainsKey(textParser))
                 {

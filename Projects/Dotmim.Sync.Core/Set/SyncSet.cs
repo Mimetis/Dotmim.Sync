@@ -18,62 +18,62 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets or Sets the current scope name
         /// </summary>
-        [DataMember(Name = "sn", IsRequired = false, EmitDefaultValue = false, Order = 2)]
+        [DataMember(Name = "sn", IsRequired = false, EmitDefaultValue = false, Order = 1)]
         public string ScopeName { get; set; }
 
         /// <summary>
         /// Specify a prefix for naming stored procedure. Default is empty string
         /// </summary>
-        [DataMember(Name = "spp", IsRequired = false, EmitDefaultValue = false, Order = 5)]
+        [DataMember(Name = "spp", IsRequired = false, EmitDefaultValue = false, Order = 2)]
         public string StoredProceduresPrefix { get; set; }
 
         /// <summary>
         /// Specify a suffix for naming stored procedures. Default is empty string
         /// </summary>
-        [DataMember(Name = "sps", IsRequired = false, EmitDefaultValue = false, Order = 6)]
+        [DataMember(Name = "sps", IsRequired = false, EmitDefaultValue = false, Order = 3)]
         public string StoredProceduresSuffix { get; set; }
 
         /// <summary>
         /// Specify a prefix for naming stored procedure. Default is empty string
         /// </summary>
-        [DataMember(Name = "tp", IsRequired = false, EmitDefaultValue = false, Order = 7)]
+        [DataMember(Name = "tp", IsRequired = false, EmitDefaultValue = false, Order = 4)]
         public string TriggersPrefix { get; set; }
 
         /// <summary>
         /// Specify a suffix for naming stored procedures. Default is empty string
         /// </summary>
-        [DataMember(Name = "ts", IsRequired = false, EmitDefaultValue = false, Order = 8)]
+        [DataMember(Name = "ts", IsRequired = false, EmitDefaultValue = false, Order = 5)]
         public string TriggersSuffix { get; set; }
 
         /// <summary>
         /// Specify a prefix for naming tracking tables. Default is empty string
         /// </summary>
-        [DataMember(Name = "ttp", IsRequired = false, EmitDefaultValue = false, Order = 9)]
+        [DataMember(Name = "ttp", IsRequired = false, EmitDefaultValue = false, Order = 6)]
         public string TrackingTablesPrefix { get; set; }
 
         /// <summary>
         /// Specify a suffix for naming tracking tables.
         /// </summary>
-        [DataMember(Name = "tts", IsRequired = false, EmitDefaultValue = false, Order = 10)]
+        [DataMember(Name = "tts", IsRequired = false, EmitDefaultValue = false, Order = 7)]
         public string TrackingTablesSuffix { get; set; }
 
         /// <summary>
         /// Gets or Sets an array of DmTableSurrogate objects that comprise 
         /// the dm set that is represented by the DmSetSurrogate object.
         /// </summary>
-        [DataMember(Name = "t", IsRequired = false, EmitDefaultValue = false, Order = 11)]
+        [DataMember(Name = "t", IsRequired = false, EmitDefaultValue = false, Order = 8)]
         public SyncTables Tables { get; set; }
 
         /// <summary>
         /// Gets or Sets an array of every SchemaRelation belong to this Schema
         /// </summary>
-        [DataMember(Name = "r", IsRequired = false, EmitDefaultValue = false, Order = 12)]
+        [DataMember(Name = "r", IsRequired = false, EmitDefaultValue = false, Order = 9)]
         public SyncRelations Relations { get; set; }
 
         /// <summary>
         /// Filters applied on tables
         /// </summary>
-        [DataMember(Name = "f", IsRequired = false, EmitDefaultValue = false, Order = 13)]
+        [DataMember(Name = "f", IsRequired = false, EmitDefaultValue = false, Order = 10)]
         public SyncFilters Filters { get; set; }
 
 
