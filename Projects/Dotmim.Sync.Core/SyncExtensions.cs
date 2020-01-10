@@ -24,17 +24,6 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        ///  Shortcut to add a new parameter value to a filter
-        /// </summary>
-        /// <typeparam name="T">Parameter type</typeparam>
-        /// <param name="filterClause">Filter clause, containing the table name and the column name</param>
-        /// <param name="value">Parameter value</param>
-        public static void Add<T>(this ICollection<SyncParameter> paramsList, SyncFilter filterClause, T value)
-        {
-            paramsList.Add(new SyncParameter(filterClause.TableName, filterClause.ColumnName, filterClause.SchemaName, value));
-        }
-
-        /// <summary>
         /// Returns a collection containing only FilterClauses which are not virtual (that are backed by a real table column)
         /// </summary>
         /// <param name="list"></param>

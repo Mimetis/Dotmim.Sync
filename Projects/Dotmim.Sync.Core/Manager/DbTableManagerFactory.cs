@@ -9,13 +9,13 @@ using System.Text;
 
 namespace Dotmim.Sync.Manager
 {
-    public abstract class DbManager
+    public abstract class DbTableManagerFactory
     {
 
         public string TableName { get; }
         public string SchemaName { get; }
 
-        public DbManager(string tableName, string schemaName)
+        public DbTableManagerFactory(string tableName, string schemaName)
         {
             this.TableName = tableName;
             this.SchemaName = schemaName;
@@ -24,7 +24,7 @@ namespace Dotmim.Sync.Manager
         /// <summary>
         /// Gets a table manager, who can execute somes queries directly on source database
         /// </summary>
-        public abstract IDbManagerTable CreateManagerTable(DbConnection connection, DbTransaction transaction = null);
+        public abstract IDbTableManager CreateManagerTable(DbConnection connection, DbTransaction transaction = null);
 
         /// <summary>
         /// Get a parameter even if it's a @param or :param or param

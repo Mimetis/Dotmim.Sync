@@ -138,7 +138,7 @@ namespace Dotmim.Sync.MySql
 
         public override DbBuilder GetDatabaseBuilder(SyncTable tableDescription) => new MySqlBuilder(tableDescription);
 
-        public override DbManager GetDbManager(string tableName, string schemaName) => new MySqlManager(tableName);
+        public override DbTableManagerFactory GetTableManagerFactory(string tableName, string schemaName) => new MySqlManager(tableName);
 
         public override DbScopeBuilder GetScopeBuilder() => new MySqlScopeBuilder();
     }

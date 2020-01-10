@@ -223,59 +223,21 @@ namespace Dotmim.Sync.Sqlite
 
         public override Type ValidateType(object ownerType)
         {
-            DbType dbType = (DbType)ownerType;
+            var dbType = (SqliteType)ownerType;
 
             switch (dbType)
             {
-                case DbType.AnsiString:
-                case DbType.AnsiStringFixedLength:
-                case DbType.String:
-                case DbType.StringFixedLength:
-                case DbType.Xml:
-                    return typeof(String);
-                case DbType.Guid:
-                    return typeof(Guid);
-                case DbType.Binary:
-                    return typeof(Byte[]);
-                case DbType.Object:
-                    return typeof(Object);
-                case DbType.Boolean:
-                    return typeof(bool);
-                case DbType.Byte:
-                    return typeof(byte);
-                case DbType.Int16:
-                    return typeof(Int16);
-                case DbType.Int32:
-                    return typeof(Int32);
-                case DbType.UInt16:
-                    return typeof(UInt16);
-                case DbType.Int64:
-                    return typeof(Int64);
-                case DbType.UInt32:
-                    return typeof(UInt32);
-                case DbType.UInt64:
-                    return typeof(UInt64);
-                case DbType.SByte:
-                    return typeof(SByte);
-                case DbType.Time:
-                  //  return typeof(TimeSpan); -- Doesn't work, when trying to insert in sqlite. not IConvertible mechanism to blob
-                    return typeof(String);
-                case DbType.Date:
-                case DbType.DateTime:
-                case DbType.DateTime2:
-                case DbType.DateTimeOffset:
-                    return typeof(DateTime);
-                case DbType.Decimal:
-                    return typeof(Decimal);
-                case DbType.Double:
-                    return typeof(Double);
-                case DbType.Single:
-                    return typeof(Single);
-                case DbType.Currency:
-                case DbType.VarNumeric:
-                    return typeof(Double);
+                case SqliteType.Integer:
+                    return typeof(long);
+                case SqliteType.Real:
+                    return typeof(double);
+                case SqliteType.Text:
+                    return typeof(string);
+                case SqliteType.Blob:
+                    return typeof(object);
             }
             throw new Exception($"this DbType {ownerType.ToString()} is not supported");
+   
         }
     }
 }

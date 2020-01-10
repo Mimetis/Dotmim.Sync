@@ -9,7 +9,7 @@ using System.Linq;
 
 namespace Dotmim.Sync.SqlServer.Manager
 {
-    public class SqlManagerTable : IDbManagerTable
+    public class SqlManagerTable : IDbTableManager
     {
         private string tableName;
         private string schemaName;
@@ -114,6 +114,7 @@ namespace Dotmim.Sync.SqlServer.Manager
                 sColumn.IsAutoIncrement = (bool)c["is_identity"];
                 sColumn.IsUnique = c["is_unique"] != DBNull.Value ? (bool)c["is_unique"] : false;
                 sColumn.IsCompute = (bool)c["is_computed"];
+                sColumn.DefaultValue = c["defaultvalue"].ToString();
 
                 if (sColumn.IsAutoIncrement)
                 {

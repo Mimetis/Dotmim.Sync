@@ -67,8 +67,8 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
             // Don't want foreign key on same table since it could be a problem on first 
             // sync. We are not sure that parent row will be inserted in first position
-            if (relation.GetParentTable() == relation.GetTable())
-                return false;
+            //if (relation.GetParentTable() == relation.GetTable())
+            //    return false;
 
             string tableName = relation.GetTable().TableName;
             string schemaName = relation.GetTable().SchemaName;
@@ -248,7 +248,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         private SqlCommand BuildTableCommand()
         {
-            StringBuilder stringBuilder = new StringBuilder($"CREATE TABLE {tableName.Schema().Quoted().ToString()} (");
+            var stringBuilder = new StringBuilder($"CREATE TABLE {tableName.Schema().Quoted().ToString()} (");
             string empty = string.Empty;
             stringBuilder.AppendLine();
             foreach (var column in this.tableDescription.Columns)
@@ -271,7 +271,16 @@ namespace Dotmim.Sync.SqlServer.Builders
                 if (column.IsReadOnly)
                     nullString = "NULL";
 
-                stringBuilder.AppendLine($"\t{empty}{columnName} {columnType} {identity} {nullString}");
+                string defaultValue = string.Empty;
+                if (this.tableDescription.OriginalProvider == SqlSyncProvider.ProviderType)
+                {
+                    if (!string.IsNullOrEmpty(column.DefaultValue))
+                    {
+                        defaultValue = "DEFAULT " + column.DefaultValue;
+                    }
+                }
+
+                stringBuilder.AppendLine($"\t{empty}{columnName} {columnType} {identity} {nullString} {defaultValue}");
                 empty = ",";
             }
             stringBuilder.Append(")");

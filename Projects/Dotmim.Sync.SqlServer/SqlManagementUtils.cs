@@ -82,7 +82,8 @@ namespace Dotmim.Sync.SqlServer
                                 $"col.is_identity,  " +
                                 $"ind.is_unique,  " +
                                 $"ident_seed(sch.name + '.' + tbl.name) AS seed, " +
-                                $"ident_incr(sch.name + '.' + tbl.name) AS step " +
+                                $"ident_incr(sch.name + '.' + tbl.name) AS step, " +
+                                $"object_definition(col.default_object_id) AS defaultvalue " +
                                 $"  from sys.columns as col " +
                                 $"  Inner join sys.tables as tbl on tbl.object_id = col.object_id " +
                                 $"  Inner join sys.schemas as sch on tbl.schema_id = sch.schema_id " +

@@ -84,7 +84,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get a table manager, which can get informations directly from data source
         /// </summary>
-        public abstract DbManager GetDbManager(string tableName, string schemaName);
+        public abstract DbTableManagerFactory GetTableManagerFactory(string tableName, string schemaName);
 
         /// <summary>
         /// Create a Scope Builder, which can create scope table, and scope config
