@@ -210,9 +210,6 @@ namespace Dotmim.Sync.Tests
             }
         }
 
-
-
-
         [Theory, TestPriority(2)]
         [ClassData(typeof(SyncOptionsData))]
         public virtual async Task RowsCount(SyncOptions options)
@@ -227,7 +224,7 @@ namespace Dotmim.Sync.Tests
             foreach (var client in this.Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator, 
+                var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator,
                                           this.FilterSetup, options);
                 agent.Parameters.AddRange(this.FilterParameters);
 
@@ -237,5 +234,296 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalChangesUploaded);
             }
         }
+
+
+        /// <summary>
+        /// Insert two rows on server, should be correctly sync on all clients
+        /// </summary>
+        [Theory, TestPriority(3)]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Insert_TwoTables_FromServer(SyncOptions options)
+        {
+            // create a server schema and seed
+            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // Get count of rows
+            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var client in Clients)
+            {
+                // create agent with filtered tables and parameter
+                var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator,
+                                          this.FilterSetup, options);
+                agent.Parameters.AddRange(this.FilterParameters);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalSyncConflicts);
+            }
+
+            // Create a new address & customer address on server
+            using (var serverDbCtx = new AdventureWorksContext(this.Server))
+            {
+                var addressLine1 = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
+
+                var newAddress = new Address { AddressLine1 = addressLine1 };
+
+                serverDbCtx.Address.Add(newAddress);
+                await serverDbCtx.SaveChangesAsync();
+
+                var newCustomerAddress = new CustomerAddress
+                {
+                    AddressId = newAddress.AddressId,
+                    CustomerId = AdventureWorksContext.CustomerIdForFilter,
+                    AddressType = "OTH"
+                };
+
+                serverDbCtx.CustomerAddress.Add(newCustomerAddress);
+                await serverDbCtx.SaveChangesAsync();
+            }
+
+            // Execute a sync on all clients and check results
+            foreach (var client in Clients)
+            {
+                // create agent with filtered tables and parameter
+                var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator,
+                                          this.FilterSetup, options);
+                agent.Parameters.AddRange(this.FilterParameters);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(2, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalSyncConflicts);
+            }
+        }
+
+
+        /// <summary>
+        /// Insert four rows on each client, should be sync on server and clients
+        /// </summary>
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Insert_TwoTables_FromClient(SyncOptions options)
+        {
+            // create a server schema and seed
+            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // Get count of rows
+            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var client in Clients)
+            {
+                // create agent with filtered tables and parameter
+                var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator,
+                                          this.FilterSetup, options);
+                agent.Parameters.AddRange(this.FilterParameters);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalSyncConflicts);
+            }
+
+            // Insert 4 lines on each client
+            int cliCpt = 100;
+            foreach (var client in Clients)
+            {
+                var soh = new SalesOrderHeader
+                {
+                    SalesOrderId = 1000 + cliCpt,
+                    SalesOrderNumber = $"SO-1{cliCpt.ToString()}",
+                    RevisionNumber = 1,
+                    Status = 5,
+                    OnlineOrderFlag = true,
+                    PurchaseOrderNumber = "PO348186287",
+                    AccountNumber = "10-4020-000609",
+                    CustomerId = AdventureWorksContext.CustomerIdForFilter,
+                    ShipToAddressId = 4,
+                    BillToAddressId = 5,
+                    ShipMethod = "CAR TRANSPORTATION",
+                    SubTotal = 6530.35M,
+                    TaxAmt = 70.4279M,
+                    Freight = 22.0087M,
+                    TotalDue = 6530.35M + 70.4279M + 22.0087M
+                };
+
+                var sod1 = new SalesOrderDetail { SalesOrderId = 1000 + cliCpt, SalesOrderDetailId = 110600 + cliCpt, OrderQty = 1, ProductId = new Guid("600b1461-7c6d-4e12-90b1-a4e552cd6404"), UnitPrice = 3578.2700M };
+                var sod2 = new SalesOrderDetail { SalesOrderId = 1000 + cliCpt, SalesOrderDetailId = 110600 + cliCpt + 1, OrderQty = 2, ProductId = new Guid("600b1461-7c6d-4e12-90b1-a4e552cd6404"), UnitPrice = 44.5400M };
+                var sod3 = new SalesOrderDetail { SalesOrderId = 1000 + cliCpt, SalesOrderDetailId = 110600 + cliCpt + 2, OrderQty = 2, ProductId = new Guid("600b1461-7c6d-4e12-90b1-a4e552cd6404"), UnitPrice = 1431.5000M };
+
+
+                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
+                {
+                    ctx.SalesOrderHeader.Add(soh);
+                    ctx.SalesOrderDetail.Add(sod1);
+                    ctx.SalesOrderDetail.Add(sod2);
+                    ctx.SalesOrderDetail.Add(sod3);
+                    await ctx.SaveChangesAsync();
+                }
+
+                cliCpt += 100;
+            }
+
+            // Sync all clients
+            // First client  will upload 4 lines and will download nothing
+            // Second client will upload 4 lines and will download 8 lines
+            // thrid client  will upload 4 lines and will download 12 lines
+            int download = 0;
+            foreach (var client in Clients)
+            {
+                // create agent with filtered tables and parameter
+                var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator,
+                                          this.FilterSetup, options);
+                agent.Parameters.AddRange(this.FilterParameters);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(download, s.TotalChangesDownloaded);
+                Assert.Equal(4, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalSyncConflicts);
+                download += 4;
+            }
+
+            // Now sync again to be sure all clients have all lines
+            foreach (var client in Clients)
+            {
+                // create agent with filtered tables and parameter
+                var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator,
+                                          this.FilterSetup, options);
+                agent.Parameters.AddRange(this.FilterParameters);
+
+                await agent.SynchronizeAsync();
+            }
+        }
+
+
+        /// <summary>
+        /// Insert four rows on each client, should be sync on server and clients
+        /// </summary>
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Delete_TwoTables_FromClient(SyncOptions options)
+        {
+            // create a server schema and seed
+            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // Get count of rows
+            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var client in Clients)
+            {
+                // create agent with filtered tables and parameter
+                var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator,
+                                          this.FilterSetup, options);
+                agent.Parameters.AddRange(this.FilterParameters);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalSyncConflicts);
+            }
+
+            // Insert 4 lines on each client
+            foreach (var client in Clients)
+            {
+                var soh = new SalesOrderHeader
+                {
+                    SalesOrderNumber = $"SO-99099",
+                    RevisionNumber = 1,
+                    Status = 5,
+                    OnlineOrderFlag = true,
+                    PurchaseOrderNumber = "PO348186287",
+                    AccountNumber = "10-4020-000609",
+                    CustomerId = AdventureWorksContext.CustomerIdForFilter,
+                    ShipToAddressId = 4,
+                    BillToAddressId = 5,
+                    ShipMethod = "CAR TRANSPORTATION",
+                    SubTotal = 6530.35M,
+                    TaxAmt = 70.4279M,
+                    Freight = 22.0087M,
+                    TotalDue = 6530.35M + 70.4279M + 22.0087M
+                };
+
+                var sod1 = new SalesOrderDetail { OrderQty = 1, ProductId = new Guid("600b1461-7c6d-4e12-90b1-a4e552cd6404"), UnitPrice = 3578.2700M };
+                var sod2 = new SalesOrderDetail { OrderQty = 2, ProductId = new Guid("600b1461-7c6d-4e12-90b1-a4e552cd6404"), UnitPrice = 44.5400M };
+                var sod3 = new SalesOrderDetail { OrderQty = 2, ProductId = new Guid("600b1461-7c6d-4e12-90b1-a4e552cd6404"), UnitPrice = 1431.5000M };
+
+                soh.SalesOrderDetail.Add(sod1);
+                soh.SalesOrderDetail.Add(sod2);
+                soh.SalesOrderDetail.Add(sod3);
+
+                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
+                {
+                    ctx.SalesOrderHeader.Add(soh);
+                    await ctx.SaveChangesAsync();
+                }
+
+            }
+            foreach (var client in Clients)
+            {
+                // create agent with filtered tables and parameter
+                var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator,
+                                          this.FilterSetup, options);
+                agent.Parameters.AddRange(this.FilterParameters);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(0, s.TotalChangesDownloaded);
+                Assert.Equal(4, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalSyncConflicts);
+            }
+
+            // Now sync again to be sure all clients have all lines
+            foreach (var client in Clients)
+            {
+                // create agent with filtered tables and parameter
+                var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator,
+                                          this.FilterSetup, options);
+                agent.Parameters.AddRange(this.FilterParameters);
+
+                await agent.SynchronizeAsync();
+            }
+
+
+            // Delete lines from client
+            // Now sync again to be sure all clients have all lines
+            foreach (var client in Clients)
+            {
+                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
+                {
+                    ctx.SalesOrderDetail.RemoveRange(ctx.SalesOrderDetail.Where(sod => sod.SalesOrder.SalesOrderNumber == "SO-99099"));
+                    ctx.SalesOrderHeader.RemoveRange(ctx.SalesOrderHeader.Where(soh => soh.SalesOrderNumber == "SO-99099"));
+                    await ctx.SaveChangesAsync();
+
+                }
+            }
+
+            // now sync
+
+            foreach (var client in Clients)
+            {
+                // create agent with filtered tables and parameter
+                var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator,
+                                          this.FilterSetup, options);
+                agent.Parameters.AddRange(this.FilterParameters);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(0, s.TotalChangesDownloaded);
+                Assert.Equal(4, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalSyncConflicts);
+            }
+
+        }
+
+
     }
 }

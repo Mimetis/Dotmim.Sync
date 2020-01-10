@@ -15,9 +15,9 @@ using Xunit.Abstractions;
 
 namespace Dotmim.Sync.Tests
 {
-    public class SqlServerTcpFilterTests : TcpFilterTests
+    public class MySqlTcpFilterTests : TcpFilterTests
     {
-        public SqlServerTcpFilterTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
+        public MySqlTcpFilterTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
         {
         }
 
@@ -25,7 +25,7 @@ namespace Dotmim.Sync.Tests
         {
             get
             {
-                var setup = new SyncSetup(new string[] { "Customer", "Address", "CustomerAddress", "SalesLT.SalesOrderHeader", "SalesLT.SalesOrderDetail" });
+                var setup = new SyncSetup(new string[] { "Customer", "Address", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" });
 
                 // Filter columns
                 setup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "EmployeeID", "NameStyle", "FirstName", "LastName" });
@@ -34,7 +34,7 @@ namespace Dotmim.Sync.Tests
                 // Filter rows
                 setup.Filters.Add("Customer", "CustomerID");
                 setup.Filters.Add("CustomerAddress", "CustomerID");
-                setup.Filters.Add("SalesOrderHeader", "CustomerID", "SalesLT");
+                setup.Filters.Add("SalesOrderHeader", "CustomerID");
 
                 return setup;
             }
@@ -44,7 +44,7 @@ namespace Dotmim.Sync.Tests
         {
                 new SyncParameter("Customer", "CustomerID", null, AdventureWorksContext.CustomerIdForFilter),
                 new SyncParameter("CustomerAddress", "CustomerID", null, AdventureWorksContext.CustomerIdForFilter),
-                new SyncParameter("SalesOrderHeader", "CustomerID", "SalesLT", AdventureWorksContext.CustomerIdForFilter),
+                new SyncParameter("SalesOrderHeader", "CustomerID", null, AdventureWorksContext.CustomerIdForFilter),
         };
 
 
@@ -52,7 +52,7 @@ namespace Dotmim.Sync.Tests
             { ProviderType.MySql, ProviderType.Sql};
 
         public override ProviderType ServerType =>
-            ProviderType.Sql;
+            ProviderType.MySql;
 
 
 
