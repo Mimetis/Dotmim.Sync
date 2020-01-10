@@ -95,14 +95,14 @@ namespace Dotmim.Sync
                     if (column != null)
                     {
                         object value = row[column];
-                        DbManager.SetParameterValue(command, parameter.ParameterName, value);
+                        DbTableManagerFactory.SetParameterValue(command, parameter.ParameterName, value);
                     }
                 }
 
             }
 
             // return value
-            var syncRowCountParam = DbManager.GetParameter(command, "sync_row_count");
+            var syncRowCountParam = DbTableManagerFactory.GetParameter(command, "sync_row_count");
 
             if (syncRowCountParam != null)
                 syncRowCountParam.Direction = ParameterDirection.Output;
@@ -140,8 +140,8 @@ namespace Dotmim.Sync
                     isTombstone = rowValue.GetType() == typeof(bool) ? (bool)rowValue : Convert.ToInt64(rowValue) > 0;
             }
 
-            DbManager.SetParameterValue(command, "sync_row_is_tombstone", isTombstone ? 1 : 0);
-            DbManager.SetParameterValue(command, "sync_scope_id", fromScopeId);
+            DbTableManagerFactory.SetParameterValue(command, "sync_row_is_tombstone", isTombstone ? 1 : 0);
+            DbTableManagerFactory.SetParameterValue(command, "sync_scope_id", fromScopeId);
 
             var alreadyOpened = Connection.State == ConnectionState.Open;
 
@@ -617,10 +617,10 @@ namespace Dotmim.Sync
         private void AddScopeParametersValues(DbCommand command, Guid id, long lastTimestamp, bool isDeleted, bool forceWrite)
         {
             // Dotmim.Sync parameters
-            DbManager.SetParameterValue(command, "sync_force_write", (forceWrite ? 1 : 0));
-            DbManager.SetParameterValue(command, "sync_min_timestamp", lastTimestamp);
-            DbManager.SetParameterValue(command, "sync_scope_id", id);
-            DbManager.SetParameterValue(command, "sync_row_is_tombstone", isDeleted);
+            DbTableManagerFactory.SetParameterValue(command, "sync_force_write", (forceWrite ? 1 : 0));
+            DbTableManagerFactory.SetParameterValue(command, "sync_min_timestamp", lastTimestamp);
+            DbTableManagerFactory.SetParameterValue(command, "sync_scope_id", id);
+            DbTableManagerFactory.SetParameterValue(command, "sync_row_is_tombstone", isDeleted);
         }
 
         /// <summary>

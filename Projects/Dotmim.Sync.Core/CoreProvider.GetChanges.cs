@@ -306,10 +306,10 @@ namespace Dotmim.Sync
             }
 
             // Set the parameters
-            DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_min_timestamp", lastTimestamp);
-            DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_id", excludingScopeId);
-            DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_is_new", isNewScope);
-            DbManager.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_is_reinit", isReinit);
+            DbTableManagerFactory.SetParameterValue(selectIncrementalChangesCommand, "sync_min_timestamp", lastTimestamp);
+            DbTableManagerFactory.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_id", excludingScopeId);
+            DbTableManagerFactory.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_is_new", isNewScope);
+            DbTableManagerFactory.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_is_reinit", isReinit);
 
             // Check filters
             List<SyncFilter> tableFilters = null;
@@ -342,7 +342,7 @@ namespace Dotmim.Sync
                 });
 
                 if (parameter != null)
-                    DbManager.SetParameterValue(selectIncrementalChangesCommand, parameter.ColumnName, parameter.Value);
+                    DbTableManagerFactory.SetParameterValue(selectIncrementalChangesCommand, parameter.ColumnName, parameter.Value);
             }
         }
 

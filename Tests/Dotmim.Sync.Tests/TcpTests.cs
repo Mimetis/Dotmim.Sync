@@ -1,6 +1,7 @@
 ﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.SqlServer;
+using Dotmim.Sync.SqlServer.Manager;
 using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Tests.Models;
 using Dotmim.Sync.Web.Client;
@@ -110,7 +111,7 @@ namespace Dotmim.Sync.Tests
             {
                 var dbCliName = HelperDatabase.GetRandomName("cli_");
                 var localOrchestrator = this.fixture.CreateOrchestrator<LocalOrchestrator>(clientType, dbCliName);
-               
+
                 HelperDatabase.CreateDatabaseAsync(clientType, dbCliName, true);
 
                 this.Clients.Add((dbCliName, clientType, localOrchestrator));
@@ -178,6 +179,86 @@ namespace Dotmim.Sync.Tests
 
                 Assert.Equal(0, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
+
+                // Check we have the correct columns replicated
+                using (var clientConnection = client.LocalOrchestrator.Provider.CreateConnection())
+                {
+                    await clientConnection.OpenAsync();
+
+                    foreach (var setupTable in agent.Setup.Tables)
+                    {
+                        var tableClientManagerFactory = client.LocalOrchestrator.Provider.GetTableManagerFactory(setupTable.TableName, setupTable.SchemaName);
+                        var tableClientManager = tableClientManagerFactory.CreateManagerTable(clientConnection);
+                        var clientColumns = tableClientManager.GetColumns();
+
+                        using (var serverConnection = this.Server.RemoteOrchestrator.Provider.CreateConnection())
+                        {
+                            serverConnection.Open();
+
+                            var tableServerManagerFactory = this.Server.RemoteOrchestrator.Provider.GetTableManagerFactory(setupTable.TableName, setupTable.SchemaName);
+                            var tableServerManager = tableServerManagerFactory.CreateManagerTable(serverConnection);
+                            var serverColumns = tableServerManager.GetColumns();
+
+                            serverConnection.Close();
+
+                            var serverColumnsCount = serverColumns.Count();
+                            var clientColumnsCount = clientColumns.Count();
+
+                            Assert.Equal(serverColumnsCount, clientColumnsCount);
+
+                            // Check we have the same columns names
+                            foreach (var serverColumn in serverColumns)
+                            {
+                                var clientColumn = clientColumns.FirstOrDefault(c => c.ColumnName == serverColumn.ColumnName);
+                                
+                                Assert.NotNull(clientColumn);
+
+                                if (this.ServerType == client.ProviderType && this.ServerType == ProviderType.Sql)
+                                {
+                                    Assert.Equal(serverColumn.DataType, clientColumn.DataType);
+                                    Assert.Equal(serverColumn.IsUnicode, clientColumn.IsUnicode);
+                                    Assert.Equal(serverColumn.IsUnsigned, clientColumn.IsUnsigned);
+
+                                    var maxPrecision = Math.Min(SqlDbMetadata.PRECISION_MAX, serverColumn.Precision);
+                                    var maxScale = Math.Min(SqlDbMetadata.SCALE_MAX, serverColumn.Scale);
+
+                                    // dont assert max length since numeric reset this value
+                                    //Assert.Equal(serverColumn.MaxLength, clientColumn.MaxLength);
+
+                                    Assert.Equal(maxPrecision, clientColumn.Precision);
+                                    Assert.Equal(serverColumn.PrecisionSpecified, clientColumn.PrecisionSpecified);
+                                    Assert.Equal(maxScale, clientColumn.Scale);
+                                    Assert.Equal(serverColumn.ScaleSpecified, clientColumn.ScaleSpecified);
+
+                                    Assert.Equal(serverColumn.DefaultValue, clientColumn.DefaultValue);
+                                    Assert.Equal(serverColumn.OriginalDbType, clientColumn.OriginalDbType);
+                                    
+                                    // We don't replicate unique indexes
+                                    //Assert.Equal(serverColumn.IsUnique, clientColumn.IsUnique);
+                                    
+                                    Assert.Equal(serverColumn.AutoIncrementSeed, clientColumn.AutoIncrementSeed);
+                                    Assert.Equal(serverColumn.AutoIncrementStep, clientColumn.AutoIncrementStep);
+                                    Assert.Equal(serverColumn.IsAutoIncrement, clientColumn.IsAutoIncrement);
+                                    
+                                    //Assert.Equal(serverColumn.OriginalTypeName, clientColumn.OriginalTypeName);
+                                    
+                                    //Assert.Equal(serverColumn.IsCompute, clientColumn.IsCompute);
+                                    
+                                    Assert.Equal(serverColumn.IsReadOnly, clientColumn.IsReadOnly);
+                                    Assert.Equal(serverColumn.DbType, clientColumn.DbType);
+                                    Assert.Equal(serverColumn.Ordinal, clientColumn.Ordinal);
+                                    Assert.Equal(serverColumn.AllowDBNull, clientColumn.AllowDBNull);
+                                }
+
+                                Assert.Equal(serverColumn.ColumnName, clientColumn.ColumnName);
+
+                            }
+                        }
+                    }
+                    clientConnection.Close();
+
+                }
+
             }
         }
 
@@ -2393,7 +2474,7 @@ namespace Dotmim.Sync.Tests
 
                 using (var dbConnection = client.LocalOrchestrator.Provider.CreateConnection())
                 {
-                    var tablePricesListCategory = client.LocalOrchestrator.Provider.GetDbManager("PricesListCategory", "")?.CreateManagerTable(dbConnection);
+                    var tablePricesListCategory = client.LocalOrchestrator.Provider.GetTableManagerFactory("PricesListCategory", "")?.CreateManagerTable(dbConnection);
 
                     Assert.NotNull(tablePricesListCategory);
 
@@ -2405,7 +2486,7 @@ namespace Dotmim.Sync.Tests
 
                     Assert.Single(relations[0].Columns);
 
-                    var tablePricesListDetail = client.LocalOrchestrator.Provider.GetDbManager("PricesListDetail", "")?.CreateManagerTable(dbConnection);
+                    var tablePricesListDetail = client.LocalOrchestrator.Provider.GetTableManagerFactory("PricesListDetail", "")?.CreateManagerTable(dbConnection);
 
                     Assert.NotNull(tablePricesListDetail);
 
@@ -2417,7 +2498,7 @@ namespace Dotmim.Sync.Tests
 
                     Assert.Equal(2, relations2[0].Columns.Count);
 
-                    var tableEmployeeAddress = client.LocalOrchestrator.Provider.GetDbManager("EmployeeAddress", "")?.CreateManagerTable(dbConnection);
+                    var tableEmployeeAddress = client.LocalOrchestrator.Provider.GetTableManagerFactory("EmployeeAddress", "")?.CreateManagerTable(dbConnection);
                     Assert.NotNull(tableEmployeeAddress);
 
                     var relations3 = tableEmployeeAddress.GetRelations().ToArray();

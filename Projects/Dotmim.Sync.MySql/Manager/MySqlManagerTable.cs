@@ -10,7 +10,7 @@ using System.Linq;
 
 namespace Dotmim.Sync.MySql
 {
-    public class MySqlManagerTable : IDbManagerTable
+    public class MySqlManagerTable : IDbTableManager
     {
         private string tableName;
         private readonly MySqlTransaction sqlTransaction;
@@ -73,6 +73,7 @@ namespace Dotmim.Sync.MySql
                 sColumn.Precision = c["numeric_precision"] != DBNull.Value ? Convert.ToByte(c["numeric_precision"]) : (byte)0;
                 sColumn.Scale = c["numeric_scale"] != DBNull.Value ? Convert.ToByte(c["numeric_scale"]) : (byte)0;
                 sColumn.AllowDBNull = (string)c["is_nullable"] == "NO" ? false : true;
+                sColumn.DefaultValue = c["COLUMN_DEFAULT"].ToString();
 
                 var extra = c["extra"] != DBNull.Value ? ((string)c["extra"]).ToLowerInvariant() : null;
 

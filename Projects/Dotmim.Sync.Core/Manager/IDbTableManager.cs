@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace Dotmim.Sync.Manager
 {
-    public interface IDbManagerTable
+    public interface IDbTableManager
     {
         /// <summary>
         /// Sets the current tableName
