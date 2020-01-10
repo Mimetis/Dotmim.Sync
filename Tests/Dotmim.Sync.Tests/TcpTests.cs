@@ -96,7 +96,7 @@ namespace Dotmim.Sync.Tests
 
 
             // get the server provider (and db created) without seed
-            var serverDatabaseName = HelperDatabase.GetRandomName("sv_");
+            var serverDatabaseName = HelperDatabase.GetRandomName("tcp_sv_");
 
             // create remote orchestrator
             var remoteOrchestrator = this.fixture.CreateOrchestrator<RemoteOrchestrator>(this.ServerType, serverDatabaseName);
@@ -109,7 +109,7 @@ namespace Dotmim.Sync.Tests
             // Generate Client database
             foreach (var clientType in this.ClientsType)
             {
-                var dbCliName = HelperDatabase.GetRandomName("cli_");
+                var dbCliName = HelperDatabase.GetRandomName("tcp_cli_");
                 var localOrchestrator = this.fixture.CreateOrchestrator<LocalOrchestrator>(clientType, dbCliName);
 
                 HelperDatabase.CreateDatabaseAsync(clientType, dbCliName, true);
