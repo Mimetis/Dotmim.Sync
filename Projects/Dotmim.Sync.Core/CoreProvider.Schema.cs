@@ -42,7 +42,7 @@ namespace Dotmim.Sync
 
             foreach (var setupTable in setup.Tables)
             {
-                var builderTable = this.GetDbManager(setupTable.TableName, setupTable.SchemaName);
+                var builderTable = this.GetTableManagerFactory(setupTable.TableName, setupTable.SchemaName);
                 var tblManager = builderTable.CreateManagerTable(connection, transaction);
 
                 // Check if table exists
@@ -106,7 +106,7 @@ namespace Dotmim.Sync
         /// Generate the DmTable configuration from a given columns list
         /// Validate that all columns are currently supported by the provider
         /// </summary>
-        private void FillSyncTableWithColumns(SetupTable setupTable, SyncTable schemaTable, IEnumerable<SyncColumn> columns, IDbManagerTable dbManagerTable)
+        private void FillSyncTableWithColumns(SetupTable setupTable, SyncTable schemaTable, IEnumerable<SyncColumn> columns, IDbTableManager dbManagerTable)
         {
             schemaTable.OriginalProvider = this.ProviderTypeName;
             schemaTable.SyncDirection = setupTable.SyncDirection;
@@ -117,25 +117,39 @@ namespace Dotmim.Sync
             if (columns == null || columns.Any() == false)
                 return;
 
-
-            // Validate columns list from setup table if any
-            if (setupTable.Columns != null && setupTable.Columns.Count > 1)
-            {
-                foreach(var setupColumn in setupTable.Columns)
-                {
-                    if (!schemaTable.Columns.Any(c => c.ColumnName.Equals(setupColumn, SyncGlobalization.DataSourceStringComparison)))
-                        throw new MissingColumnException(setupColumn, schemaTable.TableName);
-                }
-            }
-
-                // Delete all existing columns
-                if (schemaTable.PrimaryKeys.Count > 0)
+            // Delete all existing columns
+            if (schemaTable.PrimaryKeys.Count > 0)
                 schemaTable.PrimaryKeys.Clear();
 
             if (schemaTable.Columns.Count > 0)
                 schemaTable.Columns.Clear();
 
-            foreach (var column in columns.OrderBy(c => c.Ordinal))
+
+            IEnumerable<SyncColumn> lstColumns;
+
+            // Validate columns list from setup table if any
+            if (setupTable.Columns != null && setupTable.Columns.Count > 1)
+            {
+                lstColumns = new List<SyncColumn>();
+
+                foreach (var setupColumn in setupTable.Columns)
+                {
+                    // Check if the columns list contains the column name we specified in the setup
+                    var column = columns.FirstOrDefault(c => c.ColumnName.Equals(setupColumn, SyncGlobalization.DataSourceStringComparison));
+
+                    if (column == null)
+                        throw new MissingColumnException(setupColumn, schemaTable.TableName);
+                    else
+                        ((List<SyncColumn>)lstColumns).Add(column);
+                }
+            }
+            else
+            {
+                lstColumns = columns;
+            }
+
+
+            foreach (var column in lstColumns.OrderBy(c => c.Ordinal))
             {
                 // First of all validate if the column is currently supported
                 if (!this.Metadata.IsValid(column))
@@ -166,7 +180,6 @@ namespace Dotmim.Sync
 
                 // once we have the datastore type, we can have the managed type
                 var columnType = this.Metadata.ValidateType(datastoreDbType);
-
 
                 // and the DbType
                 column.DbType = (int)this.Metadata.ValidateDbType(column.OriginalTypeName, column.IsUnsigned, column.IsUnicode, column.MaxLength);
@@ -208,7 +221,7 @@ namespace Dotmim.Sync
                     schemaTable.Columns.Add(column);
                 // If column does not allow null value and is not compute
                 // We will not be able to insert a row, so raise an error
-                else if (!column.AllowDBNull && !column.IsCompute && !column.IsReadOnly)
+                else if (!column.AllowDBNull && !column.IsCompute && !column.IsReadOnly && string.IsNullOrEmpty(column.DefaultValue))
                     throw new Exception($"Column {column.ColumnName} is not part of your setup. But it seems this columns is mandatory in your data source.");
 
             }
@@ -217,7 +230,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Check then add primary keys to schema table
         /// </summary>
-        private void SetPrimaryKeys(SyncTable schemaTable, IDbManagerTable dbManagerTable)
+        private void SetPrimaryKeys(SyncTable schemaTable, IDbTableManager dbManagerTable)
         {
             // Get PrimaryKey
             var schemaPrimaryKeys = dbManagerTable.GetPrimaryKeys();

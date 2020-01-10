@@ -103,8 +103,8 @@ namespace Dotmim.Sync.MySql
         {
             // Don't want foreign key on same table since it could be a problem on first 
             // sync. We are not sure that parent row will be inserted in first position
-            if (relation.GetParentTable() == relation.GetTable())
-                return false;
+            //if (relation.GetParentTable() == relation.GetTable())
+            //    return false;
 
             string tableName = relation.GetTable().TableName;
 

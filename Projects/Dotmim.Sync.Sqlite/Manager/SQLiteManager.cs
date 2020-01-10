@@ -7,14 +7,14 @@ using Dotmim.Sync.Sqlite.Manager;
 
 namespace Dotmim.Sync.Sqlite
 {
-    public class SqliteManager : DbManager
+    public class SqliteManager : DbTableManagerFactory
     {
         public SqliteManager(string tableName) : base(tableName, "")
         {
 
         }
 
-        public override IDbManagerTable CreateManagerTable(DbConnection connection, DbTransaction transaction = null)
+        public override IDbTableManager CreateManagerTable(DbConnection connection, DbTransaction transaction = null)
         {
             return new SqliteManagerTable(connection, transaction) { TableName = this.TableName };
         }

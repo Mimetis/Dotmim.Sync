@@ -339,7 +339,7 @@ namespace Dotmim.Sync.SqlServer.Manager
             if (p > PRECISION_MAX)
             {
                 p = PRECISION_MAX;
-                s = SCALE_MAX;
+                //s = SCALE_MAX;
             }
 
             if (s > SCALE_MAX)

@@ -10,7 +10,7 @@ using System.Text;
 
 namespace Dotmim.Sync.Sqlite.Manager
 {
-    public class SqliteManagerTable : IDbManagerTable
+    public class SqliteManagerTable : IDbTableManager
     {
         private string tableName;
         private string schemaName;
@@ -92,7 +92,7 @@ namespace Dotmim.Sync.Sqlite.Manager
                 var name = c["name"].ToString();
 
                 // Gets the datastore owner dbType 
-                var datastoreDbType = (DbType)sqlDbMetadata.ValidateOwnerDbType(typeName, false, false, 0);
+                var datastoreDbType = (SqliteType)sqlDbMetadata.ValidateOwnerDbType(typeName, false, false, 0);
 
                 // once we have the datastore type, we can have the managed type
                 var columnType = sqlDbMetadata.ValidateType(datastoreDbType);
@@ -102,6 +102,7 @@ namespace Dotmim.Sync.Sqlite.Manager
                 sColumn.Ordinal = Convert.ToInt32(c["cid"]);
                 sColumn.OriginalTypeName = c["type"].ToString();
                 sColumn.AllowDBNull = !Convert.ToBoolean(c["notnull"]);
+                sColumn.DefaultValue = c["dflt_value"].ToString();
 
                 // No unsigned type in SQL Server
                 sColumn.IsUnsigned = false;

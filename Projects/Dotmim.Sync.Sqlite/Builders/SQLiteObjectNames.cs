@@ -135,9 +135,11 @@ namespace Dotmim.Sync.Sqlite
 
                 stringBuilderArguments.Append(string.Concat(empty, columnName));
                 stringBuilderParameters.Append(string.Concat(empty, $"@{unquotedColumnName}"));
+
                 empty = ", ";
             }
             stringBuilder.AppendLine($"INSERT OR IGNORE INTO {tableName.Quoted().ToString()}");
+            stringBuilder.AppendLine($"({stringBuilderArguments.ToString()})");
             stringBuilder.AppendLine($"SELECT {stringBuilderParameters.ToString()} ");
             stringBuilder.AppendLine($"WHERE (");
             stringBuilder.AppendLine($"       EXISTS (");

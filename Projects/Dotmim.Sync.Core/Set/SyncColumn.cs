@@ -75,6 +75,9 @@ namespace Dotmim.Sync
         [DataMember(Name = "db", IsRequired = false, EmitDefaultValue = false, Order = 20)]
         public int DbType { get; set; }
 
+        [DataMember(Name = "dv", IsRequired = false, EmitDefaultValue = false, Order = 21)]
+        public string DefaultValue { get; set; }
+
         /// <summary>
         /// Ctor for serialization purpose
         /// </summary>
@@ -123,6 +126,7 @@ namespace Dotmim.Sync
             clone.PrecisionSpecified = this.PrecisionSpecified;
             clone.Scale = this.Scale;
             clone.ScaleSpecified = this.ScaleSpecified;
+            clone.DefaultValue = this.DefaultValue;
             return clone;
         }
 
