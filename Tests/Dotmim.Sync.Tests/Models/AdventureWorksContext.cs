@@ -190,12 +190,10 @@ namespace Dotmim.Sync.Tests.Models
 
 
                 entity.Property(e => e.PasswordHash)
-                    .IsRequired()
                     .HasMaxLength(128)
                     .IsUnicode(false);
 
                 entity.Property(e => e.PasswordSalt)
-                    .IsRequired()
                     .HasMaxLength(10)
                     .IsUnicode(false);
 

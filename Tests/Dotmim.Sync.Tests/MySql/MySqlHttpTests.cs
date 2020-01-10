@@ -61,25 +61,5 @@ namespace Dotmim.Sync.Tests
             return totalCountRows;
         }
 
-        ///// <summary>
-        ///// Get the server database rows count when filtered
-        ///// </summary>
-        //public int GetServerFilteredDatabaseRowsCount(ProviderType providerType, CoreProvider provider)
-        //{
-        //    int totalCountRows = 0;
-
-        //    var filter = AdventureWorksContext.CustomerIdForFilter;
-
-        //    using (var serverDbCtx = new AdventureWorksContext(providerType, provider.ConnectionString, true, true))
-        //    {
-        //        totalCountRows += serverDbCtx.Address.Count();
-        //        totalCountRows += serverDbCtx.Customer.Where(c => c.CustomerId == filter).Count();
-        //        totalCountRows += serverDbCtx.CustomerAddress.Where(c => c.CustomerId == filter).Count();
-        //        totalCountRows += serverDbCtx.SalesOrderDetail.Count();
-        //        totalCountRows += serverDbCtx.SalesOrderHeader.Where(c => c.CustomerId == filter).Count();
-        //    }
-
-        //    return totalCountRows;
-        //}
     }
 }
