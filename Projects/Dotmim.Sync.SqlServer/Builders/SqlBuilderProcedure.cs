@@ -367,7 +367,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             stringBuilder.AppendLine("));");
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"-- delete all items where timestamp <= @sync_min_timestamp or update_scope_id is not null (if not null update was not made locally)");
+            stringBuilder.AppendLine($"-- delete all items where timestamp <= @sync_min_timestamp or update_scope_id <> @sync_scope_id (if not null update was not made locally)");
 
             stringBuilder.AppendLine($"DELETE {tableName.Schema().Quoted().ToString()}");
             stringBuilder.Append($"OUTPUT ");
@@ -555,7 +555,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine();
             if (hasMutableColumns)
             {
-                stringBuilder.AppendLine("WHEN MATCHED AND ([changes].[update_scope_id] IS NOT NULL OR [changes].[timestamp] <= @sync_min_timestamp) THEN");
+                stringBuilder.AppendLine("WHEN MATCHED AND ([changes].[update_scope_id] <> @sync_scope_id AND [changes].[timestamp] <= @sync_min_timestamp) THEN");
                 foreach (var mutableColumn in this.tableDescription.Columns.Where(c => !c.IsReadOnly))
                 {
                     var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
@@ -1168,38 +1168,42 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             this.AddColumnParametersToCommand(sqlCommand);
 
-            var sqlParameter = new SqlParameter("@sync_force_write", SqlDbType.Int);
-            sqlCommand.Parameters.Add(sqlParameter);
             var sqlParameter1 = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt);
             sqlCommand.Parameters.Add(sqlParameter1);
-            var sqlParameter2 = new SqlParameter("@sync_row_count", SqlDbType.Int)
+
+            var sqlParameter2 = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
+            sqlCommand.Parameters.Add(sqlParameter2);
+
+            var sqlParameter3 = new SqlParameter("@sync_force_write", SqlDbType.Int);
+            sqlCommand.Parameters.Add(sqlParameter3);
+           
+            var sqlParameter4 = new SqlParameter("@sync_row_count", SqlDbType.Int)
             {
                 Direction = ParameterDirection.Output
             };
-            sqlCommand.Parameters.Add(sqlParameter2);
+            sqlCommand.Parameters.Add(sqlParameter4);
 
-            stringBuilder.AppendLine($"SET {sqlParameter2.ParameterName} = 0;");
+            stringBuilder.AppendLine($"SET {sqlParameter4.ParameterName} = 0;");
             stringBuilder.AppendLine();
 
             if (hasMutableColumns)
             {
-
                 stringBuilder.AppendLine($"UPDATE {tableName.Schema().Quoted().ToString()}");
                 stringBuilder.Append($"SET {SqlManagementUtils.CommaSeparatedUpdateFromParameters(this.tableDescription)}");
                 stringBuilder.AppendLine($"FROM {tableName.Schema().Quoted().ToString()} [base]");
                 stringBuilder.AppendLine($"JOIN {trackingName.Schema().Quoted().ToString()} [side]");
                 stringBuilder.Append($"ON ");
                 stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[base]", "[side]"));
-                stringBuilder.AppendLine("WHERE ([side].[timestamp] <= @sync_min_timestamp OR [side].[update_scope_id] IS NOT NULL OR @sync_force_write = 1)");
+                stringBuilder.AppendLine("WHERE (([side].[timestamp] <= @sync_min_timestamp AND [side].[update_scope_id] <> @sync_scope_id) OR @sync_force_write = 1)");
                 stringBuilder.Append("AND (");
                 stringBuilder.Append(SqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKeys, "[base]"));
                 stringBuilder.AppendLine(");");
                 stringBuilder.AppendLine();
 
                 stringBuilder.AppendLine();
-                stringBuilder.AppendLine($"SET {sqlParameter2.ParameterName} = @@ROWCOUNT;");
+                stringBuilder.AppendLine($"SET {sqlParameter4.ParameterName} = @@ROWCOUNT;");
                 stringBuilder.AppendLine();
-                stringBuilder.AppendLine($"IF ({sqlParameter2.ParameterName} = 0)");
+                stringBuilder.AppendLine($"IF ({sqlParameter4.ParameterName} = 0)");
                 stringBuilder.AppendLine($"BEGIN");
 
             }
@@ -1225,7 +1229,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"\tWHERE (");
             stringBuilder.AppendLine($"\t EXISTS (SELECT 1 FROM {trackingName.Schema().Quoted().ToString()} [side]");
             stringBuilder.AppendLine($"\t    WHERE ({SqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKeys, "[side]")}) ");
-            stringBuilder.AppendLine($"\t    AND ([side].[timestamp] <= @sync_min_timestamp OR [side].[update_scope_id] IS NOT NULL))");
+            stringBuilder.AppendLine($"\t    AND ([side].[timestamp] <= @sync_min_timestamp AND [side].[update_scope_id] <> @sync_scope_id))");
             stringBuilder.AppendLine($"\t OR NOT EXISTS (SELECT 1 FROM {trackingName.Schema().Quoted().ToString()} [side]");
             stringBuilder.AppendLine($"\t    WHERE ({SqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKeys, "[side]")})) ");
             stringBuilder.AppendLine($"\t OR @sync_force_write = 1");
@@ -1240,7 +1244,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
 
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"\tSET {sqlParameter2.ParameterName} = @@ROWCOUNT;");
+            stringBuilder.AppendLine($"\tSET {sqlParameter4.ParameterName} = @@ROWCOUNT;");
 
             if (hasMutableColumns)
                 stringBuilder.AppendLine($"END");

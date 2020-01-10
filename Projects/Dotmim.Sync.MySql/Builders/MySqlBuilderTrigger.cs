@@ -53,7 +53,7 @@ namespace Dotmim.Sync.MySql
                         continue;
                     var columnName = ParserName.Parse(filterColumn.ColumnName, "`").Quoted().ToString();
 
-                    stringBuilder.AppendLine($"\t,{columnName} = `d`.{columnName}");
+                    stringBuilder.AppendLine($"\t,{columnName} = `old`.{columnName}");
 
                 }
                 stringBuilder.AppendLine();
@@ -288,7 +288,7 @@ namespace Dotmim.Sync.MySql
 
                     var columnName = ParserName.Parse(filterColumn.ColumnName, "`").Quoted().ToString();
 
-                    stringBuilder.AppendLine($"\t,{columnName} = `i`.{columnName}");
+                    stringBuilder.AppendLine($"\t,{columnName} = `new`.{columnName}");
                 }
                 stringBuilder.AppendLine();
             }
