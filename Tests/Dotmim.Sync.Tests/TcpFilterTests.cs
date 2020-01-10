@@ -151,7 +151,7 @@ namespace Dotmim.Sync.Tests
         public virtual async Task SchemaIsCreated()
         {
             // create a server db without seed
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false);
+            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
 
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
@@ -218,7 +218,7 @@ namespace Dotmim.Sync.Tests
         public virtual async Task RowsCount(SyncOptions options)
         {
             // create a server db and seed it
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, true);
+            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
 
             // Get count of rows
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
