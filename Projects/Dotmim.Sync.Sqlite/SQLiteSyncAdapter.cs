@@ -141,6 +141,13 @@ namespace Dotmim.Sync.Sqlite
             p.DbType = DbType.Int64;
             command.Parameters.Add(p);
 
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_id";
+            p.DbType = DbType.Guid;
+            command.Parameters.Add(p);
+
+
+
         }
 
         private void SetUpdateMetadataParameters(DbCommand command)
