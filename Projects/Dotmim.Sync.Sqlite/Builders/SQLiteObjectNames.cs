@@ -119,7 +119,7 @@ namespace Dotmim.Sync.Sqlite
                 stringBuilder.AppendLine($"       EXISTS (");
                 stringBuilder.AppendLine($"         SELECT * FROM {trackingName.Quoted().ToString()} ");
                 stringBuilder.AppendLine($"         WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, "")}");
-                stringBuilder.AppendLine($"         AND (timestamp < @sync_min_timestamp OR update_scope_id IS NOT NULL)");
+                stringBuilder.AppendLine($"         AND (timestamp < @sync_min_timestamp AND update_scope_id <> @sync_scope_id)");
                 stringBuilder.AppendLine($"         )");
                 stringBuilder.AppendLine($"       OR @sync_force_write = 1");
                 stringBuilder.AppendLine($"      );");
@@ -145,7 +145,7 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine($"       EXISTS (");
             stringBuilder.AppendLine($"         SELECT * FROM {trackingName.Quoted().ToString()} ");
             stringBuilder.AppendLine($"         WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, "")}");
-            stringBuilder.AppendLine($"         AND (timestamp < @sync_min_timestamp OR update_scope_id IS NOT NULL)");
+            stringBuilder.AppendLine($"         AND (timestamp < @sync_min_timestamp AND update_scope_id <> @sync_scope_id)");
             stringBuilder.AppendLine($"         )");
             stringBuilder.AppendLine($"        OR NOT EXISTS ( ");
             stringBuilder.AppendLine($"         SELECT * FROM {trackingName.Quoted().ToString()} ");

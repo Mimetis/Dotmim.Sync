@@ -86,6 +86,8 @@ namespace Dotmim.Sync.MySql
             {
                 case DbCommandType.SelectChanges:
                 case DbCommandType.SelectChangesWithFilters:
+                case DbCommandType.SelectInitializedChanges:
+                case DbCommandType.SelectInitializedChangesWithFilters:
                     this.SetSelecteChangesParameters(command, filters);
                     break;
                 case DbCommandType.SelectRow:
@@ -131,6 +133,11 @@ namespace Dotmim.Sync.MySql
             p = command.CreateParameter();
             p.ParameterName = "sync_min_timestamp";
             p.DbType = DbType.Int64;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "sync_scope_id";
+            p.DbType = DbType.Guid;
             command.Parameters.Add(p);
 
         }
@@ -264,16 +271,6 @@ namespace Dotmim.Sync.MySql
             p = command.CreateParameter();
             p.ParameterName = "sync_scope_id";
             p.DbType = DbType.Guid;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "sync_scope_is_new";
-            p.DbType = DbType.Boolean;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "sync_scope_is_reinit";
-            p.DbType = DbType.Boolean;
             command.Parameters.Add(p);
 
             if (filters != null)
