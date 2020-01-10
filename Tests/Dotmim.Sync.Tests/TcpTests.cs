@@ -94,9 +94,6 @@ namespace Dotmim.Sync.Tests
             MySqlConnection.ClearAllPools();
 
 
-            Console.WriteLine(this.fixture.GetMySqlConnectionsInformations());
-            Debug.WriteLine(this.fixture.GetMySqlConnectionsInformations());
-
             // get the server provider (and db created) without seed
             var serverDatabaseName = HelperDatabase.GetRandomName("sv_");
 
@@ -115,8 +112,6 @@ namespace Dotmim.Sync.Tests
                 var localOrchestrator = this.fixture.CreateOrchestrator<LocalOrchestrator>(clientType, dbCliName);
                
                 HelperDatabase.CreateDatabaseAsync(clientType, dbCliName, true);
-                Console.WriteLine($"{test.TestCase.DisplayName} : Create {clientType} database {dbCliName}");
-                Debug.WriteLine($"{test.TestCase.DisplayName} : Create {clientType} database {dbCliName}");
 
                 this.Clients.Add((dbCliName, clientType, localOrchestrator));
             }
@@ -128,22 +123,14 @@ namespace Dotmim.Sync.Tests
         public void Dispose()
         {
             HelperDatabase.DropDatabase(this.ServerType, Server.DatabaseName);
-            Console.WriteLine($"{test.TestCase.DisplayName} : Delete {this.ServerType} database {Server.DatabaseName}");
-            Debug.WriteLine($"{test.TestCase.DisplayName} : Delete {this.ServerType} database {Server.DatabaseName}");
 
 
             foreach (var client in Clients)
             {
                 HelperDatabase.DropDatabase(client.ProviderType, client.DatabaseName);
-                Console.WriteLine($"{test.TestCase.DisplayName} : Delete {client.ProviderType} database {client.DatabaseName}");
-                Debug.WriteLine($"{test.TestCase.DisplayName} : Delete {client.ProviderType} database {client.DatabaseName}");
             }
 
             this.stopwatch.Stop();
-
-            Console.WriteLine("Database dropped : " + this.fixture.GetMySqlConnectionsInformations());
-            Debug.WriteLine("Database dropped : " + this.fixture.GetMySqlConnectionsInformations());
-
 
             var str = $"{test.TestCase.DisplayName} : {this.stopwatch.Elapsed.Minutes}:{this.stopwatch.Elapsed.Seconds}.{this.stopwatch.Elapsed.Milliseconds}";
             Console.WriteLine(str);
@@ -245,8 +232,6 @@ namespace Dotmim.Sync.Tests
 
             // Create an empty server database
             await HelperDatabase.CreateDatabaseAsync(this.ServerType, this.Server.DatabaseName, true);
-            Console.WriteLine($"{test.TestCase.DisplayName} : Create {this.ServerType} database {Server.DatabaseName}");
-            Debug.WriteLine($"{test.TestCase.DisplayName} : Create {this.ServerType} database {Server.DatabaseName}");
 
             // Create the table on the server
             await HelperDatabase.ExecuteScriptAsync(this.Server.ProviderType, this.Server.DatabaseName, tableTestCreationScript); ;
