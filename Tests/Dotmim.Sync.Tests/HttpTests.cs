@@ -92,6 +92,13 @@ namespace Dotmim.Sync.Tests
 
             this.fixture = fixture;
 
+            // Since we are creating a lot of databases
+            // each database will have its own pool
+            // Droping database will not clear the pool associated
+            // So clear the pools on every start of a new test
+            SqlConnection.ClearAllPools();
+            MySqlConnection.ClearAllPools();
+
             // get the server provider (and db created) without seed
             var serverDatabaseName = HelperDatabase.GetRandomName("http_sv_");
 
