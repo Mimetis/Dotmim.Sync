@@ -39,7 +39,7 @@ internal class Program
     public static string[] oneTable = new string[] { "ProductCategory" };
     private static void Main(string[] args)
     {
-        SyncHttpThroughKestellAsync().GetAwaiter().GetResult();
+        SynchronizeAsync().GetAwaiter().GetResult();
     }
 
     private static void TestSqliteDoubleStatement()
@@ -216,7 +216,7 @@ internal class Program
         schemaTable.Columns.Add(SyncColumn.Create<int>("CustomerID"));
         schemaSet.Tables.Add(schemaTable);
 
-        schemaTable.Rows.AddRange(rows);
+        schemaTable.Rows.AddRange(rows, Guid.Empty);
 
         var row = schemaTable.NewRow();
 
@@ -598,18 +598,19 @@ internal class Program
         // Create 2 Sql Sync providers
         var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
         var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
-        //var clientProvider = new SqliteSyncProvider("adv2.db");
+        //var clientProvider = new SqliteSyncProvider("client.db");
 
         // specific Setup with only 2 tables, and one filtered
-        var setup = new SyncSetup(new[] { "ProductCategory", "ProductModel" });
+        var setup = new SyncSetup(new[] { "ProductCategory" });
+        
 
         // Add a table with less columns
-        setup.Tables.Add("Product")
-            .Columns.AddRange(new string[] { "ProductId", "Name", "ProductCategoryID", "ProductNumber", "StandardCost", "ListPrice", "SellStartDate", "rowguid", "ModifiedDate" });
+        //setup.Tables.Add("Product")
+        //    .Columns.AddRange(new string[] { "ProductId", "Name", "ProductCategoryID", "ProductNumber", "StandardCost", "ListPrice", "SellStartDate", "rowguid", "ModifiedDate" });
 
-        // Add filters
-        setup.Filters.Add("ProductCategory", "ParentProductCategoryID")
-                     .Add("ProductCategory", "Name");
+        //// Add filters
+        //setup.Filters.Add("ProductCategory", "ParentProductCategoryID")
+        //             .Add("ProductCategory", "Name");
 
         // Add pref suf
         setup.StoredProceduresPrefix = "s";
@@ -640,11 +641,24 @@ internal class Program
         //agent.Options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync");
         //agent.Options.BatchSize = 1000;
         //agent.Options.CleanMetadatas = true;
-        agent.Options.UseBulkOperations = true;
-        agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
+        agent.Options.UseBulkOperations = false;
+        agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
         //agent.Options.UseVerboseErrors = false;
         //agent.Options.ScopeInfoTableName = "tscopeinfo";
 
+
+        agent.OnApplyChangesFailed(acf =>
+        {
+            // Check conflict is correctly set
+            var localRow = acf.Conflict.LocalRow;
+            var remoteRow = acf.Conflict.RemoteRow;
+
+            // Merge row
+            acf.Resolution = ConflictResolution.MergeRow;
+
+            acf.FinalRow["Name"] = "Prout";
+
+        });
 
         do
         {
@@ -653,8 +667,8 @@ internal class Program
             try
             {
                 // Launch the sync process
-                agent.Parameters.Add("ProductCategory", "ParentProductCategoryID", "", 1);
-                agent.Parameters.Add("ProductCategory", "Name", "", "Touring Bikes");
+                //agent.Parameters.Add("ProductCategory", "ParentProductCategoryID", "", 1);
+                //agent.Parameters.Add("ProductCategory", "Name", "", "Touring Bikes");
 
                 var s1 = await agent.SynchronizeAsync(progress);
 

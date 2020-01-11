@@ -16,11 +16,11 @@ namespace Dotmim.Sync.Messages
         /// Applying changes message.
         /// Be careful policy could be differente from the schema (especially on client side, it's the reverse one, by default)
         /// </summary>
-        public MessageApplyChanges(Guid applyingScopeId, bool isNew, long lastTimestamp, SyncSet schema, 
+        public MessageApplyChanges(Guid localScopeId, bool isNew, long lastTimestamp, SyncSet schema, 
                                     ConflictResolutionPolicy policy, bool disableConstraintsOnApplyChanges, 
                                     bool useBulkOperations, bool cleanMetadatas, BatchInfo changes)
         {
-            this.ApplyingScopeId = applyingScopeId;
+            this.LocalScopeId = localScopeId;
             this.IsNew = isNew;
             this.LastTimestamp = lastTimestamp;
             this.Schema = schema ?? throw new ArgumentNullException(nameof(schema));
@@ -33,11 +33,11 @@ namespace Dotmim.Sync.Messages
 
 
         /// <summary>
-        /// Gets or Sets the Scope Id that should be identified as the applier
-        /// IE : When we apply lines on the client, we want to be sure that the Server scope id (ie Guid.Empty) is the one used as id.
+        /// Gets or Sets the local Scope Id
         /// </summary>
-        public Guid ApplyingScopeId { get; }
-        
+        public Guid LocalScopeId { get; }
+
+
         /// <summary>
         /// Gets or Sets if the sync is a first sync. In this case, the last sync timestamp is ignored
         /// </summary>
