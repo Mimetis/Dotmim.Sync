@@ -119,7 +119,7 @@ namespace Dotmim.Sync.Sqlite
                 stringBuilder.AppendLine($"       EXISTS (");
                 stringBuilder.AppendLine($"         SELECT * FROM {trackingName.Quoted().ToString()} ");
                 stringBuilder.AppendLine($"         WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, "")}");
-                stringBuilder.AppendLine($"         AND (timestamp < @sync_min_timestamp AND update_scope_id <> @sync_scope_id)");
+                stringBuilder.AppendLine($"         AND (timestamp < @sync_min_timestamp OR update_scope_id IS NOT NULL)");
                 stringBuilder.AppendLine($"         )");
                 stringBuilder.AppendLine($"       OR @sync_force_write = 1");
                 stringBuilder.AppendLine($"      );");
@@ -145,7 +145,7 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine($"       EXISTS (");
             stringBuilder.AppendLine($"         SELECT * FROM {trackingName.Quoted().ToString()} ");
             stringBuilder.AppendLine($"         WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, "")}");
-            stringBuilder.AppendLine($"         AND (timestamp < @sync_min_timestamp AND update_scope_id <> @sync_scope_id)");
+            stringBuilder.AppendLine($"         AND (timestamp < @sync_min_timestamp OR update_scope_id IS NOT NULL)");
             stringBuilder.AppendLine($"         )");
             stringBuilder.AppendLine($"        OR NOT EXISTS ( ");
             stringBuilder.AppendLine($"         SELECT * FROM {trackingName.Quoted().ToString()} ");
@@ -233,7 +233,8 @@ namespace Dotmim.Sync.Sqlite
                 var nonPkColumnName = ParserName.Parse(mutableColumn).Quoted().ToString();
                 stringBuilder.AppendLine($"\t[base].{nonPkColumnName}, ");
             }
-            stringBuilder.AppendLine("\t[side].[sync_row_is_tombstone]");
+            stringBuilder.AppendLine("\t[side].[sync_row_is_tombstone], ");
+            stringBuilder.AppendLine("\t[side].[update_scope_id]");
 
             stringBuilder.AppendLine($"FROM {trackingName.Quoted().ToString()} [side] ");
             stringBuilder.AppendLine($"LEFT JOIN {tableName.Quoted().ToString()} [base] ON ");
@@ -263,7 +264,8 @@ namespace Dotmim.Sync.Sqlite
                 var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
                 stringBuilder.AppendLine($"\t[base].{columnName}, ");
             }
-            stringBuilder.AppendLine($"\t[side].[sync_row_is_tombstone] ");
+            stringBuilder.AppendLine($"\t[side].[sync_row_is_tombstone], ");
+            stringBuilder.AppendLine($"\t[side].[update_scope_id] ");
             stringBuilder.AppendLine($"FROM {trackingName.Quoted().ToString()} [side]");
             stringBuilder.AppendLine($"LEFT JOIN {tableName.Quoted().ToString()} [base]");
             stringBuilder.Append($"ON ");

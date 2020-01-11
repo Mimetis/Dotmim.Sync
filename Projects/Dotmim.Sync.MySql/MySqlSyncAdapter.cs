@@ -302,7 +302,7 @@ namespace Dotmim.Sync.MySql
         }
 
 
-        public override void ExecuteBatchCommand(DbCommand cmd, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable, SyncTable failedRows, Guid applyingScopeId, long lastTimestamp)
+        public override void ExecuteBatchCommand(DbCommand cmd, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable, SyncTable failedRows,long lastTimestamp)
         {
             throw new NotImplementedException();
         }

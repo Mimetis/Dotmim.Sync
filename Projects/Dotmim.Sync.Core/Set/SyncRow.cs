@@ -22,12 +22,16 @@ namespace Dotmim.Sync
         /// Creates an instance, in which data can be written to,
         /// with the default initial capacity.
         /// </summary>
-        public SyncRow() { }
+        public SyncRow(int bufferSize) 
+        {
+            this.buffer = new object[bufferSize];
+            this.Length = bufferSize;
+        }
 
         /// <summary>
         /// Add a new buffer row
         /// </summary>
-        public SyncRow(SyncTable table, DataRowState state = DataRowState.Unchanged)
+        public SyncRow(SyncTable table, Guid updateScopeId, DataRowState state = DataRowState.Unchanged)
         {
             this.buffer = new object[table.Columns.Count];
 
@@ -39,13 +43,16 @@ namespace Dotmim.Sync
 
             // Affect new state
             this.RowState = state;
+
+            // Set the owner scope id
+            this.UpdateScopeId = updateScopeId;
         }
 
 
         /// <summary>
         /// Add a new buffer row. This ctor does not make a copy
         /// </summary>
-        public SyncRow(SyncTable table, object[] row, DataRowState state = DataRowState.Unchanged) 
+        public SyncRow(SyncTable table, object[] row, Guid updateScopeId, DataRowState state = DataRowState.Unchanged) 
         {
             // Direct set of the buffer
             this.buffer = row;
@@ -58,6 +65,9 @@ namespace Dotmim.Sync
 
             // Affect new state
             this.RowState = state;
+
+            // set the owner scope id
+            this.UpdateScopeId = updateScopeId;
         }
 
         /// <summary>
@@ -69,6 +79,11 @@ namespace Dotmim.Sync
         /// Gets the row Length
         /// </summary>
         public int Length { get; }
+
+        /// <summary>
+        /// Gets or Sets the row update scope id
+        /// </summary>
+        public Guid? UpdateScopeId { get; set; }
 
         /// <summary>
         /// Get the value in the array that correspond to the column index given
@@ -119,11 +134,14 @@ namespace Dotmim.Sync
         /// <returns></returns>
         public object[] ToArray()
         {
-            var array = new object[this.Length + 1];
-            Array.Copy(this.buffer, 0, array, 1, this.Length);
+            var array = new object[this.Length + 2];
+            Array.Copy(this.buffer, 0, array, 2, this.Length);
             
             // set row state on index 0 of my buffer
             array[0] = (int)this.RowState;
+
+            // set guid on index 2
+            array[1] = this.UpdateScopeId;
 
             return array;
         }
@@ -135,11 +153,16 @@ namespace Dotmim.Sync
         {
             var length = Table.Columns.Count;
 
-            if (row.Length != length + 1)
-                throw new Exception("row must contains State on position 0");
+            if (row.Length != length + 2)
+                throw new Exception("row must contains State on position 0 and UpdateScopeId on position 1");
 
-            Array.Copy(row, 1, this.buffer, 0, length);
+            Array.Copy(row, 2, this.buffer, 0, length);
             this.RowState = (DataRowState)Convert.ToInt32(row[0]);
+
+            if (SyncTypeConverter.TryConvertTo<Guid>(row[1], out var updateScopeIdObject))
+                this.UpdateScopeId = (Guid)updateScopeIdObject;
+            else
+                throw new Exception("Impossible to parse row[1] where we should have a GUID");
         }
 
         /// <summary>
