@@ -129,7 +129,7 @@ namespace Dotmim.Sync
                     while (dataReader.Read())
                     {
                         // Create a row from dataReader
-                        var row = CreateSyncRowFromReader(dataReader, changesSetTable);
+                        var row = CreateSyncRowFromReader(dataReader, changesSetTable, message.LocalScopeId);
 
                         // Add the row to the changes set
                         changesSetTable.Rows.Add(row);
@@ -281,7 +281,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Set common parameters to SelectChanges Sql command
         /// </summary>
-        private void SetSelectChangesCommonParameters(SyncContext context, SyncTable syncTable, Guid excludingScopeId, bool isNew, long lastTimestamp, DbCommand selectIncrementalChangesCommand)
+        private void SetSelectChangesCommonParameters(SyncContext context, SyncTable syncTable, Guid? excludingScopeId, bool isNew, long lastTimestamp, DbCommand selectIncrementalChangesCommand)
         {
             // Generate the isNewScope Flag.
             var isNewScope = isNew ? 1 : 0;
@@ -307,7 +307,7 @@ namespace Dotmim.Sync
 
             // Set the parameters
             DbTableManagerFactory.SetParameterValue(selectIncrementalChangesCommand, "sync_min_timestamp", lastTimestamp);
-            DbTableManagerFactory.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_id", excludingScopeId);
+            DbTableManagerFactory.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_id", excludingScopeId.HasValue ? (object)excludingScopeId.Value : DBNull.Value);
             DbTableManagerFactory.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_is_new", isNewScope);
             DbTableManagerFactory.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_is_reinit", isReinit);
 
@@ -349,7 +349,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Create a new SyncRow from a dataReader.
         /// </summary>
-        private SyncRow CreateSyncRowFromReader(IDataReader dataReader, SyncTable table)
+        private SyncRow CreateSyncRowFromReader(IDataReader dataReader, SyncTable table, Guid localScopeId)
         {
             // Create a new row, based on table structure
             var row = table.NewRow();
@@ -367,7 +367,20 @@ namespace Dotmim.Sync
                     continue;
                 }
                 if (columnName == "update_scope_id")
+                {
+                    var readerScopeId = dataReader.GetValue(i);
+
+                    // if update_scope_id is null, so the row owner is the local database
+                    // if update_scope_id is not null, the row owner is someone else
+                    if (readerScopeId == DBNull.Value || readerScopeId == null)
+                        row.UpdateScopeId = localScopeId;
+                    else if (SyncTypeConverter.TryConvertTo<Guid>(readerScopeId, out var updateScopeIdObject))
+                        row.UpdateScopeId = (Guid)updateScopeIdObject;
+                    else
+                        throw new Exception("Impossible to parse row['update_scope_id']");
+
                     continue;
+                }
 
                 var columnValueObject = dataReader.GetValue(i);
                 var columnValue = columnValueObject == DBNull.Value ? null : columnValueObject;
@@ -375,6 +388,11 @@ namespace Dotmim.Sync
                 row[columnName] = columnValue;
 
             }
+
+            // during initialization, row["update_scope_id"] is not part of the data reader
+            // so we affect the local scope id owner manually
+            if (!row.UpdateScopeId.HasValue)
+                row.UpdateScopeId = localScopeId;
 
             row.RowState = isTombstone ? DataRowState.Deleted : DataRowState.Modified;
 

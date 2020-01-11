@@ -130,7 +130,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         /// <summary>
         /// Executing a batch command
         /// </summary>
-        public override void ExecuteBatchCommand(DbCommand cmd, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable, SyncTable failedRows, Guid applyingScopeId, long lastTimestamp)
+        public override void ExecuteBatchCommand(DbCommand cmd, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable, SyncTable failedRows, long lastTimestamp)
         {
 
             var applyRowsCount = applyRows.Count();
@@ -141,10 +141,13 @@ namespace Dotmim.Sync.SqlServer.Builders
             var dataRowState = DataRowState.Unchanged;
 
             var records = new List<SqlDataRecord>(applyRowsCount);
-            SqlMetaData[] metadatas = new SqlMetaData[schemaChangesTable.Columns.Count];
+            SqlMetaData[] metadatas = new SqlMetaData[schemaChangesTable.Columns.Count + 1];
 
             for (int i = 0; i < schemaChangesTable.Columns.Count; i++)
-                metadatas[i] = GetSqlMetadaFromType(schemaChangesTable.Columns[i]); ;
+                metadatas[i] = GetSqlMetadaFromType(schemaChangesTable.Columns[i]);
+
+            // specify update_scope_id metadata
+            metadatas[schemaChangesTable.Columns.Count] = new SqlMetaData("update_scope_id", SqlDbType.UniqueIdentifier);
 
             try
             {
@@ -159,8 +162,6 @@ namespace Dotmim.Sync.SqlServer.Builders
                     for (int i = 0; i < schemaChangesTable.Columns.Count; i++)
                     {
                         var schemaColumn = schemaChangesTable.Columns[i];
-
-
 
                         // Get the default value
                         //var columnType = schemaColumn.GetDataType();
@@ -357,6 +358,10 @@ namespace Dotmim.Sync.SqlServer.Builders
                         record.SetValue(sqlMetadataIndex, rowValue);
                         sqlMetadataIndex++;
                     }
+
+                    // set update_scope_id value
+                    record.SetGuid(schemaChangesTable.Columns.Count, row.UpdateScopeId.Value);
+
                     records.Add(record);
                 }
             }
@@ -367,7 +372,6 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             ((SqlParameterCollection)cmd.Parameters)["@changeTable"].TypeName = string.Empty;
             ((SqlParameterCollection)cmd.Parameters)["@changeTable"].Value = records;
-            ((SqlParameterCollection)cmd.Parameters)["@sync_scope_id"].Value = applyingScopeId;
             ((SqlParameterCollection)cmd.Parameters)["@sync_min_timestamp"].Value = lastTimestamp;
 
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
@@ -392,7 +396,9 @@ namespace Dotmim.Sync.SqlServer.Builders
                             itemArray[i] = columnValue;
                         }
 
-                        failedRows.Rows.Add(itemArray, dataRowState);
+                        // don't care about row state and update scope id
+                        // Since it will be requested by next request from GetConflict()
+                        failedRows.Rows.Add(itemArray, Guid.Empty, dataRowState);
                     }
                 }
             }

@@ -1653,8 +1653,8 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalSyncConflicts);
             }
-
-            // Insert the conflict product category on each client
+             
+            // Insert the conflict product category on each client and the server
             foreach (var client in Clients)
             {
                 var productId = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 6);
@@ -1700,8 +1700,10 @@ namespace Dotmim.Sync.Tests
 
             // Now sync again to be sure all clients download all the lines from the server
             foreach (var client in Clients)
-                await new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator, new SyncSetup(Tables), options)
-                    .SynchronizeAsync();
+            {
+                var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator, new SyncSetup(Tables), options);
+                await agent.SynchronizeAsync();
+            }
 
             // check rows count on server and on each client
             using (var ctx = new AdventureWorksContext(this.Server))

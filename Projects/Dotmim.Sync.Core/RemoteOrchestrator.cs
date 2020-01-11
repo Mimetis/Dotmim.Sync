@@ -148,7 +148,7 @@ namespace Dotmim.Sync
 
                         (context, changesApplied) =
                             await this.Provider.ApplyChangesAsync(context,
-                             new MessageApplyChanges(scope.Id, false, scope.LastServerSyncTimestamp, schema, policy,
+                             new MessageApplyChanges(Guid.Empty, false, scope.LastServerSyncTimestamp, schema, policy,
                                         disableConstraintsOnApplyChanges, useBulkOperations, cleanMetadatas, clientBatchInfo),
                              connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -172,7 +172,7 @@ namespace Dotmim.Sync
                         // the batch decision comes from batchsize from client
                         (context, serverBatchInfo, serverChangesSelected) =
                             await this.Provider.GetChangeBatchAsync(context,
-                                new MessageGetChangesBatch(scope.Id, fromScratch, scope.LastServerSyncTimestamp,
+                                new MessageGetChangesBatch(scope.Id, Guid.Empty, fromScratch, scope.LastServerSyncTimestamp,
                                     schema, clientBatchSize, batchDirectory),
                                     connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 

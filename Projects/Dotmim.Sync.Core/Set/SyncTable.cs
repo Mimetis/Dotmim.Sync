@@ -160,11 +160,20 @@ namespace Dotmim.Sync
 
             return clone;
         }
-   
+
         /// <summary>
         /// Create a new row
         /// </summary>
-        public SyncRow NewRow(DataRowState state = DataRowState.Unchanged) => new SyncRow(this, state);
+        public SyncRow NewRow(DataRowState state = DataRowState.Unchanged)
+        {
+            var row = new SyncRow(this.Columns.Count)
+            {
+                RowState = state,
+                Table = this
+            };
+
+            return row;
+        }
 
         /// <summary>
         /// Gets the collection of child relations for this SyncTable.
