@@ -199,9 +199,10 @@ namespace Dotmim.Sync
                                 cancellationToken.ThrowIfCancellationRequested();
                         }
 
-                        // Fom local provider all rows not "last updated" by the Server
-                        // Server scope is identified by Guid.Empty
-                        var remoteScopeId = Guid.Empty;
+                        
+                        // On local, we don't want to chase rows from "others" 
+                        // We just want our local rows, so we dont exclude any remote scope id, by setting scope id to NULL
+                        Guid? remoteScopeId = null;
                         // lastSyncTS : get lines inserted / updated / deteleted after the last sync commited
                         var lastSyncTS = scope.LastSyncTimestamp;
                         // isNew : If isNew, lasttimestamp is not correct, so grab all
@@ -217,7 +218,7 @@ namespace Dotmim.Sync
                             cancellationToken.ThrowIfCancellationRequested();
 
                         // Creating the message
-                        var message = new MessageGetChangesBatch(remoteScopeId, isNew, lastSyncTS, schema, batchSize, batchDirectory);
+                        var message = new MessageGetChangesBatch(remoteScopeId, scope.Id, isNew, lastSyncTS, schema, batchSize, batchDirectory);
 
                         // Locally, if we are new, no need to get changes
                         if (isNew)
@@ -295,9 +296,6 @@ namespace Dotmim.Sync
                         await this.Provider.InterceptAsync(new TransactionOpenArgs(context, connection, transaction)).ConfigureAwait(false);
                         DatabaseChangesApplied clientChangesApplied;
 
-                        // fromId : When applying rows, make sure it's identified as applied by this server scope
-                        // server scope is identified by Guid.Empty
-                        var fromId = Guid.Empty;
                         // lastSyncTS : apply lines only if they are not modified since last client sync
                         var lastSyncTS = scope.LastSyncTimestamp;
                         // isNew : if IsNew, don't apply deleted rows from server
@@ -305,7 +303,7 @@ namespace Dotmim.Sync
 
                         (context, clientChangesApplied) =
                             await this.Provider.ApplyChangesAsync(context,
-                                new MessageApplyChanges(fromId, isNew, lastSyncTS, schema, clientPolicy, disableConstraintsOnApplyChanges,
+                                new MessageApplyChanges(scope.Id, isNew, lastSyncTS, schema, clientPolicy, disableConstraintsOnApplyChanges,
                                         useBulkOperations, cleanMetadatas, serverBatchInfo),
                                     connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 

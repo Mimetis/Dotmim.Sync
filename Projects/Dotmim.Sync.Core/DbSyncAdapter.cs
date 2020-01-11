@@ -58,7 +58,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Execute a batch command
         /// </summary>
-        public abstract void ExecuteBatchCommand(DbCommand cmd, IEnumerable<SyncRow> arrayItems, SyncTable schemaChangesTable, SyncTable failedRows, Guid applyingScopeId, long lastTimestamp);
+        public abstract void ExecuteBatchCommand(DbCommand cmd, IEnumerable<SyncRow> arrayItems, SyncTable schemaChangesTable, SyncTable failedRows, long lastTimestamp);
 
         /// <summary>
         /// Gets the current connection. could be opened
@@ -74,7 +74,7 @@ namespace Dotmim.Sync
         /// Create a Sync Adapter
         /// </summary>
         public DbSyncAdapter(SyncTable tableDescription) => this.TableDescription = tableDescription;
-        
+
 
         /// <summary>
         /// Set command parameters value mapped to Row
@@ -111,7 +111,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Insert or update a metadata line
         /// </summary>
-        internal bool InsertOrUpdateMetadatas(DbCommand command, SyncRow row, Guid? fromScopeId)
+        internal bool InsertOrUpdateMetadatas(DbCommand command, SyncRow row)
         {
             if (row.Table == null)
                 throw new ArgumentException("Schema table columns does not exist");
@@ -140,8 +140,13 @@ namespace Dotmim.Sync
                     isTombstone = rowValue.GetType() == typeof(bool) ? (bool)rowValue : Convert.ToInt64(rowValue) > 0;
             }
 
+            // TODO : Delete this after all tests. 
+            // Debug test
+            if (!row.UpdateScopeId.HasValue)
+                throw new Exception("Should not be null !");
+
             DbTableManagerFactory.SetParameterValue(command, "sync_row_is_tombstone", isTombstone ? 1 : 0);
-            DbTableManagerFactory.SetParameterValue(command, "sync_scope_id", fromScopeId);
+            DbTableManagerFactory.SetParameterValue(command, "sync_scope_id", row.UpdateScopeId);
 
             var alreadyOpened = Connection.State == ConnectionState.Open;
 
@@ -164,7 +169,7 @@ namespace Dotmim.Sync
         /// Try to get a source row
         /// </summary>
         /// <returns></returns>
-        internal SyncRow GetRow(SyncRow primaryKeyRow, SyncTable schema)
+        internal SyncRow GetRow(Guid localScopeId, SyncRow primaryKeyRow, SyncTable schema)
         {
             // Get the row in the local repository
             using (var selectCommand = GetCommand(DbCommandType.SelectRow))
@@ -210,6 +215,23 @@ namespace Dotmim.Sync
                                 continue;
                             }
 
+                            if (columnName == "update_scope_id")
+                            {
+                                var readerScopeId = dataReader.GetValue(i);
+
+                                // if update_scope_id is null, so the row owner is the local database
+                                // if update_scope_id is not null, the row owner is someone else
+                                if (readerScopeId == DBNull.Value || readerScopeId == null)
+                                    syncRow.UpdateScopeId = localScopeId;
+                                else if (SyncTypeConverter.TryConvertTo<Guid>(readerScopeId, out var updateScopeIdObject))
+                                    syncRow.UpdateScopeId = (Guid)updateScopeIdObject;
+                                else
+                                    throw new Exception("Impossible to parse row['update_scope_id']");
+
+
+                                continue;
+                            }
+
                             var columnValueObject = dataReader.GetValue(i);
                             var columnValue = columnValueObject == DBNull.Value ? null : columnValueObject;
                             syncRow[columnName] = columnValue;
@@ -234,7 +256,7 @@ namespace Dotmim.Sync
         /// Launch apply bulk changes
         /// </summary>
         /// <returns></returns>
-        public int ApplyBulkChanges(SyncTable changesTable, Guid applyingScopeId, long lastTimestamp, List<SyncConflict> conflicts)
+        public int ApplyBulkChanges(Guid localScopeId, SyncTable changesTable, long lastTimestamp, List<SyncConflict> conflicts)
         {
             DbCommand bulkCommand;
             if (this.ApplyType == DataRowState.Modified)
@@ -277,7 +299,7 @@ namespace Dotmim.Sync
                 var arrayStepChanges = changesTable.Rows.ToList().Skip(step).Take(taken);
 
                 // execute the batch, through the provider
-                ExecuteBatchCommand(bulkCommand, arrayStepChanges, changesTable, failedPrimaryKeysTable, applyingScopeId, lastTimestamp);
+                ExecuteBatchCommand(bulkCommand, arrayStepChanges, changesTable, failedPrimaryKeysTable, lastTimestamp);
             }
 
             // Disposing command
@@ -300,7 +322,7 @@ namespace Dotmim.Sync
 
                 var remoteConflictRow = remoteConflictRows.ToList()[0];
 
-                var localConflictRow = GetRow(failedRow, changesTable);
+                var localConflictRow = GetRow(localScopeId, failedRow, changesTable);
 
                 conflicts.Add(GetConflict(remoteConflictRow, localConflictRow));
             }
@@ -351,7 +373,7 @@ namespace Dotmim.Sync
             return conflict;
         }
 
-        private void UpdateMetadatas(DbCommandType dbCommandType, SyncRow row, Guid applyingScopeId, long lastTimestamp)
+        private void UpdateMetadatas(DbCommandType dbCommandType, SyncRow row)
         {
             using (var dbCommand = this.GetCommand(dbCommandType))
             {
@@ -359,7 +381,7 @@ namespace Dotmim.Sync
                     throw new MissingCommandException(dbCommandType.ToString());
 
                 this.SetCommandParameters(dbCommandType, dbCommand);
-                this.InsertOrUpdateMetadatas(dbCommand, row, applyingScopeId);
+                this.InsertOrUpdateMetadatas(dbCommand, row);
             }
         }
 
@@ -369,7 +391,7 @@ namespace Dotmim.Sync
         /// </summary>
         /// <param name="changes">Changes from remote</param>
         /// <returns>every lines not updated on the server side</returns>
-        internal int ApplyChanges(SyncTable changesTable, Guid applyingScopeId, long lastTimestamp, List<SyncConflict> conflicts)
+        internal int ApplyChanges(Guid localScopeId, SyncTable changesTable, long lastTimestamp, List<SyncConflict> conflicts)
         {
             int appliedRows = 0;
 
@@ -381,19 +403,17 @@ namespace Dotmim.Sync
                 {
                     if (ApplyType == DataRowState.Modified)
                     {
-                        operationComplete = this.ApplyUpdate(row, applyingScopeId, lastTimestamp, false);
+                        operationComplete = this.ApplyUpdate(row, lastTimestamp, false);
+
                         if (operationComplete)
-                        {
-                            UpdateMetadatas(DbCommandType.UpdateMetadata, row, applyingScopeId, lastTimestamp);
-                        }
+                            UpdateMetadatas(DbCommandType.UpdateMetadata, row);
                     }
                     else if (ApplyType == DataRowState.Deleted)
                     {
-                        operationComplete = this.ApplyDelete(row, applyingScopeId, lastTimestamp, false);
+                        operationComplete = this.ApplyDelete(row, lastTimestamp, false);
+
                         if (operationComplete)
-                        {
-                            UpdateMetadatas(DbCommandType.UpdateMetadata, row, applyingScopeId, lastTimestamp);
-                        }
+                            UpdateMetadatas(DbCommandType.UpdateMetadata, row);
                     }
 
                     if (operationComplete)
@@ -401,7 +421,7 @@ namespace Dotmim.Sync
                         appliedRows++;
                     else
                     {
-                        var localConflictRow = GetRow(row, changesTable);
+                        var localConflictRow = GetRow(localScopeId, row, changesTable);
                         conflicts.Add(GetConflict(row, localConflictRow));
                     }
 
@@ -417,7 +437,7 @@ namespace Dotmim.Sync
                         conflict.AddRemoteRow(row);
 
                         // Get the local row
-                        var localRow = GetRow(row, changesTable);
+                        var localRow = GetRow(localScopeId, row, changesTable);
                         if (localRow != null)
                             conflict.AddLocalRow(localRow);
 
@@ -436,7 +456,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Apply a delete on a row
         /// </summary>
-        internal bool ApplyDelete(SyncRow row, Guid applyingScopeId, long lastTimestamp, bool forceWrite)
+        internal bool ApplyDelete(SyncRow row, long lastTimestamp, bool forceWrite)
         {
             if (row.Table == null)
                 throw new ArgumentException("Schema table is not present in the row");
@@ -453,25 +473,23 @@ namespace Dotmim.Sync
                 this.SetColumnParametersValues(command, row);
 
                 // Set the special parameters for update
-                this.AddScopeParametersValues(command, applyingScopeId, lastTimestamp, true, forceWrite);
+                this.AddScopeParametersValues(command, row.UpdateScopeId.Value, lastTimestamp, true, forceWrite);
 
                 var alreadyOpened = Connection.State == ConnectionState.Open;
 
-                int rowInsertedCount = 0;
-               
-                    // OPen Connection
-                    if (!alreadyOpened)
-                        Connection.Open();
+                // OPen Connection
+                if (!alreadyOpened)
+                    Connection.Open();
 
-                    if (Transaction != null)
-                        command.Transaction = Transaction;
+                if (Transaction != null)
+                    command.Transaction = Transaction;
 
-                    rowInsertedCount = command.ExecuteNonQuery();
+                var rowInsertedCount = command.ExecuteNonQuery();
 
-                
-                    if (!alreadyOpened)
-                        Connection.Close();
-                
+
+                if (!alreadyOpened)
+                    Connection.Close();
+
 
                 return rowInsertedCount > 0;
             }
@@ -480,7 +498,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Apply a single update in the current datasource. if forceWrite, override conflict situation and force the update
         /// </summary>
-        internal bool ApplyUpdate(SyncRow row, Guid applyingScopeId, long lastTimestamp, bool forceWrite)
+        internal bool ApplyUpdate(SyncRow row, long lastTimestamp, bool forceWrite)
         {
             if (row.Table == null)
                 throw new ArgumentException("Schema table is not present in the row");
@@ -497,18 +515,17 @@ namespace Dotmim.Sync
                 this.SetColumnParametersValues(command, row);
 
                 // Set the special parameters for update
-                AddScopeParametersValues(command, applyingScopeId, lastTimestamp, false, forceWrite);
+                AddScopeParametersValues(command, row.UpdateScopeId.Value, lastTimestamp, false, forceWrite);
 
                 var alreadyOpened = Connection.State == ConnectionState.Open;
-
-                int rowUpdatedCount = 0;
+                
                 if (!alreadyOpened)
                     Connection.Open();
 
                 if (Transaction != null)
                     command.Transaction = Transaction;
 
-                rowUpdatedCount = command.ExecuteNonQuery();
+                var rowUpdatedCount = command.ExecuteNonQuery();
                 if (!alreadyOpened)
                     Connection.Close();
                 return rowUpdatedCount > 0;
@@ -531,17 +548,17 @@ namespace Dotmim.Sync
                 var alreadyOpened = Connection.State == ConnectionState.Open;
 
                 int rowCount = 0;
-                   if (!alreadyOpened)
-                        Connection.Open();
+                if (!alreadyOpened)
+                    Connection.Open();
 
-                    if (Transaction != null)
-                        command.Transaction = Transaction;
+                if (Transaction != null)
+                    command.Transaction = Transaction;
 
-                    rowCount = command.ExecuteNonQuery();
-               
-                    if (!alreadyOpened)
-                        Connection.Close();
-               
+                rowCount = command.ExecuteNonQuery();
+
+                if (!alreadyOpened)
+                    Connection.Close();
+
                 return rowCount > 0;
             }
         }
@@ -562,18 +579,18 @@ namespace Dotmim.Sync
                 var alreadyOpened = Connection.State == ConnectionState.Open;
 
                 int rowCount = 0;
-               
-                    if (!alreadyOpened)
-                        Connection.Open();
 
-                    if (Transaction != null)
-                        command.Transaction = Transaction;
+                if (!alreadyOpened)
+                    Connection.Open();
 
-                    rowCount = command.ExecuteNonQuery();
-              
-                    if (!alreadyOpened)
-                        Connection.Close();
-                
+                if (Transaction != null)
+                    command.Transaction = Transaction;
+
+                rowCount = command.ExecuteNonQuery();
+
+                if (!alreadyOpened)
+                    Connection.Close();
+
                 return rowCount > 0;
             }
         }
@@ -595,17 +612,17 @@ namespace Dotmim.Sync
 
                 int rowCount = 0;
 
-                    if (!alreadyOpened)
-                        Connection.Open();
+                if (!alreadyOpened)
+                    Connection.Open();
 
-                    if (Transaction != null)
-                        command.Transaction = Transaction;
+                if (Transaction != null)
+                    command.Transaction = Transaction;
 
-                    rowCount = command.ExecuteNonQuery();
-               
-                    if (!alreadyOpened)
-                        Connection.Close();
-                
+                rowCount = command.ExecuteNonQuery();
+
+                if (!alreadyOpened)
+                    Connection.Close();
+
                 return rowCount > 0;
             }
         }

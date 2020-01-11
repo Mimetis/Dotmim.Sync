@@ -30,20 +30,20 @@ namespace Dotmim.Sync
         /// <summary>
         /// Add a new buffer row
         /// </summary>
-        public void Add(object[] row, DataRowState state = DataRowState.Unchanged)
+        public void Add(object[] row, Guid updateScopeId, DataRowState state = DataRowState.Unchanged)
         {
-            var schemaRow = new SyncRow(this.Table, row, state);
+            var schemaRow = new SyncRow(this.Table, row, updateScopeId, state);
             rows.Add(schemaRow);
         }
 
         /// <summary>
         /// Add a rows
         /// </summary>
-        public void AddRange(IEnumerable<object[]> rows, DataRowState state = DataRowState.Unchanged)
+        public void AddRange(IEnumerable<object[]> rows, Guid updateScopeId, DataRowState state = DataRowState.Unchanged)
         {
             foreach (var row in rows)
             {
-                var schemaRow = new SyncRow(this.Table, row, state);
+                var schemaRow = new SyncRow(this.Table, row, updateScopeId, state);
                 this.rows.Add(schemaRow);
             }
         }
@@ -79,10 +79,19 @@ namespace Dotmim.Sync
             {
                 var length = Table.Columns.Count;
                 var itemArray = new object[length];
-                Array.Copy(row, 1, itemArray, 0, length);
+
+                Array.Copy(row, 2, itemArray, 0, length);
                 var state = (DataRowState)Convert.ToInt32(row[0]);
 
-                var schemaRow = new SyncRow(this.Table, itemArray, state);
+                Guid updateScopeId;
+
+                if (SyncTypeConverter.TryConvertTo<Guid>(row[1], out var guidObject))
+                    updateScopeId = (Guid)guidObject;
+                else
+                    throw new Exception("Unable to convert GUID when importing a container table");
+
+
+                var schemaRow = new SyncRow(this.Table, itemArray, updateScopeId, state);
                 this.rows.Add(schemaRow);
             }
         }

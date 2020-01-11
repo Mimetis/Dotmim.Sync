@@ -259,6 +259,12 @@ namespace Dotmim.Sync.Sqlite
             p.ParameterName = "@sync_min_timestamp";
             p.DbType = DbType.Int64;
             command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_id";
+            p.DbType = DbType.Guid;
+            command.Parameters.Add(p);
+
         }
 
         private void SetSelectRowParameters(DbCommand command)
@@ -310,7 +316,7 @@ namespace Dotmim.Sync.Sqlite
             command.Parameters.Add(p);
         }
 
-        public override void ExecuteBatchCommand(DbCommand cmd, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable, SyncTable failedRows, Guid applyingScopeId, long lastTimestamp)
+        public override void ExecuteBatchCommand(DbCommand cmd, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable, SyncTable failedRows, long lastTimestamp)
         {
             throw new NotImplementedException();
         }

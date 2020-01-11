@@ -13,12 +13,13 @@ namespace Dotmim.Sync.Messages
     /// </summary>
     public class MessageGetChangesBatch
     {
-        public MessageGetChangesBatch(Guid excludingScopeId, bool isNew, long lastTimestamp,  SyncSet schema, 
+        public MessageGetChangesBatch(Guid? excludingScopeId, Guid localScopeId, bool isNew, long lastTimestamp,  SyncSet schema, 
                                       int batchSize, string batchDirectory)
         {
             this.Schema = schema ?? throw new ArgumentNullException(nameof(schema));
             this.BatchDirectory = batchDirectory ?? throw new ArgumentNullException(nameof(batchDirectory));
             this.ExcludingScopeId = excludingScopeId;
+            this.LocalScopeId = localScopeId;
             this.IsNew = isNew;
             this.LastTimestamp = lastTimestamp;
             this.BatchSize = batchSize;
@@ -26,9 +27,14 @@ namespace Dotmim.Sync.Messages
 
         /// <summary>
         /// Gets or Sets the Scope Id that should be excluded when we get lines from the local store
-        /// IE : When we get lines on the client, we don't want all lines where last updates have been made by the server.
+        /// Usable only from Server side
         /// </summary>
-        public Guid ExcludingScopeId { get; set; }
+        public Guid? ExcludingScopeId { get; set; }
+
+        /// <summary>
+        /// Gets or Sets the local Scope Id that will replace <NULL> values when creating the row
+        /// </summary>
+        public Guid LocalScopeId { get; set; }
 
 
         /// <summary>

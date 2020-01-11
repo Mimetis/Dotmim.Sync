@@ -30,7 +30,9 @@ namespace Dotmim.Sync
                         var finalTable = this.Conflict.RemoteRow.Table.Clone();
                         var finalSet = this.Conflict.RemoteRow.Table.Schema.Clone(false);
                         finalSet.Tables.Add(finalTable);
-                        this.FinalRow = new SyncRow(finalTable);
+                        this.FinalRow = new SyncRow(finalTable.Columns.Count);
+                        this.FinalRow.Table = finalTable;
+
                         this.FinalRow.FromArray(finalRowArray);
                         finalTable.Rows.Add(this.FinalRow);
                     }
