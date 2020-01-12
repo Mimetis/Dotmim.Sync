@@ -175,6 +175,11 @@ namespace Dotmim.Sync.Sqlite
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
+            p.ParameterName = "@sync_row_is_frozen";
+            p.DbType = DbType.Int32;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
             p.ParameterName = "@update_timestamp";
             p.DbType = DbType.Int64;
             command.Parameters.Add(p);

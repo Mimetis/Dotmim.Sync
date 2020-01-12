@@ -376,7 +376,7 @@ namespace Dotmim.Sync
 
                 bool operationComplete = false;
 
-                var commandType = DbCommandType.UpdateMetadata;
+                //var commandType = DbCommandType.UpdateMetadata;
                 bool needToUpdateMetadata = true;
 
                 switch (conflict.Type)
@@ -387,7 +387,6 @@ namespace Dotmim.Sync
                     case ConflictType.RemoteExistsLocalIsDeleted:
                     case ConflictType.UniqueKeyConstraint:
                         operationComplete = syncAdapter.ApplyUpdate(conflict.RemoteRow, lastTimestamp, true);
-                        commandType = DbCommandType.UpdateMetadata;
                         conflictResolved = 1;
                         break;
 
@@ -403,7 +402,6 @@ namespace Dotmim.Sync
                     // So delete the local row
                     case ConflictType.RemoteIsDeletedLocalExists:
                         operationComplete = syncAdapter.ApplyDelete(conflict.RemoteRow, lastTimestamp, true);
-                        commandType = DbCommandType.UpdateMetadata;
                         conflictResolved = 1;
                         break;
 
@@ -415,17 +413,17 @@ namespace Dotmim.Sync
 
                 if (needToUpdateMetadata)
                 {
-                    using (var metadataCommand = syncAdapter.GetCommand(commandType))
+                    using (var metadataCommand = syncAdapter.GetCommand(DbCommandType.UpdateMetadata))
                     {
                         if (metadataCommand == null)
-                            throw new MissingCommandException(commandType.ToString());
+                            throw new MissingCommandException(DbCommandType.UpdateMetadata.ToString());
 
                         // Deriving Parameters
-                        syncAdapter.SetCommandParameters(commandType, metadataCommand);
+                        syncAdapter.SetCommandParameters(DbCommandType.UpdateMetadata, metadataCommand);
 
                         // force applying client row, so apply scope.id (client scope here)
-                        var rowsApplied = syncAdapter.InsertOrUpdateMetadatas(metadataCommand, conflict.RemoteRow);
-                        
+                        var rowsApplied = syncAdapter.InsertOrUpdateMetadatas(metadataCommand, conflict.RemoteRow, false);
+
                         if (!rowsApplied)
                             throw new MetadataException(syncAdapter.TableDescription.TableName);
                     }
