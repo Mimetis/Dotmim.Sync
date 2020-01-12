@@ -111,7 +111,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Insert or update a metadata line
         /// </summary>
-        internal bool InsertOrUpdateMetadatas(DbCommand command, SyncRow row)
+        internal bool InsertOrUpdateMetadatas(DbCommand command, SyncRow row, bool isFrozen)
         {
             if (row.Table == null)
                 throw new ArgumentException("Schema table columns does not exist");
@@ -147,6 +147,7 @@ namespace Dotmim.Sync
 
             DbTableManagerFactory.SetParameterValue(command, "sync_row_is_tombstone", isTombstone ? 1 : 0);
             DbTableManagerFactory.SetParameterValue(command, "sync_scope_id", row.UpdateScopeId);
+            DbTableManagerFactory.SetParameterValue(command, "sync_row_is_frozen", isFrozen ? 1 : 0);
 
             var alreadyOpened = Connection.State == ConnectionState.Open;
 
@@ -381,7 +382,7 @@ namespace Dotmim.Sync
                     throw new MissingCommandException(dbCommandType.ToString());
 
                 this.SetCommandParameters(dbCommandType, dbCommand);
-                this.InsertOrUpdateMetadatas(dbCommand, row);
+                this.InsertOrUpdateMetadatas(dbCommand, row, true);
             }
         }
 

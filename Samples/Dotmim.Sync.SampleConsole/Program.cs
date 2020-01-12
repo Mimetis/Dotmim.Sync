@@ -647,18 +647,18 @@ internal class Program
         //agent.Options.ScopeInfoTableName = "tscopeinfo";
 
 
-        agent.OnApplyChangesFailed(acf =>
-        {
-            // Check conflict is correctly set
-            var localRow = acf.Conflict.LocalRow;
-            var remoteRow = acf.Conflict.RemoteRow;
+        //agent.OnApplyChangesFailed(acf =>
+        //{
+        //    // Check conflict is correctly set
+        //    var localRow = acf.Conflict.LocalRow;
+        //    var remoteRow = acf.Conflict.RemoteRow;
 
-            // Merge row
-            acf.Resolution = ConflictResolution.MergeRow;
+        //    // Merge row
+        //    acf.Resolution = ConflictResolution.MergeRow;
 
-            acf.FinalRow["Name"] = "Prout";
+        //    acf.FinalRow["Name"] = "Prout";
 
-        });
+        //});
 
         do
         {

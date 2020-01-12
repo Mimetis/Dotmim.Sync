@@ -154,6 +154,7 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine($"[update_scope_id] [text] NULL COLLATE NOCASE, ");
             stringBuilder.AppendLine($"[timestamp] [integer] NULL, ");
             stringBuilder.AppendLine($"[sync_row_is_tombstone] [integer] NOT NULL default(0), ");
+            stringBuilder.AppendLine($"[sync_row_is_frozen] [integer] NOT NULL default(0), ");
             stringBuilder.AppendLine($"[last_change_datetime] [datetime] NULL, ");
 
             stringBuilder.Append(" PRIMARY KEY (");
