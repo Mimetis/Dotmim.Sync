@@ -280,6 +280,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"[timestamp] [timestamp] NULL, ");
             stringBuilder.AppendLine($"[timestamp_bigint] AS (CONVERT([bigint],[timestamp])) PERSISTED, ");
             stringBuilder.AppendLine($"[sync_row_is_tombstone] [bit] NOT NULL default(0), ");
+            stringBuilder.AppendLine($"[sync_row_is_frozen] [bit] NOT NULL default(0), ");
             stringBuilder.AppendLine($"[last_change_datetime] [datetime] NULL, ");
 
             // adding the filter columns
