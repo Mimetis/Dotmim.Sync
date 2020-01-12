@@ -57,7 +57,7 @@ namespace Dotmim.Sync.MySql
                         continue;
                     var columnName = ParserName.Parse(filterColumn.ColumnName, "`").Quoted().ToString();
 
-                    stringBuilder.AppendLine($"\t,{columnName} = `d`.{columnName}");
+                    stringBuilder.AppendLine($"\t,{columnName} = old.{columnName}");
 
                 }
                 stringBuilder.AppendLine();
@@ -169,7 +169,9 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine("\t\t,`sync_row_is_tombstone`");
             stringBuilder.AppendLine("\t\t,`last_change_datetime`");
 
-            StringBuilder filterColumnsString = new StringBuilder();
+            var filterColumnsString = new StringBuilder();
+            var filterColumnsValuesString = new StringBuilder();
+            var filterColumnsUpdateString = new StringBuilder();
 
             // Filter columns
             if (this.Filters != null && this.Filters.Count > 0)
@@ -180,7 +182,9 @@ namespace Dotmim.Sync.MySql
                         continue;
 
                     var columnName = ParserName.Parse(filterColumn.ColumnName, "`").Quoted().ToString();
-                    filterColumnsString.AppendLine($"\t,{columnName}");
+                    filterColumnsString.AppendLine($"\t\t,{columnName}");
+                    filterColumnsValuesString.AppendLine($"\t\t,new.{columnName}");
+                    filterColumnsUpdateString.AppendLine($"\t,{columnName} = new.{columnName}");
                 }
                 stringBuilder.AppendLine(filterColumnsString.ToString());
             }
@@ -197,7 +201,7 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine("\t\t,utc_timestamp()");
 
             if (Filters != null && Filters.Count > 0)
-                stringBuilder.AppendLine(filterColumnsString.ToString());
+                stringBuilder.AppendLine(filterColumnsValuesString.ToString());
 
             stringBuilder.AppendLine("\t)");
             stringBuilder.AppendLine("ON DUPLICATE KEY UPDATE");
@@ -211,7 +215,7 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine("\t`last_change_datetime` = utc_timestamp()");
 
             if (Filters != null && Filters.Count > 0)
-                stringBuilder.AppendLine(filterColumnsString.ToString());
+                stringBuilder.AppendLine(filterColumnsUpdateString.ToString());
 
             stringBuilder.Append(";");
             stringBuilder.AppendLine("END");
@@ -299,7 +303,7 @@ namespace Dotmim.Sync.MySql
 
                     var columnName = ParserName.Parse(filterColumn.ColumnName, "`").Quoted().ToString();
 
-                    stringBuilder.AppendLine($"\t,{columnName} = `i`.{columnName}");
+                    stringBuilder.AppendLine($"\t\t,{columnName} = new.{columnName}");
                 }
                 stringBuilder.AppendLine();
             }
