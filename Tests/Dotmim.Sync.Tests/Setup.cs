@@ -37,7 +37,9 @@ namespace Dotmim.Sync.Tests
                 MultipleActiveResultSets = false,
                 TrustServerCertificate = false,
                 ConnectTimeout = 30,
-                IntegratedSecurity = false
+                IntegratedSecurity = false,
+                ConnectRetryCount = 4,
+                ConnectRetryInterval = 4
             };
 
 
