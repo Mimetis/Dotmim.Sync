@@ -61,7 +61,7 @@ namespace Dotmim.Sync
         /// Returns the Task associated with given type of BaseArgs 
         /// Because we are not doing anything else than just returning a task, no need to use async / await. Just return the Task itself
         /// </summary>
-        internal Task InterceptAsync<T>(T args) where T : ProgressArgs
+        public   Task InterceptAsync<T>(T args) where T : ProgressArgs
         {
             if (this.interceptors == null)
                 return Task.CompletedTask;

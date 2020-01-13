@@ -19,6 +19,9 @@ namespace Dotmim.Sync.Web.Client
     public class WebClientOrchestrator : IRemoteOrchestrator
     {
         private readonly HttpRequestHandler httpRequestHandler = new HttpRequestHandler();
+       
+        // Collection of Interceptors
+        private Interceptors interceptors = new Interceptors();
 
         /// <summary>
         /// Gets or Sets the provider used in this proxy Orchestrator
@@ -26,13 +29,60 @@ namespace Dotmim.Sync.Web.Client
         /// </summary>
         public CoreProvider Provider { get => null; set => throw new NotSupportedException("Proxy Web does not need any provider. Everything is made on the server side"); }
 
-        public void On<T>(Func<T, Task> interceptorFunc) where T : ProgressArgs => throw new NotSupportedException("Proxy Web does support interceptors, yet.");
-        public void On<T>(Action<T> interceptorAction) where T : ProgressArgs => throw new NotSupportedException("Proxy Web does support interceptors, yet.");
-        public void On(Interceptors interceptors) => throw new NotSupportedException("Proxy Web does support interceptors, yet.");
+        /// <summary>
+        /// Set an interceptor to get info on the current sync process
+        /// </summary>
+        public void On<T>(Func<T, Task> interceptorFunc) where T : ProgressArgs =>
+            this.interceptors.GetInterceptor<T>().Set(interceptorFunc);
 
+        /// <summary>
+        /// Set an interceptor to get info on the current sync process
+        /// </summary>
+        public void On<T>(Action<T> interceptorAction) where T : ProgressArgs =>
+            this.interceptors.GetInterceptor<T>().Set(interceptorAction);
+
+
+        /// <summary>
+        /// Set a collection of interceptors
+        /// </summary>
+        public void On(Interceptors interceptors) => this.interceptors = interceptors;
+
+        /// <summary>
+        /// Returns the Task associated with given type of BaseArgs 
+        /// Because we are not doing anything else than just returning a task, no need to use async / await. Just return the Task itself
+        /// </summary>
+        public Task InterceptAsync<T>(T args) where T : ProgressArgs
+        {
+            if (this.interceptors == null)
+                return Task.CompletedTask;
+
+            var interceptor = this.interceptors.GetInterceptor<T>();
+            return interceptor.RunAsync(args);
+        }
+
+        /// <summary>
+        /// Interceptor just before sending changes
+        /// </summary>
+        public void OnSendingChanges(Action<HttpMessageSendChangesRequestArgs> action) => this.On(action);
+
+        /// <summary>
+        /// Interceptor just before asking for more changes
+        /// </summary>
+        public void OnSendingGetMoreChanges(Action<HttpMessageGetMoreChangesRequestArgs> action) => this.On(action);
+
+        /// <summary>
+        /// Interceptor just before sending scopes
+        /// </summary>
+        public void OnSendingScopes(Action<HttpMessageEnsureScopesRequestArgs> action) => this.On(action);
+
+  
         public Dictionary<string, string> CustomHeaders => this.httpRequestHandler.CustomHeaders;
         public Dictionary<string, string> ScopeParameters => this.httpRequestHandler.ScopeParameters;
 
+        private void Set()
+        {
+
+        }
 
         /// <summary>
         /// Gets or Sets Serializer used by the web client orchestrator. Default is Json
@@ -111,10 +161,17 @@ namespace Dotmim.Sync.Web.Client
             // Create the message to be sent
             var httpMessage = new HttpMessageEnsureScopesRequest(context, setup.ScopeName);
 
+            // serialize message
+            var serializer = this.SerializerFactory.GetSerializer<HttpMessageEnsureScopesRequest>();
+            var binaryData = serializer.Serialize(httpMessage);
+
+            await InterceptAsync(new HttpMessageEnsureScopesRequestArgs(binaryData)).ConfigureAwait(false);
+
             // No batch size submitted here, because the schema will be generated in memory and send back to the user.
-            var ensureScopesResponse = await this.httpRequestHandler.ProcessRequestAsync<HttpMessageEnsureScopesRequest, HttpMessageEnsureScopesResponse>
-                (this.HttpClient, this.ServiceUri, httpMessage, HttpStep.EnsureScopes, context.SessionId, 
+            var ensureScopesResponse = await this.httpRequestHandler.ProcessRequestAsync<HttpMessageEnsureScopesResponse>
+                (this.HttpClient, this.ServiceUri, binaryData, HttpStep.EnsureScopes, context.SessionId, 
                  this.SerializerFactory, this.Converter, 0, cancellationToken).ConfigureAwait(false);
+
 
             if (ensureScopesResponse == null)
                 throw new ArgumentException("Http Message content for Ensure scope can't be null");
@@ -173,11 +230,14 @@ namespace Dotmim.Sync.Web.Client
                 changesToSend.IsLastBatch = true;
                 changesToSend.BatchIndex = 0;
 
-                var tm = typeof(HttpMessageSendChangesResponse);
-                var changesField = tm.GetField("Changes");
+                // serialize message
+                var serializer = this.SerializerFactory.GetSerializer<HttpMessageSendChangesRequest>();
+                var binaryData = serializer.Serialize(changesToSend);
 
-                httpMessageContent = await this.httpRequestHandler.ProcessRequestAsync<HttpMessageSendChangesRequest, HttpMessageSendChangesResponse>
-                    (this.HttpClient, this.ServiceUri, changesToSend, HttpStep.SendChanges, context.SessionId, 
+                await InterceptAsync(new HttpMessageSendChangesRequestArgs(binaryData)).ConfigureAwait(false);
+
+                httpMessageContent = await this.httpRequestHandler.ProcessRequestAsync<HttpMessageSendChangesResponse>
+                    (this.HttpClient, this.ServiceUri, binaryData, HttpStep.SendChanges, context.SessionId, 
                      this.SerializerFactory, this.Converter, clientBatchSize, cancellationToken).ConfigureAwait(false);
 
             }
@@ -201,9 +261,14 @@ namespace Dotmim.Sync.Web.Client
                     changesToSend.IsLastBatch = bpi.IsLastBatch;
                     changesToSend.BatchIndex = bpi.Index;
 
+                    // serialize message
+                    var serializer = this.SerializerFactory.GetSerializer<HttpMessageSendChangesRequest>();
+                    var binaryData = serializer.Serialize(changesToSend);
 
-                    httpMessageContent = await this.httpRequestHandler.ProcessRequestAsync<HttpMessageSendChangesRequest, HttpMessageSendChangesResponse>
-                        (this.HttpClient, this.ServiceUri, changesToSend, HttpStep.SendChanges, context.SessionId, 
+                    await InterceptAsync(new HttpMessageSendChangesRequestArgs(binaryData)).ConfigureAwait(false);
+
+                    httpMessageContent = await this.httpRequestHandler.ProcessRequestAsync<HttpMessageSendChangesResponse>
+                        (this.HttpClient, this.ServiceUri, binaryData, HttpStep.SendChanges, context.SessionId, 
                          this.SerializerFactory, this.Converter, clientBatchSize, cancellationToken).ConfigureAwait(false);
 
 
@@ -273,11 +338,15 @@ namespace Dotmim.Sync.Web.Client
                     // Create the message enveloppe
                     var httpMessage = new HttpMessageGetMoreChangesRequest(context, requestBatchIndex);
 
+                    // serialize message
+                    var serializer = this.SerializerFactory.GetSerializer<HttpMessageGetMoreChangesRequest>();
+                    var binaryData = serializer.Serialize(httpMessage);
 
-                    httpMessageContent = await this.httpRequestHandler.ProcessRequestAsync<HttpMessageGetMoreChangesRequest, HttpMessageSendChangesResponse>(
-                               this.HttpClient, this.ServiceUri, httpMessage, HttpStep.GetChanges, context.SessionId, 
+                    await InterceptAsync(new HttpMessageGetMoreChangesRequestArgs(binaryData)).ConfigureAwait(false);
+
+                    httpMessageContent = await this.httpRequestHandler.ProcessRequestAsync<HttpMessageSendChangesResponse>(
+                               this.HttpClient, this.ServiceUri, binaryData, HttpStep.GetChanges, context.SessionId, 
                                this.SerializerFactory, this.Converter, clientBatchSize, cancellationToken).ConfigureAwait(false);
-
                 }
 
             } while (!isLastBatch);

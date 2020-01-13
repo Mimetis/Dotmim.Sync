@@ -157,6 +157,8 @@ namespace Dotmim.Sync.Web.Server
                 var clientConverter = GetClientConverter(converter, remoteOrchestrator);
                 remoteOrchestrator.ClientConverter = clientConverter;
 
+                
+
                 byte[] binaryData = null;
                 switch (step)
                 {
@@ -164,16 +166,19 @@ namespace Dotmim.Sync.Web.Server
                         var m1 = clientSerializerFactory.GetSerializer<HttpMessageEnsureScopesRequest>().Deserialize(streamArray);
                         var s1 = await remoteOrchestrator.EnsureScopeAsync(m1, cancellationToken).ConfigureAwait(false);
                         binaryData = clientSerializerFactory.GetSerializer<HttpMessageEnsureScopesResponse>().Serialize(s1);
+                        await remoteOrchestrator.Provider.InterceptAsync(new HttpMessageEnsureScopesResponseArgs(binaryData)).ConfigureAwait(false);
                         break;
                     case HttpStep.SendChanges:
                         var m2 = clientSerializerFactory.GetSerializer<HttpMessageSendChangesRequest>().Deserialize(streamArray);
                         var s2 = await remoteOrchestrator.ApplyThenGetChangesAsync(m2, clientBatchSize, cancellationToken).ConfigureAwait(false);
                         binaryData = clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().Serialize(s2);
+                        await remoteOrchestrator.Provider.InterceptAsync(new HttpMessageSendChangesResponseArgs(binaryData)).ConfigureAwait(false);
                         break;
                     case HttpStep.GetChanges:
                         var m3 = clientSerializerFactory.GetSerializer<HttpMessageGetMoreChangesRequest>().Deserialize(streamArray);
                         var s3 = remoteOrchestrator.GetMoreChanges(m3, cancellationToken);
                         binaryData = clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().Serialize(s3);
+                        await remoteOrchestrator.Provider.InterceptAsync(new HttpMessageSendChangesResponseArgs(binaryData)).ConfigureAwait(false);
                         break;
                 }
 
@@ -183,6 +188,7 @@ namespace Dotmim.Sync.Web.Server
                 // Adding the serialization format used and session id
                 httpResponse.Headers.Add("dotmim-sync-session-id", sessionId.ToString());
                 httpResponse.Headers.Add("dotmim-sync-serialization-format", clientSerializerFactory.Key);
+
 
                 // data to send back, as the response
                 byte[] data;

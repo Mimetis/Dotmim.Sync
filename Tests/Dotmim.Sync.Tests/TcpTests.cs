@@ -78,6 +78,7 @@ namespace Dotmim.Sync.Tests
         public TcpTests(HelperProvider fixture, ITestOutputHelper output)
         {
 
+
             // Getting the test running
             this.Output = output;
             var type = output.GetType();
@@ -112,9 +113,14 @@ namespace Dotmim.Sync.Tests
                 var dbCliName = HelperDatabase.GetRandomName("tcp_cli_");
                 var localOrchestrator = this.fixture.CreateOrchestrator<LocalOrchestrator>(clientType, dbCliName);
 
-                HelperDatabase.CreateDatabaseAsync(clientType, dbCliName, true);
+                // call a synchronous database creation
+                HelperDatabase.CreateDatabaseAsync(clientType, dbCliName, true).GetAwaiter().GetResult() ;
 
                 this.Clients.Add((dbCliName, clientType, localOrchestrator));
+
+                // wait for 1 sec to be sure database are created correctly
+                System.Threading.Thread.Sleep(1000);
+
             }
         }
 
