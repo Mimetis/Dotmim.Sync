@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
+using System.Linq;
 using System.Net.Http;
 using System.Net.Sockets;
 using System.Runtime.Serialization;
@@ -21,7 +22,7 @@ namespace Dotmim.Sync
     {
         public SyncException(string message) : base(message)
         {
-            
+
         }
 
         public SyncException(Exception exception, SyncStage stage = SyncStage.None) : base(exception.Message, exception)
@@ -252,8 +253,15 @@ namespace Dotmim.Sync
     public class HttpSerializerNotConfiguredException : Exception
     {
         const string message = "Unexpected value for serializer. Available serializers on the server: {0}";
+        const string messageEmpty = "Unexpected value for serializer. Server has not any serializer registered";
 
-        public HttpSerializerNotConfiguredException(IEnumerable<string> serializers) : base(string.Format(message, string.Join(".", serializers))) { }
+        public HttpSerializerNotConfiguredException(IEnumerable<string> serializers) :
+            base(
+                serializers.Count() > 0 ?
+                    string.Format(message, string.Join(".", serializers))
+                    : messageEmpty
+                )
+        { }
     }
     /// <summary>
     /// Occurs when a Serializer is not available on the server side
@@ -261,8 +269,16 @@ namespace Dotmim.Sync
     public class HttpConverterNotConfiguredException : Exception
     {
         const string message = "Unexpected value for converter. Available converters on the server: {0}";
+        const string messageEmpty = "Unexpected value for converter. Server has not any converter registered";
 
-        public HttpConverterNotConfiguredException(IEnumerable<string> converters) : base(string.Format(message, string.Join(".", converters))) { }
+
+        public HttpConverterNotConfiguredException(IEnumerable<string> converters) :
+            base(
+                converters.Count() > 0 ?
+                    string.Format(message, string.Join(".", converters))
+                    : messageEmpty
+                )
+        { }
     }
 
 }

@@ -55,6 +55,17 @@ namespace Dotmim.Sync.Web.Server
         /// </summary>
         public IConverter ClientConverter { get; internal set; }
 
+
+        /// <summary>
+        /// Interceptor just before sending back changes
+        /// </summary>
+        public void OnSendingChanges(Action<HttpMessageSendChangesResponseArgs> action) => this.On(action);
+
+        /// <summary>
+        /// Interceptor just before sending back scopes
+        /// </summary>
+        public void OnSendingScopes(Action<HttpMessageEnsureScopesResponseArgs> action) => this.On(action);
+
         internal async Task<HttpMessageEnsureScopesResponse> EnsureScopeAsync(HttpMessageEnsureScopesRequest httpMessage, CancellationToken cancellationToken)
         {
 
