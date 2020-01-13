@@ -130,13 +130,7 @@ namespace Dotmim.Sync.Tests
                 // create local proxy client
                 var webclientOrchestrator = new WebClientOrchestrator(serviceUri);
 
-                // call a synchronous database creation
-                HelperDatabase.CreateDatabaseAsync(clientType, dbCliName, true).GetAwaiter().GetResult();
-
                 this.Clients.Add((dbCliName, clientType, localOrchestrator, webclientOrchestrator));
-
-                // wait for 1 sec to be sure database are created correctly
-                System.Threading.Thread.Sleep(1000);
 
             }
 
@@ -170,6 +164,10 @@ namespace Dotmim.Sync.Tests
             // create a server db without seed
             await this.fixture.EnsureDatabaseSchemaAndSeedAsync(Server, false, UseFallbackSchema);
 
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
             // configure server orchestrator
             this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
 
@@ -193,6 +191,10 @@ namespace Dotmim.Sync.Tests
         {
             // create a server db and seed it
             await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // Get count of rows
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
@@ -221,6 +223,10 @@ namespace Dotmim.Sync.Tests
             // configure server orchestrator
             this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
 
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
             // change the remote orchestrator connection string
             Server.WebServerOrchestrator.Provider.ConnectionString = $@"Server=unknown;Database=unknown;UID=sa;PWD=unknown";
 
@@ -240,7 +246,6 @@ namespace Dotmim.Sync.Tests
         [Fact, TestPriority(4)]
         public async Task Bad_TableWithoutPrimaryKeys_ShouldRaiseError()
         {
-
             string tableTestCreationScript = "Create Table TableTest (TestId int, TestName varchar(50))";
 
             // Create an empty server database
@@ -248,6 +253,10 @@ namespace Dotmim.Sync.Tests
 
             // Create the table on the server
             await HelperDatabase.ExecuteScriptAsync(this.Server.ProviderType, this.Server.DatabaseName, tableTestCreationScript); ;
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // Create setup
             var setup = new SyncSetup(new string[] { "TableTest" });
@@ -278,6 +287,10 @@ namespace Dotmim.Sync.Tests
             // create a server db without seed
             await this.fixture.EnsureDatabaseSchemaAndSeedAsync(Server, false, UseFallbackSchema);
 
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
             // Create setup
             var setup = new SyncSetup(Tables);
 
@@ -307,6 +320,10 @@ namespace Dotmim.Sync.Tests
         {
             // create a server db without seed
             await this.fixture.EnsureDatabaseSchemaAndSeedAsync(Server, false, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // Add a fake table to setup tables
             var setup = new SyncSetup(this.Tables);
@@ -339,6 +356,10 @@ namespace Dotmim.Sync.Tests
         {
             // create a server schema without seeding
             await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
             this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
@@ -391,6 +412,10 @@ namespace Dotmim.Sync.Tests
         {
             // create a server schema without seeding
             await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
             this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
@@ -451,6 +476,10 @@ namespace Dotmim.Sync.Tests
         {
             // create a server schema with seeding
             await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // get rows count
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
@@ -582,6 +611,10 @@ namespace Dotmim.Sync.Tests
             // create a server schema without seeding
             await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
 
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
             // Insert a product category and sync it on all clients
             using (var ctx = new AdventureWorksContext(this.Server))
             {
@@ -671,6 +704,10 @@ namespace Dotmim.Sync.Tests
         {
             // create a server schema without seeding
             await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
             this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
@@ -771,6 +808,10 @@ namespace Dotmim.Sync.Tests
         {
             // create a server schema without seeding
             await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
             this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
@@ -874,6 +915,10 @@ namespace Dotmim.Sync.Tests
         {
             // create a server schema without seeding
             await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
             this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
@@ -1003,6 +1048,10 @@ namespace Dotmim.Sync.Tests
             // create a server schema without seeding
             await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
 
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
             // configure server orchestrator
             this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
 
@@ -1062,6 +1111,10 @@ namespace Dotmim.Sync.Tests
         {
             // create a server schema with seeding
             await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
             this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
@@ -1127,6 +1180,10 @@ namespace Dotmim.Sync.Tests
         {
             // create a server schema with seeding
             await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
             this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
@@ -1197,6 +1254,10 @@ namespace Dotmim.Sync.Tests
             // create a server db and seed it
             await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
 
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
             // Get count of rows
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
 
@@ -1231,6 +1292,10 @@ namespace Dotmim.Sync.Tests
         {
             // create a server db and seed it
             await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // Get count of rows
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
@@ -1292,6 +1357,10 @@ namespace Dotmim.Sync.Tests
         {
             // create a server schema without seeding
             await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
             this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
@@ -1388,6 +1457,10 @@ namespace Dotmim.Sync.Tests
         {
             // create a server db and seed it
             await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // Get count of rows
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
