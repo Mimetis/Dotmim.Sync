@@ -9,6 +9,7 @@ using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Filter;
 using Dotmim.Sync.Messages;
 using System.Runtime.Serialization;
+using System.Data.Common;
 
 namespace Dotmim.Sync.Web.Client
 {

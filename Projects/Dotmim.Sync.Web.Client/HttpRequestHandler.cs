@@ -36,7 +36,7 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// Process a request message with HttpClient object. 
         /// </summary>
-        public async Task<U> ProcessRequestAsync<T, U>(HttpClient client, string baseUri, T content, HttpStep step, Guid sessionId,
+        public async Task<U> ProcessRequestAsync<U>(HttpClient client, string baseUri, byte[] data, HttpStep step, Guid sessionId,
             ISerializerFactory serializerFactory, IConverter converter, int batchSize, CancellationToken cancellationToken)
         {
             if (client is null)
@@ -52,8 +52,8 @@ namespace Dotmim.Sync.Web.Client
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
-                // Get serializer
-                var serverSerializer = serializerFactory.GetSerializer<U>();
+                // Get response serializer
+                var responseSerializer = serializerFactory.GetSerializer<U>();
 
                 var requestUri = new StringBuilder();
                 requestUri.Append(baseUri);
@@ -72,10 +72,8 @@ namespace Dotmim.Sync.Web.Client
                     }
                 }
 
-                // serialize dmSet content to bytearraycontent
-                var serializer = serializerFactory.GetSerializer<T>();
-                var binaryData = serializer.Serialize(content);
-                var arrayContent = new ByteArrayContent(binaryData);
+                // get byte array content
+                var arrayContent = new ByteArrayContent(data);
 
                 // reinit client
                 client.DefaultRequestHeaders.Clear();
@@ -152,7 +150,7 @@ namespace Dotmim.Sync.Web.Client
 
                 using (var streamResponse = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
                     if (streamResponse.CanRead && streamResponse.Length > 0)
-                        responseMessage = serverSerializer.Deserialize(streamResponse);
+                        responseMessage = responseSerializer.Deserialize(streamResponse);
 
 
                 return responseMessage;

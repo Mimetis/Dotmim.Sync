@@ -1,4 +1,6 @@
 ﻿using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.SampleConsole;
+using Dotmim.Sync.Serialization;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Tests.Misc;
@@ -15,6 +17,7 @@ using System.Data;
 using System.Data.Common;
 using System.Data.SqlClient;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -127,10 +130,14 @@ namespace Dotmim.Sync.Tests
                 // create local proxy client
                 var webclientOrchestrator = new WebClientOrchestrator(serviceUri);
 
-                // create database
-                HelperDatabase.CreateDatabaseAsync(clientType, dbCliName, true);
+                // call a synchronous database creation
+                HelperDatabase.CreateDatabaseAsync(clientType, dbCliName, true).GetAwaiter().GetResult();
 
                 this.Clients.Add((dbCliName, clientType, localOrchestrator, webclientOrchestrator));
+
+                // wait for 1 sec to be sure database are created correctly
+                System.Threading.Thread.Sleep(1000);
+
             }
 
         }
@@ -185,7 +192,7 @@ namespace Dotmim.Sync.Tests
         public virtual async Task RowsCount(SyncOptions options)
         {
             // create a server db and seed it
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server,  true, UseFallbackSchema);
+            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
 
             // Get count of rows
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
@@ -209,7 +216,7 @@ namespace Dotmim.Sync.Tests
         /// Check a bad connection should raise correct error
         /// </summary>
         [Fact, TestPriority(3)]
-        public async Task BadConnection_FromServer_ShouldRaiseError()
+        public async Task Bad_ConnectionFromServer_ShouldRaiseError()
         {
             // configure server orchestrator
             this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
@@ -269,7 +276,7 @@ namespace Dotmim.Sync.Tests
         public async Task Bad_ColumnSetup_DoesNotExistInSchema_ShouldRaiseError()
         {
             // create a server db without seed
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(Server,  false, UseFallbackSchema);
+            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(Server, false, UseFallbackSchema);
 
             // Create setup
             var setup = new SyncSetup(Tables);
@@ -299,7 +306,7 @@ namespace Dotmim.Sync.Tests
         public async Task Bad_TableSetup_DoesNotExistInSchema_ShouldRaiseError()
         {
             // create a server db without seed
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(Server,  false, UseFallbackSchema);
+            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(Server, false, UseFallbackSchema);
 
             // Add a fake table to setup tables
             var setup = new SyncSetup(this.Tables);
@@ -384,7 +391,7 @@ namespace Dotmim.Sync.Tests
         {
             // create a server schema without seeding
             await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
-          
+
             // configure server orchestrator
             this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
 
@@ -947,7 +954,7 @@ namespace Dotmim.Sync.Tests
             {
                 var agent = new SyncAgent(client.LocalOrchestrator, client.WebClientOrchestrator);
                 agent.Options = options;
-  
+
                 var s = await agent.SynchronizeAsync();
 
                 Assert.Equal(1, s.TotalChangesDownloaded);
@@ -995,7 +1002,7 @@ namespace Dotmim.Sync.Tests
         {
             // create a server schema without seeding
             await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
-            
+
             // configure server orchestrator
             this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
 
@@ -1178,5 +1185,264 @@ namespace Dotmim.Sync.Tests
 
 
         }
+
+
+        /// <summary>
+        /// Insert one row on each client, should be sync on server and clients
+        /// </summary>
+        [Theory, TestPriority(17)]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Bad_Converter_NotRegisteredOnServer_ShouldRaiseError(SyncOptions options)
+        {
+            // create a server db and seed it
+            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // Get count of rows
+            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+
+            // configure server orchestrator
+            this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
+
+            // Execute a sync on all clients and check results
+            foreach (var client in this.Clients)
+            {
+                // Add a converter on the client.
+                // But this converter is not register on the server side converters list.
+                client.WebClientOrchestrator.Converter = new DateConverter();
+                var agent = new SyncAgent(client.LocalOrchestrator, client.WebClientOrchestrator, null, options);
+
+                var exception = await Assert.ThrowsAsync<SyncException>(async () =>
+                {
+                    var s = await agent.SynchronizeAsync();
+
+                });
+
+                Assert.Equal("HttpConverterNotConfiguredException", exception.TypeName);
+            }
+        }
+
+
+        /// <summary>
+        /// Check web interceptors are working correctly
+        /// </summary>
+        [Theory, TestPriority(18)]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Check_Interceptors_WebServerOrchestrator(SyncOptions options)
+        {
+            // create a server db and seed it
+            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // Get count of rows
+            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+
+            // configure server orchestrator
+            this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
+
+            // Get response just before response with changes is send back from server
+            this.Server.WebServerOrchestrator.OnSendingChanges(sra =>
+            {
+                var serializerFactory = this.Server.WebServerOrchestrator.Options.Serializers["json"];
+                var serializer = serializerFactory.GetSerializer<HttpMessageSendChangesResponse>();
+
+                using (var ms = new MemoryStream(sra.Content))
+                {
+                    var o = serializer.Deserialize(ms);
+
+                    // check we have rows
+                    Assert.True(o.Changes.HasRows);
+                }
+            });
+
+            // Get response just before response with scope is send back from server
+            this.Server.WebServerOrchestrator.OnSendingScopes(sra =>
+            {
+                var serializerFactory = this.Server.WebServerOrchestrator.Options.Serializers["json"];
+                var serializer = serializerFactory.GetSerializer<HttpMessageEnsureScopesResponse>();
+
+                using (var ms = new MemoryStream(sra.Content))
+                {
+                    var o = serializer.Deserialize(ms);
+
+                    // check we have a schema
+                    Assert.NotNull(o.Schema);
+                }
+            });
+
+
+            // Execute a sync on all clients and check results
+            foreach (var client in this.Clients)
+            {
+                var agent = new SyncAgent(client.LocalOrchestrator, client.WebClientOrchestrator, null, options);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+            }
+        }
+
+
+
+        /// <summary>
+        /// Check web interceptors are working correctly
+        /// </summary>
+        [Theory, TestPriority(19)]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Check_Interceptors_WebClientOrchestrator(SyncOptions options)
+        {
+            // create a server schema without seeding
+            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+
+            // configure server orchestrator
+            this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
+
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var client in Clients)
+            {
+                var agent = new SyncAgent(client.LocalOrchestrator, client.WebClientOrchestrator);
+                agent.Options = options;
+
+                // Interceptor on sending scopes
+                client.WebClientOrchestrator.OnSendingScopes(sra =>
+                {
+                    var serializerFactory = this.Server.WebServerOrchestrator.Options.Serializers["json"];
+                    var serializer = serializerFactory.GetSerializer<HttpMessageEnsureScopesRequest>();
+
+                    using (var ms = new MemoryStream(sra.Content))
+                    {
+                        var o = serializer.Deserialize(ms);
+
+                        // check we a scope name
+                        Assert.NotEmpty(o.ScopeName);
+                    }
+                });
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(0, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalSyncConflicts);
+
+                client.WebClientOrchestrator.OnSendingScopes(null);
+            }
+
+            // Insert one line on each client
+            foreach (var client in Clients)
+            {
+                var name = HelperDatabase.GetRandomName();
+                var productNumber = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
+
+                var product = new Product { ProductId = Guid.NewGuid(), Name = name, ProductNumber = productNumber };
+
+                using (var serverDbCtx = new AdventureWorksContext(client, this.UseFallbackSchema))
+                {
+                    serverDbCtx.Product.Add(product);
+                    await serverDbCtx.SaveChangesAsync();
+                }
+            }
+
+            // Sync all clients
+            // First client  will upload one line and will download nothing
+            // Second client will upload one line and will download one line
+            // thrid client  will upload one line and will download two lines
+            int download = 0;
+            foreach (var client in Clients)
+            {
+                // Just before sending changes, get changes sent
+                client.WebClientOrchestrator.OnSendingChanges(sra =>
+                {
+                    var serializerFactory = this.Server.WebServerOrchestrator.Options.Serializers["json"];
+                    var serializer = serializerFactory.GetSerializer<HttpMessageSendChangesRequest>();
+
+                    using (var ms = new MemoryStream(sra.Content))
+                    {
+                        var o = serializer.Deserialize(ms);
+
+                        // check we have rows
+                        Assert.True(o.Changes.HasRows);
+                    }
+                });
+
+                var agent = new SyncAgent(client.LocalOrchestrator, client.WebClientOrchestrator);
+                agent.Options = options;
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(download++, s.TotalChangesDownloaded);
+                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalSyncConflicts);
+
+                client.WebClientOrchestrator.OnSendingChanges(null);
+            }
+
+        }
+
+
+
+        /// <summary>
+        /// Insert one row on each client, should be sync on server and clients
+        /// </summary>
+        [Theory, TestPriority(20)]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Converter_Registered_ShouldConvertDateTime(SyncOptions options)
+        {
+            // create a server db and seed it
+            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // Get count of rows
+            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+
+            // configure server orchestrator
+            this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
+
+            // Register converter on the server side
+            this.Server.WebServerOrchestrator.Options.Converters.Add(new DateConverter());
+
+            // Get response just before response sent back from server
+            // Assert if datetime are correctly converted to long
+            this.Server.WebServerOrchestrator.OnSendingChanges(sra =>
+            {
+                var serializerFactory = this.Server.WebServerOrchestrator.Options.Serializers["json"];
+                var serializer = serializerFactory.GetSerializer<HttpMessageSendChangesResponse>();
+                
+                using (var ms = new MemoryStream(sra.Content))
+                {
+                    var o = serializer.Deserialize(ms);
+
+                    // check we have rows
+                    Assert.True(o.Changes.HasRows);
+
+                    // getting a table where we know we have date time
+                    var table = o.Changes.Tables.FirstOrDefault(t => t.TableName == "Employee");
+
+                    Assert.NotNull(table);
+                    Assert.NotEmpty(table.Rows);
+
+                    foreach(var row in table.Rows)
+                    {
+                        var dateCell = row[6];
+
+                        // check we have an integer here
+                        Assert.IsType<long>(dateCell);
+                    }
+                   
+                }
+            });
+
+            // Execute a sync on all clients and check results
+            foreach (var client in this.Clients)
+            {
+                // Add a converter on the client.
+                client.WebClientOrchestrator.Converter = new DateConverter();
+                var agent = new SyncAgent(client.LocalOrchestrator, client.WebClientOrchestrator, null, options);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+            }
+        }
+
+
     }
 }
