@@ -10,7 +10,7 @@ namespace Dotmim.Sync
     {
         private readonly Dictionary<Type, ISyncInterceptor> dictionary = new Dictionary<Type, ISyncInterceptor>();
 
-        internal InterceptorWrapper<T> GetInterceptor<T>() where T : ProgressArgs
+        public InterceptorWrapper<T> GetInterceptor<T>() where T : ProgressArgs
         {
             InterceptorWrapper<T> interceptor = null;
             var typeofT = typeof(T);

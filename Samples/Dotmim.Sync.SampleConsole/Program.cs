@@ -642,7 +642,7 @@ internal class Program
         //agent.Options.BatchSize = 1000;
         //agent.Options.CleanMetadatas = true;
         agent.Options.UseBulkOperations = false;
-        agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
+        agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
         //agent.Options.UseVerboseErrors = false;
         //agent.Options.ScopeInfoTableName = "tscopeinfo";
 
