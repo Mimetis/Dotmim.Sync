@@ -74,9 +74,10 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.AppendLine($"CREATE NONCLUSTERED INDEX [{trackingName.Schema().Unquoted().Normalized().ToString()}_timestamp_index] ON {trackingName.Schema().Quoted().ToString()} (");
-            stringBuilder.AppendLine($"\t [timestamp_bigint] ASC");
-            stringBuilder.AppendLine($"\t,[update_scope_id] ASC");
-            stringBuilder.AppendLine($"\t,[sync_row_is_tombstone] ASC");
+            stringBuilder.AppendLine($"\t  [timestamp_bigint] ASC");
+            stringBuilder.AppendLine($"\t, [sync_row_is_frozen] ASC");
+            stringBuilder.AppendLine($"\t, [update_scope_id] ASC");
+            stringBuilder.AppendLine($"\t, [sync_row_is_tombstone] ASC");
             // Filter columns
             foreach (var filterColumn in this.Filters)
             {

@@ -175,6 +175,7 @@ namespace Dotmim.Sync.Sqlite
 
             stringBuilder.AppendLine($"CREATE INDEX [{trackingName.Schema().Unquoted().Normalized().ToString()}_timestamp_index] ON {trackingName.Schema().Quoted().ToString()} (");
             stringBuilder.AppendLine($"\t [timestamp] ASC");
+            stringBuilder.AppendLine($"\t,[sync_row_is_frozen] ASC");
             stringBuilder.AppendLine($"\t,[update_scope_id] ASC");
             stringBuilder.AppendLine($"\t,[sync_row_is_tombstone] ASC");
             foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
