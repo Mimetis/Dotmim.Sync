@@ -5,10 +5,10 @@
     <Company>Microsoft</Company>
     <RootNamespace>Dotmim.Sync</RootNamespace>
     <Title>Dotmim.Sync.Core</Title>
-    <Summary>Manage a sync process beetween two relational databases provider. Core assembly</Summary>
+    <Summary>Manage a sync process beetween two relational databases provider. Core assembly .Net Standard 2.0</Summary>
     <Description>Dotmim Sync core assembly. Manage a sync process beetween two relational databases provider. Can't be used alone. Choose a server and a client provider such as Dotmim.Sync.SqlServerProvider or Dotmim.Sync.SqliteProvider</Description>
     <PackageProjectUrl>https://mimetis.github.io/Dotmim.Sync/</PackageProjectUrl>
-    <PackageTags>Dotmim.Sync, Sync Core Provider, .Net Standard 2.0, Sync, Synchronization, Sync Framework</PackageTags>
+    <PackageTags>Data, Database, Sync, Synchronization, Framework, Sql, MySql, Sqlite, Dotmim.Sync, NetStandard, SyncFramework</PackageTags>
 
     <VersionSuffix>$(VersionSuffix)</VersionSuffix>
     <Version>0.4.0</Version>
