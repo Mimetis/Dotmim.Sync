@@ -126,7 +126,8 @@ namespace Dotmim.Sync.Builders
         /// </summary>
         private void ParseString(string input, string leftQuote = null, string rightQuote = null)
         {
-            this.key = input == null ? string.Empty : input.Trim();
+            input = input == null ? string.Empty : input.Trim();
+            this.key = input;
 
             if (!string.IsNullOrEmpty(leftQuote) && !string.IsNullOrEmpty(rightQuote))
                 this.key = $"{leftQuote}^{rightQuote}^{input}";
