@@ -156,7 +156,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                     dataRowState = row.RowState;
 
                     var record = new SqlDataRecord(metadatas);
-
+                    
                     int sqlMetadataIndex = 0;
 
                     for (int i = 0; i < schemaChangesTable.Columns.Count; i++)
