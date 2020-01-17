@@ -131,7 +131,7 @@ namespace Dotmim.Sync.SqlServer
         /// <summary>
         /// Get columns for table
         /// </summary>
-        internal static DmTable PrimaryKeysForTable(SqlConnection connection, SqlTransaction transaction, string tableName)
+        public static DmTable PrimaryKeysForTable(SqlConnection connection, SqlTransaction transaction, string tableName)
         {
 
             var commandColumn = @"select ind.name, col.name as columnName, ind_col.column_id, ind_col.key_ordinal 
@@ -172,7 +172,7 @@ namespace Dotmim.Sync.SqlServer
             return dmTable;
         }
 
-        internal static DmTable RelationsForTable(SqlConnection connection, SqlTransaction transaction, string tableName, string schemaName)
+        public static DmTable RelationsForTable(SqlConnection connection, SqlTransaction transaction, string tableName, string schemaName)
         {
 
 
@@ -377,7 +377,7 @@ namespace Dotmim.Sync.SqlServer
             return parser.SchemaName;
         }
 
-        internal static bool IsStringNullOrWhitespace(string value)
+        public static bool IsStringNullOrWhitespace(string value)
         {
             return Regex.Match(value ?? string.Empty, "^\\s*$").Success;
         }
@@ -540,7 +540,7 @@ namespace Dotmim.Sync.SqlServer
             return typeExist;
         }
 
-        internal static string JoinTwoTablesOnClause(IEnumerable<string> columns, string leftName, string rightName)
+        public static string JoinTwoTablesOnClause(IEnumerable<string> columns, string leftName, string rightName)
         {
             var stringBuilder = new StringBuilder();
             string strRightName = (string.IsNullOrEmpty(rightName) ? string.Empty : string.Concat(rightName, "."));
@@ -563,7 +563,7 @@ namespace Dotmim.Sync.SqlServer
             return stringBuilder.ToString();
         }
 
-        internal static string ColumnsAndParameters(IEnumerable<string> columns, string fromPrefix)
+        public static string ColumnsAndParameters(IEnumerable<string> columns, string fromPrefix)
         {
             StringBuilder stringBuilder = new StringBuilder();
             string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));
@@ -583,7 +583,7 @@ namespace Dotmim.Sync.SqlServer
             return stringBuilder.ToString();
         }
 
-        internal static string CommaSeparatedUpdateFromParameters(SyncTable table, string fromPrefix = "")
+        public static string CommaSeparatedUpdateFromParameters(SyncTable table, string fromPrefix = "")
         {
             StringBuilder stringBuilder = new StringBuilder();
             string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));

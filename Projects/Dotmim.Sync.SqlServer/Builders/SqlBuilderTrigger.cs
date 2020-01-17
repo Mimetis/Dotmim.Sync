@@ -43,7 +43,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("UPDATE [side] ");
             stringBuilder.AppendLine("SET \t[sync_row_is_tombstone] = 1");
-            stringBuilder.AppendLine("\t,[sync_row_is_frozen] = 0 -- Unfroze line");
             stringBuilder.AppendLine("\t,[update_scope_id] = NULL -- scope id is always NULL when update is made locally");
             stringBuilder.AppendLine("\t,[last_change_datetime] = GetUtcDate()");
 
@@ -227,7 +226,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("-- If row was deleted before, it already exists, so just make an update");
             stringBuilder.AppendLine("UPDATE [side] ");
             stringBuilder.AppendLine("SET  [sync_row_is_tombstone] = 0");
-            stringBuilder.AppendLine("\t,[sync_row_is_frozen] = 0 -- Unfroze line");
             stringBuilder.AppendLine("\t,[update_scope_id] = NULL -- scope id is always NULL when update is made locally");
             stringBuilder.AppendLine("\t,[last_change_datetime] = GetUtcDate()");
 
@@ -273,7 +271,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.Append(stringBuilderArguments2.ToString());
             stringBuilder.AppendLine("\t,[update_scope_id]");
             stringBuilder.AppendLine("\t,[sync_row_is_tombstone]");
-            stringBuilder.AppendLine("\t,[sync_row_is_frozen]");
             stringBuilder.AppendLine("\t,[last_change_datetime]");
 
             var filterColumnsString = new StringBuilder();
@@ -300,7 +297,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("SELECT");
             stringBuilder.Append(stringBuilderArguments.ToString());
             stringBuilder.AppendLine("\t,NULL");
-            stringBuilder.AppendLine("\t,0");
             stringBuilder.AppendLine("\t,0");
             stringBuilder.AppendLine("\t,GetUtcDate()");
 
@@ -462,7 +458,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("UPDATE [side] ");
             stringBuilder.AppendLine("SET \t[update_scope_id] = NULL -- since the update if from local, it's a NULL");
-            stringBuilder.AppendLine("\t,[sync_row_is_frozen] = 0 -- Unfroze line");
             stringBuilder.AppendLine("\t,[last_change_datetime] = GetUtcDate()");
             // Filter columns
             foreach (var filter in Filters)
@@ -665,7 +660,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             return SqlBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
         }
 
-        public bool NeedToCreateTrigger(DbTriggerType type)
+        public virtual bool NeedToCreateTrigger(DbTriggerType type)
         {
 
             var updTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger).name;

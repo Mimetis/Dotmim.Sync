@@ -641,7 +641,8 @@ internal class Program
         //agent.Options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync");
         //agent.Options.BatchSize = 1000;
         //agent.Options.CleanMetadatas = true;
-        agent.Options.UseBulkOperations = false;
+        agent.Options.UseBulkOperations = true;
+        agent.Options.DisableConstraintsOnApplyChanges = false;
         agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
         //agent.Options.UseVerboseErrors = false;
         //agent.Options.ScopeInfoTableName = "tscopeinfo";
