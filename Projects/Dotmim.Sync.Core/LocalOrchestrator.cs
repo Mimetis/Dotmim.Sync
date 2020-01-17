@@ -303,7 +303,7 @@ namespace Dotmim.Sync
 
                         (context, clientChangesApplied) =
                             await this.Provider.ApplyChangesAsync(context,
-                                new MessageApplyChanges(scope.Id, isNew, lastSyncTS, schema, clientPolicy, disableConstraintsOnApplyChanges,
+                                new MessageApplyChanges(scope.Id, Guid.Empty,  isNew, lastSyncTS, schema, clientPolicy, disableConstraintsOnApplyChanges,
                                         useBulkOperations, cleanMetadatas, serverBatchInfo),
                                     connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 

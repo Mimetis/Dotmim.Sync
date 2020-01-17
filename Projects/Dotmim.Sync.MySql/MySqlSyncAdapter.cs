@@ -167,11 +167,6 @@ namespace Dotmim.Sync.MySql
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
-            p.ParameterName = "sync_row_is_frozen";
-            p.DbType = DbType.Int32;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
             p.ParameterName = "create_timestamp";
             p.DbType = DbType.Int64;
             command.Parameters.Add(p);
@@ -181,7 +176,7 @@ namespace Dotmim.Sync.MySql
             p.DbType = DbType.Int64;
             command.Parameters.Add(p);
         }
-      
+
         private void SetDeleteRowParameters(DbCommand command)
         {
             DbParameter p;
@@ -205,6 +200,11 @@ namespace Dotmim.Sync.MySql
             p = command.CreateParameter();
             p.ParameterName = "sync_min_timestamp";
             p.DbType = DbType.Int64;
+            command.Parameters.Add(p);
+            
+            p = command.CreateParameter();
+            p.ParameterName = "sync_scope_id";
+            p.DbType = DbType.Guid;
             command.Parameters.Add(p);
         }
 
@@ -307,7 +307,7 @@ namespace Dotmim.Sync.MySql
         }
 
 
-        public override void ExecuteBatchCommand(DbCommand cmd, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable, SyncTable failedRows,long lastTimestamp)
+        public override void ExecuteBatchCommand(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable, SyncTable failedRows, long lastTimestamp)
         {
             throw new NotImplementedException();
         }

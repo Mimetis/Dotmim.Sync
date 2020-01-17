@@ -158,7 +158,6 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine($"`update_scope_id` VARCHAR(36) NULL, ");
             stringBuilder.AppendLine($"`timestamp` BIGINT NULL, ");
             stringBuilder.AppendLine($"`sync_row_is_tombstone` BIT NOT NULL default 0, ");
-            stringBuilder.AppendLine($"`sync_row_is_frozen` BIT NOT NULL default 0, ");
             stringBuilder.AppendLine($"`last_change_datetime` DATETIME NULL, ");
 
             if (this.Filters != null && this.Filters.Count() > 0)

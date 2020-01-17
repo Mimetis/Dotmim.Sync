@@ -30,6 +30,11 @@ namespace Dotmim.Sync.Builders
         public bool UseBulkProcedures { get; set; } = true;
 
         /// <summary>
+        /// Gets or Sets if the Database builder shoud use change tracking
+        /// </summary>
+        public bool UseChangeTracking { get; set; } = false;
+
+        /// <summary>
         /// You have to provide a proc builder implementation for your current database
         /// </summary>
         public abstract IDbBuilderProcedureHelper CreateProcBuilder(DbConnection connection, DbTransaction transaction = null);
@@ -102,7 +107,6 @@ namespace Dotmim.Sync.Builders
                 throw new MissingPrimaryKeyException(TableDescription.TableName);
 
             var alreadyOpened = connection.State != ConnectionState.Closed;
-
 
             var trackingTableBuilder = CreateTrackingTableBuilder(connection, transaction);
             trackingTableBuilder.Filters = this.FilterColumns.GetColumnFilters();
