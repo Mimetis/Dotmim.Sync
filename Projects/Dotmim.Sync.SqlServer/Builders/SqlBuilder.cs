@@ -21,7 +21,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             ObjectNames = new SqlObjectNames(tableDescription);
         }
 
-        internal static (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription)
+        public static (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription)
         {
             var originalTableName = ParserName.Parse(tableDescription);
 

@@ -175,67 +175,6 @@ namespace Dotmim.Sync.Sqlite
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
-            p.ParameterName = "@sync_row_is_frozen";
-            p.DbType = DbType.Int32;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "@update_timestamp";
-            p.DbType = DbType.Int64;
-            command.Parameters.Add(p);
-        }
-
-        private void SetInsertRowParameters(DbCommand command)
-        {
-            DbParameter p;
-
-            foreach (var column in this.TableDescription.Columns.Where(c => !c.IsReadOnly))
-            {
-                var unquotedColumn = ParserName.Parse(column).Normalized().Unquoted().ToString();
-
-                p = command.CreateParameter();
-                p.ParameterName = $"@{unquotedColumn}";
-                p.DbType = GetValidDbType(column.GetDbType());
-                p.SourceColumn = column.ColumnName;
-                command.Parameters.Add(p);
-            }
-        }
-
-        private void SetInsertMetadataParameters(DbCommand command)
-        {
-            DbParameter p;
-
-            foreach (var column in this.TableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
-            {
-                var unquotedColumn = ParserName.Parse(column).Normalized().Unquoted().ToString();
-                p = command.CreateParameter();
-                p.ParameterName = $"@{unquotedColumn}";
-                p.DbType = column.GetDbType();
-                p.SourceColumn = column.ColumnName;
-                command.Parameters.Add(p);
-            }
-
-            p = command.CreateParameter();
-            p.ParameterName = "@create_scope_id";
-            p.DbType = DbType.Guid;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "@sync_scope_id";
-            p.DbType = DbType.Guid;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "@sync_row_is_tombstone";
-            p.DbType = DbType.Int32;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "@create_timestamp";
-            p.DbType = DbType.Int64;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
             p.ParameterName = "@update_timestamp";
             p.DbType = DbType.Int64;
             command.Parameters.Add(p);
@@ -309,19 +248,9 @@ namespace Dotmim.Sync.Sqlite
             p.ParameterName = "@sync_scope_id";
             p.DbType = DbType.Guid;
             command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "@sync_scope_is_new";
-            p.DbType = DbType.Boolean;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "@sync_scope_is_reinit";
-            p.DbType = DbType.Boolean;
-            command.Parameters.Add(p);
         }
 
-        public override void ExecuteBatchCommand(DbCommand cmd, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable, SyncTable failedRows, long lastTimestamp)
+        public override void ExecuteBatchCommand(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable, SyncTable failedRows, long lastTimestamp)
         {
             throw new NotImplementedException();
         }

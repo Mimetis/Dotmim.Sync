@@ -117,6 +117,11 @@ namespace Dotmim.Sync
         public abstract bool SupportBulkOperations { get; }
 
         /// <summary>
+        /// Gets a boolean indicating if the provider can use change tracking
+        /// </summary>
+        public virtual bool UseChangeTracking { get; } = false;
+
+        /// <summary>
         /// Gets a boolean indicating if the provider can be a server side provider
         /// </summary>
         public abstract bool CanBeServerProvider { get; }

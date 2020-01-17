@@ -52,33 +52,6 @@ namespace Dotmim.Sync.Sqlite
         public void CreatePk()
         {
             return;
-
-            //bool alreadyOpened = this.connection.State == ConnectionState.Open;
-            //try
-            //{
-            //    using (var command = new SqliteCommand())
-            //    {
-            //        if (!alreadyOpened)
-            //            this.connection.Open();
-
-            //        if (transaction != null)
-            //            command.Transaction = transaction;
-
-            //        command.CommandText = this.CreatePkCommandText();
-            //        command.Connection = this.connection;
-            //        command.ExecuteNonQuery();
-            //    }
-            //}
-            //catch (Exception ex)
-            //{
-            //    Debug.WriteLine($"Error during CreateIndex : {ex}");
-            //    throw;
-            //}
-            //finally
-            //{
-            //    if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-            //        this.connection.Close();
-            //}
         }
         public string CreatePkScriptText()
         {
@@ -154,7 +127,6 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine($"[update_scope_id] [text] NULL COLLATE NOCASE, ");
             stringBuilder.AppendLine($"[timestamp] [integer] NULL, ");
             stringBuilder.AppendLine($"[sync_row_is_tombstone] [integer] NOT NULL default(0), ");
-            stringBuilder.AppendLine($"[sync_row_is_frozen] [integer] NOT NULL default(0), ");
             stringBuilder.AppendLine($"[last_change_datetime] [datetime] NULL, ");
 
             stringBuilder.Append(" PRIMARY KEY (");
@@ -175,7 +147,6 @@ namespace Dotmim.Sync.Sqlite
 
             stringBuilder.AppendLine($"CREATE INDEX [{trackingName.Schema().Unquoted().Normalized().ToString()}_timestamp_index] ON {trackingName.Schema().Quoted().ToString()} (");
             stringBuilder.AppendLine($"\t [timestamp] ASC");
-            stringBuilder.AppendLine($"\t,[sync_row_is_frozen] ASC");
             stringBuilder.AppendLine($"\t,[update_scope_id] ASC");
             stringBuilder.AppendLine($"\t,[sync_row_is_tombstone] ASC");
             foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())

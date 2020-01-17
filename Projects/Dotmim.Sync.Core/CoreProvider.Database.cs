@@ -59,6 +59,7 @@ namespace Dotmim.Sync
                             // get the builder
                             var builder = this.GetDatabaseBuilder(schemaTable);
                             builder.UseBulkProcedures = this.SupportBulkOperations;
+                            builder.UseChangeTracking = this.UseChangeTracking;
 
                             // adding filters
                             this.AddFilters(schemaTable, builder);
@@ -166,6 +167,7 @@ namespace Dotmim.Sync
                             await this.InterceptAsync(new TableProvisioningArgs(null, provision, schemaTable, connection, transaction)).ConfigureAwait(false);
 
                             builder.UseBulkProcedures = this.SupportBulkOperations;
+                            builder.UseChangeTracking = this.UseChangeTracking;
 
                             // adding filters
                             this.AddFilters(schemaTable, builder);
@@ -242,6 +244,7 @@ namespace Dotmim.Sync
                 var builder = this.GetDatabaseBuilder(schemaTable);
                 // set if the builder supports creating the bulk operations proc stock
                 builder.UseBulkProcedures = this.SupportBulkOperations;
+                builder.UseChangeTracking = this.UseChangeTracking;
 
                 // adding filter
                 this.AddFilters(schemaTable, builder);
