@@ -148,7 +148,7 @@ namespace Dotmim.Sync
 
                         (context, changesApplied) =
                             await this.Provider.ApplyChangesAsync(context,
-                             new MessageApplyChanges(Guid.Empty, false, scope.LastServerSyncTimestamp, schema, policy,
+                             new MessageApplyChanges(Guid.Empty, scope.Id, false, scope.LastServerSyncTimestamp, schema, policy,
                                         disableConstraintsOnApplyChanges, useBulkOperations, cleanMetadatas, clientBatchInfo),
                              connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 

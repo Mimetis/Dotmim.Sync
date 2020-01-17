@@ -130,7 +130,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         /// <summary>
         /// Executing a batch command
         /// </summary>
-        public override void ExecuteBatchCommand(DbCommand cmd, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable, SyncTable failedRows, long lastTimestamp)
+        public override void ExecuteBatchCommand(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable, SyncTable failedRows, long lastTimestamp)
         {
 
             var applyRowsCount = applyRows.Count();
@@ -141,13 +141,10 @@ namespace Dotmim.Sync.SqlServer.Builders
             var dataRowState = DataRowState.Unchanged;
 
             var records = new List<SqlDataRecord>(applyRowsCount);
-            SqlMetaData[] metadatas = new SqlMetaData[schemaChangesTable.Columns.Count + 1];
+            SqlMetaData[] metadatas = new SqlMetaData[schemaChangesTable.Columns.Count];
 
             for (int i = 0; i < schemaChangesTable.Columns.Count; i++)
                 metadatas[i] = GetSqlMetadaFromType(schemaChangesTable.Columns[i]);
-
-            // specify update_scope_id metadata
-            metadatas[schemaChangesTable.Columns.Count] = new SqlMetaData("update_scope_id", SqlDbType.UniqueIdentifier);
 
             try
             {
@@ -359,8 +356,6 @@ namespace Dotmim.Sync.SqlServer.Builders
                         sqlMetadataIndex++;
                     }
 
-                    // set update_scope_id value
-                    record.SetGuid(schemaChangesTable.Columns.Count, row.UpdateScopeId.Value);
 
                     records.Add(record);
                 }
@@ -373,6 +368,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             ((SqlParameterCollection)cmd.Parameters)["@changeTable"].TypeName = string.Empty;
             ((SqlParameterCollection)cmd.Parameters)["@changeTable"].Value = records;
             ((SqlParameterCollection)cmd.Parameters)["@sync_min_timestamp"].Value = lastTimestamp;
+            ((SqlParameterCollection)cmd.Parameters)["@sync_scope_id"].Value = senderScopeId;
 
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 

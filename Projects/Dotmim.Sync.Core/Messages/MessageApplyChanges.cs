@@ -16,11 +16,12 @@ namespace Dotmim.Sync.Messages
         /// Applying changes message.
         /// Be careful policy could be differente from the schema (especially on client side, it's the reverse one, by default)
         /// </summary>
-        public MessageApplyChanges(Guid localScopeId, bool isNew, long lastTimestamp, SyncSet schema, 
+        public MessageApplyChanges(Guid localScopeId, Guid senderScopeId,  bool isNew, long lastTimestamp, SyncSet schema, 
                                     ConflictResolutionPolicy policy, bool disableConstraintsOnApplyChanges, 
                                     bool useBulkOperations, bool cleanMetadatas, BatchInfo changes)
         {
             this.LocalScopeId = localScopeId;
+            this.SenderScopeId = senderScopeId;
             this.IsNew = isNew;
             this.LastTimestamp = lastTimestamp;
             this.Schema = schema ?? throw new ArgumentNullException(nameof(schema));
@@ -33,9 +34,14 @@ namespace Dotmim.Sync.Messages
 
 
         /// <summary>
-        /// Gets or Sets the local Scope Id
+        /// Gets the local Scope Id
         /// </summary>
         public Guid LocalScopeId { get; }
+
+        /// <summary>
+        /// Gets the sender Scope Id
+        /// </summary>
+        public Guid SenderScopeId { get; }
 
 
         /// <summary>

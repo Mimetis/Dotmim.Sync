@@ -42,7 +42,6 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine("BEGIN");
             stringBuilder.AppendLine($"UPDATE {trackingName.Quoted().ToString()} ");
             stringBuilder.AppendLine("SET [sync_row_is_tombstone] = 1");
-            stringBuilder.AppendLine("\t,[sync_row_is_frozen] = 0 -- unfroze row");
             stringBuilder.AppendLine("\t,[update_scope_id] = NULL -- scope id is always NULL when update is made locally");
             stringBuilder.AppendLine($"\t,[timestamp] = {SqliteObjectNames.TimestampValue}");
             stringBuilder.AppendLine("\t,[last_change_datetime] = datetime('now')");
@@ -140,7 +139,6 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.Append(stringBuilderArguments.ToString());
             stringBuilder.AppendLine("\t\t,[update_scope_id]");
             stringBuilder.AppendLine("\t\t,[timestamp]");
-            stringBuilder.AppendLine("\t\t,[sync_row_is_frozen]");
             stringBuilder.AppendLine("\t\t,[sync_row_is_tombstone]");
             stringBuilder.AppendLine("\t\t,[last_change_datetime]");
 
@@ -149,7 +147,6 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.Append(stringBuilderArguments2.ToString());
             stringBuilder.AppendLine("\t\t,NULL");
             stringBuilder.AppendLine($"\t\t,{SqliteObjectNames.TimestampValue}");
-            stringBuilder.AppendLine("\t\t,0");
             stringBuilder.AppendLine("\t\t,0");
             stringBuilder.AppendLine("\t\t,datetime('now')");
             stringBuilder.AppendLine("\t);");
@@ -223,7 +220,6 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine($"Begin ");
             stringBuilder.AppendLine($"\tUPDATE {trackingName.Quoted().ToString()} ");
             stringBuilder.AppendLine("\tSET [update_scope_id] = NULL -- scope id is always NULL when update is made locally");
-            stringBuilder.AppendLine($"\t\t,[sync_row_is_frozen] = 0 -- unfroze row");
             stringBuilder.AppendLine($"\t\t,[timestamp] = {SqliteObjectNames.TimestampValue}");
             stringBuilder.AppendLine("\t\t,[last_change_datetime] = datetime('now')");
 

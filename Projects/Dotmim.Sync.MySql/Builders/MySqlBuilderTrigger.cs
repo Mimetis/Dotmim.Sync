@@ -39,7 +39,6 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine("BEGIN");
             stringBuilder.AppendLine($"UPDATE {trackingName.Quoted().ToString()} ");
             stringBuilder.AppendLine("SET `sync_row_is_tombstone` = 1");
-            stringBuilder.AppendLine("\t,`sync_row_is_frozen` = 0 ");
             stringBuilder.AppendLine("\t,`update_scope_id` = NULL ");
             stringBuilder.AppendLine($"\t,`timestamp` = {MySqlObjectNames.TimestampValue}");
             stringBuilder.AppendLine("\t,`last_change_datetime` = utc_timestamp()");
@@ -160,7 +159,6 @@ namespace Dotmim.Sync.MySql
             stringBuilder.Append(stringBuilderArguments.ToString());
             stringBuilder.AppendLine("\t\t,`update_scope_id`");
             stringBuilder.AppendLine("\t\t,`timestamp`");
-            stringBuilder.AppendLine("\t\t,`sync_row_is_frozen`");
             stringBuilder.AppendLine("\t\t,`sync_row_is_tombstone`");
             stringBuilder.AppendLine("\t\t,`last_change_datetime`");
 
@@ -190,7 +188,6 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine("\t\t,NULL");
             stringBuilder.AppendLine($"\t\t,{MySqlObjectNames.TimestampValue}");
             stringBuilder.AppendLine("\t\t,0");
-            stringBuilder.AppendLine("\t\t,0");
             stringBuilder.AppendLine("\t\t,utc_timestamp()");
 
             if (Filters != null && Filters.Count() > 0)
@@ -200,7 +197,6 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine("ON DUPLICATE KEY UPDATE");
             stringBuilder.AppendLine("\t`update_scope_id` = NULL, ");
             stringBuilder.AppendLine("\t`sync_row_is_tombstone` = 0, ");
-            stringBuilder.AppendLine("\t`sync_row_is_frozen` = 0, ");
             stringBuilder.AppendLine($"\t`timestamp` = {MySqlObjectNames.TimestampValue}, ");
             stringBuilder.AppendLine("\t`last_change_datetime` = utc_timestamp()");
 
@@ -280,7 +276,6 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine($"Begin ");
             stringBuilder.AppendLine($"\tUPDATE {trackingName.Quoted().ToString()} ");
             stringBuilder.AppendLine("\tSET `update_scope_id` = NULL ");
-            stringBuilder.AppendLine("\t\t, `sync_row_is_frozen` = 0 ");
             stringBuilder.AppendLine($"\t\t,`timestamp` = {MySqlObjectNames.TimestampValue}");
             stringBuilder.AppendLine("\t\t,`last_change_datetime` = utc_timestamp()");
 

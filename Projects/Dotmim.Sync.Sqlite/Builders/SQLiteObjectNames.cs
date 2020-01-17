@@ -119,7 +119,7 @@ namespace Dotmim.Sync.Sqlite
                 stringBuilder.AppendLine($"       EXISTS (");
                 stringBuilder.AppendLine($"         SELECT * FROM {trackingName.Quoted().ToString()} ");
                 stringBuilder.AppendLine($"         WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, "")}");
-                stringBuilder.AppendLine($"         AND (timestamp < @sync_min_timestamp OR sync_row_is_frozen = 1)");
+                stringBuilder.AppendLine($"         AND (timestamp < @sync_min_timestamp OR update_scope_id = @sync_scope_id)");
                 stringBuilder.AppendLine($"         )");
                 stringBuilder.AppendLine($"       OR @sync_force_write = 1");
                 stringBuilder.AppendLine($"      );");
@@ -145,7 +145,7 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine($"       EXISTS (");
             stringBuilder.AppendLine($"         SELECT * FROM {trackingName.Quoted().ToString()} ");
             stringBuilder.AppendLine($"         WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, "")}");
-            stringBuilder.AppendLine($"         AND (timestamp < @sync_min_timestamp OR sync_row_is_frozen = 1)");
+            stringBuilder.AppendLine($"         AND (timestamp < @sync_min_timestamp OR update_scope_id = @sync_scope_id)");
             stringBuilder.AppendLine($"         )");
             stringBuilder.AppendLine($"        OR NOT EXISTS ( ");
             stringBuilder.AppendLine($"         SELECT * FROM {trackingName.Quoted().ToString()} ");
@@ -180,9 +180,9 @@ namespace Dotmim.Sync.Sqlite
                 empty = ", ";
             }
             stringBuilder.AppendLine($"\t({stringBuilderArguments.ToString()}, ");
-            stringBuilder.AppendLine($"\t[update_scope_id], [sync_row_is_tombstone], [sync_row_is_frozen], [timestamp], [last_change_datetime])");
+            stringBuilder.AppendLine($"\t[update_scope_id], [sync_row_is_tombstone], [timestamp], [last_change_datetime])");
             stringBuilder.AppendLine($"\tVALUES ({stringBuilderParameters.ToString()}, ");
-            stringBuilder.AppendLine($"\t@sync_scope_id, @sync_row_is_tombstone, @sync_row_is_frozen, {SqliteObjectNames.TimestampValue}, datetime('now'));");
+            stringBuilder.AppendLine($"\t@sync_scope_id, @sync_row_is_tombstone, {SqliteObjectNames.TimestampValue}, datetime('now'));");
 
             this.AddName(DbCommandType.UpdateMetadata, stringBuilder.ToString());
 
@@ -208,7 +208,7 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine($"AND (EXISTS (");
             stringBuilder.AppendLine($"     SELECT * FROM {trackingName.Quoted().ToString()} ");
             stringBuilder.AppendLine($"     WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, "")}");
-            stringBuilder.AppendLine($"     AND (timestamp < @sync_min_timestamp OR sync_row_is_frozen = 1))");
+            stringBuilder.AppendLine($"     AND (timestamp < @sync_min_timestamp OR update_scope_id = @sync_scope_id))");
             stringBuilder.AppendLine($"  OR @sync_force_write = 1");
             stringBuilder.AppendLine($" );");
 
@@ -281,8 +281,10 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("WHERE (");
             stringBuilder.AppendLine("\t[side].[timestamp] > @sync_min_timestamp");
-            stringBuilder.AppendLine("\tAND (([side].[sync_row_is_frozen] = 0 AND ([side].[update_scope_id] <> @sync_scope_id OR [side].[update_scope_id] IS NULL))");
-            stringBuilder.AppendLine("\tOR ([side].[sync_row_is_frozen] = 1 AND [side].[update_scope_id] <> @sync_scope_id AND [side].[update_scope_id] IS NOT NULL))");
+            stringBuilder.AppendLine("\tAND ([side].[update_scope_id] <> @sync_scope_id OR [side].[update_scope_id] IS NULL)");
+
+            //stringBuilder.AppendLine("\tAND (([side].[sync_row_is_frozen] = 0 AND ([side].[update_scope_id] <> @sync_scope_id OR [side].[update_scope_id] IS NULL))");
+            //stringBuilder.AppendLine("\tOR ([side].[sync_row_is_frozen] = 1 AND [side].[update_scope_id] <> @sync_scope_id AND [side].[update_scope_id] IS NOT NULL))");
             stringBuilder.AppendLine(")");
 
             this.AddName(DbCommandType.SelectChanges, stringBuilder.ToString());

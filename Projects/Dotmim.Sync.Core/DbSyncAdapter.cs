@@ -58,7 +58,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Execute a batch command
         /// </summary>
-        public abstract void ExecuteBatchCommand(DbCommand cmd, IEnumerable<SyncRow> arrayItems, SyncTable schemaChangesTable, SyncTable failedRows, long lastTimestamp);
+        public abstract void ExecuteBatchCommand(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> arrayItems, SyncTable schemaChangesTable, SyncTable failedRows, long lastTimestamp);
 
         /// <summary>
         /// Gets the current connection. could be opened
@@ -111,7 +111,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Insert or update a metadata line
         /// </summary>
-        internal bool InsertOrUpdateMetadatas(DbCommand command, SyncRow row, bool isFrozen)
+        internal bool InsertOrUpdateMetadatas(DbCommand command, SyncRow row, Guid senderScopeId)
         {
             if (row.Table == null)
                 throw new ArgumentException("Schema table columns does not exist");
@@ -140,14 +140,9 @@ namespace Dotmim.Sync
                     isTombstone = rowValue.GetType() == typeof(bool) ? (bool)rowValue : Convert.ToInt64(rowValue) > 0;
             }
 
-            // TODO : Delete this after all tests. 
-            // Debug test
-            if (!row.UpdateScopeId.HasValue)
-                throw new Exception("Should not be null !");
 
             DbTableManagerFactory.SetParameterValue(command, "sync_row_is_tombstone", isTombstone ? 1 : 0);
-            DbTableManagerFactory.SetParameterValue(command, "sync_scope_id", row.UpdateScopeId);
-            DbTableManagerFactory.SetParameterValue(command, "sync_row_is_frozen", isFrozen ? 1 : 0);
+            DbTableManagerFactory.SetParameterValue(command, "sync_scope_id", senderScopeId);
 
             var alreadyOpened = Connection.State == ConnectionState.Open;
 
@@ -229,7 +224,6 @@ namespace Dotmim.Sync
                                 else
                                     throw new Exception("Impossible to parse row['update_scope_id']");
 
-
                                 continue;
                             }
 
@@ -257,7 +251,7 @@ namespace Dotmim.Sync
         /// Launch apply bulk changes
         /// </summary>
         /// <returns></returns>
-        public int ApplyBulkChanges(Guid localScopeId, SyncTable changesTable, long lastTimestamp, List<SyncConflict> conflicts)
+        public int ApplyBulkChanges(Guid localScopeId, Guid senderScopeId, SyncTable changesTable, long lastTimestamp, List<SyncConflict> conflicts)
         {
             DbCommand bulkCommand;
             if (this.ApplyType == DataRowState.Modified)
@@ -300,7 +294,7 @@ namespace Dotmim.Sync
                 var arrayStepChanges = changesTable.Rows.ToList().Skip(step).Take(taken);
 
                 // execute the batch, through the provider
-                ExecuteBatchCommand(bulkCommand, arrayStepChanges, changesTable, failedPrimaryKeysTable, lastTimestamp);
+                ExecuteBatchCommand(bulkCommand, senderScopeId, arrayStepChanges, changesTable, failedPrimaryKeysTable, lastTimestamp);
             }
 
             // Disposing command
@@ -374,7 +368,7 @@ namespace Dotmim.Sync
             return conflict;
         }
 
-        private void UpdateMetadatas(DbCommandType dbCommandType, SyncRow row)
+        private void UpdateMetadatas(DbCommandType dbCommandType, SyncRow row, Guid senderScopeId)
         {
             using (var dbCommand = this.GetCommand(dbCommandType))
             {
@@ -382,7 +376,7 @@ namespace Dotmim.Sync
                     throw new MissingCommandException(dbCommandType.ToString());
 
                 this.SetCommandParameters(dbCommandType, dbCommand);
-                this.InsertOrUpdateMetadatas(dbCommand, row, true);
+                this.InsertOrUpdateMetadatas(dbCommand, row, senderScopeId);
             }
         }
 
@@ -392,7 +386,7 @@ namespace Dotmim.Sync
         /// </summary>
         /// <param name="changes">Changes from remote</param>
         /// <returns>every lines not updated on the server side</returns>
-        internal int ApplyChanges(Guid localScopeId, SyncTable changesTable, long lastTimestamp, List<SyncConflict> conflicts)
+        internal int ApplyChanges(Guid localScopeId, Guid senderScopeId, SyncTable changesTable, long lastTimestamp, List<SyncConflict> conflicts)
         {
             int appliedRows = 0;
 
@@ -404,17 +398,17 @@ namespace Dotmim.Sync
                 {
                     if (ApplyType == DataRowState.Modified)
                     {
-                        operationComplete = this.ApplyUpdate(row, lastTimestamp, false);
+                        operationComplete = this.ApplyUpdate(row, lastTimestamp, senderScopeId, false);
 
                         if (operationComplete)
-                            UpdateMetadatas(DbCommandType.UpdateMetadata, row);
+                            UpdateMetadatas(DbCommandType.UpdateMetadata, row, senderScopeId);
                     }
                     else if (ApplyType == DataRowState.Deleted)
                     {
-                        operationComplete = this.ApplyDelete(row, lastTimestamp, false);
+                        operationComplete = this.ApplyDelete(row, lastTimestamp, senderScopeId, false);
 
                         if (operationComplete)
-                            UpdateMetadatas(DbCommandType.UpdateMetadata, row);
+                            UpdateMetadatas(DbCommandType.UpdateMetadata, row, senderScopeId);
                     }
 
                     if (operationComplete)
@@ -457,7 +451,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Apply a delete on a row
         /// </summary>
-        internal bool ApplyDelete(SyncRow row, long lastTimestamp, bool forceWrite)
+        internal bool ApplyDelete(SyncRow row, long lastTimestamp, Guid? senderScopeId, bool forceWrite)
         {
             if (row.Table == null)
                 throw new ArgumentException("Schema table is not present in the row");
@@ -474,7 +468,7 @@ namespace Dotmim.Sync
                 this.SetColumnParametersValues(command, row);
 
                 // Set the special parameters for update
-                this.AddScopeParametersValues(command, row.UpdateScopeId.Value, lastTimestamp, true, forceWrite);
+                this.AddScopeParametersValues(command, senderScopeId, lastTimestamp, true, forceWrite);
 
                 var alreadyOpened = Connection.State == ConnectionState.Open;
 
@@ -499,7 +493,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Apply a single update in the current datasource. if forceWrite, override conflict situation and force the update
         /// </summary>
-        internal bool ApplyUpdate(SyncRow row, long lastTimestamp, bool forceWrite)
+        internal bool ApplyUpdate(SyncRow row, long lastTimestamp, Guid? senderScopeId, bool forceWrite)
         {
             if (row.Table == null)
                 throw new ArgumentException("Schema table is not present in the row");
@@ -516,7 +510,7 @@ namespace Dotmim.Sync
                 this.SetColumnParametersValues(command, row);
 
                 // Set the special parameters for update
-                AddScopeParametersValues(command, row.UpdateScopeId.Value, lastTimestamp, false, forceWrite);
+                AddScopeParametersValues(command, senderScopeId, lastTimestamp, false, forceWrite);
 
                 var alreadyOpened = Connection.State == ConnectionState.Open;
                 
@@ -632,12 +626,12 @@ namespace Dotmim.Sync
         /// Add common parameters which could be part of the command
         /// if not found, no set done
         /// </summary>
-        private void AddScopeParametersValues(DbCommand command, Guid id, long lastTimestamp, bool isDeleted, bool forceWrite)
+        private void AddScopeParametersValues(DbCommand command, Guid? id, long lastTimestamp, bool isDeleted, bool forceWrite)
         {
             // Dotmim.Sync parameters
             DbTableManagerFactory.SetParameterValue(command, "sync_force_write", (forceWrite ? 1 : 0));
             DbTableManagerFactory.SetParameterValue(command, "sync_min_timestamp", lastTimestamp);
-            DbTableManagerFactory.SetParameterValue(command, "sync_scope_id", id);
+            DbTableManagerFactory.SetParameterValue(command, "sync_scope_id", id.HasValue ? (object)id.Value : DBNull.Value);
             DbTableManagerFactory.SetParameterValue(command, "sync_row_is_tombstone", isDeleted);
         }
 

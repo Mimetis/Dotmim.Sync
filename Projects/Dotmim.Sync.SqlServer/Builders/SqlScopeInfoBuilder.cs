@@ -12,9 +12,9 @@ namespace Dotmim.Sync.SqlServer.Scope
 {
     public class SqlScopeInfoBuilder : IDbScopeInfoBuilder
     {
-        private readonly ParserName scopeTableName;
-        private readonly SqlConnection connection;
-        private readonly SqlTransaction transaction;
+        protected readonly ParserName scopeTableName;
+        protected readonly SqlConnection connection;
+        protected readonly SqlTransaction transaction;
 
         public SqlScopeInfoBuilder(string scopeTableName, DbConnection connection, DbTransaction transaction = null)
         {
@@ -24,7 +24,7 @@ namespace Dotmim.Sync.SqlServer.Scope
             
         }
 
-        public void CreateScopeInfoTable()
+        public virtual void CreateScopeInfoTable()
         {
             var command = connection.CreateCommand();
             if (transaction != null)
@@ -64,7 +64,7 @@ namespace Dotmim.Sync.SqlServer.Scope
             }
         }
 
-        public void DropScopeInfoTable()
+        public virtual void DropScopeInfoTable()
         {
             var command = connection.CreateCommand();
             if (transaction != null)
@@ -95,7 +95,7 @@ namespace Dotmim.Sync.SqlServer.Scope
             }
         }
 
-        public List<ScopeInfo> GetAllScopes(string scopeName)
+        public virtual List<ScopeInfo> GetAllScopes(string scopeName)
         {
             var command = connection.CreateCommand();
             if (transaction != null)
@@ -163,7 +163,7 @@ namespace Dotmim.Sync.SqlServer.Scope
             }
         }
 
-        public long GetLocalTimestamp()
+        public virtual long GetLocalTimestamp()
         {
             var command = connection.CreateCommand();
             if (transaction != null)
@@ -215,7 +215,7 @@ namespace Dotmim.Sync.SqlServer.Scope
             }
         }
 
-        public ScopeInfo InsertOrUpdateScopeInfo(ScopeInfo scopeInfo)
+        public virtual ScopeInfo InsertOrUpdateScopeInfo(ScopeInfo scopeInfo)
         {
             var command = connection.CreateCommand();
             if (transaction != null)
@@ -336,7 +336,7 @@ namespace Dotmim.Sync.SqlServer.Scope
         }
 
 
-        public bool NeedToCreateScopeInfoTable()
+        public virtual bool NeedToCreateScopeInfoTable()
         {
             var command = connection.CreateCommand();
             if (transaction != null)
