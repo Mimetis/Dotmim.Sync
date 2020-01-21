@@ -5,7 +5,9 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Data.SqlClient;
+using System.Data.SqlTypes;
 using System.Globalization;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -20,7 +22,6 @@ namespace Dotmim.Sync.SqlServer
         /// </summary>
         public static DmTable Table(SqlConnection connection, SqlTransaction transaction, string tableName, string schemaName)
         {
-
             var command = $"Select top 1 tbl.name as TableName, " +
                           $"sch.name as SchemaName " +
                           $"  from sys.tables as tbl  " +
@@ -377,10 +378,71 @@ namespace Dotmim.Sync.SqlServer
             return parser.SchemaName;
         }
 
-        public static bool IsStringNullOrWhitespace(string value)
+        public static bool IsChangeTrackingEnabled(SqlConnection connection, SqlTransaction transaction)
         {
-            return Regex.Match(value ?? string.Empty, "^\\s*$").Success;
+            bool flag;
+            string commandText = @"if (exists(
+                                Select* from sys.change_tracking_databases ct
+                                Inner join sys.databases d on d.database_id = ct.database_id
+                                where d.name = @databaseName)) 
+                                Select 1 Else Select 0";
+
+            using (var sqlCommand = new SqlCommand(commandText, connection))
+            {
+                sqlCommand.Parameters.AddWithValue("@databaseName", connection.Database);
+
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    connection.Open();
+
+                if (transaction != null)
+                    sqlCommand.Transaction = transaction;
+
+                flag = (int)sqlCommand.ExecuteScalar() != 0;
+
+                if (!alreadyOpened)
+                    connection.Close();
+            }
+            return flag;
+
         }
+
+
+        public static bool DatabaseExists(SqlConnection connection, SqlTransaction transaction)
+        {
+            bool tableExist;
+
+            using (DbCommand dbCommand = connection.CreateCommand())
+            {
+                dbCommand.CommandText = "IF EXISTS (SELECT * FROM sys.databases WHERE name = @databaseName) SELECT 1 ELSE SELECT 0";
+
+                var sqlParameter = new SqlParameter()
+                {
+                    ParameterName = "@databaseName",
+                    Value = connection.Database
+                };
+                dbCommand.Parameters.Add(sqlParameter);
+
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    connection.Open();
+
+                if (transaction != null)
+                    dbCommand.Transaction = transaction;
+
+                tableExist = (int)dbCommand.ExecuteScalar() != 0;
+
+                if (!alreadyOpened)
+                    connection.Close();
+
+
+
+            }
+            return tableExist;
+        }
+
 
         public static bool ProcedureExists(SqlConnection connection, SqlTransaction transaction, string quotedProcedureName)
         {

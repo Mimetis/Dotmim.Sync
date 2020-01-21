@@ -277,6 +277,25 @@ namespace Dotmim.Sync.Sqlite
             return stringBuilder.ToString();
         }
 
+        internal static string WhereColumnIsNull(IEnumerable<string> columns, string fromPrefix)
+        {
+            var stringBuilder = new StringBuilder();
+            string strFromPrefix = string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, ".");
+            string str1 = "";
+            foreach (var column in columns)
+            {
+                var quotedColumn = ParserName.Parse(column).Quoted().ToString();
+
+                stringBuilder.Append(str1);
+                stringBuilder.Append(strFromPrefix);
+                stringBuilder.Append(quotedColumn);
+                stringBuilder.Append(" IS NULL ");
+                str1 = " AND ";
+            }
+            return stringBuilder.ToString();
+        }
+
+
         internal static string CommaSeparatedUpdateFromParameters(SyncTable table, string fromPrefix = "")
         {
             var stringBuilder = new StringBuilder();

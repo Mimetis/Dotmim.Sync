@@ -30,7 +30,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             this.connection = connection as SqlConnection;
             this.transaction = transaction as SqlTransaction;
             this.tableDescription = tableDescription;
-            (this.tableName, this.trackingName) = SqlBuilder.GetParsers(this.tableDescription);
+            (this.tableName, this.trackingName) = SqlTableBuilder.GetParsers(this.tableDescription);
             this.sqlDbMetadata = new SqlDbMetadata();
         }
 
@@ -104,7 +104,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         public string CreateIndexScriptText()
         {
             string str = string.Concat("Create index on Tracking Table ", trackingName.Schema().Quoted().ToString());
-            return SqlBuilder.WrapScriptTextWithComments(this.CreateIndexCommandText(), str);
+            return SqlTableBuilder.WrapScriptTextWithComments(this.CreateIndexCommandText(), str);
         }
 
         public void CreatePk()
@@ -145,7 +145,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         public string CreatePkScriptText()
         {
             string str = string.Concat("Create Primary Key on Tracking Table ", trackingName.Schema().Quoted().ToString());
-            return SqlBuilder.WrapScriptTextWithComments(this.CreatePkCommandText(), str);
+            return SqlTableBuilder.WrapScriptTextWithComments(this.CreatePkCommandText(), str);
         }
 
         public string CreatePkCommandText()
@@ -243,12 +243,12 @@ namespace Dotmim.Sync.SqlServer.Builders
         public string CreateTableScriptText()
         {
             string str = string.Concat("Create Tracking Table ", trackingName.Schema().Quoted().ToString());
-            return SqlBuilder.WrapScriptTextWithComments(this.CreateTableCommandText(), str);
+            return SqlTableBuilder.WrapScriptTextWithComments(this.CreateTableCommandText(), str);
         }
         public string DropTableScriptText()
         {
             string str = string.Concat("Droping Tracking Table ", trackingName.Schema().Quoted().ToString());
-            return SqlBuilder.WrapScriptTextWithComments(this.CreateTableCommandText(), str);
+            return SqlTableBuilder.WrapScriptTextWithComments(this.CreateTableCommandText(), str);
         }
 
         private string CreateDropTableCommandText()
@@ -416,7 +416,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         public string CreatePopulateFromBaseTableScriptText()
         {
             string str = string.Concat("Populate tracking table ", trackingName.Schema().Quoted().ToString(), " for existing data in table ", tableName.Schema().Quoted().ToString());
-            return SqlBuilder.WrapScriptTextWithComments(this.CreatePopulateFromBaseTableCommandText(), str);
+            return SqlTableBuilder.WrapScriptTextWithComments(this.CreatePopulateFromBaseTableCommandText(), str);
         }
 
 
@@ -468,7 +468,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
             var quotedColumnName = ParserName.Parse(filterColumn).Quoted().ToString();
             string str = string.Concat("Add new filter column, ", quotedColumnName, ", to Tracking Table ", trackingName.Schema().Quoted().ToString());
-            return SqlBuilder.WrapScriptTextWithComments(this.AddFilterColumnCommandText(filterColumn), str);
+            return SqlTableBuilder.WrapScriptTextWithComments(this.AddFilterColumnCommandText(filterColumn), str);
         }
 
 

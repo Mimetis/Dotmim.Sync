@@ -57,6 +57,16 @@ namespace Dotmim.Sync.Tests
         public abstract int GetServerDatabaseRowsCount((string DatabaseName, ProviderType ProviderType, IOrchestrator Orchestrator) t);
 
 
+        /// <summary>
+        /// Create database, seed it, with or without schema
+        /// </summary>
+        /// <param name="t"></param>
+        /// <param name="useSeeding"></param>
+        /// <param name="useFallbackSchema"></param>
+        public abstract Task EnsureDatabaseSchemaAndSeedAsync((string DatabaseName,
+            ProviderType ProviderType, IOrchestrator Orchestrator) t, bool useSeeding = false, bool useFallbackSchema = false);
+
+
         // abstract fixture used to run the tests
         protected readonly HelperProvider fixture;
 
@@ -77,6 +87,13 @@ namespace Dotmim.Sync.Tests
         /// Gets a bool indicating if we should generate the schema for tables
         /// </summary>
         public bool UseFallbackSchema => ServerType == ProviderType.Sql;
+
+
+        /// <summary>
+        /// Create an empty database
+        /// </summary>
+        public abstract Task CreateDatabaseAsync(ProviderType providerType, string dbName, bool recreateDb = true);
+
 
         public ITestOutputHelper Output { get; }
 
@@ -146,11 +163,11 @@ namespace Dotmim.Sync.Tests
         public virtual async Task SchemaIsCreated()
         {
             // create a server db without seed
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
 
             // create empty client databases
             foreach (var client in this.Clients)
-                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
@@ -214,11 +231,11 @@ namespace Dotmim.Sync.Tests
         public virtual async Task RowsCount(SyncOptions options)
         {
             // create a server db and seed it
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
 
             // create empty client databases
             foreach (var client in this.Clients)
-                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // Get count of rows
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
@@ -247,11 +264,11 @@ namespace Dotmim.Sync.Tests
         public async Task Insert_TwoTables_FromServer(SyncOptions options)
         {
             // create a server schema and seed
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
 
             // create empty client databases
             foreach (var client in this.Clients)
-                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // Get count of rows
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
@@ -317,11 +334,11 @@ namespace Dotmim.Sync.Tests
         public async Task Insert_TwoTables_FromClient(SyncOptions options)
         {
             // create a server schema and seed
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
 
             // create empty client databases
             foreach (var client in this.Clients)
-                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // Get count of rows
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
@@ -419,11 +436,11 @@ namespace Dotmim.Sync.Tests
         public async Task Delete_TwoTables_FromClient(SyncOptions options)
         {
             // create a server schema and seed
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
 
             // create empty client databases
             foreach (var client in this.Clients)
-                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // Get count of rows
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);

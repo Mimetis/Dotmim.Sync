@@ -6,6 +6,7 @@ using System;
 using System.Data.Common;
 using Microsoft.Data.Sqlite;
 using System.IO;
+using Dotmim.Sync.Sqlite.Builders;
 
 namespace Dotmim.Sync.Sqlite
 {
@@ -179,10 +180,12 @@ namespace Dotmim.Sync.Sqlite
 
 
 
-        public override DbBuilder GetDatabaseBuilder(SyncTable tableDescription) => new SqliteBuilder(tableDescription);
+        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription) => new SqliteTableBuilder(tableDescription);
 
         public override DbTableManagerFactory GetTableManagerFactory(string tableName, string schemaName) => new SqliteManager(tableName);
 
         public override DbScopeBuilder GetScopeBuilder() => new SqliteScopeBuilder();
+
+        public override DbBuilder GetDatabaseBuilder() => new SqliteBuilder();
     }
 }

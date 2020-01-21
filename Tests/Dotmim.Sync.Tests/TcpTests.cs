@@ -3,6 +3,7 @@ using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.SqlServer.Manager;
 using Dotmim.Sync.Tests.Core;
+using Dotmim.Sync.Tests.Misc;
 using Dotmim.Sync.Tests.Models;
 using Dotmim.Sync.Web.Client;
 using Dotmim.Sync.Web.Server;
@@ -24,6 +25,7 @@ using Xunit.Abstractions;
 
 namespace Dotmim.Sync.Tests
 {
+    [TestCaseOrderer("Dotmim.Sync.Tests.Misc.PriorityOrderer", "Dotmim.Sync.Tests")]
     public abstract class TcpTests : IClassFixture<HelperProvider>, IDisposable
     {
         private Stopwatch stopwatch;
@@ -48,6 +50,20 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         public abstract int GetServerDatabaseRowsCount((string DatabaseName, ProviderType ProviderType, IOrchestrator Orchestrator) t);
 
+
+        /// <summary>
+        /// Create database, seed it, with or without schema
+        /// </summary>
+        /// <param name="t"></param>
+        /// <param name="useSeeding"></param>
+        /// <param name="useFallbackSchema"></param>
+        public abstract Task EnsureDatabaseSchemaAndSeedAsync((string DatabaseName,
+            ProviderType ProviderType, IOrchestrator Orchestrator) t, bool useSeeding = false, bool useFallbackSchema = false);
+
+        /// <summary>
+        /// Create an empty database
+        /// </summary>
+        public abstract Task CreateDatabaseAsync(ProviderType providerType, string dbName, bool recreateDb = true);
 
         // abstract fixture used to run the tests
         protected readonly HelperProvider fixture;
@@ -124,7 +140,6 @@ namespace Dotmim.Sync.Tests
         {
             HelperDatabase.DropDatabase(this.ServerType, Server.DatabaseName);
 
-
             foreach (var client in Clients)
             {
                 HelperDatabase.DropDatabase(client.ProviderType, client.DatabaseName);
@@ -138,16 +153,16 @@ namespace Dotmim.Sync.Tests
 
         }
 
-        [Theory]
+        [Theory, TestPriority(1)]
         [ClassData(typeof(SyncOptionsData))]
         public virtual async Task RowsCount(SyncOptions options)
         {
             // create a server db and seed it
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
 
             // create empty client databases
             foreach (var client in this.Clients)
-                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // Get count of rows
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
@@ -165,16 +180,16 @@ namespace Dotmim.Sync.Tests
             }
         }
 
-        [Theory]
+        [Theory, TestPriority(2)]
         [ClassData(typeof(SyncOptionsData))]
         public virtual async Task SchemaIsCreated(SyncOptions options)
         {
             // create a server db without seed
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
 
             // create empty client databases
             foreach (var client in this.Clients)
-                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
@@ -272,7 +287,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Check a bad connection should raise correct error
         /// </summary>
-        [Fact]
+        [Fact, TestPriority(3)]
         public async Task Bad_ConnectionFromServer_ShouldRaiseError()
         {
             // change the remote orchestrator connection string
@@ -280,7 +295,7 @@ namespace Dotmim.Sync.Tests
 
             // create empty client databases
             foreach (var client in this.Clients)
-                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
@@ -297,7 +312,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Check a bad connection should raise correct error
         /// </summary>
-        [Fact]
+        [Fact, TestPriority(4)]
         public async Task Bad_ConnectionFromClient_ShouldRaiseError()
         {
             // Execute a sync on all clients and check results
@@ -317,20 +332,20 @@ namespace Dotmim.Sync.Tests
         }
 
 
-        [Fact]
+        [Fact, TestPriority(5)]
         public async Task Bad_TableWithoutPrimaryKeys_ShouldRaiseError()
         {
             string tableTestCreationScript = "Create Table TableTest (TestId int, TestName varchar(50))";
 
             // Create an empty server database
-            await HelperDatabase.CreateDatabaseAsync(this.ServerType, this.Server.DatabaseName, true);
+            await this.CreateDatabaseAsync(this.ServerType, this.Server.DatabaseName, true);
 
             // Create the table on the server
             await HelperDatabase.ExecuteScriptAsync(this.Server.ProviderType, this.Server.DatabaseName, tableTestCreationScript); ;
 
             // create empty client databases
             foreach (var client in this.Clients)
-                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // Create setup
             var setup = new SyncSetup(new string[] { "TableTest" });
@@ -353,15 +368,15 @@ namespace Dotmim.Sync.Tests
             }
         }
 
-        [Fact]
+        [Fact, TestPriority(6)]
         public async Task Bad_ColumnSetup_DoesNotExistInSchema_ShouldRaiseError()
         {
             // create a server db without seed
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
 
             // create empty client databases
             foreach (var client in this.Clients)
-                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // Create setup
             var setup = new SyncSetup(Tables);
@@ -384,15 +399,15 @@ namespace Dotmim.Sync.Tests
             }
         }
 
-        [Fact]
+        [Fact, TestPriority(7)]
         public async Task Bad_TableSetup_DoesNotExistInSchema_ShouldRaiseError()
         {
             // create a server db without seed
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
 
             // create empty client databases
             foreach (var client in this.Clients)
-                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // Add a fake table to setup tables
             var setup = new SyncSetup(this.Tables);
@@ -416,16 +431,16 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Check interceptors are correctly called
         /// </summary>
-        [Theory]
+        [Theory, TestPriority(8)]
         [ClassData(typeof(SyncOptionsData))]
         public virtual async Task Check_Interceptors(SyncOptions options)
         {
             // create a server schema without seeding
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
 
             // create empty client databases
             foreach (var client in this.Clients)
-                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // replicate schema with a no rows sync
             foreach (var client in this.Clients)
@@ -538,16 +553,16 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert one row on server, should be correctly sync on all clients
         /// </summary>
-        [Theory]
+        [Theory, TestPriority(9)]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Insert_OneTable_FromServer(SyncOptions options)
         {
             // create a server schema without seeding
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
 
             // create empty client databases
             foreach (var client in this.Clients)
-                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
@@ -591,16 +606,16 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert one row on server, should be correctly sync on all clients
         /// </summary>
-        [Theory]
+        [Theory, TestPriority(10)]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Insert_OneTable_ThenDelete_FromServer(SyncOptions options)
         {
             // create a server schema without seeding
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
 
             // create empty client databases
             foreach (var client in this.Clients)
-                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
@@ -654,16 +669,16 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert one row on server, should be correctly sync on all clients
         /// </summary>
-        [Theory]
+        [Theory, TestPriority(11)]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Insert_OneTable_ThenUpdate_FromServer(SyncOptions options)
         {
             // create a server schema without seeding
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
 
             // create empty client databases
             foreach (var client in this.Clients)
-                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
@@ -718,16 +733,16 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert one row on each client, should be sync on server and clients
         /// </summary>
-        [Theory]
+        [Theory, TestPriority(12)]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Insert_OneTable_FromClient(SyncOptions options)
         {
             // create a server schema without seeding
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
 
             // create empty client databases
             foreach (var client in this.Clients)
-                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
@@ -779,16 +794,16 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert one row in two tables on server, should be correctly sync on all clients
         /// </summary>
-        [Theory]
+        [Theory, TestPriority(13)]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Insert_TwoTables_FromServer(SyncOptions options)
         {
             // create a server schema without seeding
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
 
             // create empty client databases
             foreach (var client in this.Clients)
-                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
@@ -838,16 +853,16 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert one row on each client, should be sync on server and clients
         /// </summary>
-        [Theory]
+        [Theory, TestPriority(14)]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Insert_TwoTables_FromClient(SyncOptions options)
         {
             // create a server schema without seeding
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
 
             // create empty client databases
             foreach (var client in this.Clients)
-                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
@@ -929,7 +944,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Update one row on server, should be correctly sync on all clients
         /// </summary>
-        [Theory]
+        [Theory, TestPriority(15)]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Update_OneTable_FromServer(SyncOptions options)
         {
@@ -938,11 +953,11 @@ namespace Dotmim.Sync.Tests
             var addressLine = HelperDatabase.GetRandomName("Address");
 
             // create a server schema with seeding
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
 
             // create empty client databases
             foreach (var client in this.Clients)
-                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // get rows count
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
@@ -997,16 +1012,16 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Update one row on client, should be correctly sync on server then all clients
         /// </summary>
-        [Theory]
+        [Theory, TestPriority(16)]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Update_OneTable_FromClient(SyncOptions options)
         {
             // create a server schema with seeding
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
 
             // create empty client databases
             foreach (var client in this.Clients)
-                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // get rows count
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
@@ -1096,16 +1111,16 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Update one row on client, should be correctly sync on server then all clients
         /// </summary>
-        [Theory]
+        [Theory, TestPriority(17)]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Update_NullValue_FromClient(SyncOptions options)
         {
             // create a server schema with seeding
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
 
             // create empty client databases
             foreach (var client in this.Clients)
-                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // get rows count
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
@@ -1193,16 +1208,16 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Update one row on server, should be correctly sync on all clients
         /// </summary>
-        [Theory]
+        [Theory, TestPriority(18)]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Update_NullValue_FromServer(SyncOptions options)
         {
             // create a server schema with seeding
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
 
             // create empty client databases
             foreach (var client in this.Clients)
-                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // get rows count
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
@@ -1288,16 +1303,16 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Delete rows on server, should be correctly sync on all clients
         /// </summary>
-        [Theory]
+        [Theory, TestPriority(19)]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Delete_OneTable_FromServer(SyncOptions options)
         {
             // create a server schema with seeding
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
 
             // create empty client databases
             foreach (var client in this.Clients)
-                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // get rows count
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
@@ -1412,7 +1427,7 @@ namespace Dotmim.Sync.Tests
         /// Generate a conflict when inserting one row on server and the same row on each client
         /// Server should wins the conflict since it's the default behavior
         /// </summary>
-        [Theory]
+        [Theory, TestPriority(20)]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_DeleteClient_UpdateServer_ServerShouldWins(SyncOptions options)
         {
@@ -1421,11 +1436,11 @@ namespace Dotmim.Sync.Tests
             var productCategoryNameUpdated = HelperDatabase.GetRandomName("SRV");
 
             // create a server schema without seeding
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
 
             // create empty client databases
             foreach (var client in this.Clients)
-                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // Insert a product category and sync it on all clients
             using (var ctx = new AdventureWorksContext(this.Server))
@@ -1506,7 +1521,7 @@ namespace Dotmim.Sync.Tests
         /// Deleting a client row and sync, let the tracking table row on the client database
         /// When downloading the same row from server, the tracking table should be aligned with this new row
         /// </summary>
-        [Theory]
+        [Theory, TestPriority(21)]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Delete_Client_Sync_InsertServer_Sync_ClientShouldHaveRow(SyncOptions options)
         {
@@ -1515,11 +1530,11 @@ namespace Dotmim.Sync.Tests
             var productCategoryNameServer = HelperDatabase.GetRandomName("SRV_");
 
             // create a server schema without seeding
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
 
             // create empty client databases
             foreach (var client in this.Clients)
-                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
@@ -1613,16 +1628,16 @@ namespace Dotmim.Sync.Tests
         /// Generate a conflict when inserting one row on server and the same row on each client
         /// Server should wins the conflict since it's the default behavior
         /// </summary>
-        [Theory]
+        [Theory, TestPriority(22)]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_Insert_Insert_ServerShouldWins(SyncOptions options)
         {
             // create a server schema without seeding
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
 
             // create empty client databases
             foreach (var client in this.Clients)
-                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
@@ -1713,16 +1728,16 @@ namespace Dotmim.Sync.Tests
         /// Generate a conflict when inserting one row on server and the same row on each client
         /// Client should wins the conflict because configuration set to ClientWins
         /// </summary>
-        [Theory]
+        [Theory, TestPriority(23)]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_Insert_Insert_ClientShouldWins_CozConfiguration(SyncOptions options)
         {
             // create a server schema without seeding
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
 
             // create empty client databases
             foreach (var client in this.Clients)
-                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // set correct ConflictResolution
             options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
@@ -1825,16 +1840,16 @@ namespace Dotmim.Sync.Tests
         /// Generate a conflict when inserting one row on server and the same row on each client
         /// Client should wins the conflict because we have an event raised
         /// </summary>
-        [Theory]
+        [Theory, TestPriority(24)]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_Insert_Insert_ClientShouldWins_CozHandler(SyncOptions options)
         {
             // create a server schema without seeding
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
 
             // create empty client databases
             foreach (var client in this.Clients)
-                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
@@ -1938,16 +1953,16 @@ namespace Dotmim.Sync.Tests
         /// Generate a conflict when inserting one row on server and the same row on each client
         /// Server should wins the conflict because default behavior
         /// </summary>
-        [Theory]
+        [Theory, TestPriority(25)]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_Update_Update_ServerShouldWins(SyncOptions options)
         {
             // create a server schema without seeding
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
 
             // create empty client databases
             foreach (var client in this.Clients)
-                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // Conflict product category
             var conflictProductCategoryId = "BIKES";
@@ -2042,16 +2057,16 @@ namespace Dotmim.Sync.Tests
         /// Generate a conflict when inserting one row on server and the same row on each client
         /// Server should wins the conflict because default behavior
         /// </summary>
-        [Theory]
+        [Theory, TestPriority(26)]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_Update_Update_ClientShouldWins_CozConfiguration(SyncOptions options)
         {
             // create a server schema without seeding
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
 
             // create empty client databases
             foreach (var client in this.Clients)
-                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // Set conflict resolution
             options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
@@ -2149,16 +2164,16 @@ namespace Dotmim.Sync.Tests
         /// Generate a conflict when inserting one row on server and the same row on each client
         /// Client should wins coz handler
         /// </summary>
-        [Theory]
+        [Theory, TestPriority(27)]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_Update_Update_ClientShouldWins_CozHandler(SyncOptions options)
         {
             // create a server schema without seeding
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
 
             // create empty client databases
             foreach (var client in this.Clients)
-                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // Conflict product category
             var conflictProductCategoryId = "BIKES";
@@ -2269,16 +2284,16 @@ namespace Dotmim.Sync.Tests
         /// Generate a conflict when inserting one row on server and the same row on each client
         /// Client should wins coz handler
         /// </summary>
-        [Theory]
+        [Theory, TestPriority(28)]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_Update_Update_Resolved_ByMerge(SyncOptions options)
         {
             // create a server schema without seeding
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
 
             // create empty client databases
             foreach (var client in this.Clients)
-                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // Conflict product category
             var conflictProductCategoryId = "BIKES";
@@ -2397,12 +2412,12 @@ namespace Dotmim.Sync.Tests
         /// Generate a conflict when inserting one row on server and the same row on each client
         /// Client should wins coz handler
         /// </summary>
-        //[Fact]
+        //[Fact, TestPriority(29)]
         public async Task Using_ExistingClientDatabase_ProvisionDeprovision()
         {
             // create empty client databases
             foreach (var client in this.Clients)
-                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // generate a sync conf to host the schema
             var setup = new SyncSetup(this.Tables);
@@ -2411,7 +2426,7 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create a client schema without seeding
-                await this.fixture.EnsureDatabaseSchemaAndSeedAsync(client, false, UseFallbackSchema);
+                await this.EnsureDatabaseSchemaAndSeedAsync(client, false, UseFallbackSchema);
 
                 // just check interceptor
                 client.LocalOrchestrator.On<TableProvisioningArgs>(args =>
@@ -2453,7 +2468,7 @@ namespace Dotmim.Sync.Tests
                     using (var dbConnection = client.LocalOrchestrator.Provider.CreateConnection())
                     {
                         // get the database manager factory then the db manager itself
-                        var dbTableBuilder = client.LocalOrchestrator.Provider.GetDatabaseBuilder(syncTable);
+                        var dbTableBuilder = client.LocalOrchestrator.Provider.GetTableBuilder(syncTable);
 
                         // get builders
                         var trackingTablesBuilder = dbTableBuilder.CreateTrackingTableBuilder(dbConnection);
@@ -2513,7 +2528,7 @@ namespace Dotmim.Sync.Tests
                     using (var dbConnection = client.LocalOrchestrator.Provider.CreateConnection())
                     {
                         // get the database manager factory then the db manager itself
-                        var dbTableBuilder = client.LocalOrchestrator.Provider.GetDatabaseBuilder(dmTable);
+                        var dbTableBuilder = client.LocalOrchestrator.Provider.GetTableBuilder(dmTable);
 
                         // get builders
                         var trackingTablesBuilder = dbTableBuilder.CreateTrackingTableBuilder(dbConnection);
@@ -2564,15 +2579,15 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Check foreign keys existence
         /// </summary>
-        [Fact]
+        [Fact, TestPriority(30)]
         public async Task Check_Composite_ForeignKey_Existence()
         {
             // create a server schema without seeding
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
 
             // create empty client databases
             foreach (var client in this.Clients)
-                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
@@ -2636,16 +2651,16 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Be sure we continue to trakc correctly rows even during a sync process
         /// </summary>
-        [Theory]
+        [Theory, TestPriority(31)]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Insert_Record_Then_Insert_During_GetChanges(SyncOptions options)
         {
             // create a server schema without seeding
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
 
             // create empty client databases
             foreach (var client in this.Clients)
-                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
@@ -2803,16 +2818,16 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert thousand or rows. Check if batch mode works correctly
         /// </summary>
-        [Theory]
+        [Theory, TestPriority(32)]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Insert_ThousandRows_FromClient(SyncOptions options)
         {
             // create a server schema without seeding
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
 
             // create empty client databases
             foreach (var client in this.Clients)
-                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
@@ -2867,11 +2882,11 @@ namespace Dotmim.Sync.Tests
         public async Task Force_Failing_Constraints_ButWorks_WithOptions(SyncOptions options)
         {
             // create a server schema without seeding
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
 
             // create empty client databases
             foreach (var client in this.Clients)
-                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // Disable check constraints
             // "true" is the default value, but set for information purpose
@@ -2966,16 +2981,16 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         /// <param name="options"></param>
         /// <returns></returns>
-        [Theory]
+        [Theory, TestPriority(33)]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Force_Failing_Constraints_ButWorks_WithInterceptors(SyncOptions options)
         {
             // create a server schema without seeding
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
 
             // create empty client databases
             foreach (var client in this.Clients)
-                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // Enable check constraints
             options.DisableConstraintsOnApplyChanges = false;
@@ -3166,16 +3181,16 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert one row on each client, should be sync on server and clients
         /// </summary>
-        [Theory]
+        [Theory, TestPriority(34)]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Reinitialize_Client(SyncOptions options)
         {
             // create a server schema with seeding
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
 
             // create empty client databases
             foreach (var client in this.Clients)
-                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // Get count of rows
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
@@ -3232,16 +3247,16 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert one row on each client, should be sync on server and clients
         /// </summary>
-        [Theory]
+        [Theory, TestPriority(35)]
         [ClassData(typeof(SyncOptionsData))]
         public async Task ReinitializeWithUpload_Client(SyncOptions options)
         {
             // create a server schema with seeding
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
 
             // create empty client databases
             foreach (var client in this.Clients)
-                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // Get count of rows
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
@@ -3303,15 +3318,15 @@ namespace Dotmim.Sync.Tests
         /// Configuring tables to be upload only
         /// Server should receive lines but will not send back its own lines
         /// </summary>
-        [Fact]
+        [Fact, TestPriority(36)]
         public async Task UploadOnly()
         {
             // create a server schema without seeding
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
 
             // create empty client databases
             foreach (var client in this.Clients)
-                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // Set Employee, Address, EmployeeAddress to Upload only
             // All others are Bidirectional by default.
@@ -3541,15 +3556,15 @@ namespace Dotmim.Sync.Tests
         /// Configuring tables to be upload only
         /// Server should receive lines but will not send back its own lines
         /// </summary>
-        [Fact]
+        [Fact, TestPriority(37)]
         public async Task DownloadOnly()
         {
             // create a server schema without seeding
-            await this.fixture.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
 
             // create empty client databases
             foreach (var client in this.Clients)
-                await HelperDatabase.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // Set Employee, Address, EmployeeAddress to Upload only
             // All others are Bidirectional by default.
@@ -3771,6 +3786,107 @@ namespace Dotmim.Sync.Tests
                     var addresses = await cliCtx.Address.AsNoTracking().ToListAsync();
                     Assert.Equal(2, addresses.Count);
 
+                }
+            }
+        }
+
+
+        /// <summary>
+        /// Deleting a client row and sync, let the tracking table row on the client database
+        /// When downloading the same row from server, the tracking table should be aligned with this new row
+        /// </summary>
+        [Theory, TestPriority(38)]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Delete_OneTable_FromClient(SyncOptions options)
+        {
+            // create a server schema without seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var client in Clients)
+                await new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator,
+                                    new SyncSetup(Tables), options).SynchronizeAsync();
+
+            // Insert a new product category on each client
+            foreach (var client in Clients)
+            {
+                // Insert product category on each client
+                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
+                {
+                    var productCategoryId = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 6);
+                    var productCategoryNameClient = HelperDatabase.GetRandomName("CLI_");
+
+                    ctx.Add(new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryNameClient });
+                    await ctx.SaveChangesAsync();
+                }
+              
+            }
+
+            // Execute a sync on all clients to not avoid any conflict
+            var download = 0;
+            foreach (var client in Clients)
+            {
+                var s = await new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator,
+                                            new SyncSetup(Tables), options).SynchronizeAsync();
+
+                Assert.Equal(download, s.TotalChangesDownloaded);
+                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalSyncConflicts);
+                download++;
+            }
+
+            // Execute a sync on all clients to be sure all clients have download all others clients product
+            foreach (var client in Clients)
+                await new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator,
+                                    new SyncSetup(Tables), options).SynchronizeAsync();
+
+
+            // Now delete rows on each client
+            foreach (var client in Clients)
+            {
+                // Then delete all product category items
+                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
+                {
+                    foreach(var pc in ctx.ProductCategory) 
+                        ctx.ProductCategory.Remove(pc);
+                    await ctx.SaveChangesAsync();
+                }
+            }
+
+            var conflictCount = 0; // first client won't have any conflicts, but others will upload their deleted rows that are ALREADY deleted
+            foreach (var client in Clients)
+            {
+                var s = await new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator,
+                                            new SyncSetup(Tables), options).SynchronizeAsync();
+
+                Assert.Equal(0, s.TotalChangesDownloaded);
+                Assert.Equal(Clients.Count, s.TotalChangesUploaded);
+                Assert.Equal(conflictCount, s.TotalSyncConflicts);
+                
+                conflictCount = Clients.Count;
+            }
+
+            // check rows count on server and on each client
+            using (var ctx = new AdventureWorksContext(this.Server))
+            {
+                // get all product categories
+                var serverPC = await ctx.ProductCategory.AsNoTracking().CountAsync();
+                Assert.Equal(0, serverPC);
+
+                foreach (var client in Clients)
+                {
+                    using (var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema))
+                    {
+                        // get all product categories
+                        var clientPC = await cliCtx.ProductCategory.AsNoTracking().CountAsync();
+
+                        // check row count
+                        Assert.Equal(0, clientPC);
+                    }
                 }
             }
         }
