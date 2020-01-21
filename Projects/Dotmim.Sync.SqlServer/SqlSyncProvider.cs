@@ -126,8 +126,9 @@ namespace Dotmim.Sync.SqlServer
      
         public override DbConnection CreateConnection() => new SqlConnection(this.ConnectionString);
         public override DbScopeBuilder GetScopeBuilder() => new SqlScopeBuilder();
-        public override DbBuilder GetDatabaseBuilder(SyncTable tableDescription) => new SqlBuilder(tableDescription);
+        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription) => new SqlTableBuilder(tableDescription);
         public override DbTableManagerFactory GetTableManagerFactory(string tableName, string schemaName) => new SqlManager(tableName, schemaName);
-
+        public override DbBuilder GetDatabaseBuilder() => new SqlBuilder();
+       
     }
 }

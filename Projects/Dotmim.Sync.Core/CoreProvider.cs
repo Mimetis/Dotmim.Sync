@@ -75,11 +75,18 @@ namespace Dotmim.Sync
         /// </summary>
         public abstract DbConnection CreateConnection();
 
+
+        /// <summary>
+        /// Get a database builder helper;
+        /// </summary>
+        /// <returns></returns>
+        public abstract DbBuilder GetDatabaseBuilder();
+
         /// <summary>
         /// Get a table builder helper. Need a complete table description (SchemaTable). Will then generate table, table tracking, stored proc and triggers
         /// </summary>
         /// <returns></returns>
-        public abstract DbBuilder GetDatabaseBuilder(SyncTable tableDescription);
+        public abstract DbTableBuilder GetTableBuilder(SyncTable tableDescription);
 
         /// <summary>
         /// Get a table manager, which can get informations directly from data source

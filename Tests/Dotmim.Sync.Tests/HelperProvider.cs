@@ -27,7 +27,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Create a server database, and get the server provider associated
         /// </summary>
-        public T CreateOrchestrator<T>(ProviderType providerType, string dbName) where T : IOrchestrator
+        public T CreateOrchestrator<T>(ProviderType providerType, string dbName, bool useChangeTracking = false) where T : IOrchestrator
         {
             // Get connection string
             var cs = HelperDatabase.GetConnectionString(providerType, dbName);
@@ -47,7 +47,7 @@ namespace Dotmim.Sync.Tests
             switch (providerType)
             {
                 case ProviderType.Sql:
-                    orchestrator.Provider = new SqlSyncProvider(cs);
+                    orchestrator.Provider = useChangeTracking ? new SqlSyncChangeTrackingProvider(cs) : new SqlSyncProvider(cs);
                     break;
                 case ProviderType.MySql:
                     orchestrator.Provider = new MySqlSyncProvider(cs);
@@ -59,68 +59,7 @@ namespace Dotmim.Sync.Tests
             return (T)orchestrator;
         }
 
-        public string GetMySqlConnectionsInformations()
-        {
-            string res;
-            using (var connection = new MySqlConnection(HelperDatabase.GetConnectionString(ProviderType.MySql, "sys")))
-            {
-                using (var command = connection.CreateCommand())
-                {
-                    command.CommandText = "SHOW STATUS LIKE 'max_used_connections';";
-                    command.Connection = connection;
-                    connection.Open();
-                    using (var r = command.ExecuteReader())
-                    {
-                        r.Read();
-                        res = $"Max Used Connections : {r[1].ToString()}";
-                        res += Environment.NewLine;
-                    }
-                    connection.Close();
-                }
-                using (var command = connection.CreateCommand())
-                {
-                    command.CommandText = "SHOW VARIABLES LIKE 'max_connections';";
-                    command.Connection = connection;
-                    connection.Open();
-                    using (var r = command.ExecuteReader())
-                    {
-                        r.Read();
-
-                        res += $"Max Connections : {r[1].ToString()}";
-                    }
-                    connection.Close();
-                }
-            }
-            return res;
-
-        }
-
-
-
-        /// <summary>
-        /// Create schema and seed the database
-        /// </summary>
-        internal async Task EnsureDatabaseSchemaAndSeedAsync((string DatabaseName, 
-            ProviderType ProviderType, IOrchestrator Orchestrator) t, bool useSeeding = false, bool useFallbackSchema = false)
-        {
-            AdventureWorksContext ctx = null;
-            try
-            {
-                ctx = new AdventureWorksContext(t, useFallbackSchema, useSeeding);
-                await ctx.Database.EnsureCreatedAsync();
-
-
-            }
-            catch (Exception)
-            {
-            }
-            finally
-            {
-                if (ctx != null)
-                    ctx.Dispose();
-            }
-        }
-
+ 
         public void Dispose()
         {
         }

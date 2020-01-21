@@ -30,7 +30,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             this.transaction = transaction as SqlTransaction;
 
             this.tableDescription = tableDescription;
-            (this.tableName, this.trackingName) = SqlBuilder.GetParsers(this.tableDescription);
+            (this.tableName, this.trackingName) = SqlTableBuilder.GetParsers(this.tableDescription);
             this.sqlDbMetadata = new SqlDbMetadata();
         }
 
@@ -181,7 +181,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 $"and child {constraint.GetTable().TableName}";
 
             var constraintScript = BuildForeignKeyConstraintsCommand(constraint).CommandText;
-            stringBuilder.Append(SqlBuilder.WrapScriptTextWithComments(constraintScript, constraintName));
+            stringBuilder.Append(SqlTableBuilder.WrapScriptTextWithComments(constraintScript, constraintName));
             stringBuilder.AppendLine();
 
             return stringBuilder.ToString();
@@ -241,7 +241,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             var stringBuilder = new StringBuilder();
             var pkName = $"Create primary keys for table {tableName.Schema().Quoted().ToString()}";
             var pkScript = BuildPkCommand().CommandText;
-            stringBuilder.Append(SqlBuilder.WrapScriptTextWithComments(pkScript, pkName));
+            stringBuilder.Append(SqlTableBuilder.WrapScriptTextWithComments(pkScript, pkName));
             stringBuilder.AppendLine();
             return stringBuilder.ToString();
         }
@@ -404,7 +404,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             StringBuilder stringBuilder = new StringBuilder();
             var tableNameScript = $"Create Table {tableName.Schema().Quoted().ToString()}";
             var tableScript = BuildTableCommand().CommandText;
-            stringBuilder.Append(SqlBuilder.WrapScriptTextWithComments(tableScript, tableNameScript));
+            stringBuilder.Append(SqlTableBuilder.WrapScriptTextWithComments(tableScript, tableNameScript));
             stringBuilder.AppendLine();
             return stringBuilder.ToString();
         }
@@ -414,7 +414,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             StringBuilder stringBuilder = new StringBuilder();
             var tableNameScript = $"Drop Table {tableName.Schema().Quoted().ToString()}";
             var tableScript = BuildTableCommand().CommandText;
-            stringBuilder.Append(SqlBuilder.WrapScriptTextWithComments(tableScript, tableNameScript));
+            stringBuilder.Append(SqlTableBuilder.WrapScriptTextWithComments(tableScript, tableNameScript));
             stringBuilder.AppendLine();
             return stringBuilder.ToString();
         }
@@ -427,7 +427,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             StringBuilder stringBuilder = new StringBuilder();
             var schemaNameScript = $"Create Schema {tableName.SchemaName}";
             var schemaScript = $"Create Schema {tableName.SchemaName}";
-            stringBuilder.Append(SqlBuilder.WrapScriptTextWithComments(schemaScript, schemaNameScript));
+            stringBuilder.Append(SqlTableBuilder.WrapScriptTextWithComments(schemaScript, schemaNameScript));
             stringBuilder.AppendLine();
             return stringBuilder.ToString();
 

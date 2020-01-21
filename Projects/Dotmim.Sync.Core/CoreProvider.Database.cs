@@ -57,7 +57,7 @@ namespace Dotmim.Sync
                             await this.InterceptAsync(new TableDeprovisioningArgs(null, provision, schemaTable, connection, transaction)).ConfigureAwait(false);
 
                             // get the builder
-                            var builder = this.GetDatabaseBuilder(schemaTable);
+                            var builder = this.GetTableBuilder(schemaTable);
                             builder.UseBulkProcedures = this.SupportBulkOperations;
                             builder.UseChangeTracking = this.UseChangeTracking;
 
@@ -146,6 +146,15 @@ namespace Dotmim.Sync
                         // Launch any interceptor if available
                         await this.InterceptAsync(beforeArgs).ConfigureAwait(false);
 
+                        // get Database builder
+                        var builder = this.GetDatabaseBuilder();
+                        builder.UseChangeTracking = this.UseChangeTracking;
+                        builder.UseBulkProcedures = this.SupportBulkOperations;
+
+                        // Initialize database if needed
+                        builder.EnsureDatabase(connection, transaction);
+
+
                         if (provision.HasFlag(SyncProvision.Scope) || provision.HasFlag(SyncProvision.All))
                         {
                             var scopeBuilder = this.GetScopeBuilder().CreateScopeInfoBuilder(scopeInfoTableName, connection, transaction);
@@ -161,29 +170,29 @@ namespace Dotmim.Sync
                         foreach (var schemaTable in schemaTables)
                         {
                             // get the builder
-                            var builder = this.GetDatabaseBuilder(schemaTable);
+                            var tableBuilder = this.GetTableBuilder(schemaTable);
 
                             // call any interceptor
                             await this.InterceptAsync(new TableProvisioningArgs(null, provision, schemaTable, connection, transaction)).ConfigureAwait(false);
 
-                            builder.UseBulkProcedures = this.SupportBulkOperations;
-                            builder.UseChangeTracking = this.UseChangeTracking;
+                            tableBuilder.UseBulkProcedures = this.SupportBulkOperations;
+                            tableBuilder.UseChangeTracking = this.UseChangeTracking;
 
                             // adding filters
-                            this.AddFilters(schemaTable, builder);
+                            this.AddFilters(schemaTable, tableBuilder);
 
                             // On purpose, the flag SyncProvision.All does not include the SyncProvision.Table, too dangerous...
                             if (provision.HasFlag(SyncProvision.Table))
-                                builder.CreateTable(connection, transaction);
+                                tableBuilder.CreateTable(connection, transaction);
 
                             if (provision.HasFlag(SyncProvision.TrackingTable) || provision.HasFlag(SyncProvision.All))
-                                builder.CreateTrackingTable(connection, transaction);
+                                tableBuilder.CreateTrackingTable(connection, transaction);
 
                             if (provision.HasFlag(SyncProvision.Triggers) || provision.HasFlag(SyncProvision.All))
-                                builder.CreateTriggers(connection, transaction);
+                                tableBuilder.CreateTriggers(connection, transaction);
 
                             if (provision.HasFlag(SyncProvision.StoredProcedures) || provision.HasFlag(SyncProvision.All))
-                                builder.CreateStoredProcedures(connection, transaction);
+                                tableBuilder.CreateStoredProcedures(connection, transaction);
 
                             // call any interceptor
                             await this.InterceptAsync(new TableProvisionedArgs(null, provision, schemaTable, connection, transaction)).ConfigureAwait(false);
@@ -234,6 +243,14 @@ namespace Dotmim.Sync
             var beforeArgs = new DatabaseProvisioningArgs(context, SyncProvision.All, schema, connection, transaction);
             await this.InterceptAsync(beforeArgs).ConfigureAwait(false);
 
+            // get Database builder
+            var builder = this.GetDatabaseBuilder();
+            builder.UseChangeTracking = this.UseChangeTracking;
+            builder.UseBulkProcedures = this.SupportBulkOperations;
+
+            // Initialize database if needed
+            builder.EnsureDatabase(connection, transaction);
+
             // Sorting tables based on dependencies between them
             var schemaTables = schema.Tables
                 .SortByDependencies(tab => tab.GetRelations()
@@ -241,13 +258,13 @@ namespace Dotmim.Sync
 
             foreach (var schemaTable in schemaTables)
             {
-                var builder = this.GetDatabaseBuilder(schemaTable);
+                var tableBuilder = this.GetTableBuilder(schemaTable);
                 // set if the builder supports creating the bulk operations proc stock
-                builder.UseBulkProcedures = this.SupportBulkOperations;
-                builder.UseChangeTracking = this.UseChangeTracking;
+                tableBuilder.UseBulkProcedures = this.SupportBulkOperations;
+                tableBuilder.UseChangeTracking = this.UseChangeTracking;
 
                 // adding filter
-                this.AddFilters(schemaTable, builder);
+                this.AddFilters(schemaTable, tableBuilder);
 
                 context.SyncStage = SyncStage.TableSchemaApplying;
 
@@ -257,13 +274,13 @@ namespace Dotmim.Sync
                 string currentScript = null;
                 if (beforeArgs.GenerateScript)
                 {
-                    currentScript = builder.ScriptTable(connection, transaction);
-                    currentScript += builder.ScriptForeignKeys(connection, transaction);
+                    currentScript = tableBuilder.ScriptTable(connection, transaction);
+                    currentScript += tableBuilder.ScriptForeignKeys(connection, transaction);
                     script.Append(currentScript);
                 }
 
-                builder.Create(connection, transaction);
-                builder.CreateForeignKeys(connection, transaction);
+                tableBuilder.Create(connection, transaction);
+                tableBuilder.CreateForeignKeys(connection, transaction);
 
                 // Report & Interceptor
                 context.SyncStage = SyncStage.TableSchemaApplied;
@@ -288,7 +305,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Adding filters to an existing configuration
         /// </summary>
-        private void AddFilters(SyncTable schemaTable, DbBuilder builder)
+        private void AddFilters(SyncTable schemaTable, DbTableBuilder builder)
         {
             var schema = schemaTable.Schema;
 

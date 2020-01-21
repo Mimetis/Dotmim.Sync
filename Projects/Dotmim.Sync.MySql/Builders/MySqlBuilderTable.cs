@@ -52,7 +52,7 @@ namespace Dotmim.Sync.MySql
             this.connection = connection as MySqlConnection;
             this.transaction = transaction as MySqlTransaction;
             this.tableDescription = tableDescription;
-            (this.tableName, this.trackingName) = MySqlBuilder.GetParsers(this.tableDescription);
+            (this.tableName, this.trackingName) = MyTableSqlBuilder.GetParsers(this.tableDescription);
             this.mySqlDbMetadata = new MySqlDbMetadata();
         }
 
@@ -178,7 +178,7 @@ namespace Dotmim.Sync.MySql
 
             var constraintName = $"Create Constraint {constraint.RelationName} between parent {constraint.GetParentTable().TableName} and child {constraint.GetTable().TableName}";
             var constraintScript = this.BuildForeignKeyConstraintsCommand(constraint).CommandText;
-            stringBuilder.Append(MySqlBuilder.WrapScriptTextWithComments(constraintScript, constraintName));
+            stringBuilder.Append(MyTableSqlBuilder.WrapScriptTextWithComments(constraintScript, constraintName));
             stringBuilder.AppendLine();
 
             return stringBuilder.ToString();
@@ -310,7 +310,7 @@ namespace Dotmim.Sync.MySql
             var stringBuilder = new StringBuilder();
             var tableNameScript = $"Create Table {this.tableName.Quoted().ToString()}";
             var tableScript = this.BuildTableCommand().CommandText;
-            stringBuilder.Append(MySqlBuilder.WrapScriptTextWithComments(tableScript, tableNameScript));
+            stringBuilder.Append(MyTableSqlBuilder.WrapScriptTextWithComments(tableScript, tableNameScript));
             stringBuilder.AppendLine();
             return stringBuilder.ToString();
         }
@@ -422,7 +422,7 @@ namespace Dotmim.Sync.MySql
             var commandText = $"drop table if exists {this.tableName.Quoted().ToString()}";
 
             var str1 = $"Drop table {this.tableName.Quoted().ToString()}";
-            return MySqlBuilder.WrapScriptTextWithComments(commandText, str1);
+            return MyTableSqlBuilder.WrapScriptTextWithComments(commandText, str1);
         }
     }
 }

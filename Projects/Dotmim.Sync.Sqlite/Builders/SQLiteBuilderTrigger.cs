@@ -31,7 +31,7 @@ namespace Dotmim.Sync.Sqlite
             this.connection = connection as SqliteConnection;
             this.transaction = transaction as SqliteTransaction;
             this.tableDescription = tableDescription;
-            (this.tableName, this.trackingName) = SqliteBuilder.GetParsers(this.tableDescription);
+            (this.tableName, this.trackingName) = SqliteTableBuilder.GetParsers(this.tableDescription);
             this.sqliteObjectNames = new SqliteObjectNames(this.tableDescription);
         }
 
@@ -99,7 +99,7 @@ namespace Dotmim.Sync.Sqlite
             createTrigger.AppendLine(this.DeleteTriggerBodyText());
 
             string str = $"Delete Trigger for table {tableName.Quoted().ToString()}";
-            return SqliteBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
+            return SqliteTableBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
         }
         public void AlterDeleteTrigger()
         {
@@ -200,7 +200,7 @@ namespace Dotmim.Sync.Sqlite
             createTrigger.AppendLine(this.InsertTriggerBodyText());
 
             string str = $"Insert Trigger for table {tableName.Quoted().ToString()}";
-            return SqliteBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
+            return SqliteTableBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
 
         }
         public void AlterInsertTrigger()
@@ -311,7 +311,7 @@ namespace Dotmim.Sync.Sqlite
             createTrigger.AppendLine(this.UpdateTriggerBodyText());
 
             string str = $"Update Trigger for table {tableName.Quoted().ToString()}";
-            return SqliteBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
+            return SqliteTableBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
         }
         public void AlterUpdateTrigger()
         {
@@ -396,7 +396,7 @@ namespace Dotmim.Sync.Sqlite
             var triggerName = string.Format(this.sqliteObjectNames.GetCommandName(triggerType), tableName.Unquoted().ToString());
             string dropTrigger = $"DROP TRIGGER IF EXISTS {triggerName}";
             string str = $"Drop Trigger {triggerName} for table {tableName.Quoted().ToString()}";
-            return SqliteBuilder.WrapScriptTextWithComments(dropTrigger, str);
+            return SqliteTableBuilder.WrapScriptTextWithComments(dropTrigger, str);
         }
 
 

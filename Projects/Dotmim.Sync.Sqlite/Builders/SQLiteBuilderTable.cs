@@ -24,7 +24,7 @@ namespace Dotmim.Sync.Sqlite
             this.connection = connection as SqliteConnection;
             this.transaction = transaction as SqliteTransaction;
             this.tableDescription = tableDescription;
-            (this.tableName, this.trackingName) = SqliteBuilder.GetParsers(this.tableDescription);
+            (this.tableName, this.trackingName) = SqliteTableBuilder.GetParsers(this.tableDescription);
             this.sqliteDbMetadata = new SqliteDbMetadata();
         }
         private SqliteCommand BuildForeignKeyConstraintsCommand(SyncRelation foreignKey)
@@ -214,7 +214,7 @@ namespace Dotmim.Sync.Sqlite
             StringBuilder stringBuilder = new StringBuilder();
             var tableNameScript = $"Create Table {tableName.Quoted().ToString()}";
             var tableScript = BuildTableCommand().CommandText;
-            stringBuilder.Append(SqliteBuilder.WrapScriptTextWithComments(tableScript, tableNameScript));
+            stringBuilder.Append(SqliteTableBuilder.WrapScriptTextWithComments(tableScript, tableNameScript));
             stringBuilder.AppendLine();
             return stringBuilder.ToString();
         }
@@ -344,7 +344,7 @@ namespace Dotmim.Sync.Sqlite
             StringBuilder stringBuilder = new StringBuilder();
             var tableNameScript = $"Drop Table {tableName.Quoted().ToString()}";
             var tableScript = $"DROP TABLE IF EXISTS {tableName.Quoted().ToString()}";
-            stringBuilder.Append(SqliteBuilder.WrapScriptTextWithComments(tableScript, tableNameScript));
+            stringBuilder.Append(SqliteTableBuilder.WrapScriptTextWithComments(tableScript, tableNameScript));
             stringBuilder.AppendLine();
             return stringBuilder.ToString();
         }

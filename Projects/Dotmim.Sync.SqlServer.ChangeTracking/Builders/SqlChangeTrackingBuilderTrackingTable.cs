@@ -31,7 +31,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             this.connection = connection as SqlConnection;
             this.transaction = transaction as SqlTransaction;
             this.tableDescription = tableDescription;
-            (this.tableName, this.trackingName) = SqlBuilder.GetParsers(this.tableDescription);
+            (this.tableName, this.trackingName) = SqlTableBuilder.GetParsers(this.tableDescription);
             this.sqlDbMetadata = new SqlDbMetadata();
         }
 

@@ -99,7 +99,7 @@ namespace Dotmim.Sync
                 if (context.SyncWay == SyncWay.Download && syncTable.SyncDirection == SyncDirection.UploadOnly)
                     continue;
 
-                var builder = this.GetDatabaseBuilder(syncTable);
+                var builder = this.GetTableBuilder(syncTable);
                 var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
 
                 // raise before event

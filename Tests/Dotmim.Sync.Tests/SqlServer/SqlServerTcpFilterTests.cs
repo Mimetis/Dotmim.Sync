@@ -54,7 +54,29 @@ namespace Dotmim.Sync.Tests
         public override ProviderType ServerType =>
             ProviderType.Sql;
 
+        public override async Task EnsureDatabaseSchemaAndSeedAsync((string DatabaseName, ProviderType ProviderType, IOrchestrator Orchestrator) t, bool useSeeding = false, bool useFallbackSchema = false)
+        {
+            AdventureWorksContext ctx = null;
+            try
+            {
+                ctx = new AdventureWorksContext(t, useFallbackSchema, useSeeding);
+                await ctx.Database.EnsureCreatedAsync();
 
+            }
+            catch (Exception)
+            {
+            }
+            finally
+            {
+                if (ctx != null)
+                    ctx.Dispose();
+            }
+        }
+
+        public override Task CreateDatabaseAsync(ProviderType providerType, string dbName, bool recreateDb = true)
+        {
+            return HelperDatabase.CreateDatabaseAsync(providerType, dbName, recreateDb);
+        }
 
         /// <summary>
         /// Get the server database rows count
