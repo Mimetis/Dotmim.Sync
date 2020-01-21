@@ -56,9 +56,6 @@ namespace Dotmim.Sync.Tests
                 case ProviderType.Sql:
                     con = Setup.GetSqlDatabaseConnectionString(dbName);
                     break;
-                case ProviderType.SqlAzure:
-                    con = Setup.GetSqlAzureDatabaseConnectionString(dbName);
-                    break;
                 case ProviderType.MySql:
                     con = Setup.GetMySqlDatabaseConnectionString(dbName);
                     break;
@@ -86,13 +83,15 @@ namespace Dotmim.Sync.Tests
                     return Task.CompletedTask;
             }
 
+
+
             throw new Exception($"Provider type {providerType} is not existing;");
         }
 
         /// <summary>
         /// Create a new Sql Server database
         /// </summary>
-        private static async Task CreateSqlServerDatabaseAsync(string dbName, bool recreateDb = true)
+        public static async Task CreateSqlServerDatabaseAsync(string dbName, bool recreateDb = true)
         {
             using (var masterConnection = new SqlConnection(Setup.GetSqlDatabaseConnectionString("master")))
             {
@@ -100,7 +99,7 @@ namespace Dotmim.Sync.Tests
                 
                 using (var cmdDb = new SqlCommand(GetSqlCreationScript(dbName, recreateDb), masterConnection))
                     await cmdDb.ExecuteNonQueryAsync();
-                
+
                 masterConnection.Close();
             }
         }
@@ -318,6 +317,8 @@ namespace Dotmim.Sync.Tests
             }
         }
 
+
+    
         /// <summary>
         /// Gets the Create or Re-create a database script text
         /// </summary>

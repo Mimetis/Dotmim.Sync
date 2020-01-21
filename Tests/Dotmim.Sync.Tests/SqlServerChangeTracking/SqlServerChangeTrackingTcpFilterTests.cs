@@ -1,4 +1,5 @@
-﻿using Dotmim.Sync.MySql;
+﻿using Dotmim.Sync.Filter;
+using Dotmim.Sync.MySql;
 using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Tests.Core;
@@ -6,18 +7,18 @@ using Dotmim.Sync.Tests.Models;
 using Microsoft.EntityFrameworkCore.Storage;
 using System;
 using System.Collections.Generic;
+using System.Data.SqlClient;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
-using System.Data.SqlClient;
 
 namespace Dotmim.Sync.Tests
 {
-    public class SqlServerTcpTests : TcpTests
+    public class SqlServerChangeTrackingTcpFilterTests : TcpTests
     {
-        public SqlServerTcpTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
+        public SqlServerChangeTrackingTcpFilterTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
         {
         }
 
@@ -29,15 +30,10 @@ namespace Dotmim.Sync.Tests
         };
 
         public override List<ProviderType> ClientsType => new List<ProviderType>
-            { ProviderType.Sql, ProviderType.MySql, ProviderType.Sqlite};
+            { ProviderType.MySql, ProviderType.Sqlite, ProviderType.Sql};
 
         public override ProviderType ServerType =>
             ProviderType.Sql;
-
-        public override Task CreateDatabaseAsync(ProviderType providerType, string dbName, bool recreateDb = true)
-        {
-            return HelperDatabase.CreateDatabaseAsync(providerType, dbName, recreateDb);
-        }
 
         public override async Task EnsureDatabaseSchemaAndSeedAsync((string DatabaseName, ProviderType ProviderType, IOrchestrator Orchestrator) t, bool useSeeding = false, bool useFallbackSchema = false)
         {
@@ -47,6 +43,8 @@ namespace Dotmim.Sync.Tests
                 ctx = new AdventureWorksContext(t, useFallbackSchema, useSeeding);
                 await ctx.Database.EnsureCreatedAsync();
 
+                if (t.ProviderType == ProviderType.Sql)
+                    await this.ActivateChangeTracking(t.DatabaseName);
             }
             catch (Exception)
             {
@@ -58,7 +56,29 @@ namespace Dotmim.Sync.Tests
             }
         }
 
+        public override async Task CreateDatabaseAsync(ProviderType providerType, string dbName, bool recreateDb = true)
+        {
+            await HelperDatabase.CreateDatabaseAsync(providerType, dbName, recreateDb);
 
+            if (providerType == ProviderType.Sql)
+                await this.ActivateChangeTracking(dbName);
+        }
+
+
+        private async Task ActivateChangeTracking(string dbName)
+        {
+
+            var script = $"ALTER DATABASE {dbName} SET CHANGE_TRACKING = ON (CHANGE_RETENTION = 2 DAYS, AUTO_CLEANUP = ON)";
+            using (var masterConnection = new SqlConnection(Setup.GetSqlDatabaseConnectionString("master")))
+            {
+                masterConnection.Open();
+
+                using (var cmdCT = new SqlCommand(script, masterConnection))
+                    await cmdCT.ExecuteNonQueryAsync();
+
+                masterConnection.Close();
+            }
+        }
 
         /// <summary>
         /// Get the server database rows count
@@ -94,7 +114,5 @@ namespace Dotmim.Sync.Tests
         }
 
 
-
-    
     }
 }

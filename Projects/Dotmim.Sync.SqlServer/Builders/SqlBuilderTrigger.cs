@@ -30,7 +30,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             this.transaction = transaction as SqlTransaction;
 
             this.tableDescription = tableDescription;
-            (this.tableName, this.trackingName) = SqlBuilder.GetParsers(this.tableDescription);
+            (this.tableName, this.trackingName) = SqlTableBuilder.GetParsers(this.tableDescription);
             this.sqlObjectNames = new SqlObjectNames(this.tableDescription);
 
         }
@@ -155,7 +155,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             createTrigger.AppendLine(this.DeleteTriggerBodyText());
 
             string str = $"Delete Trigger for table {tableName.Schema().Quoted().ToString()}";
-            return SqlBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
+            return SqlTableBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
         }
 
         public void AlterDeleteTrigger()
@@ -201,14 +201,14 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         public string AlterDeleteTriggerScriptText()
         {
-            (var tableName, _) = SqlBuilder.GetParsers(this.tableDescription);
+            (var tableName, _) = SqlTableBuilder.GetParsers(this.tableDescription);
             var delTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger).name;
             StringBuilder createTrigger = new StringBuilder($"ALTER TRIGGER {delTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR DELETE AS");
             createTrigger.AppendLine();
             createTrigger.AppendLine(this.InsertTriggerBodyText());
 
             string str = $"ALTER Trigger Delete for table {tableName.Schema().Quoted().ToString()}";
-            return SqlBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
+            return SqlTableBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
         }
 
         public string DropDeleteTriggerScriptText()
@@ -216,7 +216,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             var triggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger).name;
             var trigger = $"DELETE TRIGGER {triggerName};";
             var str = $"Drop Delete Trigger for table {tableName.Schema().Quoted().ToString()}";
-            return SqlBuilder.WrapScriptTextWithComments(trigger, str);
+            return SqlTableBuilder.WrapScriptTextWithComments(trigger, str);
         }
 
         private string InsertTriggerBodyText()
@@ -393,7 +393,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             createTrigger.AppendLine(this.InsertTriggerBodyText());
 
             string str = $"Insert Trigger for table {tableName.Schema().Quoted().ToString()}";
-            return SqlBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
+            return SqlTableBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
 
         }
         public void AlterInsertTrigger()
@@ -442,7 +442,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             createTrigger.AppendLine(this.InsertTriggerBodyText());
 
             string str = $"ALTER Trigger Insert for table {tableName.Schema().Quoted().ToString()}";
-            return SqlBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
+            return SqlTableBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
         }
 
         public string DropInsertTriggerScriptText()
@@ -450,7 +450,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             var triggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger).name;
             var trigger = $"DELETE TRIGGER {triggerName};";
             var str = $"Drop Insert Trigger for table {tableName.Schema().Quoted().ToString()}";
-            return SqlBuilder.WrapScriptTextWithComments(trigger, str);
+            return SqlTableBuilder.WrapScriptTextWithComments(trigger, str);
         }
         private string UpdateTriggerBodyText()
         {
@@ -598,7 +598,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             createTrigger.AppendLine(this.UpdateTriggerBodyText());
 
             string str = $"Update Trigger for table {tableName.Schema().Quoted().ToString()}";
-            return SqlBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
+            return SqlTableBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
         }
 
         public string DropUpdateTriggerScriptText()
@@ -606,7 +606,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             var triggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger).name;
             var trigger = $"DELETE TRIGGER {triggerName};";
             var str = $"Drop Update Trigger for table {tableName.Schema().Quoted().ToString()}";
-            return SqlBuilder.WrapScriptTextWithComments(trigger, str);
+            return SqlTableBuilder.WrapScriptTextWithComments(trigger, str);
         }
 
         public void AlterUpdateTrigger()
@@ -649,7 +649,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         }
         public string AlterUpdateTriggerScriptText()
         {
-            (var tableName, _) = SqlBuilder.GetParsers(this.tableDescription);
+            (var tableName, _) = SqlTableBuilder.GetParsers(this.tableDescription);
             var updTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger).name;
 
             StringBuilder createTrigger = new StringBuilder($"ALTER TRIGGER {updTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR UPDATE AS");
@@ -657,7 +657,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             createTrigger.AppendLine(this.InsertTriggerBodyText());
 
             string str = $"ALTER Trigger Update for table {tableName.Schema().Quoted().ToString()}";
-            return SqlBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
+            return SqlTableBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
         }
 
         public virtual bool NeedToCreateTrigger(DbTriggerType type)

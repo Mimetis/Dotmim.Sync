@@ -28,7 +28,7 @@ namespace Dotmim.Sync.MySql
             this.connection = connection as MySqlConnection;
             this.transaction = transaction as MySqlTransaction;
             this.tableDescription = tableDescription;
-            (this.tableName, this.trackingName) = MySqlBuilder.GetParsers(this.tableDescription);
+            (this.tableName, this.trackingName) = MyTableSqlBuilder.GetParsers(this.tableDescription);
             this.mySqlObjectNames = new MySqlObjectNames(this.tableDescription);
         }
 
@@ -114,7 +114,7 @@ namespace Dotmim.Sync.MySql
             createTrigger.AppendLine(this.DeleteTriggerBodyText());
 
             string str = $"Delete Trigger for table {tableName.Quoted().ToString()}";
-            return MySqlBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
+            return MyTableSqlBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
         }
         public void AlterDeleteTrigger()
         {
@@ -256,7 +256,7 @@ namespace Dotmim.Sync.MySql
             createTrigger.AppendLine(this.InsertTriggerBodyText());
 
             string str = $"Insert Trigger for table {tableName.Quoted().ToString()}";
-            return MySqlBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
+            return MyTableSqlBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
 
         }
         public void AlterInsertTrigger()
@@ -383,7 +383,7 @@ namespace Dotmim.Sync.MySql
             createTrigger.AppendLine(this.UpdateTriggerBodyText());
 
             string str = $"Update Trigger for table {tableName.Quoted().ToString()}";
-            return MySqlBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
+            return MyTableSqlBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
         }
         public void AlterUpdateTrigger()
         {
@@ -479,7 +479,7 @@ namespace Dotmim.Sync.MySql
             var commandText = $"drop trigger if exists {commandName}";
 
             var str1 = $"Drop trigger {commandName} for table {tableName.Quoted().ToString()}";
-            return MySqlBuilder.WrapScriptTextWithComments(commandText, str1);
+            return MyTableSqlBuilder.WrapScriptTextWithComments(commandText, str1);
 
         }
 

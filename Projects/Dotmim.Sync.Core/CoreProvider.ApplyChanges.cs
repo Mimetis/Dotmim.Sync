@@ -115,7 +115,7 @@ namespace Dotmim.Sync
             for (var i = 0; i < schema.Tables.Count; i++)
             {
                 var tableDescription = schema.Tables[schema.Tables.Count - i - 1];
-                var builder = this.GetDatabaseBuilder(tableDescription);
+                var builder = this.GetTableBuilder(tableDescription);
                 var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
 
                 // reset table
@@ -149,7 +149,7 @@ namespace Dotmim.Sync
             if (context.SyncWay == SyncWay.Download && schemaTable.SyncDirection == SyncDirection.UploadOnly)
                 return ChangeApplicationAction.Continue;
 
-            var builder = this.GetDatabaseBuilder(schemaTable);
+            var builder = this.GetTableBuilder(schemaTable);
 
             var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
             syncAdapter.ApplyType = applyType;
@@ -378,7 +378,7 @@ namespace Dotmim.Sync
                 bool operationComplete = false;
 
                 //var commandType = DbCommandType.UpdateMetadata;
-                bool needToUpdateMetadata = true;
+                //bool needToUpdateMetadata = true;
 
                 switch (conflict.Type)
                 {
@@ -395,7 +395,7 @@ namespace Dotmim.Sync
                     case ConflictType.RemoteIsDeletedLocalIsDeleted:
                     case ConflictType.RemoteIsDeletedLocalNotExists:
                         operationComplete = true;
-                        needToUpdateMetadata = false;
+                        //needToUpdateMetadata = false;
                         conflictResolved = 0;
                         break;
 
@@ -412,23 +412,23 @@ namespace Dotmim.Sync
                         return (ChangeApplicationAction.Rollback, 0, finalRow, 0);
                 }
 
-                if (needToUpdateMetadata)
-                {
-                    using (var metadataCommand = syncAdapter.GetCommand(DbCommandType.UpdateMetadata))
-                    {
-                        if (metadataCommand == null)
-                            throw new MissingCommandException(DbCommandType.UpdateMetadata.ToString());
+                //if (needToUpdateMetadata)
+                //{
+                //    using (var metadataCommand = syncAdapter.GetCommand(DbCommandType.UpdateMetadata))
+                //    {
+                //        if (metadataCommand == null)
+                //            throw new MissingCommandException(DbCommandType.UpdateMetadata.ToString());
 
-                        // Deriving Parameters
-                        syncAdapter.SetCommandParameters(DbCommandType.UpdateMetadata, metadataCommand);
+                //        // Deriving Parameters
+                //        syncAdapter.SetCommandParameters(DbCommandType.UpdateMetadata, metadataCommand);
 
-                        // force applying client row, so apply scope.id (client scope here)
-                        var rowsApplied = syncAdapter.InsertOrUpdateMetadatas(metadataCommand, conflict.RemoteRow, senderScopeId);
+                //        // force applying client row, so apply scope.id (client scope here)
+                //        var rowsApplied = syncAdapter.InsertOrUpdateMetadatas(metadataCommand, conflict.RemoteRow, senderScopeId);
 
-                        if (!rowsApplied)
-                            throw new MetadataException(syncAdapter.TableDescription.TableName);
-                    }
-                }
+                //        if (!rowsApplied)
+                //            throw new MetadataException(syncAdapter.TableDescription.TableName);
+                //    }
+                //}
 
                 finalRow = conflict.RemoteRow;
 
@@ -459,7 +459,7 @@ namespace Dotmim.Sync
             // arbitrary table
             var tableDescription = schema.Tables[0];
 
-            var builder = this.GetDatabaseBuilder(tableDescription);
+            var builder = this.GetTableBuilder(tableDescription);
             var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
 
             // disable constraints
@@ -482,7 +482,7 @@ namespace Dotmim.Sync
             // arbitrary table
             var tableDescription = schema.Tables[0];
 
-            var builder = this.GetDatabaseBuilder(tableDescription);
+            var builder = this.GetTableBuilder(tableDescription);
             var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
 
             // reset table
