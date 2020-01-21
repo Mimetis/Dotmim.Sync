@@ -7,7 +7,7 @@ using System.Text;
 
 namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 {
-    public class SqlChangeTrackingBuilder : SqlBuilder
+    public class SqlChangeTrackingBuilder : SqlTableBuilder
     {
         public SqlChangeTrackingBuilder(SyncTable tableDescription) : base(tableDescription)
         {

@@ -30,7 +30,7 @@ namespace Dotmim.Sync.Sqlite
             this.connection = connection as SqliteConnection;
             this.transaction = transaction as SqliteTransaction;
             this.tableDescription = tableDescription;
-            (this.tableName, this.trackingName) = SqliteBuilder.GetParsers(this.tableDescription);
+            (this.tableName, this.trackingName) = SqliteTableBuilder.GetParsers(this.tableDescription);
             this.sqliteDbMetadata = new SqliteDbMetadata();
         }
 
@@ -102,7 +102,7 @@ namespace Dotmim.Sync.Sqlite
         public string CreateTableScriptText()
         {
             string str = string.Concat("Create Tracking Table ", trackingName.Quoted().ToString());
-            return SqliteBuilder.WrapScriptTextWithComments(this.CreateTableCommandText(), str);
+            return SqliteTableBuilder.WrapScriptTextWithComments(this.CreateTableCommandText(), str);
         }
 
         public string CreateTableCommandText()
@@ -248,7 +248,7 @@ namespace Dotmim.Sync.Sqlite
         public string CreatePopulateFromBaseTableScriptText()
         {
             string str = string.Concat("Populate tracking table ", trackingName.Quoted().ToString(), " for existing data in table ", tableName.Quoted().ToString());
-            return SqliteBuilder.WrapScriptTextWithComments(this.CreatePopulateFromBaseTableCommandText(), str);
+            return SqliteTableBuilder.WrapScriptTextWithComments(this.CreatePopulateFromBaseTableCommandText(), str);
         }
 
         public void PopulateNewFilterColumnFromBaseTable(DmColumn filterColumn)
@@ -312,7 +312,7 @@ namespace Dotmim.Sync.Sqlite
             var quotedColumnName = ParserName.Parse(filterColumn.ColumnName).Quoted().ToString();
 
             string str = string.Concat("Add new filter column, ", quotedColumnName, ", to Tracking Table ", trackingName.Quoted().ToString());
-            return SqliteBuilder.WrapScriptTextWithComments(this.AddFilterColumnCommandText(filterColumn), str);
+            return SqliteTableBuilder.WrapScriptTextWithComments(this.AddFilterColumnCommandText(filterColumn), str);
         }
 
         public void DropTable()
@@ -354,7 +354,7 @@ namespace Dotmim.Sync.Sqlite
             StringBuilder stringBuilder = new StringBuilder();
             var tableNameScript = $"Drop Table {tableName.Quoted().ToString()}";
             var tableScript = $"DROP TABLE IF EXISTS {tableName.Quoted().ToString()}";
-            stringBuilder.Append(SqliteBuilder.WrapScriptTextWithComments(tableScript, tableNameScript));
+            stringBuilder.Append(SqliteTableBuilder.WrapScriptTextWithComments(tableScript, tableNameScript));
             stringBuilder.AppendLine();
             return stringBuilder.ToString();
         }

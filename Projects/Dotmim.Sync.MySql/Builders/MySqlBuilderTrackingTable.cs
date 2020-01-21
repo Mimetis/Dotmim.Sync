@@ -30,7 +30,7 @@ namespace Dotmim.Sync.MySql
             this.connection = connection as MySqlConnection;
             this.transaction = transaction as MySqlTransaction;
             this.tableDescription = tableDescription;
-            (this.tableName, this.trackingName) = MySqlBuilder.GetParsers(this.tableDescription);
+            (this.tableName, this.trackingName) = MyTableSqlBuilder.GetParsers(this.tableDescription);
             this.mySqlDbMetadata = new MySqlDbMetadata();
         }
 
@@ -133,7 +133,7 @@ namespace Dotmim.Sync.MySql
         public string CreateTableScriptText()
         {
             string str = string.Concat("Create Tracking Table ", trackingName.Quoted().ToString());
-            return MySqlBuilder.WrapScriptTextWithComments(this.CreateTableCommandText(), str);
+            return MyTableSqlBuilder.WrapScriptTextWithComments(this.CreateTableCommandText(), str);
         }
 
         public string CreateTableCommandText()
@@ -307,7 +307,7 @@ namespace Dotmim.Sync.MySql
         public string CreatePopulateFromBaseTableScriptText()
         {
             string str = string.Concat("Populate tracking table ", trackingName.Quoted().ToString(), " for existing data in table ", tableName.Quoted().ToString());
-            return MySqlBuilder.WrapScriptTextWithComments(this.CreatePopulateFromBaseTableCommandText(), str);
+            return MyTableSqlBuilder.WrapScriptTextWithComments(this.CreatePopulateFromBaseTableCommandText(), str);
         }
 
         public void PopulateNewFilterColumnFromBaseTable(SyncColumn filterColumn)
@@ -370,7 +370,7 @@ namespace Dotmim.Sync.MySql
             var quotedColumnName = ParserName.Parse(filterColumn, "`").Quoted().ToString();
 
             string str = string.Concat("Add new filter column, ", quotedColumnName, ", to Tracking Table ", trackingName.Quoted().ToString());
-            return MySqlBuilder.WrapScriptTextWithComments(this.AddFilterColumnCommandText(filterColumn), str);
+            return MyTableSqlBuilder.WrapScriptTextWithComments(this.AddFilterColumnCommandText(filterColumn), str);
         }
 
         public void DropTable()
@@ -411,7 +411,7 @@ namespace Dotmim.Sync.MySql
             var commandText = $"drop table if exists {trackingName.Quoted().ToString()}";
 
             var str1 = $"Drop table {trackingName.Quoted().ToString()}";
-            return MySqlBuilder.WrapScriptTextWithComments(commandText, str1);
+            return MyTableSqlBuilder.WrapScriptTextWithComments(commandText, str1);
         }
 
     }

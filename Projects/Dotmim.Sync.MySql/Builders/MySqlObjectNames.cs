@@ -79,7 +79,7 @@ namespace Dotmim.Sync.MySql
         public MySqlObjectNames(SyncTable tableDescription)
         {
             this.TableDescription = tableDescription;
-            (tableName, trackingName) = MySqlBuilder.GetParsers(this.TableDescription);
+            (tableName, trackingName) = MyTableSqlBuilder.GetParsers(this.TableDescription);
 
             SetDefaultNames();
         }

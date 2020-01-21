@@ -188,6 +188,28 @@ namespace Dotmim.Sync
     }
 
     /// <summary>
+    /// Occurs when we use change tracking and it's not enabled on the source database
+    /// </summary>
+    public class MissingChangeTrackingException : Exception
+    {
+        const string message = "Change Tracking is not activated for database {0}. Please execute this statement : Alter database {0} SET CHANGE_TRACKING = ON (CHANGE_RETENTION = 14 DAYS, AUTO_CLEANUP = ON)";
+
+        public MissingChangeTrackingException(string databaseName) : base(string.Format(message, databaseName)) { }
+    }
+
+    /// <summary>
+    /// Occurs when we check database existence
+    /// </summary>
+    public class MissingDatabaseException : Exception
+    {
+
+        const string message = "Database {0} does not exist";
+
+        public MissingDatabaseException(string databaseName) : base(string.Format(message, databaseName)) { }
+    }
+
+
+    /// <summary>
     /// Occurs when a column is not supported by the Dotmim.Sync framework
     /// </summary>
     public class UnsupportedColumnTypeException : Exception

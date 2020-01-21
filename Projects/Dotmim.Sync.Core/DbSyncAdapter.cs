@@ -111,55 +111,55 @@ namespace Dotmim.Sync
         /// <summary>
         /// Insert or update a metadata line
         /// </summary>
-        internal bool InsertOrUpdateMetadatas(DbCommand command, SyncRow row, Guid senderScopeId)
-        {
-            if (row.Table == null)
-                throw new ArgumentException("Schema table columns does not exist");
+        //internal bool InsertOrUpdateMetadatas(DbCommand command, SyncRow row, Guid senderScopeId)
+        //{
+        //    if (row.Table == null)
+        //        throw new ArgumentException("Schema table columns does not exist");
 
-            int rowsApplied = 0;
+        //    int rowsApplied = 0;
 
-            var schemaTable = row.Table;
+        //    var schemaTable = row.Table;
 
-            // Set the id parameter
-            this.SetColumnParametersValues(command, row);
+        //    // Set the id parameter
+        //    this.SetColumnParametersValues(command, row);
 
-            // 2 choices for getting deleted
-            // Firstly check the state
-            var isTombstone = row.RowState == DataRowState.Deleted;
+        //    // 2 choices for getting deleted
+        //    // Firstly check the state
+        //    var isTombstone = row.RowState == DataRowState.Deleted;
 
-            // TODO : Secondly check the sync is tombstone column. Should we do this ?
-            var isTombstoneColumn = schemaTable.Columns.FirstOrDefault(sc => sc.ColumnName.Equals("sync_row_is_tombstone", SyncGlobalization.DataSourceStringComparison));
+        //    // TODO : Secondly check the sync is tombstone column. Should we do this ?
+        //    var isTombstoneColumn = schemaTable.Columns.FirstOrDefault(sc => sc.ColumnName.Equals("sync_row_is_tombstone", SyncGlobalization.DataSourceStringComparison));
 
-            if (isTombstoneColumn != null)
-            {
-                var rowValue = row[schemaTable.Columns.IndexOf(isTombstoneColumn)];
+        //    if (isTombstoneColumn != null)
+        //    {
+        //        var rowValue = row[schemaTable.Columns.IndexOf(isTombstoneColumn)];
 
-                if (rowValue == null)
-                    isTombstone = false;
-                else
-                    isTombstone = rowValue.GetType() == typeof(bool) ? (bool)rowValue : Convert.ToInt64(rowValue) > 0;
-            }
+        //        if (rowValue == null)
+        //            isTombstone = false;
+        //        else
+        //            isTombstone = rowValue.GetType() == typeof(bool) ? (bool)rowValue : Convert.ToInt64(rowValue) > 0;
+        //    }
 
 
-            DbTableManagerFactory.SetParameterValue(command, "sync_row_is_tombstone", isTombstone ? 1 : 0);
-            DbTableManagerFactory.SetParameterValue(command, "sync_scope_id", senderScopeId);
+        //    DbTableManagerFactory.SetParameterValue(command, "sync_row_is_tombstone", isTombstone ? 1 : 0);
+        //    DbTableManagerFactory.SetParameterValue(command, "sync_scope_id", senderScopeId);
 
-            var alreadyOpened = Connection.State == ConnectionState.Open;
+        //    var alreadyOpened = Connection.State == ConnectionState.Open;
 
-            if (!alreadyOpened)
-                Connection.Open();
+        //    if (!alreadyOpened)
+        //        Connection.Open();
 
-            if (Transaction != null)
-                command.Transaction = Transaction;
+        //    if (Transaction != null)
+        //        command.Transaction = Transaction;
 
-            rowsApplied = command.ExecuteNonQuery();
+        //    rowsApplied = command.ExecuteNonQuery();
 
-            // Close Connection
-            if (!alreadyOpened)
-                Connection.Close();
+        //    // Close Connection
+        //    if (!alreadyOpened)
+        //        Connection.Close();
 
-            return rowsApplied > 0;
-        }
+        //    return rowsApplied > 0;
+        //}
 
         /// <summary>
         /// Try to get a source row
@@ -368,17 +368,17 @@ namespace Dotmim.Sync
             return conflict;
         }
 
-        private void UpdateMetadatas(DbCommandType dbCommandType, SyncRow row, Guid senderScopeId)
-        {
-            using (var dbCommand = this.GetCommand(dbCommandType))
-            {
-                if (dbCommand == null)
-                    throw new MissingCommandException(dbCommandType.ToString());
+        //private void UpdateMetadatas(DbCommandType dbCommandType, SyncRow row, Guid senderScopeId)
+        //{
+        //    using (var dbCommand = this.GetCommand(dbCommandType))
+        //    {
+        //        if (dbCommand == null)
+        //            throw new MissingCommandException(dbCommandType.ToString());
 
-                this.SetCommandParameters(dbCommandType, dbCommand);
-                this.InsertOrUpdateMetadatas(dbCommand, row, senderScopeId);
-            }
-        }
+        //        this.SetCommandParameters(dbCommandType, dbCommand);
+        //        this.InsertOrUpdateMetadatas(dbCommand, row, senderScopeId);
+        //    }
+        //}
 
         /// <summary>
         /// Try to apply changes on the server.
@@ -400,15 +400,15 @@ namespace Dotmim.Sync
                     {
                         operationComplete = this.ApplyUpdate(row, lastTimestamp, senderScopeId, false);
 
-                        if (operationComplete)
-                            UpdateMetadatas(DbCommandType.UpdateMetadata, row, senderScopeId);
+                        //if (operationComplete)
+                        //    UpdateMetadatas(DbCommandType.UpdateMetadata, row, senderScopeId);
                     }
                     else if (ApplyType == DataRowState.Deleted)
                     {
                         operationComplete = this.ApplyDelete(row, lastTimestamp, senderScopeId, false);
 
-                        if (operationComplete)
-                            UpdateMetadatas(DbCommandType.UpdateMetadata, row, senderScopeId);
+                        //if (operationComplete)
+                        //    UpdateMetadatas(DbCommandType.UpdateMetadata, row, senderScopeId);
                     }
 
                     if (operationComplete)
@@ -479,14 +479,20 @@ namespace Dotmim.Sync
                 if (Transaction != null)
                     command.Transaction = Transaction;
 
-                var rowInsertedCount = command.ExecuteNonQuery();
+                var rowDeletedCount = command.ExecuteNonQuery();
+
+                // Check if we have a return value instead
+                var syncRowCountParam = DbTableManagerFactory.GetParameter(command, "sync_row_count");
+
+                if (syncRowCountParam != null)
+                    rowDeletedCount = (int)syncRowCountParam.Value;
 
 
                 if (!alreadyOpened)
                     Connection.Close();
 
 
-                return rowInsertedCount > 0;
+                return rowDeletedCount > 0;
             }
         }
 
@@ -521,8 +527,16 @@ namespace Dotmim.Sync
                     command.Transaction = Transaction;
 
                 var rowUpdatedCount = command.ExecuteNonQuery();
+
+                // Check if we have a return value instead
+                var syncRowCountParam = DbTableManagerFactory.GetParameter(command, "sync_row_count");
+
+                if (syncRowCountParam != null)
+                    rowUpdatedCount = (int)syncRowCountParam.Value;
+
                 if (!alreadyOpened)
                     Connection.Close();
+
                 return rowUpdatedCount > 0;
             }
         }

@@ -17,7 +17,8 @@ namespace Dotmim.Sync.SqlServer
         static String providerType;
 
         public SqlSyncChangeTrackingProvider() : base()
-        { }
+        {
+        }
 
         public SqlSyncChangeTrackingProvider(string connectionString) : base()
         {
@@ -47,7 +48,10 @@ namespace Dotmim.Sync.SqlServer
 
         }
 
-
+        /// <summary>
+        /// this provider supports change tracking(
+        /// </summary>
+        public override bool UseChangeTracking => true;
 
         /// <summary>
         /// Sql server support bulk operations through Table Value parameter
@@ -61,7 +65,7 @@ namespace Dotmim.Sync.SqlServer
      
         public override DbConnection CreateConnection() => new SqlConnection(this.ConnectionString);
         public override DbScopeBuilder GetScopeBuilder() => new SqlChangeTrackingScopeBuilder();
-        public override DbBuilder GetDatabaseBuilder(SyncTable tableDescription) => new SqlChangeTrackingBuilder(tableDescription);
+        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription) => new SqlChangeTrackingBuilder(tableDescription);
         public override DbTableManagerFactory GetTableManagerFactory(string tableName, string schemaName) => new SqlManager(tableName, schemaName);
 
     }

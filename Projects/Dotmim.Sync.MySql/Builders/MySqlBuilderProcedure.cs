@@ -34,7 +34,7 @@ namespace Dotmim.Sync.MySql
             this.transaction = transaction as MySqlTransaction;
 
             this.tableDescription = tableDescription;
-            (this.tableName, this.trackingName) = MySqlBuilder.GetParsers(tableDescription);
+            (this.tableName, this.trackingName) = MyTableSqlBuilder.GetParsers(tableDescription);
             this.sqlObjectNames = new MySqlObjectNames(this.tableDescription);
             this.mySqlDbMetadata = new MySqlDbMetadata();
         }
@@ -100,7 +100,11 @@ namespace Dotmim.Sync.MySql
             string empty = string.Empty;
             var stringType = this.mySqlDbMetadata.GetStringFromDbType(param.DbType);
             string precision = this.mySqlDbMetadata.GetPrecisionStringFromDbType(param.DbType, param.Size, param.Precision, param.Scale);
-            stringBuilder3.Append($"{param.ParameterName} {stringType}{precision}");
+            string output = string.Empty;
+            if (param.Direction == ParameterDirection.Output || param.Direction == ParameterDirection.InputOutput)
+                output = "OUT ";
+
+            stringBuilder3.Append($"{output}{param.ParameterName} {stringType}{precision}");
 
             return stringBuilder3.ToString();
 
@@ -209,7 +213,7 @@ namespace Dotmim.Sync.MySql
 
                 var str1 = $"Command {procName} for table {tableName.Quoted().ToString()}";
                 var str = CreateProcedureCommandText(BuildCommand(), procName);
-                return MySqlBuilder.WrapScriptTextWithComments(str, str1);
+                return MyTableSqlBuilder.WrapScriptTextWithComments(str, str1);
 
 
             }
@@ -237,7 +241,7 @@ namespace Dotmim.Sync.MySql
 
                 var str1 = $"Command {procName} for table {tableName.Quoted().ToString()}";
                 var str = CreateProcedureCommandText(BuildCommand(t), procName);
-                return MySqlBuilder.WrapScriptTextWithComments(str, str1);
+                return MyTableSqlBuilder.WrapScriptTextWithComments(str, str1);
 
 
             }
@@ -326,6 +330,13 @@ namespace Dotmim.Sync.MySql
             sqlParameter2.MySqlDbType = MySqlDbType.Int64;
             sqlCommand.Parameters.Add(sqlParameter2);
 
+            sqlParameter = new MySqlParameter();
+            sqlParameter.ParameterName = "sync_row_count";
+            sqlParameter.MySqlDbType = MySqlDbType.Int32;
+            sqlParameter.Direction = ParameterDirection.Output;
+            sqlCommand.Parameters.Add(sqlParameter);
+
+
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("DECLARE ts BIGINT;");
@@ -335,6 +346,22 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine($"DELETE FROM {tableName.Quoted().ToString()} WHERE");
             stringBuilder.AppendLine(MySqlManagementUtils.WhereColumnAndParameters(this.tableDescription.PrimaryKeys, ""));
             stringBuilder.AppendLine("AND (ts <= sync_min_timestamp OR t_update_scope_id = sync_scope_id OR sync_force_write = 1);");
+
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($"SELECT ROW_COUNT() LIMIT 1 INTO sync_row_count;");
+            stringBuilder.AppendLine();
+
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($"IF (sync_row_count > 0) THEN");
+            stringBuilder.AppendLine($"\tUPDATE {trackingName.Quoted().ToString()}");
+            stringBuilder.AppendLine($"\tSET `update_scope_id` = sync_scope_id, ");
+            stringBuilder.AppendLine($"\t\t `sync_row_is_tombstone` = 1, ");
+            stringBuilder.AppendLine($"\t\t `timestamp` = {MySqlObjectNames.TimestampValue}, ");
+            stringBuilder.AppendLine($"\t\t `last_change_datetime` = now() ");
+            stringBuilder.AppendLine($"\tWHERE {MySqlManagementUtils.WhereColumnAndParameters(this.tableDescription.PrimaryKeys, "")};");
+            stringBuilder.AppendLine($"END IF;");
+
+
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
@@ -481,12 +508,16 @@ namespace Dotmim.Sync.MySql
             sqlParameter.MySqlDbType = MySqlDbType.Int32;
             sqlCommand.Parameters.Add(sqlParameter);
 
-            var sqlParameter1 = new MySqlParameter();
-            sqlParameter1.ParameterName = "sync_min_timestamp";
-            sqlParameter1.MySqlDbType = MySqlDbType.Int64;
-            sqlCommand.Parameters.Add(sqlParameter1);
+            sqlParameter = new MySqlParameter();
+            sqlParameter.ParameterName = "sync_min_timestamp";
+            sqlParameter.MySqlDbType = MySqlDbType.Int64;
+            sqlCommand.Parameters.Add(sqlParameter);
 
-
+            sqlParameter = new MySqlParameter();
+            sqlParameter.ParameterName = "sync_row_count";
+            sqlParameter.MySqlDbType = MySqlDbType.Int32;
+            sqlParameter.Direction = ParameterDirection.Output;
+            sqlCommand.Parameters.Add(sqlParameter);
 
             var listColumnsTmp = new StringBuilder();
             var listColumnsTmp2 = new StringBuilder();
@@ -520,6 +551,7 @@ namespace Dotmim.Sync.MySql
 
 
             stringBuilder.AppendLine("DECLARE ts BIGINT;");
+
             stringBuilder.AppendLine("DECLARE t_update_scope_id VARCHAR(36);");
             stringBuilder.AppendLine("SET ts = 0;");
             stringBuilder.AppendLine($"SELECT {listColumnsTmp.ToString()}");
@@ -530,15 +562,13 @@ namespace Dotmim.Sync.MySql
 
             if (hasMutableColumns)
             {
-
-
                 stringBuilder.AppendLine($"UPDATE {tableName.Quoted().ToString()}");
                 stringBuilder.Append($"SET {MySqlManagementUtils.CommaSeparatedUpdateFromParameters(this.tableDescription)}");
                 stringBuilder.Append($"WHERE {MySqlManagementUtils.WhereColumnAndParameters(this.tableDescription.PrimaryKeys, "")}");
                 stringBuilder.AppendLine($" AND (ts <= sync_min_timestamp OR t_update_scope_id  = sync_scope_id OR sync_force_write = 1);");
                 stringBuilder.AppendLine();
-
-                stringBuilder.AppendLine($"IF (SELECT ROW_COUNT() = 0) THEN");
+                stringBuilder.AppendLine($"SELECT ROW_COUNT() LIMIT 1 INTO sync_row_count;");
+                stringBuilder.AppendLine($"IF (sync_row_count = 0) THEN");
 
             }
 
@@ -561,8 +591,21 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine($"\tOR (ts <= sync_min_timestamp OR t_update_scope_id = sync_scope_id OR sync_force_write = 1)");
             stringBuilder.AppendLine($"\tLIMIT 1;");
             stringBuilder.AppendLine();
+            stringBuilder.AppendLine($"SELECT ROW_COUNT() LIMIT 1 INTO sync_row_count;");
+            stringBuilder.AppendLine();
+
             if (hasMutableColumns)
                 stringBuilder.AppendLine("END IF;");
+
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($"IF (sync_row_count > 0) THEN");
+            stringBuilder.AppendLine($"\tUPDATE {trackingName.Quoted().ToString()}");
+            stringBuilder.AppendLine($"\tSET `update_scope_id` = sync_scope_id, ");
+            stringBuilder.AppendLine($"\t\t `sync_row_is_tombstone` = 0, ");
+            stringBuilder.AppendLine($"\t\t `timestamp` = {MySqlObjectNames.TimestampValue}, ");
+            stringBuilder.AppendLine($"\t\t `last_change_datetime` = now() ");
+            stringBuilder.AppendLine($"\tWHERE {MySqlManagementUtils.WhereColumnAndParameters(this.tableDescription.PrimaryKeys, "")};");
+            stringBuilder.AppendLine($"END IF;");
 
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
@@ -881,7 +924,7 @@ namespace Dotmim.Sync.MySql
             var commandText = $"drop procedure if exists {commandName}";
 
             var str1 = $"Drop procedure {commandName} for table {tableName.Quoted().ToString()}";
-            return MySqlBuilder.WrapScriptTextWithComments(commandText, str1);
+            return MyTableSqlBuilder.WrapScriptTextWithComments(commandText, str1);
 
         }
         private void DropProcedure(DbCommandType procType)

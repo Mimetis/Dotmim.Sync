@@ -59,12 +59,6 @@ namespace Dotmim.Sync.Tests.Models
                         else
                             optionsBuilder.UseSqlServer(this.ConnectionString);
                         break;
-                    case ProviderType.SqlAzure:
-                        if (this.Connection != null)
-                            optionsBuilder.UseSqlServer(this.Connection);
-                        else
-                            optionsBuilder.UseSqlServer(this.ConnectionString);
-                        break;
                     case ProviderType.MySql:
                         if (this.Connection != null)
                             optionsBuilder.UseMySql(this.Connection, opt => opt.EnableRetryOnFailure(10));

@@ -140,6 +140,12 @@ namespace Dotmim.Sync.MySql
             p.DbType = DbType.Guid;
             command.Parameters.Add(p);
 
+            p = command.CreateParameter();
+            p.ParameterName = "sync_row_count";
+            p.DbType = DbType.Int32;
+            p.Direction = ParameterDirection.Output;
+            command.Parameters.Add(p);
+
         }
 
         private void SetUpdateMetadataParameters(DbCommand command)
@@ -205,6 +211,12 @@ namespace Dotmim.Sync.MySql
             p = command.CreateParameter();
             p.ParameterName = "sync_scope_id";
             p.DbType = DbType.Guid;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "sync_row_count";
+            p.DbType = DbType.Int32;
+            p.Direction = ParameterDirection.Output;
             command.Parameters.Add(p);
         }
 
