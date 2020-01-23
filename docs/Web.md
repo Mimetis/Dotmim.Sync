@@ -17,15 +17,38 @@ Once your **ASP.NET** application is created and you have added the `DotMim.Sync
 ``` cs
 public void ConfigureServices(IServiceCollection services)
 {
-    services.AddMvc();
+    services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
 
+    // Mandatory to be able to handle multiple sessions
     services.AddMemoryCache();
 
-    var connectionString = Configuration["Data:ConnectionString"];
-    services.AddSyncServer<SqlSyncProvider>(connectionString, configuration =>
+    // Get a connection string for your server data source
+    var connectionString = Configuration.GetSection("ConnectionStrings")["DefaultConnection"];
+
+    // Set the web server Options
+    var options = new WebServerOptions()
     {
-        configuration.Tables = new string[] { "ServiceTickets" };
-    });
+        BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "server"),
+    };
+
+    // Create the setup used for your sync process
+    var tables = new string[] {"ProductCategory",
+                    "ProductDescription", "ProductModel",
+                    "Product", "ProductModelProductDescription",
+                    "Address", "Customer", "CustomerAddress",
+                    "SalesOrderHeader", "SalesOrderDetail" };
+
+    var setup = new SyncSetup(tables)
+    {
+        // optional :
+        StoredProceduresPrefix = "s",
+        StoredProceduresSuffix = "",
+        TrackingTablesPrefix = "t",
+        TrackingTablesSuffix = ""
+    };
+
+    // add a SqlSyncProvider acting as the server hub
+    services.AddSyncServer<SqlSyncProvider>(connectionString, setup, options);
 }
 ```
 

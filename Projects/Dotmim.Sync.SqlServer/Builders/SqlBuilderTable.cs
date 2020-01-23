@@ -1,5 +1,5 @@
 ﻿using Dotmim.Sync.Builders;
-using Dotmim.Sync.Data;
+
 using Dotmim.Sync.Log;
 using Dotmim.Sync.SqlServer.Manager;
 using System;
@@ -82,10 +82,10 @@ namespace Dotmim.Sync.SqlServer.Builders
                 if (!alreadyOpened)
                     connection.Open();
 
-                var dmTable = SqlManagementUtils.RelationsForTable(connection, transaction, tableName, schemaName);
+                var syncTable = SqlManagementUtils.RelationsForTable(connection, transaction, tableName, schemaName);
 
-                var foreignKeyExist = dmTable.Rows.Any(r =>
-                   dmTable.IsEqual(r["ForeignKey"].ToString(), relationName));
+                var foreignKeyExist = syncTable.Rows.Any(r =>
+                   string.Equals(r["ForeignKey"].ToString(), relationName, SyncGlobalization.DataSourceStringComparison));
 
                 return !foreignKeyExist;
             }

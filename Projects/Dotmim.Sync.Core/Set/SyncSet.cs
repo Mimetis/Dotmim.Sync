@@ -1,5 +1,5 @@
 ﻿using Dotmim.Sync.Builders;
-using Dotmim.Sync.Data;
+
 using Dotmim.Sync.Filter;
 using System;
 using System.Collections.Generic;
@@ -58,8 +58,7 @@ namespace Dotmim.Sync
         public string TrackingTablesSuffix { get; set; }
 
         /// <summary>
-        /// Gets or Sets an array of DmTableSurrogate objects that comprise 
-        /// the dm set that is represented by the DmSetSurrogate object.
+        /// Gets or Sets the sync set tables
         /// </summary>
         [DataMember(Name = "t", IsRequired = false, EmitDefaultValue = false, Order = 8)]
         public SyncTables Tables { get; set; }
@@ -146,7 +145,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Import a container set in a SyncSet instance
         /// </summary>
-        public void ImportContainerSet(ContainerSet containerSet)
+        public void ImportContainerSet(ContainerSet containerSet, bool checkType)
         {
             foreach (var table in containerSet.Tables)
             {
@@ -155,7 +154,7 @@ namespace Dotmim.Sync
                 if (syncTable == null)
                     throw new ArgumentNullException($"Table {table.TableName} does not exist in the SyncSet");
 
-                syncTable.Rows.ImportContainerTable(table);
+                syncTable.Rows.ImportContainerTable(table, checkType);
             }
 
         }

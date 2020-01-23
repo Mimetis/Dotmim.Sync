@@ -1,5 +1,6 @@
-﻿using Dotmim.Sync.Data;
-using Dotmim.Sync.Data.Surrogate;
+﻿
+
+using Dotmim.Sync.Serialization;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -19,7 +20,7 @@ namespace Dotmim.Sync.Batch
         // TODO : Set the serializer to the one choosed by user
 
         /// <summary>
-        /// Loads the batch file and set the DmSet in memory
+        /// Loads the batch file and import the rows in a SyncSet instance
         /// </summary>
         public void LoadBatch(SyncSet schema)
         {
@@ -33,13 +34,13 @@ namespace Dotmim.Sync.Batch
             var data = Deserialize(this.FileName);
 
             // Import data in a typed Set
-            set.ImportContainerSet(data);
+            set.ImportContainerSet(data, true);
 
             this.Data = set;
         }
 
         /// <summary>
-        /// Delete the DmSet surrogate affiliated with the BatchPart, if exists.
+        /// Delete the SyncSet affiliated with the BatchPart, if exists.
         /// </summary>
         public void Clear()
         {
@@ -54,7 +55,7 @@ namespace Dotmim.Sync.Batch
         public bool IsLastBatch { get; set; }
 
         /// <summary>
-        /// Tables contained in the DmSet (serialiazed or not)
+        /// Tables contained in the SyncSet (serialiazed or not)
         /// </summary>
         public (string tableName, string schemaName)[] Tables { get; set; }
 
@@ -77,15 +78,15 @@ namespace Dotmim.Sync.Batch
             if (!File.Exists(fileName))
                 throw new MissingFileException(fileName);
 
+            var jsonConverter = new JsonConverter<ContainerSet>();
             using (var fs = new FileStream(fileName, FileMode.Open, FileAccess.Read))
             {
-                var serializer = new DataContractSerializer(typeof(ContainerSet));
-                return serializer.ReadObject(fs) as ContainerSet;
+                return jsonConverter.Deserialize(fs);
             }
         }
 
         /// <summary>
-        /// Serialize the DmSet data (acutally serialize a DmSetSurrogate)
+        /// Serialize a container set instance
         /// </summary>
         private static void Serialize(ContainerSet set, string fileName)
         {
@@ -98,10 +99,12 @@ namespace Dotmim.Sync.Batch
                 Directory.CreateDirectory(fi.Directory.FullName);
 
             // Serialize on disk.
+            var jsonConverter = new JsonConverter<ContainerSet>();
+
             using (var f = new FileStream(fileName, FileMode.CreateNew, FileAccess.ReadWrite))
             {
-                var serializer = new DataContractSerializer(typeof(ContainerSet));
-                serializer.WriteObject(f, set);
+                var bytes = jsonConverter.Serialize(set);
+                f.Write(bytes, 0, bytes.Length);
             }
         }
 

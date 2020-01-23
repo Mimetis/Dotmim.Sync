@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Data;
-using Dotmim.Sync.Data;
+
 using Microsoft.Data.Sqlite;
 
 namespace Dotmim.Sync.Sqlite

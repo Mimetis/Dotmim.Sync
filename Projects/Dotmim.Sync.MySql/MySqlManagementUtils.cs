@@ -1,5 +1,5 @@
 using Dotmim.Sync.Builders;
-using Dotmim.Sync.Data;
+
 using MySql.Data.MySqlClient;
 using System;
 using System.Collections.Generic;
@@ -13,12 +13,12 @@ namespace Dotmim.Sync.MySql
     public static class MySqlManagementUtils
     {
 
-        public static DmTable Table(MySqlConnection connection, MySqlTransaction transaction, string tableName)
+        public static SyncTable Table(MySqlConnection connection, MySqlTransaction transaction, string tableName)
         {
             string commandColumn = "select * from information_schema.TABLES where table_schema = schema() and table_name = @tableName limit 1;";
 
             var tableNameParser = ParserName.Parse(tableName, "`");
-            var dmTable = new DmTable(tableNameParser.Unquoted().ToString());
+            var syncTable = new SyncTable(tableNameParser.Unquoted().ToString());
             using (var sqlCommand = new MySqlCommand(commandColumn, connection))
             {
                 sqlCommand.Parameters.AddWithValue("@tableName", tableNameParser.Unquoted().ToString());
@@ -34,7 +34,7 @@ namespace Dotmim.Sync.MySql
 
                 using (var reader = sqlCommand.ExecuteReader())
                 {
-                    dmTable.Fill(reader);
+                    syncTable.Load(reader);
                 }
 
 
@@ -42,15 +42,15 @@ namespace Dotmim.Sync.MySql
                     connection.Close();
 
             }
-            return dmTable;
+            return syncTable;
         }
 
-        public static DmTable ColumnsForTable(MySqlConnection connection, MySqlTransaction transaction, string tableName)
+        public static SyncTable ColumnsForTable(MySqlConnection connection, MySqlTransaction transaction, string tableName)
         {
             string commandColumn = "select * from information_schema.COLUMNS where table_schema = schema() and table_name = @tableName";
 
             var tableNameParser = ParserName.Parse(tableName, "`");
-            var dmTable = new DmTable(tableNameParser.Unquoted().ToString());
+            var syncTable = new SyncTable(tableNameParser.Unquoted().ToString());
             using (var sqlCommand = new MySqlCommand(commandColumn, connection))
             {
                 sqlCommand.Parameters.AddWithValue("@tableName", tableNameParser.Unquoted().ToString());
@@ -63,27 +63,24 @@ namespace Dotmim.Sync.MySql
                 if (transaction != null)
                     sqlCommand.Transaction = transaction;
 
-
                 using (var reader = sqlCommand.ExecuteReader())
                 {
-                    dmTable.Fill(reader);
+                    syncTable.Load(reader);
                 }
-
 
                 if (!alreadyOpened)
                     connection.Close();
 
             }
-            return dmTable;
+            return syncTable;
         }
 
-        internal static DmTable PrimaryKeysForTable(MySqlConnection connection, MySqlTransaction transaction, string tableName)
+        internal static SyncTable PrimaryKeysForTable(MySqlConnection connection, MySqlTransaction transaction, string tableName)
         {
-
             var commandColumn = @"select * from information_schema.COLUMNS where table_schema = schema() and table_name = @tableName and column_key='PRI'";
 
             var tableNameParser = ParserName.Parse(tableName, "`");
-            var dmTable = new DmTable(tableNameParser.Unquoted().ToString());
+            var syncTable = new SyncTable(tableNameParser.Unquoted().ToString());
             using (var sqlCommand = new MySqlCommand(commandColumn, connection))
             {
                 sqlCommand.Parameters.AddWithValue("@tableName", tableNameParser.Unquoted().ToString());
@@ -99,18 +96,17 @@ namespace Dotmim.Sync.MySql
 
                 using (var reader = sqlCommand.ExecuteReader())
                 {
-                    dmTable.Fill(reader);
+                    syncTable.Load(reader);
                 }
-
 
                 if (!alreadyOpened)
                     connection.Close();
 
             }
-            return dmTable;
+            return syncTable;
         }
 
-        internal static DmTable RelationsForTable(MySqlConnection connection, MySqlTransaction transaction, string tableName)
+        internal static SyncTable RelationsForTable(MySqlConnection connection, MySqlTransaction transaction, string tableName)
         {
             var commandRelations = @"
             SELECT
@@ -131,7 +127,7 @@ namespace Dotmim.Sync.MySql
 
             var tableNameParser = ParserName.Parse(tableName, "`");
 
-            var dmTable = new DmTable(tableNameParser.Unquoted().ToString());
+            var syncTable = new SyncTable(tableNameParser.Unquoted().ToString());
             using (var sqlCommand = new MySqlCommand(commandRelations, connection))
             {
                 sqlCommand.Parameters.AddWithValue("@tableName", tableNameParser.Unquoted().ToString());
@@ -146,17 +142,14 @@ namespace Dotmim.Sync.MySql
 
                 using (var reader = sqlCommand.ExecuteReader())
                 {
-                    dmTable.Fill(reader);
+                    syncTable.Load(reader);
                 }
 
                 if (!alreadyOpened)
                     connection.Close();
-
             }
 
-
-            return dmTable;
-
+            return syncTable;
         }
 
         public static void DropTableIfExists(MySqlConnection connection, MySqlTransaction transaction, string quotedTableName)

@@ -1,6 +1,6 @@
 ﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Cache;
-using Dotmim.Sync.Data;
+
 using Dotmim.Sync.Manager;
 using System.Data.Common;
 using MySql.Data.MySqlClient;

@@ -1,5 +1,5 @@
 ﻿using Dotmim.Sync.Builders;
-using Dotmim.Sync.Data;
+
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -15,7 +15,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking
         /// <summary>
         /// Get Table
         /// </summary>
-        public static DmTable ChangeTrackingTable(SqlConnection connection, SqlTransaction transaction, string tableName, string schemaName)
+        public static SyncTable ChangeTrackingTable(SqlConnection connection, SqlTransaction transaction, string tableName, string schemaName)
         {
 
             var command = $"Select top 1 tbl.name as TableName, " +
@@ -35,7 +35,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking
                 schemaNameString = string.IsNullOrWhiteSpace(schemaNameString) ? "dbo" : schemaNameString;
             }
 
-            var dmTable = new DmTable(tableNameNormalized);
+            var syncTable = new SyncTable(tableNameNormalized, schemaNameString);
             using (var sqlCommand = new SqlCommand(command, connection))
             {
                 sqlCommand.Parameters.AddWithValue("@tableName", tableNameString);
@@ -51,7 +51,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking
 
                 using (var reader = sqlCommand.ExecuteReader())
                 {
-                    dmTable.Fill(reader);
+                    syncTable.Load(reader);
                 }
 
 
@@ -59,7 +59,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking
                     connection.Close();
 
             }
-            return dmTable;
+            return syncTable;
         }
 
     }

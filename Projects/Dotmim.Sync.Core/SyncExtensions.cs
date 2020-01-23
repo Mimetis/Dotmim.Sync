@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
-using Dotmim.Sync.Data;
+
 
 namespace Dotmim.Sync
 {

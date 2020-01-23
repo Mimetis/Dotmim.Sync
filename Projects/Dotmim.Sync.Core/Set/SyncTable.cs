@@ -1,5 +1,5 @@
 ﻿using Dotmim.Sync.Builders;
-using Dotmim.Sync.Data;
+
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Serialization;
 using System;
@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Data;
+using System.Data.Common;
 using System.Globalization;
 using System.Linq;
 using System.Runtime.Serialization;
@@ -49,13 +50,13 @@ namespace Dotmim.Sync
         public SyncDirection SyncDirection { get; set; }
 
         /// <summary>
-        /// Gets an array of DmColumnSurrogate objects that comprise the table that is represented by the DmTableSurrogate object.
+        /// Gets or Sets the table columns
         /// </summary>
         [DataMember(Name = "c", IsRequired = false, EmitDefaultValue = false, Order = 5)]
         public SyncColumns Columns { get; set; }
 
         /// <summary>
-        /// Gets an array of DmColumnSurrogate objects that represent the PrimaryKeys.
+        /// Gets or Sets the table primary keys
         /// </summary>
         [DataMember(Name = "pk", IsRequired = false, EmitDefaultValue = false, Order = 6)]
         public Collection<string> PrimaryKeys { get; set; } = new Collection<string>();
@@ -290,6 +291,40 @@ namespace Dotmim.Sync
 
 
             }).ToList();
+        }
+
+        public void Load(DbDataReader reader)
+        {
+            var readerFieldCount = reader.FieldCount;
+
+            if (readerFieldCount == 0 || !reader.HasRows)
+                return;
+
+            if (this.Columns.Count == 0)
+            {
+                for (int i = 0; i < reader.FieldCount; i++)
+                {
+                    var columnName = reader.GetName(i);
+                    var columnType = reader.GetFieldType(i);
+                    this.Columns.Add(columnName, columnType);
+                }
+            }
+
+            while (reader.Read())
+            {
+                var row = this.NewRow();
+
+                for (var i = 0; i < reader.FieldCount; i++)
+                {
+                    var columnName = reader.GetName(i);
+                    var columnValueObject = reader.GetValue(i);
+                    //var columnValue = columnValueObject == DBNull.Value ? null : columnValueObject;
+
+                    row[columnName] = columnValueObject;
+                }
+
+                this.Rows.Add(row);
+            }
         }
 
         /// <summary>

@@ -7,7 +7,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Dotmim.Sync.Batch;
-using Dotmim.Sync.Data.Surrogate;
+
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Serialization;
 using Microsoft.Net.Http.Headers;
@@ -318,7 +318,7 @@ namespace Dotmim.Sync.Web.Client
 
                 changesSet = changesSet.Clone();
 
-                changesSet.ImportContainerSet(httpMessageContent.Changes);
+                changesSet.ImportContainerSet(httpMessageContent.Changes, false);
 
                 if (this.Converter != null && changesSet.HasRows)
                     AfterDeserializedRows(changesSet);

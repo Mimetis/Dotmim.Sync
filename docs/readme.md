@@ -10,6 +10,12 @@ No need to handle any configuration file, or any generation code or whatever. Ju
 
 **TL,DR** : Here is the most straightforward way to synchronize two relational databases:
 
+
+> If you don't have any databases ready for testing, use this one : [AdventureWorks lightweight script for SQL Server](https://github.com/Mimetis/Dotmim.Sync/blob/master/CreateAdventureWorks.sql)   
+> The script is ready to execute in SQL Server. It contains :
+> - A lightweight AdvenureWorks database, acting as the Server database (called AdventureWorks)
+> - An empty database, acting as the Client database (called Client)
+
 ``` cs
 // Create 2 Sql Sync providers
 var serverProvider = new SqlSyncProvider(serverConnectionString);
@@ -51,6 +57,15 @@ Synchronization done.
         Total duration :0:0:09.124
 ```
 
+> *Quote:* If you work on a recent **SQL Server** version, which supports **Change Tracking**, you can use the `SqlSyncChangeTrackingProvider` instead of `SqlSyncProvider`.
+
+``` cs
+// Create 2 Sql Sync providers
+var serverProvider = new SqlSyncChangeTrackingProvider(serverConnectionString);
+var clientProvider = new SqlSyncChangeTrackingProvider(clientConnectionString);
+```
+
+
 It took almost **10 seconds** on my machine to make a full synchronization between the **Server** and the **Client**.  
 
 It's a little bit long, because, the `Dotmim.Sync` framework, on the first sync, will have to:
@@ -58,7 +73,7 @@ It's a little bit long, because, the `Dotmim.Sync` framework, on the first sync,
 - Create on both side all the required stuff to be able to manage a full sync process, creating *tracking* tables, stored procedures, triggers and so on ... be careful, `Dotmim.Sync` is a little bit intrusive :)
 - Then eventually launch the first sync, and get the **68** items from the **Server**, and apply them on the **Client**.
 
-Now everything is configured and the first has successfully occured, imagine you're adding **1000** items in the `ProductCategory` table:
+Now everything is configured and the first has successfully occured, imagine you're adding **100** items in the `ProductCategory` table:
 
 ``` sql
 Insert into ProductCategory (ProductCategoryID, Name)
@@ -83,6 +98,7 @@ All packages are available through **nuget.org**:
 
 * **DotMim.Sync.Core** : [https://www.nuget.org/packages/Dotmim.Sync.Core/]() : This package is used by all providers. No need to reference it (it will be added by the providers)
 * **DotMim.Sync.SqlServer** : [https://www.nuget.org/packages/Dotmim.Sync.SqlServer/]() : This package is the Sql Server package. Use it if you want to synchronize Sql Server databases.
+* **DotMim.Sync.SqlSyncChangeTrackingProvider** : [https://www.nuget.org/packages/Dotmim.Sync.SqlServer.ChangeTracking/]() : This package is based on the Sql Server package, but will use **Change Tracking** features from SQL server, instead of classic tracking tables / triggers.
 * **DotMim.Sync.Sqlite** : [https://www.nuget.org/packages/Dotmim.Sync.Sqlite/]() : This package is the SQLite package. Be careful, SQLite is allowed only as a client provider (no SQLite Sync Server provider right now )
 * **DotMim.Sync.MySql** : [https://www.nuget.org/packages/Dotmim.Sync.MySql/]() : This package is the MySql package. Use it if you want to synchronize MySql databases.
 * **DotMim.Sync.Web.Server** : [https://www.nuget.org/packages/Dotmim.Sync.Web.Client/]() : This package allow you to make a sync process over **HTTP** using a web server beetween your server and your clients. Use this package with the corresponding Server provider (SQL, MySQL, SQLite) on your server side. Since we are **.Net Standard 2.0** you can use it from an **ASP.NET Core** application or a classic **ASP.NET** application (Framework 4.7 +)

@@ -30,20 +30,20 @@ namespace Dotmim.Sync
         /// <summary>
         /// Add a new buffer row
         /// </summary>
-        public void Add(object[] row, Guid updateScopeId, DataRowState state = DataRowState.Unchanged)
+        public void Add(object[] row, DataRowState state = DataRowState.Unchanged)
         {
-            var schemaRow = new SyncRow(this.Table, row, updateScopeId, state);
+            var schemaRow = new SyncRow(this.Table, row, state);
             rows.Add(schemaRow);
         }
 
         /// <summary>
         /// Add a rows
         /// </summary>
-        public void AddRange(IEnumerable<object[]> rows, Guid updateScopeId, DataRowState state = DataRowState.Unchanged)
+        public void AddRange(IEnumerable<object[]> rows, DataRowState state = DataRowState.Unchanged)
         {
             foreach (var row in rows)
             {
-                var schemaRow = new SyncRow(this.Table, row, updateScopeId, state);
+                var schemaRow = new SyncRow(this.Table, row, state);
                 this.rows.Add(schemaRow);
             }
         }
@@ -73,25 +73,39 @@ namespace Dotmim.Sync
         /// Import a containerTable
         /// </summary>
         /// <param name="containerTable"></param>
-        internal void ImportContainerTable(ContainerTable containerTable)
+        internal void ImportContainerTable(ContainerTable containerTable, bool checkType)
         {
             foreach (var row in containerTable.Rows)
             {
                 var length = Table.Columns.Count;
                 var itemArray = new object[length];
 
-                Array.Copy(row, 2, itemArray, 0, length);
+                if (!checkType)
+                {
+                    Array.Copy(row, 1, itemArray, 0, length);
+
+                }
+                else
+                {
+                    foreach (var col in Table.Columns)
+                    {
+                        var val = row[col.Ordinal + 1];
+                        var colDataType = col.GetDataType();
+
+                        if (val == null)
+                            itemArray[col.Ordinal] = null;
+                        else if (val.GetType() != colDataType)
+                            itemArray[col.Ordinal] = SyncTypeConverter.TryConvertTo(val, col.GetDataType());
+                        else
+                            itemArray[col.Ordinal] = val;
+
+                    }
+                }
+
+                //Array.Copy(row, 1, itemArray, 0, length);
                 var state = (DataRowState)Convert.ToInt32(row[0]);
 
-                Guid updateScopeId;
-
-                if (SyncTypeConverter.TryConvertTo<Guid>(row[1], out var guidObject))
-                    updateScopeId = (Guid)guidObject;
-                else
-                    throw new Exception("Unable to convert GUID when importing a container table");
-
-
-                var schemaRow = new SyncRow(this.Table, itemArray, updateScopeId, state);
+                var schemaRow = new SyncRow(this.Table, itemArray, state);
                 this.rows.Add(schemaRow);
             }
         }
@@ -124,10 +138,8 @@ namespace Dotmim.Sync
                 {
                     var syncColumn = primaryKeysColumn[i];
 
-                    object critValue;
-                    object itemValue;
-                    SyncTypeConverter.TryConvertTo(criteria[syncColumn.ColumnName], syncColumn.GetDataType(), out critValue);
-                    SyncTypeConverter.TryConvertTo(itemRow[syncColumn.ColumnName], syncColumn.GetDataType(), out itemValue);
+                    object critValue = SyncTypeConverter.TryConvertTo(criteria[syncColumn.ColumnName], syncColumn.GetDataType());
+                    object itemValue = SyncTypeConverter.TryConvertTo(itemRow[syncColumn.ColumnName], syncColumn.GetDataType());
 
                     if (!critValue.Equals(itemValue))
                         return false;

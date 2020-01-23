@@ -1,7 +1,7 @@
 ﻿using Dotmim.Sync.Builders;
 using System;
 using System.Text;
-using Dotmim.Sync.Data;
+
 using System.Data.Common;
 using Dotmim.Sync.Log;
 using System.Data;
@@ -251,15 +251,6 @@ namespace Dotmim.Sync.Sqlite
             return SqliteTableBuilder.WrapScriptTextWithComments(this.CreatePopulateFromBaseTableCommandText(), str);
         }
 
-        public void PopulateNewFilterColumnFromBaseTable(DmColumn filterColumn)
-        {
-            throw new NotImplementedException();
-        }
-
-        public string ScriptPopulateNewFilterColumnFromBaseTable(DmColumn filterColumn)
-        {
-            throw new NotImplementedException();
-        }
 
         public void AddFilterColumn(SyncColumn filterColumn)
         {

@@ -1,4 +1,4 @@
-using Dotmim.Sync.Data;
+
 using Dotmim.Sync.Manager;
 using System;
 using System.Collections.Generic;
@@ -27,15 +27,15 @@ namespace Dotmim.Sync.SqlServer.Manager
 
         public SyncTable GetTable()
         {
-            var dmTable = SqlManagementUtils.Table(this.sqlConnection, this.sqlTransaction, this.tableName, this.schemaName);
+            var syncTable = SqlManagementUtils.Table(this.sqlConnection, this.sqlTransaction, this.tableName, this.schemaName);
 
-            if (dmTable == null || dmTable.Rows == null || dmTable.Rows.Count <= 0)
+            if (syncTable == null || syncTable.Rows == null || syncTable.Rows.Count <= 0)
                 return null;
 
             // Get Table
-            var dmRow = dmTable.Rows[0];
-            var tblName = dmRow["TableName"].ToString();
-            var schName = dmRow["SchemaName"].ToString();
+            var syncRow = syncTable.Rows[0];
+            var tblName = syncRow["TableName"].ToString();
+            var schName = syncRow["SchemaName"].ToString();
 
             if (schName == "dbo")
                 schName = null;
@@ -46,12 +46,11 @@ namespace Dotmim.Sync.SqlServer.Manager
         public IEnumerable<DbRelationDefinition> GetRelations()
         {
             var relations = new List<DbRelationDefinition>();
-            var dmRelations = SqlManagementUtils.RelationsForTable(this.sqlConnection, this.sqlTransaction, this.tableName, this.schemaName);
+            var tableRelations = SqlManagementUtils.RelationsForTable(this.sqlConnection, this.sqlTransaction, this.tableName, this.schemaName);
 
-            if (dmRelations != null && dmRelations.Rows.Count > 0)
+            if (tableRelations != null && tableRelations.Rows.Count > 0)
             {
-
-                foreach (var fk in dmRelations.Rows.GroupBy(row =>
+                foreach (var fk in tableRelations.Rows.GroupBy(row =>
                 new
                 {
                     Name = (string)row["ForeignKey"],
@@ -89,10 +88,10 @@ namespace Dotmim.Sync.SqlServer.Manager
         {
             var columns = new List<SyncColumn>();
             // Get the columns definition
-            var dmColumnsList = SqlManagementUtils.ColumnsForTable(this.sqlConnection, this.sqlTransaction, this.tableName, this.schemaName);
+            var syncTableColumnsList = SqlManagementUtils.ColumnsForTable(this.sqlConnection, this.sqlTransaction, this.tableName, this.schemaName);
             var sqlDbMetadata = new SqlDbMetadata();
 
-            foreach (var c in dmColumnsList.Rows.OrderBy(r => (int)r["column_id"]))
+            foreach (var c in syncTableColumnsList.Rows.OrderBy(r => (int)r["column_id"]))
             {
                 var typeName = c["type"].ToString();
                 var name = c["name"].ToString();
@@ -114,7 +113,7 @@ namespace Dotmim.Sync.SqlServer.Manager
                 sColumn.IsAutoIncrement = (bool)c["is_identity"];
                 sColumn.IsUnique = c["is_unique"] != DBNull.Value ? (bool)c["is_unique"] : false;
                 sColumn.IsCompute = (bool)c["is_computed"];
-                sColumn.DefaultValue = c["defaultvalue"].ToString();
+                sColumn.DefaultValue = c["defaultValue"] != DBNull.Value ? c["defaultValue"].ToString() : null;
 
                 if (sColumn.IsAutoIncrement)
                 {
@@ -144,11 +143,11 @@ namespace Dotmim.Sync.SqlServer.Manager
 
         public IEnumerable<SyncColumn> GetPrimaryKeys()
         {
-            var dmTableKeys = SqlManagementUtils.PrimaryKeysForTable(this.sqlConnection, this.sqlTransaction, this.tableName);
+            var syncTableKeys = SqlManagementUtils.PrimaryKeysForTable(this.sqlConnection, this.sqlTransaction, this.tableName);
 
             var lstKeys = new List<SyncColumn>();
 
-            foreach (var dmKey in dmTableKeys.Rows)
+            foreach (var dmKey in syncTableKeys.Rows)
             {
                 var keyColumn = SyncColumn.Create<string>((string)dmKey["columnName"]);
                 keyColumn.Ordinal = Convert.ToInt32(dmKey["key_ordinal"]);

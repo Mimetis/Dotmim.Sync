@@ -1,6 +1,6 @@
 ﻿using Dotmim.Sync.Batch;
-using Dotmim.Sync.Data;
-using Dotmim.Sync.Data.Surrogate;
+
+
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Filter;
 using Dotmim.Sync.Messages;
@@ -275,7 +275,6 @@ namespace Dotmim.Sync
                 // Serialize schema to be able to save it in client db
                 if (string.IsNullOrEmpty(scope.Schema))
                 {
-                    // this.Schema.SetLight = new DmSetLightSchema(this.Schema.GetSet());
                     var schemaLight = JsonConvert.SerializeObject(this.Schema);
                     scope.Schema = schemaLight;
                 }
