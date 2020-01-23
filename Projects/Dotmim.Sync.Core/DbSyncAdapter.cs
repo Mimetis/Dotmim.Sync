@@ -1,7 +1,7 @@
 ﻿using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Log;
 using Dotmim.Sync.Manager;
-using Dotmim.Sync.Data;
+
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -109,59 +109,6 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Insert or update a metadata line
-        /// </summary>
-        //internal bool InsertOrUpdateMetadatas(DbCommand command, SyncRow row, Guid senderScopeId)
-        //{
-        //    if (row.Table == null)
-        //        throw new ArgumentException("Schema table columns does not exist");
-
-        //    int rowsApplied = 0;
-
-        //    var schemaTable = row.Table;
-
-        //    // Set the id parameter
-        //    this.SetColumnParametersValues(command, row);
-
-        //    // 2 choices for getting deleted
-        //    // Firstly check the state
-        //    var isTombstone = row.RowState == DataRowState.Deleted;
-
-        //    // TODO : Secondly check the sync is tombstone column. Should we do this ?
-        //    var isTombstoneColumn = schemaTable.Columns.FirstOrDefault(sc => sc.ColumnName.Equals("sync_row_is_tombstone", SyncGlobalization.DataSourceStringComparison));
-
-        //    if (isTombstoneColumn != null)
-        //    {
-        //        var rowValue = row[schemaTable.Columns.IndexOf(isTombstoneColumn)];
-
-        //        if (rowValue == null)
-        //            isTombstone = false;
-        //        else
-        //            isTombstone = rowValue.GetType() == typeof(bool) ? (bool)rowValue : Convert.ToInt64(rowValue) > 0;
-        //    }
-
-
-        //    DbTableManagerFactory.SetParameterValue(command, "sync_row_is_tombstone", isTombstone ? 1 : 0);
-        //    DbTableManagerFactory.SetParameterValue(command, "sync_scope_id", senderScopeId);
-
-        //    var alreadyOpened = Connection.State == ConnectionState.Open;
-
-        //    if (!alreadyOpened)
-        //        Connection.Open();
-
-        //    if (Transaction != null)
-        //        command.Transaction = Transaction;
-
-        //    rowsApplied = command.ExecuteNonQuery();
-
-        //    // Close Connection
-        //    if (!alreadyOpened)
-        //        Connection.Close();
-
-        //    return rowsApplied > 0;
-        //}
-
-        /// <summary>
         /// Try to get a source row
         /// </summary>
         /// <returns></returns>
@@ -215,14 +162,14 @@ namespace Dotmim.Sync
                             {
                                 var readerScopeId = dataReader.GetValue(i);
 
-                                // if update_scope_id is null, so the row owner is the local database
-                                // if update_scope_id is not null, the row owner is someone else
-                                if (readerScopeId == DBNull.Value || readerScopeId == null)
-                                    syncRow.UpdateScopeId = localScopeId;
-                                else if (SyncTypeConverter.TryConvertTo<Guid>(readerScopeId, out var updateScopeIdObject))
-                                    syncRow.UpdateScopeId = (Guid)updateScopeIdObject;
-                                else
-                                    throw new Exception("Impossible to parse row['update_scope_id']");
+                                //// if update_scope_id is null, so the row owner is the local database
+                                //// if update_scope_id is not null, the row owner is someone else
+                                //if (readerScopeId == DBNull.Value || readerScopeId == null)
+                                //    syncRow.UpdateScopeId = localScopeId;
+                                //else if (SyncTypeConverter.TryConvertTo<Guid>(readerScopeId, out var updateScopeIdObject))
+                                //    syncRow.UpdateScopeId = (Guid)updateScopeIdObject;
+                                //else
+                                //    throw new Exception("Impossible to parse row['update_scope_id']");
 
                                 continue;
                             }
@@ -368,24 +315,12 @@ namespace Dotmim.Sync
             return conflict;
         }
 
-        //private void UpdateMetadatas(DbCommandType dbCommandType, SyncRow row, Guid senderScopeId)
-        //{
-        //    using (var dbCommand = this.GetCommand(dbCommandType))
-        //    {
-        //        if (dbCommand == null)
-        //            throw new MissingCommandException(dbCommandType.ToString());
-
-        //        this.SetCommandParameters(dbCommandType, dbCommand);
-        //        this.InsertOrUpdateMetadatas(dbCommand, row, senderScopeId);
-        //    }
-        //}
-
         /// <summary>
         /// Try to apply changes on the server.
-        /// Internally will call ApplyInsert / ApplyUpdate or ApplyDelete
+        /// Internally will call ApplyUpdate or ApplyDelete and will return
         /// </summary>
-        /// <param name="changes">Changes from remote</param>
-        /// <returns>every lines not updated on the server side</returns>
+        /// <param name="changes">Changes</param>
+        /// <returns>every lines not updated / deleted in the destination data source</returns>
         internal int ApplyChanges(Guid localScopeId, Guid senderScopeId, SyncTable changesTable, long lastTimestamp, List<SyncConflict> conflicts)
         {
             int appliedRows = 0;
@@ -397,28 +332,14 @@ namespace Dotmim.Sync
                 try
                 {
                     if (ApplyType == DataRowState.Modified)
-                    {
                         operationComplete = this.ApplyUpdate(row, lastTimestamp, senderScopeId, false);
-
-                        //if (operationComplete)
-                        //    UpdateMetadatas(DbCommandType.UpdateMetadata, row, senderScopeId);
-                    }
                     else if (ApplyType == DataRowState.Deleted)
-                    {
                         operationComplete = this.ApplyDelete(row, lastTimestamp, senderScopeId, false);
 
-                        //if (operationComplete)
-                        //    UpdateMetadatas(DbCommandType.UpdateMetadata, row, senderScopeId);
-                    }
-
                     if (operationComplete)
-                        // if no pb, increment then go to next row
                         appliedRows++;
                     else
-                    {
-                        var localConflictRow = GetRow(localScopeId, row, changesTable);
-                        conflicts.Add(GetConflict(row, localConflictRow));
-                    }
+                        conflicts.Add(GetConflict(row, GetRow(localScopeId, row, changesTable)));
 
                 }
                 catch (Exception ex)

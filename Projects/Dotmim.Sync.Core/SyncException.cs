@@ -102,6 +102,16 @@ namespace Dotmim.Sync
         public AlreadyInProgressException() : base(message) { }
     }
 
+    /// <summary>
+    /// Occurs when trying to launch another sync during an in progress sync.
+    /// </summary>
+    public class FormatTypeException : Exception
+    {
+        const string message = "The type {0} is not supported ";
+
+        public FormatTypeException(Type type) : base(string.Format(message, type.Name)) { }
+    }
+
 
 
     /// <summary>

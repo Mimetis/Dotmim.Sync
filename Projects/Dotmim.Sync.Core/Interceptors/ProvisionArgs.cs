@@ -1,6 +1,6 @@
 ﻿using System.Data.Common;
 using System.Linq;
-using Dotmim.Sync.Data;
+
 using Dotmim.Sync.Enumerations;
 
 namespace Dotmim.Sync

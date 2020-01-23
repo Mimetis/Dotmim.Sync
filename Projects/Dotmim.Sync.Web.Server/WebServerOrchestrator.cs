@@ -1,5 +1,5 @@
 ﻿using Dotmim.Sync.Batch;
-using Dotmim.Sync.Data.Surrogate;
+
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Serialization;
 using Dotmim.Sync.Web.Client;
@@ -83,6 +83,8 @@ namespace Dotmim.Sync.Web.Server
 
             this.Schema = newSchema;
 
+            
+
             var httpResponse = new HttpMessageEnsureScopesResponse(syncContext, newSchema);
 
             return httpResponse;
@@ -134,7 +136,7 @@ namespace Dotmim.Sync.Web.Server
                 DbSyncAdapter.CreateChangesTable(Schema.Tables[table.TableName, table.SchemaName], changesSet);
             }
 
-            changesSet.ImportContainerSet(httpMessage.Changes);
+            changesSet.ImportContainerSet(httpMessage.Changes, false);
 
             // If client has made a conversion on each line, apply the reverse side of it
             if (this.ClientConverter != null && changesSet.HasRows)

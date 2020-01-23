@@ -1,7 +1,7 @@
 using Dotmim.Sync.Builders;
 using System;
 using System.Text;
-using Dotmim.Sync.Data;
+
 using System.Data.Common;
 using System.Linq;
 using System.Data;

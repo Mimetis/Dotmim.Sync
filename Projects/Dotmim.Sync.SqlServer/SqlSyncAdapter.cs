@@ -1,5 +1,5 @@
 ﻿using Dotmim.Sync.Builders;
-using Dotmim.Sync.Data;
+
 using Dotmim.Sync.Filter;
 using Dotmim.Sync.SqlServer.Manager;
 using Microsoft.SqlServer.Server;
@@ -29,7 +29,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         // this static class could be shared accross databases with same command name
         // but different table schema
         // So the string should contains the connection string as well
-        private static ConcurrentDictionary<string, List<SqlParameter>> derivingParameters 
+        private static ConcurrentDictionary<string, List<SqlParameter>> derivingParameters
             = new ConcurrentDictionary<string, List<SqlParameter>>();
 
         public override DbConnection Connection
@@ -153,7 +153,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                     dataRowState = row.RowState;
 
                     var record = new SqlDataRecord(metadatas);
-                    
+
                     int sqlMetadataIndex = 0;
 
                     for (int i = 0; i < schemaChangesTable.Columns.Count; i++)
@@ -176,124 +176,45 @@ namespace Dotmim.Sync.SqlServer.Builders
                             {
                                 case SqlDbType.BigInt:
                                     if (columnType != typeof(long))
-                                    {
-                                        if (SyncTypeConverter.TryConvertTo<long>(rowValue, out object r))
-                                            rowValue = r;
-                                        else
-                                            throw new InvalidCastException($"Can't convert value {rowValue} to Int64");
-                                    }
+                                        rowValue = SyncTypeConverter.TryConvertTo<long>(rowValue);
                                     break;
                                 case SqlDbType.Bit:
                                     if (columnType != typeof(bool))
-                                    {
-                                        string rowValueString = rowValue.ToString();
-                                        if (bool.TryParse(rowValueString.Trim(), out var v))
-                                        {
-                                            rowValue = v;
-                                            break;
-                                        }
-
-                                        if (rowValueString.Trim() == "0")
-                                        {
-                                            rowValue = false;
-                                            break;
-                                        }
-
-                                        if (rowValueString.Trim() == "1")
-                                        {
-                                            rowValue = true;
-                                            break;
-                                        }
-
-                                        if (BoolConverter.CanConvertFrom(columnType))
-                                        {
-                                            rowValue = BoolConverter.ConvertFrom(rowValue);
-                                            break;
-                                        }
-
-                                        throw new InvalidCastException($"Can't convert value {rowValue} to Boolean");
-                                    }
+                                        rowValue = SyncTypeConverter.TryConvertTo<bool>(rowValue);
                                     break;
                                 case SqlDbType.Date:
                                 case SqlDbType.DateTime:
                                 case SqlDbType.DateTime2:
                                 case SqlDbType.SmallDateTime:
-                                    if (columnType != typeof(DateTime))
-                                    {
-                                        if (SyncTypeConverter.TryConvertTo<DateTime>(rowValue, out object r))
-                                            rowValue = r;
-                                        else
-                                            throw new InvalidCastException($"Can't convert value {rowValue} to DateTime");
-                                    }
-                                    break;
                                 case SqlDbType.DateTimeOffset:
-                                    if (columnType != typeof(DateTimeOffset))
-                                    {
-                                        if (SyncTypeConverter.TryConvertTo<DateTime>(rowValue, out object r))
-                                            rowValue = r;
-                                        else
-                                            throw new InvalidCastException($"Can't convert value {rowValue} to DateTimeOffset");
-                                    }
+                                    if (columnType != typeof(DateTime))
+                                        rowValue = SyncTypeConverter.TryConvertTo<DateTime>(rowValue);
                                     break;
                                 case SqlDbType.Decimal:
                                     if (columnType != typeof(decimal))
-                                    {
-                                        if (SyncTypeConverter.TryConvertTo<decimal>(rowValue, out object r))
-                                            rowValue = r;
-                                        else
-                                            throw new InvalidCastException($"Can't convert value {rowValue} to Decimal");
-                                    }
+                                        rowValue = SyncTypeConverter.TryConvertTo<decimal>(rowValue);
                                     break;
                                 case SqlDbType.Float:
-                                    if (columnType != typeof(double))
-                                    {
-                                        if (SyncTypeConverter.TryConvertTo<float>(rowValue, out object r))
-                                            rowValue = r;
-                                        else
-                                            throw new InvalidCastException($"Can't convert value {rowValue} to Double");
-                                    }
-                                    break;
                                 case SqlDbType.Real:
                                     if (columnType != typeof(float))
-                                    {
-                                        if (SyncTypeConverter.TryConvertTo<float>(rowValue, out object r))
-                                            rowValue = r;
-                                        else
-                                            throw new InvalidCastException($"Can't convert value {rowValue} to Double");
-                                    }
+                                        rowValue = SyncTypeConverter.TryConvertTo<float>(rowValue);
                                     break;
                                 case SqlDbType.Image:
                                 case SqlDbType.Binary:
                                 case SqlDbType.VarBinary:
                                     if (columnType != typeof(byte[]))
-                                    {
-                                        if (columnType == typeof(string))
-                                            rowValue = Convert.FromBase64String(rowValue);
-                                        else
-                                            rowValue = BitConverter.GetBytes(rowValue);
-                                    }
-
+                                        rowValue = SyncTypeConverter.TryConvertTo<byte[]>(rowValue);
                                     break;
                                 case SqlDbType.Variant:
                                     break;
                                 case SqlDbType.Int:
                                     if (columnType != typeof(int))
-                                    {
-                                        if (SyncTypeConverter.TryConvertTo<int>(rowValue, out object r))
-                                            rowValue = r;
-                                        else
-                                            throw new InvalidCastException($"Can't convert value {rowValue} to int");
-                                    }
+                                        rowValue = SyncTypeConverter.TryConvertTo<int>(rowValue);
                                     break;
                                 case SqlDbType.Money:
                                 case SqlDbType.SmallMoney:
                                     if (columnType != typeof(decimal))
-                                    {
-                                        if (SyncTypeConverter.TryConvertTo<decimal>(rowValue, out object r))
-                                            rowValue = r;
-                                        else
-                                            throw new InvalidCastException($"Can't convert value {rowValue} to Decimal");
-                                    }
+                                        rowValue = SyncTypeConverter.TryConvertTo<decimal>(rowValue);
                                     break;
                                 case SqlDbType.NChar:
                                 case SqlDbType.NText:
@@ -303,48 +224,27 @@ namespace Dotmim.Sync.SqlServer.Builders
                                 case SqlDbType.Text:
                                 case SqlDbType.Char:
                                     if (columnType != typeof(string))
-                                        rowValue = rowValue.ToString();
+                                        rowValue = SyncTypeConverter.TryConvertTo<string>(rowValue);
                                     break;
-
                                 case SqlDbType.SmallInt:
                                     if (columnType != typeof(short))
-                                    {
-                                        if (SyncTypeConverter.TryConvertTo<short>(rowValue, out object r))
-                                            rowValue = r;
-                                        else
-                                            throw new InvalidCastException($"Can't convert value {rowValue} to Int16");
-                                    }
+                                        rowValue = SyncTypeConverter.TryConvertTo<short>(rowValue);
                                     break;
                                 case SqlDbType.Time:
                                     if (columnType != typeof(TimeSpan))
-                                    {
-                                        if (SyncTypeConverter.TryConvertTo<TimeSpan>(rowValue, out object r))
-                                            rowValue = r;
-                                        else
-                                            throw new InvalidCastException($"Can't convert value {rowValue} to TimeSpan");
-                                    }
+                                        rowValue = SyncTypeConverter.TryConvertTo<TimeSpan>(rowValue);
                                     break;
                                 case SqlDbType.Timestamp:
                                     break;
                                 case SqlDbType.TinyInt:
                                     if (columnType != typeof(byte))
-                                    {
-                                        if (SyncTypeConverter.TryConvertTo<byte>(rowValue, out object r))
-                                            rowValue = r;
-                                        else
-                                            throw new InvalidCastException($"Can't convert value {rowValue} to Byte");
-                                    }
+                                        rowValue = SyncTypeConverter.TryConvertTo<byte>(rowValue);
                                     break;
                                 case SqlDbType.Udt:
                                     throw new ArgumentException($"Can't use UDT as SQL Type");
                                 case SqlDbType.UniqueIdentifier:
                                     if (columnType != typeof(Guid))
-                                    {
-                                        if (SyncTypeConverter.TryConvertTo<Guid>(rowValue, out object r))
-                                            rowValue = r;
-                                        else
-                                            throw new InvalidCastException($"Can't convert value {rowValue} to Guid");
-                                    }
+                                        rowValue = SyncTypeConverter.TryConvertTo<Guid>(rowValue);
                                     break;
                             }
                         }
@@ -392,9 +292,9 @@ namespace Dotmim.Sync.SqlServer.Builders
                             itemArray[i] = columnValue;
                         }
 
-                        // don't care about row state and update scope id
+                        // don't care about row state 
                         // Since it will be requested by next request from GetConflict()
-                        failedRows.Rows.Add(itemArray, Guid.Empty, dataRowState);
+                        failedRows.Rows.Add(itemArray, dataRowState);
                     }
                 }
             }

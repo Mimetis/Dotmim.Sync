@@ -1,5 +1,5 @@
-﻿using Dotmim.Sync.Data;
-using Dotmim.Sync.Data.Surrogate;
+﻿
+
 using System;
 using System.Collections.Generic;
 using System.IO;

@@ -1,4 +1,4 @@
-using Dotmim.Sync.Data;
+
 using Dotmim.Sync.Manager;
 using Dotmim.Sync.MySql.Builders;
 using MySql.Data.MySqlClient;
@@ -29,14 +29,14 @@ namespace Dotmim.Sync.MySql
 
         public SyncTable GetTable()
         {
-            var dmTable = MySqlManagementUtils.Table(this.sqlConnection, this.sqlTransaction, this.tableName);
+            var syncTable = MySqlManagementUtils.Table(this.sqlConnection, this.sqlTransaction, this.tableName);
 
-            if (dmTable == null || dmTable.Rows == null || dmTable.Rows.Count <= 0)
+            if (syncTable == null || syncTable.Rows == null || syncTable.Rows.Count <= 0)
                 return null;
 
             // Get Table
-            var dmRow = dmTable.Rows[0];
-            var tblName = dmRow["TABLE_NAME"].ToString();
+            var row = syncTable.Rows[0];
+            var tblName = row["TABLE_NAME"].ToString();
 
             return new SyncTable(tblName);
         }
@@ -49,10 +49,10 @@ namespace Dotmim.Sync.MySql
 
             // Get the columns definition
 
-            var dmColumnsList = MySqlManagementUtils.ColumnsForTable(this.sqlConnection, this.sqlTransaction, this.tableName);
+            var columnsList = MySqlManagementUtils.ColumnsForTable(this.sqlConnection, this.sqlTransaction, this.tableName);
             var mySqlDbMetadata = new MySqlDbMetadata();
 
-            foreach (var c in dmColumnsList.Rows.OrderBy(r => Convert.ToUInt64(r["ordinal_position"])))
+            foreach (var c in columnsList.Rows.OrderBy(r => Convert.ToUInt64(r["ordinal_position"])))
             {
                 var typeName = c["data_type"].ToString();
                 var name = c["column_name"].ToString();
@@ -100,11 +100,11 @@ namespace Dotmim.Sync.MySql
         {
             var relations = new List<DbRelationDefinition>();
 
-            var dmRelations = MySqlManagementUtils.RelationsForTable(this.sqlConnection, this.sqlTransaction, this.tableName);
+            var relationsList = MySqlManagementUtils.RelationsForTable(this.sqlConnection, this.sqlTransaction, this.tableName);
 
-            if (dmRelations != null && dmRelations.Rows.Count > 0)
+            if (relationsList != null && relationsList.Rows.Count > 0)
             {
-                foreach (var fk in dmRelations.Rows.GroupBy(row => 
+                foreach (var fk in relationsList.Rows.GroupBy(row => 
                     new { Name = (string)row["ForeignKey"], TableName = (string)row["TableName"], ReferenceTableName = (string)row["ReferenceTableName"] }))
                 {
                     var relationDefinition = new DbRelationDefinition()
@@ -132,14 +132,14 @@ namespace Dotmim.Sync.MySql
         public IEnumerable<SyncColumn> GetPrimaryKeys()
         {
             // Get PrimaryKey
-            var dmTableKeys = MySqlManagementUtils.PrimaryKeysForTable(this.sqlConnection, this.sqlTransaction, this.tableName);
+            var keys = MySqlManagementUtils.PrimaryKeysForTable(this.sqlConnection, this.sqlTransaction, this.tableName);
 
             var lstKeys = new List<SyncColumn>();
 
-            foreach (var dmKey in dmTableKeys.Rows)
+            foreach (var key in keys.Rows)
             {
-                var keyColumn = new SyncColumn((string)dmKey["COLUMN_NAME"], typeof(string));
-                keyColumn.Ordinal = Convert.ToInt32(dmKey["ORDINAL_POSITION"]);
+                var keyColumn = new SyncColumn((string)key["COLUMN_NAME"], typeof(string));
+                keyColumn.Ordinal = Convert.ToInt32(key["ORDINAL_POSITION"]);
                 lstKeys.Add(keyColumn);
             }
 

@@ -1,6 +1,6 @@
 ﻿using Dotmim.Sync.Builders;
 using System.Text;
-using Dotmim.Sync.Data;
+
 using System.Data.Common;
 
 namespace Dotmim.Sync.MySql

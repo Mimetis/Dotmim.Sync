@@ -1,5 +1,5 @@
 ﻿using Dotmim.Sync.Filter;
-using Dotmim.Sync.Data;
+
 using System;
 using System.Collections.Generic;
 using System.Data.Common;

@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Data;
 using System.Linq;
-using Dotmim.Sync.Data;
+
 
 namespace Dotmim.Sync.SqlServer.Manager
 {
