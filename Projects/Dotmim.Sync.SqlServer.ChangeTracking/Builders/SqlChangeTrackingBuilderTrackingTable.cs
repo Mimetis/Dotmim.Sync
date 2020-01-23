@@ -1,5 +1,5 @@
 ﻿using Dotmim.Sync.Builders;
-using Dotmim.Sync.Data;
+
 using Dotmim.Sync.Filter;
 using Dotmim.Sync.Log;
 using Dotmim.Sync.SqlServer.Builders;
@@ -121,9 +121,9 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             var schemaName = this.tableName.SchemaName;
             var tableName = this.tableName.ObjectName;
 
-            var dmTable = SqlChangeTrackingManagementUtils.ChangeTrackingTable(connection, transaction, tableName, schemaName);
+            var table = SqlChangeTrackingManagementUtils.ChangeTrackingTable(connection, transaction, tableName, schemaName);
 
-            return dmTable.Rows.Count <= 0;
+            return table.Rows.Count <= 0;
         }
 
 

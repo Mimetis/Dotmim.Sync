@@ -1,5 +1,5 @@
 using Dotmim.Sync.Builders;
-using Dotmim.Sync.Data;
+
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -20,7 +20,7 @@ namespace Dotmim.Sync.SqlServer
         /// <summary>
         /// Get Table
         /// </summary>
-        public static DmTable Table(SqlConnection connection, SqlTransaction transaction, string tableName, string schemaName)
+        public static SyncTable Table(SqlConnection connection, SqlTransaction transaction, string tableName, string schemaName)
         {
             var command = $"Select top 1 tbl.name as TableName, " +
                           $"sch.name as SchemaName " +
@@ -38,7 +38,8 @@ namespace Dotmim.Sync.SqlServer
                 schemaNameString = string.IsNullOrWhiteSpace(schemaNameString) ? "dbo" : schemaNameString;
             }
 
-            var dmTable = new DmTable(tableNameNormalized);
+            var syncTable = new SyncTable(tableNameNormalized, schemaNameString);
+
             using (var sqlCommand = new SqlCommand(command, connection))
             {
                 sqlCommand.Parameters.AddWithValue("@tableName", tableNameString);
@@ -53,23 +54,21 @@ namespace Dotmim.Sync.SqlServer
                     sqlCommand.Transaction = transaction;
 
                 using (var reader = sqlCommand.ExecuteReader())
-                {
-                    dmTable.Fill(reader);
-                }
+                    syncTable.Load(reader);
 
 
                 if (!alreadyOpened)
                     connection.Close();
 
             }
-            return dmTable;
+            return syncTable;
         }
 
 
         /// <summary>
         /// Get columns for table
         /// </summary>
-        public static DmTable ColumnsForTable(SqlConnection connection, SqlTransaction transaction, string tableName, string schemaName)
+        public static SyncTable ColumnsForTable(SqlConnection connection, SqlTransaction transaction, string tableName, string schemaName)
         {
 
             var commandColumn = $"Select col.name as name, " +
@@ -102,7 +101,7 @@ namespace Dotmim.Sync.SqlServer
                 schemaNameString = string.IsNullOrWhiteSpace(schemaNameString) ? "dbo" : schemaNameString;
             }
 
-            var dmTable = new DmTable(tableNameNormalized);
+            var syncTable = new SyncTable(tableNameNormalized);
             using (var sqlCommand = new SqlCommand(commandColumn, connection))
             {
                 sqlCommand.Parameters.AddWithValue("@tableName", tableNameString);
@@ -117,22 +116,19 @@ namespace Dotmim.Sync.SqlServer
                     sqlCommand.Transaction = transaction;
 
                 using (var reader = sqlCommand.ExecuteReader())
-                {
-                    dmTable.Fill(reader);
-                }
-
+                    syncTable.Load(reader);
                 
                 if (!alreadyOpened)
                     connection.Close();
 
             }
-            return dmTable;
+            return syncTable;
         }
 
         /// <summary>
         /// Get columns for table
         /// </summary>
-        public static DmTable PrimaryKeysForTable(SqlConnection connection, SqlTransaction transaction, string tableName)
+        public static SyncTable PrimaryKeysForTable(SqlConnection connection, SqlTransaction transaction, string tableName)
         {
 
             var commandColumn = @"select ind.name, col.name as columnName, ind_col.column_id, ind_col.key_ordinal 
@@ -146,7 +142,7 @@ namespace Dotmim.Sync.SqlServer
             var tableNameNormalized = ParserName.Parse(tableName).Unquoted().Normalized().ToString();
             var tableNameString = ParserName.Parse(tableName).ToString();
 
-            var dmTable = new DmTable(tableNameNormalized);
+            var syncTable = new SyncTable(tableNameNormalized);
             using (var sqlCommand = new SqlCommand(commandColumn, connection))
             {
                 sqlCommand.Parameters.AddWithValue("@tableName", tableNameString);
@@ -161,21 +157,18 @@ namespace Dotmim.Sync.SqlServer
 
 
                 using (var reader = sqlCommand.ExecuteReader())
-                {
-                    dmTable.Fill(reader);
-                }
+                    syncTable.Load(reader);
 
                 if (!alreadyOpened)
                     connection.Close();
 
 
             }
-            return dmTable;
+            return syncTable;
         }
 
-        public static DmTable RelationsForTable(SqlConnection connection, SqlTransaction transaction, string tableName, string schemaName)
+        public static SyncTable RelationsForTable(SqlConnection connection, SqlTransaction transaction, string tableName, string schemaName)
         {
-
 
             var commandRelations = @"
                 SELECT f.name AS ForeignKey,
@@ -198,13 +191,12 @@ namespace Dotmim.Sync.SqlServer
             // default as dbo
             schemaNameString = string.IsNullOrEmpty(schemaNameString) ? "dbo" : schemaNameString;
 
+            var syncTable = new SyncTable(tableNameNormalized, schemaNameString);
 
-            var dmTable = new DmTable(tableNameNormalized);
             using (var sqlCommand = new SqlCommand(commandRelations, connection))
             {
                 sqlCommand.Parameters.AddWithValue("@tableName", tableNameString);
                 sqlCommand.Parameters.AddWithValue("@schemaName", schemaNameString);
-
 
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
@@ -214,20 +206,13 @@ namespace Dotmim.Sync.SqlServer
                 if (transaction != null)
                     sqlCommand.Transaction = transaction;
 
-
                 using (var reader = sqlCommand.ExecuteReader())
-                {
-                    dmTable.Fill(reader);
-                }
+                    syncTable.Load(reader);
 
                 if (!alreadyOpened)
                     connection.Close();
-
-
             }
-
-
-            return dmTable;
+            return syncTable;
         }
 
         public static void DropProcedureIfExists(SqlConnection connection, SqlTransaction transaction, int commandTimout, string quotedProcedureName)

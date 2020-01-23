@@ -2,7 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using Dotmim.Sync.Data;
+
 using System.Linq;
 using Dotmim.Sync.Filter;
 using System.Data;

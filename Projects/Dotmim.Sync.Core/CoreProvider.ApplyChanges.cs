@@ -1,7 +1,4 @@
-﻿using Dotmim.Sync.Builders;
-using Dotmim.Sync.Data;
-using Dotmim.Sync.Data.Surrogate;
-using Dotmim.Sync.Enumerations;
+﻿using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Messages;
 using System;
 using System.Collections.Generic;
@@ -377,9 +374,6 @@ namespace Dotmim.Sync
 
                 bool operationComplete = false;
 
-                //var commandType = DbCommandType.UpdateMetadata;
-                //bool needToUpdateMetadata = true;
-
                 switch (conflict.Type)
                 {
                     // Remote source has row, Local don't have the row, so insert it
@@ -395,7 +389,6 @@ namespace Dotmim.Sync
                     case ConflictType.RemoteIsDeletedLocalIsDeleted:
                     case ConflictType.RemoteIsDeletedLocalNotExists:
                         operationComplete = true;
-                        //needToUpdateMetadata = false;
                         conflictResolved = 0;
                         break;
 
@@ -411,24 +404,6 @@ namespace Dotmim.Sync
                     case ConflictType.ErrorsOccurred:
                         return (ChangeApplicationAction.Rollback, 0, finalRow, 0);
                 }
-
-                //if (needToUpdateMetadata)
-                //{
-                //    using (var metadataCommand = syncAdapter.GetCommand(DbCommandType.UpdateMetadata))
-                //    {
-                //        if (metadataCommand == null)
-                //            throw new MissingCommandException(DbCommandType.UpdateMetadata.ToString());
-
-                //        // Deriving Parameters
-                //        syncAdapter.SetCommandParameters(DbCommandType.UpdateMetadata, metadataCommand);
-
-                //        // force applying client row, so apply scope.id (client scope here)
-                //        var rowsApplied = syncAdapter.InsertOrUpdateMetadatas(metadataCommand, conflict.RemoteRow, senderScopeId);
-
-                //        if (!rowsApplied)
-                //            throw new MetadataException(syncAdapter.TableDescription.TableName);
-                //    }
-                //}
 
                 finalRow = conflict.RemoteRow;
 

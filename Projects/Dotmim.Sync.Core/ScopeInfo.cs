@@ -65,11 +65,5 @@ namespace Dotmim.Sync
         [IgnoreDataMember]
         public long LastCleanupTimestamp { get; set; }
 
-        /// <summary>
-        /// Gets or sets the last sync state.
-        /// </summary>
-        [IgnoreDataMember]
-        public SyncState SyncState { get; set; }
-
     }
 }
