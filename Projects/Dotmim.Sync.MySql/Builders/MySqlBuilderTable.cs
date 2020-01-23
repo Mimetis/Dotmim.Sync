@@ -1,5 +1,5 @@
 using Dotmim.Sync.Builders;
-using Dotmim.Sync.Data;
+
 using Dotmim.Sync.MySql.Builders;
 using MySql.Data.MySqlClient;
 using System;
@@ -117,10 +117,10 @@ namespace Dotmim.Sync.MySql
                 if (!alreadyOpened)
                     this.connection.Open();
 
-                var dmTable = MySqlManagementUtils.RelationsForTable(this.connection, this.transaction, tableName);
+                var relations = MySqlManagementUtils.RelationsForTable(this.connection, this.transaction, tableName);
 
-                var foreignKeyExist = dmTable.Rows.Any(r =>
-                   dmTable.IsEqual(r["ForeignKey"].ToString(), relationName));
+                var foreignKeyExist = relations.Rows.Any(r =>
+                   string.Equals(r["ForeignKey"].ToString(), relationName, SyncGlobalization.DataSourceStringComparison));
 
                 return !foreignKeyExist;
             }
@@ -257,16 +257,6 @@ namespace Dotmim.Sync.MySql
                 i++;
             }
 
-            //for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
-            //{
-            //    DmColumn pkColumn = this.tableDescription.PrimaryKey.Columns[i];
-            //    var quotedColumnName = new ObjectNameParser(pkColumn.ColumnName., "`", "`").QuotedObjectName;
-
-            //    stringBuilder.Append(quotedColumnName);
-
-            //    if (i < this.tableDescription.PrimaryKey.Columns.Length - 1)
-            //        stringBuilder.Append(", ");
-            //}
             stringBuilder.Append(")");
             stringBuilder.Append(")");
             return new MySqlCommand(stringBuilder.ToString());

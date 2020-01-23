@@ -1,7 +1,6 @@
 ﻿using Dotmim.Sync.Batch;
 using Dotmim.Sync.Builders;
-using Dotmim.Sync.Data;
-using Dotmim.Sync.Data.Surrogate;
+
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Filter;
 using Dotmim.Sync.Manager;
@@ -55,10 +54,10 @@ namespace Dotmim.Sync
                 // Interceptor
                 await this.InterceptAsync(outdatedArgs).ConfigureAwait(false);
 
-                if (outdatedArgs.Action != OutdatedSyncAction.Rollback)
-                    context.SyncType = outdatedArgs.Action == OutdatedSyncAction.Reinitialize ? SyncType.Reinitialize : SyncType.ReinitializeWithUpload;
+                if (outdatedArgs.Action != OutdatedAction.Rollback)
+                    context.SyncType = outdatedArgs.Action == OutdatedAction.Reinitialize ? SyncType.Reinitialize : SyncType.ReinitializeWithUpload;
 
-                if (outdatedArgs.Action == OutdatedSyncAction.Rollback)
+                if (outdatedArgs.Action == OutdatedAction.Rollback)
                     throw new OutOfDateException();
             }
 
@@ -368,16 +367,16 @@ namespace Dotmim.Sync
                 }
                 if (columnName == "update_scope_id")
                 {
-                    var readerScopeId = dataReader.GetValue(i);
+                    //var readerScopeId = dataReader.GetValue(i);
 
-                    // if update_scope_id is null, so the row owner is the local database
-                    // if update_scope_id is not null, the row owner is someone else
-                    if (readerScopeId == DBNull.Value || readerScopeId == null)
-                        row.UpdateScopeId = localScopeId;
-                    else if (SyncTypeConverter.TryConvertTo<Guid>(readerScopeId, out var updateScopeIdObject))
-                        row.UpdateScopeId = (Guid)updateScopeIdObject;
-                    else
-                        throw new Exception("Impossible to parse row['update_scope_id']");
+                    //// if update_scope_id is null, so the row owner is the local database
+                    //// if update_scope_id is not null, the row owner is someone else
+                    //if (readerScopeId == DBNull.Value || readerScopeId == null)
+                    //    row.UpdateScopeId = localScopeId;
+                    //else if (SyncTypeConverter.TryConvertTo<Guid>(readerScopeId, out var updateScopeIdObject))
+                    //    row.UpdateScopeId = (Guid)updateScopeIdObject;
+                    //else
+                    //    throw new Exception("Impossible to parse row['update_scope_id']");
 
                     continue;
                 }
@@ -389,10 +388,10 @@ namespace Dotmim.Sync
 
             }
 
-            // during initialization, row["update_scope_id"] is not part of the data reader
-            // so we affect the local scope id owner manually
-            if (!row.UpdateScopeId.HasValue)
-                row.UpdateScopeId = localScopeId;
+            //// during initialization, row["update_scope_id"] is not part of the data reader
+            //// so we affect the local scope id owner manually
+            //if (!row.UpdateScopeId.HasValue)
+            //    row.UpdateScopeId = localScopeId;
 
             row.RowState = isTombstone ? DataRowState.Deleted : DataRowState.Modified;
 

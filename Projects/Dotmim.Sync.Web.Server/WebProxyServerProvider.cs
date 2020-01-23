@@ -1,26 +1,15 @@
 ﻿using System;
-using System.Collections.Generic;
-using Dotmim.Sync.Batch;
 using System.Threading.Tasks;
 using System.IO;
 using System.Linq;
-using System.Net.Http.Headers;
 using System.Threading;
 using Newtonsoft.Json;
-using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Serialization;
-using Dotmim.Sync.Data.Surrogate;
-using Dotmim.Sync.Data;
-using Dotmim.Sync.Messages;
 using Dotmim.Sync.Web.Client;
-using Newtonsoft.Json.Linq;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Session;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
-using Dotmim.Sync.Cache;
 using System.IO.Compression;
-using System.Text;
 
 namespace Dotmim.Sync.Web.Server
 {
@@ -135,6 +124,7 @@ namespace Dotmim.Sync.Web.Server
             var step = (HttpStep)Convert.ToInt32(iStep);
             WebServerOrchestrator remoteOrchestrator = null;
 
+
             try
             {
                 var cache = context.RequestServices.GetService<IMemoryCache>();
@@ -157,7 +147,12 @@ namespace Dotmim.Sync.Web.Server
                 var clientConverter = GetClientConverter(converter, remoteOrchestrator);
                 remoteOrchestrator.ClientConverter = clientConverter;
 
-                
+
+                var str = context.Session.GetString("key");
+                str = str ?? "seb";
+                str += str;
+                context.Session.SetString("key", str);
+
 
                 byte[] binaryData = null;
                 switch (step)

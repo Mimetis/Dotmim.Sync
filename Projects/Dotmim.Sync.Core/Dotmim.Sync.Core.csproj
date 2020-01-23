@@ -23,6 +23,11 @@
     <IncludeSource>True</IncludeSource>
     <IncludeSymbols>True</IncludeSymbols>
   </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="Dm\**" />
+    <EmbeddedResource Remove="Dm\**" />
+    <None Remove="Dm\**" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />

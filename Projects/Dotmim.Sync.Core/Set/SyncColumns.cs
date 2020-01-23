@@ -47,18 +47,8 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get a Column by its name
         /// </summary>
-        public SyncColumn this[string columnName]
-        {
-            get
-            {
-                var schema = this.Table?.Schema;
-
-                if (schema == null)
-                    throw new ArgumentException("Schema is null");
-
-                return InnerCollection.FirstOrDefault(c => string.Equals(c.ColumnName, columnName, SyncGlobalization.DataSourceStringComparison));
-            }
-        }
+        public SyncColumn this[string columnName] => 
+            InnerCollection.FirstOrDefault(c => string.Equals(c.ColumnName, columnName, SyncGlobalization.DataSourceStringComparison));
 
 
         /// <summary>
@@ -68,7 +58,6 @@ namespace Dotmim.Sync
         {
             InnerCollection.Add(item);
             AffectOrder();
-
         }
 
         public void Add(string columnName, Type type = null)
@@ -84,7 +73,6 @@ namespace Dotmim.Sync
         /// <summary>
         /// Add a collection of columns
         /// </summary>
-        /// <param name="addedColumns"></param>
         public void AddRange(SyncColumn[] addedColumns)
         {
             foreach (var item in addedColumns)

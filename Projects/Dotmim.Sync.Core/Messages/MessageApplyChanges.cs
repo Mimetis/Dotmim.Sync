@@ -1,5 +1,5 @@
 ﻿using Dotmim.Sync.Batch;
-using Dotmim.Sync.Data;
+
 using Dotmim.Sync.Enumerations;
 using Newtonsoft.Json;
 using System;

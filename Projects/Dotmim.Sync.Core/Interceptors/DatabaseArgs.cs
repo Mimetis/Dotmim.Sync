@@ -1,4 +1,4 @@
-﻿using Dotmim.Sync.Data;
+﻿
 using Dotmim.Sync.Enumerations;
 using System.Data.Common;
 
@@ -34,7 +34,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets or sets an action enumeration value for the action to handle the outdated peer.
         /// </summary>
-        public new OutdatedSyncAction Action { get; set; } = OutdatedSyncAction.Rollback;
+        public new OutdatedAction Action { get; set; } = OutdatedAction.Rollback;
 
         public override string Message => $"";
     }

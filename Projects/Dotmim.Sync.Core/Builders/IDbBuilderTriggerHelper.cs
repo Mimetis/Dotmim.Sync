@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Text;
-using Dotmim.Sync.Data;
+
 using Dotmim.Sync.Filter;
 
 namespace Dotmim.Sync.Builders

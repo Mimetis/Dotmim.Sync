@@ -1,6 +1,6 @@
 ﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Cache;
-using Dotmim.Sync.Data;
+
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Manager;
 using Dotmim.Sync.Messages;
@@ -224,7 +224,7 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// TODO : Manager le fait qu'un scope peut être out dater, car il n'a pas synchronisé depuis assez longtemps
+        /// TODO : Manage an outdated scope. Complicated on the server side since we don't store any informations
         /// </summary>
         internal virtual bool IsRemoteOutdated() =>
             //var lastCleanupTimeStamp = 0; // A établir comment récupérer la dernière date de clean up des metadatas
