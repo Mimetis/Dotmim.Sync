@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Http2.HPack;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration.EnvironmentVariables;
+using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using System;
 using System.Data;
@@ -495,21 +496,19 @@ internal class Program
         agent.Options = clientOptions;
 
 
+        var configureServices = new Action<IServiceCollection>(services =>
+        {
+            // add a SqlSyncProvider acting as the server hub
+            services.AddSyncServer<SqlSyncProvider>(serverProvider.ConnectionString, setup);
+
+        });
+
         var serverHandler = new RequestDelegate(async context =>
         {
-            var proxyServerProvider = WebProxyServerOrchestrator.Create(context, serverProvider, setup, webServerOptions);
-
-            var webServerOrchestrator = proxyServerProvider.GetLocalOrchestrator(context);
-
-            webServerOrchestrator.OnDatabaseChangesApplying(dca =>
-            {
-                Console.WriteLine("On db changes applying. Press enter");
-                Console.ReadLine();
-            });
-
-            await proxyServerProvider.HandleRequestAsync(context);
+            var webProxyServer = context.RequestServices.GetService(typeof(WebProxyServerOrchestrator)) as WebProxyServerOrchestrator;
+            await webProxyServer.HandleRequestAsync(context);
         });
-        using (var server = new KestrellTestServer())
+        using (var server = new KestrellTestServer(configureServices))
         {
             var clientHandler = new ResponseDelegate(async (serviceUri) =>
             {
