@@ -41,10 +41,15 @@ namespace Dotmim.Sync.Tests
                     services.AddDistributedMemoryCache();
                     services.AddSession(options =>
                     {
-                            // Set a long timeout for easy testing.
-                            options.IdleTimeout = TimeSpan.FromDays(10);
+                        // Set a long timeout for easy testing.
+                        options.IdleTimeout = TimeSpan.FromDays(10);
                         options.Cookie.HttpOnly = true;
                     });
+
+                    // add a SqlSyncProvider acting as the server hub
+                    services.AddSyncServer(server.WebServerOrchestrator.Provider.GetType(),
+                                           server.WebServerOrchestrator.Provider.ConnectionString);
+
                 });
             this.builder = hostBuilder;
 
@@ -59,9 +64,9 @@ namespace Dotmim.Sync.Tests
             // Create server web proxy
             var serverHandler = new RequestDelegate(async context =>
             {
-                var proxyServerProvider = WebProxyServerOrchestrator.Create(context, webServerOrchestrator);
-
-                await proxyServerProvider.HandleRequestAsync(context);
+                var webProxyServer = context.RequestServices.GetService(typeof(WebProxyServerOrchestrator)) as WebProxyServerOrchestrator;
+                webProxyServer.WebServerOrchestrator = this.webServerOrchestrator;
+                await webProxyServer.HandleRequestAsync(context);
             });
 
 

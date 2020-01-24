@@ -104,11 +104,6 @@ namespace Dotmim.Sync
         public abstract DbMetadata Metadata { get; set; }
 
         /// <summary>
-        /// Get the cache manager. will store the configuration because we dont want to store it in database
-        /// </summary>
-        public abstract ICache CacheManager { get; set; }
-
-        /// <summary>
         /// Get the provider type name
         /// </summary>
         public abstract string ProviderTypeName { get; }

@@ -13,7 +13,6 @@ namespace Dotmim.Sync.Sqlite
 
     public class SqliteSyncProvider : CoreProvider
     {
-        private ICache cacheManager;
         private string filePath;
         private DbMetadata dbMetadata;
         private static String providerType;
@@ -33,21 +32,7 @@ namespace Dotmim.Sync.Sqlite
 
             }
         }
-        public override ICache CacheManager
-        {
-            get
-            {
-                if (cacheManager == null)
-                    cacheManager = new InMemoryCache();
-
-                return cacheManager;
-            }
-            set
-            {
-                cacheManager = value;
-
-            }
-        }
+     
 
         /// <summary>
         /// Sqlite does not support Bulk operations

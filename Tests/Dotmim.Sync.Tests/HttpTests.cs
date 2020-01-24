@@ -1506,7 +1506,7 @@ namespace Dotmim.Sync.Tests
 
                     foreach(var row in table.Rows)
                     {
-                        var dateCell = row[6];
+                        var dateCell = row[5];
 
                         // check we have an integer here
                         Assert.IsType<long>(dateCell);
