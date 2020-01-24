@@ -24,26 +24,26 @@ namespace Dotmim.Sync.SampleConsole
         IWebHostBuilder builder;
         IWebHost host;
 
-        public KestrellTestServer(WebHostBuilder builder = null)
+        public KestrellTestServer(Action<IServiceCollection> configureServices = null)
         {
-            if (builder == null)
-            {
-                var hostBuilder = new WebHostBuilder()
-                    .UseKestrel()
-                    .UseUrls("http://127.0.0.1:0/")
-                    .ConfigureServices(services =>
+            var hostBuilder = new WebHostBuilder()
+                .UseKestrel()
+                .UseUrls("http://127.0.0.1:0/")
+                .ConfigureServices(services =>
+                {
+                    services.AddMemoryCache();
+                    services.AddDistributedMemoryCache();
+                    services.AddSession(options =>
                     {
-                        services.AddMemoryCache();
-                        services.AddDistributedMemoryCache();
-                        services.AddSession(options =>
-                        {
-                            // Set a long timeout for easy testing.
-                            options.IdleTimeout = TimeSpan.FromDays(10);
-                            options.Cookie.HttpOnly = true;
-                        }); 
+                        // Set a long timeout for easy testing.
+                        options.IdleTimeout = TimeSpan.FromDays(10);
+                        options.Cookie.HttpOnly = true;
                     });
-                this.builder = hostBuilder;
-            }
+
+                    configureServices?.Invoke(services);
+
+                });
+            this.builder = hostBuilder;
         }
 
         public async Task Run(RequestDelegate serverHandler, ResponseDelegate clientHandler)

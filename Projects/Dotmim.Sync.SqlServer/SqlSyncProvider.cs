@@ -13,34 +13,22 @@ namespace Dotmim.Sync.SqlServer
 {
     public class SqlSyncProvider : CoreProvider
     {
-        ICache cacheManager;
-        DbMetadata dbMetadata;
-        static String providerType;
+        private DbMetadata dbMetadata;
+        static string providerType;
         public SqlSyncProvider() : base()
         { }
 
-        public SqlSyncProvider(string connectionString) : base()
-        {
-            this.ConnectionString = connectionString;
-        }
+        public SqlSyncProvider(string connectionString) : base() => this.ConnectionString = connectionString;
 
         public SqlSyncProvider(SqlConnectionStringBuilder builder) : base()
         {
             if (String.IsNullOrEmpty(builder.ConnectionString))
                 throw new Exception("You have to provide parameters to the Sql builder to be able to construct a valid connection string.");
 
-            
-
             this.ConnectionString = builder.ConnectionString;
         }
 
-        public override string ProviderTypeName
-        {
-            get
-            {
-                return ProviderType;
-            }
-        }
+        public override string ProviderTypeName => ProviderType;
 
         public static string ProviderType
         {
@@ -49,7 +37,7 @@ namespace Dotmim.Sync.SqlServer
                 if (!string.IsNullOrEmpty(providerType))
                     return providerType;
 
-                Type type = typeof(SqlSyncProvider);
+                var type = typeof(SqlSyncProvider);
                 providerType = $"{type.Name}, {type.ToString()}";
 
                 return providerType;
@@ -77,22 +65,7 @@ namespace Dotmim.Sync.SqlServer
 
             }
         }
-        public override ICache CacheManager
-        {
-            get
-            {
-                if (cacheManager == null)
-                    cacheManager = new InMemoryCache();
-
-                return cacheManager;
-            }
-            set
-            {
-                cacheManager = value;
-
-            }
-        }
-
+    
         public override void EnsureSyncException(SyncException syncException)
         {
             if (!string.IsNullOrEmpty(this.ConnectionString))
