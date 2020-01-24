@@ -12,7 +12,6 @@ namespace Dotmim.Sync.MySql
 
     public class MySqlSyncProvider : CoreProvider
     {
-        ICache cacheManager;
         DbMetadata dbMetadata;
         static string providerType;
 
@@ -31,28 +30,12 @@ namespace Dotmim.Sync.MySql
                 if (!string.IsNullOrEmpty(providerType))
                     return providerType;
 
-                Type type = typeof(MySqlSyncProvider);
+                var type = typeof(MySqlSyncProvider);
                 providerType = $"{type.Name}, {type.ToString()}";
 
                 return providerType;
             }
 
-        }
-
-        public override ICache CacheManager
-        {
-            get
-            {
-                if (cacheManager == null)
-                    cacheManager = new InMemoryCache();
-
-                return cacheManager;
-            }
-            set
-            {
-                cacheManager = value;
-
-            }
         }
 
         /// <summary>
