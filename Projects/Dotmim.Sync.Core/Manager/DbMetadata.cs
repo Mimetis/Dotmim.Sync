@@ -114,10 +114,10 @@ namespace Dotmim.Sync.Manager
         /// <summary>
         /// Returns the corresponding Owner DbType. Because it could be lower case, we should handle it
         /// </summary>
-        public Object TryGetOwnerDbType(string ownerDbType, DbType fallbackDbType, bool isUnsigned, bool isUnicode, long maxLength, string fromProviderType, string ownerProviderType)
+        public object TryGetOwnerDbType(string ownerDbType, DbType fallbackDbType, bool isUnsigned, bool isUnicode, long maxLength, string fromProviderType, string ownerProviderType)
         {
             // We MUST check if we are from the same provider (if it's mysql or oracle, we fallback on dbtype
-            if (!String.IsNullOrEmpty(ownerDbType) && fromProviderType == ownerProviderType)
+            if (!string.IsNullOrEmpty(ownerDbType) && fromProviderType == ownerProviderType)
                 return ValidateOwnerDbType(ownerDbType, isUnsigned, isUnicode, maxLength);
 
             // if it's not the same provider, fallback on DbType instead.

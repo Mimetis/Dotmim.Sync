@@ -1,4 +1,4 @@
-﻿using Dotmim.Sync.Filter;
+﻿
 using Dotmim.Sync.MySql;
 using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
@@ -7,6 +7,7 @@ using Dotmim.Sync.Tests.Models;
 using Microsoft.EntityFrameworkCore.Storage;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -31,10 +32,70 @@ namespace Dotmim.Sync.Tests
                 setup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "EmployeeID", "NameStyle", "FirstName", "LastName" });
                 setup.Tables["Address"].Columns.AddRange(new string[] { "AddressID", "AddressLine1", "City", "PostalCode" });
 
-                // Filter rows
-                setup.Filters.Add("Customer", "CustomerID");
-                setup.Filters.Add("CustomerAddress", "CustomerID");
-                setup.Filters.Add("SalesOrderHeader", "CustomerID", "SalesLT");
+
+                // Filters clause
+
+                // 1) EASY Way:
+                //setup.Filters.Add("CustomerAddress", "CustomerID");
+                //setup.Filters.Add("SalesOrderHeader", "CustomerID", "SalesLT");
+
+
+                // 2) Same, but decomposed in 3 Steps
+
+                // Create a filter on table Customer
+                // Shortcut to the next 3 commands : setup.Filters.Add("Customer", "CustomerID");
+                var customerFilter = new SetupFilter("Customer");
+                // Create a parameter based on column Customer Id in table Customer
+                customerFilter.AddParameter("CustomerId", "Customer", true);
+                // add the side where expression, allowing to be null
+                customerFilter.AddWhere("CustomerId", "Customer", "CustomerId");
+
+                setup.Filters.Add(customerFilter);
+                // 3) Create your own filter
+
+                // Create a filter on table Address
+                var addressFilter = new SetupFilter("Address");
+
+                // Creating parameters
+                // -------------------------------------------------
+                // The 2 next parameters will generate something like :
+                //
+                // ALTER PROCEDURE [dbo].[Address_changes]
+                //   @sync_min_timestamp bigint,
+                //   @sync_scope_id uniqueidentifier,
+                //   @CustomerID uniqueidentier,
+                //   @Gender varchar(2) = 'M'
+
+
+                // Adding a parameter based on the [Customer].[CustomerID] column
+                // Using a matching on a column allows us on not defining any column type, size and so on...
+                addressFilter.AddParameter("CustomerID", "Customer");
+
+                // Adding a customer parameter, where we specify everything
+                // this parameter will be add as :
+                // For SQL : @Gender varchar(2) = 'M'
+                // For MySql : in_Gender varchar(2) = 'M'
+                addressFilter.AddParameter("Gender", DbType.AnsiStringFixedLength, false, "M", 2);
+                // -------------------------------------------------
+
+
+                // Creating joins
+                // ----------------------------------------------------
+                // The 2 next joins will generate
+                // LEFT JOIN [CustomerAddress] on [CustomerAddress].[AddressID] = [side].[AddressID]
+                // LEFT JOIN [Customer] on [Customer].[AddressID] = [side].[AddressID]
+
+                addressFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "AddressId", "Address", "AddressId");
+
+                // Will generate
+
+                // Will generate
+                // LEFT JOIN [Customer] on [Customer].[CustomerID] = [CustomerAddress].[CustomerID]
+                addressFilter.AddJoin(Join.Left, "Customer").On("Customer", "CustomerID", "CustomerAddress", "CustomerID");
+                // ----------------------------------------------------
+
+
+
 
                 return setup;
             }
@@ -42,14 +103,12 @@ namespace Dotmim.Sync.Tests
 
         public override List<SyncParameter> FilterParameters => new List<SyncParameter>
         {
-                new SyncParameter("Customer", "CustomerID", null, AdventureWorksContext.CustomerIdForFilter),
-                new SyncParameter("CustomerAddress", "CustomerID", null, AdventureWorksContext.CustomerIdForFilter),
-                new SyncParameter("SalesOrderHeader", "CustomerID", "SalesLT", AdventureWorksContext.CustomerIdForFilter),
+                new SyncParameter("CustomerID", AdventureWorksContext.CustomerIdForFilter),
         };
 
 
         public override List<ProviderType> ClientsType => new List<ProviderType>
-            { ProviderType.Sql, ProviderType.Sqlite, ProviderType.MySql};
+            { ProviderType.Sql};
 
         public override ProviderType ServerType =>
             ProviderType.Sql;

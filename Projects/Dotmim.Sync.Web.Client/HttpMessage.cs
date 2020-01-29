@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Text;
 
 using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Filter;
+
 using Dotmim.Sync.Messages;
 using System.Runtime.Serialization;
 using System.Data.Common;

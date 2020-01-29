@@ -646,5 +646,9 @@ namespace Dotmim.Sync.SqlServer
             return stringBuilder.ToString();
 
         }
+
+
+  
+
     }
 }

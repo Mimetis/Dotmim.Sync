@@ -6,7 +6,7 @@ using System.Data.Common;
 using Dotmim.Sync.Log;
 using System.Data;
 using Microsoft.Data.Sqlite;
-using Dotmim.Sync.Filter;
+
 using System.Diagnostics;
 using System.Collections.Generic;
 using System.Linq;
@@ -22,7 +22,7 @@ namespace Dotmim.Sync.Sqlite
         private SqliteTransaction transaction;
         private SqliteDbMetadata sqliteDbMetadata;
 
-        public IEnumerable<SyncFilter> Filters { get; set; }
+        public SyncFilter Filter { get; set; }
 
 
         public SqliteBuilderTrackingTable(SyncTable tableDescription, DbConnection connection, DbTransaction transaction = null)

@@ -1,9 +1,9 @@
 ﻿using Dotmim.Sync.Builders;
 
-using Dotmim.Sync.Filter;
+
 using System;
 using System.Collections.Generic;
-
+using System.Linq;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
@@ -52,20 +52,20 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             names.Add(objectType, (name, isStoredProcedure));
         }
-        public (string name, bool isStoredProcedure) GetCommandName(DbCommandType objectType, IEnumerable<SyncFilter> filters = null)
+        public (string name, bool isStoredProcedure) GetCommandName(DbCommandType objectType, SyncFilter filter = null)
         {
             if (!names.ContainsKey(objectType))
                 throw new Exception("Yous should provide a value for all DbCommandName");
 
             (var commandName, var isStoredProc) = names[objectType];
 
-            if (filters != null)
+            if (filter != null)
             {
                 string name = "";
                 string sep = "";
-                foreach (var c in filters)
+                foreach (var parameterName in filter.Parameters.Select(f => f.Name))
                 {
-                    var columnName = ParserName.Parse(c.ColumnName).Unquoted().Normalized().ToString();
+                    var columnName = ParserName.Parse(parameterName).Unquoted().Normalized().ToString();
                     name += $"{columnName}{sep}";
                     sep = "_";
                 }

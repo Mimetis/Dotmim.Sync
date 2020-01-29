@@ -6,7 +6,6 @@ using System.Data.Common;
 using Dotmim.Sync.Log;
 using System.Data;
 using MySql.Data.MySqlClient;
-using Dotmim.Sync.Filter;
 using System.Linq;
 using Dotmim.Sync.MySql.Builders;
 using System.Diagnostics;
@@ -21,7 +20,7 @@ namespace Dotmim.Sync.MySql
         private SyncTable tableDescription;
         private MySqlConnection connection;
         private MySqlTransaction transaction;
-        public IEnumerable<SyncFilter> Filters { get; set; }
+        public SyncFilter Filter { get; set; }
         private MySqlDbMetadata mySqlDbMetadata;
 
 
@@ -160,31 +159,6 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine($"`sync_row_is_tombstone` BIT NOT NULL default 0, ");
             stringBuilder.AppendLine($"`last_change_datetime` DATETIME NULL, ");
 
-            if (this.Filters != null && this.Filters.Count() > 0)
-                foreach (var filter in this.Filters)
-                {
-                    var columnFilter = this.tableDescription.Columns[filter.ColumnName];
-
-                    if (columnFilter == null)
-                        throw new InvalidExpressionException($"Column {filter.ColumnName} does not exist in Table {this.tableDescription.TableName}");
-
-                    var isPk = this.tableDescription.GetPrimaryKeysColumns().Any(pk => pk.ColumnName.Equals(filter.ColumnName, SyncGlobalization.DataSourceStringComparison));
-                    if (isPk)
-                        continue;
-
-
-                    var quotedColumnName = ParserName.Parse(columnFilter, "`").Quoted().ToString();
-                    var columnTypeString = this.mySqlDbMetadata.TryGetOwnerDbTypeString(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
-                    var unQuotedColumnType = ParserName.Parse(columnTypeString, "`").Unquoted().Normalized().ToString();
-
-                    var columnPrecisionString = this.mySqlDbMetadata.TryGetOwnerDbTypePrecision(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, columnFilter.Precision, columnFilter.Scale, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
-                    var columnType = $"{unQuotedColumnType} {columnPrecisionString}";
-
-                    var nullableColumn = columnFilter.AllowDBNull ? "NULL" : "NOT NULL";
-
-                    stringBuilder.AppendLine($"{quotedColumnName} {columnType} {nullableColumn}, ");
-                }
-
             stringBuilder.Append(" PRIMARY KEY (");
             for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
             {
@@ -269,21 +243,8 @@ namespace Dotmim.Sync.MySql
                 empty = ", ";
                 str = " AND ";
             }
-            StringBuilder stringBuilder5 = new StringBuilder();
-            StringBuilder stringBuilder6 = new StringBuilder();
-
-            if (Filters != null)
-                foreach (var filterColumn in this.Filters)
-                {
-                    var isPk = this.tableDescription.PrimaryKeys.Any(pk => pk.Equals(filterColumn.ColumnName, SyncGlobalization.DataSourceStringComparison));
-                    if (isPk)
-                        continue;
-
-                    var quotedColumnName = ParserName.Parse(filterColumn.ColumnName, "`").Quoted().ToString();
-
-                    stringBuilder6.Append(string.Concat(empty, quotedColumnName));
-                    stringBuilder5.Append(string.Concat(empty, baseTable, ".", quotedColumnName));
-                }
+            var stringBuilder5 = new StringBuilder();
+            var stringBuilder6 = new StringBuilder();
 
             // (list of pkeys)
             stringBuilder.Append(string.Concat(stringBuilder1.ToString(), ", "));

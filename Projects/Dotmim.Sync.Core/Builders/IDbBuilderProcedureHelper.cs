@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Data.Common;
 using System.Text;
 
-using Dotmim.Sync.Filter;
+
 
 namespace Dotmim.Sync.Builders
 {
@@ -12,7 +12,7 @@ namespace Dotmim.Sync.Builders
     /// </summary>
     public interface IDbBuilderProcedureHelper
     {
-        SyncFilters Filters { get; set; }
+        SyncFilter Filter { get; set; }
 
         bool NeedToCreateProcedure(DbCommandType commandName);
         bool NeedToCreateType(DbCommandType typeName);

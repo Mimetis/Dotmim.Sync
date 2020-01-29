@@ -2,9 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-
 using System.Linq;
-using Dotmim.Sync.Filter;
 
 namespace Dotmim.Sync.MySql
 {
@@ -51,7 +49,7 @@ namespace Dotmim.Sync.MySql
 
             names.Add(objectType, (name, isStoredProcedure));
         }
-        public (string name, bool isStoredProcedure) GetCommandName(DbCommandType objectType, IEnumerable<SyncFilter> filters = null)
+        public (string name, bool isStoredProcedure) GetCommandName(DbCommandType objectType, SyncFilter filter = null)
         {
             if (!names.ContainsKey(objectType))
                 throw new NotSupportedException($"MySql provider does not support the command type {objectType.ToString()}");
@@ -59,13 +57,13 @@ namespace Dotmim.Sync.MySql
 
             (var commandName, var isStoredProc) = names[objectType];
 
-            if (filters != null)
+            if (filter != null)
             {
                 string name = "";
                 string sep = "";
-                foreach (var c in filters)
+                foreach (var parameterName in filter.Parameters.Select(f => f.Name))
                 {
-                    var columnName = ParserName.Parse(c.ColumnName).Unquoted().Normalized().ToString();
+                    var columnName = ParserName.Parse(parameterName).Unquoted().Normalized().ToString();
                     name += $"{columnName}{sep}";
                     sep = "_";
                 }

@@ -1,4 +1,4 @@
-﻿using Dotmim.Sync.Filter;
+﻿
 using Dotmim.Sync.MySql;
 using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
@@ -42,14 +42,12 @@ namespace Dotmim.Sync.Tests
 
         public override List<SyncParameter> FilterParameters => new List<SyncParameter>
         {
-                new SyncParameter("Customer", "CustomerID", null, AdventureWorksContext.CustomerIdForFilter),
-                new SyncParameter("CustomerAddress", "CustomerID", null, AdventureWorksContext.CustomerIdForFilter),
-                new SyncParameter("SalesOrderHeader", "CustomerID", null, AdventureWorksContext.CustomerIdForFilter),
+                new SyncParameter("CustomerID", AdventureWorksContext.CustomerIdForFilter),
         };
 
 
         public override List<ProviderType> ClientsType => new List<ProviderType>
-            { ProviderType.MySql, ProviderType.Sql};
+            { ProviderType.Sql};
 
         public override ProviderType ServerType =>
             ProviderType.MySql;

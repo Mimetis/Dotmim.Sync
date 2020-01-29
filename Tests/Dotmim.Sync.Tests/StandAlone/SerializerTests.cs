@@ -208,10 +208,10 @@ namespace Dotmim.Sync.Tests.StandAlone
             Assert.NotEmpty(outSchema.Filters);
             var sf = outSchema.Filters[0];
             Assert.Equal("Product", sf.TableName);
-            Assert.Equal("Title", sf.ColumnName);
+            Assert.Equal("Title", sf.Parameters[0].Name);
             Assert.Equal("SalesLT", sf.SchemaName);
             Assert.Equal(outSchema, sf.Schema);
-            Assert.Equal((int)DbType.String, sf.ColumnType);
+            Assert.Equal(DbType.String, sf.Parameters[0].DbType);
 
             // Check Relations
             Assert.NotEmpty(outSchema.Relations);
@@ -278,7 +278,8 @@ namespace Dotmim.Sync.Tests.StandAlone
 
 
             // Add Filters
-            var sf = new SyncFilter("Product", "Title", "SalesLT", (int)DbType.String);
+            var sf = new SyncFilter("Product", "SalesLT");
+            sf.Parameters.Add(new SyncFilterParameter { Name = "Title", DbType = DbType.String });
             set.Filters.Add(sf);
 
             // Add Relations

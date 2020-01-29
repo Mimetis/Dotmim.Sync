@@ -1,14 +1,10 @@
 ﻿using Dotmim.Sync.Builders;
 using System;
 using System.Text;
-
 using System.Data.Common;
 using System.Data;
-using Dotmim.Sync.Log;
 using System.Linq;
-using Dotmim.Sync.Filter;
 using MySql.Data.MySqlClient;
-using Dotmim.Sync.MySql;
 using Dotmim.Sync.MySql.Builders;
 using System.Diagnostics;
 using System.Collections.Generic;
@@ -26,7 +22,7 @@ namespace Dotmim.Sync.MySql
         private MySqlDbMetadata mySqlDbMetadata;
         internal const string MYSQL_PREFIX_PARAMETER = "in_";
 
-        public SyncFilters Filters { get; set; }
+        public SyncFilter Filter { get; set; }
 
         public MySqlBuilderProcedure(SyncTable tableDescription, DbConnection connection, DbTransaction transaction = null)
         {
@@ -101,10 +97,21 @@ namespace Dotmim.Sync.MySql
             var stringType = this.mySqlDbMetadata.GetStringFromDbType(param.DbType);
             string precision = this.mySqlDbMetadata.GetPrecisionStringFromDbType(param.DbType, param.Size, param.Precision, param.Scale);
             string output = string.Empty;
+            string isNull = string.Empty;
+            string defaultValue = string.Empty;
+
             if (param.Direction == ParameterDirection.Output || param.Direction == ParameterDirection.InputOutput)
                 output = "OUT ";
 
-            stringBuilder3.Append($"{output}{param.ParameterName} {stringType}{precision}");
+            // MySql does not accept default value or Is Nullable
+            
+            //if (param.IsNullable)
+            //    isNull="NULL";
+
+            //if (param.Value != null)
+            //    defaultValue = $"= {param.Value.ToString()}";
+
+            stringBuilder3.Append($"{output}{param.ParameterName} {stringType}{precision} {isNull} {defaultValue}");
 
             return stringBuilder3.ToString();
 
@@ -707,6 +714,206 @@ namespace Dotmim.Sync.MySql
             return CreateProcedureCommandScriptText(BuildUpdateMetadataCommand, commandName);
         }
 
+        /// <summary>
+        /// Add all sql parameters
+        /// </summary>
+        protected void CreateFilterParameters(MySqlCommand sqlCommand, SyncFilter filter)
+        {
+            var parameters = filter.Parameters;
+
+            if (parameters.Count == 0)
+                return;
+
+            foreach (var param in parameters)
+            {
+                if (param.DbType.HasValue)
+                {
+                    // Get column name and type
+                    var columnName = ParserName.Parse(param.Name, "`").Unquoted().Normalized().ToString();
+                    var sqlDbType = (MySqlDbType)this.mySqlDbMetadata.TryGetOwnerDbType(null, param.DbType.Value, false, false, param.MaxLength, MySqlSyncProvider.ProviderType, MySqlSyncProvider.ProviderType);
+
+                    var customParameterFilter = new MySqlParameter($"in_{columnName}", sqlDbType);
+                    customParameterFilter.Size = param.MaxLength;
+                    customParameterFilter.IsNullable = param.AllowNull;
+                    customParameterFilter.Value = param.DefaultValue;
+                    sqlCommand.Parameters.Add(customParameterFilter);
+                }
+                else
+                {
+                    var tableFilter = this.tableDescription.Schema.Tables[param.TableName, param.SchemaName];
+                    if (tableFilter == null)
+                        throw new FilterParamTableNotExistsException(param.TableName);
+
+                    var columnFilter = tableFilter.Columns[param.Name];
+                    if (columnFilter == null)
+                        throw new FilterParamColumnNotExistsException(param.Name, param.TableName);
+
+                    // Get column name and type
+                    var columnName = ParserName.Parse(columnFilter, "`").Unquoted().Normalized().ToString();
+                    var sqlDbType = (SqlDbType)this.mySqlDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, tableFilter.OriginalProvider, MySqlSyncProvider.ProviderType);
+
+                    // Add it as parameter
+                    var sqlParamFilter = new MySqlParameter($"in_{columnName}", sqlDbType);
+                    sqlParamFilter.Size = columnFilter.MaxLength;
+                    sqlParamFilter.IsNullable = param.AllowNull;
+                    sqlParamFilter.Value = param.DefaultValue;
+                    sqlCommand.Parameters.Add(sqlParamFilter);
+                }
+
+            }
+        }
+
+        /// <summary>
+        /// Create all custom joins from within a filter 
+        /// </summary>
+        protected string CreateFilterCustomJoins(SyncFilter filter)
+        {
+            var customJoins = filter.CustomJoins;
+
+            if (customJoins.Count == 0)
+                return string.Empty;
+
+            var stringBuilder = new StringBuilder();
+
+            stringBuilder.AppendLine();
+            foreach (var customJoin in customJoins)
+            {
+                switch (customJoin.JoinEnum)
+                {
+                    case Join.Left:
+                        stringBuilder.Append("LEFT JOIN ");
+                        break;
+                    case Join.Right:
+                        stringBuilder.Append("RIGHT JOIN ");
+                        break;
+                    case Join.Outer:
+                        stringBuilder.Append("OUTER JOIN ");
+                        break;
+                    case Join.Inner:
+                    default:
+                        stringBuilder.Append("INNER JOIN ");
+                        break;
+                }
+
+                var filterTableName = ParserName.Parse(filter.TableName, "`").Schema().Quoted().ToString();
+
+                var joinTableName = ParserName.Parse(customJoin.TableName, "`").Quoted().Schema().ToString();
+
+                var leftTableName = ParserName.Parse(customJoin.LeftTableName, "`").Quoted().Schema().ToString();
+                if (string.Equals(filterTableName, leftTableName, SyncGlobalization.DataSourceStringComparison))
+                    leftTableName = "`base`";
+
+                var rightTableName = ParserName.Parse(customJoin.RightTableName, "`").Quoted().Schema().ToString();
+                if (string.Equals(filterTableName, rightTableName, SyncGlobalization.DataSourceStringComparison))
+                    rightTableName = "`base`";
+
+                var leftColumName = ParserName.Parse(customJoin.LeftColumnName, "`").Quoted().ToString();
+                var rightColumName = ParserName.Parse(customJoin.RightColumnName, "`").Quoted().ToString();
+
+                stringBuilder.AppendLine($"{joinTableName} ON {leftTableName}.{leftColumName} = {rightTableName}.{rightColumName}");
+            }
+
+            return stringBuilder.ToString();
+        }
+
+        /// <summary>
+        /// Create all side where criteria from within a filter
+        /// </summary>
+        protected string CreateFilterWhereSide(SyncFilter filter, bool checkTombstoneRows = false)
+        {
+            var sideWhereFilters = filter.SideWhereFilters;
+
+            if (sideWhereFilters.Count == 0)
+                return string.Empty;
+
+            var stringBuilder = new StringBuilder();
+
+            // Managing when state is tombstone
+            if (checkTombstoneRows)
+                stringBuilder.AppendLine($"(");
+
+            stringBuilder.AppendLine($" (");
+
+
+            var and2 = "   ";
+
+            foreach (var whereFilter in sideWhereFilters)
+            {
+                var tableFilter = this.tableDescription.Schema.Tables[whereFilter.TableName];
+                if (tableFilter == null)
+                    throw new FilterParamTableNotExistsException(whereFilter.TableName);
+
+                var columnFilter = tableFilter.Columns[whereFilter.ColumnName];
+                if (columnFilter == null)
+                    throw new FilterParamColumnNotExistsException(whereFilter.ColumnName, whereFilter.TableName);
+
+                var tableName = ParserName.Parse(tableFilter, "`").Unquoted().ToString();
+                if (string.Equals(tableName, filter.TableName, SyncGlobalization.DataSourceStringComparison))
+                    tableName = "`base`";
+                else
+                    tableName = ParserName.Parse(tableFilter, "`").Quoted().Schema().ToString();
+
+                var columnName = ParserName.Parse(columnFilter, "`").Quoted().ToString();
+                var parameterName = ParserName.Parse(whereFilter.ParameterName, "`").Unquoted().Normalized().ToString();
+                var sqlDbType = (MySqlDbType)this.mySqlDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, tableFilter.OriginalProvider, MySqlSyncProvider.ProviderType);
+
+                var param = Filter.Parameters[parameterName];
+
+                if (param == null)
+                    throw new FilterParamColumnNotExistsException(columnName, whereFilter.TableName);
+
+                stringBuilder.Append($"{and2}({tableName}.{columnName} = in_{parameterName}");
+
+                if (param.AllowNull)
+                    stringBuilder.Append($" OR in_{parameterName} IS NULL");
+
+                stringBuilder.Append($")");
+
+                and2 = " AND ";
+
+            }
+            stringBuilder.AppendLine();
+
+            stringBuilder.AppendLine($"  )");
+
+            if (checkTombstoneRows)
+            {
+                stringBuilder.AppendLine($" OR `side`.`sync_row_is_tombstone` = 1");
+                stringBuilder.AppendLine($")");
+            }
+            // Managing when state is tombstone
+
+
+            return stringBuilder.ToString();
+        }
+
+        /// <summary>
+        /// Create all custom wheres from witing a filter
+        /// </summary>
+        protected string CreateFilterCustomWheres(SyncFilter filter)
+        {
+            var customWheres = filter.CustomWheres;
+
+            if (customWheres.Count == 0)
+                return string.Empty;
+
+            var stringBuilder = new StringBuilder();
+            var and2 = "  ";
+            stringBuilder.AppendLine($"(");
+
+            foreach (var customWhere in customWheres)
+            {
+                stringBuilder.Append($"{and2}{customWhere}");
+                and2 = " AND ";
+            }
+
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($")");
+
+            return stringBuilder.ToString();
+        }
+
+
 
         //------------------------------------------------------------------
         // Select changes command
@@ -717,41 +924,28 @@ namespace Dotmim.Sync.MySql
             var sqlParameter1 = new MySqlParameter();
             sqlParameter1.ParameterName = "sync_min_timestamp";
             sqlParameter1.MySqlDbType = MySqlDbType.Int64;
+            sqlParameter1.Value = 0;
+
             sqlCommand.Parameters.Add(sqlParameter1);
 
             var sqlParameter3 = new MySqlParameter();
             sqlParameter3.ParameterName = "sync_scope_id";
             sqlParameter3.MySqlDbType = MySqlDbType.Guid;
             sqlParameter3.Size = 36;
+            sqlParameter3.Value = "NULL";
             sqlCommand.Parameters.Add(sqlParameter3);
 
-            if (withFilter && this.Filters != null && this.Filters.Count() > 0)
-            {
-                foreach (var c in this.Filters)
-                {
-                    if (!c.IsVirtual)
-                    {
-                        var columnFilter = this.tableDescription.Columns[c.ColumnName];
+            // Add filter parameters
+            if (withFilter)
+                CreateFilterParameters(sqlCommand, this.Filter);
 
-                        if (columnFilter == null)
-                            throw new InvalidExpressionException($"Column {c.ColumnName} does not exist in Table {this.tableDescription.TableName}");
 
-                        var columnName = ParserName.Parse(columnFilter).Unquoted().Normalized().ToString();
-                        var mySqlDbType = (MySqlDbType)this.mySqlDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
-                        var mySqlParamFilter = new MySqlParameter($"{MYSQL_PREFIX_PARAMETER}{columnName}", mySqlDbType);
-                        sqlCommand.Parameters.Add(mySqlParamFilter);
-                    }
-                    else
-                    {
-                        var sqlDbType = (MySqlDbType)this.mySqlDbMetadata.TryGetOwnerDbType(null, (DbType)c.ColumnType.Value, false, false, 0, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
-                        var columnFilterName = ParserName.Parse(c.ColumnName).Unquoted().Normalized().ToString();
-                        var sqlParamFilter = new MySqlParameter($"{MYSQL_PREFIX_PARAMETER}{columnFilterName}", sqlDbType);
-                        sqlCommand.Parameters.Add(sqlParamFilter);
-                    }
-                }
-            }
+            var stringBuilder = new StringBuilder("SELECT DISTINCT");
 
-            var stringBuilder = new StringBuilder("SELECT ");
+            // ----------------------------------
+            // Add all columns
+            // ----------------------------------
+
             foreach (var pkColumn in this.tableDescription.PrimaryKeys)
             {
                 var pkColumnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
@@ -765,8 +959,10 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine($"\t`side`.`sync_row_is_tombstone`, ");
             stringBuilder.AppendLine($"\t`side`.`update_scope_id` ");
             stringBuilder.AppendLine($"FROM {tableName.Quoted().ToString()} `base`");
-            stringBuilder.AppendLine($"RIGHT JOIN {trackingName.Quoted().ToString()} `side`");
-            stringBuilder.Append($"ON ");
+            // ----------------------------------
+            // Make Right Join
+            // ----------------------------------
+            stringBuilder.Append($"RIGHT JOIN {trackingName.Quoted().ToString()} `side` ON ");
 
             string empty = "";
             foreach (var pkColumn in this.tableDescription.PrimaryKeys)
@@ -775,56 +971,38 @@ namespace Dotmim.Sync.MySql
                 stringBuilder.Append($"{empty}`base`.{pkColumnName} = `side`.{pkColumnName}");
                 empty = " AND ";
             }
+
+            // ----------------------------------
+            // Custom Joins
+            // ----------------------------------
+            if (withFilter)
+                stringBuilder.Append(CreateFilterCustomJoins(this.Filter));
+
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("WHERE (");
-            string str = string.Empty;
 
-            var columnsFilters = this.Filters.GetColumnFilters();
-            if (withFilter && columnsFilters != null && columnsFilters.Count() > 0)
+            // ----------------------------------
+            // Where filters and Custom Where string
+            // ----------------------------------
+            if (withFilter)
             {
-                var builderFilter = new StringBuilder();
-                builderFilter.Append("\t(");
-                string filterSeparationString = "";
-                foreach (var c in columnsFilters)
-                {
-                    var columnFilter = this.tableDescription.Columns[c.ColumnName];
+                var createFilterWhereSide = CreateFilterWhereSide(this.Filter, true);
+                stringBuilder.Append(createFilterWhereSide);
 
-                    if (columnFilter == null)
-                        throw new InvalidExpressionException($"Column {c.ColumnName} does not exist in Table {this.tableDescription.TableName}");
+                if (!string.IsNullOrEmpty(createFilterWhereSide))
+                    stringBuilder.AppendLine($"AND ");
 
-                    var columnFilterName = ParserName.Parse(columnFilter, "`").Quoted().ToString();
-                    var unquotedColumnFilterName = ParserName.Parse(columnFilter, "`").Unquoted().Normalized().ToString();
+                var createFilterCustomWheres = CreateFilterCustomWheres(this.Filter);
+                stringBuilder.Append(createFilterCustomWheres);
 
-                    builderFilter.Append($"{filterSeparationString} `side`.{columnFilterName} = {MYSQL_PREFIX_PARAMETER}{unquotedColumnFilterName}");
-                    filterSeparationString = " AND ";
-                }
-                builderFilter.AppendLine(")");
-                builderFilter.Append("\tOR (");
-
-                var isFirst = true;
-
-                foreach (var c in columnsFilters)
-                {
-                    if (!isFirst)
-                        builderFilter.Append(" AND ");
-                    isFirst = false;
-
-                    var columnFilter = this.tableDescription.Columns[c.ColumnName];
-                    var columnFilterName = ParserName.Parse(columnFilter, "`").Quoted().ToString();
-
-                    builderFilter.Append($"`side`.{columnFilterName} IS NULL");
-                }
-
-                builderFilter.AppendLine(")");
-                builderFilter.AppendLine("\t)");
-                builderFilter.AppendLine("AND (");
-                stringBuilder.Append(builderFilter.ToString());
+                if (!string.IsNullOrEmpty(createFilterCustomWheres))
+                    stringBuilder.AppendLine($"AND ");
             }
+            // ----------------------------------
+
 
             stringBuilder.AppendLine("\t`side`.`timestamp` > sync_min_timestamp");
             stringBuilder.AppendLine("\tAND (`side`.`update_scope_id` <> sync_scope_id OR `side`.`update_scope_id` IS NULL) ");
-            //stringBuilder.AppendLine("\tAND ((`side`.`sync_row_is_frozen` = 0 AND (`side`.`update_scope_id` <> sync_scope_id OR `side`.`update_scope_id` IS NULL)) ");
-            //stringBuilder.AppendLine("\t\tOR (`side`.`sync_row_is_frozen` = 1 AND `side`.`update_scope_id` <> sync_scope_id AND `side`.`update_scope_id` IS NOT NULL))");
             stringBuilder.AppendLine(");");
 
             sqlCommand.CommandText = stringBuilder.ToString();
@@ -838,12 +1016,10 @@ namespace Dotmim.Sync.MySql
             Func<MySqlCommand> cmdWithoutFilter = () => BuildSelectIncrementalChangesCommand(false);
             CreateProcedureCommand(cmdWithoutFilter, commandName);
 
-            var columnsFilters = this.Filters.GetColumnFilters();
-
-            if (columnsFilters != null && columnsFilters.Count() > 0)
+            if (this.Filter != null)
             {
-                this.Filters.ValidateColumnFilters(this.tableDescription);
-                commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWithFilters, this.Filters).name;
+                this.Filter.ValidateColumnFilters(this.tableDescription);
+                commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWithFilters, this.Filter).name;
                 Func<MySqlCommand> cmdWithFilter = () => BuildSelectIncrementalChangesCommand(true);
                 CreateProcedureCommand(cmdWithFilter, commandName);
 
@@ -858,31 +1034,6 @@ namespace Dotmim.Sync.MySql
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChanges).name;
             Func<MySqlCommand> cmdWithoutFilter = () => BuildSelectIncrementalChangesCommand(false);
             sbSelecteChanges.AppendLine(CreateProcedureCommandScriptText(cmdWithoutFilter, commandName));
-
-            var columnsFilters = this.Filters.GetColumnFilters();
-
-            if (columnsFilters != null && columnsFilters.Count() > 0)
-            {
-                commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWithFilters).name;
-                string name = "";
-                string sep = "";
-                foreach (var c in columnsFilters)
-                {
-                    var columnFilter = this.tableDescription.Columns[c.ColumnName];
-
-                    if (columnFilter == null)
-                        throw new InvalidExpressionException($"Column {c.ColumnName} does not exist in Table {this.tableDescription.TableName}");
-
-                    var unquotedColumnName = ParserName.Parse(columnFilter, "`").Unquoted().Normalized().ToString();
-                    name += $"{unquotedColumnName}{sep}";
-                    sep = "_";
-                }
-
-                commandName = String.Format(commandName, name);
-                Func<MySqlCommand> cmdWithFilter = () => BuildSelectIncrementalChangesCommand(true);
-                sbSelecteChanges.AppendLine(CreateProcedureCommandScriptText(cmdWithFilter, commandName));
-
-            }
             return sbSelecteChanges.ToString();
         }
 
@@ -970,39 +1121,7 @@ namespace Dotmim.Sync.MySql
         {
             DropProcedure(DbCommandType.SelectInitializedChanges);
 
-            // filtered 
-            if (this.Filters != null && this.Filters.Count > 0)
-            {
-                bool alreadyOpened = this.connection.State == ConnectionState.Open;
-
-                using (var command = new MySqlCommand())
-                {
-                    if (!alreadyOpened)
-                        this.connection.Open();
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    foreach (var c in this.Filters)
-                    {
-                        var columnFilter = this.tableDescription.Columns[c.ColumnName];
-
-                        if (columnFilter == null)
-                            throw new InvalidExpressionException($"Column {c.ColumnName} does not exist in Table {this.tableDescription.TableName}");
-                    }
-
-                    var commandNameWithFilter = this.sqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChangesWithFilters, this.Filters).name;
-
-                    command.CommandText = $"DROP PROCEDURE IF EXISTS {commandNameWithFilter};";
-                    command.Connection = this.connection;
-                    command.ExecuteNonQuery();
-
-                }
-
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
+        
 
         }
 
@@ -1010,40 +1129,6 @@ namespace Dotmim.Sync.MySql
         public void DropSelectIncrementalChanges()
         {
             DropProcedure(DbCommandType.SelectChanges);
-
-            // filtered 
-            if (this.Filters != null && this.Filters.Count > 0)
-            {
-                bool alreadyOpened = this.connection.State == ConnectionState.Open;
-
-                using (var command = new MySqlCommand())
-                {
-                    if (!alreadyOpened)
-                        this.connection.Open();
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    foreach (var c in this.Filters)
-                    {
-                        var columnFilter = this.tableDescription.Columns[c.ColumnName];
-
-                        if (columnFilter == null)
-                            throw new InvalidExpressionException($"Column {c.ColumnName} does not exist in Table {this.tableDescription.TableName}");
-                    }
-
-                    var commandNameWithFilter = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWithFilters, this.Filters).name;
-
-                    command.CommandText = $"DROP PROCEDURE IF EXISTS {commandNameWithFilter};";
-                    command.Connection = this.connection;
-                    command.ExecuteNonQuery();
-
-                }
-
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
 
         }
 
@@ -1147,33 +1232,11 @@ namespace Dotmim.Sync.MySql
         {
             var sqlCommand = new MySqlCommand();
 
-            if (withFilter && this.Filters != null && this.Filters.Count() > 0)
-            {
-                foreach (var c in this.Filters)
-                {
-                    if (!c.IsVirtual)
-                    {
-                        var columnFilter = this.tableDescription.Columns[c.ColumnName];
+            // Add filter parameters
+            if (withFilter)
+                CreateFilterParameters(sqlCommand, this.Filter);
 
-                        if (columnFilter == null)
-                            throw new InvalidExpressionException($"Column {c.ColumnName} does not exist in Table {this.tableDescription.TableName}");
-
-                        var columnName = ParserName.Parse(columnFilter).Unquoted().Normalized().ToString();
-                        var mySqlDbType = (MySqlDbType)this.mySqlDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
-                        var mySqlParamFilter = new MySqlParameter($"{MYSQL_PREFIX_PARAMETER}{columnName}", mySqlDbType);
-                        sqlCommand.Parameters.Add(mySqlParamFilter);
-                    }
-                    else
-                    {
-                        var sqlDbType = (MySqlDbType)this.mySqlDbMetadata.TryGetOwnerDbType(null, (DbType)c.ColumnType.Value, false, false, 0, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
-                        var columnFilterName = ParserName.Parse(c.ColumnName).Unquoted().Normalized().ToString();
-                        var sqlParamFilter = new MySqlParameter($"{MYSQL_PREFIX_PARAMETER}{columnFilterName}", sqlDbType);
-                        sqlCommand.Parameters.Add(sqlParamFilter);
-                    }
-                }
-            }
-
-            var stringBuilder = new StringBuilder("SELECT ");
+            var stringBuilder = new StringBuilder("SELECT DISTINCT");
             var columns = this.tableDescription.GetMutableColumns(false, true).ToList();
 
             for (var i = 0; i < columns.Count; i++)
@@ -1187,52 +1250,35 @@ namespace Dotmim.Sync.MySql
             }
             stringBuilder.AppendLine($"FROM {tableName.Quoted().ToString()} `base`");
 
-            string str = string.Empty;
-            var columnFilters = this.Filters.GetColumnFilters().ToList();
-
-            if (withFilter && columnFilters.Count > 0)
+            if (withFilter)
             {
-                stringBuilder.AppendLine();
-                stringBuilder.AppendLine("WHERE ");
-                stringBuilder.Append("\t(");
+                // ----------------------------------
+                // Custom Joins
+                // ----------------------------------
+                stringBuilder.Append(CreateFilterCustomJoins(this.Filter));
 
-                bool isFirst = true;
-                foreach (var c in columnFilters)
+                // ----------------------------------
+                // Where filters on [side]
+                // ----------------------------------
+
+                var whereString = CreateFilterWhereSide(this.Filter);
+                var customWhereString = CreateFilterCustomWheres(this.Filter);
+
+                if (!string.IsNullOrEmpty(whereString) || !string.IsNullOrEmpty(customWhereString))
                 {
-                    if (!isFirst)
-                        stringBuilder.Append(" AND ");
+                    stringBuilder.AppendLine("WHERE");
 
-                    isFirst = false;
+                    if (!string.IsNullOrEmpty(whereString))
+                        stringBuilder.AppendLine(whereString);
 
-                    var columnFilter = this.tableDescription.Columns[c.ColumnName];
+                    if (!string.IsNullOrEmpty(whereString) && !string.IsNullOrEmpty(customWhereString))
+                        stringBuilder.AppendLine("AND");
 
-                    if (columnFilter == null)
-                        throw new InvalidExpressionException($"Column {c.ColumnName} does not exist in Table {this.tableDescription.TableName}");
-
-                    var columnFilterName = ParserName.Parse(columnFilter, "`").Quoted().ToString();
-                    var unquotedColumnFilterName = ParserName.Parse(columnFilter, "`").Unquoted().Normalized().ToString();
-
-                    stringBuilder.Append($"`base`.{columnFilterName} = {MYSQL_PREFIX_PARAMETER}{unquotedColumnFilterName}");
+                    if (!string.IsNullOrEmpty(customWhereString))
+                        stringBuilder.AppendLine(customWhereString);
                 }
-                stringBuilder.AppendLine(")");
-                stringBuilder.Append(" OR (");
-
-                isFirst = true;
-                foreach (var c in columnFilters)
-                {
-                    if (!isFirst)
-                        stringBuilder.Append(" AND ");
-
-                    isFirst = false;
-
-                    var columnFilter = this.tableDescription.Columns[c.ColumnName];
-                    var columnFilterName = ParserName.Parse(columnFilter, "`").Quoted().ToString();
-
-                    stringBuilder.Append($"`base`.{columnFilterName} IS NULL");
-                }
-
-                stringBuilder.AppendLine(")");
             }
+            // ----------------------------------
 
             stringBuilder.Append(";");
             sqlCommand.CommandText = stringBuilder.ToString();
@@ -1246,10 +1292,10 @@ namespace Dotmim.Sync.MySql
             Func<MySqlCommand> cmdWithoutFilter = () => BuildSelectInitializedChangesCommand(false);
             CreateProcedureCommand(cmdWithoutFilter, commandName);
 
-            if (this.Filters != null && this.Filters.Count() > 0)
+            if (this.Filter != null)
             {
-                this.Filters.ValidateColumnFilters(this.tableDescription);
-                commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChangesWithFilters, this.Filters).name;
+                this.Filter.ValidateColumnFilters(this.tableDescription);
+                commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChangesWithFilters, this.Filter).name;
                 Func<MySqlCommand> cmdWithFilter = () => BuildSelectInitializedChangesCommand(true);
                 CreateProcedureCommand(cmdWithFilter, commandName);
 
@@ -1266,28 +1312,6 @@ namespace Dotmim.Sync.MySql
             sbSelecteChanges.AppendLine(CreateProcedureCommandScriptText(cmdWithoutFilter, commandName));
 
 
-            if (this.Filters != null && this.Filters.Count > 0)
-            {
-                commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWithFilters).name;
-                string name = "";
-                string sep = "";
-                foreach (var c in this.Filters)
-                {
-                    var columnFilter = this.tableDescription.Columns[c.ColumnName];
-
-                    if (columnFilter == null)
-                        throw new InvalidExpressionException($"Column {c.ColumnName} does not exist in Table {this.tableDescription.TableName}");
-
-                    var unquotedColumnName = ParserName.Parse(columnFilter, "`").Unquoted().Normalized().ToString();
-                    name += $"{unquotedColumnName}{sep}";
-                    sep = "_";
-                }
-
-                commandName = String.Format(commandName, name);
-                Func<MySqlCommand> cmdWithFilter = () => BuildSelectInitializedChangesCommand(true);
-                sbSelecteChanges.AppendLine(CreateProcedureCommandScriptText(cmdWithFilter, commandName));
-
-            }
             return sbSelecteChanges.ToString();
         }
     }

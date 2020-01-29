@@ -1,6 +1,6 @@
 ﻿using Dotmim.Sync.Builders;
 
-using Dotmim.Sync.Filter;
+
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;

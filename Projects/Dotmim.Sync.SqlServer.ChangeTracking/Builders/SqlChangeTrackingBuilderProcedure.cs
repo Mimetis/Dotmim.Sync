@@ -7,7 +7,7 @@ using System.Data.SqlClient;
 using System.Data;
 using Dotmim.Sync.Log;
 using System.Linq;
-using Dotmim.Sync.Filter;
+
 using Dotmim.Sync.SqlServer.Manager;
 using System.Diagnostics;
 using System.Collections.Generic;
@@ -656,6 +656,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             return sqlCommand;
         }
 
+
         //------------------------------------------------------------------
         // Select changes command
         //------------------------------------------------------------------
@@ -665,37 +666,14 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             var pTimestamp = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt);
             var pScopeId = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
 
+
+
             sqlCommand.Parameters.Add(pTimestamp);
             sqlCommand.Parameters.Add(pScopeId);
 
-            if (withFilter && this.Filters != null && this.Filters.Count > 0)
-            {
-                foreach (var c in this.Filters)
-                {
-                    if (!c.IsVirtual)
-                    {
-                        var columnFilter = this.tableDescription.Columns[c.ColumnName];
-
-                        if (columnFilter == null)
-                            throw new InvalidExpressionException($"Column {c.ColumnName} does not exist in Table {this.tableDescription.TableName}");
-
-                        var columnName = ParserName.Parse(columnFilter).Unquoted().Normalized().ToString();
-
-                        // Get the good SqlDbType (even if we are not from Sql Server def)
-
-                        var sqlDbType = (SqlDbType)this.sqlDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-                        var sqlParamFilter = new SqlParameter($"@{columnName}", sqlDbType);
-                        sqlCommand.Parameters.Add(sqlParamFilter);
-                    }
-                    else
-                    {
-                        var sqlDbType = (SqlDbType)this.sqlDbMetadata.TryGetOwnerDbType(null, c.GetDbType().Value, false, false, 0, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-                        var columnFilterName = ParserName.Parse(c.ColumnName).Unquoted().Normalized().ToString();
-                        var sqlParamFilter = new SqlParameter($"@{columnFilterName}", sqlDbType);
-                        sqlCommand.Parameters.Add(sqlParamFilter);
-                    }
-                }
-            }
+            // Add filter parameters
+            if (withFilter)
+                CreateFilterParameters(sqlCommand, this.Filter);
 
             var stringBuilder = new StringBuilder("");
             stringBuilder.AppendLine($";WITH ");
@@ -737,54 +715,44 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 stringBuilder.Append($"{empty}[base].{columnName} = [side].{columnName}");
                 empty = " AND ";
             }
+
+            // ----------------------------------
+            // Custom Joins
+            // ----------------------------------
+            if (withFilter)
+                stringBuilder.Append(CreateFilterCustomJoins(this.Filter));
+
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("WHERE (");
             string str = string.Empty;
 
-            var columnFilters = this.Filters.GetColumnFilters();
-            if (withFilter && columnFilters.Count() != 0)
+            // ----------------------------------
+            // Where filters on [side]
+            // ----------------------------------
+            if (withFilter)
             {
-                var builderFilter = new StringBuilder();
-                builderFilter.Append("\t(");
-                bool isFirst = true;
-                foreach (var c in columnFilters)
-                {
-                    if (!isFirst)
-                        builderFilter.Append(" AND ");
-                    isFirst = false;
+                var createFilterWhereSide = CreateFilterWhereSide(this.Filter, true);
+                stringBuilder.Append(createFilterWhereSide);
 
-                    var columnFilter = this.tableDescription.Columns[c.ColumnName];
-
-                    if (columnFilter == null)
-                        throw new InvalidExpressionException($"Column {c.ColumnName} does not exist in Table {this.tableDescription.TableName}");
-
-                    var columnFilterName = ParserName.Parse(c.ColumnName).Quoted().ToString();
-                    var columnFilterParameterName = ParserName.Parse(c.ColumnName).Unquoted().Normalized().ToString();
-
-                    builderFilter.Append($"[base].{columnFilterName} = @{columnFilterParameterName}");
-                }
-                builderFilter.AppendLine(")");
-                builderFilter.Append("\tOR (");
-
-                isFirst = true;
-
-                foreach (var c in columnFilters)
-                {
-                    if (!isFirst)
-                        builderFilter.Append(" AND ");
-                    isFirst = false;
-
-                    var columnFilter = this.tableDescription.Columns[c.ColumnName];
-                    var columnFilterName = ParserName.Parse(columnFilter).Quoted().ToString();
-
-                    builderFilter.Append($"[base].{columnFilterName} IS NULL");
-                }
-                builderFilter.AppendLine(")");
-
-                builderFilter.AppendLine("\tOR ([side].[sync_row_is_tombstone] = 1))");
-                builderFilter.AppendLine("AND (");
-                stringBuilder.Append(builderFilter.ToString());
+                if (!string.IsNullOrEmpty(createFilterWhereSide))
+                    stringBuilder.AppendLine($"AND ");
             }
+            // ----------------------------------
+
+            // ----------------------------------
+            // Custom Where 
+            // ----------------------------------
+            if (withFilter)
+            {
+                var createFilterCustomWheres = CreateFilterCustomWheres(this.Filter);
+                stringBuilder.Append(createFilterCustomWheres);
+
+                if (!string.IsNullOrEmpty(createFilterCustomWheres))
+                    stringBuilder.AppendLine($"AND ");
+            }
+            // ----------------------------------
+
+
 
             stringBuilder.AppendLine("\t[side].[timestamp] > @sync_min_timestamp");
             stringBuilder.AppendLine("\tAND ([side].[update_scope_id] <> @sync_scope_id OR [side].[update_scope_id] IS NULL)");

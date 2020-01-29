@@ -1,6 +1,6 @@
 ﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Filter;
+
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Tests.Misc;
