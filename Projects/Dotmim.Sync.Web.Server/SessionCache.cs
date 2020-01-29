@@ -1,5 +1,4 @@
 ﻿
-using Dotmim.Sync.Cache;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Specialized;
@@ -13,6 +12,9 @@ using Dotmim.Sync.Batch;
 
 namespace Dotmim.Sync.Web.Server
 {
+    /// <summary>
+    /// Cache object used by each client to cache sync process batches
+    /// </summary>
     public class SessionCache
     {
         public long RemoteClientTimestamp { get; set; }

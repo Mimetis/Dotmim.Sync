@@ -1,6 +1,4 @@
 ﻿using Dotmim.Sync.Builders;
-using Dotmim.Sync.Cache;
-
 using Dotmim.Sync.Manager;
 using Dotmim.Sync.SqlServer.Builders;
 using Dotmim.Sync.SqlServer.Manager;

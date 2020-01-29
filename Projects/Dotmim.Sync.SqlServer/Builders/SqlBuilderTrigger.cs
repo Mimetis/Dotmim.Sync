@@ -1,6 +1,6 @@
 ﻿using Dotmim.Sync.Builders;
 
-using Dotmim.Sync.Filter;
+
 using Dotmim.Sync.Log;
 using System;
 using System.Collections.Generic;
@@ -21,7 +21,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         private readonly SqlConnection connection;
         private readonly SqlTransaction transaction;
         private readonly SqlObjectNames sqlObjectNames;
-        public IEnumerable<SyncFilter> Filters { get; set; }
+        public SyncFilter Filter { get; set; }
 
 
         public SqlBuilderTrigger(SyncTable tableDescription, DbConnection connection, DbTransaction transaction = null)
@@ -45,25 +45,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("SET \t[sync_row_is_tombstone] = 1");
             stringBuilder.AppendLine("\t,[update_scope_id] = NULL -- scope id is always NULL when update is made locally");
             stringBuilder.AppendLine("\t,[last_change_datetime] = GetUtcDate()");
-
-            // Filter columns
-            foreach (var filter in this.Filters)
-            {
-                var columnFilter = this.tableDescription.Columns[filter.ColumnName];
-                if (columnFilter == null)
-                    throw new InvalidExpressionException($"Column {filter.ColumnName} does not exist in Table {this.tableDescription.TableName}");
-
-                if (this.tableDescription.IsPrimaryKey(columnFilter.ColumnName))
-                    continue;
-
-                var columnName = ParserName.Parse(columnFilter).Quoted().ToString();
-
-                stringBuilder.AppendLine($"\t,{columnName} = [d].{columnName}");
-
-            }
-
-            stringBuilder.AppendLine();
-
             stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()} [side]");
             stringBuilder.Append($"JOIN DELETED AS [d] ON ");
             stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[side]", "[d]"));
@@ -228,21 +209,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("SET  [sync_row_is_tombstone] = 0");
             stringBuilder.AppendLine("\t,[update_scope_id] = NULL -- scope id is always NULL when update is made locally");
             stringBuilder.AppendLine("\t,[last_change_datetime] = GetUtcDate()");
-
-            // Filter columns
-            foreach (var filter in Filters)
-            {
-                var columnFilter = this.tableDescription.Columns[filter.ColumnName];
-                if (columnFilter == null)
-                    throw new InvalidExpressionException($"Column {filter.ColumnName} does not exist in Table {this.tableDescription.TableName}");
-
-                if (this.tableDescription.IsPrimaryKey(columnFilter.ColumnName))
-                    continue;
-
-                var columnName = ParserName.Parse(columnFilter).Quoted().ToString();
-                stringBuilder.AppendLine($"\t,{columnName} = [i].{columnName}");
-
-            }
             stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()} [side]");
             stringBuilder.Append($"JOIN INSERTED AS [i] ON ");
             stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[side]", "[i]"));
@@ -272,37 +238,12 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("\t,[update_scope_id]");
             stringBuilder.AppendLine("\t,[sync_row_is_tombstone]");
             stringBuilder.AppendLine("\t,[last_change_datetime]");
-
-            var filterColumnsString = new StringBuilder();
-            var filterColumnsString2 = new StringBuilder();
-
-            foreach (var filter in Filters)
-            {
-                var columnFilter = this.tableDescription.Columns[filter.ColumnName];
-                if (columnFilter == null)
-                    throw new InvalidExpressionException($"Column {filter.ColumnName} does not exist in Table {this.tableDescription.TableName}");
-
-                if (this.tableDescription.IsPrimaryKey(columnFilter.ColumnName))
-                    continue;
-
-                var columnName = ParserName.Parse(columnFilter).Quoted().ToString();
-                filterColumnsString.AppendLine($"\t,[i].{columnName}");
-                filterColumnsString2.AppendLine($"\t,{columnName}");
-            }
-
-            if (Filters != null)
-                stringBuilder.Append(filterColumnsString2.ToString());
-
             stringBuilder.AppendLine(") ");
             stringBuilder.AppendLine("SELECT");
             stringBuilder.Append(stringBuilderArguments.ToString());
             stringBuilder.AppendLine("\t,NULL");
             stringBuilder.AppendLine("\t,0");
             stringBuilder.AppendLine("\t,GetUtcDate()");
-
-            if (Filters != null)
-                stringBuilder.AppendLine(filterColumnsString.ToString());
-
             stringBuilder.AppendLine("FROM INSERTED [i]");
             stringBuilder.Append($"LEFT JOIN {trackingName.Schema().Quoted().ToString()} [side] ON ");
             stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[i]", "[side]"));
@@ -459,19 +400,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("UPDATE [side] ");
             stringBuilder.AppendLine("SET \t[update_scope_id] = NULL -- since the update if from local, it's a NULL");
             stringBuilder.AppendLine("\t,[last_change_datetime] = GetUtcDate()");
-            // Filter columns
-            foreach (var filter in Filters)
-            {
-                var columnFilter = this.tableDescription.Columns[filter.ColumnName];
-                if (columnFilter == null)
-                    throw new InvalidExpressionException($"Column {filter.ColumnName} does not exist in Table {this.tableDescription.TableName}");
-
-                if (this.tableDescription.IsPrimaryKey(columnFilter.ColumnName))
-                    continue;
-
-                var columnName = ParserName.Parse(columnFilter).Quoted().ToString();
-                stringBuilder.AppendLine($"\t,{columnName} = [i].{columnName}");
-            }
             stringBuilder.AppendLine();
 
             stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()} [side]");

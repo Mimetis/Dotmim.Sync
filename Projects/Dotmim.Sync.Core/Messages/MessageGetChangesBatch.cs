@@ -1,6 +1,6 @@
 ﻿
 using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Filter;
+
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;

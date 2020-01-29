@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Text;
 
 using System.Linq;
-using Dotmim.Sync.Filter;
+
 using System.Data;
 
 namespace Dotmim.Sync.Sqlite
@@ -30,26 +30,26 @@ namespace Dotmim.Sync.Sqlite
 
             names.Add(objectType, name);
         }
-        public string GetCommandName(DbCommandType objectType, IEnumerable<SyncFilter> filters = null)
+        public string GetCommandName(DbCommandType objectType, SyncFilter filter = null)
         {
             if (!names.ContainsKey(objectType))
                 throw new NotSupportedException($"Sqlite provider does not support the command type {objectType.ToString()}");
 
             var commandName = names[objectType];
 
-            if (filters != null)
-            {
-                string name = "";
-                string sep = "";
-                foreach (var c in filters)
-                {
-                    var columnName = ParserName.Parse(c.ColumnName).Unquoted().Normalized().ToString();
-                    name += $"{columnName}{sep}";
-                    sep = "_";
-                }
+            //if (filters != null)
+            //{
+            //    string name = "";
+            //    string sep = "";
+            //    foreach (var c in filters)
+            //    {
+            //        var columnName = ParserName.Parse(c.ColumnName).Unquoted().Normalized().ToString();
+            //        name += $"{columnName}{sep}";
+            //        sep = "_";
+            //    }
 
-                commandName = string.Format(commandName, name);
-            }
+            //    commandName = string.Format(commandName, name);
+            //}
 
             return commandName;
         }

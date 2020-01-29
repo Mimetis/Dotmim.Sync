@@ -5,7 +5,6 @@ using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
-using Dotmim.Sync.Cache;
 using System.Collections.Immutable;
 
 [assembly: InternalsVisibleTo("Dotmim.Sync.Tests")]
@@ -25,7 +24,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="setup">Configuration server side. Adding at least tables to be synchronized</param>
         /// <param name="options">Options, not shared with client, but only applied locally. Can be null</param>
 
-        public static IServiceCollection AddSyncServer( this IServiceCollection serviceCollection, Type providerType,
+        public static IServiceCollection AddSyncServer(this IServiceCollection serviceCollection, Type providerType,
                                                         string connectionString, SyncSetup setup = null, WebServerOptions options = null)
         {
             if (string.IsNullOrWhiteSpace(connectionString))
@@ -46,7 +45,7 @@ namespace Microsoft.Extensions.DependencyInjection
             serviceCollection.AddSingleton(webServerProperties);
 
             // Add this to the service pool injection
-            serviceCollection.AddSingleton(typeof(WebProxyServerOrchestrator));
+            serviceCollection.AddScoped<WebProxyServerOrchestrator>();
 
             return serviceCollection;
         }
@@ -54,7 +53,7 @@ namespace Microsoft.Extensions.DependencyInjection
         public static IServiceCollection AddSyncServer<TProvider>(this IServiceCollection serviceCollection, string connectionString, SyncSetup setup, WebServerOptions options = null) where TProvider : CoreProvider, new()
             => serviceCollection.AddSyncServer(typeof(TProvider), connectionString, setup, options);
 
-        public static IServiceCollection AddSyncServer<TProvider>(this IServiceCollection serviceCollection, string connectionString, string[] tables, WebServerOptions options = null) where TProvider : CoreProvider, new() 
+        public static IServiceCollection AddSyncServer<TProvider>(this IServiceCollection serviceCollection, string connectionString, string[] tables, WebServerOptions options = null) where TProvider : CoreProvider, new()
             => serviceCollection.AddSyncServer(typeof(TProvider), connectionString, new SyncSetup(tables), options);
 
     }

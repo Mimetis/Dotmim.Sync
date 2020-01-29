@@ -1,4 +1,4 @@
-﻿using Dotmim.Sync.Filter;
+﻿
 
 using System;
 using System.Collections.Generic;
@@ -12,7 +12,7 @@ namespace Dotmim.Sync.Builders
     /// </summary>
     public interface IDbBuilderTrackingTableHelper
     {
-        IEnumerable<SyncFilter> Filters { get; set; }
+        SyncFilter Filter { get; set; }
         bool NeedToCreateTrackingTable();
         void CreateTable();
         void DropTable();
@@ -23,8 +23,6 @@ namespace Dotmim.Sync.Builders
         string DropTableScriptText();
         string CreatePkScriptText();
         string CreateIndexScriptText();
-        string ScriptAddFilterColumn(SyncColumn filterColumn);
         string CreatePopulateFromBaseTableScriptText();
-        void AddFilterColumn(SyncColumn filterColumn);
     }
 }

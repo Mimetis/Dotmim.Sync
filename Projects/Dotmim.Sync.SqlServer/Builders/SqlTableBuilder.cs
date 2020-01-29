@@ -16,10 +16,8 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         public SqlObjectNames ObjectNames { get; private set; }
 
-        public SqlTableBuilder(SyncTable tableDescription) : base(tableDescription)
-        {
-            ObjectNames = new SqlObjectNames(tableDescription);
-        }
+        public SqlTableBuilder(SyncTable tableDescription) : base(tableDescription) 
+            => this.ObjectNames = new SqlObjectNames(tableDescription);
 
         public static (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription)
         {
