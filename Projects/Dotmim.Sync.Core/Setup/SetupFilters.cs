@@ -3,6 +3,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Data;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Text;
@@ -26,7 +27,7 @@ namespace Dotmim.Sync
         public void Add(SetupFilter item)
         {
             if (innerCollection.Any(st => item == st))
-                throw new Exception($"Filter on column {item.ColumnName} already exists in the collection");
+                throw new FilterAlreadyExistsException(item.TableName);
 
             this.innerCollection.Add(item);
         }
@@ -36,7 +37,15 @@ namespace Dotmim.Sync
         /// </summary>
         public SetupFilters Add(string tableName, string columnName, string schemaName = null)
         {
-            var item = new SetupFilter(tableName, columnName, schemaName);
+            // Create a filter on the table
+            var item = new SetupFilter(tableName, schemaName);
+
+            // Add a column as parameter. This column will be automaticaly added in the tracking table
+            item.AddParameter(columnName, tableName, schemaName, true);
+
+            // add the side where expression, allowing to be null
+            item.AddWhere(columnName, tableName, schemaName);
+
             this.Add(item);
             return this;
         }

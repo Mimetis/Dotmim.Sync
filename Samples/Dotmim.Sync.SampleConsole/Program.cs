@@ -5,6 +5,7 @@ using Dotmim.Sync.MySql;
 using Dotmim.Sync.SampleConsole;
 using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
+using Dotmim.Sync.Tests.Models;
 using Dotmim.Sync.Web.Client;
 using Dotmim.Sync.Web.Server;
 using MessagePack;
@@ -38,9 +39,9 @@ internal class Program
                                                     "SalesOrderHeader", "SalesOrderDetail" };
 
     public static string[] oneTable = new string[] { "ProductCategory" };
-    private static void Main(string[] args)
+    private static async Task Main(string[] args)
     {
-        SyncHttpThroughKestellAsync().GetAwaiter().GetResult();
+        await SynchronizeAsync();
     }
 
     private static void TestSqliteDoubleStatement()
@@ -307,31 +308,31 @@ internal class Program
 
     //private static async Task SyncAdvAsync()
     //{
-        //// Sql Server provider, the master.
-        //var serverProvider = new SqlSyncProvider(
-        //    @"Data Source=.;Initial Catalog=AdventureWorks;User Id=sa;Password=Password12!;");
+    //// Sql Server provider, the master.
+    //var serverProvider = new SqlSyncProvider(
+    //    @"Data Source=.;Initial Catalog=AdventureWorks;User Id=sa;Password=Password12!;");
 
-        //// Sqlite Client provider for a Sql Server <=> Sqlite sync
-        //var clientProvider = new SqliteSyncProvider("advworks2.db");
+    //// Sqlite Client provider for a Sql Server <=> Sqlite sync
+    //var clientProvider = new SqliteSyncProvider("advworks2.db");
 
-        //// Tables involved in the sync process:
-        //var tables = new string[] {"ProductCategory",
-        //        "ProductDescription", "ProductModel",
-        //        "Product", "ProductModelProductDescription",
-        //        "Address", "Customer", "CustomerAddress",
-        //        "SalesOrderHeader", "SalesOrderDetail" };
+    //// Tables involved in the sync process:
+    //var tables = new string[] {"ProductCategory",
+    //        "ProductDescription", "ProductModel",
+    //        "Product", "ProductModelProductDescription",
+    //        "Address", "Customer", "CustomerAddress",
+    //        "SalesOrderHeader", "SalesOrderDetail" };
 
-        //// Sync orchestrator
-        //var agent = new SyncAgent(clientProvider, serverProvider, tables);
+    //// Sync orchestrator
+    //var agent = new SyncAgent(clientProvider, serverProvider, tables);
 
 
-        //do
-        //{
-        //    var s = await agent.SynchronizeAsync();
-        //    Console.WriteLine($"Total Changes downloaded : {s.TotalChangesDownloaded}");
+    //do
+    //{
+    //    var s = await agent.SynchronizeAsync();
+    //    Console.WriteLine($"Total Changes downloaded : {s.TotalChangesDownloaded}");
 
-        //} while (Console.ReadKey().Key != ConsoleKey.Escape);
-   // }
+    //} while (Console.ReadKey().Key != ConsoleKey.Escape);
+    // }
 
 
     /// <summary>
@@ -341,20 +342,92 @@ internal class Program
     private static async Task SynchronizeAsync()
     {
         // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
-        var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
+        var serverProvider = new SqlSyncChangeTrackingProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new MySqlSyncProvider(DbHelper.GetMySqlDatabaseConnectionString(clientDbName));
         //var clientProvider = new SqliteSyncProvider("client.db");
 
         // specific Setup with only 2 tables, and one filtered
-        var setup = new SyncSetup(new[] { "ProductCategory" });
-       
-        // Add a table with less columns
-        //setup.Tables.Add("Product")
-        //    .Columns.AddRange(new string[] { "ProductId", "Name", "ProductCategoryID", "ProductNumber", "StandardCost", "ListPrice", "SellStartDate", "rowguid", "ModifiedDate" });
+        var setup = new SyncSetup(allTables);
 
-        //// Add filters
-        //setup.Filters.Add("ProductCategory", "ParentProductCategoryID")
-        //             .Add("ProductCategory", "Name");
+        // ----------------------------------------------------
+        // Vertical Filter: On columns. Removing columns from source
+        // ----------------------------------------------------
+
+        // Add a table with less columns
+        setup.Tables["Product"]
+            .Columns.AddRange(new string[] { "ProductId", "Name", "ProductCategoryID", "ProductNumber", "StandardCost", "ListPrice", "SellStartDate", "rowguid", "ModifiedDate" });
+
+        // ----------------------------------------------------
+        // Horizontal Filter: On rows. Removing rows from source
+        // ----------------------------------------------------
+
+
+        // Over all filter : "we Want only customer from specific city and specific postal code"
+        // First level table : Address
+        // Second level tables : CustomerAddress
+        // Third level tables : Customer, SalesOrderHeader
+        // Fourth level tables : SalesOrderDetail
+
+        // Create a filter on table Address on City Washington
+        // Optional : Sub filter on PostalCode, for testing purpose
+        var addressFilter = new SetupFilter("Address");
+
+        // For each filter, you have to provider all the input parameters
+        // A parameter could be a parameter mapped to an existing colum : That way you don't have to specify any type, length and so on ...
+        // We can specify if a null value can be passed as parameter value : That way ALL addresses will be fetched
+        // A default value can be passed as well, but works only on SQL Server (MySql is a damn shity thing)
+        addressFilter.AddParameter("City", "Address", true);
+
+        // Or a parameter could be a random parameter bound to anything. In that case, you have to specify everything
+        // (This parameter COULD BE bound to a column, like City, but for the example, we go for a custom parameter)
+        addressFilter.AddParameter("postal", DbType.String, true, null, 20);
+
+        // Then you map each parameter on wich table / column the "where" clause should be applied
+        addressFilter.AddWhere("City", "Address", "City");
+        addressFilter.AddWhere("PostalCode", "Address", "postal");
+        setup.Filters.Add(addressFilter);
+
+        var addressCustomerFilter = new SetupFilter("CustomerAddress");
+        addressCustomerFilter.AddParameter("City", "Address", true);
+        addressCustomerFilter.AddParameter("postal", DbType.String, true, null, 20);
+
+        // You can join table to go from your table up (or down) to your filter table
+        addressCustomerFilter.AddJoin(Join.Left, "Address").On("CustomerAddress", "AddressId", "Address", "AddressId");
+
+        // And then add your where clauses
+        addressCustomerFilter.AddWhere("City", "Address", "City");
+        addressCustomerFilter.AddWhere("PostalCode", "Address", "postal");
+        setup.Filters.Add(addressCustomerFilter);
+
+        var customerFilter = new SetupFilter("Customer");
+        customerFilter.AddParameter("City", "Address", true);
+        customerFilter.AddParameter("postal", DbType.String, true, null, 20);
+        customerFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
+        customerFilter.AddJoin(Join.Left, "Address").On("CustomerAddress", "AddressId", "Address", "AddressId");
+        customerFilter.AddWhere("City", "Address", "City");
+        customerFilter.AddWhere("PostalCode", "Address", "postal");
+        setup.Filters.Add(customerFilter);
+
+        var orderHeaderFilter = new SetupFilter("SalesOrderHeader");
+        orderHeaderFilter.AddParameter("City", "Address", true);
+        orderHeaderFilter.AddParameter("postal", DbType.String, true, null, 20);
+        orderHeaderFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerId", "SalesOrderHeader", "CustomerId");
+        orderHeaderFilter.AddJoin(Join.Left, "Address").On("CustomerAddress", "AddressId", "Address", "AddressId");
+        orderHeaderFilter.AddWhere("City", "Address", "City");
+        orderHeaderFilter.AddWhere("PostalCode", "Address", "postal");
+        setup.Filters.Add(orderHeaderFilter);
+
+        var orderDetailsFilter = new SetupFilter("SalesOrderDetail");
+        orderDetailsFilter.AddParameter("City", "Address", true);
+        orderDetailsFilter.AddParameter("postal", DbType.String, true, null, 20);
+        orderDetailsFilter.AddJoin(Join.Left, "SalesOrderHeader").On("SalesOrderHeader", "SalesOrderID", "SalesOrderHeader", "SalesOrderID");
+        orderDetailsFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerId", "SalesOrderHeader", "CustomerId");
+        orderDetailsFilter.AddJoin(Join.Left, "Address").On("CustomerAddress", "AddressId", "Address", "AddressId");
+        orderDetailsFilter.AddWhere("City", "Address", "City");
+        orderDetailsFilter.AddWhere("PostalCode", "Address", "postal");
+        setup.Filters.Add(orderDetailsFilter);
+
+        // ----------------------------------------------------
 
         // Add pref suf
         setup.StoredProceduresPrefix = "s";
@@ -383,11 +456,11 @@ internal class Program
         agent.AddRemoteProgress(remoteProgress);
 
         //agent.Options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync");
-        agent.Options.BatchSize = 1000;
+        //agent.Options.BatchSize = 1000;
         //agent.Options.CleanMetadatas = true;
-        agent.Options.UseBulkOperations = false;
+        agent.Options.UseBulkOperations = true;
         agent.Options.DisableConstraintsOnApplyChanges = false;
-        agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
+        //agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
         //agent.Options.UseVerboseErrors = false;
         //agent.Options.ScopeInfoTableName = "tscopeinfo";
 
@@ -412,8 +485,11 @@ internal class Program
             try
             {
                 // Launch the sync process
-                //agent.Parameters.Add("ProductCategory", "ParentProductCategoryID", "", 1);
-                //agent.Parameters.Add("ProductCategory", "Name", "", "Touring Bikes");
+                if (agent.Parameters["City"] == null)
+                    agent.Parameters.Add("City", "Toronto");
+
+                if (!agent.Parameters.Contains("postal"))
+                    agent.Parameters.Add("postal", DBNull.Value);
 
                 var s1 = await agent.SynchronizeAsync(progress);
 
@@ -432,7 +508,7 @@ internal class Program
         Console.WriteLine("End");
     }
 
-    
+
 
     public static async Task SyncHttpThroughKestellAsync()
     {
@@ -486,7 +562,8 @@ internal class Program
             BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync_server"),
             CleanMetadatas = true,
             UseBulkOperations = true,
-            UseVerboseErrors = false
+            UseVerboseErrors = false,
+            ClientCacheSlidingExpiration = TimeSpan.FromSeconds(20)
         };
         webServerOptions.Serializers.Add(new CustomMessagePackSerializerFactory());
         webServerOptions.Converters.Add(new CustomConverter());
@@ -499,7 +576,7 @@ internal class Program
         var configureServices = new Action<IServiceCollection>(services =>
         {
             // add a SqlSyncProvider acting as the server hub
-            services.AddSyncServer<SqlSyncProvider>(serverProvider.ConnectionString, setup);
+            services.AddSyncServer<SqlSyncProvider>(serverProvider.ConnectionString, setup, webServerOptions);
 
         });
 
@@ -513,11 +590,31 @@ internal class Program
             var clientHandler = new ResponseDelegate(async (serviceUri) =>
             {
                 proxyClientProvider.ServiceUri = serviceUri;
-                Console.Clear();
-                Console.WriteLine("Sync Start");
-                var s1 = await agent.SynchronizeAsync();
-                Console.WriteLine(s1);
-                Console.WriteLine("--------------------------------------------------");
+                do
+                {
+                    Console.Clear();
+                    Console.WriteLine("Web sync start");
+                    try
+                    {
+                        var progress = new Progress<ProgressArgs>(pa => Console.WriteLine($"{pa.Context.SessionId} - {pa.Context.SyncStage}\t {pa.Message}"));
+
+                        var s = await agent.SynchronizeAsync(progress);
+
+                        Console.WriteLine(s);
+
+                    }
+                    catch (SyncException e)
+                    {
+                        Console.WriteLine(e.ToString());
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+                    }
+
+
+                    Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+                } while (Console.ReadKey().Key != ConsoleKey.Escape);
 
 
             });

@@ -12,7 +12,7 @@ using Dotmim.Sync.Builders;
 using System.Diagnostics;
 using System.ComponentModel;
 using System.Threading.Tasks;
-using Dotmim.Sync.Filter;
+
 using System.Reflection;
 
 namespace Dotmim.Sync
@@ -48,12 +48,12 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets a command from the current adapter
         /// </summary>
-        public abstract DbCommand GetCommand(DbCommandType commandType, IEnumerable<SyncFilter> filters = null);
+        public abstract DbCommand GetCommand(DbCommandType commandType, SyncFilter filter = null);
 
         /// <summary>
         /// Set parameters on a command
         /// </summary>
-        public abstract void SetCommandParameters(DbCommandType commandType, DbCommand command, IEnumerable<SyncFilter> filters = null);
+        public abstract void SetCommandParameters(DbCommandType commandType, DbCommand command, SyncFilter filter = null);
 
         /// <summary>
         /// Execute a batch command

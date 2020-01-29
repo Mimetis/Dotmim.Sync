@@ -1,6 +1,4 @@
 ﻿using Dotmim.Sync.Builders;
-using Dotmim.Sync.Cache;
-
 using Dotmim.Sync.Manager;
 using System;
 using System.Data.Common;

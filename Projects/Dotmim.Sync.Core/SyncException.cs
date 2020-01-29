@@ -313,4 +313,66 @@ namespace Dotmim.Sync
         { }
     }
 
+
+    /// <summary>
+    /// Occurs when a parameter has been already added in a filter parameter list
+    /// </summary>
+    public class FilterParameterAlreadyExistsException : Exception
+    {
+        const string message = "The parameter {0} has been already added for the {1} changes stored procedure";
+
+        public FilterParameterAlreadyExistsException(string parameterName, string tableName) : base(string.Format(message, parameterName, tableName)) { }
+    }
+
+    /// <summary>
+    /// Occurs when a filter already exists for a named table
+    /// </summary>
+    public class FilterAlreadyExistsException : Exception
+    {
+        const string message = "The filter for the {0} changes stored procedure already exists";
+
+        public FilterAlreadyExistsException(string tableName) : base(string.Format(message, tableName)) { }
+    }
+
+
+    /// <summary>
+    /// Occurs when a filter column used as a filter for a tracking table, has not been added to the column parameters list
+    /// </summary>
+    public class FilterTrackingWhereException : Exception
+    {
+        const string message = "The column {0} does not exist in the columns parameters list, so can't be add as a where filter clause to the tracking table";
+
+        public FilterTrackingWhereException(string columName) : base(string.Format(message, columName)) { }
+    }
+
+
+    /// <summary>
+    /// Occurs when a filter column used as a filter for a tracking table, but not exists
+    /// </summary>
+    public class FilterParamColumnNotExistsException : Exception
+    {
+        const string message = "The parameter {0} does not exist as a column in the table {1}";
+
+        public FilterParamColumnNotExistsException(string columName, string tableName) : base(string.Format(message, columName, tableName)) { }
+    }
+
+    /// <summary>
+    /// Occurs when a filter column used as a filter for a tracking table, but not exists
+    /// </summary>
+    public class FilterParamTableNotExistsException : Exception
+    {
+        const string message = "The table {0} does not exist";
+
+        public FilterParamTableNotExistsException(string tableName) : base(string.Format(message, tableName)) { }
+    }
+
+    /// <summary>
+    /// Occurs when a parameter has been already added to the parameter collection
+    /// </summary>
+    public class SyncParameterAlreadyExistsException : Exception
+    {
+        const string message = "The parameter {0} already exists in the parameter list.";
+
+        public SyncParameterAlreadyExistsException(string parameterName) : base(string.Format(message, parameterName)) { }
+    }
 }

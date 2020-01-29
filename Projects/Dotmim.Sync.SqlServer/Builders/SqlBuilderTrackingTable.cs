@@ -1,6 +1,6 @@
 ﻿using Dotmim.Sync.Builders;
 
-using Dotmim.Sync.Filter;
+
 using Dotmim.Sync.Log;
 using Dotmim.Sync.SqlServer.Manager;
 using System;
@@ -23,7 +23,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         private readonly SqlTransaction transaction;
         private readonly SqlDbMetadata sqlDbMetadata;
 
-        public IEnumerable<SyncFilter> Filters { get; set; }
+        public SyncFilter Filter { get; set; }
 
         public SqlBuilderTrackingTable(SyncTable tableDescription, DbConnection connection, DbTransaction transaction = null)
         {
@@ -77,21 +77,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"\t  [timestamp_bigint] ASC");
             stringBuilder.AppendLine($"\t, [update_scope_id] ASC");
             stringBuilder.AppendLine($"\t, [sync_row_is_tombstone] ASC");
-            // Filter columns
-            foreach (var filterColumn in this.Filters)
-            {
-                // check if the filter column is already a primary key.
-                // in this case, we will add it as an index in the next foreach
-                if (this.tableDescription.IsPrimaryKey(filterColumn.ColumnName))
-                    continue;
-
-                if (!this.tableDescription.Columns.Any(c => c.ColumnName.ToLowerInvariant() == filterColumn.ColumnName.ToLowerInvariant()))
-                    continue;
-
-                var columnName = ParserName.Parse(filterColumn.ColumnName).Quoted().ToString();
-                stringBuilder.AppendLine($"\t,{columnName} ASC");
-            }
-
             foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
@@ -282,28 +267,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"[sync_row_is_tombstone] [bit] NOT NULL default(0), ");
             stringBuilder.AppendLine($"[last_change_datetime] [datetime] NULL, ");
 
-            // adding the filter columns
-            foreach (var filter in this.Filters)
-            {
-                var columnFilter = this.tableDescription.Columns[filter.ColumnName];
-
-                if (columnFilter == null)
-                    throw new InvalidExpressionException($"Column {filter.ColumnName} does not exist in Table {this.tableDescription.TableName}");
-
-                if (this.tableDescription.IsPrimaryKey(filter.ColumnName))
-                    continue;
-
-                var quotedColumnName = ParserName.Parse(columnFilter).Quoted().ToString();
-                var columnTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-                var quotedColumnType = ParserName.Parse(columnTypeString).Quoted().ToString();
-                var columnPrecisionString = this.sqlDbMetadata.TryGetOwnerDbTypePrecision(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, columnFilter.Precision, columnFilter.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-                var columnType = $"{quotedColumnType} {columnPrecisionString}";
-
-                var nullableColumn = columnFilter.AllowDBNull ? "NULL" : "NOT NULL";
-
-                stringBuilder.AppendLine($"{quotedColumnName} {columnType} {nullableColumn}, ");
-            }
-
             stringBuilder.Append(")");
             return stringBuilder.ToString();
         }
@@ -378,22 +341,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             var stringBuilder5 = new StringBuilder();
             var stringBuilder6 = new StringBuilder();
 
-            foreach (var filter in this.Filters)
-            {
-                var columnFilter = this.tableDescription.Columns[filter.ColumnName];
-
-                if (columnFilter == null)
-                    throw new InvalidExpressionException($"Column {filter.ColumnName} does not exist in Table {this.tableDescription.TableName}");
-
-                if (this.tableDescription.IsPrimaryKey(columnFilter.ColumnName))
-                    continue;
-
-                var quotedColumnName = ParserName.Parse(columnFilter).Quoted().ToString();
-
-                stringBuilder6.Append(string.Concat(empty, quotedColumnName));
-                stringBuilder5.Append(string.Concat(empty, baseTable, ".", quotedColumnName));
-            }
-
             // (list of pkeys)
             stringBuilder.Append(string.Concat(stringBuilder1.ToString(), ", "));
 
@@ -420,56 +367,6 @@ namespace Dotmim.Sync.SqlServer.Builders
         }
 
 
-        public void AddFilterColumn(SyncColumn filterColumn)
-        {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
-
-            try
-            {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        this.connection.Open();
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    command.CommandText = this.AddFilterColumnCommandText(filterColumn);
-                    command.Connection = this.connection;
-                    command.ExecuteNonQuery();
-
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateIndex : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
-        }
-
-        private string AddFilterColumnCommandText(SyncColumn col)
-        {
-            var quotedColumnName = ParserName.Parse(col).Quoted().ToString();
-            var columnTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(col.OriginalDbType, col.GetDbType(), false, false, col.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-            var columnPrecisionString = this.sqlDbMetadata.TryGetOwnerDbTypePrecision(col.OriginalDbType, col.GetDbType(), false, false, col.MaxLength, col.Precision, col.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-            var columnType = $"{columnTypeString} {columnPrecisionString}";
-
-            return string.Concat("ALTER TABLE ", quotedColumnName, " ADD ", columnType);
-        }
-        public string ScriptAddFilterColumn(SyncColumn filterColumn)
-        {
-            var quotedColumnName = ParserName.Parse(filterColumn).Quoted().ToString();
-            string str = string.Concat("Add new filter column, ", quotedColumnName, ", to Tracking Table ", trackingName.Schema().Quoted().ToString());
-            return SqlTableBuilder.WrapScriptTextWithComments(this.AddFilterColumnCommandText(filterColumn), str);
-        }
 
 
     }

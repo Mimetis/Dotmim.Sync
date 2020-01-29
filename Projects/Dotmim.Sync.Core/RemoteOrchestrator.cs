@@ -171,7 +171,7 @@ namespace Dotmim.Sync
                         // When we get the chnages from server, we create the batches if it's requested by the client
                         // the batch decision comes from batchsize from client
                         (context, serverBatchInfo, serverChangesSelected) =
-                            await this.Provider.GetChangeBatchAsync(context,
+                            await this.Provider.GetChangeBatchAsync(context, 
                                 new MessageGetChangesBatch(scope.Id, Guid.Empty, fromScratch, scope.LastServerSyncTimestamp,
                                     schema, clientBatchSize, batchDirectory),
                                     connection, transaction, cancellationToken, progress).ConfigureAwait(false);

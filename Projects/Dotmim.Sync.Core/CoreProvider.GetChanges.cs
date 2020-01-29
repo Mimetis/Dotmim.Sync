@@ -1,8 +1,6 @@
 ﻿using Dotmim.Sync.Batch;
 using Dotmim.Sync.Builders;
-
 using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Filter;
 using Dotmim.Sync.Manager;
 using Dotmim.Sync.Messages;
 using Dotmim.Sync.Serialization;
@@ -243,16 +241,15 @@ namespace Dotmim.Sync
             DbCommand selectIncrementalChangesCommand;
             DbCommandType dbCommandType;
 
-            List<SyncFilter> tableFilters = null;
+            SyncFilter tableFilter = null;
 
             // Check if we have parameters specified
-            var hasValidParameters = context.Parameters != null && context.Parameters.Count > 0;
 
             // Sqlite does not have any filter, since he can't be server side
-            if (this.CanBeServerProvider && hasValidParameters)
-                tableFilters = syncTable.GetFilters();
+            if (this.CanBeServerProvider)
+                tableFilter = syncTable.GetFilter();
 
-            var hasFilters = tableFilters != null && tableFilters.Count > 0;
+            var hasFilters = tableFilter != null;
 
             // Determing the correct DbCommandType
             if (isNew && hasFilters)
@@ -265,13 +262,13 @@ namespace Dotmim.Sync
                 dbCommandType = DbCommandType.SelectChanges;
 
             // Get correct Select incremental changes command 
-            selectIncrementalChangesCommand = syncAdapter.GetCommand(dbCommandType, tableFilters);
+            selectIncrementalChangesCommand = syncAdapter.GetCommand(dbCommandType, tableFilter);
 
             if (selectIncrementalChangesCommand == null)
                 throw new MissingCommandException(dbCommandType.ToString());
 
             // Add common parameters
-            syncAdapter.SetCommandParameters(dbCommandType, selectIncrementalChangesCommand, tableFilters);
+            syncAdapter.SetCommandParameters(dbCommandType, selectIncrementalChangesCommand, tableFilter);
 
             return selectIncrementalChangesCommand;
 
@@ -307,42 +304,29 @@ namespace Dotmim.Sync
             // Set the parameters
             DbTableManagerFactory.SetParameterValue(selectIncrementalChangesCommand, "sync_min_timestamp", lastTimestamp);
             DbTableManagerFactory.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_id", excludingScopeId.HasValue ? (object)excludingScopeId.Value : DBNull.Value);
-            DbTableManagerFactory.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_is_new", isNewScope);
-            DbTableManagerFactory.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_is_reinit", isReinit);
 
             // Check filters
-            List<SyncFilter> tableFilters = null;
-
-            // Check if we have parameters specified
-            var hasValidParameters = context.Parameters != null && context.Parameters.Count > 0;
+            SyncFilter tableFilter = null;
 
             // Sqlite does not have any filter, since he can't be server side
-            if (this.CanBeServerProvider && hasValidParameters)
-                tableFilters = syncTable.GetFilters();
+            if (this.CanBeServerProvider)
+                tableFilter = syncTable.GetFilter();
 
-            var hasFilters = tableFilters != null && tableFilters.Count > 0;
+            var hasFilters = tableFilter != null;
 
             if (!hasFilters)
                 return;
 
-            foreach (var filter in tableFilters)
+            foreach (var filterParam in tableFilter.Parameters)
             {
                 var parameter = context.Parameters.FirstOrDefault(p =>
-                {
+                    p.Name.Equals(filterParam.Name, SyncGlobalization.DataSourceStringComparison));
 
-                    var sc = SyncGlobalization.DataSourceStringComparison;
+                object val = parameter?.Value;
 
-                    var sn = filter.SchemaName == null ? string.Empty : filter.SchemaName;
-                    var otherSn = p.SchemaName == null ? string.Empty : p.SchemaName;
-
-                    return p.ColumnName.Equals(filter.ColumnName, sc) &&
-                           p.TableName.Equals(filter.TableName, sc) &&
-                           sn.Equals(otherSn, sc);
-                });
-
-                if (parameter != null)
-                    DbTableManagerFactory.SetParameterValue(selectIncrementalChangesCommand, parameter.ColumnName, parameter.Value);
+                DbTableManagerFactory.SetParameterValue(selectIncrementalChangesCommand, filterParam.Name, val);
             }
+
         }
 
         /// <summary>

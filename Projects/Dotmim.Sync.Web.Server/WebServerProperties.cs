@@ -1,5 +1,4 @@
-﻿using Dotmim.Sync.Cache;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -7,7 +6,7 @@ namespace Dotmim.Sync.Web.Server
 {
     public class WebServerProperties
     {
-        public const string Key = "WebServerCacheItem";
+        public const string Key = "WebServerProperties";
 
         public WebServerProperties() { }
        
@@ -15,7 +14,6 @@ namespace Dotmim.Sync.Web.Server
         public WebServerOptions Options { get; set; }
         public string ConnectionString { get; set; }
         public SyncSetup Setup { get; set; }
-        public InMemoryCache Cache { get; }
 
         /// <summary>
         /// Copy properties from remote web orchestrator 

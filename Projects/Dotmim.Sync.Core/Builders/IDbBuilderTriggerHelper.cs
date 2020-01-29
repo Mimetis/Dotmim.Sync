@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Data.Common;
 using System.Text;
 
-using Dotmim.Sync.Filter;
+
 
 namespace Dotmim.Sync.Builders
 {
@@ -12,7 +12,7 @@ namespace Dotmim.Sync.Builders
     /// </summary>
     public interface IDbBuilderTriggerHelper
     {
-        IEnumerable<SyncFilter> Filters { get; set; }
+        SyncFilter Filter { get; set; }
     
         bool NeedToCreateTrigger(DbTriggerType triggerType);
         void CreateInsertTrigger();

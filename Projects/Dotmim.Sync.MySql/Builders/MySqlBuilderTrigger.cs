@@ -19,7 +19,7 @@ namespace Dotmim.Sync.MySql
         private MySqlTransaction transaction;
         private MySqlObjectNames mySqlObjectNames;
 
-        public IEnumerable<SyncFilter> Filters { get; set; }
+        public SyncFilter Filter { get; set; }
 
 
 
@@ -42,22 +42,6 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine("\t,`update_scope_id` = NULL ");
             stringBuilder.AppendLine($"\t,`timestamp` = {MySqlObjectNames.TimestampValue}");
             stringBuilder.AppendLine("\t,`last_change_datetime` = utc_timestamp()");
-
-            // Filter columns
-            if (this.Filters != null)
-            {
-
-                foreach (var filterColumn in this.Filters)
-                {
-                    if (this.tableDescription.PrimaryKeys.Any(c => c.ToLowerInvariant() == filterColumn.ColumnName.ToLowerInvariant()))
-                        continue;
-                    var columnName = ParserName.Parse(filterColumn.ColumnName, "`").Quoted().ToString();
-
-                    stringBuilder.AppendLine($"\t,{columnName} = `old`.{columnName}");
-
-                }
-                stringBuilder.AppendLine();
-            }
 
             stringBuilder.Append($"WHERE ");
             stringBuilder.Append(MySqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, trackingName.Quoted().ToString(), "old"));
@@ -166,22 +150,6 @@ namespace Dotmim.Sync.MySql
             var filterColumnsString2 = new StringBuilder();
             var filterColumnsString3 = new StringBuilder();
 
-            // Filter columns
-            if (this.Filters != null && this.Filters.Count() > 0)
-            {
-                foreach (var filterColumn in this.Filters)
-                {
-                    if (this.tableDescription.PrimaryKeys.Any(c => c.ToLowerInvariant() == filterColumn.ColumnName.ToLowerInvariant()))
-                        continue;
-
-                    var columnName = ParserName.Parse(filterColumn.ColumnName, "`").Quoted().ToString();
-                    filterColumnsString.AppendLine($"\t\t,{columnName}");
-                    filterColumnsString2.AppendLine($"\t\t,new.{columnName}");
-                    filterColumnsString3.AppendLine($"\t,{columnName} = new.{columnName}");
-                }
-                stringBuilder.AppendLine(filterColumnsString.ToString());
-            }
-
             stringBuilder.AppendLine("\t) ");
             stringBuilder.AppendLine("\tVALUES (");
             stringBuilder.Append(stringBuilderArguments2.ToString());
@@ -190,8 +158,6 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine("\t\t,0");
             stringBuilder.AppendLine("\t\t,utc_timestamp()");
 
-            if (Filters != null && Filters.Count() > 0)
-                stringBuilder.AppendLine(filterColumnsString2.ToString());
 
             stringBuilder.AppendLine("\t)");
             stringBuilder.AppendLine("ON DUPLICATE KEY UPDATE");
@@ -199,9 +165,6 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine("\t`sync_row_is_tombstone` = 0, ");
             stringBuilder.AppendLine($"\t`timestamp` = {MySqlObjectNames.TimestampValue}, ");
             stringBuilder.AppendLine("\t`last_change_datetime` = utc_timestamp()");
-
-            if (Filters != null && Filters.Count() > 0)
-                stringBuilder.AppendLine(filterColumnsString3.ToString());
 
             stringBuilder.Append(";");
             stringBuilder.AppendLine("END");
@@ -278,20 +241,6 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine("\tSET `update_scope_id` = NULL ");
             stringBuilder.AppendLine($"\t\t,`timestamp` = {MySqlObjectNames.TimestampValue}");
             stringBuilder.AppendLine("\t\t,`last_change_datetime` = utc_timestamp()");
-
-            if (this.Filters != null && Filters.Count() > 0)
-            {
-                foreach (var filterColumn in this.Filters)
-                {
-                    if (this.tableDescription.PrimaryKeys.Any(c => c.ToLowerInvariant() == filterColumn.ColumnName.ToLowerInvariant()))
-                        continue;
-
-                    var columnName = ParserName.Parse(filterColumn.ColumnName, "`").Quoted().ToString();
-
-                    stringBuilder.AppendLine($"\t,{columnName} = `new`.{columnName}");
-                }
-                stringBuilder.AppendLine();
-            }
 
             stringBuilder.Append($"\tWhere ");
             stringBuilder.Append(MySqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, trackingName.Quoted().ToString(), "new"));
