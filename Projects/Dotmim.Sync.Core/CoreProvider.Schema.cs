@@ -36,7 +36,7 @@ namespace Dotmim.Sync
 
             // copy filters from setup
             foreach (var filter in setup.Filters)
-                schema.Filters.Add(filter.TableName, filter.ColumnName, filter.SchemaName, filter.ColumnType);
+                schema.Filters.Add(filter);
 
             var relations = new List<DbRelationDefinition>(20);
 
@@ -273,10 +273,12 @@ namespace Dotmim.Sync
                             return null;
 
                         return new SyncColumnIdentifier(schemaColumn.ColumnName, schemaTable.TableName, schemaTable.SchemaName);
-                    });
+                    })
+                    .Where(sc => sc != null)
+                    .ToList(); 
 
                 // if we don't find the column, maybe we just dont have this column in our setup def
-                if (schemaColumns == null || schemaColumns.Count() == 0)
+                if (schemaColumns == null || schemaColumns.Count == 0)
                     continue;
 
                 // then Get the foreign table as well
@@ -294,13 +296,14 @@ namespace Dotmim.Sync
                          if (schemaColumn == null)
                              return null;
                          return new SyncColumnIdentifier(schemaColumn.ColumnName, foreignTable.TableName, foreignTable.SchemaName);
-                     });
+                     })
+                     .Where(sc => sc != null)
+                     .ToList();
 
-
-                if (foreignColumns == null || foreignColumns.Any(c => c == null))
+                if (foreignColumns == null || foreignColumns.Count == 0)
                     continue;
 
-                var schemaRelation = new SyncRelation(r.ForeignKey, schemaColumns.ToList(), foreignColumns.ToList());
+                var schemaRelation = new SyncRelation(r.ForeignKey, schemaColumns, foreignColumns);
 
                 schema.Relations.Add(schemaRelation);
             }

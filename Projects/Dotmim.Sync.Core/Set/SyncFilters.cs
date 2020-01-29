@@ -54,7 +54,8 @@ namespace Dotmim.Sync
         /// <returns></returns>
         public IEnumerable<SyncFilter> GetColumnFilters()
         {
-            return this.Where(f => !f.IsVirtual);
+            // TODO : Remove this
+            return this;
         }
 
         /// <summary>
@@ -69,10 +70,52 @@ namespace Dotmim.Sync
         /// <summary>
         /// Add a new filter 
         /// </summary>
-        public void Add(string tableName, string columnName, string schemaName = null, int? columnType = null)
+        public void Add(SetupFilter setupFilter)
         {
-            var item = new SyncFilter(tableName, columnName, schemaName, columnType);
-            item.Schema = Schema;
+            var item = new SyncFilter(setupFilter.TableName, setupFilter.SchemaName)
+            {
+                Schema = this.Schema,
+            };
+
+            foreach (var s in setupFilter.Parameters)
+                item.Parameters.Add(new SyncFilterParameter { Name = s.Name, DbType = s.DbType, DefaultValue = s.DefaultValue, AllowNull = s.AllowNull, MaxLength = s.MaxLength });
+
+            foreach (var s in setupFilter.Where)
+                item.SideWhereFilters.Add(new SyncFilterWhereSideItem { ColumnName = s.columName, TableName = s.tableName, SchemaName = s.schemaName, ParameterName = s.parameterName });
+
+            foreach (var s in setupFilter.Joins)
+                item.CustomJoins.Add(new SyncFilterJoin
+                {
+                    TableName = s.tableName,
+                    JoinEnum = s.joinEnum,
+                    LeftTableName = s.leftTableName,
+                    LeftColumnName = s.leftColumnName,
+                    RightTableName = s.rightTableName,
+                    RightColumnName = s.rightColumnName,
+                });
+
+            foreach (var s in setupFilter.CustomWheres)
+                item.CustomWheres.Add(s);
+
+            InnerCollection.Add(item);
+        }
+
+        /// <summary>
+        /// Add a new filter 
+        /// </summary>
+        public void Add(string tableName, string columnName, string schemaName = null)
+        {
+            var item = new SyncFilter(tableName, schemaName)
+            {
+                Schema = Schema
+            };
+
+            // Add a column as parameter. This column will be automaticaly added in the tracking table
+            item.Parameters.Add(new SyncFilterParameter { Name = columnName, TableName = tableName, SchemaName = schemaName, AllowNull = true });
+
+            // add the side where expression, allowing to be null
+            item.SideWhereFilters.Add(new SyncFilterWhereSideItem { ColumnName = columnName, TableName = tableName, SchemaName = schemaName });
+
             InnerCollection.Add(item);
         }
 

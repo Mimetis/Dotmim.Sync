@@ -277,20 +277,17 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get all filters for a selected sync table
         /// </summary>
-        public List<SyncFilter> GetFilters()
+        public SyncFilter GetFilter()
         {
-            return this.Schema.Filters.Where(sf =>
+            return this.Schema.Filters.FirstOrDefault(sf =>
             {
                 var sc = SyncGlobalization.DataSourceStringComparison;
 
                 var sn = sf.SchemaName == null ? string.Empty : sf.SchemaName;
                 var otherSn = this.SchemaName == null ? string.Empty : this.SchemaName;
 
-                return this.TableName.Equals(sf.TableName, sc) &&
-                       sn.Equals(otherSn, sc);
-
-
-            }).ToList();
+                return this.TableName.Equals(sf.TableName, sc) && sn.Equals(otherSn, sc);
+            });
         }
 
         public void Load(DbDataReader reader)

@@ -25,7 +25,8 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// Default constructor for DI
         /// </summary>
-        public WebProxyServerOrchestrator(IMemoryCache cache, WebServerProperties webServerProperties) {
+        public WebProxyServerOrchestrator(IMemoryCache cache, WebServerProperties webServerProperties)
+        {
             this.Cache = cache;
             this.WebServerProperties = webServerProperties;
         }
@@ -196,32 +197,9 @@ namespace Dotmim.Sync.Web.Server
                 httpResponse.Headers.Add("dotmim-sync-serialization-format", clientSerializerFactory.Key);
 
                 // data to send back, as the response
-                byte[] data;
+                byte[] data = this.EnsureCompression(httpRequest, httpResponse, binaryData);
 
-                // Compress data if client accept Gzip / Deflate
-                string encoding = httpRequest.Headers["Accept-Encoding"];
-
-                if (!string.IsNullOrEmpty(encoding) && (encoding.Contains("gzip") || encoding.Contains("deflate")))
-                {
-                    using (var writeSteam = new MemoryStream())
-                    {
-                        using (var compress = new GZipStream(writeSteam, CompressionMode.Compress))
-                        {
-                            compress.Write(binaryData, 0, binaryData.Length);
-                        }
-
-                        data = writeSteam.ToArray();
-                    }
-
-                    httpResponse.Headers.Add("Content-Encoding", "gzip");
-                }
-                else
-                {
-                    data = binaryData;
-                }
-
-
-                await GetBody(httpResponse).WriteAsync(data, 0, data.Length).ConfigureAwait(false);
+                await this.GetBody(httpResponse).WriteAsync(data, 0, data.Length).ConfigureAwait(false);
 
             }
             catch (Exception ex)
@@ -233,6 +211,33 @@ namespace Dotmim.Sync.Web.Server
                 //if (httpMessage != null && httpMessage.Step == HttpStep.EndSession)
                 //    Cleanup(context.RequestServices.GetService(typeof(IMemoryCache)), syncSessionId);
             }
+        }
+
+        /// <summary>
+        /// Ensure we have a Compression setting or not
+        /// </summary>
+        private byte[] EnsureCompression(HttpRequest httpRequest, HttpResponse httpResponse, byte[] binaryData)
+        {
+            string encoding = httpRequest.Headers["Accept-Encoding"];
+
+            // Compress data if client accept Gzip / Deflate
+            if (!string.IsNullOrEmpty(encoding) && (encoding.Contains("gzip") || encoding.Contains("deflate")))
+            {
+                httpResponse.Headers.Add("Content-Encoding", "gzip");
+
+                using (var writeSteam = new MemoryStream())
+                {
+                    using (var compress = new GZipStream(writeSteam, CompressionMode.Compress))
+                    {
+                        compress.Write(binaryData, 0, binaryData.Length);
+                    }
+
+                    return writeSteam.ToArray();
+                }
+
+            }
+
+            return binaryData;
         }
 
         /// <summary>
@@ -286,7 +291,7 @@ namespace Dotmim.Sync.Web.Server
         //    cache.Set(sessionId, remoteOrchestrator, TimeSpan.FromHours(1));
         //    return remoteOrchestrator;
         //}
-      
+
         //private static WebServerOrchestrator AddNewWebServerOrchestratorToCache(HttpContext context, WebServerOrchestrator webServerOrchestrator, string sessionId)
         //{
         //    var cache = context.RequestServices.GetService<IMemoryCache>();
@@ -311,9 +316,6 @@ namespace Dotmim.Sync.Web.Server
 
                 var clientBatchSize = serAndsize.s;
                 var clientSerializerFactory = serverOrchestrator.Options.Serializers[serAndsize.f];
-
-                if (clientSerializerFactory == null)
-                    throw new ArgumentNullException();
 
                 return (clientBatchSize, clientSerializerFactory);
             }

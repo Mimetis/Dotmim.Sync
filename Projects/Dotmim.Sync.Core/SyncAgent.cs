@@ -1,8 +1,5 @@
 ﻿using Dotmim.Sync.Batch;
-
-
 using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Filter;
 using Dotmim.Sync.Messages;
 using Newtonsoft.Json;
 using System;
@@ -39,9 +36,9 @@ namespace Dotmim.Sync
         public IRemoteOrchestrator RemoteOrchestrator { get; set; }
 
         /// <summary>
-        /// Get or Sets the Sync parameter to pass to Remote provider for filtering rows
+        /// Get or Sets the Sync parameters to pass to Remote provider for filtering rows
         /// </summary>
-        public SyncParameterCollection Parameters { get; private set; }
+        public SyncParameters Parameters { get; private set; }
 
         /// <summary>
         /// Occurs when sync is starting, ending
@@ -160,14 +157,12 @@ namespace Dotmim.Sync
             this.Options = options ?? new SyncOptions();
 
             // Add parameters
-            this.Parameters = new SyncParameterCollection();
+            this.Parameters = new SyncParameters();
 
             // Affect local and remote orchestrators
             this.LocalOrchestrator = localOrchestrator;
             this.RemoteOrchestrator = remoteOrchestrator;
-
         }
-
 
         /// <summary>
         /// Launch a normal synchronization without any IProgess or CancellationToken

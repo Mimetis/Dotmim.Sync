@@ -1,4 +1,4 @@
-﻿using Dotmim.Sync.Filter;
+﻿
 using Dotmim.Sync.MySql;
 using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;

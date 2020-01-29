@@ -58,7 +58,7 @@ namespace Dotmim.Sync.Manager
             if (parameter == null)
                 return;
 
-            if (value != null)
+            if (value != null && value != DBNull.Value)
             {
                 var columnType = parameter.DbType;
                 var valueType = value.GetType();
@@ -116,7 +116,7 @@ namespace Dotmim.Sync.Manager
                 }
             }
 
-            parameter.Value = value ?? DBNull.Value;
+            parameter.Value = value;
         }
 
         public static int GetSyncIntOutParameter(string parameter, DbCommand command)

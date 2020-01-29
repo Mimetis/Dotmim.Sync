@@ -10,10 +10,40 @@ namespace Dotmim.Sync
     /// Design a filter clause on Dmtable
     /// </summary>
     [DataContract(Name = "sf"), Serializable]
-    public class SyncFilter : SyncColumnIdentifier, IDisposable, IEquatable<SyncFilter>
+    public class SyncFilter : IDisposable, IEquatable<SyncFilter>
     {
-        [DataMember(Name = "dt", IsRequired = false, EmitDefaultValue = false, Order = 4)]
-        public int? ColumnType { get; set; }
+
+        [DataMember(Name = "t", IsRequired = true, Order = 1)]
+        public string TableName { get; set; }
+
+        [DataMember(Name = "s", IsRequired = false, EmitDefaultValue = false, Order = 2)]
+        public string SchemaName { get; set; }
+
+
+        /// <summary>
+        /// Gets or Sets the parameters list, used as input in the stored procedure
+        /// </summary>
+        [DataMember(Name = "p", IsRequired = false, EmitDefaultValue = false, Order = 4)]
+        public SyncFilterParameters Parameters { get; set;  } = new SyncFilterParameters();
+
+        /// <summary>
+        /// Gets or Sets side where filters list
+        /// </summary>
+        [DataMember(Name = "f", IsRequired = false, EmitDefaultValue = false, Order = 6)]
+        public SyncFilterWhereSideItems SideWhereFilters { get; set; } = new SyncFilterWhereSideItems();
+
+        /// <summary>
+        /// Gets or Sets side where filters list
+        /// </summary>
+        [DataMember(Name = "cj", IsRequired = false, EmitDefaultValue = false, Order = 6)]
+        public SyncFilterJoins CustomJoins { get; set; } = new SyncFilterJoins();
+
+        /// <summary>
+        /// Gets or Sets customs where
+        /// </summary>
+        [DataMember(Name = "w", IsRequired = false, EmitDefaultValue = false, Order = 7)]
+        public List<string> CustomWheres { get; set; } = new List<string>();
+
 
         /// <summary>
         /// Gets the ShemaFilter's SyncSchema
@@ -21,36 +51,27 @@ namespace Dotmim.Sync
         [IgnoreDataMember]
         public SyncSet Schema { get; set; }
 
-        /// <summary>
-        /// Gets whether the filter is targeting an existing column of the target table (not virtual) or it is only used as a parameter in the selectchanges stored procedure (virtual)
-        /// </summary>
-        [IgnoreDataMember]
-        public bool IsVirtual => ColumnType.HasValue;
 
         /// <summary>
         /// Creates a filterclause allowing to specify a different DbType.
         /// If you specify the columnType, Dotmim.Sync will expect that the column does not exist on the table, and the filter is only
         /// used as a parameter for the selectchanges stored procedure. Thus, IsVirtual would be true
         /// </summary>
-        public SyncFilter(string tableName, string columnName, string schemaName = null, int? columnType = null)
+        public SyncFilter(string tableName, string schemaName = null)
         {
-            this.ColumnName = columnName;
             this.TableName = tableName;
             this.SchemaName = schemaName;
-            this.ColumnType = columnType;
         }
 
 
         /// <summary>
         /// Clone the SyncFilter
         /// </summary>
-        public new SyncFilter Clone()
+        public SyncFilter Clone()
         {
             var clone = new SyncFilter();
-            clone.ColumnName = this.ColumnName;
             clone.SchemaName = this.SchemaName;
             clone.TableName = this.TableName;
-            clone.ColumnType = this.ColumnType;
 
             return clone;
         }
@@ -59,7 +80,14 @@ namespace Dotmim.Sync
         /// <summary>
         /// Ensure filter has the correct schema (since the property is not serialized
         /// </summary>
-        public void EnsureFilter(SyncSet schema) => this.Schema = schema;
+        public void EnsureFilter(SyncSet schema)
+        {
+            this.Schema = schema;
+
+            this.Parameters.EnsureFilters(this.Schema);
+            this.SideWhereFilters.EnsureFilters(this.Schema);
+            this.CustomJoins.EnsureFilters(this.Schema);
+        }
 
         /// <summary>
         /// For Serializer
@@ -68,16 +96,6 @@ namespace Dotmim.Sync
         {
         }
 
-        /// <summary>
-        /// Get DbType if specified
-        /// </summary>
-        public DbType? GetDbType()
-        {
-            if (!this.ColumnType.HasValue)
-                return null;
-
-            return (DbType)this.ColumnType.Value;
-        }
 
         /// <summary>
         /// Clear
@@ -103,10 +121,8 @@ namespace Dotmim.Sync
             // Dispose unmanaged ressources
         }
 
-        public override bool Equals(object obj)
-        {
-            return this.Equals(obj as SyncFilter);
-        }
+        public override bool Equals(object obj) 
+            => this.Equals(obj as SyncFilter);
 
         public bool Equals(SyncFilter other)
         {
@@ -119,24 +135,17 @@ namespace Dotmim.Sync
             var otherSn = other.SchemaName == null ? string.Empty : other.SchemaName;
 
             return other != null &&
-                   this.ColumnName.Equals(other.ColumnName, sc) && 
                    this.TableName.Equals(other.TableName, sc) &&
                    sn.Equals(otherSn, sc);
         }
 
-        public override int GetHashCode()
-        {
-            return 1951375558 + EqualityComparer<SyncSet>.Default.GetHashCode(this.Schema);
-        }
+        public override int GetHashCode() 
+            => 1951375558 + EqualityComparer<SyncSet>.Default.GetHashCode(this.Schema);
 
-        public static bool operator ==(SyncFilter left, SyncFilter right)
-        {
-            return EqualityComparer<SyncFilter>.Default.Equals(left, right);
-        }
+        public static bool operator ==(SyncFilter left, SyncFilter right) 
+            => EqualityComparer<SyncFilter>.Default.Equals(left, right);
 
-        public static bool operator !=(SyncFilter left, SyncFilter right)
-        {
-            return !(left == right);
-        }
+        public static bool operator !=(SyncFilter left, SyncFilter right) 
+            => !(left == right);
     }
 }

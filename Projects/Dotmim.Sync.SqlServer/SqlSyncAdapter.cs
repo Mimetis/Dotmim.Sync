@@ -1,6 +1,6 @@
 ﻿using Dotmim.Sync.Builders;
 
-using Dotmim.Sync.Filter;
+
 using Dotmim.Sync.SqlServer.Manager;
 using Microsoft.SqlServer.Server;
 using System;
@@ -353,16 +353,14 @@ namespace Dotmim.Sync.SqlServer.Builders
             return false;
         }
 
-        public override DbCommand GetCommand(DbCommandType nameType, IEnumerable<SyncFilter> filters = null)
+        public override DbCommand GetCommand(DbCommandType nameType, SyncFilter filter = null)
         {
             var command = this.Connection.CreateCommand() as SqlCommand;
 
             string text;
             bool isStoredProc;
-            if (filters != null && filters.Count() > 0)
-                (text, isStoredProc) = this.sqlObjectNames.GetCommandName(nameType, filters);
-            else
-                (text, isStoredProc) = this.sqlObjectNames.GetCommandName(nameType);
+
+            (text, isStoredProc) = this.sqlObjectNames.GetCommandName(nameType, filter);
 
             command.CommandType = isStoredProc ? CommandType.StoredProcedure : CommandType.Text;
             command.CommandText = text;
@@ -377,7 +375,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         /// <summary>
         /// Set a stored procedure parameters
         /// </summary>
-        public override void SetCommandParameters(DbCommandType commandType, DbCommand command, IEnumerable<SyncFilter> filters = null)
+        public override void SetCommandParameters(DbCommandType commandType, DbCommand command, SyncFilter filter = null)
         {
             if (command == null)
                 return;

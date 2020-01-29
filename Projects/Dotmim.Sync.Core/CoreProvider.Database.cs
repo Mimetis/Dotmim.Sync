@@ -1,7 +1,7 @@
 using Dotmim.Sync.Builders;
 
 using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Filter;
+
 using Dotmim.Sync.Messages;
 using System;
 using System.Collections.Generic;
@@ -312,21 +312,7 @@ namespace Dotmim.Sync
             if (schema.Filters != null && schema.Filters.Count > 0)
             {
                 // get the all the filters for the table
-                var tableFilters = schemaTable.GetFilters();
-
-                if (tableFilters == null)
-                    return;
-
-                foreach (var filter in tableFilters)
-                {
-                    // Get the column
-                    var columnFilter = schemaTable.Columns.FirstOrDefault(c => c.ColumnName.Equals(filter.ColumnName, SyncGlobalization.DataSourceStringComparison));
-
-                    if (columnFilter == null && !filter.IsVirtual)
-                        throw new MissingColumnException(filter.ColumnName, schemaTable.TableName);
-
-                    builder.FilterColumns.Add(new SyncFilter(schemaTable.TableName, columnFilter.ColumnName, schemaTable.SchemaName, filter.ColumnType));
-                }
+                builder.Filter = schemaTable.GetFilter();
             }
 
         }

@@ -6,7 +6,7 @@ using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Dotmim.Sync.Filter
+namespace Dotmim.Sync
 {
     /// <summary>
     /// Encapsulates information sent from the client to the server.
@@ -17,25 +17,13 @@ namespace Dotmim.Sync.Filter
         /// <summary>
         /// Gets or sets the name of the column from the table involved in filter.
         /// </summary>
-        [DataMember(Name = "cn", IsRequired = true, Order = 1)]
-        public string ColumnName { get; set; }
-
-        /// <summary>
-        /// Gets or sets the name of the table involved in filter
-        /// </summary>
-        [DataMember(Name = "tn", IsRequired = true, Order = 2)]
-        public string TableName { get; set; }
-
-        /// <summary>
-        /// Gets or sets the name of the table schema involved in filter
-        /// </summary>
-        [DataMember(Name = "sn", IsRequired = false, EmitDefaultValue = false, Order = 3)]
-        public string SchemaName { get; set; }
+        [DataMember(Name = "pn", IsRequired = true, Order = 1)]
+        public string Name { get; set; }
 
         /// <summary>
         /// Gets or sets the value of the parameter.
         /// </summary>
-        [DataMember(Name = "v", IsRequired = true, Order = 4)]
+        [DataMember(Name = "v", IsRequired = true, Order = 2)]
         public Object Value { get; set; }
 
         /// <summary>
@@ -49,14 +37,16 @@ namespace Dotmim.Sync.Filter
         /// Initializes a new instance of the <see cref="T:Microsoft.Synchronization.Data.SyncParameter" /> class by 
         /// using name and value parameters.
         /// </summary>
-        public SyncParameter(string tableName, string columnName, string schemaName, Object value)
+        public SyncParameter(string name, object value)
         {
-            this.ColumnName = columnName;
-            this.TableName = tableName;
-            this.SchemaName = schemaName;
+            this.Name = name;
             this.Value = value;
         }
 
-     
+
+        public override string ToString()
+        {
+            return $"{this.Name}: {this.Value.ToString()}";
+        }
     }
 }

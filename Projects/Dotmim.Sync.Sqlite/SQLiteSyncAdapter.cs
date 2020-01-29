@@ -6,7 +6,7 @@ using System.Data.Common;
 using System.Data;
 using Dotmim.Sync.Builders;
 using Microsoft.Data.Sqlite;
-using Dotmim.Sync.Filter;
+
 
 namespace Dotmim.Sync.Sqlite
 {
@@ -49,15 +49,11 @@ namespace Dotmim.Sync.Sqlite
             return false;
         }
 
-        public override DbCommand GetCommand(DbCommandType commandType, IEnumerable<SyncFilter> filters = null)
+        public override DbCommand GetCommand(DbCommandType commandType, SyncFilter filter = null)
         {
             var command = this.Connection.CreateCommand();
             string text;
-
-            if (filters != null && filters.Count() > 0)
-                text = this.sqliteObjectNames.GetCommandName(commandType, filters);
-            else
-                text = this.sqliteObjectNames.GetCommandName(commandType);
+            text = this.sqliteObjectNames.GetCommandName(commandType, filter);
 
             // on Sqlite, everything is text :)
             command.CommandType = CommandType.Text;
@@ -70,7 +66,7 @@ namespace Dotmim.Sync.Sqlite
             return command;
         }
 
-        public override void SetCommandParameters(DbCommandType commandType, DbCommand command, IEnumerable<SyncFilter> filters = null)
+        public override void SetCommandParameters(DbCommandType commandType, DbCommand command, SyncFilter filter = null)
         {
             switch (commandType)
             {

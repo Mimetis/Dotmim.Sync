@@ -1,6 +1,6 @@
 ﻿using Dotmim.Sync.Enumerations;
 using System;
-using Dotmim.Sync.Filter;
+
 using System.Runtime.Serialization;
 
 namespace Dotmim.Sync
@@ -84,7 +84,7 @@ namespace Dotmim.Sync
         /// Get or Sets the Sync parameter to pass to Remote provider for filtering rows
         /// </summary>
         [DataMember(Name = "ps", IsRequired = false, EmitDefaultValue = false, Order = 12)]
-        public SyncParameterCollection Parameters { get; set; }
+        public SyncParameters Parameters { get; set; }
 
         public SyncContext()
         {
