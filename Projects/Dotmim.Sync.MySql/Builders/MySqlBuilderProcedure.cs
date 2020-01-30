@@ -391,24 +391,18 @@ namespace Dotmim.Sync.MySql
         //------------------------------------------------------------------
         private MySqlCommand BuildDeleteMetadataCommand()
         {
-            MySqlCommand sqlCommand = new MySqlCommand();
-            this.AddPkColumnParametersToCommand(sqlCommand);
-            MySqlParameter sqlParameter = new MySqlParameter();
-            sqlParameter.ParameterName = "sync_check_concurrency";
-            sqlParameter.MySqlDbType = MySqlDbType.Int32;
-            sqlCommand.Parameters.Add(sqlParameter);
+            var sqlCommand = new MySqlCommand();
 
-            MySqlParameter sqlParameter1 = new MySqlParameter();
-            sqlParameter1.ParameterName = "sync_row_timestamp";
-            sqlParameter1.MySqlDbType = MySqlDbType.Int64;
+            var sqlParameter1 = new MySqlParameter
+            {
+                ParameterName = "sync_row_timestamp",
+                MySqlDbType = MySqlDbType.Int64
+            };
             sqlCommand.Parameters.Add(sqlParameter1);
 
-            StringBuilder stringBuilder = new StringBuilder();
+            var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"DELETE FROM {trackingName.Quoted().ToString()} ");
-            stringBuilder.Append($"WHERE ");
-            stringBuilder.AppendLine(MySqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKeys, ""));
-            stringBuilder.Append(";");
+            stringBuilder.AppendLine($"DELETE FROM {trackingName.Quoted().ToString()} WHERE `timestamp` < sync_row_timestamp;");
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
