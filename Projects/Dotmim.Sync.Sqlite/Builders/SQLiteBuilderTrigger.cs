@@ -37,18 +37,42 @@ namespace Dotmim.Sync.Sqlite
 
         private string DeleteTriggerBodyText()
         {
-            StringBuilder stringBuilder = new StringBuilder();
+            var stringBuilder = new StringBuilder();
+            var stringBuilderArguments = new StringBuilder();
+            var stringBuilderArguments2 = new StringBuilder();
+            var stringPkAreNull = new StringBuilder();
+            string argComma = string.Empty;
+            string argAnd = string.Empty;
+
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("BEGIN");
-            stringBuilder.AppendLine($"UPDATE {trackingName.Quoted().ToString()} ");
-            stringBuilder.AppendLine("SET [sync_row_is_tombstone] = 1");
-            stringBuilder.AppendLine("\t,[update_scope_id] = NULL -- scope id is always NULL when update is made locally");
-            stringBuilder.AppendLine($"\t,[timestamp] = {SqliteObjectNames.TimestampValue}");
-            stringBuilder.AppendLine("\t,[last_change_datetime] = datetime('now')");
 
-            stringBuilder.Append($"WHERE ");
-            stringBuilder.Append(SqliteManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, trackingName.Quoted().ToString(), "old"));
-            stringBuilder.AppendLine(";");
+            stringBuilder.AppendLine($"\tINSERT OR REPLACE INTO {trackingName.Quoted().ToString()} (");
+            foreach (var mutableColumn in this.tableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
+            {
+                var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+
+                stringBuilderArguments.AppendLine($"\t\t{argComma}{columnName}");
+                stringBuilderArguments2.AppendLine($"\t\t{argComma}old.{columnName}");
+                stringPkAreNull.Append($"{argAnd}{trackingName.Quoted().ToString()}.{columnName} IS NULL");
+                argComma = ",";
+                argAnd = " AND ";
+            }
+
+            stringBuilder.Append(stringBuilderArguments.ToString());
+            stringBuilder.AppendLine("\t\t,[update_scope_id]");
+            stringBuilder.AppendLine("\t\t,[timestamp]");
+            stringBuilder.AppendLine("\t\t,[sync_row_is_tombstone]");
+            stringBuilder.AppendLine("\t\t,[last_change_datetime]");
+
+            stringBuilder.AppendLine("\t) ");
+            stringBuilder.AppendLine("\tVALUES (");
+            stringBuilder.Append(stringBuilderArguments2.ToString());
+            stringBuilder.AppendLine("\t\t,NULL");
+            stringBuilder.AppendLine($"\t\t,{SqliteObjectNames.TimestampValue}");
+            stringBuilder.AppendLine("\t\t,1");
+            stringBuilder.AppendLine("\t\t,datetime('now')");
+            stringBuilder.AppendLine("\t);");
             stringBuilder.AppendLine("END;");
             return stringBuilder.ToString();
         }
@@ -262,6 +286,41 @@ namespace Dotmim.Sync.Sqlite
             }
 
             stringBuilder.AppendLine($"; ");
+
+
+            var stringBuilderArguments = new StringBuilder();
+            var stringBuilderArguments2 = new StringBuilder();
+            var stringPkAreNull = new StringBuilder();
+            string argComma = string.Empty;
+            string argAnd = string.Empty;
+
+            stringBuilder.AppendLine($"\tINSERT OR IGNORE INTO {trackingName.Quoted().ToString()} (");
+            foreach (var mutableColumn in this.tableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
+            {
+                var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+
+                stringBuilderArguments.AppendLine($"\t\t{argComma}{columnName}");
+                stringBuilderArguments2.AppendLine($"\t\t{argComma}new.{columnName}");
+                stringPkAreNull.Append($"{argAnd}{trackingName.Quoted().ToString()}.{columnName} IS NULL");
+                argComma = ",";
+                argAnd = " AND ";
+            }
+
+            stringBuilder.Append(stringBuilderArguments.ToString());
+            stringBuilder.AppendLine("\t\t,[update_scope_id]");
+            stringBuilder.AppendLine("\t\t,[timestamp]");
+            stringBuilder.AppendLine("\t\t,[sync_row_is_tombstone]");
+            stringBuilder.AppendLine("\t\t,[last_change_datetime]");
+
+            stringBuilder.AppendLine("\t) ");
+            stringBuilder.AppendLine("\tVALUES (");
+            stringBuilder.Append(stringBuilderArguments2.ToString());
+            stringBuilder.AppendLine("\t\t,NULL");
+            stringBuilder.AppendLine($"\t\t,{SqliteObjectNames.TimestampValue}");
+            stringBuilder.AppendLine("\t\t,0");
+            stringBuilder.AppendLine("\t\t,datetime('now')");
+            stringBuilder.AppendLine("\t);");
+
             stringBuilder.AppendLine($"End; ");
             return stringBuilder.ToString();
         }

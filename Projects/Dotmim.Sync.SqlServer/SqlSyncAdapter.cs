@@ -383,7 +383,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             if (command.Parameters != null && command.Parameters.Count > 0)
                 return;
 
-
             // special case for constraint
             if (commandType == DbCommandType.DisableConstraints || commandType == DbCommandType.EnableConstraints)
             {
@@ -397,9 +396,6 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                 return;
             }
-
-
-
 
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 

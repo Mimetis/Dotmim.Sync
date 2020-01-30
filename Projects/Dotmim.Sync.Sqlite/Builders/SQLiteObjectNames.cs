@@ -202,11 +202,8 @@ namespace Dotmim.Sync.Sqlite
         private void CreateDeleteMetadataCommandText()
         {
 
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"DELETE FROM {trackingName.Quoted().ToString()} ");
-            stringBuilder.Append($"WHERE ");
-            stringBuilder.AppendLine(SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, ""));
-            stringBuilder.Append(";");
+            var stringBuilder = new StringBuilder();
+            stringBuilder.AppendLine($"DELETE FROM {trackingName.Quoted().ToString()} WHERE [timestamp] < @sync_row_timestamp;");
 
             this.AddName(DbCommandType.DeleteMetadata, stringBuilder.ToString());
         }

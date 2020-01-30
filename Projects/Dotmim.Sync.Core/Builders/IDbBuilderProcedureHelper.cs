@@ -38,27 +38,27 @@ namespace Dotmim.Sync.Builders
         void DropBulkUpdate();
         void DropBulkDelete();
         void DropReset();
-        String CreateSelectRowScriptText();
-        String CreateSelectIncrementalChangesScriptText();
-        String CreateSelectInitializedChangesScriptText();
-        String CreateUpdateScriptText(bool hasMutableColumns);
-        String CreateDeleteScriptText();
-        String CreateUpdateMetadataScriptText();
-        String CreateDeleteMetadataScriptText();
-        String CreateTVPTypeScriptText();
-        String CreateBulkUpdateScriptText(bool hasMutableColumns);
-        String CreateBulkDeleteScriptText();
-        String CreateResetScriptText();
-        String DropSelectRowScriptText();
-        String DropSelectIncrementalChangesScriptText();
-        String DropUpdateScriptText();
-        String DropDeleteScriptText();
-        String DropUpdateMetadataScriptText();
-        String DropDeleteMetadataScriptText();
-        String DropTVPTypeScriptText();
-        String DropBulkUpdateScriptText();
-        String DropBulkDeleteScriptText();
-        String DropResetScriptText();
+       string CreateSelectRowScriptText();
+       string CreateSelectIncrementalChangesScriptText();
+       string CreateSelectInitializedChangesScriptText();
+       string CreateUpdateScriptText(bool hasMutableColumns);
+       string CreateDeleteScriptText();
+       string CreateUpdateMetadataScriptText();
+       string CreateDeleteMetadataScriptText();
+       string CreateTVPTypeScriptText();
+       string CreateBulkUpdateScriptText(bool hasMutableColumns);
+       string CreateBulkDeleteScriptText();
+       string CreateResetScriptText();
+       string DropSelectRowScriptText();
+       string DropSelectIncrementalChangesScriptText();
+       string DropUpdateScriptText();
+       string DropDeleteScriptText();
+       string DropUpdateMetadataScriptText();
+       string DropDeleteMetadataScriptText();
+       string DropTVPTypeScriptText();
+       string DropBulkUpdateScriptText();
+       string DropBulkDeleteScriptText();
+       string DropResetScriptText();
 
     }
 }
