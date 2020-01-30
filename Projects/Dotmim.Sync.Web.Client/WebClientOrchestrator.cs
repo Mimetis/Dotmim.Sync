@@ -360,6 +360,10 @@ namespace Dotmim.Sync.Web.Client
         }
 
 
+        public Task DeleteMetadatasAsync(SyncContext context, SyncSetup setup, long timeStampStart, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            throw new NotImplementedException();
+        }
 
         public void BeforeSerializeRows(SyncSet data)
         {
@@ -387,5 +391,6 @@ namespace Dotmim.Sync.Web.Client
             }
 
         }
+
     }
 }

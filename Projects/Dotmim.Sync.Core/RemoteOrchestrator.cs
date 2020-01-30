@@ -217,7 +217,6 @@ namespace Dotmim.Sync
                                      CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
             DbTransaction transaction = null;
-            long remoteClientTimestamp;
 
             using (var connection = this.Provider.CreateConnection())
             {
@@ -235,8 +234,14 @@ namespace Dotmim.Sync
                     {
                         await this.Provider.InterceptAsync(new TransactionOpenArgs(context, connection, transaction)).ConfigureAwait(false);
 
-                        (context, remoteClientTimestamp) = this.Provider.GetLocalTimestampAsync(context, connection, transaction, cancellationToken, progress);
+                        SyncSet schema;
+                        // Get Schema from remote provider
+                        (context, schema) = await this.Provider.EnsureSchemaAsync(context, setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
+                        await this.Provider.DeleteMetadatasAsync(context, schema, timeStampStart, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                        await this.Provider.InterceptAsync(new TransactionCommitArgs(context, connection, transaction)).ConfigureAwait(false);
+                        transaction.Commit();
                     }
                 }
                 catch (Exception ex)

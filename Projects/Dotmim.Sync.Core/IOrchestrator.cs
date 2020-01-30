@@ -101,5 +101,10 @@ namespace Dotmim.Sync
                                      int clientBatchSize, string batchDirectory, ConflictResolutionPolicy policy,
                                      CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null);
 
+        /// <summary>
+        /// Delete all metadatas that are below a timestamp
+        /// </summary>
+        Task DeleteMetadatasAsync(SyncContext context, SyncSetup setup, long timeStampStart,
+                                     CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null);
     }
 }
