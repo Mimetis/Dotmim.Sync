@@ -25,7 +25,7 @@ namespace Dotmim.Sync.Tests
         {
             get
             {
-                var setup = new SyncSetup(new string[] { "Customer", "Address", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" });
+                var setup = new SyncSetup(new string[] {"Product", "Customer", "Address", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" });
 
                 // Filter columns
                 setup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "EmployeeID", "NameStyle", "FirstName", "LastName" });
@@ -37,16 +37,13 @@ namespace Dotmim.Sync.Tests
                 setup.Filters.Add("CustomerAddress", "CustomerID");
                 setup.Filters.Add("SalesOrderHeader", "CustomerID");
 
-
                 // 2) Same, but decomposed in 3 Steps
-
                 var customerFilter = new SetupFilter("Customer");
                 customerFilter.AddParameter("CustomerId", "Customer", true);
                 customerFilter.AddWhere("CustomerId", "Customer", "CustomerId");
                 setup.Filters.Add(customerFilter);
 
                 // 3) Create your own filter
-
                 // Create a filter on table Address
                 var addressFilter = new SetupFilter("Address");
                 addressFilter.AddParameter("CustomerID", "Customer");
@@ -97,10 +94,10 @@ namespace Dotmim.Sync.Tests
 
             using (var serverDbCtx = new AdventureWorksContext(t))
             {
-                totalCountRows += serverDbCtx.Address.Count();
+                totalCountRows += serverDbCtx.Address.Where(a => a.CustomerAddress.Any(ca => ca.CustomerId == AdventureWorksContext.CustomerIdForFilter)).Count();
                 totalCountRows += serverDbCtx.Customer.Where(c => c.CustomerId == AdventureWorksContext.CustomerIdForFilter).Count();
                 totalCountRows += serverDbCtx.CustomerAddress.Where(c => c.CustomerId == AdventureWorksContext.CustomerIdForFilter).Count();
-                totalCountRows += serverDbCtx.SalesOrderDetail.Count();
+                totalCountRows += serverDbCtx.SalesOrderDetail.Where(sod => sod.SalesOrder.CustomerId == AdventureWorksContext.CustomerIdForFilter).Count();
                 totalCountRows += serverDbCtx.SalesOrderHeader.Where(c => c.CustomerId == AdventureWorksContext.CustomerIdForFilter).Count();
                 totalCountRows += serverDbCtx.Product.Where(p => !String.IsNullOrEmpty(p.ProductCategoryId)).Count();
             }
