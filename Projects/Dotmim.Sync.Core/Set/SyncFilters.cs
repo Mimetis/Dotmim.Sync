@@ -15,7 +15,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Exposing the InnerCollection for serialization purpose
         /// </summary>
-        [DataMember(Name = "c", IsRequired = true)]
+        [DataMember(Name = "c", IsRequired = true, Order = 1)]
         public Collection<SyncFilter> InnerCollection { get; set; } = new Collection<SyncFilter>();
 
         /// <summary>
@@ -81,10 +81,10 @@ namespace Dotmim.Sync
                 item.Parameters.Add(new SyncFilterParameter { Name = s.Name, DbType = s.DbType, DefaultValue = s.DefaultValue, AllowNull = s.AllowNull, MaxLength = s.MaxLength });
 
             foreach (var s in setupFilter.Where)
-                item.SideWhereFilters.Add(new SyncFilterWhereSideItem { ColumnName = s.columName, TableName = s.tableName, SchemaName = s.schemaName, ParameterName = s.parameterName });
+                item.Wheres.Add(new SyncFilterWhereSideItem { ColumnName = s.columName, TableName = s.tableName, SchemaName = s.schemaName, ParameterName = s.parameterName });
 
             foreach (var s in setupFilter.Joins)
-                item.CustomJoins.Add(new SyncFilterJoin
+                item.Joins.Add(new SyncFilterJoin
                 {
                     TableName = s.tableName,
                     JoinEnum = s.joinEnum,
@@ -114,7 +114,7 @@ namespace Dotmim.Sync
             item.Parameters.Add(new SyncFilterParameter { Name = columnName, TableName = tableName, SchemaName = schemaName, AllowNull = true });
 
             // add the side where expression, allowing to be null
-            item.SideWhereFilters.Add(new SyncFilterWhereSideItem { ColumnName = columnName, TableName = tableName, SchemaName = schemaName });
+            item.Wheres.Add(new SyncFilterWhereSideItem { ColumnName = columnName, TableName = tableName, SchemaName = schemaName });
 
             InnerCollection.Add(item);
         }

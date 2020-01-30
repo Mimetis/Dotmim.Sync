@@ -26,7 +26,10 @@ namespace Dotmim.Sync.Tests
         {
             get
             {
-                var setup = new SyncSetup(new string[] { "Customer", "Address", "CustomerAddress", "SalesLT.SalesOrderHeader", "SalesLT.SalesOrderDetail" });
+                var setup = new SyncSetup(new string[] { "SalesLT.Product", "Customer", 
+                            "Address", "CustomerAddress", 
+                            "SalesLT.SalesOrderHeader", 
+                            "SalesLT.SalesOrderDetail" });
 
                 // Filter columns
                 setup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "EmployeeID", "NameStyle", "FirstName", "LastName" });
@@ -36,65 +39,40 @@ namespace Dotmim.Sync.Tests
                 // Filters clause
 
                 // 1) EASY Way:
-                //setup.Filters.Add("CustomerAddress", "CustomerID");
-                //setup.Filters.Add("SalesOrderHeader", "CustomerID", "SalesLT");
+                setup.Filters.Add("CustomerAddress", "CustomerID");
+                setup.Filters.Add("SalesOrderHeader", "CustomerID", "SalesLT");
 
 
                 // 2) Same, but decomposed in 3 Steps
 
-                // Create a filter on table Customer
-                // Shortcut to the next 3 commands : setup.Filters.Add("Customer", "CustomerID");
                 var customerFilter = new SetupFilter("Customer");
-                // Create a parameter based on column Customer Id in table Customer
                 customerFilter.AddParameter("CustomerId", "Customer", true);
-                // add the side where expression, allowing to be null
                 customerFilter.AddWhere("CustomerId", "Customer", "CustomerId");
-
                 setup.Filters.Add(customerFilter);
+
                 // 3) Create your own filter
 
                 // Create a filter on table Address
                 var addressFilter = new SetupFilter("Address");
-
-                // Creating parameters
-                // -------------------------------------------------
-                // The 2 next parameters will generate something like :
-                //
-                // ALTER PROCEDURE [dbo].[Address_changes]
-                //   @sync_min_timestamp bigint,
-                //   @sync_scope_id uniqueidentifier,
-                //   @CustomerID uniqueidentier,
-                //   @Gender varchar(2) = 'M'
-
-
-                // Adding a parameter based on the [Customer].[CustomerID] column
-                // Using a matching on a column allows us on not defining any column type, size and so on...
                 addressFilter.AddParameter("CustomerID", "Customer");
-
-                // Adding a customer parameter, where we specify everything
-                // this parameter will be add as :
-                // For SQL : @Gender varchar(2) = 'M'
-                // For MySql : in_Gender varchar(2) = 'M'
-                addressFilter.AddParameter("Gender", DbType.AnsiStringFixedLength, false, "M", 2);
-                // -------------------------------------------------
-
-
-                // Creating joins
-                // ----------------------------------------------------
-                // The 2 next joins will generate
-                // LEFT JOIN [CustomerAddress] on [CustomerAddress].[AddressID] = [side].[AddressID]
-                // LEFT JOIN [Customer] on [Customer].[AddressID] = [side].[AddressID]
-
                 addressFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "AddressId", "Address", "AddressId");
-
-                // Will generate
-
-                // Will generate
-                // LEFT JOIN [Customer] on [Customer].[CustomerID] = [CustomerAddress].[CustomerID]
-                addressFilter.AddJoin(Join.Left, "Customer").On("Customer", "CustomerID", "CustomerAddress", "CustomerID");
+                addressFilter.AddWhere("CustomerId", "CustomerAddress", "CustomerId");
+                setup.Filters.Add(addressFilter);
                 // ----------------------------------------------------
 
+                // Create a filter on table SalesLT.SalesOrderDetail
+                var salesOrderDetailFilter = new SetupFilter("SalesOrderDetail", "SalesLT");
+                salesOrderDetailFilter.AddParameter("CustomerID", "Customer");
+                salesOrderDetailFilter.AddJoin(Join.Left, "SalesLT.SalesOrderHeader").On("SalesLT.SalesOrderHeader", "SalesOrderId", "SalesLT.SalesOrderDetail", "SalesOrderId");
+                salesOrderDetailFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerId", "SalesLT.SalesOrderHeader", "CustomerId");
+                salesOrderDetailFilter.AddWhere("CustomerId", "CustomerAddress", "CustomerId");
+                setup.Filters.Add(salesOrderDetailFilter);
+                // ----------------------------------------------------
 
+                // 4) Custom Wheres on Product
+                var productFilter = new SetupFilter("Product", "SalesLT");
+                productFilter.AddCustomerWhere("ProductCategoryID <> 'MOUNTB'");
+                setup.Filters.Add(productFilter);
 
 
                 return setup;
@@ -147,11 +125,12 @@ namespace Dotmim.Sync.Tests
 
             using (var serverDbCtx = new AdventureWorksContext(t))
             {
-                totalCountRows += serverDbCtx.Address.Count();
+                totalCountRows += serverDbCtx.Address.Where(a => a.CustomerAddress.Any(ca => ca.CustomerId == AdventureWorksContext.CustomerIdForFilter)).Count();
                 totalCountRows += serverDbCtx.Customer.Where(c => c.CustomerId == AdventureWorksContext.CustomerIdForFilter).Count();
                 totalCountRows += serverDbCtx.CustomerAddress.Where(c => c.CustomerId == AdventureWorksContext.CustomerIdForFilter).Count();
-                totalCountRows += serverDbCtx.SalesOrderDetail.Count();
+                totalCountRows += serverDbCtx.SalesOrderDetail.Where(sod => sod.SalesOrder.CustomerId == AdventureWorksContext.CustomerIdForFilter).Count();
                 totalCountRows += serverDbCtx.SalesOrderHeader.Where(c => c.CustomerId == AdventureWorksContext.CustomerIdForFilter).Count();
+                totalCountRows += serverDbCtx.Product.Where(p => p.ProductCategoryId != "MOUNTB").Count();
             }
 
             return totalCountRows;

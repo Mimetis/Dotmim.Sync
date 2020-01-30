@@ -15,7 +15,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Exposing the InnerCollection for serialization purpose
         /// </summary>
-        [DataMember(Name = "c", IsRequired = true)]
+        [DataMember(Name = "c", IsRequired = true, Order = 1)]
         public Collection<SyncFilterParameter> InnerCollection { get; set; } = new Collection<SyncFilterParameter>();
 
         /// <summary>

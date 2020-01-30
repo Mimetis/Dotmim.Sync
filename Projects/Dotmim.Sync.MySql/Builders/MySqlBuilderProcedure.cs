@@ -768,7 +768,7 @@ namespace Dotmim.Sync.MySql
         /// </summary>
         protected string CreateFilterCustomJoins(SyncFilter filter)
         {
-            var customJoins = filter.CustomJoins;
+            var customJoins = filter.Joins;
 
             if (customJoins.Count == 0)
                 return string.Empty;
@@ -821,7 +821,7 @@ namespace Dotmim.Sync.MySql
         /// </summary>
         protected string CreateFilterWhereSide(SyncFilter filter, bool checkTombstoneRows = false)
         {
-            var sideWhereFilters = filter.SideWhereFilters;
+            var sideWhereFilters = filter.Wheres;
 
             if (sideWhereFilters.Count == 0)
                 return string.Empty;

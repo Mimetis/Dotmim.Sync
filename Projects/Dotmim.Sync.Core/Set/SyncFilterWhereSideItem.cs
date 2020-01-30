@@ -9,7 +9,7 @@ namespace Dotmim.Sync
     public class SyncFilterWhereSideItem : SyncColumnIdentifier
     {
 
-        [DataMember(Name = "p", IsRequired = false, EmitDefaultValue = false, Order = 4)]
+        [DataMember(Name = "p", IsRequired = true, Order = 4)]
         public String ParameterName { get; set; }
 
 
