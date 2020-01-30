@@ -307,6 +307,10 @@ namespace Dotmim.Sync
                                         useBulkOperations, cleanMetadatas, serverBatchInfo),
                                     connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
+                        // check if we need to delete metadatas
+                        if (cleanMetadatas && clientChangesApplied.TotalAppliedChanges > 0)
+                            await this.Provider.DeleteMetadatasAsync(context, schema, lastSyncTS, connection, transaction, cancellationToken, progress);
+
                         // now the sync is complete, remember the time
                         context.CompleteTime = DateTime.UtcNow;
 

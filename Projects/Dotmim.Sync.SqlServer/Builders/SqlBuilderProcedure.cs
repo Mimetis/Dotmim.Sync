@@ -922,8 +922,6 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
             SqlCommand sqlCommand = new SqlCommand();
             this.AddPkColumnParametersToCommand(sqlCommand);
-            SqlParameter sqlParameter = new SqlParameter("@sync_check_concurrency", SqlDbType.Int);
-            sqlCommand.Parameters.Add(sqlParameter);
             SqlParameter sqlParameter1 = new SqlParameter("@sync_row_timestamp", SqlDbType.BigInt);
             sqlCommand.Parameters.Add(sqlParameter1);
             SqlParameter sqlParameter2 = new SqlParameter("@sync_row_count", SqlDbType.Int)
@@ -935,8 +933,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"SET {sqlParameter2.ParameterName} = 0;");
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($"DELETE [side] FROM {trackingName.Schema().Quoted().ToString()} [side]");
-            stringBuilder.Append($"WHERE ");
-            stringBuilder.AppendLine(SqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKeys, ""));
+            stringBuilder.AppendLine($"WHERE [side].[timestamp] < @sync_row_timestamp");
             stringBuilder.AppendLine();
             stringBuilder.AppendLine(string.Concat("SET ", sqlParameter2.ParameterName, " = @@ROWCOUNT;"));
             sqlCommand.CommandText = stringBuilder.ToString();

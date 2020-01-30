@@ -342,9 +342,9 @@ internal class Program
     private static async Task SynchronizeAsync()
     {
         // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncChangeTrackingProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
-        var clientProvider = new MySqlSyncProvider(DbHelper.GetMySqlDatabaseConnectionString(clientDbName));
-        //var clientProvider = new SqliteSyncProvider("client.db");
+        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
+        //var clientProvider = new MySqlSyncProvider(DbHelper.GetMySqlDatabaseConnectionString(clientDbName));
+        var clientProvider = new SqliteSyncProvider("client.db");
 
         // specific Setup with only 2 tables, and one filtered
         var setup = new SyncSetup(allTables);
@@ -383,7 +383,6 @@ internal class Program
         // Then you map each parameter on wich table / column the "where" clause should be applied
         addressFilter.AddWhere("City", "Address", "City");
         addressFilter.AddWhere("PostalCode", "Address", "postal");
-        addressFilter.AddCustomerWhere("PostalCode like '%M4'");
         setup.Filters.Add(addressFilter);
 
         var addressCustomerFilter = new SetupFilter("CustomerAddress");
@@ -456,8 +455,8 @@ internal class Program
         agent.AddRemoteProgress(remoteProgress);
 
         //agent.Options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync");
-        //agent.Options.BatchSize = 1000;
-        //agent.Options.CleanMetadatas = true;
+        agent.Options.BatchSize = 1000;
+        agent.Options.CleanMetadatas = true;
         agent.Options.UseBulkOperations = true;
         agent.Options.DisableConstraintsOnApplyChanges = false;
         //agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;

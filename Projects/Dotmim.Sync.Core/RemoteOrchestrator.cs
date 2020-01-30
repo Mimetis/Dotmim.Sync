@@ -171,7 +171,7 @@ namespace Dotmim.Sync
                         // When we get the chnages from server, we create the batches if it's requested by the client
                         // the batch decision comes from batchsize from client
                         (context, serverBatchInfo, serverChangesSelected) =
-                            await this.Provider.GetChangeBatchAsync(context, 
+                            await this.Provider.GetChangeBatchAsync(context,
                                 new MessageGetChangesBatch(scope.Id, Guid.Empty, fromScratch, scope.LastServerSyncTimestamp,
                                     schema, clientBatchSize, batchDirectory),
                                     connection, transaction, cancellationToken, progress).ConfigureAwait(false);
@@ -212,5 +212,57 @@ namespace Dotmim.Sync
             return (context, remoteClientTimestamp, serverBatchInfo, policy, serverChangesSelected);
         }
 
+
+        public async Task DeleteMetadatasAsync(SyncContext context, ScopeInfo scope, SyncSet schema, long timeStampStart,
+                                     CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+        {
+            DbTransaction transaction = null;
+            long remoteClientTimestamp;
+
+            using (var connection = this.Provider.CreateConnection())
+            {
+                try
+                {
+                    await connection.OpenAsync().ConfigureAwait(false);
+
+                    // Let provider knows a connection is opened
+                    this.Provider.OnConnectionOpened(connection);
+
+                    await this.Provider.InterceptAsync(new ConnectionOpenArgs(context, connection)).ConfigureAwait(false);
+
+                    // Create a transaction
+                    using (transaction = connection.BeginTransaction())
+                    {
+                        await this.Provider.InterceptAsync(new TransactionOpenArgs(context, connection, transaction)).ConfigureAwait(false);
+
+                        (context, remoteClientTimestamp) = this.Provider.GetLocalTimestampAsync(context, connection, transaction, cancellationToken, progress);
+
+                    }
+                }
+                catch (Exception ex)
+                {
+                    var syncException = new SyncException(ex, context.SyncStage);
+                    // try to let the provider enrich the exception
+                    this.Provider.EnsureSyncException(syncException);
+                    syncException.Side = SyncExceptionSide.ServerSide;
+                    throw syncException;
+                }
+                finally
+                {
+                    if (transaction != null)
+                        transaction.Dispose();
+
+                    if (connection != null && connection.State != ConnectionState.Closed)
+                        connection.Close();
+
+                    await this.Provider.InterceptAsync(new ConnectionCloseArgs(context, connection, transaction)).ConfigureAwait(false);
+
+                    // Let provider knows a connection is closed
+                    this.Provider.OnConnectionClosed(connection);
+                }
+            }
+
+        }
     }
+
 }

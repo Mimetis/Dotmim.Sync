@@ -96,8 +96,8 @@ namespace Dotmim.Sync
                 if (context.SyncWay == SyncWay.Download && syncTable.SyncDirection == SyncDirection.UploadOnly)
                     continue;
 
-                var builder = this.GetTableBuilder(syncTable);
-                var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
+                var tableBuilder = this.GetTableBuilder(syncTable);
+                var syncAdapter = tableBuilder.CreateSyncAdapter(connection, transaction);
 
                 // raise before event
                 context.SyncStage = SyncStage.TableChangesSelecting;
@@ -190,7 +190,7 @@ namespace Dotmim.Sync
             }
 
             // We are in batch mode, and we are at the last batchpart info
-            if (changesSet != null && changesSet.HasTables)
+            if (changesSet != null && changesSet.HasTables && changesSet.HasRows)
                 batchInfo.AddChanges(changesSet, batchIndex, true);
 
             // Check the last index as the last batch
