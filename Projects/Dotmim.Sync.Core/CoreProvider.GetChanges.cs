@@ -190,7 +190,8 @@ namespace Dotmim.Sync
             }
 
             // We are in batch mode, and we are at the last batchpart info
-            if (changesSet != null && changesSet.HasTables && changesSet.HasRows)
+            // Even if we don't have rows inside, we return the changesSet, since it contains at leaset schema
+            if (changesSet != null && changesSet.HasTables)
                 batchInfo.AddChanges(changesSet, batchIndex, true);
 
             // Check the last index as the last batch

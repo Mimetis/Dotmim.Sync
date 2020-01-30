@@ -213,7 +213,7 @@ namespace Dotmim.Sync
         }
 
 
-        public async Task DeleteMetadatasAsync(SyncContext context, ScopeInfo scope, SyncSet schema, long timeStampStart,
+        public async Task DeleteMetadatasAsync(SyncContext context, SyncSetup setup, long timeStampStart,
                                      CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
             DbTransaction transaction = null;
