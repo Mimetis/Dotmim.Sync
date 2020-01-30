@@ -343,8 +343,8 @@ internal class Program
     {
         // Create 2 Sql Sync providers
         var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
-        //var clientProvider = new MySqlSyncProvider(DbHelper.GetMySqlDatabaseConnectionString(clientDbName));
-        var clientProvider = new SqliteSyncProvider("client2.db");
+        var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
+        //var clientProvider = new SqliteSyncProvider("client2.db");
 
         // specific Setup with only 2 tables, and one filtered
         var setup = new SyncSetup(allTables);
