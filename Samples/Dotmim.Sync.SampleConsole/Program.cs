@@ -360,8 +360,6 @@ internal class Program
         // ----------------------------------------------------
         // Horizontal Filter: On rows. Removing rows from source
         // ----------------------------------------------------
-
-
         // Over all filter : "we Want only customer from specific city and specific postal code"
         // First level table : Address
         // Second level tables : CustomerAddress
@@ -385,6 +383,7 @@ internal class Program
         // Then you map each parameter on wich table / column the "where" clause should be applied
         addressFilter.AddWhere("City", "Address", "City");
         addressFilter.AddWhere("PostalCode", "Address", "postal");
+        addressFilter.AddCustomerWhere("PostalCode like '%M4'");
         setup.Filters.Add(addressFilter);
 
         var addressCustomerFilter = new SetupFilter("CustomerAddress");
@@ -397,6 +396,7 @@ internal class Program
         // And then add your where clauses
         addressCustomerFilter.AddWhere("City", "Address", "City");
         addressCustomerFilter.AddWhere("PostalCode", "Address", "postal");
+        
         setup.Filters.Add(addressCustomerFilter);
 
         var customerFilter = new SetupFilter("Customer");
@@ -485,7 +485,7 @@ internal class Program
             try
             {
                 // Launch the sync process
-                if (agent.Parameters["City"] == null)
+                if (!agent.Parameters.Contains("City"))
                     agent.Parameters.Add("City", "Toronto");
 
                 if (!agent.Parameters.Contains("postal"))

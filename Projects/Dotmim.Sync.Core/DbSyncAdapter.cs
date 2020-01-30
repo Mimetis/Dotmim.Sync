@@ -94,7 +94,7 @@ namespace Dotmim.Sync
                     var column = schemaTable.Columns.FirstOrDefault(sc => sc.ColumnName.Equals(parameter.SourceColumn, SyncGlobalization.DataSourceStringComparison));
                     if (column != null)
                     {
-                        object value = row[column];
+                        object value = row[column] ?? DBNull.Value;
                         DbTableManagerFactory.SetParameterValue(command, parameter.ParameterName, value);
                     }
                 }
