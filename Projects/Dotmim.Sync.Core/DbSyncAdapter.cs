@@ -462,6 +462,47 @@ namespace Dotmim.Sync
             }
         }
 
+
+        /// <summary>
+        /// Delete all metadatas from one table before a timestamp limit
+        /// </summary>
+        internal bool DeleteMetadatas(long timestampLimit)
+        {
+            using (var command = this.GetCommand(DbCommandType.DeleteMetadata))
+            {
+                if (command == null)
+                    throw new MissingCommandException(DbCommandType.DeleteMetadata.ToString());
+
+                // Deriving Parameters
+                this.SetCommandParameters(DbCommandType.DeleteMetadata, command);
+
+                // Set the special parameters for delete metadata
+                DbTableManagerFactory.SetParameterValue(command, "sync_row_timestamp", timestampLimit);
+
+                var alreadyOpened = Connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    Connection.Open();
+
+                if (Transaction != null)
+                    command.Transaction = Transaction;
+
+                var metadataDeletedRowsCount = command.ExecuteNonQuery();
+
+                // Check if we have a return value instead
+                var syncRowCountParam = DbTableManagerFactory.GetParameter(command, "sync_row_count");
+
+                if (syncRowCountParam != null)
+                    metadataDeletedRowsCount = (int)syncRowCountParam.Value;
+
+                if (!alreadyOpened)
+                    Connection.Close();
+
+                return metadataDeletedRowsCount > 0;
+            }
+        }
+
+
         /// <summary>
         /// Reset a table, deleting rows from table and tracking_table
         /// </summary>

@@ -42,12 +42,49 @@ namespace Dotmim.Sync.SqlServer.Builders
             var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("UPDATE [side] ");
-            stringBuilder.AppendLine("SET \t[sync_row_is_tombstone] = 1");
+            stringBuilder.AppendLine("SET  [sync_row_is_tombstone] = 0");
             stringBuilder.AppendLine("\t,[update_scope_id] = NULL -- scope id is always NULL when update is made locally");
             stringBuilder.AppendLine("\t,[last_change_datetime] = GetUtcDate()");
             stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()} [side]");
             stringBuilder.Append($"JOIN DELETED AS [d] ON ");
             stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[side]", "[d]"));
+            stringBuilder.AppendLine();
+
+            stringBuilder.AppendLine($"INSERT INTO {trackingName.Schema().Quoted().ToString()} (");
+
+            var stringBuilderArguments = new StringBuilder();
+            var stringBuilderArguments2 = new StringBuilder();
+            var stringPkAreNull = new StringBuilder();
+
+            string argComma = " ";
+            string argAnd = string.Empty;
+            var primaryKeys = this.tableDescription.GetPrimaryKeysColumns();
+
+            foreach (var mutableColumn in primaryKeys.Where(c => !c.IsReadOnly))
+            {
+                var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+                stringBuilderArguments.AppendLine($"\t{argComma}[d].{columnName}");
+                stringBuilderArguments2.AppendLine($"\t{argComma}{columnName}");
+                stringPkAreNull.Append($"{argAnd}[side].{columnName} IS NULL");
+                argComma = ",";
+                argAnd = " AND ";
+            }
+
+            stringBuilder.Append(stringBuilderArguments2.ToString());
+            stringBuilder.AppendLine("\t,[update_scope_id]");
+            stringBuilder.AppendLine("\t,[sync_row_is_tombstone]");
+            stringBuilder.AppendLine("\t,[last_change_datetime]");
+            stringBuilder.AppendLine(") ");
+            stringBuilder.AppendLine("SELECT");
+            stringBuilder.Append(stringBuilderArguments.ToString());
+            stringBuilder.AppendLine("\t,NULL");
+            stringBuilder.AppendLine("\t,0");
+            stringBuilder.AppendLine("\t,GetUtcDate()");
+            stringBuilder.AppendLine("FROM DELETED [d]");
+            stringBuilder.Append($"LEFT JOIN {trackingName.Schema().Quoted().ToString()} [side] ON ");
+            stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[d]", "[side]"));
+            stringBuilder.Append("WHERE ");
+            stringBuilder.AppendLine(stringPkAreNull.ToString());
             return stringBuilder.ToString();
         }
 
@@ -441,6 +478,43 @@ namespace Dotmim.Sync.SqlServer.Builders
                 }
                 stringBuilder.AppendLine(") ");
             }
+
+            stringBuilder.AppendLine($"INSERT INTO {trackingName.Schema().Quoted().ToString()} (");
+
+            var stringBuilderArguments = new StringBuilder();
+            var stringBuilderArguments2 = new StringBuilder();
+            var stringPkAreNull = new StringBuilder();
+
+            string argComma = " ";
+            string argAnd = string.Empty;
+            var primaryKeys = this.tableDescription.GetPrimaryKeysColumns();
+
+            foreach (var mutableColumn in primaryKeys.Where(c => !c.IsReadOnly))
+            {
+                var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+                stringBuilderArguments.AppendLine($"\t{argComma}[i].{columnName}");
+                stringBuilderArguments2.AppendLine($"\t{argComma}{columnName}");
+                stringPkAreNull.Append($"{argAnd}[side].{columnName} IS NULL");
+                argComma = ",";
+                argAnd = " AND ";
+            }
+
+            stringBuilder.Append(stringBuilderArguments2.ToString());
+            stringBuilder.AppendLine("\t,[update_scope_id]");
+            stringBuilder.AppendLine("\t,[sync_row_is_tombstone]");
+            stringBuilder.AppendLine("\t,[last_change_datetime]");
+            stringBuilder.AppendLine(") ");
+            stringBuilder.AppendLine("SELECT");
+            stringBuilder.Append(stringBuilderArguments.ToString());
+            stringBuilder.AppendLine("\t,NULL");
+            stringBuilder.AppendLine("\t,0");
+            stringBuilder.AppendLine("\t,GetUtcDate()");
+            stringBuilder.AppendLine("FROM INSERTED [i]");
+            stringBuilder.Append($"LEFT JOIN {trackingName.Schema().Quoted().ToString()} [side] ON ");
+            stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[i]", "[side]"));
+            stringBuilder.Append("WHERE ");
+            stringBuilder.AppendLine(stringPkAreNull.ToString());
+
             return stringBuilder.ToString();
         }
         public void CreateUpdateTrigger()

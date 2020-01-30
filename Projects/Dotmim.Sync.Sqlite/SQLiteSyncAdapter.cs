@@ -230,7 +230,10 @@ namespace Dotmim.Sync.Sqlite
 
         private void SetDeleteMetadataParameters(DbCommand command)
         {
-            return;
+            var p = command.CreateParameter();
+            p.ParameterName = "@sync_row_timestamp";
+            p.DbType = DbType.Int64;
+            command.Parameters.Add(p);
         }
 
         private void SetSelecteChangesParameters(DbCommand command)
