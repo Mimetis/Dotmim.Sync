@@ -2877,7 +2877,7 @@ namespace Dotmim.Sync.Tests
         /// Force failing constraints.
         /// But since we set the correct options, shoudl work correctly
         /// </summary>
-        [Theory]
+        [Theory, TestPriority(33)]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Force_Failing_Constraints_ButWorks_WithOptions(SyncOptions options)
         {
@@ -2981,7 +2981,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         /// <param name="options"></param>
         /// <returns></returns>
-        [Theory, TestPriority(33)]
+        [Theory, TestPriority(34)]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Force_Failing_Constraints_ButWorks_WithInterceptors(SyncOptions options)
         {
@@ -3181,7 +3181,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert one row on each client, should be sync on server and clients
         /// </summary>
-        [Theory, TestPriority(34)]
+        [Theory, TestPriority(35)]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Reinitialize_Client(SyncOptions options)
         {
@@ -3247,7 +3247,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert one row on each client, should be sync on server and clients
         /// </summary>
-        [Theory, TestPriority(35)]
+        [Theory, TestPriority(36)]
         [ClassData(typeof(SyncOptionsData))]
         public async Task ReinitializeWithUpload_Client(SyncOptions options)
         {
@@ -3318,7 +3318,7 @@ namespace Dotmim.Sync.Tests
         /// Configuring tables to be upload only
         /// Server should receive lines but will not send back its own lines
         /// </summary>
-        [Fact, TestPriority(36)]
+        [Fact, TestPriority(37)]
         public async Task UploadOnly()
         {
             // create a server schema without seeding
@@ -3556,7 +3556,7 @@ namespace Dotmim.Sync.Tests
         /// Configuring tables to be upload only
         /// Server should receive lines but will not send back its own lines
         /// </summary>
-        [Fact, TestPriority(37)]
+        [Fact, TestPriority(38)]
         public async Task DownloadOnly()
         {
             // create a server schema without seeding
@@ -3795,7 +3795,7 @@ namespace Dotmim.Sync.Tests
         /// Deleting a client row and sync, let the tracking table row on the client database
         /// When downloading the same row from server, the tracking table should be aligned with this new row
         /// </summary>
-        [Theory, TestPriority(38)]
+        [Theory, TestPriority(39)]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Delete_OneTable_FromClient(SyncOptions options)
         {

@@ -208,10 +208,44 @@ namespace Dotmim.Sync.Tests.StandAlone
             Assert.NotEmpty(outSchema.Filters);
             var sf = outSchema.Filters[0];
             Assert.Equal("Product", sf.TableName);
-            Assert.Equal("Title", sf.Parameters[0].Name);
             Assert.Equal("SalesLT", sf.SchemaName);
             Assert.Equal(outSchema, sf.Schema);
-            Assert.Equal(DbType.String, sf.Parameters[0].DbType);
+            Assert.Equal(2, sf.Parameters.Count);
+            Assert.Single(sf.Joins);
+            Assert.Single(sf.CustomWheres);
+            Assert.Single(sf.Wheres);
+            // Parameter 01
+            Assert.Equal("Title", sf.Parameters[0].Name);
+            Assert.Equal(20, sf.Parameters[0].MaxLength);
+            Assert.Equal("'Bikes'", sf.Parameters[0].DefaultValue);
+            Assert.False(sf.Parameters[0].AllowNull);
+            Assert.Null(sf.Parameters[0].TableName);
+            Assert.Null(sf.Parameters[0].SchemaName);
+            Assert.Equal(outSchema, sf.Parameters[0].Schema);
+            // Parameter 02
+            Assert.Equal("LastName", sf.Parameters[1].Name);
+            Assert.Equal(0, sf.Parameters[1].MaxLength);
+            Assert.Null(sf.Parameters[1].DefaultValue);
+            Assert.True(sf.Parameters[1].AllowNull);
+            Assert.Equal("Customer", sf.Parameters[1].TableName);
+            Assert.Equal("SalesLT", sf.Parameters[1].SchemaName);
+            Assert.Equal(outSchema, sf.Parameters[1].Schema);
+            // Joins
+            Assert.Equal(Join.Right, sf.Joins[0].JoinEnum);
+            Assert.Equal("SalesLT.ProductCategory", sf.Joins[0].TableName);
+            Assert.Equal("LCN", sf.Joins[0].LeftColumnName);
+            Assert.Equal("SalesLT.Product", sf.Joins[0].LeftTableName);
+            Assert.Equal("RCN", sf.Joins[0].RightColumnName);
+            Assert.Equal("SalesLT.ProductCategory", sf.Joins[0].RightTableName);
+            // Wheres
+            Assert.Equal("Title", sf.Wheres[0].ColumnName);
+            Assert.Equal("Title", sf.Wheres[0].ParameterName);
+            Assert.Equal("SalesLT", sf.Wheres[0].SchemaName);
+            Assert.Equal("Product", sf.Wheres[0].TableName);
+            // Customer Wheres
+            Assert.Equal("1 = 1", sf.CustomWheres[0]);
+
+
 
             // Check Relations
             Assert.NotEmpty(outSchema.Relations);
@@ -279,7 +313,11 @@ namespace Dotmim.Sync.Tests.StandAlone
 
             // Add Filters
             var sf = new SyncFilter("Product", "SalesLT");
-            sf.Parameters.Add(new SyncFilterParameter { Name = "Title", DbType = DbType.String });
+            sf.Parameters.Add(new SyncFilterParameter { Name = "Title", DbType = DbType.String, MaxLength=20, DefaultValue="'Bikes'"});
+            sf.Parameters.Add(new SyncFilterParameter { Name = "LastName", TableName="Customer", SchemaName= "SalesLT", AllowNull=true});
+            sf.Wheres.Add(new SyncFilterWhereSideItem { ColumnName = "Title", ParameterName = "Title", SchemaName = "SalesLT", TableName = "Product" });
+            sf.Joins.Add(new SyncFilterJoin { JoinEnum = Join.Right, TableName = "SalesLT.ProductCategory", LeftColumnName = "LCN", LeftTableName = "SalesLT.Product", RightColumnName = "RCN", RightTableName = "SalesLT.ProductCategory" });
+            sf.CustomWheres.Add("1 = 1");
             set.Filters.Add(sf);
 
             // Add Relations

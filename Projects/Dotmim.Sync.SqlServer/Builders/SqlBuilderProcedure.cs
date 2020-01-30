@@ -1611,7 +1611,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         /// </summary>
         protected string CreateFilterCustomJoins(SyncFilter filter)
         {
-            var customJoins = filter.CustomJoins;
+            var customJoins = filter.Joins;
 
             if (customJoins.Count == 0)
                 return string.Empty;
@@ -1638,7 +1638,8 @@ namespace Dotmim.Sync.SqlServer.Builders
                         break;
                 }
 
-                var filterTableName = ParserName.Parse(filter.TableName).Schema().Quoted().ToString();
+                var fullTableName = string.IsNullOrEmpty(filter.SchemaName) ? filter.TableName : $"{filter.SchemaName}.{filter.TableName}";
+                var filterTableName = ParserName.Parse(fullTableName).Quoted().Schema().ToString();
 
                 var joinTableName = ParserName.Parse(customJoin.TableName).Quoted().Schema().ToString();
 
@@ -1664,7 +1665,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         /// </summary>
         protected string CreateFilterWhereSide(SyncFilter filter, bool checkTombstoneRows = false)
         {
-            var sideWhereFilters = filter.SideWhereFilters;
+            var sideWhereFilters = filter.Wheres;
 
             if (sideWhereFilters.Count == 0)
                 return string.Empty;

@@ -23,25 +23,25 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets or Sets the parameters list, used as input in the stored procedure
         /// </summary>
-        [DataMember(Name = "p", IsRequired = false, EmitDefaultValue = false, Order = 4)]
+        [DataMember(Name = "p", IsRequired = false, EmitDefaultValue = false, Order = 3)]
         public SyncFilterParameters Parameters { get; set;  } = new SyncFilterParameters();
 
         /// <summary>
         /// Gets or Sets side where filters list
         /// </summary>
-        [DataMember(Name = "f", IsRequired = false, EmitDefaultValue = false, Order = 6)]
-        public SyncFilterWhereSideItems SideWhereFilters { get; set; } = new SyncFilterWhereSideItems();
+        [DataMember(Name = "w", IsRequired = false, EmitDefaultValue = false, Order = 4)]
+        public SyncFilterWhereSideItems Wheres { get; set; } = new SyncFilterWhereSideItems();
 
         /// <summary>
         /// Gets or Sets side where filters list
         /// </summary>
-        [DataMember(Name = "cj", IsRequired = false, EmitDefaultValue = false, Order = 6)]
-        public SyncFilterJoins CustomJoins { get; set; } = new SyncFilterJoins();
+        [DataMember(Name = "j", IsRequired = false, EmitDefaultValue = false, Order = 5)]
+        public SyncFilterJoins Joins { get; set; } = new SyncFilterJoins();
 
         /// <summary>
         /// Gets or Sets customs where
         /// </summary>
-        [DataMember(Name = "w", IsRequired = false, EmitDefaultValue = false, Order = 7)]
+        [DataMember(Name = "cw", IsRequired = false, EmitDefaultValue = false, Order = 6)]
         public List<string> CustomWheres { get; set; } = new List<string>();
 
 
@@ -85,8 +85,8 @@ namespace Dotmim.Sync
             this.Schema = schema;
 
             this.Parameters.EnsureFilters(this.Schema);
-            this.SideWhereFilters.EnsureFilters(this.Schema);
-            this.CustomJoins.EnsureFilters(this.Schema);
+            this.Wheres.EnsureFilters(this.Schema);
+            this.Joins.EnsureFilters(this.Schema);
         }
 
         /// <summary>
