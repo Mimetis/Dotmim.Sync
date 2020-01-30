@@ -532,8 +532,8 @@ namespace Dotmim.Sync.Tests
             {
                 using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
                 {
-                    ctx.SalesOrderDetail.RemoveRange(ctx.SalesOrderDetail.Where(sod => sod.SalesOrder.SalesOrderNumber == "SO-99099"));
-                    ctx.SalesOrderHeader.RemoveRange(ctx.SalesOrderHeader.Where(soh => soh.SalesOrderNumber == "SO-99099"));
+                    ctx.SalesOrderDetail.RemoveRange(ctx.SalesOrderDetail.ToList());
+                    ctx.SalesOrderHeader.RemoveRange(ctx.SalesOrderHeader.ToList());
                     await ctx.SaveChangesAsync();
 
                 }
@@ -551,7 +551,7 @@ namespace Dotmim.Sync.Tests
                 var s = await agent.SynchronizeAsync();
 
                 //Assert.Equal(0, s.TotalChangesDownloaded);
-                Assert.Equal(4, s.TotalChangesUploaded);
+                Assert.Equal(8, s.TotalChangesUploaded);
                 //Assert.Equal(0, s.TotalSyncConflicts);
             }
 

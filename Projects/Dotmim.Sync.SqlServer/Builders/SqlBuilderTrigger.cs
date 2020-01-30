@@ -42,7 +42,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("UPDATE [side] ");
-            stringBuilder.AppendLine("SET  [sync_row_is_tombstone] = 0");
+            stringBuilder.AppendLine("SET  [sync_row_is_tombstone] = 1");
             stringBuilder.AppendLine("\t,[update_scope_id] = NULL -- scope id is always NULL when update is made locally");
             stringBuilder.AppendLine("\t,[last_change_datetime] = GetUtcDate()");
             stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()} [side]");
@@ -78,7 +78,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("SELECT");
             stringBuilder.Append(stringBuilderArguments.ToString());
             stringBuilder.AppendLine("\t,NULL");
-            stringBuilder.AppendLine("\t,0");
+            stringBuilder.AppendLine("\t,1");
             stringBuilder.AppendLine("\t,GetUtcDate()");
             stringBuilder.AppendLine("FROM DELETED [d]");
             stringBuilder.Append($"LEFT JOIN {trackingName.Schema().Quoted().ToString()} [side] ON ");
