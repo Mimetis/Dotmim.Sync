@@ -69,9 +69,9 @@ namespace Dotmim.Sync.Tests
                 setup.Filters.Add(salesOrderDetailFilter);
                 // ----------------------------------------------------
 
-                // 4) Custom Wheres on Product
+                // 4) Custom Wheres on Product.
                 var productFilter = new SetupFilter("Product", "SalesLT");
-                productFilter.AddCustomerWhere("ProductCategoryID <> 'MOUNTB'");
+                productFilter.AddCustomerWhere("ProductCategoryID IS NOT NULL");
                 setup.Filters.Add(productFilter);
 
 

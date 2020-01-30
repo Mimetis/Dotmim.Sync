@@ -31,10 +31,43 @@ namespace Dotmim.Sync.Tests
                 setup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "EmployeeID", "NameStyle", "FirstName", "LastName" });
                 setup.Tables["Address"].Columns.AddRange(new string[] { "AddressID", "AddressLine1", "City", "PostalCode" });
 
-                // Filter rows
-                setup.Filters.Add("Customer", "CustomerID");
+                // Filters clause
+
+                // 1) EASY Way:
                 setup.Filters.Add("CustomerAddress", "CustomerID");
                 setup.Filters.Add("SalesOrderHeader", "CustomerID");
+
+
+                // 2) Same, but decomposed in 3 Steps
+
+                var customerFilter = new SetupFilter("Customer");
+                customerFilter.AddParameter("CustomerId", "Customer", true);
+                customerFilter.AddWhere("CustomerId", "Customer", "CustomerId");
+                setup.Filters.Add(customerFilter);
+
+                // 3) Create your own filter
+
+                // Create a filter on table Address
+                var addressFilter = new SetupFilter("Address");
+                addressFilter.AddParameter("CustomerID", "Customer");
+                addressFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "AddressId", "Address", "AddressId");
+                addressFilter.AddWhere("CustomerId", "CustomerAddress", "CustomerId");
+                setup.Filters.Add(addressFilter);
+                // ----------------------------------------------------
+
+                // Create a filter on table SalesOrderDetail
+                var salesOrderDetailFilter = new SetupFilter("SalesOrderDetail");
+                salesOrderDetailFilter.AddParameter("CustomerID", "Customer");
+                salesOrderDetailFilter.AddJoin(Join.Left, "SalesOrderHeader").On("SalesOrderHeader", "SalesOrderId", "SalesOrderDetail", "SalesOrderId");
+                salesOrderDetailFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerId", "SalesOrderHeader", "CustomerId");
+                salesOrderDetailFilter.AddWhere("CustomerId", "CustomerAddress", "CustomerId");
+                setup.Filters.Add(salesOrderDetailFilter);
+                // ----------------------------------------------------
+
+                // 4) Custom Wheres on Product.
+                var productFilter = new SetupFilter("Product");
+                productFilter.AddCustomerWhere("ProductCategoryID IS NOT NULL");
+                setup.Filters.Add(productFilter);
 
                 return setup;
             }
