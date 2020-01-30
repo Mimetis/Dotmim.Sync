@@ -35,16 +35,16 @@ namespace Dotmim.Sync
         /// <summary>
         /// Add a new filter 
         /// </summary>
-        public SetupFilters Add(string tableName, string columnName, string schemaName = null)
+        public SetupFilters Add(string tableName, string columnName, string schemaName = null, bool allowNull = true)
         {
             // Create a filter on the table
             var item = new SetupFilter(tableName, schemaName);
 
             // Add a column as parameter. This column will be automaticaly added in the tracking table
-            item.AddParameter(columnName, tableName, schemaName, true);
+            item.AddParameter(columnName, tableName, schemaName, allowNull);
 
             // add the side where expression, allowing to be null
-            item.AddWhere(columnName, tableName, schemaName);
+            item.AddWhere(columnName, tableName, columnName, schemaName);
 
             this.Add(item);
             return this;
