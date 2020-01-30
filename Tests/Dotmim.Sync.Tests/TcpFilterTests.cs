@@ -378,17 +378,18 @@ namespace Dotmim.Sync.Tests
                     Freight = 22.0087M,
                     TotalDue = 6530.35M + 70.4279M + 22.0087M
                 };
-
-                var sod1 = new SalesOrderDetail { OrderQty = 1, ProductId = new Guid("600b1461-7c6d-4e12-90b1-a4e552cd6404"), UnitPrice = 3578.2700M };
-                var sod2 = new SalesOrderDetail { OrderQty = 2, ProductId = new Guid("600b1461-7c6d-4e12-90b1-a4e552cd6404"), UnitPrice = 44.5400M };
-                var sod3 = new SalesOrderDetail { OrderQty = 2, ProductId = new Guid("600b1461-7c6d-4e12-90b1-a4e552cd6404"), UnitPrice = 1431.5000M };
-
-                soh.SalesOrderDetail.Add(sod1);
-                soh.SalesOrderDetail.Add(sod2);
-                soh.SalesOrderDetail.Add(sod3);
-
                 using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
                 {
+                    var productId = ctx.Product.First().ProductId;
+
+                    var sod1 = new SalesOrderDetail { OrderQty = 1, ProductId = productId, UnitPrice = 3578.2700M };
+                    var sod2 = new SalesOrderDetail { OrderQty = 2, ProductId = productId, UnitPrice = 44.5400M };
+                    var sod3 = new SalesOrderDetail { OrderQty = 2, ProductId = productId, UnitPrice = 1431.5000M };
+
+                    soh.SalesOrderDetail.Add(sod1);
+                    soh.SalesOrderDetail.Add(sod2);
+                    soh.SalesOrderDetail.Add(sod3);
+
                     ctx.SalesOrderHeader.Add(soh);
                     await ctx.SaveChangesAsync();
                 }
@@ -481,16 +482,19 @@ namespace Dotmim.Sync.Tests
                     TotalDue = 6530.35M + 70.4279M + 22.0087M
                 };
 
-                var sod1 = new SalesOrderDetail { OrderQty = 1, ProductId = new Guid("600b1461-7c6d-4e12-90b1-a4e552cd6404"), UnitPrice = 3578.2700M };
-                var sod2 = new SalesOrderDetail { OrderQty = 2, ProductId = new Guid("600b1461-7c6d-4e12-90b1-a4e552cd6404"), UnitPrice = 44.5400M };
-                var sod3 = new SalesOrderDetail { OrderQty = 2, ProductId = new Guid("600b1461-7c6d-4e12-90b1-a4e552cd6404"), UnitPrice = 1431.5000M };
-
-                soh.SalesOrderDetail.Add(sod1);
-                soh.SalesOrderDetail.Add(sod2);
-                soh.SalesOrderDetail.Add(sod3);
-
                 using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
                 {
+
+                    var productId = ctx.Product.First().ProductId;
+
+                    var sod1 = new SalesOrderDetail { OrderQty = 1, ProductId = productId, UnitPrice = 3578.2700M };
+                    var sod2 = new SalesOrderDetail { OrderQty = 2, ProductId = productId, UnitPrice = 44.5400M };
+                    var sod3 = new SalesOrderDetail { OrderQty = 2, ProductId = productId, UnitPrice = 1431.5000M };
+
+                    soh.SalesOrderDetail.Add(sod1);
+                    soh.SalesOrderDetail.Add(sod2);
+                    soh.SalesOrderDetail.Add(sod3);
+
                     ctx.SalesOrderHeader.Add(soh);
                     await ctx.SaveChangesAsync();
                 }
