@@ -102,6 +102,7 @@ namespace Dotmim.Sync.Tests
                 totalCountRows += serverDbCtx.CustomerAddress.Where(c => c.CustomerId == AdventureWorksContext.CustomerIdForFilter).Count();
                 totalCountRows += serverDbCtx.SalesOrderDetail.Count();
                 totalCountRows += serverDbCtx.SalesOrderHeader.Where(c => c.CustomerId == AdventureWorksContext.CustomerIdForFilter).Count();
+                totalCountRows += serverDbCtx.Product.Where(p => !String.IsNullOrEmpty(p.ProductCategoryId)).Count();
             }
 
             return totalCountRows;
