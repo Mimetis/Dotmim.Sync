@@ -34,7 +34,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             this.sqlDbMetadata = new SqlDbMetadata();
         }
 
-
         public void CreateIndex()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
@@ -72,7 +71,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         private string CreateIndexCommandText()
         {
-            StringBuilder stringBuilder = new StringBuilder();
+            var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine($"CREATE NONCLUSTERED INDEX [{trackingName.Schema().Unquoted().Normalized().ToString()}_timestamp_index] ON {trackingName.Schema().Quoted().ToString()} (");
             stringBuilder.AppendLine($"\t  [timestamp_bigint] ASC");
             stringBuilder.AppendLine($"\t, [update_scope_id] ASC");
@@ -84,12 +83,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             stringBuilder.Append(")");
             return stringBuilder.ToString();
-        }
-
-        public string CreateIndexScriptText()
-        {
-            string str = string.Concat("Create index on Tracking Table ", trackingName.Schema().Quoted().ToString());
-            return SqlTableBuilder.WrapScriptTextWithComments(this.CreateIndexCommandText(), str);
         }
 
         public void CreatePk()
@@ -126,13 +119,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
 
         }
-
-        public string CreatePkScriptText()
-        {
-            string str = string.Concat("Create Primary Key on Tracking Table ", trackingName.Schema().Quoted().ToString());
-            return SqlTableBuilder.WrapScriptTextWithComments(this.CreatePkCommandText(), str);
-        }
-
+   
         public string CreatePkCommandText()
         {
             StringBuilder stringBuilder = new StringBuilder();
@@ -225,25 +212,12 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         }
 
-        public string CreateTableScriptText()
-        {
-            string str = string.Concat("Create Tracking Table ", trackingName.Schema().Quoted().ToString());
-            return SqlTableBuilder.WrapScriptTextWithComments(this.CreateTableCommandText(), str);
-        }
-        public string DropTableScriptText()
-        {
-            string str = string.Concat("Droping Tracking Table ", trackingName.Schema().Quoted().ToString());
-            return SqlTableBuilder.WrapScriptTextWithComments(this.CreateTableCommandText(), str);
-        }
-
-        private string CreateDropTableCommandText()
-        {
-            return $"DROP TABLE {trackingName.Schema().Quoted().ToString()};";
-        }
+        private string CreateDropTableCommandText() 
+            => $"DROP TABLE {trackingName.Schema().Quoted().ToString()};";
 
         private string CreateTableCommandText()
         {
-            StringBuilder stringBuilder = new StringBuilder();
+            var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine($"CREATE TABLE {trackingName.Schema().Quoted().ToString()} (");
 
             // Adding the primary key
@@ -271,103 +245,8 @@ namespace Dotmim.Sync.SqlServer.Builders
             return stringBuilder.ToString();
         }
 
-        public bool NeedToCreateTrackingTable()
-        {
-            return !SqlManagementUtils.TableExists(connection, transaction, trackingName.Schema().Quoted().ToString());
-        }
+        public bool NeedToCreateTrackingTable() => 
+            !SqlManagementUtils.TableExists(connection, transaction, trackingName.Schema().Quoted().ToString());
 
-        public void PopulateFromBaseTable()
-        {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
-
-            try
-            {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        this.connection.Open();
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    command.CommandText = this.CreatePopulateFromBaseTableCommandText();
-                    command.Connection = this.connection;
-                    command.ExecuteNonQuery();
-
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateIndex : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
-        }
-
-        private string CreatePopulateFromBaseTableCommandText()
-        {
-            var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine(string.Concat("INSERT INTO ", trackingName.Schema().Quoted().ToString(), " ("));
-            var stringBuilder1 = new StringBuilder();
-            var stringBuilder2 = new StringBuilder();
-            string empty = string.Empty;
-            var stringBuilderOnClause = new StringBuilder("ON ");
-            var stringBuilderWhereClause = new StringBuilder("WHERE ");
-            string str = string.Empty;
-            string baseTable = "[base]";
-            string sideTable = "[side]";
-            foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
-            {
-                var quotedColumnName = ParserName.Parse(pkColumn).Quoted().ToString();
-
-                stringBuilder1.Append(string.Concat(empty, quotedColumnName));
-
-                stringBuilder2.Append(string.Concat(empty, baseTable, ".", quotedColumnName));
-
-                string[] quotedName = new string[] { str, baseTable, ".", quotedColumnName, " = ", sideTable, ".", quotedColumnName };
-                stringBuilderOnClause.Append(string.Concat(quotedName));
-                string[] strArrays = new string[] { str, sideTable, ".", quotedColumnName, " IS NULL" };
-                stringBuilderWhereClause.Append(string.Concat(strArrays));
-                empty = ", ";
-                str = " AND ";
-            }
-            var stringBuilder5 = new StringBuilder();
-            var stringBuilder6 = new StringBuilder();
-
-            // (list of pkeys)
-            stringBuilder.Append(string.Concat(stringBuilder1.ToString(), ", "));
-
-            stringBuilder.Append("[update_scope_id], ");
-            //stringBuilder.Append("[timestamp], "); // timestamp is not a column we update, it's auto
-            stringBuilder.Append("[sync_row_is_tombstone] ");
-            stringBuilder.AppendLine(string.Concat(stringBuilder6.ToString(), ") "));
-            stringBuilder.Append(string.Concat("SELECT ", stringBuilder2.ToString(), ", "));
-            stringBuilder.Append("NULL, ");
-            //stringBuilder.Append("@@DBTS+1, "); // timestamp is not a column we update, it's auto
-            stringBuilder.Append("0");
-            stringBuilder.AppendLine(string.Concat(stringBuilder5.ToString(), " "));
-            string[] localName = new string[] { "FROM ", tableName.Schema().Quoted().ToString(), " ", baseTable, " LEFT OUTER JOIN ", trackingName.Schema().Quoted().ToString(), " ", sideTable, " " };
-            stringBuilder.AppendLine(string.Concat(localName));
-            stringBuilder.AppendLine(string.Concat(stringBuilderOnClause.ToString(), " "));
-            stringBuilder.AppendLine(string.Concat(stringBuilderWhereClause.ToString(), "; \n"));
-            return stringBuilder.ToString();
-        }
-
-        public string CreatePopulateFromBaseTableScriptText()
-        {
-            string str = string.Concat("Populate tracking table ", trackingName.Schema().Quoted().ToString(), " for existing data in table ", tableName.Schema().Quoted().ToString());
-            return SqlTableBuilder.WrapScriptTextWithComments(this.CreatePopulateFromBaseTableCommandText(), str);
-        }
-
-
-
-
-    }
+     }
 }
