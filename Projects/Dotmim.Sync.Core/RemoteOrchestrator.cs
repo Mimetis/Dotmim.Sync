@@ -139,7 +139,9 @@ namespace Dotmim.Sync
 
                     await this.Provider.InterceptAsync(new ConnectionOpenArgs(context, connection)).ConfigureAwait(false);
 
-                    // Create a transaction
+                    // Create two transactions
+                    // First one to commit changes
+                    // Second one to get changes now that everything is commited
                     using (transaction = connection.BeginTransaction())
                     {
                         await this.Provider.InterceptAsync(new TransactionOpenArgs(context, connection, transaction)).ConfigureAwait(false);
@@ -154,7 +156,15 @@ namespace Dotmim.Sync
 
                         if (cancellationToken.IsCancellationRequested)
                             cancellationToken.ThrowIfCancellationRequested();
+                        await this.Provider.InterceptAsync(new TransactionCommitArgs(context, connection, transaction)).ConfigureAwait(false);
 
+                        // commit first transaction
+                        transaction.Commit();
+                    }
+
+                    // TODO : Is it useful to make a transaction here ?
+                    using (transaction = connection.BeginTransaction())
+                    {
                         //Direction set to Download
                         context.SyncWay = SyncWay.Download;
 
@@ -180,10 +190,9 @@ namespace Dotmim.Sync
                             cancellationToken.ThrowIfCancellationRequested();
 
 
+                        // Commit second transaction for getting changes
                         await this.Provider.InterceptAsync(new TransactionCommitArgs(context, connection, transaction)).ConfigureAwait(false);
                         transaction.Commit();
-
-
                     }
                 }
                 catch (Exception ex)
