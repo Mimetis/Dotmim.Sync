@@ -83,6 +83,36 @@ namespace Dotmim.Sync.Tests
             ProviderType.MySql;
 
 
+        public override RemoteOrchestrator CreateRemoteOrchestrator(ProviderType providerType, string dbName)
+        {
+            var cs = HelperDatabase.GetConnectionString(ProviderType.MySql, dbName);
+            var orchestrator = new RemoteOrchestrator(new MySqlSyncProvider(cs));
+
+            return orchestrator;
+        }
+
+        public override LocalOrchestrator CreateLocalOrchestrator(ProviderType providerType, string dbName)
+        {
+            var cs = HelperDatabase.GetConnectionString(providerType, dbName);
+            var orchestrator = new LocalOrchestrator();
+
+            switch (providerType)
+            {
+                case ProviderType.Sql:
+                    orchestrator.Provider = new SqlSyncProvider(cs);
+                    break;
+                case ProviderType.MySql:
+                    orchestrator.Provider = new MySqlSyncProvider(cs);
+                    break;
+                case ProviderType.Sqlite:
+                    orchestrator.Provider = new SqliteSyncProvider(cs);
+                    break;
+            }
+
+            return orchestrator;
+        }
+
+
 
         /// <summary>
         /// Get the server database rows count

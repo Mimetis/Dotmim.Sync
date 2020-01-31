@@ -215,7 +215,7 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine($"AND (EXISTS (");
             stringBuilder.AppendLine($"     SELECT * FROM [c] ");
             stringBuilder.AppendLine($"     WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, "[c]")}");
-            stringBuilder.AppendLine($"     AND (timestamp < @sync_min_timestamp OR update_scope_id = @sync_scope_id))");
+            stringBuilder.AppendLine($"     AND (timestamp < @sync_min_timestamp OR timestamp IS NULL OR update_scope_id = @sync_scope_id))");
             stringBuilder.AppendLine($"  OR @sync_force_write = 1");
             stringBuilder.AppendLine($" );");
             stringBuilder.AppendLine();

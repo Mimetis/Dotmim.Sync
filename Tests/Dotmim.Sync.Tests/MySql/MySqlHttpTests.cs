@@ -1,5 +1,9 @@
-﻿using Dotmim.Sync.Tests.Core;
+﻿using Dotmim.Sync.MySql;
+using Dotmim.Sync.Sqlite;
+using Dotmim.Sync.SqlServer;
+using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Tests.Models;
+using Dotmim.Sync.Web.Server;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -26,6 +30,37 @@ namespace Dotmim.Sync.Tests
             { ProviderType.MySql, ProviderType.Sql, ProviderType.Sqlite};
 
         public override ProviderType ServerType => ProviderType.MySql;
+
+
+        public override RemoteOrchestrator CreateRemoteOrchestrator(ProviderType providerType, string dbName)
+        {
+            var cs = HelperDatabase.GetConnectionString(ProviderType.MySql, dbName);
+            var orchestrator = new WebServerOrchestrator(new MySqlSyncProvider(cs));
+
+            return orchestrator;
+        }
+
+        public override LocalOrchestrator CreateLocalOrchestrator(ProviderType providerType, string dbName)
+        {
+            var cs = HelperDatabase.GetConnectionString(providerType, dbName);
+            var orchestrator = new LocalOrchestrator();
+
+            switch (providerType)
+            {
+                case ProviderType.Sql:
+                    orchestrator.Provider = new SqlSyncProvider(cs);
+                    break;
+                case ProviderType.MySql:
+                    orchestrator.Provider = new MySqlSyncProvider(cs);
+                    break;
+                case ProviderType.Sqlite:
+                    orchestrator.Provider = new SqliteSyncProvider(cs);
+                    break;
+            }
+
+            return orchestrator;
+        }
+
 
         public override bool UseFiddler => false;
 

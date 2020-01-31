@@ -86,10 +86,41 @@ namespace Dotmim.Sync.Tests
 
 
         public override List<ProviderType> ClientsType => new List<ProviderType>
-            { ProviderType.Sql, ProviderType.MySql, ProviderType.Sqlite};
+            { ProviderType.Sqlite, ProviderType.Sql, ProviderType.MySql };
 
         public override ProviderType ServerType =>
             ProviderType.Sql;
+
+
+        public override RemoteOrchestrator CreateRemoteOrchestrator(ProviderType providerType, string dbName)
+        {
+            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
+            var orchestrator = new RemoteOrchestrator(new SqlSyncProvider(cs));
+
+            return orchestrator;
+        }
+
+        public override LocalOrchestrator CreateLocalOrchestrator(ProviderType providerType, string dbName)
+        {
+            var cs = HelperDatabase.GetConnectionString(providerType, dbName);
+            var orchestrator = new LocalOrchestrator();
+
+            switch (providerType)
+            {
+                case ProviderType.Sql:
+                    orchestrator.Provider = new SqlSyncProvider(cs);
+                    break;
+                case ProviderType.MySql:
+                    orchestrator.Provider = new MySqlSyncProvider(cs);
+                    break;
+                case ProviderType.Sqlite:
+                    orchestrator.Provider = new SqliteSyncProvider(cs);
+                    break;
+            }
+
+            return orchestrator;
+        }
+
 
         public override async Task EnsureDatabaseSchemaAndSeedAsync((string DatabaseName, ProviderType ProviderType, IOrchestrator Orchestrator) t, bool useSeeding = false, bool useFallbackSchema = false)
         {
