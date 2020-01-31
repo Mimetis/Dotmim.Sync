@@ -7,6 +7,8 @@ using Dotmim.Sync.SqlServer.Scope;
 using System;
 using System.Data.Common;
 using System.Data.SqlClient;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.SqlServer
 {
@@ -60,11 +62,23 @@ namespace Dotmim.Sync.SqlServer
         /// Sql Server supports to be a server side provider
         /// </summary>
         public override bool CanBeServerProvider => true;
-     
+
+
+        /// <summary>
+        /// Metadatas are handled by Change Tracking
+        /// So just do nothing here
+        /// </summary>
+        public override Task<SyncContext> DeleteMetadatasAsync(SyncContext context, SyncSet schema, long timestampLimit, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null) 
+            => Task.FromResult(context);
+
+
         public override DbConnection CreateConnection() => new SqlConnection(this.ConnectionString);
         public override DbScopeBuilder GetScopeBuilder() => new SqlChangeTrackingScopeBuilder();
         public override DbTableBuilder GetTableBuilder(SyncTable tableDescription) => new SqlChangeTrackingBuilder(tableDescription);
         public override DbTableManagerFactory GetTableManagerFactory(string tableName, string schemaName) => new SqlManager(tableName, schemaName);
+
+
+
 
     }
 }

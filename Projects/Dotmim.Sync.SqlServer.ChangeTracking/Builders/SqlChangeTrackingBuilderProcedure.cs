@@ -625,38 +625,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             return sqlCommand;
         }
 
-        //------------------------------------------------------------------
-        // Update Metadata command
-        //------------------------------------------------------------------
-        protected override SqlCommand BuildUpdateMetadataCommand()
-        {
-            var sqlCommand = new SqlCommand();
-            var stringBuilder = new StringBuilder();
-            this.AddPkColumnParametersToCommand(sqlCommand);
-            var sqlParameter = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
-            sqlCommand.Parameters.Add(sqlParameter);
-            var sqlParameter1 = new SqlParameter("@sync_row_is_tombstone", SqlDbType.Int);
-            sqlCommand.Parameters.Add(sqlParameter1);
-            var sqlParameter2 = new SqlParameter("@sync_row_is_frozen", SqlDbType.Int);
-            sqlCommand.Parameters.Add(sqlParameter2);
-            var sqlParameter3 = new SqlParameter("@create_timestamp", SqlDbType.BigInt);
-            sqlCommand.Parameters.Add(sqlParameter3);
-            var sqlParameter5 = new SqlParameter("@update_timestamp", SqlDbType.BigInt);
-            sqlCommand.Parameters.Add(sqlParameter5);
-            var sqlParameter8 = new SqlParameter("@sync_row_count", SqlDbType.Int)
-            {
-                Direction = ParameterDirection.Output
-            };
-            sqlCommand.Parameters.Add(sqlParameter8);
-
-            stringBuilder.AppendLine($"SET {sqlParameter8.ParameterName} = 0;");
-            stringBuilder.AppendLine($"SELECT 1;");
-
-            sqlCommand.CommandText = stringBuilder.ToString();
-            return sqlCommand;
-        }
-
-
+  
         //------------------------------------------------------------------
         // Select changes command
         //------------------------------------------------------------------

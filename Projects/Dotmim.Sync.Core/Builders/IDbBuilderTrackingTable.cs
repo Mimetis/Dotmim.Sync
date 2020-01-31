@@ -18,11 +18,5 @@ namespace Dotmim.Sync.Builders
         void DropTable();
         void CreatePk();
         void CreateIndex();
-        void PopulateFromBaseTable();
-        string CreateTableScriptText();
-        string DropTableScriptText();
-        string CreatePkScriptText();
-        string CreateIndexScriptText();
-        string CreatePopulateFromBaseTableScriptText();
     }
 }

@@ -33,66 +33,12 @@ namespace Dotmim.Sync.MySql
             this.mySqlDbMetadata = new MySqlDbMetadata();
         }
 
+        public bool NeedToCreateTrackingTable()
+             => !MySqlManagementUtils.TableExists(connection, transaction, trackingName);
 
-        public void CreateIndex()
-        {
-
-
-        }
-
-        private string CreateIndexCommandText()
-        {
-            return string.Empty;
-        }
-
-        public string CreateIndexScriptText()
-        {
-            return string.Empty;
-        }
-
-        public void CreatePk()
-        {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
-            try
-            {
-                using (var command = new MySqlCommand())
-                {
-                    if (!alreadyOpened)
-                        this.connection.Open();
-
-                    if (transaction != null)
-                        command.Transaction = transaction;
-
-                    command.CommandText = this.CreatePkCommandText();
-                    command.Connection = this.connection;
-
-                    // Sometimes we could have an empty string if pk is created during table creation
-                    if (!string.IsNullOrEmpty(command.CommandText))
-                        command.ExecuteNonQuery();
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateIndex : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-            }
-        }
-        public string CreatePkScriptText()
-        {
-            string str = string.Concat("No need to Create Primary Key on Tracking Table since it's done during table creation ", trackingName.Quoted().ToString());
-            return "";
-        }
-
-        public string CreatePkCommandText()
-        {
-            return "";
-        }
-
+        public void CreateIndex() {}
+        public void CreatePk() { }
+        
         public void CreateTable()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
@@ -127,12 +73,6 @@ namespace Dotmim.Sync.MySql
             }
 
 
-        }
-
-        public string CreateTableScriptText()
-        {
-            string str = string.Concat("Create Tracking Table ", trackingName.Quoted().ToString());
-            return MyTableSqlBuilder.WrapScriptTextWithComments(this.CreateTableCommandText(), str);
         }
 
         public string CreateTableCommandText()
@@ -175,165 +115,7 @@ namespace Dotmim.Sync.MySql
             return stringBuilder.ToString();
         }
 
-        public bool NeedToCreateTrackingTable()
-        {
-            return !MySqlManagementUtils.TableExists(connection, transaction, trackingName);
-
-        }
-
-        public void PopulateFromBaseTable()
-        {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
-
-            try
-            {
-                using (var command = new MySqlCommand())
-                {
-                    if (!alreadyOpened)
-                        this.connection.Open();
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    command.CommandText = this.CreatePopulateFromBaseTableCommandText();
-                    command.Connection = this.connection;
-                    command.ExecuteNonQuery();
-
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateIndex : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
-        }
-
-        private string CreatePopulateFromBaseTableCommandText()
-        {
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine(string.Concat("INSERT INTO ", trackingName.Quoted().ToString(), " ("));
-            StringBuilder stringBuilder1 = new StringBuilder();
-            StringBuilder stringBuilder2 = new StringBuilder();
-            string empty = string.Empty;
-            StringBuilder stringBuilderOnClause = new StringBuilder("ON ");
-            StringBuilder stringBuilderWhereClause = new StringBuilder("WHERE ");
-            string str = string.Empty;
-            string baseTable = "`base`";
-            string sideTable = "`side`";
-            foreach (var pkColumn in this.tableDescription.PrimaryKeys)
-            {
-                var quotedColumnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
-
-                stringBuilder1.Append(string.Concat(empty, quotedColumnName));
-
-                stringBuilder2.Append(string.Concat(empty, baseTable, ".", quotedColumnName));
-
-                string[] quotedName = new string[] { str, baseTable, ".", quotedColumnName, " = ", sideTable, ".", quotedColumnName };
-                stringBuilderOnClause.Append(string.Concat(quotedName));
-                string[] strArrays = new string[] { str, sideTable, ".", quotedColumnName, " IS NULL" };
-                stringBuilderWhereClause.Append(string.Concat(strArrays));
-                empty = ", ";
-                str = " AND ";
-            }
-            var stringBuilder5 = new StringBuilder();
-            var stringBuilder6 = new StringBuilder();
-
-            // (list of pkeys)
-            stringBuilder.Append(string.Concat(stringBuilder1.ToString(), ", "));
-
-            stringBuilder.Append("`update_scope_id`, ");
-            stringBuilder.Append("`timestamp`, "); 
-            stringBuilder.Append("`sync_row_is_tombstone` ");
-            stringBuilder.AppendLine(string.Concat(stringBuilder6.ToString(), ") "));
-            stringBuilder.Append(string.Concat("SELECT ", stringBuilder2.ToString(), ", "));
-            stringBuilder.Append("NULL, ");
-            stringBuilder.Append($"{MySqlObjectNames.TimestampValue}, ");
-            stringBuilder.Append("0 ");
-            stringBuilder.AppendLine(string.Concat(stringBuilder5.ToString(), " "));
-            string[] localName = new string[] { "FROM ", tableName.Quoted().ToString(), " ", baseTable, " LEFT OUTER JOIN ", trackingName.Quoted().ToString(), " ", sideTable, " " };
-            stringBuilder.AppendLine(string.Concat(localName));
-            stringBuilder.AppendLine(string.Concat(stringBuilderOnClause.ToString(), " "));
-            stringBuilder.AppendLine(string.Concat(stringBuilderWhereClause.ToString(), "; \n"));
-            return stringBuilder.ToString();
-        }
-
-        public string CreatePopulateFromBaseTableScriptText()
-        {
-            string str = string.Concat("Populate tracking table ", trackingName.Quoted().ToString(), " for existing data in table ", tableName.Quoted().ToString());
-            return MyTableSqlBuilder.WrapScriptTextWithComments(this.CreatePopulateFromBaseTableCommandText(), str);
-        }
-
-        public void PopulateNewFilterColumnFromBaseTable(SyncColumn filterColumn)
-        {
-            throw new NotImplementedException();
-        }
-
-        public string ScriptPopulateNewFilterColumnFromBaseTable(SyncColumn filterColumn)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void AddFilterColumn(SyncColumn filterColumn)
-        {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
-
-            try
-            {
-                using (var command = new MySqlCommand())
-                {
-                    if (!alreadyOpened)
-                        this.connection.Open();
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    command.CommandText = this.AddFilterColumnCommandText(filterColumn);
-                    command.Connection = this.connection;
-                    command.ExecuteNonQuery();
-
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateIndex : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
-        }
-
-        private string AddFilterColumnCommandText(SyncColumn col)
-        {
-            var quotedColumnName = ParserName.Parse(col, "`").Quoted().ToString();
-
-            var columnTypeString = this.mySqlDbMetadata.TryGetOwnerDbTypeString(col.OriginalDbType, col.GetDbType(), false, false, col.MaxLength, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
-            var columnPrecisionString = this.mySqlDbMetadata.TryGetOwnerDbTypePrecision(col.OriginalDbType, col.GetDbType(), false, false, col.MaxLength, col.Precision, col.Scale, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
-            var columnType = $"{columnTypeString} {columnPrecisionString}";
-
-            return string.Concat("ALTER TABLE ", quotedColumnName, " ADD ", columnType);
-        }
-        public string ScriptAddFilterColumn(SyncColumn filterColumn)
-        {
-            var quotedColumnName = ParserName.Parse(filterColumn, "`").Quoted().ToString();
-
-            string str = string.Concat("Add new filter column, ", quotedColumnName, ", to Tracking Table ", trackingName.Quoted().ToString());
-            return MyTableSqlBuilder.WrapScriptTextWithComments(this.AddFilterColumnCommandText(filterColumn), str);
-        }
-
+ 
         public void DropTable()
         {
             var commandText = $"drop table if exists {trackingName.Quoted().ToString()}";
@@ -367,13 +149,7 @@ namespace Dotmim.Sync.MySql
 
         }
 
-        public string DropTableScriptText()
-        {
-            var commandText = $"drop table if exists {trackingName.Quoted().ToString()}";
-
-            var str1 = $"Drop table {trackingName.Quoted().ToString()}";
-            return MyTableSqlBuilder.WrapScriptTextWithComments(commandText, str1);
-        }
+        
 
     }
 }

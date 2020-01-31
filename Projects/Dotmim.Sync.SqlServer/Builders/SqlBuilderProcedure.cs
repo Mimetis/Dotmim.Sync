@@ -426,12 +426,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             CreateProcedureCommand(this.BuildBulkDeleteCommand, commandName);
         }
 
-        public string CreateBulkDeleteScriptText()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkDeleteRows).name;
-            return CreateProcedureCommandScriptText(this.BuildBulkDeleteCommand, commandName);
-        }
-
         public void DropBulkDelete()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
@@ -467,13 +461,6 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             }
 
-        }
-
-        public string DropBulkDeleteScriptText()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkDeleteRows).name;
-
-            return $"DROP PROCEDURE {commandName};";
         }
 
         //------------------------------------------------------------------
@@ -636,11 +623,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkUpdateRows).name;
             CreateProcedureCommand(BuildBulkUpdateCommand, commandName, hasMutableColumns);
         }
-        public string CreateBulkUpdateScriptText(bool hasMutableColumns)
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkUpdateRows).name;
-            return CreateProcedureCommandScriptText(BuildBulkUpdateCommand, commandName, hasMutableColumns);
-        }
         public void DropBulkUpdate()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
@@ -677,13 +659,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
 
         }
-        public string DropBulkUpdateScriptText()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkUpdateRows).name;
-
-            return $"DROP PROCEDURE {commandName};";
-        }
-
+ 
 
         //------------------------------------------------------------------
         // Reset command
@@ -727,11 +703,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.Reset).name;
             CreateProcedureCommand(BuildResetCommand, commandName);
         }
-        public string CreateResetScriptText()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.Reset).name;
-            return CreateProcedureCommandScriptText(BuildResetCommand, commandName);
-        }
         public void DropReset()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
@@ -768,13 +739,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
 
         }
-        public string DropResetScriptText()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.Reset).name;
-
-            return $"DROP PROCEDURE {commandName};";
-        }
-
 
         //------------------------------------------------------------------
         // Delete command
@@ -866,11 +830,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteRow).name;
             CreateProcedureCommand(BuildDeleteCommand, commandName);
         }
-        public string CreateDeleteScriptText()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteRow).name;
-            return CreateProcedureCommandScriptText(BuildDeleteCommand, commandName);
-        }
         public void DropDelete()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
@@ -907,13 +866,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
 
         }
-        public string DropDeleteScriptText()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteRow).name;
-
-            return $"DROP PROCEDURE {commandName};";
-        }
-
 
         //------------------------------------------------------------------
         // Delete Metadata command
@@ -943,11 +895,6 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata).name;
             CreateProcedureCommand(BuildDeleteMetadataCommand, commandName);
-        }
-        public string CreateDeleteMetadataScriptText()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata).name;
-            return CreateProcedureCommandScriptText(BuildDeleteMetadataCommand, commandName);
         }
         public void DropDeleteMetadata()
         {
@@ -984,12 +931,6 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             }
 
-        }
-        public string DropDeleteMetadataScriptText()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata).name;
-
-            return $"DROP PROCEDURE {commandName};";
         }
 
         //------------------------------------------------------------------
@@ -1043,11 +984,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectRow).name;
             CreateProcedureCommand(BuildSelectRowCommand, commandName);
         }
-        public string CreateSelectRowScriptText()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectRow).name;
-            return CreateProcedureCommandScriptText(BuildSelectRowCommand, commandName);
-        }
         public void DropSelectRow()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
@@ -1083,12 +1019,6 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             }
 
-        }
-        public string DropSelectRowScriptText()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectRow).name;
-
-            return $"DROP PROCEDURE {commandName};";
         }
 
         //------------------------------------------------------------------
@@ -1159,11 +1089,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
 
         }
-        public string CreateTVPTypeScriptText()
-        {
-            string str = string.Concat("Create TVP Type on table ", tableName.Schema().Quoted().ToString());
-            return SqlTableBuilder.WrapScriptTextWithComments(this.CreateTVPTypeCommandText(), str);
-        }
         public void DropTVPType()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
@@ -1200,13 +1125,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
 
         }
-        public string DropTVPTypeScriptText()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkTableType).name;
-
-            return $"DROP TYPE {commandName};";
-        }
-
+ 
         //------------------------------------------------------------------
         // Update command
         //------------------------------------------------------------------
@@ -1386,11 +1305,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateRow).name;
             this.CreateProcedureCommand(BuildUpdateCommand, commandName, hasMutableColumns);
         }
-        public string CreateUpdateScriptText(bool hasMutableColumns)
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateRow).name;
-            return CreateProcedureCommandScriptText(BuildUpdateCommand, commandName, hasMutableColumns);
-        }
         public void DropUpdate()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
@@ -1427,133 +1341,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
 
         }
-        public string DropUpdateScriptText()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateRow).name;
-
-            return $"DROP PROCEDURE {commandName};";
-        }
-
-        //------------------------------------------------------------------
-        // Update Metadata command
-        //------------------------------------------------------------------
-        protected virtual SqlCommand BuildUpdateMetadataCommand()
-        {
-            var sqlCommand = new SqlCommand();
-            var stringBuilder = new StringBuilder();
-            this.AddPkColumnParametersToCommand(sqlCommand);
-            var sqlParameter = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
-            sqlCommand.Parameters.Add(sqlParameter);
-            var sqlParameter1 = new SqlParameter("@sync_row_is_tombstone", SqlDbType.Int);
-            sqlCommand.Parameters.Add(sqlParameter1);
-            var sqlParameter3 = new SqlParameter("@create_timestamp", SqlDbType.BigInt);
-            sqlCommand.Parameters.Add(sqlParameter3);
-            var sqlParameter5 = new SqlParameter("@update_timestamp", SqlDbType.BigInt);
-            sqlCommand.Parameters.Add(sqlParameter5);
-            var sqlParameter8 = new SqlParameter("@sync_row_count", SqlDbType.Int)
-            {
-                Direction = ParameterDirection.Output
-            };
-            sqlCommand.Parameters.Add(sqlParameter8);
-
-            string str1 = SqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKeys, "");
-
-            stringBuilder.AppendLine($"SET {sqlParameter8.ParameterName} = 0;");
-            stringBuilder.AppendLine();
-
-            stringBuilder.AppendLine($"UPDATE {trackingName.Schema().Quoted().ToString()} SET ");
-            stringBuilder.AppendLine("\t [update_scope_id] = @sync_scope_id, ");
-            stringBuilder.AppendLine("\t [sync_row_is_tombstone] = @sync_row_is_tombstone, ");
-            stringBuilder.AppendLine("\t [last_change_datetime] = GetUtcDate() ");
-            stringBuilder.AppendLine($"WHERE ({str1})");
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"SET {sqlParameter8.ParameterName} = @@ROWCOUNT;");
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"IF ({sqlParameter8.ParameterName} = 0)");
-            stringBuilder.AppendLine($"BEGIN");
-
-            stringBuilder.AppendLine($"\tINSERT INTO {trackingName.Schema().Quoted().ToString()}");
-
-            string empty = string.Empty;
-            var stringBuilderArguments = new StringBuilder();
-            var stringBuilderParameters = new StringBuilder();
-
-            foreach (var pkColumn in this.tableDescription.PrimaryKeys)
-            {
-                var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
-                var parameterName = ParserName.Parse(pkColumn).Unquoted().Normalized().ToString();
-
-                stringBuilderArguments.Append(string.Concat(empty, columnName));
-                stringBuilderParameters.Append(string.Concat(empty, $"@{parameterName}"));
-                empty = ", ";
-            }
-            stringBuilder.AppendLine($"\t({stringBuilderArguments.ToString()}, ");
-            stringBuilder.AppendLine($"\t[update_scope_id], [sync_row_is_tombstone],  [last_change_datetime])");
-            stringBuilder.AppendLine($"\tVALUES ({stringBuilderParameters.ToString()}, ");
-            stringBuilder.AppendLine($"\t@sync_scope_id, @sync_row_is_tombstone,  GetUtcDate());");
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"\tSET {sqlParameter8.ParameterName} = @@rowcount; ");
-            stringBuilder.AppendLine();
-
-            stringBuilder.AppendLine($"END");
-
-            sqlCommand.CommandText = stringBuilder.ToString();
-            return sqlCommand;
-        }
-        public void CreateUpdateMetadata()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata).name;
-            CreateProcedureCommand(BuildUpdateMetadataCommand, commandName);
-        }
-        public string CreateUpdateMetadataScriptText()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata).name;
-            return CreateProcedureCommandScriptText(BuildUpdateMetadataCommand, commandName);
-        }
-        public void DropUpdateMetadata()
-        {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
-
-            try
-            {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        this.connection.Open();
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata).name;
-
-                    command.CommandText = $"DROP PROCEDURE {commandName};";
-                    command.Connection = this.connection;
-                    command.ExecuteNonQuery();
-
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during Drop UpdateMetadata : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
-        }
-        public string DropUpdateMetadataScriptText()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata).name;
-
-            return $"DROP PROCEDURE {commandName};";
-        }
-
-
+ 
         /// <summary>
         /// Add all sql parameters
         /// </summary>
@@ -1858,15 +1646,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
 
         }
-        public string CreateSelectIncrementalChangesScriptText()
-        {
-            StringBuilder sbSelecteChanges = new StringBuilder();
-
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChanges).name;
-            SqlCommand cmdWithoutFilter() => BuildSelectIncrementalChangesCommand(false);
-            sbSelecteChanges.AppendLine(CreateProcedureCommandScriptText(cmdWithoutFilter, commandName));
-            return sbSelecteChanges.ToString();
-        }
         public void DropSelectIncrementalChanges()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
@@ -1927,27 +1706,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
 
         }
-        public string DropSelectIncrementalChangesScriptText()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChanges).name;
-
-            string dropProcedure = $"DROP PROCEDURE {commandName};";
-
-            if (this.Filter != null)
-            {
-
-                using (var command = new SqlCommand())
-                {
-                    this.Filter.ValidateColumnFilters(this.tableDescription);
-                    var commandNameWithFilter = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWithFilters, this.Filter).name;
-                    dropProcedure += Environment.NewLine + $"DROP PROCEDURE {commandNameWithFilter};";
-
-                }
-            }
-            return dropProcedure;
-        }
-
-
 
         //------------------------------------------------------------------
         // Select initialized changes command
@@ -2024,51 +1782,6 @@ namespace Dotmim.Sync.SqlServer.Builders
                 CreateProcedureCommand(cmdWithFilter, commandName);
             }
         }
-        public string CreateSelectInitializedChangesScriptText()
-        {
-            StringBuilder sbSelecteChanges = new StringBuilder();
-
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChanges).name;
-            SqlCommand cmdWithoutFilter() => BuildSelectInitializedChangesCommand(false);
-            sbSelecteChanges.AppendLine(CreateProcedureCommandScriptText(cmdWithoutFilter, commandName));
-
-
-            //if (this.Filters != null && this.Filters.Count > 0)
-            //{
-            //    commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChangesWithFilters).name;
-            //    string name = "";
-            //    string sep = "";
-
-            //    foreach (var c in this.Filters)
-            //    {
-            //        string unquotedColumnName;
-            //        if (!c.IsVirtual)
-            //        {
-            //            var columnFilter = this.tableDescription.Columns[c.ColumnName];
-
-            //            if (columnFilter == null)
-            //                throw new InvalidExpressionException(
-            //                    $"Column {c.ColumnName} does not exist in Table {this.tableDescription.TableName}");
-
-
-            //            unquotedColumnName = ParserName.Parse(columnFilter).Unquoted().Normalized().ToString();
-            //        }
-            //        else
-            //        {
-            //            unquotedColumnName = ParserName.Parse(c.ColumnName).Unquoted().Normalized().ToString();
-            //        }
-
-            //        name += $"{unquotedColumnName}{sep}";
-            //        sep = "_";
-            //    }
-
-            //    commandName = String.Format(commandName, name);
-            //    SqlCommand cmdWithFilter() => BuildSelectInitializedChangesCommand(true);
-            //    sbSelecteChanges.AppendLine(CreateProcedureCommandScriptText(cmdWithFilter, commandName));
-
-            //}
-            return sbSelecteChanges.ToString();
-        }
         public void DropSelectInitializedChanges()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
@@ -2129,25 +1842,6 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             }
 
-        }
-        public string DropSelectInitializedChangesScriptText()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChanges).name;
-
-            string dropProcedure = $"DROP PROCEDURE {commandName};";
-
-            if (this.Filter != null)
-            {
-
-                using (var command = new SqlCommand())
-                {
-                    this.Filter.ValidateColumnFilters(this.tableDescription);
-                    var commandNameWithFilter = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWithFilters, this.Filter).name;
-                    dropProcedure += Environment.NewLine + $"DROP PROCEDURE {commandNameWithFilter};";
-
-                }
-            }
-            return dropProcedure;
         }
     }
 }

@@ -271,13 +271,6 @@ namespace Dotmim.Sync
                 // Launch any interceptor if available
                 await this.InterceptAsync(new TableProvisioningArgs(context, SyncProvision.All, schemaTable, connection, transaction)).ConfigureAwait(false);
 
-                string currentScript = null;
-                if (beforeArgs.GenerateScript)
-                {
-                    currentScript = tableBuilder.ScriptTable(connection, transaction);
-                    currentScript += tableBuilder.ScriptForeignKeys(connection, transaction);
-                    script.Append(currentScript);
-                }
 
                 tableBuilder.Create(connection, transaction);
                 tableBuilder.CreateForeignKeys(connection, transaction);
