@@ -35,8 +35,6 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         }
 
-
-
         private string DeleteTriggerBodyText()
         {
             var stringBuilder = new StringBuilder();
@@ -164,18 +162,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
         }
 
-        public string CreateDeleteTriggerScriptText()
-        {
-
-            var delTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger).name;
-            var createTrigger = new StringBuilder($"CREATE TRIGGER {delTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR DELETE AS");
-            createTrigger.AppendLine();
-            createTrigger.AppendLine(this.DeleteTriggerBodyText());
-
-            string str = $"Delete Trigger for table {tableName.Schema().Quoted().ToString()}";
-            return SqlTableBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
-        }
-
         public void AlterDeleteTrigger()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
@@ -217,26 +203,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         }
 
-        public string AlterDeleteTriggerScriptText()
-        {
-            (var tableName, _) = SqlTableBuilder.GetParsers(this.tableDescription);
-            var delTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger).name;
-            StringBuilder createTrigger = new StringBuilder($"ALTER TRIGGER {delTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR DELETE AS");
-            createTrigger.AppendLine();
-            createTrigger.AppendLine(this.InsertTriggerBodyText());
-
-            string str = $"ALTER Trigger Delete for table {tableName.Schema().Quoted().ToString()}";
-            return SqlTableBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
-        }
-
-        public string DropDeleteTriggerScriptText()
-        {
-            var triggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger).name;
-            var trigger = $"DELETE TRIGGER {triggerName};";
-            var str = $"Drop Delete Trigger for table {tableName.Schema().Quoted().ToString()}";
-            return SqlTableBuilder.WrapScriptTextWithComments(trigger, str);
-        }
-
+   
         private string InsertTriggerBodyText()
         {
             var stringBuilder = new StringBuilder();
@@ -363,17 +330,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
         }
 
-        public string CreateInsertTriggerScriptText()
-        {
-            var insTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger).name;
-            var createTrigger = new StringBuilder($"CREATE TRIGGER {insTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR INSERT AS");
-            createTrigger.AppendLine();
-            createTrigger.AppendLine(this.InsertTriggerBodyText());
-
-            string str = $"Insert Trigger for table {tableName.Schema().Quoted().ToString()}";
-            return SqlTableBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
-
-        }
         public void AlterInsertTrigger()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
@@ -412,24 +368,8 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             }
         }
-        public string AlterInsertTriggerScriptText()
-        {
-            var insTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger).name;
-            StringBuilder createTrigger = new StringBuilder($"ALTER TRIGGER {insTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR INSERT AS");
-            createTrigger.AppendLine();
-            createTrigger.AppendLine(this.InsertTriggerBodyText());
+     
 
-            string str = $"ALTER Trigger Insert for table {tableName.Schema().Quoted().ToString()}";
-            return SqlTableBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
-        }
-
-        public string DropInsertTriggerScriptText()
-        {
-            var triggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger).name;
-            var trigger = $"DELETE TRIGGER {triggerName};";
-            var str = $"Drop Insert Trigger for table {tableName.Schema().Quoted().ToString()}";
-            return SqlTableBuilder.WrapScriptTextWithComments(trigger, str);
-        }
         private string UpdateTriggerBodyText()
         {
             var stringBuilder = new StringBuilder();
@@ -592,25 +532,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
         }
 
-        public string CreateUpdateTriggerScriptText()
-        {
-            var updTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger).name;
-            var createTrigger = new StringBuilder($"CREATE TRIGGER {updTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR UPDATE AS");
-            createTrigger.AppendLine();
-            createTrigger.AppendLine(this.UpdateTriggerBodyText());
-
-            string str = $"Update Trigger for table {tableName.Schema().Quoted().ToString()}";
-            return SqlTableBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
-        }
-
-        public string DropUpdateTriggerScriptText()
-        {
-            var triggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger).name;
-            var trigger = $"DELETE TRIGGER {triggerName};";
-            var str = $"Drop Update Trigger for table {tableName.Schema().Quoted().ToString()}";
-            return SqlTableBuilder.WrapScriptTextWithComments(trigger, str);
-        }
-
+    
         public void AlterUpdateTrigger()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
@@ -649,19 +571,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             }
         }
-        public string AlterUpdateTriggerScriptText()
-        {
-            (var tableName, _) = SqlTableBuilder.GetParsers(this.tableDescription);
-            var updTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger).name;
-
-            StringBuilder createTrigger = new StringBuilder($"ALTER TRIGGER {updTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR UPDATE AS");
-            createTrigger.AppendLine();
-            createTrigger.AppendLine(this.InsertTriggerBodyText());
-
-            string str = $"ALTER Trigger Update for table {tableName.Schema().Quoted().ToString()}";
-            return SqlTableBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
-        }
-
+    
         public virtual bool NeedToCreateTrigger(DbTriggerType type)
         {
 

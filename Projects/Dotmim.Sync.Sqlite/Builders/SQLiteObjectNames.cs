@@ -84,7 +84,6 @@ namespace Dotmim.Sync.Sqlite
             this.CreateDeleteCommandText();
             this.CreateDeleteMetadataCommandText();
             this.CreateUpdateCommandText(hasMutableColumns);
-            this.CreateUpdatedMetadataCommandText(hasMutableColumns);
             this.CreateResetCommandText();
 
             // Sqlite does not have any constraints, so just return a simple statement
@@ -172,32 +171,7 @@ namespace Dotmim.Sync.Sqlite
             this.AddName(DbCommandType.UpdateRow, cmdtext);
         }
 
-        private void CreateUpdatedMetadataCommandText(bool hasMutableColumns)
-        {
-            var stringBuilder = new StringBuilder();
-            var stringBuilderArguments = new StringBuilder();
-            var stringBuilderParameters = new StringBuilder();
-
-            stringBuilder.AppendLine($"\tINSERT OR REPLACE INTO {trackingName.Quoted().ToString()}");
-
-            string empty = string.Empty;
-            foreach (var pkColumn in this.TableDescription.PrimaryKeys)
-            {
-                var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
-                var unquotedColumnName = ParserName.Parse(pkColumn).Unquoted().Normalized().ToString();
-
-                stringBuilderArguments.Append(string.Concat(empty, columnName));
-                stringBuilderParameters.Append(string.Concat(empty, $"@{unquotedColumnName}"));
-                empty = ", ";
-            }
-            stringBuilder.AppendLine($"\t({stringBuilderArguments.ToString()}, ");
-            stringBuilder.AppendLine($"\t[update_scope_id], [sync_row_is_tombstone], [timestamp], [last_change_datetime])");
-            stringBuilder.AppendLine($"\tVALUES ({stringBuilderParameters.ToString()}, ");
-            stringBuilder.AppendLine($"\t@sync_scope_id, @sync_row_is_tombstone, {SqliteObjectNames.TimestampValue}, datetime('now'));");
-
-            this.AddName(DbCommandType.UpdateMetadata, stringBuilder.ToString());
-
-        }
+      
 
         private void CreateDeleteMetadataCommandText()
         {

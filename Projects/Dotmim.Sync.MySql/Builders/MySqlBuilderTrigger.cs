@@ -126,32 +126,10 @@ namespace Dotmim.Sync.MySql
 
             }
         }
-        public string CreateDeleteTriggerScriptText()
-        {
+     
+        public void AlterDeleteTrigger(){ }
+      
 
-            var delTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger).name, tableName.Unquoted().Normalized().ToString());
-            StringBuilder createTrigger = new StringBuilder();
-            createTrigger.AppendLine($"CREATE TRIGGER {delTriggerName} AFTER DELETE ON {tableName.Quoted().ToString()} FOR EACH ROW ");
-            createTrigger.AppendLine();
-            createTrigger.AppendLine(this.DeleteTriggerBodyText());
-
-            string str = $"Delete Trigger for table {tableName.Quoted().ToString()}";
-            return MyTableSqlBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
-        }
-        public void AlterDeleteTrigger()
-        {
-
-
-        }
-        public string AlterDeleteTriggerScriptText()
-        {
-            return "";
-        }
-
-        /// <summary>
-        /// TODO : Check if row was deleted before, to just make an update !!!!
-        /// </summary>
-        /// <returns></returns>
         private string InsertTriggerBodyText()
         {
             StringBuilder stringBuilder = new StringBuilder();
@@ -161,9 +139,9 @@ namespace Dotmim.Sync.MySql
 
             stringBuilder.AppendLine($"\tINSERT INTO {trackingName.Quoted().ToString()} (");
 
-            StringBuilder stringBuilderArguments = new StringBuilder();
-            StringBuilder stringBuilderArguments2 = new StringBuilder();
-            StringBuilder stringPkAreNull = new StringBuilder();
+            var stringBuilderArguments = new StringBuilder();
+            var stringBuilderArguments2 = new StringBuilder();
+            var stringPkAreNull = new StringBuilder();
 
             string argComma = string.Empty;
             string argAnd = string.Empty;
@@ -248,31 +226,13 @@ namespace Dotmim.Sync.MySql
 
             }
         }
-        public string CreateInsertTriggerScriptText()
-        {
-            var insTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.InsertTrigger).name, tableName.Unquoted().Normalized().ToString());
-            StringBuilder createTrigger = new StringBuilder();
-            createTrigger.AppendLine($"CREATE TRIGGER {insTriggerName} AFTER INSERT ON {tableName.Quoted().ToString()} FOR EACH ROW ");
-            createTrigger.AppendLine();
-            createTrigger.AppendLine(this.InsertTriggerBodyText());
-
-            string str = $"Insert Trigger for table {tableName.Quoted().ToString()}";
-            return MyTableSqlBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
-
-        }
-        public void AlterInsertTrigger()
-        {
-
-        }
-        public string AlterInsertTriggerScriptText()
-        {
-            return "";
-        }
-
+       
+        public void AlterInsertTrigger(){ }
+       
 
         private string UpdateTriggerBodyText()
         {
-            StringBuilder stringBuilder = new StringBuilder();
+            var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($"Begin ");
             stringBuilder.AppendLine($"\tUPDATE {trackingName.Quoted().ToString()} ");
@@ -409,25 +369,9 @@ namespace Dotmim.Sync.MySql
 
             }
         }
-        public string CreateUpdateTriggerScriptText()
-        {
-            var updTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger).name, tableName.Unquoted().Normalized().ToString());
-            StringBuilder createTrigger = new StringBuilder();
-            createTrigger.AppendLine($"CREATE TRIGGER {updTriggerName} AFTER UPDATE ON {tableName.Quoted().ToString()} FOR EACH ROW ");
-            createTrigger.AppendLine();
-            createTrigger.AppendLine(this.UpdateTriggerBodyText());
+        
+        public void AlterUpdateTrigger() { return; }
 
-            string str = $"Update Trigger for table {tableName.Quoted().ToString()}";
-            return MyTableSqlBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
-        }
-        public void AlterUpdateTrigger()
-        {
-            return;
-        }
-        public string AlterUpdateTriggerScriptText()
-        {
-            return string.Empty;
-        }
         public bool NeedToCreateTrigger(DbTriggerType type)
         {
             var updTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger).name, tableName.Unquoted().Normalized().ToString());
@@ -493,44 +437,11 @@ namespace Dotmim.Sync.MySql
         }
 
 
-        public void DropInsertTrigger()
-        {
-            DropTrigger(DbCommandType.InsertTrigger);
-        }
+        public void DropInsertTrigger() => this.DropTrigger(DbCommandType.InsertTrigger);
 
-        public void DropUpdateTrigger()
-        {
-            DropTrigger(DbCommandType.UpdateTrigger);
-        }
+        public void DropUpdateTrigger() => this.DropTrigger(DbCommandType.UpdateTrigger);
 
-        public void DropDeleteTrigger()
-        {
-            DropTrigger(DbCommandType.DeleteTrigger);
-        }
+        public void DropDeleteTrigger() => this.DropTrigger(DbCommandType.DeleteTrigger);
 
-        private string DropTriggerText(DbCommandType triggerType)
-        {
-            var commandName = this.mySqlObjectNames.GetCommandName(triggerType).name;
-            var commandText = $"drop trigger if exists {commandName}";
-
-            var str1 = $"Drop trigger {commandName} for table {tableName.Quoted().ToString()}";
-            return MyTableSqlBuilder.WrapScriptTextWithComments(commandText, str1);
-
-        }
-
-        public string DropInsertTriggerScriptText()
-        {
-            return DropTriggerText(DbCommandType.InsertTrigger);
-        }
-
-        public string DropUpdateTriggerScriptText()
-        {
-            return DropTriggerText(DbCommandType.UpdateTrigger);
-        }
-
-        public string DropDeleteTriggerScriptText()
-        {
-            return DropTriggerText(DbCommandType.DeleteTrigger);
-        }
     }
 }

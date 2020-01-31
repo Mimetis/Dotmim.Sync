@@ -114,26 +114,9 @@ namespace Dotmim.Sync.Sqlite
 
             }
         }
-        public string CreateDeleteTriggerScriptText()
-        {
 
-            var delTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.DeleteTrigger), tableName.Unquoted().ToString());
-            StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER IF NOT EXISTS {delTriggerName} AFTER DELETE ON {tableName.Quoted().ToString()} ");
-            createTrigger.AppendLine();
-            createTrigger.AppendLine(this.DeleteTriggerBodyText());
-
-            string str = $"Delete Trigger for table {tableName.Quoted().ToString()}";
-            return SqliteTableBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
-        }
-        public void AlterDeleteTrigger()
-        {
-
-
-        }
-        public string AlterDeleteTriggerScriptText()
-        {
-            return "";
-        }
+        public void AlterDeleteTrigger() { }
+        public string AlterDeleteTriggerScriptText() => string.Empty;
 
         private string InsertTriggerBodyText()
         {
@@ -216,27 +199,9 @@ namespace Dotmim.Sync.Sqlite
 
             }
         }
-        public string CreateInsertTriggerScriptText()
-        {
-            var insTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.InsertTrigger), tableName.Unquoted().ToString());
-            StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER IF NOT EXISTS {insTriggerName} AFTER INSERT ON {tableName.Quoted().ToString()} ");
-            createTrigger.AppendLine();
-            createTrigger.AppendLine(this.InsertTriggerBodyText());
 
-            string str = $"Insert Trigger for table {tableName.Quoted().ToString()}";
-            return SqliteTableBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
+        public void AlterInsertTrigger() { }
 
-        }
-        public void AlterInsertTrigger()
-        {
-
-        }
-        public string AlterInsertTriggerScriptText()
-        {
-            return "";
-        }
-
-      
         private string UpdateTriggerBodyText()
         {
             StringBuilder stringBuilder = new StringBuilder();
@@ -362,24 +327,7 @@ namespace Dotmim.Sync.Sqlite
 
             }
         }
-        public string CreateUpdateTriggerScriptText()
-        {
-            var updTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.UpdateTrigger), tableName.Unquoted().ToString());
-            StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER IF NOT EXISTS {updTriggerName} AFTER UPDATE ON {tableName.Quoted().ToString()} ");
-            createTrigger.AppendLine();
-            createTrigger.AppendLine(this.UpdateTriggerBodyText());
-
-            string str = $"Update Trigger for table {tableName.Quoted().ToString()}";
-            return SqliteTableBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
-        }
-        public void AlterUpdateTrigger()
-        {
-            return;
-        }
-        public string AlterUpdateTriggerScriptText()
-        {
-            return string.Empty;
-        }
+        public void AlterUpdateTrigger() { return; }
         public bool NeedToCreateTrigger(DbTriggerType type)
         {
             var updTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.UpdateTrigger), tableName.Unquoted().ToString());
@@ -411,6 +359,10 @@ namespace Dotmim.Sync.Sqlite
 
         }
 
+
+        public void DropInsertTrigger() => this.DropTrigger(DbCommandType.InsertTrigger);
+        public void DropUpdateTrigger() => this.DropTrigger(DbCommandType.UpdateTrigger);
+        public void DropDeleteTrigger() => this.DropTrigger(DbCommandType.DeleteTrigger);
 
         private void DropTrigger(DbCommandType triggerType)
         {
@@ -450,43 +402,7 @@ namespace Dotmim.Sync.Sqlite
             }
         }
 
-        public string CreateDropTriggerScriptText(DbCommandType triggerType)
-        {
-            var triggerName = string.Format(this.sqliteObjectNames.GetCommandName(triggerType), tableName.Unquoted().ToString());
-            string dropTrigger = $"DROP TRIGGER IF EXISTS {triggerName}";
-            string str = $"Drop Trigger {triggerName} for table {tableName.Quoted().ToString()}";
-            return SqliteTableBuilder.WrapScriptTextWithComments(dropTrigger, str);
-        }
 
 
-        public void DropInsertTrigger()
-        {
-            DropTrigger(DbCommandType.InsertTrigger);
-        }
-
-        public void DropUpdateTrigger()
-        {
-            DropTrigger(DbCommandType.UpdateTrigger);
-        }
-
-        public void DropDeleteTrigger()
-        {
-            DropTrigger(DbCommandType.DeleteTrigger);
-        }
-
-        public string DropInsertTriggerScriptText()
-        {
-            return CreateDropTriggerScriptText(DbCommandType.InsertTrigger);
-        }
-
-        public string DropUpdateTriggerScriptText()
-        {
-            return CreateDropTriggerScriptText(DbCommandType.UpdateTrigger);
-        }
-
-        public string DropDeleteTriggerScriptText()
-        {
-            return CreateDropTriggerScriptText(DbCommandType.DeleteTrigger);
-        }
     }
 }

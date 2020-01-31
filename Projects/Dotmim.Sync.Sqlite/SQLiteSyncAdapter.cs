@@ -83,9 +83,6 @@ namespace Dotmim.Sync.Sqlite
                 case DbCommandType.DeleteRow:
                     this.SetDeleteRowParameters(command);
                     break;
-                case DbCommandType.UpdateMetadata:
-                    this.SetUpdateMetadataParameters(command);
-                    break;
                 case DbCommandType.UpdateRow:
                     this.SetUpdateRowParameters(command);
                     break;
@@ -144,36 +141,6 @@ namespace Dotmim.Sync.Sqlite
 
 
 
-        }
-
-        private void SetUpdateMetadataParameters(DbCommand command)
-        {
-            DbParameter p;
-
-            foreach (var column in this.TableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
-            {
-                var unquotedColumn = ParserName.Parse(column).Normalized().Unquoted().ToString();
-                p = command.CreateParameter();
-                p.ParameterName = $"@{unquotedColumn}";
-                p.DbType = GetValidDbType(column.GetDbType());
-                p.SourceColumn = column.ColumnName;
-                command.Parameters.Add(p);
-            }
-
-            p = command.CreateParameter();
-            p.ParameterName = "@sync_scope_id";
-            p.DbType = DbType.Guid;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "@sync_row_is_tombstone";
-            p.DbType = DbType.Int32;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "@update_timestamp";
-            p.DbType = DbType.Int64;
-            command.Parameters.Add(p);
         }
 
         private void SetDeleteRowParameters(DbCommand command)

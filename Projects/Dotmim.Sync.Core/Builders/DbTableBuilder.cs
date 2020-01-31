@@ -62,10 +62,7 @@ namespace Dotmim.Sync.Builders
         /// <summary>
         /// Construct a DbBuilder
         /// </summary>
-        public DbTableBuilder(SyncTable tableDescription)
-        {
-            this.TableDescription = tableDescription;
-        }
+        public DbTableBuilder(SyncTable tableDescription) => this.TableDescription = tableDescription;
 
         /// <summary>
         /// Apply config.
@@ -115,9 +112,6 @@ namespace Dotmim.Sync.Builders
                 trackingTableBuilder.CreateTable();
                 trackingTableBuilder.CreatePk();
                 trackingTableBuilder.CreateIndex();
-
-                // Fill the tracking table with actual rows from base table
-                trackingTableBuilder.PopulateFromBaseTable();
             }
 
             if (!alreadyOpened)
@@ -178,8 +172,7 @@ namespace Dotmim.Sync.Builders
 
             if (procBuilder.NeedToCreateProcedure(DbCommandType.DeleteRow))
                 procBuilder.CreateDelete();
-            if (procBuilder.NeedToCreateProcedure(DbCommandType.UpdateMetadata))
-                procBuilder.CreateUpdateMetadata();
+
             if (procBuilder.NeedToCreateProcedure(DbCommandType.DeleteMetadata))
                 procBuilder.CreateDeleteMetadata();
             if (procBuilder.NeedToCreateProcedure(DbCommandType.Reset))
@@ -253,9 +246,6 @@ namespace Dotmim.Sync.Builders
         {
             var alreadyOpened = connection.State != ConnectionState.Closed;
 
-            // Check if we have mutables columns
-            var hasMutableColumns = TableDescription.GetMutableColumns(false).Any();
-
             if (!alreadyOpened)
                 connection.Open();
 
@@ -277,8 +267,6 @@ namespace Dotmim.Sync.Builders
                 procBuilder.DropUpdate();
             if (!procBuilder.NeedToCreateProcedure(DbCommandType.DeleteRow))
                 procBuilder.DropDelete();
-            if (!procBuilder.NeedToCreateProcedure(DbCommandType.UpdateMetadata))
-                procBuilder.DropUpdateMetadata();
             if (!procBuilder.NeedToCreateProcedure(DbCommandType.DeleteMetadata))
                 procBuilder.DropDeleteMetadata();
             if (!procBuilder.NeedToCreateProcedure(DbCommandType.Reset))
@@ -380,124 +368,5 @@ namespace Dotmim.Sync.Builders
                 connection.Close();
 
         }
-
-
-        public string ScriptForeignKeys(DbConnection connection, DbTransaction transaction = null)
-        {
-            var alreadyOpened = connection.State != ConnectionState.Closed;
-
-
-            if (!alreadyOpened)
-                connection.Open();
-
-            var stringBuilder = new StringBuilder();
-
-            var tableBuilder = CreateTableBuilder(connection, transaction);
-
-            foreach (var constraint in this.TableDescription.GetRelations())
-            {
-                if (tableBuilder.NeedToCreateForeignKeyConstraints(constraint))
-                    stringBuilder.Append(tableBuilder.CreateForeignKeyConstraintsScriptText(constraint));
-            }
-
-            if (!alreadyOpened)
-                connection.Close();
-
-            return stringBuilder.ToString();
-        }
-
-        /// <summary>
-        /// Generate the creating script string (admin only)
-        /// </summary>
-        public string ScriptTable(DbConnection connection, DbTransaction transaction = null)
-        {
-            string str = null;
-            var alreadyOpened = connection.State != ConnectionState.Closed;
-            bool needToCreateTrackingTable = false;
-
-
-            if (!alreadyOpened)
-                connection.Open();
-
-            StringBuilder stringBuilder = new StringBuilder();
-
-            var tableBuilder = CreateTableBuilder(connection, transaction);
-
-            // Check if we have mutables columns
-            var hasMutableColumns = TableDescription.GetMutableColumns(false).Any();
-
-            // Check if we need to create the tables
-            if (tableBuilder.NeedToCreateTable())
-            {
-                if (tableBuilder.NeedToCreateSchema())
-                    stringBuilder.Append(tableBuilder.CreateSchemaScriptText());
-
-                stringBuilder.Append(tableBuilder.CreateTableScriptText());
-                stringBuilder.Append(tableBuilder.CreatePrimaryKeyScriptText());
-            }
-
-            var trackingTableBuilder = CreateTrackingTableBuilder(connection, transaction);
-            trackingTableBuilder.Filter = this.Filter;
-
-            if (trackingTableBuilder.NeedToCreateTrackingTable())
-            {
-                stringBuilder.Append(trackingTableBuilder.CreateTableScriptText());
-                stringBuilder.Append(trackingTableBuilder.CreatePkScriptText());
-                stringBuilder.Append(trackingTableBuilder.CreateIndexScriptText());
-
-                needToCreateTrackingTable = true;
-            }
-            var triggerBuilder = CreateTriggerBuilder(connection, transaction);
-            triggerBuilder.Filter = this.Filter;
-
-            if (triggerBuilder.NeedToCreateTrigger(DbTriggerType.Insert))
-                stringBuilder.Append(triggerBuilder.CreateInsertTriggerScriptText());
-            if (triggerBuilder.NeedToCreateTrigger(DbTriggerType.Update))
-                stringBuilder.Append(triggerBuilder.CreateUpdateTriggerScriptText());
-            if (triggerBuilder.NeedToCreateTrigger(DbTriggerType.Delete))
-                stringBuilder.Append(triggerBuilder.CreateDeleteTriggerScriptText());
-
-            var procBuilder = CreateProcBuilder(connection, transaction);
-
-            if (procBuilder != null)
-            {
-                procBuilder.Filter = this.Filter;
-
-                if (procBuilder.NeedToCreateProcedure(DbCommandType.SelectChanges))
-                    stringBuilder.Append(procBuilder.CreateSelectIncrementalChangesScriptText());
-                if (procBuilder.NeedToCreateProcedure(DbCommandType.SelectInitializedChanges))
-                    stringBuilder.Append(procBuilder.CreateSelectInitializedChangesScriptText());
-                if (procBuilder.NeedToCreateProcedure(DbCommandType.SelectRow))
-                    stringBuilder.Append(procBuilder.CreateSelectRowScriptText());
-                if (procBuilder.NeedToCreateProcedure(DbCommandType.UpdateRow))
-                    stringBuilder.Append(procBuilder.CreateUpdateScriptText(hasMutableColumns));
-                if (procBuilder.NeedToCreateProcedure(DbCommandType.DeleteRow))
-                    stringBuilder.Append(procBuilder.CreateDeleteScriptText());
-                if (procBuilder.NeedToCreateProcedure(DbCommandType.UpdateMetadata))
-                    stringBuilder.Append(procBuilder.CreateUpdateMetadataScriptText());
-                if (procBuilder.NeedToCreateProcedure(DbCommandType.DeleteMetadata))
-                    stringBuilder.Append(procBuilder.CreateDeleteMetadataScriptText());
-                if (procBuilder.NeedToCreateProcedure(DbCommandType.Reset))
-                    stringBuilder.Append(procBuilder.CreateResetScriptText());
-
-                if (this.UseBulkProcedures && procBuilder.NeedToCreateType(DbCommandType.BulkTableType))
-                {
-                    stringBuilder.Append(procBuilder.CreateTVPTypeScriptText());
-                    stringBuilder.Append(procBuilder.CreateBulkUpdateScriptText(hasMutableColumns));
-                    stringBuilder.Append(procBuilder.CreateBulkDeleteScriptText());
-                }
-                if (needToCreateTrackingTable)
-                {
-                    stringBuilder.Append(trackingTableBuilder.CreatePopulateFromBaseTableScriptText());
-                }
-            }
-            str = stringBuilder.ToString();
-
-            if (!alreadyOpened)
-                connection.Close();
-
-            return str;
-        }
-
     }
 }

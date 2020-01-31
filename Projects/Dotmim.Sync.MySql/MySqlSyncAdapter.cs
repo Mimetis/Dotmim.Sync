@@ -95,10 +95,7 @@ namespace Dotmim.Sync.MySql
                 case DbCommandType.DeleteRow:
                     this.SetDeleteRowParameters(command);
                     break;
-                case DbCommandType.UpdateMetadata:
-                    this.SetUpdateMetadataParameters(command);
-                    break;
-                case DbCommandType.UpdateRow:
+               case DbCommandType.UpdateRow:
                     this.SetUpdateRowParameters(command);
                     break;
                 default:
@@ -142,41 +139,6 @@ namespace Dotmim.Sync.MySql
             p.Direction = ParameterDirection.Output;
             command.Parameters.Add(p);
 
-        }
-
-        private void SetUpdateMetadataParameters(DbCommand command)
-        {
-            DbParameter p;
-
-            foreach (var column in this.TableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
-            {
-                var quotedColumn = ParserName.Parse(column, "`").Unquoted().Normalized().ToString();
-                p = command.CreateParameter();
-                p.ParameterName = $"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{quotedColumn}";
-                p.DbType = column.GetDbType();
-                p.SourceColumn = column.ColumnName;
-                command.Parameters.Add(p);
-            }
-
-            p = command.CreateParameter();
-            p.ParameterName = "sync_scope_id";
-            p.DbType = DbType.Guid;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "sync_row_is_tombstone";
-            p.DbType = DbType.Int32;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "create_timestamp";
-            p.DbType = DbType.Int64;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "update_timestamp";
-            p.DbType = DbType.Int64;
-            command.Parameters.Add(p);
         }
 
         private void SetDeleteRowParameters(DbCommand command)

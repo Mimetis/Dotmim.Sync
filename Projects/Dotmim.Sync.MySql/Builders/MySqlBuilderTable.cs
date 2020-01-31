@@ -24,10 +24,8 @@ namespace Dotmim.Sync.MySql
 
         private static Dictionary<string, string> createdRelationNames = new Dictionary<string, string>();
 
-        private static string GetRandomString()
-        {
-            return Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
-        }
+        private static string GetRandomString() 
+            => Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
 
         /// <summary>
         /// Ensure the relation name is correct to be created in MySql
@@ -101,11 +99,6 @@ namespace Dotmim.Sync.MySql
 
         public bool NeedToCreateForeignKeyConstraints(SyncRelation relation)
         {
-            // Don't want foreign key on same table since it could be a problem on first 
-            // sync. We are not sure that parent row will be inserted in first position
-            //if (relation.GetParentTable() == relation.GetTable())
-            //    return false;
-
             string tableName = relation.GetTable().TableName;
 
             var relationName = NormalizeRelationName(relation.RelationName);
@@ -171,29 +164,11 @@ namespace Dotmim.Sync.MySql
 
         }
 
-        public string CreateForeignKeyConstraintsScriptText(SyncRelation constraint)
-        {
-            var stringBuilder = new StringBuilder();
-            var relationName = NormalizeRelationName(constraint.RelationName);
+    
 
-            var constraintName = $"Create Constraint {constraint.RelationName} between parent {constraint.GetParentTable().TableName} and child {constraint.GetTable().TableName}";
-            var constraintScript = this.BuildForeignKeyConstraintsCommand(constraint).CommandText;
-            stringBuilder.Append(MyTableSqlBuilder.WrapScriptTextWithComments(constraintScript, constraintName));
-            stringBuilder.AppendLine();
+        public void CreatePrimaryKey() { return; }
 
-            return stringBuilder.ToString();
-        }
-
-        public void CreatePrimaryKey()
-        {
-            return;
-        }
-        public string CreatePrimaryKeyScriptText()
-        {
-            return string.Empty;
-        }
-
-
+    
         private MySqlCommand BuildTableCommand()
         {
             var command = new MySqlCommand();
@@ -295,84 +270,17 @@ namespace Dotmim.Sync.MySql
             }
 
         }
-        public string CreateTableScriptText()
-        {
-            var stringBuilder = new StringBuilder();
-            var tableNameScript = $"Create Table {this.tableName.Quoted().ToString()}";
-            var tableScript = this.BuildTableCommand().CommandText;
-            stringBuilder.Append(MyTableSqlBuilder.WrapScriptTextWithComments(tableScript, tableNameScript));
-            stringBuilder.AppendLine();
-            return stringBuilder.ToString();
-        }
 
-        /// <summary>
-        /// For a foreign key, check if the Parent table exists
-        /// </summary>
-        private bool EnsureForeignKeysTableExist(SyncRelation constraint)
-        {
-            var table = constraint.GetTable();
-            var parentTable = constraint.GetParentTable();
-
-            // The foreignkey comes from the child table
-            var ds = constraint.GetTable().Schema;
-
-            if (ds == null)
-                return false;
-
-            // Check if the parent table is part of the sync configuration
-            var exist = ds.Tables.Any(t => t == parentTable);
-
-            if (!exist)
-                return false;
-
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
-
-            try
-            {
-                if (!alreadyOpened)
-                    this.connection.Open();
-
-                return MySqlManagementUtils.TableExists(this.connection, this.transaction, ParserName.Parse(parentTable));
-
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during EnsureForeignKeysTableExist : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
-
-        }
 
         /// <summary>
         /// Check if we need to create the table in the current database
         /// </summary>
-        public bool NeedToCreateTable()
-        {
-            return !MySqlManagementUtils.TableExists(this.connection, this.transaction, this.tableName);
-        }
+        public bool NeedToCreateTable() 
+            => !MySqlManagementUtils.TableExists(this.connection, this.transaction, this.tableName);
 
-        public bool NeedToCreateSchema()
-        {
-            return false;
-        }
+        public bool NeedToCreateSchema() => false;
 
-        public void CreateSchema()
-        {
-            return;
-        }
-
-        public string CreateSchemaScriptText()
-        {
-            return string.Empty;
-        }
+        public void CreateSchema() { return; }
 
         public void DropTable()
         {
@@ -406,13 +314,6 @@ namespace Dotmim.Sync.MySql
             }
 
         }
-
-        public string DropTableScriptText()
-        {
-            var commandText = $"drop table if exists {this.tableName.Quoted().ToString()}";
-
-            var str1 = $"Drop table {this.tableName.Quoted().ToString()}";
-            return MyTableSqlBuilder.WrapScriptTextWithComments(commandText, str1);
-        }
+      
     }
 }
