@@ -344,7 +344,7 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine($"SELECT `timestamp`, `update_scope_id` FROM {trackingName.Quoted().ToString()} WHERE {MySqlManagementUtils.WhereColumnAndParameters(this.tableDescription.PrimaryKeys, trackingName.Quoted().ToString())} LIMIT 1 INTO ts, t_update_scope_id;");
             stringBuilder.AppendLine($"DELETE FROM {tableName.Quoted().ToString()} WHERE");
             stringBuilder.AppendLine(MySqlManagementUtils.WhereColumnAndParameters(this.tableDescription.PrimaryKeys, ""));
-            stringBuilder.AppendLine("AND (ts <= sync_min_timestamp OR t_update_scope_id = sync_scope_id OR sync_force_write = 1);");
+            stringBuilder.AppendLine("AND (ts <= sync_min_timestamp OR ts IS NULL OR t_update_scope_id = sync_scope_id OR sync_force_write = 1);");
 
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($"SELECT ROW_COUNT() LIMIT 1 INTO sync_row_count;");
@@ -536,7 +536,7 @@ namespace Dotmim.Sync.MySql
                 stringBuilder.AppendLine($"UPDATE {tableName.Quoted().ToString()}");
                 stringBuilder.Append($"SET {MySqlManagementUtils.CommaSeparatedUpdateFromParameters(this.tableDescription)}");
                 stringBuilder.Append($"WHERE {MySqlManagementUtils.WhereColumnAndParameters(this.tableDescription.PrimaryKeys, "")}");
-                stringBuilder.AppendLine($" AND (ts <= sync_min_timestamp OR t_update_scope_id  = sync_scope_id OR sync_force_write = 1);");
+                stringBuilder.AppendLine($" AND (ts <= sync_min_timestamp OR ts IS NULL OR t_update_scope_id  = sync_scope_id OR sync_force_write = 1);");
                 stringBuilder.AppendLine();
                 stringBuilder.AppendLine($"SELECT ROW_COUNT() LIMIT 1 INTO sync_row_count;");
                 stringBuilder.AppendLine($"IF (sync_row_count = 0) THEN");
@@ -559,7 +559,7 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine($"\t({stringBuilderArguments.ToString()})");
             stringBuilder.AppendLine($"\tSELECT * FROM ( SELECT {stringBuilderParameters.ToString()}) as TMP ");
             stringBuilder.AppendLine($"\tWHERE ( {listColumnsTmp3.ToString()} )");
-            stringBuilder.AppendLine($"\tOR (ts <= sync_min_timestamp OR t_update_scope_id = sync_scope_id OR sync_force_write = 1)");
+            stringBuilder.AppendLine($"\tOR (ts <= sync_min_timestamp OR ts IS NULL OR t_update_scope_id = sync_scope_id OR sync_force_write = 1)");
             stringBuilder.AppendLine($"\tLIMIT 1;");
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($"SELECT ROW_COUNT() LIMIT 1 INTO sync_row_count;");

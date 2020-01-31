@@ -362,5 +362,66 @@ namespace Dotmim.Sync
             }
         }
 
+        /// <summary>
+        /// Delete metadatas items from tracking tables
+        /// </summary>
+        public async Task DeleteMetadatasAsync(SyncContext context, SyncSetup setup, long timeStampStart,
+                                 CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+        {
+            DbTransaction transaction = null;
+
+            using (var connection = this.Provider.CreateConnection())
+            {
+                try
+                {
+                    await connection.OpenAsync().ConfigureAwait(false);
+
+                    // Let provider knows a connection is opened
+                    this.Provider.OnConnectionOpened(connection);
+
+                    await this.Provider.InterceptAsync(new ConnectionOpenArgs(context, connection)).ConfigureAwait(false);
+
+                    // Create a transaction
+                    using (transaction = connection.BeginTransaction())
+                    {
+                        await this.Provider.InterceptAsync(new TransactionOpenArgs(context, connection, transaction)).ConfigureAwait(false);
+
+                        SyncSet schema;
+                        // Get Schema from remote provider
+                        (context, schema) = await this.Provider.EnsureSchemaAsync(context, setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                        await this.Provider.DeleteMetadatasAsync(context, schema, timeStampStart, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                        await this.Provider.InterceptAsync(new TransactionCommitArgs(context, connection, transaction)).ConfigureAwait(false);
+                        transaction.Commit();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    var syncException = new SyncException(ex, context.SyncStage);
+                    // try to let the provider enrich the exception
+                    this.Provider.EnsureSyncException(syncException);
+                    syncException.Side = SyncExceptionSide.ServerSide;
+                    throw syncException;
+                }
+                finally
+                {
+                    if (transaction != null)
+                        transaction.Dispose();
+
+                    if (connection != null && connection.State != ConnectionState.Closed)
+                        connection.Close();
+
+                    await this.Provider.InterceptAsync(new ConnectionCloseArgs(context, connection, transaction)).ConfigureAwait(false);
+
+                    // Let provider knows a connection is closed
+                    this.Provider.OnConnectionClosed(connection);
+                }
+            }
+
+        }
+
+
+
     }
 }

@@ -72,6 +72,12 @@ namespace Dotmim.Sync
                               bool disableConstraintsOnApplyChanges, bool useBulkOperations, 
                               bool cleanMetadatas, string scopeInfoTableName, 
                               CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null);
+       
+        /// <summary>
+        /// Delete all metadatas from tracking tables that are below a timestamp
+        /// </summary>
+        Task DeleteMetadatasAsync(SyncContext context, SyncSetup setup, long timeStampStart,
+                                     CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null);
     }
 
 
@@ -102,7 +108,7 @@ namespace Dotmim.Sync
                                      CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null);
 
         /// <summary>
-        /// Delete all metadatas that are below a timestamp
+        /// Delete all metadatas from tracking tables that are below a timestamp
         /// </summary>
         Task DeleteMetadatasAsync(SyncContext context, SyncSetup setup, long timeStampStart,
                                      CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null);

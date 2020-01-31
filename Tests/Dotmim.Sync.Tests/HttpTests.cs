@@ -57,11 +57,20 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         public abstract int GetServerDatabaseRowsCount((string DatabaseName, ProviderType ProviderType, IOrchestrator Orchestrator) t);
 
+        /// <summary>
+        /// Create the remote orchestrator
+        /// </summary>
+        public abstract RemoteOrchestrator CreateRemoteOrchestrator(ProviderType providerType, string dbName);
+
+        /// <summary>
+        /// Create a local orchestrator
+        /// </summary>
+        public abstract LocalOrchestrator CreateLocalOrchestrator(ProviderType providerType, string dbName);
 
         /// <summary>
         /// Create database, seed it, with or without schema
         /// </summary>
-         public abstract Task EnsureDatabaseSchemaAndSeedAsync((string DatabaseName,
+        public abstract Task EnsureDatabaseSchemaAndSeedAsync((string DatabaseName,
             ProviderType ProviderType, IOrchestrator Orchestrator) t, bool useSeeding = false, bool useFallbackSchema = false);
 
 
@@ -119,7 +128,7 @@ namespace Dotmim.Sync.Tests
             var serverDatabaseName = HelperDatabase.GetRandomName("http_sv_");
 
             // create remote orchestrator
-            var webServerOrchestrator = this.fixture.CreateOrchestrator<WebServerOrchestrator>(this.ServerType, serverDatabaseName);
+            var webServerOrchestrator = (WebServerOrchestrator)this.CreateRemoteOrchestrator(this.ServerType, serverDatabaseName);
 
             // public property
             this.Server = (serverDatabaseName, this.ServerType, webServerOrchestrator);
@@ -138,7 +147,7 @@ namespace Dotmim.Sync.Tests
             {
                 var dbCliName = HelperDatabase.GetRandomName("http_cli_");
                 // create local orchestratpr
-                var localOrchestrator = this.fixture.CreateOrchestrator<LocalOrchestrator>(clientType, dbCliName);
+                var localOrchestrator = this.CreateLocalOrchestrator(clientType, dbCliName);
 
                 // create local proxy client
                 var webclientOrchestrator = new WebClientOrchestrator(serviceUri);
