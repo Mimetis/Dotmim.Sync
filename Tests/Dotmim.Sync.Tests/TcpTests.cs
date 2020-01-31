@@ -50,6 +50,15 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         public abstract int GetServerDatabaseRowsCount((string DatabaseName, ProviderType ProviderType, IOrchestrator Orchestrator) t);
 
+        /// <summary>
+        /// Create the remote orchestrator
+        /// </summary>
+        public abstract RemoteOrchestrator CreateRemoteOrchestrator(ProviderType providerType, string dbName);
+
+        /// <summary>
+        /// Create a local orchestrator
+        /// </summary>
+        public abstract LocalOrchestrator CreateLocalOrchestrator(ProviderType providerType, string dbName);
 
         /// <summary>
         /// Create database, seed it, with or without schema
@@ -116,7 +125,7 @@ namespace Dotmim.Sync.Tests
             var serverDatabaseName = HelperDatabase.GetRandomName("tcp_sv_");
 
             // create remote orchestrator
-            var remoteOrchestrator = this.fixture.CreateOrchestrator<RemoteOrchestrator>(this.ServerType, serverDatabaseName);
+            var remoteOrchestrator = this.CreateRemoteOrchestrator(this.ServerType, serverDatabaseName);
 
             this.Server = (serverDatabaseName, this.ServerType, remoteOrchestrator);
 
@@ -127,7 +136,7 @@ namespace Dotmim.Sync.Tests
             foreach (var clientType in this.ClientsType)
             {
                 var dbCliName = HelperDatabase.GetRandomName("tcp_cli_");
-                var localOrchestrator = this.fixture.CreateOrchestrator<LocalOrchestrator>(clientType, dbCliName);
+                var localOrchestrator = this.CreateLocalOrchestrator(clientType, dbCliName);
 
                 this.Clients.Add((dbCliName, clientType, localOrchestrator));
             }
@@ -232,7 +241,7 @@ namespace Dotmim.Sync.Tests
                             foreach (var serverColumn in serverColumns)
                             {
                                 var clientColumn = clientColumns.FirstOrDefault(c => c.ColumnName == serverColumn.ColumnName);
-                                
+
                                 Assert.NotNull(clientColumn);
 
                                 if (this.ServerType == client.ProviderType && this.ServerType == ProviderType.Sql)
@@ -254,18 +263,18 @@ namespace Dotmim.Sync.Tests
 
                                     Assert.Equal(serverColumn.DefaultValue, clientColumn.DefaultValue);
                                     Assert.Equal(serverColumn.OriginalDbType, clientColumn.OriginalDbType);
-                                    
+
                                     // We don't replicate unique indexes
                                     //Assert.Equal(serverColumn.IsUnique, clientColumn.IsUnique);
-                                    
+
                                     Assert.Equal(serverColumn.AutoIncrementSeed, clientColumn.AutoIncrementSeed);
                                     Assert.Equal(serverColumn.AutoIncrementStep, clientColumn.AutoIncrementStep);
                                     Assert.Equal(serverColumn.IsAutoIncrement, clientColumn.IsAutoIncrement);
-                                    
+
                                     //Assert.Equal(serverColumn.OriginalTypeName, clientColumn.OriginalTypeName);
-                                    
+
                                     //Assert.Equal(serverColumn.IsCompute, clientColumn.IsCompute);
-                                    
+
                                     Assert.Equal(serverColumn.IsReadOnly, clientColumn.IsReadOnly);
                                     Assert.Equal(serverColumn.DbType, clientColumn.DbType);
                                     Assert.Equal(serverColumn.Ordinal, clientColumn.Ordinal);
@@ -975,10 +984,16 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalSyncConflicts);
             }
 
+            int addressId;
+            using (var ctx = new AdventureWorksContext(Clients[0], this.UseFallbackSchema))
+            {
+                addressId = ctx.Address.First().AddressId;
+            }
+
             // Update one address on server
             using (var serverDbCtx = new AdventureWorksContext(this.Server))
             {
-                var address = await serverDbCtx.Address.SingleAsync(a => a.AddressId == 1);
+                var address = serverDbCtx.Address.Single(a => a.AddressId == addressId);
 
                 // Update at least two properties
                 address.City = cityName;
@@ -1039,15 +1054,18 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalSyncConflicts);
             }
 
+
+
             // Update one address on each client
             // To avoid conflicts, each client will update differents lines
             // each address id is generated from the foreach index
-            var addressId = 1;
+            int addressId = 0;
             foreach (var client in Clients)
             {
                 using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
                 {
-                    var address = await ctx.Address.SingleAsync(a => a.AddressId == addressId);
+                    var addresses = ctx.Address.OrderBy(a => a.AddressId).Take(Clients.Count).ToList();
+                    var address = addresses[addressId];
 
                     // Update at least two properties
                     address.City = HelperDatabase.GetRandomName("City");
@@ -1101,6 +1119,7 @@ namespace Dotmim.Sync.Tests
 
                             // check column value
                             Assert.Equal(serverAddress.StateProvince, clientAddress.StateProvince);
+                            Assert.Equal(serverAddress.AddressLine1, clientAddress.AddressLine1);
                             Assert.Equal(serverAddress.AddressLine2, clientAddress.AddressLine2);
                         }
                     }
@@ -1754,7 +1773,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalSyncConflicts);
             }
-             
+
             // Insert the conflict product category on each client and the server
             foreach (var client in Clients)
             {
@@ -3817,7 +3836,7 @@ namespace Dotmim.Sync.Tests
                     ctx.Add(new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryNameClient });
                     await ctx.SaveChangesAsync();
                 }
-              
+
             }
 
             // Execute a sync on all clients to not avoid any conflict
@@ -3845,7 +3864,7 @@ namespace Dotmim.Sync.Tests
                 // Then delete all product category items
                 using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
                 {
-                    foreach(var pc in ctx.ProductCategory) 
+                    foreach (var pc in ctx.ProductCategory)
                         ctx.ProductCategory.Remove(pc);
                     await ctx.SaveChangesAsync();
                 }
@@ -3860,7 +3879,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalChangesDownloaded);
                 Assert.Equal(Clients.Count, s.TotalChangesUploaded);
                 Assert.Equal(conflictCount, s.TotalSyncConflicts);
-                
+
                 conflictCount = Clients.Count;
             }
 
