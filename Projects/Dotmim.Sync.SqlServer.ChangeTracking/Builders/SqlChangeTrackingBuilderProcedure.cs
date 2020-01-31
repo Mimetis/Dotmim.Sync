@@ -100,9 +100,9 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 stringBuilder.Append($"[p].{columnName}, ");
             }
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"\tCAST(CT.SYS_CHANGE_CONTEXT as uniqueidentifier) AS [update_scope_id], ");
-            stringBuilder.AppendLine($"\tCASE WHEN [CT].sys_change_version IS NULL THEN 0 ELSE CT.sys_change_version END as [timestamp],");
-            stringBuilder.AppendLine($"\tCASE WHEN [CT].SYS_CHANGE_OPERATION = 'D' THEN 1 ELSE 0 END AS [sync_row_is_tombstone]");
+            stringBuilder.AppendLine($"\tCAST([CT].[SYS_CHANGE_CONTEXT] as uniqueidentifier) AS [update_scope_id], ");
+            stringBuilder.AppendLine($"\t[CT].[SYS_CHANGE_VERSION] as [timestamp],");
+            stringBuilder.AppendLine($"\tCASE WHEN [CT].[SYS_CHANGE_OPERATION] = 'D' THEN 1 ELSE 0 END AS [sync_row_is_tombstone]");
             stringBuilder.AppendLine($"\tFROM @changeTable AS [p] ");
             stringBuilder.AppendLine($"\tLEFT JOIN CHANGETABLE(CHANGES {tableName.Schema().Quoted().ToString()}, @sync_min_timestamp) AS [CT] ON {str4}");
             stringBuilder.AppendLine($"\t)");
@@ -122,7 +122,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             stringBuilder.AppendLine($"INTO @changed ");
             stringBuilder.AppendLine($"FROM {tableName.Quoted().ToString()} [base]");
             stringBuilder.AppendLine($"JOIN {trackingName.Quoted().ToString()} [changes] ON {str5}");
-            stringBuilder.AppendLine("WHERE [changes].[timestamp] <= @sync_min_timestamp OR [changes].[update_scope_id] = @sync_scope_id;");
+            stringBuilder.AppendLine("WHERE [changes].[timestamp] <= @sync_min_timestamp OR [changes].[timestamp] IS NULL OR [changes].[update_scope_id] = @sync_scope_id;");
             stringBuilder.AppendLine();
             stringBuilder.AppendLine();
             stringBuilder.AppendLine();
@@ -204,9 +204,9 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 stringBuilder.Append($"[p].{columnName}, ");
             }
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"\tCAST(CT.SYS_CHANGE_CONTEXT as uniqueidentifier) AS [update_scope_id], ");
-            stringBuilder.AppendLine($"\tCASE WHEN [CT].sys_change_version IS NULL THEN 0 ELSE CT.sys_change_version END as [timestamp],");
-            stringBuilder.AppendLine($"\tCASE WHEN [CT].SYS_CHANGE_OPERATION = 'D' THEN 1 ELSE 0 END AS [sync_row_is_tombstone]");
+            stringBuilder.AppendLine($"\tCAST([CT].[SYS_CHANGE_CONTEXT] as uniqueidentifier) AS [update_scope_id], ");
+            stringBuilder.AppendLine($"\t[CT].[SYS_CHANGE_VERSION] as [timestamp],");
+            stringBuilder.AppendLine($"\tCASE WHEN [CT].[SYS_CHANGE_OPERATION] = 'D' THEN 1 ELSE 0 END AS [sync_row_is_tombstone]");
             stringBuilder.AppendLine($"\tFROM @changeTable AS [p] ");
             stringBuilder.AppendLine($"\tLEFT JOIN CHANGETABLE(CHANGES {tableName.Schema().Quoted().ToString()}, @sync_min_timestamp) AS [CT] ON {str4}");
             stringBuilder.AppendLine($"\t)");
@@ -215,7 +215,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 
             if (hasMutableColumns)
             {
-                stringBuilder.AppendLine("WHEN MATCHED AND ([changes].[timestamp] <= @sync_min_timestamp OR [changes].[update_scope_id] = @sync_scope_id) THEN");
+                stringBuilder.AppendLine("WHEN MATCHED AND ([changes].[timestamp] <= @sync_min_timestamp OR [changes].[timestamp] IS NULL OR [changes].[update_scope_id] = @sync_scope_id) THEN");
                 stringBuilder.AppendLine();
                 stringBuilder.AppendLine($"\tUPDATE SET");
 
@@ -306,30 +306,6 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine($"SET {sqlParameter2.ParameterName} = 0;");
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine("-- use a temp table to store the list of PKs that successfully got updated/inserted");
-            stringBuilder.Append("declare @changed TABLE (");
-            foreach (var c in this.tableDescription.GetPrimaryKeysColumns())
-            {
-                var columnName = ParserName.Parse(c).Quoted().ToString();
-
-                // Get the good SqlDbType (even if we are not from Sql Server def)
-                var sqlDbTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(c.OriginalDbType, c.GetDbType(), false, false, c.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-                var quotedColumnType = ParserName.Parse(sqlDbTypeString).Quoted().ToString();
-                quotedColumnType += this.sqlDbMetadata.TryGetOwnerDbTypePrecision(c.OriginalDbType, c.GetDbType(), false, false, c.MaxLength, c.Precision, c.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-
-                stringBuilder.Append($"{columnName} {quotedColumnType}, ");
-            }
-            stringBuilder.Append(" PRIMARY KEY (");
-            for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
-            {
-                var columnName = ParserName.Parse(this.tableDescription.PrimaryKeys[i]).Quoted().ToString();
-                stringBuilder.Append($"{columnName}");
-                if (i < this.tableDescription.PrimaryKeys.Count - 1)
-                    stringBuilder.Append(", ");
-            }
-            stringBuilder.AppendLine("));");
-            stringBuilder.AppendLine();
-
             stringBuilder.AppendLine($"DECLARE @var_sync_scope_id varbinary(128) = cast(@sync_scope_id as varbinary(128));");
             stringBuilder.AppendLine();
 
@@ -343,9 +319,9 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 stringBuilder.Append($"[p].{columnName}, ");
             }
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"\tCAST(CT.SYS_CHANGE_CONTEXT as uniqueidentifier) AS [update_scope_id], ");
-            stringBuilder.AppendLine($"\tCASE WHEN [CT].sys_change_version IS NULL THEN 0 ELSE CT.sys_change_version END as [timestamp],");
-            stringBuilder.AppendLine($"\tCASE WHEN [CT].SYS_CHANGE_OPERATION = 'D' THEN 1 ELSE 0 END AS [sync_row_is_tombstone]");
+            stringBuilder.AppendLine($"\tCAST([CT].[SYS_CHANGE_CONTEXT] as uniqueidentifier) AS [update_scope_id], ");
+            stringBuilder.AppendLine($"\t[CT].[SYS_CHANGE_VERSION] as [timestamp],");
+            stringBuilder.AppendLine($"\tCASE WHEN [CT].[SYS_CHANGE_OPERATION] = 'D' THEN 1 ELSE 0 END AS [sync_row_is_tombstone]");
             stringBuilder.Append($"\tFROM (SELECT ");
             string comma = "";
             foreach (var c in this.tableDescription.GetPrimaryKeysColumns())
@@ -359,25 +335,13 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             stringBuilder.AppendLine($") AS [p]");
             stringBuilder.Append($"\tLEFT JOIN CHANGETABLE(CHANGES {tableName.Schema().Quoted().ToString()}, @sync_min_timestamp) AS [CT] ON {str4}");
             stringBuilder.AppendLine($"\t)");
-
-
-
             stringBuilder.AppendLine($"DELETE {tableName.Schema().Quoted().ToString()}");
-            stringBuilder.Append($"OUTPUT ");
-            comma = "";
-            for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
-            {
-                var columnName = ParserName.Parse(this.tableDescription.PrimaryKeys[i]).Quoted().ToString();
-                stringBuilder.Append($"{comma}DELETED.{columnName}");
-                comma = ", ";
-            }
-            stringBuilder.AppendLine($" INTO @changed -- populates the temp table with successful deleted row");
             stringBuilder.AppendLine($"FROM {tableName.Schema().Quoted().ToString()} [base]");
             stringBuilder.Append($"JOIN {trackingName.Quoted().ToString()} [side] ON ");
 
             stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[base]", "[side]"));
 
-            stringBuilder.AppendLine("WHERE ([side].[timestamp] <= @sync_min_timestamp OR [side].[update_scope_id] = @sync_scope_id OR @sync_force_write = 1)");
+            stringBuilder.AppendLine("WHERE ([side].[timestamp] <= @sync_min_timestamp OR [side].[timestamp] IS NULL OR [side].[update_scope_id] = @sync_scope_id OR @sync_force_write = 1)");
             stringBuilder.Append("AND ");
             stringBuilder.AppendLine(string.Concat("(", SqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKeys, "[base]"), ");"));
             stringBuilder.AppendLine();
@@ -496,28 +460,6 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             sqlCommand.Parameters.Add(sqlParameter4);
 
             var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine("-- use a temp table to store the list of PKs that successfully got updated/inserted");
-            stringBuilder.Append("declare @changed TABLE (");
-            foreach (var c in this.tableDescription.GetPrimaryKeysColumns())
-            {
-                var columnName = ParserName.Parse(c).Quoted().ToString();
-
-                // Get the good SqlDbType (even if we are not from Sql Server def)
-                var sqlDbTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(c.OriginalDbType, c.GetDbType(), false, false, c.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-                var quotedColumnType = ParserName.Parse(sqlDbTypeString).Quoted().ToString();
-                quotedColumnType += this.sqlDbMetadata.TryGetOwnerDbTypePrecision(c.OriginalDbType, c.GetDbType(), false, false, c.MaxLength, c.Precision, c.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-
-                stringBuilder.Append($"{columnName} {quotedColumnType}, ");
-            }
-            stringBuilder.Append(" PRIMARY KEY (");
-            for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
-            {
-                var columnName = ParserName.Parse(this.tableDescription.PrimaryKeys[i]).Quoted().ToString();
-                stringBuilder.Append($"{columnName}");
-                if (i < this.tableDescription.PrimaryKeys.Count - 1)
-                    stringBuilder.Append(", ");
-            }
-            stringBuilder.AppendLine("));");
             stringBuilder.AppendLine();
 
             // Check if we have auto inc column
@@ -542,9 +484,9 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 stringBuilder.Append($"[p].{columnName}, ");
             }
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"\tCAST(CT.SYS_CHANGE_CONTEXT as uniqueidentifier) AS [update_scope_id], ");
-            stringBuilder.AppendLine($"\tCASE WHEN [CT].sys_change_version IS NULL THEN 0 ELSE CT.sys_change_version END as [timestamp],");
-            stringBuilder.AppendLine($"\tCASE WHEN [CT].SYS_CHANGE_OPERATION = 'D' THEN 1 ELSE 0 END AS [sync_row_is_tombstone]");
+            stringBuilder.AppendLine($"\tCAST([CT].[SYS_CHANGE_CONTEXT] as uniqueidentifier) AS [update_scope_id], ");
+            stringBuilder.AppendLine($"\t[CT].[SYS_CHANGE_VERSION] as [timestamp],");
+            stringBuilder.AppendLine($"\tCASE WHEN [CT].[SYS_CHANGE_OPERATION] = 'D' THEN 1 ELSE 0 END AS [sync_row_is_tombstone]");
             stringBuilder.AppendLine($"\tFROM (SELECT ");
             stringBuilder.Append($"\t\t ");
             string comma = "";
@@ -565,7 +507,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 
             if (hasMutableColumns)
             {
-                stringBuilder.AppendLine("WHEN MATCHED AND ([changes].[timestamp] <= @sync_min_timestamp OR [changes].[update_scope_id] = @sync_scope_id OR @sync_force_write = 1) THEN");
+                stringBuilder.AppendLine("WHEN MATCHED AND ([changes].[timestamp] <= @sync_min_timestamp OR [changes].[timestamp] IS NULL OR [changes].[update_scope_id] = @sync_scope_id OR @sync_force_write = 1) THEN");
                 stringBuilder.AppendLine();
                 stringBuilder.AppendLine($"\tUPDATE SET");
 
@@ -596,20 +538,11 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($"\tINSERT");
             stringBuilder.AppendLine($"\t({stringBuilderArguments.ToString()})");
-            stringBuilder.AppendLine($"\tVALUES ({stringBuilderParameters.ToString()})");
+            stringBuilder.AppendLine($"\tVALUES ({stringBuilderParameters.ToString()});");
             stringBuilder.AppendLine();
-            stringBuilder.Append($"OUTPUT ");
-            for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
-            {
-                var columnName = ParserName.Parse(this.tableDescription.PrimaryKeys[i]).Quoted().ToString();
-                stringBuilder.Append($"INSERTED.{columnName}");
-                if (i < this.tableDescription.PrimaryKeys.Count - 1)
-                    stringBuilder.Append(", ");
-                else
-                    stringBuilder.AppendLine();
-            }
-            stringBuilder.AppendLine($"\tINTO @changed; -- populates the temp table with successful PKs");
-            stringBuilder.AppendLine();
+
+            // GET row count BEFORE make identity insert off again
+            stringBuilder.AppendLine($"SET {sqlParameter4.ParameterName} = @@ROWCOUNT;");
 
             // Check if we have auto inc column
             if (this.tableDescription.HasAutoIncrementColumns)
@@ -618,8 +551,6 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 stringBuilder.AppendLine($"SET IDENTITY_INSERT {tableName.Schema().Quoted().ToString()} OFF;");
                 stringBuilder.AppendLine();
             }
-
-            stringBuilder.AppendLine($"SET {sqlParameter4.ParameterName} = @@ROWCOUNT;");
 
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
@@ -654,9 +585,9 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 stringBuilder.Append($"[CT].{columnName}, ");
             }
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"\tCAST(CT.SYS_CHANGE_CONTEXT as uniqueidentifier) AS [update_scope_id], ");
-            stringBuilder.AppendLine($"\tCASE WHEN [CT].sys_change_version IS NULL THEN 0 ELSE CT.sys_change_version END as [timestamp],");
-            stringBuilder.AppendLine($"\tCASE WHEN [CT].SYS_CHANGE_OPERATION = 'D' THEN 1 ELSE 0 END AS [sync_row_is_tombstone]");
+            stringBuilder.AppendLine($"\tCAST([CT].[SYS_CHANGE_CONTEXT] as uniqueidentifier) AS [update_scope_id], ");
+            stringBuilder.AppendLine($"\t[CT].[SYS_CHANGE_VERSION] as [timestamp],");
+            stringBuilder.AppendLine($"\tCASE WHEN [CT].[SYS_CHANGE_OPERATION] = 'D' THEN 1 ELSE 0 END AS [sync_row_is_tombstone]");
             stringBuilder.AppendLine($"\tFROM CHANGETABLE(CHANGES {tableName.Schema().Quoted().ToString()}, @sync_min_timestamp) AS [CT]");
             stringBuilder.AppendLine($"\t)");
 

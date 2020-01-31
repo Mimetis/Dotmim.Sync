@@ -55,6 +55,15 @@ namespace Dotmim.Sync.Tests
         /// Get the server rows count
         /// </summary>
         public abstract int GetServerDatabaseRowsCount((string DatabaseName, ProviderType ProviderType, IOrchestrator Orchestrator) t);
+        /// <summary>
+        /// Create the remote orchestrator
+        /// </summary>
+        public abstract RemoteOrchestrator CreateRemoteOrchestrator(ProviderType providerType, string dbName);
+
+        /// <summary>
+        /// Create a local orchestrator
+        /// </summary>
+        public abstract LocalOrchestrator CreateLocalOrchestrator(ProviderType providerType, string dbName);
 
 
         /// <summary>
@@ -124,7 +133,7 @@ namespace Dotmim.Sync.Tests
             var serverDatabaseName = HelperDatabase.GetRandomName("tcpfilt_sv_");
 
             // create remote orchestrator
-            var remoteOrchestrator = this.fixture.CreateOrchestrator<RemoteOrchestrator>(this.ServerType, serverDatabaseName);
+            var remoteOrchestrator = this.CreateRemoteOrchestrator(this.ServerType, serverDatabaseName);
 
             this.Server = (serverDatabaseName, this.ServerType, remoteOrchestrator);
 
@@ -135,7 +144,7 @@ namespace Dotmim.Sync.Tests
             foreach (var clientType in this.ClientsType)
             {
                 var dbCliName = HelperDatabase.GetRandomName("tcpfilt_cli_");
-                var localOrchestrator = this.fixture.CreateOrchestrator<LocalOrchestrator>(clientType, dbCliName);
+                var localOrchestrator = this.CreateLocalOrchestrator(clientType, dbCliName);
 
                 this.Clients.Add((dbCliName, clientType, localOrchestrator));
             }
