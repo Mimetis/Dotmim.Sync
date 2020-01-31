@@ -2494,10 +2494,7 @@ namespace Dotmim.Sync.Tests
 
                             // Check if we have mutables columns to see if the update row / metadata have been generated
                             if (dbTableBuilder.TableDescription.GetMutableColumns(false).Any())
-                            {
                                 Assert.False(spBuider.NeedToCreateProcedure(Builders.DbCommandType.UpdateRow));
-                                Assert.False(spBuider.NeedToCreateProcedure(Builders.DbCommandType.UpdateMetadata));
-                            }
                         }
 
                         if (client.ProviderType == ProviderType.Sql)
@@ -2552,10 +2549,7 @@ namespace Dotmim.Sync.Tests
 
                             // Check if we have mutables columns to see if the update row / metadata have been generated
                             if (dbTableBuilder.TableDescription.GetMutableColumns(false).Any())
-                            {
                                 Assert.True(spBuider.NeedToCreateProcedure(Builders.DbCommandType.UpdateRow));
-                                Assert.True(spBuider.NeedToCreateProcedure(Builders.DbCommandType.UpdateMetadata));
-                            }
                         }
 
                         if (client.ProviderType == ProviderType.Sql)

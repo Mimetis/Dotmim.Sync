@@ -35,33 +35,9 @@ namespace Dotmim.Sync.Sqlite
         }
 
 
-        public void CreateIndex()
-        {
-        }
+        public void CreateIndex() { }
 
-        private string CreateIndexCommandText()
-        {
-            return string.Empty;
-        }
-
-        public string CreateIndexScriptText()
-        {
-            return string.Empty;
-        }
-
-        public void CreatePk()
-        {
-            return;
-        }
-        public string CreatePkScriptText()
-        {
-            return string.Empty;
-        }
-
-        public string CreatePkCommandText()
-        {
-            return string.Empty;
-        }
+        public void CreatePk() { return; }
 
         public void CreateTable()
         {
@@ -99,15 +75,9 @@ namespace Dotmim.Sync.Sqlite
 
         }
 
-        public string CreateTableScriptText()
-        {
-            string str = string.Concat("Create Tracking Table ", trackingName.Quoted().ToString());
-            return SqliteTableBuilder.WrapScriptTextWithComments(this.CreateTableCommandText(), str);
-        }
-
         public string CreateTableCommandText()
         {
-            StringBuilder stringBuilder = new StringBuilder();
+            var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine($"CREATE TABLE {trackingName.Quoted().ToString()} (");
 
             // Adding the primary key
@@ -158,154 +128,10 @@ namespace Dotmim.Sync.Sqlite
             return stringBuilder.ToString();
         }
 
-        public bool NeedToCreateTrackingTable()
-        {
-            return !SqliteManagementUtils.TableExists(connection, transaction, trackingName);
-        }
+        public bool NeedToCreateTrackingTable() 
+            => !SqliteManagementUtils.TableExists(connection, transaction, trackingName);
 
-        public void PopulateFromBaseTable()
-        {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
-
-            try
-            {
-                using (var command = new SqliteCommand())
-                {
-                    if (!alreadyOpened)
-                        this.connection.Open();
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    command.CommandText = this.CreatePopulateFromBaseTableCommandText();
-                    command.Connection = this.connection;
-                    command.ExecuteNonQuery();
-
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateIndex : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
-        }
-
-        private string CreatePopulateFromBaseTableCommandText()
-        {
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine(string.Concat("INSERT INTO ", trackingName.Quoted().ToString(), " ("));
-            StringBuilder stringBuilder1 = new StringBuilder();
-            StringBuilder stringBuilder2 = new StringBuilder();
-            string empty = string.Empty;
-            StringBuilder stringBuilderOnClause = new StringBuilder("ON ");
-            StringBuilder stringBuilderWhereClause = new StringBuilder("WHERE ");
-            string str = string.Empty;
-            string baseTable = "[base]";
-            string sideTable = "[side]";
-            foreach (var pkColumn in this.tableDescription.PrimaryKeys)
-            {
-                var quotedColumnName = ParserName.Parse(pkColumn).Quoted().ToString();
-
-                stringBuilder1.Append(string.Concat(empty, quotedColumnName));
-                stringBuilder2.Append(string.Concat(empty, baseTable, ".", quotedColumnName));
-
-                string[] quotedName = new string[] { str, baseTable, ".", quotedColumnName, " = ", sideTable, ".", quotedColumnName };
-                stringBuilderOnClause.Append(string.Concat(quotedName));
-                string[] strArrays = new string[] { str, sideTable, ".", quotedColumnName, " IS NULL" };
-                stringBuilderWhereClause.Append(string.Concat(strArrays));
-                empty = ", ";
-                str = " AND ";
-            }
-            var stringBuilder5 = new StringBuilder();
-            var stringBuilder6 = new StringBuilder();
-            // (list of pkeys)
-            stringBuilder.Append(string.Concat(stringBuilder1.ToString(), ", "));
-
-            stringBuilder.Append("[update_scope_id], ");
-            stringBuilder.Append("[timestamp], ");
-            stringBuilder.Append("[sync_row_is_tombstone] ");
-            stringBuilder.AppendLine(string.Concat(stringBuilder6.ToString(), ") "));
-            stringBuilder.Append(string.Concat("SELECT ", stringBuilder2.ToString(), ", "));
-            stringBuilder.Append("NULL, ");
-            stringBuilder.Append($"{SqliteObjectNames.TimestampValue}, ");
-            stringBuilder.Append("0 ");
-            stringBuilder.AppendLine(string.Concat(stringBuilder5.ToString(), " "));
-            string[] localName = new string[] { "FROM ", tableName.Quoted().ToString(), " ", baseTable, " LEFT OUTER JOIN ", trackingName.Quoted().ToString(), " ", sideTable, " " };
-            stringBuilder.AppendLine(string.Concat(localName));
-            stringBuilder.AppendLine(string.Concat(stringBuilderOnClause.ToString(), " "));
-            stringBuilder.AppendLine(string.Concat(stringBuilderWhereClause.ToString(), "; \n"));
-            return stringBuilder.ToString();
-        }
-
-        public string CreatePopulateFromBaseTableScriptText()
-        {
-            string str = string.Concat("Populate tracking table ", trackingName.Quoted().ToString(), " for existing data in table ", tableName.Quoted().ToString());
-            return SqliteTableBuilder.WrapScriptTextWithComments(this.CreatePopulateFromBaseTableCommandText(), str);
-        }
-
-
-        public void AddFilterColumn(SyncColumn filterColumn)
-        {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
-
-            try
-            {
-                using (var command = new SqliteCommand())
-                {
-                    if (!alreadyOpened)
-                        this.connection.Open();
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    command.CommandText = this.AddFilterColumnCommandText(filterColumn);
-                    command.Connection = this.connection;
-                    command.ExecuteNonQuery();
-
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateIndex : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
-        }
-
-        private string AddFilterColumnCommandText(SyncColumn col)
-        {
-            var quotedColumnName = ParserName.Parse(col).Quoted().ToString();
-
-            var columnTypeString = this.sqliteDbMetadata.TryGetOwnerDbTypeString(col.OriginalDbType, col.GetDbType(), false, false, col.MaxLength, this.tableDescription.OriginalProvider, SqliteSyncProvider.ProviderType);
-            var columnPrecisionString = this.sqliteDbMetadata.TryGetOwnerDbTypePrecision(col.OriginalDbType, col.GetDbType(), false, false, col.MaxLength, col.Precision, col.Scale, this.tableDescription.OriginalProvider, SqliteSyncProvider.ProviderType);
-            var quotedColumnType = ParserName.Parse(columnTypeString).Quoted().ToString(); 
-            quotedColumnType += columnPrecisionString;
-
-            return string.Concat("ALTER TABLE ", quotedColumnName, " ADD ", quotedColumnType);
-        }
-        public string ScriptAddFilterColumn(SyncColumn filterColumn)
-        {
-            var quotedColumnName = ParserName.Parse(filterColumn.ColumnName).Quoted().ToString();
-
-            string str = string.Concat("Add new filter column, ", quotedColumnName, ", to Tracking Table ", trackingName.Quoted().ToString());
-            return SqliteTableBuilder.WrapScriptTextWithComments(this.AddFilterColumnCommandText(filterColumn), str);
-        }
-
+  
         public void DropTable()
         {
             bool alreadyOpened = connection.State == ConnectionState.Open;
@@ -340,14 +166,6 @@ namespace Dotmim.Sync.Sqlite
 
         }
 
-        public string DropTableScriptText()
-        {
-            StringBuilder stringBuilder = new StringBuilder();
-            var tableNameScript = $"Drop Table {tableName.Quoted().ToString()}";
-            var tableScript = $"DROP TABLE IF EXISTS {tableName.Quoted().ToString()}";
-            stringBuilder.Append(SqliteTableBuilder.WrapScriptTextWithComments(tableScript, tableNameScript));
-            stringBuilder.AppendLine();
-            return stringBuilder.ToString();
-        }
+    
     }
 }

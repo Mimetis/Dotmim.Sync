@@ -68,11 +68,6 @@ namespace Dotmim.Sync
         /// </summary>
         public bool OverwriteSchema { get; set; }
 
-        /// <summary>
-        /// Gets or Sets a boolean value to specify if scripts should be generated, before applied.
-        /// </summary>
-        public bool GenerateScript { get; set; }
-
         public DatabaseProvisioningArgs(SyncContext context, SyncProvision provision, SyncSet schema, DbConnection connection, DbTransaction transaction)
         : base(context, connection, transaction)
 

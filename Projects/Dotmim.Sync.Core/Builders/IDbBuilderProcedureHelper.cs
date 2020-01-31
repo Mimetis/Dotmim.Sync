@@ -21,7 +21,6 @@ namespace Dotmim.Sync.Builders
         void CreateSelectInitializedChanges();
         void CreateUpdate(bool hasMutableColumns);
         void CreateDelete();
-        void CreateUpdateMetadata();
         void CreateDeleteMetadata();
         void CreateTVPType();
         void CreateBulkUpdate(bool hasMutableColumns);
@@ -32,33 +31,10 @@ namespace Dotmim.Sync.Builders
         void DropSelectInitializedChanges();
         void DropUpdate();
         void DropDelete();
-        void DropUpdateMetadata();
         void DropDeleteMetadata();
         void DropTVPType();
         void DropBulkUpdate();
         void DropBulkDelete();
         void DropReset();
-       string CreateSelectRowScriptText();
-       string CreateSelectIncrementalChangesScriptText();
-       string CreateSelectInitializedChangesScriptText();
-       string CreateUpdateScriptText(bool hasMutableColumns);
-       string CreateDeleteScriptText();
-       string CreateUpdateMetadataScriptText();
-       string CreateDeleteMetadataScriptText();
-       string CreateTVPTypeScriptText();
-       string CreateBulkUpdateScriptText(bool hasMutableColumns);
-       string CreateBulkDeleteScriptText();
-       string CreateResetScriptText();
-       string DropSelectRowScriptText();
-       string DropSelectIncrementalChangesScriptText();
-       string DropUpdateScriptText();
-       string DropDeleteScriptText();
-       string DropUpdateMetadataScriptText();
-       string DropDeleteMetadataScriptText();
-       string DropTVPTypeScriptText();
-       string DropBulkUpdateScriptText();
-       string DropBulkDeleteScriptText();
-       string DropResetScriptText();
-
     }
 }

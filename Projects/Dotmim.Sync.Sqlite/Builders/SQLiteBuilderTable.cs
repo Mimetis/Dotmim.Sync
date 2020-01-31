@@ -27,58 +27,10 @@ namespace Dotmim.Sync.Sqlite
             (this.tableName, this.trackingName) = SqliteTableBuilder.GetParsers(this.tableDescription);
             this.sqliteDbMetadata = new SqliteDbMetadata();
         }
-        private SqliteCommand BuildForeignKeyConstraintsCommand(SyncRelation foreignKey)
-        {
-            SqliteCommand sqlCommand = new SqliteCommand();
-
-            var childTable = foreignKey.GetTable();
-            var childTableName = ParserName.Parse(childTable.TableName).Quoted().ToString();
-
-            var parentTable = foreignKey.GetParentTable();
-            var parentTableName = ParserName.Parse(parentTable.TableName).Quoted().ToString();
-
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.Append("ALTER TABLE ");
-            stringBuilder.AppendLine(childTableName);
-            stringBuilder.Append("ADD CONSTRAINT ");
-            stringBuilder.AppendLine(foreignKey.RelationName);
-            stringBuilder.Append("FOREIGN KEY (");
-            string empty = string.Empty;
-            foreach (var childColumn in foreignKey.Keys)
-            {
-                var childColumnName = ParserName.Parse(childColumn.ColumnName).Quoted().ToString();
-                stringBuilder.Append($"{empty} {childColumnName}");
-            }
-            stringBuilder.AppendLine(" )");
-            stringBuilder.Append("REFERENCES ");
-            stringBuilder.Append(parentTableName).Append(" (");
-            empty = string.Empty;
-            foreach (var parentdColumn in foreignKey.ParentKeys)
-            {
-                var parentColumnName = ParserName.Parse(parentdColumn.ColumnName).Quoted().ToString();
-                stringBuilder.Append($"{empty} {parentColumnName}");
-                empty = ", ";
-            }
-            stringBuilder.Append(" ) ");
-            sqlCommand.CommandText = stringBuilder.ToString();
-            return sqlCommand;
-        }
-
-        public void CreatePrimaryKey()
-        {
-            return;
-
-        }
-        public string CreatePrimaryKeyScriptText()
-        {
-            return string.Empty;
-        }
-
+  
 
         private SqliteCommand BuildTableCommand()
         {
-            var command = new SqliteCommand();
-
             var stringBuilder = new StringBuilder($"CREATE TABLE IF NOT EXISTS {tableName.Quoted().ToString()} (");
             string empty = string.Empty;
             stringBuilder.AppendLine();
@@ -209,101 +161,20 @@ namespace Dotmim.Sync.Sqlite
             }
 
         }
-        public string CreateTableScriptText()
-        {
-            StringBuilder stringBuilder = new StringBuilder();
-            var tableNameScript = $"Create Table {tableName.Quoted().ToString()}";
-            var tableScript = BuildTableCommand().CommandText;
-            stringBuilder.Append(SqliteTableBuilder.WrapScriptTextWithComments(tableScript, tableNameScript));
-            stringBuilder.AppendLine();
-            return stringBuilder.ToString();
-        }
-
-
-        /// <summary>
-        /// For a foreign key, check if the Parent table exists
-        /// </summary>
-        private bool EnsureForeignKeysTableExist(SyncRelation foreignKey)
-        {
-            var childTable = foreignKey.GetTable();
-            var parentTable = foreignKey.GetParentTable();
-
-            // The foreignkey comes from the child table
-            var ds = foreignKey.GetTable().Schema;
-
-            if (ds == null)
-                return false;
-
-            // Check if the parent table is part of the sync configuration
-            var exist = ds.Tables.Any(t => t == parentTable);
-
-            if (!exist)
-                return false;
-
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            try
-            {
-                if (!alreadyOpened)
-                    connection.Open();
-
-                return SqliteManagementUtils.TableExists(connection, transaction, ParserName.Parse(parentTable));
-
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during EnsureForeignKeysTableExist : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-            }
-
-
-        }
 
         /// <summary>
         /// Check if we need to create the table in the current database
         /// </summary>
-        public bool NeedToCreateTable()
-        {
-            return !SqliteManagementUtils.TableExists(connection, transaction, tableName);
+        public bool NeedToCreateTable() =>
+            !SqliteManagementUtils.TableExists(connection, transaction, tableName);
 
-        }
+        public bool NeedToCreateSchema() => false;
 
-        public bool NeedToCreateSchema()
-        {
-            return false;
-        }
+        public void CreateSchema() { return; }
 
-        public void CreateSchema()
-        {
-            return;
-        }
+        public bool NeedToCreateForeignKeyConstraints(SyncRelation constraint) => false;
 
-        public string CreateSchemaScriptText()
-        {
-            return string.Empty;
-        }
-
-        public bool NeedToCreateForeignKeyConstraints(SyncRelation constraint)
-        {
-            return false;
-        }
-
-        public void CreateForeignKeyConstraints(SyncRelation constraint)
-        {
-            return;
-        }
-
-        public string CreateForeignKeyConstraintsScriptText(SyncRelation constraint)
-        {
-            return string.Empty;
-        }
+        public void CreateForeignKeyConstraints(SyncRelation constraint) { return; }
 
         public void DropTable()
         {
@@ -338,15 +209,6 @@ namespace Dotmim.Sync.Sqlite
             }
 
         }
-
-        public string DropTableScriptText()
-        {
-            StringBuilder stringBuilder = new StringBuilder();
-            var tableNameScript = $"Drop Table {tableName.Quoted().ToString()}";
-            var tableScript = $"DROP TABLE IF EXISTS {tableName.Quoted().ToString()}";
-            stringBuilder.Append(SqliteTableBuilder.WrapScriptTextWithComments(tableScript, tableNameScript));
-            stringBuilder.AppendLine();
-            return stringBuilder.ToString();
-        }
+        public void CreatePrimaryKey() { return; }
     }
 }
