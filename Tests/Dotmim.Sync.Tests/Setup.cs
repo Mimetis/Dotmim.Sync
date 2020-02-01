@@ -1,6 +1,4 @@
 ﻿using Dotmim.Sync.Tests.Core;
-using Dotmim.Sync.Tests.MySql;
-using Dotmim.Sync.Tests.SqlServer;
 using MySql.Data.MySqlClient;
 using System;
 using System.Data.SqlClient;
@@ -39,7 +37,9 @@ namespace Dotmim.Sync.Tests
                 MultipleActiveResultSets = false,
                 TrustServerCertificate = false,
                 ConnectTimeout = 30,
-                IntegratedSecurity = false
+                IntegratedSecurity = false,
+                ConnectRetryCount = 4,
+                ConnectRetryInterval = 4
             };
 
 
@@ -104,7 +104,8 @@ namespace Dotmim.Sync.Tests
             else
                 builder.Port = 3307;
 
-            return builder.ToString();
+            var cn = builder.ToString();
+            return cn;
         }
 
         /// <summary>

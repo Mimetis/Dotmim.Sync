@@ -1,6 +1,4 @@
 ﻿using Dotmim.Sync.Builders;
-using Dotmim.Sync.Cache;
-using Dotmim.Sync.Data;
 using Dotmim.Sync.Manager;
 using System.Data.Common;
 using MySql.Data.MySqlClient;
@@ -12,7 +10,6 @@ namespace Dotmim.Sync.MySql
 
     public class MySqlSyncProvider : CoreProvider
     {
-        ICache cacheManager;
         DbMetadata dbMetadata;
         static string providerType;
 
@@ -31,28 +28,12 @@ namespace Dotmim.Sync.MySql
                 if (!string.IsNullOrEmpty(providerType))
                     return providerType;
 
-                Type type = typeof(MySqlSyncProvider);
+                var type = typeof(MySqlSyncProvider);
                 providerType = $"{type.Name}, {type.ToString()}";
 
                 return providerType;
             }
 
-        }
-
-        public override ICache CacheManager
-        {
-            get
-            {
-                if (cacheManager == null)
-                    cacheManager = new InMemoryCache();
-
-                return cacheManager;
-            }
-            set
-            {
-                cacheManager = value;
-
-            }
         }
 
         /// <summary>
@@ -94,11 +75,11 @@ namespace Dotmim.Sync.MySql
         public MySqlSyncProvider(string connectionString) : base()
         {
 
-            MySqlConnectionStringBuilder builder = new MySqlConnectionStringBuilder(connectionString);
-            
+            var builder = new MySqlConnectionStringBuilder(connectionString);
+
             // Set the default behavior to use Found rows and not Affected rows !
             builder.UseAffectedRows = false;
-            
+
             this.ConnectionString = builder.ConnectionString;
         }
 
@@ -114,13 +95,34 @@ namespace Dotmim.Sync.MySql
             this.ConnectionString = builder.ConnectionString;
         }
 
+        public override void EnsureSyncException(SyncException syncException)
+        {
+            if (!string.IsNullOrEmpty(this.ConnectionString))
+            {
+                var builder = new MySqlConnectionStringBuilder(this.ConnectionString);
+
+                syncException.DataSource = builder.Server;
+                syncException.InitialCatalog = builder.Database;
+            }
+
+            var mySqlException = syncException.InnerException as MySqlException;
+
+            if (mySqlException == null)
+                return;
+
+            syncException.Number = mySqlException.Number;
+
+            return;
+        }
 
         public override DbConnection CreateConnection() => new MySqlConnection(this.ConnectionString);
 
-        public override DbBuilder GetDatabaseBuilder(DmTable tableDescription) => new MySqlBuilder(tableDescription);
+        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription) => new MyTableSqlBuilder(tableDescription);
 
-        public override DbManager GetDbManager(string tableName) => new MySqlManager(tableName);
+        public override DbTableManagerFactory GetTableManagerFactory(string tableName, string schemaName) => new MySqlManager(tableName);
 
         public override DbScopeBuilder GetScopeBuilder() => new MySqlScopeBuilder();
+
+        public override DbBuilder GetDatabaseBuilder() => new MySqlBuilder();
     }
 }

@@ -1,76 +1,69 @@
 ﻿using Dotmim.Sync.Enumerations;
 using System;
+using System.Runtime.Serialization;
 
 namespace Dotmim.Sync
 {
     /// <summary>
     /// Mapping sur la table ScopeInfo
     /// </summary>
-    [Serializable]
+    [DataContract(Name = "scope"), Serializable]
     public class ScopeInfo
     {
         /// <summary>
         /// Scope name. Shared by all clients and the server
         /// </summary>
+        [DataMember(Name = "n", IsRequired = true, Order = 1)]
         public string Name { get; set; }
 
         /// <summary>
         /// Id of the scope owner
         /// </summary>
+        [DataMember(Name = "id", IsRequired = true, Order = 2)]
         public Guid Id { get; set; }
-
-        /// <summary>
-        /// Gets or Sets a boolean indicating if the scope info is local to the provider (or remote)
-        /// </summary>
-        public Boolean IsLocal { get; set; }
-
-        /// <summary>
-        /// Gets or Sets the Timestamp. basically the timestamp "AFTER" the sync has occured
-        /// IF it's a new scope force to Zero to be sure, the first sync will get all datas
-        /// </summary>
-        public long Timestamp { get; set; }
-
-
 
         /// <summary>
         /// Gets or Sets if the current provider is newly created one in database.
         /// If new, we will override timestamp for first synchronisation to be sure to get all datas from server
         /// </summary>
-        public Boolean IsNewScope { get; set; }
+        [DataMember(Name = "in", IsRequired = true, Order = 3)]
+        public bool IsNewScope { get; set; }
+
+        /// <summary>
+        /// Scope schema. stored locally on the client
+        /// </summary>
+        [IgnoreDataMember]
+        public string Schema { get; set; }
 
         /// <summary>
         /// Gets or Sets the last datetime when a sync has successfully ended.
         /// </summary>
+        [IgnoreDataMember]
         public DateTime? LastSync { get; set; }
 
         /// <summary>
         /// Gets or Sets the last timestamp a sync has occured. This timestamp is set just 'before' sync start.
         /// </summary>
+        [DataMember(Name = "lst", IsRequired = false, EmitDefaultValue = false, Order = 4)]
         public long LastSyncTimestamp { get; set; }
 
-        ///// <summary>
-        ///// Gets or Sets an excluded range of ts
-        ///// </summary>
-        //public long LastSyncTimestampExcludedBegin { get; set; }
-        ///// <summary>
-        ///// Gets or Sets an excluded range of ts
-        ///// </summary>
-        //public long LastSyncTimestampExcludedEnd { get; set; }
+        /// <summary>
+        /// Gets or Sets the last server timestamp a sync has occured for this scope client.
+        /// </summary>
+        [DataMember(Name = "lsst", IsRequired = false, EmitDefaultValue = false, Order = 5)]
+        public long LastServerSyncTimestamp { get; set; }
 
         /// <summary>
         /// Gets or Sets the last duration a sync has occured. 
         /// </summary>
+        [IgnoreDataMember]
         public long LastSyncDuration { get; set; }
 
         /// <summary>
         /// Gets or sets the last time we apply a clean up on metadata
         /// </summary>
+        [IgnoreDataMember]
         public long LastCleanupTimestamp { get; set; }
-
-        /// <summary>
-        /// Gets or sets the last sync state.
-        /// </summary>
-        public SyncState SyncState { get; set; }
 
     }
 }

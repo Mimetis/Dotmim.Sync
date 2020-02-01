@@ -12,7 +12,7 @@ namespace Dotmim.Sync.Enumerations
         /// <summary>
         /// Table will be sync from server to client and from client to server
         /// </summary>
-        Bidirectional = 1,
+        Bidirectional = 0,
 
         /// <summary>
         /// Table will be sync from server to client only.
@@ -24,7 +24,7 @@ namespace Dotmim.Sync.Enumerations
         /// Table will be sync from client to server only
         /// All changes from server won't be downloaded to client
         /// </summary>
-        UploadOnly = 3
+        UploadOnly = 4
     }
 
     public enum SyncWay

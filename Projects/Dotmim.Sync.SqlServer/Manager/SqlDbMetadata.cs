@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Data;
 using System.Linq;
-using Dotmim.Sync.Data;
+
 
 namespace Dotmim.Sync.SqlServer.Manager
 {
@@ -332,14 +332,14 @@ namespace Dotmim.Sync.SqlServer.Manager
 
         }
 
-        private static (byte p, byte s) CoercePrecisionAndScale(byte precision, byte scale)
+        private static (byte p, byte s) CoercePrecisionAndScale(int precision, int scale)
         {
-            byte p = precision;
-            byte s = scale;
+            byte p = Convert.ToByte(precision);
+            byte s = Convert.ToByte(scale);
             if (p > PRECISION_MAX)
             {
                 p = PRECISION_MAX;
-                s = SCALE_MAX;
+                //s = SCALE_MAX;
             }
 
             if (s > SCALE_MAX)
@@ -528,6 +528,20 @@ namespace Dotmim.Sync.SqlServer.Manager
             throw new Exception($"this SqlDbType {ownerType.ToString()} is not supported");
         }
 
+        public override bool SupportScale(string typeName)
+        {
+            switch (typeName.ToLowerInvariant())
+            {
+                case "decimal":
+                case "real":
+                case "float":
+                case "numeric":
+                case "money":
+                case "smallmoney":
+                    return true;
+            }
+            return false;
+        }
         public override bool IsNumericType(string typeName)
         {
             switch (typeName.ToLowerInvariant())
@@ -540,6 +554,8 @@ namespace Dotmim.Sync.SqlServer.Manager
                 case "real":
                 case "smallint":
                 case "tinyint":
+                case "money":
+                case "smallmoney":
                     return true;
             }
             return false;
@@ -559,7 +575,7 @@ namespace Dotmim.Sync.SqlServer.Manager
             return false;
         }
 
-        public override bool IsValid(DmColumn columnDefinition)
+        public override bool IsValid(SyncColumn columnDefinition)
         {
             switch (columnDefinition.OriginalTypeName.ToLowerInvariant())
             {
@@ -596,24 +612,15 @@ namespace Dotmim.Sync.SqlServer.Manager
             return false;
         }
 
-        public override bool SupportScale(string typeName)
-        {
-            switch (typeName.ToLowerInvariant())
-            {
-                case "decimal":
-                case "numeric":
-                    return true;
-            }
-            return false;
-        }
+       
 
-        public override bool ValidateIsReadonly(DmColumn columnDefinition)
+        public override bool ValidateIsReadonly(SyncColumn columnDefinition)
         {
             return columnDefinition.OriginalTypeName.ToLowerInvariant() == "timestamp" ||
                    columnDefinition.IsCompute;
         }
 
-        public override byte ValidatePrecision(DmColumn columnDefinition)
+        public override byte ValidatePrecision(SyncColumn columnDefinition)
         {
             var (p, s) = CoercePrecisionAndScale(columnDefinition.Precision, columnDefinition.Scale);
             
@@ -674,7 +681,7 @@ namespace Dotmim.Sync.SqlServer.Manager
             return 0;
         }
 
-        public override (byte precision, byte scale) ValidatePrecisionAndScale(DmColumn columnDefinition)
+        public override (byte precision, byte scale) ValidatePrecisionAndScale(SyncColumn columnDefinition)
         {
             return CoercePrecisionAndScale(columnDefinition.Precision, columnDefinition.Scale);
         }

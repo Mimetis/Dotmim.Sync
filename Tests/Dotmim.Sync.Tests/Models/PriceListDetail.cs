@@ -14,6 +14,9 @@ namespace Dotmim.Sync.Tests.Models
         public string ProductDescription { get; set; }
         public decimal Amount { get; set; }
         public decimal Discount { get; set; }
+
+        public decimal Total { get; set; }
+
         public int? MinQuantity { get; set; }
     }
 }

@@ -1,4 +1,4 @@
-﻿using Dotmim.Sync.Data;
+﻿
 using Dotmim.Sync.Enumerations;
 using System.Data.Common;
 
@@ -10,7 +10,7 @@ namespace Dotmim.Sync
     /// </summary>
     public class SchemaArgs : ProgressArgs
     {
-        public SchemaArgs(SyncContext context, DmSet schema, DbConnection connection, DbTransaction transaction)
+        public SchemaArgs(SyncContext context, SyncSet schema, DbConnection connection, DbTransaction transaction)
             : base(context, connection, transaction) => this.Schema = schema;
 
         /// <summary>
@@ -21,8 +21,8 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the schema to be applied. If no tables are filled, the schema will be read.
         /// </summary>
-        public DmSet Schema { get; }
-        public override string Message => $"Tables count:{this.Schema.Tables.Count}";
+        public SyncSet Schema { get; }
+        public override string Message => $"Synced tables count: {this.Schema.Tables.Count}";
 
     }
     public class OutdatedArgs : ProgressArgs
@@ -34,7 +34,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets or sets an action enumeration value for the action to handle the outdated peer.
         /// </summary>
-        public new OutdatedSyncAction Action { get; set; } = OutdatedSyncAction.Rollback;
+        public new OutdatedAction Action { get; set; } = OutdatedAction.Rollback;
 
         public override string Message => $"";
     }

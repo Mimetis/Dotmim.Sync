@@ -1,24 +1,15 @@
 ﻿using System;
-using System.Collections.Generic;
-using Dotmim.Sync.Batch;
 using System.Threading.Tasks;
 using System.IO;
 using System.Linq;
-using System.Net.Http.Headers;
 using System.Threading;
 using Newtonsoft.Json;
-using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Serialization;
-using Dotmim.Sync.Data.Surrogate;
-using Dotmim.Sync.Data;
-using Dotmim.Sync.Messages;
 using Dotmim.Sync.Web.Client;
-using Newtonsoft.Json.Linq;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Session;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
-using Dotmim.Sync.Cache;
+using System.IO.Compression;
 
 namespace Dotmim.Sync.Web.Server
 {
@@ -26,186 +17,329 @@ namespace Dotmim.Sync.Web.Server
     /// <summary>
     /// Class used when you have to deal with a Web Server
     /// </summary>
-    public class WebProxyServerProvider
+    public class WebProxyServerOrchestrator
     {
+        public IMemoryCache Cache { get; }
+        public WebServerProperties WebServerProperties { get; }
 
-        private static WebProxyServerProvider defaultInstance = new WebProxyServerProvider();
-
-       
         /// <summary>
         /// Default constructor for DI
         /// </summary>
-        public WebProxyServerProvider() { }
-
+        public WebProxyServerOrchestrator(IMemoryCache cache, WebServerProperties webServerProperties)
+        {
+            this.Cache = cache;
+            this.WebServerProperties = webServerProperties;
+        }
 
         /// <summary>
-        /// Create a new WebProxyServerProvider with a first instance of an in memory CoreProvider
-        /// Use this method to create your WebProxyServerProvider if you don't use the DI stuff from ASP.NET
+        /// Gets or Sets a Web server orchestratot that will override the one from cache
         /// </summary>
-        public static WebProxyServerProvider Create(HttpContext context, CoreProvider provider, Action<SyncConfiguration> conf, Action<SyncOptions> options)
-        {
-            if (!TryGetHeaderValue(context.Request.Headers, "dotmim-sync-session-id", out var sessionId))
-                throw new SyncException($"Can't find any session id in the header");
+        public WebServerOrchestrator WebServerOrchestrator { get; set; }
 
-            // Check if we have already a cached Sync Memory provider
-            var syncMemoryProvider = GetCachedProviderInstance(context, sessionId);
 
-            // we don't have any provider for this session id, so create it
-            if (syncMemoryProvider == null)
-                 AddNewProviderToCache(context, provider, conf, options, sessionId);
-       
-            return defaultInstance;
-        }
+
+        ///// <summary>
+        ///// Create a new WebProxyServerProvider with a first instance of an in memory CoreProvider
+        ///// Use this method to create your WebProxyServerProvider if you don't use the DI stuff from ASP.NET
+        ///// </summary>
+        //public static WebProxyServerOrchestrator Create(HttpContext context, CoreProvider provider, SyncSetup setup, WebServerOptions options = null)
+        //{
+        //    if (!TryGetHeaderValue(context.Request.Headers, "dotmim-sync-session-id", out var sessionId))
+        //        throw new HttpHeaderMissingExceptiopn("dotmim-sync-session-id");
+
+        //    // Check if we have already a cached Sync Memory provider
+        //    var syncMemoryOrchestrator = GetCachedOrchestrator(context, sessionId);
+
+        //    // we don't have any provider for this session id, so create it
+        //    if (syncMemoryOrchestrator == null)
+        //        AddNewOrchestratorToCache(context, provider, setup, sessionId, options);
+
+        //    return defaultInstance;
+        //}
+
+
+        //public static WebProxyServerOrchestrator Create(HttpContext context, WebServerOrchestrator provider)
+        //{
+        //    if (!TryGetHeaderValue(context.Request.Headers, "dotmim-sync-session-id", out var sessionId))
+        //        throw new HttpHeaderMissingExceptiopn("dotmim-sync-session-id");
+
+        //    // Check if we have already a cached Sync Memory provider
+        //    var syncMemoryOrchestrator = GetCachedOrchestrator(context, sessionId);
+
+        //    // we don't have any provider for this session id, so create it
+        //    if (syncMemoryOrchestrator == null)
+        //        AddNewWebServerOrchestratorToCache(context, provider, sessionId);
+
+        //    return defaultInstance;
+        //}
+
 
         /// <summary>
         /// Retrieve from cache the selected provider depending on the session id
         /// </summary>
-        public CoreProvider GetLocalProvider(HttpContext context)
-        {
-            if (!TryGetHeaderValue(context.Request.Headers, "dotmim-sync-session-id", out var sessionId))
-                return null;
+        //public WebServerOrchestrator GetLocalOrchestrator(HttpContext context)
+        //{
+        //    if (!TryGetHeaderValue(context.Request.Headers, "dotmim-sync-session-id", out var sessionId))
+        //        return null;
 
-            var syncMemoryProvider = GetCachedProviderInstance(context, sessionId);
+        //    var webServerOrchestrator = GetCachedOrchestrator(context, sessionId);
 
-            if (syncMemoryProvider != null)
-                return syncMemoryProvider.LocalProvider;
+        //    if (webServerOrchestrator != null)
+        //        return webServerOrchestrator;
 
-            return null;
-        }
+        //    return null;
+        //}
 
-        /// <summary>
-        /// Call this method to handle requests on the server, sent by the client
-        /// </summary>
-        public async Task HandleRequestAsync(HttpContext context) =>
-            await HandleRequestAsync(context, null, CancellationToken.None);
+
 
         /// <summary>
         /// Call this method to handle requests on the server, sent by the client
         /// </summary>
-        public async Task HandleRequestAsync(HttpContext context, Action<SyncMemoryProvider> action) =>
-            await HandleRequestAsync(context, action, CancellationToken.None);
+        public Task HandleRequestAsync(HttpContext context) =>
+            HandleRequestAsync(context, null, CancellationToken.None);
 
         /// <summary>
         /// Call this method to handle requests on the server, sent by the client
         /// </summary>
-        public async Task HandleRequestAsync(HttpContext context, CancellationToken token) =>
-            await HandleRequestAsync(context, null, token);
+        public Task HandleRequestAsync(HttpContext context, Action<RemoteOrchestrator> action) =>
+            HandleRequestAsync(context, action, CancellationToken.None);
 
         /// <summary>
         /// Call this method to handle requests on the server, sent by the client
         /// </summary>
-        public async Task HandleRequestAsync(HttpContext context, Action<SyncMemoryProvider> action, CancellationToken cancellationToken)
+        public Task HandleRequestAsync(HttpContext context, CancellationToken token) =>
+            HandleRequestAsync(context, null, token);
+
+        /// <summary>
+        /// Call this method to handle requests on the server, sent by the client
+        /// </summary>
+        public async Task HandleRequestAsync(HttpContext context, Action<RemoteOrchestrator> action, CancellationToken cancellationToken)
         {
             var httpRequest = context.Request;
             var httpResponse = context.Response;
             var streamArray = GetBody(httpRequest);
+            var serAndsizeString = string.Empty;
+            var converter = string.Empty;
 
-            var serializationFormat = SerializationFormat.Json;
-            // Get the serialization format
+            // Get the serialization and batch size format
             if (TryGetHeaderValue(context.Request.Headers, "dotmim-sync-serialization-format", out var vs))
-                serializationFormat = vs.ToLowerInvariant() == "json" ? SerializationFormat.Json : SerializationFormat.Binary;
+                serAndsizeString = vs.ToLowerInvariant();
+
+            // Get the serialization and batch size format
+            if (TryGetHeaderValue(context.Request.Headers, "dotmim-sync-converter", out var cs))
+                converter = cs.ToLowerInvariant();
 
             if (!TryGetHeaderValue(context.Request.Headers, "dotmim-sync-session-id", out var sessionId))
-                throw new SyncException($"Can't find any session id in the header");
+                throw new HttpHeaderMissingExceptiopn("dotmim-sync-session-id");
 
-            SyncMemoryProvider syncMemoryProvider = null;
-            var syncSessionId = "";
-            HttpMessage httpMessage = null;
+            if (!TryGetHeaderValue(context.Request.Headers, "dotmim-sync-step", out string iStep))
+                throw new HttpHeaderMissingExceptiopn("dotmim-sync-step");
+
+            var step = (HttpStep)Convert.ToInt32(iStep);
             try
             {
-                var serializer = BaseConverter<HttpMessage>.GetConverter(serializationFormat);
-                httpMessage = serializer.Deserialize(streamArray);
-                syncSessionId = httpMessage.SyncContext.SessionId.ToString();
 
-                if (!httpMessage.SyncContext.SessionId.Equals(Guid.Parse(sessionId)))
-                    throw new SyncException($"Session id is not matching correctly between header and message");
+                // Create a web server remote orchestrator based on cache values
+                if (this.WebServerOrchestrator == null)
+                    this.WebServerOrchestrator = this.WebServerProperties.CreateWebServerOrchestrator();
 
-                // get cached provider instance if not defined byt web proxy server provider
-                if (syncMemoryProvider == null)
-                    syncMemoryProvider = GetCachedProviderInstance(context, syncSessionId);
+                // try get schema from cache
+                if (this.Cache.TryGetValue<SyncSet>(WebServerProperties.Key, out var cachedSchema))
+                    this.WebServerOrchestrator.Schema = cachedSchema;
 
-                if (syncMemoryProvider == null)
-                    syncMemoryProvider = AddNewProviderToCacheFromDI(context, syncSessionId);
+                // try get session cache from current sessionId
+                if (!this.Cache.TryGetValue<SessionCache>(sessionId, out var sessionCache))
+                    sessionCache = new SessionCache();
 
                 // action from user if available
-                action?.Invoke(syncMemoryProvider);
+                action?.Invoke(this.WebServerOrchestrator);
 
-                // get cache manager
-                // since we are using memorycache, it's not necessary to handle it here
-                //syncMemoryProvider.LocalProvider.CacheManager = GetCacheManagerInstance(context, syncSessionId);
+                // Get the serializer and batchsize
+                (var clientBatchSize, var clientSerializerFactory) = GetClientSerializer(serAndsizeString, this.WebServerOrchestrator);
 
-                var httpMessageResponse =
-                    await syncMemoryProvider.GetResponseMessageAsync(httpMessage, cancellationToken);
+                // Get converter used by client
+                // Can be null
+                var clientConverter = GetClientConverter(converter, this.WebServerOrchestrator);
+                this.WebServerOrchestrator.ClientConverter = clientConverter;
 
-                var binaryData = serializer.Serialize(httpMessageResponse);
-                await GetBody(httpResponse).WriteAsync(binaryData, 0, binaryData.Length);
+
+                byte[] binaryData = null;
+                switch (step)
+                {
+                    case HttpStep.EnsureScopes:
+                        var m1 = clientSerializerFactory.GetSerializer<HttpMessageEnsureScopesRequest>().Deserialize(streamArray);
+                        var s1 = await this.WebServerOrchestrator.EnsureScopeAsync(m1, sessionCache, cancellationToken).ConfigureAwait(false);
+                        binaryData = clientSerializerFactory.GetSerializer<HttpMessageEnsureScopesResponse>().Serialize(s1);
+                        await this.WebServerOrchestrator.Provider.InterceptAsync(new HttpMessageEnsureScopesResponseArgs(binaryData)).ConfigureAwait(false);
+                        break;
+                    case HttpStep.SendChanges:
+                        var m2 = clientSerializerFactory.GetSerializer<HttpMessageSendChangesRequest>().Deserialize(streamArray);
+                        var s2 = await this.WebServerOrchestrator.ApplyThenGetChangesAsync(m2, sessionCache, clientBatchSize, cancellationToken).ConfigureAwait(false);
+                        binaryData = clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().Serialize(s2);
+                        await this.WebServerOrchestrator.Provider.InterceptAsync(new HttpMessageSendChangesResponseArgs(binaryData)).ConfigureAwait(false);
+                        break;
+                    case HttpStep.GetChanges:
+                        var m3 = clientSerializerFactory.GetSerializer<HttpMessageGetMoreChangesRequest>().Deserialize(streamArray);
+                        var s3 = this.WebServerOrchestrator.GetMoreChanges(m3, sessionCache, cancellationToken);
+                        binaryData = clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().Serialize(s3);
+                        await this.WebServerOrchestrator.Provider.InterceptAsync(new HttpMessageSendChangesResponseArgs(binaryData)).ConfigureAwait(false);
+                        break;
+                }
+
+                // Save schema to cache with a sliding expiration
+                this.Cache.Set(WebServerProperties.Key, this.WebServerOrchestrator.Schema, this.WebServerProperties.Options.GetServerCacheOptions());
+
+                // Save session client to cache with a sliding expiration
+                this.Cache.Set(sessionId, sessionCache, this.WebServerProperties.Options.GetClientCacheOptions());
+
+                // Adding the serialization format used and session id
+                httpResponse.Headers.Add("dotmim-sync-session-id", sessionId.ToString());
+                httpResponse.Headers.Add("dotmim-sync-serialization-format", clientSerializerFactory.Key);
+
+                // data to send back, as the response
+                byte[] data = this.EnsureCompression(httpRequest, httpResponse, binaryData);
+
+                await this.GetBody(httpResponse).WriteAsync(data, 0, data.Length).ConfigureAwait(false);
 
             }
             catch (Exception ex)
             {
-                await WriteExceptionAsync(httpResponse, ex, syncMemoryProvider?.LocalProvider?.ProviderTypeName ?? "ServerLocalProvider");
+                await WriteExceptionAsync(httpResponse, ex);
             }
             finally
             {
-                if (httpMessage != null && httpMessage.Step == HttpStep.EndSession)
-                    Cleanup(context.RequestServices.GetService(typeof(IMemoryCache)), syncSessionId);
+                //if (httpMessage != null && httpMessage.Step == HttpStep.EndSession)
+                //    Cleanup(context.RequestServices.GetService(typeof(IMemoryCache)), syncSessionId);
             }
+        }
+
+        /// <summary>
+        /// Ensure we have a Compression setting or not
+        /// </summary>
+        private byte[] EnsureCompression(HttpRequest httpRequest, HttpResponse httpResponse, byte[] binaryData)
+        {
+            string encoding = httpRequest.Headers["Accept-Encoding"];
+
+            // Compress data if client accept Gzip / Deflate
+            if (!string.IsNullOrEmpty(encoding) && (encoding.Contains("gzip") || encoding.Contains("deflate")))
+            {
+                httpResponse.Headers.Add("Content-Encoding", "gzip");
+
+                using (var writeSteam = new MemoryStream())
+                {
+                    using (var compress = new GZipStream(writeSteam, CompressionMode.Compress))
+                    {
+                        compress.Write(binaryData, 0, binaryData.Length);
+                    }
+
+                    return writeSteam.ToArray();
+                }
+
+            }
+
+            return binaryData;
         }
 
         /// <summary>
         /// Get an instance of SyncMemoryProvider depending on session id. If the entry for session id does not exists, create a new one
         /// </summary>
-        private static SyncMemoryProvider GetCachedProviderInstance(HttpContext context, string syncSessionId)
-        {
-            SyncMemoryProvider syncMemoryProvider;
+        //private static WebServerOrchestrator GetCachedOrchestrator(HttpContext context, string syncSessionId)
+        //{
+        //    WebServerOrchestrator remoteOrchestrator;
 
-            var cache = context.RequestServices.GetService<IMemoryCache>();
-            if (cache == null)
-                throw new SyncException("Cache is not configured! Please add memory cache, distributed or not (see https://docs.microsoft.com/en-us/aspnet/core/performance/caching/response?view=aspnetcore-2.2)");
+        //    var cache = context.RequestServices.GetService<IMemoryCache>();
+        //    if (cache == null)
+        //        throw new HttpCacheNotConfiguredException();
 
-            if (string.IsNullOrWhiteSpace(syncSessionId))
-                throw new ArgumentNullException(nameof(syncSessionId));
+        //    if (string.IsNullOrWhiteSpace(syncSessionId))
+        //        throw new ArgumentNullException(nameof(syncSessionId));
 
-            // get the sync provider associated with the session id
-            syncMemoryProvider = cache.Get(syncSessionId) as SyncMemoryProvider;
+        //    // get the sync provider associated with the session id
+        //    remoteOrchestrator = cache.Get(syncSessionId) as WebServerOrchestrator;
 
-            return syncMemoryProvider;
-
-        }
+        //    return remoteOrchestrator;
+        //}
 
         /// <summary>
         /// Add a new instance of SyncMemoryProvider, created by DI
         /// </summary>
         /// <returns></returns>
-        private static SyncMemoryProvider AddNewProviderToCacheFromDI(HttpContext context, string syncSessionId)
+        //private static WebServerOrchestrator AddNewOrchestratorToCacheFromDI(HttpContext context, string syncSessionId)
+        //{
+        //    var cache = context.RequestServices.GetService<IMemoryCache>();
+
+        //    if (cache == null)
+        //        throw new HttpCacheNotConfiguredException();
+
+        //    var remoteOrchestrator = DependencyInjection.GetNewOrchestrator();
+        //    cache.Set(syncSessionId, remoteOrchestrator, TimeSpan.FromHours(1));
+
+        //    return remoteOrchestrator;
+        //}
+
+
+        //private static WebServerOrchestrator AddNewOrchestratorToCache(HttpContext context, CoreProvider provider, SyncSetup setup, string sessionId, WebServerOptions options = null)
+        //{
+        //    WebServerOrchestrator remoteOrchestrator;
+        //    var cache = context.RequestServices.GetService<IMemoryCache>();
+
+        //    if (cache == null)
+        //        throw new HttpCacheNotConfiguredException();
+
+        //    remoteOrchestrator = new WebServerOrchestrator(provider, options, setup);
+
+        //    cache.Set(sessionId, remoteOrchestrator, TimeSpan.FromHours(1));
+        //    return remoteOrchestrator;
+        //}
+
+        //private static WebServerOrchestrator AddNewWebServerOrchestratorToCache(HttpContext context, WebServerOrchestrator webServerOrchestrator, string sessionId)
+        //{
+        //    var cache = context.RequestServices.GetService<IMemoryCache>();
+
+        //    if (cache == null)
+        //        throw new HttpCacheNotConfiguredException();
+
+        //    cache.Set(sessionId, webServerOrchestrator, TimeSpan.FromHours(1));
+        //    return webServerOrchestrator;
+        //}
+
+
+
+        private (int clientBatchSize, ISerializerFactory clientSerializer) GetClientSerializer(string serAndsizeString, WebServerOrchestrator serverOrchestrator)
         {
-            var cache = context.RequestServices.GetService<IMemoryCache>();
+            try
+            {
+                if (string.IsNullOrEmpty(serAndsizeString))
+                    throw new Exception();
 
-            if (cache == null)
-                throw new SyncException("Cache is not configured! Please add memory cache, distributed or not (see https://docs.microsoft.com/en-us/aspnet/core/performance/caching/response?view=aspnetcore-2.2)");
+                var serAndsize = JsonConvert.DeserializeAnonymousType(serAndsizeString, new { f = "", s = 0 });
 
-            var syncMemoryProvider = DependencyInjection.GetNewWebProxyServerProvider();
-            cache.Set(syncSessionId, syncMemoryProvider, TimeSpan.FromHours(1));
+                var clientBatchSize = serAndsize.s;
+                var clientSerializerFactory = serverOrchestrator.Options.Serializers[serAndsize.f];
 
-            return syncMemoryProvider;
+                return (clientBatchSize, clientSerializerFactory);
+            }
+            catch
+            {
+                throw new HttpSerializerNotConfiguredException(serverOrchestrator.Options.Serializers.Select(sf => sf.Key));
+            }
         }
 
-        
-        private static SyncMemoryProvider AddNewProviderToCache(HttpContext context, CoreProvider provider, Action<SyncConfiguration> conf, Action<SyncOptions> options, string sessionId)
+        private IConverter GetClientConverter(string cs, WebServerOrchestrator serverOrchestrator)
         {
-            SyncMemoryProvider syncMemoryProvider;
-            var cache = context.RequestServices.GetService<IMemoryCache>();
+            try
+            {
+                if (string.IsNullOrEmpty(cs))
+                    return null;
 
-            if (cache == null)
-                throw new SyncException("Cache is not configured! Please add memory cache, distributed or not (see https://docs.microsoft.com/en-us/aspnet/core/performance/caching/response?view=aspnetcore-2.2)");
+                var clientConverter = serverOrchestrator.Options.Converters.First(c => c.Key == cs);
 
-            syncMemoryProvider = new SyncMemoryProvider(provider);
-
-            syncMemoryProvider.SetConfiguration(conf);
-            syncMemoryProvider.SetOptions(options);
-
-            cache.Set(sessionId, syncMemoryProvider, TimeSpan.FromHours(1));
-            return syncMemoryProvider;
+                return clientConverter;
+            }
+            catch
+            {
+                throw new HttpConverterNotConfiguredException(serverOrchestrator.Options.Converters.Select(sf => sf.Key));
+            }
         }
 
 
@@ -232,18 +366,29 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// Write exception to output message
         /// </summary>
-        public static async Task WriteExceptionAsync(HttpResponse httpResponse, Exception ex, string providerTypeName)
+        public async Task WriteExceptionAsync(HttpResponse httpResponse, Exception ex)
         {
             // Check if it's an unknown error, not managed (yet)
             if (!(ex is SyncException syncException))
-                syncException = new SyncException(ex.Message, SyncStage.None, SyncExceptionType.Unknown);
+                syncException = new SyncException(ex);
 
-            var webXMessage = JsonConvert.SerializeObject(syncException);
+
+            var webException = new WebSyncException
+            {
+                Message = syncException.Message,
+                SyncStage = syncException.SyncStage,
+                TypeName = syncException.TypeName,
+                DataSource = syncException.DataSource,
+                InitialCatalog = syncException.InitialCatalog,
+                Number = syncException.Number,
+                Side = syncException.Side
+            };
+
+            var webXMessage = JsonConvert.SerializeObject(webException);
 
             httpResponse.StatusCode = StatusCodes.Status400BadRequest;
             httpResponse.ContentLength = webXMessage.Length;
             await httpResponse.WriteAsync(webXMessage);
-            Console.WriteLine(syncException);
         }
 
 

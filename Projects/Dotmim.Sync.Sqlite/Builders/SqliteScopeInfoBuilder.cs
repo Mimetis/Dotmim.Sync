@@ -38,8 +38,8 @@ namespace Dotmim.Sync.Sqlite
                     $@"CREATE TABLE {scopeTableName.Quoted().ToString()}(
                         sync_scope_id blob NOT NULL PRIMARY KEY,
 	                    sync_scope_name text NOT NULL,
-	                    scope_timestamp integer NULL,
-                        scope_is_local integer NOT NULL DEFAULT(0), 
+	                    sync_scope_schema text NULL,
+                        scope_last_server_sync_timestamp integer NULL,
                         scope_last_sync_timestamp integer NULL,
                         scope_last_sync_duration integer NULL,
                         scope_last_sync datetime NULL
@@ -112,9 +112,9 @@ namespace Dotmim.Sync.Sqlite
                 command.CommandText =
                     $@"SELECT sync_scope_id
                            , sync_scope_name
-                           , scope_timestamp
-                           , scope_is_local
+                           , sync_scope_schema
                            , scope_last_sync
+                           , scope_last_server_sync_timestamp
                            , scope_last_sync_timestamp
                            , scope_last_sync_duration
                     FROM  {scopeTableName.Unquoted().ToString()}
@@ -133,16 +133,16 @@ namespace Dotmim.Sync.Sqlite
                         // read only the first one
                         while (reader.Read())
                         {
-                            ScopeInfo scopeInfo = new ScopeInfo();
+                            var scopeInfo = new ScopeInfo();
                             scopeInfo.Name = reader["sync_scope_name"] as String;
+                            scopeInfo.Schema = reader["sync_scope_schema"] as String;
                             scopeInfo.Id = reader.GetGuid(reader.GetOrdinal("sync_scope_id"));
-                            scopeInfo.Timestamp = SqliteManager.ParseTimestamp(reader["scope_timestamp"]);
                             scopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value
                                             ? (DateTime?)reader.GetDateTime(reader.GetOrdinal("scope_last_sync"))
                                             : null;
+                            scopeInfo.LastServerSyncTimestamp = reader["scope_last_server_sync_timestamp"] != DBNull.Value ? reader.GetInt64(reader.GetOrdinal("scope_last_server_sync_timestamp")) : 0L;
                             scopeInfo.LastSyncTimestamp = reader["scope_last_sync_timestamp"] != DBNull.Value ? reader.GetInt64(reader.GetOrdinal("scope_last_sync_timestamp")) : 0L;
                             scopeInfo.LastSyncDuration = reader["scope_last_sync_duration"] != DBNull.Value ? reader.GetInt64(reader.GetOrdinal("scope_last_sync_duration")) : 0L;
-                            scopeInfo.IsLocal = reader.GetBoolean(reader.GetOrdinal("scope_is_local"));
                             scopes.Add(scopeInfo);
                         }
                     }
@@ -179,7 +179,7 @@ namespace Dotmim.Sync.Sqlite
                 if (!alreadyOpened)
                     connection.Open();
 
-                long result = Convert.ToInt64(command.ExecuteScalar());
+                    long result = Convert.ToInt64(command.ExecuteScalar());
 
                 return result;
             }
@@ -222,8 +222,8 @@ namespace Dotmim.Sync.Sqlite
                 var exist = (long)command.ExecuteScalar() > 0;
 
                 string stmtText = exist
-                    ? $"Update {scopeTableName.Unquoted().ToString()} set sync_scope_name=@sync_scope_name, scope_timestamp={SqliteObjectNames.TimestampValue}, scope_is_local=@scope_is_local, scope_last_sync=@scope_last_sync, scope_last_sync_timestamp=@scope_last_sync_timestamp, scope_last_sync_duration=@scope_last_sync_duration where sync_scope_id=@sync_scope_id"
-                    : $"Insert into {scopeTableName.Unquoted().ToString()} (sync_scope_name, scope_timestamp, scope_is_local, scope_last_sync, scope_last_sync_duration, scope_last_sync_timestamp, sync_scope_id) values (@sync_scope_name, {SqliteObjectNames.TimestampValue}, @scope_is_local, @scope_last_sync, @scope_last_sync_duration, @scope_last_sync_timestamp, @sync_scope_id)";
+                    ? $"Update {scopeTableName.Unquoted().ToString()} set sync_scope_name=@sync_scope_name, sync_scope_schema=@sync_scope_schema, scope_last_sync=@scope_last_sync, scope_last_server_sync_timestamp=@scope_last_server_sync_timestamp,  scope_last_sync_timestamp=@scope_last_sync_timestamp, scope_last_sync_duration=@scope_last_sync_duration where sync_scope_id=@sync_scope_id"
+                    : $"Insert into {scopeTableName.Unquoted().ToString()} (sync_scope_name, sync_scope_schema, scope_last_sync, scope_last_sync_duration, scope_last_server_sync_timestamp, scope_last_sync_timestamp, sync_scope_id) values (@sync_scope_name, @sync_scope_schema, @scope_last_sync, @scope_last_sync_duration, @scope_last_server_sync_timestamp, @scope_last_sync_timestamp, @sync_scope_id)";
 
                 command = connection.CreateCommand();
                 command.CommandText = stmtText;
@@ -235,15 +235,21 @@ namespace Dotmim.Sync.Sqlite
                 command.Parameters.Add(p);
 
                 p = command.CreateParameter();
-                p.ParameterName = "@scope_is_local";
-                p.Value = scopeInfo.IsLocal;
-                p.DbType = DbType.Boolean;
+                p.ParameterName = "@sync_scope_schema";
+                p.Value = string.IsNullOrEmpty(scopeInfo.Schema) ? DBNull.Value : (object)scopeInfo.Schema;
+                p.DbType = DbType.String;
                 command.Parameters.Add(p);
 
                 p = command.CreateParameter();
                 p.ParameterName = "@scope_last_sync";
                 p.Value = scopeInfo.LastSync.HasValue ? (object)scopeInfo.LastSync.Value : DBNull.Value;
                 p.DbType = DbType.DateTime;
+                command.Parameters.Add(p);
+
+                p = command.CreateParameter();
+                p.ParameterName = "@scope_last_server_sync_timestamp";
+                p.Value = scopeInfo.LastServerSyncTimestamp;
+                p.DbType = DbType.Int64;
                 command.Parameters.Add(p);
 
                 p = command.CreateParameter();
@@ -272,13 +278,13 @@ namespace Dotmim.Sync.Sqlite
                         {
 
                             scopeInfo.Name = reader["sync_scope_name"] as String;
+                            scopeInfo.Schema = reader["sync_scope_schema"] as String;
                             scopeInfo.Id = reader.GetGuid(reader.GetOrdinal("sync_scope_id"));
-                            scopeInfo.Timestamp = SqliteManager.ParseTimestamp(reader["scope_timestamp"]);
-                            scopeInfo.IsLocal = (bool)reader["scope_is_local"];
                             scopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value
                                         ? (DateTime?)reader.GetDateTime(reader.GetOrdinal("scope_last_sync"))
                                         : null;
                             scopeInfo.LastSyncTimestamp = reader["scope_last_sync_timestamp"] != DBNull.Value ? reader.GetInt64(reader.GetOrdinal("scope_last_sync_timestamp")) : 0L;
+                            scopeInfo.LastServerSyncTimestamp = reader["scope_last_server_sync_timestamp"] != DBNull.Value ? reader.GetInt64(reader.GetOrdinal("scope_last_server_sync_timestamp")) : 0L;
                             scopeInfo.LastSyncDuration = reader["scope_last_sync_duration"] != DBNull.Value ? reader.GetInt64(reader.GetOrdinal("scope_last_sync_duration")) : 0L;
                         }
                     }

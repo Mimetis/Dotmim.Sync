@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Text;
-using Dotmim.Sync.Data;
+
 
 namespace Dotmim.Sync.Builders
 {
@@ -14,16 +14,11 @@ namespace Dotmim.Sync.Builders
     {
         bool NeedToCreateTable();
         bool NeedToCreateSchema();
-        bool NeedToCreateForeignKeyConstraints(DmRelation constraint);
+        bool NeedToCreateForeignKeyConstraints(SyncRelation constraint);
         void CreateSchema();
         void CreateTable();
         void CreatePrimaryKey();
-        void CreateForeignKeyConstraints(DmRelation constraint);
+        void CreateForeignKeyConstraints(SyncRelation constraint);
         void DropTable();
-        string CreateSchemaScriptText();
-        string CreateTableScriptText();
-        string CreatePrimaryKeyScriptText();
-        string CreateForeignKeyConstraintsScriptText(DmRelation constraint);
-        string DropTableScriptText();
     }
 }

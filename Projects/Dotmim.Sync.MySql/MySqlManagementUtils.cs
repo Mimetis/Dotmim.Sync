@@ -1,8 +1,9 @@
 using Dotmim.Sync.Builders;
-using Dotmim.Sync.Data;
+
 using MySql.Data.MySqlClient;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Data.Common;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -12,78 +13,143 @@ namespace Dotmim.Sync.MySql
     public static class MySqlManagementUtils
     {
 
-        public static DmTable ColumnsForTable(MySqlConnection connection, MySqlTransaction transaction, string tableName)
+        public static SyncTable Table(MySqlConnection connection, MySqlTransaction transaction, string tableName)
+        {
+            string commandColumn = "select * from information_schema.TABLES where table_schema = schema() and table_name = @tableName limit 1;";
+
+            var tableNameParser = ParserName.Parse(tableName, "`");
+            var syncTable = new SyncTable(tableNameParser.Unquoted().ToString());
+            using (var sqlCommand = new MySqlCommand(commandColumn, connection))
+            {
+                sqlCommand.Parameters.AddWithValue("@tableName", tableNameParser.Unquoted().ToString());
+
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    connection.Open();
+
+                if (transaction != null)
+                    sqlCommand.Transaction = transaction;
+
+
+                using (var reader = sqlCommand.ExecuteReader())
+                {
+                    syncTable.Load(reader);
+                }
+
+
+                if (!alreadyOpened)
+                    connection.Close();
+
+            }
+            return syncTable;
+        }
+
+        public static SyncTable ColumnsForTable(MySqlConnection connection, MySqlTransaction transaction, string tableName)
         {
             string commandColumn = "select * from information_schema.COLUMNS where table_schema = schema() and table_name = @tableName";
 
             var tableNameParser = ParserName.Parse(tableName, "`");
-            DmTable dmTable = new DmTable(tableNameParser.Unquoted().ToString());
-            using (MySqlCommand sqlCommand = new MySqlCommand(commandColumn, connection, transaction))
+            var syncTable = new SyncTable(tableNameParser.Unquoted().ToString());
+            using (var sqlCommand = new MySqlCommand(commandColumn, connection))
             {
                 sqlCommand.Parameters.AddWithValue("@tableName", tableNameParser.Unquoted().ToString());
 
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    connection.Open();
+
+                if (transaction != null)
+                    sqlCommand.Transaction = transaction;
+
                 using (var reader = sqlCommand.ExecuteReader())
                 {
-                    dmTable.Fill(reader);
+                    syncTable.Load(reader);
                 }
+
+                if (!alreadyOpened)
+                    connection.Close();
+
             }
-            return dmTable;
+            return syncTable;
         }
 
-        internal static DmTable PrimaryKeysForTable(MySqlConnection connection, MySqlTransaction transaction, string tableName)
+        internal static SyncTable PrimaryKeysForTable(MySqlConnection connection, MySqlTransaction transaction, string tableName)
         {
-
             var commandColumn = @"select * from information_schema.COLUMNS where table_schema = schema() and table_name = @tableName and column_key='PRI'";
 
             var tableNameParser = ParserName.Parse(tableName, "`");
-            var dmTable = new DmTable(tableNameParser.Unquoted().ToString());
-            using (var sqlCommand = new MySqlCommand(commandColumn, connection, transaction))
+            var syncTable = new SyncTable(tableNameParser.Unquoted().ToString());
+            using (var sqlCommand = new MySqlCommand(commandColumn, connection))
             {
                 sqlCommand.Parameters.AddWithValue("@tableName", tableNameParser.Unquoted().ToString());
 
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    connection.Open();
+
+                if (transaction != null)
+                    sqlCommand.Transaction = transaction;
+
+
                 using (var reader = sqlCommand.ExecuteReader())
                 {
-                    dmTable.Fill(reader);
+                    syncTable.Load(reader);
                 }
+
+                if (!alreadyOpened)
+                    connection.Close();
+
             }
-            return dmTable;
+            return syncTable;
         }
 
-        internal static DmTable RelationsForTable(MySqlConnection connection, MySqlTransaction transaction, string tableName)
+        internal static SyncTable RelationsForTable(MySqlConnection connection, MySqlTransaction transaction, string tableName)
         {
             var commandRelations = @"
             SELECT
               ke.CONSTRAINT_NAME as ForeignKey,
               ke.POSITION_IN_UNIQUE_CONSTRAINT as ForeignKeyOrder,
-              ke.referenced_table_name as TableName,
-              ke.REFERENCED_COLUMN_NAME as ColumnName,
-              ke.table_name ReferenceTableName,
-              ke.COLUMN_NAME ReferenceColumnName
+              ke.referenced_table_name as ReferenceTableName,
+              ke.REFERENCED_COLUMN_NAME as ReferenceColumnName,
+              ke.table_name TableName,
+              ke.COLUMN_NAME ColumnName
             FROM
               information_schema.KEY_COLUMN_USAGE ke
             WHERE
               ke.referenced_table_name IS NOT NULL
-              and ke.REFERENCED_TABLE_SCHEMA = schema()
-              AND ke.REFERENCED_TABLE_NAME = @tableName
+              and ke.table_schema = schema()
+              AND ke.table_name = @tableName
             ORDER BY
               ke.referenced_table_name;";
 
             var tableNameParser = ParserName.Parse(tableName, "`");
 
-            var dmTable = new DmTable(tableNameParser.Unquoted().ToString());
-            using (MySqlCommand sqlCommand = new MySqlCommand(commandRelations, connection, transaction))
+            var syncTable = new SyncTable(tableNameParser.Unquoted().ToString());
+            using (var sqlCommand = new MySqlCommand(commandRelations, connection))
             {
                 sqlCommand.Parameters.AddWithValue("@tableName", tableNameParser.Unquoted().ToString());
 
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    connection.Open();
+
+                if (transaction != null)
+                    sqlCommand.Transaction = transaction;
+
                 using (var reader = sqlCommand.ExecuteReader())
                 {
-                    dmTable.Fill(reader);
+                    syncTable.Load(reader);
                 }
+
+                if (!alreadyOpened)
+                    connection.Close();
             }
 
-
-            return dmTable;
-
+            return syncTable;
         }
 
         public static void DropTableIfExists(MySqlConnection connection, MySqlTransaction transaction, string quotedTableName)
@@ -96,10 +162,19 @@ namespace Dotmim.Sync.MySql
 
                 dbCommand.Parameters.AddWithValue("@tableName", tableNameParser.Unquoted().ToString());
 
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    connection.Open();
+
                 if (transaction != null)
                     dbCommand.Transaction = transaction;
 
                 dbCommand.ExecuteNonQuery();
+
+                if (!alreadyOpened)
+                    connection.Close();
+
             }
         }
 
@@ -149,10 +224,15 @@ namespace Dotmim.Sync.MySql
             {
                 dbCommand.CommandText = "select COUNT(*) from information_schema.TABLES where TABLE_NAME = @tableName and TABLE_SCHEMA = schema() and TABLE_TYPE = 'BASE TABLE'";
 
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    connection.Open();
+
                 if (transaction != null)
                     dbCommand.Transaction = transaction;
 
-                MySqlParameter sqlParameter = new MySqlParameter()
+                var sqlParameter = new MySqlParameter()
                 {
                     ParameterName = "@tableName",
                     Value = table.Unquoted().ToString()
@@ -161,6 +241,11 @@ namespace Dotmim.Sync.MySql
                 dbCommand.Parameters.Add(sqlParameter);
 
                 tableExist = (Int64)dbCommand.ExecuteScalar() != 0;
+
+
+                if (!alreadyOpened)
+                    connection.Close();
+
 
             }
             return tableExist;
@@ -172,16 +257,26 @@ namespace Dotmim.Sync.MySql
             var triggerName = ParserName.Parse(quotedTriggerName, "`");
 
 
-            using (MySqlCommand dbCommand = connection.CreateCommand())
+            using (var dbCommand = connection.CreateCommand())
             {
                 dbCommand.CommandText = "select count(*) from information_schema.TRIGGERS where trigger_name = @triggerName AND trigger_schema = schema()";
 
                 dbCommand.Parameters.AddWithValue("@triggerName", triggerName.Unquoted().ToString());
 
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    connection.Open();
+
                 if (transaction != null)
                     dbCommand.Transaction = transaction;
 
                 triggerExist = (long)dbCommand.ExecuteScalar() != 0L;
+
+
+                if (!alreadyOpened)
+                    connection.Close();
+
             }
             return triggerExist;
         }
@@ -191,7 +286,7 @@ namespace Dotmim.Sync.MySql
             bool procExist;
             var commandNameString = ParserName.Parse(commandName, "`");
 
-            using (MySqlCommand dbCommand = connection.CreateCommand())
+            using (var dbCommand = connection.CreateCommand())
             {
                 dbCommand.CommandText = @"select count(*) from information_schema.ROUTINES
                                         where ROUTINE_TYPE = 'PROCEDURE'
@@ -200,22 +295,32 @@ namespace Dotmim.Sync.MySql
 
                 dbCommand.Parameters.AddWithValue("@procName", commandNameString.Unquoted().ToString());
 
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    connection.Open();
+
                 if (transaction != null)
                     dbCommand.Transaction = transaction;
 
                 procExist = (long)dbCommand.ExecuteScalar() != 0L;
+
+
+                if (!alreadyOpened)
+                    connection.Close();
+
             }
             return procExist;
         }
 
-        internal static string JoinTwoTablesOnClause(IEnumerable<DmColumn> columns, string leftName, string rightName)
+        internal static string JoinTwoTablesOnClause(IEnumerable<string> pkeys, string leftName, string rightName)
         {
-            StringBuilder stringBuilder = new StringBuilder();
+            var stringBuilder = new StringBuilder();
             string strRightName = (string.IsNullOrEmpty(rightName) ? string.Empty : string.Concat(rightName, "."));
             string strLeftName = (string.IsNullOrEmpty(leftName) ? string.Empty : string.Concat(leftName, "."));
 
             string str = "";
-            foreach (DmColumn column in columns)
+            foreach (var column in pkeys)
             {
                 var quotedColumn = ParserName.Parse(column, "`");
 
@@ -231,12 +336,31 @@ namespace Dotmim.Sync.MySql
             return stringBuilder.ToString();
         }
 
-        internal static string ColumnsAndParameters(IEnumerable<DmColumn> columns, string fromPrefix)
+        internal static string ColumnsAndParameters(IEnumerable<string> pkeys, string fromPrefix)
+        {
+            var stringBuilder = new StringBuilder();
+            string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));
+            string str1 = "";
+            foreach (var pkey in pkeys)
+            {
+                var quotedColumn = ParserName.Parse(pkey, "`");
+
+                stringBuilder.Append(str1);
+                stringBuilder.Append(strFromPrefix);
+                stringBuilder.Append(quotedColumn.Quoted().ToString());
+                stringBuilder.Append(" = ");
+                stringBuilder.Append($"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{pkey}");
+                str1 = " AND ";
+            }
+            return stringBuilder.ToString();
+        }
+
+        internal static string WhereColumnAndParameters(IEnumerable<string> primaryKeys, string fromPrefix)
         {
             StringBuilder stringBuilder = new StringBuilder();
             string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));
             string str1 = "";
-            foreach (DmColumn column in columns)
+            foreach (var column in primaryKeys)
             {
                 var quotedColumn = ParserName.Parse(column, "`");
 
@@ -244,37 +368,18 @@ namespace Dotmim.Sync.MySql
                 stringBuilder.Append(strFromPrefix);
                 stringBuilder.Append(quotedColumn.Quoted().ToString());
                 stringBuilder.Append(" = ");
-                stringBuilder.Append($"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{column.ColumnName}");
+                stringBuilder.Append($"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{column}");
                 str1 = " AND ";
             }
             return stringBuilder.ToString();
         }
 
-        internal static string WhereColumnAndParameters(IEnumerable<DmColumn> columns, string fromPrefix)
-        {
-            StringBuilder stringBuilder = new StringBuilder();
-            string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));
-            string str1 = "";
-            foreach (DmColumn column in columns)
-            {
-                var quotedColumn = ParserName.Parse(column, "`");
-
-                stringBuilder.Append(str1);
-                stringBuilder.Append(strFromPrefix);
-                stringBuilder.Append(quotedColumn.Quoted().ToString());
-                stringBuilder.Append(" = ");
-                stringBuilder.Append($"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{column.ColumnName}");
-                str1 = " AND ";
-            }
-            return stringBuilder.ToString();
-        }
-
-        internal static string CommaSeparatedUpdateFromParameters(DmTable table, string fromPrefix = "")
+        internal static string CommaSeparatedUpdateFromParameters(SyncTable table, string fromPrefix = "")
         {
             var stringBuilder = new StringBuilder();
             string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));
             string strSeparator = "";
-            foreach (var mutableColumn in table.MutableColumns)
+            foreach (var mutableColumn in table.GetMutableColumns())
             {
                 var quotedColumn = ParserName.Parse(mutableColumn, "`");
                 stringBuilder.AppendLine($"{strSeparator} {strFromPrefix}{quotedColumn.Quoted().ToString()} = {MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{quotedColumn.Unquoted().Normalized().ToString()}");
