@@ -9,14 +9,11 @@ namespace Dotmim.Sync.Web.Client
     /// </summary>
     public enum HttpStep
     {
-        BeginSession,
+        None,
         EnsureScopes,
-        EnsureConfiguration,
-        EnsureDatabase,
-        GetChangeBatch,
-        ApplyChanges,
-        WriteScopes,
-        GetLocalTimestamp,
-        EndSession
+        SendChanges,
+        SendChangesInProgress,
+        GetChanges,
+        GetChangesInProgress,
     }
 }

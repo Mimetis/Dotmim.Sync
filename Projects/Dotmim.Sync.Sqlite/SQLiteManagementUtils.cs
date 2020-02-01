@@ -1,15 +1,145 @@
-﻿using Dotmim.Sync.Data;
+﻿
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Text;
 using System.Linq;
 using Microsoft.Data.Sqlite;
 using Dotmim.Sync.Builders;
+using System;
+using System.Data;
 
 namespace Dotmim.Sync.Sqlite
 {
     internal static class SqliteManagementUtils
     {
+        public static SyncTable Table(SqliteConnection connection, SqliteTransaction transaction, string tableName)
+        {
+            string command = "select * from sqlite_master where name = @tableName limit 1";
+
+            var tableNameNormalized = ParserName.Parse(tableName).Unquoted().Normalized().ToString();
+            var tableNameString = ParserName.Parse(tableName).ToString();
+
+            var syncTable = new SyncTable(tableNameNormalized);
+            using (var sqlCommand = new SqliteCommand(command, connection))
+            {
+                sqlCommand.Parameters.AddWithValue("@tableName", tableNameString);
+
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    connection.Open();
+
+                if (transaction != null)
+                    sqlCommand.Transaction = transaction;
+
+                using (var reader = sqlCommand.ExecuteReader())
+                {
+                    syncTable.Load(reader);
+                }
+
+
+                if (!alreadyOpened)
+                    connection.Close();
+
+            }
+            return syncTable;
+        }
+
+        public static SyncTable ColumnsForTable(SqliteConnection connection, SqliteTransaction transaction, string tableName)
+        {
+
+            var tableNameParser = ParserName.Parse(tableName, "`");
+            var tableNameString = tableNameParser.Unquoted().ToString();
+
+            string commandColumn = $"SELECT * FROM pragma_table_info('{tableName}');";
+            var syncTable = new SyncTable(tableNameString);
+
+            using (var sqlCommand = new SqliteCommand(commandColumn, connection))
+            {
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    connection.Open();
+
+                if (transaction != null)
+                    sqlCommand.Transaction = transaction;
+
+
+                using (var reader = sqlCommand.ExecuteReader())
+                {
+                    syncTable.Load(reader);
+                }
+
+
+                if (!alreadyOpened)
+                    connection.Close();
+
+            }
+            return syncTable;
+        }
+
+        public static SyncTable PrimaryKeysForTable(SqliteConnection connection, SqliteTransaction transaction, string tableName)
+        {
+
+            var tableNameParser = ParserName.Parse(tableName, "`");
+            var tableNameString = tableNameParser.Unquoted().ToString();
+
+            string commandColumn = $"SELECT * FROM pragma_table_info('{tableName}') where pk = 1;";
+            var syncTable = new SyncTable(tableNameString);
+
+            using (var sqlCommand = new SqliteCommand(commandColumn, connection))
+            {
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    connection.Open();
+
+                if (transaction != null)
+                    sqlCommand.Transaction = transaction;
+
+
+                using (var reader = sqlCommand.ExecuteReader())
+                {
+                    syncTable.Load(reader);
+                }
+
+                if (!alreadyOpened)
+                    connection.Close();
+
+            }
+            return syncTable;
+        }
+
+        public static SyncTable RelationsForTable(SqliteConnection connection, SqliteTransaction transaction, string tableName)
+        {
+            var tableNameParser = ParserName.Parse(tableName, "`");
+            var tableNameString = tableNameParser.Unquoted().ToString();
+
+            string commandColumn = $"SELECT * FROM pragma_foreign_key_list('{tableNameString}')";
+            var syncTable = new SyncTable(tableNameString);
+
+            using (var sqlCommand = new SqliteCommand(commandColumn, connection))
+            {
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    connection.Open();
+
+                if (transaction != null)
+                    sqlCommand.Transaction = transaction;
+
+
+                using (var reader = sqlCommand.ExecuteReader())
+                {
+                    syncTable.Load(reader);
+                }
+
+                if (!alreadyOpened)
+                    connection.Close();
+
+            }
+            return syncTable;
+        }
 
         public static void DropTableIfExists(SqliteConnection connection, SqliteTransaction transaction, string quotedTableName)
         {
@@ -57,7 +187,6 @@ namespace Dotmim.Sync.Sqlite
             return $"drop trigger {triggerName}";
         }
 
-
         public static bool TableExists(SqliteConnection connection, SqliteTransaction transaction, ParserName tableName)
         {
             bool tableExist;
@@ -101,7 +230,7 @@ namespace Dotmim.Sync.Sqlite
             return triggerExist;
         }
 
-        internal static string JoinTwoTablesOnClause(IEnumerable<DmColumn> columns, string leftName, string rightName)
+        internal static string JoinTwoTablesOnClause(IEnumerable<string> columns, string leftName, string rightName)
         {
             var stringBuilder = new StringBuilder();
             string strRightName = (string.IsNullOrEmpty(rightName) ? string.Empty : string.Concat(rightName, "."));
@@ -124,10 +253,10 @@ namespace Dotmim.Sync.Sqlite
             return stringBuilder.ToString();
         }
 
-        internal static string WhereColumnAndParameters(IEnumerable<DmColumn> columns, string fromPrefix)
+        internal static string WhereColumnAndParameters(IEnumerable<string> columns, string fromPrefix)
         {
             var stringBuilder = new StringBuilder();
-            string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));
+            string strFromPrefix = string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, ".");
             string str1 = "";
             foreach (var column in columns)
             {
@@ -144,12 +273,31 @@ namespace Dotmim.Sync.Sqlite
             return stringBuilder.ToString();
         }
 
-        internal static string CommaSeparatedUpdateFromParameters(DmTable table, string fromPrefix = "")
+        internal static string WhereColumnIsNull(IEnumerable<string> columns, string fromPrefix)
+        {
+            var stringBuilder = new StringBuilder();
+            string strFromPrefix = string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, ".");
+            string str1 = "";
+            foreach (var column in columns)
+            {
+                var quotedColumn = ParserName.Parse(column).Quoted().ToString();
+
+                stringBuilder.Append(str1);
+                stringBuilder.Append(strFromPrefix);
+                stringBuilder.Append(quotedColumn);
+                stringBuilder.Append(" IS NULL ");
+                str1 = " AND ";
+            }
+            return stringBuilder.ToString();
+        }
+
+
+        internal static string CommaSeparatedUpdateFromParameters(SyncTable table, string fromPrefix = "")
         {
             var stringBuilder = new StringBuilder();
             string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));
             string strSeparator = "";
-            foreach (var mutableColumn in table.MutableColumns)
+            foreach (var mutableColumn in table.GetMutableColumns())
             {
                 var quotedColumn = ParserName.Parse(mutableColumn).Quoted().ToString();
                 var unquotedColumn = ParserName.Parse(mutableColumn).Unquoted().Normalized().ToString();

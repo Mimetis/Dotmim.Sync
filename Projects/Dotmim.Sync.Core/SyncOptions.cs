@@ -1,5 +1,9 @@
-﻿using System;
+﻿using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.Serialization;
+using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.Serialization;
 
 namespace Dotmim.Sync
@@ -8,15 +12,23 @@ namespace Dotmim.Sync
     /// This class determines all the options you can set on Client & Server, that could potentially be different
     /// For instance, the batch directory path could not be the same on the server and client
     /// </summary>
-    [Serializable]
     public class SyncOptions
     {
+
+        /// <summary>
+        /// Default name if nothing is specified for the scope inf table, stored on the client db
+        /// </summary>
+        public const string DefaultScopeInfoTableName = "scope_info";
+
+        /// <summary>
+        /// Default scope name if not specified
+        /// </summary>
+        public const string DefaultScopeName = "DefaultScope";
 
         /// <summary>
         /// Gets or Sets the directory used for batch mode.
         /// Default value is [User Temp Path]/[DotmimSync]
         /// </summary>
-        [DataMember(Name = "bd")]
         public string BatchDirectory { get; set; }
 
         /// <summary>
@@ -35,38 +47,42 @@ namespace Dotmim.Sync
         public static string GetDefaultUserBatchDirectoryName() => "DotmimSync";
 
         /// <summary>
-        /// Gets or Sets the size used (approximatively in kb) for each batch file, in batch mode. 
+        /// Gets or Sets the size used (approximatively in kb, depending on the serializer) for each batch file, in batch mode. 
         /// Default is 0 (no batch mode)
         /// </summary>
-        [DataMember(Name = "bs")]
         public int BatchSize { get; set; }
 
         /// <summary>
-        /// Gets/Sets the log level for sync operations. Default value is false.
+        /// Gets or Sets the log level for sync operations. Default value is false.
         /// </summary>
-        [DataMember(Name = "uve")]
         public bool UseVerboseErrors { get; set; }
 
         /// <summary>
         /// Gets or Sets if we should use the bulk operations. Default is true.
         /// If provider does not support bulk operations, this option is overrided to false.
         /// </summary>
-        [DataMember(Name = "ubo")]
         public bool UseBulkOperations { get; set; } = true;
 
         /// <summary>
-        /// Gets or Sets if we should cleaning tmp dir files after sync.
+        /// Gets or Sets if we should clean tracking table metadatas.
         /// </summary>
-        [DataMember(Name = "cm")]
         public bool CleanMetadatas { get; set; } = true;
 
         /// <summary>
         /// Gets or Sets if we should disable constraints before making apply changes 
         /// Default value is true
         /// </summary>
-        [DataMember(Name = "dcoa")]
         public bool DisableConstraintsOnApplyChanges { get; set; } = true;
 
+        /// <summary>
+        /// Gets or Sets the scope_info table name. Default is scope_info
+        /// </summary>
+        public string ScopeInfoTableName { get; set; }
+
+        /// <summary>
+        /// Gets or Sets the default conflict resolution policy. This value could potentially be ovewritten and replaced by the server
+        /// </summary>
+        public ConflictResolutionPolicy ConflictResolutionPolicy { get; set; }
 
         /// <summary>
         /// Create a new instance of options with default values
@@ -79,8 +95,10 @@ namespace Dotmim.Sync
             this.UseBulkOperations = true;
             this.UseVerboseErrors = false;
             this.DisableConstraintsOnApplyChanges = true;
-
+            this.ScopeInfoTableName = DefaultScopeInfoTableName;
+            this.ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
         }
+
 
     }
 }

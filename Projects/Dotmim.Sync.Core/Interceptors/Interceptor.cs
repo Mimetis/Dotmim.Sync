@@ -6,11 +6,11 @@ using System.Threading.Tasks;
 namespace Dotmim.Sync
 {
 
-    public class InterceptorBase
+    public class Interceptors
     {
         private readonly Dictionary<Type, ISyncInterceptor> dictionary = new Dictionary<Type, ISyncInterceptor>();
 
-        internal InterceptorWrapper<T> GetInterceptor<T>() where T : ProgressArgs
+        public InterceptorWrapper<T> GetInterceptor<T>() where T : ProgressArgs
         {
             InterceptorWrapper<T> interceptor = null;
             var typeofT = typeof(T);
@@ -28,41 +28,7 @@ namespace Dotmim.Sync
 
             return interceptor;
         }
-    }
 
-    public class Interceptor<T> : InterceptorBase where T : ProgressArgs
-    {
-        public Interceptor(Func<T, Task> func) => this.GetInterceptor<T>().Set(func);
-        public Interceptor(Action<T> action) => this.GetInterceptor<T>().Set(action);
-    }
-
-    public class Interceptor<T, U> : InterceptorBase where T : ProgressArgs
-                                                     where U : ProgressArgs
-    {
-        public Interceptor(Func<T, Task> t, Func<U, Task> u)
-        {
-            this.GetInterceptor<T>().Set(t);
-            this.GetInterceptor<U>().Set(u);
-        }
-        public Interceptor(Func<T, Task> t, Action<U> u)
-        {
-            this.GetInterceptor<T>().Set(t);
-            this.GetInterceptor<U>().Set(u);
-        }
-        public Interceptor(Action<T> t, Func<U, Task> u)
-        {
-            this.GetInterceptor<T>().Set(t);
-            this.GetInterceptor<U>().Set(u);
-        }
-        public Interceptor(Action<T> t, Action<U> u)
-        {
-            this.GetInterceptor<T>().Set(t);
-            this.GetInterceptor<U>().Set(u);
-        }
-    }
-  
-    public class Interceptors : InterceptorBase
-    {
 
         /// <summary>
         /// Intercept the provider action whenever a connection is opened
@@ -318,8 +284,45 @@ namespace Dotmim.Sync
         public void OnDatabaseChangesApplied(Action<DatabaseChangesAppliedArgs> func)
             => this.GetInterceptor<DatabaseChangesAppliedArgs>().Set(func);
 
-
-
-
     }
+
+    //public class Interceptor<T> : InterceptorBase where T : ProgressArgs
+    //{
+    //    public Interceptor(Func<T, Task> func) => this.GetInterceptor<T>().Set(func);
+    //    public Interceptor(Action<T> action) => this.GetInterceptor<T>().Set(action);
+    //}
+
+    //public class Interceptor<T, U> : InterceptorBase where T : ProgressArgs
+    //                                                 where U : ProgressArgs
+    //{
+    //    public Interceptor(Func<T, Task> t, Func<U, Task> u)
+    //    {
+    //        this.GetInterceptor<T>().Set(t);
+    //        this.GetInterceptor<U>().Set(u);
+    //    }
+    //    public Interceptor(Func<T, Task> t, Action<U> u)
+    //    {
+    //        this.GetInterceptor<T>().Set(t);
+    //        this.GetInterceptor<U>().Set(u);
+    //    }
+    //    public Interceptor(Action<T> t, Func<U, Task> u)
+    //    {
+    //        this.GetInterceptor<T>().Set(t);
+    //        this.GetInterceptor<U>().Set(u);
+    //    }
+    //    public Interceptor(Action<T> t, Action<U> u)
+    //    {
+    //        this.GetInterceptor<T>().Set(t);
+    //        this.GetInterceptor<U>().Set(u);
+    //    }
+    //}
+
+    //public class Interceptors : InterceptorBase
+    //{
+
+
+
+
+
+    //}
 }

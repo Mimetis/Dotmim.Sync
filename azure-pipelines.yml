@@ -15,69 +15,14 @@ jobs:
       - script: docker run --name mysql -e MYSQL_ROOT_PASSWORD=Password12! -p 3307:3306 -d mysql
         displayName: "Run MySql on Linux container"
 
-      # - script: echo "##vso[task.setvariable variable=mySQLIP;isOutput=true]$(docker inspect -f "{{ .NetworkSettings.IPAddress }}" mysql)"
-      #   name: setvarStep
-      #   displayName: '[obsolete] Get Ip from MySql container'
-
       - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
         displayName: "Run SQL 2017 on Linux container"
 
-      #- script: |
-      #    sqlcmd -S localhost -U sa -P 'Password12!' -Q 'select @@VERSION'
-      #    exit
-      #  continueOnError: 'true'
-      #  displayName: 'Run SQLCMD, Continue if any error'
-
-      # Dont need anymore to pass the MySQL Ip Address, just let it here for memory
-      # --logger trx;logfilename=TEST.xml : Unexplained arg to publish tests resuls
-
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter SqlServerBasicTests --logger trx
-        name: SqlServerBasicTests
-        displayName: "Tests with SQL Server acting as server"
+      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --logger trx
+        name: alltests
+        displayName: "All Tests"
+        continueOnError: true
         env:
-          "MYSQLIP": $(setvarStep.mySQLIP)
-          "AZUREDEV": "true"
-
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter SyncAllColumnsTests --logger trx
-        name: SyncAllColumnsTests
-        displayName: "Tests with SQL Server acting as server and all columns possibilities"
-        env:
-          "MYSQLIP": $(setvarStep.mySQLIP)
-          "AZUREDEV": "true"
-
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter SqlServerConfigTests --logger trx
-        name: SqlServerConfigTests
-        displayName: "Tests with SQL Server acting as server and specific configurations"
-        env:
-          "MYSQLIP": $(setvarStep.mySQLIP)
-          "AZUREDEV": "true"
-
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter SqlServerFilterTests --logger trx
-        name: SqlServerFilterTests
-        displayName: "Tests with SQL Server acting as server and specific filters"
-        env:
-          "MYSQLIP": $(setvarStep.mySQLIP)
-          "AZUREDEV": "true"
-
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter SqliteEncryptedTests --logger trx
-        name: SqliteEncryptedTests
-        displayName: "Tests with SQL Server acting as server and encrypted SQLite database"
-        env:
-          "MYSQLIP": $(setvarStep.mySQLIP)
-          "AZUREDEV": "true"
-
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter MySqlBasicTests --logger trx
-        name: MySqlBasicTests
-        displayName: "Tests with MySQL Server acting as server"
-        env:
-          "MYSQLIP": $(setvarStep.mySQLIP)
-          "AZUREDEV": "true"
-
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter MySqlFilterTests --logger trx
-        name: MySqlFilterTests
-        displayName: "Tests with MySQL Server acting as server"
-        env:
-          "MYSQLIP": $(setvarStep.mySQLIP)
           "AZUREDEV": "true"
 
       - task: PublishTestResults@2
@@ -121,11 +66,11 @@ jobs:
       - script: |
           dotnet build Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Core --version-suffix $(buildBetaId) 
           dotnet build Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServer --version-suffix $(buildBetaId) 
-          dotnet build Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Sqlite --version-suffix $(buildBetaId) 
+          dotnet build Projects/Dotmim.Sync.SqlServer.ChangeTracking/Dotmim.Sync.SqlServer.ChangeTracking.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServerChangeTracking --version-suffix $(buildBetaId) 
           dotnet build Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MySql --version-suffix $(buildBetaId) 
+          dotnet build Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Sqlite --version-suffix $(buildBetaId) 
           dotnet build Projects/Dotmim.Sync.Web.Client/Dotmim.Sync.Web.Client.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Client --version-suffix $(buildBetaId) 
           dotnet build Projects/Dotmim.Sync.Web.Server/Dotmim.Sync.Web.Server.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Server --version-suffix $(buildBetaId) 
-          dotnet build Projects/dotnet-sync/dotnet-sync.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/dotnet-sync --version-suffix $(buildBetaId)
         displayName: "Compile binaries and get beta nuget packages"
 
       # Publish Build Artifacts
@@ -150,11 +95,11 @@ jobs:
       - script: |
           dotnet build Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Core 
           dotnet build Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServer 
-          dotnet build Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Sqlite 
+          dotnet build Projects/Dotmim.Sync.SqlServer.ChangeTracking/Dotmim.Sync.SqlServer.ChangeTracking.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServerChangeTracking
           dotnet build Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MySql 
+          dotnet build Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Sqlite 
           dotnet build Projects/Dotmim.Sync.Web.Client/Dotmim.Sync.Web.Client.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Client 
           dotnet build Projects/Dotmim.Sync.Web.Server/Dotmim.Sync.Web.Server.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Server 
-          dotnet build Projects/dotnet-sync/dotnet-sync.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/dotnet-sync
         displayName: "Compile binaries and get release nuget packages"
 
       # Publish Build Artifacts

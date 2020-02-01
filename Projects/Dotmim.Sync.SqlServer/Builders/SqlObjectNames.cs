@@ -1,9 +1,9 @@
 ﻿using Dotmim.Sync.Builders;
-using Dotmim.Sync.Data;
-using Dotmim.Sync.Filter;
+
+
 using System;
 using System.Collections.Generic;
-
+using System.Linq;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
@@ -13,8 +13,12 @@ namespace Dotmim.Sync.SqlServer.Builders
         internal const string updateTriggerName = "[{0}].[{1}_update_trigger]";
         internal const string deleteTriggerName = "[{0}].[{1}_delete_trigger]";
 
-        internal const string selectChangesProcName = "[{0}].[{1}_selectchanges]";
-        internal const string selectChangesProcNameWithFilters = "[{0}].[{1}_{2}_selectchanges]";
+        internal const string selectChangesProcName = "[{0}].[{1}_changes]";
+        internal const string selectChangesProcNameWithFilters = "[{0}].[{1}_{2}_changes]";
+        
+        internal const string initializeChangesProcName = "[{0}].[{1}_initialize]";
+        internal const string initializeChangesProcNameWithFilters = "[{0}].[{1}_{2}_initialize]";
+        
         internal const string selectRowProcName = "[{0}].[{1}_selectrow]";
 
         internal const string insertProcName = "[{0}].[{1}_insert]";
@@ -32,11 +36,13 @@ namespace Dotmim.Sync.SqlServer.Builders
         internal const string bulkUpdateProcName = "[{0}].[{1}_bulkupdate]";
         internal const string bulkDeleteProcName = "[{0}].[{1}_bulkdelete]";
 
-        internal const string disableConstraintsText = "ALTER TABLE {0} NOCHECK CONSTRAINT ALL";
-        internal const string enableConstraintsText = "ALTER TABLE {0} CHECK CONSTRAINT ALL";
+        //internal const string disableConstraintsText = "ALTER TABLE {0} NOCHECK CONSTRAINT ALL";
+        //internal const string enableConstraintsText = "ALTER TABLE {0} CHECK CONSTRAINT ALL";
+        internal const string disableConstraintsText = "sp_msforeachtable";
+        internal const string enableConstraintsText = "sp_msforeachtable";
 
         Dictionary<DbCommandType, (string name, bool isStoredProcedure)> names = new Dictionary<DbCommandType, (string name, bool isStoredProcedure)>();
-        public DmTable TableDescription { get; }
+        public SyncTable TableDescription { get; }
 
 
         public void AddName(DbCommandType objectType, string name, bool isStoredProcedure)
@@ -46,20 +52,20 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             names.Add(objectType, (name, isStoredProcedure));
         }
-        public (string name, bool isStoredProcedure) GetCommandName(DbCommandType objectType, IEnumerable<FilterClause> filters = null)
+        public (string name, bool isStoredProcedure) GetCommandName(DbCommandType objectType, SyncFilter filter = null)
         {
             if (!names.ContainsKey(objectType))
                 throw new Exception("Yous should provide a value for all DbCommandName");
 
             (var commandName, var isStoredProc) = names[objectType];
 
-            if (filters != null)
+            if (filter != null)
             {
                 string name = "";
                 string sep = "";
-                foreach (var c in filters)
+                foreach (var parameterName in filter.Parameters.Select(f => f.Name))
                 {
-                    var columnName = ParserName.Parse(c.ColumnName).Unquoted().Normalized().ToString();
+                    var columnName = ParserName.Parse(parameterName).Unquoted().Normalized().ToString();
                     name += $"{columnName}{sep}";
                     sep = "_";
                 }
@@ -69,7 +75,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             return (commandName, isStoredProc);
         }
 
-        public SqlObjectNames(DmTable tableDescription)
+        public SqlObjectNames(SyncTable tableDescription)
         {
             this.TableDescription = tableDescription;
             SetDefaultNames();
@@ -80,25 +86,24 @@ namespace Dotmim.Sync.SqlServer.Builders
         /// </summary>
         private void SetDefaultNames()
         {
-            
-
-            var pref = this.TableDescription.StoredProceduresPrefix;
-            var suf = this.TableDescription.StoredProceduresSuffix;
-            var tpref = this.TableDescription.TriggersPrefix;
-            var tsuf = this.TableDescription.TriggersSuffix;
+            var pref = this.TableDescription.Schema.StoredProceduresPrefix;
+            var suf = this.TableDescription.Schema.StoredProceduresSuffix;
+            var tpref = this.TableDescription.Schema.TriggersPrefix;
+            var tsuf = this.TableDescription.Schema.TriggersSuffix;
 
             var tableName = ParserName.Parse(TableDescription);
 
             var schema = string.IsNullOrEmpty(tableName.SchemaName) ? "dbo" : tableName.SchemaName;
 
             this.AddName(DbCommandType.SelectChanges, string.Format(selectChangesProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
-            this.AddName(DbCommandType.SelectChangesWitFilters, string.Format(selectChangesProcNameWithFilters, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}", "{0}"), true);
+            this.AddName(DbCommandType.SelectChangesWithFilters, string.Format(selectChangesProcNameWithFilters, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}", "{0}"), true);
+
+            this.AddName(DbCommandType.SelectInitializedChanges, string.Format(initializeChangesProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
+            this.AddName(DbCommandType.SelectInitializedChangesWithFilters, string.Format(initializeChangesProcNameWithFilters, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}", "{0}"), true);
+
             this.AddName(DbCommandType.SelectRow, string.Format(selectRowProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
-            this.AddName(DbCommandType.InsertRow, string.Format(insertProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
             this.AddName(DbCommandType.UpdateRow, string.Format(updateProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
             this.AddName(DbCommandType.DeleteRow, string.Format(deleteProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
-            this.AddName(DbCommandType.InsertMetadata, string.Format(insertMetadataProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
-            this.AddName(DbCommandType.UpdateMetadata, string.Format(updateMetadataProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
             this.AddName(DbCommandType.DeleteMetadata, string.Format(deleteMetadataProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
             this.AddName(DbCommandType.Reset, string.Format(resetMetadataProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
 
@@ -108,12 +113,11 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             this.AddName(DbCommandType.BulkTableType, string.Format(bulkTableTypeName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
 
-            this.AddName(DbCommandType.BulkInsertRows, string.Format(bulkInsertProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
             this.AddName(DbCommandType.BulkUpdateRows, string.Format(bulkUpdateProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
             this.AddName(DbCommandType.BulkDeleteRows, string.Format(bulkDeleteProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
 
-            this.AddName(DbCommandType.DisableConstraints, string.Format(disableConstraintsText, ParserName.Parse(TableDescription).Schema().Quoted().ToString()) , false);
-            this.AddName(DbCommandType.EnableConstraints, string.Format(enableConstraintsText, ParserName.Parse(TableDescription).Schema().Quoted().ToString()), false);
+            this.AddName(DbCommandType.DisableConstraints, string.Format(disableConstraintsText, ParserName.Parse(TableDescription).Schema().Quoted().ToString()) , true);
+            this.AddName(DbCommandType.EnableConstraints, string.Format(enableConstraintsText, ParserName.Parse(TableDescription).Schema().Quoted().ToString()), true);
         }
 
     }
