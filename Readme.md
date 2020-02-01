@@ -56,13 +56,6 @@ The script is ready to execute in SQL Server. It contains :
 * A lightweight AdvenureWorks database, acting as the Server database (called **AdventureWorks**)
 * An empty database, acting as the Client database (called **Client**)
 
-## Building from source
-
-1) install VS 2017
-2) install Microsoft SQL Server (localdb is sufficient)
-3) install MySQL (run installMySql.ps1 which automates this using chocolatey)
-4) open "SQLUtils.HelperDB" and modify the connection strings to suit your configuration
-
 ## Need Help
 
 * Check the full documentation, available here : [https://mimetis.github.io/Dotmim.Sync/](https://mimetis.github.io/Dotmim.Sync/)
