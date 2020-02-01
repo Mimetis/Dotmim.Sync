@@ -77,6 +77,13 @@ namespace Dotmim.Sync
 
 
         /// <summary>
+        /// Gets or Sets the current scope name
+        /// </summary>
+        [DataMember(Name = "v", IsRequired = false, EmitDefaultValue = false, Order = 11)]
+        public string Version { get; set; }
+
+
+        /// <summary>
         /// Only used for Serialization
         /// </summary>
         public SyncSet()
@@ -85,6 +92,7 @@ namespace Dotmim.Sync
             this.Relations = new SyncRelations(this);
             this.Filters = new SyncFilters(this);
             this.ScopeName = SyncOptions.DefaultScopeName;
+            this.Version = "0.4";
         }
 
         /// <summary>
@@ -121,6 +129,7 @@ namespace Dotmim.Sync
             clone.TrackingTablesSuffix = this.TrackingTablesSuffix;
             clone.TriggersPrefix = this.TriggersPrefix;
             clone.TriggersSuffix = this.TriggersSuffix;
+            clone.Version = this.Version;
 
             if (!includeTables)
                 return clone;
