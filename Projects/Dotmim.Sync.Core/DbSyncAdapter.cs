@@ -1,7 +1,7 @@
 ﻿using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Log;
 using Dotmim.Sync.Manager;
-using Dotmim.Sync.Data;
+
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -12,12 +12,11 @@ using Dotmim.Sync.Builders;
 using System.Diagnostics;
 using System.ComponentModel;
 using System.Threading.Tasks;
-using Dotmim.Sync.Filter;
+
+using System.Reflection;
 
 namespace Dotmim.Sync
 {
-
-
     /// <summary>
     /// The SyncAdapter is the datasource manager for ONE table
     /// Should be implemented by every database provider and provide every SQL action
@@ -27,14 +26,14 @@ namespace Dotmim.Sync
         private const int BATCH_SIZE = 1000;
 
         /// <summary>
-        /// Gets the table description, a dmTable with no rows
+        /// Gets the table description
         /// </summary>
-        public DmTable TableDescription { get; private set; }
+        public SyncTable TableDescription { get; private set; }
 
         /// <summary>
         /// Get or Set the current step (could be only Added, Modified, Deleted)
         /// </summary>
-        internal DmRowState ApplyType { get; set; }
+        internal DataRowState ApplyType { get; set; }
 
         /// <summary>
         /// Get if the error is a primarykey exception
@@ -49,17 +48,17 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets a command from the current adapter
         /// </summary>
-        public abstract DbCommand GetCommand(DbCommandType commandType, IEnumerable<FilterClause> filters = null);
+        public abstract DbCommand GetCommand(DbCommandType commandType, SyncFilter filter = null);
 
         /// <summary>
         /// Set parameters on a command
         /// </summary>
-        public abstract void SetCommandParameters(DbCommandType commandType, DbCommand command, IEnumerable<FilterClause> filters = null);
+        public abstract void SetCommandParameters(DbCommandType commandType, DbCommand command, SyncFilter filter = null);
 
         /// <summary>
         /// Execute a batch command
         /// </summary>
-        public abstract void ExecuteBatchCommand(DbCommand cmd, DmView applyTable, DmTable failedRows, ScopeInfo scope);
+        public abstract void ExecuteBatchCommand(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> arrayItems, SyncTable schemaChangesTable, SyncTable failedRows, long lastTimestamp);
 
         /// <summary>
         /// Gets the current connection. could be opened
@@ -74,162 +73,58 @@ namespace Dotmim.Sync
         /// <summary>
         /// Create a Sync Adapter
         /// </summary>
-        public DbSyncAdapter(DmTable tableDescription)
-        {
-            this.TableDescription = tableDescription;
-        }
+        public DbSyncAdapter(SyncTable tableDescription) => this.TableDescription = tableDescription;
 
 
         /// <summary>
         /// Set command parameters value mapped to Row
         /// </summary>
-        internal void SetColumnParametersValues(DbCommand command, DmRow row)
+        internal void SetColumnParametersValues(DbCommand command, SyncRow row)
         {
+            if (row.Table == null)
+                throw new ArgumentException("Schema table columns does not correspond to row values");
+
+            var schemaTable = row.Table;
+
             foreach (DbParameter parameter in command.Parameters)
             {
                 // foreach parameter, check if we have a column 
                 if (!string.IsNullOrEmpty(parameter.SourceColumn))
                 {
-                    if (row.Table.Columns.Contains(parameter.SourceColumn))
+                    var column = schemaTable.Columns.FirstOrDefault(sc => sc.ColumnName.Equals(parameter.SourceColumn, SyncGlobalization.DataSourceStringComparison));
+                    if (column != null)
                     {
-                        object value = null;
-                        if (row.RowState == DmRowState.Deleted)
-                            value = row[parameter.SourceColumn, DmRowVersion.Original];
-                        else
-                            value = row[parameter.SourceColumn];
-
-                        DbManager.SetParameterValue(command, parameter.ParameterName, value);
+                        object value = row[column] ?? DBNull.Value;
+                        DbTableManagerFactory.SetParameterValue(command, parameter.ParameterName, value);
                     }
                 }
 
             }
 
             // return value
-            var syncRowCountParam = DbManager.GetParameter(command, "sync_row_count");
+            var syncRowCountParam = DbTableManagerFactory.GetParameter(command, "sync_row_count");
 
             if (syncRowCountParam != null)
                 syncRowCountParam.Direction = ParameterDirection.Output;
         }
 
         /// <summary>
-        /// Insert or update a metadata line
-        /// </summary>
-        internal bool InsertOrUpdateMetadatas(DbCommand command, DmRow row, Guid? fromScopeId)
-        {
-            int rowsApplied = 0;
-
-            if (command == null)
-                throw new Exception("Missing command for apply metadata ");
-
-            // Set the id parameter
-            this.SetColumnParametersValues(command, row);
-
-            DmRowVersion version = row.RowState == DmRowState.Deleted ? DmRowVersion.Original : DmRowVersion.Current;
-
-            long createTimestamp = row["create_timestamp", version] != null ? Convert.ToInt64(row["create_timestamp", version]) : 0;
-            long updateTimestamp = row["update_timestamp", version] != null ? Convert.ToInt64(row["update_timestamp", version]) : 0;
-            Guid? create_scope_id = row["create_scope_id", version] != null ? (Guid?)(row["create_scope_id", version]) : null;
-            Guid? update_scope_id = row["update_scope_id", version] != null ? (Guid?)(row["update_scope_id", version]) : null;
-
-            // Override create and update scope id to reflect who change the value
-            // if it's an update, the createscope is staying the same (because not present in dbCommand)
-            Guid? createScopeId = fromScopeId.HasValue ? fromScopeId : create_scope_id;
-            Guid? updateScopeId = fromScopeId.HasValue ? fromScopeId : update_scope_id;
-
-            // some proc stock does not differentiate update_scope_id and create_scope_id and use sync_scope_id
-            DbManager.SetParameterValue(command, "sync_scope_id", createScopeId);
-            // else they use create_scope_id and update_scope_id
-            DbManager.SetParameterValue(command, "create_scope_id", createScopeId);
-            DbManager.SetParameterValue(command, "update_scope_id", updateScopeId);
-
-            // 2 choices for getting deleted
-            bool isTombstone = false;
-
-            if (row.RowState == DmRowState.Deleted)
-                isTombstone = true;
-
-            if (row.Table != null && row.Table.Columns.Contains("sync_row_is_tombstone"))
-            {
-
-                var rowValue = row["sync_row_is_tombstone", version] != null && row["sync_row_is_tombstone", version] != DBNull.Value ? row["sync_row_is_tombstone", version] : false;
-
-                if (rowValue.GetType() == typeof(bool))
-                {
-                    isTombstone = (bool)rowValue;
-                }
-                else
-                {
-                    isTombstone = Convert.ToInt64(rowValue) > 0;
-                }
-                //else
-                //{
-                //    string rowValueString = rowValue.ToString();
-                //    if (Boolean.TryParse(rowValueString.Trim(), out Boolean v))
-                //    {
-                //        isTombstone = v;
-                //    }
-                //    else if (rowValueString.Trim() == "0")
-                //    {
-                //        isTombstone = false;
-                //    }
-                //    else if (rowValueString.Trim() == "1")
-                //    {
-                //        isTombstone = true;
-                //    }
-                //    else
-                //    {
-                //        var converter = TypeDescriptor.GetConverter(typeof(bool));
-                //        if (converter.CanConvertFrom(rowValue.GetType()))
-                //        {
-                //            isTombstone = (bool)converter.ConvertFrom(rowValue);
-                //        }
-                //        else
-                //        {
-                //            isTombstone = false;
-                //        }
-
-                //    }
-                //}
-            }
-
-            DbManager.SetParameterValue(command, "sync_row_is_tombstone", isTombstone ? 1 : 0);
-            DbManager.SetParameterValue(command, "create_timestamp", createTimestamp);
-            DbManager.SetParameterValue(command, "update_timestamp", updateTimestamp);
-
-            var alreadyOpened = Connection.State == ConnectionState.Open;
-
-            try
-            {
-                if (!alreadyOpened)
-                    Connection.Open();
-
-                if (Transaction != null)
-                    command.Transaction = Transaction;
-
-                rowsApplied = command.ExecuteNonQuery();
-            }
-            finally
-            {
-                // Close Connection
-                if (!alreadyOpened)
-                    Connection.Close();
-            }
-            return rowsApplied > 0;
-        }
-
-        /// <summary>
         /// Try to get a source row
         /// </summary>
         /// <returns></returns>
-        internal DmTable GetRow(DmRow sourceRow)
+        internal SyncRow GetRow(Guid localScopeId, SyncRow primaryKeyRow, SyncTable schema)
         {
             // Get the row in the local repository
-            using (DbCommand selectCommand = GetCommand(DbCommandType.SelectRow))
+            using (var selectCommand = GetCommand(DbCommandType.SelectRow))
             {
+                if (selectCommand == null)
+                    throw new MissingCommandException(DbCommandType.SelectRow.ToString());
+
                 // Deriving Parameters
                 this.SetCommandParameters(DbCommandType.SelectRow, selectCommand);
 
-                this.SetColumnParametersValues(selectCommand, sourceRow);
+                // set the primary keys columns as parameters
+                this.SetColumnParametersValues(selectCommand, primaryKeyRow);
 
                 var alreadyOpened = Connection.State == ConnectionState.Open;
 
@@ -240,29 +135,61 @@ namespace Dotmim.Sync
                 if (Transaction != null)
                     selectCommand.Transaction = Transaction;
 
-                var dmTableSelected = new DmTable(this.TableDescription.TableName);
-                try
+                // Create a select table based on the schema in parameter + scope columns
+                var changesSet = schema.Schema.Clone(false);
+                var selectTable = CreateChangesTable(schema, changesSet);
+                SyncRow syncRow = null;
+                using (var dataReader = selectCommand.ExecuteReader())
                 {
-                    using (var reader = selectCommand.ExecuteReader())
-                        dmTableSelected.Fill(reader);
-
-                    // set the pkey since we will need them later
-                    var pkeys = new DmColumn[this.TableDescription.PrimaryKey.Columns.Length];
-                    for (int i = 0; i < pkeys.Length; i++)
+                    while (dataReader.Read())
                     {
-                        var pkName = this.TableDescription.PrimaryKey.Columns[i].ColumnName;
-                        pkeys[i] = dmTableSelected.Columns.First(dm => this.TableDescription.IsEqual(dm.ColumnName, pkName));
+                        // Create a new empty row
+                        syncRow = selectTable.NewRow();
+
+                        for (var i = 0; i < dataReader.FieldCount; i++)
+                        {
+                            var columnName = dataReader.GetName(i);
+
+                            // if we have the tombstone value, do not add it to the table
+                            if (columnName == "sync_row_is_tombstone")
+                            {
+                                var isTombstone = Convert.ToInt64(dataReader.GetValue(i)) > 0;
+                                syncRow.RowState = isTombstone ? DataRowState.Deleted : DataRowState.Unchanged;
+                                continue;
+                            }
+
+                            if (columnName == "update_scope_id")
+                            {
+                                var readerScopeId = dataReader.GetValue(i);
+
+                                //// if update_scope_id is null, so the row owner is the local database
+                                //// if update_scope_id is not null, the row owner is someone else
+                                //if (readerScopeId == DBNull.Value || readerScopeId == null)
+                                //    syncRow.UpdateScopeId = localScopeId;
+                                //else if (SyncTypeConverter.TryConvertTo<Guid>(readerScopeId, out var updateScopeIdObject))
+                                //    syncRow.UpdateScopeId = (Guid)updateScopeIdObject;
+                                //else
+                                //    throw new Exception("Impossible to parse row['update_scope_id']");
+
+                                continue;
+                            }
+
+                            var columnValueObject = dataReader.GetValue(i);
+                            var columnValue = columnValueObject == DBNull.Value ? null : columnValueObject;
+                            syncRow[columnName] = columnValue;
+                        }
                     }
-                    dmTableSelected.PrimaryKey = new DmKey(pkeys);
-                }
-                finally
-                {
-                    // Close Connection
-                    if (!alreadyOpened)
-                        Connection.Close();
                 }
 
-                return dmTableSelected;
+                // Close Connection
+                if (!alreadyOpened)
+                    Connection.Close();
+
+
+                if (syncRow != null)
+                    syncRow.RowState = primaryKeyRow.RowState;
+
+                return syncRow;
             }
 
         }
@@ -271,209 +198,166 @@ namespace Dotmim.Sync
         /// Launch apply bulk changes
         /// </summary>
         /// <returns></returns>
-        public int ApplyBulkChanges(DmView dmChanges, ScopeInfo fromScope, List<SyncConflict> conflicts)
+        public int ApplyBulkChanges(Guid localScopeId, Guid senderScopeId, SyncTable changesTable, long lastTimestamp, List<SyncConflict> conflicts)
         {
-            DbCommand bulkCommand = null;
-
-            if (this.ApplyType == DmRowState.Added)
-            {
-                bulkCommand = this.GetCommand(DbCommandType.BulkInsertRows);
-                this.SetCommandParameters(DbCommandType.BulkInsertRows, bulkCommand);
-            }
-            else if (this.ApplyType == DmRowState.Modified)
+            DbCommand bulkCommand;
+            if (this.ApplyType == DataRowState.Modified)
             {
                 bulkCommand = this.GetCommand(DbCommandType.BulkUpdateRows);
+                if (bulkCommand == null)
+                    throw new MissingCommandException(DbCommandType.BulkUpdateRows.ToString());
+
                 this.SetCommandParameters(DbCommandType.BulkUpdateRows, bulkCommand);
             }
-            else if (this.ApplyType == DmRowState.Deleted)
+            else if (this.ApplyType == DataRowState.Deleted)
             {
                 bulkCommand = this.GetCommand(DbCommandType.BulkDeleteRows);
+                if (bulkCommand == null)
+                    throw new MissingCommandException(DbCommandType.BulkDeleteRows.ToString());
+
                 this.SetCommandParameters(DbCommandType.BulkDeleteRows, bulkCommand);
             }
             else
             {
-                throw new Exception("DmRowState not valid during ApplyBulkChanges operation");
+                throw new Exception("RowState not valid during ApplyBulkChanges operation");
             }
 
             if (Transaction != null && Transaction.Connection != null)
                 bulkCommand.Transaction = Transaction;
 
-            //DmTable batchDmTable = dmChanges.Table.Clone();
-            DmTable failedDmtable = new DmTable { Culture = CultureInfo.InvariantCulture };
+            // Create
+            var failedPrimaryKeysTable = changesTable.Schema.Clone().Tables[changesTable.TableName, changesTable.SchemaName];
+            //AddSchemaForFailedRowsTable(failedPrimaryKeysTable);
 
-            // Create the schema for failed rows (just add the Primary keys)
-            this.AddSchemaForFailedRowsTable(failedDmtable);
-
-            // Since the update and create timestamp come from remote, change name for the bulk operations
-            var update_timestamp_column = dmChanges.Table.Columns["update_timestamp"].ColumnName;
-            dmChanges.Table.Columns["update_timestamp"].ColumnName = "update_timestamp";
-            var create_timestamp_column = dmChanges.Table.Columns["create_timestamp"].ColumnName;
-            dmChanges.Table.Columns["create_timestamp"].ColumnName = "create_timestamp";
+            // get the items count
+            var itemsArrayCount = changesTable.Rows.Count;
 
             // Make some parts of BATCH_SIZE 
-            for (int step = 0; step < dmChanges.Count; step += BATCH_SIZE)
+            for (int step = 0; step < itemsArrayCount; step += BATCH_SIZE)
             {
                 // get upper bound max value
-                var taken = step + BATCH_SIZE >= dmChanges.Count ? dmChanges.Count - step : BATCH_SIZE;
+                var taken = step + BATCH_SIZE >= itemsArrayCount ? itemsArrayCount - step : BATCH_SIZE;
 
-                using (var dmStepChanges = dmChanges.Take(step, taken))
-                {
-                    // execute the batch, through the provider
-                    ExecuteBatchCommand(bulkCommand, dmStepChanges, failedDmtable, fromScope);
-                }
+                var arrayStepChanges = changesTable.Rows.ToList().Skip(step).Take(taken);
+
+                // execute the batch, through the provider
+                ExecuteBatchCommand(bulkCommand, senderScopeId, arrayStepChanges, changesTable, failedPrimaryKeysTable, lastTimestamp);
             }
 
             // Disposing command
             if (bulkCommand != null)
-            {
                 bulkCommand.Dispose();
-                bulkCommand = null;
+
+            if (failedPrimaryKeysTable.Rows.Count == 0)
+                return itemsArrayCount;
+
+            // Get local and remote row and create the conflict object
+            foreach (var failedRow in failedPrimaryKeysTable.Rows)
+            {
+                failedRow.RowState = this.ApplyType;
+
+                // Get the row that caused the problem, from the remote side (client)
+                var remoteConflictRows = changesTable.Rows.GetRowsByPrimaryKeys(failedRow);
+
+                if (remoteConflictRows.Count() == 0)
+                    throw new Exception("Cant find changes row who is in conflict");
+
+                var remoteConflictRow = remoteConflictRows.ToList()[0];
+
+                var localConflictRow = GetRow(localScopeId, failedRow, changesTable);
+
+                conflicts.Add(GetConflict(remoteConflictRow, localConflictRow));
             }
 
-            // Since the update and create timestamp come from remote, change name for the bulk operations
-            dmChanges.Table.Columns["update_timestamp"].ColumnName = update_timestamp_column;
-            dmChanges.Table.Columns["create_timestamp"].ColumnName = create_timestamp_column;
-
-            //foreach (var dmRow in dmChanges)
-            //{
-            //    // Cancel the delete state to be able to get the row, more simplier
-            //    if (applyType == DmRowState.Deleted)
-            //        dmRow.RejectChanges();
-
-            //    // Load the datarow
-            //    DmRow dataRow = batchDmTable.LoadDataRow(dmRow.ItemArray, false);
-
-            //    // Apply the delete
-            //    // is it mandatory ?
-            //    if (applyType == DmRowState.Deleted)
-            //        dmRow.Delete();
-
-            //    batchCount++;
-            //    rowCount++;
-
-            //    if (batchCount < BATCH_SIZE && rowCount < dmChanges.Count)
-            //        continue;
-
-            //    // Since the update and create timestamp come from remote, change name for the bulk operations
-            //    batchDmTable.Columns["update_timestamp"].ColumnName = "update_timestamp";
-            //    batchDmTable.Columns["create_timestamp"].ColumnName = "create_timestamp";
-
-            //    // execute the batch, through the provider
-            //    ExecuteBatchCommand(bulkCommand, batchDmTable, failedDmtable, fromScope);
-
-            //    // Clear the batch
-            //    batchDmTable.Clear();
-
-            //    // Recreate a Clone
-            //    // TODO : Evaluate if it's necessary
-            //    batchDmTable = dmChanges.Table.Clone();
-            //    batchCount = 0;
-            //}
-
-            // Update table progress 
-            //tableProgress.ChangesApplied = dmChanges.Count - failedDmtable.Rows.Count;
-
-            if (failedDmtable.Rows.Count == 0)
-                return dmChanges.Count;
-
-            // Check all conflicts raised
-            var failedFilter = new Predicate<DmRow>(row =>
-            {
-                if (row.RowState == DmRowState.Deleted)
-                    return failedDmtable.FindByKey(row.GetKeyValues(DmRowVersion.Original)) != null;
-                else
-                    return failedDmtable.FindByKey(row.GetKeyValues()) != null;
-            });
-
-            // New View
-            var dmFailedRows = new DmView(dmChanges, failedFilter);
-
-            // Generate a conflict and add it
-            foreach (var dmFailedRow in dmFailedRows)
-                conflicts.Add(GetConflict(dmFailedRow));
-
-            int failedRows = dmFailedRows.Count;
-
-            // Dispose the failed view
-            dmFailedRows.Dispose();
-            dmFailedRows = null;
-
-            // return applied rows - failed rows (generating a conflict)
-            return dmChanges.Count - failedRows;
+            // return applied rows minus failed rows
+            return itemsArrayCount - failedPrimaryKeysTable.Rows.Count;
         }
 
 
-        private void UpdateMetadatas(DbCommandType dbCommandType, DmRow dmRow, ScopeInfo scope)
+        /// <summary>
+        /// We have a conflict, try to get the source row and generate a conflict
+        /// </summary>
+        private SyncConflict GetConflict(SyncRow remoteConflictRow, SyncRow localConflictRow)
         {
-            using (var dbCommand = this.GetCommand(dbCommandType))
+
+            var dbConflictType = ConflictType.ErrorsOccurred;
+
+            // Can't find the row on the server datastore
+            if (localConflictRow == null)
             {
-                this.SetCommandParameters(dbCommandType, dbCommand);
-                this.InsertOrUpdateMetadatas(dbCommand, dmRow, scope.Id);
+                if (ApplyType == DataRowState.Modified)
+                    dbConflictType = ConflictType.RemoteExistsLocalNotExists;
+                else if (ApplyType == DataRowState.Deleted)
+                    dbConflictType = ConflictType.RemoteIsDeletedLocalNotExists;
             }
+            else
+            {
+                // the row on local is deleted
+                if (localConflictRow.RowState == DataRowState.Deleted)
+                {
+                    if (ApplyType == DataRowState.Modified)
+                        dbConflictType = ConflictType.RemoteExistsLocalIsDeleted;
+                    else if (ApplyType == DataRowState.Deleted)
+                        dbConflictType = ConflictType.RemoteIsDeletedLocalIsDeleted;
+                }
+                else
+                {
+                    dbConflictType = ConflictType.RemoteExistsLocalExists;
+                }
+            }
+            // Generate the conflict
+            var conflict = new SyncConflict(dbConflictType);
+            conflict.AddRemoteRow(remoteConflictRow);
+
+            if (localConflictRow != null)
+                conflict.AddLocalRow(localConflictRow);
+
+            return conflict;
         }
 
         /// <summary>
         /// Try to apply changes on the server.
-        /// Internally will call ApplyInsert / ApplyUpdate or ApplyDelete
+        /// Internally will call ApplyUpdate or ApplyDelete and will return
         /// </summary>
-        /// <param name="dmChanges">Changes from remote</param>
-        /// <returns>every lines not updated on the server side</returns>
-        internal int ApplyChanges(DmView dmChanges, ScopeInfo scope, List<SyncConflict> conflicts)
+        /// <param name="changes">Changes</param>
+        /// <returns>every lines not updated / deleted in the destination data source</returns>
+        internal int ApplyChanges(Guid localScopeId, Guid senderScopeId, SyncTable changesTable, long lastTimestamp, List<SyncConflict> conflicts)
         {
             int appliedRows = 0;
 
-            foreach (var dmRow in dmChanges)
+            foreach (var row in changesTable.Rows)
             {
                 bool operationComplete = false;
 
                 try
                 {
-                    if (ApplyType == DmRowState.Added)
-                    {
-                        operationComplete = this.ApplyInsert(dmRow, scope, false);
-                        if (operationComplete)
-                            UpdateMetadatas(DbCommandType.InsertMetadata, dmRow, scope);
-                    }
-                    else if (ApplyType == DmRowState.Modified)
-                    {
-                        operationComplete = this.ApplyUpdate(dmRow, scope, false);
-                        if (operationComplete)
-                            UpdateMetadatas(DbCommandType.UpdateMetadata, dmRow, scope);
-                    }
-                    else if (ApplyType == DmRowState.Deleted)
-                    {
-                        operationComplete = this.ApplyDelete(dmRow, scope, false);
-                        if (operationComplete)
-                            UpdateMetadatas(DbCommandType.UpdateMetadata, dmRow, scope);
-                    }
+                    if (ApplyType == DataRowState.Modified)
+                        operationComplete = this.ApplyUpdate(row, lastTimestamp, senderScopeId, false);
+                    else if (ApplyType == DataRowState.Deleted)
+                        operationComplete = this.ApplyDelete(row, lastTimestamp, senderScopeId, false);
 
                     if (operationComplete)
-                        // if no pb, increment then go to next row
                         appliedRows++;
                     else
-                        // Generate a conflict and add it
-                        conflicts.Add(GetConflict(dmRow));
+                        conflicts.Add(GetConflict(row, GetRow(localScopeId, row, changesTable)));
 
                 }
                 catch (Exception ex)
                 {
                     if (this.IsUniqueKeyViolation(ex))
                     {
-
                         // Generate the conflict
                         var conflict = new SyncConflict(ConflictType.UniqueKeyConstraint);
 
                         // Add the row as Remote row
-                        conflict.AddRemoteRow(dmRow);
+                        conflict.AddRemoteRow(row);
 
                         // Get the local row
-                        var localTable = GetRow(dmRow);
-                        if (localTable.Rows.Count > 0)
-                            conflict.AddLocalRow(localTable.Rows[0]);
+                        var localRow = GetRow(localScopeId, row, changesTable);
+                        if (localRow != null)
+                            conflict.AddLocalRow(localRow);
 
                         conflicts.Add(conflict);
-
-                        localTable.Clear();
                     }
                     else
                     {
@@ -486,169 +370,169 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Apply a single insert in the current data source
-        /// </summary>
-        internal bool ApplyInsert(DmRow row, ScopeInfo scope, bool forceWrite)
-        {
-            using (var command = this.GetCommand(DbCommandType.InsertRow))
-            {
-
-                // Deriving Parameters
-                this.SetCommandParameters(DbCommandType.InsertRow, command);
-
-                // Set the parameters value from row
-                this.SetColumnParametersValues(command, row);
-
-                // Set the special parameters for insert
-                AddCommonParametersValues(command, scope.Id, scope.Timestamp, false, forceWrite);
-
-                var alreadyOpened = Connection.State == ConnectionState.Open;
-
-                // Open Connection
-                if (!alreadyOpened)
-                    Connection.Open();
-
-                int rowInsertedCount = 0;
-                try
-                {
-                    if (Transaction != null)
-                        command.Transaction = Transaction;
-
-                    rowInsertedCount = command.ExecuteNonQuery();
-                }
-
-                finally
-                {
-                    // Open Connection
-                    if (!alreadyOpened)
-                        Connection.Close();
-
-                }
-
-                return rowInsertedCount > 0;
-            }
-        }
-
-        /// <summary>
         /// Apply a delete on a row
         /// </summary>
-        internal bool ApplyDelete(DmRow sourceRow, ScopeInfo scope, bool forceWrite)
+        internal bool ApplyDelete(SyncRow row, long lastTimestamp, Guid? senderScopeId, bool forceWrite)
         {
+            if (row.Table == null)
+                throw new ArgumentException("Schema table is not present in the row");
+
             using (var command = this.GetCommand(DbCommandType.DeleteRow))
             {
+                if (command == null)
+                    throw new MissingCommandException(DbCommandType.DeleteRow.ToString());
+
                 // Deriving Parameters
                 this.SetCommandParameters(DbCommandType.DeleteRow, command);
 
                 // Set the parameters value from row
-                this.SetColumnParametersValues(command, sourceRow);
+                this.SetColumnParametersValues(command, row);
 
                 // Set the special parameters for update
-                this.AddCommonParametersValues(command, scope.Id, scope.Timestamp, true, forceWrite);
+                this.AddScopeParametersValues(command, senderScopeId, lastTimestamp, true, forceWrite);
 
                 var alreadyOpened = Connection.State == ConnectionState.Open;
 
-                int rowInsertedCount = 0;
-                try
-                {
-                    // OPen Connection
-                    if (!alreadyOpened)
-                        Connection.Open();
+                // OPen Connection
+                if (!alreadyOpened)
+                    Connection.Open();
 
-                    if (Transaction != null)
-                        command.Transaction = Transaction;
+                if (Transaction != null)
+                    command.Transaction = Transaction;
 
-                    rowInsertedCount = command.ExecuteNonQuery();
+                var rowDeletedCount = command.ExecuteNonQuery();
 
-                }
-                finally
-                {
-                    if (!alreadyOpened)
-                        Connection.Close();
-                }
+                // Check if we have a return value instead
+                var syncRowCountParam = DbTableManagerFactory.GetParameter(command, "sync_row_count");
 
-                return rowInsertedCount > 0;
+                if (syncRowCountParam != null)
+                    rowDeletedCount = (int)syncRowCountParam.Value;
+
+
+                if (!alreadyOpened)
+                    Connection.Close();
+
+
+                return rowDeletedCount > 0;
             }
         }
 
         /// <summary>
         /// Apply a single update in the current datasource. if forceWrite, override conflict situation and force the update
         /// </summary>
-        internal bool ApplyUpdate(DmRow sourceRow, ScopeInfo scope, bool forceWrite)
+        internal bool ApplyUpdate(SyncRow row, long lastTimestamp, Guid? senderScopeId, bool forceWrite)
         {
-
-            bool hasUpdatableColumns = true;
-
-            if (sourceRow.Table != null)
-                hasUpdatableColumns = sourceRow.Table.MutableColumnsAndNotAutoInc.Any( c => c.ColumnName.ToLowerInvariant() != "create_timestamp" && c.ColumnName.ToLowerInvariant() != "update_timestamp" && c.ColumnName.ToLowerInvariant() != "create_scope_id" && c.ColumnName.ToLowerInvariant() != "update_scope_id");
-
-            if (!hasUpdatableColumns)
-                return false;
+            if (row.Table == null)
+                throw new ArgumentException("Schema table is not present in the row");
 
             using (var command = this.GetCommand(DbCommandType.UpdateRow))
             {
+                if (command == null)
+                    throw new MissingCommandException(DbCommandType.UpdateRow.ToString());
+
                 // Deriving Parameters
                 this.SetCommandParameters(DbCommandType.UpdateRow, command);
 
                 // Set the parameters value from row
-                this.SetColumnParametersValues(command, sourceRow);
+                this.SetColumnParametersValues(command, row);
 
                 // Set the special parameters for update
-                AddCommonParametersValues(command, scope.Id, scope.Timestamp, false, forceWrite);
+                AddScopeParametersValues(command, senderScopeId, lastTimestamp, false, forceWrite);
+
+                var alreadyOpened = Connection.State == ConnectionState.Open;
+                
+                if (!alreadyOpened)
+                    Connection.Open();
+
+                if (Transaction != null)
+                    command.Transaction = Transaction;
+
+                var rowUpdatedCount = command.ExecuteNonQuery();
+
+                // Check if we have a return value instead
+                var syncRowCountParam = DbTableManagerFactory.GetParameter(command, "sync_row_count");
+
+                if (syncRowCountParam != null)
+                    rowUpdatedCount = (int)syncRowCountParam.Value;
+
+                if (!alreadyOpened)
+                    Connection.Close();
+
+                return rowUpdatedCount > 0;
+            }
+        }
+
+
+        /// <summary>
+        /// Delete all metadatas from one table before a timestamp limit
+        /// </summary>
+        internal bool DeleteMetadatas(long timestampLimit)
+        {
+            using (var command = this.GetCommand(DbCommandType.DeleteMetadata))
+            {
+                if (command == null)
+                    throw new MissingCommandException(DbCommandType.DeleteMetadata.ToString());
+
+                // Deriving Parameters
+                this.SetCommandParameters(DbCommandType.DeleteMetadata, command);
+
+                // Set the special parameters for delete metadata
+                DbTableManagerFactory.SetParameterValue(command, "sync_row_timestamp", timestampLimit);
 
                 var alreadyOpened = Connection.State == ConnectionState.Open;
 
-                int rowInsertedCount = 0;
-                try
-                {
-                    if (!alreadyOpened)
-                        Connection.Open();
+                if (!alreadyOpened)
+                    Connection.Open();
 
-                    if (Transaction != null)
-                        command.Transaction = Transaction;
+                if (Transaction != null)
+                    command.Transaction = Transaction;
 
-                    rowInsertedCount = command.ExecuteNonQuery();
-                }
-                finally
-                {
-                    if (!alreadyOpened)
-                        Connection.Close();
-                }
-                return rowInsertedCount > 0;
+                var metadataDeletedRowsCount = command.ExecuteNonQuery();
+
+                // Check if we have a return value instead
+                var syncRowCountParam = DbTableManagerFactory.GetParameter(command, "sync_row_count");
+
+                if (syncRowCountParam != null)
+                    metadataDeletedRowsCount = (int)syncRowCountParam.Value;
+
+                if (!alreadyOpened)
+                    Connection.Close();
+
+                return metadataDeletedRowsCount > 0;
             }
         }
+
 
         /// <summary>
         /// Reset a table, deleting rows from table and tracking_table
         /// </summary>
-        internal bool ResetTable(DmTable tableDescription)
+        internal bool ResetTable()
         {
             using (var command = this.GetCommand(DbCommandType.Reset))
             {
+                if (command == null)
+                    throw new MissingCommandException(DbCommandType.Reset.ToString());
+
                 // Deriving Parameters
                 this.SetCommandParameters(DbCommandType.Reset, command);
 
                 var alreadyOpened = Connection.State == ConnectionState.Open;
 
                 int rowCount = 0;
-                try
-                {
-                    if (!alreadyOpened)
-                        Connection.Open();
+                if (!alreadyOpened)
+                    Connection.Open();
 
-                    if (Transaction != null)
-                        command.Transaction = Transaction;
+                if (Transaction != null)
+                    command.Transaction = Transaction;
 
-                    rowCount = command.ExecuteNonQuery();
-                }
-                finally
-                {
-                    if (!alreadyOpened)
-                        Connection.Close();
-                }
+                rowCount = command.ExecuteNonQuery();
+
+                if (!alreadyOpened)
+                    Connection.Close();
+
                 return rowCount > 0;
             }
         }
-
 
         /// <summary>
         /// Reset a table, deleting rows from table and tracking_table
@@ -657,28 +541,30 @@ namespace Dotmim.Sync
         {
             using (var command = this.GetCommand(DbCommandType.DisableConstraints))
             {
+                if (command == null)
+                    throw new MissingCommandException(DbCommandType.DisableConstraints.ToString());
+
+                // set parameters if needed
+                this.SetCommandParameters(DbCommandType.DisableConstraints, command);
+
                 var alreadyOpened = Connection.State == ConnectionState.Open;
 
                 int rowCount = 0;
-                try
-                {
-                    if (!alreadyOpened)
-                        Connection.Open();
 
-                    if (Transaction != null)
-                        command.Transaction = Transaction;
+                if (!alreadyOpened)
+                    Connection.Open();
 
-                    rowCount = command.ExecuteNonQuery();
-                }
-                finally
-                {
-                    if (!alreadyOpened)
-                        Connection.Close();
-                }
+                if (Transaction != null)
+                    command.Transaction = Transaction;
+
+                rowCount = command.ExecuteNonQuery();
+
+                if (!alreadyOpened)
+                    Connection.Close();
+
                 return rowCount > 0;
             }
         }
-
 
         /// <summary>
         /// Reset a table, deleting rows from table and tracking_table
@@ -687,172 +573,72 @@ namespace Dotmim.Sync
         {
             using (var command = this.GetCommand(DbCommandType.EnableConstraints))
             {
+                if (command == null)
+                    throw new MissingCommandException(DbCommandType.EnableConstraints.ToString());
+
+                // set parameters if needed
+                this.SetCommandParameters(DbCommandType.EnableConstraints, command);
+
                 var alreadyOpened = Connection.State == ConnectionState.Open;
 
                 int rowCount = 0;
-                try
-                {
-                    if (!alreadyOpened)
-                        Connection.Open();
 
-                    if (Transaction != null)
-                        command.Transaction = Transaction;
+                if (!alreadyOpened)
+                    Connection.Open();
 
-                    rowCount = command.ExecuteNonQuery();
-                }
-                finally
-                {
-                    if (!alreadyOpened)
-                        Connection.Close();
-                }
+                if (Transaction != null)
+                    command.Transaction = Transaction;
+
+                rowCount = command.ExecuteNonQuery();
+
+                if (!alreadyOpened)
+                    Connection.Close();
+
                 return rowCount > 0;
             }
         }
-
-
 
         /// <summary>
         /// Add common parameters which could be part of the command
         /// if not found, no set done
         /// </summary>
-        private void AddCommonParametersValues(DbCommand command, Guid id, long lastTimestamp, bool isDeleted, bool forceWrite)
+        private void AddScopeParametersValues(DbCommand command, Guid? id, long lastTimestamp, bool isDeleted, bool forceWrite)
         {
             // Dotmim.Sync parameters
-            DbManager.SetParameterValue(command, "sync_force_write", (forceWrite ? 1 : 0));
-            DbManager.SetParameterValue(command, "sync_min_timestamp", lastTimestamp);
-            DbManager.SetParameterValue(command, "sync_scope_id", id);
-            DbManager.SetParameterValue(command, "sync_row_is_tombstone", isDeleted);
+            DbTableManagerFactory.SetParameterValue(command, "sync_force_write", (forceWrite ? 1 : 0));
+            DbTableManagerFactory.SetParameterValue(command, "sync_min_timestamp", lastTimestamp);
+            DbTableManagerFactory.SetParameterValue(command, "sync_scope_id", id.HasValue ? (object)id.Value : DBNull.Value);
+            DbTableManagerFactory.SetParameterValue(command, "sync_row_is_tombstone", isDeleted);
         }
 
         /// <summary>
-        /// We have a conflict, try to get the source row and generate a conflict
+        /// Create a change table with scope columns and tombstone column
         /// </summary>
-        private SyncConflict GetConflict(DmRow dmRow)
+        public static SyncTable CreateChangesTable(SyncTable syncTable, SyncSet owner)
         {
-            DmRow localRow = null;
+            if (syncTable.Schema == null)
+                throw new ArgumentException("Schema can't be null when creating a changes table");
 
-            // Problem during operation
-            // Getting the row involved in the conflict 
-            var localTable = GetRow(dmRow);
-
-            ConflictType dbConflictType = ConflictType.ErrorsOccurred;
-
-            // Can't find the row on the server datastore
-            if (localTable.Rows.Count == 0)
+            // Create an empty sync table without columns
+            var changesTable = new SyncTable(syncTable.TableName, syncTable.SchemaName)
             {
-                if (ApplyType == DmRowState.Added)
-                    dbConflictType = ConflictType.RemoteInsertLocalNoRow;
-                else if (ApplyType == DmRowState.Modified)
-                    dbConflictType = ConflictType.RemoteUpdateLocalNoRow;
-                else if (ApplyType == DmRowState.Deleted)
-                    dbConflictType = ConflictType.RemoteDeleteLocalNoRow;
-            }
-            else
-            {
-                // We have a problem and found the row on the server side
-                localRow = localTable.Rows[0];
+                OriginalProvider = syncTable.OriginalProvider,
+                SyncDirection = syncTable.SyncDirection
+            };
 
-                var isTombstone = Convert.ToBoolean(localRow["sync_row_is_tombstone"]);
+            // Adding primary keys
+            foreach (var pkey in syncTable.PrimaryKeys)
+                changesTable.PrimaryKeys.Add(pkey);
 
-                // the row on local is deleted
-                if (isTombstone)
-                {
-                    if (ApplyType == DmRowState.Added)
-                        dbConflictType = ConflictType.RemoteInsertLocalDelete;
-                    else if (ApplyType == DmRowState.Modified)
-                        dbConflictType = ConflictType.RemoteUpdateLocalDelete;
-                    else if (ApplyType == DmRowState.Deleted)
-                        dbConflictType = ConflictType.RemoteDeleteLocalDelete;
-                }
-                else
-                {
-                    var createTimestamp = localRow["create_timestamp"] != DBNull.Value ? (long)localRow["create_timestamp"] : 0L;
-                    var updateTimestamp = localRow["update_timestamp"] != DBNull.Value ? (long)localRow["update_timestamp"] : 0L;
-                    switch (ApplyType)
-                    {
-                        case DmRowState.Added:
-                            dbConflictType = updateTimestamp == 0 ? ConflictType.RemoteInsertLocalInsert : ConflictType.RemoteInsertLocalUpdate;
-                            break;
-                        case DmRowState.Modified:
-                            dbConflictType = updateTimestamp == 0 ? ConflictType.RemoteUpdateLocalInsert : ConflictType.RemoteUpdateLocalUpdate;
-                            break;
-                        case DmRowState.Deleted:
-                            dbConflictType = updateTimestamp == 0 ? ConflictType.RemoteDeleteLocalInsert : ConflictType.RemoteDeleteLocalUpdate;
-                            break;
-                    }
-                }
-            }
-            // Generate the conflict
-            var conflict = new SyncConflict(dbConflictType);
-            conflict.AddRemoteRow(dmRow);
+            // get ordered columns that are mutables and pkeys
+            var orderedNames = syncTable.GetMutableColumnsWithPrimaryKeys();
 
-            if (localRow != null)
-                conflict.AddLocalRow(localRow);
+            foreach (var c in orderedNames)
+                changesTable.Columns.Add(c.Clone());
 
-            localTable.Clear();
+            owner.Tables.Add(changesTable);
 
-            return conflict;
-        }
-
-        /// <summary>
-        /// Adding failed rows when used by a bulk operation
-        /// </summary>
-        private void AddSchemaForFailedRowsTable(DmTable failedRows)
-        {
-            if (failedRows.Columns.Count == 0)
-            {
-                foreach (var rowIdColumn in this.TableDescription.PrimaryKey.Columns)
-                    failedRows.Columns.Add(rowIdColumn.ColumnName, rowIdColumn.DataType);
-
-                DmColumn[] keys = new DmColumn[this.TableDescription.PrimaryKey.Columns.Length];
-
-                for (int i = 0; i < this.TableDescription.PrimaryKey.Columns.Length; i++)
-                    keys[i] = failedRows.Columns[i];
-
-                failedRows.PrimaryKey = new DmKey(keys);
-            }
-        }
-
-
-        /// <summary>
-        /// Trace info
-        /// </summary>
-        private void TraceRowInfo(DmRow row, bool succeeded)
-        {
-            string pKstr = "";
-            foreach (var rowIdColumn in this.TableDescription.PrimaryKey.Columns)
-            {
-                object obj = pKstr;
-                object[] item = { obj, rowIdColumn.ColumnName, "=\"", row[rowIdColumn], "\" " };
-                pKstr = string.Concat(item);
-            }
-
-            string empty = string.Empty;
-            switch (ApplyType)
-            {
-                case DmRowState.Added:
-                    {
-                        empty = (succeeded ? "Inserted" : "Failed to insert");
-                        Debug.WriteLine($"{empty} row with PK using bulk apply: {pKstr} on {Connection.Database}");
-                        return;
-                    }
-                case DmRowState.Modified:
-                    {
-                        empty = (succeeded ? "Updated" : "Failed to update");
-                        Debug.WriteLine($"{empty} row with PK using bulk apply: {pKstr} on {Connection.Database}");
-                        return;
-                    }
-                case DmRowState.Deleted:
-                    {
-                        empty = (succeeded ? "Deleted" : "Failed to delete");
-                        Debug.WriteLine($"{empty} row with PK using bulk apply: {pKstr} on {Connection.Database}");
-                        break;
-                    }
-                default:
-                    {
-                        return;
-                    }
-            }
+            return changesTable;
         }
     }
 }

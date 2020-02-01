@@ -24,17 +24,17 @@ namespace Dotmim.Sync.Tests.Misc
         {
             var sortedMethods = new SortedDictionary<int, List<TTestCase>>();
 
-            foreach (TTestCase testCase in testCases)
+            foreach (var testCase in testCases)
             {
                 int priority = 0;
 
                 // get the attribute priority
-                foreach (IAttributeInfo attr in testCase.TestMethod.Method.GetCustomAttributes((typeof(TestPriorityAttribute).AssemblyQualifiedName)))
+                foreach (var attr in testCase.TestMethod.Method.GetCustomAttributes((typeof(TestPriorityAttribute).AssemblyQualifiedName)))
                     priority = attr.GetNamedArgument<int>("Priority");
 
                 // get the all the tests marked with this priority
                 // we could potentially have multiple tests with same priority
-                sortedMethods.TryGetValue(priority, out List<TTestCase> lstTestsForPriority);
+                sortedMethods.TryGetValue(priority, out var lstTestsForPriority);
 
                 // if new priority with no test for this priority, just add it to my sorted list
                 if (lstTestsForPriority == null)
@@ -52,7 +52,7 @@ namespace Dotmim.Sync.Tests.Misc
                 // potentially we could have multiple tests with same priority
                 // yield ordererd by name so
                 list.Sort((x, y) => StringComparer.OrdinalIgnoreCase.Compare(x.TestMethod.Method.Name, y.TestMethod.Method.Name));
-                foreach (TTestCase testCase in list)
+                foreach (var testCase in list)
                     yield return testCase;
             }
         }

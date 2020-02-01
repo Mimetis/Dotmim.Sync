@@ -1,12 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using Dotmim.Sync.Data;
+
 using System.Data.Common;
 using System.Data;
 using Dotmim.Sync.Builders;
 using Microsoft.Data.Sqlite;
-using Dotmim.Sync.Filter;
+
 
 namespace Dotmim.Sync.Sqlite
 {
@@ -33,7 +33,7 @@ namespace Dotmim.Sync.Sqlite
 
         }
 
-        public SqliteSyncAdapter(DmTable tableDescription, DbConnection connection, DbTransaction transaction) : base(tableDescription)
+        public SqliteSyncAdapter(SyncTable tableDescription, DbConnection connection, DbTransaction transaction) : base(tableDescription)
         {
             var sqlc = connection as SqliteConnection;
             this.connection = sqlc ?? throw new InvalidCastException("Connection should be a SqliteConnection");
@@ -49,15 +49,11 @@ namespace Dotmim.Sync.Sqlite
             return false;
         }
 
-        public override DbCommand GetCommand(DbCommandType commandType, IEnumerable<FilterClause> filters = null)
+        public override DbCommand GetCommand(DbCommandType commandType, SyncFilter filter = null)
         {
             var command = this.Connection.CreateCommand();
             string text;
-
-            if (filters != null)
-                text = this.sqliteObjectNames.GetCommandName(commandType, filters);
-            else
-                text = this.sqliteObjectNames.GetCommandName(commandType);
+            text = this.sqliteObjectNames.GetCommandName(commandType, filter);
 
             // on Sqlite, everything is text :)
             command.CommandType = CommandType.Text;
@@ -70,12 +66,12 @@ namespace Dotmim.Sync.Sqlite
             return command;
         }
 
-        public override void SetCommandParameters(DbCommandType commandType, DbCommand command, IEnumerable<FilterClause> filters = null)
+        public override void SetCommandParameters(DbCommandType commandType, DbCommand command, SyncFilter filter = null)
         {
             switch (commandType)
             {
                 case DbCommandType.SelectChanges:
-                case DbCommandType.SelectChangesWitFilters:
+                case DbCommandType.SelectChangesWithFilters:
                     this.SetSelecteChangesParameters(command);
                     break;
                 case DbCommandType.SelectRow:
@@ -86,15 +82,6 @@ namespace Dotmim.Sync.Sqlite
                     break;
                 case DbCommandType.DeleteRow:
                     this.SetDeleteRowParameters(command);
-                    break;
-                case DbCommandType.InsertMetadata:
-                    this.SetInsertMetadataParameters(command);
-                    break;
-                case DbCommandType.InsertRow:
-                    this.SetInsertRowParameters(command);
-                    break;
-                case DbCommandType.UpdateMetadata:
-                    this.SetUpdateMetadataParameters(command);
                     break;
                 case DbCommandType.UpdateRow:
                     this.SetUpdateRowParameters(command);
@@ -127,12 +114,12 @@ namespace Dotmim.Sync.Sqlite
         {
             DbParameter p;
 
-            foreach (DmColumn column in this.TableDescription.Columns.Where(c => !c.IsReadOnly))
+            foreach (var column in this.TableDescription.Columns.Where(c => !c.IsReadOnly))
             {
                 var unquotedColumn = ParserName.Parse(column).Normalized().Unquoted().ToString();
                 p = command.CreateParameter();
                 p.ParameterName = $"@{unquotedColumn}";
-                p.DbType = GetValidDbType(column.DbType);
+                p.DbType = GetValidDbType(column.GetDbType());
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
             }
@@ -147,104 +134,25 @@ namespace Dotmim.Sync.Sqlite
             p.DbType = DbType.Int64;
             command.Parameters.Add(p);
 
-        }
-
-        private void SetUpdateMetadataParameters(DbCommand command)
-        {
-            DbParameter p;
-
-            foreach (var column in this.TableDescription.PrimaryKey.Columns.Where(c => !c.IsReadOnly))
-            {
-                var unquotedColumn = ParserName.Parse(column).Normalized().Unquoted().ToString();
-                p = command.CreateParameter();
-                p.ParameterName = $"@{unquotedColumn}";
-                p.DbType = GetValidDbType(column.DbType);
-                p.SourceColumn = column.ColumnName;
-                command.Parameters.Add(p);
-            }
-
             p = command.CreateParameter();
-            p.ParameterName = "@update_scope_id";
+            p.ParameterName = "@sync_scope_id";
             p.DbType = DbType.Guid;
             command.Parameters.Add(p);
 
-            p = command.CreateParameter();
-            p.ParameterName = "@sync_row_is_tombstone";
-            p.DbType = DbType.Int32;
-            command.Parameters.Add(p);
 
-            p = command.CreateParameter();
-            p.ParameterName = "@update_timestamp";
-            p.DbType = DbType.Int64;
-            command.Parameters.Add(p);
-        }
 
-        private void SetInsertRowParameters(DbCommand command)
-        {
-            DbParameter p;
-
-            foreach (var column in this.TableDescription.Columns.Where(c => !c.IsReadOnly))
-            {
-                var unquotedColumn = ParserName.Parse(column).Normalized().Unquoted().ToString();
-
-                p = command.CreateParameter();
-                p.ParameterName = $"@{unquotedColumn}";
-                p.DbType = GetValidDbType(column.DbType);
-                p.SourceColumn = column.ColumnName;
-                command.Parameters.Add(p);
-            }
-        }
-
-        private void SetInsertMetadataParameters(DbCommand command)
-        {
-            DbParameter p;
-
-            foreach (DmColumn column in this.TableDescription.PrimaryKey.Columns.Where(c => !c.IsReadOnly))
-            {
-                var unquotedColumn = ParserName.Parse(column).Normalized().Unquoted().ToString();
-                p = command.CreateParameter();
-                p.ParameterName = $"@{unquotedColumn}";
-                p.DbType = column.DbType;
-                p.SourceColumn = column.ColumnName;
-                command.Parameters.Add(p);
-            }
-
-            p = command.CreateParameter();
-            p.ParameterName = "@create_scope_id";
-            p.DbType = DbType.Guid;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "@update_scope_id";
-            p.DbType = DbType.Guid;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "@sync_row_is_tombstone";
-            p.DbType = DbType.Int32;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "@create_timestamp";
-            p.DbType = DbType.Int64;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "@update_timestamp";
-            p.DbType = DbType.Int64;
-            command.Parameters.Add(p);
         }
 
         private void SetDeleteRowParameters(DbCommand command)
         {
             DbParameter p;
 
-            foreach (var column in this.TableDescription.PrimaryKey.Columns.Where(c => !c.IsReadOnly))
+            foreach (var column in this.TableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
             {
                 var unquotedColumn = ParserName.Parse(column).Normalized().Unquoted().ToString();
                 p = command.CreateParameter();
                 p.ParameterName = $"@{unquotedColumn}";
-                p.DbType = GetValidDbType(column.DbType);
+                p.DbType = GetValidDbType(column.GetDbType());
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
             }
@@ -258,18 +166,24 @@ namespace Dotmim.Sync.Sqlite
             p.ParameterName = "@sync_min_timestamp";
             p.DbType = DbType.Int64;
             command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_id";
+            p.DbType = DbType.Guid;
+            command.Parameters.Add(p);
+
         }
 
         private void SetSelectRowParameters(DbCommand command)
         {
             DbParameter p;
 
-            foreach (var column in this.TableDescription.PrimaryKey.Columns.Where(c => !c.IsReadOnly))
+            foreach (var column in this.TableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
             {
                 var unquotedColumn = ParserName.Parse(column).Normalized().Unquoted().ToString();
                 p = command.CreateParameter();
                 p.ParameterName = $"@{unquotedColumn}";
-                p.DbType = GetValidDbType(column.DbType);
+                p.DbType = GetValidDbType(column.GetDbType());
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
             }
@@ -283,7 +197,10 @@ namespace Dotmim.Sync.Sqlite
 
         private void SetDeleteMetadataParameters(DbCommand command)
         {
-            return;
+            var p = command.CreateParameter();
+            p.ParameterName = "@sync_row_timestamp";
+            p.DbType = DbType.Int64;
+            command.Parameters.Add(p);
         }
 
         private void SetSelecteChangesParameters(DbCommand command)
@@ -297,19 +214,9 @@ namespace Dotmim.Sync.Sqlite
             p.ParameterName = "@sync_scope_id";
             p.DbType = DbType.Guid;
             command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "@sync_scope_is_new";
-            p.DbType = DbType.Boolean;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "@sync_scope_is_reinit";
-            p.DbType = DbType.Boolean;
-            command.Parameters.Add(p);
         }
 
-        public override void ExecuteBatchCommand(DbCommand cmd, DmView applyTable, DmTable failedRows, ScopeInfo scope)
+        public override void ExecuteBatchCommand(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable, SyncTable failedRows, long lastTimestamp)
         {
             throw new NotImplementedException();
         }

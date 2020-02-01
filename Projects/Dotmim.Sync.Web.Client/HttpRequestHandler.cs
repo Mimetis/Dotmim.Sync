@@ -8,14 +8,15 @@ using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Net;
+using Dotmim.Sync.Serialization.Serializers;
+using System.Net.Sockets;
 
 #if NETSTANDARD
 using Microsoft.Net.Http.Headers;
 #else
 using System.Net.Http.Headers;
 #endif
-
-
 
 namespace Dotmim.Sync.Web.Client
 {
@@ -24,50 +25,39 @@ namespace Dotmim.Sync.Web.Client
     /// </summary>
     public class HttpRequestHandler : IDisposable
     {
-        private HttpClient client;
 
         internal Dictionary<string, string> CustomHeaders { get; } = new Dictionary<string, string>();
 
         internal Dictionary<string, string> ScopeParameters { get; } = new Dictionary<string, string>();
 
-        internal Uri BaseUri { get; set; }
-
-        internal CancellationToken CancellationToken { get; set; }
-
-        internal HttpClientHandler Handler { get; set; }
-
         internal CookieHeaderValue Cookie { get; set; }
-
-        public HttpRequestHandler()
-        {
-            this.CancellationToken = CancellationToken.None;
-        }
-
-        public HttpRequestHandler(Uri serviceUri, CancellationToken cancellationToken)
-        {
-            this.BaseUri = serviceUri;
-            this.CancellationToken = cancellationToken;
-        }
 
 
         /// <summary>
         /// Process a request message with HttpClient object. 
         /// </summary>
-        public async Task<T> ProcessRequest<T>(T content, Guid sessionId, SerializationFormat serializationFormat, CancellationToken cancellationToken)
+        public async Task<U> ProcessRequestAsync<U>(HttpClient client, string baseUri, byte[] data, HttpStep step, Guid sessionId,
+            ISerializerFactory serializerFactory, IConverter converter, int batchSize, CancellationToken cancellationToken)
         {
-            if (this.BaseUri == null)
+            if (client is null)
+                throw new ArgumentNullException(nameof(client));
+
+            if (baseUri == null)
                 throw new ArgumentException("BaseUri is not defined");
 
             HttpResponseMessage response = null;
-            T responseMessage = default(T);
+            var responseMessage = default(U);
             try
             {
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
+                // Get response serializer
+                var responseSerializer = serializerFactory.GetSerializer<U>();
+
                 var requestUri = new StringBuilder();
-                requestUri.Append(this.BaseUri.ToString());
-                requestUri.Append(this.BaseUri.ToString().EndsWith("/", StringComparison.CurrentCultureIgnoreCase) ? string.Empty : "/");
+                requestUri.Append(baseUri);
+                requestUri.Append(baseUri.EndsWith("/", StringComparison.CurrentCultureIgnoreCase) ? string.Empty : "/");
 
                 // Add params if any
                 if (ScopeParameters != null && ScopeParameters.Count > 0)
@@ -82,33 +72,31 @@ namespace Dotmim.Sync.Web.Client
                     }
                 }
 
-                // default handler if no one specified
-                HttpClientHandler httpClientHandler = this.Handler ?? new HttpClientHandler();
-
-                // serialize dmSet content to bytearraycontent
-                var serializer = BaseConverter<T>.GetConverter(serializationFormat);
-                var binaryData = serializer.Serialize(content);
-                ByteArrayContent arrayContent = new ByteArrayContent(binaryData);
-
-                // do not dispose HttpClient for performance issue
-                if (client == null)
-                    client = new HttpClient(httpClientHandler);
+                // get byte array content
+                var arrayContent = new ByteArrayContent(data);
 
                 // reinit client
                 client.DefaultRequestHeaders.Clear();
 
                 // add it to the default header
-                if (this.Cookie != null)
-                    client.DefaultRequestHeaders.Add("Cookie", this.Cookie.ToString());
+                //if (this.Cookie != null)
+                //    client.DefaultRequestHeaders.Add("Cookie", this.Cookie.ToString());
 
-                var requestMessage = new HttpRequestMessage(HttpMethod.Post, requestUri.ToString())
-                {
-                    Content = arrayContent
-                };
+                // Create the request message
+                var requestMessage = new HttpRequestMessage(HttpMethod.Post, requestUri.ToString()) { Content = arrayContent };
 
                 // Adding the serialization format used and session id
                 requestMessage.Headers.Add("dotmim-sync-session-id", sessionId.ToString());
-                requestMessage.Headers.Add("dotmim-sync-serialization-format", serializationFormat.ToString());
+                requestMessage.Headers.Add("dotmim-sync-step", ((int)step).ToString());
+
+                // serialize the serialization format and the batchsize we want.
+                var ser = JsonConvert.SerializeObject(new { f = serializerFactory.Key, s = batchSize });
+                requestMessage.Headers.Add("dotmim-sync-serialization-format", ser);
+
+                // if client specifies a converter, add it as header
+                if (converter != null)
+                    requestMessage.Headers.Add("dotmim-sync-converter", converter.Key);
+
 
                 // Adding others headers
                 if (this.CustomHeaders != null && this.CustomHeaders.Count > 0)
@@ -116,30 +104,27 @@ namespace Dotmim.Sync.Web.Client
                         if (!requestMessage.Headers.Contains(kvp.Key))
                             requestMessage.Headers.Add(kvp.Key, kvp.Value);
 
-                //request.AddHeader("content-type", "application/json");
-                if (serializationFormat == SerializationFormat.Json && !requestMessage.Content.Headers.Contains("content-type"))
+                // If Json, specify header
+                if (serializerFactory.Key == SerializersCollection.JsonSerializer.Key && !requestMessage.Content.Headers.Contains("content-type"))
                     requestMessage.Content.Headers.Add("content-type", "application/json");
 
-                response = await client.SendAsync(requestMessage, cancellationToken);
+                // Eventually, send the request
+                response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
+                // throw exception if response is not successfull
                 // get response from server
                 if (!response.IsSuccessStatusCode && response.Content != null)
-                {
-                    var exrror = await response.Content.ReadAsStringAsync();
-                    SyncException syncException = JsonConvert.DeserializeObject<SyncException>(exrror);
-
-                    if (syncException != null)
-                        throw syncException;
-                }
-
+                   await HandleSyncError(response, serializerFactory);
+                
                 // try to set the cookie for http session
                 var headers = response?.Headers;
+
                 if (headers != null)
                 {
-                    if (headers.TryGetValues("Set-Cookie", out IEnumerable<string> tmpList))
+                    if (headers.TryGetValues("Set-Cookie", out var tmpList))
                     {
                         var cookieList = tmpList.ToList();
 
@@ -159,16 +144,16 @@ namespace Dotmim.Sync.Web.Client
 
                 }
 
-                using (var streamResponse = await response.Content.ReadAsStreamAsync())
+                if (response.Content == null)
+                    throw new HttpEmptyResponseContentException();
+
+
+                using (var streamResponse = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
                     if (streamResponse.CanRead && streamResponse.Length > 0)
-                        responseMessage = serializer.Deserialize(streamResponse);
+                        responseMessage = responseSerializer.Deserialize(streamResponse);
+
 
                 return responseMessage;
-
-            }
-            catch (TaskCanceledException)
-            {
-                throw;
             }
             catch (SyncException)
             {
@@ -177,11 +162,58 @@ namespace Dotmim.Sync.Web.Client
             catch (Exception e)
             {
                 if (response == null || response.Content == null)
-                    throw e;
+                    throw new HttpResponseContentException(e.Message);
 
-                var exrror = await response.Content.ReadAsStringAsync();
-                throw new SyncException(exrror);
+                var exrror = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+
+                throw new HttpResponseContentException(exrror);
+
             }
+
+        }
+
+        /// <summary>
+        /// Handle a request error
+        /// </summary>
+        /// <returns></returns>
+        private async Task HandleSyncError(HttpResponseMessage response, ISerializerFactory serializerFactory)
+        {
+            try
+            {
+                using (var streamResponse = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
+                {
+                    if (streamResponse.CanRead && streamResponse.Length > 0)
+                    {
+                        // Error are always json formatted
+                        var webSyncErrorSerializer = new Serialization.JsonConverter<WebSyncException>();
+                        var webError = webSyncErrorSerializer.Deserialize(streamResponse);
+
+                        if (webError != null)
+                        {
+                            var syncException = new SyncException(webError.Message);
+                            syncException.DataSource = webError.DataSource;
+                            syncException.InitialCatalog = webError.InitialCatalog;
+                            syncException.Number = webError.Number;
+                            syncException.Side = webError.Side;
+                            syncException.SyncStage = webError.SyncStage;
+                            syncException.TypeName = webError.TypeName;
+
+                            throw syncException;
+                        }
+                    }
+
+                }
+
+            }
+            catch (SyncException sexc)
+            {
+                throw sexc;
+            }
+            catch (Exception ex)
+            {
+                throw new SyncException(ex);
+            }
+
 
         }
 
@@ -195,8 +227,6 @@ namespace Dotmim.Sync.Web.Client
             {
                 if (disposing)
                 {
-                    if (client != null)
-                        client.Dispose();
                 }
                 disposedValue = true;
             }

@@ -1,4 +1,5 @@
-﻿using Dotmim.Sync.Data;
+﻿
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -9,35 +10,34 @@ namespace Dotmim.Sync.Batch
     /// <summary>
     /// Represents a Batch, containing a full or serialized change set
     /// </summary>
-    [Serializable]
     public class BatchInfo
     {
+        private string directoryName;
+        private string directoryRoot;
+        private SyncSet schema;
 
         /// <summary>
         /// Create a new BatchInfo, containing all BatchPartInfo
         /// </summary>
-        public BatchInfo(bool isInMemory, string rootDirectory)
+        public BatchInfo(bool isInMemory, SyncSet inSchema, string rootDirectory = null)
         {
-            this.BatchPartsInfo = new List<BatchPartInfo>();
-            this.DirectoryRoot = rootDirectory;
             this.InMemory = isInMemory;
+            this.schema = inSchema.Clone();
+            
+            // If not in memory, generate a directory name and initialize batch parts list
+            if (!this.InMemory)
+            {
+                this.directoryRoot = rootDirectory;
+                this.BatchPartsInfo = new List<BatchPartInfo>();
+                // To simplify things, even if not used, just generate a random directory name for this batchinfo
+                this.directoryName = string.Concat(DateTime.UtcNow.ToString("yyyy_MM_dd_ss"), Path.GetRandomFileName().Replace(".", ""));
+            }
         }
 
         /// <summary>
-        /// Get the directory where all files are stored (if InMemory == false)
+        /// List of batch parts if not in memory
         /// </summary>
-        public string DirectoryName { get; set; }
-
-        /// <summary>
-        /// Get the Directory full path
-        /// </summary>
-        public string DirectoryRoot { get; set; }
-
-        /// <summary>
-        /// Get the full path of the Batch directory
-        /// </summary>
-        /// <returns></returns>
-        public string GetDirectoryFullPath() => Path.Combine(this.DirectoryRoot, this.DirectoryName);
+        public List<BatchPartInfo> BatchPartsInfo { get; set; }
 
         /// <summary>
         /// Is the batch parts are in memory
@@ -47,105 +47,135 @@ namespace Dotmim.Sync.Batch
         public bool InMemory { get; set; }
 
         /// <summary>
-        /// Get the current batch index (if InMemory == false)
+        /// If in memory, return the in memory Dm
         /// </summary>
-        public int BatchIndex { get; set; }
+        public SyncSet InMemoryData { get; set; }
+
 
         /// <summary>
-        /// All Parts of the batch
-        /// Each part is the size of download batch size
+        /// Get the full path of the Batch directory
         /// </summary>
-        public List<BatchPartInfo> BatchPartsInfo { get; set; }
+        /// <returns></returns>
+        public string GetDirectoryFullPath()
+        {
+            if (this.InMemory)
+                return null;
+
+            return Path.Combine(this.directoryRoot, this.directoryName);
+        }
+
+
+        /// <summary>
+        /// Check if this batchinfo has some data (in memory or not)
+        /// </summary>
+        public bool HasData()
+        {
+            if (InMemory && InMemoryData != null && InMemoryData.HasTables && InMemoryData.HasRows)
+                return true;
+
+            if (!InMemory && BatchPartsInfo != null && BatchPartsInfo.Count > 0)
+            {
+                foreach (var bpi in BatchPartsInfo)
+                {
+                    bpi.LoadBatch(schema);
+
+                    var hasData = bpi.Data.HasRows;
+                    
+                    bpi.Clear();
+                    bpi.Data = null;
+
+                    return hasData;
+                }
+            }
+
+            return false;
+        }
+
 
         /// <summary>
         /// Get all parts containing this table
         /// Could be multiple parts, since the table may be spread across multiples files
         /// </summary>
-        public IEnumerable<DmTable> GetTable(string tableName)
+        public IEnumerable<SyncTable> GetTable(string tableName, string schemaName)
         {
-            foreach (var batchPartinInfo in this.BatchPartsInfo)
+            if (InMemory)
             {
-                var isSerialized = false;
-
-                if (batchPartinInfo.Tables.Contains(tableName))
+                if (this.InMemoryData.HasTables)
+                    yield return this.InMemoryData.Tables[tableName, schemaName];
+            }
+            else
+            {
+                foreach (var batchPartinInfo in this.BatchPartsInfo.OrderBy(bpi => bpi.Index))
                 {
-                    // Batch not readed, so we deserialized the batch and get the table
-                    if (batchPartinInfo.Set == null)
+                    if (batchPartinInfo.Tables != null && batchPartinInfo.Tables.Contains((tableName, schemaName)))
                     {
-                        // Set is not already deserialized so we try to get the batch
-                        var batchPart = batchPartinInfo.GetBatch();
+                        batchPartinInfo.LoadBatch(schema);
 
-                        // Unserialized and set in memory the DmSet
-                        batchPartinInfo.Set = batchPart.DmSetSurrogate.ConvertToDmSet();
 
-                        isSerialized = true;
-                    }
+                        // Get the table from the batchPartInfo
+                        // generate a tmp SyncTable for 
+                        var batchTable = batchPartinInfo.Data.Tables.FirstOrDefault(bt => bt == new SyncTable(tableName, schemaName));
 
-                    // return the table
-                    if (batchPartinInfo.Set.Tables.Contains(tableName))
-                    {
-                        yield return batchPartinInfo.Set.Tables[tableName];
-
-                        if (isSerialized)
+                        if (batchTable != null)
                         {
-                            batchPartinInfo.Set.Clear();
-                            batchPartinInfo.Set = null;
-                        }
+                            yield return batchTable;
 
+                            // Once read, clear it
+                            batchPartinInfo.Data.Clear();
+                            batchPartinInfo.Data = null;
+
+                        }
                     }
                 }
             }
+        }
+
+
+        /// <summary>
+        /// Ensure the last batch part (if not in memory) has the correct IsLastBatch flag
+        /// </summary>
+        public void EnsureLastBatch()
+        {
+            if (this.InMemory)
+                return;
+
+            if (this.BatchPartsInfo.Count == 0)
+                return;
+
+            // get last index
+            var maxIndex = this.BatchPartsInfo.Max(tBpi => tBpi.Index);
+
+            // Set corret last batch 
+            foreach (var bpi in this.BatchPartsInfo)
+                bpi.IsLastBatch = bpi.Index == maxIndex;
 
         }
 
         /// <summary>
-        /// Generate a new BatchPartInfo and add it to the current batchInfo
+        /// Add changes to batch info.
         /// </summary>
-        internal BatchPartInfo GenerateBatchInfo(int batchIndex, DmSet changesSet)
+        public void AddChanges(SyncSet changes, int batchIndex = 0, bool isLastBatch = true)
         {
-            var hasData = true;
-
-            if (changesSet == null || changesSet.Tables.Count == 0)
-                hasData = false;
+            if (this.InMemory)
+            {
+                this.InMemoryData = changes;
+            }
             else
-                hasData = changesSet.Tables.Any(t => t.Rows.Count > 0);
-
-            // Sometimes we can have a last BPI without any data, but we need to generate it to be able to have the IsLast batch property
-            //if (!hasData)
-            //    return null;
-
-            BatchPartInfo bpi = null;
-
-            // Create a batch part
-            // The batch part creation process will serialize the changesSet to the disk
-            if (!this.InMemory)
             {
                 var bpId = this.GenerateNewFileName(batchIndex.ToString());
                 var fileName = Path.Combine(this.GetDirectoryFullPath(), bpId);
+                var bpi = BatchPartInfo.CreateBatchPartInfo(batchIndex, changes, fileName, isLastBatch);
 
-                bpi = BatchPartInfo.CreateBatchPartInfo(batchIndex, changesSet, fileName, false, false);
+                // add the batchpartinfo tp the current batchinfo
+                this.BatchPartsInfo.Add(bpi);
+
             }
-            else
-            {
-                bpi = BatchPartInfo.CreateBatchPartInfo(batchIndex, changesSet, null, true, true);
-            }
-
-            // add the batchpartinfo tp the current batchinfo
-            this.BatchPartsInfo.Add(bpi);
-
-            return bpi;
-        }
-
-
-        public void GenerateNewDirectoryName()
-        {
-            this.DirectoryName = string.Concat(DateTime.UtcNow.ToString("yyyy_MM_dd_ss"), Path.GetRandomFileName().Replace(".", ""));
         }
 
         /// <summary>
         /// generate a batch file name
         /// </summary>
-        public string GenerateNewFileName(string batchIndex)
+        private string GenerateNewFileName(string batchIndex)
         {
             if (batchIndex.Length == 1)
                 batchIndex = $"00{batchIndex}";
@@ -166,7 +196,7 @@ namespace Dotmim.Sync.Batch
         public void TryRemoveDirectory()
         {
             // Once we have applied all the batch, we can safely remove the temp dir and all it's files
-            if (!this.InMemory && !string.IsNullOrEmpty(this.DirectoryRoot) && !string.IsNullOrEmpty(this.DirectoryName))
+            if (!this.InMemory && !string.IsNullOrEmpty(this.directoryRoot) && !string.IsNullOrEmpty(this.directoryName))
             {
                 var tmpDirectory = new DirectoryInfo(this.GetDirectoryFullPath());
 
@@ -188,6 +218,12 @@ namespace Dotmim.Sync.Batch
         /// </summary>
         public void Clear(bool deleteFolder)
         {
+            if (this.InMemory)
+            {
+                this.InMemoryData.Dispose();
+                return;
+            }
+
             // Delete folders before deleting batch parts
             if (deleteFolder)
                 this.TryRemoveDirectory();

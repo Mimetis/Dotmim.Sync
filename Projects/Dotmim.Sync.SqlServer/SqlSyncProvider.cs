@@ -1,6 +1,4 @@
 ﻿using Dotmim.Sync.Builders;
-using Dotmim.Sync.Cache;
-using Dotmim.Sync.Data;
 using Dotmim.Sync.Manager;
 using Dotmim.Sync.SqlServer.Builders;
 using Dotmim.Sync.SqlServer.Manager;
@@ -13,34 +11,22 @@ namespace Dotmim.Sync.SqlServer
 {
     public class SqlSyncProvider : CoreProvider
     {
-        ICache cacheManager;
-        DbMetadata dbMetadata;
-        static String providerType;
+        private DbMetadata dbMetadata;
+        static string providerType;
         public SqlSyncProvider() : base()
         { }
 
-        public SqlSyncProvider(string connectionString) : base()
-        {
-            this.ConnectionString = connectionString;
-        }
+        public SqlSyncProvider(string connectionString) : base() => this.ConnectionString = connectionString;
 
         public SqlSyncProvider(SqlConnectionStringBuilder builder) : base()
         {
             if (String.IsNullOrEmpty(builder.ConnectionString))
                 throw new Exception("You have to provide parameters to the Sql builder to be able to construct a valid connection string.");
 
-            
-
             this.ConnectionString = builder.ConnectionString;
         }
 
-        public override string ProviderTypeName
-        {
-            get
-            {
-                return ProviderType;
-            }
-        }
+        public override string ProviderTypeName => ProviderType;
 
         public static string ProviderType
         {
@@ -49,7 +35,7 @@ namespace Dotmim.Sync.SqlServer
                 if (!string.IsNullOrEmpty(providerType))
                     return providerType;
 
-                Type type = typeof(SqlSyncProvider);
+                var type = typeof(SqlSyncProvider);
                 providerType = $"{type.Name}, {type.ToString()}";
 
                 return providerType;
@@ -77,20 +63,26 @@ namespace Dotmim.Sync.SqlServer
 
             }
         }
-        public override ICache CacheManager
+    
+        public override void EnsureSyncException(SyncException syncException)
         {
-            get
+            if (!string.IsNullOrEmpty(this.ConnectionString))
             {
-                if (cacheManager == null)
-                    cacheManager = new InMemoryCache();
+                var builder = new SqlConnectionStringBuilder(this.ConnectionString);
 
-                return cacheManager;
+                syncException.DataSource = builder.DataSource;
+                syncException.InitialCatalog = builder.InitialCatalog;
             }
-            set
-            {
-                cacheManager = value;
 
-            }
+            // Can add more info from SqlException
+            var sqlException = syncException.InnerException as SqlException;
+
+            if (sqlException == null)
+                return;
+
+            syncException.Number = sqlException.Number;
+
+            return;
         }
 
         /// <summary>
@@ -105,8 +97,9 @@ namespace Dotmim.Sync.SqlServer
      
         public override DbConnection CreateConnection() => new SqlConnection(this.ConnectionString);
         public override DbScopeBuilder GetScopeBuilder() => new SqlScopeBuilder();
-        public override DbBuilder GetDatabaseBuilder(DmTable tableDescription) => new SqlBuilder(tableDescription);
-        public override DbManager GetDbManager(string tableName) => new SqlManager(tableName);
-
+        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription) => new SqlTableBuilder(tableDescription);
+        public override DbTableManagerFactory GetTableManagerFactory(string tableName, string schemaName) => new SqlManager(tableName, schemaName);
+        public override DbBuilder GetDatabaseBuilder() => new SqlBuilder();
+       
     }
 }

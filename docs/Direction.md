@@ -1,9 +1,9 @@
 # Direction : Bidirectional, DownloadOnly, UploadOnly
 
 You can set a synchronization direction to each table.  
-Use the `SyncDirection` enumeration for each table in the `SyncConfiguration` object.
+Use the `SyncDirection` enumeration for each table in the `SyncSetup` object.
 
-> `Bidirectional` is the default value for all tables added in the `SyncConfiguration` object
+> `Bidirectional` is the default value for all tables added.
 
 ``` cs
 public enum SyncDirection
@@ -20,15 +20,12 @@ In this example, `Customer` `CustomerAddress` and `Address` are defined as `Down
 var tables = new string[] { "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product",
                                 "SalesLT.Address", "SalesLT.Customer", "SalesLT.CustomerAddress"};
 
-SyncAgent agent = new SyncAgent(clientProvider, serverProvider, tables);
+var syncSetup = new SyncSetup(tables);
+syncSetup.Tables["Customer"].SyncDirection = SyncDirection.DownloadOnly;
+syncSetup.Tables["CustomerAddress"].SyncDirection = SyncDirection.DownloadOnly;
+syncSetup.Tables["Address"].SyncDirection = SyncDirection.DownloadOnly;
 
-agent.SetConfiguration(c => {
-    c["Address"].SyncDirection = SyncDirection.DownloadOnly;
-    c["Customer"].SyncDirection = SyncDirection.DownloadOnly;
-    c["CustomerAddress"].SyncDirection = SyncDirection.DownloadOnly;
-});
-
-var s = await agent.SynchronizeAsync();
+var agent = new SyncAgent(clientProvider, serverProvider, syncSetup);
 
 ```
  

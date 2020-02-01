@@ -9,6 +9,8 @@ To be able to *proxyfy* everything, you will have to
     * Add your server provider, like `Dotmim.Sync.SqlServerProvider` for example.
 * Add the `Dotmim.Sync.Web.Client` nuget package on you client application: [https://www.nuget.org/packages/Dotmim.Sync.Web.Client]() 
 
+You will find a sample in `/Samples/Dotmim.Sync.SampleWebServer` folder, in the Github repository
+
 
 ## Server side
 
@@ -17,19 +19,27 @@ Once your **ASP.NET** application is created and you have added the `DotMim.Sync
 ``` cs
 public void ConfigureServices(IServiceCollection services)
 {
-    services.AddMvc();
+    services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
 
+    // Mandatory to be able to handle multiple sessions
     services.AddMemoryCache();
 
-    var connectionString = Configuration["Data:ConnectionString"];
-    services.AddSyncServer<SqlSyncProvider>(connectionString, configuration =>
-    {
-        configuration.Tables = new string[] { "ServiceTickets" };
-    });
+    // Get a connection string for your server data source
+    var connectionString = Configuration.GetSection("ConnectionStrings")["DefaultConnection"];
+
+    // Create the setup used for your sync process
+    var tables = new string[] {"ProductCategory",
+                    "ProductDescription", "ProductModel",
+                    "Product", "ProductModelProductDescription",
+                    "Address", "Customer", "CustomerAddress",
+                    "SalesOrderHeader", "SalesOrderDetail" };
+
+    // add a SqlSyncProvider acting as the server hub
+    services.AddSyncServer<SqlSyncProvider>(connectionString, tables);
 }
 ```
 
-> We have added a memory cache, through `services.AddMemoryCache();`. having a cache is mandatory to be able to serve multiple requests. Don't forget to provider a memory cache system.
+> We have added a memory cache, through `services.AddMemoryCache();`. Having a cache is mandatory to be able to serve multiple requests. 
 
 Once you have correctly configured your service, you can create your controller:
 
@@ -42,20 +52,15 @@ Once you have correctly configured your service, you can create your controller:
 [ApiController]
 public class SyncController : ControllerBase
 {
-    private WebProxyServerProvider webProxyServer;
+    private WebProxyServerOrchestrator webProxyServer;
 
     // Injected thanks to Dependency Injection
-    public SyncController(WebProxyServerProvider proxy)
-    {
-        webProxyServer = proxy;
-    }
+    public SyncController(WebProxyServerOrchestrator proxy) => this.webProxyServer = proxy;
 
     [HttpPost]
-    public async Task Post()
-    {
-        await webProxyServer.HandleRequestAsync(this.HttpContext);
-    }
+    public async Task Post() => await webProxyServer.HandleRequestAsync(this.HttpContext);
 }
+
 ```
 
 ## Client side

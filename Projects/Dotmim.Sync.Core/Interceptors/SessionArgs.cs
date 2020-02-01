@@ -77,6 +77,7 @@ namespace Dotmim.Sync
         public override string Message => $"";
 
     }
+   
     /// <summary>
     /// Event args generated during EndSession stage
     /// </summary>
