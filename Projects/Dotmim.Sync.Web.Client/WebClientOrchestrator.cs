@@ -122,6 +122,10 @@ namespace Dotmim.Sync.Web.Client
 
                 this.HttpClient = new HttpClient(handler);
             }
+            else
+            {
+                this.HttpClient = client;
+            }
 
             this.Converter = customConverter;
             this.SerializerFactory = serializerFactory ?? SerializersCollection.JsonSerializer;

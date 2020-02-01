@@ -240,9 +240,6 @@ namespace Dotmim.Sync
                 }
                 catch (Exception ex)
                 {
-                    // unlock sync since it's over
-                    UnlockSync();
-
                     // try to let the provider enrich the exception
                     var syncException = new SyncException(ex, context.SyncStage);
 
@@ -262,6 +259,10 @@ namespace Dotmim.Sync
 
                     // Let provider knows a connection is closed
                     this.Provider.OnConnectionClosed(connection);
+
+                    // unlock sync since it's over
+                    UnlockSync();
+
                 }
             }
 

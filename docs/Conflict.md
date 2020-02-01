@@ -2,7 +2,7 @@
 
 ## Default behavior
 
-By default, conflicts are resolved automaticaly using the configuration policy property `ConflictResolutionPolicy` set in the `SyncConfiguration` object :  
+By default, conflicts are resolved automaticaly using the configuration policy property `ConflictResolutionPolicy` set in the `SyncOptions` object :  
 You can choose: 
 * `ConflictResolutionPolicy.ServerWins` : The server is allways the winner of any conflict. this behavior is the default behavior.
 * `ConflictResolutionPolicy.ClientWins` : The client is allways the winner of any conflict.
@@ -10,9 +10,7 @@ You can choose:
 > Default value is `ServerWins`.
 
 ``` cs
-agent.SetConfiguration(c => {
-    c.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
-});
+var options = new SyncOptions { ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins };
 ``` 
 
 ## Resolution side
@@ -34,10 +32,11 @@ If you decide to manually resolve a conflict, the `ConflictResolutionPolicy` opt
 To be able to resolve a conflict, you just have to *Intercept*  the `ApplyChangedFailed` method and choose the correct version.  
 
 ``` cs
-agent.LocalProvider.InterceptApplyChangesFailed(args =>
+agent.OnApplyChangesFailed(args =>
 {
- // do stuff
-}
+ // do stuff and choose correct resolution policy
+});
+
 ```
 
 The `ApplyChangeFailedEventArgs` argument contains all the required properties to be able to resolve your conflict:
@@ -62,7 +61,7 @@ Eventually, the `FinalRow` property is used when you specify an Action to `Confl
 Manually resolving a conflict based on a column value:
 
 ``` cs
-agent.LocalProvider.InterceptApplyChangesFailed(e =>
+agent.OnApplyChangesFailed(e =>
 {
     if (e.Conflict.RemoteRow.Table.TableName == "Region")
     {
@@ -74,31 +73,30 @@ agent.LocalProvider.InterceptApplyChangesFailed(e =>
 Manually resolving a conflict based on the conflict type :
 
 ``` cs
-agent.LocalProvider.InterceptApplyChangesFailed(e =>
+agent.OnApplyChangesFailed(args =>
 {
-    switch (e.Conflict.Type)
+    switch (args.Conflict.Type)
     {
-        case ConflictType.RemoteUpdateLocalInsert:
-        case ConflictType.RemoteUpdateLocalUpdate:
-        case ConflictType.RemoteUpdateLocalDelete:
-        case ConflictType.RemoteInsertLocalInsert:
-        case ConflictType.RemoteInsertLocalUpdate:
-        case ConflictType.RemoteInsertLocalDelete:
-            e.Action = ConflictResolution.ServerWins;
-            break;
-        case ConflictType.RemoteUpdateLocalNoRow:
-        case ConflictType.RemoteInsertLocalNoRow:
-        case ConflictType.RemoteDeleteLocalNoRow:
-            e.Action = ConflictResolution.ClientWins;
+        case ConflictType.RemoteExistsLocalExists:
+        case ConflictType.RemoteExistsLocalIsDeleted:
+        case ConflictType.ErrorsOccurred:
+        case ConflictType.UniqueKeyConstraint:
+        case ConflictType.RemoteIsDeletedLocalExists:
+        case ConflictType.RemoteIsDeletedLocalIsDeleted:
+        case ConflictType.RemoteCleanedupDeleteLocalUpdate:
+        case ConflictType.RemoteExistsLocalNotExists:
+        case ConflictType.RemoteIsDeletedLocalNotExists:
+        default:
             break;
     }
-}
+});
+
 ```
 
 Resolving a conflict by specifying a merged row :
 
 ``` cs
-agent.LocalProvider.InterceptApplyChangesFailed(e =>
+agent.OnApplyChangesFailed(e =>
 {
     if (e.Conflict.RemoteRow.Table.TableName == "Region")
     {
@@ -114,36 +112,32 @@ Be careful, the `e.FinalRow` is null until you specify the `Action` property to 
 Since we see that conflicts are resolved on the server side, if you are in a proxy mode, involving a server web side, it is there that you need to intercept failed applied changes:
 
 ``` csharp
-    public class SyncController : ControllerBase
+[Route("api/[controller]")]
+[ApiController]
+public class SyncController : ControllerBase
+{
+    private WebProxyServerOrchestrator webProxyServer;
+
+    // Injected thanks to Dependency Injection
+    public SyncController(WebProxyServerOrchestrator proxy) => this.webProxyServer = proxy;
+
+    [HttpPost]
+    public async Task Post()
     {
-        private WebProxyServerProvider webProxyServer;
-
-        // Injected thanks to Dependency Injection
-        public SyncController(WebProxyServerProvider proxy)
+        webProxyServer.WebServerOrchestrator.OnApplyChangesFailed(e =>
         {
-            webProxyServer = proxy;
-        }
-
-        [HttpPost]
-        public async Task Post()
-        {
-            // Get the underline local provider
-            var provider = webProxyServer.GetLocalProvider(this.HttpContext);
-
-            provider.InterceptApplyChangesFailed(e =>
+            if (e.Conflict.RemoteRow.Table.TableName == "Region")
             {
-                if (e.Conflict.RemoteRow.Table.TableName == "Region")
-                {
-                    e.Resolution = ConflictResolution.MergeRow;
-                    e.FinalRow["RegionDescription"] = "Eastern alone !";
-                }
-                else
-                {
-                    e.Resolution = ConflictResolution.ServerWins;
-                }
-            });
+                e.Resolution = ConflictResolution.MergeRow;
+                e.FinalRow["RegionDescription"] = "Eastern alone !";
+            }
+            else
+            {
+                e.Resolution = ConflictResolution.ServerWins;
+            }
+        });
 
-            await webProxyServer.HandleRequestAsync(this.HttpContext);
-        }
+        await webProxyServer.HandleRequestAsync(this.HttpContext);
     }
+}
 ```

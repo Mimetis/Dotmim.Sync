@@ -64,7 +64,7 @@ namespace Dotmim.Sync
         public bool UseBulkOperations { get; set; } = true;
 
         /// <summary>
-        /// Gets or Sets if we should cleaning tmp dir files after sync.
+        /// Gets or Sets if we should clean tracking table metadatas.
         /// </summary>
         public bool CleanMetadatas { get; set; } = true;
 

@@ -7,11 +7,9 @@ Firs of all, you have two kind of progression:
 * **Progression** from the server side.
 
 Progression is divided in several ordered parts:
-* **Server** begins a new session.
 * **Client** begins a new session.
 * **Client** ensures that its scope exists.
-* **Server** ensures thats server and client scopes exists.
-* **Server** reads the configuration, updating the tables metadatas.
+* **Server** reads the configuration, and send back the configuration to client
 * **Client** gets the configuration object from server.
 * **Server** ensures database is ready (creating stored procedures, triggers and so on, if needed)
 * **Client** ensures database is ready (creating tables, stored procedudes and so on, if needed)
@@ -63,13 +61,15 @@ Possibles values are:
 Now, imagine you have a really straightforward sync process :
 
 ``` csharp
-SqlSyncProvider serverProvider = new SqlSyncProvider(GetDatabaseConnectionString("Northwind"));
-SqlSyncProvider clientProvider = new SqlSyncProvider(GetDatabaseConnectionString("NW1"));
+SqlSyncProvider serverProvider = new SqlSyncProvider(GetDatabaseConnectionString("AdventureWorks"));
+SqlSyncProvider clientProvider = new SqlSyncProvider(GetDatabaseConnectionString("Client"));
 
-SyncAgent syncAgent = new SyncAgent(clientProvider, serverProvider, new string[] { "ProductCategory", "Product" });
+SyncAgent agent = new SyncAgent(clientProvider, serverProvider, new string[] {
+"ProductCategory", "ProductModel", "Product", "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail"});
 
-var context = await syncAgent.SynchronizeAsync();
-Console.WriteLine(context);
+var syncContext = await agent.SynchronizeAsync(SyncType.ReinitializeWithUpload);
+
+Console.WriteLine(syncContext);
 
 ```
 We are going to see how to get informations through the stages, thanks to `IProgress<T>` and then go deeper with `Interceptor<T>`.
@@ -100,7 +100,8 @@ Here is a quick example, often used to provide some feedback to the users:
 ``` cs
 
 // Using the IProgress<T> pattern to handle progession dring the synchronization
-var progress = new Progress<ProgressArgs>(s => Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}"));
+// Be careful, Progress<T> is not synchronous. Use SynchronousProgress<T> instead !
+var progress = new SynchronousProgress<ProgressArgs>(s => Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}"));
 
 // Dont forget to add this instance to the SynchronizeAsync method call
 ...
@@ -114,29 +115,38 @@ var progress = new Progress<ProgressArgs>(s => Console.WriteLine($"{s.Context.Sy
 Here is the result, after the first synchronization, assuming the **Client** database is empty:
 
 ``` cmd
-Sync Start
-BeginSession:
-ScopeLoading:   Id:0f5ac5e0-7987-4054-93bc-078d300a2cd2 LastSync: LastSyncDuration:0 SyncState:Successful
-SchemaApplied:  Tables count:2
-DatabaseTableApplied:   TableName: Product Provision:All
-DatabaseApplied:        TableName: ProductCategory Provision:All
-DatabaseApplied:        Tables count:22 Provision:All
-TableChangesSelected:   ProductCategory Inserts:0 Updates:0 Deletes:0 TotalChanges:0
-TableChangesSelected:   Product Inserts:0 Updates:0 Deletes:0 TotalChanges:0
-TableChangesApplied:    ProductCategory State:Added Applied:11 Failed:0
-TableChangesApplied:    Product State:Added Applied:14 Failed:0
-ScopeSaved:     Id:0f5ac5e0-7987-4054-93bc-078d300a2cd2 LastSync:01/02/2019 16:36:10 LastSyncDuration:32585196 SyncState:Successful
+BeginSession:           16:37:29.480
+ScopeLoading:           16:37:29.754     Id:4400bb67-1dc9-4241-92e4-80517343ecb5 LastSync: LastSyncDuration:0
+TableSchemaApplied:     16:37:30.902     TableName: ProductCategory Provision:All
+TableSchemaApplied:     16:37:30.973     TableName: ProductModel Provision:All
+TableSchemaApplied:     16:37:31.67      TableName: Product Provision:All
+TableSchemaApplied:     16:37:31.94      TableName: Address Provision:All
+TableSchemaApplied:     16:37:31.158     TableName: Customer Provision:All
+TableSchemaApplied:     16:37:31.187     TableName: CustomerAddress Provision:All
+TableSchemaApplied:     16:37:31.270     TableName: SalesOrderHeader Provision:All
+TableSchemaApplied:     16:37:31.299     TableName: SalesOrderDetail Provision:All
+SchemaApplied:          16:37:31.299     Tables count:8 Provision:All
+TableChangesApplied:    16:37:31.971     ProductCategory State:Modified Applied:41 Failed:0
+TableChangesApplied:    16:37:32.0       ProductModel State:Modified Applied:128 Failed:0
+TableChangesApplied:    16:37:32.67      Product State:Modified Applied:295 Failed:0
+TableChangesApplied:    16:37:32.106     Address State:Modified Applied:450 Failed:0
+TableChangesApplied:    16:37:32.205     Customer State:Modified Applied:847 Failed:0
+TableChangesApplied:    16:37:32.242     CustomerAddress State:Modified Applied:417 Failed:0
+TableChangesApplied:    16:37:32.277     SalesOrderHeader State:Modified Applied:32 Failed:0
+TableChangesApplied:    16:37:32.323     SalesOrderDetail State:Modified Applied:542 Failed:0
+DatabaseChangesApplied: 16:37:32.324     Changes applied on database Client: Applied: 2752 Failed: 0
+ScopeSaved:             16:37:32.366     Id:4400bb67-1dc9-4241-92e4-80517343ecb5 LastSync:31/01/2020 15:37:32 LastSyncDuration:28860107
+EndSession:             16:37:32.367
 Synchronization done.
-        Total changes downloaded: 25
+        Total changes downloaded: 2752
         Total changes uploaded: 0
         Total conflicts: 0
-        Total duration :0:0:3.258
-EndSession:
+        Total duration :0:0:2.886
 ```
 
 As you can see, it's a first synchronization, so:
 * Session begins 
-* Client apply databases schema for **Product** and **ProductCategory**
+* Client apply databases schema for all tables
 * Client select changes to send (nothing, obviously is selected since the tables are just created)
 * Client applies changes from server 
 * Session ends
@@ -171,7 +181,7 @@ On any provider, you will find a lot of relevant methods to intercept the sync p
 Imagine you have a table that should **never** be synchronized. You're able to use an interceptor like this:
 
 ``` csharp
-agent.LocalProvider.InterceptTableChangesApplying((args) =>
+agent.LocalOrchestrator.OnTableChangesApplying((args) =>
 {
     if (args.TableName == "Table_That_Should_Not_Be_Sync")
         args.Action = ChangeApplicationAction.Rollback;
@@ -182,17 +192,16 @@ Be careful, returning a `ChangeApplicationAction.Rollback` will rollback the who
 Other useful example, you can use interceptors to have more detailed logs. For instance :
 
 ``` csharp
-agent.LocalProvider.InterceptTableChangesSelecting(args =>
+agent.LocalOrchestrator.OnTableChangesSelecting(args =>
 {
     Console.WriteLine($"Get changes for table {args.TableName}");
 });
 
 
-agent.LocalProvider.InterceptTableChangesSelected(args =>
+agent.LocalOrchestrator.OnTableChangesSelected(args =>
 {
     Console.WriteLine($"Changes selected from table {args.TableChangesSelected.TableName}: ");
     Console.WriteLine($"\tInserts:{args.TableChangesSelected.Inserts}.");
-    Console.WriteLine($"\tUpdates:{args.TableChangesSelected.Updates}.");
-    Console.WriteLine($"\tDeletes:{args.TableChangesSelected.Deletes}.");
+    Console.WriteLine($"\Upserts:{args.TableChangesSelected.Upserts}.");
 });
 ```

@@ -21,6 +21,8 @@ using System.Data.Common;
 using System.Data.SqlClient;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters;
 using System.Runtime.Serialization.Formatters.Binary;
@@ -41,7 +43,7 @@ internal class Program
     public static string[] oneTable = new string[] { "ProductCategory" };
     private static async Task Main(string[] args)
     {
-        await SynchronizeAsync();
+        await TestSyncThroughWebApi();
     }
 
     private static void TestSqliteDoubleStatement()
@@ -235,7 +237,7 @@ internal class Program
 
         agent.Options.ScopeInfoTableName = "tscopeinfo";
         agent.Options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync");
-        agent.Options.BatchSize = 100;
+        //agent.Options.BatchSize = 100;
         agent.Options.CleanMetadatas = true;
         agent.Options.UseBulkOperations = true;
         agent.Options.UseVerboseErrors = false;
@@ -348,7 +350,7 @@ internal class Program
 
         // specific Setup with only 2 tables, and one filtered
         var setup = new SyncSetup(allTables);
-        
+
 
         // ----------------------------------------------------
         // Vertical Filter: On columns. Removing columns from source
@@ -396,7 +398,7 @@ internal class Program
         // And then add your where clauses
         addressCustomerFilter.AddWhere("City", "Address", "City");
         addressCustomerFilter.AddWhere("PostalCode", "Address", "postal");
-        
+
         setup.Filters.Add(addressCustomerFilter);
 
         var customerFilter = new SetupFilter("Customer");
@@ -494,9 +496,6 @@ internal class Program
 
                 var s1 = await agent.SynchronizeAsync(progress);
 
-                await agent.RemoteOrchestrator.DeleteMetadatasAsync(s1, setup, 4000);
-
-
                 // Write results
                 Console.WriteLine(s1);
             }
@@ -530,47 +529,38 @@ internal class Program
         // ----------------------------------
         var clientOptions = new SyncOptions
         {
-            ScopeInfoTableName = "client_scopeinfo",
-            BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync_client"),
-            BatchSize = 10,
-            CleanMetadatas = true,
-            UseBulkOperations = true,
-            UseVerboseErrors = false,
+            BatchSize = 500,
         };
 
+
+        var handler = new HttpClientHandler();
+        handler.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
+        var client = new HttpClient(handler) { Timeout = TimeSpan.FromMinutes(5) };
         // Create the web proxy client provider with specific options
-        var proxyClientProvider = new WebClientOrchestrator
+        var proxyClientProvider = new WebClientOrchestrator(client: client)
         {
-            SerializerFactory = new CustomMessagePackSerializerFactory(),
-            Converter = new CustomConverter()
+            //SerializerFactory = new CustomMessagePackSerializerFactory(),
+            //Converter = new CustomConverter()
         };
-
 
         // ----------------------------------
         // Web Server side
         // ----------------------------------
-        // specific Setup with only 2 tables, and one filtered
-        var setup = new SyncSetup(new string[] { "Product" });
-        //setup.Tables["Product"].Columns.AddRange(new string[] { "ProductId", "Name", "ProductCategoryID", "ProductNumber", "StandardCost", "ListPrice", "SellStartDate", "rowguid", "ModifiedDate" });
+        var tables = new string[] {"ProductCategory", "ProductModel", "Product",
+                    "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
 
-        // Add pref suf for v0.4
-        setup.StoredProceduresPrefix = "s";
-        setup.StoredProceduresSuffix = "";
-        setup.TrackingTablesPrefix = "t";
-        setup.TrackingTablesSuffix = "";
-        setup.TriggersPrefix = "";
-        setup.TriggersSuffix = "";
-
-        var webServerOptions = new WebServerOptions
+        var setup = new SyncSetup(tables)
         {
-            BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync_server"),
-            CleanMetadatas = true,
-            UseBulkOperations = true,
-            UseVerboseErrors = false,
-            ClientCacheSlidingExpiration = TimeSpan.FromSeconds(20)
+            ScopeName = "all_tables_scope",
+            StoredProceduresPrefix = "s",
+            StoredProceduresSuffix = "",
+            TrackingTablesPrefix = "t",
+            TrackingTablesSuffix = "",
+            TriggersPrefix = "",
+            TriggersSuffix = "t"
         };
-        webServerOptions.Serializers.Add(new CustomMessagePackSerializerFactory());
-        webServerOptions.Converters.Add(new CustomConverter());
+
+        var webServerOptions = new WebServerOptions { };
 
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, proxyClientProvider);
@@ -587,6 +577,7 @@ internal class Program
         var serverHandler = new RequestDelegate(async context =>
         {
             var webProxyServer = context.RequestServices.GetService(typeof(WebProxyServerOrchestrator)) as WebProxyServerOrchestrator;
+            Thread.Sleep((int)TimeSpan.FromMinutes(2).TotalMilliseconds);
             await webProxyServer.HandleRequestAsync(context);
         });
         using (var server = new KestrellTestServer(configureServices))
@@ -600,7 +591,7 @@ internal class Program
                     Console.WriteLine("Web sync start");
                     try
                     {
-                        var progress = new Progress<ProgressArgs>(pa => Console.WriteLine($"{pa.Context.SessionId} - {pa.Context.SyncStage}\t {pa.Message}"));
+                        var progress = new SynchronousProgress<ProgressArgs>(pa => Console.WriteLine($"{pa.Context.SessionId} - {pa.Context.SyncStage}\t {pa.Message}"));
 
                         var s = await agent.SynchronizeAsync(progress);
 
@@ -634,7 +625,12 @@ internal class Program
     {
         var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
 
-        var proxyClientProvider = new WebClientOrchestrator("http://localhost:52288/api/Sync");
+        var handler = new HttpClientHandler { AutomaticDecompression = DecompressionMethods.GZip };
+        var client = new HttpClient(handler) { Timeout = TimeSpan.FromMinutes(5) };
+
+        var proxyClientProvider = new WebClientOrchestrator("http://localhost:52288/api/Sync", null, null, client);
+
+
 
         // ----------------------------------
         // Client side
@@ -662,12 +658,6 @@ internal class Program
 
         var agent = new SyncAgent(clientProvider, proxyClientProvider, clientSetup, clientOptions);
 
-        agent.LocalOrchestrator.OnDatabaseChangesApplied(dcaa =>
-        {
-            Console.WriteLine("DCAA");
-            Console.ReadLine();
-        });
-
         Console.WriteLine("Press a key to start (be sure web api is running ...)");
         Console.ReadKey();
         do
@@ -676,7 +666,7 @@ internal class Program
             Console.WriteLine("Web sync start");
             try
             {
-                var progress = new Progress<ProgressArgs>(pa => Console.WriteLine($"{pa.Context.SessionId} - {pa.Context.SyncStage}\t {pa.Message}"));
+                var progress = new SynchronousProgress<ProgressArgs>(pa => Console.WriteLine($"{pa.Context.SessionId} - {pa.Context.SyncStage}\t {pa.Message}"));
 
                 var s = await agent.SynchronizeAsync(progress);
 
