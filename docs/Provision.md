@@ -7,7 +7,6 @@ First of all, you have to know that provisionning is basically automatic and man
 When you launch for the first time a sync process, the **Dotmim.Sync** will:
 * Get schemas from the server database.
 * Create all the stuff needed to be able to sync on the server side : Stored procedures, triggers and tracking tables.
-* Generate a `SyncConfiguration` object passed to each client.
 * If necessary, create all the tables on the client.
 * Then create all the stuff needed to be able to sync on the client : Stored procedures, triggers and tracking tables
 
