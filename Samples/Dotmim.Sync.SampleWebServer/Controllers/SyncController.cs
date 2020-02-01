@@ -8,39 +8,32 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Dotmim.Sync.SampleWebServer.Controllers
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class SyncController : ControllerBase
+[Route("api/[controller]")]
+[ApiController]
+public class SyncController : ControllerBase
+{
+    private WebProxyServerOrchestrator webProxyServer;
+
+    // Injected thanks to Dependency Injection
+    public SyncController(WebProxyServerOrchestrator proxy) => this.webProxyServer = proxy;
+
+    [HttpPost]
+    public async Task Post()
     {
-        private WebProxyServerProvider webProxyServer;
-
-        // Injected thanks to Dependency Injection
-        public SyncController(WebProxyServerProvider proxy)
+        webProxyServer.WebServerOrchestrator.OnApplyChangesFailed(e =>
         {
-            webProxyServer = proxy;
-        }
-
-        [HttpPost]
-        public async Task Post()
-        {
-            // Get the underline local provider
-            var provider = webProxyServer.GetLocalProvider(this.HttpContext);
-            provider.SetConfiguration(c =>c.Filters.Add("Customer", "CustomerId"));
-
-            provider.OnApplyChangesFailed(e =>
+            if (e.Conflict.RemoteRow.Table.TableName == "Region")
             {
-                if (e.Conflict.RemoteRow.Table.TableName == "Region")
-                {
-                    e.Resolution = ConflictResolution.MergeRow;
-                    e.FinalRow["RegionDescription"] = "Eastern alone !";
-                }
-                else
-                {
-                    e.Resolution = ConflictResolution.ServerWins;
-                }
-            });
+                e.Resolution = ConflictResolution.MergeRow;
+                e.FinalRow["RegionDescription"] = "Eastern alone !";
+            }
+            else
+            {
+                e.Resolution = ConflictResolution.ServerWins;
+            }
+        });
 
-            await webProxyServer.HandleRequestAsync(this.HttpContext);
-        }
+        await webProxyServer.HandleRequestAsync(this.HttpContext);
     }
+}
 }

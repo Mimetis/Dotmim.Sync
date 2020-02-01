@@ -23,8 +23,7 @@ namespace Dotmim.Sync
         public ScopeInfo ScopeInfo { get; }
 
         public override string Message => $"Id:{ScopeInfo.Id} LastSync:{ScopeInfo.LastSync} " +
-            $"LastSyncDuration:{ScopeInfo.LastSyncDuration} " +
-            $"SyncState:{ScopeInfo.SyncState}";
+            $"LastSyncDuration:{ScopeInfo.LastSyncDuration} ";
 
     }
 }

@@ -42,20 +42,21 @@ namespace Dotmim.Sync.Web.Server
             await next();
         }
 
-        private async Task SyncContextAsync(FilterContext context)
+        private Task SyncContextAsync(FilterContext context)
         {
             if (OnMethods.Contains(context.HttpContext.Request.Method)
                 || OnMethods.Contains("*"))
             {
-                var _webProxyService = (WebProxyServerProvider)context.HttpContext.RequestServices.GetService(typeof(WebProxyServerProvider));
+                var _webProxyService = (WebProxyServerOrchestrator)context.HttpContext.RequestServices.GetService(typeof(WebProxyServerOrchestrator));
 
                 if (_webProxyService == null)
                 {
                     throw new ArgumentNullException("Proxy service not found");
                 }
 
-                await _webProxyService.HandleRequestAsync(context.HttpContext);
+                return _webProxyService.HandleRequestAsync(context.HttpContext);
             }
+            return Task.CompletedTask;
         }
     }
 }

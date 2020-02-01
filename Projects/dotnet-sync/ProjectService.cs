@@ -88,21 +88,21 @@ namespace Dotmim.Sync.Tools
             if (project.ServerProvider.ProviderType != ProviderType.Web && (project.Tables == null || project.Tables.Count <= 0))
                 throw new Exception($"No table configured for project {project.Name}. See help: dotnet sync table --help");
 
-            IProvider serverProvider;
-            CoreProvider clientprovider;
+            IRemoteOrchestrator remoteOrchestrator;
+            ILocalOrchestrator localOrchestrator;
             switch (project.ServerProvider.ProviderType)
             {
                 case ProviderType.Sqlite:
                     throw new Exception("Can't use Sqlite as a server provider");
                 case ProviderType.Web:
-                    serverProvider = new WebProxyClientProvider(new Uri(project.ServerProvider.ConnectionString));
+                    remoteOrchestrator = new WebClientOrchestrator(new Uri(project.ServerProvider.ConnectionString));
                     break;
                 case ProviderType.MySql:
-                    serverProvider = new MySqlSyncProvider(project.ServerProvider.ConnectionString);
+                    remoteOrchestrator = new RemoteOrchestrator(new MySqlSyncProvider(project.ServerProvider.ConnectionString));
                     break;
                 case ProviderType.SqlServer:
                 default:
-                    serverProvider = new SqlSyncProvider(project.ServerProvider.ConnectionString);
+                    remoteOrchestrator = new RemoteOrchestrator(new SqlSyncProvider(project.ServerProvider.ConnectionString));
                     break;
             }
 
@@ -111,14 +111,14 @@ namespace Dotmim.Sync.Tools
                 case ProviderType.Web:
                     throw new Exception("Web proxy is used as a proxy server. You have to use an ASP.NET web backend. CLI uses a proxy as server provider");
                 case ProviderType.Sqlite:
-                    clientprovider = new SqliteSyncProvider(project.ClientProvider.ConnectionString);
+                    localOrchestrator = new LocalOrchestrator(new SqliteSyncProvider(project.ClientProvider.ConnectionString));
                     break;
                 case ProviderType.MySql:
-                    clientprovider = new MySqlSyncProvider(project.ClientProvider.ConnectionString);
+                    localOrchestrator = new LocalOrchestrator(new MySqlSyncProvider(project.ClientProvider.ConnectionString));
                     break;
                 case ProviderType.SqlServer:
                 default:
-                    clientprovider = new SqlSyncProvider(project.ClientProvider.ConnectionString);
+                    localOrchestrator = new LocalOrchestrator(new SqlSyncProvider(project.ClientProvider.ConnectionString));
                     break;
             }
 
@@ -126,9 +126,10 @@ namespace Dotmim.Sync.Tools
 
             if (project.ServerProvider.ProviderType != ProviderType.Web)
             {
-                agent = new SyncAgent(clientprovider, serverProvider);
+                agent = new SyncAgent(localOrchestrator, remoteOrchestrator);
 
-                var syncConfiguration = agent.LocalProvider.Configuration;
+                var syncSchema = new SyncSchema();
+                //var syncConfiguration = agent.LocalOrchestrator.Configuration;
 
                 foreach (var t in project.Tables.OrderBy(tbl => tbl.Order))
                 {
@@ -146,29 +147,28 @@ namespace Dotmim.Sync.Tools
 
                     dmTable.SyncDirection = t.Direction;
 
-                    syncConfiguration.Add(dmTable);
+                    agent.SetSchema(agentSchema => agentSchema.Add(dmTable));
                 }
 
-                agent.LocalProvider.Options.BatchDirectory = string.IsNullOrEmpty(project.Configuration.BatchDirectory) ? null : project.Configuration.BatchDirectory;
-                agent.LocalProvider.Options.BatchSize = (int)Math.Min(Int32.MaxValue, project.Configuration.DownloadBatchSizeInKB);
+                agent.SetOptions(o => o.BatchDirectory = string.IsNullOrEmpty(project.Configuration.BatchDirectory) ? null : project.Configuration.BatchDirectory);
+                agent.SetOptions(o => o.BatchSize = (int)Math.Min(Int32.MaxValue, project.Configuration.DownloadBatchSizeInKB));
+                //agent.SetOptions(o => o.SerializationFormat = project.Configuration.SerializationFormat);
+
                 //agent.Options.UseBulkOperations = project.Configuration.UseBulkOperation;
 
-                syncConfiguration.SerializationFormat = project.Configuration.SerializationFormat;
-                syncConfiguration.ConflictResolutionPolicy = project.Configuration.ConflictResolutionPolicy;
-
+                agent.SetSchema(agentSchema =>
+                {
+                    agentSchema.ConflictResolutionPolicy = project.Configuration.ConflictResolutionPolicy;
+                });
 
             }
             else
             {
-                agent = new SyncAgent(clientprovider, serverProvider);
+                agent = new SyncAgent(localOrchestrator, remoteOrchestrator);
             }
 
-            var interceptor = new Interceptor<TableChangesSelectedArgs, TableChangesAppliedArgs>(
-            tcs => Console.WriteLine($"Changes selected for table {tcs.TableChangesSelected.TableName}: {tcs.TableChangesSelected.TotalChanges}"),
-            tca => Console.WriteLine($"Changes applied for table {tca.TableChangesApplied.Table.TableName}: [{tca.TableChangesApplied.State}] {tca.TableChangesApplied.Applied}")
-                );
-
-            agent.SetInterceptor(interceptor);
+            agent.LocalOrchestrator.OnTableChangesSelected(tcs => Console.WriteLine($"Changes selected for table {tcs.TableChangesSelected.TableName}: {tcs.TableChangesSelected.TotalChanges}"));
+            agent.LocalOrchestrator.OnTableChangesApplied(tca => Console.WriteLine($"Changes applied for table {tca.TableChangesApplied.Table.TableName}: [{tca.TableChangesApplied.State}] {tca.TableChangesApplied.Applied}"));
 
             // synchronous call
             var syncContext = agent.SynchronizeAsync().GetAwaiter().GetResult();

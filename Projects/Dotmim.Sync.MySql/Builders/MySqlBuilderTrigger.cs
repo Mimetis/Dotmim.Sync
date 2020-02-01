@@ -1,15 +1,12 @@
 ﻿using Dotmim.Sync.Builders;
-using System;
-using System.Text;
-using Dotmim.Sync.Data;
-using System.Data.Common;
-using System.Linq;
-using Dotmim.Sync.Log;
-using System.Data;
 using MySql.Data.MySqlClient;
-using Dotmim.Sync.Filter;
-using System.Diagnostics;
+using System;
 using System.Collections.Generic;
+using System.Data;
+using System.Data.Common;
+using System.Diagnostics;
+using System.Linq;
+using System.Text;
 
 namespace Dotmim.Sync.MySql
 {
@@ -17,21 +14,21 @@ namespace Dotmim.Sync.MySql
     {
         private ParserName tableName;
         private ParserName trackingName;
-        private DmTable tableDescription;
+        private SyncTable tableDescription;
         private MySqlConnection connection;
         private MySqlTransaction transaction;
         private MySqlObjectNames mySqlObjectNames;
 
-        public ICollection<FilterClause> Filters { get; set; }
+        public SyncFilter Filter { get; set; }
 
 
 
-        public MySqlBuilderTrigger(DmTable tableDescription, DbConnection connection, DbTransaction transaction = null)
+        public MySqlBuilderTrigger(SyncTable tableDescription, DbConnection connection, DbTransaction transaction = null)
         {
             this.connection = connection as MySqlConnection;
             this.transaction = transaction as MySqlTransaction;
             this.tableDescription = tableDescription;
-            (this.tableName, this.trackingName) = MySqlBuilder.GetParsers(this.tableDescription);
+            (this.tableName, this.trackingName) = MyTableSqlBuilder.GetParsers(this.tableDescription);
             this.mySqlObjectNames = new MySqlObjectNames(this.tableDescription);
         }
 
@@ -40,33 +37,54 @@ namespace Dotmim.Sync.MySql
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("BEGIN");
-            stringBuilder.AppendLine($"UPDATE {trackingName.Quoted().ToString()} ");
-            stringBuilder.AppendLine("SET `sync_row_is_tombstone` = 1");
-            stringBuilder.AppendLine("\t,`update_scope_id` = NULL -- since the update if from local, it's a NULL");
-            stringBuilder.AppendLine($"\t,`update_timestamp` = {MySqlObjectNames.TimestampValue}");
-            stringBuilder.AppendLine($"\t,`timestamp` = {MySqlObjectNames.TimestampValue}");
-            stringBuilder.AppendLine("\t,`last_change_datetime` = utc_timestamp()");
 
-            // Filter columns
-            if (this.Filters != null)
+            stringBuilder.AppendLine($"\tINSERT INTO {trackingName.Quoted().ToString()} (");
+
+            StringBuilder stringBuilderArguments = new StringBuilder();
+            StringBuilder stringBuilderArguments2 = new StringBuilder();
+            StringBuilder stringPkAreNull = new StringBuilder();
+
+            string argComma = string.Empty;
+            string argAnd = string.Empty;
+            foreach (var mutableColumn in this.tableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
             {
+                var columnName = ParserName.Parse(mutableColumn, "`").Quoted().ToString();
 
-                foreach (var filterColumn in this.Filters)
-                {
-                    if (this.tableDescription.PrimaryKey.Columns.Any(c => c.ColumnName.ToLowerInvariant() == filterColumn.ColumnName.ToLowerInvariant()))
-                        continue;
-                    var columnName = ParserName.Parse(filterColumn.ColumnName, "`").Quoted().ToString();
-
-                    stringBuilder.AppendLine($"\t,{columnName} = old.{columnName}");
-
-                }
-                stringBuilder.AppendLine();
+                stringBuilderArguments.AppendLine($"\t\t{argComma}{columnName}");
+                stringBuilderArguments2.AppendLine($"\t\t{argComma}old.{columnName}");
+                stringPkAreNull.Append($"{argAnd}{trackingName.Quoted().ToString()}.{columnName} IS NULL");
+                argComma = ",";
+                argAnd = " AND ";
             }
 
-            stringBuilder.Append($"WHERE ");
-            stringBuilder.Append(MySqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, trackingName.Quoted().ToString(), "old"));
-            stringBuilder.AppendLine(";");
-            stringBuilder.AppendLine("END;");
+            stringBuilder.Append(stringBuilderArguments.ToString());
+            stringBuilder.AppendLine("\t\t,`update_scope_id`");
+            stringBuilder.AppendLine("\t\t,`timestamp`");
+            stringBuilder.AppendLine("\t\t,`sync_row_is_tombstone`");
+            stringBuilder.AppendLine("\t\t,`last_change_datetime`");
+
+            var filterColumnsString = new StringBuilder();
+            var filterColumnsString2 = new StringBuilder();
+            var filterColumnsString3 = new StringBuilder();
+
+            stringBuilder.AppendLine("\t) ");
+            stringBuilder.AppendLine("\tVALUES (");
+            stringBuilder.Append(stringBuilderArguments2.ToString());
+            stringBuilder.AppendLine("\t\t,NULL");
+            stringBuilder.AppendLine($"\t\t,{MySqlObjectNames.TimestampValue}");
+            stringBuilder.AppendLine("\t\t,1");
+            stringBuilder.AppendLine("\t\t,utc_timestamp()");
+
+
+            stringBuilder.AppendLine("\t)");
+            stringBuilder.AppendLine("ON DUPLICATE KEY UPDATE");
+            stringBuilder.AppendLine("\t`update_scope_id` = NULL, ");
+            stringBuilder.AppendLine("\t`sync_row_is_tombstone` = 1, ");
+            stringBuilder.AppendLine($"\t`timestamp` = {MySqlObjectNames.TimestampValue}, ");
+            stringBuilder.AppendLine("\t`last_change_datetime` = utc_timestamp()");
+
+            stringBuilder.Append(";");
+            stringBuilder.AppendLine("END");
             return stringBuilder.ToString();
         }
         public void CreateDeleteTrigger()
@@ -108,32 +126,10 @@ namespace Dotmim.Sync.MySql
 
             }
         }
-        public string CreateDeleteTriggerScriptText()
-        {
+     
+        public void AlterDeleteTrigger(){ }
+      
 
-            var delTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger).name, tableName.Unquoted().Normalized().ToString());
-            StringBuilder createTrigger = new StringBuilder();
-            createTrigger.AppendLine($"CREATE TRIGGER {delTriggerName} AFTER DELETE ON {tableName.Quoted().ToString()} FOR EACH ROW ");
-            createTrigger.AppendLine();
-            createTrigger.AppendLine(this.DeleteTriggerBodyText());
-
-            string str = $"Delete Trigger for table {tableName.Quoted().ToString()}";
-            return MySqlBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
-        }
-        public void AlterDeleteTrigger()
-        {
-
-
-        }
-        public string AlterDeleteTriggerScriptText()
-        {
-            return "";
-        }
-
-        /// <summary>
-        /// TODO : Check if row was deleted before, to just make an update !!!!
-        /// </summary>
-        /// <returns></returns>
         private string InsertTriggerBodyText()
         {
             StringBuilder stringBuilder = new StringBuilder();
@@ -143,13 +139,13 @@ namespace Dotmim.Sync.MySql
 
             stringBuilder.AppendLine($"\tINSERT INTO {trackingName.Quoted().ToString()} (");
 
-            StringBuilder stringBuilderArguments = new StringBuilder();
-            StringBuilder stringBuilderArguments2 = new StringBuilder();
-            StringBuilder stringPkAreNull = new StringBuilder();
+            var stringBuilderArguments = new StringBuilder();
+            var stringBuilderArguments2 = new StringBuilder();
+            var stringPkAreNull = new StringBuilder();
 
             string argComma = string.Empty;
             string argAnd = string.Empty;
-            foreach (var mutableColumn in this.tableDescription.PrimaryKey.Columns.Where(c => !c.IsReadOnly))
+            foreach (var mutableColumn in this.tableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
             {
                 var columnName = ParserName.Parse(mutableColumn, "`").Quoted().ToString();
 
@@ -161,61 +157,30 @@ namespace Dotmim.Sync.MySql
             }
 
             stringBuilder.Append(stringBuilderArguments.ToString());
-            stringBuilder.AppendLine("\t\t,`create_scope_id`");
-            stringBuilder.AppendLine("\t\t,`create_timestamp`");
             stringBuilder.AppendLine("\t\t,`update_scope_id`");
-            stringBuilder.AppendLine("\t\t,`update_timestamp`");
             stringBuilder.AppendLine("\t\t,`timestamp`");
             stringBuilder.AppendLine("\t\t,`sync_row_is_tombstone`");
             stringBuilder.AppendLine("\t\t,`last_change_datetime`");
 
             var filterColumnsString = new StringBuilder();
-            var filterColumnsValuesString = new StringBuilder();
-            var filterColumnsUpdateString = new StringBuilder();
-
-            // Filter columns
-            if (this.Filters != null && this.Filters.Count > 0)
-            {
-                foreach (var filterColumn in this.Filters)
-                {
-                    if (this.tableDescription.PrimaryKey.Columns.Any(c => c.ColumnName.ToLowerInvariant() == filterColumn.ColumnName.ToLowerInvariant()))
-                        continue;
-
-                    var columnName = ParserName.Parse(filterColumn.ColumnName, "`").Quoted().ToString();
-                    filterColumnsString.AppendLine($"\t\t,{columnName}");
-                    filterColumnsValuesString.AppendLine($"\t\t,new.{columnName}");
-                    filterColumnsUpdateString.AppendLine($"\t,{columnName} = new.{columnName}");
-                }
-                stringBuilder.AppendLine(filterColumnsString.ToString());
-            }
+            var filterColumnsString2 = new StringBuilder();
+            var filterColumnsString3 = new StringBuilder();
 
             stringBuilder.AppendLine("\t) ");
             stringBuilder.AppendLine("\tVALUES (");
             stringBuilder.Append(stringBuilderArguments2.ToString());
             stringBuilder.AppendLine("\t\t,NULL");
             stringBuilder.AppendLine($"\t\t,{MySqlObjectNames.TimestampValue}");
-            stringBuilder.AppendLine("\t\t,NULL");
-            stringBuilder.AppendLine("\t\t,0");
-            stringBuilder.AppendLine($"\t\t,{MySqlObjectNames.TimestampValue}");
             stringBuilder.AppendLine("\t\t,0");
             stringBuilder.AppendLine("\t\t,utc_timestamp()");
 
-            if (Filters != null && Filters.Count > 0)
-                stringBuilder.AppendLine(filterColumnsValuesString.ToString());
 
             stringBuilder.AppendLine("\t)");
             stringBuilder.AppendLine("ON DUPLICATE KEY UPDATE");
-            stringBuilder.AppendLine("\t`sync_row_is_tombstone` = 0, ");
-            stringBuilder.AppendLine("\t`create_scope_id` = NULL, ");
             stringBuilder.AppendLine("\t`update_scope_id` = NULL, ");
-            stringBuilder.AppendLine($"\t`create_timestamp` = {MySqlObjectNames.TimestampValue}, ");
-            stringBuilder.AppendLine("\t`update_timestamp` = NULL, ");
             stringBuilder.AppendLine("\t`sync_row_is_tombstone` = 0, ");
             stringBuilder.AppendLine($"\t`timestamp` = {MySqlObjectNames.TimestampValue}, ");
             stringBuilder.AppendLine("\t`last_change_datetime` = utc_timestamp()");
-
-            if (Filters != null && Filters.Count > 0)
-                stringBuilder.AppendLine(filterColumnsUpdateString.ToString());
 
             stringBuilder.Append(";");
             stringBuilder.AppendLine("END");
@@ -261,56 +226,107 @@ namespace Dotmim.Sync.MySql
 
             }
         }
-        public string CreateInsertTriggerScriptText()
-        {
-            var insTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.InsertTrigger).name, tableName.Unquoted().Normalized().ToString());
-            StringBuilder createTrigger = new StringBuilder();
-            createTrigger.AppendLine($"CREATE TRIGGER {insTriggerName} AFTER INSERT ON {tableName.Quoted().ToString()} FOR EACH ROW ");
-            createTrigger.AppendLine();
-            createTrigger.AppendLine(this.InsertTriggerBodyText());
-
-            string str = $"Insert Trigger for table {tableName.Quoted().ToString()}";
-            return MySqlBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
-
-        }
-        public void AlterInsertTrigger()
-        {
-
-        }
-        public string AlterInsertTriggerScriptText()
-        {
-            return "";
-        }
-
+       
+        public void AlterInsertTrigger(){ }
+       
 
         private string UpdateTriggerBodyText()
         {
-            StringBuilder stringBuilder = new StringBuilder();
+            var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($"Begin ");
             stringBuilder.AppendLine($"\tUPDATE {trackingName.Quoted().ToString()} ");
-            stringBuilder.AppendLine("\tSET `update_scope_id` = NULL -- since the update if from local, it's a NULL");
-            stringBuilder.AppendLine($"\t\t,`update_timestamp` = {MySqlObjectNames.TimestampValue}");
+            stringBuilder.AppendLine("\tSET `update_scope_id` = NULL ");
             stringBuilder.AppendLine($"\t\t,`timestamp` = {MySqlObjectNames.TimestampValue}");
             stringBuilder.AppendLine("\t\t,`last_change_datetime` = utc_timestamp()");
 
-            if (this.Filters != null && Filters.Count > 0)
+            stringBuilder.Append($"\tWhere ");
+            stringBuilder.Append(MySqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, trackingName.Quoted().ToString(), "new"));
+
+            if (this.tableDescription.GetMutableColumns().Count() > 0)
             {
-                foreach (var filterColumn in this.Filters)
-                {
-                    if (this.tableDescription.PrimaryKey.Columns.Any(c => c.ColumnName.ToLowerInvariant() == filterColumn.ColumnName.ToLowerInvariant()))
-                        continue;
-
-                    var columnName = ParserName.Parse(filterColumn.ColumnName, "`").Quoted().ToString();
-
-                    stringBuilder.AppendLine($"\t\t,{columnName} = new.{columnName}");
-                }
                 stringBuilder.AppendLine();
+                stringBuilder.AppendLine("\t AND (");
+                string or = "    ";
+                foreach (var column in this.tableDescription.GetMutableColumns())
+                {
+                    var quotedColumn = ParserName.Parse(column, "`").Quoted().ToString();
+
+                    stringBuilder.Append("\t");
+                    stringBuilder.Append(or);
+                    stringBuilder.Append("IFNULL(");
+                    stringBuilder.Append("NULLIF(");
+                    stringBuilder.Append("`old`.");
+                    stringBuilder.Append(quotedColumn);
+                    stringBuilder.Append(", ");
+                    stringBuilder.Append("`new`.");
+                    stringBuilder.Append(quotedColumn);
+                    stringBuilder.Append(")");
+                    stringBuilder.Append(", ");
+                    stringBuilder.Append("NULLIF(");
+                    stringBuilder.Append("`new`.");
+                    stringBuilder.Append(quotedColumn);
+                    stringBuilder.Append(", ");
+                    stringBuilder.Append("`old`.");
+                    stringBuilder.Append(quotedColumn);
+                    stringBuilder.Append(")");
+                    stringBuilder.AppendLine(") IS NOT NULL");
+
+                    or = " OR ";
+                }
+                stringBuilder.AppendLine("\t ) ");
+            }
+            stringBuilder.AppendLine($"; ");
+
+            stringBuilder.AppendLine("IF (SELECT ROW_COUNT() = 0) THEN ");
+
+            stringBuilder.AppendLine($"\tINSERT INTO {trackingName.Quoted().ToString()} (");
+
+            StringBuilder stringBuilderArguments = new StringBuilder();
+            StringBuilder stringBuilderArguments2 = new StringBuilder();
+            StringBuilder stringPkAreNull = new StringBuilder();
+
+            string argComma = string.Empty;
+            string argAnd = string.Empty;
+            foreach (var mutableColumn in this.tableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
+            {
+                var columnName = ParserName.Parse(mutableColumn, "`").Quoted().ToString();
+
+                stringBuilderArguments.AppendLine($"\t\t{argComma}{columnName}");
+                stringBuilderArguments2.AppendLine($"\t\t{argComma}new.{columnName}");
+                stringPkAreNull.Append($"{argAnd}{trackingName.Quoted().ToString()}.{columnName} IS NULL");
+                argComma = ",";
+                argAnd = " AND ";
             }
 
-            stringBuilder.Append($"\tWhere ");
-            stringBuilder.Append(MySqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, trackingName.Quoted().ToString(), "new"));
-            stringBuilder.AppendLine($"; ");
+            stringBuilder.Append(stringBuilderArguments.ToString());
+            stringBuilder.AppendLine("\t\t,`update_scope_id`");
+            stringBuilder.AppendLine("\t\t,`timestamp`");
+            stringBuilder.AppendLine("\t\t,`sync_row_is_tombstone`");
+            stringBuilder.AppendLine("\t\t,`last_change_datetime`");
+
+            var filterColumnsString = new StringBuilder();
+            var filterColumnsString2 = new StringBuilder();
+            var filterColumnsString3 = new StringBuilder();
+
+            stringBuilder.AppendLine("\t) ");
+            stringBuilder.AppendLine("\tVALUES (");
+            stringBuilder.Append(stringBuilderArguments2.ToString());
+            stringBuilder.AppendLine("\t\t,NULL");
+            stringBuilder.AppendLine($"\t\t,{MySqlObjectNames.TimestampValue}");
+            stringBuilder.AppendLine("\t\t,0");
+            stringBuilder.AppendLine("\t\t,utc_timestamp()");
+
+
+            stringBuilder.AppendLine("\t)");
+            stringBuilder.AppendLine("ON DUPLICATE KEY UPDATE");
+            stringBuilder.AppendLine("\t`update_scope_id` = NULL, ");
+            stringBuilder.AppendLine("\t`sync_row_is_tombstone` = 0, ");
+            stringBuilder.AppendLine($"\t`timestamp` = {MySqlObjectNames.TimestampValue}, ");
+            stringBuilder.AppendLine("\t`last_change_datetime` = utc_timestamp();");
+
+            stringBuilder.AppendLine("END IF;");
+
             stringBuilder.AppendLine($"End; ");
             return stringBuilder.ToString();
         }
@@ -353,25 +369,9 @@ namespace Dotmim.Sync.MySql
 
             }
         }
-        public string CreateUpdateTriggerScriptText()
-        {
-            var updTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger).name, tableName.Unquoted().Normalized().ToString());
-            StringBuilder createTrigger = new StringBuilder();
-            createTrigger.AppendLine($"CREATE TRIGGER {updTriggerName} AFTER UPDATE ON {tableName.Quoted().ToString()} FOR EACH ROW ");
-            createTrigger.AppendLine();
-            createTrigger.AppendLine(this.UpdateTriggerBodyText());
+        
+        public void AlterUpdateTrigger() { return; }
 
-            string str = $"Update Trigger for table {tableName.Quoted().ToString()}";
-            return MySqlBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
-        }
-        public void AlterUpdateTrigger()
-        {
-            return;
-        }
-        public string AlterUpdateTriggerScriptText()
-        {
-            return string.Empty;
-        }
         public bool NeedToCreateTrigger(DbTriggerType type)
         {
             var updTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger).name, tableName.Unquoted().Normalized().ToString());
@@ -437,44 +437,11 @@ namespace Dotmim.Sync.MySql
         }
 
 
-        public void DropInsertTrigger()
-        {
-            DropTrigger(DbCommandType.InsertTrigger);
-        }
+        public void DropInsertTrigger() => this.DropTrigger(DbCommandType.InsertTrigger);
 
-        public void DropUpdateTrigger()
-        {
-            DropTrigger(DbCommandType.UpdateTrigger);
-        }
+        public void DropUpdateTrigger() => this.DropTrigger(DbCommandType.UpdateTrigger);
 
-        public void DropDeleteTrigger()
-        {
-            DropTrigger(DbCommandType.DeleteTrigger);
-        }
+        public void DropDeleteTrigger() => this.DropTrigger(DbCommandType.DeleteTrigger);
 
-        private string DropTriggerText(DbCommandType triggerType)
-        {
-            var commandName = this.mySqlObjectNames.GetCommandName(triggerType).name;
-            var commandText = $"drop trigger if exists {commandName}";
-
-            var str1 = $"Drop trigger {commandName} for table {tableName.Quoted().ToString()}";
-            return MySqlBuilder.WrapScriptTextWithComments(commandText, str1);
-
-        }
-
-        public string DropInsertTriggerScriptText()
-        {
-            return DropTriggerText(DbCommandType.InsertTrigger);
-        }
-
-        public string DropUpdateTriggerScriptText()
-        {
-            return DropTriggerText(DbCommandType.UpdateTrigger);
-        }
-
-        public string DropDeleteTriggerScriptText()
-        {
-            return DropTriggerText(DbCommandType.DeleteTrigger);
-        }
     }
 }

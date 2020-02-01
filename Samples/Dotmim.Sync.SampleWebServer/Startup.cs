@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Dotmim.Sync.SqlServer;
+using Dotmim.Sync.Web.Server;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpsPolicy;
@@ -29,32 +30,36 @@ namespace Dotmim.Sync.SampleWebServer
         {
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
 
+            // Mandatory to be able to handle multiple sessions
             services.AddMemoryCache();
 
+            // Get a connection string for your server data source
             var connectionString = Configuration.GetSection("ConnectionStrings")["DefaultConnection"];
 
-            services.AddSyncServer<SqlSyncProvider>(connectionString,
-                c =>
-                {
-                    var tables = new string[] {"ProductCategory",
+            // Set the web server Options
+            var options = new WebServerOptions()
+            {
+                BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "server"),
+            };
+
+            // Create the setup used for your sync process
+            var tables = new string[] {"ProductCategory",
                             "ProductDescription", "ProductModel",
                             "Product", "ProductModelProductDescription",
                             "Address", "Customer", "CustomerAddress",
                             "SalesOrderHeader", "SalesOrderDetail" };
-                    c.Add(tables);
-                    c.ScopeInfoTableName = "tscopeinfo";
-                    c.SerializationFormat = Dotmim.Sync.Enumerations.SerializationFormat.Binary;
-                    c.StoredProceduresPrefix = "s";
-                    c.StoredProceduresSuffix = "";
-                    c.TrackingTablesPrefix = "t";
-                    c.TrackingTablesSuffix = "";
 
+            var setup = new SyncSetup(tables)
+            {
+                // optional :
+                StoredProceduresPrefix = "server",
+                StoredProceduresSuffix = "",
+                TrackingTablesPrefix = "server",
+                TrackingTablesSuffix = ""
+            };
 
-                }, options =>
-                {
-                    options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "server");
-                    options.BatchSize = 100;
-                });
+            // add a SqlSyncProvider acting as the server hub
+            services.AddSyncServer<SqlSyncProvider>(connectionString, setup, options);
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

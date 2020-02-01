@@ -360,13 +360,13 @@ namespace Dotmim.Sync.Serialization
                 return "13";
             else if (valueType == typeof(DateTimeOffset))
                 return "14";
-            else if (valueType == typeof(Decimal))
+            else if (valueType == typeof(decimal))
                 return "15";
             else if (valueType == typeof(Guid))
                 return "16";
-            else if (valueType == typeof(String))
+            else if (valueType == typeof(string))
                 return "17";
-            else if (valueType == typeof(SByte))
+            else if (valueType == typeof(sbyte))
                 return "18";
             else if (valueType == typeof(TimeSpan))
                 return "19";

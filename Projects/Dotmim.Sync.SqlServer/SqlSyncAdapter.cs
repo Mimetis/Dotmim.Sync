@@ -1,6 +1,6 @@
 ﻿using Dotmim.Sync.Builders;
-using Dotmim.Sync.Data;
-using Dotmim.Sync.Filter;
+
+
 using Dotmim.Sync.SqlServer.Manager;
 using Microsoft.SqlServer.Server;
 using System;
@@ -11,6 +11,7 @@ using System.Data;
 using System.Data.Common;
 using System.Data.SqlClient;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 
 
@@ -24,7 +25,12 @@ namespace Dotmim.Sync.SqlServer.Builders
         private SqlDbMetadata sqlMetadata;
 
         // Derive Parameters cache
-        private static ConcurrentDictionary<string, List<SqlParameter>> derivingParameters = new ConcurrentDictionary<string, List<SqlParameter>>();
+        // Be careful, we can have collision between databases
+        // this static class could be shared accross databases with same command name
+        // but different table schema
+        // So the string should contains the connection string as well
+        private static ConcurrentDictionary<string, List<SqlParameter>> derivingParameters
+            = new ConcurrentDictionary<string, List<SqlParameter>>();
 
         public override DbConnection Connection
         {
@@ -42,7 +48,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         }
 
-        public SqlSyncAdapter(DmTable tableDescription, DbConnection connection, DbTransaction transaction) : base(tableDescription)
+        public SqlSyncAdapter(SyncTable tableDescription, DbConnection connection, DbTransaction transaction) : base(tableDescription)
         {
             var sqlc = connection as SqlConnection;
             this.connection = sqlc ?? throw new InvalidCastException("Connection should be a SqlConnection");
@@ -53,12 +59,13 @@ namespace Dotmim.Sync.SqlServer.Builders
             this.sqlMetadata = new SqlDbMetadata();
         }
 
-        private SqlMetaData GetSqlMetadaFromType(DmColumn column)
+        private SqlMetaData GetSqlMetadaFromType(SyncColumn column)
         {
-            var dbType = column.DbType;
             long maxLength = column.MaxLength;
+            var dataType = column.GetDataType();
+            var dbType = column.GetDbType();
 
-            SqlDbType sqlDbType = (SqlDbType)this.sqlMetadata.TryGetOwnerDbType(column.OriginalDbType, column.DbType, false, false, column.MaxLength, this.TableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+            var sqlDbType = (SqlDbType)this.sqlMetadata.TryGetOwnerDbType(column.OriginalDbType, dbType, false, false, column.MaxLength, this.TableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
 
             // TODO : Since we validate length before, is it mandatory here ?
 
@@ -74,7 +81,8 @@ namespace Dotmim.Sync.SqlServer.Builders
                 return new SqlMetaData(column.ColumnName, sqlDbType, maxLength);
             }
 
-            if (column.DataType == typeof(char))
+
+            if (dataType == typeof(char))
                 return new SqlMetaData(column.ColumnName, sqlDbType, 1);
 
             if (sqlDbType == SqlDbType.Char || sqlDbType == SqlDbType.NChar)
@@ -122,162 +130,91 @@ namespace Dotmim.Sync.SqlServer.Builders
         /// <summary>
         /// Executing a batch command
         /// </summary>
-        /// <param name="cmd">the DbCommand already prepared</param>
-        /// <param name="applyTable">the table rows to apply</param>
-        /// <param name="failedRows">the failed rows dmTable to store failed rows</param>
-        /// <param name="scope">the current scope</param>
-        public override void ExecuteBatchCommand(DbCommand cmd, DmView applyTable, DmTable failedRows, ScopeInfo scope)
+        public override void ExecuteBatchCommand(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable, SyncTable failedRows, long lastTimestamp)
         {
-            if (applyTable.Count <= 0)
+
+            var applyRowsCount = applyRows.Count();
+
+            if (applyRowsCount <= 0)
                 return;
 
-            var lstMutableColumns = applyTable.Table.Columns.Where(c => !c.IsReadOnly).ToList();
+            var dataRowState = DataRowState.Unchanged;
 
-            List<SqlDataRecord> records = new List<SqlDataRecord>(applyTable.Count);
-            SqlMetaData[] metadatas = new SqlMetaData[lstMutableColumns.Count];
+            var records = new List<SqlDataRecord>(applyRowsCount);
+            SqlMetaData[] metadatas = new SqlMetaData[schemaChangesTable.Columns.Count];
 
-            for (int i = 0; i < lstMutableColumns.Count; i++)
-            {
-                var column = lstMutableColumns[i];
+            for (int i = 0; i < schemaChangesTable.Columns.Count; i++)
+                metadatas[i] = GetSqlMetadaFromType(schemaChangesTable.Columns[i]);
 
-                SqlMetaData metadata = GetSqlMetadaFromType(column);
-                metadatas[i] = metadata;
-            }
             try
             {
-                foreach (var dmRow in applyTable)
+                foreach (var row in applyRows)
                 {
-                    SqlDataRecord record = new SqlDataRecord(metadatas);
+                    dataRowState = row.RowState;
+
+                    var record = new SqlDataRecord(metadatas);
 
                     int sqlMetadataIndex = 0;
-                    bool isDeleted = false;
 
-                    // Cancel the delete state to be able to get the row, more simplier
-                    if (dmRow.RowState == DmRowState.Deleted)
+                    for (int i = 0; i < schemaChangesTable.Columns.Count; i++)
                     {
-                        isDeleted = true;
-                        dmRow.RejectChanges();
-                    }
-
-                    for (int i = 0; i < dmRow.ItemArray.Length; i++)
-                    {
-                        // check if it's readonly
-                        if (applyTable.Table.Columns[i].IsReadOnly)
-                            continue;
+                        var schemaColumn = schemaChangesTable.Columns[i];
 
                         // Get the default value
-                        // Since we have the readonly values in ItemArray, get the value from original column
-                        dynamic defaultValue = applyTable.Table.Columns[i].DefaultValue;
-                        dynamic rowValue = dmRow[i];
-                        var columnType = applyTable.Table.Columns[i].DataType;
+                        //var columnType = schemaColumn.GetDataType();
+                        dynamic defaultValue = schemaColumn.GetDefaultValue();
+                        dynamic rowValue = row[i];
 
                         // metadatas don't have readonly values, so get from sqlMetadataIndex
                         var sqlMetadataType = metadatas[sqlMetadataIndex].SqlDbType;
+
                         if (rowValue != null)
                         {
+                            var columnType = rowValue.GetType();
+
                             switch (sqlMetadataType)
                             {
                                 case SqlDbType.BigInt:
                                     if (columnType != typeof(long))
-                                        if (Int64.TryParse(rowValue.ToString(), out Int64 v))
-                                            rowValue = v;
-                                        else
-                                            throw new InvalidCastException($"Can't convert value {rowValue} to Int64");
+                                        rowValue = SyncTypeConverter.TryConvertTo<long>(rowValue);
                                     break;
                                 case SqlDbType.Bit:
                                     if (columnType != typeof(bool))
-                                    {
-                                        string rowValueString = rowValue.ToString();
-                                        if (Boolean.TryParse(rowValueString.Trim(), out Boolean v))
-                                        {
-                                            rowValue = v;
-                                            break;
-                                        }
-
-                                        if (rowValueString.Trim() == "0")
-                                        {
-                                            rowValue = false;
-                                            break;
-                                        }
-
-                                        if (rowValueString.Trim() == "1")
-                                        {
-                                            rowValue = true;
-                                            break;
-                                        }
-
-                                        var converter = TypeDescriptor.GetConverter(typeof(bool));
-                                        if (converter.CanConvertFrom(columnType))
-                                        {
-                                            rowValue = converter.ConvertFrom(rowValue);
-                                            break;
-                                        }
-
-                                        throw new InvalidCastException($"Can't convert value {rowValue} to Boolean");
-                                    }
+                                        rowValue = SyncTypeConverter.TryConvertTo<bool>(rowValue);
                                     break;
                                 case SqlDbType.Date:
                                 case SqlDbType.DateTime:
                                 case SqlDbType.DateTime2:
                                 case SqlDbType.SmallDateTime:
-                                    if (columnType != typeof(DateTime))
-                                        if (DateTime.TryParse(rowValue.ToString(), out DateTime v))
-                                            rowValue = v;
-                                        else
-                                            throw new InvalidCastException($"Can't convert value {rowValue} to DateTime");
-                                    break;
                                 case SqlDbType.DateTimeOffset:
-                                    if (columnType != typeof(DateTimeOffset))
-                                    {
-                                        if (DateTimeOffset.TryParse(rowValue.ToString(), out DateTimeOffset dt))
-                                            rowValue = dt;
-                                        else
-                                            throw new InvalidCastException($"Can't convert value {rowValue} to DateTimeOffset");
-                                    }
+                                    if (columnType != typeof(DateTime))
+                                        rowValue = SyncTypeConverter.TryConvertTo<DateTime>(rowValue);
                                     break;
                                 case SqlDbType.Decimal:
-                                    if (columnType != typeof(Decimal))
-                                        if (Decimal.TryParse(rowValue.ToString(), out decimal v))
-                                            rowValue = v;
-                                        else
-                                            throw new InvalidCastException($"Can't convert value {rowValue} to Decimal");
+                                    if (columnType != typeof(decimal))
+                                        rowValue = SyncTypeConverter.TryConvertTo<decimal>(rowValue);
                                     break;
                                 case SqlDbType.Float:
-                                    if (columnType != typeof(Double))
-                                        if (Double.TryParse(rowValue.ToString(), out Double v))
-                                            rowValue = v;
-                                        else
-                                            throw new InvalidCastException($"Can't convert value {rowValue} to Double");
-                                    break;
                                 case SqlDbType.Real:
                                     if (columnType != typeof(float))
-                                        if (float.TryParse(rowValue.ToString(), out float v))
-                                            rowValue = v;
-                                        else
-                                            throw new InvalidCastException($"Can't convert value {rowValue} to Double");
+                                        rowValue = SyncTypeConverter.TryConvertTo<float>(rowValue);
                                     break;
                                 case SqlDbType.Image:
                                 case SqlDbType.Binary:
                                 case SqlDbType.VarBinary:
-                                    if (columnType != typeof(Byte[]))
-                                        rowValue = BitConverter.GetBytes(rowValue);
+                                    if (columnType != typeof(byte[]))
+                                        rowValue = SyncTypeConverter.TryConvertTo<byte[]>(rowValue);
                                     break;
                                 case SqlDbType.Variant:
                                     break;
                                 case SqlDbType.Int:
-                                    if (columnType != typeof(Int32))
-                                        if (Int32.TryParse(rowValue.ToString(), out int v))
-                                            rowValue = v;
-                                        else
-                                            throw new InvalidCastException($"Can't convert value {rowValue} to Int32");
+                                    if (columnType != typeof(int))
+                                        rowValue = SyncTypeConverter.TryConvertTo<int>(rowValue);
                                     break;
                                 case SqlDbType.Money:
                                 case SqlDbType.SmallMoney:
-                                    if (columnType != typeof(Decimal))
-                                        if (Decimal.TryParse(rowValue.ToString(), out Decimal v))
-                                            rowValue = v;
-                                        else
-                                            throw new InvalidCastException($"Can't convert value {rowValue} to Decimal");
+                                    if (columnType != typeof(decimal))
+                                        rowValue = SyncTypeConverter.TryConvertTo<decimal>(rowValue);
                                     break;
                                 case SqlDbType.NChar:
                                 case SqlDbType.NText:
@@ -287,59 +224,40 @@ namespace Dotmim.Sync.SqlServer.Builders
                                 case SqlDbType.Text:
                                 case SqlDbType.Char:
                                     if (columnType != typeof(string))
-                                        rowValue = rowValue.ToString();
+                                        rowValue = SyncTypeConverter.TryConvertTo<string>(rowValue);
                                     break;
-
                                 case SqlDbType.SmallInt:
-                                    if (columnType != typeof(Int16))
-                                        if (Int16.TryParse(rowValue.ToString(), out Int16 v))
-                                            rowValue = v;
-                                        else
-                                            throw new InvalidCastException($"Can't convert value {rowValue} to Int16");
+                                    if (columnType != typeof(short))
+                                        rowValue = SyncTypeConverter.TryConvertTo<short>(rowValue);
                                     break;
                                 case SqlDbType.Time:
                                     if (columnType != typeof(TimeSpan))
-                                        if (TimeSpan.TryParse(rowValue.ToString(), out TimeSpan v))
-                                            rowValue = v;
-                                        else
-                                            throw new InvalidCastException($"Can't convert value {rowValue} to TimeSpan");
+                                        rowValue = SyncTypeConverter.TryConvertTo<TimeSpan>(rowValue);
                                     break;
                                 case SqlDbType.Timestamp:
                                     break;
                                 case SqlDbType.TinyInt:
-                                    if (columnType != typeof(Byte))
-                                        if (Byte.TryParse(rowValue.ToString(), out byte v))
-                                            rowValue = v;
-                                        else
-                                            throw new InvalidCastException($"Can't convert value {rowValue} to Byte");
+                                    if (columnType != typeof(byte))
+                                        rowValue = SyncTypeConverter.TryConvertTo<byte>(rowValue);
                                     break;
                                 case SqlDbType.Udt:
                                     throw new ArgumentException($"Can't use UDT as SQL Type");
                                 case SqlDbType.UniqueIdentifier:
                                     if (columnType != typeof(Guid))
-                                        if (Guid.TryParse(rowValue.ToString(), out Guid v))
-                                            rowValue = v;
-                                        else
-                                            throw new InvalidCastException($"Can't convert value {rowValue} to Guid");
+                                        rowValue = SyncTypeConverter.TryConvertTo<Guid>(rowValue);
                                     break;
                             }
                         }
 
-                        if (applyTable.Table.Columns[i].AllowDBNull && rowValue == null)
+                        if (rowValue == null)
                             rowValue = DBNull.Value;
-                        else if (rowValue == null)
-                            rowValue = defaultValue;
 
                         record.SetValue(sqlMetadataIndex, rowValue);
                         sqlMetadataIndex++;
                     }
+
+
                     records.Add(record);
-
-                    // Apply the delete
-                    // is it mandatory ?
-                    if (isDeleted)
-                        dmRow.Delete();
-
                 }
             }
             catch (Exception ex)
@@ -349,8 +267,8 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             ((SqlParameterCollection)cmd.Parameters)["@changeTable"].TypeName = string.Empty;
             ((SqlParameterCollection)cmd.Parameters)["@changeTable"].Value = records;
-            ((SqlParameterCollection)cmd.Parameters)["@sync_scope_id"].Value = scope.Id;
-            ((SqlParameterCollection)cmd.Parameters)["@sync_min_timestamp"].Value = scope.Timestamp;
+            ((SqlParameterCollection)cmd.Parameters)["@sync_min_timestamp"].Value = lastTimestamp;
+            ((SqlParameterCollection)cmd.Parameters)["@sync_scope_id"].Value = senderScopeId;
 
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
@@ -362,30 +280,58 @@ namespace Dotmim.Sync.SqlServer.Builders
                 if (this.transaction != null)
                     cmd.Transaction = this.transaction;
 
-
-                using (DbDataReader dataReader = cmd.ExecuteReader())
+                using (var dataReader = cmd.ExecuteReader())
                 {
-                    failedRows.Fill(dataReader);
+                    while (dataReader.Read())
+                    {
+                        var itemArray = new object[dataReader.FieldCount];
+                        for (var i = 0; i < dataReader.FieldCount; i++)
+                        {
+                            var columnValueObject = dataReader.GetValue(i);
+                            var columnValue = columnValueObject == DBNull.Value ? null : columnValueObject;
+                            itemArray[i] = columnValue;
+                        }
+
+                        // don't care about row state 
+                        // Since it will be requested by next request from GetConflict()
+                        failedRows.Rows.Add(itemArray, dataRowState);
+                    }
                 }
             }
             catch (DbException ex)
             {
                 Debug.WriteLine(ex.Message);
-                //DbException dbException = dbException1;
-                //Error = CheckZombieTransaction(tvpCommandNameForApplyType, Adapter.TableName, dbException);
-                //this.AddFailedRowsAfterRIFailure(applyTable, failedRows);
                 throw;
             }
             finally
             {
                 records.Clear();
-                records = null;
 
                 if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
                     this.connection.Close();
 
             }
         }
+
+
+        private static TypeConverter Int16Converter = TypeDescriptor.GetConverter(typeof(short));
+        private static TypeConverter Int32Converter = TypeDescriptor.GetConverter(typeof(int));
+        private static TypeConverter Int64Converter = TypeDescriptor.GetConverter(typeof(long));
+        private static TypeConverter UInt16Converter = TypeDescriptor.GetConverter(typeof(ushort));
+        private static TypeConverter UInt32Converter = TypeDescriptor.GetConverter(typeof(uint));
+        private static TypeConverter UInt64Converter = TypeDescriptor.GetConverter(typeof(ulong));
+        private static TypeConverter DateTimeConverter = TypeDescriptor.GetConverter(typeof(DateTime));
+        private static TypeConverter StringConverter = TypeDescriptor.GetConverter(typeof(string));
+        private static TypeConverter ByteConverter = TypeDescriptor.GetConverter(typeof(byte));
+        private static TypeConverter BoolConverter = TypeDescriptor.GetConverter(typeof(bool));
+        private static TypeConverter GuidConverter = TypeDescriptor.GetConverter(typeof(Guid));
+        private static TypeConverter CharConverter = TypeDescriptor.GetConverter(typeof(char));
+        private static TypeConverter DecimalConverter = TypeDescriptor.GetConverter(typeof(decimal));
+        private static TypeConverter DoubleConverter = TypeDescriptor.GetConverter(typeof(double));
+        private static TypeConverter FloatConverter = TypeDescriptor.GetConverter(typeof(float));
+        private static TypeConverter SByteConverter = TypeDescriptor.GetConverter(typeof(sbyte));
+        private static TypeConverter TimeSpanConverter = TypeDescriptor.GetConverter(typeof(TimeSpan));
+
 
         /// <summary>
         /// Check if an exception is a primary key exception
@@ -407,23 +353,21 @@ namespace Dotmim.Sync.SqlServer.Builders
             return false;
         }
 
-        public override DbCommand GetCommand(DbCommandType nameType, IEnumerable<FilterClause> filters = null)
+        public override DbCommand GetCommand(DbCommandType nameType, SyncFilter filter = null)
         {
-            var command = this.Connection.CreateCommand();
+            var command = this.Connection.CreateCommand() as SqlCommand;
 
             string text;
             bool isStoredProc;
-            if (filters != null)
-                (text, isStoredProc) = this.sqlObjectNames.GetCommandName(nameType, filters);
-            else
-                (text, isStoredProc) = this.sqlObjectNames.GetCommandName(nameType);
+
+            (text, isStoredProc) = this.sqlObjectNames.GetCommandName(nameType, filter);
 
             command.CommandType = isStoredProc ? CommandType.StoredProcedure : CommandType.Text;
             command.CommandText = text;
-            command.Connection = Connection;
+            command.Connection = Connection as SqlConnection;
 
             if (Transaction != null)
-                command.Transaction = Transaction;
+                command.Transaction = Transaction as SqlTransaction;
 
             return command;
         }
@@ -431,13 +375,27 @@ namespace Dotmim.Sync.SqlServer.Builders
         /// <summary>
         /// Set a stored procedure parameters
         /// </summary>
-        public override void SetCommandParameters(DbCommandType commandType, DbCommand command, IEnumerable<FilterClause> filters = null)
+        public override void SetCommandParameters(DbCommandType commandType, DbCommand command, SyncFilter filter = null)
         {
             if (command == null)
                 return;
 
             if (command.Parameters != null && command.Parameters.Count > 0)
                 return;
+
+            // special case for constraint
+            if (commandType == DbCommandType.DisableConstraints || commandType == DbCommandType.EnableConstraints)
+            {
+                string check = commandType == DbCommandType.DisableConstraints ? "NOCHECK" : "CHECK";
+
+                var p = command.CreateParameter();
+                p.ParameterName = "@command1";
+                p.DbType = DbType.String;
+                p.Value = $"ALTER TABLE ? {check} CONSTRAINT ALL";
+                command.Parameters.Add(p);
+
+                return;
+            }
 
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
@@ -451,6 +409,10 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                 var textParser = ParserName.Parse(command.CommandText).Unquoted().Normalized().ToString();
 
+                var source = this.connection.Database;
+
+                textParser = $"{source}-{textParser}";
+
                 if (derivingParameters.ContainsKey(textParser))
                 {
                     foreach (var p in derivingParameters[textParser])
@@ -458,11 +420,16 @@ namespace Dotmim.Sync.SqlServer.Builders
                 }
                 else
                 {
+                    // Using the SqlCommandBuilder.DeriveParameters() method is not working yet, 
+                    // because default value is not well done handled on the Dotmim.Sync framework
+                    // TODO: Fix that.
+                    //SqlCommandBuilder.DeriveParameters((SqlCommand)command);
+
                     var parameters = connection.DeriveParameters((SqlCommand)command, false, transaction);
 
                     var arrayParameters = new List<SqlParameter>();
-                    foreach (var p in parameters)
-                        arrayParameters.Add(p.Clone());
+                    foreach (var p in command.Parameters)
+                        arrayParameters.Add(((SqlParameter)p).Clone());
 
                     derivingParameters.TryAdd(textParser, arrayParameters);
                 }
@@ -487,9 +454,9 @@ namespace Dotmim.Sync.SqlServer.Builders
             {
                 var sqlParameter = (SqlParameter)parameter;
 
-                // try to get the source column (from the dmTable)
+                // try to get the source column (from the SchemaTable)
                 var sqlParameterName = sqlParameter.ParameterName.Replace("@", "");
-                var colDesc = TableDescription.Columns.FirstOrDefault(c => string.Equals(c.ColumnName, sqlParameterName, StringComparison.CurrentCultureIgnoreCase));
+                var colDesc = TableDescription.Columns.FirstOrDefault(c => c.ColumnName.Equals(sqlParameterName, SyncGlobalization.DataSourceStringComparison));
 
                 if (colDesc != null && !string.IsNullOrEmpty(colDesc.ColumnName))
                     sqlParameter.SourceColumn = colDesc.ColumnName;

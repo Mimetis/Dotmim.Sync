@@ -1,4 +1,4 @@
-using Dotmim.Sync.Data;
+
 using Dotmim.Sync.Manager;
 using System;
 using System.Collections.Generic;
@@ -9,13 +9,15 @@ using System.Linq;
 
 namespace Dotmim.Sync.SqlServer.Manager
 {
-    public class SqlManagerTable : IDbManagerTable
+    public class SqlManagerTable : IDbTableManager
     {
         private string tableName;
+        private string schemaName;
         private readonly SqlTransaction sqlTransaction;
         private readonly SqlConnection sqlConnection;
 
         public string TableName { set => this.tableName = value; }
+        public string SchemaName { set => this.schemaName = value; }
 
         public SqlManagerTable(DbConnection connection, DbTransaction transaction = null)
         {
@@ -23,19 +25,48 @@ namespace Dotmim.Sync.SqlServer.Manager
             this.sqlTransaction = transaction as SqlTransaction;
         }
 
-        public IEnumerable<DbRelationDefinition> GetTableRelations()
+        public SyncTable GetTable()
         {
-            List<DbRelationDefinition> relations = new List<DbRelationDefinition>();
-            var dmRelations = SqlManagementUtils.RelationsForTable(this.sqlConnection, this.sqlTransaction, this.tableName);
+            var syncTable = SqlManagementUtils.Table(this.sqlConnection, this.sqlTransaction, this.tableName, this.schemaName);
 
-            if (dmRelations != null && dmRelations.Rows.Count > 0)
-                foreach (var fk in dmRelations.Rows.GroupBy(row => new { Name = (string)row["ForeignKey"], TableName = (string)row["TableName"], ReferenceTableName = (string)row["ReferenceTableName"] }))
+            if (syncTable == null || syncTable.Rows == null || syncTable.Rows.Count <= 0)
+                return null;
+
+            // Get Table
+            var syncRow = syncTable.Rows[0];
+            var tblName = syncRow["TableName"].ToString();
+            var schName = syncRow["SchemaName"].ToString();
+
+            if (schName == "dbo")
+                schName = null;
+
+            return new SyncTable(tblName, schName);
+        }
+
+        public IEnumerable<DbRelationDefinition> GetRelations()
+        {
+            var relations = new List<DbRelationDefinition>();
+            var tableRelations = SqlManagementUtils.RelationsForTable(this.sqlConnection, this.sqlTransaction, this.tableName, this.schemaName);
+
+            if (tableRelations != null && tableRelations.Rows.Count > 0)
+            {
+                foreach (var fk in tableRelations.Rows.GroupBy(row =>
+                new
+                {
+                    Name = (string)row["ForeignKey"],
+                    TableName = (string)row["TableName"],
+                    SchemaName = (string)row["SchemaName"] == "dbo" ? "" : (string)row["SchemaName"],
+                    ReferenceTableName = (string)row["ReferenceTableName"],
+                    ReferenceSchemaName = (string)row["ReferenceSchemaName"] == "dbo" ? "" : (string)row["ReferenceSchemaName"],
+                }))
                 {
                     var relationDefinition = new DbRelationDefinition()
                     {
                         ForeignKey = fk.Key.Name,
                         TableName = fk.Key.TableName,
+                        SchemaName = fk.Key.SchemaName,
                         ReferenceTableName = fk.Key.ReferenceTableName,
+                        ReferenceSchemaName = fk.Key.ReferenceSchemaName,
                     };
 
                     relationDefinition.Columns.AddRange(fk.Select(dmRow =>
@@ -49,71 +80,77 @@ namespace Dotmim.Sync.SqlServer.Manager
                     relations.Add(relationDefinition);
                 }
 
+            }
             return relations.ToArray();
         }
 
-        public IEnumerable<DmColumn> GetTableDefinition()
+        public IEnumerable<SyncColumn> GetColumns()
         {
-            List<DmColumn> columns = new List<DmColumn>();
+            var columns = new List<SyncColumn>();
             // Get the columns definition
-            var dmColumnsList = SqlManagementUtils.ColumnsForTable(this.sqlConnection, this.sqlTransaction, this.tableName);
+            var syncTableColumnsList = SqlManagementUtils.ColumnsForTable(this.sqlConnection, this.sqlTransaction, this.tableName, this.schemaName);
             var sqlDbMetadata = new SqlDbMetadata();
 
-            foreach (var c in dmColumnsList.Rows.OrderBy(r => (int)r["column_id"]))
+            foreach (var c in syncTableColumnsList.Rows.OrderBy(r => (int)r["column_id"]))
             {
                 var typeName = c["type"].ToString();
                 var name = c["name"].ToString();
                 var maxLengthLong = Convert.ToInt64(c["max_length"]);
 
                 // Gets the datastore owner dbType 
-                SqlDbType datastoreDbType = (SqlDbType)sqlDbMetadata.ValidateOwnerDbType(typeName, false, false, maxLengthLong);
+                var datastoreDbType = (SqlDbType)sqlDbMetadata.ValidateOwnerDbType(typeName, false, false, maxLengthLong);
                 // once we have the datastore type, we can have the managed type
-                Type columnType = sqlDbMetadata.ValidateType(datastoreDbType);
+                var columnType = sqlDbMetadata.ValidateType(datastoreDbType);
 
-                var dbColumn = DmColumn.CreateColumn(name, columnType);
+                var sColumn = new SyncColumn(name, columnType);
+                sColumn.OriginalDbType = datastoreDbType.ToString();
+                sColumn.Ordinal = (int)c["column_id"];
+                sColumn.OriginalTypeName = c["type"].ToString();
+                sColumn.MaxLength = maxLengthLong > int.MaxValue ? int.MaxValue : (int)maxLengthLong;
+                sColumn.Precision = (byte)c["precision"];
+                sColumn.Scale = (byte)c["scale"];
+                sColumn.AllowDBNull = (bool)c["is_nullable"];
+                sColumn.IsAutoIncrement = (bool)c["is_identity"];
+                sColumn.IsUnique = c["is_unique"] != DBNull.Value ? (bool)c["is_unique"] : false;
+                sColumn.IsCompute = (bool)c["is_computed"];
+                sColumn.DefaultValue = c["defaultValue"] != DBNull.Value ? c["defaultValue"].ToString() : null;
 
-                dbColumn.SetOrdinal((int)c["column_id"]);
-                dbColumn.OriginalTypeName = c["type"].ToString();
+                if (sColumn.IsAutoIncrement)
+                {
+                    sColumn.AutoIncrementSeed = Convert.ToInt32(c["seed"]);
+                    sColumn.AutoIncrementStep = Convert.ToInt32(c["step"]);
+                }
 
-                dbColumn.MaxLength = maxLengthLong > int.MaxValue ? int.MaxValue : (int)maxLengthLong;
-                dbColumn.Precision = (byte)c["precision"];
-                dbColumn.Scale = (byte)c["scale"];
-                dbColumn.AllowDBNull = (bool)c["is_nullable"];
-                dbColumn.IsAutoIncrement = (bool)c["is_identity"];
-                dbColumn.IsUnique = c["is_unique"] != DBNull.Value ? (bool)c["is_unique"] : false;
-
-                dbColumn.IsCompute = (bool)c["is_computed"];
-
-                switch (dbColumn.OriginalTypeName.ToLowerInvariant())
+                switch (sColumn.OriginalTypeName.ToLowerInvariant())
                 {
                     case "nchar":
                     case "nvarchar":
-                        dbColumn.IsUnicode = true;
+                        sColumn.IsUnicode = true;
                         break;
                     default:
-                        dbColumn.IsUnicode = false;
+                        sColumn.IsUnicode = false;
                         break;
                 }
 
                 // No unsigned type in SQL Server
-                dbColumn.IsUnsigned = false;
+                sColumn.IsUnsigned = false;
 
-                columns.Add(dbColumn);
-
+                columns.Add(sColumn);
             }
-            return columns.ToArray();
+
+            return columns;
         }
 
-        public IEnumerable<DmColumn> GetTablePrimaryKeys()
+        public IEnumerable<SyncColumn> GetPrimaryKeys()
         {
-            var dmTableKeys = SqlManagementUtils.PrimaryKeysForTable(this.sqlConnection, this.sqlTransaction, this.tableName);
+            var syncTableKeys = SqlManagementUtils.PrimaryKeysForTable(this.sqlConnection, this.sqlTransaction, this.tableName);
 
-            var lstKeys = new List<DmColumn>();
+            var lstKeys = new List<SyncColumn>();
 
-            foreach (var dmKey in dmTableKeys.Rows)
+            foreach (var dmKey in syncTableKeys.Rows)
             {
-                var keyColumn = new DmColumn<string>((string)dmKey["columnName"]);
-                keyColumn.SetOrdinal(Convert.ToInt32(dmKey["key_ordinal"]));
+                var keyColumn = SyncColumn.Create<string>((string)dmKey["columnName"]);
+                keyColumn.Ordinal = Convert.ToInt32(dmKey["key_ordinal"]);
                 lstKeys.Add(keyColumn);
             }
 

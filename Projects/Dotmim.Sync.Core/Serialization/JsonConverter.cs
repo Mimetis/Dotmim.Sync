@@ -6,9 +6,21 @@ using System.Text;
 
 namespace Dotmim.Sync.Serialization
 {
-    public class JsonConverter<T> : BaseConverter<T>
+
+    public class JsonConverterFactory : ISerializerFactory
     {
-        public override T Deserialize(Stream ms)
+        public string Key => "json";
+        private static JsonConverterFactory instance = null;
+        public static JsonConverterFactory Current => instance ?? new JsonConverterFactory();
+
+        public ISerializer<T> GetSerializer<T>() => new JsonConverter<T>();
+
+    }
+
+    public class JsonConverter<T> : ISerializer<T>
+    {
+
+        public T Deserialize(Stream ms)
         {
             using (var sr = new StreamReader(ms))
             {
@@ -21,7 +33,7 @@ namespace Dotmim.Sync.Serialization
         }
 
 
-        public override byte[] Serialize(T obj)
+        public byte[] Serialize(T obj)
         {
             using (var ms = new MemoryStream())
             {
