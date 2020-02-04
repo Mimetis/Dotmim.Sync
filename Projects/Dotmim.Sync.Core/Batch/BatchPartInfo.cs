@@ -63,7 +63,7 @@ namespace Dotmim.Sync.Batch
         /// Tables contained in the SyncSet (serialiazed or not)
         /// </summary>
         [DataMember(Name = "tables", IsRequired = true, Order = 4)]
-        public (string tableName, string schemaName)[] Tables { get; set; }
+        public BatchPartTableInfo[] Tables { get; set; }
 
         /// <summary>
         /// Get a SyncSet corresponding to this batch part info
@@ -141,7 +141,7 @@ namespace Dotmim.Sync.Batch
 
             // Even if the set is empty (serialized on disk), we should retain the tables names
             if (set != null)
-                bpi.Tables = set.Tables.Select(t => (t.TableName, t.SchemaName)).ToArray();
+                bpi.Tables = set.Tables.Select(t => new BatchPartTableInfo(t.TableName, t.SchemaName)).ToArray();
 
             return bpi;
         }

@@ -131,6 +131,8 @@ namespace Dotmim.Sync.Batch
         /// </summary>
         public IEnumerable<SyncTable> GetTable(string tableName, string schemaName)
         {
+            var tableInfo = new BatchPartTableInfo(tableName, schemaName);
+
             if (InMemory)
             {
                 if (this.InMemoryData.HasTables)
@@ -140,7 +142,7 @@ namespace Dotmim.Sync.Batch
             {
                 foreach (var batchPartinInfo in this.BatchPartsInfo.OrderBy(bpi => bpi.Index))
                 {
-                    if (batchPartinInfo.Tables != null && batchPartinInfo.Tables.Contains((tableName, schemaName)))
+                    if (batchPartinInfo.Tables != null && batchPartinInfo.Tables.Any(t => t == tableInfo))
                     {
                         batchPartinInfo.LoadBatch(schema, GetDirectoryFullPath());
 

@@ -33,7 +33,6 @@ namespace Dotmim.Sync.SampleWebServer
             // Mandatory to be able to handle multiple sessions
             services.AddMemoryCache();
 
-           
             // Get a connection string for your server data source
             var connectionString = Configuration.GetSection("ConnectionStrings")["DefaultConnection"];
 
@@ -41,14 +40,16 @@ namespace Dotmim.Sync.SampleWebServer
             var options = new WebServerOptions()
             {
                 BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "server"),
+                SnapshotsDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Snapshots")
             };
+
 
             // Create the setup used for your sync process
             var tables = new string[] {"ProductCategory",
-                            "ProductDescription", "ProductModel",
-                            "Product", "ProductModelProductDescription",
-                            "Address", "Customer", "CustomerAddress",
-                            "SalesOrderHeader", "SalesOrderDetail" };
+                    "ProductDescription", "ProductModel",
+                    "Product", "ProductModelProductDescription",
+                    "Address", "Customer", "CustomerAddress",
+                    "SalesOrderHeader", "SalesOrderDetail" };
 
             var setup = new SyncSetup(tables)
             {
