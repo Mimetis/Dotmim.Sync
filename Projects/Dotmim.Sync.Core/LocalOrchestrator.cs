@@ -273,7 +273,7 @@ namespace Dotmim.Sync
         public async Task<(SyncContext, DatabaseChangesApplied)>
             ApplyChangesAsync(SyncContext context, ScopeInfo scope, SyncSet schema, BatchInfo serverBatchInfo,
                               ConflictResolutionPolicy clientPolicy, long clientTimestamp, long remoteClientTimestamp,
-                              bool disableConstraintsOnApplyChanges, bool useBulkOperations, bool cleanMetadatas, string scopeInfoTableName,
+                              bool disableConstraintsOnApplyChanges, bool useBulkOperations, bool cleanMetadatas, string scopeInfoTableName, bool cleanFolder,
                               CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
 
@@ -304,8 +304,8 @@ namespace Dotmim.Sync
 
                         (context, clientChangesApplied) =
                             await this.Provider.ApplyChangesAsync(context,
-                                new MessageApplyChanges(scope.Id, Guid.Empty,  isNew, lastSyncTS, schema, clientPolicy, disableConstraintsOnApplyChanges,
-                                        useBulkOperations, cleanMetadatas, serverBatchInfo),
+                                new MessageApplyChanges(scope.Id, Guid.Empty, isNew, lastSyncTS, schema, clientPolicy, disableConstraintsOnApplyChanges,
+                                        useBulkOperations, cleanMetadatas, cleanFolder, serverBatchInfo),
                                     connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                         // check if we need to delete metadatas

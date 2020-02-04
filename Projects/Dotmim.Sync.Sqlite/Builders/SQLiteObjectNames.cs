@@ -37,19 +37,9 @@ namespace Dotmim.Sync.Sqlite
 
             var commandName = names[objectType];
 
-            //if (filters != null)
-            //{
-            //    string name = "";
-            //    string sep = "";
-            //    foreach (var c in filters)
-            //    {
-            //        var columnName = ParserName.Parse(c.ColumnName).Unquoted().Normalized().ToString();
-            //        name += $"{columnName}{sep}";
-            //        sep = "_";
-            //    }
-
-            //    commandName = string.Format(commandName, name);
-            //}
+            // concat filter name
+            //if (filter != null)
+            //    commandName = string.Format(commandName, filter.GetFilterName());
 
             return commandName;
         }

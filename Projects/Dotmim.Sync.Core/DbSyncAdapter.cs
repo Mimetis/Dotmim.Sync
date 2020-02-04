@@ -75,7 +75,7 @@ namespace Dotmim.Sync
         /// </summary>
         public DbSyncAdapter(SyncTable tableDescription) => this.TableDescription = tableDescription;
 
-
+      
         /// <summary>
         /// Set command parameters value mapped to Row
         /// </summary>
@@ -440,7 +440,7 @@ namespace Dotmim.Sync
                 AddScopeParametersValues(command, senderScopeId, lastTimestamp, false, forceWrite);
 
                 var alreadyOpened = Connection.State == ConnectionState.Open;
-                
+
                 if (!alreadyOpened)
                     Connection.Open();
 

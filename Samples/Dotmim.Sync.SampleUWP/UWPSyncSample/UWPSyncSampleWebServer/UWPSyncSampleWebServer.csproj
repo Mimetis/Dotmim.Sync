@@ -9,21 +9,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Dotmim.Sync.SqlServer" Version="0.4.0" />
+    <PackageReference Include="Dotmim.Sync.Web.Server" Version="0.4.0" />
     <PackageReference Include="Microsoft.AspNetCore.All" Version="2.1.1" />
-    <PackageReference Include="System.Data.SqlClient">
-      <Version>4.5.1</Version>
-    </PackageReference>
   </ItemGroup>
 
   <ItemGroup>
     <DotNetCliToolReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Tools" Version="2.0.0" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\..\..\..\Projects\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" />
-    <ProjectReference Include="..\..\..\..\Projects\Dotmim.Sync.SqlServer\Dotmim.Sync.SqlServer.csproj" />
-    <ProjectReference Include="..\..\..\..\Projects\Dotmim.Sync.Web.Client\Dotmim.Sync.Web.Client.csproj" />
-    <ProjectReference Include="..\..\..\..\Projects\Dotmim.Sync.Web.Server\Dotmim.Sync.Web.Server.csproj" />
   </ItemGroup>
 
 </Project>

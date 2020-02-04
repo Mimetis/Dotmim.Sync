@@ -73,7 +73,7 @@ namespace Dotmim.Sync.Web.Client
                 }
 
                 // get byte array content
-                var arrayContent = new ByteArrayContent(data);
+                var arrayContent = data == null ? new ByteArrayContent(new byte[] { }) : new ByteArrayContent(data);
 
                 // reinit client
                 client.DefaultRequestHeaders.Clear();
@@ -117,8 +117,8 @@ namespace Dotmim.Sync.Web.Client
                 // throw exception if response is not successfull
                 // get response from server
                 if (!response.IsSuccessStatusCode && response.Content != null)
-                   await HandleSyncError(response, serializerFactory);
-                
+                    await HandleSyncError(response, serializerFactory);
+
                 // try to set the cookie for http session
                 var headers = response?.Headers;
 

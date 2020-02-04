@@ -69,10 +69,12 @@ namespace Dotmim.Sync
               DatabaseChangesApplied clientChangesApplied)>
             ApplyChangesAsync(SyncContext context, ScopeInfo scope, SyncSet schema, BatchInfo serverBatchInfo,
                               ConflictResolutionPolicy clientPolicy, long clientTimestamp, long remoteClientTimestamp,
-                              bool disableConstraintsOnApplyChanges, bool useBulkOperations, 
-                              bool cleanMetadatas, string scopeInfoTableName, 
+                              bool disableConstraintsOnApplyChanges, bool useBulkOperations,
+                              bool cleanMetadatas, string scopeInfoTableName, bool cleanFolder,
                               CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null);
-       
+
+
+
         /// <summary>
         /// Delete all metadatas from tracking tables that are below a timestamp
         /// </summary>
@@ -91,7 +93,7 @@ namespace Dotmim.Sync
         /// </summary>
         /// <returns></returns>
         Task<(SyncContext context, SyncSet schema)>
-            EnsureSchemaAsync(SyncContext context, SyncSetup setup, 
+            EnsureSchemaAsync(SyncContext context, SyncSetup setup,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null);
 
         /// <summary>
@@ -103,9 +105,20 @@ namespace Dotmim.Sync
               ConflictResolutionPolicy policy,
               DatabaseChangesSelected serverChangesSelected)>
             ApplyThenGetChangesAsync(SyncContext context, ScopeInfo scope, SyncSet schema, BatchInfo clientBatchInfo,
-                                     bool disableConstraintsOnApplyChanges, bool useBulkOperations, bool cleanMetadatas,
+                                     bool disableConstraintsOnApplyChanges, bool useBulkOperations, bool cleanMetadatas, bool cleanFolder,
                                      int clientBatchSize, string batchDirectory, ConflictResolutionPolicy policy,
                                      CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null);
+
+
+        /// <summary>
+        /// Gets a snapshot for initialization
+        /// </summary>
+        Task<(SyncContext context,
+              long remoteClientTimestamp,
+              BatchInfo serverBatchInfo)>
+            GetSnapshotAsync(SyncContext context, ScopeInfo scope, SyncSet schema, string snapshotDirectory, string batchDirectory,
+                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null);
+
 
         /// <summary>
         /// Delete all metadatas from tracking tables that are below a timestamp
