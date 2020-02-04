@@ -92,6 +92,47 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// Get changes from 
         /// </summary>
+        internal async Task<HttpMessageSendChangesResponse> GetSnapshotAsync(
+            HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache, CancellationToken cancellationToken)
+        {
+            // Check schema.
+            // If client has stored the schema, the EnsureScope will not be called on server.
+            if (this.Schema == null || !this.Schema.HasTables || !this.Schema.HasColumns)
+            {
+                var (_, newSchema) = await this.EnsureSchemaAsync(
+                    httpMessage.SyncContext, this.Setup, cancellationToken).ConfigureAwait(false);
+
+                newSchema.EnsureSchema();
+                this.Schema = newSchema;
+            }
+
+            // get changes
+            var snap = await this.GetSnapshotAsync(httpMessage.SyncContext, httpMessage.Scope, this.Schema,
+                                           this.Options.SnapshotsDirectory, this.Options.BatchDirectory, cancellationToken).ConfigureAwait(false);
+
+            sessionCache.RemoteClientTimestamp = snap.remoteClientTimestamp;
+            sessionCache.ServerBatchInfo = snap.serverBatchInfo;
+
+            // if no snapshot, return empty response
+            if (snap.serverBatchInfo == null)
+            {
+                var changesResponse = new HttpMessageSendChangesResponse(snap.context);
+                changesResponse.ServerStep = HttpStep.GetChanges;
+                changesResponse.BatchIndex = 0;
+                changesResponse.IsLastBatch = true;
+                changesResponse.RemoteClientTimestamp = snap.remoteClientTimestamp;
+
+                return changesResponse;
+            }
+
+
+            // Get the firt response to send back to client
+            return GetChangesResponse(snap.context, snap.remoteClientTimestamp, snap.serverBatchInfo, null, 0, ConflictResolutionPolicy.ServerWins);
+        }
+
+        /// <summary>
+        /// Get changes from 
+        /// </summary>
         internal async Task<HttpMessageSendChangesResponse> ApplyThenGetChangesAsync(
             HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache, int clientBatchSize, CancellationToken cancellationToken)
         {
@@ -119,7 +160,7 @@ namespace Dotmim.Sync.Web.Server
             // We are receiving changes from client
             // BatchInfo containing all BatchPartInfo objects
             // Retrieve batchinfo instance if exists
-            
+
             // Get batch info from session cache if exists, otherwise create it
             if (sessionCache.ClientBatchInfo == null)
                 sessionCache.ClientBatchInfo = new BatchInfo(clientWorkInMemory, Schema, this.Options.BatchDirectory);
@@ -158,7 +199,7 @@ namespace Dotmim.Sync.Web.Server
             var (context, remoteClientTimestamp, serverBatchInfo, policy, serverChangesSelected) =
                await this.ApplyThenGetChangesAsync(httpMessage.SyncContext,
                            httpMessage.Scope, this.Schema, sessionCache.ClientBatchInfo, this.Options.DisableConstraintsOnApplyChanges,
-                           this.Options.UseBulkOperations, this.Options.CleanMetadatas, clientBatchSize,
+                           this.Options.UseBulkOperations, false, this.Options.CleanFolder, clientBatchSize,
                            this.Options.BatchDirectory, this.Options.ConflictResolutionPolicy, cancellationToken).ConfigureAwait(false);
 
 
@@ -226,7 +267,7 @@ namespace Dotmim.Sync.Web.Server
             foreach (var table in Schema.Tables)
                 DbSyncAdapter.CreateChangesTable(Schema.Tables[table.TableName, table.SchemaName], changesSet);
 
-            batchPartInfo.LoadBatch(changesSet);
+            batchPartInfo.LoadBatch(changesSet, serverBatchInfo.GetDirectoryFullPath());
 
             // if client request a conversion on each row, apply the conversion
             if (this.ClientConverter != null && batchPartInfo.Data.HasRows)
@@ -243,7 +284,7 @@ namespace Dotmim.Sync.Web.Server
             if (batchPartInfo.IsLastBatch)
             {
                 // delete the folder (not the BatchPartInfo, because we have a reference on it)
-                if (this.Options.CleanMetadatas)
+                if (this.Options.CleanFolder)
                     serverBatchInfo.TryRemoveDirectory();
             }
 

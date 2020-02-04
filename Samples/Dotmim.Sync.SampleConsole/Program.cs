@@ -43,7 +43,7 @@ internal class Program
     public static string[] oneTable = new string[] { "ProductCategory" };
     private static async Task Main(string[] args)
     {
-        await TestSyncThroughWebApi();
+        await SyncHttpThroughKestellAsync();
     }
 
     private static void TestSqliteDoubleStatement()
@@ -308,34 +308,311 @@ internal class Program
     }
 
 
-    //private static async Task SyncAdvAsync()
-    //{
-    //// Sql Server provider, the master.
-    //var serverProvider = new SqlSyncProvider(
-    //    @"Data Source=.;Initial Catalog=AdventureWorks;User Id=sa;Password=Password12!;");
+    private static async Task SyncProductCategoryAsync()
+    {
+        // Create 2 Sql Sync providers
+        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
+        // specific Setup with only 2 tables, and one filtered
+        var setup = new SyncSetup(new string[] { "ProductCategory" });
 
-    //// Sqlite Client provider for a Sql Server <=> Sqlite sync
-    //var clientProvider = new SqliteSyncProvider("advworks2.db");
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, setup);
 
-    //// Tables involved in the sync process:
-    //var tables = new string[] {"ProductCategory",
-    //        "ProductDescription", "ProductModel",
-    //        "Product", "ProductModelProductDescription",
-    //        "Address", "Customer", "CustomerAddress",
-    //        "SalesOrderHeader", "SalesOrderDetail" };
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
+            Console.ResetColor();
+        });
 
-    //// Sync orchestrator
-    //var agent = new SyncAgent(clientProvider, serverProvider, tables);
+        var remoteProgress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
+            Console.ResetColor();
+        });
+
+        agent.AddRemoteProgress(remoteProgress);
+
+        agent.Options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "syncproduct");
+        agent.Options.BatchSize = 10;
+        agent.Options.CleanMetadatas = true;
+        agent.Options.UseBulkOperations = true;
+        agent.Options.DisableConstraintsOnApplyChanges = false;
+
+        do
+        {
+            Console.Clear();
+            Console.WriteLine("Sync Start");
+            try
+            {
+                // Launch the sync process
+                if (!agent.Parameters.Contains("City"))
+                    agent.Parameters.Add("City", "Toronto");
+
+                if (!agent.Parameters.Contains("postal"))
+                    agent.Parameters.Add("postal", DBNull.Value);
 
 
-    //do
-    //{
-    //    var s = await agent.SynchronizeAsync();
-    //    Console.WriteLine($"Total Changes downloaded : {s.TotalChangesDownloaded}");
+                var s1 = await agent.SynchronizeAsync(progress);
 
-    //} while (Console.ReadKey().Key != ConsoleKey.Escape);
-    // }
+                // Write results
+                Console.WriteLine(s1);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+            }
 
+
+            //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+        Console.WriteLine("End");
+    }
+
+    private static async Task CreateSnapshotAsync()
+    {
+        // Create 2 Sql Sync providers
+        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
+        var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
+
+        // specific Setup with only 2 tables, and one filtered
+        var setup = new SyncSetup(allTables);
+
+        // snapshot directory
+        var directory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Snapshots");
+
+
+        await remoteOrchestrator.CreateSnapshot(new SyncContext(), setup, directory, 500, CancellationToken.None);
+        // client provider
+        var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
+
+        // Insert a value after snapshot created
+        using (var c = serverProvider.CreateConnection())
+        {
+            var command = c.CreateCommand();
+            command.CommandText = "INSERT INTO [dbo].[ProductCategory] ([Name]) VALUES ('Bikes revolution');";
+            c.Open();
+            command.ExecuteNonQuery();
+            c.Close();
+        }
+
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, setup);
+
+        // Setting the snapshots directory for client
+        agent.Options.SnapshotsDirectory = directory;
+
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
+            Console.ResetColor();
+        });
+
+        var remoteProgress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
+            Console.ResetColor();
+        });
+
+
+        //// Launch the sync process
+        //if (!agent.Parameters.Contains("City"))
+        //    agent.Parameters.Add("City", "Toronto");
+
+        //if (!agent.Parameters.Contains("postal"))
+        //    agent.Parameters.Add("postal", "NULL");
+
+
+
+        do
+        {
+            Console.Clear();
+            Console.WriteLine("Sync Start");
+            try
+            {
+                var s1 = await agent.SynchronizeAsync(progress);
+                Console.WriteLine(s1);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+            }
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+        Console.WriteLine("End");
+    }
+
+    private static async Task SynchronizePalmyraAsync()
+    {
+        // Create 2 Sql Sync providers
+        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString("ImpactPalmyraOct2019"));
+        //var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
+        var clientProvider = new SqliteSyncProvider("palmyra.db");
+
+        allTables = new string[]
+        {
+            "Branch_Details", "Counters", "Debtors", "Debtor_Accounts", "Departments", "Department_Links",
+               "DocNumbers", "Gratuity", "Happy_Hour", "Happy_Hour1", "Locations", "Location_Links",
+               "OrderNoTracking", "Printer_Footer", "Printer_Header", "Product_Prices", "Products",
+               "Quantities", "Recipes", "Sales_Journal", "Settings", "Specials", "Sub_Recipes",
+               "Tab_Listing", "Table_Listing","Table_Details","Tax_Rates", "Users"
+        };
+
+        // specific Setup with only 2 tables, and one filtered
+        var setup = new SyncSetup(allTables);
+
+  
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, setup);
+
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
+            Console.ResetColor();
+        });
+
+        var remoteProgress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
+            Console.ResetColor();
+        });
+
+        agent.AddRemoteProgress(remoteProgress);
+
+        //agent.Options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync");
+        agent.Options.BatchSize = 1000;
+        agent.Options.CleanMetadatas = true;
+        agent.Options.UseBulkOperations = true;
+        agent.Options.DisableConstraintsOnApplyChanges = false;
+        //agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
+        //agent.Options.UseVerboseErrors = false;
+        //agent.Options.ScopeInfoTableName = "tscopeinfo";
+
+
+        //agent.OnApplyChangesFailed(acf =>
+        //{
+        //    // Check conflict is correctly set
+        //    var localRow = acf.Conflict.LocalRow;
+        //    var remoteRow = acf.Conflict.RemoteRow;
+
+        //    // Merge row
+        //    acf.Resolution = ConflictResolution.MergeRow;
+
+        //    acf.FinalRow["Name"] = "Prout";
+
+        //});
+
+        do
+        {
+            Console.Clear();
+            Console.WriteLine("Sync Start");
+            try
+            {
+                // Launch the sync process
+                if (!agent.Parameters.Contains("City"))
+                    agent.Parameters.Add("City", "Toronto");
+
+                if (!agent.Parameters.Contains("postal"))
+                    agent.Parameters.Add("postal", DBNull.Value);
+
+
+                var s1 = await agent.SynchronizeAsync(progress);
+
+                // Write results
+                Console.WriteLine(s1);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+            }
+
+
+            //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+        Console.WriteLine("End");
+    }
+
+    private static async Task SynchronizeMultiScopesAsync()
+    {
+        // Create 2 Sql Sync providers
+        var serverProvider = new SqlSyncChangeTrackingProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
+
+        // Create 2 tables list (one for each scope)
+        string[] productScopeTables = new string[] { "ProductCategory", "ProductModel", "Product" };
+        string[] customersScopeTables = new string[] { "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
+
+        // Create 2 sync setup with named scope 
+        var setupProducts = new SyncSetup(productScopeTables, "productScope");
+        var setupCustomers = new SyncSetup(customersScopeTables, "customerScope");
+
+        // Create 2 agents, one for each scope
+        var agentProducts = new SyncAgent(clientProvider, serverProvider, setupProducts);
+        var agentCustomers = new SyncAgent(clientProvider, serverProvider, setupCustomers);
+
+        // Using the Progress pattern to handle progession during the synchronization
+        // We can use the same progress for each agent
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
+            Console.ResetColor();
+        });
+
+        var remoteProgress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
+            Console.ResetColor();
+        });
+
+        // Spying what's going on the server side
+        agentProducts.AddRemoteProgress(remoteProgress);
+        agentCustomers.AddRemoteProgress(remoteProgress);
+
+
+        do
+        {
+            Console.Clear();
+            Console.WriteLine("Sync Start");
+            try
+            {
+                Console.WriteLine("Hit 1 for sync Products. Hit 2 for sync customers and sales");
+                var k = Console.ReadKey().Key;
+
+                if (k == ConsoleKey.D1)
+                {
+                    Console.WriteLine("Sync Products:");
+                    var s1 = await agentProducts.SynchronizeAsync(progress);
+                    Console.WriteLine(s1);
+                }
+                else
+                {
+                    Console.WriteLine("Sync Customers and Sales:");
+                    var s1 = await agentCustomers.SynchronizeAsync(progress);
+                    Console.WriteLine(s1);
+                }
+
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+            }
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+        Console.WriteLine("End");
+    }
 
     /// <summary>
     /// Launch a simple sync, over TCP network, each sql server (client and server are reachable through TCP cp
@@ -350,7 +627,6 @@ internal class Program
 
         // specific Setup with only 2 tables, and one filtered
         var setup = new SyncSetup(allTables);
-
 
         // ----------------------------------------------------
         // Vertical Filter: On columns. Removing columns from source
@@ -511,45 +787,25 @@ internal class Program
         Console.WriteLine("End");
     }
 
-
-
     public static async Task SyncHttpThroughKestellAsync()
     {
         // server provider
         // Create 2 Sql Sync providers
         var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
         var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
-
-        // Tables involved in the sync process:
-        // var tables = allTables;
-        //var tables = new string[] { "SalesLT.Product", "SalesLT.ProductCategory" };
+       
 
         // ----------------------------------
         // Client side
         // ----------------------------------
-        var clientOptions = new SyncOptions
-        {
-            BatchSize = 500,
-        };
+        var clientOptions = new SyncOptions { BatchSize = 500 };
 
-
-        var handler = new HttpClientHandler();
-        handler.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
-        var client = new HttpClient(handler) { Timeout = TimeSpan.FromMinutes(5) };
-        // Create the web proxy client provider with specific options
-        var proxyClientProvider = new WebClientOrchestrator(client: client)
-        {
-            //SerializerFactory = new CustomMessagePackSerializerFactory(),
-            //Converter = new CustomConverter()
-        };
+        var proxyClientProvider = new WebClientOrchestrator();
 
         // ----------------------------------
         // Web Server side
         // ----------------------------------
-        var tables = new string[] {"ProductCategory", "ProductModel", "Product",
-                    "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
-
-        var setup = new SyncSetup(tables)
+        var setup = new SyncSetup(allTables)
         {
             ScopeName = "all_tables_scope",
             StoredProceduresPrefix = "s",
@@ -560,26 +816,49 @@ internal class Program
             TriggersSuffix = "t"
         };
 
-        var webServerOptions = new WebServerOptions { };
+        // snapshot directory
+        var directory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Snapshots");
+
+        // ----------------------------------
+        // Create a snapshot
+        // ----------------------------------
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine($"Creating snapshot");
+        var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
+        await remoteOrchestrator.CreateSnapshot(new SyncContext(), setup, directory, 500, CancellationToken.None);
+        Console.WriteLine($"Done.");
+        Console.ResetColor();
+
+
+        // ----------------------------------
+        // Insert a value after snapshot created
+        // ----------------------------------
+        using (var c = serverProvider.CreateConnection())
+        {
+            var command = c.CreateCommand();
+            command.CommandText = "INSERT INTO [dbo].[ProductCategory] ([Name]) VALUES ('Bikes revolution');";
+            c.Open();
+            command.ExecuteNonQuery();
+            c.Close();
+        }
+
+        var webServerOptions = new WebServerOptions { SnapshotsDirectory = directory };
 
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, proxyClientProvider);
         agent.Options = clientOptions;
 
-
         var configureServices = new Action<IServiceCollection>(services =>
         {
-            // add a SqlSyncProvider acting as the server hub
             services.AddSyncServer<SqlSyncProvider>(serverProvider.ConnectionString, setup, webServerOptions);
-
         });
 
         var serverHandler = new RequestDelegate(async context =>
         {
             var webProxyServer = context.RequestServices.GetService(typeof(WebProxyServerOrchestrator)) as WebProxyServerOrchestrator;
-            Thread.Sleep((int)TimeSpan.FromMinutes(2).TotalMilliseconds);
             await webProxyServer.HandleRequestAsync(context);
         });
+
         using (var server = new KestrellTestServer(configureServices))
         {
             var clientHandler = new ResponseDelegate(async (serviceUri) =>
@@ -592,11 +871,8 @@ internal class Program
                     try
                     {
                         var progress = new SynchronousProgress<ProgressArgs>(pa => Console.WriteLine($"{pa.Context.SessionId} - {pa.Context.SyncStage}\t {pa.Message}"));
-
                         var s = await agent.SynchronizeAsync(progress);
-
                         Console.WriteLine(s);
-
                     }
                     catch (SyncException e)
                     {

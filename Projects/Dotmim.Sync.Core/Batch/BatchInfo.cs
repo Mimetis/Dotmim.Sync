@@ -4,52 +4,85 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.Serialization;
 
 namespace Dotmim.Sync.Batch
 {
     /// <summary>
     /// Represents a Batch, containing a full or serialized change set
     /// </summary>
+    [DataContract(Name = "bi"), Serializable]
     public class BatchInfo
     {
-        private string directoryName;
-        private string directoryRoot;
         private SyncSet schema;
+
+        /// <summary>
+        /// Ctor for serializer
+        /// </summary>
+        public BatchInfo()
+        {
+
+        }
 
         /// <summary>
         /// Create a new BatchInfo, containing all BatchPartInfo
         /// </summary>
-        public BatchInfo(bool isInMemory, SyncSet inSchema, string rootDirectory = null)
+        public BatchInfo(bool isInMemory, SyncSet inSchema, string rootDirectory = null, string directoryName = null)
         {
             this.InMemory = isInMemory;
             this.schema = inSchema.Clone();
-            
+
             // If not in memory, generate a directory name and initialize batch parts list
             if (!this.InMemory)
             {
-                this.directoryRoot = rootDirectory;
+                this.DirectoryRoot = rootDirectory;
                 this.BatchPartsInfo = new List<BatchPartInfo>();
-                // To simplify things, even if not used, just generate a random directory name for this batchinfo
-                this.directoryName = string.Concat(DateTime.UtcNow.ToString("yyyy_MM_dd_ss"), Path.GetRandomFileName().Replace(".", ""));
+                this.DirectoryName = string.IsNullOrEmpty(directoryName) ? string.Concat(DateTime.UtcNow.ToString("yyyy_MM_dd_ss"), Path.GetRandomFileName().Replace(".", "")) : directoryName;
             }
         }
 
         /// <summary>
-        /// List of batch parts if not in memory
+        /// Internally setting schema
         /// </summary>
-        public List<BatchPartInfo> BatchPartsInfo { get; set; }
+        internal void SetSchema(SyncSet schema) => this.schema = schema;
 
         /// <summary>
         /// Is the batch parts are in memory
         /// If true, only one BPI
         /// If false, several serialized BPI
         /// </summary>
+        [IgnoreDataMember]
         public bool InMemory { get; set; }
 
         /// <summary>
         /// If in memory, return the in memory Dm
         /// </summary>
+        [IgnoreDataMember]
         public SyncSet InMemoryData { get; set; }
+
+        /// <summary>
+        /// Gets or Sets directory name
+        /// </summary>
+        [DataMember(Name = "dirname", IsRequired = true, Order = 1)]
+        public string DirectoryName { get; set; }
+
+        /// <summary>
+        /// Gets or sets directory root
+        /// </summary>
+        [DataMember(Name = "dir", IsRequired = true, Order = 2)]
+        public string DirectoryRoot { get; set; }
+
+        /// <summary>
+        /// Gets or sets server timestamp
+        /// </summary>
+        [DataMember(Name = "ts", IsRequired = false, EmitDefaultValue = false, Order = 3)]
+        public long Timestamp { get; set; }
+
+        /// <summary>
+        /// List of batch parts if not in memory
+        /// </summary>
+        [DataMember(Name = "parts", IsRequired = true, Order = 4)]
+        public List<BatchPartInfo> BatchPartsInfo { get; set; }
 
 
         /// <summary>
@@ -61,7 +94,7 @@ namespace Dotmim.Sync.Batch
             if (this.InMemory)
                 return null;
 
-            return Path.Combine(this.directoryRoot, this.directoryName);
+            return Path.Combine(this.DirectoryRoot, this.DirectoryName);
         }
 
 
@@ -77,10 +110,10 @@ namespace Dotmim.Sync.Batch
             {
                 foreach (var bpi in BatchPartsInfo)
                 {
-                    bpi.LoadBatch(schema);
+                    bpi.LoadBatch(schema, GetDirectoryFullPath());
 
                     var hasData = bpi.Data.HasRows;
-                    
+
                     bpi.Clear();
                     bpi.Data = null;
 
@@ -109,7 +142,7 @@ namespace Dotmim.Sync.Batch
                 {
                     if (batchPartinInfo.Tables != null && batchPartinInfo.Tables.Contains((tableName, schemaName)))
                     {
-                        batchPartinInfo.LoadBatch(schema);
+                        batchPartinInfo.LoadBatch(schema, GetDirectoryFullPath());
 
 
                         // Get the table from the batchPartInfo
@@ -163,8 +196,8 @@ namespace Dotmim.Sync.Batch
             else
             {
                 var bpId = this.GenerateNewFileName(batchIndex.ToString());
-                var fileName = Path.Combine(this.GetDirectoryFullPath(), bpId);
-                var bpi = BatchPartInfo.CreateBatchPartInfo(batchIndex, changes, fileName, isLastBatch);
+                //var fileName = Path.Combine(this.GetDirectoryFullPath(), bpId);
+                var bpi = BatchPartInfo.CreateBatchPartInfo(batchIndex, changes, bpId, GetDirectoryFullPath(), isLastBatch);
 
                 // add the batchpartinfo tp the current batchinfo
                 this.BatchPartsInfo.Add(bpi);
@@ -196,7 +229,7 @@ namespace Dotmim.Sync.Batch
         public void TryRemoveDirectory()
         {
             // Once we have applied all the batch, we can safely remove the temp dir and all it's files
-            if (!this.InMemory && !string.IsNullOrEmpty(this.directoryRoot) && !string.IsNullOrEmpty(this.directoryName))
+            if (!this.InMemory && !string.IsNullOrEmpty(this.DirectoryRoot) && !string.IsNullOrEmpty(this.DirectoryName))
             {
                 var tmpDirectory = new DirectoryInfo(this.GetDirectoryFullPath());
 

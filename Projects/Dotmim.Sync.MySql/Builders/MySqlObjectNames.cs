@@ -57,19 +57,9 @@ namespace Dotmim.Sync.MySql
 
             (var commandName, var isStoredProc) = names[objectType];
 
+            // concat filter name
             if (filter != null)
-            {
-                string name = "";
-                string sep = "";
-                foreach (var parameterName in filter.Parameters.Select(f => f.Name))
-                {
-                    var columnName = ParserName.Parse(parameterName).Unquoted().Normalized().ToString();
-                    name += $"{columnName}{sep}";
-                    sep = "_";
-                }
-
-                commandName = string.Format(commandName, name);
-            }
+                commandName = string.Format(commandName, filter.GetFilterName());
 
             return (commandName, isStoredProc);
         }

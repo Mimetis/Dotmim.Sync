@@ -32,6 +32,12 @@ namespace Dotmim.Sync
         public string BatchDirectory { get; set; }
 
         /// <summary>
+        /// Gets or Sets the directory where snapshots are stored.
+        /// This value could be overwritten by server is used in an http mode
+        /// </summary>
+        public string SnapshotsDirectory { get; set; }
+
+        /// <summary>
         /// Get the default Batch directory full path ([User Temp Path]/[DotmimSync])
         /// </summary>
         public static string GetDefaultUserBatchDiretory() => Path.Combine(GetDefaultUserTempPath(), GetDefaultUserBatchDirectoryName());
@@ -67,6 +73,11 @@ namespace Dotmim.Sync
         /// Gets or Sets if we should clean tracking table metadatas.
         /// </summary>
         public bool CleanMetadatas { get; set; } = true;
+
+        /// <summary>
+        /// Gets or Sets if we should cleaning tmp dir files after sync.
+        /// </summary>
+        public bool CleanFolder { get; set; } = true;
 
         /// <summary>
         /// Gets or Sets if we should disable constraints before making apply changes 

@@ -1,5 +1,4 @@
 ﻿using Dotmim.Sync;
-using Dotmim.Sync.Data;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.SqlServer;
 using Microsoft.Toolkit.Uwp.Helpers;
@@ -139,19 +138,18 @@ namespace UWPSyncSample.ViewModels
                 // all config are applied on server side if http is enabled
                 if (!this.UseHttp)
                     if (this.SyncDirection == SyncDirection.DownloadOnly || this.SyncDirection == SyncDirection.UploadOnly)
-                        foreach (var t in agent.Configuration.Schema.Tables)
+                        foreach (var t in agent.Setup.Tables)
                             t.SyncDirection = this.SyncDirection;
 
-                agent.SyncProgress += SyncProgress;
-                var s = await agent.SynchronizeAsync(syncType, CancellationToken.None);
+
+                var progress = new Progress<ProgressArgs>(pa => Output(pa.Message));
+
+                var s = await agent.SynchronizeAsync(syncType, CancellationToken.None, progress);
 
                 Output(s.ToString());
 
                 if (s.TotalChangesDownloaded > 0)
                     await RefreshAsync();
-
-                agent.SyncProgress -= SyncProgress;
-
             }
             catch (Exception ex)
             {
@@ -218,10 +216,6 @@ namespace UWPSyncSample.ViewModels
             DispatcherHelper.ExecuteOnUIThreadAsync(() => Steps.Add(str));
         }
 
-        private void SyncProgress(object sender, ProgressEventArgs e)
-        {
-            Output(e.Message + " " + e.PropertiesMessage);
-        }
 
 
     }
