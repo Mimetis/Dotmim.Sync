@@ -22,7 +22,7 @@ namespace Dotmim.Sync.Web.Client
 
         }
 
-        public HttpMessageSendChangesResponse(SyncContext context) 
+        public HttpMessageSendChangesResponse(SyncContext context)
             => this.SyncContext = context ?? throw new ArgumentNullException(nameof(context));
 
         /// <summary>
@@ -81,10 +81,7 @@ namespace Dotmim.Sync.Web.Client
     [DataContract(Name = "morechangesreq"), Serializable]
     public class HttpMessageGetMoreChangesRequest
     {
-        public HttpMessageGetMoreChangesRequest()
-        {
-
-        }
+        public HttpMessageGetMoreChangesRequest() { }
 
         public HttpMessageGetMoreChangesRequest(SyncContext context, int batchIndexRequested)
         {

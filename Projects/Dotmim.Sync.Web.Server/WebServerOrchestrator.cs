@@ -88,7 +88,6 @@ namespace Dotmim.Sync.Web.Server
 
         }
 
-
         /// <summary>
         /// Get changes from 
         /// </summary>
@@ -117,11 +116,11 @@ namespace Dotmim.Sync.Web.Server
             if (snap.serverBatchInfo == null)
             {
                 var changesResponse = new HttpMessageSendChangesResponse(snap.context);
-                changesResponse.ServerStep = HttpStep.GetChanges;
+                changesResponse.ServerStep = HttpStep.GetSnapshot;
                 changesResponse.BatchIndex = 0;
                 changesResponse.IsLastBatch = true;
                 changesResponse.RemoteClientTimestamp = snap.remoteClientTimestamp;
-
+                changesResponse.Changes = new ContainerSet();
                 return changesResponse;
             }
 
@@ -136,10 +135,8 @@ namespace Dotmim.Sync.Web.Server
         internal async Task<HttpMessageSendChangesResponse> ApplyThenGetChangesAsync(
             HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache, int clientBatchSize, CancellationToken cancellationToken)
         {
-
             // Get if we need to serialize data or making everything in memory
             var clientWorkInMemory = clientBatchSize == 0;
-
 
             // Check schema.
             // If client has stored the schema, the EnsureScope will not be called on server.
@@ -151,7 +148,6 @@ namespace Dotmim.Sync.Web.Server
                 newSchema.EnsureSchema();
                 this.Schema = newSchema;
             }
-
 
             // ------------------------------------------------------------
             // FIRST STEP : receive client changes
@@ -229,7 +225,6 @@ namespace Dotmim.Sync.Web.Server
         }
 
 
-
         /// <summary>
         /// Create a response message content based on a requested index in a server batch info
         /// </summary>
@@ -285,7 +280,18 @@ namespace Dotmim.Sync.Web.Server
             {
                 // delete the folder (not the BatchPartInfo, because we have a reference on it)
                 if (this.Options.CleanFolder)
-                    serverBatchInfo.TryRemoveDirectory();
+                {
+                    var shouldDeleteFolder = true;
+                    if (!string.IsNullOrEmpty(this.Options.SnapshotsDirectory))
+                    {
+                        var dirInfo = new DirectoryInfo(serverBatchInfo.DirectoryRoot);
+                        var snapInfo = new DirectoryInfo(this.Options.SnapshotsDirectory);
+                        shouldDeleteFolder = dirInfo.FullName != snapInfo.FullName;
+                    }
+
+                    if (shouldDeleteFolder)
+                        serverBatchInfo.TryRemoveDirectory();
+                }
             }
 
             return changesResponse;

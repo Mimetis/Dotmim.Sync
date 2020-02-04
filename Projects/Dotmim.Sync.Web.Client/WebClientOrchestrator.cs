@@ -79,10 +79,6 @@ namespace Dotmim.Sync.Web.Client
         public Dictionary<string, string> CustomHeaders => this.httpRequestHandler.CustomHeaders;
         public Dictionary<string, string> ScopeParameters => this.httpRequestHandler.ScopeParameters;
 
-        private void Set()
-        {
-
-        }
 
         /// <summary>
         /// Gets or Sets Serializer used by the web client orchestrator. Default is Json

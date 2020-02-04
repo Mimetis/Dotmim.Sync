@@ -279,7 +279,7 @@ namespace Dotmim.Sync
         }
 
 
-        public async Task CreateSnapshot(SyncContext context, SyncSetup setup, string batchDirectory, int batchSize, CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+        public async Task CreateSnapshotAsync(SyncContext context, SyncSetup setup, string batchDirectory, int batchSize, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             DbTransaction transaction = null;
             long remoteClientTimestamp;
@@ -360,7 +360,7 @@ namespace Dotmim.Sync
                 // When we get the chnages from server, we create the batches if it's requested by the client
                 // the batch decision comes from batchsize from client
                 (context, serverBatchInfo) =
-                    await this.Provider.GetSnapshotAsync(context, schema, snapshotDirectory, cancellationToken, progress).ConfigureAwait(false);
+                    this.Provider.GetSnapshot(context, schema, snapshotDirectory, cancellationToken, progress);
 
             }
             catch (Exception ex)
@@ -371,6 +371,9 @@ namespace Dotmim.Sync
                 syncException.Side = SyncExceptionSide.ServerSide;
                 throw syncException;
             }
+
+            if (serverBatchInfo == null)
+                return (context, 0, null);
 
             return (context, serverBatchInfo.Timestamp, serverBatchInfo);
         }

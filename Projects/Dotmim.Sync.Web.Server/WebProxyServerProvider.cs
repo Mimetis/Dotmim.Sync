@@ -123,19 +123,22 @@ namespace Dotmim.Sync.Web.Server
                         var m2 = clientSerializerFactory.GetSerializer<HttpMessageSendChangesRequest>().Deserialize(streamArray);
                         var s2 = await this.WebServerOrchestrator.ApplyThenGetChangesAsync(m2, sessionCache, clientBatchSize, cancellationToken).ConfigureAwait(false);
                         binaryData = clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().Serialize(s2);
-                        await this.WebServerOrchestrator.Provider.InterceptAsync(new HttpMessageSendChangesResponseArgs(binaryData)).ConfigureAwait(false);
+                        if (s2.Changes != null && s2.Changes.HasRows)
+                            await this.WebServerOrchestrator.Provider.InterceptAsync(new HttpMessageSendChangesResponseArgs(binaryData)).ConfigureAwait(false);
                         break;
                     case HttpStep.GetChanges:
                         var m3 = clientSerializerFactory.GetSerializer<HttpMessageGetMoreChangesRequest>().Deserialize(streamArray);
                         var s3 = this.WebServerOrchestrator.GetMoreChanges(m3, sessionCache, cancellationToken);
                         binaryData = clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().Serialize(s3);
-                        await this.WebServerOrchestrator.Provider.InterceptAsync(new HttpMessageSendChangesResponseArgs(binaryData)).ConfigureAwait(false);
+                        if (s3.Changes != null && s3.Changes.HasRows)
+                            await this.WebServerOrchestrator.Provider.InterceptAsync(new HttpMessageSendChangesResponseArgs(binaryData)).ConfigureAwait(false);
                         break;
                     case HttpStep.GetSnapshot:
                         var m4 = clientSerializerFactory.GetSerializer<HttpMessageSendChangesRequest>().Deserialize(streamArray);
                         var s4 = await this.WebServerOrchestrator.GetSnapshotAsync(m4, sessionCache, cancellationToken);
                         binaryData = clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().Serialize(s4);
-                        await this.WebServerOrchestrator.Provider.InterceptAsync(new HttpMessageSendChangesResponseArgs(binaryData)).ConfigureAwait(false);
+                        if (s4.Changes != null && s4.Changes.HasRows)
+                            await this.WebServerOrchestrator.Provider.InterceptAsync(new HttpMessageSendChangesResponseArgs(binaryData)).ConfigureAwait(false);
                         break;
                 }
 

@@ -59,7 +59,6 @@ namespace Dotmim.Sync
 
             var directoryFullPath = Path.Combine(batchDirectory, directoryName);
 
-
             if (Directory.Exists(directoryFullPath))
                 Directory.Delete(directoryFullPath, true);
 
@@ -158,7 +157,7 @@ namespace Dotmim.Sync
                 f.Write(bytes, 0, bytes.Length);
             }
 
-          
+
             return context;
         }
 
@@ -168,7 +167,7 @@ namespace Dotmim.Sync
         /// destination knowledge, and change data retriever parameters.
         /// </summary>
         /// <returns>A DbSyncContext object that will be used to retrieve the modified data.</returns>
-        public virtual async Task<(SyncContext, BatchInfo)> GetSnapshotAsync(
+        public virtual (SyncContext, BatchInfo) GetSnapshot(
                              SyncContext context, SyncSet schema, string batchDirectory,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
@@ -203,7 +202,6 @@ namespace Dotmim.Sync
             var summaryFileName = Path.Combine(directoryFullPath, "summary.json");
 
             BatchInfo batchInfo = null;
-
 
             // Create the schema changeset
             var changesSet = new SyncSet(schema.ScopeName);
