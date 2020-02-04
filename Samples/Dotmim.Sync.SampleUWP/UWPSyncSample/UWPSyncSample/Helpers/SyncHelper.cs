@@ -22,9 +22,9 @@ namespace UWPSyncSample.Helpers
         private SqlSyncProvider sqlSyncProvider;
         private SqliteSyncProvider sqliteSyncProvider;
         private MySqlSyncProvider mySqlSyncProvider;
-        private WebProxyClientProvider webProxyProvider;
+        private WebClientOrchestrator webProxyProvider;
 
-        string[] tables = new string[] { "Employees" };
+        string[] tables = new string[] { "Employee" };
 
         public SyncHelper(SettingsHelper settingsHelper)
         {
@@ -44,8 +44,7 @@ namespace UWPSyncSample.Helpers
             masterSqlSyncProvider = new SqlSyncProvider(
                 settingsHelper[ConnectionType.Server_SqlServer]);
 
-            webProxyProvider = new WebProxyClientProvider(
-                 new Uri(settingsHelper[ConnectionType.WebProxy]));
+            webProxyProvider = new WebClientOrchestrator(settingsHelper[ConnectionType.WebProxy]);
 
             // clients providers
             sqlSyncProvider = new SqlSyncProvider(

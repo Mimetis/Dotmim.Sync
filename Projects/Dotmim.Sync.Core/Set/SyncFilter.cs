@@ -1,6 +1,8 @@
-﻿using System;
+﻿using Dotmim.Sync.Builders;
+using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Linq;
 using System.Runtime.Serialization;
 using System.Text;
 
@@ -96,6 +98,23 @@ namespace Dotmim.Sync
         {
         }
 
+
+        /// <summary>
+        /// Get unique filter name, composed by all parameters name
+        /// </summary>
+        public string GetFilterName()
+        {
+            string name = string.Empty;
+            string sep = "";
+            foreach (var parameterName in Parameters.Select(f => f.Name))
+            {
+                var columnName = ParserName.Parse(parameterName).Unquoted().Normalized().ToString();
+                name += $"{columnName}{sep}";
+                sep = "_";
+            }
+
+            return name;
+        }
 
         /// <summary>
         /// Clear

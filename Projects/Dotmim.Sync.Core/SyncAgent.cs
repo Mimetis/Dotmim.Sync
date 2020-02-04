@@ -184,11 +184,10 @@ namespace Dotmim.Sync
         /// </summary>
         public async Task<SyncContext> SynchronizeAsync(SyncType syncType, CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
-
-
             // for view purpose, if needed
             if (this.LocalOrchestrator?.Provider != null)
                 this.LocalOrchestrator.Provider.Options = this.Options;
+
             if (this.RemoteOrchestrator?.Provider != null)
                 this.RemoteOrchestrator.Provider.Options = this.Options;
 
@@ -256,10 +255,52 @@ namespace Dotmim.Sync
                 // set context
                 context = clientChanges.context;
 
+                // Get if we need to get all rows from the datasource
+                var fromScratch = scope.IsNewScope || context.SyncType == SyncType.Reinitialize || context.SyncType == SyncType.ReinitializeWithUpload;
+
+                // IF is new and we have a snapshot directory, try to apply a snapshot
+                if (fromScratch)
+                {
+                    // Get snapshot files
+                    var serverSnapshotChanges = await this.RemoteOrchestrator.GetSnapshotAsync(
+                        context, scope, this.Schema, this.Options.SnapshotsDirectory, this.Options.BatchDirectory, cancellationToken, remoteProgress);
+
+                    if (serverSnapshotChanges.serverBatchInfo != null)
+                    {
+                        var localSnapshotChanges = await this.LocalOrchestrator.ApplyChangesAsync(
+                                context, scope, this.Schema, serverSnapshotChanges.serverBatchInfo,
+                                ConflictResolutionPolicy.ServerWins, clientChanges.clientTimestamp, serverSnapshotChanges.remoteClientTimestamp,
+                                this.Options.DisableConstraintsOnApplyChanges, this.Options.UseBulkOperations,
+                                this.Options.CleanMetadatas, this.Options.ScopeInfoTableName, false,
+                                cancellationToken, progress);
+
+                        context.TotalChangesDownloaded = localSnapshotChanges.clientChangesApplied.TotalAppliedChanges;
+                        context.TotalChangesUploaded = clientChanges.clientChangesSelected.TotalChangesSelected;
+                        context.TotalSyncErrors = localSnapshotChanges.clientChangesApplied.TotalAppliedChangesFailed;
+
+
+                        // Get scope again to ensure we have correct timestamp
+                        (context, scope) = await this.LocalOrchestrator.EnsureScopeAsync (context, this.Setup.ScopeName, this.Options, cancellationToken, progress);
+
+                        if (cancellationToken.IsCancellationRequested)
+                            cancellationToken.ThrowIfCancellationRequested();
+
+                        // on local orchestrator, get local changes again just in case we have insert, and get correct timestamp
+                        clientChanges = await this.LocalOrchestrator.GetChangesAsync(
+                            context, this.Schema, scope, this.Options.BatchSize, this.Options.BatchDirectory, cancellationToken, progress);
+
+                        if (cancellationToken.IsCancellationRequested)
+                            cancellationToken.ThrowIfCancellationRequested();
+
+                        // set context
+                        context = clientChanges.context;
+                    }
+                }
+
                 // SECOND call to server
                 var serverChanges = await this.RemoteOrchestrator.ApplyThenGetChangesAsync(
                     context, scope, this.Schema, clientChanges.clientBatchInfo, this.Options.DisableConstraintsOnApplyChanges, this.Options.UseBulkOperations,
-                    this.Options.CleanMetadatas, this.Options.BatchSize, this.Options.BatchDirectory,
+                    this.Options.CleanMetadatas, this.Options.CleanFolder, this.Options.BatchSize, this.Options.BatchDirectory,
                     this.Options.ConflictResolutionPolicy, cancellationToken, remoteProgress);
 
                 if (cancellationToken.IsCancellationRequested)
@@ -281,7 +322,123 @@ namespace Dotmim.Sync
                     context, scope, this.Schema, serverChanges.serverBatchInfo,
                     clientPolicy, clientChanges.clientTimestamp, serverChanges.remoteClientTimestamp,
                     this.Options.DisableConstraintsOnApplyChanges, this.Options.UseBulkOperations,
-                    this.Options.CleanMetadatas, this.Options.ScopeInfoTableName,
+                    this.Options.CleanMetadatas, this.Options.ScopeInfoTableName, true,
+                    cancellationToken, progress);
+
+                context.TotalChangesDownloaded += localChanges.clientChangesApplied.TotalAppliedChanges;
+                context.TotalChangesUploaded += clientChanges.clientChangesSelected.TotalChangesSelected;
+                context.TotalSyncErrors += localChanges.clientChangesApplied.TotalAppliedChangesFailed;
+
+
+                if (cancellationToken.IsCancellationRequested)
+                    cancellationToken.ThrowIfCancellationRequested();
+
+            }
+            catch (SyncException se)
+            {
+                Debug.WriteLine($"Sync Exception: {se.Message}. TypeName:{se.TypeName}.");
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Unknwon Exception: {ex.Message}.");
+                throw new SyncException(ex, SyncStage.None);
+            }
+            finally
+            {
+                // End the current session
+                this.SessionState = SyncSessionState.Ready;
+                this.SessionStateChanged?.Invoke(this, this.SessionState);
+            }
+
+            return context;
+        }
+
+ 
+
+        public async Task<SyncContext> InitializeFromSnapshotAsync(CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+        {
+            // for view purpose, if needed
+            if (this.LocalOrchestrator?.Provider != null)
+                this.LocalOrchestrator.Provider.Options = this.Options;
+
+            if (this.RemoteOrchestrator?.Provider != null)
+                this.RemoteOrchestrator.Provider.Options = this.Options;
+
+            // Context, used to back and forth data between servers
+            var context = new SyncContext(Guid.NewGuid())
+            {
+                // set start time
+                StartTime = DateTime.UtcNow,
+                // if any parameters, set in context
+                Parameters = this.Parameters,
+                // set sync type (Normal, Reinitialize, ReinitializeWithUpload)
+                SyncType  = SyncType.Normal
+            };
+
+            this.SessionState = SyncSessionState.Synchronizing;
+            this.SessionStateChanged?.Invoke(this, this.SessionState);
+
+            try
+            {
+                if (cancellationToken.IsCancellationRequested)
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                ScopeInfo scope = null;
+                (context, scope) = await this.LocalOrchestrator.EnsureScopeAsync (context, this.Setup.ScopeName, this.Options, cancellationToken, progress);
+
+                if (cancellationToken.IsCancellationRequested)
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                // check if we already have a schema from local 
+                if (!string.IsNullOrEmpty(scope.Schema))
+                {
+                    this.Schema = JsonConvert.DeserializeObject<SyncSet>(scope.Schema);
+                }
+                else
+                {
+                    var serverSchema = await this.RemoteOrchestrator.EnsureSchemaAsync( context, this.Setup, cancellationToken, remoteProgress);
+                    context = serverSchema.context;
+                    this.Schema = serverSchema.schema;
+                }
+
+                if (cancellationToken.IsCancellationRequested)
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                // on local orchestrator, get local changes
+                // Most probably the schema has changed, so we passed it again (coming from Server)
+                // Don't need to pass again Options since we are not modifying it between server and client
+                var clientChanges = await this.LocalOrchestrator.GetChangesAsync(
+                    context, this.Schema, scope, this.Options.BatchSize, this.Options.BatchDirectory, cancellationToken, progress);
+
+                if (cancellationToken.IsCancellationRequested)
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                // set context
+                context = clientChanges.context;
+
+                // Get snapshot files
+                var serverChanges = await this.RemoteOrchestrator.GetSnapshotAsync(
+                    context, scope, this.Schema, this.Options.SnapshotsDirectory, this.Options.BatchDirectory, cancellationToken, remoteProgress);
+
+                if (cancellationToken.IsCancellationRequested)
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                // set context
+                context = serverChanges.context;
+
+                // Serialize schema to be able to save it in client db
+                if (string.IsNullOrEmpty(scope.Schema))
+                    scope.Schema = JsonConvert.SerializeObject(this.Schema);
+
+                // Policy is always Server policy, so reverse this policy to get the client policy
+                var clientPolicy = this.Options.ConflictResolutionPolicy == ConflictResolutionPolicy.ServerWins ? ConflictResolutionPolicy.ClientWins : ConflictResolutionPolicy.ServerWins;
+
+                var localChanges = await this.LocalOrchestrator.ApplyChangesAsync(
+                    context, scope, this.Schema, serverChanges.serverBatchInfo,
+                    clientPolicy, clientChanges.clientTimestamp, serverChanges.remoteClientTimestamp,
+                    this.Options.DisableConstraintsOnApplyChanges, this.Options.UseBulkOperations,
+                    this.Options.CleanMetadatas, this.Options.ScopeInfoTableName, false,
                     cancellationToken, progress);
 
                 context.TotalChangesDownloaded = localChanges.clientChangesApplied.TotalAppliedChanges;

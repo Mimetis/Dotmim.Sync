@@ -353,7 +353,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             return false;
         }
 
-        public override DbCommand GetCommand(DbCommandType nameType, SyncFilter filter = null)
+        public override DbCommand GetCommand(DbCommandType nameType, SyncFilter filter)
         {
             var command = this.Connection.CreateCommand() as SqlCommand;
 
