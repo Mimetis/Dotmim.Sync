@@ -22,9 +22,6 @@ namespace Dotmim.Sync.SqlServer.Builders
         private readonly SyncTable tableDescription;
         private readonly SqlObjectNames sqlObjectNames;
         private readonly SqlDbMetadata sqlDbMetadata;
-
-        public SyncFilter Filter { get; set; }
-
         public SqlBuilderProcedure(SyncTable tableDescription, DbConnection connection, DbTransaction transaction = null)
         {
             this.connection = connection as SqlConnection;
@@ -1485,7 +1482,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 var parameterName = ParserName.Parse(whereFilter.ParameterName).Unquoted().Normalized().ToString();
                 var sqlDbType = (SqlDbType)this.sqlDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, tableFilter.OriginalProvider, SqlSyncProvider.ProviderType);
 
-                var param = Filter.Parameters[parameterName];
+                var param = filter.Parameters[parameterName];
 
                 if (param == null)
                     throw new FilterParamColumnNotExistsException(columnName, whereFilter.TableName);
@@ -1545,7 +1542,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         //------------------------------------------------------------------
         // Select changes command
         //------------------------------------------------------------------
-        protected virtual SqlCommand BuildSelectIncrementalChangesCommand(bool withFilter = false)
+        protected virtual SqlCommand BuildSelectIncrementalChangesCommand(SyncFilter filter = null)
         {
             var sqlCommand = new SqlCommand();
             var pTimestamp = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt) { Value = 0 };
@@ -1555,8 +1552,8 @@ namespace Dotmim.Sync.SqlServer.Builders
             sqlCommand.Parameters.Add(pScopeId);
 
             // Add filter parameters
-            if (withFilter)
-                CreateFilterParameters(sqlCommand, this.Filter);
+            if (filter != null)
+                CreateFilterParameters(sqlCommand, filter);
 
             var stringBuilder = new StringBuilder("SELECT DISTINCT");
 
@@ -1595,8 +1592,8 @@ namespace Dotmim.Sync.SqlServer.Builders
             // ----------------------------------
             // Custom Joins
             // ----------------------------------
-            if (withFilter)
-                stringBuilder.Append(CreateFilterCustomJoins(this.Filter));
+            if (filter != null)
+                stringBuilder.Append(CreateFilterCustomJoins(filter));
 
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("WHERE (");
@@ -1604,15 +1601,15 @@ namespace Dotmim.Sync.SqlServer.Builders
             // ----------------------------------
             // Where filters and Custom Where string
             // ----------------------------------
-            if (withFilter)
+            if (filter != null)
             {
-                var createFilterWhereSide = CreateFilterWhereSide(this.Filter, true);
+                var createFilterWhereSide = CreateFilterWhereSide(filter, true);
                 stringBuilder.Append(createFilterWhereSide);
 
                 if (!string.IsNullOrEmpty(createFilterWhereSide))
                     stringBuilder.AppendLine($"AND ");
 
-                var createFilterCustomWheres = CreateFilterCustomWheres(this.Filter);
+                var createFilterCustomWheres = CreateFilterCustomWheres(filter);
                 stringBuilder.Append(createFilterCustomWheres);
 
                 if (!string.IsNullOrEmpty(createFilterCustomWheres))
@@ -1629,24 +1626,24 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             return sqlCommand;
         }
-        public void CreateSelectIncrementalChanges()
+        public void CreateSelectIncrementalChanges(SyncFilter filter = null)
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChanges).name;
-            SqlCommand cmdWithoutFilter() => BuildSelectIncrementalChangesCommand(false);
+            SqlCommand cmdWithoutFilter() => BuildSelectIncrementalChangesCommand(null);
             CreateProcedureCommand(cmdWithoutFilter, commandName);
 
-            if (this.Filter != null)
+            if (filter != null)
             {
-                this.Filter.ValidateColumnFilters(this.tableDescription);
+                filter.ValidateColumnFilters(this.tableDescription);
 
-                commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWithFilters, this.Filter).name;
-                SqlCommand cmdWithFilter() => BuildSelectIncrementalChangesCommand(true);
+                commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWithFilters, filter).name;
+                SqlCommand cmdWithFilter() => BuildSelectIncrementalChangesCommand(filter);
                 CreateProcedureCommand(cmdWithFilter, commandName);
 
             }
 
         }
-        public void DropSelectIncrementalChanges()
+        public void DropSelectIncrementalChanges(SyncFilter filter = null)
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
@@ -1668,7 +1665,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                 }
 
-                if (this.Filter != null)
+                if (filter != null)
                 {
                     using (var command = new SqlCommand())
                     {
@@ -1678,9 +1675,9 @@ namespace Dotmim.Sync.SqlServer.Builders
                         if (this.transaction != null)
                             command.Transaction = this.transaction;
 
-                        this.Filter.ValidateColumnFilters(this.tableDescription);
+                        filter.ValidateColumnFilters(this.tableDescription);
 
-                        var commandNameWithFilter = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWithFilters, this.Filter).name;
+                        var commandNameWithFilter = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWithFilters, filter).name;
 
                         command.CommandText = $"DROP PROCEDURE {commandNameWithFilter};";
                         command.Connection = this.connection;
@@ -1710,13 +1707,13 @@ namespace Dotmim.Sync.SqlServer.Builders
         //------------------------------------------------------------------
         // Select initialized changes command
         //------------------------------------------------------------------
-        protected virtual SqlCommand BuildSelectInitializedChangesCommand(bool withFilter = false)
+        protected virtual SqlCommand BuildSelectInitializedChangesCommand(SyncFilter filter = null)
         {
             var sqlCommand = new SqlCommand();
 
             // Add filter parameters
-            if (withFilter)
-                CreateFilterParameters(sqlCommand, this.Filter);
+            if (filter != null)
+                CreateFilterParameters(sqlCommand, filter);
 
             var stringBuilder = new StringBuilder("SELECT DISTINCT");
             var columns = this.tableDescription.GetMutableColumns(false, true).ToList();
@@ -1732,19 +1729,19 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($"FROM {tableName.Schema().Quoted().ToString()} [base]");
 
-            if (withFilter)
+            if (filter != null)
             {
                 // ----------------------------------
                 // Custom Joins
                 // ----------------------------------
-                stringBuilder.Append(CreateFilterCustomJoins(this.Filter));
+                stringBuilder.Append(CreateFilterCustomJoins(filter));
 
                 // ----------------------------------
                 // Where filters on [side]
                 // ----------------------------------
 
-                var whereString = CreateFilterWhereSide(this.Filter);
-                var customWhereString = CreateFilterCustomWheres(this.Filter);
+                var whereString = CreateFilterWhereSide(filter);
+                var customWhereString = CreateFilterCustomWheres(filter);
 
                 if (!string.IsNullOrEmpty(whereString) || !string.IsNullOrEmpty(customWhereString))
                 {
@@ -1767,22 +1764,23 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             return sqlCommand;
         }
-        public void CreateSelectInitializedChanges()
+        
+        public void CreateSelectInitializedChanges(SyncFilter filter = null)
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChanges).name;
-            SqlCommand cmdWithoutFilter() => BuildSelectInitializedChangesCommand(false);
+            SqlCommand cmdWithoutFilter() => BuildSelectInitializedChangesCommand(null);
             CreateProcedureCommand(cmdWithoutFilter, commandName);
 
-            if (this.Filter != null)
+            if (filter != null)
             {
-                this.Filter.ValidateColumnFilters(this.tableDescription);
+                filter.ValidateColumnFilters(this.tableDescription);
 
-                commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChangesWithFilters, this.Filter).name;
-                SqlCommand cmdWithFilter() => BuildSelectInitializedChangesCommand(true);
+                commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChangesWithFilters, filter).name;
+                SqlCommand cmdWithFilter() => BuildSelectInitializedChangesCommand(filter);
                 CreateProcedureCommand(cmdWithFilter, commandName);
             }
         }
-        public void DropSelectInitializedChanges()
+        public void DropSelectInitializedChanges(SyncFilter filter = null)
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
@@ -1804,7 +1802,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                 }
 
-                if (this.Filter != null)
+                if (filter != null)
                 {
 
                     using (var command = new SqlCommand())
@@ -1815,9 +1813,9 @@ namespace Dotmim.Sync.SqlServer.Builders
                         if (this.transaction != null)
                             command.Transaction = this.transaction;
 
-                        this.Filter.ValidateColumnFilters(this.tableDescription);
+                        filter.ValidateColumnFilters(this.tableDescription);
 
-                        var commandNameWithFilter = this.sqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChangesWithFilters, this.Filter).name;
+                        var commandNameWithFilter = this.sqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChangesWithFilters, filter).name;
 
                         command.CommandText = $"DROP PROCEDURE {commandNameWithFilter};";
                         command.Connection = this.connection;

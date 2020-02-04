@@ -71,12 +71,12 @@ namespace UWPSyncSample
                     // configuring the new page by passing required information as a navigation
                     // parameter
                     var navigationService = ContainerHelper.Current.Container.Resolve<INavigationService>();
-                    var settingsHelper = ContainerHelper.Current.Container.Resolve<SettingsHelper>();
-
-                    await settingsHelper.InitializeDatabasesAsync();
-
-                    navigationService.NavigateToPage<MainPage>(ConnectionType.Client_SqlServer, e.Arguments);
+                    await navigationService.NavigateToPage<MainPage>(ConnectionType.Client_SqlServer, e.Arguments);
                 }
+
+                var settingsHelper = ContainerHelper.Current.Container.Resolve<SettingsHelper>();
+                await settingsHelper.InitializeDatabasesAsync();
+
                 // Ensure the current window is active
                 Window.Current.Activate();
             }

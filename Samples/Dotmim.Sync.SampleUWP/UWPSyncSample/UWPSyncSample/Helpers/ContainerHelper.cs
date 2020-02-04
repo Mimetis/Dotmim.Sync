@@ -14,7 +14,7 @@ namespace UWPSyncSample.Helpers
 {
 
     /// <summary>
-    /// Class helpe for managing DI 
+    /// Class helper for managing DI 
     /// </summary>
     public class ContainerHelper
     {

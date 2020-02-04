@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -50,16 +51,16 @@ namespace UWPSyncSample.Helpers
         private void ConstrucDefaultConnectionStrings()
         {
             this.defaultConnectionStrings.Add(ConnectionType.Client_SqlServer,
-                @"Data Source=.\SQLEXPRESS;Initial Catalog=ContosoClient;Integrated Security=SSPI;");
+                @"Data Source=localhost;Initial Catalog=ContosoClient;User Id=sa;Password=Password12!;");
 
-            this.defaultConnectionStrings.Add(ConnectionType.Client_Sqlite,
-                @"Data Source=contoso.db");
+            string dbpath = Path.Combine(ApplicationData.Current.LocalFolder.Path, "contoso.db");
+            this.defaultConnectionStrings.Add(ConnectionType.Client_Sqlite, $@"Data Source={dbpath}");
 
             this.defaultConnectionStrings.Add(ConnectionType.Client_MySql,
                 @"Server=127.0.0.1;Port=3306;Database=contosoclient;Uid=root;Pwd=azerty31$;");
 
             this.defaultConnectionStrings.Add(ConnectionType.Server_SqlServer,
-                @"Data Source=.\SQLEXPRESS;Initial Catalog=Contoso;Integrated Security=SSPI;");
+                @"Data Source=localhost;Initial Catalog=Contoso;User Id=sa;Password=Password12!;");
 
             this.defaultConnectionStrings.Add(ConnectionType.WebProxy,
                 @"http://localhost:54347/api/values");
@@ -98,12 +99,10 @@ namespace UWPSyncSample.Helpers
                 InitialCatalog = "master"
             };
 
-            SqlConnection masterConnection = null;
-            SqlCommand cmdDb = null;
-            masterConnection = new SqlConnection(builder.ConnectionString);
+            var masterConnection = new SqlConnection(builder.ConnectionString);
 
             masterConnection.Open();
-            cmdDb = new SqlCommand(GetCreationDBScript(dbName, recreateDb), masterConnection);
+            var cmdDb = new SqlCommand(GetCreationDBScript(dbName, recreateDb), masterConnection);
             await cmdDb.ExecuteNonQueryAsync();
             masterConnection.Close();
         }
@@ -184,9 +183,9 @@ namespace UWPSyncSample.Helpers
 
         private string GetCreationTableDBScript()
         {
-            return $@"if not (exists (Select * from sys.tables where name = 'Employees'))
+            return $@"if not (exists (Select * from sys.tables where name = 'Employee'))
                    BEGIN
-                    CREATE TABLE [Employees](
+                    CREATE TABLE [Employee](
 	                    [EmployeeId] [uniqueidentifier] NOT NULL,
 	                    [FirstName] [nvarchar](50) NOT NULL,
 	                    [LastName] [nvarchar](50) NULL,

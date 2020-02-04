@@ -33,6 +33,7 @@ namespace Dotmim.Sync.SampleWebServer
             // Mandatory to be able to handle multiple sessions
             services.AddMemoryCache();
 
+           
             // Get a connection string for your server data source
             var connectionString = Configuration.GetSection("ConnectionStrings")["DefaultConnection"];
 

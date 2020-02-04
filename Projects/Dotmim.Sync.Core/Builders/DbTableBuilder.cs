@@ -105,7 +105,6 @@ namespace Dotmim.Sync.Builders
             var alreadyOpened = connection.State != ConnectionState.Closed;
 
             var trackingTableBuilder = CreateTrackingTableBuilder(connection, transaction);
-            trackingTableBuilder.Filter = this.Filter;
 
             if (trackingTableBuilder.NeedToCreateTrackingTable())
             {
@@ -127,7 +126,6 @@ namespace Dotmim.Sync.Builders
             var alreadyOpened = connection.State != ConnectionState.Closed;
 
             var triggerBuilder = CreateTriggerBuilder(connection, transaction);
-            triggerBuilder.Filter = this.Filter;
 
             if (triggerBuilder.NeedToCreateTrigger(DbTriggerType.Insert))
                 triggerBuilder.CreateInsertTrigger();
@@ -157,12 +155,10 @@ namespace Dotmim.Sync.Builders
             if (procBuilder == null)
                 return;
 
-            procBuilder.Filter = this.Filter;
-
             if (procBuilder.NeedToCreateProcedure(DbCommandType.SelectChanges))
-                procBuilder.CreateSelectIncrementalChanges();
+                procBuilder.CreateSelectIncrementalChanges(this.Filter);
             if (procBuilder.NeedToCreateProcedure(DbCommandType.SelectInitializedChanges))
-                procBuilder.CreateSelectInitializedChanges();
+                procBuilder.CreateSelectInitializedChanges(this.Filter);
 
             if (procBuilder.NeedToCreateProcedure(DbCommandType.SelectRow))
                 procBuilder.CreateSelectRow();
@@ -255,12 +251,10 @@ namespace Dotmim.Sync.Builders
             if (procBuilder == null)
                 return;
 
-            procBuilder.Filter = this.Filter;
-
             if (!procBuilder.NeedToCreateProcedure(DbCommandType.SelectChanges))
-                procBuilder.DropSelectIncrementalChanges();
+                procBuilder.DropSelectIncrementalChanges(this.Filter);
             if (!procBuilder.NeedToCreateProcedure(DbCommandType.SelectInitializedChanges))
-                procBuilder.DropSelectInitializedChanges();
+                procBuilder.DropSelectInitializedChanges(this.Filter);
             if (!procBuilder.NeedToCreateProcedure(DbCommandType.SelectRow))
                 procBuilder.DropSelectRow();
             if (!procBuilder.NeedToCreateProcedure(DbCommandType.UpdateRow))
@@ -292,7 +286,6 @@ namespace Dotmim.Sync.Builders
                 connection.Open();
 
             var triggerBuilder = CreateTriggerBuilder(connection, transaction);
-            triggerBuilder.Filter = this.Filter;
 
             if (!triggerBuilder.NeedToCreateTrigger(DbTriggerType.Insert))
                 triggerBuilder.DropInsertTrigger();
@@ -315,7 +308,6 @@ namespace Dotmim.Sync.Builders
                 connection.Open();
 
             var trackingTableBuilder = CreateTrackingTableBuilder(connection, transaction);
-            trackingTableBuilder.Filter = this.Filter;
 
             if (!trackingTableBuilder.NeedToCreateTrackingTable())
                 trackingTableBuilder.DropTable();

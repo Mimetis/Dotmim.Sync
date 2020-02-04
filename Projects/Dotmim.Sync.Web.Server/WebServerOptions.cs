@@ -18,6 +18,14 @@ namespace Dotmim.Sync.Web.Server
         /// </summary>
         public string BatchDirectory { get; set; }
 
+
+        /// <summary>
+        /// Gets or Sets the directory where snapshots are stored.
+        /// This value could be overwritten by server is used in an http mode
+        /// </summary>
+        public string SnapshotsDirectory { get; set; }
+
+
         /// <summary>
         /// Get the default Batch directory full path ([User Temp Path]/[DotmimSync])
         /// </summary>
@@ -62,7 +70,7 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// Gets or Sets if we should cleaning tmp dir files after sync.
         /// </summary>
-        public bool CleanMetadatas { get; set; } = true;
+        public bool CleanFolder { get; set; } = true;
 
         /// <summary>
         /// Gets or Sets if we should disable constraints before making apply changes 
@@ -102,7 +110,7 @@ namespace Dotmim.Sync.Web.Server
         public WebServerOptions()
         {
             this.BatchDirectory = GetDefaultUserBatchDiretory();
-            this.CleanMetadatas = true;
+            this.CleanFolder = true;
             this.UseBulkOperations = true;
             this.UseVerboseErrors = false;
             this.DisableConstraintsOnApplyChanges = true;
