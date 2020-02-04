@@ -386,7 +386,7 @@ internal class Program
         var directory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Snapshots");
 
 
-        await remoteOrchestrator.CreateSnapshot(new SyncContext(), setup, directory, 500, CancellationToken.None);
+        await remoteOrchestrator.CreateSnapshotAsync(new SyncContext(), setup, directory, 500, CancellationToken.None);
         // client provider
         var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
 
@@ -402,6 +402,8 @@ internal class Program
 
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, setup);
+
+        var syncOptions = new SyncOptions { SnapshotsDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Snapshots") };
 
         // Setting the snapshots directory for client
         agent.Options.SnapshotsDirectory = directory;
@@ -825,7 +827,7 @@ internal class Program
         Console.ForegroundColor = ConsoleColor.Yellow;
         Console.WriteLine($"Creating snapshot");
         var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
-        await remoteOrchestrator.CreateSnapshot(new SyncContext(), setup, directory, 500, CancellationToken.None);
+        await remoteOrchestrator.CreateSnapshotAsync(new SyncContext(), setup, directory, 500, CancellationToken.None);
         Console.WriteLine($"Done.");
         Console.ResetColor();
 
@@ -870,7 +872,7 @@ internal class Program
                     Console.WriteLine("Web sync start");
                     try
                     {
-                        var progress = new SynchronousProgress<ProgressArgs>(pa => Console.WriteLine($"{pa.Context.SessionId} - {pa.Context.SyncStage}\t {pa.Message}"));
+                        var progress = new SynchronousProgress<ProgressArgs>(pa => Console.WriteLine($"{pa.Context.SyncStage}\t {pa.Message}"));
                         var s = await agent.SynchronizeAsync(progress);
                         Console.WriteLine(s);
                     }

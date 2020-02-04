@@ -3904,5 +3904,76 @@ namespace Dotmim.Sync.Tests
             }
         }
 
+
+        /// <summary>
+        /// Insert one row in two tables on server, should be correctly sync on all clients
+        /// </summary>
+        [Theory, TestPriority(40)]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Snapshot_Initialize(SyncOptions options)
+        {
+            // create a server schema with seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            var setup = new SyncSetup(Tables);
+
+            // snapshot directory
+            var directory = Path.Combine(Environment.CurrentDirectory, "Snapshots");
+
+            // ----------------------------------
+            // Create a snapshot
+            // ----------------------------------
+            await Server.RemoteOrchestrator.CreateSnapshotAsync(new SyncContext(), setup, directory, 500);
+
+            // ----------------------------------
+            // Setting correct options for sync agent to be able to reach snapshot
+            // ----------------------------------
+            options.SnapshotsDirectory = directory;
+
+            // ----------------------------------
+            // Add rows on server AFTER snapshot
+            // ----------------------------------
+            var productId = Guid.NewGuid();
+            var productName = HelperDatabase.GetRandomName();
+            var productNumber = productName.ToUpperInvariant().Substring(0, 10);
+
+            var productCategoryName = HelperDatabase.GetRandomName();
+            var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
+
+            using (var ctx = new AdventureWorksContext(this.Server))
+            {
+                var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
+                ctx.Add(pc);
+
+                var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber };
+                ctx.Add(product);
+
+                await ctx.SaveChangesAsync();
+            }
+
+            // Get count of rows
+            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+
+
+            // Execute a sync on all clients and check results
+            foreach (var client in Clients)
+            {
+                var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator,
+                                          new SyncSetup(Tables), options);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalSyncConflicts);
+            }
+        }
+
+
+
     }
 }

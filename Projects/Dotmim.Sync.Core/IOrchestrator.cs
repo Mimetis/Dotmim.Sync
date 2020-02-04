@@ -49,7 +49,7 @@ namespace Dotmim.Sync
         /// </summary>
         /// <returns></returns>
         Task<(SyncContext context, ScopeInfo localScopeInfo)>
-            EnsureScopeAsync(SyncContext context, string scopeName, SyncOptions options,
+            EnsureScopeAsync(SyncContext context, string scopeName, string scopeInfoTableName,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null);
 
         /// <summary>
@@ -73,6 +73,15 @@ namespace Dotmim.Sync
                               bool cleanMetadatas, string scopeInfoTableName, bool cleanFolder,
                               CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null);
 
+
+        /// <summary>
+        /// Apply a snapshot if available
+        /// </summary>
+        Task<SyncContext> ApplySnapshotAndGetChangesAsync(SyncContext context, ScopeInfo scope, SyncSet schema, BatchInfo serverBatchInfo,
+                                                          long clientTimestamp, long remoteClientTimestamp, bool disableConstraintsOnApplyChanges,
+                                                          int batchSize, string batchDirectory,
+                                                          bool useBulkOperations, bool cleanMetadatas, string scopeInfoTableName,
+                                                          CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null);
 
 
         /// <summary>
