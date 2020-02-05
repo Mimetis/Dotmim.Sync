@@ -17,9 +17,9 @@ using Xunit.Abstractions;
 
 namespace Dotmim.Sync.Tests
 {
-    public class SqlServerChangeTrackingTcpFilterTests : TcpTests
+    public class SqlServerChangeTrackingTcpTests : TcpTests
     {
-        public SqlServerChangeTrackingTcpFilterTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
+        public SqlServerChangeTrackingTcpTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
         {
         }
 
