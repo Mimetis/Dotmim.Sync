@@ -23,8 +23,6 @@ namespace Dotmim.Sync.SqlServer.Builders
         private readonly SqlTransaction transaction;
         private readonly SqlDbMetadata sqlDbMetadata;
 
-        public SyncFilter Filter { get; set; }
-
         public SqlBuilderTrackingTable(SyncTable tableDescription, DbConnection connection, DbTransaction transaction = null)
         {
             this.connection = connection as SqlConnection;

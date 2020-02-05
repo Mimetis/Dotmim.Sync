@@ -19,10 +19,6 @@ namespace Dotmim.Sync.MySql
         private MySqlTransaction transaction;
         private MySqlObjectNames mySqlObjectNames;
 
-        public SyncFilter Filter { get; set; }
-
-
-
         public MySqlBuilderTrigger(SyncTable tableDescription, DbConnection connection, DbTransaction transaction = null)
         {
             this.connection = connection as MySqlConnection;

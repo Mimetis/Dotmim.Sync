@@ -21,9 +21,6 @@ namespace Dotmim.Sync.SqlServer.Builders
         private readonly SqlConnection connection;
         private readonly SqlTransaction transaction;
         private readonly SqlObjectNames sqlObjectNames;
-        public SyncFilter Filter { get; set; }
-
-
         public SqlBuilderTrigger(SyncTable tableDescription, DbConnection connection, DbTransaction transaction = null)
         {
             this.connection = connection as SqlConnection;

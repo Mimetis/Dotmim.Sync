@@ -75,7 +75,7 @@ namespace Dotmim.Sync
             // create the in memory changes set
             var changesSet = new SyncSet(message.Schema.ScopeName);
 
-            // Create a Schema set without readonly tables, attached to memory changes
+            // Create a Schema set without readonly columns, attached to memory changes
             foreach (var table in message.Schema.Tables)
                 DbSyncAdapter.CreateChangesTable(message.Schema.Tables[table.TableName, table.SchemaName], changesSet);
 
@@ -126,7 +126,7 @@ namespace Dotmim.Sync
                     while (dataReader.Read())
                     {
                         // Create a row from dataReader
-                        var row = CreateSyncRowFromReader(dataReader, changesSetTable, message.LocalScopeId);
+                        var row = CreateSyncRowFromReader(dataReader, changesSetTable);
 
                         // Add the row to the changes set
                         changesSetTable.Rows.Add(row);
@@ -318,9 +318,12 @@ namespace Dotmim.Sync
             if (!hasFilters)
                 return;
 
+            // context parameters can be null at some point.
+            var contexParameters = context.Parameters ?? new SyncParameters();
+
             foreach (var filterParam in tableFilter.Parameters)
             {
-                var parameter = context.Parameters.FirstOrDefault(p =>
+                var parameter = contexParameters.FirstOrDefault(p =>
                     p.Name.Equals(filterParam.Name, SyncGlobalization.DataSourceStringComparison));
 
                 object val = parameter?.Value;
@@ -333,7 +336,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Create a new SyncRow from a dataReader.
         /// </summary>
-        private SyncRow CreateSyncRowFromReader(IDataReader dataReader, SyncTable table, Guid localScopeId)
+        private SyncRow CreateSyncRowFromReader(IDataReader dataReader, SyncTable table)
         {
             // Create a new row, based on table structure
             var row = table.NewRow();
