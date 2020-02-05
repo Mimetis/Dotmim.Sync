@@ -560,7 +560,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
         //------------------------------------------------------------------
         // Select changes command
         //------------------------------------------------------------------
-        protected override SqlCommand BuildSelectIncrementalChangesCommand(bool withFilter = false)
+        protected override SqlCommand BuildSelectIncrementalChangesCommand(SyncFilter filter)
         {
             var sqlCommand = new SqlCommand();
             var pTimestamp = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt);
@@ -572,8 +572,8 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             sqlCommand.Parameters.Add(pScopeId);
 
             // Add filter parameters
-            if (withFilter)
-                CreateFilterParameters(sqlCommand, this.Filter);
+            if (filter!= null)
+                CreateFilterParameters(sqlCommand, filter);
 
             var stringBuilder = new StringBuilder("");
             stringBuilder.AppendLine($";WITH ");
@@ -591,7 +591,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             stringBuilder.AppendLine($"\tFROM CHANGETABLE(CHANGES {tableName.Schema().Quoted().ToString()}, @sync_min_timestamp) AS [CT]");
             stringBuilder.AppendLine($"\t)");
 
-            stringBuilder.AppendLine("SELECT ");
+            stringBuilder.AppendLine("SELECT DISTINCT");
             foreach (var pkColumn in this.tableDescription.PrimaryKeys)
             {
                 var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
@@ -619,8 +619,8 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             // ----------------------------------
             // Custom Joins
             // ----------------------------------
-            if (withFilter)
-                stringBuilder.Append(CreateFilterCustomJoins(this.Filter));
+            if (filter != null)
+                stringBuilder.Append(CreateFilterCustomJoins(filter));
 
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("WHERE (");
@@ -629,9 +629,9 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             // ----------------------------------
             // Where filters on [side]
             // ----------------------------------
-            if (withFilter)
+            if (filter != null)
             {
-                var createFilterWhereSide = CreateFilterWhereSide(this.Filter, true);
+                var createFilterWhereSide = CreateFilterWhereSide(filter, true);
                 stringBuilder.Append(createFilterWhereSide);
 
                 if (!string.IsNullOrEmpty(createFilterWhereSide))
@@ -642,9 +642,9 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             // ----------------------------------
             // Custom Where 
             // ----------------------------------
-            if (withFilter)
+            if (filter != null)
             {
-                var createFilterCustomWheres = CreateFilterCustomWheres(this.Filter);
+                var createFilterCustomWheres = CreateFilterCustomWheres(filter);
                 stringBuilder.Append(createFilterCustomWheres);
 
                 if (!string.IsNullOrEmpty(createFilterCustomWheres))

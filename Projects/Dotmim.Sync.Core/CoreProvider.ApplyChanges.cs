@@ -95,7 +95,7 @@ namespace Dotmim.Sync
                 this.EnableConstraints(context, message.Schema, connection, transaction);
 
             // clear the changes because we don't need them anymore
-            message.Changes.Clear(true);
+            message.Changes.Clear(message.CleanFolder);
 
             return (context, changesApplied);
 

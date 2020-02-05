@@ -15,10 +15,10 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         internal const string selectChangesProcName = "[{0}].[{1}_changes]";
         internal const string selectChangesProcNameWithFilters = "[{0}].[{1}_{2}_changes]";
-        
+
         internal const string initializeChangesProcName = "[{0}].[{1}_initialize]";
         internal const string initializeChangesProcNameWithFilters = "[{0}].[{1}_{2}_initialize]";
-        
+
         internal const string selectRowProcName = "[{0}].[{1}_selectrow]";
 
         internal const string insertProcName = "[{0}].[{1}_insert]";
@@ -59,19 +59,10 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             (var commandName, var isStoredProc) = names[objectType];
 
+            // concat filter name
             if (filter != null)
-            {
-                string name = "";
-                string sep = "";
-                foreach (var parameterName in filter.Parameters.Select(f => f.Name))
-                {
-                    var columnName = ParserName.Parse(parameterName).Unquoted().Normalized().ToString();
-                    name += $"{columnName}{sep}";
-                    sep = "_";
-                }
+                commandName = string.Format(commandName, filter.GetFilterName());
 
-                commandName = String.Format(commandName, name);
-            }
             return (commandName, isStoredProc);
         }
 
@@ -116,7 +107,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             this.AddName(DbCommandType.BulkUpdateRows, string.Format(bulkUpdateProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
             this.AddName(DbCommandType.BulkDeleteRows, string.Format(bulkDeleteProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
 
-            this.AddName(DbCommandType.DisableConstraints, string.Format(disableConstraintsText, ParserName.Parse(TableDescription).Schema().Quoted().ToString()) , true);
+            this.AddName(DbCommandType.DisableConstraints, string.Format(disableConstraintsText, ParserName.Parse(TableDescription).Schema().Quoted().ToString()), true);
             this.AddName(DbCommandType.EnableConstraints, string.Format(enableConstraintsText, ParserName.Parse(TableDescription).Schema().Quoted().ToString()), true);
         }
 

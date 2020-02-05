@@ -12,13 +12,11 @@ namespace Dotmim.Sync.Builders
     /// </summary>
     public interface IDbBuilderProcedureHelper
     {
-        SyncFilter Filter { get; set; }
-
         bool NeedToCreateProcedure(DbCommandType commandName);
         bool NeedToCreateType(DbCommandType typeName);
         void CreateSelectRow();
-        void CreateSelectIncrementalChanges();
-        void CreateSelectInitializedChanges();
+        void CreateSelectIncrementalChanges(SyncFilter filter);
+        void CreateSelectInitializedChanges(SyncFilter filter);
         void CreateUpdate(bool hasMutableColumns);
         void CreateDelete();
         void CreateDeleteMetadata();
@@ -27,8 +25,8 @@ namespace Dotmim.Sync.Builders
         void CreateBulkDelete();
         void CreateReset();
         void DropSelectRow();
-        void DropSelectIncrementalChanges();
-        void DropSelectInitializedChanges();
+        void DropSelectIncrementalChanges(SyncFilter filter);
+        void DropSelectInitializedChanges(SyncFilter filter);
         void DropUpdate();
         void DropDelete();
         void DropDeleteMetadata();

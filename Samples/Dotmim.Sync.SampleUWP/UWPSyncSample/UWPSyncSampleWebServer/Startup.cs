@@ -1,14 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Dotmim.Sync;
 using Dotmim.Sync.SqlServer;
+using Dotmim.Sync.Web.Server;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using UWPSyncSampleWebServer.Context;
 
 namespace UWPSyncSampleWebServer
 {
@@ -26,26 +30,26 @@ namespace UWPSyncSampleWebServer
         {
             services.AddMvc();
 
-            // For UWP Sample
-            // Make Sure this database is created on you sqlexpress instance
-            var connectionString = @"Data Source=localhost\sqlexpress; Initial Catalog=Contoso; Integrated Security=true;";
-            services.AddSyncServer<SqlSyncProvider>(connectionString, configuration =>
+            // Mandatory to be able to handle multiple sessions
+            services.AddMemoryCache();
+
+            // Get a connection string for your server data source
+            var connectionString = Configuration.GetSection("ConnectionStrings")["DefaultConnection"];
+
+            // Set the web server Options
+            var options = new WebServerOptions()
             {
-                var s = new string[] { "Employees" };
-                configuration.Add(s);
-                configuration.DownloadBatchSizeInKB = 1000;
-            });
+                BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "server"),
+            };
 
+            // Create the setup used for your sync process
+            var tables = new string[] {"Employee" };
 
-            // For console sample app
-            // make sure the Northwind database is up and running on your sqlexpress instance
-            //var connectionString = @"Data Source=localhost\sqlexpress; Initial Catalog=Northwind; Integrated Security=true;";
-            //services.AddSyncServer<SqlSyncProvider>(connectionString, configuration =>
-            //{
-            //    var s = new string[] { "Customers", "Region" };
-            //    configuration.Add(s);
-            //    configuration.DownloadBatchSizeInKB = 1000;
-            //});
+            var setup = new SyncSetup(tables);
+
+            // add a SqlSyncProvider acting as the server hub
+            services.AddSyncServer<SqlSyncProvider>(connectionString, setup, options);
+
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

@@ -12,7 +12,6 @@ namespace Dotmim.Sync.Builders
     /// </summary>
     public interface IDbBuilderTrackingTableHelper
     {
-        SyncFilter Filter { get; set; }
         bool NeedToCreateTrackingTable();
         void CreateTable();
         void DropTable();

@@ -18,7 +18,7 @@ namespace Dotmim.Sync.Messages
         /// </summary>
         public MessageApplyChanges(Guid localScopeId, Guid senderScopeId,  bool isNew, long lastTimestamp, SyncSet schema, 
                                     ConflictResolutionPolicy policy, bool disableConstraintsOnApplyChanges, 
-                                    bool useBulkOperations, bool cleanMetadatas, BatchInfo changes)
+                                    bool useBulkOperations, bool cleanMetadatas, bool cleanFolder, BatchInfo changes)
         {
             this.LocalScopeId = localScopeId;
             this.SenderScopeId = senderScopeId;
@@ -29,6 +29,7 @@ namespace Dotmim.Sync.Messages
             this.DisableConstraintsOnApplyChanges = disableConstraintsOnApplyChanges;
             this.UseBulkOperations = useBulkOperations;
             this.CleanMetadatas = cleanMetadatas;
+            this.CleanFolder = cleanFolder;
             this.Changes = changes ?? throw new ArgumentNullException(nameof(changes));
         }
 
@@ -75,9 +76,14 @@ namespace Dotmim.Sync.Messages
         public bool UseBulkOperations { get; set; }
 
         /// <summary>
-        /// Gets or Sets if we should cleaning tmp dir files after sync.
+        /// Gets or Sets if we should cleaning tracking table metadatas
         /// </summary>
         public bool CleanMetadatas { get; set; }
+
+        /// <summary>
+        /// Gets or Sets if we should cleaning tmp dir files after sync.
+        /// </summary>
+        public bool CleanFolder { get; set; }
 
         /// <summary>
         /// Gets or Sets the Batch Info used for this sync session

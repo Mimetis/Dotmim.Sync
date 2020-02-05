@@ -27,5 +27,9 @@
     <Capability Name="internetClientServer" />
     <Capability Name="privateNetworkClientServer" />
     <uap:Capability Name="enterpriseAuthentication" />
+    <uap:Capability Name="videosLibrary"/>
+    <uap:Capability Name="picturesLibrary"/>
+    <uap:Capability Name="musicLibrary"/>
+    <DeviceCapability Name="webcam"/>
   </Capabilities>
 </Package>
