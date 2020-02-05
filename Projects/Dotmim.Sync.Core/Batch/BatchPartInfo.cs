@@ -15,6 +15,7 @@ namespace Dotmim.Sync.Batch
     /// Info about a BatchPart
     /// Will be serialized in the BatchInfo file
     /// </summary>
+    [DataContract(Name = "batchpartinfo"), Serializable]
     public class BatchPartInfo
     {
         // TODO : Set the serializer to the one choosed by user
@@ -22,8 +23,9 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Loads the batch file and import the rows in a SyncSet instance
         /// </summary>
-        public void LoadBatch(SyncSet schema)
+        public void LoadBatch(SyncSet schema, string directoryFullPath)
         {
+
             if (string.IsNullOrEmpty(this.FileName))
                 return;
 
@@ -31,7 +33,7 @@ namespace Dotmim.Sync.Batch
             var set = schema.Clone();
 
             // Get a Batch part, and deserialise the file into a the BatchPartInfo Set property
-            var data = Deserialize(this.FileName);
+            var data = Deserialize(this.FileName, directoryFullPath);
 
             // Import data in a typed Set
             set.ImportContainerSet(data, true);
@@ -48,20 +50,25 @@ namespace Dotmim.Sync.Batch
                 this.Data.Dispose();
         }
 
+        [DataMember(Name = "file", IsRequired = true, Order = 1)]
         public string FileName { get; set; }
 
+        [DataMember(Name = "index", IsRequired = true, Order = 2)]
         public int Index { get; set; }
 
+        [DataMember(Name = "last", IsRequired = true, Order = 3)]
         public bool IsLastBatch { get; set; }
 
         /// <summary>
         /// Tables contained in the SyncSet (serialiazed or not)
         /// </summary>
-        public (string tableName, string schemaName)[] Tables { get; set; }
+        [DataMember(Name = "tables", IsRequired = true, Order = 4)]
+        public BatchPartTableInfo[] Tables { get; set; }
 
         /// <summary>
         /// Get a SyncSet corresponding to this batch part info
         /// </summary>
+        [IgnoreDataMember]
         public SyncSet Data { get; set; }
 
 
@@ -70,16 +77,20 @@ namespace Dotmim.Sync.Batch
         }
 
 
-        private static ContainerSet Deserialize(string fileName)
+        private static ContainerSet Deserialize(string fileName, string directoryFullPath)
         {
             if (string.IsNullOrEmpty(fileName))
                 throw new ArgumentNullException(fileName);
+            if (string.IsNullOrEmpty(directoryFullPath))
+                throw new ArgumentNullException(directoryFullPath);
 
-            if (!File.Exists(fileName))
-                throw new MissingFileException(fileName);
+            var fullPath = Path.Combine(directoryFullPath, fileName);
+
+            if (!File.Exists(fullPath))
+                throw new MissingFileException(fullPath);
 
             var jsonConverter = new JsonConverter<ContainerSet>();
-            using (var fs = new FileStream(fileName, FileMode.Open, FileAccess.Read))
+            using (var fs = new FileStream(fullPath, FileMode.Open, FileAccess.Read))
             {
                 return jsonConverter.Deserialize(fs);
             }
@@ -88,12 +99,14 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Serialize a container set instance
         /// </summary>
-        private static void Serialize(ContainerSet set, string fileName)
+        private static void Serialize(ContainerSet set, string fileName, string directoryFullPath)
         {
             if (set == null)
                 return;
 
-            var fi = new FileInfo(fileName);
+            var fullPath = Path.Combine(directoryFullPath, fileName);
+
+            var fi = new FileInfo(fullPath);
 
             if (!Directory.Exists(fi.Directory.FullName))
                 Directory.CreateDirectory(fi.Directory.FullName);
@@ -101,7 +114,7 @@ namespace Dotmim.Sync.Batch
             // Serialize on disk.
             var jsonConverter = new JsonConverter<ContainerSet>();
 
-            using (var f = new FileStream(fileName, FileMode.CreateNew, FileAccess.ReadWrite))
+            using (var f = new FileStream(fullPath, FileMode.CreateNew, FileAccess.ReadWrite))
             {
                 var bytes = jsonConverter.Serialize(set);
                 f.Write(bytes, 0, bytes.Length);
@@ -111,7 +124,7 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Create a new BPI, and serialize the changeset if not in memory
         /// </summary>
-        internal static BatchPartInfo CreateBatchPartInfo(int batchIndex, SyncSet set, string fileName, bool isLastBatch)
+        internal static BatchPartInfo CreateBatchPartInfo(int batchIndex, SyncSet set, string fileName, string directoryFullPath, bool isLastBatch)
         {
             BatchPartInfo bpi = null;
 
@@ -119,7 +132,7 @@ namespace Dotmim.Sync.Batch
             // The batch part creation process will serialize the changesSet to the disk
 
             // Serialize the file !
-            Serialize(set.GetContainerSet(), fileName);
+            Serialize(set.GetContainerSet(), fileName, directoryFullPath);
 
             bpi = new BatchPartInfo { FileName = fileName };
 
@@ -128,7 +141,7 @@ namespace Dotmim.Sync.Batch
 
             // Even if the set is empty (serialized on disk), we should retain the tables names
             if (set != null)
-                bpi.Tables = set.Tables.Select(t => (t.TableName, t.SchemaName)).ToArray();
+                bpi.Tables = set.Tables.Select(t => new BatchPartTableInfo(t.TableName, t.SchemaName)).ToArray();
 
             return bpi;
         }

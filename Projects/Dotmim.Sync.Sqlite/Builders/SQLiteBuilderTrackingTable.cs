@@ -22,9 +22,6 @@ namespace Dotmim.Sync.Sqlite
         private SqliteTransaction transaction;
         private SqliteDbMetadata sqliteDbMetadata;
 
-        public SyncFilter Filter { get; set; }
-
-
         public SqliteBuilderTrackingTable(SyncTable tableDescription, DbConnection connection, DbTransaction transaction = null)
         {
             this.connection = connection as SqliteConnection;

@@ -48,7 +48,7 @@ namespace Dotmim.Sync
         /// </summary>
         /// <returns>current context, the local scope info created or get from the database and the configuration from the client if changed </returns>
         public async Task<(SyncContext, ScopeInfo)>
-            EnsureScopeAsync(SyncContext context, string scopeName, SyncOptions options,
+            EnsureScopeAsync(SyncContext context, string scopeName, string scopeInfoTableName,
                                   CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
             // Lock sync to prevent multi call to sync at the same time
@@ -89,7 +89,7 @@ namespace Dotmim.Sync
                         // get the scope from local provider 
                         ScopeInfo localScope;
                         (context, localScope) = await this.Provider.EnsureScopesAsync(
-                                            context, options.ScopeInfoTableName, scopeName,
+                                            context, scopeInfoTableName, scopeName,
                                             connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                         await this.Provider.InterceptAsync(new TransactionCommitArgs(context, connection, transaction)).ConfigureAwait(false);
@@ -159,7 +159,7 @@ namespace Dotmim.Sync
         /// Input : localScopeInfo
         /// </summary>
         /// <returns></returns>
-        public async Task<(SyncContext, long, BatchInfo, DatabaseChangesSelected)>
+        public async Task<(SyncContext context, long clientTimestamp, BatchInfo clientBatchInfo, DatabaseChangesSelected clientChangesSelected)>
             GetChangesAsync(SyncContext context, SyncSet schema, ScopeInfo scope, int batchSize, string batchDirectory,
                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
@@ -199,7 +199,7 @@ namespace Dotmim.Sync
                                 cancellationToken.ThrowIfCancellationRequested();
                         }
 
-                        
+
                         // On local, we don't want to chase rows from "others" 
                         // We just want our local rows, so we dont exclude any remote scope id, by setting scope id to NULL
                         Guid? remoteScopeId = null;
@@ -270,10 +270,10 @@ namespace Dotmim.Sync
         }
 
 
-        public async Task<(SyncContext, DatabaseChangesApplied)>
+        public async Task<(SyncContext context, DatabaseChangesApplied clientChangesApplied)>
             ApplyChangesAsync(SyncContext context, ScopeInfo scope, SyncSet schema, BatchInfo serverBatchInfo,
                               ConflictResolutionPolicy clientPolicy, long clientTimestamp, long remoteClientTimestamp,
-                              bool disableConstraintsOnApplyChanges, bool useBulkOperations, bool cleanMetadatas, string scopeInfoTableName,
+                              bool disableConstraintsOnApplyChanges, bool useBulkOperations, bool cleanMetadatas, string scopeInfoTableName, bool cleanFolder,
                               CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
 
@@ -304,8 +304,8 @@ namespace Dotmim.Sync
 
                         (context, clientChangesApplied) =
                             await this.Provider.ApplyChangesAsync(context,
-                                new MessageApplyChanges(scope.Id, Guid.Empty,  isNew, lastSyncTS, schema, clientPolicy, disableConstraintsOnApplyChanges,
-                                        useBulkOperations, cleanMetadatas, serverBatchInfo),
+                                new MessageApplyChanges(scope.Id, Guid.Empty, isNew, lastSyncTS, schema, clientPolicy, disableConstraintsOnApplyChanges,
+                                        useBulkOperations, cleanMetadatas, cleanFolder, serverBatchInfo),
                                     connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                         // check if we need to delete metadatas
@@ -423,6 +423,55 @@ namespace Dotmim.Sync
         }
 
 
+
+        public async Task<SyncContext> ApplySnapshotAndGetChangesAsync(SyncContext context, ScopeInfo scope, SyncSet schema, BatchInfo serverBatchInfo,
+                                                          long clientTimestamp, long remoteClientTimestamp, bool disableConstraintsOnApplyChanges,
+                                                          int batchSize, string batchDirectory,
+                                                          bool useBulkOperations, bool cleanMetadatas, string scopeInfoTableName, 
+                                                          CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+        {
+
+            if (serverBatchInfo == null)
+                return context;
+
+            context.SyncStage = SyncStage.SnapshotApplying;
+            await this.Provider.InterceptAsync(new SnapshotApplyingArgs(context)).ConfigureAwait(false);
+
+            var localSnapshotChanges = await this.ApplyChangesAsync(
+                    context, scope, schema, serverBatchInfo,
+                    ConflictResolutionPolicy.ServerWins, clientTimestamp, remoteClientTimestamp,
+                    disableConstraintsOnApplyChanges, useBulkOperations,
+                    cleanMetadatas, scopeInfoTableName, false,
+                    cancellationToken, progress);
+
+            context.TotalChangesDownloaded += localSnapshotChanges.clientChangesApplied.TotalAppliedChanges;
+            context.TotalSyncErrors += localSnapshotChanges.clientChangesApplied.TotalAppliedChangesFailed;
+
+            // Get scope again to ensure we have correct timestamp
+            (context, scope) = await this.EnsureScopeAsync(context, schema.ScopeName, scopeInfoTableName, cancellationToken, progress);
+
+            if (cancellationToken.IsCancellationRequested)
+                cancellationToken.ThrowIfCancellationRequested();
+
+            // on local orchestrator, get local changes again just in case we have insert, and get correct timestamp
+            var clientChanges = await this.GetChangesAsync(
+                context, schema, scope, batchSize, batchDirectory, cancellationToken, progress);
+
+            if (cancellationToken.IsCancellationRequested)
+                cancellationToken.ThrowIfCancellationRequested();
+
+            // set context
+            context = clientChanges.context;
+
+            // Progress & Interceptor
+            context.SyncStage = SyncStage.SnapshotApplied;
+            var snapshotAppliedArgs = new SnapshotAppliedArgs(context);
+            this.Provider.ReportProgress(context, progress, snapshotAppliedArgs);
+            await this.Provider.InterceptAsync(snapshotAppliedArgs).ConfigureAwait(false);
+
+            return context;
+
+        }
 
     }
 }

@@ -40,7 +40,7 @@ namespace UWPSyncSample.Services
         {
             using (var dbContext = new ContosoContext(this.contosoType))
             {
-                var empQuery = from emp in dbContext.Employees
+                var empQuery = from emp in dbContext.Employee
                                where emp.EmployeeId == employeeId
                                select emp;
 
@@ -49,7 +49,7 @@ namespace UWPSyncSample.Services
                 if (employee == null)
                     return;
 
-                dbContext.Employees.Remove(employee);
+                dbContext.Employee.Remove(employee);
 
                 dbContext.SaveChanges();
             }
@@ -60,7 +60,7 @@ namespace UWPSyncSample.Services
 
             using (var dbContext = new ContosoContext(this.contosoType))
             {
-                var empQuery = from emp in dbContext.Employees
+                var empQuery = from emp in dbContext.Employee
                                where emp.EmployeeId == employeeId
                                select emp;
 
@@ -72,7 +72,7 @@ namespace UWPSyncSample.Services
         {
             using (var dbContext = new ContosoContext(this.contosoType))
             {
-                return dbContext.Employees.OrderBy(e => e.FirstName).ToList();
+                return dbContext.Employee.OrderBy(e => e.FirstName).ToList();
             }
         }
 
@@ -80,7 +80,7 @@ namespace UWPSyncSample.Services
         {
             using (var dbContext = new ContosoContext(this.contosoType))
             {
-                var empQuery = from emp in dbContext.Employees
+                var empQuery = from emp in dbContext.Employee
                                where emp.EmployeeId == employee.EmployeeId
                                select emp;
 
@@ -88,12 +88,12 @@ namespace UWPSyncSample.Services
 
                 if (!exist)
                 {
-                    dbContext.Employees.Add(employee);
+                    dbContext.Employee.Add(employee);
                 }
                 else
                 {
 
-                    dbContext.Employees.Attach(employee);
+                    dbContext.Employee.Attach(employee);
                     dbContext.Entry(employee).State = EntityState.Modified;
                 }
 

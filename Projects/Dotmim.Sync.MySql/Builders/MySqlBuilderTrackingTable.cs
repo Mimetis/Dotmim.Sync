@@ -20,7 +20,6 @@ namespace Dotmim.Sync.MySql
         private SyncTable tableDescription;
         private MySqlConnection connection;
         private MySqlTransaction transaction;
-        public SyncFilter Filter { get; set; }
         private MySqlDbMetadata mySqlDbMetadata;
 
 

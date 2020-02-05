@@ -38,59 +38,6 @@ namespace Dotmim.Sync.Web.Server
 
 
 
-        ///// <summary>
-        ///// Create a new WebProxyServerProvider with a first instance of an in memory CoreProvider
-        ///// Use this method to create your WebProxyServerProvider if you don't use the DI stuff from ASP.NET
-        ///// </summary>
-        //public static WebProxyServerOrchestrator Create(HttpContext context, CoreProvider provider, SyncSetup setup, WebServerOptions options = null)
-        //{
-        //    if (!TryGetHeaderValue(context.Request.Headers, "dotmim-sync-session-id", out var sessionId))
-        //        throw new HttpHeaderMissingExceptiopn("dotmim-sync-session-id");
-
-        //    // Check if we have already a cached Sync Memory provider
-        //    var syncMemoryOrchestrator = GetCachedOrchestrator(context, sessionId);
-
-        //    // we don't have any provider for this session id, so create it
-        //    if (syncMemoryOrchestrator == null)
-        //        AddNewOrchestratorToCache(context, provider, setup, sessionId, options);
-
-        //    return defaultInstance;
-        //}
-
-
-        //public static WebProxyServerOrchestrator Create(HttpContext context, WebServerOrchestrator provider)
-        //{
-        //    if (!TryGetHeaderValue(context.Request.Headers, "dotmim-sync-session-id", out var sessionId))
-        //        throw new HttpHeaderMissingExceptiopn("dotmim-sync-session-id");
-
-        //    // Check if we have already a cached Sync Memory provider
-        //    var syncMemoryOrchestrator = GetCachedOrchestrator(context, sessionId);
-
-        //    // we don't have any provider for this session id, so create it
-        //    if (syncMemoryOrchestrator == null)
-        //        AddNewWebServerOrchestratorToCache(context, provider, sessionId);
-
-        //    return defaultInstance;
-        //}
-
-
-        /// <summary>
-        /// Retrieve from cache the selected provider depending on the session id
-        /// </summary>
-        //public WebServerOrchestrator GetLocalOrchestrator(HttpContext context)
-        //{
-        //    if (!TryGetHeaderValue(context.Request.Headers, "dotmim-sync-session-id", out var sessionId))
-        //        return null;
-
-        //    var webServerOrchestrator = GetCachedOrchestrator(context, sessionId);
-
-        //    if (webServerOrchestrator != null)
-        //        return webServerOrchestrator;
-
-        //    return null;
-        //}
-
-
 
         /// <summary>
         /// Call this method to handle requests on the server, sent by the client
@@ -176,13 +123,22 @@ namespace Dotmim.Sync.Web.Server
                         var m2 = clientSerializerFactory.GetSerializer<HttpMessageSendChangesRequest>().Deserialize(streamArray);
                         var s2 = await this.WebServerOrchestrator.ApplyThenGetChangesAsync(m2, sessionCache, clientBatchSize, cancellationToken).ConfigureAwait(false);
                         binaryData = clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().Serialize(s2);
-                        await this.WebServerOrchestrator.Provider.InterceptAsync(new HttpMessageSendChangesResponseArgs(binaryData)).ConfigureAwait(false);
+                        if (s2.Changes != null && s2.Changes.HasRows)
+                            await this.WebServerOrchestrator.Provider.InterceptAsync(new HttpMessageSendChangesResponseArgs(binaryData)).ConfigureAwait(false);
                         break;
                     case HttpStep.GetChanges:
                         var m3 = clientSerializerFactory.GetSerializer<HttpMessageGetMoreChangesRequest>().Deserialize(streamArray);
                         var s3 = this.WebServerOrchestrator.GetMoreChanges(m3, sessionCache, cancellationToken);
                         binaryData = clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().Serialize(s3);
-                        await this.WebServerOrchestrator.Provider.InterceptAsync(new HttpMessageSendChangesResponseArgs(binaryData)).ConfigureAwait(false);
+                        if (s3.Changes != null && s3.Changes.HasRows)
+                            await this.WebServerOrchestrator.Provider.InterceptAsync(new HttpMessageSendChangesResponseArgs(binaryData)).ConfigureAwait(false);
+                        break;
+                    case HttpStep.GetSnapshot:
+                        var m4 = clientSerializerFactory.GetSerializer<HttpMessageSendChangesRequest>().Deserialize(streamArray);
+                        var s4 = await this.WebServerOrchestrator.GetSnapshotAsync(m4, sessionCache, cancellationToken);
+                        binaryData = clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().Serialize(s4);
+                        if (s4.Changes != null && s4.Changes.HasRows)
+                            await this.WebServerOrchestrator.Provider.InterceptAsync(new HttpMessageSendChangesResponseArgs(binaryData)).ConfigureAwait(false);
                         break;
                 }
 

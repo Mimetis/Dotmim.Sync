@@ -130,7 +130,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Try to report progress
         /// </summary>
-        private void ReportProgress(SyncContext context, IProgress<ProgressArgs> progress, ProgressArgs args, DbConnection connection = null, DbTransaction transaction = null)
+        internal void ReportProgress(SyncContext context, IProgress<ProgressArgs> progress, ProgressArgs args, DbConnection connection = null, DbTransaction transaction = null)
         {
             if (connection == null && args.Connection != null)
                 connection = args.Connection;

@@ -21,11 +21,6 @@ namespace Dotmim.Sync.Sqlite
         private SqliteConnection connection;
         private SqliteTransaction transaction;
         private SqliteObjectNames sqliteObjectNames;
-
-        public SyncFilter Filter { get; set; }
-
-
-
         public SqliteBuilderTrigger(SyncTable tableDescription, DbConnection connection, DbTransaction transaction = null)
         {
             this.connection = connection as SqliteConnection;
