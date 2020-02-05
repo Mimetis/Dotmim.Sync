@@ -130,8 +130,8 @@ namespace Dotmim.Sync
         /// <param name="remoteOrchestrator">remote orchestrator : RemoteOrchestrator or WebClientOrchestrator) </param>
         /// <param name="setup">Contains list of your tables. Not used if remote orchestrator is WebClientOrchestrator</param>
         /// <param name="options">Options. Only used on locally if remote orchestrator is WebClientOrchestrator</param>
-        public SyncAgent(CoreProvider clientProvider, IRemoteOrchestrator remoteOrchestrator, 
-                         SyncSetup setup = null, SyncOptions options = null) 
+        public SyncAgent(CoreProvider clientProvider, IRemoteOrchestrator remoteOrchestrator,
+                         SyncSetup setup = null, SyncOptions options = null)
             : this(new LocalOrchestrator(clientProvider), remoteOrchestrator, setup, options)
         {
         }
@@ -144,7 +144,7 @@ namespace Dotmim.Sync
         /// <param name="remoteOrchestrator">remote orchestrator : RemoteOrchestrator or WebClientOrchestrator) </param>
         /// <param name="setup">Contains list of your tables. Not used if remote orchestrator is WebClientOrchestrator</param>
         /// <param name="options">Options. Only used on locally if remote orchestrator is WebClientOrchestrator</param>
-        public SyncAgent(LocalOrchestrator localOrchestrator, IRemoteOrchestrator remoteOrchestrator, 
+        public SyncAgent(LocalOrchestrator localOrchestrator, IRemoteOrchestrator remoteOrchestrator,
                          SyncSetup setup = null, SyncOptions options = null)
         {
             if (remoteOrchestrator.Provider != null && !remoteOrchestrator.Provider.CanBeServerProvider)
@@ -184,11 +184,10 @@ namespace Dotmim.Sync
         /// </summary>
         public async Task<SyncContext> SynchronizeAsync(SyncType syncType, CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
-
-
             // for view purpose, if needed
             if (this.LocalOrchestrator?.Provider != null)
                 this.LocalOrchestrator.Provider.Options = this.Options;
+
             if (this.RemoteOrchestrator?.Provider != null)
                 this.RemoteOrchestrator.Provider.Options = this.Options;
 
@@ -217,7 +216,7 @@ namespace Dotmim.Sync
                 // - Getting local config we have set by code
                 // - Ensure local scope is created (table and values)
                 (context, scope) = await this.LocalOrchestrator.EnsureScopeAsync
-                        (context, this.Setup.ScopeName, this.Options, cancellationToken, progress);
+                        (context, this.Setup.ScopeName, this.Options.ScopeInfoTableName, cancellationToken, progress);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -235,7 +234,7 @@ namespace Dotmim.Sync
                     // Then the configuration with full schema
                     var serverSchema = await this.RemoteOrchestrator.EnsureSchemaAsync(
                             context, this.Setup, cancellationToken, remoteProgress);
-                    
+
                     context = serverSchema.context;
                     this.Schema = serverSchema.schema;
                 }
@@ -256,10 +255,26 @@ namespace Dotmim.Sync
                 // set context
                 context = clientChanges.context;
 
-                // SECOND call to server
+                // Get if we need to get all rows from the datasource
+                var fromScratch = scope.IsNewScope || context.SyncType == SyncType.Reinitialize || context.SyncType == SyncType.ReinitializeWithUpload;
+
+                // IF is new and we have a snapshot directory, try to apply a snapshot
+                if (fromScratch)
+                {
+                    // Get snapshot files
+                    var serverSnapshotChanges = await this.RemoteOrchestrator.GetSnapshotAsync(
+                        context, scope, this.Schema, this.Options.SnapshotsDirectory, this.Options.BatchDirectory, cancellationToken, remoteProgress);
+
+                    if (serverSnapshotChanges.serverBatchInfo != null && serverSnapshotChanges.serverBatchInfo.HasData())
+                        context = await this.LocalOrchestrator.ApplySnapshotAndGetChangesAsync(context, scope, this.Schema, serverSnapshotChanges.serverBatchInfo,
+                            clientChanges.clientTimestamp, serverSnapshotChanges.remoteClientTimestamp, this.Options.DisableConstraintsOnApplyChanges,
+                            this.Options.BatchSize, this.Options.BatchDirectory, this.Options.UseBulkOperations, this.Options.CleanMetadatas, this.Options.ScopeInfoTableName,
+                            cancellationToken, progress);
+                }
+
                 var serverChanges = await this.RemoteOrchestrator.ApplyThenGetChangesAsync(
                     context, scope, this.Schema, clientChanges.clientBatchInfo, this.Options.DisableConstraintsOnApplyChanges, this.Options.UseBulkOperations,
-                    this.Options.CleanMetadatas, this.Options.BatchSize, this.Options.BatchDirectory,
+                    this.Options.CleanMetadatas, this.Options.CleanFolder, this.Options.BatchSize, this.Options.BatchDirectory,
                     this.Options.ConflictResolutionPolicy, cancellationToken, remoteProgress);
 
                 if (cancellationToken.IsCancellationRequested)
@@ -281,12 +296,12 @@ namespace Dotmim.Sync
                     context, scope, this.Schema, serverChanges.serverBatchInfo,
                     clientPolicy, clientChanges.clientTimestamp, serverChanges.remoteClientTimestamp,
                     this.Options.DisableConstraintsOnApplyChanges, this.Options.UseBulkOperations,
-                    this.Options.CleanMetadatas, this.Options.ScopeInfoTableName,
+                    this.Options.CleanMetadatas, this.Options.ScopeInfoTableName, true,
                     cancellationToken, progress);
 
-                context.TotalChangesDownloaded = localChanges.clientChangesApplied.TotalAppliedChanges;
-                context.TotalChangesUploaded = clientChanges.clientChangesSelected.TotalChangesSelected;
-                context.TotalSyncErrors = localChanges.clientChangesApplied.TotalAppliedChangesFailed;
+                context.TotalChangesDownloaded += localChanges.clientChangesApplied.TotalAppliedChanges;
+                context.TotalChangesUploaded += clientChanges.clientChangesSelected.TotalChangesSelected;
+                context.TotalSyncErrors += localChanges.clientChangesApplied.TotalAppliedChangesFailed;
 
 
                 if (cancellationToken.IsCancellationRequested)
@@ -312,7 +327,6 @@ namespace Dotmim.Sync
 
             return context;
         }
-
 
         // --------------------------------------------------------------------
         // Dispose

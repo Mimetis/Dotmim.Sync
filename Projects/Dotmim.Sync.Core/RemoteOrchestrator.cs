@@ -118,7 +118,7 @@ namespace Dotmim.Sync
 
         public async Task<(SyncContext, long, BatchInfo, ConflictResolutionPolicy, DatabaseChangesSelected)>
             ApplyThenGetChangesAsync(SyncContext context, ScopeInfo scope, SyncSet schema, BatchInfo clientBatchInfo,
-                                     bool disableConstraintsOnApplyChanges, bool useBulkOperations, bool cleanMetadatas,
+                                     bool disableConstraintsOnApplyChanges, bool useBulkOperations, bool cleanMetadatas, bool cleanFolder,
                                      int clientBatchSize, string batchDirectory, ConflictResolutionPolicy policy,
                                      CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
@@ -151,7 +151,7 @@ namespace Dotmim.Sync
                         (context, changesApplied) =
                             await this.Provider.ApplyChangesAsync(context,
                              new MessageApplyChanges(Guid.Empty, scope.Id, false, scope.LastServerSyncTimestamp, schema, policy,
-                                        disableConstraintsOnApplyChanges, useBulkOperations, cleanMetadatas, clientBatchInfo),
+                                        disableConstraintsOnApplyChanges, useBulkOperations, cleanMetadatas, cleanFolder, clientBatchInfo),
                              connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                         if (cancellationToken.IsCancellationRequested)
@@ -277,6 +277,105 @@ namespace Dotmim.Sync
             }
 
         }
-    }
 
+
+        public async Task CreateSnapshotAsync(SyncContext context, SyncSetup setup, string batchDirectory, int batchSize, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            DbTransaction transaction = null;
+            long remoteClientTimestamp;
+
+            SyncSet schema;
+            // Get Schema from remote provider
+            (context, schema) = await this.EnsureSchemaAsync(context, setup, cancellationToken, progress).ConfigureAwait(false);
+
+
+            using (var connection = this.Provider.CreateConnection())
+            {
+                try
+                {
+                    await connection.OpenAsync().ConfigureAwait(false);
+
+                    // Let provider knows a connection is opened
+                    this.Provider.OnConnectionOpened(connection);
+
+                    await this.Provider.InterceptAsync(new ConnectionOpenArgs(context, connection)).ConfigureAwait(false);
+
+                    // Create a transaction
+                    using (transaction = connection.BeginTransaction())
+                    {
+                        await this.Provider.InterceptAsync(new TransactionOpenArgs(context, connection, transaction)).ConfigureAwait(false);
+
+                        // JUST Before get changes, get the timestamp, to be sure to 
+                        // get rows inserted / updated elsewhere since the sync is not over
+                        (context, remoteClientTimestamp) = this.Provider.GetLocalTimestampAsync(context, connection, transaction, cancellationToken, progress);
+
+                        // Create snapshot
+                        await this.Provider.CreateSnapshotAsync(context, schema, connection, transaction, batchDirectory, batchSize, remoteClientTimestamp, cancellationToken, progress).ConfigureAwait(false);
+
+                        await this.Provider.InterceptAsync(new TransactionCommitArgs(context, connection, transaction)).ConfigureAwait(false);
+                        transaction.Commit();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    var syncException = new SyncException(ex, context.SyncStage);
+                    // try to let the provider enrich the exception
+                    this.Provider.EnsureSyncException(syncException);
+                    syncException.Side = SyncExceptionSide.ServerSide;
+                    throw syncException;
+                }
+                finally
+                {
+                    if (transaction != null)
+                        transaction.Dispose();
+
+                    if (connection != null && connection.State != ConnectionState.Closed)
+                        connection.Close();
+
+                    await this.Provider.InterceptAsync(new ConnectionCloseArgs(context, connection, transaction)).ConfigureAwait(false);
+
+                    // Let provider knows a connection is closed
+                    this.Provider.OnConnectionClosed(connection);
+                }
+            }
+        }
+
+
+        public async Task<(SyncContext context, long remoteClientTimestamp, BatchInfo serverBatchInfo)>
+                GetSnapshotAsync(SyncContext context, ScopeInfo scope, SyncSet schema, string snapshotDirectory, 
+                                 string batchDirectory, CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+        {
+            BatchInfo serverBatchInfo;
+            try
+            {
+                if (string.IsNullOrEmpty(snapshotDirectory))
+                    return (context, 0, null);
+
+                //Direction set to Download
+                context.SyncWay = SyncWay.Download;
+
+                if (cancellationToken.IsCancellationRequested)
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                // When we get the chnages from server, we create the batches if it's requested by the client
+                // the batch decision comes from batchsize from client
+                (context, serverBatchInfo) =
+                    this.Provider.GetSnapshot(context, schema, snapshotDirectory, cancellationToken, progress);
+
+            }
+            catch (Exception ex)
+            {
+                var syncException = new SyncException(ex, context.SyncStage);
+                // try to let the provider enrich the exception
+                this.Provider.EnsureSyncException(syncException);
+                syncException.Side = SyncExceptionSide.ServerSide;
+                throw syncException;
+            }
+
+            if (serverBatchInfo == null)
+                return (context, 0, null);
+
+            return (context, serverBatchInfo.Timestamp, serverBatchInfo);
+        }
+    }
 }

@@ -2,10 +2,13 @@
 
 If you're not working on **TCP** but more likely on **HTTP**, using a web api to expose your sync process, you will probably have to face some issues with timeout.  
 
+> Before increasing timeout, be sure you have already setup a [snapshot](./Snapshot) for all your new clients.
+
 By default, `Timeout` is fixed to 2 minutes.
+
 To increase the overall timeout, you will have to work on both side: 
-- Your web server api project 
-- Your client application
+- Your web server api project.
+- Your client application.
 
 ## Server side
 There is no way to increase the `Timeout` period on your web api, with **.Net Core**   

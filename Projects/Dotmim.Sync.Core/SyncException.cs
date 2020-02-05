@@ -375,4 +375,16 @@ namespace Dotmim.Sync
 
         public SyncParameterAlreadyExistsException(string parameterName) : base(string.Format(message, parameterName)) { }
     }
+
+
+    /// <summary>
+    /// Occurs when trying to apply a snapshot that does not exists
+    /// </summary>
+    public class SnapshotNotExistsException : Exception
+    {
+        const string message = "The snapshot {0} does not exists.";
+
+        public SnapshotNotExistsException(string directoryName) : base(string.Format(message, directoryName)) { }
+    }
+
 }

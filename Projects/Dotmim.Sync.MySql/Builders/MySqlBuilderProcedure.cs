@@ -18,11 +18,9 @@ namespace Dotmim.Sync.MySql
         private MySqlConnection connection;
         private MySqlTransaction transaction;
         private SyncTable tableDescription;
-        private MySqlObjectNames sqlObjectNames;
+        private MySqlObjectNames mySqlObjectNames;
         private MySqlDbMetadata mySqlDbMetadata;
         internal const string MYSQL_PREFIX_PARAMETER = "in_";
-
-        public SyncFilter Filter { get; set; }
 
         public MySqlBuilderProcedure(SyncTable tableDescription, DbConnection connection, DbTransaction transaction = null)
         {
@@ -31,7 +29,7 @@ namespace Dotmim.Sync.MySql
 
             this.tableDescription = tableDescription;
             (this.tableName, this.trackingName) = MyTableSqlBuilder.GetParsers(tableDescription);
-            this.sqlObjectNames = new MySqlObjectNames(this.tableDescription);
+            this.mySqlObjectNames = new MySqlObjectNames(this.tableDescription);
             this.mySqlDbMetadata = new MySqlDbMetadata();
         }
 
@@ -273,7 +271,7 @@ namespace Dotmim.Sync.MySql
             if (connection.State != ConnectionState.Open)
                 throw new ArgumentException("Here, we need an opened connection please");
 
-            var commandName = this.sqlObjectNames.GetCommandName(commandType).name;
+            var commandName = this.mySqlObjectNames.GetCommandName(commandType).name;
 
             return !MySqlManagementUtils.ProcedureExists(connection, transaction, commandName);
         }
@@ -301,7 +299,7 @@ namespace Dotmim.Sync.MySql
         }
         public void CreateReset()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.Reset).name;
+            var commandName = this.mySqlObjectNames.GetCommandName(DbCommandType.Reset).name;
             CreateProcedureCommand(BuildResetCommand, commandName);
         }
 
@@ -367,7 +365,7 @@ namespace Dotmim.Sync.MySql
 
         public void CreateDelete()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteRow).name;
+            var commandName = this.mySqlObjectNames.GetCommandName(DbCommandType.DeleteRow).name;
             CreateProcedureCommand(BuildDeleteCommand, commandName);
         }
 
@@ -394,7 +392,7 @@ namespace Dotmim.Sync.MySql
 
         public void CreateDeleteMetadata()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata).name;
+            var commandName = this.mySqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata).name;
             CreateProcedureCommand(BuildDeleteMetadataCommand, commandName);
         }
 
@@ -454,7 +452,7 @@ namespace Dotmim.Sync.MySql
 
         public void CreateSelectRow()
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectRow).name;
+            var commandName = this.mySqlObjectNames.GetCommandName(DbCommandType.SelectRow).name;
             CreateProcedureCommand(BuildSelectRowCommand, commandName);
         }
 
@@ -584,7 +582,7 @@ namespace Dotmim.Sync.MySql
 
         public void CreateUpdate(bool hasMutableColumns)
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateRow).name;
+            var commandName = this.mySqlObjectNames.GetCommandName(DbCommandType.UpdateRow).name;
             this.CreateProcedureCommand(BuildUpdateCommand, commandName, hasMutableColumns);
         }
 
@@ -731,7 +729,7 @@ namespace Dotmim.Sync.MySql
                 var parameterName = ParserName.Parse(whereFilter.ParameterName, "`").Unquoted().Normalized().ToString();
                 var sqlDbType = (MySqlDbType)this.mySqlDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, tableFilter.OriginalProvider, MySqlSyncProvider.ProviderType);
 
-                var param = Filter.Parameters[parameterName];
+                var param = filter.Parameters[parameterName];
 
                 if (param == null)
                     throw new FilterParamColumnNotExistsException(columnName, whereFilter.TableName);
@@ -792,7 +790,7 @@ namespace Dotmim.Sync.MySql
         //------------------------------------------------------------------
         // Select changes command
         //------------------------------------------------------------------
-        private MySqlCommand BuildSelectIncrementalChangesCommand(bool withFilter = false)
+        private MySqlCommand BuildSelectIncrementalChangesCommand(SyncFilter filter = null)
         {
             var sqlCommand = new MySqlCommand();
             var sqlParameter1 = new MySqlParameter();
@@ -810,8 +808,8 @@ namespace Dotmim.Sync.MySql
             sqlCommand.Parameters.Add(sqlParameter3);
 
             // Add filter parameters
-            if (withFilter)
-                CreateFilterParameters(sqlCommand, this.Filter);
+            if (filter != null)
+                CreateFilterParameters(sqlCommand, filter);
 
 
             var stringBuilder = new StringBuilder("SELECT DISTINCT");
@@ -849,8 +847,8 @@ namespace Dotmim.Sync.MySql
             // ----------------------------------
             // Custom Joins
             // ----------------------------------
-            if (withFilter)
-                stringBuilder.Append(CreateFilterCustomJoins(this.Filter));
+            if (filter != null)
+                stringBuilder.Append(CreateFilterCustomJoins(filter));
 
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("WHERE (");
@@ -858,15 +856,15 @@ namespace Dotmim.Sync.MySql
             // ----------------------------------
             // Where filters and Custom Where string
             // ----------------------------------
-            if (withFilter)
+            if (filter != null)
             {
-                var createFilterWhereSide = CreateFilterWhereSide(this.Filter, true);
+                var createFilterWhereSide = CreateFilterWhereSide(filter, true);
                 stringBuilder.Append(createFilterWhereSide);
 
                 if (!string.IsNullOrEmpty(createFilterWhereSide))
                     stringBuilder.AppendLine($"AND ");
 
-                var createFilterCustomWheres = CreateFilterCustomWheres(this.Filter);
+                var createFilterCustomWheres = CreateFilterCustomWheres(filter);
                 stringBuilder.Append(createFilterCustomWheres);
 
                 if (!string.IsNullOrEmpty(createFilterCustomWheres))
@@ -884,17 +882,17 @@ namespace Dotmim.Sync.MySql
             return sqlCommand;
         }
 
-        public void CreateSelectIncrementalChanges()
+        public void CreateSelectIncrementalChanges(SyncFilter filter = null)
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChanges).name;
-            Func<MySqlCommand> cmdWithoutFilter = () => BuildSelectIncrementalChangesCommand(false);
+            var commandName = this.mySqlObjectNames.GetCommandName(DbCommandType.SelectChanges).name;
+            Func<MySqlCommand> cmdWithoutFilter = () => BuildSelectIncrementalChangesCommand(null);
             CreateProcedureCommand(cmdWithoutFilter, commandName);
 
-            if (this.Filter != null)
+            if (filter != null)
             {
-                this.Filter.ValidateColumnFilters(this.tableDescription);
-                commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWithFilters, this.Filter).name;
-                Func<MySqlCommand> cmdWithFilter = () => BuildSelectIncrementalChangesCommand(true);
+                filter.ValidateColumnFilters(this.tableDescription);
+                commandName = this.mySqlObjectNames.GetCommandName(DbCommandType.SelectChangesWithFilters, filter).name;
+                Func<MySqlCommand> cmdWithFilter = () => BuildSelectIncrementalChangesCommand(filter);
                 CreateProcedureCommand(cmdWithFilter, commandName);
 
             }
@@ -912,9 +910,9 @@ namespace Dotmim.Sync.MySql
         public void CreateBulkDelete() => throw new NotImplementedException();
 
 
-        private void DropProcedure(DbCommandType procType)
+        private void DropProcedure(DbCommandType procType, SyncFilter filter = null)
         {
-            var commandName = this.sqlObjectNames.GetCommandName(procType).name;
+            var commandName = this.mySqlObjectNames.GetCommandName(procType).name;
             var commandText = $"drop procedure if exists {commandName}";
 
             bool alreadyOpened = connection.State == ConnectionState.Open;
@@ -931,6 +929,27 @@ namespace Dotmim.Sync.MySql
 
                     command.ExecuteNonQuery();
                 }
+
+                if (filter != null)
+                {
+                    using (var command = new MySqlCommand())
+                    {
+                        if (!alreadyOpened)
+                            this.connection.Open();
+
+                        if (this.transaction != null)
+                            command.Transaction = this.transaction;
+
+                        filter.ValidateColumnFilters(this.tableDescription);
+
+                        var commandNameWithFilter = this.mySqlObjectNames.GetCommandName(DbCommandType.SelectChangesWithFilters, filter).name;
+
+                        command.CommandText = $"DROP PROCEDURE {commandNameWithFilter};";
+                        command.Connection = this.connection;
+                        command.ExecuteNonQuery();
+
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -946,12 +965,9 @@ namespace Dotmim.Sync.MySql
 
         }
 
-
-        public void DropSelectInitializedChanges()
-            => this.DropProcedure(DbCommandType.SelectInitializedChanges);
-
+        public void DropSelectInitializedChanges(SyncFilter filter) => this.DropProcedure(DbCommandType.SelectInitializedChanges, filter);
         public void DropSelectRow() => this.DropProcedure(DbCommandType.SelectRow);
-        public void DropSelectIncrementalChanges() => this.DropProcedure(DbCommandType.SelectChanges);
+        public void DropSelectIncrementalChanges(SyncFilter filter) => this.DropProcedure(DbCommandType.SelectChanges, filter);
         public void DropUpdate() => this.DropProcedure(DbCommandType.UpdateRow);
         public void DropDelete() => this.DropProcedure(DbCommandType.DeleteRow);
         public void DropDeleteMetadata() => this.DropProcedure(DbCommandType.DeleteMetadata);
@@ -963,13 +979,13 @@ namespace Dotmim.Sync.MySql
         //------------------------------------------------------------------
         // Select changes command
         //------------------------------------------------------------------
-        private MySqlCommand BuildSelectInitializedChangesCommand(bool withFilter = false)
+        private MySqlCommand BuildSelectInitializedChangesCommand(SyncFilter filter)
         {
             var sqlCommand = new MySqlCommand();
 
             // Add filter parameters
-            if (withFilter)
-                CreateFilterParameters(sqlCommand, this.Filter);
+            if (filter != null)
+                CreateFilterParameters(sqlCommand, filter);
 
             var stringBuilder = new StringBuilder("SELECT DISTINCT");
             var columns = this.tableDescription.GetMutableColumns(false, true).ToList();
@@ -985,19 +1001,19 @@ namespace Dotmim.Sync.MySql
             }
             stringBuilder.AppendLine($"FROM {tableName.Quoted().ToString()} `base`");
 
-            if (withFilter)
+            if (filter != null)
             {
                 // ----------------------------------
                 // Custom Joins
                 // ----------------------------------
-                stringBuilder.Append(CreateFilterCustomJoins(this.Filter));
+                stringBuilder.Append(CreateFilterCustomJoins(filter));
 
                 // ----------------------------------
                 // Where filters on [side]
                 // ----------------------------------
 
-                var whereString = CreateFilterWhereSide(this.Filter);
-                var customWhereString = CreateFilterCustomWheres(this.Filter);
+                var whereString = CreateFilterWhereSide(filter);
+                var customWhereString = CreateFilterCustomWheres(filter);
 
                 if (!string.IsNullOrEmpty(whereString) || !string.IsNullOrEmpty(customWhereString))
                 {
@@ -1021,17 +1037,17 @@ namespace Dotmim.Sync.MySql
             return sqlCommand;
         }
 
-        public void CreateSelectInitializedChanges()
+        public void CreateSelectInitializedChanges(SyncFilter filter)
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChanges).name;
-            Func<MySqlCommand> cmdWithoutFilter = () => BuildSelectInitializedChangesCommand(false);
+            var commandName = this.mySqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChanges).name;
+            Func<MySqlCommand> cmdWithoutFilter = () => BuildSelectInitializedChangesCommand(null);
             CreateProcedureCommand(cmdWithoutFilter, commandName);
 
-            if (this.Filter != null)
+            if (filter != null)
             {
-                this.Filter.ValidateColumnFilters(this.tableDescription);
-                commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChangesWithFilters, this.Filter).name;
-                Func<MySqlCommand> cmdWithFilter = () => BuildSelectInitializedChangesCommand(true);
+                filter.ValidateColumnFilters(this.tableDescription);
+                commandName = this.mySqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChangesWithFilters, filter).name;
+                Func<MySqlCommand> cmdWithFilter = () => BuildSelectInitializedChangesCommand(filter);
                 CreateProcedureCommand(cmdWithFilter, commandName);
 
             }

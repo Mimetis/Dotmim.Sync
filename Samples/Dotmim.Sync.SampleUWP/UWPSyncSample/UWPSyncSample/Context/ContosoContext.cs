@@ -23,7 +23,7 @@ namespace UWPSyncSample.Context
             this.contosoType = contosoType;
 
         }
-        public DbSet<Employee> Employees { get; set; }
+        public DbSet<Employee> Employee { get; set; }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {

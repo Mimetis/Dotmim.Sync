@@ -1,4 +1,4 @@
-## Introduction
+## Database Synchronization SQL
 
 **Dotmim.Sync** is the easiest way to handle a full **synchronization** between one server database and multiples clients databases.  
 **Dotmim.Sync** is cross-platforms, multi-databases and based on **.Net Standard 2.0**.   
