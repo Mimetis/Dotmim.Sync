@@ -645,5 +645,95 @@ namespace Dotmim.Sync.Tests
         }
 
 
+
+        /// <summary>
+        /// Insert rows on server, and ensure DISTINCT is applied correctly 
+        /// </summary>
+        [Theory, TestPriority(3)]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Insert_TwoTables_EnsureDistinct(SyncOptions options)
+        {
+            // create a server schema and seed
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            // Get count of rows
+            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var client in Clients)
+            {
+                // create agent with filtered tables and parameter
+                var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator,
+                                          this.FilterSetup, options);
+
+                agent.Parameters.AddRange(this.FilterParameters);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalSyncConflicts);
+            }
+
+            // Create a new address & customer address on server
+            using (var serverDbCtx = new AdventureWorksContext(this.Server))
+            {
+                var addressLine1 = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
+                var newAddress = new Address { AddressLine1 = addressLine1 };
+                serverDbCtx.Address.Add(newAddress);
+
+                var addressLine2 = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
+                var newAddress2 = new Address { AddressLine1 = addressLine2 };
+                serverDbCtx.Address.Add(newAddress2);
+
+                await serverDbCtx.SaveChangesAsync();
+
+                var newCustomerAddress = new CustomerAddress
+                {
+                    AddressId = newAddress.AddressId,
+                    CustomerId = AdventureWorksContext.CustomerIdForFilter,
+                    AddressType = "Secondary Home 1"
+                };
+
+                serverDbCtx.CustomerAddress.Add(newCustomerAddress);
+
+                var newCustomerAddress2 = new CustomerAddress
+                {
+                    AddressId = newAddress2.AddressId,
+                    CustomerId = AdventureWorksContext.CustomerIdForFilter,
+                    AddressType = "Secondary Home 2"
+                };
+
+                serverDbCtx.CustomerAddress.Add(newCustomerAddress2);
+
+                await serverDbCtx.SaveChangesAsync();
+                
+                // Update customer
+                var customer = serverDbCtx.Customer.Find(AdventureWorksContext.CustomerIdForFilter);
+                customer.FirstName = "Orlanda";
+                
+                await serverDbCtx.SaveChangesAsync();
+            }
+
+            // Execute a sync on all clients and check results
+            foreach (var client in Clients)
+            {
+                // create agent with filtered tables and parameter
+                var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator,
+                                          this.FilterSetup, options);
+                agent.Parameters.AddRange(this.FilterParameters);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(5, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalSyncConflicts);
+            }
+        }
+
     }
 }
