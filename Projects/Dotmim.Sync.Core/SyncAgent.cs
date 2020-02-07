@@ -19,6 +19,7 @@ namespace Dotmim.Sync
     public class SyncAgent : IDisposable
     {
         private IProgress<ProgressArgs> remoteProgress = null;
+        private bool syncInProgress;
 
         /// <summary>
         /// Defines the state that a synchronization session is in.
@@ -85,7 +86,31 @@ namespace Dotmim.Sync
             => this.RemoteOrchestrator.OnApplyChangesFailed(action);
 
 
+        /// <summary>
+        /// Lock sync to prevent multi call to sync at the same time
+        /// </summary>
+        private void LockSync()
+        {
+            lock (this)
+            {
+                if (this.syncInProgress)
+                    throw new AlreadyInProgressException();
 
+                this.syncInProgress = true;
+            }
+        }
+
+        /// <summary>
+        /// Unlock sync to be able to launch a new sync
+        /// </summary>
+        private void UnlockSync()
+        {
+            // Enf sync from local provider
+            lock (this)
+            {
+                this.syncInProgress = false;
+            }
+        }
         /// <summary>
         /// Create an agent based on TCP connection
         /// </summary>
@@ -190,6 +215,9 @@ namespace Dotmim.Sync
 
             if (this.RemoteOrchestrator?.Provider != null)
                 this.RemoteOrchestrator.Provider.Options = this.Options;
+
+            // Lock sync to prevent multi call to sync at the same time
+            LockSync();
 
             // Context, used to back and forth data between servers
             var context = new SyncContext(Guid.NewGuid())
@@ -323,6 +351,8 @@ namespace Dotmim.Sync
                 // End the current session
                 this.SessionState = SyncSessionState.Ready;
                 this.SessionStateChanged?.Invoke(this, this.SessionState);
+                // Lock sync to prevent multi call to sync at the same time
+                UnlockSync();
             }
 
             return context;
