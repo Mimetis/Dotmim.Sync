@@ -16,7 +16,6 @@ namespace Dotmim.Sync
     {
         public CoreProvider Provider { get; set; }
 
-        private bool syncInProgress;
 
         public LocalOrchestrator()
         {
@@ -51,9 +50,6 @@ namespace Dotmim.Sync
             EnsureScopeAsync(SyncContext context, string scopeName, string scopeInfoTableName,
                                   CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
-            // Lock sync to prevent multi call to sync at the same time
-            LockSync();
-
             // ----------------------------------------
             // 0) Begin Session 
             // ----------------------------------------
@@ -103,9 +99,6 @@ namespace Dotmim.Sync
 
                 catch (Exception ex)
                 {
-                    // unlock sync since it's over
-                    UnlockSync();
-
                     var syncException = new SyncException(ex, context.SyncStage);
 
                     // try to let the provider enrich the exception
@@ -129,31 +122,7 @@ namespace Dotmim.Sync
             }
         }
 
-        /// <summary>
-        /// Lock sync to prevent multi call to sync at the same time
-        /// </summary>
-        private void LockSync()
-        {
-            lock (this)
-            {
-                if (this.syncInProgress)
-                    throw new AlreadyInProgressException();
-
-                this.syncInProgress = true;
-            }
-        }
-
-        /// <summary>
-        /// Unlock sync to be able to launch a new sync
-        /// </summary>
-        private void UnlockSync()
-        {
-            // Enf sync from local provider
-            lock (this)
-            {
-                this.syncInProgress = false;
-            }
-        }
+      
 
         /// <summary>
         /// Input : localScopeInfo
@@ -259,10 +228,6 @@ namespace Dotmim.Sync
 
                     // Let provider knows a connection is closed
                     this.Provider.OnConnectionClosed(connection);
-
-                    // unlock sync since it's over
-                    UnlockSync();
-
                 }
             }
 
@@ -356,9 +321,6 @@ namespace Dotmim.Sync
 
                     // Let provider knows a connection is closed
                     this.Provider.OnConnectionClosed(connection);
-
-                    // set sync ready again
-                    UnlockSync();
                 }
             }
         }
