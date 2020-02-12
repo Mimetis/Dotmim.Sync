@@ -146,7 +146,6 @@ namespace Dotmim.Sync.Batch
                     {
                         batchPartinInfo.LoadBatch(schema, GetDirectoryFullPath());
 
-
                         // Get the table from the batchPartInfo
                         // generate a tmp SyncTable for 
                         var batchTable = batchPartinInfo.Data.Tables.FirstOrDefault(bt => bt == new SyncTable(tableName, schemaName));
@@ -210,13 +209,15 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// generate a batch file name
         /// </summary>
-        private string GenerateNewFileName(string batchIndex)
+        internal string GenerateNewFileName(string batchIndex)
         {
             if (batchIndex.Length == 1)
-                batchIndex = $"00{batchIndex}";
+                batchIndex = $"000{batchIndex}";
             else if (batchIndex.Length == 2)
-                batchIndex = $"0{batchIndex}";
+                batchIndex = $"00{batchIndex}";
             else if (batchIndex.Length == 3)
+                batchIndex = $"0{batchIndex}";
+            else if (batchIndex.Length == 4)
                 batchIndex = $"{batchIndex}";
             else
                 throw new OverflowException("too much batches !!!");

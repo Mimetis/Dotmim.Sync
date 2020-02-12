@@ -16,11 +16,7 @@ namespace Dotmim.Sync
     {
         public CoreProvider Provider { get; set; }
 
-
-        public LocalOrchestrator()
-        {
-
-        }
+        public LocalOrchestrator() { }
 
         /// <summary>
         /// Local orchestrator used as a client
@@ -92,11 +88,8 @@ namespace Dotmim.Sync
                         transaction.Commit();
 
                         return (context, localScope);
-
-
                     }
                 }
-
                 catch (Exception ex)
                 {
                     var syncException = new SyncException(ex, context.SyncStage);
@@ -122,7 +115,7 @@ namespace Dotmim.Sync
             }
         }
 
-      
+
 
         /// <summary>
         /// Input : localScopeInfo
@@ -167,7 +160,6 @@ namespace Dotmim.Sync
                             if (cancellationToken.IsCancellationRequested)
                                 cancellationToken.ThrowIfCancellationRequested();
                         }
-
 
                         // On local, we don't want to chase rows from "others" 
                         // We just want our local rows, so we dont exclude any remote scope id, by setting scope id to NULL
@@ -389,7 +381,7 @@ namespace Dotmim.Sync
         public async Task<SyncContext> ApplySnapshotAndGetChangesAsync(SyncContext context, ScopeInfo scope, SyncSet schema, BatchInfo serverBatchInfo,
                                                           long clientTimestamp, long remoteClientTimestamp, bool disableConstraintsOnApplyChanges,
                                                           int batchSize, string batchDirectory,
-                                                          bool useBulkOperations, bool cleanMetadatas, string scopeInfoTableName, 
+                                                          bool useBulkOperations, bool cleanMetadatas, string scopeInfoTableName,
                                                           CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
 
