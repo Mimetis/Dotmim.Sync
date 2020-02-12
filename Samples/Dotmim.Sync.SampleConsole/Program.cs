@@ -26,6 +26,7 @@ using System.Net.Http;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters;
 using System.Runtime.Serialization.Formatters.Binary;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -43,7 +44,7 @@ internal class Program
     public static string[] oneTable = new string[] { "ProductCategory" };
     private static async Task Main(string[] args)
     {
-        await SyncThroughWebApiAsync();
+        await SynchronizeAsync();
     }
 
     private static void TestSqliteDoubleStatement()
@@ -201,102 +202,6 @@ internal class Program
         }
     }
 
-    private static async Task SynchronizeWithSyncAgent2Async()
-    {
-        // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString("AdventureWorks"));
-        var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString("Client"));
-
-        // Tables involved in the sync process:
-        var tables = new string[] { "ProductCategory", "ProductModel", "Product" };
-
-        // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, tables);
-
-        // Using the Progress pattern to handle progession during the synchronization
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
-            Console.ResetColor();
-        });
-
-        var remoteProgress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
-            Console.ResetColor();
-        });
-        agent.AddRemoteProgress(remoteProgress);
-
-        // Setting configuration options
-        agent.Schema.StoredProceduresPrefix = "s";
-        agent.Schema.StoredProceduresSuffix = "";
-        agent.Schema.TrackingTablesPrefix = "t";
-        agent.Schema.TrackingTablesSuffix = "";
-
-        agent.Options.ScopeInfoTableName = "tscopeinfo";
-        agent.Options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync");
-        //agent.Options.BatchSize = 100;
-        agent.Options.CleanMetadatas = true;
-        agent.Options.UseBulkOperations = true;
-        agent.Options.UseVerboseErrors = false;
-
-        agent.LocalOrchestrator.OnTransactionOpen(to =>
-        {
-            var dt = DateTime.Now;
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"Transaction Opened\t {dt.ToLongTimeString()}.{dt.Millisecond}");
-            Console.ResetColor();
-        });
-        agent.LocalOrchestrator.OnTransactionCommit(to =>
-        {
-            var dt = DateTime.Now;
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"Transaction Commited\t {dt.ToLongTimeString()}.{dt.Millisecond}");
-            Console.ResetColor();
-        });
-
-
-        agent.RemoteOrchestrator.OnTransactionOpen(to =>
-        {
-            var dt = DateTime.Now;
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"Transaction Opened\t {dt.ToLongTimeString()}.{dt.Millisecond}");
-            Console.ResetColor();
-        });
-        agent.RemoteOrchestrator.OnTransactionCommit(to =>
-        {
-            var dt = DateTime.Now;
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"Transaction Commited\t {dt.ToLongTimeString()}.{dt.Millisecond}");
-            Console.ResetColor();
-        });
-
-        do
-        {
-            Console.Clear();
-            Console.WriteLine("Sync Start");
-            try
-            {
-                // Launch the sync process
-                var s1 = await agent.SynchronizeAsync(SyncType.Normal, CancellationToken.None, progress);
-
-                // Write results
-                Console.WriteLine(s1);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.Message);
-            }
-
-
-            //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
-        } while (Console.ReadKey().Key != ConsoleKey.Escape);
-
-        Console.WriteLine("End");
-    }
-
     private async static Task RunAsync()
     {
         // Create databases 
@@ -307,71 +212,6 @@ internal class Program
         await SyncHttpThroughKestellAsync();
     }
 
-
-    private static async Task SyncProductCategoryAsync()
-    {
-        // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
-        var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
-        // specific Setup with only 2 tables, and one filtered
-        var setup = new SyncSetup(new string[] { "ProductCategory" });
-
-        // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, setup);
-
-        // Using the Progress pattern to handle progession during the synchronization
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
-            Console.ResetColor();
-        });
-
-        var remoteProgress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
-            Console.ResetColor();
-        });
-
-        agent.AddRemoteProgress(remoteProgress);
-
-        agent.Options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "syncproduct");
-        agent.Options.BatchSize = 10;
-        agent.Options.CleanMetadatas = true;
-        agent.Options.UseBulkOperations = true;
-        agent.Options.DisableConstraintsOnApplyChanges = false;
-
-        do
-        {
-            Console.Clear();
-            Console.WriteLine("Sync Start");
-            try
-            {
-                // Launch the sync process
-                if (!agent.Parameters.Contains("City"))
-                    agent.Parameters.Add("City", "Toronto");
-
-                if (!agent.Parameters.Contains("postal"))
-                    agent.Parameters.Add("postal", DBNull.Value);
-
-
-                var s1 = await agent.SynchronizeAsync(progress);
-
-                // Write results
-                Console.WriteLine(s1);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.Message);
-            }
-
-
-            //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
-        } while (Console.ReadKey().Key != ConsoleKey.Escape);
-
-        Console.WriteLine("End");
-    }
 
     private static async Task CreateSnapshotAsync()
     {
@@ -446,100 +286,6 @@ internal class Program
             {
                 Console.WriteLine(e.Message);
             }
-        } while (Console.ReadKey().Key != ConsoleKey.Escape);
-
-        Console.WriteLine("End");
-    }
-
-    private static async Task SynchronizePalmyraAsync()
-    {
-        // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString("ImpactPalmyraOct2019"));
-        //var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
-        var clientProvider = new SqliteSyncProvider("palmyra.db");
-
-        allTables = new string[]
-        {
-            "Branch_Details", "Counters", "Debtors", "Debtor_Accounts", "Departments", "Department_Links",
-               "DocNumbers", "Gratuity", "Happy_Hour", "Happy_Hour1", "Locations", "Location_Links",
-               "OrderNoTracking", "Printer_Footer", "Printer_Header", "Product_Prices", "Products",
-               "Quantities", "Recipes", "Sales_Journal", "Settings", "Specials", "Sub_Recipes",
-               "Tab_Listing", "Table_Listing","Table_Details","Tax_Rates", "Users"
-        };
-
-        // specific Setup with only 2 tables, and one filtered
-        var setup = new SyncSetup(allTables);
-
-  
-        // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, setup);
-
-        // Using the Progress pattern to handle progession during the synchronization
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
-            Console.ResetColor();
-        });
-
-        var remoteProgress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
-            Console.ResetColor();
-        });
-
-        agent.AddRemoteProgress(remoteProgress);
-
-        //agent.Options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync");
-        agent.Options.BatchSize = 1000;
-        agent.Options.CleanMetadatas = true;
-        agent.Options.UseBulkOperations = true;
-        agent.Options.DisableConstraintsOnApplyChanges = false;
-        //agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
-        //agent.Options.UseVerboseErrors = false;
-        //agent.Options.ScopeInfoTableName = "tscopeinfo";
-
-
-        //agent.OnApplyChangesFailed(acf =>
-        //{
-        //    // Check conflict is correctly set
-        //    var localRow = acf.Conflict.LocalRow;
-        //    var remoteRow = acf.Conflict.RemoteRow;
-
-        //    // Merge row
-        //    acf.Resolution = ConflictResolution.MergeRow;
-
-        //    acf.FinalRow["Name"] = "Prout";
-
-        //});
-
-        do
-        {
-            Console.Clear();
-            Console.WriteLine("Sync Start");
-            try
-            {
-                // Launch the sync process
-                if (!agent.Parameters.Contains("City"))
-                    agent.Parameters.Add("City", "Toronto");
-
-                if (!agent.Parameters.Contains("postal"))
-                    agent.Parameters.Add("postal", DBNull.Value);
-
-
-                var s1 = await agent.SynchronizeAsync(progress);
-
-                // Write results
-                Console.WriteLine(s1);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.Message);
-            }
-
-
-            //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
         } while (Console.ReadKey().Key != ConsoleKey.Escape);
 
         Console.WriteLine("End");
@@ -630,8 +376,6 @@ internal class Program
         // specific Setup with only 2 tables, and one filtered
         var setup = new SyncSetup(allTables);
 
-
-
         // 1) EASY Way:
         setup.Filters.Add("Customer", "CompanyName");
 
@@ -697,6 +441,29 @@ internal class Program
         //agent.Options.UseVerboseErrors = false;
         //agent.Options.ScopeInfoTableName = "tscopeinfo";
 
+        var myRijndael = new RijndaelManaged();
+        myRijndael.GenerateKey();
+        myRijndael.GenerateIV();
+
+        agent.RemoteOrchestrator.OnSerializingSet(ssa =>
+        {
+            // Create an encryptor to perform the stream transform.
+            var encryptor = myRijndael.CreateEncryptor(myRijndael.Key, myRijndael.IV);
+
+            using (var msEncrypt = new MemoryStream())
+            {
+                using (var csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write))
+                {
+                    using (var swEncrypt = new StreamWriter(csEncrypt))
+                    {
+                        //Write all data to the stream.
+                        var strSet = JsonConvert.SerializeObject(ssa.Set);
+                        swEncrypt.Write(strSet);
+                    }
+                    ssa.Data = msEncrypt.ToArray();
+                }
+            }
+        });
 
         //agent.OnApplyChangesFailed(acf =>
         //{
@@ -748,7 +515,7 @@ internal class Program
         // Create 2 Sql Sync providers
         var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
         var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
-       
+
 
         // ----------------------------------
         // Client side
