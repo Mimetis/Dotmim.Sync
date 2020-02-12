@@ -99,7 +99,7 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Serialize a container set instance
         /// </summary>
-        private static void Serialize(ContainerSet set, string fileName, string directoryFullPath)
+        internal static void Serialize(ContainerSet set, string fileName, string directoryFullPath)
         {
             if (set == null)
                 return;
@@ -119,6 +119,28 @@ namespace Dotmim.Sync.Batch
                 var bytes = jsonConverter.Serialize(set);
                 f.Write(bytes, 0, bytes.Length);
             }
+        }
+
+
+        /// <summary>
+        /// Create a new BPI, and serialize the changeset if not in memory
+        /// </summary>
+        internal static BatchPartInfo CreateBatchPartInfo2(int batchIndex, SyncSet set, string fileName, bool isLastBatch)
+        {
+            BatchPartInfo bpi = null;
+
+            // Create a batch part
+            // The batch part creation process will serialize the changesSet to the disk
+            bpi = new BatchPartInfo { FileName = fileName };
+
+            bpi.Index = batchIndex;
+            bpi.IsLastBatch = isLastBatch;
+
+            // Even if the set is empty (serialized on disk), we should retain the tables names
+            if (set != null)
+                bpi.Tables = set.Tables.Select(t => new BatchPartTableInfo(t.TableName, t.SchemaName)).ToArray();
+
+            return bpi;
         }
 
         /// <summary>

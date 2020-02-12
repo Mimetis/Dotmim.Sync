@@ -146,6 +146,9 @@ namespace Dotmim.Sync
 
     }
 
+
+
+
     /// <summary>
     /// All table changes applied on a provider
     /// </summary>
