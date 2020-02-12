@@ -36,6 +36,8 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
             var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine();
+            stringBuilder.AppendLine("SET NOCOUNT ON;");
+            stringBuilder.AppendLine();
             stringBuilder.AppendLine("UPDATE [side] ");
             stringBuilder.AppendLine("SET  [sync_row_is_tombstone] = 1");
             stringBuilder.AppendLine("\t,[update_scope_id] = NULL -- scope id is always NULL when update is made locally");
@@ -205,6 +207,8 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
             var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine();
+            stringBuilder.AppendLine("SET NOCOUNT ON;");
+            stringBuilder.AppendLine();
             stringBuilder.AppendLine("-- If row was deleted before, it already exists, so just make an update");
             stringBuilder.AppendLine("UPDATE [side] ");
             stringBuilder.AppendLine("SET  [sync_row_is_tombstone] = 0");
@@ -370,6 +374,8 @@ namespace Dotmim.Sync.SqlServer.Builders
         private string UpdateTriggerBodyText()
         {
             var stringBuilder = new StringBuilder();
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine("SET NOCOUNT ON;");
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("UPDATE [side] ");
             stringBuilder.AppendLine("SET \t[update_scope_id] = NULL -- since the update if from local, it's a NULL");
