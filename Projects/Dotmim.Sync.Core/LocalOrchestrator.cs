@@ -16,7 +16,6 @@ namespace Dotmim.Sync
     {
         public CoreProvider Provider { get; set; }
 
-        public LocalOrchestrator() { }
 
         /// <summary>
         /// Local orchestrator used as a client
@@ -46,6 +45,7 @@ namespace Dotmim.Sync
             EnsureScopeAsync(SyncContext context, string scopeName, string scopeInfoTableName,
                                   CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
+
             // ----------------------------------------
             // 0) Begin Session 
             // ----------------------------------------
@@ -92,6 +92,7 @@ namespace Dotmim.Sync
                 }
                 catch (Exception ex)
                 {
+
                     var syncException = new SyncException(ex, context.SyncStage);
 
                     // try to let the provider enrich the exception
@@ -115,8 +116,7 @@ namespace Dotmim.Sync
             }
         }
 
-
-
+   
         /// <summary>
         /// Input : localScopeInfo
         /// </summary>

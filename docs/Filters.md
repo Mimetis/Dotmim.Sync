@@ -2,11 +2,37 @@
 
 ## Vertical filter
 
+[TODO]
 
 ## Horizontal filter
 
 You can apply a filter on any table, even if the filtered column belongs to another table.
 For instance, you can apply a filter on the **Customer** table, even if the filter is on the **Address** table (for example, filtering on the **City**)
+
+In a nutshell, adding a filter for a specific table requires:
+- Creating a `SetupFilter` instance for this table (you can not have more than one `SetupFilter` per table)
+- Creating a *[parameter]* with a type and optionally a default value.
+- Creating a *[where]* condition to map the *[parameter]* and a column from your table.
+- If your filtered table is not the base table, you will have to specify one or more *[joins]* method to reach the base filtered table.
+
+### The easy way
+
+You have a straightforward method to add a filter, from your `SyncSetup` instance:
+``` cs
+setup.Filters.Add("Customer", "CustomerID");
+```
+
+Basically, this method will add a filter on the `Customer` table, based on the `CustomerID` column.
+
+Internally, this method will:
+- Creates a `SetupFilter` instance for the table `Customer`.
+- Creates a *Parameter* called `CustomerID` that will have the same type as the `CustomerID` column from the `Customer` table.
+- Creates a *Where* condition where the `CustomerID` *parameter* will be compared to the `CustomerID` column from the `Customer` table.
+
+### In depth 
+
+Usually, you have more than one filter, especially if you have foreign keys in between.
+So far, you will have to manage the links between all your filtered tables.
 
 To illustrate how it works, here is a straightforward scenario:
 
@@ -21,17 +47,22 @@ We will have to filter:
 - Level two: **Customer**, **SalesOrderHeader**
 - Level four: **SalesOrderDetail**
 
-So far, here is the methods on the `SetupFilter` you need to use:
+The main difference with the *easy way* method, is that we will details all the methods on the `SetupFilter` to create a fully customized filter.
 
-### `SetupFilter` class
-The `SetupFilter` class will allow you to personalize your filter on a defined table (`Customer` in this example)
+### The `SetupFilter` class
+
+The `SetupFilter` class will allows you to personalize your filter on a defined table (`Customer` in this example):
+
 ``` cs
 var customerFilter = new SetupFilter("Customer");
 ```
-Be careful, you can have only one `SetupFilter` instance per table. 
-Obviously, this instance will allow you to define multiple parameters / criterias 
 
-### `.AddParameter()`
+Be careful, you can have only **one** `SetupFilter` instance per table. 
+Obviously, this instance will allow you to define multiple parameters / criterias!
+
+
+### The `.AddParameter()` method
+
 Allows you to add a new parameter to the `_changes` stored procedure.
 This method can be called with two kind of arguments:
 - Your parameter is a **custom** parameter. You have to define its name and its `DbType`. Optionally, you can define if it can be null and its default value (SQL Server only)
@@ -58,7 +89,7 @@ ALTER PROCEDURE [dbo].[sCustomerAddress_Citypostal__changes]
 ```
 Where `@City` is a mapped parameter and `@postal` is a custom parameter.
 
-### `.AddJoin()`
+### The `.AddJoin()` method
 
 If your filter is applied on a column in the actual table, you don't need to add any `join` statement.
 But, in our example, the `Customer` table is two levels below the `Address` table (where we have the filtered columns `City` and `PostalCode`)
@@ -78,7 +109,7 @@ As you can see the `Dotmim.Sync` framework will take care of quoted table / colu
 Just focus on the name of your table.
 
 
-### `.AddWhere()`
+### The `.AddWhere()` method
 
 Now, and for each parameter, you will have to define the where condition
 Each parameter will be compare to an existing column in an existing table.
@@ -103,7 +134,8 @@ WHERE (
  OR [side].[sync_row_is_tombstone] = 1
 )
 ```
-### `.AddCustomWhere()`
+### The `.AddCustomWhere()` method
+
 If you need more, this method will allow you to add your own where condition.
 Be careful, this method takes a `string` as argument, which will not be parsed, but instead, just added at the end of the stored procedure statement.
 
@@ -206,3 +238,126 @@ var s1 = await agent.SynchronizeAsync(progress);
 
 ```
 
+## Http mode
+
+If you're using the http mode, you will notice some differences between the **client side** and the **server side**:
+- The **server side** will declare the filters.
+- The **client side** will declare the paramaters.
+
+### Server side
+
+You have to declare your `SetupFilters` from within your `ConfigureServices()` method.
+Pretty similar from the last example, excepting you do not add any `SyncParameter` value at the end:
+
+``` cs
+public void ConfigureServices(IServiceCollection services)
+{
+    services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
+
+    // Mandatory to be able to handle multiple sessions
+    services.AddMemoryCache();
+
+    // Get a connection string for your server data source
+    var connectionString = Configuration.GetSection("ConnectionStrings")["DefaultConnection"];
+
+    // Set the web server Options
+    var options = new WebServerOptions()
+    {
+        BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "server")       
+    };
+
+
+    // Create the setup used for your sync process
+    var tables = new string[] {"ProductCategory",
+      "ProductModel", "Product",
+      "Address", "Customer", "CustomerAddress",
+      "SalesOrderHeader", "SalesOrderDetail" };
+
+    var setup = new SyncSetup(tables)
+    {
+        // optional :
+        StoredProceduresPrefix = "s",
+        StoredProceduresSuffix = "",
+        TrackingTablesPrefix = "s",
+        TrackingTablesSuffix = ""
+    };
+
+    // Create a filter on table Address on City Washington
+    // Optional : Sub filter on PostalCode, for testing purpose
+    var addressFilter = new SetupFilter("Address");
+    addressFilter.AddParameter("City", "Address", true);
+    addressFilter.AddParameter("postal", DbType.String, true, null, 20);
+    addressFilter.AddWhere("City", "Address", "City");
+    addressFilter.AddWhere("PostalCode", "Address", "postal");
+    setup.Filters.Add(addressFilter);
+
+    var addressCustomerFilter = new SetupFilter("CustomerAddress");
+    addressCustomerFilter.AddParameter("City", "Address", true);
+    addressCustomerFilter.AddParameter("postal", DbType.String, true, null, 20);
+    addressCustomerFilter.AddJoin(Join.Left, "Address").On("CustomerAddress", "AddressId", "Address", "AddressId");
+    addressCustomerFilter.AddWhere("City", "Address", "City");
+    addressCustomerFilter.AddWhere("PostalCode", "Address", "postal");
+    setup.Filters.Add(addressCustomerFilter);
+
+    var customerFilter = new SetupFilter("Customer");
+    customerFilter.AddParameter("City", "Address", true);
+    customerFilter.AddParameter("postal", DbType.String, true, null, 20);
+    customerFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
+    customerFilter.AddJoin(Join.Left, "Address").On("CustomerAddress", "AddressId", "Address", "AddressId");
+    customerFilter.AddWhere("City", "Address", "City");
+    customerFilter.AddWhere("PostalCode", "Address", "postal");
+    setup.Filters.Add(customerFilter);
+
+    var orderHeaderFilter = new SetupFilter("SalesOrderHeader");
+    orderHeaderFilter.AddParameter("City", "Address", true);
+    orderHeaderFilter.AddParameter("postal", DbType.String, true, null, 20);
+    orderHeaderFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerId", "SalesOrderHeader", "CustomerId");
+    orderHeaderFilter.AddJoin(Join.Left, "Address").On("CustomerAddress", "AddressId", "Address", "AddressId");
+    orderHeaderFilter.AddWhere("City", "Address", "City");
+    orderHeaderFilter.AddWhere("PostalCode", "Address", "postal");
+    setup.Filters.Add(orderHeaderFilter);
+
+    var orderDetailsFilter = new SetupFilter("SalesOrderDetail");
+    orderDetailsFilter.AddParameter("City", "Address", true);
+    orderDetailsFilter.AddParameter("postal", DbType.String, true, null, 20);
+    orderDetailsFilter.AddJoin(Join.Left, "SalesOrderHeader").On("SalesOrderHeader", "SalesOrderID", "SalesOrderHeader", "SalesOrderID");
+    orderDetailsFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerId", "SalesOrderHeader", "CustomerId");
+    orderDetailsFilter.AddJoin(Join.Left, "Address").On("CustomerAddress", "AddressId", "Address", "AddressId");
+    orderDetailsFilter.AddWhere("City", "Address", "City");
+    orderDetailsFilter.AddWhere("PostalCode", "Address", "postal");
+    setup.Filters.Add(orderDetailsFilter);
+
+    // add a SqlSyncProvider acting as the server hub
+    services.AddSyncServer<SqlSyncProvider>(connectionString, setup, options);
+}
+
+```
+
+## Client side
+
+The client side shoud be familiar to you:
+
+``` cs
+
+// Defining the local provider
+var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
+
+// Replacing a classic remote orchestrator with a web proxy orchestrator that point on the web api
+var proxyClientProvider = new WebClientOrchestrator("http://localhost:52288/api/Sync");
+
+// Creating an agent that will handle all the process
+var agent = new SyncAgent(clientProvider, proxyClientProvider, tables);
+
+// [Optional]: Get some progress event during the sync process
+var progress = new SynchronousProgress<ProgressArgs>(pa => Console.WriteLine($"{pa.Context.SessionId} - {pa.Context.SyncStage}\t {pa.Message}"));
+
+if (!agent.Parameters.Contains("City"))
+    agent.Parameters.Add("City", "Toronto");
+
+// Because I've specified that "postal" could be null, I can set the value to DBNull.Value (and the get all postal code in Toronto city)
+if (!agent.Parameters.Contains("postal"))
+    agent.Parameters.Add("postal", DBNull.Value);
+
+var s1 = await agent.SynchronizeAsync(progress);
+
+```
