@@ -14,28 +14,48 @@ You will find a sample in `/Samples/Dotmim.Sync.SampleWebServer` folder, in the 
 
 ## Server side
 
-Once your **ASP.NET** application is created and you have added the `DotMim.Sync` packages to you project, register the Sync provider in the `Startup` class, thanks to Dependency Injection :
+Once your **ASP.NET** application is created and you have added the `DotMim.Sync` packages to you project, register the Sync provider in the `Startup` class, thanks to Dependency Injection.
+
+> *Note*: We are using `SyncOptions` and `SyncSetup` in this example, but these objects are optional. Use them only if needed 
 
 ``` cs
 public void ConfigureServices(IServiceCollection services)
 {
     services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
 
-    // Mandatory to be able to handle multiple sessions
+    // [Required]: Handling multiple sessions
     services.AddMemoryCache();
 
-    // Get a connection string for your server data source
+    // [Required]: Get a connection string to your server data source
     var connectionString = Configuration.GetSection("ConnectionStrings")["DefaultConnection"];
 
-    // Create the setup used for your sync process
-    var tables = new string[] {"ProductCategory",
-                    "ProductDescription", "ProductModel",
-                    "Product", "ProductModelProductDescription",
-                    "Address", "Customer", "CustomerAddress",
-                    "SalesOrderHeader", "SalesOrderDetail" };
+    // [Optional]: Web server Options. Batching directory and Snapshots directory
+    var options = new WebServerOptions()
+    {
+        BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "server"),
+        SnapshotsDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Snapshots")
+    };
 
-    // add a SqlSyncProvider acting as the server hub
-    services.AddSyncServer<SqlSyncProvider>(connectionString, tables);
+    // [Required]: Tables list involved in the sync process
+    var tables = new string[] {"ProductCategory",
+                     "ProductDescription", "ProductModel",
+                     "Product", "ProductModelProductDescription",
+                     "Address", "Customer", "CustomerAddress",
+                     "SalesOrderHeader", "SalesOrderDetail" };
+
+    // [Optional]: database setup, for objects naming conventions
+    var setup = new SyncSetup(tables)
+    {
+        // optional :
+        StoredProceduresPrefix = "s",
+        StoredProceduresSuffix = "",
+        TrackingTablesPrefix = "s",
+        TrackingTablesSuffix = ""
+    };
+
+    // [Required]: Add a SqlSyncProvider acting as the server hub.
+    // If you don't specify a SyncSetup object, just add the tables array.
+    services.AddSyncServer<SqlSyncProvider>(connectionString, setup, options);
 }
 ```
 
@@ -58,7 +78,25 @@ public class SyncController : ControllerBase
     public SyncController(WebProxyServerOrchestrator proxy) => this.webProxyServer = proxy;
 
     [HttpPost]
-    public async Task Post() => await webProxyServer.HandleRequestAsync(this.HttpContext);
+    public async Task Post()
+    {
+        // [Optional]: handling conflicts for table Region
+        webProxyServer.WebServerOrchestrator.OnApplyChangesFailed(e =>
+        {
+            if (e.Conflict.RemoteRow.Table.TableName == "Region")
+            {
+                e.Resolution = ConflictResolution.MergeRow;
+                e.FinalRow["RegionDescription"] = "Eastern alone !";
+            }
+            else
+            {
+                e.Resolution = ConflictResolution.ServerWins;
+            }
+        });
+
+        //[Required]: Handling everything from an incoming request
+        await webProxyServer.HandleRequestAsync(this.HttpContext);
+    }
 }
 
 ```
@@ -68,15 +106,43 @@ public class SyncController : ControllerBase
 Your Client side is pretty similar, except you will have to use a proxy as well to be able to send all the requests to your Web API :
 
 ``` cs
-var clientProvider = new SqlSyncProvider(ConnectionString);
-var proxyClientProvider = new WebProxyClientProvider(new Uri("http://localhost:56782/api/sync"));
+// [Required]: Defininf the local provider
+var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
 
-var agent = new SyncAgent(clientProvider, proxyClientProvider);
+// [Required]: Replacing a classic remote orchestrator with a web proxy orchestrator that point on the web api
+var proxyClientProvider = new WebClientOrchestrator("http://localhost:52288/api/Sync");
 
-Console.WriteLine("Press a key to start...(Wait for you Web API is ready) ");
-Console.ReadKey();
+// [Optional]: Specifying some useful client options
+var clientOptions = new SyncOptions
+{
+    ScopeInfoTableName = "client_scopeinfo",
+    BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync_client"),
+    BatchSize = 50,
+    CleanMetadatas = true,
+    UseBulkOperations = true,
+    UseVerboseErrors = false,
+};
 
-Console.Clear();
-Console.WriteLine("Sync Start");
-var s = await agent.SynchronizeAsync();
+// [Optional]: Specifying some useful databases options
+var clientSetup = new SyncSetup
+{
+    StoredProceduresPrefix = "s",
+    StoredProceduresSuffix = "",
+    TrackingTablesPrefix = "t",
+    TrackingTablesSuffix = "",
+    TriggersPrefix = "",
+    TriggersSuffix = "",
+};
+
+// [Required]: Create an agent to launch the sync process
+var agent = new SyncAgent(clientProvider, proxyClientProvider, clientSetup, clientOptions);
+
+// [Optional]: Get some progress event during the sync process
+var progress = new SynchronousProgress<ProgressArgs>(pa => Console.WriteLine($"{pa.Context.SessionId} - {pa.Context.SyncStage}\t {pa.Message}"));
+
+// [Required]: Launch the sync.
+var s = await agent.SynchronizeAsync(progress);
+
+Console.WriteLine(s);
+
 ```
