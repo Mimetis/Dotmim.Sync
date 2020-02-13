@@ -77,7 +77,7 @@ namespace Dotmim.Sync.SqlServer.Manager
                 case "xml":
                     return DbType.String;
             }
-            throw new Exception($"this type name {typeName} is not supported");
+            throw new Exception($"this type {typeName} is not supported");
         }
 
         /// <summary>
