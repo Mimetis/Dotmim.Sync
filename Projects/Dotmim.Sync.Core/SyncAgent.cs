@@ -351,7 +351,7 @@ namespace Dotmim.Sync
                 // End the current session
                 this.SessionState = SyncSessionState.Ready;
                 this.SessionStateChanged?.Invoke(this, this.SessionState);
-                // Lock sync to prevent multi call to sync at the same time
+                // unlock sync since it's over
                 UnlockSync();
             }
 
