@@ -35,7 +35,7 @@ internal class Program
     public static string serverDbName = "AdventureWorks";
     public static string serverProductCategoryDbName = "AdventureWorksProductCategory";
     public static string clientDbName = "Client";
-    public static string[] allTables = new string[] {"ProductCategory",
+    public static string[] allTables = new string[] {"ProductDescription", "ProductCategory",
                                                     "ProductModel", "Product",
                                                     "Address", "Customer", "CustomerAddress",
                                                     "SalesOrderHeader", "SalesOrderDetail" };
