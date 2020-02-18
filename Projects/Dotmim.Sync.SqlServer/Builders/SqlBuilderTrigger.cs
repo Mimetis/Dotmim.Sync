@@ -2,6 +2,7 @@
 
 
 using Dotmim.Sync.Log;
+using Dotmim.Sync.SqlServer.Manager;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -21,6 +22,8 @@ namespace Dotmim.Sync.SqlServer.Builders
         private readonly SqlConnection connection;
         private readonly SqlTransaction transaction;
         private readonly SqlObjectNames sqlObjectNames;
+        private readonly SqlDbMetadata sqlDbMetadata;
+
         public SqlBuilderTrigger(SyncTable tableDescription, DbConnection connection, DbTransaction transaction = null)
         {
             this.connection = connection as SqlConnection;
@@ -29,6 +32,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             this.tableDescription = tableDescription;
             (this.tableName, this.trackingName) = SqlTableBuilder.GetParsers(this.tableDescription);
             this.sqlObjectNames = new SqlObjectNames(this.tableDescription);
+            this.sqlDbMetadata = new SqlDbMetadata();
 
         }
 
@@ -202,7 +206,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         }
 
-   
+
         private string InsertTriggerBodyText()
         {
             var stringBuilder = new StringBuilder();
@@ -369,7 +373,339 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             }
         }
-     
+
+
+        private List<(SyncTable Table, SyncColumn Column)> GetFilteredColumns(SyncFilter filter)
+        {
+            if (filter == null)
+                return null;
+
+            var cols = new List<(SyncTable, SyncColumn)>();
+
+
+            foreach (var p in filter.Parameters)
+            {
+                // Get where for this parameter
+                var where = filter.Wheres.FirstOrDefault(w => w.ParameterName == p.Name);
+
+                if (where == null)
+                    continue;
+                var table = this.tableDescription.Schema.Tables[where.TableName, where.SchemaName];
+                var col = table.Columns[where.ColumnName];
+
+                cols.Add((table, col));
+            }
+
+            return cols;
+
+        }
+
+        private string GetDeclarationColumn(SyncColumn column)
+        {
+
+            var quotedColumnName = ParserName.Parse(column).Quoted().ToString();
+
+            var columnTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+            var quotedColumnType = ParserName.Parse(columnTypeString).Quoted().ToString();
+            var columnPrecisionString = this.sqlDbMetadata.TryGetOwnerDbTypePrecision(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+            var columnType = $"{quotedColumnType} {columnPrecisionString}";
+
+            return $"{quotedColumnName} {columnType}, ";
+        }
+
+        /// <summary>
+        /// Get a list of columns to add in the @LINES temp table
+        /// </summary>
+        private string GetListLinesColumns(SyncTable table, string alias)
+        {
+            var primaryKeys = table.GetPrimaryKeysColumns();
+            var filter = table.GetFilter();
+            var stringBuilder = new StringBuilder();
+            var filterColumnsAndTables = this.GetFilteredColumns(filter);
+
+            foreach (var pk in primaryKeys)
+                stringBuilder.Append($"[{alias}].{ParserName.Parse(pk).Quoted().ToString()}, ");
+
+            // Add filtered columns
+            if (filter != null)
+            {
+                foreach (var fct in filterColumnsAndTables)
+                {
+                    // do not add this column if it's a primary key column and already added
+                    if (primaryKeys.Any(pk => pk == fct.Column))
+                        continue;
+
+                    string filterTableName = ParserName.Parse(fct.Table).Quoted().ToString();
+                    string filterColumnName = ParserName.Parse(fct.Column).Quoted().ToString();
+
+                    if (fct.Table == this.tableDescription)
+                        filterTableName = $"[{alias}]";
+
+                    stringBuilder.Append($"{filterTableName}.{filterColumnName},");
+                }
+            }
+
+            return stringBuilder.ToString();
+        }
+
+
+        private string GetInnerJoins(SyncTable table, string alias)
+        {
+            var filter = table.GetFilter();
+
+            if (filter == null)
+                return string.Empty;
+
+            var stringBuilder = new StringBuilder();
+
+            foreach (var customJoin in filter.Joins)
+            {
+                // Get current table to compare if we need to replace for [I] or [D]
+                var fullTableName = string.IsNullOrEmpty(table.SchemaName) ? table.TableName : $"{table.SchemaName}.{table.TableName}";
+                var filterTableName = ParserName.Parse(fullTableName).Quoted().Schema().ToString();
+
+                var joinTableName = ParserName.Parse(customJoin.TableName).Quoted().Schema().ToString();
+
+                var leftTableName = ParserName.Parse(customJoin.LeftTableName).Quoted().Schema().ToString();
+                if (string.Equals(filterTableName, leftTableName, SyncGlobalization.DataSourceStringComparison))
+                    leftTableName = $"[{alias}]";
+
+                var rightTableName = ParserName.Parse(customJoin.RightTableName).Quoted().Schema().ToString();
+                if (string.Equals(filterTableName, rightTableName, SyncGlobalization.DataSourceStringComparison))
+                    rightTableName = $"[{alias}]";
+
+                var leftColumName = ParserName.Parse(customJoin.LeftColumnName).Quoted().ToString();
+                var rightColumName = ParserName.Parse(customJoin.RightColumnName).Quoted().ToString();
+
+                stringBuilder.AppendLine($"INNER JOIN {joinTableName} ON {leftTableName}.{leftColumName} = {rightTableName}.{rightColumName}");
+
+            }
+
+            return stringBuilder.ToString();
+        }
+
+        private string GetReverseInnerJoins(SyncTable table, string alias)
+        {
+            var filter = table.GetFilter();
+
+            if (filter == null)
+                return string.Empty;
+
+            var stringBuilder = new StringBuilder();
+
+
+            
+
+            foreach (var customJoin in filter.Joins)
+            {
+                // Get current table to compare if we need to replace for [I] or [D]
+                var fullTableName = string.IsNullOrEmpty(table.SchemaName) ? table.TableName : $"{table.SchemaName}.{table.TableName}";
+                var filterTableName = ParserName.Parse(fullTableName).Quoted().Schema().ToString();
+
+                var joinTableName = ParserName.Parse(customJoin.TableName).Quoted().Schema().ToString();
+
+                var leftTableName = ParserName.Parse(customJoin.LeftTableName).Quoted().Schema().ToString();
+                if (string.Equals(filterTableName, leftTableName, SyncGlobalization.DataSourceStringComparison))
+                    leftTableName = $"[{alias}]";
+
+                var rightTableName = ParserName.Parse(customJoin.RightTableName).Quoted().Schema().ToString();
+                if (string.Equals(filterTableName, rightTableName, SyncGlobalization.DataSourceStringComparison))
+                    rightTableName = $"[{alias}]";
+
+                var leftColumName = ParserName.Parse(customJoin.LeftColumnName).Quoted().ToString();
+                var rightColumName = ParserName.Parse(customJoin.RightColumnName).Quoted().ToString();
+
+                stringBuilder.AppendLine($"INNER JOIN {joinTableName} ON {leftTableName}.{leftColumName} = {rightTableName}.{rightColumName}");
+
+            }
+
+            return stringBuilder.ToString();
+        }
+
+
+        /// <summary>
+        /// Get all column for LINES that represent the primary key for tracking table
+        /// </summary>
+        private List<SyncColumn> GetPrimaryKeysForLinesTable(SyncTable table)
+        {
+            var primaryKeys = table.GetPrimaryKeysColumns();
+            var filter = table.GetFilter();
+
+            if (filter == null)
+                return primaryKeys.ToList();
+
+            var filterColumnsAndTables = this.GetFilteredColumns(filter);
+            var lst = new List<SyncColumn>();
+
+            // Add primary keys as part of the @lines table
+            foreach (var pkColumn in primaryKeys)
+                lst.Add(pkColumn);
+
+            // Add filtered columns
+            foreach (var fct in filterColumnsAndTables)
+            {
+                // do not add this column if it's a primary key column and already added
+                if (primaryKeys.Any(pk => pk == fct.Column))
+                    continue;
+
+                lst.Add(fct.Column);
+            }
+
+            return lst;
+        }
+
+        private string CreateLinesTableDeclaration()
+        {
+            var stringBuilder = new StringBuilder();
+            var primaryKeys = this.tableDescription.GetPrimaryKeysColumns();
+
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine("SET NOCOUNT ON;");
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine("DECLARE @LINES TABLE (");
+
+            var lstPkeys = GetPrimaryKeysForLinesTable(this.tableDescription);
+
+            // Add primary keys as part of the @lines table
+            foreach (var pkColumn in lstPkeys)
+                stringBuilder.Append(GetDeclarationColumn(pkColumn));
+
+            // Add metadata rows
+            stringBuilder.AppendLine("[sync_row_is_tombstone] [bit], [Level] [tinyint]);");
+
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine("INSERT INTO @LINES");
+            stringBuilder.Append("SELECT ");
+            stringBuilder.Append(this.GetListLinesColumns(this.tableDescription, "I"));
+            stringBuilder.AppendLine(" 0 as [sync_row_is_tombstone], 0 as [Level]");
+            stringBuilder.AppendLine("FROM [INSERTED] as [I]");
+
+            // Get inner joins from filter
+            stringBuilder.Append(this.GetInnerJoins(this.tableDescription, "I"));
+
+            stringBuilder.AppendLine("UNION");
+            stringBuilder.Append("SELECT ");
+            stringBuilder.Append(this.GetListLinesColumns(this.tableDescription, "D"));
+            stringBuilder.AppendLine(" 1 as [sync_row_is_tombstone], 1 as [Level]");
+            stringBuilder.AppendLine("FROM [DELETED] as [D]");
+            stringBuilder.AppendLine($"LEFT JOIN [INSERTED] as [I] ON {SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[D]", "[I]")}");
+
+            // Get inner joins from filter
+            stringBuilder.Append(this.GetInnerJoins(this.tableDescription, "D"));
+
+            stringBuilder.Append("WHERE ");
+            string and = "";
+            foreach (var pk in primaryKeys)
+            {
+                stringBuilder.Append($"{and}[I].{ParserName.Parse(pk).Quoted().ToString()} IS NULL");
+                and = " AND ";
+            }
+            stringBuilder.AppendLine();
+
+            stringBuilder.AppendLine("UNION");
+            stringBuilder.Append("SELECT ");
+            stringBuilder.Append(this.GetListLinesColumns(this.tableDescription, "I"));
+            stringBuilder.AppendLine(" 0 as [sync_row_is_tombstone], 2 as [Level]");
+            stringBuilder.AppendLine("FROM [INSERTED] as [I]");
+            stringBuilder.AppendLine($"LEFT JOIN [DELETED] as [D] ON {SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[D]", "[I]")}");
+
+            // Get inner joins from filter
+            stringBuilder.Append(this.GetInnerJoins(this.tableDescription, "I"));
+            stringBuilder.Append("WHERE ");
+            and = "";
+            foreach (var pk in primaryKeys)
+            {
+                stringBuilder.Append($"{and}[I].{ParserName.Parse(pk).Quoted().ToString()} IS NULL");
+                and = " AND ";
+            }
+            stringBuilder.Append(";");
+            stringBuilder.AppendLine();
+
+
+            return stringBuilder.ToString();
+        }
+
+
+        private string CreateMergeStatement(SyncTable table, string level)
+        {
+            var stringBuilder = new StringBuilder();
+            var (tableName, trackingName) = SqlTableBuilder.GetParsers(table);
+
+            var lstColumns = this.GetPrimaryKeysForLinesTable(table);
+            var baseListColumns = this.GetPrimaryKeysForLinesTable(this.tableDescription);
+
+            stringBuilder.AppendLine($"WITH [side] AS (");
+            stringBuilder.Append($"SELECT [LINES].* ");
+
+            var primaryColumns = table.GetPrimaryKeysColumns();
+            foreach (var pk in primaryColumns)
+            {
+                if (baseListColumns.Any(c => c == pk))
+                    continue;
+
+                stringBuilder.Append($", {tableName.Quoted()}.{ParserName.Parse(pk).Quoted().ToString()}");
+            }
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($"FROM @LINES as [LINES] ");
+            stringBuilder.Append($"{this.GetReverseInnerJoins(table, "LINES")}");
+            stringBuilder.AppendLine($"WHERE [LINES].[Level] {level})");
+
+            stringBuilder.AppendLine($"MERGE {trackingName} AS [base]");
+            stringBuilder.AppendLine($"USING [side] on {SqlManagementUtils.JoinTwoTablesOnClause(lstColumns.Select(c => c.ColumnName), "[side]", "[base]")}");
+            stringBuilder.AppendLine($"WHEN MATCHED THEN");
+            stringBuilder.AppendLine($"  UPDATE SET [update_scope_id] = NULL ,[sync_row_is_tombstone] = [side].[sync_row_is_tombstone], [last_change_datetime] = GetUtcDate()");
+            stringBuilder.AppendLine($"WHEN NOT MATCHED BY TARGET THEN");
+            stringBuilder.Append($"  INSERT (");
+            foreach (var c in lstColumns)
+                stringBuilder.Append($"{ParserName.Parse(c).Quoted().ToString()}, ");
+            stringBuilder.AppendLine($"[update_scope_id], [sync_row_is_tombstone], [last_change_datetime])");
+            stringBuilder.Append($"  VALUES (");
+            foreach (var c in lstColumns)
+                stringBuilder.Append($"[side].{ParserName.Parse(c).Quoted().ToString()}, ");
+            stringBuilder.AppendLine($"NULL, [side].[sync_row_is_tombstone], GetUtcDate());");
+
+            return stringBuilder.ToString();
+        }
+
+        private string UpdateTriggerBodyText2()
+        {
+            var stringBuilder = new StringBuilder();
+
+            stringBuilder.AppendLine(this.CreateLinesTableDeclaration());
+            stringBuilder.AppendLine(this.CreateMergeStatement(this.tableDescription, "<= 1"));
+
+            var schema = this.tableDescription.Schema;
+
+            var tableDescriptionFilter = this.tableDescription.GetFilter();
+
+            if (schema.Filters != null && schema.Filters.Count > 0)
+            {
+                foreach (var filter in schema.Filters)
+                {
+                    foreach (var p in filter.Parameters)
+                    {
+                        // Get where for this parameter
+                        var where = filter.Wheres.FirstOrDefault(w => w.ParameterName == p.Name);
+
+                        if (where == null)
+                            continue;
+
+                        var tableWhere = schema.Tables[where.TableName, where.SchemaName];
+
+                        if (tableWhere == this.tableDescription)
+                        {
+                            var filterTable = schema.Tables[filter.TableName, filter.SchemaName];
+
+                            if (filterTable != this.tableDescription)
+                                stringBuilder.AppendLine(this.CreateMergeStatement(filterTable, ">= 1"));
+                        }
+                    }
+                }
+            }
+
+            return stringBuilder.ToString();
+        }
+
 
         private string UpdateTriggerBodyText()
         {
@@ -468,16 +804,22 @@ namespace Dotmim.Sync.SqlServer.Builders
             {
                 using (var command = new SqlCommand())
                 {
+
                     if (!alreadyOpened)
                         this.connection.Open();
 
                     if (this.transaction != null)
-                        command.Transaction = (SqlTransaction)this.transaction;
+                        command.Transaction = this.transaction;
 
                     var updTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger).name;
                     var createTrigger = new StringBuilder($"CREATE TRIGGER {updTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR UPDATE AS");
                     createTrigger.AppendLine();
                     createTrigger.AppendLine(this.UpdateTriggerBodyText());
+
+                    var createTrigger2 = new StringBuilder($"CREATE TRIGGER {updTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR UPDATE AS");
+                    createTrigger2.AppendLine();
+                    createTrigger2.AppendLine(this.UpdateTriggerBodyText2());
+                    var strTrigger2 = createTrigger2.ToString();
 
                     command.CommandText = createTrigger.ToString();
                     command.Connection = this.connection;
@@ -535,7 +877,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
         }
 
-    
+
         public void AlterUpdateTrigger()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
@@ -574,7 +916,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             }
         }
-    
+
         public virtual bool NeedToCreateTrigger(DbTriggerType type)
         {
 
