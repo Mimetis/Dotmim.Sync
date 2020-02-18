@@ -151,9 +151,9 @@ namespace Dotmim.Sync.SqlServer.Manager
         /// </summary>
         public override int ValidateMaxLength(string typeName, bool isUnsigned, bool isUnicode, long maxLength)
         {
-            SqlDbType sqlDbType = (SqlDbType)ValidateOwnerDbType(typeName, isUnsigned, isUnicode, maxLength);
+            var sqlDbType = (SqlDbType)ValidateOwnerDbType(typeName, isUnsigned, isUnicode, maxLength);
 
-            Int32 iMaxLength = maxLength > 8000 ? 8000 : Convert.ToInt32(maxLength);
+            var iMaxLength = maxLength > 8000 ? 8000 : Convert.ToInt32(maxLength);
 
             // special length for nchar and nvarchar
             if ((sqlDbType == SqlDbType.NChar || sqlDbType == SqlDbType.NVarChar) && iMaxLength > 0)

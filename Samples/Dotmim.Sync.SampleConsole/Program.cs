@@ -44,9 +44,40 @@ internal class Program
     public static string[] oneTable = new string[] { "ProductCategory" };
     private static async Task Main(string[] args)
     {
-        await SynchronizeAsync();
+        await TestVbSetup();
     }
 
+
+
+    private async static Task TestVbSetup()
+    {
+        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
+
+        // Create the setup used for your sync process
+        var tables = new string[] { "[vbs].VBSetup", };
+
+        //  [Optional] : database setup
+        var syncSetup = new SyncSetup(tables)
+        {
+            // optional :
+            StoredProceduresPrefix = "sync_",
+            StoredProceduresSuffix = "",
+            TrackingTablesPrefix = "sync_",
+            TrackingTablesSuffix = "",
+            ScopeName = "SStGMobile_Sync",
+            TriggersPrefix = "sync",
+        };
+
+        var syncAgent = new SyncAgent(clientProvider, serverProvider, syncSetup);
+
+        // Using the IProgress<T> pattern to handle progession dring the synchronization
+        // Be careful, Progress<T> is not synchronous. Use SynchronousProgress<T> instead !
+        var progress = new SynchronousProgress<ProgressArgs>(s => Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}"));
+
+        var syncContext = await syncAgent.SynchronizeAsync(progress);
+
+    }
     private static void TestSqliteDoubleStatement()
     {
         var clientProvider = new SqliteSyncProvider(@"C:\PROJECTS\DOTMIM.SYNC\Tests\Dotmim.Sync.Tests\bin\Debug\netcoreapp2.0\st_r55jmmolvwg.db");
@@ -201,17 +232,6 @@ internal class Program
             c.Close();
         }
     }
-
-    private async static Task RunAsync()
-    {
-        // Create databases 
-        await DbHelper.EnsureDatabasesAsync(serverDbName);
-        await DbHelper.CreateDatabaseAsync(clientDbName);
-
-        // Launch Sync
-        await SyncHttpThroughKestellAsync();
-    }
-
 
     private static async Task CreateSnapshotAsync()
     {
@@ -373,17 +393,15 @@ internal class Program
         var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
         //var clientProvider = new SqliteSyncProvider("client2.db");
 
-        // specific Setup with only 2 tables, and one filtered
-        var setup = new SyncSetup(allTables);
+        var setup = new SyncSetup(new string[] {"Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" });
 
-        // 1) EASY Way:
         setup.Filters.Add("Customer", "CompanyName");
 
-        var customerAddressFilter = new SetupFilter("CustomerAddress");
-        customerAddressFilter.AddParameter("CompanyName", "Customer");
-        customerAddressFilter.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
-        customerAddressFilter.AddWhere("CompanyName", "Customer", "CompanyName");
-        setup.Filters.Add(customerAddressFilter);
+        var addressCustomerFilter = new SetupFilter("CustomerAddress");
+        addressCustomerFilter.AddParameter("CompanyName", "Customer");
+        addressCustomerFilter.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
+        addressCustomerFilter.AddWhere("CompanyName", "Customer", "CompanyName");
+        setup.Filters.Add(addressCustomerFilter);
 
         var addressFilter = new SetupFilter("Address");
         addressFilter.AddParameter("CompanyName", "Customer");
@@ -392,18 +410,20 @@ internal class Program
         addressFilter.AddWhere("CompanyName", "Customer", "CompanyName");
         setup.Filters.Add(addressFilter);
 
-        var salesOrderHeaderFilter = new SetupFilter("SalesOrderHeader");
-        salesOrderHeaderFilter.AddParameter("CompanyName", "Customer");
-        salesOrderHeaderFilter.AddJoin(Join.Left, "Customer").On("SalesOrderHeader", "CustomerId", "Customer", "CustomerId");
-        salesOrderHeaderFilter.AddWhere("CompanyName", "Customer", "CompanyName");
-        setup.Filters.Add(salesOrderHeaderFilter);
+        var orderHeaderFilter = new SetupFilter("SalesOrderHeader");
+        orderHeaderFilter.AddParameter("CompanyName", "Customer");
+        orderHeaderFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerId", "SalesOrderHeader", "CustomerId");
+        orderHeaderFilter.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
+        orderHeaderFilter.AddWhere("CompanyName", "Customer", "CompanyName");
+        setup.Filters.Add(orderHeaderFilter);
 
-        var salesOrderDetailFilter = new SetupFilter("SalesOrderDetail");
-        salesOrderDetailFilter.AddParameter("CompanyName", "Customer");
-        salesOrderDetailFilter.AddJoin(Join.Left, "SalesOrderHeader").On("SalesOrderHeader", "SalesOrderId", "SalesOrderDetail", "SalesOrderId");
-        salesOrderDetailFilter.AddJoin(Join.Left, "Customer").On("SalesOrderHeader", "CustomerId", "Customer", "CustomerId");
-        salesOrderDetailFilter.AddWhere("CompanyName", "Customer", "CompanyName");
-        setup.Filters.Add(salesOrderDetailFilter);
+        var orderDetailsFilter = new SetupFilter("SalesOrderDetail");
+        orderDetailsFilter.AddParameter("CompanyName", "Customer");
+        orderDetailsFilter.AddJoin(Join.Left, "SalesOrderHeader").On("SalesOrderDetail", "SalesOrderID", "SalesOrderHeader", "SalesOrderID");
+        orderDetailsFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerId", "SalesOrderHeader", "CustomerId");
+        orderDetailsFilter.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
+        orderDetailsFilter.AddWhere("CompanyName", "Customer", "CompanyName");
+        setup.Filters.Add(orderDetailsFilter);
 
 
         // Add pref suf
@@ -445,25 +465,25 @@ internal class Program
         myRijndael.GenerateKey();
         myRijndael.GenerateIV();
 
-        agent.RemoteOrchestrator.OnSerializingSet(ssa =>
-        {
-            // Create an encryptor to perform the stream transform.
-            var encryptor = myRijndael.CreateEncryptor(myRijndael.Key, myRijndael.IV);
+        //agent.RemoteOrchestrator.OnSerializingSet(ssa =>
+        //{
+        //    // Create an encryptor to perform the stream transform.
+        //    var encryptor = myRijndael.CreateEncryptor(myRijndael.Key, myRijndael.IV);
 
-            using (var msEncrypt = new MemoryStream())
-            {
-                using (var csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write))
-                {
-                    using (var swEncrypt = new StreamWriter(csEncrypt))
-                    {
-                        //Write all data to the stream.
-                        var strSet = JsonConvert.SerializeObject(ssa.Set);
-                        swEncrypt.Write(strSet);
-                    }
-                    ssa.Data = msEncrypt.ToArray();
-                }
-            }
-        });
+        //    using (var msEncrypt = new MemoryStream())
+        //    {
+        //        using (var csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write))
+        //        {
+        //            using (var swEncrypt = new StreamWriter(csEncrypt))
+        //            {
+        //                //Write all data to the stream.
+        //                var strSet = JsonConvert.SerializeObject(ssa.Set);
+        //                swEncrypt.Write(strSet);
+        //            }
+        //            ssa.Data = msEncrypt.ToArray();
+        //        }
+        //    }
+        //});
 
         //agent.OnApplyChangesFailed(acf =>
         //{

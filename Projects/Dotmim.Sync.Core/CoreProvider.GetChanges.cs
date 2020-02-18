@@ -154,17 +154,7 @@ namespace Dotmim.Sync
                                 continue;
 
                             // add changes to batchinfo
-
-                            // Generate a new file name
-                            var bpId = batchInfo.GenerateNewFileName(batchIndex.ToString());
-                            var directoryFullPath = batchInfo.GetDirectoryFullPath();
-                            var bpi = BatchPartInfo.CreateBatchPartInfo2(batchIndex, changesSet, bpId, false);
-                            await this.SerializeAsync(context, changesSet.GetContainerSet(), bpId, directoryFullPath, connection, transaction).ConfigureAwait(false);
-
-                            // add the batchpartinfo tp the current batchinfo
-                            batchInfo.BatchPartsInfo.Add(bpi);
-
-                            //batchInfo.AddChanges(changesSet, batchIndex, false);
+                            batchInfo.AddChanges(changesSet, batchIndex, false);
 
                             // increment batch index
                             batchIndex++;
@@ -202,57 +192,13 @@ namespace Dotmim.Sync
             // We are in batch mode, and we are at the last batchpart info
             // Even if we don't have rows inside, we return the changesSet, since it contains at leaset schema
             if (changesSet != null && changesSet.HasTables)
-            {
-                // Generate a new file name
-                var bpId = batchInfo.GenerateNewFileName(batchIndex.ToString());
-                var directoryFullPath = batchInfo.GetDirectoryFullPath();
-                var bpi = BatchPartInfo.CreateBatchPartInfo2(batchIndex, changesSet, bpId, true);
-                await this.SerializeAsync(context, changesSet.GetContainerSet(), bpId, directoryFullPath, connection, transaction).ConfigureAwait(false);
-
-                // add the batchpartinfo tp the current batchinfo
-                batchInfo.BatchPartsInfo.Add(bpi);
-
-                //batchInfo.AddChanges(changesSet, batchIndex, true);
-            }
+                batchInfo.AddChanges(changesSet, batchIndex, true);
 
             // Check the last index as the last batch
             batchInfo.EnsureLastBatch();
 
             return (context, batchInfo, changes);
 
-        }
-
-
-        /// <summary>
-        /// Serialize a container set instance
-        /// </summary>
-        internal async Task SerializeAsync(SyncContext context, ContainerSet set, string fileName, string directoryFullPath, DbConnection connection = null, DbTransaction transaction = null)
-        {
-            if (set == null)
-                return;
-
-            var fullPath = Path.Combine(directoryFullPath, fileName);
-
-            var fi = new FileInfo(fullPath);
-
-            if (!Directory.Exists(fi.Directory.FullName))
-                Directory.CreateDirectory(fi.Directory.FullName);
-
-            // Serialize on disk.
-            var jsonConverter = new JsonConverter<ContainerSet>();
-
-            // Try to get input from user
-            var serializingArgs = new SerializingSetArgs(context, set, connection, transaction);
-            await this.InterceptAsync(serializingArgs).ConfigureAwait(false);
-
-            // if we replaced the serializerd, that's fine, otherwise use a json converter
-            var data = serializingArgs.Data != null ? serializingArgs.Data : jsonConverter.Serialize(set);
-
-            // write to disk
-            using (var f = new FileStream(fullPath, FileMode.CreateNew, FileAccess.ReadWrite))
-            {
-                await f.WriteAsync(data, 0, data.Length).ConfigureAwait(false);
-            }
         }
 
 
