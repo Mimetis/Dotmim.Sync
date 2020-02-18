@@ -186,9 +186,12 @@ namespace Dotmim.Sync.SqlServer.Builders
                                 case SqlDbType.DateTime:
                                 case SqlDbType.DateTime2:
                                 case SqlDbType.SmallDateTime:
-                                case SqlDbType.DateTimeOffset:
                                     if (columnType != typeof(DateTime))
                                         rowValue = SyncTypeConverter.TryConvertTo<DateTime>(rowValue);
+                                    break;
+                                case SqlDbType.DateTimeOffset:
+                                    if (columnType != typeof(DateTimeOffset))
+                                        rowValue = SyncTypeConverter.TryConvertTo<DateTimeOffset>(rowValue);
                                     break;
                                 case SqlDbType.Decimal:
                                     if (columnType != typeof(decimal))

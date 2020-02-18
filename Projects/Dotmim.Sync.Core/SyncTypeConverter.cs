@@ -51,6 +51,15 @@ namespace Dotmim.Sync
                 else
                     return Convert.ToDateTime(value);
             }
+            else if (typeOfT == typeof(DateTimeOffset))
+            {
+                if (DateTimeOffset.TryParse(value.ToString(), out DateTimeOffset dateTime))
+                    return (T)Convert.ChangeType(dateTime, typeOfT);
+                else if (typeOfU == typeof(long))
+                    return (T)Convert.ChangeType(new DateTimeOffset(value), typeOfT);
+                else
+                    return Convert.ToDateTime(value);
+            }
             else if (typeOfT == typeof(string))
                 return value.ToString();
             else if (typeOfT == typeof(byte))
