@@ -631,7 +631,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             // ----------------------------------
             if (filter != null)
             {
-                var createFilterWhereSide = CreateFilterWhereSide(filter, true);
+                var createFilterWhereSide = CreateFilterWhereSide(filter, true, true);
                 stringBuilder.Append(createFilterWhereSide);
 
                 if (!string.IsNullOrEmpty(createFilterWhereSide))
