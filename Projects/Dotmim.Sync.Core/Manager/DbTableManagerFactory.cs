@@ -89,8 +89,8 @@ namespace Dotmim.Sync.Manager
                         value = Convert.ToDateTime(value);
                     else if (columnType == DbType.DateTime2 && valueType != typeof(DateTime))
                         value = Convert.ToDateTime(value);
-                    else if (columnType == DbType.DateTimeOffset && valueType != typeof(DateTime))
-                        value = Convert.ToDateTime(value);
+                    else if (columnType == DbType.DateTimeOffset && valueType != typeof(DateTimeOffset))
+                        value = SyncTypeConverter.TryConvertTo<DateTimeOffset>(value);
                     else if (columnType == DbType.Decimal && valueType != typeof(decimal))
                         value = Convert.ToDecimal(value);
                     else if (columnType == DbType.Double && valueType != typeof(double))
