@@ -78,7 +78,7 @@ namespace Dotmim.Sync
             };
 
             foreach (var s in setupFilter.Parameters)
-                item.Parameters.Add(new SyncFilterParameter { Name = s.Name, DbType = s.DbType, DefaultValue = s.DefaultValue, AllowNull = s.AllowNull, MaxLength = s.MaxLength });
+                item.Parameters.Add(new SyncFilterParameter { Name = s.Name, SchemaName = s.SchemaName, TableName = s.TableName, DbType = s.DbType, DefaultValue = s.DefaultValue, AllowNull = s.AllowNull, MaxLength = s.MaxLength });
 
             foreach (var s in setupFilter.Where)
                 item.Wheres.Add(new SyncFilterWhereSideItem { ColumnName = s.columName, TableName = s.tableName, SchemaName = s.schemaName, ParameterName = s.parameterName });

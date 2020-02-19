@@ -35,7 +35,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Add a new filter 
         /// </summary>
-        public SetupFilters Add(string tableName, string columnName, string schemaName = null, bool allowNull = true)
+        public SetupFilters Add(string tableName, string columnName, string schemaName = null, bool allowNull = false)
         {
             // Create a filter on the table
             var item = new SetupFilter(tableName, schemaName);

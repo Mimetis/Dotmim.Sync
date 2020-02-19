@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Serialization
 {
@@ -18,7 +19,7 @@ namespace Dotmim.Sync.Serialization
     /// </summary>
     public interface ISerializer<T>
     {
-        T Deserialize(Stream ms);
-        byte[] Serialize(T obj);
+        Task<T> DeserializeAsync(Stream ms);
+        Task<byte[]> SerializeAsync(T obj);
     }
 }

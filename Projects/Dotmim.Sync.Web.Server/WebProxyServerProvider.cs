@@ -10,6 +10,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using System.IO.Compression;
+using System.Text;
+using Microsoft.AspNetCore.Hosting;
 
 namespace Dotmim.Sync.Web.Server
 {
@@ -21,22 +23,22 @@ namespace Dotmim.Sync.Web.Server
     {
         public IMemoryCache Cache { get; }
         public WebServerProperties WebServerProperties { get; }
+        public IHostingEnvironment Environment { get; }
 
         /// <summary>
         /// Default constructor for DI
         /// </summary>
-        public WebProxyServerOrchestrator(IMemoryCache cache, WebServerProperties webServerProperties)
+        public WebProxyServerOrchestrator(IMemoryCache cache, WebServerProperties webServerProperties, IHostingEnvironment env)
         {
             this.Cache = cache;
             this.WebServerProperties = webServerProperties;
+            this.Environment = env;
         }
 
         /// <summary>
         /// Gets or Sets a Web server orchestratot that will override the one from cache
         /// </summary>
         public WebServerOrchestrator WebServerOrchestrator { get; set; }
-
-
 
 
         /// <summary>
@@ -64,9 +66,15 @@ namespace Dotmim.Sync.Web.Server
         {
             var httpRequest = context.Request;
             var httpResponse = context.Response;
-            var streamArray = GetBody(httpRequest);
+            var streamArray = httpRequest.Body;
             var serAndsizeString = string.Empty;
             var converter = string.Empty;
+
+            if (httpRequest.Method.ToLowerInvariant() == "get")
+            {
+                await this.WriteHelloAsync(context, cancellationToken);
+                return;
+            }
 
             // Get the serialization and batch size format
             if (TryGetHeaderValue(context.Request.Headers, "dotmim-sync-serialization-format", out var vs))
@@ -109,34 +117,33 @@ namespace Dotmim.Sync.Web.Server
                 var clientConverter = GetClientConverter(converter, this.WebServerOrchestrator);
                 this.WebServerOrchestrator.ClientConverter = clientConverter;
 
-
                 byte[] binaryData = null;
                 switch (step)
                 {
                     case HttpStep.EnsureScopes:
-                        var m1 = clientSerializerFactory.GetSerializer<HttpMessageEnsureScopesRequest>().Deserialize(streamArray);
+                        var m1 = await clientSerializerFactory.GetSerializer<HttpMessageEnsureScopesRequest>().DeserializeAsync(streamArray);
                         var s1 = await this.WebServerOrchestrator.EnsureScopeAsync(m1, sessionCache, cancellationToken).ConfigureAwait(false);
-                        binaryData = clientSerializerFactory.GetSerializer<HttpMessageEnsureScopesResponse>().Serialize(s1);
+                        binaryData = await clientSerializerFactory.GetSerializer<HttpMessageEnsureScopesResponse>().SerializeAsync(s1);
                         await this.WebServerOrchestrator.Provider.InterceptAsync(new HttpMessageEnsureScopesResponseArgs(binaryData)).ConfigureAwait(false);
                         break;
                     case HttpStep.SendChanges:
-                        var m2 = clientSerializerFactory.GetSerializer<HttpMessageSendChangesRequest>().Deserialize(streamArray);
+                        var m2 = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesRequest>().DeserializeAsync(streamArray);
                         var s2 = await this.WebServerOrchestrator.ApplyThenGetChangesAsync(m2, sessionCache, clientBatchSize, cancellationToken).ConfigureAwait(false);
-                        binaryData = clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().Serialize(s2);
+                        binaryData = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().SerializeAsync(s2);
                         if (s2.Changes != null && s2.Changes.HasRows)
                             await this.WebServerOrchestrator.Provider.InterceptAsync(new HttpMessageSendChangesResponseArgs(binaryData)).ConfigureAwait(false);
                         break;
                     case HttpStep.GetChanges:
-                        var m3 = clientSerializerFactory.GetSerializer<HttpMessageGetMoreChangesRequest>().Deserialize(streamArray);
-                        var s3 = this.WebServerOrchestrator.GetMoreChanges(m3, sessionCache, cancellationToken);
-                        binaryData = clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().Serialize(s3);
+                        var m3 = await clientSerializerFactory.GetSerializer<HttpMessageGetMoreChangesRequest>().DeserializeAsync(streamArray);
+                        var s3 = await this.WebServerOrchestrator.GetMoreChangesAsync(m3, sessionCache, cancellationToken);
+                        binaryData = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().SerializeAsync(s3);
                         if (s3.Changes != null && s3.Changes.HasRows)
                             await this.WebServerOrchestrator.Provider.InterceptAsync(new HttpMessageSendChangesResponseArgs(binaryData)).ConfigureAwait(false);
                         break;
                     case HttpStep.GetSnapshot:
-                        var m4 = clientSerializerFactory.GetSerializer<HttpMessageSendChangesRequest>().Deserialize(streamArray);
+                        var m4 = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesRequest>().DeserializeAsync(streamArray);
                         var s4 = await this.WebServerOrchestrator.GetSnapshotAsync(m4, sessionCache, cancellationToken);
-                        binaryData = clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().Serialize(s4);
+                        binaryData = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().SerializeAsync(s4);
                         if (s4.Changes != null && s4.Changes.HasRows)
                             await this.WebServerOrchestrator.Provider.InterceptAsync(new HttpMessageSendChangesResponseArgs(binaryData)).ConfigureAwait(false);
                         break;
@@ -155,7 +162,7 @@ namespace Dotmim.Sync.Web.Server
                 // data to send back, as the response
                 byte[] data = this.EnsureCompression(httpRequest, httpResponse, binaryData);
 
-                await this.GetBody(httpResponse).WriteAsync(data, 0, data.Length).ConfigureAwait(false);
+                await httpResponse.Body.WriteAsync(data, 0, data.Length).ConfigureAwait(false);
 
             }
             catch (Exception ex)
@@ -167,6 +174,34 @@ namespace Dotmim.Sync.Web.Server
                 //if (httpMessage != null && httpMessage.Step == HttpStep.EndSession)
                 //    Cleanup(context.RequestServices.GetService(typeof(IMemoryCache)), syncSessionId);
             }
+        }
+
+        private async Task WriteHelloAsync(HttpContext context, CancellationToken cancellationToken)
+        {
+            var httpRequest = context.Request;
+            var httpResponse = context.Response;
+            var stringBuilder = new StringBuilder();
+
+            stringBuilder.AppendLine("<H1>Sync Configuration:</H1>");
+
+            if (this.Environment.IsDevelopment())
+            {
+                var s = JsonConvert.SerializeObject(this.WebServerProperties, Formatting.Indented);
+
+                stringBuilder.AppendLine("<div>Web Server properties:</div>");
+                stringBuilder.AppendLine("<script src='https://cdn.jsdelivr.net/gh/google/code-prettify@master/loader/run_prettify.js'></script>");
+                stringBuilder.AppendLine("<pre class='prettyprint'>");
+                stringBuilder.AppendLine(s);
+                stringBuilder.AppendLine("</pre>");
+            }
+            else
+            {
+                stringBuilder.AppendLine("<div>Server is configured to Production mode. No options displayed.</div>");
+            }
+
+            await httpResponse.WriteAsync(stringBuilder.ToString(), cancellationToken);
+
+
         }
 
         /// <summary>
@@ -360,8 +395,8 @@ namespace Dotmim.Sync.Web.Server
             return false;
         }
 
-        public Stream GetBody(HttpRequest r) => r.Body;
-        public Stream GetBody(HttpResponse r) => r.Body;
+        //public Stream GetBody(HttpRequest r) => r.Body;
+        //public Stream GetBody(HttpResponse r) => r.Body;
 
     }
 
