@@ -1,10 +1,11 @@
 ﻿using Dotmim.Sync.Batch;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Messages;
-using Newtonsoft.Json;
+using Dotmim.Sync.Serialization;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -85,6 +86,7 @@ namespace Dotmim.Sync
         public void OnApplyChangesFailed(Action<ApplyChangesFailedArgs> action)
             => this.RemoteOrchestrator.OnApplyChangesFailed(action);
 
+
         /// <summary>
         /// Lock sync to prevent multi call to sync at the same time
         /// </summary>
@@ -110,8 +112,6 @@ namespace Dotmim.Sync
                 this.syncInProgress = false;
             }
         }
-
-
         /// <summary>
         /// Create an agent based on TCP connection
         /// </summary>
@@ -217,6 +217,8 @@ namespace Dotmim.Sync
             if (this.RemoteOrchestrator?.Provider != null)
                 this.RemoteOrchestrator.Provider.Options = this.Options;
 
+            var jsonConverter = new JsonConverter<SyncSet>();
+
             // Lock sync to prevent multi call to sync at the same time
             LockSync();
 
@@ -253,7 +255,8 @@ namespace Dotmim.Sync
                 // check if we already have a schema from local 
                 if (!string.IsNullOrEmpty(scope.Schema))
                 {
-                    this.Schema = JsonConvert.DeserializeObject<SyncSet>(scope.Schema);
+                        this.Schema = Newtonsoft.Json.JsonConvert.DeserializeObject<SyncSet>(scope.Schema);
+                    //this.Schema = JsonSerializer.Deserialize<SyncSet>(scope.Schema, new JsonSerializerOptions { IgnoreReadOnlyProperties = true, IgnoreNullValues = true, MaxDepth = int.MaxValue });
                 }
                 else
                 {
@@ -294,11 +297,18 @@ namespace Dotmim.Sync
                     var serverSnapshotChanges = await this.RemoteOrchestrator.GetSnapshotAsync(
                         context, scope, this.Schema, this.Options.SnapshotsDirectory, this.Options.BatchDirectory, cancellationToken, remoteProgress);
 
-                    if (serverSnapshotChanges.serverBatchInfo != null && serverSnapshotChanges.serverBatchInfo.HasData())
-                        context = await this.LocalOrchestrator.ApplySnapshotAndGetChangesAsync(context, scope, this.Schema, serverSnapshotChanges.serverBatchInfo,
-                            clientChanges.clientTimestamp, serverSnapshotChanges.remoteClientTimestamp, this.Options.DisableConstraintsOnApplyChanges,
-                            this.Options.BatchSize, this.Options.BatchDirectory, this.Options.UseBulkOperations, this.Options.CleanMetadatas, this.Options.ScopeInfoTableName,
-                            cancellationToken, progress);
+                    if (serverSnapshotChanges.serverBatchInfo != null)
+                    {
+                        var hasChanges = await serverSnapshotChanges.serverBatchInfo.HasDataAsync();
+                        if (hasChanges)
+                        {
+                            context = await this.LocalOrchestrator.ApplySnapshotAndGetChangesAsync(context, scope, this.Schema, serverSnapshotChanges.serverBatchInfo,
+                                clientChanges.clientTimestamp, serverSnapshotChanges.remoteClientTimestamp, this.Options.DisableConstraintsOnApplyChanges,
+                                this.Options.BatchSize, this.Options.BatchDirectory, this.Options.UseBulkOperations, this.Options.CleanMetadatas, this.Options.ScopeInfoTableName,
+                                cancellationToken, progress);
+
+                        }
+                    }
                 }
 
                 var serverChanges = await this.RemoteOrchestrator.ApplyThenGetChangesAsync(
@@ -314,7 +324,7 @@ namespace Dotmim.Sync
                 // Serialize schema to be able to save it in client db
                 if (string.IsNullOrEmpty(scope.Schema))
                 {
-                    var schemaLight = JsonConvert.SerializeObject(this.Schema);
+                    var schemaLight = Newtonsoft.Json.JsonConvert.SerializeObject(this.Schema);
                     scope.Schema = schemaLight;
                 }
 

@@ -8,32 +8,34 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Dotmim.Sync.SampleWebServer.Controllers
 {
-[Route("api/[controller]")]
-[ApiController]
-public class SyncController : ControllerBase
-{
-    private WebProxyServerOrchestrator webProxyServer;
-
-    // Injected thanks to Dependency Injection
-    public SyncController(WebProxyServerOrchestrator proxy) => this.webProxyServer = proxy;
-
-    [HttpPost]
-    public async Task Post()
+    [Route("api/[controller]")]
+    [ApiController]
+    public class SyncController : ControllerBase
     {
-        webProxyServer.WebServerOrchestrator.OnApplyChangesFailed(e =>
-        {
-            if (e.Conflict.RemoteRow.Table.TableName == "Region")
-            {
-                e.Resolution = ConflictResolution.MergeRow;
-                e.FinalRow["RegionDescription"] = "Eastern alone !";
-            }
-            else
-            {
-                e.Resolution = ConflictResolution.ServerWins;
-            }
-        });
+        private WebProxyServerOrchestrator webProxyServer;
 
-        await webProxyServer.HandleRequestAsync(this.HttpContext);
+        // Injected thanks to Dependency Injection
+        public SyncController(WebProxyServerOrchestrator proxy) => this.webProxyServer = proxy;
+
+        [HttpPost]
+        public async Task Post()
+        {
+            webProxyServer.WebServerOrchestrator.OnApplyChangesFailed(e =>
+            {
+                if (e.Conflict.RemoteRow.Table.TableName == "Region")
+                {
+                    e.Resolution = ConflictResolution.MergeRow;
+                    e.FinalRow["RegionDescription"] = "Eastern alone !";
+                }
+                else
+                {
+                    e.Resolution = ConflictResolution.ServerWins;
+                }
+            });
+
+            
+
+            await webProxyServer.HandleRequestAsync(this.HttpContext);
+        }
     }
-}
 }

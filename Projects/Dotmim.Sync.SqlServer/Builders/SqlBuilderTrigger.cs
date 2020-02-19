@@ -202,7 +202,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         }
 
-   
+
         private string InsertTriggerBodyText()
         {
             var stringBuilder = new StringBuilder();
@@ -369,7 +369,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             }
         }
-     
+
 
         private string UpdateTriggerBodyText()
         {
@@ -535,7 +535,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
         }
 
-    
+
         public void AlterUpdateTrigger()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
@@ -574,7 +574,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             }
         }
-    
+
         public virtual bool NeedToCreateTrigger(DbTriggerType type)
         {
 

@@ -26,6 +26,7 @@ using System.Net.Http;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters;
 using System.Runtime.Serialization.Formatters.Binary;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -43,9 +44,40 @@ internal class Program
     public static string[] oneTable = new string[] { "ProductCategory" };
     private static async Task Main(string[] args)
     {
-        await SynchronizeAsync();
+        await TestVbSetup();
     }
 
+
+
+    private async static Task TestVbSetup()
+    {
+        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
+
+        // Create the setup used for your sync process
+        var tables = new string[] { "[vbs].VBSetup", };
+
+        //  [Optional] : database setup
+        var syncSetup = new SyncSetup(tables)
+        {
+            // optional :
+            StoredProceduresPrefix = "sync_",
+            StoredProceduresSuffix = "",
+            TrackingTablesPrefix = "sync_",
+            TrackingTablesSuffix = "",
+            ScopeName = "SStGMobile_Sync",
+            TriggersPrefix = "sync",
+        };
+
+        var syncAgent = new SyncAgent(clientProvider, serverProvider, syncSetup);
+
+        // Using the IProgress<T> pattern to handle progession dring the synchronization
+        // Be careful, Progress<T> is not synchronous. Use SynchronousProgress<T> instead !
+        var progress = new SynchronousProgress<ProgressArgs>(s => Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}"));
+
+        var syncContext = await syncAgent.SynchronizeAsync(progress);
+
+    }
     private static void TestSqliteDoubleStatement()
     {
         var clientProvider = new SqliteSyncProvider(@"C:\PROJECTS\DOTMIM.SYNC\Tests\Dotmim.Sync.Tests\bin\Debug\netcoreapp2.0\st_r55jmmolvwg.db");
@@ -201,178 +233,6 @@ internal class Program
         }
     }
 
-    private static async Task SynchronizeWithSyncAgent2Async()
-    {
-        // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString("AdventureWorks"));
-        var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString("Client"));
-
-        // Tables involved in the sync process:
-        var tables = new string[] { "ProductCategory", "ProductModel", "Product" };
-
-        // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, tables);
-
-        // Using the Progress pattern to handle progession during the synchronization
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
-            Console.ResetColor();
-        });
-
-        var remoteProgress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
-            Console.ResetColor();
-        });
-        agent.AddRemoteProgress(remoteProgress);
-
-        // Setting configuration options
-        agent.Schema.StoredProceduresPrefix = "s";
-        agent.Schema.StoredProceduresSuffix = "";
-        agent.Schema.TrackingTablesPrefix = "t";
-        agent.Schema.TrackingTablesSuffix = "";
-
-        agent.Options.ScopeInfoTableName = "tscopeinfo";
-        agent.Options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync");
-        //agent.Options.BatchSize = 100;
-        agent.Options.CleanMetadatas = true;
-        agent.Options.UseBulkOperations = true;
-        agent.Options.UseVerboseErrors = false;
-
-        agent.LocalOrchestrator.OnTransactionOpen(to =>
-        {
-            var dt = DateTime.Now;
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"Transaction Opened\t {dt.ToLongTimeString()}.{dt.Millisecond}");
-            Console.ResetColor();
-        });
-        agent.LocalOrchestrator.OnTransactionCommit(to =>
-        {
-            var dt = DateTime.Now;
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"Transaction Commited\t {dt.ToLongTimeString()}.{dt.Millisecond}");
-            Console.ResetColor();
-        });
-
-
-        agent.RemoteOrchestrator.OnTransactionOpen(to =>
-        {
-            var dt = DateTime.Now;
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"Transaction Opened\t {dt.ToLongTimeString()}.{dt.Millisecond}");
-            Console.ResetColor();
-        });
-        agent.RemoteOrchestrator.OnTransactionCommit(to =>
-        {
-            var dt = DateTime.Now;
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"Transaction Commited\t {dt.ToLongTimeString()}.{dt.Millisecond}");
-            Console.ResetColor();
-        });
-
-        do
-        {
-            Console.Clear();
-            Console.WriteLine("Sync Start");
-            try
-            {
-                // Launch the sync process
-                var s1 = await agent.SynchronizeAsync(SyncType.Normal, CancellationToken.None, progress);
-
-                // Write results
-                Console.WriteLine(s1);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.Message);
-            }
-
-
-            //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
-        } while (Console.ReadKey().Key != ConsoleKey.Escape);
-
-        Console.WriteLine("End");
-    }
-
-    private async static Task RunAsync()
-    {
-        // Create databases 
-        await DbHelper.EnsureDatabasesAsync(serverDbName);
-        await DbHelper.CreateDatabaseAsync(clientDbName);
-
-        // Launch Sync
-        await SyncHttpThroughKestellAsync();
-    }
-
-
-    private static async Task SyncProductCategoryAsync()
-    {
-        // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
-        var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
-        // specific Setup with only 2 tables, and one filtered
-        var setup = new SyncSetup(new string[] { "ProductCategory" });
-
-        // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, setup);
-
-        // Using the Progress pattern to handle progession during the synchronization
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
-            Console.ResetColor();
-        });
-
-        var remoteProgress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
-            Console.ResetColor();
-        });
-
-        agent.AddRemoteProgress(remoteProgress);
-
-        agent.Options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "syncproduct");
-        agent.Options.BatchSize = 10;
-        agent.Options.CleanMetadatas = true;
-        agent.Options.UseBulkOperations = true;
-        agent.Options.DisableConstraintsOnApplyChanges = false;
-
-        do
-        {
-            Console.Clear();
-            Console.WriteLine("Sync Start");
-            try
-            {
-                // Launch the sync process
-                if (!agent.Parameters.Contains("City"))
-                    agent.Parameters.Add("City", "Toronto");
-
-                if (!agent.Parameters.Contains("postal"))
-                    agent.Parameters.Add("postal", DBNull.Value);
-
-
-                var s1 = await agent.SynchronizeAsync(progress);
-
-                // Write results
-                Console.WriteLine(s1);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.Message);
-            }
-
-
-            //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
-        } while (Console.ReadKey().Key != ConsoleKey.Escape);
-
-        Console.WriteLine("End");
-    }
-
     private static async Task CreateSnapshotAsync()
     {
         // Create 2 Sql Sync providers
@@ -446,100 +306,6 @@ internal class Program
             {
                 Console.WriteLine(e.Message);
             }
-        } while (Console.ReadKey().Key != ConsoleKey.Escape);
-
-        Console.WriteLine("End");
-    }
-
-    private static async Task SynchronizePalmyraAsync()
-    {
-        // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString("ImpactPalmyraOct2019"));
-        //var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
-        var clientProvider = new SqliteSyncProvider("palmyra.db");
-
-        allTables = new string[]
-        {
-            "Branch_Details", "Counters", "Debtors", "Debtor_Accounts", "Departments", "Department_Links",
-               "DocNumbers", "Gratuity", "Happy_Hour", "Happy_Hour1", "Locations", "Location_Links",
-               "OrderNoTracking", "Printer_Footer", "Printer_Header", "Product_Prices", "Products",
-               "Quantities", "Recipes", "Sales_Journal", "Settings", "Specials", "Sub_Recipes",
-               "Tab_Listing", "Table_Listing","Table_Details","Tax_Rates", "Users"
-        };
-
-        // specific Setup with only 2 tables, and one filtered
-        var setup = new SyncSetup(allTables);
-
-  
-        // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, setup);
-
-        // Using the Progress pattern to handle progession during the synchronization
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
-            Console.ResetColor();
-        });
-
-        var remoteProgress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
-            Console.ResetColor();
-        });
-
-        agent.AddRemoteProgress(remoteProgress);
-
-        //agent.Options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync");
-        agent.Options.BatchSize = 1000;
-        agent.Options.CleanMetadatas = true;
-        agent.Options.UseBulkOperations = true;
-        agent.Options.DisableConstraintsOnApplyChanges = false;
-        //agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
-        //agent.Options.UseVerboseErrors = false;
-        //agent.Options.ScopeInfoTableName = "tscopeinfo";
-
-
-        //agent.OnApplyChangesFailed(acf =>
-        //{
-        //    // Check conflict is correctly set
-        //    var localRow = acf.Conflict.LocalRow;
-        //    var remoteRow = acf.Conflict.RemoteRow;
-
-        //    // Merge row
-        //    acf.Resolution = ConflictResolution.MergeRow;
-
-        //    acf.FinalRow["Name"] = "Prout";
-
-        //});
-
-        do
-        {
-            Console.Clear();
-            Console.WriteLine("Sync Start");
-            try
-            {
-                // Launch the sync process
-                if (!agent.Parameters.Contains("City"))
-                    agent.Parameters.Add("City", "Toronto");
-
-                if (!agent.Parameters.Contains("postal"))
-                    agent.Parameters.Add("postal", DBNull.Value);
-
-
-                var s1 = await agent.SynchronizeAsync(progress);
-
-                // Write results
-                Console.WriteLine(s1);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.Message);
-            }
-
-
-            //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
         } while (Console.ReadKey().Key != ConsoleKey.Escape);
 
         Console.WriteLine("End");
@@ -627,87 +393,38 @@ internal class Program
         var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
         //var clientProvider = new SqliteSyncProvider("client2.db");
 
-        // specific Setup with only 2 tables, and one filtered
-        var setup = new SyncSetup(allTables);
+        var setup = new SyncSetup(new string[] {"Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" });
 
-        // ----------------------------------------------------
-        // Vertical Filter: On columns. Removing columns from source
-        // ----------------------------------------------------
-
-        // Add a table with less columns
-        setup.Tables["Product"]
-            .Columns.AddRange(new string[] { "ProductId", "Name", "ProductCategoryID", "ProductNumber", "StandardCost", "ListPrice", "SellStartDate", "rowguid", "ModifiedDate" });
-
-        // ----------------------------------------------------
-        // Horizontal Filter: On rows. Removing rows from source
-        // ----------------------------------------------------
-        // Over all filter : "we Want only customer from specific city and specific postal code"
-        // First level table : Address
-        // Second level tables : CustomerAddress
-        // Third level tables : Customer, SalesOrderHeader
-        // Fourth level tables : SalesOrderDetail
-
-        // Create a filter on table Address on City Washington
-        // Optional : Sub filter on PostalCode, for testing purpose
-        var addressFilter = new SetupFilter("Address");
-
-        // For each filter, you have to provider all the input parameters
-        // A parameter could be a parameter mapped to an existing colum : That way you don't have to specify any type, length and so on ...
-        // We can specify if a null value can be passed as parameter value : That way ALL addresses will be fetched
-        // A default value can be passed as well, but works only on SQL Server (MySql is a damn shity thing)
-        addressFilter.AddParameter("City", "Address", true);
-
-        // Or a parameter could be a random parameter bound to anything. In that case, you have to specify everything
-        // (This parameter COULD BE bound to a column, like City, but for the example, we go for a custom parameter)
-        addressFilter.AddParameter("postal", DbType.String, true, null, 20);
-
-        // Then you map each parameter on wich table / column the "where" clause should be applied
-        addressFilter.AddWhere("City", "Address", "City");
-        addressFilter.AddWhere("PostalCode", "Address", "postal");
-        setup.Filters.Add(addressFilter);
+        setup.Filters.Add("Customer", "CompanyName");
 
         var addressCustomerFilter = new SetupFilter("CustomerAddress");
-        addressCustomerFilter.AddParameter("City", "Address", true);
-        addressCustomerFilter.AddParameter("postal", DbType.String, true, null, 20);
-
-        // You can join table to go from your table up (or down) to your filter table
-        addressCustomerFilter.AddJoin(Join.Left, "Address").On("CustomerAddress", "AddressId", "Address", "AddressId");
-
-        // And then add your where clauses
-        addressCustomerFilter.AddWhere("City", "Address", "City");
-        addressCustomerFilter.AddWhere("PostalCode", "Address", "postal");
-
+        addressCustomerFilter.AddParameter("CompanyName", "Customer");
+        addressCustomerFilter.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
+        addressCustomerFilter.AddWhere("CompanyName", "Customer", "CompanyName");
         setup.Filters.Add(addressCustomerFilter);
 
-        var customerFilter = new SetupFilter("Customer");
-        customerFilter.AddParameter("City", "Address", true);
-        customerFilter.AddParameter("postal", DbType.String, true, null, 20);
-        customerFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
-        customerFilter.AddJoin(Join.Left, "Address").On("CustomerAddress", "AddressId", "Address", "AddressId");
-        customerFilter.AddWhere("City", "Address", "City");
-        customerFilter.AddWhere("PostalCode", "Address", "postal");
-        setup.Filters.Add(customerFilter);
+        var addressFilter = new SetupFilter("Address");
+        addressFilter.AddParameter("CompanyName", "Customer");
+        addressFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "AddressId", "Address", "AddressId");
+        addressFilter.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
+        addressFilter.AddWhere("CompanyName", "Customer", "CompanyName");
+        setup.Filters.Add(addressFilter);
 
         var orderHeaderFilter = new SetupFilter("SalesOrderHeader");
-        orderHeaderFilter.AddParameter("City", "Address", true);
-        orderHeaderFilter.AddParameter("postal", DbType.String, true, null, 20);
+        orderHeaderFilter.AddParameter("CompanyName", "Customer");
         orderHeaderFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerId", "SalesOrderHeader", "CustomerId");
-        orderHeaderFilter.AddJoin(Join.Left, "Address").On("CustomerAddress", "AddressId", "Address", "AddressId");
-        orderHeaderFilter.AddWhere("City", "Address", "City");
-        orderHeaderFilter.AddWhere("PostalCode", "Address", "postal");
+        orderHeaderFilter.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
+        orderHeaderFilter.AddWhere("CompanyName", "Customer", "CompanyName");
         setup.Filters.Add(orderHeaderFilter);
 
         var orderDetailsFilter = new SetupFilter("SalesOrderDetail");
-        orderDetailsFilter.AddParameter("City", "Address", true);
-        orderDetailsFilter.AddParameter("postal", DbType.String, true, null, 20);
-        orderDetailsFilter.AddJoin(Join.Left, "SalesOrderHeader").On("SalesOrderHeader", "SalesOrderID", "SalesOrderHeader", "SalesOrderID");
+        orderDetailsFilter.AddParameter("CompanyName", "Customer");
+        orderDetailsFilter.AddJoin(Join.Left, "SalesOrderHeader").On("SalesOrderDetail", "SalesOrderID", "SalesOrderHeader", "SalesOrderID");
         orderDetailsFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerId", "SalesOrderHeader", "CustomerId");
-        orderDetailsFilter.AddJoin(Join.Left, "Address").On("CustomerAddress", "AddressId", "Address", "AddressId");
-        orderDetailsFilter.AddWhere("City", "Address", "City");
-        orderDetailsFilter.AddWhere("PostalCode", "Address", "postal");
+        orderDetailsFilter.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
+        orderDetailsFilter.AddWhere("CompanyName", "Customer", "CompanyName");
         setup.Filters.Add(orderDetailsFilter);
 
-        // ----------------------------------------------------
 
         // Add pref suf
         setup.StoredProceduresPrefix = "s";
@@ -740,10 +457,33 @@ internal class Program
         agent.Options.CleanMetadatas = true;
         agent.Options.UseBulkOperations = true;
         agent.Options.DisableConstraintsOnApplyChanges = false;
-        //agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
+        agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
         //agent.Options.UseVerboseErrors = false;
         //agent.Options.ScopeInfoTableName = "tscopeinfo";
 
+        var myRijndael = new RijndaelManaged();
+        myRijndael.GenerateKey();
+        myRijndael.GenerateIV();
+
+        //agent.RemoteOrchestrator.OnSerializingSet(ssa =>
+        //{
+        //    // Create an encryptor to perform the stream transform.
+        //    var encryptor = myRijndael.CreateEncryptor(myRijndael.Key, myRijndael.IV);
+
+        //    using (var msEncrypt = new MemoryStream())
+        //    {
+        //        using (var csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write))
+        //        {
+        //            using (var swEncrypt = new StreamWriter(csEncrypt))
+        //            {
+        //                //Write all data to the stream.
+        //                var strSet = JsonConvert.SerializeObject(ssa.Set);
+        //                swEncrypt.Write(strSet);
+        //            }
+        //            ssa.Data = msEncrypt.ToArray();
+        //        }
+        //    }
+        //});
 
         //agent.OnApplyChangesFailed(acf =>
         //{
@@ -765,11 +505,11 @@ internal class Program
             try
             {
                 // Launch the sync process
-                if (!agent.Parameters.Contains("City"))
-                    agent.Parameters.Add("City", "Toronto");
+                if (!agent.Parameters.Contains("CompanyName"))
+                    agent.Parameters.Add("CompanyName", "Professional Sales and Service");
 
-                if (!agent.Parameters.Contains("postal"))
-                    agent.Parameters.Add("postal", DBNull.Value);
+                //if (!agent.Parameters.Contains("postal"))
+                //    agent.Parameters.Add("postal", DBNull.Value);
 
 
                 var s1 = await agent.SynchronizeAsync(progress);
@@ -795,7 +535,7 @@ internal class Program
         // Create 2 Sql Sync providers
         var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
         var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
-       
+
 
         // ----------------------------------
         // Client side
@@ -899,7 +639,7 @@ internal class Program
     /// <summary>
     /// Test a client syncing through a web api
     /// </summary>
-    private static async Task TestSyncThroughWebApi()
+    private static async Task SyncThroughWebApiAsync()
     {
         var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
 
@@ -953,7 +693,7 @@ internal class Program
             }
             catch (SyncException e)
             {
-                Console.WriteLine(e.ToString());
+                Console.WriteLine(e.Message);
             }
             catch (Exception e)
             {
