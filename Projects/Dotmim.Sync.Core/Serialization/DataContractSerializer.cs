@@ -22,41 +22,6 @@ namespace Dotmim.Sync.Serialization
 
     }
 
-
-    public delegate void DeserialiazeCallback<T>(T result, TaskCompletionSource<T> tcs);
-
-
-    public class OldFashionWay<T>
-    {
-        public Stream Ms { get; }
-        private DeserialiazeCallback<T> callback;
-        private readonly TaskCompletionSource<T> tcs;
-
-        public OldFashionWay(DeserialiazeCallback<T> callback, Stream ms, TaskCompletionSource<T> tcs)
-        {
-            this.callback = callback;
-            this.Ms = ms;
-            this.tcs = tcs;
-        }
-
-        public void Deserialiaze()
-        {
-            var instanceCaller = new Thread(new ParameterizedThreadStart(InternalDeserialize));
-            instanceCaller.Start(this.Ms);
-
-        }
-
-        public void InternalDeserialize(object ms)
-        {
-            var serializer = new DataContractSerializer(typeof(T));
-            var res = (T)serializer.ReadObject(ms as Stream);
-
-            callback?.Invoke(res, tcs);
-        }
-
-
-    }
-
     public class ContractSerializer<T> : ISerializer<T>
     {
 
