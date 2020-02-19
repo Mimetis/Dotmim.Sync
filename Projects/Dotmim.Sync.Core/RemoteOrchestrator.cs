@@ -360,7 +360,7 @@ namespace Dotmim.Sync
                 // When we get the chnages from server, we create the batches if it's requested by the client
                 // the batch decision comes from batchsize from client
                 (context, serverBatchInfo) =
-                    this.Provider.GetSnapshot(context, schema, snapshotDirectory, cancellationToken, progress);
+                    await this.Provider.GetSnapshotAsync(context, schema, snapshotDirectory, cancellationToken, progress);
 
             }
             catch (Exception ex)

@@ -3,16 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Dotmim.Sync.Batch;
-
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Serialization;
-using Microsoft.Net.Http.Headers;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 
 namespace Dotmim.Sync.Web.Client
 {
@@ -163,7 +158,7 @@ namespace Dotmim.Sync.Web.Client
 
             // serialize message
             var serializer = this.SerializerFactory.GetSerializer<HttpMessageEnsureScopesRequest>();
-            var binaryData = serializer.Serialize(httpMessage);
+            var binaryData = await serializer.SerializeAsync(httpMessage);
 
             await InterceptAsync(new HttpMessageEnsureScopesRequestArgs(binaryData)).ConfigureAwait(false);
 
@@ -232,7 +227,7 @@ namespace Dotmim.Sync.Web.Client
 
                 // serialize message
                 var serializer = this.SerializerFactory.GetSerializer<HttpMessageSendChangesRequest>();
-                var binaryData = serializer.Serialize(changesToSend);
+                var binaryData = await serializer.SerializeAsync(changesToSend);
 
                 await InterceptAsync(new HttpMessageSendChangesRequestArgs(binaryData)).ConfigureAwait(false);
 
@@ -249,7 +244,7 @@ namespace Dotmim.Sync.Web.Client
                 {
                     // If BPI is InMempory, no need to deserialize from disk
                     // othewise load it
-                    bpi.LoadBatch(changesSet, clientBatchInfo.GetDirectoryFullPath());
+                    await bpi.LoadBatchAsync(changesSet, clientBatchInfo.GetDirectoryFullPath());
 
                     var changesToSend = new HttpMessageSendChangesRequest(context, scope);
 
@@ -263,7 +258,7 @@ namespace Dotmim.Sync.Web.Client
 
                     // serialize message
                     var serializer = this.SerializerFactory.GetSerializer<HttpMessageSendChangesRequest>();
-                    var binaryData = serializer.Serialize(changesToSend);
+                    var binaryData = await serializer.SerializeAsync(changesToSend);
 
                     await InterceptAsync(new HttpMessageSendChangesRequestArgs(binaryData)).ConfigureAwait(false);
 
@@ -324,7 +319,7 @@ namespace Dotmim.Sync.Web.Client
                     AfterDeserializedRows(changesSet);
 
                 // Create a BatchPartInfo instance
-                serverBatchInfo.AddChanges(changesSet, httpMessageContent.BatchIndex, isLastBatch);
+                await serverBatchInfo.AddChangesAsync(changesSet, httpMessageContent.BatchIndex, isLastBatch);
 
                 // free some memory
                 if (!workInMemoryLocally && httpMessageContent.Changes != null)
@@ -340,7 +335,7 @@ namespace Dotmim.Sync.Web.Client
 
                     // serialize message
                     var serializer = this.SerializerFactory.GetSerializer<HttpMessageGetMoreChangesRequest>();
-                    var binaryData = serializer.Serialize(httpMessage);
+                    var binaryData = await serializer.SerializeAsync(httpMessage);
 
                     await InterceptAsync(new HttpMessageGetMoreChangesRequestArgs(binaryData)).ConfigureAwait(false);
 
@@ -382,7 +377,7 @@ namespace Dotmim.Sync.Web.Client
             };
 
             var serializer = this.SerializerFactory.GetSerializer<HttpMessageSendChangesRequest>();
-            var binaryData = serializer.Serialize(changesToSend);
+            var binaryData = await serializer.SerializeAsync(changesToSend);
 
             var httpMessageContent = await this.httpRequestHandler.ProcessRequestAsync<HttpMessageSendChangesResponse>(
                       this.HttpClient, this.ServiceUri, binaryData, HttpStep.GetSnapshot, context.SessionId,
@@ -409,7 +404,7 @@ namespace Dotmim.Sync.Web.Client
                     AfterDeserializedRows(changesSet);
 
                 // Create a BatchPartInfo instance
-                serverBatchInfo.AddChanges(changesSet, httpMessageContent.BatchIndex, isLastBatch);
+                await serverBatchInfo.AddChangesAsync(changesSet, httpMessageContent.BatchIndex, isLastBatch);
 
                 // free some memory
                 if (httpMessageContent.Changes != null)
@@ -425,7 +420,7 @@ namespace Dotmim.Sync.Web.Client
 
                     // serialize message
                     var serializer2 = this.SerializerFactory.GetSerializer<HttpMessageGetMoreChangesRequest>();
-                    var binaryData2 = serializer2.Serialize(httpMessage);
+                    var binaryData2 = await serializer2.SerializeAsync(httpMessage);
 
                     await InterceptAsync(new HttpMessageGetMoreChangesRequestArgs(binaryData)).ConfigureAwait(false);
 
