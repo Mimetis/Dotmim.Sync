@@ -1,7 +1,5 @@
 ﻿using Dotmim.Sync.Batch;
-
 using Dotmim.Sync.Enumerations;
-using Newtonsoft.Json;
 using System;
 
 namespace Dotmim.Sync.Messages

@@ -4,6 +4,7 @@ using System.IO;
 using System.Runtime.Serialization.Formatters;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Serialization
 {
@@ -23,7 +24,7 @@ namespace Dotmim.Sync.Serialization
         public BinarySerializer()
         {
         }
-        public T Deserialize(Stream ms)
+        public Task<T> DeserializeAsync(Stream ms)
         {
 
             var binaryFormatter = new BinaryFormatter
@@ -31,11 +32,11 @@ namespace Dotmim.Sync.Serialization
                 TypeFormat = FormatterTypeStyle.TypesAlways
             };
             var obj = binaryFormatter.Deserialize(ms);
-            return (T)obj;
+            return Task.FromResult((T)obj);
         }
 
 
-        public byte[] Serialize(T obj)
+        public Task<byte[]> SerializeAsync(T obj)
         {
             using (var ms = new MemoryStream())
             {
@@ -49,7 +50,7 @@ namespace Dotmim.Sync.Serialization
 
                 byte[] array = ms.ToArray();
 
-                return array;
+                return Task.FromResult(array);
             }
 
         }
