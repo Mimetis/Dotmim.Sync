@@ -120,7 +120,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         public string CreatePkCommandText()
         {
-            var stringBuilder = new StringBuilder();
+            StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.Append($"ALTER TABLE {trackingName.Schema().Quoted().ToString()} ADD CONSTRAINT [PK_{trackingName.Schema().Unquoted().Normalized().ToString()}] PRIMARY KEY (");
 
             var primaryKeysColumns = this.tableDescription.GetPrimaryKeysColumns().ToList();
@@ -213,33 +213,6 @@ namespace Dotmim.Sync.SqlServer.Builders
         private string CreateDropTableCommandText()
             => $"DROP TABLE {trackingName.Schema().Quoted().ToString()};";
 
-
-        /// <summary>
-        /// Get parent table until we reach the root filter table 
-        /// </summary>
-        //private bool IsFilterChild(SyncTable table, SyncTable filterTable)
-        //{
-        //    if (table == filterTable)
-        //        return true;
-
-        //    if (table.GetRelations() == null)
-        //        return false;
-
-        //    // Get all relations
-        //    foreach (var constraint in table.GetRelations())
-        //    {
-        //        // Get parent table
-        //        var parentTable = constraint.GetParentTable();
-
-        //        if (parentTable == filterTable)
-        //            return true;
-
-        //        return IsFilterChild(parentTable, filterTable);
-        //    }
-
-        //    return false;
-        //}
-
         private string CreateTableCommandText()
         {
             var stringBuilder = new StringBuilder();
@@ -265,30 +238,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"[timestamp_bigint] AS (CONVERT([bigint],[timestamp])) PERSISTED, ");
             stringBuilder.AppendLine($"[sync_row_is_tombstone] [bit] NOT NULL default(0), ");
             stringBuilder.AppendLine($"[last_change_datetime] [datetime] NULL, ");
-
-            // Get Filter if exists
-            var filter = tableDescription.GetFilter();
-
-            if (filter != null)
-            {
-                foreach (var p in filter.Parameters)
-                {
-                    // Get where for this parameter
-                    var where = filter.Wheres.FirstOrDefault(w => w.ParameterName == p.Name);
-
-                    if (where != null)
-                    {
-                        var col = this.tableDescription.Schema.Tables[where.TableName, where.SchemaName].Columns[where.ColumnName];
-                        var columnNameString = ParserName.Parse(col).Quoted().ToString();
-                        var columnTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(col.OriginalDbType, col.GetDbType(), false, false, col.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-                        columnTypeString = ParserName.Parse(columnTypeString).Quoted().ToString();
-                        var columnPrecisionString = this.sqlDbMetadata.TryGetOwnerDbTypePrecision(col.OriginalDbType, col.GetDbType(), false, false, col.MaxLength, col.Precision, col.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-
-                        columnTypeString = $"{columnTypeString} {columnPrecisionString}";
-                        stringBuilder.AppendLine($"{columnNameString} {columnTypeString} NULL, ");
-                    }
-                }
-            }
 
             stringBuilder.Append(")");
             return stringBuilder.ToString();

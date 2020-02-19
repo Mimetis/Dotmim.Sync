@@ -1442,42 +1442,10 @@ namespace Dotmim.Sync.SqlServer.Builders
             return stringBuilder.ToString();
         }
 
-        //protected string CreateFilterSelectColumns(SyncFilter filter)
-        //{
-        //    var stringBuilder = new StringBuilder();
-
-
-        //    foreach (var p in filter.Parameters)
-        //    {
-        //        // Get where for this parameter
-        //        var whereFilter = filter.Wheres.FirstOrDefault(w => w.ParameterName == p.Name);
-
-        //        if (whereFilter != null)
-        //        {
-        //            var tableFilter = this.tableDescription.Schema.Tables[whereFilter.TableName, whereFilter.SchemaName];
-        //            if (tableFilter == null)
-        //                throw new FilterParamTableNotExistsException(whereFilter.TableName);
-
-        //            var tableName = ParserName.Parse(tableFilter).Unquoted().ToString();
-        //            if (string.Equals(tableName, filter.TableName, SyncGlobalization.DataSourceStringComparison))
-        //                tableName = "[base]";
-        //            else
-        //                tableName = ParserName.Parse(tableFilter).Quoted().Schema().ToString();
-
-        //            var col = this.tableDescription.Schema.Tables[whereFilter.TableName, whereFilter.SchemaName].Columns[whereFilter.ColumnName];
-        //            var columnName = ParserName.Parse(col).Quoted().ToString();
-        //            stringBuilder.Append($"\t, {tableName}.{columnName}");
-
-        //        }
-        //    }
-
-        //    return stringBuilder.ToString();
-        //}
-
         /// <summary>
         /// Create all side where criteria from within a filter
         /// </summary>
-        protected string CreateFilterWhereSide(SyncFilter filter, bool checkTombstoneRows, bool isChangesStoredProc)
+        protected string CreateFilterWhereSide(SyncFilter filter, bool checkTombstoneRows = false)
         {
             var sideWhereFilters = filter.Wheres;
 
@@ -1505,9 +1473,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                     throw new FilterParamColumnNotExistsException(whereFilter.ColumnName, whereFilter.TableName);
 
                 var tableName = ParserName.Parse(tableFilter).Unquoted().ToString();
-                if (isChangesStoredProc)
-                    tableName = "[side]";
-                else if (string.Equals(tableName, filter.TableName, SyncGlobalization.DataSourceStringComparison))
+                if (string.Equals(tableName, filter.TableName, SyncGlobalization.DataSourceStringComparison))
                     tableName = "[base]";
                 else
                     tableName = ParserName.Parse(tableFilter).Quoted().Schema().ToString();
@@ -1626,8 +1592,8 @@ namespace Dotmim.Sync.SqlServer.Builders
             // ----------------------------------
             // Custom Joins
             // ----------------------------------
-            //if (filter != null)
-            //    stringBuilder.Append(CreateFilterCustomJoins(filter));
+            if (filter != null)
+                stringBuilder.Append(CreateFilterCustomJoins(filter));
 
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("WHERE (");
@@ -1637,7 +1603,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             // ----------------------------------
             if (filter != null)
             {
-                var createFilterWhereSide = CreateFilterWhereSide(filter, true, true);
+                var createFilterWhereSide = CreateFilterWhereSide(filter, true);
                 stringBuilder.Append(createFilterWhereSide);
 
                 if (!string.IsNullOrEmpty(createFilterWhereSide))
@@ -1774,7 +1740,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 // Where filters on [side]
                 // ----------------------------------
 
-                var whereString = CreateFilterWhereSide(filter, false, false);
+                var whereString = CreateFilterWhereSide(filter);
                 var customWhereString = CreateFilterCustomWheres(filter);
 
                 if (!string.IsNullOrEmpty(whereString) || !string.IsNullOrEmpty(customWhereString))
