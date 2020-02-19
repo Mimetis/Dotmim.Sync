@@ -37,7 +37,7 @@ namespace Dotmim.Sync
 
             if (context.SyncWay == SyncWay.Upload && context.SyncType == SyncType.Reinitialize)
             {
-                (batchInfo, changesSelected) = this.GetEmptyChanges(message);
+                (batchInfo, changesSelected) = await this.GetEmptyChangesAsync(message);
                 return (context, batchInfo, changesSelected);
             }
 
@@ -154,7 +154,7 @@ namespace Dotmim.Sync
                                 continue;
 
                             // add changes to batchinfo
-                            batchInfo.AddChanges(changesSet, batchIndex, false);
+                            await batchInfo.AddChangesAsync(changesSet, batchIndex, false);
 
                             // increment batch index
                             batchIndex++;
@@ -192,7 +192,7 @@ namespace Dotmim.Sync
             // We are in batch mode, and we are at the last batchpart info
             // Even if we don't have rows inside, we return the changesSet, since it contains at leaset schema
             if (changesSet != null && changesSet.HasTables)
-                batchInfo.AddChanges(changesSet, batchIndex, true);
+                await batchInfo.AddChangesAsync(changesSet, batchIndex, true).ConfigureAwait(false);
 
             // Check the last index as the last batch
             batchInfo.EnsureLastBatch();
@@ -205,7 +205,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Generate an empty BatchInfo
         /// </summary>
-        internal (BatchInfo, DatabaseChangesSelected) GetEmptyChanges(MessageGetChangesBatch message)
+        internal async Task<(BatchInfo, DatabaseChangesSelected)> GetEmptyChangesAsync(MessageGetChangesBatch message)
         {
             // Get config
             var isBatched = message.BatchSize > 0;
@@ -221,7 +221,7 @@ namespace Dotmim.Sync
             var batchInfo = new BatchInfo(!isBatched, changesSet, message.BatchDirectory); ;
 
             // add changes to batchInfo
-            batchInfo.AddChanges(new SyncSet());
+            await batchInfo.AddChangesAsync(new SyncSet()).ConfigureAwait(false);
 
             // Create a new empty in-memory batch info
             return (batchInfo, new DatabaseChangesSelected());

@@ -60,6 +60,8 @@ namespace Dotmim.Sync.SampleWebServer
                 TrackingTablesSuffix = ""
             };
 
+            setup.Filters.Add("ProductDescriptionFilter", "ProductDescriptionId");
+
             // add a SqlSyncProvider acting as the server hub
             services.AddSyncServer<SqlSyncProvider>(connectionString, setup, options);
         }

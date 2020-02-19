@@ -1,6 +1,5 @@
-﻿using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Serialization;
-using Newtonsoft.Json;
+﻿using Dotmim.Sync.Serialization;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,9 +7,7 @@ using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Net;
-using Dotmim.Sync.Serialization.Serializers;
-using System.Net.Sockets;
+using Newtonsoft.Json;
 
 #if NETSTANDARD
 using Microsoft.Net.Http.Headers;
@@ -150,7 +147,7 @@ namespace Dotmim.Sync.Web.Client
 
                 using (var streamResponse = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
                     if (streamResponse.CanRead && streamResponse.Length > 0)
-                        responseMessage = responseSerializer.Deserialize(streamResponse);
+                        responseMessage = await responseSerializer.DeserializeAsync(streamResponse);
 
 
                 return responseMessage;
@@ -186,7 +183,7 @@ namespace Dotmim.Sync.Web.Client
                     {
                         // Error are always json formatted
                         var webSyncErrorSerializer = new Serialization.JsonConverter<WebSyncException>();
-                        var webError = webSyncErrorSerializer.Deserialize(streamResponse);
+                        var webError = await webSyncErrorSerializer.DeserializeAsync(streamResponse);
 
                         if (webError != null)
                         {

@@ -1326,7 +1326,7 @@ namespace Dotmim.Sync.Tests
             this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
 
             // Get response just before response with changes is send back from server
-            this.Server.WebServerOrchestrator.OnSendingChanges(sra =>
+            this.Server.WebServerOrchestrator.OnSendingChanges(async sra =>
             {
                 var serializerFactory = this.Server.WebServerOrchestrator.Options.Serializers["json"];
                 var serializer = serializerFactory.GetSerializer<HttpMessageSendChangesResponse>();
@@ -1334,7 +1334,7 @@ namespace Dotmim.Sync.Tests
 
                 using (var ms = new MemoryStream(sra.Content))
                 {
-                    var o = serializer.Deserialize(ms);
+                    var o = await serializer.DeserializeAsync(ms);
 
                     // check we have rows
                     Assert.True(o.Changes.HasRows);
@@ -1342,7 +1342,7 @@ namespace Dotmim.Sync.Tests
             });
 
             // Get response just before response with scope is send back from server
-            this.Server.WebServerOrchestrator.OnSendingScopes(sra =>
+            this.Server.WebServerOrchestrator.OnSendingScopes(async sra =>
             {
                 var serializerFactory = this.Server.WebServerOrchestrator.Options.Serializers["json"];
                 var serializer = serializerFactory.GetSerializer<HttpMessageEnsureScopesResponse>();
@@ -1352,7 +1352,7 @@ namespace Dotmim.Sync.Tests
 
                 using (var ms = new MemoryStream(sra.Content))
                 {
-                    var o = serializer.Deserialize(ms);
+                    var o = await serializer.DeserializeAsync(ms);
 
                     // check we have a schema
                     Assert.NotNull(o.Schema);
@@ -1397,14 +1397,14 @@ namespace Dotmim.Sync.Tests
                 agent.Options = options;
 
                 // Interceptor on sending scopes
-                client.WebClientOrchestrator.OnSendingScopes(sra =>
+                client.WebClientOrchestrator.OnSendingScopes(async sra =>
                 {
                     var serializerFactory = this.Server.WebServerOrchestrator.Options.Serializers["json"];
                     var serializer = serializerFactory.GetSerializer<HttpMessageEnsureScopesRequest>();
 
                     using (var ms = new MemoryStream(sra.Content))
                     {
-                        var o = serializer.Deserialize(ms);
+                        var o = await serializer.DeserializeAsync(ms);
 
                         // check we a scope name
                         Assert.NotEmpty(o.ScopeName);
@@ -1443,14 +1443,14 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // Just before sending changes, get changes sent
-                client.WebClientOrchestrator.OnSendingChanges(sra =>
+                client.WebClientOrchestrator.OnSendingChanges(async sra =>
                 {
                     var serializerFactory = this.Server.WebServerOrchestrator.Options.Serializers["json"];
                     var serializer = serializerFactory.GetSerializer<HttpMessageSendChangesRequest>();
 
                     using (var ms = new MemoryStream(sra.Content))
                     {
-                        var o = serializer.Deserialize(ms);
+                        var o = await serializer.DeserializeAsync(ms);
 
                         // check we have rows
                         Assert.True(o.Changes.HasRows);
@@ -1497,14 +1497,14 @@ namespace Dotmim.Sync.Tests
 
             // Get response just before response sent back from server
             // Assert if datetime are correctly converted to long
-            this.Server.WebServerOrchestrator.OnSendingChanges(sra =>
+            this.Server.WebServerOrchestrator.OnSendingChanges(async sra =>
             {
                 var serializerFactory = this.Server.WebServerOrchestrator.Options.Serializers["json"];
                 var serializer = serializerFactory.GetSerializer<HttpMessageSendChangesResponse>();
                 
                 using (var ms = new MemoryStream(sra.Content))
                 {
-                    var o = serializer.Deserialize(ms);
+                    var o = await serializer.DeserializeAsync(ms);
 
                     // check we have rows
                     Assert.True(o.Changes.HasRows);

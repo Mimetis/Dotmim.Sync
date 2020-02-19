@@ -656,7 +656,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
 
         }
- 
+
 
         //------------------------------------------------------------------
         // Reset command
@@ -1122,7 +1122,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
 
         }
- 
+
         //------------------------------------------------------------------
         // Update command
         //------------------------------------------------------------------
@@ -1338,7 +1338,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
 
         }
- 
+
         /// <summary>
         /// Add all sql parameters
         /// </summary>
@@ -1764,7 +1764,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             return sqlCommand;
         }
-        
+
         public void CreateSelectInitializedChanges(SyncFilter filter = null)
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChanges).name;

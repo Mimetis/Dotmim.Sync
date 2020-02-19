@@ -29,7 +29,7 @@ namespace Dotmim.Sync
                 // Delete metadatas
                 syncAdapter.DeleteMetadatas(timestampLimit);
             }
-            return context;
+            return await Task.FromResult(context).ConfigureAwait(false);
         }
 
     }

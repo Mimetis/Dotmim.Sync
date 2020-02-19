@@ -16,11 +16,7 @@ namespace Dotmim.Sync
     {
         public CoreProvider Provider { get; set; }
 
-
-        public LocalOrchestrator()
-        {
-
-        }
+        public LocalOrchestrator() { }
 
         /// <summary>
         /// Local orchestrator used as a client
@@ -93,11 +89,8 @@ namespace Dotmim.Sync
                         transaction.Commit();
 
                         return (context, localScope);
-
-
                     }
                 }
-
                 catch (Exception ex)
                 {
 
@@ -169,7 +162,6 @@ namespace Dotmim.Sync
                                 cancellationToken.ThrowIfCancellationRequested();
                         }
 
-
                         // On local, we don't want to chase rows from "others" 
                         // We just want our local rows, so we dont exclude any remote scope id, by setting scope id to NULL
                         Guid? remoteScopeId = null;
@@ -192,7 +184,7 @@ namespace Dotmim.Sync
 
                         // Locally, if we are new, no need to get changes
                         if (isNew)
-                            (clientBatchInfo, clientChangesSelected) = this.Provider.GetEmptyChanges(message);
+                            (clientBatchInfo, clientChangesSelected) = await this.Provider.GetEmptyChangesAsync(message).ConfigureAwait(false);
                         else
                             (context, clientBatchInfo, clientChangesSelected) =
                                 await this.Provider.GetChangeBatchAsync(context, message,
@@ -390,7 +382,7 @@ namespace Dotmim.Sync
         public async Task<SyncContext> ApplySnapshotAndGetChangesAsync(SyncContext context, ScopeInfo scope, SyncSet schema, BatchInfo serverBatchInfo,
                                                           long clientTimestamp, long remoteClientTimestamp, bool disableConstraintsOnApplyChanges,
                                                           int batchSize, string batchDirectory,
-                                                          bool useBulkOperations, bool cleanMetadatas, string scopeInfoTableName, 
+                                                          bool useBulkOperations, bool cleanMetadatas, string scopeInfoTableName,
                                                           CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
 
