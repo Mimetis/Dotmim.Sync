@@ -556,7 +556,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             return sqlCommand;
         }
 
-  
+
         //------------------------------------------------------------------
         // Select changes command
         //------------------------------------------------------------------
@@ -572,7 +572,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             sqlCommand.Parameters.Add(pScopeId);
 
             // Add filter parameters
-            if (filter!= null)
+            if (filter != null)
                 CreateFilterParameters(sqlCommand, filter);
 
             var stringBuilder = new StringBuilder("");
@@ -631,7 +631,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             // ----------------------------------
             if (filter != null)
             {
-                var createFilterWhereSide = CreateFilterWhereSide(filter, true, true);
+                var createFilterWhereSide = CreateFilterWhereSide(filter, true);
                 stringBuilder.Append(createFilterWhereSide);
 
                 if (!string.IsNullOrEmpty(createFilterWhereSide))
