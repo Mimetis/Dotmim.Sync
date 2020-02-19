@@ -117,7 +117,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
 
         }
-   
+
         public string CreatePkCommandText()
         {
             StringBuilder stringBuilder = new StringBuilder();
@@ -210,7 +210,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         }
 
-        private string CreateDropTableCommandText() 
+        private string CreateDropTableCommandText()
             => $"DROP TABLE {trackingName.Schema().Quoted().ToString()};";
 
         private string CreateTableCommandText()
@@ -243,8 +243,8 @@ namespace Dotmim.Sync.SqlServer.Builders
             return stringBuilder.ToString();
         }
 
-        public bool NeedToCreateTrackingTable() => 
+        public bool NeedToCreateTrackingTable() =>
             !SqlManagementUtils.TableExists(connection, transaction, trackingName.Schema().Quoted().ToString());
 
-     }
+    }
 }
