@@ -126,7 +126,7 @@ namespace Dotmim.Sync.Web.Server
 
 
             // Get the firt response to send back to client
-            return GetChangesResponse(snap.context, snap.remoteClientTimestamp, snap.serverBatchInfo, null, 0, ConflictResolutionPolicy.ServerWins);
+            return await GetChangesResponseAsync(snap.context, snap.remoteClientTimestamp, snap.serverBatchInfo, null, 0, ConflictResolutionPolicy.ServerWins);
         }
 
         /// <summary>
@@ -176,7 +176,7 @@ namespace Dotmim.Sync.Web.Server
                 AfterDeserializedRows(changesSet, this.ClientConverter);
 
             // add changes to the batch info
-            sessionCache.ClientBatchInfo.AddChanges(changesSet, httpMessage.BatchIndex, httpMessage.IsLastBatch);
+            await sessionCache.ClientBatchInfo.AddChangesAsync(changesSet, httpMessage.BatchIndex, httpMessage.IsLastBatch);
 
 
             // Clear the httpMessage set
@@ -208,19 +208,19 @@ namespace Dotmim.Sync.Web.Server
             }
 
             // Get the firt response to send back to client
-            return GetChangesResponse(context, remoteClientTimestamp, serverBatchInfo, serverChangesSelected, 0, policy);
+            return await GetChangesResponseAsync(context, remoteClientTimestamp, serverBatchInfo, serverChangesSelected, 0, policy);
 
         }
 
         /// <summary>
         /// This method is only used when batch mode is enabled on server and we need to send back mor BatchPartInfo 
         /// </summary>
-        internal HttpMessageSendChangesResponse GetMoreChanges(HttpMessageGetMoreChangesRequest httpMessage, SessionCache sessionCache, CancellationToken cancellationToken)
+        internal Task<HttpMessageSendChangesResponse> GetMoreChangesAsync(HttpMessageGetMoreChangesRequest httpMessage, SessionCache sessionCache, CancellationToken cancellationToken)
         {
             if (sessionCache.ServerBatchInfo == null)
                 throw new ArgumentNullException("batchInfo stored in session can't be null if request more batch part info.");
 
-            return GetChangesResponse(httpMessage.SyncContext, sessionCache.RemoteClientTimestamp, sessionCache.ServerBatchInfo,
+            return GetChangesResponseAsync(httpMessage.SyncContext, sessionCache.RemoteClientTimestamp, sessionCache.ServerBatchInfo,
                 sessionCache.ServerChangesSelected, httpMessage.BatchIndexRequested, this.Options.ConflictResolutionPolicy);
         }
 
@@ -228,7 +228,7 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// Create a response message content based on a requested index in a server batch info
         /// </summary>
-        private HttpMessageSendChangesResponse GetChangesResponse(SyncContext syncContext, long remoteClientTimestamp, BatchInfo serverBatchInfo,
+        private async Task<HttpMessageSendChangesResponse> GetChangesResponseAsync(SyncContext syncContext, long remoteClientTimestamp, BatchInfo serverBatchInfo,
                                 DatabaseChangesSelected serverChangesSelected, int batchIndexRequested, ConflictResolutionPolicy policy)
         {
 
@@ -262,7 +262,7 @@ namespace Dotmim.Sync.Web.Server
             foreach (var table in Schema.Tables)
                 DbSyncAdapter.CreateChangesTable(Schema.Tables[table.TableName, table.SchemaName], changesSet);
 
-            batchPartInfo.LoadBatch(changesSet, serverBatchInfo.GetDirectoryFullPath());
+            await batchPartInfo.LoadBatchAsync(changesSet, serverBatchInfo.GetDirectoryFullPath());
 
             // if client request a conversion on each row, apply the conversion
             if (this.ClientConverter != null && batchPartInfo.Data.HasRows)

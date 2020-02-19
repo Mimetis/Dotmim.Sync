@@ -2,10 +2,7 @@
 using Dotmim.Sync.Web.Server;
 using System;
 using System.Runtime.CompilerServices;
-using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Options;
-using System.Collections.Immutable;
+
 
 [assembly: InternalsVisibleTo("Dotmim.Sync.Tests")]
 
@@ -30,7 +27,7 @@ namespace Microsoft.Extensions.DependencyInjection
             if (string.IsNullOrWhiteSpace(connectionString))
                 throw new ArgumentNullException(nameof(connectionString));
 
-            serviceCollection.AddOptions();
+            //serviceCollection.AddOptions();
 
             // create cache instance
             var webServerProperties = new WebServerProperties

@@ -16,6 +16,7 @@ namespace Dotmim.Sync
     {
         public CoreProvider Provider { get; set; }
 
+        public LocalOrchestrator() { }
 
         /// <summary>
         /// Local orchestrator used as a client
@@ -183,7 +184,7 @@ namespace Dotmim.Sync
 
                         // Locally, if we are new, no need to get changes
                         if (isNew)
-                            (clientBatchInfo, clientChangesSelected) = this.Provider.GetEmptyChanges(message);
+                            (clientBatchInfo, clientChangesSelected) = await this.Provider.GetEmptyChangesAsync(message).ConfigureAwait(false);
                         else
                             (context, clientBatchInfo, clientChangesSelected) =
                                 await this.Provider.GetChangeBatchAsync(context, message,

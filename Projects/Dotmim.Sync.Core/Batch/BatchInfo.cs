@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.Serialization;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Batch
 {
@@ -101,7 +102,7 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Check if this batchinfo has some data (in memory or not)
         /// </summary>
-        public bool HasData()
+        public async Task<bool> HasDataAsync()
         {
             if (InMemory && InMemoryData != null && InMemoryData.HasTables && InMemoryData.HasRows)
                 return true;
@@ -110,7 +111,7 @@ namespace Dotmim.Sync.Batch
             {
                 foreach (var bpi in BatchPartsInfo)
                 {
-                    bpi.LoadBatch(schema, GetDirectoryFullPath());
+                    await bpi.LoadBatchAsync(schema, GetDirectoryFullPath()).ConfigureAwait(false);
 
                     var hasData = bpi.Data.HasRows;
 
@@ -144,7 +145,7 @@ namespace Dotmim.Sync.Batch
                 {
                     if (batchPartinInfo.Tables != null && batchPartinInfo.Tables.Any(t => t == tableInfo))
                     {
-                        batchPartinInfo.LoadBatch(schema, GetDirectoryFullPath());
+                        batchPartinInfo.LoadBatchAsync(schema, GetDirectoryFullPath()).ConfigureAwait(false).GetAwaiter().GetResult();
 
                         // Get the table from the batchPartInfo
                         // generate a tmp SyncTable for 
@@ -188,7 +189,7 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Add changes to batch info.
         /// </summary>
-        public void AddChanges(SyncSet changes, int batchIndex = 0, bool isLastBatch = true)
+        public async Task AddChangesAsync(SyncSet changes, int batchIndex = 0, bool isLastBatch = true)
         {
             if (this.InMemory)
             {
@@ -198,7 +199,7 @@ namespace Dotmim.Sync.Batch
             {
                 var bpId = this.GenerateNewFileName(batchIndex.ToString());
                 //var fileName = Path.Combine(this.GetDirectoryFullPath(), bpId);
-                var bpi = BatchPartInfo.CreateBatchPartInfo(batchIndex, changes, bpId, GetDirectoryFullPath(), isLastBatch);
+                var bpi = await BatchPartInfo.CreateBatchPartInfoAsync(batchIndex, changes, bpId, GetDirectoryFullPath(), isLastBatch).ConfigureAwait(false);
 
                 // add the batchpartinfo tp the current batchinfo
                 this.BatchPartsInfo.Add(bpi);

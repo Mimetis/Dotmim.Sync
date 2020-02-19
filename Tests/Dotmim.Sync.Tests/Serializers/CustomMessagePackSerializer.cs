@@ -7,6 +7,7 @@ using System.IO;
 using System.Reflection;
 using System.Runtime.Serialization;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.SampleConsole
 {
@@ -23,17 +24,20 @@ namespace Dotmim.Sync.SampleConsole
 
         public CustomMessagePackSerializer() => this.options = MessagePack.Resolvers.ContractlessStandardResolver.Options;
 
-        public T Deserialize(Stream ms)
+        public async Task<T> DeserializeAsync(Stream ms)
         {
-            T t = MessagePackSerializer.Deserialize<T>(ms, options);
+            var t = await MessagePackSerializer.DeserializeAsync<T>(ms, options);
 
             return t;
 
         }
-        public byte[] Serialize(T obj)
+        public async Task<byte[]> SerializeAsync(T obj)
         {
-            var bin = MessagePackSerializer.Serialize(obj, options);
-            return bin;
+            using (var ms = new MemoryStream())
+            {
+                await MessagePackSerializer.SerializeAsync(ms, obj, options);
+                return ms.ToArray();
+            }
         }
     }
 }
