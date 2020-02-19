@@ -116,7 +116,7 @@ namespace Dotmim.Sync
                             continue;
 
                         // add changes to batchinfo
-                        batchInfo.AddChanges(changesSet, batchIndex, false);
+                        await batchInfo.AddChangesAsync(changesSet, batchIndex, false);
 
                         // increment batch index
                         batchIndex++;
@@ -139,7 +139,7 @@ namespace Dotmim.Sync
 
 
             if (changesSet != null && changesSet.HasTables)
-                batchInfo.AddChanges(changesSet, batchIndex, true);
+                await batchInfo.AddChangesAsync(changesSet, batchIndex, true);
 
             // Check the last index as the last batch
             batchInfo.EnsureLastBatch();
@@ -153,7 +153,7 @@ namespace Dotmim.Sync
 
             using (var f = new FileStream(summaryFileName, FileMode.CreateNew, FileAccess.ReadWrite))
             {
-                var bytes = jsonConverter.Serialize(batchInfo);
+                var bytes = await jsonConverter.SerializeAsync(batchInfo);
                 f.Write(bytes, 0, bytes.Length);
             }
 
@@ -167,7 +167,7 @@ namespace Dotmim.Sync
         /// destination knowledge, and change data retriever parameters.
         /// </summary>
         /// <returns>A DbSyncContext object that will be used to retrieve the modified data.</returns>
-        public virtual (SyncContext, BatchInfo) GetSnapshot(
+        public virtual async Task<(SyncContext, BatchInfo)> GetSnapshotAsync(
                              SyncContext context, SyncSet schema, string batchDirectory,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
@@ -213,7 +213,7 @@ namespace Dotmim.Sync
 
             using (var fs = new FileStream(summaryFileName, FileMode.Open, FileAccess.Read))
             {
-                batchInfo = jsonConverter.Deserialize(fs);
+                batchInfo = await jsonConverter.DeserializeAsync(fs).ConfigureAwait(false);
             }
 
             batchInfo.SetSchema(changesSet);
