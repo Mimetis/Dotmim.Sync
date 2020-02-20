@@ -8,6 +8,8 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using Microsoft.AspNetCore.Http;
+using System.Net.Http.Headers;
 
 #if NETSTANDARD
 using Microsoft.Net.Http.Headers;
@@ -69,15 +71,14 @@ namespace Dotmim.Sync.Web.Client
                     }
                 }
 
+                // Check if data is null
+                data = data == null ? new byte[] { } : data;
+
                 // get byte array content
-                var arrayContent = data == null ? new ByteArrayContent(new byte[] { }) : new ByteArrayContent(data);
+                var arrayContent = new ByteArrayContent(data);
 
                 // reinit client
                 client.DefaultRequestHeaders.Clear();
-
-                // add it to the default header
-                //if (this.Cookie != null)
-                //    client.DefaultRequestHeaders.Add("Cookie", this.Cookie.ToString());
 
                 // Create the request message
                 var requestMessage = new HttpRequestMessage(HttpMethod.Post, requestUri.ToString()) { Content = arrayContent };
@@ -94,6 +95,11 @@ namespace Dotmim.Sync.Web.Client
                 if (converter != null)
                     requestMessage.Headers.Add("dotmim-sync-converter", converter.Key);
 
+                // calculate hash
+                var hash = HashAlgorithm.SHA256.Create(data);
+                var hashString = Convert.ToBase64String(hash);
+
+                requestMessage.Headers.Add("dotmim-sync-hash", hashString);
 
                 // Adding others headers
                 if (this.CustomHeaders != null && this.CustomHeaders.Count > 0)
@@ -119,35 +125,23 @@ namespace Dotmim.Sync.Web.Client
                 // try to set the cookie for http session
                 var headers = response?.Headers;
 
-                if (headers != null)
-                {
-                    if (headers.TryGetValues("Set-Cookie", out var tmpList))
-                    {
-                        var cookieList = tmpList.ToList();
-
-                        // var cookieList = response.Headers.GetValues("Set-Cookie").ToList();
-                        if (cookieList != null && cookieList.Count > 0)
-                        {
-#if NETSTANDARD
-                            // Get the first cookie
-                            this.Cookie = CookieHeaderValue.ParseList(cookieList).FirstOrDefault();
-#else
-                            //try to parse the very first cookie
-                            if (CookieHeaderValue.TryParse(cookieList[0], out var cookie))
-                                this.Cookie = cookie;
-#endif
-                        }
-                    }
-
-                }
+                // Ensure we have a cookie
+                this.EnsureCookie(headers);
 
                 if (response.Content == null)
                     throw new HttpEmptyResponseContentException();
 
-
                 using (var streamResponse = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
+                {
                     if (streamResponse.CanRead && streamResponse.Length > 0)
+                    {
+                        // if Hash is present in header, check hash
+                        if (TryGetHeaderValue(headers, "dotmim-sync-hash", out string hashStringRequest))
+                            HashAlgorithm.SHA256.EnsureHash(streamResponse, hashStringRequest);
+
                         responseMessage = await responseSerializer.DeserializeAsync(streamResponse);
+                    }
+                }
 
 
                 return responseMessage;
@@ -167,6 +161,29 @@ namespace Dotmim.Sync.Web.Client
 
             }
 
+        }
+
+        private void EnsureCookie(HttpResponseHeaders headers)
+        {
+            if (headers == null)
+                return;
+            if (!headers.TryGetValues("Set-Cookie", out var tmpList))
+                return;
+
+            var cookieList = tmpList.ToList();
+
+            // var cookieList = response.Headers.GetValues("Set-Cookie").ToList();
+            if (cookieList != null && cookieList.Count > 0)
+            {
+#if NETSTANDARD
+                // Get the first cookie
+                this.Cookie = CookieHeaderValue.ParseList(cookieList).FirstOrDefault();
+#else
+                //try to parse the very first cookie
+                if (CookieHeaderValue.TryParse(cookieList[0], out var cookie))
+                    this.Cookie = cookie;
+#endif
+            }
         }
 
         /// <summary>
@@ -213,6 +230,21 @@ namespace Dotmim.Sync.Web.Client
 
 
         }
+
+
+
+        public static bool TryGetHeaderValue(HttpResponseHeaders n, string key, out string header)
+        {
+            if (n.TryGetValues(key, out var vs))
+            {
+                header = vs.First();
+                return true;
+            }
+
+            header = null;
+            return false;
+        }
+
 
         #region IDisposable Support
         private bool disposedValue = false; // To detect redundant calls

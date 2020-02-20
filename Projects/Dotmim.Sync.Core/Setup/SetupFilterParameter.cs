@@ -34,7 +34,7 @@ namespace Dotmim.Sync.Setup
         /// <summary>
         /// Gets or Sets the parameter db type
         /// </summary>
-        public DbType DbType { get; set; }
+        public DbType? DbType { get; set; }
 
         /// <summary>
         /// Gets or Sets the parameter default value expression.
