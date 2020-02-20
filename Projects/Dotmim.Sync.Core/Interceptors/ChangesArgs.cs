@@ -231,7 +231,7 @@ namespace Dotmim.Sync
         /// Get the changes selected to be applied for a current table
         /// </summary> 
         [DataMember(Name = "tcs", IsRequired = false, EmitDefaultValue = false, Order = 1)]
-        public List<TableChangesSelected> TableChangesSelected { get; } = new List<TableChangesSelected>();
+        public List<TableChangesSelected> TableChangesSelected { get; set; } = new List<TableChangesSelected>();
 
         /// <summary>
         /// Gets the total number of changes that are to be applied during the synchronization session.
