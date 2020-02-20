@@ -30,7 +30,6 @@ namespace Dotmim.Sync.Web.Server
             this.Provider = provider;
 
         }
-
         public WebServerOrchestrator() => this.Options = new WebServerOptions();
 
         /// <summary>

@@ -387,4 +387,14 @@ namespace Dotmim.Sync
         public SnapshotNotExistsException(string directoryName) : base(string.Format(message, directoryName)) { }
     }
 
+
+    /// <summary>
+    /// Occurs when a hash from client or server is different from the hash recalculated from server or client
+    /// </summary>
+    public class SyncHashException : Exception
+    {
+        const string message = "The batch file is corrupted. Hash is not valid";
+
+        public SyncHashException(string hash1, string hash2) : base(string.Format(message, hash1, hash2)) { }
+    }
 }
