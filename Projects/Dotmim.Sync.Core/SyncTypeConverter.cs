@@ -134,6 +134,8 @@ namespace Dotmim.Sync
                 return TryConvertTo<ulong>(value);
             else if (typeOfT == typeof(DateTime))
                 return TryConvertTo<DateTime>(value);
+            else if (typeOfT == typeof(DateTimeOffset))
+                return TryConvertTo<DateTimeOffset>(value);
             else if (typeOfT == typeof(string))
                 return TryConvertTo<string>(value);
             else if (typeOfT == typeof(byte))
