@@ -313,7 +313,7 @@ namespace Dotmim.Sync
 
                 var serverChanges = await this.RemoteOrchestrator.ApplyThenGetChangesAsync(
                     context, scope, this.Schema, clientChanges.clientBatchInfo, this.Options.DisableConstraintsOnApplyChanges, this.Options.UseBulkOperations,
-                    this.Options.CleanMetadatas, this.Options.CleanFolder, this.Options.BatchSize, this.Options.BatchDirectory,
+                    this.Options.CleanMetadatas, this.Options.CleanFolder, this.Options.BatchSize, this.Options.BatchDirectory, this.Options.ScopeInfoTableName, 
                     this.Options.ConflictResolutionPolicy, cancellationToken, remoteProgress);
 
                 if (cancellationToken.IsCancellationRequested)
