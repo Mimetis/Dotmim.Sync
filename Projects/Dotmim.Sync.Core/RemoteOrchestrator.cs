@@ -119,7 +119,7 @@ namespace Dotmim.Sync
         public async Task<(SyncContext, long, BatchInfo, ConflictResolutionPolicy, DatabaseChangesSelected)>
             ApplyThenGetChangesAsync(SyncContext context, ScopeInfo scope, SyncSet schema, BatchInfo clientBatchInfo,
                                      bool disableConstraintsOnApplyChanges, bool useBulkOperations, bool cleanMetadatas, bool cleanFolder,
-                                     int clientBatchSize, string batchDirectory, ConflictResolutionPolicy policy,
+                                     int clientBatchSize, string batchDirectory, string scopeInfoTableName, ConflictResolutionPolicy policy,
                                      CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
 
@@ -188,6 +188,9 @@ namespace Dotmim.Sync
 
                         if (cancellationToken.IsCancellationRequested)
                             cancellationToken.ThrowIfCancellationRequested();
+
+                        // Write scopes locally
+                        context = await this.Provider.WriteScopesAsync(context, scopeInfoTableName, scope, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
 
                         // Commit second transaction for getting changes
