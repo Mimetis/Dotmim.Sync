@@ -44,7 +44,7 @@ internal class Program
     public static string[] oneTable = new string[] { "ProductCategory" };
     private static async Task Main(string[] args)
     {
-        await TestVbSetup();
+        await SynchronizeAsync();
     }
 
 
@@ -390,10 +390,11 @@ internal class Program
     {
         // Create 2 Sql Sync providers
         var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
-        var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
-        //var clientProvider = new SqliteSyncProvider("client2.db");
+        //var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
+        var clientProvider = new SqliteSyncProvider("clientX.db");
 
-        var setup = new SyncSetup(new string[] {"Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" });
+        //var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" });
+        var setup = new SyncSetup(allTables);
 
         setup.Filters.Add("Customer", "CompanyName");
 
@@ -455,7 +456,7 @@ internal class Program
         //agent.Options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync");
         agent.Options.BatchSize = 1000;
         agent.Options.CleanMetadatas = true;
-        agent.Options.UseBulkOperations = true;
+        agent.Options.UseBulkOperations = false;
         agent.Options.DisableConstraintsOnApplyChanges = false;
         agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
         //agent.Options.UseVerboseErrors = false;
