@@ -91,7 +91,7 @@ namespace Dotmim.Sync
             else if (typeOfT == typeof(double))
                 return Convert.ToDouble(value, nfi);
             else if (typeOfT == typeof(float))
-                return Convert.ToDecimal(value, nfi);
+                return Convert.ToSingle(value, nfi);
             else if (typeOfT == typeof(sbyte))
                 return Convert.ToSByte(value);
             else if (typeOfT == typeof(TimeSpan))
