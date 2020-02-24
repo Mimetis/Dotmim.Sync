@@ -198,6 +198,9 @@ namespace Dotmim.Sync.SqlServer.Builders
                                         rowValue = SyncTypeConverter.TryConvertTo<decimal>(rowValue);
                                     break;
                                 case SqlDbType.Float:
+                                    if (columnType != typeof(double))
+                                        rowValue = SyncTypeConverter.TryConvertTo<double>(rowValue);
+                                    break;
                                 case SqlDbType.Real:
                                     if (columnType != typeof(float))
                                         rowValue = SyncTypeConverter.TryConvertTo<float>(rowValue);
