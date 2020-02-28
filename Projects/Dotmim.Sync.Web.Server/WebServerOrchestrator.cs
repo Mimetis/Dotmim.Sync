@@ -195,7 +195,7 @@ namespace Dotmim.Sync.Web.Server
                await this.ApplyThenGetChangesAsync(httpMessage.SyncContext,
                            httpMessage.Scope, this.Schema, sessionCache.ClientBatchInfo, this.Options.DisableConstraintsOnApplyChanges,
                            this.Options.UseBulkOperations, false, this.Options.CleanFolder, clientBatchSize,
-                           this.Options.BatchDirectory, this.Options.Scop  this.Options.ConflictResolutionPolicy, cancellationToken).ConfigureAwait(false);
+                           this.Options.BatchDirectory, this.Options.ConflictResolutionPolicy, cancellationToken).ConfigureAwait(false);
 
 
             // Save the server batch info object to cache if not working in memory
