@@ -24,7 +24,7 @@ namespace Dotmim.Sync.MySql
 
 
 
-        public void CreateScopeInfoTable()
+        public void CreateClientScopeInfoTable()
         {
             var command = connection.CreateCommand();
             if (transaction != null)
@@ -64,7 +64,17 @@ namespace Dotmim.Sync.MySql
             }
         }
 
-        public void DropScopeInfoTable()
+        public void CreateServerHistoryScopeInfoTable()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void CreateServerScopeInfoTable()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void DropClientScopeInfoTable()
         {
             var command = connection.CreateCommand();
 
@@ -97,8 +107,17 @@ namespace Dotmim.Sync.MySql
             }
         }
 
+        public void DropServerHistoryScopeInfoTable()
+        {
+            throw new NotImplementedException();
+        }
 
-        public List<ScopeInfo> GetAllScopes(string scopeName)
+        public void DropServerScopeInfoTable()
+        {
+            throw new NotImplementedException();
+        }
+
+        public List<ScopeInfo> GetAllClientScopes(string scopeName)
         {
             var command = connection.CreateCommand();
             if (transaction != null)
@@ -164,6 +183,11 @@ namespace Dotmim.Sync.MySql
             }
         }
 
+        public List<ServerScopeInfo> GetAllServerScopes(string scopeName)
+        {
+            throw new NotImplementedException();
+        }
+
         public long GetLocalTimestamp()
         {
             var command = connection.CreateCommand();
@@ -198,7 +222,7 @@ namespace Dotmim.Sync.MySql
             }
         }
 
-        public ScopeInfo InsertOrUpdateScopeInfo(ScopeInfo scopeInfo)
+        public ScopeInfo InsertOrUpdateClientScopeInfo(ScopeInfo scopeInfo)
         {
             bool alreadyOpened = connection.State == ConnectionState.Open;
             bool exist;
@@ -303,8 +327,17 @@ namespace Dotmim.Sync.MySql
             }
         }
 
+        public ServerHistoryScopeInfo InsertOrUpdateServerHistoryScopeInfo(ServerHistoryScopeInfo serverHistoryScopeInfo)
+        {
+            throw new NotImplementedException();
+        }
 
-        public bool NeedToCreateScopeInfoTable()
+        public ServerScopeInfo InsertOrUpdateServerScopeInfo(ServerScopeInfo serverScopeInfo)
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool NeedToCreateClientScopeInfoTable()
         {
             var command = connection.CreateCommand();
             if (transaction != null)
@@ -336,7 +369,14 @@ namespace Dotmim.Sync.MySql
             }
         }
 
+        public bool NeedToCreateServerHistoryScopeInfoTable()
+        {
+            throw new NotImplementedException();
+        }
 
-
+        public bool NeedToCreateServerScopeInfoTable()
+        {
+            throw new NotImplementedException();
+        }
     }
 }

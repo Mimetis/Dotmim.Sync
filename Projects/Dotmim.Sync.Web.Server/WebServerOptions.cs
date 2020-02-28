@@ -13,6 +13,11 @@ namespace Dotmim.Sync.Web.Server
     {
 
         /// <summary>
+        /// Gets or Sets the scope_info table name. Default is scope_info
+        /// </summary>
+        public string ScopeInfoTableName { get; set; }
+
+        /// <summary>
         /// Gets or Sets the directory used for batch mode.
         /// Default value is [User Temp Path]/[DotmimSync]
         /// </summary>
@@ -119,6 +124,8 @@ namespace Dotmim.Sync.Web.Server
             this.ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
             this.ServerCacheSlidingExpiration = TimeSpan.FromHours(1);
             this.ClientCacheSlidingExpiration = TimeSpan.FromMinutes(10);
+            this.ScopeInfoTableName = SyncOptions.DefaultScopeInfoTableName;
+
         }
 
     }
