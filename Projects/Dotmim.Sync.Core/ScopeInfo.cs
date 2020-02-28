@@ -59,11 +59,6 @@ namespace Dotmim.Sync
         [IgnoreDataMember]
         public long LastSyncDuration { get; set; }
 
-        /// <summary>
-        /// Gets or sets the last time we apply a clean up on metadata
-        /// </summary>
-        [IgnoreDataMember]
-        public long LastCleanupTimestamp { get; set; }
-
+       
     }
 }

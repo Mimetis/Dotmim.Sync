@@ -1,6 +1,7 @@
 ﻿using Dotmim.Sync.Batch;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Messages;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -41,10 +42,12 @@ namespace Dotmim.Sync
         /// Get the scope infos from remote
         /// </summary>
         public async Task<(SyncContext, SyncSet)>
-            EnsureSchemaAsync(SyncContext context, SyncSetup setup,
+            EnsureSchemaAsync(SyncContext context, SyncSetup setup, string scopeInfoTableName,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
             DbTransaction transaction = null;
+            SyncSet schema;
+            ServerScopeInfo serverScopeInfo;
 
             using (var connection = this.Provider.CreateConnection())
             {
@@ -62,7 +65,6 @@ namespace Dotmim.Sync
                     // Create a transaction
                     using (transaction = connection.BeginTransaction())
                     {
-
                         // Open the connection
                         // Interceptors
                         await this.Provider.InterceptAsync(new TransactionOpenArgs(context, connection, transaction)).ConfigureAwait(false);
@@ -70,15 +72,57 @@ namespace Dotmim.Sync
                         // Begin Session 
                         context = await this.Provider.BeginSessionAsync(context, cancellationToken, progress).ConfigureAwait(false);
 
-                        SyncSet schema;
                         // Get Schema from remote provider
                         (context, schema) = await this.Provider.EnsureSchemaAsync(context, setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
+                        // Create scope server
+                        context = await this.Provider.EnsureServerScopeAsync(
+                                            context, scopeInfoTableName, schema.ScopeName,
+                                            connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                        // Create scope history
+                        context = await this.Provider.EnsureServerHistoryScopeAsync(
+                                            context, scopeInfoTableName, schema.ScopeName,
+                                            connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                        // Get scope if exists
+                        (context, serverScopeInfo) = await this.Provider.GetServerScopeAsync(context, scopeInfoTableName, schema.ScopeName,
+                                            connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                        // If we have a stored schema, make a comparison with the one extract from setup
+                        if (!string.IsNullOrEmpty(serverScopeInfo.Schema))
+                        {
+                            var currentSchema = JsonConvert.DeserializeObject<SyncSet>(serverScopeInfo.Schema);
+
+                            var migrationTools = new DbMigrationTools();
+
+                            // Check if current schema has exact same properties, relations, tables and columns..
+                            var isIdentical = currentSchema == schema;
+
+                            if (!isIdentical)
+                            {
+                                // Create a migration args where use can apply or not the migration
+                                var migrationArgs = new MigrationArgs(context, migrationTools, currentSchema, schema, connection, transaction);
+
+                                // Intercept and let user decides and apply migration
+                                await this.Provider.InterceptAsync(migrationArgs).ConfigureAwait(false);
+                            }
+                        }
+                        else
+                        {
+                            // Ensure databases are ready
+                            context = await this.Provider.EnsureDatabaseAsync(context, schema, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        }
+
+                
                         if (cancellationToken.IsCancellationRequested)
                             cancellationToken.ThrowIfCancellationRequested();
 
-                        // Ensure databases are ready
-                        context = await this.Provider.EnsureDatabaseAsync(context, schema, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        serverScopeInfo.Schema = JsonConvert.SerializeObject(schema);
+                       
+                        context = await this.Provider.WriteServerScopeAsync(
+                                            context, scopeInfoTableName, serverScopeInfo,
+                                            connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                         if (cancellationToken.IsCancellationRequested)
                             cancellationToken.ThrowIfCancellationRequested();
@@ -162,7 +206,6 @@ namespace Dotmim.Sync
                         transaction.Commit();
                     }
 
-                    // TODO : Is it useful to make a transaction here ?
                     using (transaction = connection.BeginTransaction())
                     {
                         //Direction set to Download
@@ -189,9 +232,19 @@ namespace Dotmim.Sync
                         if (cancellationToken.IsCancellationRequested)
                             cancellationToken.ThrowIfCancellationRequested();
 
-                        // Write scopes locally
-                        context = await this.Provider.WriteScopesAsync(context, scopeInfoTableName, scope, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        // generate the new scope item
+                        var lastSync = DateTime.UtcNow;
+                        var scopeHistory = new ServerHistoryScopeInfo
+                        {
+                            Id = scope.Id,
+                            Name = scope.Name,
+                            LastSyncTimestamp = remoteClientTimestamp,
+                            LastSync = lastSync,
+                            LastSyncDuration = lastSync.Subtract(context.StartTime).Ticks,
+                        };
 
+                        // Write scopes locally
+                        context = await this.Provider.WriteServerHistoryScopeAsync(context, scopeInfoTableName, scopeHistory, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                         // Commit second transaction for getting changes
                         await this.Provider.InterceptAsync(new TransactionCommitArgs(context, connection, transaction)).ConfigureAwait(false);
@@ -282,14 +335,14 @@ namespace Dotmim.Sync
         }
 
 
-        public async Task CreateSnapshotAsync(SyncContext context, SyncSetup setup, string batchDirectory, int batchSize, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public async Task CreateSnapshotAsync(SyncContext context, SyncSetup setup, string scopeInfoTableName, string batchDirectory, int batchSize, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             DbTransaction transaction = null;
             long remoteClientTimestamp;
 
             SyncSet schema;
             // Get Schema from remote provider
-            (context, schema) = await this.EnsureSchemaAsync(context, setup, cancellationToken, progress).ConfigureAwait(false);
+            (context, schema) = await this.EnsureSchemaAsync(context, setup, scopeInfoTableName, cancellationToken, progress).ConfigureAwait(false);
 
 
             using (var connection = this.Provider.CreateConnection())
@@ -345,7 +398,7 @@ namespace Dotmim.Sync
 
 
         public async Task<(SyncContext context, long remoteClientTimestamp, BatchInfo serverBatchInfo)>
-                GetSnapshotAsync(SyncContext context, ScopeInfo scope, SyncSet schema, string snapshotDirectory, 
+                GetSnapshotAsync(SyncContext context, ScopeInfo scope, SyncSet schema, string snapshotDirectory,
                                  string batchDirectory, CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
             BatchInfo serverBatchInfo;

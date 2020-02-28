@@ -1,6 +1,7 @@
 ﻿using Dotmim.Sync.Batch;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Messages;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -79,9 +80,15 @@ namespace Dotmim.Sync
 
                         await this.Provider.InterceptAsync(new TransactionOpenArgs(context, connection, transaction)).ConfigureAwait(false);
 
-                        // get the scope from local provider 
+                        // Create scope info table
+                        context = await this.Provider.EnsureClientScopeAsync(
+                                            context, scopeInfoTableName, scopeName,
+                                            connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+
+                        // Get scope
                         ScopeInfo localScope;
-                        (context, localScope) = await this.Provider.EnsureScopesAsync(
+                        (context, localScope) = await this.Provider.GetClientScopeAsync(
                                             context, scopeInfoTableName, scopeName,
                                             connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -117,17 +124,18 @@ namespace Dotmim.Sync
             }
         }
 
-   
+
         /// <summary>
         /// Input : localScopeInfo
         /// </summary>
         /// <returns></returns>
-        public async Task<(SyncContext context, long clientTimestamp, BatchInfo clientBatchInfo, DatabaseChangesSelected clientChangesSelected)>
-            GetChangesAsync(SyncContext context, SyncSet schema, ScopeInfo scope, int batchSize, string batchDirectory,
+        public async Task<(SyncContext context, ScopeInfo localScopeInfo, long clientTimestamp, BatchInfo clientBatchInfo, DatabaseChangesSelected clientChangesSelected)>
+            GetChangesAsync(SyncContext context, SyncSet schema, string scopeInfoTableName, int batchSize, string batchDirectory,
                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
 
             DbTransaction transaction = null;
+            ScopeInfo clientScopeInfo;
 
             using (var connection = this.Provider.CreateConnection())
             {
@@ -150,25 +158,47 @@ namespace Dotmim.Sync
                         BatchInfo clientBatchInfo;
                         DatabaseChangesSelected clientChangesSelected;
 
-                        // If we have already done a sync, we have a lastsync value, so don't need to check schema and database
-                        bool checkIfSchemaExists = !scope.LastSync.HasValue;
 
-                        if (checkIfSchemaExists)
+                        // Starts sync by :
+                        // - Getting local config we have set by code
+                        // - Ensure local scope is created (table and values)
+                        (context, clientScopeInfo) = await this.EnsureScopeAsync(context, schema.ScopeName, scopeInfoTableName, cancellationToken, progress);
+
+                        if (cancellationToken.IsCancellationRequested)
+                            cancellationToken.ThrowIfCancellationRequested();
+
+                        // If we have a stored schema, make a comparison with the one extract from setup
+                        if (!string.IsNullOrEmpty(clientScopeInfo.Schema))
                         {
-                            // Ensure Database
-                            context = await this.Provider.EnsureDatabaseAsync(context, schema, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                            var currentSchema = JsonConvert.DeserializeObject<SyncSet>(clientScopeInfo.Schema);
 
-                            if (cancellationToken.IsCancellationRequested)
-                                cancellationToken.ThrowIfCancellationRequested();
+                            var migrationTools = new DbMigrationTools();
+
+                            var isIdentical = currentSchema == schema;
+
+                            if (!isIdentical)
+                            {
+                                // Create a migration args where use can apply or not the migration
+                                var migrationArgs = new MigrationArgs(context, migrationTools, currentSchema, schema, connection, transaction);
+
+                                // Intercept and let user decides and apply migration
+                                await this.Provider.InterceptAsync(migrationArgs).ConfigureAwait(false);
+                            }
                         }
+                        else
+                        {
+                            // Ensure databases are ready
+                            context = await this.Provider.EnsureDatabaseAsync(context, schema, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        }
+
 
                         // On local, we don't want to chase rows from "others" 
                         // We just want our local rows, so we dont exclude any remote scope id, by setting scope id to NULL
                         Guid? remoteScopeId = null;
                         // lastSyncTS : get lines inserted / updated / deteleted after the last sync commited
-                        var lastSyncTS = scope.LastSyncTimestamp;
+                        var lastSyncTS = clientScopeInfo.LastSyncTimestamp;
                         // isNew : If isNew, lasttimestamp is not correct, so grab all
-                        var isNew = scope.IsNewScope;
+                        var isNew = clientScopeInfo.IsNewScope;
                         //Direction set to Upload
                         context.SyncWay = SyncWay.Upload;
 
@@ -180,7 +210,7 @@ namespace Dotmim.Sync
                             cancellationToken.ThrowIfCancellationRequested();
 
                         // Creating the message
-                        var message = new MessageGetChangesBatch(remoteScopeId, scope.Id, isNew, lastSyncTS, schema, batchSize, batchDirectory);
+                        var message = new MessageGetChangesBatch(remoteScopeId, clientScopeInfo.Id, isNew, lastSyncTS, schema, batchSize, batchDirectory);
 
                         // Locally, if we are new, no need to get changes
                         if (isNew)
@@ -196,7 +226,7 @@ namespace Dotmim.Sync
                         await this.Provider.InterceptAsync(new TransactionCommitArgs(context, connection, transaction)).ConfigureAwait(false);
                         transaction.Commit();
 
-                        return (context, clientTimestamp, clientBatchInfo, clientChangesSelected);
+                        return (context, clientScopeInfo, clientTimestamp, clientBatchInfo, clientChangesSelected);
 
                     }
                 }
@@ -281,7 +311,7 @@ namespace Dotmim.Sync
                         scope.LastSyncDuration = context.CompleteTime.Subtract(context.StartTime).Ticks;
 
                         // Write scopes locally
-                        context = await this.Provider.WriteScopesAsync(context, scopeInfoTableName, scope, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        context = await this.Provider.WriteClientScopeAsync(context, scopeInfoTableName, scope, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                         // Locally, almost no probability to change the configuration on the Begin Session
                         // Anyway, to stay consistent, raise a Begin Session anyway
@@ -379,7 +409,7 @@ namespace Dotmim.Sync
 
 
 
-        public async Task<SyncContext> ApplySnapshotAndGetChangesAsync(SyncContext context, ScopeInfo scope, SyncSet schema, BatchInfo serverBatchInfo,
+        public async Task<SyncContext> ApplySnapshotAndGetChangesAsync(SyncContext context, SyncSet schema, BatchInfo serverBatchInfo,
                                                           long clientTimestamp, long remoteClientTimestamp, bool disableConstraintsOnApplyChanges,
                                                           int batchSize, string batchDirectory,
                                                           bool useBulkOperations, bool cleanMetadatas, string scopeInfoTableName,
@@ -389,8 +419,17 @@ namespace Dotmim.Sync
             if (serverBatchInfo == null)
                 return context;
 
+            ScopeInfo scope;
+
             context.SyncStage = SyncStage.SnapshotApplying;
             await this.Provider.InterceptAsync(new SnapshotApplyingArgs(context)).ConfigureAwait(false);
+
+
+            // Starts sync by :
+            // - Getting local config we have set by code
+            // - Ensure local scope is created (table and values)
+            (context, scope) = await this.EnsureScopeAsync(context, scopeInfoTableName, schema.ScopeName, cancellationToken, progress);
+
 
             var localSnapshotChanges = await this.ApplyChangesAsync(
                     context, scope, schema, serverBatchInfo,
@@ -410,7 +449,7 @@ namespace Dotmim.Sync
 
             // on local orchestrator, get local changes again just in case we have insert, and get correct timestamp
             var clientChanges = await this.GetChangesAsync(
-                context, schema, scope, batchSize, batchDirectory, cancellationToken, progress);
+                context, schema, scopeInfoTableName, batchSize, batchDirectory, cancellationToken, progress);
 
             if (cancellationToken.IsCancellationRequested)
                 cancellationToken.ThrowIfCancellationRequested();

@@ -1568,7 +1568,7 @@ namespace Dotmim.Sync.Tests
             // ----------------------------------
             // Create a snapshot
             // ----------------------------------
-            await Server.WebServerOrchestrator.CreateSnapshotAsync(new SyncContext(), setup, directory, 500);
+            await Server.WebServerOrchestrator.CreateSnapshotAsync(new SyncContext(), setup, SyncOptions.DefaultScopeInfoTableName,  directory, 500);
 
 
             // ----------------------------------

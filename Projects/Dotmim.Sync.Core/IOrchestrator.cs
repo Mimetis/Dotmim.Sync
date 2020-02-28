@@ -56,10 +56,11 @@ namespace Dotmim.Sync
         /// Send all changes and get new changes in return
         /// </summary>
         Task<(SyncContext context,
+              ScopeInfo localScopeInfo,
               long clientTimestamp,
               BatchInfo clientBatchInfo,
               DatabaseChangesSelected clientChangesSelected)>
-            GetChangesAsync(SyncContext context, SyncSet schema, ScopeInfo localScopeInfo, int batchSize, string batchDirectory,
+            GetChangesAsync(SyncContext context, SyncSet schema, string scopeInfoTableName, int batchSize, string batchDirectory,
                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null);
 
         /// <summary>
@@ -77,7 +78,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Apply a snapshot if available
         /// </summary>
-        Task<SyncContext> ApplySnapshotAndGetChangesAsync(SyncContext context, ScopeInfo scope, SyncSet schema, BatchInfo serverBatchInfo,
+        Task<SyncContext> ApplySnapshotAndGetChangesAsync(SyncContext context, SyncSet schema, BatchInfo serverBatchInfo,
                                                           long clientTimestamp, long remoteClientTimestamp, bool disableConstraintsOnApplyChanges,
                                                           int batchSize, string batchDirectory,
                                                           bool useBulkOperations, bool cleanMetadatas, string scopeInfoTableName,
@@ -91,7 +92,6 @@ namespace Dotmim.Sync
                                      CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null);
     }
 
-
     /// <summary>
     /// Remote provider
     /// </summary>
@@ -102,7 +102,7 @@ namespace Dotmim.Sync
         /// </summary>
         /// <returns></returns>
         Task<(SyncContext context, SyncSet schema)>
-            EnsureSchemaAsync(SyncContext context, SyncSetup setup,
+            EnsureSchemaAsync(SyncContext context, SyncSetup setup, string scopeInfoTableName,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null);
 
         /// <summary>

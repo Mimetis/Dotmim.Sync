@@ -108,6 +108,7 @@ namespace Dotmim.Sync
 
             return other != null &&
                    this.TableName.Equals(other.TableName, sc) &&
+                   this.Name.Equals(other.Name, sc) &&
                    sn.Equals(otherSn, sc);
         }
 
