@@ -76,7 +76,7 @@ namespace Dotmim.Sync.Web.Server
             this.Options = this.Options ?? new WebServerOptions();
 
             var (syncContext, newSchema) = await this.EnsureSchemaAsync(
-                httpMessage.SyncContext, this.Setup, cancellationToken).ConfigureAwait(false);
+                httpMessage.SyncContext, this.Setup, this.Options.ScopeInfoTableName, cancellationToken).ConfigureAwait(false);
 
             this.Schema = newSchema;
 
@@ -98,7 +98,7 @@ namespace Dotmim.Sync.Web.Server
             if (this.Schema == null || !this.Schema.HasTables || !this.Schema.HasColumns)
             {
                 var (_, newSchema) = await this.EnsureSchemaAsync(
-                    httpMessage.SyncContext, this.Setup, cancellationToken).ConfigureAwait(false);
+                    httpMessage.SyncContext, this.Setup, this.Options.ScopeInfoTableName, cancellationToken).ConfigureAwait(false);
 
                 newSchema.EnsureSchema();
                 this.Schema = newSchema;
@@ -142,7 +142,7 @@ namespace Dotmim.Sync.Web.Server
             if (this.Schema == null || !this.Schema.HasTables || !this.Schema.HasColumns)
             {
                 var (_, newSchema) = await this.EnsureSchemaAsync(
-                    httpMessage.SyncContext, this.Setup, cancellationToken).ConfigureAwait(false);
+                    httpMessage.SyncContext, this.Setup, this.Options.ScopeInfoTableName, cancellationToken).ConfigureAwait(false);
 
                 newSchema.EnsureSchema();
                 this.Schema = newSchema;
@@ -195,7 +195,7 @@ namespace Dotmim.Sync.Web.Server
                await this.ApplyThenGetChangesAsync(httpMessage.SyncContext,
                            httpMessage.Scope, this.Schema, sessionCache.ClientBatchInfo, this.Options.DisableConstraintsOnApplyChanges,
                            this.Options.UseBulkOperations, false, this.Options.CleanFolder, clientBatchSize,
-                           this.Options.BatchDirectory, this.Options.Scop  this.Options.ConflictResolutionPolicy, cancellationToken).ConfigureAwait(false);
+                           this.Options.BatchDirectory, this.Options.ScopeInfoTableName,  this.Options.ConflictResolutionPolicy, cancellationToken).ConfigureAwait(false);
 
 
             // Save the server batch info object to cache if not working in memory

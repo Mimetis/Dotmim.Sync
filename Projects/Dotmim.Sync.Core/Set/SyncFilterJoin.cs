@@ -6,7 +6,7 @@ using System.Text;
 namespace Dotmim.Sync
 {
     [DataContract(Name = "sfj"), Serializable]
-    public class SyncFilterJoin
+    public class SyncFilterJoin : IEquatable<SyncFilterJoin>
     {
 
         /// <summary>
@@ -46,6 +46,30 @@ namespace Dotmim.Sync
 
         }
 
+        public bool Equals(SyncFilterJoin other)
+        {
+            if (other == null)
+                return false;
+
+            var sc = SyncGlobalization.DataSourceStringComparison;
+
+            return this.JoinEnum == other.JoinEnum
+                && this.TableName.Equals(other.TableName, sc)
+                && this.LeftColumnName.Equals(other.LeftColumnName, sc)
+                && this.LeftTableName.Equals(other.LeftTableName, sc)
+                && this.RightColumnName.Equals(other.RightColumnName, sc)
+                && this.RightTableName.Equals(other.RightTableName, sc);
+        }
+
+        public override bool Equals(object obj) => this.Equals(obj as SyncFilterJoin);
+
+        public override int GetHashCode() => base.GetHashCode();
+
+        public static bool operator ==(SyncFilterJoin left, SyncFilterJoin right)
+            => EqualityComparer<SyncFilterJoin>.Default.Equals(left, right);
+
+        public static bool operator !=(SyncFilterJoin left, SyncFilterJoin right)
+            => !(left == right);
     }
 
 }

@@ -151,7 +151,7 @@ namespace Dotmim.Sync.Web.Client
         /// Send a request to remote web proxy for First step : Ensure scopes and schema
         /// </summary>
         public async Task<(SyncContext context, SyncSet schema)>
-            EnsureSchemaAsync(SyncContext context, SyncSetup setup, CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+            EnsureSchemaAsync(SyncContext context, SyncSetup setup, string scopeInfoTableName, CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
             // Create the message to be sent
             var httpMessage = new HttpMessageEnsureScopesRequest(context, setup.ScopeName);

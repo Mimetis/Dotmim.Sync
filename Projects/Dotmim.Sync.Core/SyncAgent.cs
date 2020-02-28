@@ -243,33 +243,13 @@ namespace Dotmim.Sync
 
                 ScopeInfo scope = null;
 
-                // Starts sync by :
-                // - Getting local config we have set by code
-                // - Ensure local scope is created (table and values)
-                (context, scope) = await this.LocalOrchestrator.EnsureScopeAsync
-                        (context, this.Setup.ScopeName, this.Options.ScopeInfoTableName, cancellationToken, progress);
 
-                if (cancellationToken.IsCancellationRequested)
-                    cancellationToken.ThrowIfCancellationRequested();
+                // Ensure schema is defined on remote side
+                var serverSchema = await this.RemoteOrchestrator.EnsureSchemaAsync(
+                        context, this.Setup, this.Options.ScopeInfoTableName, cancellationToken, remoteProgress);
 
-                // check if we already have a schema from local 
-                if (!string.IsNullOrEmpty(scope.Schema))
-                {
-                        this.Schema = Newtonsoft.Json.JsonConvert.DeserializeObject<SyncSet>(scope.Schema);
-                    //this.Schema = JsonSerializer.Deserialize<SyncSet>(scope.Schema, new JsonSerializerOptions { IgnoreReadOnlyProperties = true, IgnoreNullValues = true, MaxDepth = int.MaxValue });
-                }
-                else
-                {
-                    // FIRST call to server
-                    // Get the server scope info and server reference id to local scope
-                    // Be sure options / schema from client are passed if needed
-                    // Then the configuration with full schema
-                    var serverSchema = await this.RemoteOrchestrator.EnsureSchemaAsync(
-                            context, this.Setup, cancellationToken, remoteProgress);
-
-                    context = serverSchema.context;
-                    this.Schema = serverSchema.schema;
-                }
+                context = serverSchema.context;
+                this.Schema = serverSchema.schema;
 
 
                 if (cancellationToken.IsCancellationRequested)
@@ -279,13 +259,14 @@ namespace Dotmim.Sync
                 // Most probably the schema has changed, so we passed it again (coming from Server)
                 // Don't need to pass again Options since we are not modifying it between server and client
                 var clientChanges = await this.LocalOrchestrator.GetChangesAsync(
-                    context, this.Schema, scope, this.Options.BatchSize, this.Options.BatchDirectory, cancellationToken, progress);
+                    context, this.Schema, this.Options.ScopeInfoTableName, this.Options.BatchSize, this.Options.BatchDirectory, cancellationToken, progress);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
                 // set context
                 context = clientChanges.context;
+                scope = clientChanges.localScopeInfo;
 
                 // Get if we need to get all rows from the datasource
                 var fromScratch = scope.IsNewScope || context.SyncType == SyncType.Reinitialize || context.SyncType == SyncType.ReinitializeWithUpload;
@@ -302,7 +283,7 @@ namespace Dotmim.Sync
                         var hasChanges = await serverSnapshotChanges.serverBatchInfo.HasDataAsync();
                         if (hasChanges)
                         {
-                            context = await this.LocalOrchestrator.ApplySnapshotAndGetChangesAsync(context, scope, this.Schema, serverSnapshotChanges.serverBatchInfo,
+                            context = await this.LocalOrchestrator.ApplySnapshotAndGetChangesAsync(context, this.Schema, serverSnapshotChanges.serverBatchInfo,
                                 clientChanges.clientTimestamp, serverSnapshotChanges.remoteClientTimestamp, this.Options.DisableConstraintsOnApplyChanges,
                                 this.Options.BatchSize, this.Options.BatchDirectory, this.Options.UseBulkOperations, this.Options.CleanMetadatas, this.Options.ScopeInfoTableName,
                                 cancellationToken, progress);
@@ -313,7 +294,7 @@ namespace Dotmim.Sync
 
                 var serverChanges = await this.RemoteOrchestrator.ApplyThenGetChangesAsync(
                     context, scope, this.Schema, clientChanges.clientBatchInfo, this.Options.DisableConstraintsOnApplyChanges, this.Options.UseBulkOperations,
-                    this.Options.CleanMetadatas, this.Options.CleanFolder, this.Options.BatchSize, this.Options.BatchDirectory, this.Options.ScopeInfoTableName, 
+                    this.Options.CleanMetadatas, this.Options.CleanFolder, this.Options.BatchSize, this.Options.BatchDirectory, this.Options.ScopeInfoTableName,
                     this.Options.ConflictResolutionPolicy, cancellationToken, remoteProgress);
 
                 if (cancellationToken.IsCancellationRequested)

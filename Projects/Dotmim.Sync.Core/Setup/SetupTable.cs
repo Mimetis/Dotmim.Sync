@@ -84,7 +84,7 @@ namespace Dotmim.Sync
         public bool Equals(SetupTable other)
         {
             if (other == null)
-                    return false;
+                return false;
 
             var sc = SyncGlobalization.DataSourceStringComparison;
 

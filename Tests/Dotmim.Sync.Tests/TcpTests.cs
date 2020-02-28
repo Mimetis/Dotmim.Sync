@@ -2477,7 +2477,7 @@ namespace Dotmim.Sync.Tests
                 {
                     syncSchema = client.LocalOrchestrator.Provider.ReadSchema(setup, dbConnection, null);
                     var scopeBuilder = scopeBuilderFactory.CreateScopeInfoBuilder(SyncOptions.DefaultScopeInfoTableName, dbConnection);
-                    Assert.False(scopeBuilder.NeedToCreateScopeInfoTable());
+                    Assert.False(scopeBuilder.NeedToCreateClientScopeInfoTable());
                 }
 
                 // get the db manager
@@ -3927,7 +3927,7 @@ namespace Dotmim.Sync.Tests
             // ----------------------------------
             // Create a snapshot
             // ----------------------------------
-            await Server.RemoteOrchestrator.CreateSnapshotAsync(new SyncContext(), setup, directory, 500);
+            await Server.RemoteOrchestrator.CreateSnapshotAsync(new SyncContext(), setup, SyncOptions.DefaultScopeInfoTableName, directory, 500);
 
             // ----------------------------------
             // Setting correct options for sync agent to be able to reach snapshot
