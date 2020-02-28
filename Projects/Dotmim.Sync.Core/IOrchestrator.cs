@@ -115,7 +115,7 @@ namespace Dotmim.Sync
               DatabaseChangesSelected serverChangesSelected)>
             ApplyThenGetChangesAsync(SyncContext context, ScopeInfo scope, SyncSet schema, BatchInfo clientBatchInfo,
                                      bool disableConstraintsOnApplyChanges, bool useBulkOperations, bool cleanMetadatas, bool cleanFolder,
-                                     int clientBatchSize, string batchDirectory, string scopeInfoTableName, ConflictResolutionPolicy policy,
+                                     int clientBatchSize, string batchDirectory, ConflictResolutionPolicy policy,
                                      CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null);
 
 
