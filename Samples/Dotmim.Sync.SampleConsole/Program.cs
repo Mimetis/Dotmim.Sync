@@ -16,6 +16,7 @@ using Microsoft.Extensions.Configuration.EnvironmentVariables;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Data.SqlClient;
@@ -45,39 +46,10 @@ internal class Program
     private static async Task Main(string[] args)
     {
         await SynchronizeAsync();
+
+
     }
 
-
-
-    private async static Task TestVbSetup()
-    {
-        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
-        var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
-
-        // Create the setup used for your sync process
-        var tables = new string[] { "[vbs].VBSetup", };
-
-        //  [Optional] : database setup
-        var syncSetup = new SyncSetup(tables)
-        {
-            // optional :
-            StoredProceduresPrefix = "sync_",
-            StoredProceduresSuffix = "",
-            TrackingTablesPrefix = "sync_",
-            TrackingTablesSuffix = "",
-            ScopeName = "SStGMobile_Sync",
-            TriggersPrefix = "sync",
-        };
-
-        var syncAgent = new SyncAgent(clientProvider, serverProvider, syncSetup);
-
-        // Using the IProgress<T> pattern to handle progession dring the synchronization
-        // Be careful, Progress<T> is not synchronous. Use SynchronousProgress<T> instead !
-        var progress = new SynchronousProgress<ProgressArgs>(s => Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}"));
-
-        var syncContext = await syncAgent.SynchronizeAsync(progress);
-
-    }
     private static void TestSqliteDoubleStatement()
     {
         var clientProvider = new SqliteSyncProvider(@"C:\PROJECTS\DOTMIM.SYNC\Tests\Dotmim.Sync.Tests\bin\Debug\netcoreapp2.0\st_r55jmmolvwg.db");
@@ -241,12 +213,12 @@ internal class Program
 
         // specific Setup with only 2 tables, and one filtered
         var setup = new SyncSetup(allTables);
+        var options = new SyncOptions();
 
         // snapshot directory
         var directory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Snapshots");
 
-
-        await remoteOrchestrator.CreateSnapshotAsync(new SyncContext(), setup, directory, 500, CancellationToken.None);
+        await remoteOrchestrator.CreateSnapshotAsync(new SyncContext(), setup, SyncOptions.DefaultScopeInfoTableName, directory, 500, CancellationToken.None);
         // client provider
         var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
 
@@ -390,8 +362,7 @@ internal class Program
     {
         // Create 2 Sql Sync providers
         var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
-        //var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
-        var clientProvider = new SqliteSyncProvider("clientX.db");
+        var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
 
         //var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" });
         var setup = new SyncSetup(allTables);
@@ -426,15 +397,17 @@ internal class Program
         orderDetailsFilter.AddWhere("CompanyName", "Customer", "CompanyName");
         setup.Filters.Add(orderDetailsFilter);
 
-
         // Add pref suf
         setup.StoredProceduresPrefix = "s";
-        setup.StoredProceduresSuffix = "";
+        setup.StoredProceduresSuffix = "f";
         setup.TrackingTablesPrefix = "t";
         setup.TrackingTablesSuffix = "";
 
+
+
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, setup);
+
 
         // Using the Progress pattern to handle progession during the synchronization
         var progress = new SynchronousProgress<ProgressArgs>(s =>
@@ -456,15 +429,23 @@ internal class Program
         //agent.Options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync");
         agent.Options.BatchSize = 1000;
         agent.Options.CleanMetadatas = true;
-        agent.Options.UseBulkOperations = false;
-        agent.Options.DisableConstraintsOnApplyChanges = false;
+        agent.Options.UseBulkOperations = true;
+        agent.Options.DisableConstraintsOnApplyChanges = true;
         agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
+        agent.Options.ScopeInfoTableName = "tscopeinfo";
         //agent.Options.UseVerboseErrors = false;
-        //agent.Options.ScopeInfoTableName = "tscopeinfo";
 
-        var myRijndael = new RijndaelManaged();
-        myRijndael.GenerateKey();
-        myRijndael.GenerateIV();
+
+        agent.RemoteOrchestrator.On<MigrationArgs>(migr =>
+        {
+            var cs = migr.CurrentSchema;
+            var ns = migr.NewSchema;
+
+        });
+
+        //var myRijndael = new RijndaelManaged();
+        //myRijndael.GenerateKey();
+        //myRijndael.GenerateIV();
 
         //agent.RemoteOrchestrator.OnSerializingSet(ssa =>
         //{
@@ -498,6 +479,10 @@ internal class Program
         //    acf.FinalRow["Name"] = "Prout";
 
         //});
+
+        //var migration = new DbMigrationTools(clientProvider, agent.Options, setup);
+        //var context = new SyncContext(Guid.NewGuid());
+        //await migration.MigrateAsync(context);
 
         do
         {
@@ -568,7 +553,7 @@ internal class Program
         Console.ForegroundColor = ConsoleColor.Yellow;
         Console.WriteLine($"Creating snapshot");
         var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
-        await remoteOrchestrator.CreateSnapshotAsync(new SyncContext(), setup, directory, 500, CancellationToken.None);
+        await remoteOrchestrator.CreateSnapshotAsync(new SyncContext(), setup, SyncOptions.DefaultScopeInfoTableName, directory, 500, CancellationToken.None);
         Console.WriteLine($"Done.");
         Console.ResetColor();
 

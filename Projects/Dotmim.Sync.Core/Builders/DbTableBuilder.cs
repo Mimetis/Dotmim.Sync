@@ -11,7 +11,7 @@ using System.Diagnostics;
 
 namespace Dotmim.Sync.Builders
 {
-    public abstract class DbTableBuilder
+    public abstract partial class DbTableBuilder
     {
 
         /// <summary>
@@ -75,7 +75,6 @@ namespace Dotmim.Sync.Builders
 
             var alreadyOpened = connection.State != ConnectionState.Closed;
 
-
             if (!alreadyOpened)
                 connection.Open();
 
@@ -118,27 +117,7 @@ namespace Dotmim.Sync.Builders
 
         }
 
-        public void CreateTriggers(DbConnection connection, DbTransaction transaction = null)
-        {
-            if (TableDescription.PrimaryKeys.Count <= 0)
-                throw new MissingPrimaryKeyException(TableDescription.TableName);
-
-            var alreadyOpened = connection.State != ConnectionState.Closed;
-
-            var triggerBuilder = CreateTriggerBuilder(connection, transaction);
-
-            if (triggerBuilder.NeedToCreateTrigger(DbTriggerType.Insert))
-                triggerBuilder.CreateInsertTrigger();
-            if (triggerBuilder.NeedToCreateTrigger(DbTriggerType.Update))
-                triggerBuilder.CreateUpdateTrigger();
-            if (triggerBuilder.NeedToCreateTrigger(DbTriggerType.Delete))
-                triggerBuilder.CreateDeleteTrigger();
-
-            if (!alreadyOpened)
-                connection.Close();
-
-        }
-
+ 
         public void CreateStoredProcedures(DbConnection connection, DbTransaction transaction = null)
         {
             if (TableDescription.PrimaryKeys.Count <= 0)
@@ -278,28 +257,7 @@ namespace Dotmim.Sync.Builders
 
         }
 
-        public void DropTriggers(DbConnection connection, DbTransaction transaction = null)
-        {
-            var alreadyOpened = connection.State != ConnectionState.Closed;
-
-            if (!alreadyOpened)
-                connection.Open();
-
-            var triggerBuilder = CreateTriggerBuilder(connection, transaction);
-
-            if (!triggerBuilder.NeedToCreateTrigger(DbTriggerType.Insert))
-                triggerBuilder.DropInsertTrigger();
-            if (!triggerBuilder.NeedToCreateTrigger(DbTriggerType.Update))
-                triggerBuilder.DropUpdateTrigger();
-            if (!triggerBuilder.NeedToCreateTrigger(DbTriggerType.Delete))
-                triggerBuilder.DropDeleteTrigger();
-
-
-            if (!alreadyOpened)
-                connection.Close();
-
-        }
-
+ 
         public void DropTrackingTable(DbConnection connection, DbTransaction transaction = null)
         {
             var alreadyOpened = connection.State != ConnectionState.Closed;
@@ -343,7 +301,6 @@ namespace Dotmim.Sync.Builders
         public void Drop(DbConnection connection, DbTransaction transaction = null)
         {
             var alreadyOpened = connection.State != ConnectionState.Closed;
-
 
             if (!alreadyOpened)
                 connection.Open();

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
-namespace Dotmim.Sync.Web.Client
+namespace Dotmim.Sync
 {
     /// <summary>
     /// Calculate a hash for each BatchInfo
@@ -27,6 +27,23 @@ namespace Dotmim.Sync.Web.Client
                     throw new SyncHashException(hashToCompare, hashString);
 
                 readableStream.Seek(0, SeekOrigin.Begin);
+            }
+
+            public static bool CompareHash(byte[] hash1, byte[] hash2)
+            {
+                var hash1String = Convert.ToBase64String(hash1);
+                var hash2String = Convert.ToBase64String(hash1);
+
+                if (!hash1String.Equals(hash2String, StringComparison.InvariantCultureIgnoreCase))
+                    return false;
+
+                return true;
+            }
+
+            public static byte[] Create(string str)
+            {
+                var data = Convert.FromBase64String(str);
+                return Create(data);
             }
 
             public static byte[] Create(byte[] data)

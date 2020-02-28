@@ -8,12 +8,26 @@ namespace Dotmim.Sync.Builders
 {
     public interface IDbScopeInfoBuilder
     {
-        bool NeedToCreateScopeInfoTable();
-        void CreateScopeInfoTable();
-        List<ScopeInfo> GetAllScopes(string scopeName);
-        ScopeInfo InsertOrUpdateScopeInfo(ScopeInfo scopeInfo);
+        bool NeedToCreateClientScopeInfoTable();
+        bool NeedToCreateServerScopeInfoTable();
+        bool NeedToCreateServerHistoryScopeInfoTable();
+
+        void CreateClientScopeInfoTable();
+        void CreateServerScopeInfoTable();
+        void CreateServerHistoryScopeInfoTable();
+
+        List<ScopeInfo> GetAllClientScopes(string scopeName);
+        List<ServerScopeInfo> GetAllServerScopes(string scopeName);
+
+        ScopeInfo InsertOrUpdateClientScopeInfo(ScopeInfo scopeInfo);
+        ServerScopeInfo InsertOrUpdateServerScopeInfo(ServerScopeInfo serverScopeInfo);
+        ServerHistoryScopeInfo InsertOrUpdateServerHistoryScopeInfo(ServerHistoryScopeInfo serverHistoryScopeInfo);
+
         long GetLocalTimestamp();
-        void DropScopeInfoTable();
+
+        void DropClientScopeInfoTable();
+        void DropServerScopeInfoTable();
+        void DropServerHistoryScopeInfoTable();
 
     }
 }

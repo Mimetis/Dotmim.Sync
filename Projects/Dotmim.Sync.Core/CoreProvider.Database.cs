@@ -84,8 +84,8 @@ namespace Dotmim.Sync
                         if (provision.HasFlag(SyncProvision.Scope) || provision.HasFlag(SyncProvision.All))
                         {
                             var scopeBuilder = this.GetScopeBuilder().CreateScopeInfoBuilder(scopeInfoTableName, connection, transaction);
-                            if (!scopeBuilder.NeedToCreateScopeInfoTable())
-                                scopeBuilder.DropScopeInfoTable();
+                            if (!scopeBuilder.NeedToCreateClientScopeInfoTable())
+                                scopeBuilder.DropClientScopeInfoTable();
                         }
 
                         // Launch any interceptor if available
@@ -158,8 +158,8 @@ namespace Dotmim.Sync
                         if (provision.HasFlag(SyncProvision.Scope) || provision.HasFlag(SyncProvision.All))
                         {
                             var scopeBuilder = this.GetScopeBuilder().CreateScopeInfoBuilder(scopeInfoTableName, connection, transaction);
-                            if (scopeBuilder.NeedToCreateScopeInfoTable())
-                                scopeBuilder.CreateScopeInfoTable();
+                            if (scopeBuilder.NeedToCreateClientScopeInfoTable())
+                                scopeBuilder.CreateClientScopeInfoTable();
                         }
 
                         // Sorting tables based on dependencies between them

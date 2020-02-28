@@ -13,6 +13,7 @@ namespace Dotmim.Sync.Enumerations
     {
         None,
         BeginSession,
+        ScopeCreating,
         ScopeLoading,
         ScopeSaved,
 
