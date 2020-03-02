@@ -537,7 +537,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Reset a table, deleting rows from table and tracking_table
         /// </summary>
-        internal bool DisableConstraints()
+        public virtual bool DisableConstraints()
         {
             using (var command = this.GetCommand(DbCommandType.DisableConstraints))
             {
@@ -545,7 +545,7 @@ namespace Dotmim.Sync
                     throw new MissingCommandException(DbCommandType.DisableConstraints.ToString());
 
                 // set parameters if needed
-                this.SetCommandParameters(DbCommandType.DisableConstraints, command);
+                 this.SetCommandParameters(DbCommandType.DisableConstraints, command);
 
                 var alreadyOpened = Connection.State == ConnectionState.Open;
 
@@ -569,7 +569,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Reset a table, deleting rows from table and tracking_table
         /// </summary>
-        internal bool EnableConstraints()
+        public virtual bool EnableConstraints()
         {
             using (var command = this.GetCommand(DbCommandType.EnableConstraints))
             {
