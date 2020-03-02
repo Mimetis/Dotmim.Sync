@@ -24,7 +24,7 @@ namespace Dotmim.Sync
                 throw new MissingTablesException();
 
             // Create the schema
-            var schema = new SyncSet(setup.ScopeName)
+            var schema = new SyncSet()
             {
                 StoredProceduresPrefix = setup.StoredProceduresPrefix,
                 StoredProceduresSuffix = setup.StoredProceduresSuffix,
