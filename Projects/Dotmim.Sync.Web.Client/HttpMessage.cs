@@ -170,19 +170,14 @@ namespace Dotmim.Sync.Web.Client
         /// Create a new message to web remote server.
         /// Scope info table name is not provided since we do not care about it on the server side
         /// </summary>
-        public HttpMessageEnsureScopesRequest(SyncContext context, string scopeName)
+        public HttpMessageEnsureScopesRequest(SyncContext context)
         {
             this.SyncContext = context ?? throw new ArgumentNullException(nameof(context));
-            this.ScopeName = scopeName ?? throw new ArgumentNullException(nameof(scopeName));
         }
 
         [DataMember(Name = "sc", IsRequired = true, Order = 1)]
         public SyncContext SyncContext { get; set; }
 
-        /// <summary>
-        /// Gets or Sets the scope name
-        /// </summary>
-        [DataMember(Name = "scopename", IsRequired = true, Order = 2)]
-        public string ScopeName { get; set; }
+       
     }
 }
