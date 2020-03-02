@@ -391,17 +391,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             // special case for constraint
             if (commandType == DbCommandType.DisableConstraints || commandType == DbCommandType.EnableConstraints)
-            {
-                string check = commandType == DbCommandType.DisableConstraints ? "NOCHECK" : "CHECK";
-
-                var p = command.CreateParameter();
-                p.ParameterName = "@command1";
-                p.DbType = DbType.String;
-                p.Value = $"ALTER TABLE ? {check} CONSTRAINT ALL";
-                command.Parameters.Add(p);
-
                 return;
-            }
 
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 

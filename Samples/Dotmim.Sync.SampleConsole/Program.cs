@@ -45,8 +45,93 @@ internal class Program
     public static string[] oneTable = new string[] { "ProductCategory" };
     private static async Task Main(string[] args)
     {
-        await SynchronizeAsync();
+        await SyncHttpThroughKestellAsync();
+    }
 
+
+    private static async Task TestPatientsSyncAsync()
+    {
+        // Create 2 Sql Sync providers
+        var serverProvider = new SqlSyncProvider(DbHelper.GetAzureDatabaseConnectionString("Patient"));
+        //var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
+        var clientProvider = new SqliteSyncProvider("Patients2.db");
+
+        //var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" });
+        var syncSetup = new SyncSetup(new string[] { "Patients" });
+
+
+        syncSetup.Filters.Add("Patients", "PracticeId");
+
+
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, syncSetup);
+
+        agent.Options.BatchSize = 1000;
+        agent.Options.CleanMetadatas = true;
+        agent.Options.UseBulkOperations = true;
+        agent.Options.DisableConstraintsOnApplyChanges = true;
+
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
+            Console.ResetColor();
+        });
+
+        do
+        {
+            Console.Clear();
+            Console.WriteLine("Sync Start");
+            try
+            {
+                // Launch the sync process
+                if (!agent.Parameters.Contains("PracticeId"))
+                    agent.Parameters.Add("PracticeId", "1");
+
+                var s1 = await agent.SynchronizeAsync(progress);
+
+                // Write results
+                Console.WriteLine(s1);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+            }
+
+
+            //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+        Console.WriteLine("End");
+    }
+
+    private async static Task TestVbSetup()
+    {
+        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
+
+        // Create the setup used for your sync process
+        var tables = new string[] { "[vbs].VBSetup", };
+
+        //  [Optional] : database setup
+        var syncSetup = new SyncSetup(tables)
+        {
+            // optional :
+            StoredProceduresPrefix = "sync_",
+            StoredProceduresSuffix = "",
+            TrackingTablesPrefix = "sync_",
+            TrackingTablesSuffix = "",
+            TriggersPrefix = "sync",
+        };
+
+        var syncAgent = new SyncAgent(clientProvider, serverProvider, syncSetup);
+
+        // Using the IProgress<T> pattern to handle progession dring the synchronization
+        // Be careful, Progress<T> is not synchronous. Use SynchronousProgress<T> instead !
+        var progress = new SynchronousProgress<ProgressArgs>(s => Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}"));
+
+        var syncContext = await syncAgent.SynchronizeAsync(progress);
 
     }
 
@@ -294,12 +379,12 @@ internal class Program
         string[] customersScopeTables = new string[] { "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
 
         // Create 2 sync setup with named scope 
-        var setupProducts = new SyncSetup(productScopeTables, "productScope");
-        var setupCustomers = new SyncSetup(customersScopeTables, "customerScope");
+        var setupProducts = new SyncSetup(productScopeTables);
+        var setupCustomers = new SyncSetup(customersScopeTables);
 
         // Create 2 agents, one for each scope
-        var agentProducts = new SyncAgent(clientProvider, serverProvider, setupProducts);
-        var agentCustomers = new SyncAgent(clientProvider, serverProvider, setupCustomers);
+        var agentProducts = new SyncAgent("productScope", clientProvider, serverProvider, setupProducts);
+        var agentCustomers = new SyncAgent("customerScope", clientProvider, serverProvider, setupCustomers);
 
         // Using the Progress pattern to handle progession during the synchronization
         // We can use the same progress for each agent
@@ -363,6 +448,7 @@ internal class Program
         // Create 2 Sql Sync providers
         var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
         var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
+        //var clientProvider = new SqliteSyncProvider("clientX.db");
 
         //var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" });
         var setup = new SyncSetup(allTables);
@@ -431,8 +517,7 @@ internal class Program
         agent.Options.CleanMetadatas = true;
         agent.Options.UseBulkOperations = true;
         agent.Options.DisableConstraintsOnApplyChanges = true;
-        agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
-        agent.Options.ScopeInfoTableName = "tscopeinfo";
+        //agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
         //agent.Options.UseVerboseErrors = false;
 
 
@@ -535,7 +620,6 @@ internal class Program
         // ----------------------------------
         var setup = new SyncSetup(allTables)
         {
-            ScopeName = "all_tables_scope",
             StoredProceduresPrefix = "s",
             StoredProceduresSuffix = "",
             TrackingTablesPrefix = "t",
@@ -573,7 +657,7 @@ internal class Program
         var webServerOptions = new WebServerOptions { SnapshotsDirectory = directory };
 
         // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, proxyClientProvider);
+        var agent = new SyncAgent("dd", clientProvider, proxyClientProvider);
         agent.Options = clientOptions;
 
         var configureServices = new Action<IServiceCollection>(services =>
@@ -583,7 +667,7 @@ internal class Program
 
         var serverHandler = new RequestDelegate(async context =>
         {
-            var webProxyServer = context.RequestServices.GetService(typeof(WebProxyServerOrchestrator)) as WebProxyServerOrchestrator;
+            var webProxyServer = context.RequestServices.GetService(typeof(WebServerProperties)) as WebServerProperties;
             await webProxyServer.HandleRequestAsync(context);
         });
 
