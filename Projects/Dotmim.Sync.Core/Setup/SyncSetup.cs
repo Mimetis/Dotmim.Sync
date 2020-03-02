@@ -7,10 +7,15 @@ namespace Dotmim.Sync
 {
     public class SyncSetup
     {
-        public string ScopeName { get; set; }
 
+        /// <summary>
+        /// Gets or Sets the tables involved in the sync
+        /// </summary>
         public SetupTables Tables { get; set; }
 
+        /// <summary>
+        /// Gets or Sets the filters involved in the sync
+        /// </summary>
         public SetupFilters Filters { get; set; }
 
         /// <summary>
@@ -47,15 +52,13 @@ namespace Dotmim.Sync
         /// Create a list of tables to be added to the sync process
         /// </summary>
         /// <param name="caseSensitive">Specify if table names are case sensitive. Default is false</param>
-        public SyncSetup(IEnumerable<string> tables, string scopeName = SyncOptions.DefaultScopeName) : this()
+        public SyncSetup(IEnumerable<string> tables) : this()
         {
-            this.ScopeName = scopeName;
             this.Tables.AddRange(tables);
         }
 
         public SyncSetup()
         {
-            this.ScopeName = SyncOptions.DefaultScopeName;
             this.Tables = new SetupTables();
             this.Filters = new SetupFilters();
         }

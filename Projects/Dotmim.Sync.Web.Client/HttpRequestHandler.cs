@@ -35,7 +35,7 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// Process a request message with HttpClient object. 
         /// </summary>
-        public async Task<U> ProcessRequestAsync<U>(HttpClient client, string baseUri, byte[] data, HttpStep step, Guid sessionId,
+        public async Task<U> ProcessRequestAsync<U>(HttpClient client, string baseUri, byte[] data, HttpStep step, Guid sessionId, string scopeName,
             ISerializerFactory serializerFactory, IConverter converter, int batchSize, CancellationToken cancellationToken)
         {
             if (client is null)
@@ -83,8 +83,9 @@ namespace Dotmim.Sync.Web.Client
                 // Create the request message
                 var requestMessage = new HttpRequestMessage(HttpMethod.Post, requestUri.ToString()) { Content = arrayContent };
 
-                // Adding the serialization format used and session id
+                // Adding the serialization format used and session id and scope name
                 requestMessage.Headers.Add("dotmim-sync-session-id", sessionId.ToString());
+                requestMessage.Headers.Add("dotmim-sync-scope-name", scopeName);
                 requestMessage.Headers.Add("dotmim-sync-step", ((int)step).ToString());
 
                 // serialize the serialization format and the batchsize we want.

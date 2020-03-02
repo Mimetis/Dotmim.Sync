@@ -16,12 +16,6 @@ namespace Dotmim.Sync
     public class SyncSet : IDisposable, IEquatable<SyncSet>
     {
         /// <summary>
-        /// Gets or Sets the current scope name
-        /// </summary>
-        [DataMember(Name = "sn", IsRequired = false, EmitDefaultValue = false, Order = 1)]
-        public string ScopeName { get; set; }
-
-        /// <summary>
         /// Specify a prefix for naming stored procedure. Default is empty string
         /// </summary>
         [DataMember(Name = "spp", IsRequired = false, EmitDefaultValue = false, Order = 2)]
@@ -91,15 +85,8 @@ namespace Dotmim.Sync
             this.Tables = new SyncTables(this);
             this.Relations = new SyncRelations(this);
             this.Filters = new SyncFilters(this);
-            this.ScopeName = SyncOptions.DefaultScopeName;
             this.Version = "0.4";
         }
-
-        /// <summary>
-        /// Create a SyncSet with a specific scope name
-        /// </summary>
-        /// <param name="scopeName"></param>
-        public SyncSet(string scopeName) : this() => this.ScopeName = scopeName;
 
         /// <summary>
         /// Ensure all tables, filters and relations has the correct reference to this schema
@@ -122,7 +109,6 @@ namespace Dotmim.Sync
         public SyncSet Clone(bool includeTables = true)
         {
             var clone = new SyncSet();
-            clone.ScopeName = this.ScopeName;
             clone.StoredProceduresPrefix = this.StoredProceduresPrefix;
             clone.StoredProceduresSuffix = this.StoredProceduresSuffix;
             clone.TrackingTablesPrefix = this.TrackingTablesPrefix;

@@ -442,7 +442,7 @@ namespace Dotmim.Sync
             context.TotalSyncErrors += localSnapshotChanges.clientChangesApplied.TotalAppliedChangesFailed;
 
             // Get scope again to ensure we have correct timestamp
-            (context, scope) = await this.EnsureScopeAsync(context, schema.ScopeName, scopeInfoTableName, cancellationToken, progress);
+            (context, scope) = await this.EnsureScopeAsync(context, scope.Name, scopeInfoTableName, cancellationToken, progress);
 
             if (cancellationToken.IsCancellationRequested)
                 cancellationToken.ThrowIfCancellationRequested();
