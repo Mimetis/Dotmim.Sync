@@ -36,12 +36,13 @@ namespace Dotmim.Sync.SqlServer.Builders
         internal const string bulkUpdateProcName = "[{0}].[{1}_bulkupdate]";
         internal const string bulkDeleteProcName = "[{0}].[{1}_bulkdelete]";
 
-        //internal const string disableConstraintsText = "ALTER TABLE {0} NOCHECK CONSTRAINT ALL";
-        //internal const string enableConstraintsText = "ALTER TABLE {0} CHECK CONSTRAINT ALL";
-        internal const string disableConstraintsText = "sp_msforeachtable";
-        internal const string enableConstraintsText = "sp_msforeachtable";
+        internal const string disableConstraintsText = "ALTER TABLE {0} NOCHECK CONSTRAINT ALL";
+        internal const string enableConstraintsText = "ALTER TABLE {0} CHECK CONSTRAINT ALL";
+        //internal const string disableConstraintsText = "sp_msforeachtable";
+        //internal const string enableConstraintsText = "sp_msforeachtable";
 
         Dictionary<DbCommandType, (string name, bool isStoredProcedure)> names = new Dictionary<DbCommandType, (string name, bool isStoredProcedure)>();
+        
         public SyncTable TableDescription { get; }
 
 
@@ -107,8 +108,8 @@ namespace Dotmim.Sync.SqlServer.Builders
             this.AddName(DbCommandType.BulkUpdateRows, string.Format(bulkUpdateProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
             this.AddName(DbCommandType.BulkDeleteRows, string.Format(bulkDeleteProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
 
-            this.AddName(DbCommandType.DisableConstraints, string.Format(disableConstraintsText, ParserName.Parse(TableDescription).Schema().Quoted().ToString()), true);
-            this.AddName(DbCommandType.EnableConstraints, string.Format(enableConstraintsText, ParserName.Parse(TableDescription).Schema().Quoted().ToString()), true);
+            this.AddName(DbCommandType.DisableConstraints, string.Format(disableConstraintsText, ParserName.Parse(TableDescription).Schema().Quoted().ToString()), false);
+            this.AddName(DbCommandType.EnableConstraints, string.Format(enableConstraintsText, ParserName.Parse(TableDescription).Schema().Quoted().ToString()), false);
         }
 
     }
