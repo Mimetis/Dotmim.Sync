@@ -2,7 +2,9 @@
 using Dotmim.Sync.Web.Server;
 using System;
 using System.Runtime.CompilerServices;
-
+using Microsoft.Extensions.DependencyInjection;
+using System.Collections.Generic;
+using System.Linq;
 
 [assembly: InternalsVisibleTo("Dotmim.Sync.Tests")]
 
@@ -27,22 +29,29 @@ namespace Microsoft.Extensions.DependencyInjection
             if (string.IsNullOrWhiteSpace(connectionString))
                 throw new ArgumentNullException(nameof(connectionString));
 
-            //serviceCollection.AddOptions();
+            var serviceProvider = serviceCollection.BuildServiceProvider();
 
-            // create cache instance
-            var webServerProperties = new WebServerProperties
-            {
-                ProviderType = providerType,
-                Options = options ?? new WebServerOptions(),
-                ConnectionString = connectionString,
-                Setup = setup
-            };
+            // Get all registered server providers with schema and options
+            var webServerProperties = serviceProvider.GetService<WebServerProperties>();
 
-            // Add this to the service pool injection
-            serviceCollection.AddSingleton(webServerProperties);
+            if (webServerProperties == null)
+                serviceCollection.AddSingleton<WebServerProperties>();
 
-            // Add this to the service pool injection
-            serviceCollection.AddScoped<WebProxyServerOrchestrator>();
+            webServerProperties = serviceProvider.GetService<WebServerProperties>();
+
+            // Check if we don't have already added this scope name provider to the remote orchestrator list
+            if (webServerProperties.Contains(setup.ScopeName))
+                throw new ArgumentException($"Orchestrator with scope name {setup.ScopeName} already exists in the service collection");
+
+            // Create provider
+            var provider = (CoreProvider)Activator.CreateInstance(providerType);
+            provider.ConnectionString = connectionString;
+
+            // Create orchestrator
+            var webServerOrchestrator = new WebServerOrchestrator(provider, options, setup, webServerProperties.Cache);
+
+            // add it to the singleton collection
+            webServerProperties.Add(webServerOrchestrator);
 
             return serviceCollection;
         }

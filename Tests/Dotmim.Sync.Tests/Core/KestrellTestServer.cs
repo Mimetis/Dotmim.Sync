@@ -48,7 +48,9 @@ namespace Dotmim.Sync.Tests
 
                     // add a SqlSyncProvider acting as the server hub
                     services.AddSyncServer(server.WebServerOrchestrator.Provider.GetType(),
-                                           server.WebServerOrchestrator.Provider.ConnectionString);
+                                           server.WebServerOrchestrator.Provider.ConnectionString, 
+                                           server.WebServerOrchestrator.Setup,
+                                           server.WebServerOrchestrator.Options);
 
                 });
             this.builder = hostBuilder;
@@ -64,12 +66,12 @@ namespace Dotmim.Sync.Tests
             // Create server web proxy
             var serverHandler = new RequestDelegate(async context =>
             {
-                var webProxyServer = context.RequestServices.GetService(typeof(WebProxyServerOrchestrator)) as WebProxyServerOrchestrator;
-                webProxyServer.WebServerOrchestrator = this.webServerOrchestrator;
+                var webProxyServer = context.RequestServices.GetService(typeof(WebServerProperties)) as WebServerProperties;
+                webProxyServer.Add(this.webServerOrchestrator);
                 await webProxyServer.HandleRequestAsync(context);
             });
 
-
+                
             this.builder.Configure(app =>
             {
                 app.UseSession();

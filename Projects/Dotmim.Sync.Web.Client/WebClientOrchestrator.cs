@@ -154,7 +154,7 @@ namespace Dotmim.Sync.Web.Client
             EnsureSchemaAsync(SyncContext context, SyncSetup setup, CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
             // Create the message to be sent
-            var httpMessage = new HttpMessageEnsureScopesRequest(context, setup.ScopeName);
+            var httpMessage = new HttpMessageEnsureScopesRequest(context);
 
             // serialize message
             var serializer = this.SerializerFactory.GetSerializer<HttpMessageEnsureScopesRequest>();
@@ -164,7 +164,7 @@ namespace Dotmim.Sync.Web.Client
 
             // No batch size submitted here, because the schema will be generated in memory and send back to the user.
             var ensureScopesResponse = await this.httpRequestHandler.ProcessRequestAsync<HttpMessageEnsureScopesResponse>
-                (this.HttpClient, this.ServiceUri, binaryData, HttpStep.EnsureScopes, context.SessionId,
+                (this.HttpClient, this.ServiceUri, binaryData, HttpStep.EnsureScopes, context.SessionId, setup.ScopeName,
                  this.SerializerFactory, this.Converter, 0, cancellationToken).ConfigureAwait(false);
 
 
@@ -193,7 +193,7 @@ namespace Dotmim.Sync.Web.Client
             // clientBatchSize is sent to server to specify if the client wants a batch in return
 
             // create the in memory changes set
-            var changesSet = new SyncSet(schema.ScopeName);
+            var changesSet = new SyncSet();
 
             foreach (var table in schema.Tables)
                 DbSyncAdapter.CreateChangesTable(schema.Tables[table.TableName, table.SchemaName], changesSet);
@@ -232,7 +232,7 @@ namespace Dotmim.Sync.Web.Client
                 await InterceptAsync(new HttpMessageSendChangesRequestArgs(binaryData)).ConfigureAwait(false);
 
                 httpMessageContent = await this.httpRequestHandler.ProcessRequestAsync<HttpMessageSendChangesResponse>
-                    (this.HttpClient, this.ServiceUri, binaryData, HttpStep.SendChanges, context.SessionId,
+                    (this.HttpClient, this.ServiceUri, binaryData, HttpStep.SendChanges, context.SessionId, scope.Name,
                      this.SerializerFactory, this.Converter, clientBatchSize, cancellationToken).ConfigureAwait(false);
 
             }
@@ -263,7 +263,7 @@ namespace Dotmim.Sync.Web.Client
                     await InterceptAsync(new HttpMessageSendChangesRequestArgs(binaryData)).ConfigureAwait(false);
 
                     httpMessageContent = await this.httpRequestHandler.ProcessRequestAsync<HttpMessageSendChangesResponse>
-                        (this.HttpClient, this.ServiceUri, binaryData, HttpStep.SendChanges, context.SessionId,
+                        (this.HttpClient, this.ServiceUri, binaryData, HttpStep.SendChanges, context.SessionId, scope.Name,
                          this.SerializerFactory, this.Converter, clientBatchSize, cancellationToken).ConfigureAwait(false);
 
 
@@ -340,7 +340,7 @@ namespace Dotmim.Sync.Web.Client
                     await InterceptAsync(new HttpMessageGetMoreChangesRequestArgs(binaryData)).ConfigureAwait(false);
 
                     httpMessageContent = await this.httpRequestHandler.ProcessRequestAsync<HttpMessageSendChangesResponse>(
-                               this.HttpClient, this.ServiceUri, binaryData, HttpStep.GetChanges, context.SessionId,
+                               this.HttpClient, this.ServiceUri, binaryData, HttpStep.GetChanges, context.SessionId, scope.Name,
                                this.SerializerFactory, this.Converter, clientBatchSize, cancellationToken).ConfigureAwait(false);
                 }
 
@@ -355,7 +355,7 @@ namespace Dotmim.Sync.Web.Client
             GetSnapshotAsync(SyncContext context, ScopeInfo scope, SyncSet schema, string snapshotDirectory, string batchDirectory, CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
             // create the in memory changes set
-            var changesSet = new SyncSet(schema.ScopeName);
+            var changesSet = new SyncSet();
 
             foreach (var table in schema.Tables)
                 DbSyncAdapter.CreateChangesTable(schema.Tables[table.TableName, table.SchemaName], changesSet);
@@ -380,7 +380,7 @@ namespace Dotmim.Sync.Web.Client
             var binaryData = await serializer.SerializeAsync(changesToSend);
 
             var httpMessageContent = await this.httpRequestHandler.ProcessRequestAsync<HttpMessageSendChangesResponse>(
-                      this.HttpClient, this.ServiceUri, binaryData, HttpStep.GetSnapshot, context.SessionId,
+                      this.HttpClient, this.ServiceUri, binaryData, HttpStep.GetSnapshot, context.SessionId, scope.Name,
                       this.SerializerFactory, this.Converter, 0, cancellationToken).ConfigureAwait(false);
 
             // if no snapshot available, return empty response
@@ -425,7 +425,7 @@ namespace Dotmim.Sync.Web.Client
                     await InterceptAsync(new HttpMessageGetMoreChangesRequestArgs(binaryData)).ConfigureAwait(false);
 
                     httpMessageContent = await this.httpRequestHandler.ProcessRequestAsync<HttpMessageSendChangesResponse>(
-                               this.HttpClient, this.ServiceUri, binaryData2, HttpStep.GetChanges, context.SessionId,
+                               this.HttpClient, this.ServiceUri, binaryData2, HttpStep.GetChanges, context.SessionId, scope.Name,
                                this.SerializerFactory, this.Converter, 0, cancellationToken).ConfigureAwait(false);
                 }
 
