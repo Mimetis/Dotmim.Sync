@@ -168,8 +168,7 @@ namespace Dotmim.Sync
         /// Called by the  to indicate that a 
         /// synchronization session has started.
         /// </summary>
-        public virtual async Task<SyncContext> BeginSessionAsync(SyncContext context,
-                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+        public virtual async Task BeginSessionAsync(SyncContext context, CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
 
             context.SyncStage = SyncStage.BeginSession;
@@ -178,16 +177,12 @@ namespace Dotmim.Sync
             var sessionArgs = new SessionBeginArgs(context, null, null);
             this.ReportProgress(context, progress, sessionArgs);
             await this.InterceptAsync(sessionArgs).ConfigureAwait(false);
-
-            return context;
-
         }
 
         /// <summary>
         /// Called when the sync is over
         /// </summary>
-        public virtual async Task<SyncContext> EndSessionAsync(SyncContext context,
-                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+        public virtual async Task EndSessionAsync(SyncContext context, CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
 
             context.SyncStage = SyncStage.EndSession;
@@ -196,24 +191,24 @@ namespace Dotmim.Sync
             var sessionArgs = new SessionEndArgs(context, null, null);
             this.ReportProgress(context, progress, sessionArgs);
             await this.InterceptAsync(sessionArgs).ConfigureAwait(false);
-
-
-            return context;
         }
 
         /// <summary>
         /// Read a scope info
         /// </summary>
-        public virtual (SyncContext, long) GetLocalTimestampAsync(SyncContext context,
+        public virtual long GetLocalTimestampAsync(SyncContext context,
                              DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
             var scopeBuilder = this.GetScopeBuilder();
+            
             // Create a scopeInfo builder based on default scope inf table, since we don't use it to retrieve local time stamp, even if scope info table
             // in client database is not the DefaultScopeInfoTableName
             var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(SyncOptions.DefaultScopeInfoTableName, connection, transaction);
+            
             var localTime = scopeInfoBuilder.GetLocalTimestamp();
-            return (context, localTime);
+            
+            return localTime;
         }
 
         /// <summary>

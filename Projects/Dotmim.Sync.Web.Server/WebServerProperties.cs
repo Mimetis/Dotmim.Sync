@@ -52,8 +52,8 @@ namespace Dotmim.Sync.Web.Server
         /// </summary>
         public void Add(WebServerOrchestrator wsp)
         {
-            if (innerCollection.Any(st => st.Setup.ScopeName == wsp.Setup.ScopeName))
-                throw new Exception($"Scope {wsp.Setup.ScopeName} already exists in the collection");
+            if (innerCollection.Any(st => st.ScopeName == wsp.ScopeName))
+                throw new Exception($"Scope {wsp.ScopeName} already exists in the collection");
 
             innerCollection.Add(wsp);
         }
@@ -69,7 +69,7 @@ namespace Dotmim.Sync.Web.Server
                 if (string.IsNullOrEmpty(scopeName))
                     throw new ArgumentNullException("scopeName");
 
-                var wsp = innerCollection.FirstOrDefault(c => c.Setup.ScopeName.Equals(scopeName, SyncGlobalization.DataSourceStringComparison));
+                var wsp = innerCollection.FirstOrDefault(c => c.ScopeName.Equals(scopeName, SyncGlobalization.DataSourceStringComparison));
 
                 if (wsp == null)
                     throw new ArgumentNullException($"Scope name {scopeName} does not exists");
@@ -96,7 +96,7 @@ namespace Dotmim.Sync.Web.Server
                 foreach (var webOrchestrator in this)
                 {
                     stringBuilder.AppendLine("<H2>Scope name</H2>");
-                    stringBuilder.AppendLine(webOrchestrator.Schema.ScopeName);
+                    stringBuilder.AppendLine(webOrchestrator.ScopeName);
 
                     var s = JsonConvert.SerializeObject(webOrchestrator.Options, Formatting.Indented);
                     stringBuilder.AppendLine("<H2>Options</H2>");
@@ -131,8 +131,8 @@ namespace Dotmim.Sync.Web.Server
         public bool IsReadOnly => false;
         WebServerOrchestrator IList<WebServerOrchestrator>.this[int index] { get => this.innerCollection[index]; set => this.innerCollection[index] = value; }
         public bool Remove(WebServerOrchestrator item) => innerCollection.Remove(item);
-        public bool Contains(WebServerOrchestrator item) => innerCollection.Any(st => st.Setup.ScopeName.Equals(item.Setup.ScopeName, SyncGlobalization.DataSourceStringComparison));
-        public bool Contains(string scopeName) => innerCollection.Any(st => st.Setup.ScopeName.Equals(scopeName, SyncGlobalization.DataSourceStringComparison));
+        public bool Contains(WebServerOrchestrator item) => innerCollection.Any(st => st.ScopeName.Equals(item.ScopeName, SyncGlobalization.DataSourceStringComparison));
+        public bool Contains(string scopeName) => innerCollection.Any(st => st.ScopeName.Equals(scopeName, SyncGlobalization.DataSourceStringComparison));
         public void CopyTo(WebServerOrchestrator[] array, int arrayIndex) => innerCollection.CopyTo(array, arrayIndex);
         public int IndexOf(WebServerOrchestrator item) => innerCollection.IndexOf(item);
         public void RemoveAt(int index) => innerCollection.RemoveAt(index);
