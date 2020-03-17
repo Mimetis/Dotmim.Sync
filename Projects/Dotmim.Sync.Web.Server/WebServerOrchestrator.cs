@@ -26,26 +26,16 @@ namespace Dotmim.Sync.Web.Server
         /// </summary>
         /// <param name="provider"></param>
         public WebServerOrchestrator(CoreProvider provider, WebServerOptions options = null, SyncSetup setup = null, IMemoryCache cache = null)
+            : base(provider, options, setup)
         {
-            this.Setup = setup ?? new SyncSetup();
             this.Cache = cache ?? new MemoryCache(new MemoryCacheOptions());
-            this.Options = options ?? new WebServerOptions();
-            this.Provider = provider;
-
+            this.Options = options;
         }
-        public WebServerOrchestrator()
+        public WebServerOrchestrator() : base()
         {
-            this.Setup = new SyncSetup();
             this.Cache = new MemoryCache(new MemoryCacheOptions());
-            this.Options = new WebServerOptions();
-
         }
 
-        /// <summary>
-        /// Gets or Sets the Setup 
-        /// </summary>
-        public SyncSetup Setup { get; set; }
-        
         /// <summary>
         /// Gets the cache system used to cache schema and options
         /// </summary>
@@ -54,7 +44,7 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// Get or Set Web server options parameters
         /// </summary>
-        public WebServerOptions Options { get; set; }
+        public new WebServerOptions Options { get; set; }
 
         /// <summary>
         /// Schema database
@@ -65,7 +55,6 @@ namespace Dotmim.Sync.Web.Server
         /// Client converter used
         /// </summary>
         public IConverter ClientConverter { get; set; }
-
 
         /// <summary>
         /// Interceptor just before sending back changes
@@ -327,15 +316,18 @@ namespace Dotmim.Sync.Web.Server
             if (this.Setup == null)
                 throw new ArgumentException("You need to set the tables to sync on server side");
 
+            // Get context or create a new one
+            var ctx = this.GetContext();
+
             // We can use default options on server
             this.Options = this.Options ?? new WebServerOptions();
 
-            var (syncContext, newSchema) = await this.EnsureSchemaAsync(
-                httpMessage.SyncContext, this.Setup, this.Options.ScopeInfoTableName, cancellationToken).ConfigureAwait(false);
+            // Get schema
+            var newSchema = await this.EnsureSchemaAsync(cancellationToken).ConfigureAwait(false);
 
             this.Schema = newSchema;
 
-            var httpResponse = new HttpMessageEnsureScopesResponse(syncContext, newSchema);
+            var httpResponse = new HttpMessageEnsureScopesResponse(ctx, newSchema);
 
             return httpResponse;
 
@@ -346,22 +338,23 @@ namespace Dotmim.Sync.Web.Server
         /// Get changes from 
         /// </summary>
         internal async Task<HttpMessageSendChangesResponse> GetSnapshotAsync(
-            HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache, CancellationToken cancellationToken)
+            HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache, CancellationToken cancellationToken = default)
         {
             // Check schema.
             // If client has stored the schema, the EnsureScope will not be called on server.
             if (this.Schema == null || !this.Schema.HasTables || !this.Schema.HasColumns)
             {
-                var (_, newSchema) = await this.EnsureSchemaAsync(
-                    httpMessage.SyncContext, this.Setup, this.Options.ScopeInfoTableName, cancellationToken).ConfigureAwait(false);
+                var newSchema = await this.EnsureSchemaAsync(cancellationToken).ConfigureAwait(false);
 
                 newSchema.EnsureSchema();
                 this.Schema = newSchema;
             }
 
+            // Get context or create a new one
+            var ctx = this.GetContext();
+
             // get changes
-            var snap = await this.GetSnapshotAsync(httpMessage.SyncContext, httpMessage.Scope, this.Schema,
-                                           this.Options.SnapshotsDirectory, this.Options.BatchDirectory, cancellationToken).ConfigureAwait(false);
+            var snap = await this.GetSnapshotAsync(cancellationToken).ConfigureAwait(false);
 
             sessionCache.RemoteClientTimestamp = snap.remoteClientTimestamp;
             sessionCache.ServerBatchInfo = snap.serverBatchInfo;
@@ -369,7 +362,7 @@ namespace Dotmim.Sync.Web.Server
             // if no snapshot, return empty response
             if (snap.serverBatchInfo == null)
             {
-                var changesResponse = new HttpMessageSendChangesResponse(snap.context);
+                var changesResponse = new HttpMessageSendChangesResponse(ctx);
                 changesResponse.ServerStep = HttpStep.GetSnapshot;
                 changesResponse.BatchIndex = 0;
                 changesResponse.IsLastBatch = true;
@@ -380,24 +373,30 @@ namespace Dotmim.Sync.Web.Server
 
 
             // Get the firt response to send back to client
-            return await GetChangesResponseAsync(snap.context, snap.remoteClientTimestamp, snap.serverBatchInfo, null, 0, ConflictResolutionPolicy.ServerWins);
+            return await GetChangesResponseAsync(ctx, snap.remoteClientTimestamp, snap.serverBatchInfo, null, 0);
         }
 
         /// <summary>
         /// Get changes from 
         /// </summary>
         internal async Task<HttpMessageSendChangesResponse> ApplyThenGetChangesAsync(
-            HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache, int clientBatchSize, CancellationToken cancellationToken)
+            HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache, int clientBatchSize, CancellationToken cancellationToken = default)
         {
+
+            // Overriding batch size options value, coming from client
+            this.Options.BatchSize = clientBatchSize;
+
             // Get if we need to serialize data or making everything in memory
             var clientWorkInMemory = clientBatchSize == 0;
+
+            // Get context or create a new one
+            var ctx = this.GetContext();
 
             // Check schema.
             // If client has stored the schema, the EnsureScope will not be called on server.
             if (this.Schema == null || !this.Schema.HasTables || !this.Schema.HasColumns)
             {
-                var (_, newSchema) = await this.EnsureSchemaAsync(
-                    httpMessage.SyncContext, this.Setup, this.Options.ScopeInfoTableName, cancellationToken).ConfigureAwait(false);
+                var newSchema = await this.EnsureSchemaAsync(cancellationToken).ConfigureAwait(false);
 
                 newSchema.EnsureSchema();
                 this.Schema = newSchema;
@@ -416,12 +415,10 @@ namespace Dotmim.Sync.Web.Server
                 sessionCache.ClientBatchInfo = new BatchInfo(clientWorkInMemory, Schema, this.Options.BatchDirectory);
 
             // create the in memory changes set
-            var changesSet = new SyncSet(Schema.ScopeName);
+            var changesSet = new SyncSet();
 
             foreach (var table in httpMessage.Changes.Tables)
-            {
                 DbSyncAdapter.CreateChangesTable(Schema.Tables[table.TableName, table.SchemaName], changesSet);
-            }
 
             changesSet.ImportContainerSet(httpMessage.Changes, false);
 
@@ -445,12 +442,10 @@ namespace Dotmim.Sync.Web.Server
             // SECOND STEP : apply then return server changes
             // ------------------------------------------------------------
 
+
             // get changes
-            var (context, remoteClientTimestamp, serverBatchInfo, policy, serverChangesSelected) =
-               await this.ApplyThenGetChangesAsync(httpMessage.SyncContext,
-                           httpMessage.Scope, this.Schema, sessionCache.ClientBatchInfo, this.Options.DisableConstraintsOnApplyChanges,
-                           this.Options.UseBulkOperations, false, this.Options.CleanFolder, clientBatchSize,
-                           this.Options.BatchDirectory, this.Options.ScopeInfoTableName,  this.Options.ConflictResolutionPolicy, cancellationToken).ConfigureAwait(false);
+            var (remoteClientTimestamp, serverBatchInfo, serverChangesSelected) =
+               await this.ApplyThenGetChangesAsync(httpMessage.Scope, this.Schema, sessionCache.ClientBatchInfo, cancellationToken).ConfigureAwait(false);
 
 
             // Save the server batch info object to cache if not working in memory
@@ -462,7 +457,7 @@ namespace Dotmim.Sync.Web.Server
             }
 
             // Get the firt response to send back to client
-            return await GetChangesResponseAsync(context, remoteClientTimestamp, serverBatchInfo, serverChangesSelected, 0, policy);
+            return await GetChangesResponseAsync(ctx, remoteClientTimestamp, serverBatchInfo, serverChangesSelected, 0);
 
         }
 
@@ -475,7 +470,7 @@ namespace Dotmim.Sync.Web.Server
                 throw new ArgumentNullException("batchInfo stored in session can't be null if request more batch part info.");
 
             return GetChangesResponseAsync(httpMessage.SyncContext, sessionCache.RemoteClientTimestamp, sessionCache.ServerBatchInfo,
-                sessionCache.ServerChangesSelected, httpMessage.BatchIndexRequested, this.Options.ConflictResolutionPolicy);
+                sessionCache.ServerChangesSelected, httpMessage.BatchIndexRequested);
         }
 
 
@@ -483,14 +478,14 @@ namespace Dotmim.Sync.Web.Server
         /// Create a response message content based on a requested index in a server batch info
         /// </summary>
         private async Task<HttpMessageSendChangesResponse> GetChangesResponseAsync(SyncContext syncContext, long remoteClientTimestamp, BatchInfo serverBatchInfo,
-                                DatabaseChangesSelected serverChangesSelected, int batchIndexRequested, ConflictResolutionPolicy policy)
+                                DatabaseChangesSelected serverChangesSelected, int batchIndexRequested)
         {
 
             // 1) Create the http message content response
             var changesResponse = new HttpMessageSendChangesResponse(syncContext);
             changesResponse.ChangesSelected = serverChangesSelected;
             changesResponse.ServerStep = HttpStep.GetChanges;
-            changesResponse.ConflictResolutionPolicy = policy;
+            changesResponse.ConflictResolutionPolicy = this.Options.ConflictResolutionPolicy;
 
             // If nothing to do, just send back
             if (serverBatchInfo.InMemory || serverBatchInfo.BatchPartsInfo.Count == 0)
@@ -511,7 +506,7 @@ namespace Dotmim.Sync.Web.Server
             // if we are not in memory, we set the BI in session, to be able to get it back on next request
 
             // create the in memory changes set
-            var changesSet = new SyncSet(Schema.ScopeName);
+            var changesSet = new SyncSet();
 
             foreach (var table in Schema.Tables)
                 DbSyncAdapter.CreateChangesTable(Schema.Tables[table.TableName, table.SchemaName], changesSet);

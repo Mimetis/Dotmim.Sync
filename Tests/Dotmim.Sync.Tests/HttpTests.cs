@@ -129,6 +129,7 @@ namespace Dotmim.Sync.Tests
 
             // create remote orchestrator
             var webServerOrchestrator = (WebServerOrchestrator)this.CreateRemoteOrchestrator(this.ServerType, serverDatabaseName);
+            webServerOrchestrator.Setup = new SyncSetup();
 
             // public property
             this.Server = (serverDatabaseName, this.ServerType, webServerOrchestrator);
@@ -191,7 +192,7 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
+            this.Server.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
 
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
@@ -222,7 +223,7 @@ namespace Dotmim.Sync.Tests
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
 
             // configure server orchestrator
-            this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
+            this.Server.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
 
             // Execute a sync on all clients and check results
             foreach (var client in this.Clients)
@@ -243,7 +244,7 @@ namespace Dotmim.Sync.Tests
         public async Task Bad_ConnectionFromServer_ShouldRaiseError()
         {
             // configure server orchestrator
-            this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
+            this.Server.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
 
             // create empty client databases
             foreach (var client in this.Clients)
@@ -280,11 +281,8 @@ namespace Dotmim.Sync.Tests
             foreach (var client in this.Clients)
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
-            // Create setup
-            var setup = new SyncSetup(new string[] { "TableTest" });
-
             // configure server orchestrator
-            this.Server.WebServerOrchestrator.Setup = setup;
+            this.Server.WebServerOrchestrator.Setup.Tables.Add("TableTest");
 
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
@@ -313,14 +311,10 @@ namespace Dotmim.Sync.Tests
             foreach (var client in this.Clients)
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
-            // Create setup
-            var setup = new SyncSetup(Tables);
-
-            // Add a malformatted column name
-            setup.Tables["Employee"].Columns.AddRange(new string[] { "EmployeeID", "FirstName", "LastNam" });
-
             // configure server orchestrator
-            this.Server.WebServerOrchestrator.Setup = setup;
+            this.Server.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
+            // Add a malformatted column name
+            this.Server.WebServerOrchestrator.Setup.Tables["Employee"].Columns.AddRange(new string[] { "EmployeeID", "FirstName", "LastNam" });
 
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
@@ -347,12 +341,10 @@ namespace Dotmim.Sync.Tests
             foreach (var client in this.Clients)
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
-            // Add a fake table to setup tables
-            var setup = new SyncSetup(this.Tables);
-            setup.Tables.Add("WeirdTable");
-
             // configure server orchestrator
-            this.Server.WebServerOrchestrator.Setup = setup;
+            this.Server.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
+            // Add a fake table to setup tables
+            this.Server.WebServerOrchestrator.Setup.Tables.Add("WeirdTable");
 
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
@@ -384,7 +376,7 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
+            this.Server.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
@@ -440,7 +432,7 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
+            this.Server.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
@@ -507,7 +499,7 @@ namespace Dotmim.Sync.Tests
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
 
             // configure server orchestrator
-            this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
+            this.Server.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
 
             // part of the filter
             var employeeId = 1;
@@ -628,7 +620,7 @@ namespace Dotmim.Sync.Tests
             var productCategoryNameUpdated = HelperDatabase.GetRandomName("SRV");
 
             // configure server orchestrator
-            this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
+            this.Server.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
 
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
@@ -732,7 +724,7 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
+            this.Server.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
 
 
             // Execute a sync on all clients to initialize client and server schema 
@@ -836,7 +828,7 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
+            this.Server.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
 
             // Conflict product category
             var conflictProductCategoryId = "BIKES";
@@ -943,7 +935,7 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
+            this.Server.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
 
             // Conflict product category
             var conflictProductCategoryId = "BIKES";
@@ -1075,7 +1067,7 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
+            this.Server.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
@@ -1139,7 +1131,7 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
+            this.Server.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
 
             // Get count of rows
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
@@ -1208,7 +1200,7 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
+            this.Server.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
 
             // Get count of rows
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
@@ -1284,7 +1276,7 @@ namespace Dotmim.Sync.Tests
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
 
             // configure server orchestrator
-            this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
+            this.Server.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
 
             // Execute a sync on all clients and check results
             foreach (var client in this.Clients)
@@ -1323,7 +1315,7 @@ namespace Dotmim.Sync.Tests
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
 
             // configure server orchestrator
-            this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
+            this.Server.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
 
             // Get response just before response with changes is send back from server
             this.Server.WebServerOrchestrator.OnSendingChanges(async sra =>
@@ -1388,7 +1380,7 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
+            this.Server.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
@@ -1407,7 +1399,7 @@ namespace Dotmim.Sync.Tests
                         var o = await serializer.DeserializeAsync(ms);
 
                         // check we a scope name
-                        Assert.NotEmpty(o.ScopeName);
+                        Assert.NotNull(o.SyncContext);
                     }
                 });
 
@@ -1490,7 +1482,7 @@ namespace Dotmim.Sync.Tests
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
 
             // configure server orchestrator
-            this.Server.WebServerOrchestrator.Setup = new SyncSetup(Tables);
+            this.Server.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
 
             // Register converter on the server side
             this.Server.WebServerOrchestrator.Options.Converters.Add(new DateConverter());
@@ -1556,19 +1548,17 @@ namespace Dotmim.Sync.Tests
             foreach (var client in this.Clients)
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
-            var setup = new SyncSetup(Tables);
-
             // snapshot directory
             var directory = Path.Combine(Environment.CurrentDirectory, "Snapshots");
 
             // configure server orchestrator
-            this.Server.WebServerOrchestrator.Setup = setup;
+            this.Server.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
             this.Server.WebServerOrchestrator.Options.SnapshotsDirectory = directory;
 
             // ----------------------------------
             // Create a snapshot
             // ----------------------------------
-            await Server.WebServerOrchestrator.CreateSnapshotAsync(new SyncContext(), setup, SyncOptions.DefaultScopeInfoTableName,  directory, 500);
+            await Server.WebServerOrchestrator.CreateSnapshotAsync();
 
 
             // ----------------------------------

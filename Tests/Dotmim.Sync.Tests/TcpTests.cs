@@ -102,8 +102,6 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         public TcpTests(HelperProvider fixture, ITestOutputHelper output)
         {
-
-
             // Getting the test running
             this.Output = output;
             var type = output.GetType();
@@ -3927,7 +3925,10 @@ namespace Dotmim.Sync.Tests
             // ----------------------------------
             // Create a snapshot
             // ----------------------------------
-            await Server.RemoteOrchestrator.CreateSnapshotAsync(new SyncContext(), setup, SyncOptions.DefaultScopeInfoTableName, directory, 500);
+            Server.RemoteOrchestrator.Options = options;
+            Server.RemoteOrchestrator.Options.SnapshotsDirectory = directory;
+            Server.RemoteOrchestrator.Setup = setup;
+            await Server.RemoteOrchestrator.CreateSnapshotAsync();
 
             // ----------------------------------
             // Setting correct options for sync agent to be able to reach snapshot
