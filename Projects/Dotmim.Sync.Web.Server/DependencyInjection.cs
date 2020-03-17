@@ -24,7 +24,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="options">Options, not shared with client, but only applied locally. Can be null</param>
 
         public static IServiceCollection AddSyncServer(this IServiceCollection serviceCollection, Type providerType,
-                                                        string connectionString, SyncSetup setup = null, WebServerOptions options = null)
+                                                        string connectionString, string scopeName = SyncOptions.DefaultScopeName, SyncSetup setup = null, WebServerOptions options = null)
         {
             if (string.IsNullOrWhiteSpace(connectionString))
                 throw new ArgumentNullException(nameof(connectionString));
@@ -35,13 +35,16 @@ namespace Microsoft.Extensions.DependencyInjection
             var webServerProperties = serviceProvider.GetService<WebServerProperties>();
 
             if (webServerProperties == null)
+            {
                 serviceCollection.AddSingleton<WebServerProperties>();
+                serviceProvider = serviceCollection.BuildServiceProvider();
+            }
 
             webServerProperties = serviceProvider.GetService<WebServerProperties>();
 
             // Check if we don't have already added this scope name provider to the remote orchestrator list
-            if (webServerProperties.Contains(setup.ScopeName))
-                throw new ArgumentException($"Orchestrator with scope name {setup.ScopeName} already exists in the service collection");
+            if (webServerProperties.Contains(scopeName))
+                throw new ArgumentException($"Orchestrator with scope name {scopeName} already exists in the service collection");
 
             // Create provider
             var provider = (CoreProvider)Activator.CreateInstance(providerType);
@@ -56,11 +59,17 @@ namespace Microsoft.Extensions.DependencyInjection
             return serviceCollection;
         }
 
-        public static IServiceCollection AddSyncServer<TProvider>(this IServiceCollection serviceCollection, string connectionString, SyncSetup setup, WebServerOptions options = null) where TProvider : CoreProvider, new()
-            => serviceCollection.AddSyncServer(typeof(TProvider), connectionString, setup, options);
+        public static IServiceCollection AddSyncServer<TProvider>(this IServiceCollection serviceCollection, string connectionString, string scopeName = SyncOptions.DefaultScopeName, SyncSetup setup = null, WebServerOptions options = null) where TProvider : CoreProvider, new()
+            => serviceCollection.AddSyncServer(typeof(TProvider), connectionString, scopeName, setup, options);
 
-        public static IServiceCollection AddSyncServer<TProvider>(this IServiceCollection serviceCollection, string connectionString, string[] tables, WebServerOptions options = null) where TProvider : CoreProvider, new()
-            => serviceCollection.AddSyncServer(typeof(TProvider), connectionString, new SyncSetup(tables), options);
+        public static IServiceCollection AddSyncServer<TProvider>(this IServiceCollection serviceCollection, string connectionString, SyncSetup setup = null, WebServerOptions options = null) where TProvider : CoreProvider, new()
+             => serviceCollection.AddSyncServer(typeof(TProvider), connectionString, SyncOptions.DefaultScopeName, setup, options);
+
+        public static IServiceCollection AddSyncServer<TProvider>(this IServiceCollection serviceCollection, string connectionString, string scopeName = SyncOptions.DefaultScopeName, string[] tables = default, WebServerOptions options = null) where TProvider : CoreProvider, new()
+            => serviceCollection.AddSyncServer(typeof(TProvider), connectionString, scopeName, new SyncSetup(tables), options);
+
+        public static IServiceCollection AddSyncServer<TProvider>(this IServiceCollection serviceCollection, string connectionString, string[] tables = default, WebServerOptions options = null) where TProvider : CoreProvider, new()
+            => serviceCollection.AddSyncServer(typeof(TProvider), connectionString, SyncOptions.DefaultScopeName, new SyncSetup(tables), options);
 
     }
 }

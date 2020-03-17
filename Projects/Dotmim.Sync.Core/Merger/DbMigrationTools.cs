@@ -30,135 +30,135 @@ namespace Dotmim.Sync
 
         public async Task MigrateAsync(SyncContext context)
         {
-            DbTransaction transaction = null;
+            //DbTransaction transaction = null;
 
-            using (var connection = this.provider.CreateConnection())
-            {
-                // Encapsulate in a try catch for a better exception handling
-                // Especially whe called from web proxy
-                try
-                {
-                    await connection.OpenAsync().ConfigureAwait(false);
+            //using (var connection = this.provider.CreateConnection())
+            //{
+            //    // Encapsulate in a try catch for a better exception handling
+            //    // Especially whe called from web proxy
+            //    try
+            //    {
+            //        await connection.OpenAsync().ConfigureAwait(false);
 
-                    // Let provider knows a connection is opened
-                    this.provider.OnConnectionOpened(connection);
+            //        // Let provider knows a connection is opened
+            //        this.provider.OnConnectionOpened(connection);
 
-                    await this.provider.InterceptAsync(new ConnectionOpenArgs(context, connection)).ConfigureAwait(false);
+            //        await this.provider.InterceptAsync(new ConnectionOpenArgs(context, connection)).ConfigureAwait(false);
 
-                    // Create a transaction
-                    using (transaction = connection.BeginTransaction())
-                    {
+            //        // Create a transaction
+            //        using (transaction = connection.BeginTransaction())
+            //        {
 
-                        await this.provider.InterceptAsync(new TransactionOpenArgs(context, connection, transaction)).ConfigureAwait(false);
-
-
-                        // actual scope info table name
-                        var scopeInfoTableName = string.IsNullOrEmpty(this.currentScopeInfoTableName) ? this.newOptions.ScopeInfoTableName : this.currentScopeInfoTableName;
-
-                        // create a temp sync context
-                        ScopeInfo localScope = null;
-
-                        var scopeBuilder = this.provider.GetScopeBuilder();
-                        var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName, connection, transaction);
-
-                        // if current scope table name does not exists, it's probably first sync. so return
-                        if (scopeInfoBuilder.NeedToCreateClientScopeInfoTable())
-                            return;
-
-                        // Get scope
-                        (context, localScope) = await this.provider.GetClientScopeAsync(
-                                            context, scopeInfoTableName, this.newSetup.ScopeName,
-                                            connection, transaction, CancellationToken.None).ConfigureAwait(false);
-
-                        // Get current schema saved in local database
-                        if (localScope == null || string.IsNullOrEmpty(localScope.Schema))
-                            return;
-
-                        var currentSchema = JsonConvert.DeserializeObject<SyncSet>(localScope.Schema);
-
-                        // Create new schema based on new setup
-                        var newSchema = this.provider.ReadSchema(this.newSetup, connection, transaction);
+            //            await this.provider.InterceptAsync(new TransactionOpenArgs(context, connection, transaction)).ConfigureAwait(false);
 
 
-                        // Get Tables that are NOT in new schema anymore
-                        var deletedSyncTables = currentSchema.Tables.Where(currentTable => !newSchema.Tables.Any(newTable => newTable == currentTable));
+            //            // actual scope info table name
+            //            var scopeInfoTableName = string.IsNullOrEmpty(this.currentScopeInfoTableName) ? this.newOptions.ScopeInfoTableName : this.currentScopeInfoTableName;
 
-                        foreach (var dSyncTable in deletedSyncTables)
-                        {
-                            // get builder
-                            var delBuilder = this.provider.GetTableBuilder(dSyncTable);
+            //            // create a temp sync context
+            //            ScopeInfo localScope = null;
 
-                            // Delete all stored procedures
-                            delBuilder.DropProcedures(connection, transaction);
+            //            var scopeBuilder = this.provider.GetScopeBuilder();
+            //            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName, connection, transaction);
 
-                            // Delete all triggers
-                            delBuilder.DropTriggers(connection, transaction);
+            //            // if current scope table name does not exists, it's probably first sync. so return
+            //            if (scopeInfoBuilder.NeedToCreateClientScopeInfoTable())
+            //                return;
 
-                            // Delete tracking table
-                            delBuilder.DropTrackingTable(connection, transaction);
-                        }
+            //            // Get scope
+            //            (context, localScope) = await this.provider.GetClientScopeAsync(
+            //                                context, this.newOptions.ScopeName,
+            //                                connection, transaction, CancellationToken.None).ConfigureAwait(false);
 
-                        // Get Tables that are completely new
-                        var addSyncTables = newSchema.Tables.Where(newTable => !currentSchema.Tables.Any(currentTable => newTable == currentTable));
+            //            // Get current schema saved in local database
+            //            if (localScope == null || string.IsNullOrEmpty(localScope.Schema))
+            //                return;
 
-                        foreach (var aSyncTable in addSyncTables)
-                        {
-                            // get builder
-                            var addBuilder = this.provider.GetTableBuilder(aSyncTable);
+            //            var currentSchema = JsonConvert.DeserializeObject<SyncSet>(localScope.Schema);
 
-                            // Create table if not exists
-                            addBuilder.CreateTable(connection, transaction);
+            //            // Create new schema based on new setup
+            //            var newSchema = this.provider.ReadSchema(this.newSetup, connection, transaction);
 
-                            // Create tracking table
-                            addBuilder.CreateTrackingTable(connection, transaction);
 
-                            // Create triggers
-                            addBuilder.CreateTriggers(connection, transaction);
+            //            // Get Tables that are NOT in new schema anymore
+            //            var deletedSyncTables = currentSchema.Tables.Where(currentTable => !newSchema.Tables.Any(newTable => newTable == currentTable));
 
-                            // Create stored procedures
-                            addBuilder.CreateStoredProcedures(connection, transaction);
-                        }
+            //            foreach (var dSyncTable in deletedSyncTables)
+            //            {
+            //                // get builder
+            //                var delBuilder = this.provider.GetTableBuilder(dSyncTable);
 
-                        var editSyncTables = newSchema.Tables.Where(newTable => currentSchema.Tables.Any(currentTable => newTable == currentTable));
+            //                // Delete all stored procedures
+            //                delBuilder.DropProcedures(connection, transaction);
 
-                        foreach (var eSyncTable in editSyncTables)
-                        {
-                            var cSyncTable = currentSchema.Tables.First(t => t == eSyncTable);
+            //                // Delete all triggers
+            //                delBuilder.DropTriggers(connection, transaction);
 
-                            var migrationTable = new DbMigrationTable(this.provider, cSyncTable, eSyncTable, true);
-                            migrationTable.Compare();
-                            //migrationTable.Apply(connection, transaction);
-                        }
+            //                // Delete tracking table
+            //                delBuilder.DropTrackingTable(connection, transaction);
+            //            }
 
-                        await this.provider.InterceptAsync(new TransactionCommitArgs(null, connection, transaction)).ConfigureAwait(false);
-                        transaction.Commit();
-                    }
-                }
-                catch (Exception ex)
-                {
+            //            // Get Tables that are completely new
+            //            var addSyncTables = newSchema.Tables.Where(newTable => !currentSchema.Tables.Any(currentTable => newTable == currentTable));
 
-                    var syncException = new SyncException(ex, context.SyncStage);
+            //            foreach (var aSyncTable in addSyncTables)
+            //            {
+            //                // get builder
+            //                var addBuilder = this.provider.GetTableBuilder(aSyncTable);
 
-                    // try to let the provider enrich the exception
-                    this.provider.EnsureSyncException(syncException);
-                    syncException.Side = SyncExceptionSide.ClientSide;
-                    throw syncException;
-                }
-                finally
-                {
-                    if (transaction != null)
-                        transaction.Dispose();
+            //                // Create table if not exists
+            //                addBuilder.CreateTable(connection, transaction);
 
-                    if (connection != null && connection.State == ConnectionState.Open)
-                        connection.Close();
+            //                // Create tracking table
+            //                addBuilder.CreateTrackingTable(connection, transaction);
 
-                    await this.provider.InterceptAsync(new ConnectionCloseArgs(context, connection, transaction)).ConfigureAwait(false);
+            //                // Create triggers
+            //                addBuilder.CreateTriggers(connection, transaction);
 
-                    // Let provider knows a connection is closed
-                    this.provider.OnConnectionClosed(connection);
-                }
+            //                // Create stored procedures
+            //                addBuilder.CreateStoredProcedures(connection, transaction);
+            //            }
 
-            }
+            //            var editSyncTables = newSchema.Tables.Where(newTable => currentSchema.Tables.Any(currentTable => newTable == currentTable));
+
+            //            foreach (var eSyncTable in editSyncTables)
+            //            {
+            //                var cSyncTable = currentSchema.Tables.First(t => t == eSyncTable);
+
+            //                var migrationTable = new DbMigrationTable(this.provider, cSyncTable, eSyncTable, true);
+            //                migrationTable.Compare();
+            //                //migrationTable.Apply(connection, transaction);
+            //            }
+
+            //            await this.provider.InterceptAsync(new TransactionCommitArgs(null, connection, transaction)).ConfigureAwait(false);
+            //            transaction.Commit();
+            //        }
+            //    }
+            //    catch (Exception ex)
+            //    {
+
+            //        var syncException = new SyncException(ex, context.SyncStage);
+
+            //        // try to let the provider enrich the exception
+            //        this.provider.EnsureSyncException(syncException);
+            //        syncException.Side = SyncExceptionSide.ClientSide;
+            //        throw syncException;
+            //    }
+            //    finally
+            //    {
+            //        if (transaction != null)
+            //            transaction.Dispose();
+
+            //        if (connection != null && connection.State == ConnectionState.Open)
+            //            connection.Close();
+
+            //        await this.provider.InterceptAsync(new ConnectionCloseArgs(context, connection, transaction)).ConfigureAwait(false);
+
+            //        // Let provider knows a connection is closed
+            //        this.provider.OnConnectionClosed(connection);
+            //    }
+
+            //}
 
 
 

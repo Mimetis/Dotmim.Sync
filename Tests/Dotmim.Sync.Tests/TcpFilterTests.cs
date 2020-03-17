@@ -593,7 +593,9 @@ namespace Dotmim.Sync.Tests
             var snapshotContext = new SyncContext();
             snapshotContext.Parameters = new SyncParameters();
             snapshotContext.Parameters.AddRange(this.FilterParameters);
-            await Server.RemoteOrchestrator.CreateSnapshotAsync(snapshotContext, this.FilterSetup, SyncOptions.DefaultScopeInfoTableName, directory, 500);
+            
+            Server.RemoteOrchestrator.SetContext(snapshotContext);
+            await Server.RemoteOrchestrator.CreateSnapshotAsync();
 
             // ----------------------------------
             // Setting correct options for sync agent to be able to reach snapshot

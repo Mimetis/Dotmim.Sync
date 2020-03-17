@@ -17,9 +17,37 @@ namespace Dotmim.Sync
     public interface IOrchestrator
     {
         /// <summary>
-        /// Gets a reference to the provider
+        /// Gets or Sets the provider used by this orchestrator
         /// </summary>
         CoreProvider Provider { get; set; }
+
+        /// <summary>
+        /// Gets or Sets the options used by this orchestrator
+        /// </summary>
+        SyncOptions Options { get; set; }
+
+        /// <summary>
+        /// Gets or Sets  the Setup used by this orchestrator
+        /// </summary>
+        SyncSetup Setup { get; set; }
+
+        /// <summary>
+        /// Gets or Sets  the scope name used by this orchestrator
+        /// </summary>
+        string ScopeName { get; set; }
+
+
+        /// <summary>
+        /// Sets the context if needed
+        /// </summary>
+        /// <param name=""></param>
+        void SetContext(SyncContext syncContext);
+
+        /// <summary>
+        /// Gets the local context
+        /// </summary>
+        /// <returns></returns>
+        SyncContext GetContext();
 
         /// <summary>
         /// Set an interceptor to get info on the current sync process
@@ -37,60 +65,10 @@ namespace Dotmim.Sync
         /// <param name="interceptorBase"></param>
         void On(Interceptors interceptors);
 
+
+
     }
 
-    /// <summary>
-    /// Remote provider
-    /// </summary>
-    public interface ILocalOrchestrator : IOrchestrator
-    {
-        /// <summary>
-        /// Get configuration to ensure local provider has everything needed
-        /// </summary>
-        /// <returns></returns>
-        Task<(SyncContext context, ScopeInfo localScopeInfo)>
-            EnsureScopeAsync(SyncContext context, string scopeName, string scopeInfoTableName,
-                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null);
-
-        /// <summary>
-        /// Send all changes and get new changes in return
-        /// </summary>
-        Task<(SyncContext context,
-              ScopeInfo localScopeInfo,
-              long clientTimestamp,
-              BatchInfo clientBatchInfo,
-              DatabaseChangesSelected clientChangesSelected)>
-            GetChangesAsync(SyncContext context, SyncSet schema, string scopeInfoTableName, int batchSize, string batchDirectory,
-                            CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null);
-
-        /// <summary>
-        /// Save changes locally
-        /// </summary>
-        Task<(SyncContext context,
-              DatabaseChangesApplied clientChangesApplied)>
-            ApplyChangesAsync(SyncContext context, ScopeInfo scope, SyncSet schema, BatchInfo serverBatchInfo,
-                              ConflictResolutionPolicy clientPolicy, long clientTimestamp, long remoteClientTimestamp,
-                              bool disableConstraintsOnApplyChanges, bool useBulkOperations,
-                              bool cleanMetadatas, string scopeInfoTableName, bool cleanFolder,
-                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null);
-
-
-        /// <summary>
-        /// Apply a snapshot if available
-        /// </summary>
-        Task<SyncContext> ApplySnapshotAndGetChangesAsync(SyncContext context, SyncSet schema, BatchInfo serverBatchInfo,
-                                                          long clientTimestamp, long remoteClientTimestamp, bool disableConstraintsOnApplyChanges,
-                                                          int batchSize, string batchDirectory,
-                                                          bool useBulkOperations, bool cleanMetadatas, string scopeInfoTableName,
-                                                          CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null);
-
-
-        /// <summary>
-        /// Delete all metadatas from tracking tables that are below a timestamp
-        /// </summary>
-        Task DeleteMetadatasAsync(SyncContext context, SyncSetup setup, long timeStampStart,
-                                     CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null);
-    }
 
     /// <summary>
     /// Remote provider
@@ -101,38 +79,27 @@ namespace Dotmim.Sync
         /// Get configuration from remote to ensure local provider has everything needed
         /// </summary>
         /// <returns></returns>
-        Task<(SyncContext context, SyncSet schema)>
-            EnsureSchemaAsync(SyncContext context, SyncSetup setup, string scopeInfoTableName,
-                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null);
+        Task<SyncSet> EnsureSchemaAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null);
 
         /// <summary>
         /// Send all changes and get new changes in return
         /// </summary>
-        Task<(SyncContext context,
-              long remoteClientTimestamp,
+        Task<(long remoteClientTimestamp,
               BatchInfo serverBatchInfo,
-              ConflictResolutionPolicy policy,
               DatabaseChangesSelected serverChangesSelected)>
-            ApplyThenGetChangesAsync(SyncContext context, ScopeInfo scope, SyncSet schema, BatchInfo clientBatchInfo,
-                                     bool disableConstraintsOnApplyChanges, bool useBulkOperations, bool cleanMetadatas, bool cleanFolder,
-                                     int clientBatchSize, string batchDirectory, ConflictResolutionPolicy policy,
-                                     CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null);
+            ApplyThenGetChangesAsync(ScopeInfo clientScope, SyncSet schema, BatchInfo clientBatchInfo,
+                                     CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null);
 
 
         /// <summary>
         /// Gets a snapshot for initialization
         /// </summary>
-        Task<(SyncContext context,
-              long remoteClientTimestamp,
-              BatchInfo serverBatchInfo)>
-            GetSnapshotAsync(SyncContext context, ScopeInfo scope, SyncSet schema, string snapshotDirectory, string batchDirectory,
-                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null);
+        Task<(long remoteClientTimestamp, BatchInfo serverBatchInfo)> GetSnapshotAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null);
 
 
         /// <summary>
         /// Delete all metadatas from tracking tables that are below a timestamp
         /// </summary>
-        Task DeleteMetadatasAsync(SyncContext context, SyncSetup setup, long timeStampStart,
-                                     CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null);
+        Task DeleteMetadatasAsync(long timeStampStart, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null);
     }
 }
