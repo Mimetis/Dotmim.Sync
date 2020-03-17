@@ -73,7 +73,7 @@ namespace Dotmim.Sync
             var changes = new DatabaseChangesSelected();
 
             // create the in memory changes set
-            var changesSet = new SyncSet(message.Schema.ScopeName);
+            var changesSet = new SyncSet();
 
             // Create a Schema set without readonly columns, attached to memory changes
             foreach (var table in message.Schema.Tables)
@@ -163,7 +163,7 @@ namespace Dotmim.Sync
                             changesSet.Clear();
 
                             // Recreate an empty ContainerSet and a ContainerTable
-                            changesSet = new SyncSet(message.Schema.ScopeName);
+                            changesSet = new SyncSet();
 
                             changesSetTable = DbSyncAdapter.CreateChangesTable(message.Schema.Tables[syncTable.TableName, syncTable.SchemaName], changesSet);
 
@@ -211,7 +211,7 @@ namespace Dotmim.Sync
             var isBatched = message.BatchSize > 0;
 
             // create the in memory changes set
-            var changesSet = new SyncSet(message.Schema.ScopeName);
+            var changesSet = new SyncSet();
 
             // Create a Schema set without readonly tables, attached to memory changes
             foreach (var table in message.Schema.Tables)

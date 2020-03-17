@@ -13,16 +13,56 @@ namespace Dotmim.Sync.Web.Client
 {
     public class WebClientOrchestrator : IRemoteOrchestrator
     {
-        private readonly HttpRequestHandler httpRequestHandler = new HttpRequestHandler();
-
-        // Collection of Interceptors
-        private Interceptors interceptors = new Interceptors();
 
         /// <summary>
         /// Gets or Sets the provider used in this proxy Orchestrator
         /// Should be null. CoreProvider is only used on the remote side (WebProxyServerProvider)
         /// </summary>
         public CoreProvider Provider { get => null; set => throw new NotSupportedException("Proxy Web does not need any provider. Everything is made on the server side"); }
+
+        /// <summary>
+        /// Gets the options used by this local orchestrator
+        /// </summary>
+        public SyncOptions Options { get; set; }
+
+        /// <summary>
+        /// Gets the Setup used by this local orchestrator
+        /// </summary>
+        public SyncSetup Setup { get; set; }
+
+        /// <summary>
+        /// Gets the scope name used by this local orchestrator
+        /// </summary>
+        public string ScopeName { get; set; }
+
+        /// <summary>
+        /// Sets the current context
+        /// </summary>
+        public void SetContext(SyncContext context) => this.syncContext = context;
+
+        /// <summary>
+        /// Gets the current context
+        /// </summary>
+        public SyncContext GetContext()
+        {
+            if (this.syncContext != null)
+                return this.syncContext;
+
+            // Context, used to back and forth data between servers
+            var context = new SyncContext(Guid.NewGuid()) { StartTime = DateTime.UtcNow, };
+
+            this.SetContext(context);
+
+            return this.syncContext;
+        }
+
+
+        private readonly HttpRequestHandler httpRequestHandler = new HttpRequestHandler();
+
+        // Collection of Interceptors
+        private Interceptors interceptors = new Interceptors();
+        private SyncContext syncContext;
+
 
         /// <summary>
         /// Set an interceptor to get info on the current sync process
@@ -150,11 +190,15 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// Send a request to remote web proxy for First step : Ensure scopes and schema
         /// </summary>
-        public async Task<(SyncContext context, SyncSet schema)>
-            EnsureSchemaAsync(SyncContext context, SyncSetup setup, string scopeInfoTableName, CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+        public async Task<SyncSet>
+            EnsureSchemaAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
+            // Get context or create a new one
+            var ctx = this.GetContext();
+
+
             // Create the message to be sent
-            var httpMessage = new HttpMessageEnsureScopesRequest(context);
+            var httpMessage = new HttpMessageEnsureScopesRequest(ctx);
 
             // serialize message
             var serializer = this.SerializerFactory.GetSerializer<HttpMessageEnsureScopesRequest>();
@@ -164,7 +208,7 @@ namespace Dotmim.Sync.Web.Client
 
             // No batch size submitted here, because the schema will be generated in memory and send back to the user.
             var ensureScopesResponse = await this.httpRequestHandler.ProcessRequestAsync<HttpMessageEnsureScopesResponse>
-                (this.HttpClient, this.ServiceUri, binaryData, HttpStep.EnsureScopes, context.SessionId, setup.ScopeName,
+                (this.HttpClient, this.ServiceUri, binaryData, HttpStep.EnsureScopes, ctx.SessionId, this.ScopeName,
                  this.SerializerFactory, this.Converter, 0, cancellationToken).ConfigureAwait(false);
 
 
@@ -176,21 +220,18 @@ namespace Dotmim.Sync.Web.Client
 
             ensureScopesResponse.Schema.EnsureSchema();
             // Return scopes and new shema
-            return (ensureScopesResponse.SyncContext, ensureScopesResponse.Schema);
+            return ensureScopesResponse.Schema;
         }
 
 
 
-        public async Task<(SyncContext, long, BatchInfo, ConflictResolutionPolicy, DatabaseChangesSelected)>
-            ApplyThenGetChangesAsync(SyncContext context, ScopeInfo scope, SyncSet schema, BatchInfo clientBatchInfo,
-                                     bool disableConstraintsOnApplyChanges, bool useBulkOperations, bool cleanMetadatas, bool cleanFolder,
-                                     int clientBatchSize, string batchDirectory, ConflictResolutionPolicy policy,
-                                     CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+        public async Task<(long, BatchInfo, DatabaseChangesSelected)>
+            ApplyThenGetChangesAsync(ScopeInfo scope, SyncSet schema, BatchInfo clientBatchInfo,
+                                     CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
 
-            // disableConstraintsOnApplyChanges, useBulkOperations, cleanMetadatas, client policy
-            // are not used, since it's handled by server side
-            // clientBatchSize is sent to server to specify if the client wants a batch in return
+            // Get context or create a new one
+            var ctx = this.GetContext();
 
             // create the in memory changes set
             var changesSet = new SyncSet();
@@ -215,7 +256,7 @@ namespace Dotmim.Sync.Web.Client
             // But we need to send something, so generate a little batch part
             if (clientBatchInfo.InMemory || (!clientBatchInfo.InMemory && clientBatchInfo.BatchPartsInfo.Count == 0))
             {
-                var changesToSend = new HttpMessageSendChangesRequest(context, scope);
+                var changesToSend = new HttpMessageSendChangesRequest(ctx, scope);
 
                 if (this.Converter != null && clientBatchInfo.InMemoryData.HasRows)
                     this.BeforeSerializeRows(clientBatchInfo.InMemoryData);
@@ -232,8 +273,8 @@ namespace Dotmim.Sync.Web.Client
                 await InterceptAsync(new HttpMessageSendChangesRequestArgs(binaryData)).ConfigureAwait(false);
 
                 httpMessageContent = await this.httpRequestHandler.ProcessRequestAsync<HttpMessageSendChangesResponse>
-                    (this.HttpClient, this.ServiceUri, binaryData, HttpStep.SendChanges, context.SessionId, scope.Name,
-                     this.SerializerFactory, this.Converter, clientBatchSize, cancellationToken).ConfigureAwait(false);
+                    (this.HttpClient, this.ServiceUri, binaryData, HttpStep.SendChanges, ctx.SessionId, scope.Name,
+                     this.SerializerFactory, this.Converter, this.Options.BatchSize, cancellationToken).ConfigureAwait(false);
 
             }
             else
@@ -246,7 +287,7 @@ namespace Dotmim.Sync.Web.Client
                     // othewise load it
                     await bpi.LoadBatchAsync(changesSet, clientBatchInfo.GetDirectoryFullPath());
 
-                    var changesToSend = new HttpMessageSendChangesRequest(context, scope);
+                    var changesToSend = new HttpMessageSendChangesRequest(ctx, scope);
 
                     if (this.Converter != null && bpi.Data.HasRows)
                         BeforeSerializeRows(bpi.Data);
@@ -263,8 +304,8 @@ namespace Dotmim.Sync.Web.Client
                     await InterceptAsync(new HttpMessageSendChangesRequestArgs(binaryData)).ConfigureAwait(false);
 
                     httpMessageContent = await this.httpRequestHandler.ProcessRequestAsync<HttpMessageSendChangesResponse>
-                        (this.HttpClient, this.ServiceUri, binaryData, HttpStep.SendChanges, context.SessionId, scope.Name,
-                         this.SerializerFactory, this.Converter, clientBatchSize, cancellationToken).ConfigureAwait(false);
+                        (this.HttpClient, this.ServiceUri, binaryData, HttpStep.SendChanges, ctx.SessionId, scope.Name,
+                         this.SerializerFactory, this.Converter, this.Options.BatchSize, cancellationToken).ConfigureAwait(false);
 
 
                     // for some reasons, if server don't want to wait for more, just break
@@ -289,11 +330,11 @@ namespace Dotmim.Sync.Web.Client
             var isLastBatch = false;
 
             // Get if we need to work in memory or serialize things
-            var workInMemoryLocally = clientBatchSize == 0;
+            var workInMemoryLocally = this.Options.BatchSize == 0;
 
             // Create the BatchInfo and SyncContext to return at the end
             // Set InMemory by default to "true", but the real value is coming from server side
-            var serverBatchInfo = new BatchInfo(workInMemoryLocally, changesSet, batchDirectory);
+            var serverBatchInfo = new BatchInfo(workInMemoryLocally, changesSet, this.Options.BatchDirectory);
 
             // stats
             DatabaseChangesSelected serverChangesSelected = null;
@@ -308,7 +349,7 @@ namespace Dotmim.Sync.Web.Client
                 // If so, we won't make another loop
                 isLastBatch = httpMessageContent.IsLastBatch;
                 serverChangesSelected = httpMessageContent.ChangesSelected;
-                context = httpMessageContent.SyncContext;
+                ctx = httpMessageContent.SyncContext;
                 remoteClientTimestamp = httpMessageContent.RemoteClientTimestamp;
 
                 changesSet = changesSet.Clone();
@@ -331,7 +372,7 @@ namespace Dotmim.Sync.Web.Client
                     var requestBatchIndex = httpMessageContent.BatchIndex + 1;
 
                     // Create the message enveloppe
-                    var httpMessage = new HttpMessageGetMoreChangesRequest(context, requestBatchIndex);
+                    var httpMessage = new HttpMessageGetMoreChangesRequest(ctx, requestBatchIndex);
 
                     // serialize message
                     var serializer = this.SerializerFactory.GetSerializer<HttpMessageGetMoreChangesRequest>();
@@ -340,36 +381,45 @@ namespace Dotmim.Sync.Web.Client
                     await InterceptAsync(new HttpMessageGetMoreChangesRequestArgs(binaryData)).ConfigureAwait(false);
 
                     httpMessageContent = await this.httpRequestHandler.ProcessRequestAsync<HttpMessageSendChangesResponse>(
-                               this.HttpClient, this.ServiceUri, binaryData, HttpStep.GetChanges, context.SessionId, scope.Name,
-                               this.SerializerFactory, this.Converter, clientBatchSize, cancellationToken).ConfigureAwait(false);
+                               this.HttpClient, this.ServiceUri, binaryData, HttpStep.GetChanges, ctx.SessionId, scope.Name,
+                               this.SerializerFactory, this.Converter, this.Options.BatchSize, cancellationToken).ConfigureAwait(false);
                 }
 
             } while (!isLastBatch);
 
 
-            return (context, remoteClientTimestamp, serverBatchInfo, httpMessageContent.ConflictResolutionPolicy, serverChangesSelected);
+            return (remoteClientTimestamp, serverBatchInfo, serverChangesSelected);
         }
 
 
-        public async Task<(SyncContext context, long remoteClientTimestamp, BatchInfo serverBatchInfo)>
-            GetSnapshotAsync(SyncContext context, ScopeInfo scope, SyncSet schema, string snapshotDirectory, string batchDirectory, CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+        public async Task<(long remoteClientTimestamp, BatchInfo serverBatchInfo)>
+            GetSnapshotAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
+
+            // Get context or create a new one
+            var ctx = this.GetContext();
+
             // create the in memory changes set
             var changesSet = new SyncSet();
+
+            SyncSet schema;
+            // Get Schema from remote provider
+            schema = await this.EnsureSchemaAsync(cancellationToken, progress).ConfigureAwait(false);
+
 
             foreach (var table in schema.Tables)
                 DbSyncAdapter.CreateChangesTable(schema.Tables[table.TableName, table.SchemaName], changesSet);
 
             // Create the BatchInfo and SyncContext to return at the end
             // Set InMemory by default to "true", but the real value is coming from server side
-            var serverBatchInfo = new BatchInfo(false, changesSet, batchDirectory);
+            var serverBatchInfo = new BatchInfo(false, changesSet, this.Options.BatchDirectory);
 
             bool isLastBatch;
             //timestamp generated by the server, hold in the client db
             long remoteClientTimestamp;
 
             // generate a message to send
-            var changesToSend = new HttpMessageSendChangesRequest(context, scope)
+            var changesToSend = new HttpMessageSendChangesRequest(ctx, null)
             {
                 Changes = null,
                 IsLastBatch = true,
@@ -380,12 +430,12 @@ namespace Dotmim.Sync.Web.Client
             var binaryData = await serializer.SerializeAsync(changesToSend);
 
             var httpMessageContent = await this.httpRequestHandler.ProcessRequestAsync<HttpMessageSendChangesResponse>(
-                      this.HttpClient, this.ServiceUri, binaryData, HttpStep.GetSnapshot, context.SessionId, scope.Name,
+                      this.HttpClient, this.ServiceUri, binaryData, HttpStep.GetSnapshot, ctx.SessionId, this.ScopeName,
                       this.SerializerFactory, this.Converter, 0, cancellationToken).ConfigureAwait(false);
 
             // if no snapshot available, return empty response
             if (httpMessageContent.Changes == null)
-                return (httpMessageContent.SyncContext, httpMessageContent.RemoteClientTimestamp, null);
+                return (httpMessageContent.RemoteClientTimestamp, null);
 
             // While we are not reaching the last batch from server
             do
@@ -393,7 +443,7 @@ namespace Dotmim.Sync.Web.Client
                 // Check if we are at the last batch.
                 // If so, we won't make another loop
                 isLastBatch = httpMessageContent.IsLastBatch;
-                context = httpMessageContent.SyncContext;
+                ctx = httpMessageContent.SyncContext;
                 remoteClientTimestamp = httpMessageContent.RemoteClientTimestamp;
 
                 changesSet = changesSet.Clone();
@@ -416,7 +466,7 @@ namespace Dotmim.Sync.Web.Client
                     var requestBatchIndex = httpMessageContent.BatchIndex + 1;
 
                     // Create the message enveloppe
-                    var httpMessage = new HttpMessageGetMoreChangesRequest(context, requestBatchIndex);
+                    var httpMessage = new HttpMessageGetMoreChangesRequest(ctx, requestBatchIndex);
 
                     // serialize message
                     var serializer2 = this.SerializerFactory.GetSerializer<HttpMessageGetMoreChangesRequest>();
@@ -425,20 +475,20 @@ namespace Dotmim.Sync.Web.Client
                     await InterceptAsync(new HttpMessageGetMoreChangesRequestArgs(binaryData)).ConfigureAwait(false);
 
                     httpMessageContent = await this.httpRequestHandler.ProcessRequestAsync<HttpMessageSendChangesResponse>(
-                               this.HttpClient, this.ServiceUri, binaryData2, HttpStep.GetChanges, context.SessionId, scope.Name,
+                               this.HttpClient, this.ServiceUri, binaryData2, HttpStep.GetChanges, ctx.SessionId, this.ScopeName,
                                this.SerializerFactory, this.Converter, 0, cancellationToken).ConfigureAwait(false);
                 }
 
             } while (!isLastBatch);
 
 
-            return (context, remoteClientTimestamp, serverBatchInfo);
+            return (remoteClientTimestamp, serverBatchInfo);
         }
 
         /// <summary>
         /// We can't delete metadats on request from client
         /// </summary>
-        public Task DeleteMetadatasAsync(SyncContext context, SyncSetup setup, long timeStampStart, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public Task DeleteMetadatasAsync(long timeStampStart, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
             => throw new NotImplementedException();
 
         public void BeforeSerializeRows(SyncSet data)

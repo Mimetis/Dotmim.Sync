@@ -161,7 +161,6 @@ namespace Dotmim.Sync.Tests.StandAlone
             Assert.Equal("tts", outSchema.TrackingTablesSuffix);
             Assert.Equal("tp", outSchema.TriggersPrefix);
             Assert.Equal("ts", outSchema.TriggersSuffix);
-            Assert.Equal(SyncOptions.DefaultScopeName, outSchema.ScopeName);
             Assert.NotEmpty(outSchema.Tables);
             Assert.NotEmpty(outSchema.Filters);
             Assert.NotEmpty(outSchema.Relations);

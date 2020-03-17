@@ -204,7 +204,7 @@ namespace Dotmim.Sync
             BatchInfo batchInfo = null;
 
             // Create the schema changeset
-            var changesSet = new SyncSet(schema.ScopeName);
+            var changesSet = new SyncSet();
 
             // Create a Schema set without readonly columns, attached to memory changes
             foreach (var table in schema.Tables)

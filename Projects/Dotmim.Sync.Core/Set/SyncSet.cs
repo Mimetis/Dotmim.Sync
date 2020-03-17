@@ -224,9 +224,6 @@ namespace Dotmim.Sync
             if (this.Tables.Count != otherSet.Tables.Count)
                 return false;
 
-            if (!this.ScopeName.Equals(otherSet.ScopeName, SyncGlobalization.DataSourceStringComparison))
-                return false;
-
             if (this.StoredProceduresPrefix != otherSet.StoredProceduresPrefix ||
                 this.StoredProceduresSuffix != otherSet.StoredProceduresSuffix ||
                 this.TrackingTablesPrefix != otherSet.TrackingTablesPrefix ||
@@ -356,7 +353,7 @@ namespace Dotmim.Sync
 
         public override int GetHashCode() => base.GetHashCode();
 
-        public override string ToString() => $"{this.ScopeName} - {this.Tables.Count} tables";
+        public override string ToString() => $"{this.Tables.Count} tables";
 
         public static bool operator ==(SyncSet left, SyncSet right) => EqualityComparer<SyncSet>.Default.Equals(left, right);
 

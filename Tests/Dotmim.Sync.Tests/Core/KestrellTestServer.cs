@@ -49,6 +49,7 @@ namespace Dotmim.Sync.Tests
                     // add a SqlSyncProvider acting as the server hub
                     services.AddSyncServer(server.WebServerOrchestrator.Provider.GetType(),
                                            server.WebServerOrchestrator.Provider.ConnectionString, 
+                                           SyncOptions.DefaultScopeName,
                                            server.WebServerOrchestrator.Setup,
                                            server.WebServerOrchestrator.Options);
 
