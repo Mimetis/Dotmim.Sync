@@ -31,11 +31,11 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var se = await Assert.ThrowsAsync<SyncException>(async () =>
             {
-                var schema = await localOrchestrator.ReadSchemaAsync();
+                var schema = await localOrchestrator.GetSchemaAsync();
             });
 
             Assert.Equal(SyncStage.SchemaReading, se.SyncStage);
-            Assert.Equal(SyncExceptionSide.ClientSide, se.Side);
+            Assert.Equal(SyncSide.ClientSide, se.Side);
             Assert.Equal("MissingTablesException", se.TypeName);
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
@@ -124,7 +124,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             });
 
-            var schema = await localOrchestrator.ReadSchemaAsync();
+            var schema = await localOrchestrator.GetSchemaAsync();
 
             Assert.NotNull(schema);
             Assert.Equal(17, schema.Tables.Count);
@@ -166,11 +166,11 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var se = await Assert.ThrowsAsync<SyncException>(async () =>
             {
-                var schema = await localOrchestrator.ReadSchemaAsync(cts.Token);
+                var schema = await localOrchestrator.GetSchemaAsync(cts.Token);
             });
 
             Assert.Equal(SyncStage.SchemaReading, se.SyncStage);
-            Assert.Equal(SyncExceptionSide.ClientSide, se.Side);
+            Assert.Equal(SyncSide.ClientSide, se.Side);
             Assert.Equal("OperationCanceledException", se.TypeName);
 
 

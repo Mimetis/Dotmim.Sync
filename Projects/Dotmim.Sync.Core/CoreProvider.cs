@@ -1,7 +1,6 @@
 ﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Manager;
-using Dotmim.Sync.Messages;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -16,8 +15,10 @@ namespace Dotmim.Sync
     /// </summary>
     public abstract partial class CoreProvider
     {
-
-
+        /// <summary>
+        /// Gets the reference to the orchestrator owner of this instance
+        /// </summary>
+        public IOrchestrator Orchestrator { get; internal set; }
 
         /// <summary>
         /// Connection is opened. this method is called before any interceptors
@@ -94,44 +95,11 @@ namespace Dotmim.Sync
         /// </summary>
         public abstract bool CanBeServerProvider { get; }
 
-
-        /// <summary>
-        /// Try to report progress
-        /// </summary>
-        internal void ReportProgress(SyncContext context, IProgress<ProgressArgs> progress, ProgressArgs args, DbConnection connection = null, DbTransaction transaction = null)
-        {
-            if (connection == null && args.Connection != null)
-                connection = args.Connection;
-
-            if (transaction == null && args.Transaction != null)
-                transaction = args.Transaction;
-
-            ReportProgress(context, progress, args.Message, connection, transaction);
-        }
-
-        /// <summary>
-        /// Try to report progress
-        /// </summary>
-        private void ReportProgress(SyncContext context, IProgress<ProgressArgs> progress, string message, DbConnection connection = null, DbTransaction transaction = null)
-        {
-            if (progress == null)
-                return;
-            var dt = DateTime.Now;
-            message = $"{dt.ToLongTimeString()}.{dt.Millisecond}\t {message}";
-            var progressArgs = new ProgressArgs(context, message, connection, transaction);
-
-            progress.Report(progressArgs);
-
-            if (progressArgs.Action == ChangeApplicationAction.Rollback)
-                throw new RollbackException("Rollback by user during a progress event");
-        }
-
-
+ 
         /// <summary>
         /// Let a chance to provider to enrich SyncExecption
         /// </summary>
         public virtual void EnsureSyncException(SyncException syncException) { }
-
 
 
         /// <summary>

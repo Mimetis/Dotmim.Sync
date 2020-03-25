@@ -37,10 +37,16 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             Assert.NotNull(localOrchestrator.Options);
             Assert.Same(options, localOrchestrator.Options);
+
             Assert.NotNull(localOrchestrator.Provider);
             Assert.Same(provider, localOrchestrator.Provider);
+
             Assert.NotNull(localOrchestrator.Setup);
             Assert.Same(setup, localOrchestrator.Setup);
+
+            Assert.NotNull(provider.Orchestrator);
+            Assert.Same(provider.Orchestrator, localOrchestrator);
+
         }
 
         [Fact]

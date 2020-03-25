@@ -25,11 +25,6 @@ namespace Dotmim.Sync
         public SyncContext Context { get; }
 
         /// <summary>
-        /// Gets or Sets the action to be taken : Could eventually Rollback the current sync
-        /// </summary>
-        public ChangeApplicationAction Action { get; set; }
-
-        /// <summary>
         /// Gets or Sets an arbitrary args you can use for you own purpose
         /// </summary>
         public string Hint { get; set; }

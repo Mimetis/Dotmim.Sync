@@ -1,6 +1,5 @@
 ﻿using Dotmim.Sync.Batch;
 using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Messages;
 using Dotmim.Sync.Serialization;
 using Newtonsoft.Json;
 using System;
@@ -381,7 +380,6 @@ namespace Dotmim.Sync
                 // On local orchestrator, get scope info
                 var clientScopeInfo = await this.LocalOrchestrator.EnsureScopeAsync(cancellationToken, progress);
 
-
                 // if client is new or else schema does not exists
                 // We need to get it from server
                 if (clientScopeInfo.IsNewScope || string.IsNullOrEmpty(clientScopeInfo.Schema))
@@ -403,7 +401,7 @@ namespace Dotmim.Sync
                 else
                 {
                     // on remote orchestrator get scope info as well
-                    var serverScopeInfo = await this.RemoteOrchestrator.EnsureScopesAsync(cancellationToken, progress);
+                    var serverScopeInfo = await this.RemoteOrchestrator.EnsureScopesAsync(cancellationToken, remoteProgress);
 
                     // If coming from Web remote, the schema is null, so just compare version
                     // if server schema is null, assuming they are identical, unless version are differents
@@ -457,20 +455,11 @@ namespace Dotmim.Sync
                     }
                 }
 
-                var serverChanges = await this.RemoteOrchestrator.ApplyThenGetChangesAsync(
-                    clientScopeInfo, clientChanges.clientBatchInfo, cancellationToken, remoteProgress);
+                var serverChanges = await this.RemoteOrchestrator.ApplyThenGetChangesAsync(clientScopeInfo, clientChanges.clientBatchInfo, cancellationToken, remoteProgress);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
-                //// set context
-                //// context = serverChanges.context;
-                //// Serialize schema to be able to save it in client db
-                //if (string.IsNullOrEmpty(clientScope.Schema))
-                //{
-                //    var schemaLight = Newtonsoft.Json.JsonConvert.SerializeObject(this.Schema);
-                //    clientScope.Schema = schemaLight;
-                //}
 
                 // Policy is always Server policy, so reverse this policy to get the client policy
                 var reverseConflictResolutionPolicy = serverChanges.serverPolicy == ConflictResolutionPolicy.ServerWins ? ConflictResolutionPolicy.ClientWins : ConflictResolutionPolicy.ServerWins;

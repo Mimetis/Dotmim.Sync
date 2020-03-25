@@ -3,6 +3,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync
@@ -52,13 +53,12 @@ namespace Dotmim.Sync
         /// <summary>
         /// Run the Action or Func as the Interceptor
         /// </summary>
-        public async Task RunAsync(T args)
+        public async Task RunAsync(T args, CancellationToken cancellationToken)
         {
             await (this.wrapper == null ? Task.CompletedTask : this.wrapper(args));
 
-            if (args.Action == ChangeApplicationAction.Rollback)
-                throw new RollbackException("Rollback by user during a progress event");
-
+            if (cancellationToken.IsCancellationRequested)
+                cancellationToken.ThrowIfCancellationRequested();
         }
 
         public void Dispose()
@@ -67,9 +67,6 @@ namespace Dotmim.Sync
             GC.SuppressFinalize(this);
         }
 
-        protected virtual void Dispose(bool cleanup)
-        {
-            this.wrapper = null;
-        }
+        protected virtual void Dispose(bool cleanup) => this.wrapper = null;
     }
 }
