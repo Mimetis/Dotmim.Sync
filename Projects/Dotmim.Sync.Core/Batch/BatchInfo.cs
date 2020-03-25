@@ -15,7 +15,6 @@ namespace Dotmim.Sync.Batch
     [DataContract(Name = "bi"), Serializable]
     public class BatchInfo
     {
-        private SyncSet schema;
 
         /// <summary>
         /// Ctor for serializer
@@ -31,7 +30,10 @@ namespace Dotmim.Sync.Batch
         public BatchInfo(bool isInMemory, SyncSet inSchema, string rootDirectory = null, string directoryName = null)
         {
             this.InMemory = isInMemory;
-            this.schema = inSchema.Clone();
+
+            // We need to create a change table set, containing table with columns not readonly
+            foreach (var table in inSchema.Tables)
+                DbSyncAdapter.CreateChangesTable(inSchema.Tables[table.TableName, table.SchemaName], this.SanitizedSchema);
 
             // If not in memory, generate a directory name and initialize batch parts list
             if (!this.InMemory)
@@ -45,7 +47,8 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Internally setting schema
         /// </summary>
-        internal void SetSchema(SyncSet schema) => this.schema = schema;
+        [IgnoreDataMember]
+        public SyncSet SanitizedSchema { get; set; } = new SyncSet();
 
         /// <summary>
         /// Is the batch parts are in memory
@@ -104,6 +107,9 @@ namespace Dotmim.Sync.Batch
         /// </summary>
         public async Task<bool> HasDataAsync()
         {
+            if (this.SanitizedSchema == null)
+                throw new NullReferenceException("Batch info schema should not be null");
+
             if (InMemory && InMemoryData != null && InMemoryData.HasTables && InMemoryData.HasRows)
                 return true;
 
@@ -111,7 +117,7 @@ namespace Dotmim.Sync.Batch
             {
                 foreach (var bpi in BatchPartsInfo)
                 {
-                    await bpi.LoadBatchAsync(schema, GetDirectoryFullPath()).ConfigureAwait(false);
+                    await bpi.LoadBatchAsync(this.SanitizedSchema, GetDirectoryFullPath()).ConfigureAwait(false);
 
                     var hasData = bpi.Data.HasRows;
 
@@ -132,6 +138,9 @@ namespace Dotmim.Sync.Batch
         /// </summary>
         public IEnumerable<SyncTable> GetTable(string tableName, string schemaName)
         {
+            if (this.SanitizedSchema == null)
+                throw new NullReferenceException("Batch info schema should not be null");
+
             var tableInfo = new BatchPartTableInfo(tableName, schemaName);
 
             if (InMemory)
@@ -145,7 +154,7 @@ namespace Dotmim.Sync.Batch
                 {
                     if (batchPartinInfo.Tables != null && batchPartinInfo.Tables.Any(t => t == tableInfo))
                     {
-                        batchPartinInfo.LoadBatchAsync(schema, GetDirectoryFullPath()).ConfigureAwait(false).GetAwaiter().GetResult();
+                        batchPartinInfo.LoadBatchAsync(this.SanitizedSchema, GetDirectoryFullPath()).ConfigureAwait(false).GetAwaiter().GetResult();
 
                         // Get the table from the batchPartInfo
                         // generate a tmp SyncTable for 

@@ -24,14 +24,13 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Loads the batch file and import the rows in a SyncSet instance
         /// </summary>
-        public async Task LoadBatchAsync(SyncSet schema, string directoryFullPath)
+        public async Task LoadBatchAsync(SyncSet sanitizedSchema, string directoryFullPath)
         {
-
             if (string.IsNullOrEmpty(this.FileName))
                 return;
 
             // Clone the schema to get a unique instance
-            var set = schema.Clone();
+            var set = sanitizedSchema.Clone();
 
             // Get a Batch part, and deserialise the file into a the BatchPartInfo Set property
             var data = await DeserializeAsync(this.FileName, directoryFullPath);

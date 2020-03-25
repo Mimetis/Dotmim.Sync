@@ -20,6 +20,7 @@ namespace Dotmim.Sync.Web.Server
         public BatchInfo ClientBatchInfo { get; set; }
 
         public DatabaseChangesSelected ServerChangesSelected { get; set; }
+        public DatabaseChangesApplied ClientChangesApplied { get; set; }
     }
 
 

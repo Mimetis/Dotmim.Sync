@@ -34,7 +34,7 @@ namespace Dotmim.Sync.SampleWebServer
             var connectionString = Configuration.GetSection("ConnectionStrings")["DefaultConnection"];
 
             // Set the web server Options
-            var options = new WebServerOptions()
+            var options = new SyncOptions()
             {
                 BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "server"),
                 SnapshotsDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Snapshots")

@@ -26,7 +26,7 @@ namespace Dotmim.Sync
         public virtual async Task<(SyncContext, BatchInfo, DatabaseChangesSelected)> GetChangeBatchAsync(
                              SyncContext context, MessageGetChangesBatch message,
                              DbConnection connection, DbTransaction transaction,
-                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
 
             // batch info containing changes
@@ -72,19 +72,12 @@ namespace Dotmim.Sync
             // Create stats object to store changes count
             var changes = new DatabaseChangesSelected();
 
-            // create the in memory changes set
-            var changesSet = new SyncSet();
-
-            // Create a Schema set without readonly columns, attached to memory changes
-            foreach (var table in message.Schema.Tables)
-                DbSyncAdapter.CreateChangesTable(message.Schema.Tables[table.TableName, table.SchemaName], changesSet);
-
             // Create a batch info in memory (if !isBatch) or serialized on disk (if isBatch)
             // batchinfo generate a schema clone with scope columns if needed
-            batchInfo = new BatchInfo(!isBatch, changesSet, message.BatchDirectory);
+            batchInfo = new BatchInfo(!isBatch, message.Schema, message.BatchDirectory);
 
-            // Clear tables, we will add only the ones we need in the batch info
-            changesSet.Clear();
+            // Clean SyncSet, we will add only tables we need in the batch info
+            var changesSet = new SyncSet();
 
             foreach (var syncTable in message.Schema.Tables)
             {
@@ -112,7 +105,7 @@ namespace Dotmim.Sync
                 this.SetSelectChangesCommonParameters(context, syncTable, message.ExcludingScopeId, message.IsNew, message.LastTimestamp, selectIncrementalChangesCommand);
 
                 // Statistics
-                var tableChangesSelected = new TableChangesSelected(syncTable.TableName);
+                var tableChangesSelected = new TableChangesSelected(syncTable.TableName, syncTable.SchemaName);
 
                 // Get the reader
                 using (var dataReader = selectIncrementalChangesCommand.ExecuteReader())
@@ -210,15 +203,8 @@ namespace Dotmim.Sync
             // Get config
             var isBatched = message.BatchSize > 0;
 
-            // create the in memory changes set
-            var changesSet = new SyncSet();
-
-            // Create a Schema set without readonly tables, attached to memory changes
-            foreach (var table in message.Schema.Tables)
-                DbSyncAdapter.CreateChangesTable(message.Schema.Tables[table.TableName, table.SchemaName], changesSet);
-
             // Create the batch info, in memory
-            var batchInfo = new BatchInfo(!isBatched, changesSet, message.BatchDirectory); ;
+            var batchInfo = new BatchInfo(!isBatched, message.Schema, message.BatchDirectory); ;
 
             // add changes to batchInfo
             await batchInfo.AddChangesAsync(new SyncSet()).ConfigureAwait(false);

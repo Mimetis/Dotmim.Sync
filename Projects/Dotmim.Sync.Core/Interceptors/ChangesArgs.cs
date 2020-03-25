@@ -108,10 +108,20 @@ namespace Dotmim.Sync
 
         public TableChangesApplied TableChangesApplied { get; set; }
 
-        public override string Message => $"{this.TableChangesApplied.Table.TableName} " +
-            $"State:{this.TableChangesApplied.State} " +
-            $"Applied:{this.TableChangesApplied.Applied} " +
-            $"Failed:{this.TableChangesApplied.Failed}";
+        public override string Message {
+            get
+            {
+                var tableName = string.IsNullOrEmpty(this.TableChangesApplied.SchemaName)
+                        ? this.TableChangesApplied.TableName
+                        : $"{this.TableChangesApplied.SchemaName}.{this.TableChangesApplied.TableName}";
+
+                return $"{tableName} " +
+                $"State:{this.TableChangesApplied.State} " +
+                $"Applied:{this.TableChangesApplied.Applied} " +
+                $"Failed:{this.TableChangesApplied.Failed}";
+
+            }
+        }
     }
 
     /// <summary>
@@ -152,17 +162,38 @@ namespace Dotmim.Sync
     /// <summary>
     /// All table changes applied on a provider
     /// </summary>
-    [Serializable]
+    [DataContract(Name = "dca"), Serializable]
     public class DatabaseChangesApplied
     {
         /// <summary>
         /// Get the view to be applied 
         /// </summary>
+        [DataMember(Name = "tca", IsRequired = false, EmitDefaultValue = false, Order = 1)]
         public List<TableChangesApplied> TableChangesApplied { get; } = new List<TableChangesApplied>();
+
+
+        /// <summary>
+        /// Gets the total number of conflicts that have been applied resolved during the synchronization session.
+        /// </summary>
+        [IgnoreDataMember]
+        public int TotalResolvedConflicts
+        {
+            get
+            {
+                int conflicts = 0;
+                foreach (var tableProgress in this.TableChangesApplied)
+                {
+                    conflicts = conflicts + tableProgress.ResolvedConflicts;
+                }
+                return conflicts;
+            }
+        }
+
 
         /// <summary>
         /// Gets the total number of changes that have been applied during the synchronization session.
         /// </summary>
+        [IgnoreDataMember]
         public int TotalAppliedChanges
         {
             get
@@ -179,6 +210,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the total number of changes that have failed to be applied during the synchronization session.
         /// </summary>
+        [IgnoreDataMember]
         public int TotalAppliedChangesFailed
         {
             get
@@ -196,27 +228,43 @@ namespace Dotmim.Sync
     /// <summary>
     /// Summary of table changes applied on a source
     /// </summary>
-    [Serializable]
+    [DataContract(Name = "tca"), Serializable]
     public class TableChangesApplied
     {
         /// <summary>
-        /// Gets the table where changes were applied
+        /// Gets or sets the name of the table that the DmTableSurrogate object represents.
         /// </summary>
-        public SyncTable Table { get; set; }
+        [DataMember(Name = "n", IsRequired = true, Order = 1)]
+        public string TableName { get; set; }
+
+        /// <summary>
+        /// Get or Set the schema used for the DmTableSurrogate
+        /// </summary>
+        [DataMember(Name = "s", IsRequired = false, EmitDefaultValue = false, Order = 2)]
+        public string SchemaName { get; set; }
 
         /// <summary>
         /// Gets the RowState of the applied rows
         /// </summary>
+        [DataMember(Name = "st", IsRequired = true, Order = 3)]
         public DataRowState State { get; set; }
 
         /// <summary>
-        /// Gets the rows changes applied count
+        /// Gets the resolved conflict rows applied count
         /// </summary>
+        [DataMember(Name = "c", IsRequired = true, Order = 4)]
+        public int ResolvedConflicts { get; set; }
+
+        /// <summary>
+        /// Gets the rows changes applied count. This count contains resolved conflicts count also
+        /// </summary>
+        [DataMember(Name = "a", IsRequired = true, Order = 5)]
         public int Applied { get; set; }
 
         /// <summary>
         /// Gets the rows changes failed count
         /// </summary>
+        [DataMember(Name = "f", IsRequired = true, Order = 6)]
         public int Failed { get; set; }
     }
 
@@ -263,24 +311,36 @@ namespace Dotmim.Sync
         {
 
         }
-        public TableChangesSelected(string tableName) => this.TableName = tableName;
+        public TableChangesSelected(string tableName, string schemaName)
+        {
+            this.TableName = tableName;
+            this.SchemaName = schemaName;
+        }
         
         /// <summary>
         /// Gets the table name
         /// </summary>
-        [DataMember(Name = "tn", IsRequired = false, EmitDefaultValue = false, Order = 1)]
+        [DataMember(Name = "n", IsRequired = false, EmitDefaultValue = false, Order = 1)]
         public string TableName { get; set; }
+
+
+        /// <summary>
+        /// Get or Set the schema used for the DmTableSurrogate
+        /// </summary>
+        [DataMember(Name = "s", IsRequired = false, EmitDefaultValue = false, Order = 2)]
+        public string SchemaName { get; set; }
+
 
         /// <summary>
         /// Gets or sets the number of deletes that should be applied to a table during the synchronization session.
         /// </summary>
-        [DataMember(Name = "d", IsRequired = false, EmitDefaultValue = false, Order = 2)]
+        [DataMember(Name = "d", IsRequired = false, EmitDefaultValue = false, Order = 3)]
         public int Deletes { get; set; }
 
         /// <summary>
         /// Gets or sets the number of updates OR inserts that should be applied to a table during the synchronization session.
         /// </summary>
-        [DataMember(Name = "u", IsRequired = false, EmitDefaultValue = false, Order = 3)]
+        [DataMember(Name = "u", IsRequired = false, EmitDefaultValue = false, Order = 4)]
         public int Upserts { get; set; }
 
         /// <summary>

@@ -49,19 +49,26 @@ namespace Dotmim.Sync
         public string TrackingTablesSuffix { get; set; }
 
         /// <summary>
+        /// Gets or Sets the current Setup version.
+        /// </summary>
+        public string Version { get; set; }
+
+        /// <summary>
         /// Create a list of tables to be added to the sync process
         /// </summary>
         /// <param name="caseSensitive">Specify if table names are case sensitive. Default is false</param>
-        public SyncSetup(IEnumerable<string> tables) : this()
-        {
-            this.Tables.AddRange(tables);
-        }
+        public SyncSetup(IEnumerable<string> tables) : this() => this.Tables.AddRange(tables);
 
+        /// <summary>
+        /// ctor
+        /// </summary>
         public SyncSetup()
         {
             this.Tables = new SetupTables();
             this.Filters = new SetupFilters();
+            this.Version = "1";
         }
+
 
     }
 }

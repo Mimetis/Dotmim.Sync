@@ -21,23 +21,29 @@ namespace Dotmim.Sync
         /// update configuration object with tables desc from server database
         /// </summary>
         public virtual async Task<SyncContext> CreateSnapshotAsync(SyncContext context, SyncSet schema,
-                             DbConnection connection, DbTransaction transaction, string batchDirectory, int batchSize, long remoteClientTimestamp,
+                             DbConnection connection, DbTransaction transaction, string snapshotDirectory, int batchSize, long remoteClientTimestamp,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
 
             // create local directory
-            if (!Directory.Exists(batchDirectory))
-                Directory.CreateDirectory(batchDirectory);
+            if (!Directory.Exists(snapshotDirectory))
+                Directory.CreateDirectory(snapshotDirectory);
+
+            // cleansing scope name
+            var directoryScopeName = new string(context.ScopeName.Where(char.IsLetterOrDigit).ToArray());
+
+            var directoryFullPath = Path.Combine(snapshotDirectory, directoryScopeName);
+      
+            // create local directory with scope inside
+            if (!Directory.Exists(directoryFullPath))
+                Directory.CreateDirectory(directoryFullPath);
+
 
             // numbers of batch files generated
             var batchIndex = 0;
 
             // create the in memory changes set
             var changesSet = new SyncSet();
-
-            // Create a Schema set without readonly tables, attached to memory changes
-            foreach (var table in schema.Tables)
-                DbSyncAdapter.CreateChangesTable(schema.Tables[table.TableName, table.SchemaName], changesSet);
 
             var sb = new StringBuilder();
             var underscore = "";
@@ -57,16 +63,14 @@ namespace Dotmim.Sync
             var directoryName = sb.ToString();
             directoryName = string.IsNullOrEmpty(directoryName) ? "ALL" : directoryName;
 
-            var directoryFullPath = Path.Combine(batchDirectory, directoryName);
+            // batchinfo generate a schema clone with scope columns if needed
+            var batchInfo = new BatchInfo(false, schema, directoryFullPath, directoryName);
+
+            // Delete directory if already exists
+            directoryFullPath = Path.Combine(directoryFullPath, directoryName);
 
             if (Directory.Exists(directoryFullPath))
                 Directory.Delete(directoryFullPath, true);
-
-            // batchinfo generate a schema clone with scope columns if needed
-            var batchInfo = new BatchInfo(false, changesSet, batchDirectory, directoryName);
-
-            // Clear tables, we will add only the ones we need in the batch info
-            changesSet.Clear();
 
             foreach (var syncTable in schema.Tables)
             {
@@ -168,9 +172,11 @@ namespace Dotmim.Sync
         /// </summary>
         /// <returns>A DbSyncContext object that will be used to retrieve the modified data.</returns>
         public virtual async Task<(SyncContext, BatchInfo)> GetSnapshotAsync(
-                             SyncContext context, SyncSet schema, string batchDirectory,
+                             SyncContext context, SyncSet schema, string snapshotDirectory,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
+
+            // TODO : Get a snapshot based on scope name
 
             var sb = new StringBuilder();
             var underscore = "";
@@ -190,7 +196,11 @@ namespace Dotmim.Sync
             var directoryName = sb.ToString();
             directoryName = string.IsNullOrEmpty(directoryName) ? "ALL" : directoryName;
 
-            var directoryFullPath = Path.Combine(batchDirectory, directoryName);
+            // cleansing scope name
+            var directoryScopeName = new string(context.ScopeName.Where(char.IsLetterOrDigit).ToArray());
+
+            // Get full path
+            var directoryFullPath = Path.Combine(snapshotDirectory, directoryScopeName, directoryName);
 
             // if no snapshot present, just return null value.
             if (!Directory.Exists(directoryFullPath))
@@ -210,13 +220,12 @@ namespace Dotmim.Sync
             foreach (var table in schema.Tables)
                 DbSyncAdapter.CreateChangesTable(schema.Tables[table.TableName, table.SchemaName], changesSet);
 
-
             using (var fs = new FileStream(summaryFileName, FileMode.Open, FileAccess.Read))
             {
                 batchInfo = await jsonConverter.DeserializeAsync(fs).ConfigureAwait(false);
             }
 
-            batchInfo.SetSchema(changesSet);
+            batchInfo.SanitizedSchema = changesSet;
 
             return (context, batchInfo);
 

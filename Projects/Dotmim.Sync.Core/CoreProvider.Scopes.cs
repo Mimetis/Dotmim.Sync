@@ -17,7 +17,7 @@ namespace Dotmim.Sync
         /// Ensure the scope is created on the local provider.
         /// The scope contains all about last sync, schema and scope and local / remote timestamp 
         /// </summary>
-        public virtual async Task<SyncContext> EnsureClientScopeAsync(SyncContext context, string scopeInfoTableName, string scopeName,
+        public virtual async Task<SyncContext> EnsureClientScopeAsync(SyncContext context, string scopeInfoTableName,
                              DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
@@ -30,7 +30,26 @@ namespace Dotmim.Sync
             // create the scope info table if needed
             if (needToCreateScopeInfoTable)
                 scopeInfoBuilder.CreateClientScopeInfoTable();
-       
+
+            return context;
+        }
+
+        /// <summary>
+        /// Drop client scope
+        /// </summary>
+        public virtual async Task<SyncContext> DropClientScopeAsync(SyncContext context, string scopeInfoTableName,
+                             DbConnection connection, DbTransaction transaction,
+                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+        {
+
+            var scopeBuilder = this.GetScopeBuilder();
+            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName, connection, transaction);
+
+            var needToCreateScopeInfoTable = scopeInfoBuilder.NeedToCreateClientScopeInfoTable();
+
+            if (!needToCreateScopeInfoTable)
+                scopeInfoBuilder.DropClientScopeInfoTable();
+
             return context;
         }
 
@@ -38,7 +57,7 @@ namespace Dotmim.Sync
         /// Ensure the scope history is created on the remote provider.
         /// Contains all history for each client scope
         /// </summary>
-        public virtual async Task<SyncContext> EnsureServerHistoryScopeAsync(SyncContext context, string scopeInfoTableName, string scopeName,
+        public virtual async Task<SyncContext> EnsureServerHistoryScopeAsync(SyncContext context, string scopeInfoTableName,
                              DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
@@ -55,12 +74,31 @@ namespace Dotmim.Sync
             return context;
         }
 
+        /// <summary>
+        /// Drop the scope history
+        /// </summary>
+        public virtual async Task<SyncContext> DropServerHistoryScopeAsync(SyncContext context, string scopeInfoTableName,
+                             DbConnection connection, DbTransaction transaction,
+                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+        {
+
+            var scopeBuilder = this.GetScopeBuilder();
+            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName, connection, transaction);
+
+            var need = scopeInfoBuilder.NeedToCreateServerHistoryScopeInfoTable();
+
+            // create the scope info table if needed
+            if (!need)
+                scopeInfoBuilder.DropServerHistoryScopeInfoTable();
+
+            return context;
+        }
 
         /// <summary>
         /// Ensure the scope is created on the remote provider.
         /// The scope contains schema and last clean metadatas
         /// </summary>
-        public virtual async Task<SyncContext> EnsureServerScopeAsync(SyncContext context, string scopeInfoTableName, string scopeName,
+        public virtual async Task<SyncContext> EnsureServerScopeAsync(SyncContext context, string scopeInfoTableName,
                              DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
@@ -79,6 +117,28 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
+        /// Drop the scope created on the remote provider.
+        /// </summary>
+        public virtual async Task<SyncContext> DropServerScopeAsync(SyncContext context, string scopeInfoTableName,
+                             DbConnection connection, DbTransaction transaction,
+                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+        {
+
+            var scopeBuilder = this.GetScopeBuilder();
+            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName, connection, transaction);
+
+            var needToCreateScopeInfoTable = scopeInfoBuilder.NeedToCreateServerScopeInfoTable();
+
+            // create the scope info table if needed
+            if (!needToCreateScopeInfoTable)
+                scopeInfoBuilder.DropServerScopeInfoTable();
+
+            return context;
+
+        }
+
+
+        /// <summary>
         /// Get Client scope information
         /// </summary>
         public virtual async Task<(SyncContext, ScopeInfo)> GetClientScopeAsync(SyncContext context, string scopeInfoTableName, string scopeName,
@@ -90,6 +150,15 @@ namespace Dotmim.Sync
 
             var scopeBuilder = this.GetScopeBuilder();
             var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName, connection, transaction);
+
+            context.SyncStage = SyncStage.ScopeLoading;
+
+            // Intercept loading scope
+            var scopeLoadingArgs = new ScopeLoadingArgs(context, scopeName, connection, transaction);
+            await this.InterceptAsync(scopeLoadingArgs).ConfigureAwait(false);
+
+            if (cancellationToken.IsCancellationRequested)
+                cancellationToken.ThrowIfCancellationRequested();
 
             // get all scopes shared by all (identified by scopeName)
             scopes = scopeInfoBuilder.GetAllClientScopes(scopeName);
@@ -121,10 +190,13 @@ namespace Dotmim.Sync
             var localScope = scopes.FirstOrDefault();
 
             // Progress & Interceptor
-            context.SyncStage = SyncStage.ScopeLoading;
-            var scopeArgs = new ScopeArgs(context, localScope, connection, transaction);
+            context.SyncStage = SyncStage.ScopeLoaded;
+            var scopeArgs = new ScopeLoadedArgs(context, localScope, connection, transaction);
             this.ReportProgress(context, progress, scopeArgs);
             await this.InterceptAsync(scopeArgs).ConfigureAwait(false);
+
+            if (cancellationToken.IsCancellationRequested)
+                cancellationToken.ThrowIfCancellationRequested();
 
             return (context, localScope);
 
@@ -152,12 +224,15 @@ namespace Dotmim.Sync
                 serverScopes = new List<ServerScopeInfo>();
 
                 // create a new scope id for the current owner (could be server or client as well)
-                var scope = new ServerScopeInfo { Name = scopeName  };
+                var scope = new ServerScopeInfo
+                {
+                    Name = scopeName
+                };
 
                 scope = scopeInfoBuilder.InsertOrUpdateServerScopeInfo(scope);
                 serverScopes.Add(scope);
             }
-           
+
 
             // get first scope
             var localScope = serverScopes.FirstOrDefault();
@@ -189,7 +264,7 @@ namespace Dotmim.Sync
 
             // Progress & Interceptor
             context.SyncStage = SyncStage.ScopeSaved;
-            var scopeArgs = new ScopeArgs(context, scope, connection, transaction);
+            var scopeArgs = new ScopeLoadedArgs(context, scope, connection, transaction);
             this.ReportProgress(context, progress, scopeArgs);
             await this.InterceptAsync(scopeArgs).ConfigureAwait(false);
 

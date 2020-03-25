@@ -35,6 +35,13 @@ namespace Dotmim.Sync
         [IgnoreDataMember]
         public string Schema { get; set; }
 
+
+        /// <summary>
+        /// Gets or Sets the schema version
+        /// </summary>
+        [DataMember(Name = "v", IsRequired = false, EmitDefaultValue = false, Order = 4)]
+        public string Version { get; set; }
+
         /// <summary>
         /// Gets or Sets the last datetime when a sync has successfully ended.
         /// </summary>
@@ -44,13 +51,13 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets or Sets the last timestamp a sync has occured. This timestamp is set just 'before' sync start.
         /// </summary>
-        [DataMember(Name = "lst", IsRequired = false, EmitDefaultValue = false, Order = 4)]
+        [DataMember(Name = "lst", IsRequired = false, EmitDefaultValue = false, Order = 5)]
         public long LastSyncTimestamp { get; set; }
 
         /// <summary>
         /// Gets or Sets the last server timestamp a sync has occured for this scope client.
         /// </summary>
-        [DataMember(Name = "lsst", IsRequired = false, EmitDefaultValue = false, Order = 5)]
+        [DataMember(Name = "lsst", IsRequired = false, EmitDefaultValue = false, Order = 6)]
         public long LastServerSyncTimestamp { get; set; }
 
         /// <summary>
@@ -59,6 +66,5 @@ namespace Dotmim.Sync
         [IgnoreDataMember]
         public long LastSyncDuration { get; set; }
 
-       
     }
 }

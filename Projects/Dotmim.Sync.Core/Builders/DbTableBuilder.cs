@@ -8,6 +8,7 @@ using System.Data;
 using Dotmim.Sync.Log;
 
 using System.Diagnostics;
+using Dotmim.Sync.Enumerations;
 
 namespace Dotmim.Sync.Builders
 {
@@ -194,7 +195,7 @@ namespace Dotmim.Sync.Builders
         /// Apply the config.
         /// Create the table if needed
         /// </summary>
-        public void Create(DbConnection connection, DbTransaction transaction = null)
+        public void Create(SyncProvision provision,  DbConnection connection, DbTransaction transaction = null)
         {
             if (TableDescription.PrimaryKeys.Count <= 0)
                 throw new MissingPrimaryKeyException(TableDescription.TableName);
@@ -204,20 +205,24 @@ namespace Dotmim.Sync.Builders
             if (!alreadyOpened)
                 connection.Open();
 
-            this.CreateTable(connection, transaction);
+            if (provision.HasFlag(SyncProvision.Table))
+                this.CreateTable(connection, transaction);
 
-            this.CreateTrackingTable(connection, transaction);
+            if (provision.HasFlag(SyncProvision.TrackingTable))
+                this.CreateTrackingTable(connection, transaction);
 
-            this.CreateTriggers(connection, transaction);
+            if (provision.HasFlag(SyncProvision.Triggers))
+                this.CreateTriggers(connection, transaction);
 
-            this.CreateStoredProcedures(connection, transaction);
+            if (provision.HasFlag(SyncProvision.StoredProcedures))
+                this.CreateStoredProcedures(connection, transaction);
 
             if (!alreadyOpened)
                 connection.Close();
         }
 
 
-        public void DropProcedures(DbConnection connection, DbTransaction transaction = null)
+        public void DropStoredProcedures(DbConnection connection, DbTransaction transaction = null)
         {
             var alreadyOpened = connection.State != ConnectionState.Closed;
 
@@ -298,20 +303,24 @@ namespace Dotmim.Sync.Builders
         /// <summary>
         /// Deprovision table
         /// </summary>
-        public void Drop(DbConnection connection, DbTransaction transaction = null)
+        public void Drop(SyncProvision provision, DbConnection connection, DbTransaction transaction = null)
         {
             var alreadyOpened = connection.State != ConnectionState.Closed;
 
             if (!alreadyOpened)
                 connection.Open();
 
-            this.DropProcedures(connection, transaction);
+            if (provision.HasFlag(SyncProvision.StoredProcedures))
+                this.DropStoredProcedures(connection, transaction);
 
-            this.DropTriggers(connection, transaction);
+            if (provision.HasFlag(SyncProvision.Triggers))
+                this.DropTriggers(connection, transaction);
 
-            this.DropTrackingTable(connection, transaction);
+            if (provision.HasFlag(SyncProvision.TrackingTable))
+                this.DropTrackingTable(connection, transaction);
 
-            this.DropTable(connection, transaction);
+            if (provision.HasFlag(SyncProvision.Table))
+                this.DropTable(connection, transaction);
 
             if (!alreadyOpened)
                 connection.Close();

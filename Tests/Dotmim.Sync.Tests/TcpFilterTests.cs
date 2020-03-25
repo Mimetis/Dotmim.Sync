@@ -39,7 +39,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Gets the filter parameter value
         /// </summary>
-        public abstract List<SyncParameter> FilterParameters { get; }
+        public abstract SyncParameters FilterParameters { get; }
 
         /// <summary>
         /// Gets the clients type we want to tests
@@ -54,18 +54,12 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Get the server rows count
         /// </summary>
-        public abstract int GetServerDatabaseRowsCount((string DatabaseName, ProviderType ProviderType, IOrchestrator Orchestrator) t);
-        
-        /// <summary>
-        /// Create the remote orchestrator
-        /// </summary>
-        public abstract RemoteOrchestrator CreateRemoteOrchestrator(ProviderType providerType, string dbName);
+        public abstract int GetServerDatabaseRowsCount((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) t);
 
         /// <summary>
-        /// Create a local orchestrator
+        /// Create a provider
         /// </summary>
-        public abstract LocalOrchestrator CreateLocalOrchestrator(ProviderType providerType, string dbName);
-
+        public abstract CoreProvider CreateProvider(ProviderType providerType, string dbName);
 
         /// <summary>
         /// Create database, seed it, with or without schema
@@ -74,7 +68,7 @@ namespace Dotmim.Sync.Tests
         /// <param name="useSeeding"></param>
         /// <param name="useFallbackSchema"></param>
         public abstract Task EnsureDatabaseSchemaAndSeedAsync((string DatabaseName,
-            ProviderType ProviderType, IOrchestrator Orchestrator) t, bool useSeeding = false, bool useFallbackSchema = false);
+            ProviderType ProviderType, CoreProvider Provider) t, bool useSeeding = false, bool useFallbackSchema = false);
 
 
         // abstract fixture used to run the tests
@@ -86,12 +80,12 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Gets the remote orchestrator and its database name
         /// </summary>
-        public (string DatabaseName, ProviderType ProviderType, RemoteOrchestrator RemoteOrchestrator) Server { get; private set; }
+        public (string DatabaseName, ProviderType ProviderType, CoreProvider Provider) Server { get; private set; }
 
         /// <summary>
         /// Gets the dictionary of all local orchestrators with database name as key
         /// </summary>
-        public List<(string DatabaseName, ProviderType ProviderType, LocalOrchestrator LocalOrchestrator)> Clients { get; set; }
+        public List<(string DatabaseName, ProviderType ProviderType, CoreProvider Provider)> Clients { get; set; }
 
         /// <summary>
         /// Gets a bool indicating if we should generate the schema for tables
@@ -134,20 +128,20 @@ namespace Dotmim.Sync.Tests
             var serverDatabaseName = HelperDatabase.GetRandomName("tcpfilt_sv_");
 
             // create remote orchestrator
-            var remoteOrchestrator = this.CreateRemoteOrchestrator(this.ServerType, serverDatabaseName);
+            var serverProvider = this.CreateProvider(this.ServerType, serverDatabaseName);
 
-            this.Server = (serverDatabaseName, this.ServerType, remoteOrchestrator);
+            this.Server = (serverDatabaseName, this.ServerType, serverProvider);
 
             // Get all clients providers
-            Clients = new List<(string DatabaseName, ProviderType ProviderType, LocalOrchestrator LocalOrhcestrator)>(this.ClientsType.Count);
+            Clients = new List<(string DatabaseName, ProviderType ProviderType, CoreProvider Provider)>(this.ClientsType.Count);
 
             // Generate Client database
             foreach (var clientType in this.ClientsType)
             {
                 var dbCliName = HelperDatabase.GetRandomName("tcpfilt_cli_");
-                var localOrchestrator = this.CreateLocalOrchestrator(clientType, dbCliName);
+                var localProvider = this.CreateProvider(clientType, dbCliName);
 
-                this.Clients.Add((dbCliName, clientType, localOrchestrator));
+                this.Clients.Add((dbCliName, clientType, localProvider));
             }
         }
 
@@ -183,7 +177,7 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator, this.FilterSetup);
+                var agent = new SyncAgent(client.Provider, Server.Provider, new SyncOptions(), this.FilterSetup);
                 agent.Parameters.AddRange(this.FilterParameters);
 
                 var s = await agent.SynchronizeAsync();
@@ -192,23 +186,23 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalChangesUploaded);
 
                 // Check we have the correct columns replicated
-                using (var c = client.LocalOrchestrator.Provider.CreateConnection())
+                using (var c = client.Provider.CreateConnection())
                 {
                     await c.OpenAsync();
 
                     foreach (var setupTable in FilterSetup.Tables)
                     {
-                        var tableClientManagerFactory = client.LocalOrchestrator.Provider.GetTableManagerFactory(setupTable.TableName, setupTable.SchemaName);
+                        var tableClientManagerFactory = client.Provider.GetTableManagerFactory(setupTable.TableName, setupTable.SchemaName);
                         var tableClientManager = tableClientManagerFactory.CreateManagerTable(c);
                         var clientColumns = tableClientManager.GetColumns();
 
                         // Check we have the same columns count
                         if (setupTable.Columns.Count == 0)
                         {
-                            using (var serverConnection = this.Server.RemoteOrchestrator.Provider.CreateConnection())
+                            using (var serverConnection = this.Server.Provider.CreateConnection())
                             {
                                 serverConnection.Open();
-                                var tableServerManagerFactory = this.Server.RemoteOrchestrator.Provider.GetTableManagerFactory(setupTable.TableName, setupTable.SchemaName);
+                                var tableServerManagerFactory = this.Server.Provider.GetTableManagerFactory(setupTable.TableName, setupTable.SchemaName);
                                 var tableServerManager = tableServerManagerFactory.CreateManagerTable(serverConnection);
                                 var serverColumns = tableClientManager.GetColumns();
 
@@ -254,8 +248,7 @@ namespace Dotmim.Sync.Tests
             foreach (var client in this.Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator,
-                                          this.FilterSetup, options);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, this.FilterSetup);
                 agent.Parameters.AddRange(this.FilterParameters);
 
                 var s = await agent.SynchronizeAsync();
@@ -287,8 +280,7 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator,
-                                          this.FilterSetup, options);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, this.FilterSetup);
 
                 agent.Parameters.AddRange(this.FilterParameters);
 
@@ -296,7 +288,7 @@ namespace Dotmim.Sync.Tests
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
-                Assert.Equal(0, s.TotalSyncConflicts);
+                Assert.Equal(0, s.TotalResolvedConflicts);
             }
 
             // Create a new address & customer address on server
@@ -324,15 +316,15 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator,
-                                          this.FilterSetup, options);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, this.FilterSetup);
+
                 agent.Parameters.AddRange(this.FilterParameters);
 
                 var s = await agent.SynchronizeAsync();
 
                 Assert.Equal(2, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
-                Assert.Equal(0, s.TotalSyncConflicts);
+                Assert.Equal(0, s.TotalResolvedConflicts);
             }
         }
 
@@ -358,15 +350,15 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator,
-                                          this.FilterSetup, options);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, this.FilterSetup);
+
                 agent.Parameters.AddRange(this.FilterParameters);
 
                 var s = await agent.SynchronizeAsync();
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
-                Assert.Equal(0, s.TotalSyncConflicts);
+                Assert.Equal(0, s.TotalResolvedConflicts);
             }
 
             // Insert 4 lines on each client
@@ -415,8 +407,8 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator,
-                                          this.FilterSetup, options);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, this.FilterSetup);
+
                 agent.Parameters.AddRange(this.FilterParameters);
 
                 var s = await agent.SynchronizeAsync();
@@ -431,8 +423,8 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator,
-                                          this.FilterSetup, options);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, this.FilterSetup);
+
                 agent.Parameters.AddRange(this.FilterParameters);
 
                 await agent.SynchronizeAsync();
@@ -461,15 +453,15 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator,
-                                          this.FilterSetup, options);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, this.FilterSetup);
+
                 agent.Parameters.AddRange(this.FilterParameters);
 
                 var s = await agent.SynchronizeAsync();
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
-                Assert.Equal(0, s.TotalSyncConflicts);
+                Assert.Equal(0, s.TotalResolvedConflicts);
             }
 
             // Insert 4 lines on each client
@@ -514,8 +506,8 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator,
-                                          this.FilterSetup, options);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, this.FilterSetup);
+
                 agent.Parameters.AddRange(this.FilterParameters);
 
                 var s = await agent.SynchronizeAsync();
@@ -529,8 +521,8 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator,
-                                          this.FilterSetup, options);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, this.FilterSetup);
+
                 agent.Parameters.AddRange(this.FilterParameters);
 
                 await agent.SynchronizeAsync();
@@ -555,8 +547,8 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator,
-                                          this.FilterSetup, options);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, this.FilterSetup);
+
                 agent.Parameters.AddRange(this.FilterParameters);
 
                 var s = await agent.SynchronizeAsync();
@@ -573,9 +565,8 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert one row in two tables on server, should be correctly sync on all clients
         /// </summary>
-        [Theory, TestPriority(6)]
-        [ClassData(typeof(SyncOptionsData))]
-        public async Task Snapshot_Initialize(SyncOptions options)
+        [Fact]
+        public async Task Snapshot_Initialize()
         {
             // create a server schema with seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
@@ -586,21 +577,21 @@ namespace Dotmim.Sync.Tests
 
             // snapshot directory
             var directory = Path.Combine(Environment.CurrentDirectory, "Snapshots");
+            // ----------------------------------
+            // Setting correct options for sync agent to be able to reach snapshot
+            // ----------------------------------
+            var options = new SyncOptions
+            {
+                SnapshotsDirectory = directory,
+                BatchSize = 3000
+            };
 
             // ----------------------------------
             // Create a snapshot
             // ----------------------------------
-            var snapshotContext = new SyncContext();
-            snapshotContext.Parameters = new SyncParameters();
-            snapshotContext.Parameters.AddRange(this.FilterParameters);
-            
-            Server.RemoteOrchestrator.SetContext(snapshotContext);
-            await Server.RemoteOrchestrator.CreateSnapshotAsync();
+            var remoteOrchestrator = new RemoteOrchestrator(Server.Provider, options, this.FilterSetup);
+            await remoteOrchestrator.CreateSnapshotAsync(this.FilterParameters);
 
-            // ----------------------------------
-            // Setting correct options for sync agent to be able to reach snapshot
-            // ----------------------------------
-            options.SnapshotsDirectory = directory;
 
             // ----------------------------------
             // Add rows on server AFTER snapshot
@@ -634,15 +625,15 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator,
-                                          this.FilterSetup, options);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, this.FilterSetup);
+
                 agent.Parameters.AddRange(this.FilterParameters);
 
                 var s = await agent.SynchronizeAsync();
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
-                Assert.Equal(0, s.TotalSyncConflicts);
+                Assert.Equal(0, s.TotalResolvedConflicts);
             }
         }
 
@@ -669,8 +660,7 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator,
-                                          this.FilterSetup, options);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, this.FilterSetup);
 
                 agent.Parameters.AddRange(this.FilterParameters);
 
@@ -678,7 +668,7 @@ namespace Dotmim.Sync.Tests
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
-                Assert.Equal(0, s.TotalSyncConflicts);
+                Assert.Equal(0, s.TotalResolvedConflicts);
             }
 
             // Create a new address & customer address on server
@@ -713,11 +703,11 @@ namespace Dotmim.Sync.Tests
                 serverDbCtx.CustomerAddress.Add(newCustomerAddress2);
 
                 await serverDbCtx.SaveChangesAsync();
-                
+
                 // Update customer
                 var customer = serverDbCtx.Customer.Find(AdventureWorksContext.CustomerIdForFilter);
                 customer.FirstName = "Orlanda";
-                
+
                 await serverDbCtx.SaveChangesAsync();
             }
 
@@ -725,15 +715,15 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.LocalOrchestrator, Server.RemoteOrchestrator,
-                                          this.FilterSetup, options);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, this.FilterSetup);
+
                 agent.Parameters.AddRange(this.FilterParameters);
 
                 var s = await agent.SynchronizeAsync();
 
                 Assert.Equal(5, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
-                Assert.Equal(0, s.TotalSyncConflicts);
+                Assert.Equal(0, s.TotalResolvedConflicts);
             }
         }
 
