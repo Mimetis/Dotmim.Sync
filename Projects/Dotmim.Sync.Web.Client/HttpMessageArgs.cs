@@ -1,13 +1,9 @@
 ﻿using Dotmim.Sync.Batch;
 using Dotmim.Sync.Builders;
-
 using System;
 using System.Collections.Generic;
 using System.Text;
-
 using Dotmim.Sync.Enumerations;
-
-using Dotmim.Sync.Messages;
 using System.Runtime.Serialization;
 using System.Data.Common;
 

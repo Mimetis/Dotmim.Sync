@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Dotmim.Sync.Messages
+namespace Dotmim.Sync
 {
     /// <summary>
     /// Message exchanged during the Get Changes Batch sync stage

@@ -16,14 +16,37 @@ namespace Dotmim.Sync
         /// <summary>
         /// update configuration object with tables desc from server database
         /// </summary>
-        public virtual async Task<SyncContext> DeleteMetadatasAsync(SyncContext context, SyncSet schema, long timestampLimit,
+        public virtual Task<SyncContext> DeleteMetadatasAsync(SyncContext context, SyncSetup setup, long timestampLimit,
                              DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-             foreach (var schemaTable in schema.Tables)
-            {
-                var tableBuilder = this.GetTableBuilder(schemaTable);
 
+            SyncSet schema = new SyncSet();
+
+            foreach (var setupTable in setup.Tables)
+                schema.Tables.Add(new SyncTable(setupTable.TableName, setupTable.SchemaName));
+
+
+            return DeleteMetadatasAsync(context, schema, timestampLimit, connection, transaction, cancellationToken, progress);
+
+        }
+
+        public virtual async Task<SyncContext> DeleteMetadatasAsync(SyncContext context, SyncSet schema, long timestampLimit,
+                            DbConnection connection, DbTransaction transaction,
+                            CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        {
+            foreach (var syncTable in schema.Tables)
+            {
+                // get table builder
+                var tableBuilder = this.GetTableBuilder(syncTable);
+
+                var tableHelper = tableBuilder.CreateTableBuilder(connection, transaction);
+
+                // check if table exists
+                if (tableHelper.NeedToCreateTable())
+                    return await Task.FromResult(context).ConfigureAwait(false);
+
+                // Create sync adapter
                 var syncAdapter = tableBuilder.CreateSyncAdapter(connection, transaction);
 
                 // Delete metadatas

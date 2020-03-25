@@ -7,6 +7,10 @@ using Dotmim.Sync.Enumerations;
 
 namespace Dotmim.Sync
 {
+
+    /// <summary>
+    /// Raised as an argument when an apply is failing. Waiting from user for the conflict resolution
+    /// </summary>
     public class ApplyChangesFailedArgs : ProgressArgs
     {
         ConflictResolution resolution;
