@@ -7,11 +7,30 @@ using System.Text;
 namespace Dotmim.Sync
 {
     /// <summary>
-    /// Args generated before and after a scope has been applied
+    /// Args generated when a scope is about to be loaded
     /// </summary>
-    public class ScopeArgs : ProgressArgs
+    public class ScopeLoadingArgs : ProgressArgs
     {
-        public ScopeArgs(SyncContext context, ScopeInfo scope, DbConnection connection, DbTransaction transaction) 
+        public ScopeLoadingArgs(SyncContext context, string scopeName, DbConnection connection, DbTransaction transaction)
+            : base(context, connection, transaction)
+        {
+            this.ScopeName = scopeName;
+        }
+
+        /// <summary>
+        /// Gets the scope name to load from the client database
+        /// </summary>
+        public string ScopeName { get; }
+
+        public override string Message => this.ScopeName;
+
+    }
+    /// <summary>
+    /// Args generated when a scope has been loaded
+    /// </summary>
+    public class ScopeLoadedArgs : ProgressArgs
+    {
+        public ScopeLoadedArgs(SyncContext context, ScopeInfo scope, DbConnection connection, DbTransaction transaction) 
             : base(context, connection, transaction)
         {
             this.ScopeInfo = scope;

@@ -46,6 +46,14 @@ namespace Dotmim.Sync.Web.Client
         public byte[] Content { get; }
     }
 
+    public class HttpMessageEnsureSchemaResponseArgs : ProgressArgs
+    {
+        public HttpMessageEnsureSchemaResponseArgs(byte[] content) : base(null, null, null)
+            => this.Content = content;
+
+        public byte[] Content { get; }
+    }
+
     public class HttpMessageEnsureScopesRequestArgs : ProgressArgs
     {
         public HttpMessageEnsureScopesRequestArgs(byte[] content) : base(null, null, null)

@@ -124,6 +124,32 @@ namespace Dotmim.Sync
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
+        /// Intercept the provider action when a scope is about to be loaded from client database
+        /// </summary>
+        public static void OnScopeLoading(this IOrchestrator orchestrator, Func<ScopeLoadingArgs, Task> func)
+            => orchestrator.SetInterceptor(func);
+
+        /// <summary>
+        /// Intercept the provider action when a scope is about to be loaded from client database
+        /// </summary>
+        public static void OnScopeLoading(this IOrchestrator orchestrator, Action<ScopeLoadingArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the provider action when a scope is loaded from client database
+        /// </summary>
+        public static void OnScopeLoaded(this IOrchestrator orchestrator, Func<ScopeLoadedArgs, Task> func)
+            => orchestrator.SetInterceptor(func);
+
+        /// <summary>
+        /// Intercept the provider action when a scope is loaded from client database
+        /// </summary>
+        public static void OnScopeLoaded(this IOrchestrator orchestrator, Action<ScopeLoadedArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+
+
+        /// <summary>
         /// Intercept the provider when schema is readed
         /// </summary>
         public static void OnSchema(this IOrchestrator orchestrator, Func<SchemaArgs, Task> func)

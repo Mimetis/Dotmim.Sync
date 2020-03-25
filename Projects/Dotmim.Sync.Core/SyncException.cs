@@ -387,6 +387,37 @@ namespace Dotmim.Sync
         public SnapshotNotExistsException(string directoryName) : base(string.Format(message, directoryName)) { }
     }
 
+    /// <summary>
+    /// Occurs when trying to create a snapshot but no directory and size have been set in the options
+    /// </summary>
+    public class SnapshotMissingMandatariesOptionsException : Exception
+    {
+        const string message = "To be able to create a snapshot, you need to precise SnapshotsDirectory and BatchSize in the SyncOptions from the RemoteOrchestrator";
+
+        public SnapshotMissingMandatariesOptionsException() : base(message) { }
+    }
+
+
+    /// <summary>
+    /// Occurs when options references are not the same
+    /// </summary>
+    public class OptionsReferencesAreNotSameExecption : Exception
+    {
+        const string message = "Remote orchestrator options instance is different from Local orchestrator options instance. Please use the same instance.";
+
+        public OptionsReferencesAreNotSameExecption() : base(message) { }
+    }
+
+    /// <summary>
+    /// Occurs when setup references are not the same
+    /// </summary>
+    public class SetupReferencesAreNotSameExecption : Exception
+    {
+        const string message = "Remote orchestrator setup instance is different from Local orchestrator setup instance. Please use the same instance.";
+
+        public SetupReferencesAreNotSameExecption() : base(message) { }
+    }
+
 
     /// <summary>
     /// Occurs when a hash from client or server is different from the hash recalculated from server or client

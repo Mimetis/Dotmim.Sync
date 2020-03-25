@@ -31,47 +31,30 @@ namespace Dotmim.Sync.Tests
         public override List<ProviderType> ClientsType => new List<ProviderType>
             { ProviderType.Sql, ProviderType.Sql};
 
-        public override ProviderType ServerType =>
-            ProviderType.Sql;
+        public override ProviderType ServerType => ProviderType.Sql;
 
 
-        public override RemoteOrchestrator CreateRemoteOrchestrator(ProviderType providerType, string dbName)
-        {
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var orchestrator = new RemoteOrchestrator(new SqlSyncProvider(cs));
-
-            return orchestrator;
-        }
-
-        public override LocalOrchestrator CreateLocalOrchestrator(ProviderType providerType, string dbName)
+        public override CoreProvider CreateProvider(ProviderType providerType, string dbName)
         {
             var cs = HelperDatabase.GetConnectionString(providerType, dbName);
-            var orchestrator = new LocalOrchestrator();
-
             switch (providerType)
             {
-                case ProviderType.Sql:
-                    orchestrator.Provider = new SqlSyncProvider(cs);
-                    break;
                 case ProviderType.MySql:
-                    orchestrator.Provider = new MySqlSyncProvider(cs);
-                    break;
+                    return new MySqlSyncProvider(cs);
                 case ProviderType.Sqlite:
-                    orchestrator.Provider = new SqliteSyncProvider(cs);
-                    break;
+                    return new SqliteSyncProvider(cs);
+                case ProviderType.Sql:
+                default:
+                    return new SqlSyncProvider(cs);
             }
-
-            return orchestrator;
         }
-
-
 
         public override Task CreateDatabaseAsync(ProviderType providerType, string dbName, bool recreateDb = true)
         {
             return HelperDatabase.CreateDatabaseAsync(providerType, dbName, recreateDb);
         }
 
-        public override async Task EnsureDatabaseSchemaAndSeedAsync((string DatabaseName, ProviderType ProviderType, IOrchestrator Orchestrator) t, bool useSeeding = false, bool useFallbackSchema = false)
+        public override async Task EnsureDatabaseSchemaAndSeedAsync((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) t, bool useSeeding = false, bool useFallbackSchema = false)
         {
             AdventureWorksContext ctx = null;
             try
@@ -96,7 +79,7 @@ namespace Dotmim.Sync.Tests
         /// Get the server database rows count
         /// </summary>
         /// <returns></returns>
-        public override int GetServerDatabaseRowsCount((string DatabaseName, ProviderType ProviderType, IOrchestrator Orchestrator) t)
+        public override int GetServerDatabaseRowsCount((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) t)
         {
             int totalCountRows = 0;
 

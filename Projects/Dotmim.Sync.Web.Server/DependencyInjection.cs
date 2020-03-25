@@ -5,6 +5,8 @@ using System.Runtime.CompilerServices;
 using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.AspNetCore.Hosting;
 
 [assembly: InternalsVisibleTo("Dotmim.Sync.Tests")]
 
@@ -24,23 +26,29 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="options">Options, not shared with client, but only applied locally. Can be null</param>
 
         public static IServiceCollection AddSyncServer(this IServiceCollection serviceCollection, Type providerType,
-                                                        string connectionString, string scopeName = SyncOptions.DefaultScopeName, SyncSetup setup = null, WebServerOptions options = null)
+                                                        string connectionString, string scopeName = SyncOptions.DefaultScopeName, SyncSetup setup = null, SyncOptions options = null, WebServerOptions webServerOptions = null)
         {
             if (string.IsNullOrWhiteSpace(connectionString))
                 throw new ArgumentNullException(nameof(connectionString));
+
+            // Create default web server options
+            if (webServerOptions == null)
+                webServerOptions = new WebServerOptions();
 
             var serviceProvider = serviceCollection.BuildServiceProvider();
 
             // Get all registered server providers with schema and options
             var webServerProperties = serviceProvider.GetService<WebServerProperties>();
 
+            // On first time, inject the singleton in the service collection provider
             if (webServerProperties == null)
             {
-                serviceCollection.AddSingleton<WebServerProperties>();
-                serviceProvider = serviceCollection.BuildServiceProvider();
-            }
+                var cache = serviceProvider.GetService<IMemoryCache>();
+                var env = serviceProvider.GetService<IHostingEnvironment>();
 
-            webServerProperties = serviceProvider.GetService<WebServerProperties>();
+                webServerProperties = new WebServerProperties(cache, env);
+                serviceCollection.AddSingleton(webServerProperties);
+            }
 
             // Check if we don't have already added this scope name provider to the remote orchestrator list
             if (webServerProperties.Contains(scopeName))
@@ -51,7 +59,7 @@ namespace Microsoft.Extensions.DependencyInjection
             provider.ConnectionString = connectionString;
 
             // Create orchestrator
-            var webServerOrchestrator = new WebServerOrchestrator(provider, options, setup, webServerProperties.Cache);
+            var webServerOrchestrator = new WebServerOrchestrator(provider, options, webServerOptions, setup, webServerProperties.Cache, scopeName);
 
             // add it to the singleton collection
             webServerProperties.Add(webServerOrchestrator);
@@ -59,17 +67,45 @@ namespace Microsoft.Extensions.DependencyInjection
             return serviceCollection;
         }
 
-        public static IServiceCollection AddSyncServer<TProvider>(this IServiceCollection serviceCollection, string connectionString, string scopeName = SyncOptions.DefaultScopeName, SyncSetup setup = null, WebServerOptions options = null) where TProvider : CoreProvider, new()
-            => serviceCollection.AddSyncServer(typeof(TProvider), connectionString, scopeName, setup, options);
+        public static IServiceCollection AddSyncServer(this IServiceCollection serviceCollection, WebServerOrchestrator webServerOrchestrator)
+        {
 
-        public static IServiceCollection AddSyncServer<TProvider>(this IServiceCollection serviceCollection, string connectionString, SyncSetup setup = null, WebServerOptions options = null) where TProvider : CoreProvider, new()
-             => serviceCollection.AddSyncServer(typeof(TProvider), connectionString, SyncOptions.DefaultScopeName, setup, options);
+            var serviceProvider = serviceCollection.BuildServiceProvider();
 
-        public static IServiceCollection AddSyncServer<TProvider>(this IServiceCollection serviceCollection, string connectionString, string scopeName = SyncOptions.DefaultScopeName, string[] tables = default, WebServerOptions options = null) where TProvider : CoreProvider, new()
-            => serviceCollection.AddSyncServer(typeof(TProvider), connectionString, scopeName, new SyncSetup(tables), options);
+            // Get all registered server providers with schema and options
+            var webServerProperties = serviceProvider.GetService<WebServerProperties>();
 
-        public static IServiceCollection AddSyncServer<TProvider>(this IServiceCollection serviceCollection, string connectionString, string[] tables = default, WebServerOptions options = null) where TProvider : CoreProvider, new()
-            => serviceCollection.AddSyncServer(typeof(TProvider), connectionString, SyncOptions.DefaultScopeName, new SyncSetup(tables), options);
+            if (webServerProperties == null)
+            {
+                var cache = serviceProvider.GetService<IMemoryCache>();
+                var env = serviceProvider.GetService<IHostingEnvironment>();
+
+                webServerProperties = new WebServerProperties(cache, env); 
+                serviceCollection.AddSingleton(webServerProperties);
+            }
+           
+            // Check if we don't have already added this scope name provider to the remote orchestrator list
+            if (webServerProperties.Contains(webServerOrchestrator.ScopeName))
+                throw new ArgumentException($"Orchestrator with scope name {webServerOrchestrator.ScopeName} already exists in the service collection");
+
+            // add it to the singleton collection
+            webServerProperties.Add(webServerOrchestrator);
+
+            return serviceCollection;
+        }
+
+
+        public static IServiceCollection AddSyncServer<TProvider>(this IServiceCollection serviceCollection, string connectionString, string scopeName = SyncOptions.DefaultScopeName, SyncSetup setup = null, SyncOptions options = null, WebServerOptions webServerOptions = null) where TProvider : CoreProvider, new()
+        => serviceCollection.AddSyncServer(typeof(TProvider), connectionString, scopeName, setup, options, webServerOptions);
+
+        public static IServiceCollection AddSyncServer<TProvider>(this IServiceCollection serviceCollection, string connectionString, SyncSetup setup = null, SyncOptions options = null, WebServerOptions webServerOptions = null) where TProvider : CoreProvider, new()
+             => serviceCollection.AddSyncServer(typeof(TProvider), connectionString, SyncOptions.DefaultScopeName, setup, options, webServerOptions);
+
+        public static IServiceCollection AddSyncServer<TProvider>(this IServiceCollection serviceCollection, string connectionString, string scopeName = SyncOptions.DefaultScopeName, string[] tables = default, SyncOptions options = null, WebServerOptions webServerOptions = null) where TProvider : CoreProvider, new()
+            => serviceCollection.AddSyncServer(typeof(TProvider), connectionString, scopeName, new SyncSetup(tables), options, webServerOptions);
+
+        public static IServiceCollection AddSyncServer<TProvider>(this IServiceCollection serviceCollection, string connectionString, string[] tables = default, SyncOptions options = null, WebServerOptions webServerOptions = null) where TProvider : CoreProvider, new()
+            => serviceCollection.AddSyncServer(typeof(TProvider), connectionString, SyncOptions.DefaultScopeName, new SyncSetup(tables), options, webServerOptions);
 
     }
 }

@@ -69,14 +69,6 @@ namespace Dotmim.Sync
         [DataMember(Name = "f", IsRequired = false, EmitDefaultValue = false, Order = 10)]
         public SyncFilters Filters { get; set; }
 
-
-        /// <summary>
-        /// Gets or Sets the current scope name
-        /// </summary>
-        [DataMember(Name = "v", IsRequired = false, EmitDefaultValue = false, Order = 11)]
-        public string Version { get; set; }
-
-
         /// <summary>
         /// Only used for Serialization
         /// </summary>
@@ -85,7 +77,6 @@ namespace Dotmim.Sync
             this.Tables = new SyncTables(this);
             this.Relations = new SyncRelations(this);
             this.Filters = new SyncFilters(this);
-            this.Version = "0.4";
         }
 
         /// <summary>
@@ -115,7 +106,6 @@ namespace Dotmim.Sync
             clone.TrackingTablesSuffix = this.TrackingTablesSuffix;
             clone.TriggersPrefix = this.TriggersPrefix;
             clone.TriggersSuffix = this.TriggersSuffix;
-            clone.Version = this.Version;
 
             if (!includeTables)
                 return clone;
@@ -231,10 +221,6 @@ namespace Dotmim.Sync
                 this.TriggersPrefix != otherSet.TriggersPrefix ||
                 this.TriggersSuffix != otherSet.TriggersSuffix)
                 return false;
-
-            if (this.Version != otherSet.Version)
-                return false;
-
 
             if (this.Relations != null && otherSet.Relations == null || this.Relations == null && otherSet.Filters != null)
                 return false;

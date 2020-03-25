@@ -63,16 +63,22 @@ namespace Dotmim.Sync.Web.Client
         public ContainerSet Changes { get; set; }
 
         /// <summary>
-        /// Gets the changes applied stats from the server
+        /// Gets the changes stats from the server
         /// </summary>
-        [DataMember(Name = "cs", IsRequired = true, Order = 7)]
-        public DatabaseChangesSelected ChangesSelected { get; set; }
+        [DataMember(Name = "scs", IsRequired = true, Order = 7)]
+        public DatabaseChangesSelected ServerChangesSelected { get; set; }
+
+        /// <summary>
+        /// Gets the changes stats from the server
+        /// </summary>
+        [DataMember(Name = "cca", IsRequired = true, Order = 8)]
+        public DatabaseChangesApplied ClientChangesApplied { get; set; }
 
         /// <summary>
         /// Gets or Sets the conflict resolution policy from the server
         /// </summary>
 
-        [DataMember(Name = "policy", IsRequired = true, Order = 8)]
+        [DataMember(Name = "policy", IsRequired = true, Order = 9)]
         public ConflictResolutionPolicy ConflictResolutionPolicy { get; set; }
 
 
@@ -106,8 +112,8 @@ namespace Dotmim.Sync.Web.Client
 
         public HttpMessageSendChangesRequest(SyncContext context, ScopeInfo scope)
         {
-            this.SyncContext = context ?? throw new ArgumentNullException(nameof(context));
-            this.Scope = scope ?? throw new ArgumentNullException(nameof(scope));
+            this.SyncContext = context;
+            this.Scope = scope;
         }
 
         [DataMember(Name = "sc", IsRequired = true, Order = 1)]
@@ -138,17 +144,18 @@ namespace Dotmim.Sync.Web.Client
         public ContainerSet Changes { get; set; }
     }
 
-    [DataContract(Name = "ensureres"), Serializable]
-    public class HttpMessageEnsureScopesResponse
+    [DataContract(Name = "ensureschemares"), Serializable]
+    public class HttpMessageEnsureSchemaResponse
     {
-        public HttpMessageEnsureScopesResponse()
+        public HttpMessageEnsureSchemaResponse()
         {
 
         }
-        public HttpMessageEnsureScopesResponse(SyncContext context, SyncSet schema)
+        public HttpMessageEnsureSchemaResponse(SyncContext context, SyncSet schema, string version)
         {
             this.SyncContext = context ?? throw new ArgumentNullException(nameof(context));
             this.Schema = schema ?? throw new ArgumentNullException(nameof(schema));
+            this.Version = version ?? throw new ArgumentNullException(nameof(version));
         }
 
         [DataMember(Name = "sc", IsRequired = true, Order = 1)]
@@ -159,7 +166,40 @@ namespace Dotmim.Sync.Web.Client
         /// </summary>
         [DataMember(Name = "schema", IsRequired = true, Order = 2)]
         public SyncSet Schema { get; set; }
+
+        /// <summary>
+        /// Gets or Sets the schema version
+        /// </summary>
+        [DataMember(Name = "v", IsRequired = true, Order = 3)]
+        public string Version { get; set; }
     }
+
+
+    [DataContract(Name = "ensurescopesres"), Serializable]
+    public class HttpMessageEnsureScopesResponse
+    {
+        public HttpMessageEnsureScopesResponse()
+        {
+
+        }
+        public HttpMessageEnsureScopesResponse(SyncContext context, ServerScopeInfo serverScopeInfo)
+        {
+            this.SyncContext = context ?? throw new ArgumentNullException(nameof(context));
+            this.ServerScopeInfo = serverScopeInfo ?? throw new ArgumentNullException(nameof(serverScopeInfo));
+        }
+
+        [DataMember(Name = "sc", IsRequired = true, Order = 1)]
+        public SyncContext SyncContext { get; set; }
+
+        /// <summary>
+        /// Gets or Sets the schema option (without schema itself, that is not serializable)
+        /// </summary>
+        [DataMember(Name = "serverscope", IsRequired = true, Order = 2)]
+        public ServerScopeInfo ServerScopeInfo { get; set; }
+    }
+
+
+
 
     [DataContract(Name = "ensurereq"), Serializable]
     public class HttpMessageEnsureScopesRequest

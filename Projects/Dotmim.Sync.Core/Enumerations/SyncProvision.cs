@@ -11,11 +11,12 @@ namespace Dotmim.Sync.Enumerations
     [Flags]
     public enum SyncProvision
     {
-        TrackingTable = 1,
-        StoredProcedures = 2,
-        Triggers = 4,
-        Scope = 8,
-        All = 16,
-        Table = 32
+        Table = 1,
+        TrackingTable = 2,
+        StoredProcedures = 4,
+        Triggers = 8,
+        ClientScope = 16,
+        ServerScope = 32,
+        ServerHistoryScope = 64,
     }
 }
