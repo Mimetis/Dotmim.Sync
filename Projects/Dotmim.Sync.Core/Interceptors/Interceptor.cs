@@ -30,259 +30,259 @@ namespace Dotmim.Sync
         }
 
 
-        /// <summary>
-        /// Intercept the provider action whenever a connection is opened
-        /// </summary>
-        public void OnConnectionOpen(Func<ConnectionOpenArgs, Task> func)
-            => this.GetInterceptor<ConnectionOpenArgs>().Set(func);
+        ///// <summary>
+        ///// Intercept the provider action whenever a connection is opened
+        ///// </summary>
+        //public void OnConnectionOpen(Func<ConnectionOpenArgs, Task> func)
+        //    => this.GetInterceptor<ConnectionOpenArgs>().Set(func);
 
-        /// <summary>
-        /// Intercept the provider action whenever a connection is opened
-        /// </summary>
-        public void OnConnectionOpen(Action<ConnectionOpenArgs> func)
-            => this.GetInterceptor<ConnectionOpenArgs>().Set(func);
+        ///// <summary>
+        ///// Intercept the provider action whenever a connection is opened
+        ///// </summary>
+        //public void OnConnectionOpen(Action<ConnectionOpenArgs> func)
+        //    => this.GetInterceptor<ConnectionOpenArgs>().Set(func);
 
-        /// <summary>
-        /// Intercept the provider action whenever a transaction is opened
-        /// </summary>
-        public void OnTransactionOpen(Func<TransactionOpenArgs, Task> func)
-            => this.GetInterceptor<TransactionOpenArgs>().Set(func);
+        ///// <summary>
+        ///// Intercept the provider action whenever a transaction is opened
+        ///// </summary>
+        //public void OnTransactionOpen(Func<TransactionOpenArgs, Task> func)
+        //    => this.GetInterceptor<TransactionOpenArgs>().Set(func);
 
-        /// <summary>
-        /// Intercept the provider action whenever a transaction is opened
-        /// </summary>
-        public void OnTransactionOpen(Action<TransactionOpenArgs> func)
-            => this.GetInterceptor<TransactionOpenArgs>().Set(func);
+        ///// <summary>
+        ///// Intercept the provider action whenever a transaction is opened
+        ///// </summary>
+        //public void OnTransactionOpen(Action<TransactionOpenArgs> func)
+        //    => this.GetInterceptor<TransactionOpenArgs>().Set(func);
 
-        /// <summary>
-        /// Intercept the provider action whenever a connection is closed
-        /// </summary>
-        public void OnConnectionClose(Func<ConnectionCloseArgs, Task> func)
-            => this.GetInterceptor<ConnectionCloseArgs>().Set(func);
+        ///// <summary>
+        ///// Intercept the provider action whenever a connection is closed
+        ///// </summary>
+        //public void OnConnectionClose(Func<ConnectionCloseArgs, Task> func)
+        //    => this.GetInterceptor<ConnectionCloseArgs>().Set(func);
 
-        /// <summary>
-        /// Intercept the provider action whenever a connection is closed
-        /// </summary>
-        public void OnConnectionClose(Action<ConnectionCloseArgs> func)
-            => this.GetInterceptor<ConnectionCloseArgs>().Set(func);
+        ///// <summary>
+        ///// Intercept the provider action whenever a connection is closed
+        ///// </summary>
+        //public void OnConnectionClose(Action<ConnectionCloseArgs> func)
+        //    => this.GetInterceptor<ConnectionCloseArgs>().Set(func);
 
-        /// <summary>
-        /// Intercept the provider action whenever a transaction is commit
-        /// </summary>
-        public void OnTransactionCommit(Func<TransactionCommitArgs, Task> func)
-            => this.GetInterceptor<TransactionCommitArgs>().Set(func);
+        ///// <summary>
+        ///// Intercept the provider action whenever a transaction is commit
+        ///// </summary>
+        //public void OnTransactionCommit(Func<TransactionCommitArgs, Task> func)
+        //    => this.GetInterceptor<TransactionCommitArgs>().Set(func);
 
-        /// <summary>
-        /// Intercept the provider action whenever a transaction is commit
-        /// </summary>
-        public void OnTransactionCommit(Action<TransactionCommitArgs> func)
-            => this.GetInterceptor<TransactionCommitArgs>().Set(func);
+        ///// <summary>
+        ///// Intercept the provider action whenever a transaction is commit
+        ///// </summary>
+        //public void OnTransactionCommit(Action<TransactionCommitArgs> func)
+        //    => this.GetInterceptor<TransactionCommitArgs>().Set(func);
 
-        /// <summary>
-        /// Intercept the provider action when session begin is called
-        /// </summary>
-        public void OnSessionBegin(Func<SessionBeginArgs, Task> func)
-            => this.GetInterceptor<SessionBeginArgs>().Set(func);
+        ///// <summary>
+        ///// Intercept the provider action when session begin is called
+        ///// </summary>
+        //public void OnSessionBegin(Func<SessionBeginArgs, Task> func)
+        //    => this.GetInterceptor<SessionBeginArgs>().Set(func);
 
-        /// <summary>
-        /// Intercept the provider action when session begin is called
-        /// </summary>
-        public void OnSessionBegin(Action<SessionBeginArgs> func)
-            => this.GetInterceptor<SessionBeginArgs>().Set(func);
-
-
-        /// <summary>
-        /// Intercept the provider action when session end is called
-        /// </summary>
-        public void OnSessionEnd(Func<SessionEndArgs, Task> func)
-            => this.GetInterceptor<SessionEndArgs>().Set(func);
-
-        /// <summary>
-        /// Intercept the provider action when session end is called
-        /// </summary>
-        public void OnSessionEnd(Action<SessionEndArgs> func)
-            => this.GetInterceptor<SessionEndArgs>().Set(func);
-
-        /// <summary>
-        /// Intercept the provider when schema is readed
-        /// </summary>
-        public void OnSchema(Func<SchemaArgs, Task> func)
-            => this.GetInterceptor<SchemaArgs>().Set(func);
-
-        /// <summary>
-        /// Intercept the provider when schema is readed
-        /// </summary>
-        public void OnSchema(Action<SchemaArgs> func)
-            => this.GetInterceptor<SchemaArgs>().Set(func);
-
-        /// <summary>
-        /// Intercept the provider before it begins a database deprovisioning
-        /// </summary>
-        public void OnDatabaseDeprovisioning(Func<DatabaseDeprovisioningArgs, Task> func)
-            => this.GetInterceptor<DatabaseDeprovisioningArgs>().Set(func);
-
-        /// <summary>
-        /// Intercept the provider before it begins a database deprovisioning
-        /// </summary>
-        public void OnDatabaseDeprovisioning(Action<DatabaseDeprovisioningArgs> func)
-            => this.GetInterceptor<DatabaseDeprovisioningArgs>().Set(func);
-
-        /// <summary>
-        /// Intercept the provider after it has deprovisioned a database
-        /// </summary>
-        public void OnDatabaseDeprovisioned(Func<DatabaseDeprovisionedArgs, Task> func)
-            => this.GetInterceptor<DatabaseDeprovisionedArgs>().Set(func);
-
-        /// <summary>
-        /// Intercept the provider after it has deprovisioned a database
-        /// </summary>
-        public void OnDatabaseDeprovisioned(Action<DatabaseDeprovisionedArgs> func)
-            => this.GetInterceptor<DatabaseDeprovisionedArgs>().Set(func);
-
-        /// <summary>
-        /// Intercept the provider before it begins a table deprovisioning
-        /// </summary>
-        public void OnTabeDeprovisioning(Func<TableDeprovisioningArgs, Task> func)
-            => this.GetInterceptor<TableDeprovisioningArgs>().Set(func);
-
-        /// <summary>
-        /// Intercept the provider before it begins a table deprovisioning
-        /// </summary>
-        public void OnTabeDeprovisioning(Action<TableDeprovisioningArgs> func)
-            => this.GetInterceptor<TableDeprovisioningArgs>().Set(func);
-
-        /// <summary>
-        /// Intercept the provider after it has deprovisioned a table
-        /// </summary>
-        public void OnTabledDeprovisioned(Func<TableDeprovisionedArgs, Task> func)
-            => this.GetInterceptor<TableDeprovisionedArgs>().Set(func);
-
-        /// <summary>
-        /// Intercept the provider after it has deprovisioned a table
-        /// </summary>
-        public void OnTabledDeprovisioned(Action<TableDeprovisionedArgs> func)
-            => this.GetInterceptor<TableDeprovisionedArgs>().Set(func);
-
-        /// <summary>
-        /// Intercept the provider before it begins a database provisioning
-        /// </summary>
-        public void OnDatabaseProvisioning(Func<DatabaseProvisioningArgs, Task> func)
-            => this.GetInterceptor<DatabaseProvisioningArgs>().Set(func);
-
-        /// <summary>
-        /// Intercept the provider before it begins a database provisioning
-        /// </summary>
-        public void OnDatabaseProvisioning(Action<DatabaseProvisioningArgs> func)
-            => this.GetInterceptor<DatabaseProvisioningArgs>().Set(func);
-
-        /// <summary>
-        /// Intercept the provider after it has provisioned a database
-        /// </summary>
-        public void OnDatabaseProvisioned(Func<DatabaseProvisionedArgs, Task> func)
-            => this.GetInterceptor<DatabaseProvisionedArgs>().Set(func);
-
-        /// <summary>
-        /// Intercept the provider after it has provisioned a database
-        /// </summary>
-        public void OnDatabaseProvisioned(Action<DatabaseProvisionedArgs> func)
-            => this.GetInterceptor<DatabaseProvisionedArgs>().Set(func);
-
-        /// <summary>
-        /// Intercept the provider before it begins a table provisioning
-        /// </summary>
-        public void OnTabeProvisioning(Func<TableDeprovisioningArgs, Task> func)
-            => this.GetInterceptor<TableDeprovisioningArgs>().Set(func);
-
-        /// <summary>
-        /// Intercept the provider before it begins a table provisioning
-        /// </summary>
-        public void OnTabeProvisioning(Action<TableDeprovisioningArgs> func)
-            => this.GetInterceptor<TableDeprovisioningArgs>().Set(func);
-
-        /// <summary>
-        /// Intercept the provider after it has provisioned a table
-        /// </summary>
-        public void OnTabledProvisioned(Func<TableProvisionedArgs, Task> func)
-            => this.GetInterceptor<TableProvisionedArgs>().Set(func);
-
-        /// <summary>
-        /// Intercept the provider after it has provisioned a table
-        /// </summary>
-        public void OnTabledProvisioned(Action<TableProvisionedArgs> func)
-            => this.GetInterceptor<TableProvisionedArgs>().Set(func);
-
-        /// <summary>
-        /// Intercept the provider action when changes are going to be selected on each table defined in the configuration schema
-        /// </summary>
-        public void OnTableChangesSelecting(Func<TableChangesSelectingArgs, Task> func)
-            => this.GetInterceptor<TableChangesSelectingArgs>().Set(func);
-
-        /// <summary>
-        /// Intercept the provider action when changes are going to be selected on each table defined in the configuration schema
-        /// </summary>
-        public void OnTableChangesSelecting(Action<TableChangesSelectingArgs> func)
-            => this.GetInterceptor<TableChangesSelectingArgs>().Set(func);
-
-        /// <summary>
-        /// Intercept the provider action when changes are selected on each table defined in the configuration schema
-        /// </summary>
-        public void OnTableChangesSelected(Func<TableChangesSelectedArgs, Task> func)
-            => this.GetInterceptor<TableChangesSelectedArgs>().Set(func);
-
-        /// <summary>
-        /// Intercept the provider action when changes are selected on each table defined in the configuration schema
-        /// </summary>
-        public void OnTableChangesSelected(Action<TableChangesSelectedArgs> func)
-            => this.GetInterceptor<TableChangesSelectedArgs>().Set(func);
-
-        /// <summary>
-        /// Intercept the provider action when changes are going to be applied on each table defined in the configuration schema
-        /// </summary>
-        public void OnTableChangesApplying(Func<TableChangesApplyingArgs, Task> func)
-            => this.GetInterceptor<TableChangesApplyingArgs>().Set(func);
-
-        /// <summary>
-        /// Intercept the provider action when changes are going to be applied on each table defined in the configuration schema
-        /// </summary>
-        public void OnTableChangesApplying(Action<TableChangesApplyingArgs> func)
-            => this.GetInterceptor<TableChangesApplyingArgs>().Set(func);
-
-        /// <summary>
-        /// Intercept the provider action when changes are applied on each table defined in the configuration schema
-        /// </summary>
-        public void OnTableChangesApplied(Func<TableChangesAppliedArgs, Task> func)
-            => this.GetInterceptor<TableChangesAppliedArgs>().Set(func);
-
-        /// <summary>
-        /// Intercept the provider action when changes are applied on each table defined in the configuration schema
-        /// </summary>
-        public void OnTableChangesApplied(Action<TableChangesAppliedArgs> func)
-            => this.GetInterceptor<TableChangesAppliedArgs>().Set(func);
+        ///// <summary>
+        ///// Intercept the provider action when session begin is called
+        ///// </summary>
+        //public void OnSessionBegin(Action<SessionBeginArgs> func)
+        //    => this.GetInterceptor<SessionBeginArgs>().Set(func);
 
 
-        /// <summary>
-        /// Intercept the provider action when changes are going to be applied on each table defined in the configuration schema
-        /// </summary>
-        public void OnDatabaseChangesApplying(Func<DatabaseChangesApplyingArgs, Task> func)
-            => this.GetInterceptor<DatabaseChangesApplyingArgs>().Set(func);
+        ///// <summary>
+        ///// Intercept the provider action when session end is called
+        ///// </summary>
+        //public void OnSessionEnd(Func<SessionEndArgs, Task> func)
+        //    => this.GetInterceptor<SessionEndArgs>().Set(func);
 
-        /// <summary>
-        /// Intercept the provider action when changes are going to be applied on each table defined in the configuration schema
-        /// </summary>
-        public void OnDatabaseChangesApplying(Action<DatabaseChangesApplyingArgs> func)
-            => this.GetInterceptor<DatabaseChangesApplyingArgs>().Set(func);
+        ///// <summary>
+        ///// Intercept the provider action when session end is called
+        ///// </summary>
+        //public void OnSessionEnd(Action<SessionEndArgs> func)
+        //    => this.GetInterceptor<SessionEndArgs>().Set(func);
 
-        /// <summary>
-        /// Intercept the provider action when changes are applied on each table defined in the configuration schema
-        /// </summary>
-        public void OnDatabaseChangesApplied(Func<DatabaseChangesAppliedArgs, Task> func)
-            => this.GetInterceptor<DatabaseChangesAppliedArgs>().Set(func);
+        ///// <summary>
+        ///// Intercept the provider when schema is readed
+        ///// </summary>
+        //public void OnSchema(Func<SchemaArgs, Task> func)
+        //    => this.GetInterceptor<SchemaArgs>().Set(func);
 
-        /// <summary>
-        /// Intercept the provider action when changes are applied on each table defined in the configuration schema
-        /// </summary>
-        public void OnDatabaseChangesApplied(Action<DatabaseChangesAppliedArgs> func)
-            => this.GetInterceptor<DatabaseChangesAppliedArgs>().Set(func);
+        ///// <summary>
+        ///// Intercept the provider when schema is readed
+        ///// </summary>
+        //public void OnSchema(Action<SchemaArgs> func)
+        //    => this.GetInterceptor<SchemaArgs>().Set(func);
+
+        ///// <summary>
+        ///// Intercept the provider before it begins a database deprovisioning
+        ///// </summary>
+        //public void OnDatabaseDeprovisioning(Func<DatabaseDeprovisioningArgs, Task> func)
+        //    => this.GetInterceptor<DatabaseDeprovisioningArgs>().Set(func);
+
+        ///// <summary>
+        ///// Intercept the provider before it begins a database deprovisioning
+        ///// </summary>
+        //public void OnDatabaseDeprovisioning(Action<DatabaseDeprovisioningArgs> func)
+        //    => this.GetInterceptor<DatabaseDeprovisioningArgs>().Set(func);
+
+        ///// <summary>
+        ///// Intercept the provider after it has deprovisioned a database
+        ///// </summary>
+        //public void OnDatabaseDeprovisioned(Func<DatabaseDeprovisionedArgs, Task> func)
+        //    => this.GetInterceptor<DatabaseDeprovisionedArgs>().Set(func);
+
+        ///// <summary>
+        ///// Intercept the provider after it has deprovisioned a database
+        ///// </summary>
+        //public void OnDatabaseDeprovisioned(Action<DatabaseDeprovisionedArgs> func)
+        //    => this.GetInterceptor<DatabaseDeprovisionedArgs>().Set(func);
+
+        ///// <summary>
+        ///// Intercept the provider before it begins a table deprovisioning
+        ///// </summary>
+        //public void OnTabeDeprovisioning(Func<TableDeprovisioningArgs, Task> func)
+        //    => this.GetInterceptor<TableDeprovisioningArgs>().Set(func);
+
+        ///// <summary>
+        ///// Intercept the provider before it begins a table deprovisioning
+        ///// </summary>
+        //public void OnTabeDeprovisioning(Action<TableDeprovisioningArgs> func)
+        //    => this.GetInterceptor<TableDeprovisioningArgs>().Set(func);
+
+        ///// <summary>
+        ///// Intercept the provider after it has deprovisioned a table
+        ///// </summary>
+        //public void OnTabledDeprovisioned(Func<TableDeprovisionedArgs, Task> func)
+        //    => this.GetInterceptor<TableDeprovisionedArgs>().Set(func);
+
+        ///// <summary>
+        ///// Intercept the provider after it has deprovisioned a table
+        ///// </summary>
+        //public void OnTabledDeprovisioned(Action<TableDeprovisionedArgs> func)
+        //    => this.GetInterceptor<TableDeprovisionedArgs>().Set(func);
+
+        ///// <summary>
+        ///// Intercept the provider before it begins a database provisioning
+        ///// </summary>
+        //public void OnDatabaseProvisioning(Func<DatabaseProvisioningArgs, Task> func)
+        //    => this.GetInterceptor<DatabaseProvisioningArgs>().Set(func);
+
+        ///// <summary>
+        ///// Intercept the provider before it begins a database provisioning
+        ///// </summary>
+        //public void OnDatabaseProvisioning(Action<DatabaseProvisioningArgs> func)
+        //    => this.GetInterceptor<DatabaseProvisioningArgs>().Set(func);
+
+        ///// <summary>
+        ///// Intercept the provider after it has provisioned a database
+        ///// </summary>
+        //public void OnDatabaseProvisioned(Func<DatabaseProvisionedArgs, Task> func)
+        //    => this.GetInterceptor<DatabaseProvisionedArgs>().Set(func);
+
+        ///// <summary>
+        ///// Intercept the provider after it has provisioned a database
+        ///// </summary>
+        //public void OnDatabaseProvisioned(Action<DatabaseProvisionedArgs> func)
+        //    => this.GetInterceptor<DatabaseProvisionedArgs>().Set(func);
+
+        ///// <summary>
+        ///// Intercept the provider before it begins a table provisioning
+        ///// </summary>
+        //public void OnTabeProvisioning(Func<TableDeprovisioningArgs, Task> func)
+        //    => this.GetInterceptor<TableDeprovisioningArgs>().Set(func);
+
+        ///// <summary>
+        ///// Intercept the provider before it begins a table provisioning
+        ///// </summary>
+        //public void OnTabeProvisioning(Action<TableDeprovisioningArgs> func)
+        //    => this.GetInterceptor<TableDeprovisioningArgs>().Set(func);
+
+        ///// <summary>
+        ///// Intercept the provider after it has provisioned a table
+        ///// </summary>
+        //public void OnTabledProvisioned(Func<TableProvisionedArgs, Task> func)
+        //    => this.GetInterceptor<TableProvisionedArgs>().Set(func);
+
+        ///// <summary>
+        ///// Intercept the provider after it has provisioned a table
+        ///// </summary>
+        //public void OnTabledProvisioned(Action<TableProvisionedArgs> func)
+        //    => this.GetInterceptor<TableProvisionedArgs>().Set(func);
+
+        ///// <summary>
+        ///// Intercept the provider action when changes are going to be selected on each table defined in the configuration schema
+        ///// </summary>
+        //public void OnTableChangesSelecting(Func<TableChangesSelectingArgs, Task> func)
+        //    => this.GetInterceptor<TableChangesSelectingArgs>().Set(func);
+
+        ///// <summary>
+        ///// Intercept the provider action when changes are going to be selected on each table defined in the configuration schema
+        ///// </summary>
+        //public void OnTableChangesSelecting(Action<TableChangesSelectingArgs> func)
+        //    => this.GetInterceptor<TableChangesSelectingArgs>().Set(func);
+
+        ///// <summary>
+        ///// Intercept the provider action when changes are selected on each table defined in the configuration schema
+        ///// </summary>
+        //public void OnTableChangesSelected(Func<TableChangesSelectedArgs, Task> func)
+        //    => this.GetInterceptor<TableChangesSelectedArgs>().Set(func);
+
+        ///// <summary>
+        ///// Intercept the provider action when changes are selected on each table defined in the configuration schema
+        ///// </summary>
+        //public void OnTableChangesSelected(Action<TableChangesSelectedArgs> func)
+        //    => this.GetInterceptor<TableChangesSelectedArgs>().Set(func);
+
+        ///// <summary>
+        ///// Intercept the provider action when changes are going to be applied on each table defined in the configuration schema
+        ///// </summary>
+        //public void OnTableChangesApplying(Func<TableChangesApplyingArgs, Task> func)
+        //    => this.GetInterceptor<TableChangesApplyingArgs>().Set(func);
+
+        ///// <summary>
+        ///// Intercept the provider action when changes are going to be applied on each table defined in the configuration schema
+        ///// </summary>
+        //public void OnTableChangesApplying(Action<TableChangesApplyingArgs> func)
+        //    => this.GetInterceptor<TableChangesApplyingArgs>().Set(func);
+
+        ///// <summary>
+        ///// Intercept the provider action when changes are applied on each table defined in the configuration schema
+        ///// </summary>
+        //public void OnTableChangesApplied(Func<TableChangesAppliedArgs, Task> func)
+        //    => this.GetInterceptor<TableChangesAppliedArgs>().Set(func);
+
+        ///// <summary>
+        ///// Intercept the provider action when changes are applied on each table defined in the configuration schema
+        ///// </summary>
+        //public void OnTableChangesApplied(Action<TableChangesAppliedArgs> func)
+        //    => this.GetInterceptor<TableChangesAppliedArgs>().Set(func);
+
+
+        ///// <summary>
+        ///// Intercept the provider action when changes are going to be applied on each table defined in the configuration schema
+        ///// </summary>
+        //public void OnDatabaseChangesApplying(Func<DatabaseChangesApplyingArgs, Task> func)
+        //    => this.GetInterceptor<DatabaseChangesApplyingArgs>().Set(func);
+
+        ///// <summary>
+        ///// Intercept the provider action when changes are going to be applied on each table defined in the configuration schema
+        ///// </summary>
+        //public void OnDatabaseChangesApplying(Action<DatabaseChangesApplyingArgs> func)
+        //    => this.GetInterceptor<DatabaseChangesApplyingArgs>().Set(func);
+
+        ///// <summary>
+        ///// Intercept the provider action when changes are applied on each table defined in the configuration schema
+        ///// </summary>
+        //public void OnDatabaseChangesApplied(Func<DatabaseChangesAppliedArgs, Task> func)
+        //    => this.GetInterceptor<DatabaseChangesAppliedArgs>().Set(func);
+
+        ///// <summary>
+        ///// Intercept the provider action when changes are applied on each table defined in the configuration schema
+        ///// </summary>
+        //public void OnDatabaseChangesApplied(Action<DatabaseChangesAppliedArgs> func)
+        //    => this.GetInterceptor<DatabaseChangesAppliedArgs>().Set(func);
 
     }
 

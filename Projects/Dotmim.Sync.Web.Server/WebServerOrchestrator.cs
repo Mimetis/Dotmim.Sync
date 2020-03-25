@@ -138,34 +138,34 @@ namespace Dotmim.Sync.Web.Server
                         var m1 = await clientSerializerFactory.GetSerializer<HttpMessageEnsureScopesRequest>().DeserializeAsync(readableStream);
                         var s1 = await this.EnsureScopesAsync(m1, sessionCache, cancellationToken, progress).ConfigureAwait(false);
                         binaryData = await clientSerializerFactory.GetSerializer<HttpMessageEnsureScopesResponse>().SerializeAsync(s1);
-                        await this.Provider.InterceptAsync(new HttpMessageEnsureScopesResponseArgs(binaryData)).ConfigureAwait(false);
+                        await this.InterceptAsync(new HttpMessageEnsureScopesResponseArgs(binaryData), cancellationToken).ConfigureAwait(false);
                         break;
                     case HttpStep.EnsureSchema:
                         var m11 = await clientSerializerFactory.GetSerializer<HttpMessageEnsureScopesRequest>().DeserializeAsync(readableStream);
                         var s11 = await this.EnsureSchemaAsync(m11, sessionCache, cancellationToken, progress).ConfigureAwait(false);
                         binaryData = await clientSerializerFactory.GetSerializer<HttpMessageEnsureSchemaResponse>().SerializeAsync(s11);
-                        await this.Provider.InterceptAsync(new HttpMessageEnsureSchemaResponseArgs(binaryData)).ConfigureAwait(false);
+                        await this.InterceptAsync(new HttpMessageEnsureSchemaResponseArgs(binaryData), cancellationToken).ConfigureAwait(false);
                         break;
                     case HttpStep.SendChanges:
                         var m2 = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesRequest>().DeserializeAsync(readableStream);
                         var s2 = await this.ApplyThenGetChangesAsync(m2, sessionCache, clientBatchSize, cancellationToken, progress).ConfigureAwait(false);
                         binaryData = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().SerializeAsync(s2);
                         if (s2.Changes != null && s2.Changes.HasRows)
-                            await this.Provider.InterceptAsync(new HttpMessageSendChangesResponseArgs(binaryData)).ConfigureAwait(false);
+                            await this.InterceptAsync(new HttpMessageSendChangesResponseArgs(binaryData), cancellationToken).ConfigureAwait(false);
                         break;
                     case HttpStep.GetChanges:
                         var m3 = await clientSerializerFactory.GetSerializer<HttpMessageGetMoreChangesRequest>().DeserializeAsync(readableStream);
                         var s3 = await this.GetMoreChangesAsync(m3, sessionCache, cancellationToken, progress);
                         binaryData = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().SerializeAsync(s3);
                         if (s3.Changes != null && s3.Changes.HasRows)
-                            await this.Provider.InterceptAsync(new HttpMessageSendChangesResponseArgs(binaryData)).ConfigureAwait(false);
+                            await this.InterceptAsync(new HttpMessageSendChangesResponseArgs(binaryData), cancellationToken).ConfigureAwait(false);
                         break;
                     case HttpStep.GetSnapshot:
                         var m4 = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesRequest>().DeserializeAsync(readableStream);
                         var s4 = await this.GetSnapshotAsync(m4, sessionCache, cancellationToken, progress);
                         binaryData = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().SerializeAsync(s4);
                         if (s4.Changes != null && s4.Changes.HasRows)
-                            await this.Provider.InterceptAsync(new HttpMessageSendChangesResponseArgs(binaryData)).ConfigureAwait(false);
+                            await this.InterceptAsync(new HttpMessageSendChangesResponseArgs(binaryData), cancellationToken).ConfigureAwait(false);
                         break;
                 }
 
@@ -423,6 +423,8 @@ namespace Dotmim.Sync.Web.Server
         {
 
             // Overriding batch size options value, coming from client
+            // having changes from server in batch size or not is decided by the client.
+            // Basically this options is not used on the server, since it's always overriden by the client
             this.Options.BatchSize = clientBatchSize;
 
             // Get if we need to serialize data or making everything in memory

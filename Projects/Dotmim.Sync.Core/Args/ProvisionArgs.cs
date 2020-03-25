@@ -17,37 +17,25 @@ namespace Dotmim.Sync
             SchemaTable = schemaTable;
         }
 
-        public override string Message => $"TableName: {SchemaTable.TableName} Provision:{Provision}";
+        public override string Message => $"[{Connection.Database}] [{SchemaTable.TableName}] provision:{Provision}";
 
     }
 
-    public class TableProvisioningArgs : TableProvisionedArgs
-    {
-        public TableProvisioningArgs(SyncContext context, SyncProvision provision, SyncTable schemaTable, DbConnection connection, DbTransaction transaction) : base(context, provision, schemaTable, connection, transaction)
-        {
-        }
-    }
 
     public class DatabaseProvisionedArgs : ProgressArgs
     {
         public SyncProvision Provision { get; }
         public SyncSet Schema { get; }
 
-        /// <summary>
-        /// Gets the script generated before applying on database
-        /// </summary>
-        public string Script { get; }
-
-        public DatabaseProvisionedArgs(SyncContext context, SyncProvision provision, SyncSet schema, string script, DbConnection connection, DbTransaction transaction)
+        public DatabaseProvisionedArgs(SyncContext context, SyncProvision provision, SyncSet schema, DbConnection connection, DbTransaction transaction)
         : base(context, connection, transaction)
 
         {
             Provision = provision;
-            Script = script;
             Schema = schema;
         }
 
-        public override string Message => $"Tables count:{Schema.Tables.Count} Provision:{Provision}";
+        public override string Message => $"[{Connection.Database}] tables count:{Schema.Tables.Count} provision:{Provision}";
 
     }
 
@@ -76,17 +64,11 @@ namespace Dotmim.Sync
             Schema = schema;
         }
 
-        public override string Message => $"Tables count:{Schema.Tables.Sum(t => t.Columns.Count)} Provision:{Provision}";
+        // public override string Message => $"[{Connection.Database}] tables count:{Schema.Tables.Sum(t => t.Columns.Count)} provision:{Provision}";
+        public override string Message => $"[{Connection.Database}] tables count:{Schema.Tables.Count} provision:{Provision}";
 
     }
 
-
-    public class TableDeprovisioningArgs : TableProvisioningArgs
-    {
-        public TableDeprovisioningArgs(SyncContext context, SyncProvision provision, SyncTable schemaTable, DbConnection connection, DbTransaction transaction) : base(context, provision, schemaTable, connection, transaction)
-        {
-        }
-    }
     public class TableDeprovisionedArgs : TableProvisionedArgs
     {
         public TableDeprovisionedArgs(SyncContext context, SyncProvision provision, SyncTable schemaTable, DbConnection connection, DbTransaction transaction) : base(context, provision, schemaTable, connection, transaction)
@@ -96,8 +78,8 @@ namespace Dotmim.Sync
 
     public class DatabaseDeprovisionedArgs : DatabaseProvisionedArgs
     {
-        public DatabaseDeprovisionedArgs(SyncContext context, SyncProvision provision, SyncSet schema, string script, DbConnection connection, DbTransaction transaction) 
-            : base(context, provision, schema, script, connection, transaction)
+        public DatabaseDeprovisionedArgs(SyncContext context, SyncProvision provision, SyncSet schema, DbConnection connection, DbTransaction transaction) 
+            : base(context, provision, schema, connection, transaction)
         {
         }
     }

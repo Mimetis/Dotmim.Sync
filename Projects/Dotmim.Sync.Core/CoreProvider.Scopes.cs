@@ -1,5 +1,4 @@
 ﻿using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Messages;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -113,7 +112,6 @@ namespace Dotmim.Sync
                 scopeInfoBuilder.CreateServerScopeInfoTable();
 
             return context;
-
         }
 
         /// <summary>
@@ -134,7 +132,6 @@ namespace Dotmim.Sync
                 scopeInfoBuilder.DropServerScopeInfoTable();
 
             return context;
-
         }
 
 
@@ -150,15 +147,6 @@ namespace Dotmim.Sync
 
             var scopeBuilder = this.GetScopeBuilder();
             var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName, connection, transaction);
-
-            context.SyncStage = SyncStage.ScopeLoading;
-
-            // Intercept loading scope
-            var scopeLoadingArgs = new ScopeLoadingArgs(context, scopeName, connection, transaction);
-            await this.InterceptAsync(scopeLoadingArgs).ConfigureAwait(false);
-
-            if (cancellationToken.IsCancellationRequested)
-                cancellationToken.ThrowIfCancellationRequested();
 
             // get all scopes shared by all (identified by scopeName)
             scopes = scopeInfoBuilder.GetAllClientScopes(scopeName);
@@ -189,17 +177,7 @@ namespace Dotmim.Sync
             // get first scope
             var localScope = scopes.FirstOrDefault();
 
-            // Progress & Interceptor
-            context.SyncStage = SyncStage.ScopeLoaded;
-            var scopeArgs = new ScopeLoadedArgs(context, localScope, connection, transaction);
-            this.ReportProgress(context, progress, scopeArgs);
-            await this.InterceptAsync(scopeArgs).ConfigureAwait(false);
-
-            if (cancellationToken.IsCancellationRequested)
-                cancellationToken.ThrowIfCancellationRequested();
-
             return (context, localScope);
-
         }
 
 
@@ -233,18 +211,10 @@ namespace Dotmim.Sync
                 serverScopes.Add(scope);
             }
 
-
             // get first scope
             var localScope = serverScopes.FirstOrDefault();
 
-            // Progress & Interceptor
-            context.SyncStage = SyncStage.ScopeLoading;
-            var scopeArgs = new ServerScopeArgs(context, localScope, connection, transaction);
-            this.ReportProgress(context, progress, scopeArgs);
-            await this.InterceptAsync(scopeArgs).ConfigureAwait(false);
-
             return (context, localScope);
-
         }
 
 
@@ -262,14 +232,7 @@ namespace Dotmim.Sync
 
             scopeInfoBuilder.InsertOrUpdateClientScopeInfo(scope);
 
-            // Progress & Interceptor
-            context.SyncStage = SyncStage.ScopeSaved;
-            var scopeArgs = new ScopeLoadedArgs(context, scope, connection, transaction);
-            this.ReportProgress(context, progress, scopeArgs);
-            await this.InterceptAsync(scopeArgs).ConfigureAwait(false);
-
             return context;
-
         }
 
         /// <summary>
@@ -285,14 +248,7 @@ namespace Dotmim.Sync
 
             scopeInfoBuilder.InsertOrUpdateServerScopeInfo(scope);
 
-            // Progress & Interceptor
-            context.SyncStage = SyncStage.ScopeSaved;
-            var scopeArgs = new ServerScopeArgs(context, scope, connection, transaction);
-            this.ReportProgress(context, progress, scopeArgs);
-            await this.InterceptAsync(scopeArgs).ConfigureAwait(false);
-
             return context;
-
         }
 
         /// <summary>
@@ -308,14 +264,7 @@ namespace Dotmim.Sync
 
             scopeInfoBuilder.InsertOrUpdateServerHistoryScopeInfo(scope);
 
-            // Progress & Interceptor
-            context.SyncStage = SyncStage.ScopeSaved;
-            var scopeArgs = new ServerHistoryScopeArgs(context, scope, connection, transaction);
-            this.ReportProgress(context, progress, scopeArgs);
-            await this.InterceptAsync(scopeArgs).ConfigureAwait(false);
-
             return context;
-
         }
 
     }

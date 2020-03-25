@@ -66,5 +66,16 @@ namespace Dotmim.Sync
         [IgnoreDataMember]
         public long LastSyncDuration { get; set; }
 
+
+        /// <summary>
+        /// Gets a readable version of LastSyncDuration
+        /// </summary>
+        /// <returns></returns>
+        public string GetLastSyncDurationString()
+        {
+            var durationTs = new TimeSpan(this.LastSyncDuration);
+            return $"{durationTs.Hours}:{durationTs.Minutes}:{durationTs.Seconds}.{durationTs.Milliseconds}";
+        }
+
     }
 }

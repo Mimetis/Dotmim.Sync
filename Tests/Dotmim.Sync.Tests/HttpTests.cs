@@ -295,7 +295,7 @@ namespace Dotmim.Sync.Tests
                     var s = await agent.SynchronizeAsync();
                 });
 
-                Assert.Equal(SyncExceptionSide.ServerSide, se.Side);
+                Assert.Equal(SyncSide.ServerSide, se.Side);
                 Assert.Equal("MissingPrimaryKeyException", se.TypeName);
                 Assert.Equal(this.Server.DatabaseName, se.InitialCatalog);
 
@@ -327,7 +327,7 @@ namespace Dotmim.Sync.Tests
                     var s = await agent.SynchronizeAsync();
                 });
 
-                Assert.Equal(SyncExceptionSide.ServerSide, se.Side);
+                Assert.Equal(SyncSide.ServerSide, se.Side);
                 Assert.Equal("MissingColumnException", se.TypeName);
             }
         }
@@ -357,7 +357,7 @@ namespace Dotmim.Sync.Tests
                     var s = await agent.SynchronizeAsync();
                 });
 
-                Assert.Equal(SyncExceptionSide.ServerSide, se.Side);
+                Assert.Equal(SyncSide.ServerSide, se.Side);
                 Assert.Equal("MissingTableException", se.TypeName);
             }
         }

@@ -11,10 +11,11 @@ namespace Dotmim.Sync
     /// </summary>
     public class ScopeLoadingArgs : ProgressArgs
     {
-        public ScopeLoadingArgs(SyncContext context, string scopeName, DbConnection connection, DbTransaction transaction)
+        public ScopeLoadingArgs(SyncContext context, string scopeName, string scopeTableInfoName, DbConnection connection, DbTransaction transaction)
             : base(context, connection, transaction)
         {
             this.ScopeName = scopeName;
+            this.ScopeTableInfoName = scopeTableInfoName;
         }
 
         /// <summary>
@@ -22,15 +23,21 @@ namespace Dotmim.Sync
         /// </summary>
         public string ScopeName { get; }
 
-        public override string Message => this.ScopeName;
+        /// <summary>
+        /// Gets the table where the scope will be loaded from.
+        /// </summary>
+        public string ScopeTableInfoName { get; }
+
+        public override string Message => $"Loading scope {this.ScopeName} from table {this.ScopeTableInfoName}";
 
     }
+
     /// <summary>
-    /// Args generated when a scope has been loaded
+    /// Args generated when a scope has been loaded from client database
     /// </summary>
     public class ScopeLoadedArgs : ProgressArgs
     {
-        public ScopeLoadedArgs(SyncContext context, ScopeInfo scope, DbConnection connection, DbTransaction transaction) 
+        public ScopeLoadedArgs(SyncContext context, ScopeInfo scope, DbConnection connection, DbTransaction transaction)
             : base(context, connection, transaction)
         {
             this.ScopeInfo = scope;
@@ -41,17 +48,15 @@ namespace Dotmim.Sync
         /// </summary>
         public ScopeInfo ScopeInfo { get; }
 
-        public override string Message => $"Id:{ScopeInfo?.Id} LastSync:{ScopeInfo?.LastSync} " +
-            $"LastSyncDuration:{ScopeInfo?.LastSyncDuration} ";
-
+        public override string Message => $"[{Connection.Database}] [{ScopeInfo?.Name}] [Version {ScopeInfo.Version}] Last sync:{ScopeInfo?.LastSync} Last sync duration:{ScopeInfo?.GetLastSyncDurationString()} ";
     }
 
     /// <summary>
     /// Args generated before and after a scope has been applied
     /// </summary>
-    public class ServerScopeArgs : ProgressArgs
+    public class ServerScopeLoadedArgs : ProgressArgs
     {
-        public ServerScopeArgs(SyncContext context, ServerScopeInfo scope, DbConnection connection, DbTransaction transaction)
+        public ServerScopeLoadedArgs(SyncContext context, ServerScopeInfo scope, DbConnection connection, DbTransaction transaction)
             : base(context, connection, transaction)
         {
             this.ScopeInfo = scope;
@@ -62,7 +67,7 @@ namespace Dotmim.Sync
         /// </summary>
         public ServerScopeInfo ScopeInfo { get; }
 
-        public override string Message => $"Server scope name:{ScopeInfo?.Name}";
+        public override string Message => $"[{Connection.Database}] [{ScopeInfo?.Name}] [Version {ScopeInfo.Version}]";
 
     }
 
@@ -83,7 +88,7 @@ namespace Dotmim.Sync
         /// </summary>
         public ServerHistoryScopeInfo ScopeInfo { get; }
 
-        public override string Message => $"Scope name:{ScopeInfo?.Name}";
+        public override string Message => $"[{Connection.Database}] [{ScopeInfo?.Name}]";
 
     }
 }

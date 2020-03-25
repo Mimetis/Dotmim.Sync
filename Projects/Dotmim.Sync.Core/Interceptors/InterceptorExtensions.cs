@@ -8,10 +8,10 @@ namespace Dotmim.Sync
     {
 
         private static void SetInterceptor<T>(this IOrchestrator orchestrator, Func<T, Task> func) where T : ProgressArgs 
-            => orchestrator.Provider.On(func);
+            => orchestrator.On(func);
 
         private static void SetInterceptor<T>(this IOrchestrator orchestrator, Action<T> action) where T : ProgressArgs 
-            => orchestrator.Provider.On(action);
+            => orchestrator.On(action);
 
         /// <summary>
         /// Intercept the provider action whenever a connection is opened
@@ -185,17 +185,6 @@ namespace Dotmim.Sync
         public static void OnDatabaseDeprovisioned(this IOrchestrator orchestrator, Action<DatabaseDeprovisionedArgs> action)
             => orchestrator.SetInterceptor(action);
 
-        /// <summary>
-        /// Intercept the provider before it begins a table deprovisioning
-        /// </summary>
-        public static void OnTabeDeprovisioning(this IOrchestrator orchestrator, Func<TableDeprovisioningArgs, Task> func)
-            => orchestrator.SetInterceptor(func);
-
-        /// <summary>
-        /// Intercept the provider before it begins a table deprovisioning
-        /// </summary>
-        public static void OnTabeDeprovisioning(this IOrchestrator orchestrator, Action<TableDeprovisioningArgs> action)
-            => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider after it has deprovisioned a table
@@ -231,18 +220,6 @@ namespace Dotmim.Sync
         /// Intercept the provider after it has provisioned a database
         /// </summary>
         public static void OnDatabaseProvisioned(this IOrchestrator orchestrator, Action<DatabaseProvisionedArgs> action)
-            => orchestrator.SetInterceptor(action);
-
-        /// <summary>
-        /// Intercept the provider before it begins a table provisioning
-        /// </summary>
-        public static void OnTabeProvisioning(this IOrchestrator orchestrator, Func<TableDeprovisioningArgs, Task> func)
-            => orchestrator.SetInterceptor(func);
-
-        /// <summary>
-        /// Intercept the provider before it begins a table provisioning
-        /// </summary>
-        public static void OnTabeProvisioning(this IOrchestrator orchestrator, Action<TableDeprovisioningArgs> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>

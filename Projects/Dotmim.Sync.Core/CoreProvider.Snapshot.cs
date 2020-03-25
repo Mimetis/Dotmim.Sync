@@ -77,11 +77,8 @@ namespace Dotmim.Sync
                 var tableBuilder = this.GetTableBuilder(syncTable);
                 var syncAdapter = tableBuilder.CreateSyncAdapter(connection, transaction);
 
-                // raise before event
-                context.SyncStage = SyncStage.TableChangesSelecting;
-                var tableChangesSelectingArgs = new TableChangesSelectingArgs(context, syncTable.TableName, connection, transaction);
                 // launch interceptor if any
-                await this.InterceptAsync(tableChangesSelectingArgs).ConfigureAwait(false);
+                await this.Orchestrator.InterceptAsync(new TableChangesSelectingArgs(context, syncTable.TableName, connection, transaction), cancellationToken).ConfigureAwait(false);
 
                 // Get Select initialize changes command
                 var selectIncrementalChangesCommand = this.GetSelectChangesCommand(context, syncAdapter, syncTable, true);
@@ -160,7 +157,6 @@ namespace Dotmim.Sync
                 var bytes = await jsonConverter.SerializeAsync(batchInfo);
                 f.Write(bytes, 0, bytes.Length);
             }
-
 
             return context;
         }
