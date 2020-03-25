@@ -9,8 +9,7 @@ namespace Dotmim.Sync
 {
     public class SyncTypeConverter
     {
-
-        public static T TryConvertTo<T>(dynamic value)
+        public static T TryConvertTo<T>(dynamic value, NumberFormatInfo nfi = null)
         {
             var cul = CultureInfo.InvariantCulture;
 
@@ -25,10 +24,13 @@ namespace Dotmim.Sync
 
             var typeConverter = TypeDescriptor.GetConverter(typeOfT);
 
-            var nfi = new NumberFormatInfo
+            if (nfi == null)
             {
-                NumberDecimalSeparator = SyncGlobalization.DataSourceNumberDecimalSeparator
-            };
+                nfi = new NumberFormatInfo
+                {
+                    NumberDecimalSeparator = SyncGlobalization.DataSourceNumberDecimalSeparator
+                };
+            }
 
             if (typeOfT == typeof(short))
                 return Convert.ToInt16(value);
@@ -56,7 +58,7 @@ namespace Dotmim.Sync
                 if (DateTimeOffset.TryParse(value.ToString(), out DateTimeOffset dateTime))
                     return (T)Convert.ChangeType(dateTime, typeOfT);
                 else if (typeOfU == typeof(long))
-                    return (T)Convert.ChangeType(new DateTimeOffset(value), typeOfT);
+                    return (T)Convert.ChangeType(new DateTimeOffset(new DateTime(value)), typeOfT);
                 else
                     return Convert.ToDateTime(value);
             }
@@ -96,10 +98,11 @@ namespace Dotmim.Sync
                 return Convert.ToSByte(value);
             else if (typeOfT == typeof(TimeSpan))
             {
+                if (typeOfU == typeof(Int16) || typeOfU == typeof(Int32) || typeOfU == typeof(Int64)
+                   || typeOfU == typeof(UInt16) || typeOfU == typeof(UInt32) || typeOfU == typeof(UInt64))
+                    return TimeSpan.FromTicks(value);
                 if (TimeSpan.TryParse(value.ToString(), cul, out TimeSpan q))
                     return (T)Convert.ChangeType(q, typeOfT);
-                else if (typeOfU == typeof(long))
-                    return TimeSpan.FromTicks(value);
             }
             else if (typeOfT == typeof(byte[]))
             {

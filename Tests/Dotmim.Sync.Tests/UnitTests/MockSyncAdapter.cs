@@ -1,0 +1,38 @@
+﻿using Dotmim.Sync.Builders;
+using System;
+using System.Collections.Generic;
+using System.Data.Common;
+using System.Data.SqlClient;
+using System.Text;
+
+namespace Dotmim.Sync.Tests.UnitTests
+{
+    public class MockSyncAdapter : DbSyncAdapter
+    {
+        private DbConnection connection;
+        private DbTransaction transaction;
+
+        public MockSyncAdapter(SyncTable tableDescription, DbConnection connection, DbTransaction transaction)
+            : base(tableDescription)
+        {
+            this.connection = connection;
+            this.transaction = transaction;
+        }
+
+        public override DbConnection Connection => this.connection;
+
+        public override DbTransaction Transaction => this.transaction;
+
+        public override void ExecuteBatchCommand(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> arrayItems, SyncTable schemaChangesTable, SyncTable failedRows, long lastTimestamp) { }
+
+        public override DbCommand GetCommand(DbCommandType commandType, SyncFilter filter = null)
+            => new SqlCommand();
+
+        public override bool IsPrimaryKeyViolation(Exception exception) => false;
+
+        public override bool IsUniqueKeyViolation(Exception exception) => false;
+
+        public override void SetCommandParameters(DbCommandType commandType, DbCommand command, SyncFilter filter = null) { }
+
+    }
+}

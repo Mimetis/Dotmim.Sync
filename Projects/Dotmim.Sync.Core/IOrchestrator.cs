@@ -36,6 +36,16 @@ namespace Dotmim.Sync
         /// </summary>
         string ScopeName { get; set; }
 
+        /// <summary>
+        /// Gets or Sets the start time for this orchestrator
+        /// </summary>
+        DateTime? StartTime { get; set; }
+
+        /// <summary>
+        /// Gets or Sets the end time for this orchestrator
+        /// </summary>
+        DateTime? CompleteTime { get; set; }
+
 
         /// <summary>
         /// Sets the context if needed
@@ -75,19 +85,26 @@ namespace Dotmim.Sync
     /// </summary>
     public interface IRemoteOrchestrator : IOrchestrator
     {
+
+        /// <summary>
+        /// Ensure scope is created (both scope_info_server and scope_info_history tables)
+        /// </summary>
+        Task<ServerScopeInfo> EnsureScopesAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null);
+
         /// <summary>
         /// Get configuration from remote to ensure local provider has everything needed
         /// </summary>
-        /// <returns></returns>
-        Task<SyncSet> EnsureSchemaAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null);
+        Task<(SyncSet Schema, string Version)> EnsureSchemaAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null);
 
         /// <summary>
         /// Send all changes and get new changes in return
         /// </summary>
         Task<(long remoteClientTimestamp,
               BatchInfo serverBatchInfo,
+              ConflictResolutionPolicy serverPolicy,
+              DatabaseChangesApplied clientChangesApplied,
               DatabaseChangesSelected serverChangesSelected)>
-            ApplyThenGetChangesAsync(ScopeInfo clientScope, SyncSet schema, BatchInfo clientBatchInfo,
+            ApplyThenGetChangesAsync(ScopeInfo clientScope, BatchInfo clientBatchInfo, 
                                      CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null);
 
 

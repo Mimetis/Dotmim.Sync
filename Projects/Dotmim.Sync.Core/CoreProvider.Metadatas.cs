@@ -18,7 +18,7 @@ namespace Dotmim.Sync
         /// </summary>
         public virtual async Task<SyncContext> DeleteMetadatasAsync(SyncContext context, SyncSet schema, long timestampLimit,
                              DbConnection connection, DbTransaction transaction,
-                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
              foreach (var schemaTable in schema.Tables)
             {

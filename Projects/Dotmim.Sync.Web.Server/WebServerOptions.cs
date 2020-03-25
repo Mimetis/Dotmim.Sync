@@ -9,10 +9,8 @@ using System.Text;
 
 namespace Dotmim.Sync.Web.Server
 {
-    public class WebServerOptions : SyncOptions
+    public class WebServerOptions
     {
-
-
         public MemoryCacheEntryOptions GetServerCacheOptions()
         {
             var sessionCacheEntryOptions = new MemoryCacheEntryOptions();
@@ -48,17 +46,6 @@ namespace Dotmim.Sync.Web.Server
         /// Gets or Sets how long the client session cache entry can be inactive(e.g.not accessed) before it will be removed. Default is 10 min
         /// </summary>
         public TimeSpan ClientCacheSlidingExpiration { get; set; }
-
-
-        /// <summary>
-        /// Overriden by the value coming from client
-        /// </summary>
-        public new int BatchSize { get; set; }
-
-        /// <summary>
-        /// Not used on server side.
-        /// </summary>
-        public new bool CleanMetadatas { get => throw new NotImplementedException("Not used on server side"); set => throw new NotImplementedException("Not used on server side"); }
 
 
         /// <summary>

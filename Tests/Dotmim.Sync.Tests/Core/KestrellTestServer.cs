@@ -27,9 +27,8 @@ namespace Dotmim.Sync.Tests
         IWebHostBuilder builder;
         private bool useFiddler;
         IWebHost host;
-        private WebServerOrchestrator webServerOrchestrator;
 
-        public KestrellTestServer((string DatabaseName, ProviderType ProviderType, WebServerOrchestrator WebServerOrchestrator) server, bool useFidller = false)
+        public KestrellTestServer(WebServerOrchestrator webServerOrchestrator, bool useFidller = false)
         {
 
             var hostBuilder = new WebHostBuilder()
@@ -47,17 +46,12 @@ namespace Dotmim.Sync.Tests
                     });
 
                     // add a SqlSyncProvider acting as the server hub
-                    services.AddSyncServer(server.WebServerOrchestrator.Provider.GetType(),
-                                           server.WebServerOrchestrator.Provider.ConnectionString, 
-                                           SyncOptions.DefaultScopeName,
-                                           server.WebServerOrchestrator.Setup,
-                                           server.WebServerOrchestrator.Options);
+                    services.AddSyncServer(webServerOrchestrator);
 
                 });
             this.builder = hostBuilder;
 
             this.useFiddler = useFidller;
-            this.webServerOrchestrator = server.WebServerOrchestrator;
 
         }
 
@@ -67,8 +61,7 @@ namespace Dotmim.Sync.Tests
             // Create server web proxy
             var serverHandler = new RequestDelegate(async context =>
             {
-                var webProxyServer = context.RequestServices.GetService(typeof(WebServerProperties)) as WebServerProperties;
-                webProxyServer.Add(this.webServerOrchestrator);
+                var webProxyServer = context.RequestServices.GetService<WebServerProperties>();
                 await webProxyServer.HandleRequestAsync(context);
             });
 

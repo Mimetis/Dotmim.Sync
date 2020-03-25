@@ -83,11 +83,13 @@ namespace Dotmim.Sync
                 if (!checkType)
                 {
                     Array.Copy(row, 1, itemArray, 0, length);
-
                 }
                 else
                 {
-                    foreach (var col in Table.Columns)
+                    // Get only writable columns
+                    var columns = Table.GetMutableColumnsWithPrimaryKeys();
+
+                    foreach (var col in columns)
                     {
                         var val = row[col.Ordinal + 1];
                         var colDataType = col.GetDataType();
