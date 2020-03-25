@@ -35,10 +35,11 @@ namespace Dotmim.Sync.Sqlite
                     connection.Open();
 
                 command.CommandText =
-                    $@"CREATE TABLE {scopeTableName.Quoted().ToString()}(
+                    $@"CREATE TABLE {scopeTableName.Quoted()}(
                         sync_scope_id blob NOT NULL PRIMARY KEY,
 	                    sync_scope_name text NOT NULL,
 	                    sync_scope_schema text NULL,
+	                    sync_scope_version text NULL,
                         scope_last_server_sync_timestamp integer NULL,
                         scope_last_sync_timestamp integer NULL,
                         scope_last_sync_duration integer NULL,
@@ -61,15 +62,9 @@ namespace Dotmim.Sync.Sqlite
             }
         }
 
-        public void CreateServerHistoryScopeInfoTable()
-        {
-            throw new NotImplementedException();
-        }
+        public void CreateServerHistoryScopeInfoTable() => throw new NotImplementedException();
 
-        public void CreateServerScopeInfoTable()
-        {
-            throw new NotImplementedException();
-        }
+        public void CreateServerScopeInfoTable() => throw new NotImplementedException();
 
         public void DropClientScopeInfoTable()
         {
@@ -104,15 +99,9 @@ namespace Dotmim.Sync.Sqlite
             }
         }
 
-        public void DropServerHistoryScopeInfoTable()
-        {
-            throw new NotImplementedException();
-        }
+        public void DropServerHistoryScopeInfoTable() => throw new NotImplementedException();
 
-        public void DropServerScopeInfoTable()
-        {
-            throw new NotImplementedException();
-        }
+        public void DropServerScopeInfoTable() => throw new NotImplementedException();
 
         public List<ScopeInfo> GetAllClientScopes(string scopeName)
         {
@@ -132,11 +121,12 @@ namespace Dotmim.Sync.Sqlite
                     $@"SELECT sync_scope_id
                            , sync_scope_name
                            , sync_scope_schema
+                           , sync_scope_version
                            , scope_last_sync
                            , scope_last_server_sync_timestamp
                            , scope_last_sync_timestamp
                            , scope_last_sync_duration
-                    FROM  {scopeTableName.Unquoted().ToString()}
+                    FROM  {scopeTableName.Unquoted()}
                     WHERE sync_scope_name = @sync_scope_name";
 
                 var p = command.CreateParameter();
@@ -155,6 +145,7 @@ namespace Dotmim.Sync.Sqlite
                             var scopeInfo = new ScopeInfo();
                             scopeInfo.Name = reader["sync_scope_name"] as String;
                             scopeInfo.Schema = reader["sync_scope_schema"] as String;
+                            scopeInfo.Version = reader["sync_scope_version"] as String;
                             scopeInfo.Id = reader.GetGuid(reader.GetOrdinal("sync_scope_id"));
                             scopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value
                                             ? (DateTime?)reader.GetDateTime(reader.GetOrdinal("scope_last_sync"))
@@ -184,10 +175,7 @@ namespace Dotmim.Sync.Sqlite
             }
         }
 
-        public List<ServerScopeInfo> GetAllServerScopes(string scopeName)
-        {
-            throw new NotImplementedException();
-        }
+        public List<ServerScopeInfo> GetAllServerScopes(string scopeName) => throw new NotImplementedException();
 
         public long GetLocalTimestamp()
         {
@@ -246,8 +234,8 @@ namespace Dotmim.Sync.Sqlite
                 var exist = (long)command.ExecuteScalar() > 0;
 
                 string stmtText = exist
-                    ? $"Update {scopeTableName.Unquoted().ToString()} set sync_scope_name=@sync_scope_name, sync_scope_schema=@sync_scope_schema, scope_last_sync=@scope_last_sync, scope_last_server_sync_timestamp=@scope_last_server_sync_timestamp,  scope_last_sync_timestamp=@scope_last_sync_timestamp, scope_last_sync_duration=@scope_last_sync_duration where sync_scope_id=@sync_scope_id"
-                    : $"Insert into {scopeTableName.Unquoted().ToString()} (sync_scope_name, sync_scope_schema, scope_last_sync, scope_last_sync_duration, scope_last_server_sync_timestamp, scope_last_sync_timestamp, sync_scope_id) values (@sync_scope_name, @sync_scope_schema, @scope_last_sync, @scope_last_sync_duration, @scope_last_server_sync_timestamp, @scope_last_sync_timestamp, @sync_scope_id)";
+                    ? $"Update {scopeTableName.Unquoted().ToString()} set sync_scope_name=@sync_scope_name, sync_scope_schema=@sync_scope_schema, sync_scope_version=@sync_scope_version, scope_last_sync=@scope_last_sync, scope_last_server_sync_timestamp=@scope_last_server_sync_timestamp,  scope_last_sync_timestamp=@scope_last_sync_timestamp, scope_last_sync_duration=@scope_last_sync_duration where sync_scope_id=@sync_scope_id"
+                    : $"Insert into {scopeTableName.Unquoted().ToString()} (sync_scope_name, sync_scope_schema, sync_scope_version, scope_last_sync, scope_last_sync_duration, scope_last_server_sync_timestamp, scope_last_sync_timestamp, sync_scope_id) values (@sync_scope_name, @sync_scope_schema, @sync_scope_version, @scope_last_sync, @scope_last_sync_duration, @scope_last_server_sync_timestamp, @scope_last_sync_timestamp, @sync_scope_id)";
 
                 command = connection.CreateCommand();
                 command.CommandText = stmtText;
@@ -261,6 +249,12 @@ namespace Dotmim.Sync.Sqlite
                 p = command.CreateParameter();
                 p.ParameterName = "@sync_scope_schema";
                 p.Value = string.IsNullOrEmpty(scopeInfo.Schema) ? DBNull.Value : (object)scopeInfo.Schema;
+                p.DbType = DbType.String;
+                command.Parameters.Add(p);
+
+                p = command.CreateParameter();
+                p.ParameterName = "@sync_scope_version";
+                p.Value = string.IsNullOrEmpty(scopeInfo.Version) ? DBNull.Value : (object)scopeInfo.Version;
                 p.DbType = DbType.String;
                 command.Parameters.Add(p);
 
@@ -301,8 +295,9 @@ namespace Dotmim.Sync.Sqlite
                         while (reader.Read())
                         {
 
-                            scopeInfo.Name = reader["sync_scope_name"] as String;
-                            scopeInfo.Schema = reader["sync_scope_schema"] as String;
+                            scopeInfo.Name = reader["sync_scope_name"] as string;
+                            scopeInfo.Schema = reader["sync_scope_schema"] as string;
+                            scopeInfo.Version = reader["sync_scope_version"] as string;
                             scopeInfo.Id = reader.GetGuid(reader.GetOrdinal("sync_scope_id"));
                             scopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value
                                         ? (DateTime?)reader.GetDateTime(reader.GetOrdinal("scope_last_sync"))
@@ -331,15 +326,11 @@ namespace Dotmim.Sync.Sqlite
             }
         }
 
-        public ServerHistoryScopeInfo InsertOrUpdateServerHistoryScopeInfo(ServerHistoryScopeInfo serverHistoryScopeInfo)
-        {
-            throw new NotImplementedException();
-        }
+        public ServerHistoryScopeInfo InsertOrUpdateServerHistoryScopeInfo(ServerHistoryScopeInfo serverHistoryScopeInfo) 
+            => throw new NotImplementedException();
 
-        public ServerScopeInfo InsertOrUpdateServerScopeInfo(ServerScopeInfo serverScopeInfo)
-        {
-            throw new NotImplementedException();
-        }
+        public ServerScopeInfo InsertOrUpdateServerScopeInfo(ServerScopeInfo serverScopeInfo) 
+            => throw new NotImplementedException();
 
         public bool NeedToCreateClientScopeInfoTable()
         {
@@ -374,14 +365,10 @@ namespace Dotmim.Sync.Sqlite
             }
         }
 
-        public bool NeedToCreateServerHistoryScopeInfoTable()
-        {
-            throw new NotImplementedException();
-        }
+        public bool NeedToCreateServerHistoryScopeInfoTable() 
+            => throw new NotImplementedException();
 
-        public bool NeedToCreateServerScopeInfoTable()
-        {
-            throw new NotImplementedException();
-        }
+        public bool NeedToCreateServerScopeInfoTable() 
+            => throw new NotImplementedException();
     }
 }

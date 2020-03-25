@@ -21,6 +21,8 @@ namespace Dotmim.Sync.Web.Server
         public IMemoryCache Cache { get; }
         public IHostingEnvironment Environment { get; }
 
+        public string Hint { get; set; }
+
         public WebServerProperties(IMemoryCache cache, IHostingEnvironment env)
         {
             this.Cache = cache;
@@ -31,7 +33,7 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// Habdle request
         /// </summary>
-        public async Task HandleRequestAsync(HttpContext context, CancellationToken cancellationToken = default)
+        public async Task HandleRequestAsync(HttpContext context, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (!WebServerOrchestrator.TryGetHeaderValue(context.Request.Headers, "dotmim-sync-scope-name", out var scopeName))
                 throw new HttpHeaderMissingExceptiopn("dotmim-sync-scope-name");
@@ -42,7 +44,7 @@ namespace Dotmim.Sync.Web.Server
                 return;
             }
 
-            await this[scopeName].HandleRequestAsync(context, cancellationToken).ConfigureAwait(false);
+            await this[scopeName].HandleRequestAsync(context, cancellationToken, progress).ConfigureAwait(false);
         }
 
        

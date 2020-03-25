@@ -13,8 +13,10 @@ namespace Dotmim.Sync.Enumerations
     {
         None,
         BeginSession,
+
         ScopeCreating,
         ScopeLoading,
+        ScopeLoaded,
         ScopeSaved,
 
         SnapshotApplying,
@@ -22,10 +24,16 @@ namespace Dotmim.Sync.Enumerations
 
         SchemaReading,
         SchemaRead,
-        SchemaApplying,
-        SchemaApplied,
-        TableSchemaApplying,
-        TableSchemaApplied,
+
+        SchemaProvisioning,
+        SchemaProvisioned,
+        TableSchemaProvisioning,
+        TableSchemaProvisioned,
+
+        SchemaDeprovisioning,
+        SchemaDeprovisioned,
+        TableSchemaDeprovisioning,
+        TableSchemaDeprovisioned,
 
         TableChangesSelecting,
         TableChangesSelected,
