@@ -22,7 +22,7 @@ namespace Dotmim.Sync
         /// Gets the schema to be applied. If no tables are filled, the schema will be read.
         /// </summary>
         public SyncSet Schema { get; }
-        public override string Message => $"Synced tables count: {this.Schema.Tables.Count}";
+        public override string Message => $"synced tables count: {this.Schema.Tables.Count}";
 
     }
     public class OutdatedArgs : ProgressArgs
@@ -34,7 +34,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets or sets an action enumeration value for the action to handle the outdated peer.
         /// </summary>
-        public new OutdatedAction Action { get; set; } = OutdatedAction.Rollback;
+        public OutdatedAction Action { get; set; } = OutdatedAction.Rollback;
 
         public override string Message => $"";
     }

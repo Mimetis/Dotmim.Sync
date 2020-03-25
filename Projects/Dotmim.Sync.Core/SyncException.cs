@@ -63,26 +63,11 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets or Sets if error is Local or Remote side
         /// </summary>
-        public SyncExceptionSide Side { get; set; }
+        public SyncSide Side { get; set; }
 
     }
 
 
-    /// <summary>
-    /// Defines where occured the exception
-    /// </summary>
-    public enum SyncExceptionSide
-    {
-        /// <summary>
-        /// Occurs when error comes from LocalOrchestrator
-        /// </summary>
-        ClientSide,
-
-        /// <summary>
-        /// Occurs when error comes from RemoteOrchestrator
-        /// </summary>
-        ServerSide
-    }
 
     /// <summary>
     /// Rollback Exception

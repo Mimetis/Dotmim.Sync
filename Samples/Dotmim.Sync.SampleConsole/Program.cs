@@ -45,7 +45,7 @@ internal class Program
     public static string[] oneTable = new string[] { "ProductCategory" };
     private static async Task Main(string[] args)
     {
-        await SyncHttpThroughKestellAsync();
+        await SynchronizeAsync();
     }
 
 
@@ -370,8 +370,8 @@ internal class Program
         //var clientProvider = new SqliteSyncProvider("clientX.db");
 
         //var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" });
-        var setup = new SyncSetup(new string[] { "Customer" });
-        //var setup = new SyncSetup(allTables);
+        //var setup = new SyncSetup(new string[] { "Customer" });
+        var setup = new SyncSetup(allTables);
 
         //setup.Filters.Add("Customer", "CompanyName");
 
@@ -493,8 +493,8 @@ internal class Program
             try
             {
                 // Launch the sync process
-                if (!agent.Parameters.Contains("CompanyName"))
-                    agent.Parameters.Add("CompanyName", "Professional Sales and Service");
+                //if (!agent.Parameters.Contains("CompanyName"))
+                //    agent.Parameters.Add("CompanyName", "Professional Sales and Service");
 
                 var s1 = await agent.SynchronizeAsync(progress);
 

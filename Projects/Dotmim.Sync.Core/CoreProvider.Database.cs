@@ -1,8 +1,5 @@
 using Dotmim.Sync.Builders;
-
 using Dotmim.Sync.Enumerations;
-
-using Dotmim.Sync.Messages;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -30,14 +27,6 @@ namespace Dotmim.Sync
             if (schema.Tables == null || !schema.HasTables)
                 throw new MissingTablesException();
 
-            // Event progress
-            context.SyncStage = SyncStage.SchemaDeprovisioning;
-
-            var script = new StringBuilder();
-
-            var beforeArgs = new DatabaseDeprovisioningArgs(context, provision, schema, connection, transaction);
-            await this.InterceptAsync(beforeArgs).ConfigureAwait(false);
-
             // get Database builder
             var builder = this.GetDatabaseBuilder();
             builder.UseChangeTracking = this.UseChangeTracking;
@@ -63,18 +52,10 @@ namespace Dotmim.Sync
                 // adding filter
                 this.AddFilters(schemaTable, tableBuilder);
 
-                context.SyncStage = SyncStage.TableSchemaDeprovisioning;
-
-                // Launch any interceptor if available
-                await this.InterceptAsync(new TableDeprovisioningArgs(context, provision, schemaTable, connection, transaction)).ConfigureAwait(false);
-
                 tableBuilder.Drop(provision, connection, transaction);
 
-                // Report & Interceptor
-                context.SyncStage = SyncStage.TableSchemaDeprovisioned;
-                var tableDeprovisionedArgs = new TableDeprovisionedArgs(context, provision, schemaTable, connection, transaction);
-                this.ReportProgress(context, progress, tableDeprovisionedArgs);
-                await this.InterceptAsync(tableDeprovisionedArgs).ConfigureAwait(false);
+                // Interceptor
+                await this.Orchestrator.InterceptAsync(new TableDeprovisionedArgs(context, provision, schemaTable, connection, transaction), cancellationToken).ConfigureAwait(false);
             }
 
             if (provision.HasFlag(SyncProvision.ClientScope))
@@ -85,13 +66,6 @@ namespace Dotmim.Sync
 
             if (provision.HasFlag(SyncProvision.ServerHistoryScope))
                 context = await this.DropServerHistoryScopeAsync(context, scopeInfoTableName, connection, transaction, cancellationToken, progress);
-
-
-            // Report & Interceptor
-            context.SyncStage = SyncStage.SchemaDeprovisioned;
-            var args = new DatabaseDeprovisionedArgs(context, provision, schema, script.ToString(), connection, transaction);
-            this.ReportProgress(context, progress, args);
-            await this.InterceptAsync(args).ConfigureAwait(false);
 
             return context;
         }
@@ -108,14 +82,6 @@ namespace Dotmim.Sync
 
             if (schema.Tables == null || !schema.HasTables)
                 throw new MissingTablesException();
-
-            // Event progress
-            context.SyncStage = SyncStage.SchemaProvisioning;
-
-            var script = new StringBuilder();
-
-            var beforeArgs = new DatabaseProvisioningArgs(context, provision, schema, connection, transaction);
-            await this.InterceptAsync(beforeArgs).ConfigureAwait(false);
 
             // get Database builder
             var builder = this.GetDatabaseBuilder();
@@ -151,30 +117,14 @@ namespace Dotmim.Sync
                 // adding filter
                 this.AddFilters(schemaTable, tableBuilder);
 
-                context.SyncStage = SyncStage.TableSchemaProvisioning;
-
-                // Launch any interceptor if available
-                await this.InterceptAsync(new TableProvisioningArgs(context, provision, schemaTable, connection, transaction)).ConfigureAwait(false);
-
                 tableBuilder.Create(provision, connection, transaction);
                 tableBuilder.CreateForeignKeys(connection, transaction);
 
-                // Report & Interceptor
-                context.SyncStage = SyncStage.TableSchemaProvisioned;
-                var tableProvisionedArgs = new TableProvisionedArgs(context, provision, schemaTable, connection, transaction);
-                this.ReportProgress(context, progress, tableProvisionedArgs);
-                await this.InterceptAsync(tableProvisionedArgs).ConfigureAwait(false);
+                // Interceptor
+                await this.Orchestrator.InterceptAsync(new TableProvisionedArgs(context, provision, schemaTable, connection, transaction), cancellationToken).ConfigureAwait(false);
             }
 
-            // Report & Interceptor
-            context.SyncStage = SyncStage.SchemaProvisioned;
-            var args = new DatabaseProvisionedArgs(context, provision, schema, script.ToString(), connection, transaction);
-            this.ReportProgress(context, progress, args);
-            await this.InterceptAsync(args).ConfigureAwait(false);
-
             return context;
-
-
         }
 
         /// <summary>

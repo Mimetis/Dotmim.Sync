@@ -1,7 +1,6 @@
 
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Manager;
-using Dotmim.Sync.Messages;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -18,13 +17,11 @@ namespace Dotmim.Sync
         /// <summary>
         /// update configuration object with tables desc from server database
         /// </summary>
-        public async Task<(SyncContext, SyncSet)> ReadSchemaAsync(SyncContext context, SyncSetup setup, DbConnection connection, DbTransaction transaction,
+        public async Task<(SyncContext, SyncSet)> GetSchemaAsync(SyncContext context, SyncSetup setup, DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             if (setup == null || setup.Tables.Count <= 0)
                 throw new MissingTablesException();
-
-            context.SyncStage = SyncStage.SchemaReading;
 
             // Create the schema
             var schema = new SyncSet()
@@ -76,13 +73,6 @@ namespace Dotmim.Sync
 
             // Parse and affect relations to schema
             SetRelations(relations, schema);
-
-            // Progress & Interceptor
-            context.SyncStage = SyncStage.SchemaRead;
-
-            var schemaArgs = new SchemaArgs(context, schema, connection, transaction);
-            this.ReportProgress(context, progress, schemaArgs);
-            await this.InterceptAsync(schemaArgs).ConfigureAwait(false);
 
             return (context, schema);
         }

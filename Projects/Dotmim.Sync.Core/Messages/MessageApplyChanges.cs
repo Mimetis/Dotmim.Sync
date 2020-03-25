@@ -2,7 +2,7 @@
 using Dotmim.Sync.Enumerations;
 using System;
 
-namespace Dotmim.Sync.Messages
+namespace Dotmim.Sync
 {
     /// <summary>
     /// Message exchanged during the Begin session sync stage

@@ -216,7 +216,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             });
 
             Assert.Equal(SyncStage.SchemaReading, se.SyncStage);
-            Assert.Equal(SyncExceptionSide.ClientSide, se.Side);
+            Assert.Equal(SyncSide.ClientSide, se.Side);
             Assert.Equal("OperationCanceledException", se.TypeName);
 
 
@@ -258,7 +258,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             });
 
             Assert.Equal(SyncStage.SchemaReading, se.SyncStage);
-            Assert.Equal(SyncExceptionSide.ClientSide, se.Side);
+            Assert.Equal(SyncSide.ClientSide, se.Side);
             Assert.Equal("OperationCanceledException", se.TypeName);
 
 

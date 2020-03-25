@@ -2,7 +2,6 @@
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Manager;
-using Dotmim.Sync.Messages;
 using Dotmim.Sync.Serialization;
 using System;
 using System.Collections.Generic;
@@ -41,24 +40,6 @@ namespace Dotmim.Sync
                 return (context, batchInfo, changesSelected);
             }
 
-            // Check if the provider is not outdated
-            var isOutdated = this.IsRemoteOutdated();
-
-            // Get a chance to make the sync even if it's outdated
-            if (isOutdated)
-            {
-                var outdatedArgs = new OutdatedArgs(context, null, null);
-
-                // Interceptor
-                await this.InterceptAsync(outdatedArgs).ConfigureAwait(false);
-
-                if (outdatedArgs.Action != OutdatedAction.Rollback)
-                    context.SyncType = outdatedArgs.Action == OutdatedAction.Reinitialize ? SyncType.Reinitialize : SyncType.ReinitializeWithUpload;
-
-                if (outdatedArgs.Action == OutdatedAction.Rollback)
-                    throw new OutOfDateException();
-            }
-
             // create local directory
             if (message.BatchSize > 0 && !string.IsNullOrEmpty(message.BatchDirectory) && !Directory.Exists(message.BatchDirectory))
                 Directory.CreateDirectory(message.BatchDirectory);
@@ -92,11 +73,8 @@ namespace Dotmim.Sync
                 var tableBuilder = this.GetTableBuilder(syncTable);
                 var syncAdapter = tableBuilder.CreateSyncAdapter(connection, transaction);
 
-                // raise before event
-                context.SyncStage = SyncStage.TableChangesSelecting;
-                var tableChangesSelectingArgs = new TableChangesSelectingArgs(context, syncTable.TableName, connection, transaction);
                 // launch interceptor if any
-                await this.InterceptAsync(tableChangesSelectingArgs).ConfigureAwait(false);
+                await this.Orchestrator.InterceptAsync(new TableChangesSelectingArgs(context, syncTable.TableName, connection, transaction), cancellationToken).ConfigureAwait(false);
 
                 // Get Command
                 var selectIncrementalChangesCommand = this.GetSelectChangesCommand(context, syncAdapter, syncTable, message.IsNew);
@@ -166,20 +144,20 @@ namespace Dotmim.Sync
                         }
                     }
                 }
-
                 selectIncrementalChangesCommand.Dispose();
-
-                context.SyncStage = SyncStage.TableChangesSelected;
 
                 if (tableChangesSelected.Deletes > 0 || tableChangesSelected.Upserts > 0)
                     changes.TableChangesSelected.Add(tableChangesSelected);
 
                 // Event progress & interceptor
-                context.SyncStage = SyncStage.TableChangesSelected;
                 var tableChangesSelectedArgs = new TableChangesSelectedArgs(context, tableChangesSelected, connection, transaction);
-                this.ReportProgress(context, progress, tableChangesSelectedArgs);
-                await this.InterceptAsync(tableChangesSelectedArgs).ConfigureAwait(false);
 
+                // Always make an interceptor even if table changes is empty
+                await this.Orchestrator.InterceptAsync(tableChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
+
+                // We don't report progress if no table changes is empty, to limit verbosity of Progress
+                if (tableChangesSelectedArgs.TableChangesSelected.TotalChanges > 0)
+                    this.Orchestrator.ReportProgress(context, progress, tableChangesSelectedArgs);
             }
 
             // We are in batch mode, and we are at the last batchpart info

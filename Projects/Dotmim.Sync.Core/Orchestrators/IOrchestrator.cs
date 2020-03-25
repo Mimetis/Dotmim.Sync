@@ -1,8 +1,8 @@
 ﻿using Dotmim.Sync.Batch;
 using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Messages;
 using System;
 using System.Collections.Generic;
+using System.Data.Common;
 using System.Numerics;
 using System.Text;
 using System.Threading;
@@ -76,6 +76,15 @@ namespace Dotmim.Sync
         void On(Interceptors interceptors);
 
 
+        /// <summary>
+        /// Launch an interceptor
+        /// </summary>
+        Task InterceptAsync<T>(T args, CancellationToken cancellationToken) where T : ProgressArgs;
+
+        /// <summary>
+        /// Report progress through a IProgress<T></T> instance
+        /// </summary>
+        void ReportProgress(SyncContext context, IProgress<ProgressArgs> progress, ProgressArgs args, DbConnection connection = null, DbTransaction transaction = null);
 
     }
 
