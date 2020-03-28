@@ -76,6 +76,7 @@ namespace Dotmim.Sync.Web.Client
         /// Gets a new web proxy orchestrator
         /// </summary>
         public WebClientOrchestrator(string serviceUri, ISerializerFactory serializerFactory = null, IConverter customConverter = null, HttpClient client = null)
+            : base(null, new SyncOptions(), new SyncSetup())
         {
             // if no HttpClient provisionned, create a new one
             if (client == null)

@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.SqlServer.ChangeTracking
 {
@@ -15,9 +16,8 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking
         /// <summary>
         /// Get Table
         /// </summary>
-        public static SyncTable ChangeTrackingTable(SqlConnection connection, SqlTransaction transaction, string tableName, string schemaName)
+        public static async Task<SyncTable> ChangeTrackingTableAsync(SqlConnection connection, SqlTransaction transaction, string tableName, string schemaName)
         {
-
             var command = $"Select top 1 tbl.name as TableName, " +
                           $"sch.name as SchemaName " +
                           $"  from sys.change_tracking_tables tr " +
@@ -44,23 +44,20 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
                 if (!alreadyOpened)
-                    connection.Open();
+                    await connection.OpenAsync().ConfigureAwait(false);
 
                 if (transaction != null)
                     sqlCommand.Transaction = transaction;
 
-                using (var reader = sqlCommand.ExecuteReader())
+                using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
                 {
                     syncTable.Load(reader);
                 }
 
-
                 if (!alreadyOpened)
                     connection.Close();
-
             }
             return syncTable;
         }
-
     }
 }

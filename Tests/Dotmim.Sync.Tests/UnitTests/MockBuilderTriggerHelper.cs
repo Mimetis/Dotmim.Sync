@@ -2,40 +2,30 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Tests.UnitTests
 {
     public class MockBuilderTriggerHelper : IDbBuilderTriggerHelper
     {
-        public void AlterDeleteTrigger() { }
+        public Task AlterDeleteTriggerAsync() => Task.CompletedTask;
 
+        public Task AlterInsertTriggerAsync() => Task.CompletedTask;
 
-        public void AlterInsertTrigger() { }
+        public Task AlterUpdateTriggerAsync() => Task.CompletedTask;
 
+        public Task CreateDeleteTriggerAsync() => Task.CompletedTask;
 
-        public void AlterUpdateTrigger() { }
+        public Task CreateInsertTriggerAsync() => Task.CompletedTask;
 
+        public Task CreateUpdateTriggerAsync() => Task.CompletedTask;
 
-        public void CreateDeleteTrigger() { }
+        public Task DropDeleteTriggerAsync() => Task.CompletedTask;
 
+        public Task DropInsertTriggerAsync() => Task.CompletedTask;
 
-        public void CreateInsertTrigger() { }
+        public Task DropUpdateTriggerAsync() => Task.CompletedTask;
 
-
-        public void CreateUpdateTrigger() { }
-
-
-        public void DropDeleteTrigger()
-        {
-            throw new NotImplementedException();
-        }
-
-        public void DropInsertTrigger() { }
-
-
-        public void DropUpdateTrigger() { }
-
-
-        public bool NeedToCreateTrigger(DbTriggerType triggerType) => true;
+        public Task<bool> NeedToCreateTriggerAsync(DbTriggerType triggerType) => Task.FromResult(true);
     }
 }

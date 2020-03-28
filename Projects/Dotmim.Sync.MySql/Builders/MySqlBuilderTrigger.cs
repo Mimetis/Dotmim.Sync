@@ -7,6 +7,7 @@ using System.Data.Common;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.MySql
 {
@@ -83,7 +84,7 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine("END");
             return stringBuilder.ToString();
         }
-        public void CreateDeleteTrigger()
+        public async Task CreateDeleteTriggerAsync()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
@@ -92,7 +93,7 @@ namespace Dotmim.Sync.MySql
                 using (var command = new MySqlCommand())
                 {
                     if (!alreadyOpened)
-                        this.connection.Open();
+                        await connection.OpenAsync().ConfigureAwait(false);
 
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
@@ -105,7 +106,7 @@ namespace Dotmim.Sync.MySql
 
                     command.CommandText = createTrigger.ToString();
                     command.Connection = this.connection;
-                    command.ExecuteNonQuery();
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 }
             }
@@ -122,9 +123,9 @@ namespace Dotmim.Sync.MySql
 
             }
         }
-     
-        public void AlterDeleteTrigger(){ }
-      
+
+        public Task AlterDeleteTriggerAsync() => Task.CompletedTask;
+
 
         private string InsertTriggerBodyText()
         {
@@ -182,7 +183,7 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine("END");
             return stringBuilder.ToString();
         }
-        public void CreateInsertTrigger()
+        public async Task CreateInsertTriggerAsync()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
@@ -191,7 +192,7 @@ namespace Dotmim.Sync.MySql
                 using (var command = new MySqlCommand())
                 {
                     if (!alreadyOpened)
-                        this.connection.Open();
+                        await connection.OpenAsync().ConfigureAwait(false);
 
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
@@ -205,7 +206,7 @@ namespace Dotmim.Sync.MySql
 
                     command.CommandText = createTrigger.ToString();
                     command.Connection = this.connection;
-                    command.ExecuteNonQuery();
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 }
             }
@@ -222,9 +223,9 @@ namespace Dotmim.Sync.MySql
 
             }
         }
-       
-        public void AlterInsertTrigger(){ }
-       
+
+        public Task AlterInsertTriggerAsync() => Task.CompletedTask;
+
 
         private string UpdateTriggerBodyText()
         {
@@ -326,7 +327,7 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine($"End; ");
             return stringBuilder.ToString();
         }
-        public void CreateUpdateTrigger()
+        public async Task CreateUpdateTriggerAsync()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
@@ -335,7 +336,7 @@ namespace Dotmim.Sync.MySql
                 using (var command = new MySqlCommand())
                 {
                     if (!alreadyOpened)
-                        this.connection.Open();
+                        await connection.OpenAsync().ConfigureAwait(false);
 
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
@@ -348,8 +349,8 @@ namespace Dotmim.Sync.MySql
 
                     command.CommandText = createTrigger.ToString();
                     command.Connection = this.connection;
-                    command.ExecuteNonQuery();
 
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
@@ -365,10 +366,10 @@ namespace Dotmim.Sync.MySql
 
             }
         }
-        
-        public void AlterUpdateTrigger() { return; }
 
-        public bool NeedToCreateTrigger(DbTriggerType type)
+        public Task AlterUpdateTriggerAsync() => Task.CompletedTask;
+
+        public async Task<bool> NeedToCreateTriggerAsync(DbTriggerType type)
         {
             var updTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger).name, tableName.Unquoted().Normalized().ToString());
             var delTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger).name, tableName.Unquoted().Normalized().ToString());
@@ -394,11 +395,11 @@ namespace Dotmim.Sync.MySql
                     }
             }
 
-            return !MySqlManagementUtils.TriggerExists(connection, transaction, triggerName);
+            return !(await MySqlManagementUtils.TriggerExistsAsync(connection, transaction, triggerName).ConfigureAwait(false));
 
         }
 
-        public void DropTrigger(DbCommandType triggerType)
+        public async Task DropTriggerAsync(DbCommandType triggerType)
         {
             var triggerName = string.Format(this.mySqlObjectNames.GetCommandName(triggerType).name, tableName.Unquoted().Normalized().ToString());
             var commandText = $"drop trigger if exists {triggerName}";
@@ -408,14 +409,14 @@ namespace Dotmim.Sync.MySql
             try
             {
                 if (!alreadyOpened)
-                    connection.Open();
+                    await connection.OpenAsync().ConfigureAwait(false);
 
                 using (var command = new MySqlCommand(commandText, connection))
                 {
                     if (transaction != null)
                         command.Transaction = transaction;
 
-                    command.ExecuteNonQuery();
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
@@ -433,11 +434,11 @@ namespace Dotmim.Sync.MySql
         }
 
 
-        public void DropInsertTrigger() => this.DropTrigger(DbCommandType.InsertTrigger);
+        public Task DropInsertTriggerAsync() => this.DropTriggerAsync(DbCommandType.InsertTrigger);
 
-        public void DropUpdateTrigger() => this.DropTrigger(DbCommandType.UpdateTrigger);
+        public Task DropUpdateTriggerAsync() => this.DropTriggerAsync(DbCommandType.UpdateTrigger);
 
-        public void DropDeleteTrigger() => this.DropTrigger(DbCommandType.DeleteTrigger);
+        public Task DropDeleteTriggerAsync() => this.DropTriggerAsync(DbCommandType.DeleteTrigger);
 
     }
 }

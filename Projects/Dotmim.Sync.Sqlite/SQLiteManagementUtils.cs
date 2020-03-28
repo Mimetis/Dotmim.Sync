@@ -7,12 +7,13 @@ using Microsoft.Data.Sqlite;
 using Dotmim.Sync.Builders;
 using System;
 using System.Data;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Sqlite
 {
     internal static class SqliteManagementUtils
     {
-        public static SyncTable Table(SqliteConnection connection, SqliteTransaction transaction, string tableName)
+        public static async Task<SyncTable> GetTableAsync(SqliteConnection connection, SqliteTransaction transaction, string tableName)
         {
             string command = "select * from sqlite_master where name = @tableName limit 1";
 
@@ -27,12 +28,12 @@ namespace Dotmim.Sync.Sqlite
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
                 if (!alreadyOpened)
-                    connection.Open();
+                    await connection.OpenAsync().ConfigureAwait(false);
 
                 if (transaction != null)
                     sqlCommand.Transaction = transaction;
 
-                using (var reader = sqlCommand.ExecuteReader())
+                using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
                 {
                     syncTable.Load(reader);
                 }
@@ -45,7 +46,7 @@ namespace Dotmim.Sync.Sqlite
             return syncTable;
         }
 
-        public static SyncTable ColumnsForTable(SqliteConnection connection, SqliteTransaction transaction, string tableName)
+        public static async Task<SyncTable> GetColumnsForTableAsync(SqliteConnection connection, SqliteTransaction transaction, string tableName)
         {
 
             var tableNameParser = ParserName.Parse(tableName, "`");
@@ -59,13 +60,13 @@ namespace Dotmim.Sync.Sqlite
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
                 if (!alreadyOpened)
-                    connection.Open();
+                    await connection.OpenAsync().ConfigureAwait(false);
 
                 if (transaction != null)
                     sqlCommand.Transaction = transaction;
 
 
-                using (var reader = sqlCommand.ExecuteReader())
+                using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
                 {
                     syncTable.Load(reader);
                 }
@@ -78,7 +79,7 @@ namespace Dotmim.Sync.Sqlite
             return syncTable;
         }
 
-        public static SyncTable PrimaryKeysForTable(SqliteConnection connection, SqliteTransaction transaction, string tableName)
+        public static async Task<SyncTable> GetPrimaryKeysForTableAsync(SqliteConnection connection, SqliteTransaction transaction, string tableName)
         {
 
             var tableNameParser = ParserName.Parse(tableName, "`");
@@ -92,13 +93,13 @@ namespace Dotmim.Sync.Sqlite
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
                 if (!alreadyOpened)
-                    connection.Open();
+                    await connection.OpenAsync().ConfigureAwait(false);
 
                 if (transaction != null)
                     sqlCommand.Transaction = transaction;
 
 
-                using (var reader = sqlCommand.ExecuteReader())
+                using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
                 {
                     syncTable.Load(reader);
                 }
@@ -110,7 +111,7 @@ namespace Dotmim.Sync.Sqlite
             return syncTable;
         }
 
-        public static SyncTable RelationsForTable(SqliteConnection connection, SqliteTransaction transaction, string tableName)
+        public static async Task<SyncTable> GetRelationsForTableAsync(SqliteConnection connection, SqliteTransaction transaction, string tableName)
         {
             var tableNameParser = ParserName.Parse(tableName, "`");
             var tableNameString = tableNameParser.Unquoted().ToString();
@@ -123,13 +124,13 @@ namespace Dotmim.Sync.Sqlite
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
                 if (!alreadyOpened)
-                    connection.Open();
+                    await connection.OpenAsync().ConfigureAwait(false);
 
                 if (transaction != null)
                     sqlCommand.Transaction = transaction;
 
 
-                using (var reader = sqlCommand.ExecuteReader())
+                using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
                 {
                     syncTable.Load(reader);
                 }
@@ -141,33 +142,21 @@ namespace Dotmim.Sync.Sqlite
             return syncTable;
         }
 
-        public static void DropTableIfExists(SqliteConnection connection, SqliteTransaction transaction, string quotedTableName)
+        public static async Task DropTableIfExistsAsync(SqliteConnection connection, SqliteTransaction transaction, string quotedTableName)
         {
             var tableName = ParserName.Parse(quotedTableName).ToString();
 
-            using (DbCommand dbCommand = connection.CreateCommand())
+            using (DbCommand command = connection.CreateCommand())
             {
-                dbCommand.CommandText = $"drop table if exist {tableName}";
+                command.CommandText = $"drop table if exist {tableName}";
                 if (transaction != null)
-                    dbCommand.Transaction = transaction;
+                    command.Transaction = transaction;
 
-                dbCommand.ExecuteNonQuery();
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
 
-        public static string DropTableIfExistsScriptText(string quotedTableName)
-        {
-            var tableName = ParserName.Parse(quotedTableName).ToString();
-            return $"drop table if exist {tableName}";
-        }
-
-        public static string DropTableScriptText(string quotedTableName)
-        {
-            var tableName = ParserName.Parse(quotedTableName).ToString();
-            return $"drop table {tableName}";
-        }
-
-        public static void DropTriggerIfExists(SqliteConnection connection, SqliteTransaction transaction, string quotedTriggerName)
+        public static async Task DropTriggerIfExistsAsync(SqliteConnection connection, SqliteTransaction transaction, string quotedTriggerName)
         {
             var triggerName = ParserName.Parse(quotedTriggerName).ToString();
 
@@ -177,17 +166,11 @@ namespace Dotmim.Sync.Sqlite
                 if (transaction != null)
                     dbCommand.Transaction = transaction;
              
-                dbCommand.ExecuteNonQuery();
+                await dbCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
 
-        public static string DropTriggerScriptText(string quotedTriggerName)
-        {
-            var triggerName = ParserName.Parse(quotedTriggerName).ToString();
-            return $"drop trigger {triggerName}";
-        }
-
-        public static bool TableExists(SqliteConnection connection, SqliteTransaction transaction, ParserName tableName)
+        public static async Task<bool> TableExistsAsync(SqliteConnection connection, SqliteTransaction transaction, ParserName tableName)
         {
             bool tableExist;
             var quotedTableName = tableName.Unquoted().ToString();
@@ -206,12 +189,12 @@ namespace Dotmim.Sync.Sqlite
                 if (transaction != null)
                     dbCommand.Transaction = transaction;
 
-                tableExist = (long)dbCommand.ExecuteScalar() != 0L;
+                tableExist = ((long)await dbCommand.ExecuteScalarAsync()) != 0L;
             }
             return tableExist;
         }
 
-        public static bool TriggerExists(SqliteConnection connection, SqliteTransaction transaction, string quotedTriggerName)
+        public static async Task<bool> TriggerExistsAsync(SqliteConnection connection, SqliteTransaction transaction, string quotedTriggerName)
         {
             bool triggerExist;
             var triggerName = ParserName.Parse(quotedTriggerName).ToString();
@@ -225,7 +208,7 @@ namespace Dotmim.Sync.Sqlite
                 if (transaction != null)
                     dbCommand.Transaction = transaction;
 
-                triggerExist = (long)dbCommand.ExecuteScalar() != 0L;
+                triggerExist = ((long)await dbCommand.ExecuteScalarAsync()) != 0L;
             }
             return triggerExist;
         }
@@ -290,7 +273,6 @@ namespace Dotmim.Sync.Sqlite
             }
             return stringBuilder.ToString();
         }
-
 
         internal static string CommaSeparatedUpdateFromParameters(SyncTable table, string fromPrefix = "")
         {

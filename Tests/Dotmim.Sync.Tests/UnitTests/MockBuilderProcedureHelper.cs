@@ -2,74 +2,75 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Tests.UnitTests
 {
     public class MockBuilderProcedureHelper : IDbBuilderProcedureHelper
     {
-        public void CreateBulkDelete() { }
+        public Task CreateBulkDeleteAsync() => Task.CompletedTask;
 
-        public void CreateBulkUpdate(bool hasMutableColumns) { }
-
-
-        public void CreateDelete() { }
+        public Task CreateBulkUpdateAsync(bool hasMutableColumns) => Task.CompletedTask;
 
 
-        public void CreateDeleteMetadata() { }
+        public Task CreateDeleteAsync() => Task.CompletedTask;
 
 
-        public void CreateReset() { }
+        public Task CreateDeleteMetadataAsync() => Task.CompletedTask;
 
 
-        public void CreateSelectIncrementalChanges(SyncFilter filter) { }
+        public Task CreateResetAsync()  => Task.CompletedTask;
 
 
-        public void CreateSelectInitializedChanges(SyncFilter filter) { }
+        public Task CreateSelectIncrementalChangesAsync(SyncFilter filter)  => Task.CompletedTask;
 
 
-        public void CreateSelectRow() { }
+        public Task CreateSelectInitializedChangesAsync(SyncFilter filter)  => Task.CompletedTask;
 
 
-        public void CreateTVPType() { }
+        public Task CreateSelectRowAsync()  => Task.CompletedTask;
 
 
-        public void CreateUpdate(bool hasMutableColumns) { }
+        public Task CreateTVPTypeAsync()  => Task.CompletedTask;
 
 
-        public void DropBulkDelete() { }
+        public Task CreateUpdateAsync(bool hasMutableColumns)  => Task.CompletedTask;
 
 
-        public void DropBulkUpdate() { }
+        public Task DropBulkDeleteAsync()  => Task.CompletedTask;
 
 
-        public void DropDelete() { }
+        public Task DropBulkUpdateAsync()  => Task.CompletedTask;
 
 
-        public void DropDeleteMetadata() { }
+        public Task DropDeleteAsync()  => Task.CompletedTask;
 
 
-        public void DropReset() { }
+        public Task DropDeleteMetadataAsync()  => Task.CompletedTask;
 
 
-        public void DropSelectIncrementalChanges(SyncFilter filter) { }
+        public Task DropResetAsync()  => Task.CompletedTask;
 
 
-        public void DropSelectInitializedChanges(SyncFilter filter) { }
+        public Task DropSelectIncrementalChangesAsync(SyncFilter filter)  => Task.CompletedTask;
 
 
-        public void DropSelectRow() { }
+        public Task DropSelectInitializedChangesAsync(SyncFilter filter)  => Task.CompletedTask;
 
 
-        public void DropTVPType() { }
+        public Task DropSelectRowAsync()  => Task.CompletedTask;
 
 
-        public void DropUpdate() { }
+        public Task DropTVPTypeAsync()  => Task.CompletedTask;
 
 
-        public bool NeedToCreateProcedure(DbCommandType commandName) => true;
+        public Task DropUpdateAsync()  => Task.CompletedTask;
 
 
-        public bool NeedToCreateType(DbCommandType typeName) => true;
+        public Task<bool> NeedToCreateProcedureAsync(DbCommandType commandName) => Task.FromResult(true);
+
+
+        public Task<bool> NeedToCreateTypeAsync(DbCommandType typeName) => Task.FromResult(true);
 
     }
 }

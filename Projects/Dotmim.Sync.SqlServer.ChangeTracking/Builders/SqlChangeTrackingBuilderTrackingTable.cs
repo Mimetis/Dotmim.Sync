@@ -12,6 +12,7 @@ using System.Data.SqlClient;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 {
@@ -35,7 +36,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             this.sqlDbMetadata = new SqlDbMetadata();
         }
 
-        public void CreateTable()
+        public async Task CreateTableAsync()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
@@ -44,20 +45,20 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 using (var command = new SqlCommand())
                 {
                     if (!alreadyOpened)
-                        this.connection.Open();
+                        await connection.OpenAsync().ConfigureAwait(false);
 
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
 
                     command.CommandText = this.CreateTableCommandText();
                     command.Connection = this.connection;
-                    command.ExecuteNonQuery();
 
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Error during alter table for change tracking : {ex}");
+                Debug.WriteLine($"Error during create table for change tracking : {ex}");
                 throw;
 
             }
@@ -71,7 +72,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 
         }
 
-        public void DropTable()
+        public async Task DropTableAsync()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
@@ -80,20 +81,21 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 using (var command = new SqlCommand())
                 {
                     if (!alreadyOpened)
-                        this.connection.Open();
+                        await connection.OpenAsync().ConfigureAwait(false);
 
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
 
                     command.CommandText = this.CreateDropTableCommandText();
                     command.Connection = this.connection;
-                    command.ExecuteNonQuery();
+
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 }
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Error during disabling change tracking : {ex}");
+                Debug.WriteLine($"Error during drop table from change tracking : {ex}");
                 throw;
 
             }
@@ -106,40 +108,22 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
         }
 
 
-        private string CreateDropTableCommandText()
-        {
-            return $"ALTER TABLE {tableName.Schema().Quoted().ToString()} DISABLE CHANGE_TRACKING;";
-        }
+        private string CreateDropTableCommandText() => $"ALTER TABLE {tableName.Schema().Quoted()} DISABLE CHANGE_TRACKING;";
 
-        private string CreateTableCommandText()
-        {
-            return $"ALTER TABLE {tableName.Schema().Quoted().ToString()} ENABLE CHANGE_TRACKING WITH(TRACK_COLUMNS_UPDATED = OFF);";
-        }
+        private string CreateTableCommandText() => $"ALTER TABLE {tableName.Schema().Quoted()} ENABLE CHANGE_TRACKING WITH(TRACK_COLUMNS_UPDATED = OFF);";
 
-        public bool NeedToCreateTrackingTable()
+        public async Task<bool> NeedToCreateTrackingTableAsync()
         {
             var schemaName = this.tableName.SchemaName;
             var tableName = this.tableName.ObjectName;
 
-            var table = SqlChangeTrackingManagementUtils.ChangeTrackingTable(connection, transaction, tableName, schemaName);
+            var table = await SqlChangeTrackingManagementUtils.ChangeTrackingTableAsync(connection, transaction, tableName, schemaName);
 
             return table.Rows.Count <= 0;
         }
 
 
-        public void CreateIndex(){}
-        private string CreateIndexCommandText() => string.Empty;
-        public string CreateIndexScriptText() => string.Empty;
-        public void CreatePk() { }
-        public string CreatePkScriptText() => string.Empty;
-        public string CreatePkCommandText() => string.Empty;
-        public string CreateTableScriptText() => string.Empty;
-        public string DropTableScriptText() => string.Empty;
-        public void PopulateFromBaseTable() { }
-        private string CreatePopulateFromBaseTableCommandText() => string.Empty;
-        public string CreatePopulateFromBaseTableScriptText() => string.Empty;
-        public void AddFilterColumn(SyncColumn filterColumn) { }
-        private string AddFilterColumnCommandText(SyncColumn col) => string.Empty;
-        public string ScriptAddFilterColumn(SyncColumn filterColumn) => string.Empty;
+        public Task CreateIndexAsync() => Task.CompletedTask;
+        public Task CreatePkAsync() => Task.CompletedTask;
     }
 }

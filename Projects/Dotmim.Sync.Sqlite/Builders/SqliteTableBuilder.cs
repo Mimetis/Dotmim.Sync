@@ -61,29 +61,18 @@ namespace Dotmim.Sync.Sqlite
         /// <param name="connection"></param>
         /// <param name="transaction"></param>
         /// <returns></returns>
-        public override IDbBuilderProcedureHelper CreateProcBuilder(DbConnection connection, DbTransaction transaction = null)
-        {
-            return null;
-        }
+        public override IDbBuilderProcedureHelper CreateProcBuilder(DbConnection connection, DbTransaction transaction = null) => null;
 
-        public override IDbBuilderTriggerHelper CreateTriggerBuilder(DbConnection connection, DbTransaction transaction = null)
-        {
-            return new SqliteBuilderTrigger(TableDescription, connection, transaction);
-        }
+        public override IDbBuilderTriggerHelper CreateTriggerBuilder(DbConnection connection, DbTransaction transaction = null) 
+            => new SqliteBuilderTrigger(TableDescription, connection, transaction);
 
-        public override IDbBuilderTableHelper CreateTableBuilder(DbConnection connection, DbTransaction transaction = null)
-        {
-            return new SqliteBuilderTable(TableDescription, connection, transaction);
-        }
+        public override IDbBuilderTableHelper CreateTableBuilder(DbConnection connection, DbTransaction transaction = null) 
+            => new SqliteBuilderTable(TableDescription, connection, transaction);
 
-        public override IDbBuilderTrackingTableHelper CreateTrackingTableBuilder(DbConnection connection, DbTransaction transaction = null)
-        {
-            return new SqliteBuilderTrackingTable(TableDescription, connection, transaction);
-        }
+        public override IDbBuilderTrackingTableHelper CreateTrackingTableBuilder(DbConnection connection, DbTransaction transaction = null) 
+            => new SqliteBuilderTrackingTable(TableDescription, connection, transaction);
 
-        public override DbSyncAdapter CreateSyncAdapter(DbConnection connection, DbTransaction transaction = null)
-        {
-            return new SqliteSyncAdapter(TableDescription, connection, transaction);
-        }
+        public override DbSyncAdapter CreateSyncAdapter(DbConnection connection, DbTransaction transaction = null) 
+            => new SqliteSyncAdapter(TableDescription, connection, transaction);
     }
 }

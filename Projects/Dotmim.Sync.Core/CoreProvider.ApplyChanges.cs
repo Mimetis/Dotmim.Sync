@@ -33,13 +33,13 @@ namespace Dotmim.Sync
             // Report this disabling constraints brefore opening a transaction
             if (message.DisableConstraintsOnApplyChanges)
                 foreach (var table in message.Schema.Tables.Reverse())
-                    this.DisableConstraints(context, table, connection, transaction);
+                   await this.DisableConstraintsAsync(context, table, connection, transaction);
 
             // -----------------------------------------------------
             // 0) Check if we are in a reinit mode
             // -----------------------------------------------------
             if (context.SyncWay == SyncWay.Download && context.SyncType != SyncType.Normal)
-                this.ResetInternal(context, message.Schema, connection, transaction);
+                await this.ResetInternalAsync(context, message.Schema, connection, transaction);
 
             // -----------------------------------------------------
             // 1) Applying deletes. Do not apply deletes if we are in a new database
@@ -66,7 +66,7 @@ namespace Dotmim.Sync
             // Re enable check constraints
             if (message.DisableConstraintsOnApplyChanges)
                 foreach (var table in message.Schema.Tables)
-                    this.EnableConstraints(context, table, connection, transaction);
+                    await this.EnableConstraintsAsync(context, table, connection, transaction);
 
             // clear the changes because we don't need them anymore
             message.Changes.Clear(message.CleanFolder);
@@ -78,7 +78,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Here we are reseting all tables and tracking tables to be able to Reinitialize completely
         /// </summary>
-        private void ResetInternal(SyncContext context, SyncSet schema, DbConnection connection, DbTransaction transaction)
+        private async Task ResetInternalAsync(SyncContext context, SyncSet schema, DbConnection connection, DbTransaction transaction)
         {
             if (schema == null || schema.Tables.Count <= 0)
                 return;
@@ -90,7 +90,7 @@ namespace Dotmim.Sync
                 var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
 
                 // reset table
-                syncAdapter.ResetTable();
+               await syncAdapter.ResetTableAsync();
             }
         }
 
@@ -157,9 +157,9 @@ namespace Dotmim.Sync
                     int rowsApplied = 0;
 
                     if (message.UseBulkOperations && this.SupportBulkOperations)
-                        rowsApplied = syncAdapter.ApplyBulkChanges(message.LocalScopeId, message.SenderScopeId, schemaChangesTable, message.LastTimestamp, conflicts);
+                        rowsApplied = await syncAdapter.ApplyBulkChangesAsync(message.LocalScopeId, message.SenderScopeId, schemaChangesTable, message.LastTimestamp, conflicts);
                     else
-                        rowsApplied = syncAdapter.ApplyChanges(message.LocalScopeId, message.SenderScopeId, schemaChangesTable, message.LastTimestamp, conflicts);
+                        rowsApplied = await syncAdapter.ApplyChangesAsync(message.LocalScopeId, message.SenderScopeId, schemaChangesTable, message.LastTimestamp, conflicts);
 
                     // resolving conflicts
                     var (rowsAppliedCount, conflictsResolvedCount, syncErrorsCount) =
@@ -289,7 +289,7 @@ namespace Dotmim.Sync
                 {
 
                     // if merge, we update locally the row and let the update_scope_id set to null
-                    var isUpdated = syncAdapter.ApplyUpdate(row, lastTimestamp, null, true);
+                    var isUpdated = await syncAdapter.ApplyUpdateAsync(row, lastTimestamp, null, true);
                     // We don't update metadatas so the row is updated (on server side) 
                     // and is mark as updated locally.
                     // and will be returned back to sender, since it's a merge, and we need it on the client
@@ -321,7 +321,7 @@ namespace Dotmim.Sync
                     case ConflictType.RemoteExistsLocalNotExists:
                     case ConflictType.RemoteExistsLocalIsDeleted:
                     case ConflictType.UniqueKeyConstraint:
-                        operationComplete = syncAdapter.ApplyUpdate(conflict.RemoteRow, lastTimestamp, senderScopeId, true);
+                        operationComplete = await syncAdapter.ApplyUpdateAsync(conflict.RemoteRow, lastTimestamp, senderScopeId, true);
                         rowAppliedCount = 1;
                         break;
 
@@ -335,7 +335,7 @@ namespace Dotmim.Sync
                     // The remote has delete the row, and local has insert or update it
                     // So delete the local row
                     case ConflictType.RemoteIsDeletedLocalExists:
-                        operationComplete = syncAdapter.ApplyDelete(conflict.RemoteRow, lastTimestamp, senderScopeId, true);
+                        operationComplete = await syncAdapter.ApplyDeleteAsync(conflict.RemoteRow, lastTimestamp, senderScopeId, true);
                         rowAppliedCount = 1;
                         break;
 
@@ -397,16 +397,14 @@ namespace Dotmim.Sync
         /// Since we can disable at the database level
         /// Just check for one available table and execute for the whole db
         /// </summary>
-        internal void DisableConstraints(SyncContext context, SyncTable table, DbConnection connection, DbTransaction transaction = null)
+        internal Task DisableConstraintsAsync(SyncContext context, SyncTable table, DbConnection connection, DbTransaction transaction = null)
         {
 
             var builder = this.GetTableBuilder(table);
             var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
 
             // disable constraints
-            syncAdapter.DisableConstraints();
-
-
+            return syncAdapter.DisableConstraintsAsync();
         }
 
 
@@ -415,13 +413,13 @@ namespace Dotmim.Sync
         /// Since we can disable at the database level
         /// Just check for one available table and execute for the whole db
         /// </summary>
-        private void EnableConstraints(SyncContext context, SyncTable table, DbConnection connection, DbTransaction transaction)
+        private Task EnableConstraintsAsync(SyncContext context, SyncTable table, DbConnection connection, DbTransaction transaction)
         {
             var builder = this.GetTableBuilder(table);
             var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
 
-            // reset table
-            syncAdapter.EnableConstraints();
+            // enable table
+            return syncAdapter.EnableConstraintsAsync();
         }
 
 

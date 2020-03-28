@@ -35,7 +35,7 @@ namespace Dotmim.Sync
             // Disable check constraints
             if (disableConstraintsOnApplyChanges)
                 foreach (var table in schema.Tables.Reverse())
-                    this.DisableConstraints(context, table, connection, transaction);
+                    await this.DisableConstraintsAsync(context, table, connection, transaction).ConfigureAwait(false);
 
             // Sorting tables based on dependencies between them
             var schemaTables = schema.Tables
@@ -52,20 +52,20 @@ namespace Dotmim.Sync
                 // adding filter
                 this.AddFilters(schemaTable, tableBuilder);
 
-                tableBuilder.Drop(provision, connection, transaction);
+                await tableBuilder.DropAsync(provision, connection, transaction).ConfigureAwait(false);
 
                 // Interceptor
                 await this.Orchestrator.InterceptAsync(new TableDeprovisionedArgs(context, provision, schemaTable, connection, transaction), cancellationToken).ConfigureAwait(false);
             }
 
             if (provision.HasFlag(SyncProvision.ClientScope))
-                context = await this.DropClientScopeAsync(context, scopeInfoTableName, connection, transaction, cancellationToken, progress);
+                context = await this.DropClientScopeAsync(context, scopeInfoTableName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             if (provision.HasFlag(SyncProvision.ServerScope))
-                context = await this.DropServerScopeAsync(context, scopeInfoTableName, connection, transaction, cancellationToken, progress);
+                context = await this.DropServerScopeAsync(context, scopeInfoTableName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             if (provision.HasFlag(SyncProvision.ServerHistoryScope))
-                context = await this.DropServerHistoryScopeAsync(context, scopeInfoTableName, connection, transaction, cancellationToken, progress);
+                context = await this.DropServerHistoryScopeAsync(context, scopeInfoTableName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             return context;
         }
@@ -89,17 +89,17 @@ namespace Dotmim.Sync
             builder.UseBulkProcedures = this.SupportBulkOperations;
 
             // Initialize database if needed
-            builder.EnsureDatabase(connection, transaction);
+            await builder.EnsureDatabaseAsync(connection, transaction).ConfigureAwait(false);
 
             // Shoudl we create scope
             if (provision.HasFlag(SyncProvision.ClientScope))
-                context = await this.EnsureClientScopeAsync(context, scopeInfoTableName, connection, transaction, cancellationToken, progress);
+                context = await this.EnsureClientScopeAsync(context, scopeInfoTableName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             if (provision.HasFlag(SyncProvision.ServerScope))
-                context = await this.EnsureServerScopeAsync(context, scopeInfoTableName, connection, transaction, cancellationToken, progress);
+                context = await this.EnsureServerScopeAsync(context, scopeInfoTableName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             if (provision.HasFlag(SyncProvision.ServerHistoryScope))
-                context = await this.EnsureServerHistoryScopeAsync(context, scopeInfoTableName, connection, transaction, cancellationToken, progress);
+                context = await this.EnsureServerHistoryScopeAsync(context, scopeInfoTableName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
 
             // Sorting tables based on dependencies between them
@@ -117,8 +117,8 @@ namespace Dotmim.Sync
                 // adding filter
                 this.AddFilters(schemaTable, tableBuilder);
 
-                tableBuilder.Create(provision, connection, transaction);
-                tableBuilder.CreateForeignKeys(connection, transaction);
+                await tableBuilder.CreateAsync(provision, connection, transaction).ConfigureAwait(false);
+                await tableBuilder.CreateForeignKeysAsync(connection, transaction).ConfigureAwait(false);
 
                 // Interceptor
                 await this.Orchestrator.InterceptAsync(new TableProvisionedArgs(context, provision, schemaTable, connection, transaction), cancellationToken).ConfigureAwait(false);
