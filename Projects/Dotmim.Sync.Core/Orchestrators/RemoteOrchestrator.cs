@@ -25,13 +25,8 @@ namespace Dotmim.Sync
         /// Create a remote orchestrator, used to orchestrates the whole sync on the server side
         /// </summary>
         public RemoteOrchestrator(CoreProvider provider, SyncOptions options, SyncSetup setup, string scopeName = SyncOptions.DefaultScopeName)
+           : base(provider, options, setup, scopeName)
         {
-            this.ScopeName = scopeName ?? throw new ArgumentNullException(nameof(scopeName));
-            this.Provider = provider ?? throw new ArgumentNullException(nameof(provider));
-            this.Options = options ?? throw new ArgumentNullException(nameof(options));
-            this.Setup = setup ?? throw new ArgumentNullException(nameof(setup));
-
-            this.Provider.Orchestrator = this;
         }
 
 
@@ -347,7 +342,7 @@ namespace Dotmim.Sync
 
                         // JUST Before get changes, get the timestamp, to be sure to 
                         // get rows inserted / updated elsewhere since the sync is not over
-                        remoteClientTimestamp = this.Provider.GetLocalTimestampAsync(ctx, connection, transaction, cancellationToken, progress);
+                        remoteClientTimestamp = await this.Provider.GetLocalTimestampAsync(ctx, connection, transaction, cancellationToken, progress);
 
                         // Check if the provider is not outdated
                         var isOutdated = this.Provider.IsRemoteOutdated();
@@ -400,7 +395,7 @@ namespace Dotmim.Sync
 
                         // Commit second transaction for getting changes
                         await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
-                       
+
                         transaction.Commit();
                     }
 
@@ -480,7 +475,7 @@ namespace Dotmim.Sync
 
                         // JUST Before get changes, get the timestamp, to be sure to 
                         // get rows inserted / updated elsewhere since the sync is not over
-                        remoteClientTimestamp = this.Provider.GetLocalTimestampAsync(ctx, connection, transaction, cancellationToken, progress);
+                        remoteClientTimestamp = await this.Provider.GetLocalTimestampAsync(ctx, connection, transaction, cancellationToken, progress);
 
                         // Create snapshot
                         await this.Provider.CreateSnapshotAsync(ctx, schema, connection, transaction, this.Options.SnapshotsDirectory,

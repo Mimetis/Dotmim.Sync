@@ -6,7 +6,7 @@ using System.Data.Common;
 using System.Data;
 using Dotmim.Sync.Builders;
 using Microsoft.Data.Sqlite;
-
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Sqlite
 {
@@ -66,7 +66,7 @@ namespace Dotmim.Sync.Sqlite
             return command;
         }
 
-        public override void SetCommandParameters(DbCommandType commandType, DbCommand command, SyncFilter filter = null)
+        public override Task SetCommandParametersAsync(DbCommandType commandType, DbCommand command, SyncFilter filter = null)
         {
             switch (commandType)
             {
@@ -92,6 +92,8 @@ namespace Dotmim.Sync.Sqlite
                 default:
                     break;
             }
+
+            return Task.CompletedTask;
         }
 
         private void SetResetParameters(DbCommand command)
@@ -216,10 +218,8 @@ namespace Dotmim.Sync.Sqlite
             command.Parameters.Add(p);
         }
 
-        public override void ExecuteBatchCommand(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable, SyncTable failedRows, long lastTimestamp)
-        {
-            throw new NotImplementedException();
-        }
+        public override Task ExecuteBatchCommandAsync(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable, SyncTable failedRows, long lastTimestamp) 
+            => throw new NotImplementedException();
 
         public override bool IsUniqueKeyViolation(Exception exception)
         {

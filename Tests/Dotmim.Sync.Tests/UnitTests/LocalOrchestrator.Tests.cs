@@ -27,64 +27,9 @@ namespace Dotmim.Sync.Tests.UnitTests
 
         }
 
-        [Fact]
-        public void LocalOrchestrator_Constructor()
-        {
-            var provider = new MockProvider();
-            var options = new SyncOptions();
-            var setup = new SyncSetup();
-            var localOrchestrator = new LocalOrchestrator(provider, options, setup);
-
-            Assert.NotNull(localOrchestrator.Options);
-            Assert.Same(options, localOrchestrator.Options);
-
-            Assert.NotNull(localOrchestrator.Provider);
-            Assert.Same(provider, localOrchestrator.Provider);
-
-            Assert.NotNull(localOrchestrator.Setup);
-            Assert.Same(setup, localOrchestrator.Setup);
-
-            Assert.NotNull(provider.Orchestrator);
-            Assert.Same(provider.Orchestrator, localOrchestrator);
-
-        }
 
         [Fact]
-        public void LocalOrchestrator_ShouldFail_When_Args_AreNull()
-        {
-            var provider = new MockProvider();
-            var options = new SyncOptions();
-            var setup = new SyncSetup();
-
-            Assert.Throws<ArgumentNullException>(() => new LocalOrchestrator(null, null, null));
-            Assert.Throws<ArgumentNullException>(() => new LocalOrchestrator(provider, null, null));
-            Assert.Throws<ArgumentNullException>(() => new LocalOrchestrator(provider, options, null));
-            Assert.Throws<ArgumentNullException>(() => new LocalOrchestrator(null, options, setup));
-            Assert.Throws<ArgumentNullException>(() => new LocalOrchestrator(null, null, setup));
-        }
-
-
-        [Fact]
-        public void LocalOrchestrator_GetContext_ShouldBeInitialized()
-        {
-            var options = new SyncOptions();
-            var setup = new SyncSetup();
-            var provider = new SqlSyncProvider();
-
-            var localOrchestrator = new LocalOrchestrator(provider, options, setup, "scope1");
-
-           var ctx = localOrchestrator.GetContext();
-
-            Assert.Equal(SyncStage.None, ctx.SyncStage);
-            Assert.Equal(localOrchestrator.ScopeName, ctx.ScopeName);
-            Assert.Equal(SyncType.Normal, ctx.SyncType);
-            Assert.Equal(SyncWay.None, ctx.SyncWay);
-            Assert.Null(ctx.Parameters);
-        }
-
-
-        [Fact]
-        public async Task LocalOrchestrator_BeginSession_ShouldIncrement_SyncStage()
+        public async Task BaseOrchestrator_BeginSession_ShouldIncrement_SyncStage()
         {
             var options = new SyncOptions();
             var setup = new SyncSetup();
@@ -110,7 +55,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.True(onSessionBegin);
         }
         [Fact]
-        public async Task LocalOrchestrator_EndSession_ShouldIncrement_SyncStage()
+        public async Task BaseOrchestrator_EndSession_ShouldIncrement_SyncStage()
         {
             var options = new SyncOptions();
             var setup = new SyncSetup();

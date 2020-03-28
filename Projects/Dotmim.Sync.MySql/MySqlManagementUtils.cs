@@ -7,13 +7,14 @@ using System.Data;
 using System.Data.Common;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.MySql
 {
     public static class MySqlManagementUtils
     {
 
-        public static SyncTable Table(MySqlConnection connection, MySqlTransaction transaction, string tableName)
+        public static async Task<SyncTable> GetTableAsync(MySqlConnection connection, MySqlTransaction transaction, string tableName)
         {
             string commandColumn = "select * from information_schema.TABLES where table_schema = schema() and table_name = @tableName limit 1;";
 
@@ -26,13 +27,13 @@ namespace Dotmim.Sync.MySql
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
                 if (!alreadyOpened)
-                    connection.Open();
+                    await connection.OpenAsync().ConfigureAwait(false);
 
                 if (transaction != null)
                     sqlCommand.Transaction = transaction;
 
 
-                using (var reader = sqlCommand.ExecuteReader())
+                using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
                 {
                     syncTable.Load(reader);
                 }
@@ -45,7 +46,7 @@ namespace Dotmim.Sync.MySql
             return syncTable;
         }
 
-        public static SyncTable ColumnsForTable(MySqlConnection connection, MySqlTransaction transaction, string tableName)
+        public static async Task<SyncTable> GetColumnsForTableAsync(MySqlConnection connection, MySqlTransaction transaction, string tableName)
         {
             string commandColumn = "select * from information_schema.COLUMNS where table_schema = schema() and table_name = @tableName";
 
@@ -58,12 +59,12 @@ namespace Dotmim.Sync.MySql
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
                 if (!alreadyOpened)
-                    connection.Open();
+                    await connection.OpenAsync().ConfigureAwait(false);
 
                 if (transaction != null)
                     sqlCommand.Transaction = transaction;
 
-                using (var reader = sqlCommand.ExecuteReader())
+                using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
                 {
                     syncTable.Load(reader);
                 }
@@ -75,7 +76,7 @@ namespace Dotmim.Sync.MySql
             return syncTable;
         }
 
-        internal static SyncTable PrimaryKeysForTable(MySqlConnection connection, MySqlTransaction transaction, string tableName)
+        internal static async Task<SyncTable> GetPrimaryKeysForTableAsync(MySqlConnection connection, MySqlTransaction transaction, string tableName)
         {
             var commandColumn = @"select * from information_schema.COLUMNS where table_schema = schema() and table_name = @tableName and column_key='PRI'";
 
@@ -88,13 +89,13 @@ namespace Dotmim.Sync.MySql
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
                 if (!alreadyOpened)
-                    connection.Open();
+                    await connection.OpenAsync().ConfigureAwait(false);
 
                 if (transaction != null)
                     sqlCommand.Transaction = transaction;
 
 
-                using (var reader = sqlCommand.ExecuteReader())
+                using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
                 {
                     syncTable.Load(reader);
                 }
@@ -106,7 +107,7 @@ namespace Dotmim.Sync.MySql
             return syncTable;
         }
 
-        internal static SyncTable RelationsForTable(MySqlConnection connection, MySqlTransaction transaction, string tableName)
+        internal static async Task<SyncTable> GetRelationsForTableAsync(MySqlConnection connection, MySqlTransaction transaction, string tableName)
         {
             var commandRelations = @"
             SELECT
@@ -135,12 +136,12 @@ namespace Dotmim.Sync.MySql
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
                 if (!alreadyOpened)
-                    connection.Open();
+                    await connection.OpenAsync().ConfigureAwait(false);
 
                 if (transaction != null)
                     sqlCommand.Transaction = transaction;
 
-                using (var reader = sqlCommand.ExecuteReader())
+                using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
                 {
                     syncTable.Load(reader);
                 }
@@ -152,7 +153,7 @@ namespace Dotmim.Sync.MySql
             return syncTable;
         }
 
-        public static void DropTableIfExists(MySqlConnection connection, MySqlTransaction transaction, string quotedTableName)
+        public static async Task DropTableIfExistsAsync(MySqlConnection connection, MySqlTransaction transaction, string quotedTableName)
         {
             var tableNameParser = ParserName.Parse(quotedTableName, "`");
 
@@ -165,12 +166,12 @@ namespace Dotmim.Sync.MySql
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
                 if (!alreadyOpened)
-                    connection.Open();
+                    await connection.OpenAsync().ConfigureAwait(false);
 
                 if (transaction != null)
                     dbCommand.Transaction = transaction;
 
-                dbCommand.ExecuteNonQuery();
+                await dbCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 if (!alreadyOpened)
                     connection.Close();
@@ -178,45 +179,29 @@ namespace Dotmim.Sync.MySql
             }
         }
 
-        public static string DropTableIfExistsScriptText(string quotedTableName)
-        {
-            var tableNameParser = ParserName.Parse(quotedTableName, "`");
-
-            return $"drop table if exist {tableNameParser.Unquoted().ToString()}";
-        }
-
-        internal static bool IsStringNullOrWhitespace(string value)
-        {
-            return Regex.Match(value ?? string.Empty, "^\\s*$").Success;
-        }
-        public static string DropTableScriptText(string quotedTableName)
-        {
-            var tableNameParser = ParserName.Parse(quotedTableName, "`");
-
-            return $"drop table {tableNameParser.Unquoted().ToString()}";
-        }
-
-        public static void DropTriggerIfExists(MySqlConnection connection, MySqlTransaction transaction, string quotedTriggerName)
+        public static async Task DropTriggerIfExistsAsync(MySqlConnection connection, MySqlTransaction transaction, string quotedTriggerName)
         {
             var triggerName = ParserName.Parse(quotedTriggerName, "`");
 
             using (DbCommand dbCommand = connection.CreateCommand())
             {
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    await connection.OpenAsync().ConfigureAwait(false);
+
                 dbCommand.CommandText = $"drop trigger {triggerName.Unquoted().ToString()}";
                 if (transaction != null)
                     dbCommand.Transaction = transaction;
 
-                dbCommand.ExecuteNonQuery();
+                await dbCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+                if (!alreadyOpened)
+                    connection.Close();
             }
         }
 
-        public static string DropTriggerScriptText(string quotedTriggerName)
-        {
-            var triggerName = ParserName.Parse(quotedTriggerName, "`");
-            return $"drop trigger {triggerName.Unquoted().ToString()}";
-        }
-
-        public static bool TableExists(MySqlConnection connection, MySqlTransaction transaction, ParserName table)
+        public static async Task<bool> TableExistsAsync(MySqlConnection connection, MySqlTransaction transaction, ParserName table)
         {
             bool tableExist;
 
@@ -227,7 +212,7 @@ namespace Dotmim.Sync.MySql
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
                 if (!alreadyOpened)
-                    connection.Open();
+                    await connection.OpenAsync().ConfigureAwait(false);
 
                 if (transaction != null)
                     dbCommand.Transaction = transaction;
@@ -240,7 +225,7 @@ namespace Dotmim.Sync.MySql
 
                 dbCommand.Parameters.Add(sqlParameter);
 
-                tableExist = (Int64)dbCommand.ExecuteScalar() != 0;
+                tableExist = ((Int64)await dbCommand.ExecuteScalarAsync().ConfigureAwait(false)) != 0;
 
 
                 if (!alreadyOpened)
@@ -251,7 +236,7 @@ namespace Dotmim.Sync.MySql
             return tableExist;
         }
 
-        public static bool TriggerExists(MySqlConnection connection, MySqlTransaction transaction, string quotedTriggerName)
+        public static async Task<bool> TriggerExistsAsync(MySqlConnection connection, MySqlTransaction transaction, string quotedTriggerName)
         {
             bool triggerExist;
             var triggerName = ParserName.Parse(quotedTriggerName, "`");
@@ -266,12 +251,12 @@ namespace Dotmim.Sync.MySql
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
                 if (!alreadyOpened)
-                    connection.Open();
+                    await connection.OpenAsync().ConfigureAwait(false);
 
                 if (transaction != null)
                     dbCommand.Transaction = transaction;
 
-                triggerExist = (long)dbCommand.ExecuteScalar() != 0L;
+                triggerExist = ((long)await dbCommand.ExecuteScalarAsync().ConfigureAwait(false)) != 0L;
 
 
                 if (!alreadyOpened)
@@ -281,7 +266,7 @@ namespace Dotmim.Sync.MySql
             return triggerExist;
         }
 
-        internal static bool ProcedureExists(MySqlConnection connection, MySqlTransaction transaction, string commandName)
+        internal static async Task<bool> ProcedureExistsAsync(MySqlConnection connection, MySqlTransaction transaction, string commandName)
         {
             bool procExist;
             var commandNameString = ParserName.Parse(commandName, "`");
@@ -298,12 +283,12 @@ namespace Dotmim.Sync.MySql
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
                 if (!alreadyOpened)
-                    connection.Open();
+                    await connection.OpenAsync().ConfigureAwait(false);
 
                 if (transaction != null)
                     dbCommand.Transaction = transaction;
 
-                procExist = (long)dbCommand.ExecuteScalar() != 0L;
+                procExist = ((long)await dbCommand.ExecuteScalarAsync().ConfigureAwait(false)) != 0L;
 
 
                 if (!alreadyOpened)

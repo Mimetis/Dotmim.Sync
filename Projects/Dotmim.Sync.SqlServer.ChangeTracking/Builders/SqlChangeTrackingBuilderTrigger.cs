@@ -10,6 +10,7 @@ using System.Data.SqlClient;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
@@ -22,6 +23,6 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
         }
 
-        public override bool NeedToCreateTrigger(DbTriggerType type) => false;
+        public override Task<bool> NeedToCreateTriggerAsync(DbTriggerType type) => Task.FromResult(false);
     }
 }

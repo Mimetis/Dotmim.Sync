@@ -11,6 +11,7 @@ using System.Data.SqlClient;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
@@ -32,7 +33,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             this.sqlDbMetadata = new SqlDbMetadata();
         }
 
-        public void CreateIndex()
+        public async Task CreateIndexAsync()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
@@ -41,15 +42,14 @@ namespace Dotmim.Sync.SqlServer.Builders
                 using (var command = new SqlCommand())
                 {
                     if (!alreadyOpened)
-                        this.connection.Open();
+                        await connection.OpenAsync().ConfigureAwait(false);
 
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
 
                     command.CommandText = this.CreateIndexCommandText();
                     command.Connection = this.connection;
-                    command.ExecuteNonQuery();
-
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
@@ -83,7 +83,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             return stringBuilder.ToString();
         }
 
-        public void CreatePk()
+        public async Task CreatePkAsync()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
@@ -92,15 +92,14 @@ namespace Dotmim.Sync.SqlServer.Builders
                 using (var command = new SqlCommand())
                 {
                     if (!alreadyOpened)
-                        this.connection.Open();
+                        await connection.OpenAsync().ConfigureAwait(false);
 
                     if (transaction != null)
                         command.Transaction = transaction;
 
                     command.CommandText = this.CreatePkCommandText();
                     command.Connection = this.connection;
-                    command.ExecuteNonQuery();
-
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
@@ -138,7 +137,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             return stringBuilder.ToString();
         }
 
-        public void CreateTable()
+        public async Task CreateTableAsync()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
@@ -147,15 +146,14 @@ namespace Dotmim.Sync.SqlServer.Builders
                 using (var command = new SqlCommand())
                 {
                     if (!alreadyOpened)
-                        this.connection.Open();
+                        await connection.OpenAsync().ConfigureAwait(false);
 
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
 
                     command.CommandText = this.CreateTableCommandText();
                     command.Connection = this.connection;
-                    command.ExecuteNonQuery();
-
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
@@ -174,7 +172,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         }
 
-        public void DropTable()
+        public async Task DropTableAsync()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
@@ -183,15 +181,14 @@ namespace Dotmim.Sync.SqlServer.Builders
                 using (var command = new SqlCommand())
                 {
                     if (!alreadyOpened)
-                        this.connection.Open();
+                        await connection.OpenAsync().ConfigureAwait(false);
 
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
 
                     command.CommandText = this.CreateDropTableCommandText();
                     command.Connection = this.connection;
-                    command.ExecuteNonQuery();
-
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
@@ -243,8 +240,8 @@ namespace Dotmim.Sync.SqlServer.Builders
             return stringBuilder.ToString();
         }
 
-        public bool NeedToCreateTrackingTable() =>
-            !SqlManagementUtils.TableExists(connection, transaction, trackingName.Schema().Quoted().ToString());
+        public async Task<bool> NeedToCreateTrackingTableAsync() =>
+            !await SqlManagementUtils.TableExistsAsync(connection, transaction, trackingName.Schema().Quoted().ToString()).ConfigureAwait(false);
 
     }
 }

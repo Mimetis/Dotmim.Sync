@@ -194,7 +194,7 @@ namespace Dotmim.Sync.Tests
                     {
                         var tableClientManagerFactory = client.Provider.GetTableManagerFactory(setupTable.TableName, setupTable.SchemaName);
                         var tableClientManager = tableClientManagerFactory.CreateManagerTable(c);
-                        var clientColumns = tableClientManager.GetColumns();
+                        var clientColumns = await tableClientManager.GetColumnsAsync();
 
                         // Check we have the same columns count
                         if (setupTable.Columns.Count == 0)
@@ -204,7 +204,7 @@ namespace Dotmim.Sync.Tests
                                 serverConnection.Open();
                                 var tableServerManagerFactory = this.Server.Provider.GetTableManagerFactory(setupTable.TableName, setupTable.SchemaName);
                                 var tableServerManager = tableServerManagerFactory.CreateManagerTable(serverConnection);
-                                var serverColumns = tableClientManager.GetColumns();
+                                var serverColumns = await tableClientManager.GetColumnsAsync();
 
                                 serverConnection.Close();
 

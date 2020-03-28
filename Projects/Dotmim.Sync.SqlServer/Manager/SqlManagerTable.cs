@@ -6,6 +6,7 @@ using System.Data;
 using System.Data.Common;
 using System.Data.SqlClient;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.SqlServer.Manager
 {
@@ -25,9 +26,9 @@ namespace Dotmim.Sync.SqlServer.Manager
             this.sqlTransaction = transaction as SqlTransaction;
         }
 
-        public SyncTable GetTable()
+        public async Task<SyncTable> GetTableAsync()
         {
-            var syncTable = SqlManagementUtils.Table(this.sqlConnection, this.sqlTransaction, this.tableName, this.schemaName);
+            var syncTable = await SqlManagementUtils.GetTableAsync(this.sqlConnection, this.sqlTransaction, this.tableName, this.schemaName).ConfigureAwait(false);
 
             if (syncTable == null || syncTable.Rows == null || syncTable.Rows.Count <= 0)
                 return null;
@@ -43,10 +44,10 @@ namespace Dotmim.Sync.SqlServer.Manager
             return new SyncTable(tblName, schName);
         }
 
-        public IEnumerable<DbRelationDefinition> GetRelations()
+        public async Task<IEnumerable<DbRelationDefinition>> GetRelationsAsync()
         {
             var relations = new List<DbRelationDefinition>();
-            var tableRelations = SqlManagementUtils.RelationsForTable(this.sqlConnection, this.sqlTransaction, this.tableName, this.schemaName);
+            var tableRelations = await SqlManagementUtils.GetRelationsForTableAsync(this.sqlConnection, this.sqlTransaction, this.tableName, this.schemaName).ConfigureAwait(false);
 
             if (tableRelations != null && tableRelations.Rows.Count > 0)
             {
@@ -84,11 +85,11 @@ namespace Dotmim.Sync.SqlServer.Manager
             return relations.ToArray();
         }
 
-        public IEnumerable<SyncColumn> GetColumns()
+        public async Task<IEnumerable<SyncColumn>> GetColumnsAsync() 
         {
             var columns = new List<SyncColumn>();
             // Get the columns definition
-            var syncTableColumnsList = SqlManagementUtils.ColumnsForTable(this.sqlConnection, this.sqlTransaction, this.tableName, this.schemaName);
+            var syncTableColumnsList = await SqlManagementUtils.GetColumnsForTableAsync(this.sqlConnection, this.sqlTransaction, this.tableName, this.schemaName).ConfigureAwait(false);
             var sqlDbMetadata = new SqlDbMetadata();
 
             foreach (var c in syncTableColumnsList.Rows.OrderBy(r => (int)r["column_id"]))
@@ -141,9 +142,9 @@ namespace Dotmim.Sync.SqlServer.Manager
             return columns;
         }
 
-        public IEnumerable<SyncColumn> GetPrimaryKeys()
+        public async Task<IEnumerable<SyncColumn>> GetPrimaryKeysAsync()
         {
-            var syncTableKeys = SqlManagementUtils.PrimaryKeysForTable(this.sqlConnection, this.sqlTransaction, this.tableName);
+            var syncTableKeys = await SqlManagementUtils.GetPrimaryKeysForTableAsync(this.sqlConnection, this.sqlTransaction, this.tableName).ConfigureAwait(false);
 
             var lstKeys = new List<SyncColumn>();
 

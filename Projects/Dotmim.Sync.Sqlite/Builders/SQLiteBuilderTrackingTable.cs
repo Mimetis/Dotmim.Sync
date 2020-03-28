@@ -10,6 +10,7 @@ using Microsoft.Data.Sqlite;
 using System.Diagnostics;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Sqlite
 {
@@ -32,11 +33,11 @@ namespace Dotmim.Sync.Sqlite
         }
 
 
-        public void CreateIndex() { }
+        public Task CreateIndexAsync() => Task.CompletedTask;
 
-        public void CreatePk() { return; }
+        public Task CreatePkAsync() => Task.CompletedTask;
 
-        public void CreateTable()
+        public async Task CreateTableAsync()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
@@ -45,14 +46,14 @@ namespace Dotmim.Sync.Sqlite
                 using (var command = new SqliteCommand())
                 {
                     if (!alreadyOpened)
-                        this.connection.Open();
+                        await connection.OpenAsync().ConfigureAwait(false);
 
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
 
                     command.CommandText = this.CreateTableCommandText();
                     command.Connection = this.connection;
-                    command.ExecuteNonQuery();
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 }
             }
@@ -125,11 +126,11 @@ namespace Dotmim.Sync.Sqlite
             return stringBuilder.ToString();
         }
 
-        public bool NeedToCreateTrackingTable() 
-            => !SqliteManagementUtils.TableExists(connection, transaction, trackingName);
+        public async Task<bool> NeedToCreateTrackingTableAsync() 
+            => !(await SqliteManagementUtils.TableExistsAsync(connection, transaction, trackingName).ConfigureAwait(false));
 
   
-        public void DropTable()
+        public async Task DropTableAsync()
         {
             bool alreadyOpened = connection.State == ConnectionState.Open;
 
@@ -138,13 +139,13 @@ namespace Dotmim.Sync.Sqlite
                 using (var command = new SqliteCommand($"DROP TABLE IF EXISTS {trackingName.Quoted().ToString()}", connection))
                 {
                     if (!alreadyOpened)
-                        connection.Open();
+                        await connection.OpenAsync().ConfigureAwait(false);
 
                     if (transaction != null)
                         command.Transaction = transaction;
 
                     command.Connection = connection;
-                    command.ExecuteNonQuery();
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 }
             }

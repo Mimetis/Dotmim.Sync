@@ -5,13 +5,14 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.SqlServer
 {
     public static class SqlExtensionsMethods
     {
 
-        internal static SqlParameter[] DeriveParameters(this SqlConnection connection, SqlCommand cmd, bool includeReturnValueParameter = false, SqlTransaction transaction = null)
+        internal static async Task<SqlParameter[]> DeriveParametersAsync(this SqlConnection connection, SqlCommand cmd, bool includeReturnValueParameter = false, SqlTransaction transaction = null)
         {
             if (cmd == null) throw new ArgumentNullException("SqlCommand");
 
@@ -23,7 +24,7 @@ namespace Dotmim.Sync.SqlServer
             var alreadyOpened = connection.State == ConnectionState.Open;
 
             if (!alreadyOpened)
-                connection.Open();
+                await connection.OpenAsync().ConfigureAwait(false);
 
             try
             {
@@ -39,7 +40,7 @@ namespace Dotmim.Sync.SqlServer
                 p.Value = schemaName;
                 getParamsCommand.Parameters.Add(p);
                 
-                var sdr = getParamsCommand.ExecuteReader();
+                var sdr = await getParamsCommand.ExecuteReaderAsync().ConfigureAwait(false);
 
                 // Do we have any rows?
                 if (sdr.HasRows)

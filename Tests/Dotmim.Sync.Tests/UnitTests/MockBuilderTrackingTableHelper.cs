@@ -2,23 +2,24 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Tests.UnitTests
 {
     public class MockBuilderTrackingTableHelper : IDbBuilderTrackingTableHelper
     {
-        public void CreateIndex() { }
+        public Task CreateIndexAsync() => Task.CompletedTask;
 
 
-        public void CreatePk() { }
+        public Task CreatePkAsync() => Task.CompletedTask;
 
 
-        public void CreateTable() { }
+        public Task CreateTableAsync()  => Task.CompletedTask;
 
 
-        public void DropTable() { }
+        public Task DropTableAsync()  => Task.CompletedTask;
 
 
-        public bool NeedToCreateTrackingTable() => true;
+        public Task<bool> NeedToCreateTrackingTableAsync() => Task.FromResult(true);
     }
 }

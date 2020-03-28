@@ -210,7 +210,7 @@ namespace Dotmim.Sync.Tests
                     {
                         var tableClientManagerFactory = client.Provider.GetTableManagerFactory(setupTable.TableName, setupTable.SchemaName);
                         var tableClientManager = tableClientManagerFactory.CreateManagerTable(clientConnection);
-                        var clientColumns = tableClientManager.GetColumns();
+                        var clientColumns = await tableClientManager.GetColumnsAsync();
 
                         using (var serverConnection = this.Server.Provider.CreateConnection())
                         {
@@ -218,7 +218,7 @@ namespace Dotmim.Sync.Tests
 
                             var tableServerManagerFactory = this.Server.Provider.GetTableManagerFactory(setupTable.TableName, setupTable.SchemaName);
                             var tableServerManager = tableServerManagerFactory.CreateManagerTable(serverConnection);
-                            var serverColumns = tableServerManager.GetColumns();
+                            var serverColumns = await tableServerManager.GetColumnsAsync();
 
                             serverConnection.Close();
 
@@ -2424,7 +2424,7 @@ namespace Dotmim.Sync.Tests
                 {
                     syncSchema = await localOrchestrator.GetSchemaAsync();
                     var scopeBuilder = scopeBuilderFactory.CreateScopeInfoBuilder(SyncOptions.DefaultScopeInfoTableName, dbConnection);
-                    Assert.False(scopeBuilder.NeedToCreateClientScopeInfoTable());
+                    Assert.False(await scopeBuilder.NeedToCreateClientScopeInfoTableAsync());
                 }
 
                 // get the db manager
@@ -2443,30 +2443,30 @@ namespace Dotmim.Sync.Tests
 
                         await dbConnection.OpenAsync();
 
-                        Assert.False(trackingTablesBuilder.NeedToCreateTrackingTable());
+                        Assert.False(await trackingTablesBuilder.NeedToCreateTrackingTableAsync());
 
-                        Assert.False(triggersBuilder.NeedToCreateTrigger(Builders.DbTriggerType.Insert));
-                        Assert.False(triggersBuilder.NeedToCreateTrigger(Builders.DbTriggerType.Delete));
-                        Assert.False(triggersBuilder.NeedToCreateTrigger(Builders.DbTriggerType.Update));
+                        Assert.False(await triggersBuilder.NeedToCreateTriggerAsync(Builders.DbTriggerType.Insert));
+                        Assert.False(await triggersBuilder.NeedToCreateTriggerAsync(Builders.DbTriggerType.Delete));
+                        Assert.False(await triggersBuilder.NeedToCreateTriggerAsync(Builders.DbTriggerType.Update));
 
                         // sqlite does not have stored procedures
                         if (spBuider != null)
                         {
-                            Assert.False(spBuider.NeedToCreateProcedure(Builders.DbCommandType.Reset));
-                            Assert.False(spBuider.NeedToCreateProcedure(Builders.DbCommandType.SelectChanges));
-                            Assert.False(spBuider.NeedToCreateProcedure(Builders.DbCommandType.SelectRow));
-                            Assert.False(spBuider.NeedToCreateProcedure(Builders.DbCommandType.DeleteMetadata));
-                            Assert.False(spBuider.NeedToCreateProcedure(Builders.DbCommandType.DeleteRow));
+                            Assert.False(await spBuider.NeedToCreateProcedureAsync(Builders.DbCommandType.Reset));
+                            Assert.False(await spBuider.NeedToCreateProcedureAsync(Builders.DbCommandType.SelectChanges));
+                            Assert.False(await spBuider.NeedToCreateProcedureAsync(Builders.DbCommandType.SelectRow));
+                            Assert.False(await spBuider.NeedToCreateProcedureAsync(Builders.DbCommandType.DeleteMetadata));
+                            Assert.False(await spBuider.NeedToCreateProcedureAsync(Builders.DbCommandType.DeleteRow));
 
                             // Check if we have mutables columns to see if the update row / metadata have been generated
                             if (dbTableBuilder.TableDescription.GetMutableColumns(false).Any())
-                                Assert.False(spBuider.NeedToCreateProcedure(Builders.DbCommandType.UpdateRow));
+                                Assert.False(await spBuider.NeedToCreateProcedureAsync(Builders.DbCommandType.UpdateRow));
                         }
 
                         if (client.ProviderType == ProviderType.Sql)
                         {
-                            Assert.False(spBuider.NeedToCreateProcedure(Builders.DbCommandType.BulkDeleteRows));
-                            Assert.False(spBuider.NeedToCreateProcedure(Builders.DbCommandType.BulkUpdateRows));
+                            Assert.False(await spBuider.NeedToCreateProcedureAsync(Builders.DbCommandType.BulkDeleteRows));
+                            Assert.False(await spBuider.NeedToCreateProcedureAsync(Builders.DbCommandType.BulkUpdateRows));
                         }
 
                         dbConnection.Close();
@@ -2498,28 +2498,28 @@ namespace Dotmim.Sync.Tests
 
                         await dbConnection.OpenAsync();
 
-                        Assert.True(trackingTablesBuilder.NeedToCreateTrackingTable());
-                        Assert.True(triggersBuilder.NeedToCreateTrigger(Builders.DbTriggerType.Insert));
-                        Assert.True(triggersBuilder.NeedToCreateTrigger(Builders.DbTriggerType.Delete));
-                        Assert.True(triggersBuilder.NeedToCreateTrigger(Builders.DbTriggerType.Update));
+                        Assert.True(await trackingTablesBuilder.NeedToCreateTrackingTableAsync());
+                        Assert.True(await triggersBuilder.NeedToCreateTriggerAsync(Builders.DbTriggerType.Insert));
+                        Assert.True(await triggersBuilder.NeedToCreateTriggerAsync(Builders.DbTriggerType.Delete));
+                        Assert.True(await triggersBuilder.NeedToCreateTriggerAsync(Builders.DbTriggerType.Update));
                         if (spBuider != null)
                         {
 
-                            Assert.True(spBuider.NeedToCreateProcedure(Builders.DbCommandType.Reset));
-                            Assert.True(spBuider.NeedToCreateProcedure(Builders.DbCommandType.SelectChanges));
-                            Assert.True(spBuider.NeedToCreateProcedure(Builders.DbCommandType.SelectRow));
-                            Assert.True(spBuider.NeedToCreateProcedure(Builders.DbCommandType.DeleteMetadata));
-                            Assert.True(spBuider.NeedToCreateProcedure(Builders.DbCommandType.DeleteRow));
+                            Assert.True(await spBuider.NeedToCreateProcedureAsync(Builders.DbCommandType.Reset));
+                            Assert.True(await spBuider.NeedToCreateProcedureAsync(Builders.DbCommandType.SelectChanges));
+                            Assert.True(await spBuider.NeedToCreateProcedureAsync(Builders.DbCommandType.SelectRow));
+                            Assert.True(await spBuider.NeedToCreateProcedureAsync(Builders.DbCommandType.DeleteMetadata));
+                            Assert.True(await spBuider.NeedToCreateProcedureAsync(Builders.DbCommandType.DeleteRow));
 
                             // Check if we have mutables columns to see if the update row / metadata have been generated
                             if (dbTableBuilder.TableDescription.GetMutableColumns(false).Any())
-                                Assert.True(spBuider.NeedToCreateProcedure(Builders.DbCommandType.UpdateRow));
+                                Assert.True(await spBuider.NeedToCreateProcedureAsync(Builders.DbCommandType.UpdateRow));
                         }
 
                         if (client.ProviderType == ProviderType.Sql)
                         {
-                            Assert.True(spBuider.NeedToCreateProcedure(Builders.DbCommandType.BulkDeleteRows));
-                            Assert.True(spBuider.NeedToCreateProcedure(Builders.DbCommandType.BulkUpdateRows));
+                            Assert.True(await spBuider.NeedToCreateProcedureAsync(Builders.DbCommandType.BulkDeleteRows));
+                            Assert.True(await spBuider.NeedToCreateProcedureAsync(Builders.DbCommandType.BulkUpdateRows));
                         }
 
                         dbConnection.Close();
@@ -2565,7 +2565,7 @@ namespace Dotmim.Sync.Tests
 
                     Assert.NotNull(tablePricesListCategory);
 
-                    var relations = tablePricesListCategory.GetRelations().ToArray();
+                    var relations = (await tablePricesListCategory.GetRelationsAsync()).ToArray();
                     Assert.Single(relations);
 
                     if (client.ProviderType != ProviderType.Sqlite)
@@ -2577,7 +2577,7 @@ namespace Dotmim.Sync.Tests
 
                     Assert.NotNull(tablePricesListDetail);
 
-                    var relations2 = tablePricesListDetail.GetRelations().ToArray();
+                    var relations2 = (await tablePricesListDetail.GetRelationsAsync()).ToArray();
                     Assert.Single(relations2);
 
                     if (client.ProviderType != ProviderType.Sqlite)
@@ -2588,7 +2588,7 @@ namespace Dotmim.Sync.Tests
                     var tableEmployeeAddress = client.Provider.GetTableManagerFactory("EmployeeAddress", "")?.CreateManagerTable(dbConnection);
                     Assert.NotNull(tableEmployeeAddress);
 
-                    var relations3 = tableEmployeeAddress.GetRelations().ToArray();
+                    var relations3 = (await tableEmployeeAddress.GetRelationsAsync()).ToArray();
                     Assert.Equal(2, relations3.Count());
 
                     if (client.ProviderType != ProviderType.Sqlite)

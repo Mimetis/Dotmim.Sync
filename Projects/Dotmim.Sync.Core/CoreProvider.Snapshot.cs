@@ -117,7 +117,7 @@ namespace Dotmim.Sync
                             continue;
 
                         // add changes to batchinfo
-                        await batchInfo.AddChangesAsync(changesSet, batchIndex, false);
+                        await batchInfo.AddChangesAsync(changesSet, batchIndex, false).ConfigureAwait(false);
 
                         // increment batch index
                         batchIndex++;
@@ -140,7 +140,7 @@ namespace Dotmim.Sync
 
 
             if (changesSet != null && changesSet.HasTables)
-                await batchInfo.AddChangesAsync(changesSet, batchIndex, true);
+                await batchInfo.AddChangesAsync(changesSet, batchIndex, true).ConfigureAwait(false);
 
             // Check the last index as the last batch
             batchInfo.EnsureLastBatch();
@@ -154,7 +154,7 @@ namespace Dotmim.Sync
 
             using (var f = new FileStream(summaryFileName, FileMode.CreateNew, FileAccess.ReadWrite))
             {
-                var bytes = await jsonConverter.SerializeAsync(batchInfo);
+                var bytes = await jsonConverter.SerializeAsync(batchInfo).ConfigureAwait(false);
                 f.Write(bytes, 0, bytes.Length);
             }
 

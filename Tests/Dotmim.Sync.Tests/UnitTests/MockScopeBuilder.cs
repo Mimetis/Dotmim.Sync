@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Tests.UnitTests
 {
@@ -14,56 +15,43 @@ namespace Dotmim.Sync.Tests.UnitTests
 
     public class MockScopeInfoBuilder : IDbScopeInfoBuilder
     {
-        public void CreateClientScopeInfoTable()
-        {
-            
-        }
+        public Task CreateClientScopeInfoTableAsync() => Task.CompletedTask;
 
-        public void CreateServerHistoryScopeInfoTable()
-        {
-        }
+        public Task CreateServerHistoryScopeInfoTableAsync() => Task.CompletedTask;
 
-        public void CreateServerScopeInfoTable()
-        {
-        }
+        public Task CreateServerScopeInfoTableAsync() => Task.CompletedTask;
 
-        public void DropClientScopeInfoTable()
-        {
-        }
+        public Task DropClientScopeInfoTableAsync() => Task.CompletedTask;
 
-        public void DropServerHistoryScopeInfoTable()
-        {
-        }
+        public Task DropServerHistoryScopeInfoTableAsync() => Task.CompletedTask;
 
-        public void DropServerScopeInfoTable()
-        {
-        }
+        public Task DropServerScopeInfoTableAsync() => Task.CompletedTask;
 
-        public List<ScopeInfo> GetAllClientScopes(string scopeName)
-        {
-            throw new NotImplementedException();
-        }
+        public Task<List<ScopeInfo>> GetAllClientScopesAsync(string scopeName) => Task.FromResult(new List<ScopeInfo>());
 
-        public List<ServerScopeInfo> GetAllServerScopes(string scopeName)
-        {
-            throw new NotImplementedException();
-        }
-
-        public long GetLocalTimestamp() => 1000;
-
-        public ScopeInfo InsertOrUpdateClientScopeInfo(ScopeInfo scopeInfo) => scopeInfo;
+        public Task<List<ServerScopeInfo>> GetAllServerScopesAsync(string scopeName) => Task.FromResult(new List<ServerScopeInfo>());
 
 
-        public ServerHistoryScopeInfo InsertOrUpdateServerHistoryScopeInfo(ServerHistoryScopeInfo serverHistoryScopeInfo) 
-            => serverHistoryScopeInfo;
+        public Task<long> GetLocalTimestampAsync() => Task.FromResult(1000L);
 
-        public ServerScopeInfo InsertOrUpdateServerScopeInfo(ServerScopeInfo serverScopeInfo)
-            => serverScopeInfo;
 
-        public bool NeedToCreateClientScopeInfoTable() => true;
+        public Task<ScopeInfo> InsertOrUpdateClientScopeInfoAsync(ScopeInfo scopeInfo) => Task.FromResult(scopeInfo);
 
-        public bool NeedToCreateServerHistoryScopeInfoTable() => true;
 
-        public bool NeedToCreateServerScopeInfoTable() => true;
+        public Task<ServerHistoryScopeInfo> InsertOrUpdateServerHistoryScopeInfoAsync(ServerHistoryScopeInfo serverHistoryScopeInfo) 
+            => Task.FromResult(serverHistoryScopeInfo);
+
+
+        public Task<ServerScopeInfo> InsertOrUpdateServerScopeInfoAsync(ServerScopeInfo serverScopeInfo) => Task.FromResult(serverScopeInfo);
+
+
+        public Task<bool> NeedToCreateClientScopeInfoTableAsync() => Task.FromResult(true);
+
+
+        public Task<bool> NeedToCreateServerHistoryScopeInfoTableAsync() => Task.FromResult(true);
+
+
+        public Task<bool> NeedToCreateServerScopeInfoTableAsync() => Task.FromResult(true);
+
     }
 }

@@ -53,6 +53,20 @@ namespace Dotmim.Sync
         /// </summary>
         public virtual DateTime? CompleteTime { get; set; }
 
+
+        /// <summary>
+        /// Create a local orchestrator, used to orchestrates the whole sync on the client side
+        /// </summary>
+        public BaseOrchestrator(CoreProvider provider, SyncOptions options, SyncSetup setup, string scopeName = SyncOptions.DefaultScopeName)
+        {
+            this.ScopeName = scopeName ?? throw new ArgumentNullException(nameof(scopeName));
+            this.Provider = provider ?? throw new ArgumentNullException(nameof(provider));
+            this.Options = options ?? throw new ArgumentNullException(nameof(options));
+            this.Setup = setup ?? throw new ArgumentNullException(nameof(setup));
+
+            this.Provider.Orchestrator = this;
+        }
+
         /// <summary>
         /// Set an interceptor to get info on the current sync process
         /// </summary>
@@ -83,7 +97,6 @@ namespace Dotmim.Sync
 
             return interceptor.RunAsync(args, cancellationToken);
         }
-
 
         /// <summary>
         /// Try to report progress
@@ -124,6 +137,85 @@ namespace Dotmim.Sync
             this.SetContext(context);
 
             return this.syncContext;
+        }
+
+
+        /// <summary>
+        /// Provision the orchestrator database based on the schema argument, and the provision enumeration
+        /// </summary>
+        /// <param name="schema">Setup containing tables to be applied to the database managed by the orchestrator, through the provider.</param>
+        /// <param name="provision">Provision enumeration to determine which components to apply</param>
+        public virtual async Task ProvisionAsync(SyncSetup setup, SyncProvision provision, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            if (!this.StartTime.HasValue)
+                this.StartTime = DateTime.UtcNow;
+
+            // Get context or create a new one
+            var ctx = this.GetContext();
+
+            DbTransaction transaction = null;
+            SyncSet schema = null;
+
+            using (var connection = this.Provider.CreateConnection())
+            {
+                try
+                {
+                    ctx.SyncStage = SyncStage.SchemaProvisioning;
+
+                    await connection.OpenAsync().ConfigureAwait(false);
+
+                    // Let provider knows a connection is opened
+                    this.Provider.OnConnectionOpened(connection);
+
+                    await this.InterceptAsync(new ConnectionOpenArgs(ctx, connection), cancellationToken).ConfigureAwait(false);
+
+                    // Create a transaction
+                    using (transaction = connection.BeginTransaction())
+                    {
+                        await this.InterceptAsync(new TransactionOpenArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+
+                        // 1) Get Schema from remote provider
+                        (ctx, schema) = await this.Provider.GetSchemaAsync(ctx, this.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                        await this.InterceptAsync(new DatabaseProvisioningArgs(ctx, provision, schema, connection, transaction), cancellationToken).ConfigureAwait(false);
+
+                        await this.Provider.ProvisionAsync(ctx, schema, provision, this.Options.ScopeInfoTableName, connection, transaction, cancellationToken, progress);
+
+                        await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+
+                        transaction.Commit();
+                    }
+
+                    ctx.SyncStage = SyncStage.SchemaProvisioned;
+
+                    var args = new DatabaseProvisionedArgs(ctx, provision, schema, connection, transaction);
+                    await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
+                    this.ReportProgress(ctx, progress, args);
+
+                }
+                catch (Exception ex)
+                {
+                    var syncException = new SyncException(ex, ctx.SyncStage);
+
+                    // try to let the provider enrich the exception
+                    this.Provider.EnsureSyncException(syncException);
+                    syncException.Side = this.Side;
+                    throw syncException;
+                }
+                finally
+                {
+                    if (transaction != null)
+                        transaction.Dispose();
+
+                    if (connection != null && connection.State == ConnectionState.Open)
+                        connection.Close();
+
+                    await this.InterceptAsync(new ConnectionCloseArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+
+                    // Let provider knows a connection is closed
+                    this.Provider.OnConnectionClosed(connection);
+                }
+            }
         }
 
         /// <summary>
@@ -199,6 +291,14 @@ namespace Dotmim.Sync
                 }
             }
         }
+
+        /// <summary>
+        /// Deprovision the orchestrator database based on the schema argument, and the provision enumeration
+        /// </summary>
+        /// <param name="setup">Setup containing tables to be deprovisioned from the database managed by the orchestrator, through the provider.</param>
+        /// <param name="provision">Provision enumeration to determine which components to deprovision</param>
+        public virtual Task DeprovisionAsync(SyncSetup setup, SyncProvision provision, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            => this.DeprovisionAsync(new SyncSet(setup), provision, cancellationToken, progress);
 
         /// <summary>
         /// Deprovision the orchestrator database based on the schema argument, and the provision enumeration
@@ -393,7 +493,13 @@ namespace Dotmim.Sync
 
                         await this.InterceptAsync(new MetadataCleaningArgs(ctx, this.Setup, timeStampStart, connection, transaction), cancellationToken).ConfigureAwait(false);
 
-                        ctx = await this.Provider.DeleteMetadatasAsync(ctx, this.Setup, timeStampStart, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        // Create a dummy schema to be able to call the DeprovisionAsync method on the provider
+                        // No need columns or primary keys to be able to deprovision a table
+                        SyncSet schema = new SyncSet();
+                        foreach (var setupTable in this.Setup.Tables)
+                            schema.Tables.Add(new SyncTable(setupTable.TableName, setupTable.SchemaName));
+
+                        ctx = await this.Provider.DeleteMetadatasAsync(ctx, schema, timeStampStart, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                         await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
 
