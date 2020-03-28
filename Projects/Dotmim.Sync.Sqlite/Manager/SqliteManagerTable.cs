@@ -7,6 +7,7 @@ using System.Data;
 using System.Data.Common;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Sqlite.Manager
 {
@@ -26,9 +27,9 @@ namespace Dotmim.Sync.Sqlite.Manager
             this.sqlTransaction = transaction as SqliteTransaction;
         }
 
-        public SyncTable GetTable()
+        public async Task<SyncTable> GetTableAsync()
         {
-            var syncTable = SqliteManagementUtils.Table(this.sqlConnection, this.sqlTransaction, this.tableName);
+            var syncTable = await SqliteManagementUtils.GetTableAsync(this.sqlConnection, this.sqlTransaction, this.tableName);
 
             if (syncTable == null || syncTable.Rows == null || syncTable.Rows.Count <= 0)
                 return null;
@@ -40,11 +41,11 @@ namespace Dotmim.Sync.Sqlite.Manager
             return new SyncTable(tblName);
         }
 
-        public IEnumerable<DbRelationDefinition> GetRelations()
+        public async Task<IEnumerable<DbRelationDefinition>> GetRelationsAsync()
         {
 
             var relations = new List<DbRelationDefinition>();
-            var relationsTable = SqliteManagementUtils.RelationsForTable(this.sqlConnection, this.sqlTransaction, this.tableName);
+            var relationsTable = await SqliteManagementUtils.GetRelationsForTableAsync(this.sqlConnection, this.sqlTransaction, this.tableName);
 
             if (relationsTable != null && relationsTable.Rows.Count > 0)
             {
@@ -79,11 +80,11 @@ namespace Dotmim.Sync.Sqlite.Manager
             return relations.ToArray();
         }
 
-        public IEnumerable<SyncColumn> GetColumns()
+        public async Task<IEnumerable<SyncColumn>> GetColumnsAsync()
         {
             var columns = new List<SyncColumn>();
             // Get the columns definition
-            var columnsList = SqliteManagementUtils.ColumnsForTable(this.sqlConnection, this.sqlTransaction, this.tableName);
+            var columnsList = await SqliteManagementUtils.GetColumnsForTableAsync(this.sqlConnection, this.sqlTransaction, this.tableName);
             var sqlDbMetadata = new SqliteDbMetadata();
 
             foreach (var c in columnsList.Rows.OrderBy(r => Convert.ToInt32(r["cid"])))
@@ -113,9 +114,9 @@ namespace Dotmim.Sync.Sqlite.Manager
             return columns;
         }
 
-        public IEnumerable<SyncColumn> GetPrimaryKeys()
+        public async Task<IEnumerable<SyncColumn>> GetPrimaryKeysAsync()
         {
-            var keys = SqliteManagementUtils.PrimaryKeysForTable(this.sqlConnection, this.sqlTransaction, this.tableName);
+            var keys = await SqliteManagementUtils.GetPrimaryKeysForTableAsync(this.sqlConnection, this.sqlTransaction, this.tableName);
 
             var lstKeys = new List<SyncColumn>();
 

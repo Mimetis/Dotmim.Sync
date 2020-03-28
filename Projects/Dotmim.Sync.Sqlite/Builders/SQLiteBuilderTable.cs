@@ -7,6 +7,7 @@ using System.Linq;
 using System.Data;
 using Microsoft.Data.Sqlite;
 using System.Diagnostics;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Sqlite
 {
@@ -128,7 +129,7 @@ namespace Dotmim.Sync.Sqlite
             return new SqliteCommand(stringBuilder.ToString());
         }
 
-        public void CreateTable()
+        public async Task CreateTableAsync()
         {
             bool alreadyOpened = connection.State == ConnectionState.Open;
 
@@ -137,19 +138,19 @@ namespace Dotmim.Sync.Sqlite
                 using (var command = BuildTableCommand())
                 {
                     if (!alreadyOpened)
-                        connection.Open();
+                        await connection.OpenAsync().ConfigureAwait(false);
 
                     if (transaction != null)
                         command.Transaction = transaction;
 
                     command.Connection = connection;
-                    command.ExecuteNonQuery();
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 }
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Error during CreateTable : {ex}");
+                Debug.WriteLine($"Error during CreateTableAsync : {ex}");
                 throw;
 
             }
@@ -165,39 +166,39 @@ namespace Dotmim.Sync.Sqlite
         /// <summary>
         /// Check if we need to create the table in the current database
         /// </summary>
-        public bool NeedToCreateTable() =>
-            !SqliteManagementUtils.TableExists(connection, transaction, tableName);
+        public async Task<bool> NeedToCreateTableAsync() =>
+            !(await SqliteManagementUtils.TableExistsAsync(connection, transaction, tableName).ConfigureAwait(false));
 
-        public bool NeedToCreateSchema() => false;
+        public Task<bool> NeedToCreateSchemaAsync() => Task.FromResult(false);
 
-        public void CreateSchema() { return; }
+        public Task CreateSchemaAsync() => Task.CompletedTask;
 
-        public bool NeedToCreateForeignKeyConstraints(SyncRelation constraint) => false;
+        public Task<bool> NeedToCreateForeignKeyConstraintsAsync(SyncRelation constraint) => Task.FromResult(false);
 
-        public void CreateForeignKeyConstraints(SyncRelation constraint) { return; }
+        public Task CreateForeignKeyConstraintsAsync(SyncRelation constraint) => Task.CompletedTask;
 
-        public void DropTable()
+        public async Task DropTableAsync()
         {
             bool alreadyOpened = connection.State == ConnectionState.Open;
 
             try
             {
-                using (var command = new SqliteCommand($"DROP TABLE IF EXISTS {tableName.Quoted().ToString()}", connection))
+                using (var command = new SqliteCommand($"DROP TABLE IF EXISTS {tableName.Quoted()}", connection))
                 {
                     if (!alreadyOpened)
-                        connection.Open();
+                        await connection.OpenAsync().ConfigureAwait(false);
 
                     if (transaction != null)
                         command.Transaction = transaction;
 
                     command.Connection = connection;
-                    command.ExecuteNonQuery();
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 }
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Error during DropTable : {ex}");
+                Debug.WriteLine($"Error during DropTableAsync : {ex}");
                 throw;
 
             }
@@ -209,6 +210,7 @@ namespace Dotmim.Sync.Sqlite
             }
 
         }
-        public void CreatePrimaryKey() { return; }
+
+        public Task CreatePrimaryKeyAsync() => Task.CompletedTask;
     }
 }

@@ -6,6 +6,7 @@ using System.Data;
 using System.Data.Common;
 using System.Diagnostics;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 {
@@ -16,7 +17,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
         {
         }
 
-        public override long GetLocalTimestamp()
+        public override async Task<long> GetLocalTimestampAsync()
         {
             var command = connection.CreateCommand();
             if (transaction != null)
@@ -33,9 +34,9 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 command.Parameters.Add(p);
 
                 if (!alreadyOpened)
-                    connection.Open();
+                    await connection.OpenAsync().ConfigureAwait(false);
 
-                command.ExecuteNonQuery();
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 var outputParameter = SqlManager.GetParameter(command, "sync_new_timestamp");
 

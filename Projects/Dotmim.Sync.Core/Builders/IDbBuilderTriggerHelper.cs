@@ -2,8 +2,7 @@
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Text;
-
-
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Builders
 {
@@ -12,16 +11,15 @@ namespace Dotmim.Sync.Builders
     /// </summary>
     public interface IDbBuilderTriggerHelper
     {
-   
-        bool NeedToCreateTrigger(DbTriggerType triggerType);
-        void CreateInsertTrigger();
-        void CreateUpdateTrigger();
-        void CreateDeleteTrigger();
-        void DropInsertTrigger();
-        void DropUpdateTrigger();
-        void DropDeleteTrigger();
-        void AlterInsertTrigger();
-        void AlterUpdateTrigger();
-        void AlterDeleteTrigger();
+        Task<bool> NeedToCreateTriggerAsync(DbTriggerType triggerType);
+        Task CreateInsertTriggerAsync();
+        Task CreateUpdateTriggerAsync();
+        Task CreateDeleteTriggerAsync();
+        Task DropInsertTriggerAsync();
+        Task DropUpdateTriggerAsync();
+        Task DropDeleteTriggerAsync();
+        Task AlterInsertTriggerAsync();
+        Task AlterUpdateTriggerAsync();
+        Task AlterDeleteTriggerAsync();
     }
 }

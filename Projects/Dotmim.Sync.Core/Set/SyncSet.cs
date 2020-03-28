@@ -70,13 +70,38 @@ namespace Dotmim.Sync
         public SyncFilters Filters { get; set; }
 
         /// <summary>
-        /// Only used for Serialization
+        /// Create a new SyncSet, empty
         /// </summary>
         public SyncSet()
         {
             this.Tables = new SyncTables(this);
             this.Relations = new SyncRelations(this);
             this.Filters = new SyncFilters(this);
+        }
+
+
+        /// <summary>
+        /// Creates a new SyncSet based on a Sync setup (containing tables)
+        /// </summary>
+        /// <param name="setup"></param>
+        public SyncSet(SyncSetup setup) : this()
+        {
+            // Create the schema
+            var schema = new SyncSet()
+            {
+                StoredProceduresPrefix = setup.StoredProceduresPrefix,
+                StoredProceduresSuffix = setup.StoredProceduresSuffix,
+                TrackingTablesPrefix = setup.TrackingTablesPrefix,
+                TrackingTablesSuffix = setup.TrackingTablesSuffix,
+                TriggersPrefix = setup.TriggersPrefix,
+                TriggersSuffix = setup.TriggersSuffix,
+            };
+
+            foreach (var filter in setup.Filters)
+                schema.Filters.Add(filter);
+
+            foreach (var setupTable in setup.Tables)
+                this.Tables.Add(new SyncTable(setupTable.TableName, setupTable.SchemaName));
         }
 
         /// <summary>

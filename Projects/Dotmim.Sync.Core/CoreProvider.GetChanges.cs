@@ -36,7 +36,7 @@ namespace Dotmim.Sync
 
             if (context.SyncWay == SyncWay.Upload && context.SyncType == SyncType.Reinitialize)
             {
-                (batchInfo, changesSelected) = await this.GetEmptyChangesAsync(message);
+                (batchInfo, changesSelected) = await this.GetEmptyChangesAsync(message).ConfigureAwait(false);
                 return (context, batchInfo, changesSelected);
             }
 
@@ -125,7 +125,7 @@ namespace Dotmim.Sync
                                 continue;
 
                             // add changes to batchinfo
-                            await batchInfo.AddChangesAsync(changesSet, batchIndex, false);
+                            await batchInfo.AddChangesAsync(changesSet, batchIndex, false).ConfigureAwait(false);
 
                             // increment batch index
                             batchIndex++;
@@ -233,7 +233,7 @@ namespace Dotmim.Sync
                 throw new MissingCommandException(dbCommandType.ToString());
 
             // Add common parameters
-            syncAdapter.SetCommandParameters(dbCommandType, selectIncrementalChangesCommand, tableFilter);
+            syncAdapter.SetCommandParametersAsync(dbCommandType, selectIncrementalChangesCommand, tableFilter);
 
             return selectIncrementalChangesCommand;
 

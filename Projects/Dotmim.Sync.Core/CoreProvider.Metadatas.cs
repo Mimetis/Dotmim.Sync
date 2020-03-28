@@ -16,20 +16,19 @@ namespace Dotmim.Sync
         /// <summary>
         /// update configuration object with tables desc from server database
         /// </summary>
-        public virtual Task<SyncContext> DeleteMetadatasAsync(SyncContext context, SyncSetup setup, long timestampLimit,
-                             DbConnection connection, DbTransaction transaction,
-                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
-        {
+        //public virtual Task<SyncContext> DeleteMetadatasAsync(SyncContext context, SyncSetup setup, long timestampLimit,
+        //                     DbConnection connection, DbTransaction transaction,
+        //                     CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        //{
 
-            SyncSet schema = new SyncSet();
+        //    SyncSet schema = new SyncSet();
 
-            foreach (var setupTable in setup.Tables)
-                schema.Tables.Add(new SyncTable(setupTable.TableName, setupTable.SchemaName));
+        //    foreach (var setupTable in setup.Tables)
+        //        schema.Tables.Add(new SyncTable(setupTable.TableName, setupTable.SchemaName));
 
+        //    return DeleteMetadatasAsync(context, schema, timestampLimit, connection, transaction, cancellationToken, progress);
 
-            return DeleteMetadatasAsync(context, schema, timestampLimit, connection, transaction, cancellationToken, progress);
-
-        }
+        //}
 
         public virtual async Task<SyncContext> DeleteMetadatasAsync(SyncContext context, SyncSet schema, long timestampLimit,
                             DbConnection connection, DbTransaction transaction,
@@ -43,16 +42,16 @@ namespace Dotmim.Sync
                 var tableHelper = tableBuilder.CreateTableBuilder(connection, transaction);
 
                 // check if table exists
-                if (tableHelper.NeedToCreateTable())
-                    return await Task.FromResult(context).ConfigureAwait(false);
+                if (await tableHelper.NeedToCreateTableAsync().ConfigureAwait(false))
+                    return context;
 
                 // Create sync adapter
                 var syncAdapter = tableBuilder.CreateSyncAdapter(connection, transaction);
 
                 // Delete metadatas
-                syncAdapter.DeleteMetadatas(timestampLimit);
+                await syncAdapter.DeleteMetadatasAsync(timestampLimit).ConfigureAwait(false);
             }
-            return await Task.FromResult(context).ConfigureAwait(false);
+            return context;
         }
 
     }

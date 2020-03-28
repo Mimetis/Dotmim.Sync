@@ -10,6 +10,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.MySql
 {
@@ -97,7 +98,7 @@ namespace Dotmim.Sync.MySql
             return sqlCommand;
         }
 
-        public bool NeedToCreateForeignKeyConstraints(SyncRelation relation)
+        public async Task<bool> NeedToCreateForeignKeyConstraintsAsync(SyncRelation relation)
         {
             string tableName = relation.GetTable().TableName;
 
@@ -108,9 +109,9 @@ namespace Dotmim.Sync.MySql
             try
             {
                 if (!alreadyOpened)
-                    this.connection.Open();
+                    await connection.OpenAsync().ConfigureAwait(false);
 
-                var relations = MySqlManagementUtils.RelationsForTable(this.connection, this.transaction, tableName);
+                var relations = await MySqlManagementUtils.GetRelationsForTableAsync(this.connection, this.transaction, tableName).ConfigureAwait(false);
 
                 var foreignKeyExist = relations.Rows.Any(r =>
                    string.Equals(r["ForeignKey"].ToString(), relationName, SyncGlobalization.DataSourceStringComparison));
@@ -129,14 +130,14 @@ namespace Dotmim.Sync.MySql
             }
         }
 
-        public void CreateForeignKeyConstraints(SyncRelation constraint)
+        public async Task CreateForeignKeyConstraintsAsync(SyncRelation constraint)
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
             try
             {
                 if (!alreadyOpened)
-                    this.connection.Open();
+                    await connection.OpenAsync().ConfigureAwait(false);
 
                 using (var command = this.BuildForeignKeyConstraintsCommand(constraint))
                 {
@@ -145,7 +146,7 @@ namespace Dotmim.Sync.MySql
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
 
-                    command.ExecuteNonQuery();
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                 }
 
             }
@@ -164,9 +165,9 @@ namespace Dotmim.Sync.MySql
 
         }
 
-    
 
-        public void CreatePrimaryKey() { return; }
+
+        public Task CreatePrimaryKeyAsync() => Task.CompletedTask;
 
     
         private MySqlCommand BuildTableCommand()
@@ -237,7 +238,7 @@ namespace Dotmim.Sync.MySql
             return new MySqlCommand(stringBuilder.ToString());
         }
 
-        public void CreateTable()
+        public async Task CreateTableAsync()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
@@ -246,13 +247,13 @@ namespace Dotmim.Sync.MySql
                 using (var command = this.BuildTableCommand())
                 {
                     if (!alreadyOpened)
-                        this.connection.Open();
+                        await connection.OpenAsync().ConfigureAwait(false);
 
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
 
                     command.Connection = this.connection;
-                    command.ExecuteNonQuery();
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 }
             }
@@ -275,14 +276,14 @@ namespace Dotmim.Sync.MySql
         /// <summary>
         /// Check if we need to create the table in the current database
         /// </summary>
-        public bool NeedToCreateTable() 
-            => !MySqlManagementUtils.TableExists(this.connection, this.transaction, this.tableName);
+        public async Task<bool> NeedToCreateTableAsync() 
+            => !(await MySqlManagementUtils.TableExistsAsync(this.connection, this.transaction, this.tableName).ConfigureAwait(false));
 
-        public bool NeedToCreateSchema() => false;
+        public Task<bool> NeedToCreateSchemaAsync() => Task.FromResult(false);
 
-        public void CreateSchema() { return; }
+        public Task CreateSchemaAsync() => Task.CompletedTask;
 
-        public void DropTable()
+        public async Task DropTableAsync()
         {
             var commandText = $"drop table if exists {this.tableName.Quoted().ToString()}";
 
@@ -291,14 +292,14 @@ namespace Dotmim.Sync.MySql
             try
             {
                 if (!alreadyOpened)
-                    this.connection.Open();
+                    await connection.OpenAsync().ConfigureAwait(false);
 
                 using (var command = new MySqlCommand(commandText, this.connection))
                 {
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
 
-                    command.ExecuteNonQuery();
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                 }
             }
             catch (Exception ex)

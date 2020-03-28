@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Builders
 {
@@ -20,7 +21,7 @@ namespace Dotmim.Sync.Builders
         /// <summary>
         /// First step before creating schema
         /// </summary>
-        public abstract void EnsureDatabase(DbConnection connection, DbTransaction transaction = null);
+        public abstract Task EnsureDatabaseAsync(DbConnection connection, DbTransaction transaction = null);
 
     }
 }

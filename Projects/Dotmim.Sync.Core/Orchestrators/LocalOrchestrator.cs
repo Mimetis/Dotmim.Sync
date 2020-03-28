@@ -20,15 +20,9 @@ namespace Dotmim.Sync
         /// Create a local orchestrator, used to orchestrates the whole sync on the client side
         /// </summary>
         public LocalOrchestrator(CoreProvider provider, SyncOptions options, SyncSetup setup, string scopeName = SyncOptions.DefaultScopeName)
+           : base(provider, options, setup, scopeName)
         {
-            this.ScopeName = scopeName ?? throw new ArgumentNullException(nameof(scopeName));
-            this.Provider = provider ?? throw new ArgumentNullException(nameof(provider));
-            this.Options = options ?? throw new ArgumentNullException(nameof(options));
-            this.Setup = setup ?? throw new ArgumentNullException(nameof(setup));
-
-            this.Provider.Orchestrator = this;
         }
-
 
         /// <summary>
         /// Called by the  to indicate that a 
@@ -203,7 +197,7 @@ namespace Dotmim.Sync
 
                         // JUST before the whole process, get the timestamp, to be sure to 
                         // get rows inserted / updated elsewhere since the sync is not over
-                        clientTimestamp = this.Provider.GetLocalTimestampAsync(ctx, connection, transaction, cancellationToken, progress);
+                        clientTimestamp = await this.Provider.GetLocalTimestampAsync(ctx, connection, transaction, cancellationToken, progress);
 
                         // Check if the provider is not outdated
                         var isOutdated = this.Provider.IsRemoteOutdated();

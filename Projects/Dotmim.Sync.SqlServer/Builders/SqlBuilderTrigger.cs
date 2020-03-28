@@ -10,6 +10,7 @@ using System.Data.SqlClient;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
@@ -85,7 +86,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             return stringBuilder.ToString();
         }
 
-        public void CreateDeleteTrigger()
+        public async Task CreateDeleteTriggerAsync()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
@@ -94,13 +95,12 @@ namespace Dotmim.Sync.SqlServer.Builders
                 using (var command = new SqlCommand())
                 {
                     if (!alreadyOpened)
-                        this.connection.Open();
+                        await connection.OpenAsync().ConfigureAwait(false);
 
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
 
                     var delTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger).name;
-
 
                     var createTrigger = new StringBuilder($"CREATE TRIGGER {delTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR DELETE AS");
                     createTrigger.AppendLine();
@@ -108,7 +108,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                     command.CommandText = createTrigger.ToString();
                     command.Connection = this.connection;
-                    command.ExecuteNonQuery();
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 }
             }
@@ -125,7 +125,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             }
         }
-        public void DropDeleteTrigger()
+        public async Task DropDeleteTriggerAsync()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
@@ -134,7 +134,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 using (var command = new SqlCommand())
                 {
                     if (!alreadyOpened)
-                        this.connection.Open();
+                        await connection.OpenAsync().ConfigureAwait(false);
 
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
@@ -143,8 +143,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                     command.CommandText = $"DROP TRIGGER {delTriggerName};";
                     command.Connection = this.connection;
-                    command.ExecuteNonQuery();
-
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
@@ -161,7 +160,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
         }
 
-        public void AlterDeleteTrigger()
+        public async Task AlterDeleteTriggerAsync()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
@@ -170,10 +169,10 @@ namespace Dotmim.Sync.SqlServer.Builders
                 using (var command = new SqlCommand())
                 {
                     if (!alreadyOpened)
-                        this.connection.Open();
+                        await connection.OpenAsync().ConfigureAwait(false);
 
                     if (this.transaction != null)
-                        command.Transaction = (SqlTransaction)this.transaction;
+                        command.Transaction = this.transaction;
 
                     var delTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger).name;
                     var createTrigger = new StringBuilder($"ALTER TRIGGER {delTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR DELETE AS ");
@@ -182,8 +181,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                     command.CommandText = createTrigger.ToString();
                     command.Connection = this.connection;
-                    command.ExecuteNonQuery();
-
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
@@ -201,7 +199,6 @@ namespace Dotmim.Sync.SqlServer.Builders
 
 
         }
-
 
         private string InsertTriggerBodyText()
         {
@@ -256,7 +253,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine(stringPkAreNull.ToString());
             return stringBuilder.ToString();
         }
-        public void CreateInsertTrigger()
+        public async Task CreateInsertTriggerAsync()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
@@ -265,7 +262,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 using (var command = new SqlCommand())
                 {
                     if (!alreadyOpened)
-                        this.connection.Open();
+                        await connection.OpenAsync().ConfigureAwait(false);
 
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
@@ -277,7 +274,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                     command.CommandText = createTrigger.ToString();
                     command.Connection = this.connection;
-                    command.ExecuteNonQuery();
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 }
             }
@@ -295,7 +292,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
         }
 
-        public void DropInsertTrigger()
+        public async Task DropInsertTriggerAsync()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
@@ -304,7 +301,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 using (var command = new SqlCommand())
                 {
                     if (!alreadyOpened)
-                        this.connection.Open();
+                        await connection.OpenAsync().ConfigureAwait(false);
 
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
@@ -313,7 +310,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                     command.CommandText = $"DROP TRIGGER {triggerName};";
                     command.Connection = this.connection;
-                    command.ExecuteNonQuery();
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 }
             }
@@ -331,7 +328,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
         }
 
-        public void AlterInsertTrigger()
+        public async Task AlterInsertTriggerAsync()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
@@ -340,10 +337,10 @@ namespace Dotmim.Sync.SqlServer.Builders
                 using (var command = new SqlCommand())
                 {
                     if (!alreadyOpened)
-                        this.connection.Open();
+                        await connection.OpenAsync().ConfigureAwait(false);
 
                     if (this.transaction != null)
-                        command.Transaction = (SqlTransaction)this.transaction;
+                        command.Transaction = this.transaction;
 
                     var insTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger).name;
                     var createTrigger = new StringBuilder($"ALTER TRIGGER {insTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR INSERT AS ");
@@ -352,7 +349,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                     command.CommandText = createTrigger.ToString();
                     command.Connection = this.connection;
-                    command.ExecuteNonQuery();
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 }
             }
@@ -369,7 +366,6 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             }
         }
-
 
         private string UpdateTriggerBodyText()
         {
@@ -460,7 +456,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             return stringBuilder.ToString();
         }
-        public void CreateUpdateTrigger()
+        public async Task CreateUpdateTriggerAsync()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
@@ -469,10 +465,10 @@ namespace Dotmim.Sync.SqlServer.Builders
                 using (var command = new SqlCommand())
                 {
                     if (!alreadyOpened)
-                        this.connection.Open();
+                        await connection.OpenAsync().ConfigureAwait(false);
 
                     if (this.transaction != null)
-                        command.Transaction = (SqlTransaction)this.transaction;
+                        command.Transaction = this.transaction;
 
                     var updTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger).name;
                     var createTrigger = new StringBuilder($"CREATE TRIGGER {updTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR UPDATE AS");
@@ -481,8 +477,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                     command.CommandText = createTrigger.ToString();
                     command.Connection = this.connection;
-                    command.ExecuteNonQuery();
-
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
@@ -499,7 +494,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
         }
 
-        public void DropUpdateTrigger()
+        public async Task DropUpdateTriggerAsync()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
@@ -508,7 +503,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 using (var command = new SqlCommand())
                 {
                     if (!alreadyOpened)
-                        this.connection.Open();
+                        await connection.OpenAsync().ConfigureAwait(false);
 
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
@@ -517,7 +512,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                     command.CommandText = $"DROP TRIGGER {triggerName};";
                     command.Connection = this.connection;
-                    command.ExecuteNonQuery();
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 }
             }
@@ -536,7 +531,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         }
 
 
-        public void AlterUpdateTrigger()
+        public async Task AlterUpdateTriggerAsync()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
@@ -545,7 +540,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 using (var command = new SqlCommand())
                 {
                     if (!alreadyOpened)
-                        this.connection.Open();
+                        await connection.OpenAsync().ConfigureAwait(false);
 
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
@@ -557,7 +552,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                     command.CommandText = createTrigger.ToString();
                     command.Connection = this.connection;
-                    command.ExecuteNonQuery();
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 }
             }
@@ -575,7 +570,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
         }
 
-        public virtual bool NeedToCreateTrigger(DbTriggerType type)
+        public virtual async Task<bool> NeedToCreateTriggerAsync(DbTriggerType type)
         {
 
             var updTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger).name;
@@ -602,7 +597,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                     }
             }
 
-            return !SqlManagementUtils.TriggerExists(connection, transaction, triggerName);
+            return !await SqlManagementUtils.TriggerExistsAsync(connection, transaction, triggerName).ConfigureAwait(false);
 
 
         }
