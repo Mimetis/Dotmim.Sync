@@ -28,8 +28,10 @@ namespace Dotmim.Sync
         }
 
 
-        public async Task MigrateAsync(SyncContext context)
+        public Task MigrateAsync(SyncContext context)
         {
+
+            return null;
             //DbTransaction transaction = null;
 
             //using (var connection = this.provider.CreateConnection())

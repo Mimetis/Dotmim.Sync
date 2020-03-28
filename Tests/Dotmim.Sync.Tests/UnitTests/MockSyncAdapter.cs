@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Data.Common;
 using System.Data.SqlClient;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Tests.UnitTests
 {
@@ -23,7 +24,8 @@ namespace Dotmim.Sync.Tests.UnitTests
 
         public override DbTransaction Transaction => this.transaction;
 
-        public override void ExecuteBatchCommand(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> arrayItems, SyncTable schemaChangesTable, SyncTable failedRows, long lastTimestamp) { }
+        public override Task ExecuteBatchCommandAsync(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> arrayItems, SyncTable schemaChangesTable, SyncTable failedRows, long lastTimestamp)
+            => Task.CompletedTask;
 
         public override DbCommand GetCommand(DbCommandType commandType, SyncFilter filter = null)
             => new SqlCommand();
@@ -32,7 +34,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
         public override bool IsUniqueKeyViolation(Exception exception) => false;
 
-        public override void SetCommandParameters(DbCommandType commandType, DbCommand command, SyncFilter filter = null) { }
-
+        public override Task SetCommandParametersAsync(DbCommandType commandType, DbCommand command, SyncFilter filter = null)
+            => Task.CompletedTask;
     }
 }

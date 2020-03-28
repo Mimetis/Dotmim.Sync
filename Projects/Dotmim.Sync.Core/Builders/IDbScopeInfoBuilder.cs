@@ -3,31 +3,32 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Builders
 {
     public interface IDbScopeInfoBuilder
     {
-        bool NeedToCreateClientScopeInfoTable();
-        bool NeedToCreateServerScopeInfoTable();
-        bool NeedToCreateServerHistoryScopeInfoTable();
+        Task<bool> NeedToCreateClientScopeInfoTableAsync();
+        Task<bool> NeedToCreateServerScopeInfoTableAsync();
+        Task<bool> NeedToCreateServerHistoryScopeInfoTableAsync();
 
-        void CreateClientScopeInfoTable();
-        void CreateServerScopeInfoTable();
-        void CreateServerHistoryScopeInfoTable();
+        Task CreateClientScopeInfoTableAsync();
+        Task CreateServerScopeInfoTableAsync();
+        Task CreateServerHistoryScopeInfoTableAsync();
 
-        List<ScopeInfo> GetAllClientScopes(string scopeName);
-        List<ServerScopeInfo> GetAllServerScopes(string scopeName);
+        Task<List<ScopeInfo>> GetAllClientScopesAsync(string scopeName);
+        Task<List<ServerScopeInfo>> GetAllServerScopesAsync(string scopeName);
 
-        ScopeInfo InsertOrUpdateClientScopeInfo(ScopeInfo scopeInfo);
-        ServerScopeInfo InsertOrUpdateServerScopeInfo(ServerScopeInfo serverScopeInfo);
-        ServerHistoryScopeInfo InsertOrUpdateServerHistoryScopeInfo(ServerHistoryScopeInfo serverHistoryScopeInfo);
+        Task<ScopeInfo> InsertOrUpdateClientScopeInfoAsync(ScopeInfo scopeInfo);
+        Task<ServerScopeInfo> InsertOrUpdateServerScopeInfoAsync(ServerScopeInfo serverScopeInfo);
+        Task<ServerHistoryScopeInfo> InsertOrUpdateServerHistoryScopeInfoAsync(ServerHistoryScopeInfo serverHistoryScopeInfo);
 
-        long GetLocalTimestamp();
+        Task<long> GetLocalTimestampAsync();
 
-        void DropClientScopeInfoTable();
-        void DropServerScopeInfoTable();
-        void DropServerHistoryScopeInfoTable();
+        Task DropClientScopeInfoTableAsync();
+        Task DropServerScopeInfoTableAsync();
+        Task DropServerHistoryScopeInfoTableAsync();
 
     }
 }

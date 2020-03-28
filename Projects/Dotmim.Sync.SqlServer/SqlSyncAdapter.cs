@@ -13,7 +13,7 @@ using System.Data.SqlClient;
 using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
-
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
@@ -117,7 +117,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         /// <summary>
         /// Executing a batch command
         /// </summary>
-        public override void ExecuteBatchCommand(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable, SyncTable failedRows, long lastTimestamp)
+        public override async Task ExecuteBatchCommandAsync(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable, SyncTable failedRows, long lastTimestamp)
         {
 
             var applyRowsCount = applyRows.Count();
@@ -268,12 +268,12 @@ namespace Dotmim.Sync.SqlServer.Builders
             try
             {
                 if (!alreadyOpened)
-                    this.connection.Open();
+                    await this.connection.OpenAsync().ConfigureAwait(false);
 
                 if (this.transaction != null)
                     cmd.Transaction = this.transaction;
 
-                using (var dataReader = cmd.ExecuteReader())
+                using (var dataReader = await cmd.ExecuteReaderAsync().ConfigureAwait(false))
                 {
                     while (dataReader.Read())
                     {
@@ -368,7 +368,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         /// <summary>
         /// Set a stored procedure parameters
         /// </summary>
-        public override void SetCommandParameters(DbCommandType commandType, DbCommand command, SyncFilter filter = null)
+        public override async Task SetCommandParametersAsync(DbCommandType commandType, DbCommand command, SyncFilter filter = null)
         {
             if (command == null)
                 return;
@@ -385,7 +385,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             try
             {
                 if (!alreadyOpened)
-                    this.connection.Open();
+                    await this.connection.OpenAsync().ConfigureAwait(false);
 
                 if (this.transaction != null)
                     command.Transaction = this.transaction;
@@ -408,7 +408,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                     // TODO: Fix that.
                     //SqlCommandBuilder.DeriveParameters((SqlCommand)command);
 
-                    var parameters = connection.DeriveParameters((SqlCommand)command, false, transaction);
+                    await connection.DeriveParametersAsync((SqlCommand)command, false, transaction).ConfigureAwait(false);
 
                     var arrayParameters = new List<SqlParameter>();
                     foreach (var p in command.Parameters)

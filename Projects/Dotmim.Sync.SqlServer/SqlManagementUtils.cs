@@ -10,6 +10,7 @@ using System.Globalization;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.SqlServer
 {
@@ -20,7 +21,7 @@ namespace Dotmim.Sync.SqlServer
         /// <summary>
         /// Get Table
         /// </summary>
-        public static SyncTable Table(SqlConnection connection, SqlTransaction transaction, string tableName, string schemaName)
+        public static async Task<SyncTable> GetTableAsync(SqlConnection connection, SqlTransaction transaction, string tableName, string schemaName)
         {
             var command = $"Select top 1 tbl.name as TableName, " +
                           $"sch.name as SchemaName " +
@@ -48,14 +49,13 @@ namespace Dotmim.Sync.SqlServer
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
                 if (!alreadyOpened)
-                    connection.Open();
+                    await connection.OpenAsync().ConfigureAwait(false);
 
                 if (transaction != null)
                     sqlCommand.Transaction = transaction;
 
-                using (var reader = sqlCommand.ExecuteReader())
+                using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
                     syncTable.Load(reader);
-
 
                 if (!alreadyOpened)
                     connection.Close();
@@ -68,7 +68,7 @@ namespace Dotmim.Sync.SqlServer
         /// <summary>
         /// Get columns for table
         /// </summary>
-        public static SyncTable ColumnsForTable(SqlConnection connection, SqlTransaction transaction, string tableName, string schemaName)
+        public static async Task<SyncTable> GetColumnsForTableAsync(SqlConnection connection, SqlTransaction transaction, string tableName, string schemaName)
         {
 
             var commandColumn = $"Select col.name as name, " +
@@ -110,12 +110,12 @@ namespace Dotmim.Sync.SqlServer
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
                 if (!alreadyOpened)
-                    connection.Open();
+                    await connection.OpenAsync().ConfigureAwait(false);
 
                 if (transaction != null)
                     sqlCommand.Transaction = transaction;
 
-                using (var reader = sqlCommand.ExecuteReader())
+                using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
                     syncTable.Load(reader);
                 
                 if (!alreadyOpened)
@@ -128,7 +128,7 @@ namespace Dotmim.Sync.SqlServer
         /// <summary>
         /// Get columns for table
         /// </summary>
-        public static SyncTable PrimaryKeysForTable(SqlConnection connection, SqlTransaction transaction, string tableName)
+        public static async Task<SyncTable> GetPrimaryKeysForTableAsync(SqlConnection connection, SqlTransaction transaction, string tableName)
         {
 
             var commandColumn = @"select ind.name, col.name as columnName, ind_col.column_id, ind_col.key_ordinal 
@@ -150,13 +150,13 @@ namespace Dotmim.Sync.SqlServer
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
                 if (!alreadyOpened)
-                    connection.Open();
+                    await connection.OpenAsync().ConfigureAwait(false);
 
                 if (transaction != null)
                     sqlCommand.Transaction = transaction;
 
 
-                using (var reader = sqlCommand.ExecuteReader())
+                using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
                     syncTable.Load(reader);
 
                 if (!alreadyOpened)
@@ -167,7 +167,7 @@ namespace Dotmim.Sync.SqlServer
             return syncTable;
         }
 
-        public static SyncTable RelationsForTable(SqlConnection connection, SqlTransaction transaction, string tableName, string schemaName)
+        public static async Task<SyncTable> GetRelationsForTableAsync(SqlConnection connection, SqlTransaction transaction, string tableName, string schemaName)
         {
 
             var commandRelations = @"
@@ -201,12 +201,12 @@ namespace Dotmim.Sync.SqlServer
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
                 if (!alreadyOpened)
-                    connection.Open();
+                    await connection.OpenAsync().ConfigureAwait(false);
 
                 if (transaction != null)
                     sqlCommand.Transaction = transaction;
 
-                using (var reader = sqlCommand.ExecuteReader())
+                using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
                     syncTable.Load(reader);
 
                 if (!alreadyOpened)
@@ -215,7 +215,7 @@ namespace Dotmim.Sync.SqlServer
             return syncTable;
         }
 
-        public static void DropProcedureIfExists(SqlConnection connection, SqlTransaction transaction, int commandTimout, string quotedProcedureName)
+        public static async Task DropProcedureIfExistsAsync(SqlConnection connection, SqlTransaction transaction, int commandTimout, string quotedProcedureName)
         {
             var procName = ParserName.Parse(quotedProcedureName).ToString();
             using (var sqlCommand = new SqlCommand(string.Format(CultureInfo.InvariantCulture, "IF EXISTS (SELECT * FROM sys.procedures p JOIN sys.schemas s ON s.schema_id = p.schema_id WHERE p.name = @procName AND s.name = @schemaName) DROP PROCEDURE {0}", quotedProcedureName), connection))
@@ -227,13 +227,13 @@ namespace Dotmim.Sync.SqlServer
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
                 if (!alreadyOpened)
-                    connection.Open();
+                    await connection.OpenAsync().ConfigureAwait(false);
 
                 if (transaction != null)
                     sqlCommand.Transaction = transaction;
 
 
-                sqlCommand.ExecuteNonQuery();
+                await sqlCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 if (!alreadyOpened)
                     connection.Close();
@@ -242,12 +242,7 @@ namespace Dotmim.Sync.SqlServer
             }
         }
 
-        public static string DropProcedureScriptText(string quotedProcedureName)
-        {
-            return string.Format(CultureInfo.InvariantCulture, "DROP PROCEDURE {0};\n", quotedProcedureName);
-        }
-
-        public static void DropTableIfExists(SqlConnection connection, SqlTransaction transaction, int commandTimeout, string quotedTableName)
+        public static async Task DropTableIfExistsAsync(SqlConnection connection, SqlTransaction transaction, int commandTimeout, string quotedTableName)
         {
             var tableName = ParserName.Parse(quotedTableName).ToString();
             using (var sqlCommand = new SqlCommand(string.Format(CultureInfo.InvariantCulture, "IF EXISTS (SELECT t.name FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @tableName AND s.name = @schemaName) DROP TABLE {0}", quotedTableName), connection))
@@ -259,12 +254,12 @@ namespace Dotmim.Sync.SqlServer
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
                 if (!alreadyOpened)
-                    connection.Open();
+                    await connection.OpenAsync().ConfigureAwait(false);
 
                 if (transaction != null)
                     sqlCommand.Transaction = transaction;
 
-                sqlCommand.ExecuteNonQuery();
+                await sqlCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 if (!alreadyOpened)
                     connection.Close();
@@ -273,22 +268,7 @@ namespace Dotmim.Sync.SqlServer
             }
         }
 
-        public static string DropTableIfExistsScriptText(string quotedTableName)
-        {
-            var tableName = ParserName.Parse(quotedTableName).ToString();
-
-            object[] escapedString = new object[] { tableName, SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(quotedTableName)), quotedTableName };
-            return string.Format(CultureInfo.InvariantCulture, "IF EXISTS (SELECT t.name FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = N'{0}' AND s.name = N'{1}') DROP TABLE {2}\n", escapedString);
-        }
-
-        public static string DropTableScriptText(string quotedTableName)
-        {
-            var invariantCulture = CultureInfo.InvariantCulture;
-            object[] objArray = new object[] { quotedTableName };
-            return string.Format(invariantCulture, "DROP TABLE {0};\n", objArray);
-        }
-
-        public static void DropTriggerIfExists(SqlConnection connection, SqlTransaction transaction, int commandTimeout, string quotedTriggerName)
+        public static async Task DropTriggerIfExistsAsync(SqlConnection connection, SqlTransaction transaction, int commandTimeout, string quotedTriggerName)
         {
             var triggerName = ParserName.Parse(quotedTriggerName).ToString();
 
@@ -301,13 +281,13 @@ namespace Dotmim.Sync.SqlServer
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
                 if (!alreadyOpened)
-                    connection.Open();
+                    await connection.OpenAsync().ConfigureAwait(false);
 
                 if (transaction != null)
                     sqlCommand.Transaction = transaction;
 
 
-                sqlCommand.ExecuteNonQuery();
+                await sqlCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 if (!alreadyOpened)
                     connection.Close();
@@ -316,13 +296,7 @@ namespace Dotmim.Sync.SqlServer
             }
         }
 
-        public static string DropTriggerScriptText(string quotedTriggerName)
-        {
-            return string.Format(CultureInfo.InvariantCulture, "DROP TRIGGER {0};\n", quotedTriggerName);
-        }
-
-
-        public static void DropTypeIfExists(SqlConnection connection, SqlTransaction transaction, int commandTimeout, string quotedTypeName)
+        public static async Task DropTypeIfExistsAsync(SqlConnection connection, SqlTransaction transaction, int commandTimeout, string quotedTypeName)
         {
             var typeName = ParserName.Parse(quotedTypeName).ToString();
 
@@ -335,23 +309,18 @@ namespace Dotmim.Sync.SqlServer
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
                 if (!alreadyOpened)
-                    connection.Open();
+                    await connection.OpenAsync().ConfigureAwait(false);
 
                 if (transaction != null)
                     sqlCommand.Transaction = transaction;
 
-                sqlCommand.ExecuteNonQuery();
+                await sqlCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 if (!alreadyOpened)
                     connection.Close();
 
 
             }
-        }
-
-        public static string DropTypeScriptText(string quotedTypeName)
-        {
-            return string.Format(CultureInfo.InvariantCulture, "DROP TYPE {0};\n", quotedTypeName);
         }
 
 
@@ -363,7 +332,7 @@ namespace Dotmim.Sync.SqlServer
             return parser.SchemaName;
         }
 
-        public static bool IsChangeTrackingEnabled(SqlConnection connection, SqlTransaction transaction)
+        public static async Task<bool> IsChangeTrackingEnabledAsync(SqlConnection connection, SqlTransaction transaction)
         {
             bool flag;
             string commandText = @"if (exists(
@@ -379,12 +348,12 @@ namespace Dotmim.Sync.SqlServer
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
                 if (!alreadyOpened)
-                    connection.Open();
+                    await connection.OpenAsync().ConfigureAwait(false);
 
                 if (transaction != null)
                     sqlCommand.Transaction = transaction;
 
-                flag = (int)sqlCommand.ExecuteScalar() != 0;
+                flag = ((int)await sqlCommand.ExecuteScalarAsync().ConfigureAwait(false)) != 0;
 
                 if (!alreadyOpened)
                     connection.Close();
@@ -394,7 +363,7 @@ namespace Dotmim.Sync.SqlServer
         }
 
 
-        public static bool DatabaseExists(SqlConnection connection, SqlTransaction transaction)
+        public static async Task<bool> DatabaseExistsAsync(SqlConnection connection, SqlTransaction transaction)
         {
             bool tableExist;
 
@@ -412,12 +381,12 @@ namespace Dotmim.Sync.SqlServer
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
                 if (!alreadyOpened)
-                    connection.Open();
+                    await connection.OpenAsync().ConfigureAwait(false);
 
                 if (transaction != null)
                     dbCommand.Transaction = transaction;
 
-                tableExist = (int)dbCommand.ExecuteScalar() != 0;
+                tableExist = ((int)await dbCommand.ExecuteScalarAsync().ConfigureAwait(false)) != 0;
 
                 if (!alreadyOpened)
                     connection.Close();
@@ -429,7 +398,7 @@ namespace Dotmim.Sync.SqlServer
         }
 
 
-        public static bool ProcedureExists(SqlConnection connection, SqlTransaction transaction, string quotedProcedureName)
+        public static async Task<bool> ProcedureExistsAsync(SqlConnection connection, SqlTransaction transaction, string quotedProcedureName)
         {
             bool flag;
             var procedureName = ParserName.Parse(quotedProcedureName).ToString();
@@ -442,12 +411,12 @@ namespace Dotmim.Sync.SqlServer
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
                 if (!alreadyOpened)
-                    connection.Open();
+                    await connection.OpenAsync().ConfigureAwait(false);
 
                 if (transaction != null)
                     sqlCommand.Transaction = transaction;
 
-                flag = (int)sqlCommand.ExecuteScalar() != 0;
+                flag = ((int)await sqlCommand.ExecuteScalarAsync().ConfigureAwait(false)) != 0;
 
                 if (!alreadyOpened)
                     connection.Close();
@@ -457,7 +426,7 @@ namespace Dotmim.Sync.SqlServer
             return flag;
         }
 
-        public static bool TableExists(SqlConnection connection, SqlTransaction transaction, string quotedTableName)
+        public static async Task<bool> TableExistsAsync(SqlConnection connection, SqlTransaction transaction, string quotedTableName)
         {
             bool tableExist;
             var tableName = ParserName.Parse(quotedTableName).ToString();
@@ -483,12 +452,12 @@ namespace Dotmim.Sync.SqlServer
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
                 if (!alreadyOpened)
-                    connection.Open();
+                    await connection.OpenAsync().ConfigureAwait(false);
 
                 if (transaction != null)
                     dbCommand.Transaction = transaction;
 
-                tableExist = (int)dbCommand.ExecuteScalar() != 0;
+                tableExist = ((int)await dbCommand.ExecuteScalarAsync().ConfigureAwait(false)) != 0;
 
                 if (!alreadyOpened)
                     connection.Close();
@@ -499,7 +468,7 @@ namespace Dotmim.Sync.SqlServer
             return tableExist;
         }
 
-        public static bool SchemaExists(SqlConnection connection, SqlTransaction transaction, string schemaName)
+        public static async Task<bool> SchemaExistsAsync(SqlConnection connection, SqlTransaction transaction, string schemaName)
         {
             bool schemaExist;
             using (DbCommand dbCommand = connection.CreateCommand())
@@ -516,12 +485,12 @@ namespace Dotmim.Sync.SqlServer
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
                 if (!alreadyOpened)
-                    connection.Open();
+                    await connection.OpenAsync().ConfigureAwait(false);
 
                 if (transaction != null)
                     dbCommand.Transaction = transaction;
 
-                schemaExist = (int)dbCommand.ExecuteScalar() != 0;
+                schemaExist = ((int)await dbCommand.ExecuteScalarAsync().ConfigureAwait(false)) != 0;
 
                 if (!alreadyOpened)
                     connection.Close();
@@ -529,8 +498,8 @@ namespace Dotmim.Sync.SqlServer
             }
             return schemaExist;
         }
-
-        public static bool TriggerExists(SqlConnection connection, SqlTransaction transaction, string quotedTriggerName)
+         
+        public static async Task<bool> TriggerExistsAsync(SqlConnection connection, SqlTransaction transaction, string quotedTriggerName)
         {
             bool triggerExist;
             var triggerName = ParserName.Parse(quotedTriggerName).ToString();
@@ -543,12 +512,12 @@ namespace Dotmim.Sync.SqlServer
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
                 if (!alreadyOpened)
-                    connection.Open();
+                    await connection.OpenAsync().ConfigureAwait(false);
 
                 if (transaction != null)
                     sqlCommand.Transaction = transaction;
 
-                triggerExist = (int)sqlCommand.ExecuteScalar() != 0;
+                triggerExist = ((int)await sqlCommand.ExecuteScalarAsync().ConfigureAwait(false)) != 0;
 
                 if (!alreadyOpened)
                     connection.Close();
@@ -558,7 +527,7 @@ namespace Dotmim.Sync.SqlServer
             return triggerExist;
         }
 
-        public static bool TypeExists(SqlConnection connection, SqlTransaction transaction, string quotedTypeName)
+        public static async Task<bool> TypeExistsAsync(SqlConnection connection, SqlTransaction transaction, string quotedTypeName)
         {
             bool typeExist;
 
@@ -572,12 +541,12 @@ namespace Dotmim.Sync.SqlServer
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
                 if (!alreadyOpened)
-                    connection.Open();
+                    await connection.OpenAsync().ConfigureAwait(false);
 
                 if (transaction != null)
                     sqlCommand.Transaction = transaction;
 
-                typeExist = (int)sqlCommand.ExecuteScalar() != 0;
+                typeExist = ((int)await sqlCommand.ExecuteScalarAsync().ConfigureAwait(false)) != 0;
 
                 if (!alreadyOpened)
                     connection.Close();

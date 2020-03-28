@@ -7,6 +7,7 @@ using System.Data;
 using Dotmim.Sync.Builders;
 using MySql.Data.MySqlClient;
 using Dotmim.Sync.MySql.Builders;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.MySql
 {
@@ -76,7 +77,7 @@ namespace Dotmim.Sync.MySql
         }
 
 
-        public override void SetCommandParameters(DbCommandType commandType, DbCommand command, SyncFilter filter = null)
+        public override async Task SetCommandParametersAsync(DbCommandType commandType, DbCommand command, SyncFilter filter = null)
         {
             switch (commandType)
             {
@@ -268,8 +269,7 @@ namespace Dotmim.Sync.MySql
 
         }
 
-
-        public override void ExecuteBatchCommand(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable, SyncTable failedRows, long lastTimestamp)
+        public override async Task ExecuteBatchCommandAsync(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable, SyncTable failedRows, long lastTimestamp)
         {
             throw new NotImplementedException();
         }

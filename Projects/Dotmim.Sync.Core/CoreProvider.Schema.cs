@@ -46,13 +46,13 @@ namespace Dotmim.Sync
                 var tblManager = builderTable.CreateManagerTable(connection, transaction);
 
                 // Check if table exists
-                var syncTable = tblManager.GetTable();
+                var syncTable = await tblManager.GetTableAsync().ConfigureAwait(false);
 
                 if (syncTable == null)
                     throw new MissingTableException(string.IsNullOrEmpty(setupTable.SchemaName) ? setupTable.TableName : setupTable.SchemaName + "." + setupTable.TableName);
 
                 // get columns list
-                var lstColumns = tblManager.GetColumns();
+                var lstColumns = await tblManager.GetColumnsAsync().ConfigureAwait(false);
 
                 // Validate the column list and get the dmTable configuration object.
                 this.FillSyncTableWithColumns(setupTable, syncTable, lstColumns, tblManager);
@@ -61,10 +61,10 @@ namespace Dotmim.Sync
                 schema.Tables.Add(syncTable);
 
                 // Check primary Keys
-                SetPrimaryKeys(syncTable, tblManager);
+                await SetPrimaryKeysAsync(syncTable, tblManager).ConfigureAwait(false);
 
                 // get all relations
-                var tableRelations = tblManager.GetRelations();
+                var tableRelations = await tblManager.GetRelationsAsync().ConfigureAwait(false);
 
                 // Since we are not sure of the order of reading tables
                 // create a tmp relations list
@@ -206,10 +206,10 @@ namespace Dotmim.Sync
         /// <summary>
         /// Check then add primary keys to schema table
         /// </summary>
-        private void SetPrimaryKeys(SyncTable schemaTable, IDbTableManager dbManagerTable)
+        private async Task SetPrimaryKeysAsync(SyncTable schemaTable, IDbTableManager dbManagerTable)
         {
             // Get PrimaryKey
-            var schemaPrimaryKeys = dbManagerTable.GetPrimaryKeys();
+            var schemaPrimaryKeys = await dbManagerTable.GetPrimaryKeysAsync();
 
             if (schemaPrimaryKeys == null || schemaPrimaryKeys.Any() == false)
                 throw new MissingPrimaryKeyException(schemaTable.TableName);

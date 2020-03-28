@@ -2,30 +2,31 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Tests.UnitTests
 {
     public class MockBuilderTableHelper : IDbBuilderTableHelper
     {
-        public void CreateForeignKeyConstraints(SyncRelation constraint) { }
+        public Task CreateForeignKeyConstraintsAsync(SyncRelation constraint)  => Task.CompletedTask;
 
 
-        public void CreatePrimaryKey() { }
+        public Task CreatePrimaryKeyAsync()  => Task.CompletedTask;
 
 
-        public void CreateSchema() { }
+        public Task CreateSchemaAsync()  => Task.CompletedTask;
 
 
-        public void CreateTable() { }
+        public Task CreateTableAsync()  => Task.CompletedTask;
 
 
-        public void DropTable() { }
+        public Task DropTableAsync()  => Task.CompletedTask;
 
 
-        public bool NeedToCreateForeignKeyConstraints(SyncRelation constraint) => true;
+        public Task<bool> NeedToCreateForeignKeyConstraintsAsync(SyncRelation constraint) => Task.FromResult(true);
 
-        public bool NeedToCreateSchema() => true;
+        public Task<bool> NeedToCreateSchemaAsync() => Task.FromResult(true);
 
-        public bool NeedToCreateTable() => true;
+        public Task<bool> NeedToCreateTableAsync() => Task.FromResult(true);
     }
 }
