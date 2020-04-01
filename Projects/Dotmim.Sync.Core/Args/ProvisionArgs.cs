@@ -1,6 +1,6 @@
 ﻿using System.Data.Common;
 using System.Linq;
-
+using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
 
 namespace Dotmim.Sync
@@ -10,24 +10,48 @@ namespace Dotmim.Sync
         public SyncProvision Provision { get; }
         public SyncTable SchemaTable { get; }
 
-        public TableProvisionedArgs(SyncContext context, SyncProvision provision, SyncTable schemaTable, DbConnection connection, DbTransaction transaction)
+        public TableProvisionedArgs(SyncContext context, SyncProvision provision, SyncTable schemaTable, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
             Provision = provision;
             SchemaTable = schemaTable;
         }
 
-        public override string Message => $"[{Connection.Database}] [{SchemaTable.TableName}] provision:{Provision}";
+        public override string Message => $"[{Connection.Database}] [{SchemaTable.GetFullName()}] provision:{Provision}";
 
     }
 
+    public class TableProvisioningArgs : ProgressArgs
+    {
+        public SyncProvision Provision { get; }
+        public DbTableBuilder TableBuilder { get; }
+
+        public TableProvisioningArgs(SyncContext context, SyncProvision provision, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction)
+            : base(context, connection, transaction)
+        {
+            Provision = provision;
+            TableBuilder = tableBuilder;
+        }
+
+        public override string Message => $"[{Connection.Database}] [{TableBuilder.TableDescription.GetFullName()}] provisioning:{Provision}";
+
+    }
+
+
+    public class TableDeprovisionedArgs : TableProvisionedArgs
+    {
+        public TableDeprovisionedArgs(SyncContext context, SyncProvision provision, SyncTable schemaTable, DbConnection connection = null, DbTransaction transaction = null) 
+            : base(context, provision, schemaTable, connection, transaction)
+        {
+        }
+    }
 
     public class DatabaseProvisionedArgs : ProgressArgs
     {
         public SyncProvision Provision { get; }
         public SyncSet Schema { get; }
 
-        public DatabaseProvisionedArgs(SyncContext context, SyncProvision provision, SyncSet schema, DbConnection connection, DbTransaction transaction)
+        public DatabaseProvisionedArgs(SyncContext context, SyncProvision provision, SyncSet schema, DbConnection connection = null, DbTransaction transaction = null)
         : base(context, connection, transaction)
 
         {
@@ -51,11 +75,6 @@ namespace Dotmim.Sync
         /// </summary>
         public SyncSet Schema { get; }
 
-        /// <summary>
-        /// Gets or Sets a boolean for overwriting the current schema. If True, all scripts are generated and applied
-        /// </summary>
-        public bool OverwriteSchema { get; set; }
-
         public DatabaseProvisioningArgs(SyncContext context, SyncProvision provision, SyncSet schema, DbConnection connection, DbTransaction transaction)
         : base(context, connection, transaction)
 
@@ -69,16 +88,9 @@ namespace Dotmim.Sync
 
     }
 
-    public class TableDeprovisionedArgs : TableProvisionedArgs
-    {
-        public TableDeprovisionedArgs(SyncContext context, SyncProvision provision, SyncTable schemaTable, DbConnection connection, DbTransaction transaction) : base(context, provision, schemaTable, connection, transaction)
-        {
-        }
-    }
-
     public class DatabaseDeprovisionedArgs : DatabaseProvisionedArgs
     {
-        public DatabaseDeprovisionedArgs(SyncContext context, SyncProvision provision, SyncSet schema, DbConnection connection, DbTransaction transaction) 
+        public DatabaseDeprovisionedArgs(SyncContext context, SyncProvision provision, SyncSet schema, DbConnection connection = null, DbTransaction transaction = null) 
             : base(context, provision, schema, connection, transaction)
         {
         }

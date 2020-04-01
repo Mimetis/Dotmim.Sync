@@ -37,7 +37,7 @@ namespace Dotmim.Sync
     /// </summary>
     public class ScopeLoadedArgs : ProgressArgs
     {
-        public ScopeLoadedArgs(SyncContext context, ScopeInfo scope, DbConnection connection, DbTransaction transaction)
+        public ScopeLoadedArgs(SyncContext context, ScopeInfo scope, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
             this.ScopeInfo = scope;
@@ -56,7 +56,7 @@ namespace Dotmim.Sync
     /// </summary>
     public class ServerScopeLoadedArgs : ProgressArgs
     {
-        public ServerScopeLoadedArgs(SyncContext context, ServerScopeInfo scope, DbConnection connection, DbTransaction transaction)
+        public ServerScopeLoadedArgs(SyncContext context, ServerScopeInfo scope, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
             this.ScopeInfo = scope;
@@ -75,9 +75,9 @@ namespace Dotmim.Sync
     /// <summary>
     /// Args generated before and after a scope has been applied
     /// </summary>
-    public class ServerHistoryScopeArgs : ProgressArgs
+    public class ServerHistoryScopeLoadedArgs : ProgressArgs
     {
-        public ServerHistoryScopeArgs(SyncContext context, ServerHistoryScopeInfo scope, DbConnection connection, DbTransaction transaction)
+        public ServerHistoryScopeLoadedArgs(SyncContext context, ServerHistoryScopeInfo scope, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
             this.ScopeInfo = scope;

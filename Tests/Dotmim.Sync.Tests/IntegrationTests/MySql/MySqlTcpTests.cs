@@ -3,33 +3,35 @@ using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Tests.Models;
-using Dotmim.Sync.Web.Server;
+using Microsoft.EntityFrameworkCore.Storage;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Xunit;
 using Xunit.Abstractions;
 
-namespace Dotmim.Sync.Tests
+namespace Dotmim.Sync.Tests.IntegrationTests
 {
-    public class SqlServerHttpTests : HttpTests
+    public class MySqlTcpTests : TcpTests
     {
-        public SqlServerHttpTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
+        public MySqlTcpTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
         {
         }
 
         public override string[] Tables => new string[]
         {
-            "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "Employee", "Customer", "Address", "CustomerAddress", "EmployeeAddress",
-            "SalesLT.SalesOrderHeader", "SalesLT.SalesOrderDetail", "dbo.Sql", "Posts", "Tags", "PostTag",
+            "ProductCategory", "ProductModel", "Product", "Employee", "Customer", "Address", "CustomerAddress", "EmployeeAddress",
+            "SalesOrderHeader", "SalesOrderDetail", "Sql", "Posts", "Tags", "PostTag",
             "PricesList", "PricesListCategory", "PricesListDetail"
         };
 
         public override List<ProviderType> ClientsType => new List<ProviderType>
-            { ProviderType.Sql};
+            { ProviderType.MySql, ProviderType.Sql, ProviderType.Sqlite};
 
-        public override ProviderType ServerType => ProviderType.Sql;
+        public override ProviderType ServerType =>
+            ProviderType.MySql;
 
 
 
@@ -46,34 +48,6 @@ namespace Dotmim.Sync.Tests
                 default:
                     return new SqlSyncProvider(cs);
             }
-        }
-
-
-
-        public override bool UseFiddler => false;
-
-        public override async Task EnsureDatabaseSchemaAndSeedAsync((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) t, bool useSeeding = false, bool useFallbackSchema = false)
-        {
-            AdventureWorksContext ctx = null;
-            try
-            {
-                ctx = new AdventureWorksContext(t, useFallbackSchema, useSeeding);
-                await ctx.Database.EnsureCreatedAsync();
-
-            }
-            catch (Exception)
-            {
-            }
-            finally
-            {
-                if (ctx != null)
-                    ctx.Dispose();
-            }
-        }
-
-        public override Task CreateDatabaseAsync(ProviderType providerType, string dbName, bool recreateDb = true)
-        {
-            return HelperDatabase.CreateDatabaseAsync(providerType, dbName, recreateDb);
         }
 
 
@@ -110,6 +84,29 @@ namespace Dotmim.Sync.Tests
             return totalCountRows;
         }
 
-      
+        public override async Task EnsureDatabaseSchemaAndSeedAsync((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) t, bool useSeeding = false, bool useFallbackSchema = false)
+        {
+            AdventureWorksContext ctx = null;
+            try
+            {
+                ctx = new AdventureWorksContext(t, useFallbackSchema, useSeeding);
+                await ctx.Database.EnsureCreatedAsync();
+
+            }
+            catch (Exception)
+            {
+            }
+            finally
+            {
+                if (ctx != null)
+                    ctx.Dispose();
+            }
+        }
+
+        public override Task CreateDatabaseAsync(ProviderType providerType, string dbName, bool recreateDb = true)
+        {
+            return HelperDatabase.CreateDatabaseAsync(providerType, dbName, recreateDb);
+        }
+
     }
 }

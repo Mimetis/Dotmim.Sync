@@ -3,20 +3,19 @@ using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Tests.Models;
-using Microsoft.EntityFrameworkCore.Storage;
+using Dotmim.Sync.Web.Server;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Xunit;
 using Xunit.Abstractions;
 
-namespace Dotmim.Sync.Tests
+namespace Dotmim.Sync.Tests.IntegrationTests
 {
-    public class MySqlTcpTests : TcpTests
+    public class MySqlHttpTests : HttpTests
     {
-        public MySqlTcpTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
+        public MySqlHttpTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
         {
         }
 
@@ -30,8 +29,7 @@ namespace Dotmim.Sync.Tests
         public override List<ProviderType> ClientsType => new List<ProviderType>
             { ProviderType.MySql, ProviderType.Sql, ProviderType.Sqlite};
 
-        public override ProviderType ServerType =>
-            ProviderType.MySql;
+        public override ProviderType ServerType => ProviderType.MySql;
 
 
 
@@ -50,6 +48,7 @@ namespace Dotmim.Sync.Tests
             }
         }
 
+        public override bool UseFiddler => false;
 
         /// <summary>
         /// Get the server database rows count
@@ -83,6 +82,7 @@ namespace Dotmim.Sync.Tests
 
             return totalCountRows;
         }
+
 
         public override async Task EnsureDatabaseSchemaAndSeedAsync((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) t, bool useSeeding = false, bool useFallbackSchema = false)
         {

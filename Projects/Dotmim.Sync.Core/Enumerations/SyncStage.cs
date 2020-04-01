@@ -19,23 +19,26 @@ namespace Dotmim.Sync.Enumerations
         ScopeLoading,
         ScopeLoaded,
 
+        SnapshotCreating,
+        SnapshotCreated,
+
         SnapshotApplying,
         SnapshotApplied,
 
         SchemaReading,
         SchemaRead,
 
-        SchemaProvisioning,
-        SchemaProvisioned,
+        Provisioning,
+        Provisioned,
 
-        SchemaDeprovisioning,
-        SchemaDeprovisioned,
+        Deprovisioning,
+        Deprovisioned,
 
-        DatabaseChangesSelecting,
-        DatabaseChangesSelected,
+        ChangesSelecting,
+        ChangesSelected,
 
-        DatabaseChangesApplying,
-        DatabaseChangesApplied,
+        ChangesApplying,
+        ChangesApplied,
 
         MetadataCleaning,
         MetadataCleaned,
