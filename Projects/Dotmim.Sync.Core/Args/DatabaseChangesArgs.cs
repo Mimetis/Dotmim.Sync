@@ -33,7 +33,7 @@ namespace Dotmim.Sync
     /// </summary>
     public class DatabaseChangesSelectedArgs : ProgressArgs
     {
-        public DatabaseChangesSelectedArgs(SyncContext context, long timestamp, BatchInfo clientBatchInfo, DatabaseChangesSelected changesSelected, DbConnection connection, DbTransaction transaction)
+        public DatabaseChangesSelectedArgs(SyncContext context, long timestamp, BatchInfo clientBatchInfo, DatabaseChangesSelected changesSelected, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
             this.Timestamp = timestamp;
@@ -72,7 +72,7 @@ namespace Dotmim.Sync
     /// </summary>
     public class DatabaseChangesAppliedArgs : ProgressArgs
     {
-        public DatabaseChangesAppliedArgs(SyncContext context, DatabaseChangesApplied changesApplied, DbConnection connection, DbTransaction transaction)
+        public DatabaseChangesAppliedArgs(SyncContext context, DatabaseChangesApplied changesApplied, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
             this.ChangesApplied = changesApplied;

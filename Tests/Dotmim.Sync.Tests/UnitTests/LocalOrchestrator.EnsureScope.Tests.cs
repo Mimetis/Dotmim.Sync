@@ -28,7 +28,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var provider = new SqlSyncProvider(cs);
 
             var localOrchestrator = new LocalOrchestrator(provider, options, setup);
-            
+
             var scope = await localOrchestrator.EnsureScopeAsync();
 
             Assert.NotNull(scope);
@@ -50,59 +50,10 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var options = new SyncOptions();
             var setup = new SyncSetup(this.Tables);
-
-            var onConnectionOpen = false;
-            var onTransactionOpen = false;
-            var onTransactionCommit = false;
-            var onConnectionClose = false;
+            var onScopeLoading = false;
+            var onScopeLoaded = false;
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup, scopeName);
-
-            localOrchestrator.OnConnectionOpen(args =>
-            {
-                Assert.IsType<ConnectionOpenArgs>(args);
-                Assert.Equal(SyncStage.ScopeLoading, args.Context.SyncStage);
-                Assert.Equal(scopeName, args.Context.ScopeName);
-                Assert.NotNull(args.Connection);
-                Assert.Null(args.Transaction);
-                Assert.Equal(ConnectionState.Open, args.Connection.State);
-                onConnectionOpen = true;
-            });
-
-            localOrchestrator.OnConnectionClose(args =>
-            {
-                Assert.IsType<ConnectionCloseArgs>(args);
-                Assert.Equal(SyncStage.ScopeLoaded, args.Context.SyncStage);
-                Assert.Equal(scopeName, args.Context.ScopeName);
-                Assert.NotNull(args.Connection);
-                Assert.NotNull(args.Transaction);
-                Assert.Equal(ConnectionState.Closed, args.Connection.State);
-                onConnectionClose = true;
-            });
-
-            localOrchestrator.OnTransactionOpen(args =>
-            {
-                Assert.IsType<TransactionOpenArgs>(args);
-                Assert.Equal(SyncStage.ScopeLoading, args.Context.SyncStage);
-                Assert.Equal(scopeName, args.Context.ScopeName);
-                Assert.NotNull(args.Connection);
-                Assert.NotNull(args.Transaction);
-                Assert.Equal(ConnectionState.Open, args.Connection.State);
-                Assert.Same(args.Connection, args.Transaction.Connection);
-                onTransactionOpen = true;
-            });
-
-            localOrchestrator.OnTransactionCommit(args =>
-            {
-                Assert.IsType<TransactionCommitArgs>(args);
-                Assert.Equal(SyncStage.ScopeLoaded, args.Context.SyncStage);
-                Assert.Equal(scopeName, args.Context.ScopeName);
-                Assert.NotNull(args.Connection);
-                Assert.NotNull(args.Transaction);
-                Assert.Equal(ConnectionState.Open, args.Connection.State);
-                Assert.Same(args.Connection, args.Transaction.Connection);
-                onTransactionCommit = true;
-            });
 
             localOrchestrator.OnScopeLoading(args =>
             {
@@ -113,6 +64,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 Assert.NotNull(args.Transaction);
                 Assert.Equal(ConnectionState.Open, args.Connection.State);
                 Assert.Same(args.Connection, args.Transaction.Connection);
+                onScopeLoading = true;
             });
 
             localOrchestrator.OnScopeLoaded(args =>
@@ -122,18 +74,18 @@ namespace Dotmim.Sync.Tests.UnitTests
                 Assert.NotNull(args.ScopeInfo);
                 Assert.Equal(scopeName, args.ScopeInfo.Name);
                 Assert.NotNull(args.Connection);
-                Assert.NotNull(args.Transaction);
-                Assert.Equal(ConnectionState.Open, args.Connection.State);
-                Assert.Same(args.Connection, args.Transaction.Connection);
+                Assert.Null(args.Transaction);
+                Assert.Equal(ConnectionState.Closed, args.Connection.State);
+                onScopeLoaded = true;
             });
 
+            // Check connection and transaction interceptors
+            BaseOrchestratorTests.AssertConnectionAndTransaction(localOrchestrator, SyncStage.ScopeLoading, SyncStage.ScopeLoaded);
 
             var localScopeInfo = await localOrchestrator.EnsureScopeAsync();
 
-            Assert.True(onConnectionOpen);
-            Assert.True(onConnectionClose);
-            Assert.True(onTransactionOpen);
-            Assert.True(onTransactionCommit);
+            Assert.True(onScopeLoaded);
+            Assert.True(onScopeLoading);
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
@@ -183,48 +135,6 @@ namespace Dotmim.Sync.Tests.UnitTests
 
 
         [Fact]
-        public async Task LocalOrchestrator_CancellationToken_ShouldInterrupt_EnsureScope_Onloading()
-        {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, false);
-            await ctx.Database.EnsureCreatedAsync();
-
-            var options = new SyncOptions();
-            var setup = new SyncSetup(this.Tables);
-
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
-            var cts = new CancellationTokenSource();
-
-            localOrchestrator.OnConnectionOpen(args =>
-            {
-                Assert.Equal(SyncStage.ScopeLoading, args.Context.SyncStage);
-                Assert.IsType<ConnectionOpenArgs>(args);
-                Assert.NotNull(args.Connection);
-                Assert.Null(args.Transaction);
-                Assert.Equal(ConnectionState.Open, args.Connection.State);
-
-                // Cancel the whole operation
-                cts.Cancel();
-            });
-
-            var se = await Assert.ThrowsAsync<SyncException>(async () =>
-            {
-                var schema = await localOrchestrator.EnsureScopeAsync(cts.Token);
-            });
-
-            Assert.Equal(SyncStage.SchemaReading, se.SyncStage);
-            Assert.Equal(SyncSide.ClientSide, se.Side);
-            Assert.Equal("OperationCanceledException", se.TypeName);
-
-
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
-        }
-
-        [Fact]
         public async Task LocalOrchestrator_CancellationToken_ShouldInterrupt_EnsureScope_OnConnectionOpened()
         {
             var dbName = HelperDatabase.GetRandomName("tcp_lo_");
@@ -240,29 +150,37 @@ namespace Dotmim.Sync.Tests.UnitTests
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
             var cts = new CancellationTokenSource();
 
-            localOrchestrator.OnConnectionOpen(args =>
-            {
-                Assert.Equal(SyncStage.ScopeLoading, args.Context.SyncStage);
-                Assert.IsType<ConnectionOpenArgs>(args);
-                Assert.NotNull(args.Connection);
-                Assert.Null(args.Transaction);
-                Assert.Equal(ConnectionState.Open, args.Connection.State);
+            localOrchestrator.OnConnectionOpen(args => cts.Cancel());
 
-                // Cancel the whole operation
-                cts.Cancel();
-            });
+            var se = await Assert.ThrowsAsync<SyncException>(async () => await localOrchestrator.EnsureScopeAsync(cts.Token));
 
-            var se = await Assert.ThrowsAsync<SyncException>(async () =>
-            {
-                var schema = await localOrchestrator.EnsureScopeAsync(cts.Token);
-            });
-
-            Assert.Equal(SyncStage.SchemaReading, se.SyncStage);
             Assert.Equal(SyncSide.ClientSide, se.Side);
             Assert.Equal("OperationCanceledException", se.TypeName);
 
+            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
+        }
 
+        [Fact]
+        public async Task LocalOrchestrator_CancellationToken_ShouldInterrupt_EnsureScope_OnTransactionCommit()
+        {
+            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
+            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
+            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
+            var sqlProvider = new SqlSyncProvider(cs);
+            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, false);
+            await ctx.Database.EnsureCreatedAsync();
 
+            var options = new SyncOptions();
+            var setup = new SyncSetup(this.Tables);
+
+            var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
+            var cts = new CancellationTokenSource();
+
+            localOrchestrator.OnTransactionCommit(args => cts.Cancel());
+            var se = await Assert.ThrowsAsync<SyncException>(async () => await localOrchestrator.EnsureScopeAsync(cts.Token));
+            Assert.Equal(SyncSide.ClientSide, se.Side);
+            Assert.Equal("OperationCanceledException", se.TypeName);
+            
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
     }

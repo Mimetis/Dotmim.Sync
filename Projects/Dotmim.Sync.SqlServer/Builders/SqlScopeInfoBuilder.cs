@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using System.Diagnostics;
 using System.Threading.Tasks;
 
@@ -273,7 +273,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                 p.DbType = DbType.String;
                 command.Parameters.Add(p);
 
-                using (DbDataReader reader = await command.ExecuteReaderAsync().ConfigureAwait(false))
+                using (var reader = await command.ExecuteReaderAsync().ConfigureAwait(false))
                 {
                     if (reader.HasRows)
                     {
@@ -313,13 +313,13 @@ namespace Dotmim.Sync.SqlServer.Scope
 
         public virtual async Task<long> GetLocalTimestampAsync()
         {
-            var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
-
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-            try
+            using (var command = connection.CreateCommand())
             {
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (transaction != null)
+                    command.Transaction = transaction;
+
                 // UPDATE Nov 2019 : We don't use min_active_rowversion anymore, since we are in a transaction
                 // and we still need the last row version, so check back to @@DBTS
                 command.CommandText = "SELECT @sync_new_timestamp = @@DBTS";
@@ -339,27 +339,12 @@ namespace Dotmim.Sync.SqlServer.Scope
                 if (outputParameter == null)
                     return 0L;
 
-                long result = 0L;
+                long.TryParse(outputParameter.Value.ToString(), out long result);
 
-                long.TryParse(outputParameter.Value.ToString(), out result);
-
-                command.Dispose();
-
-                return result;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during GetLocalTimestamp : {ex}");
-                throw;
-
-            }
-            finally
-            {
                 if (!alreadyOpened && connection.State != ConnectionState.Closed)
                     connection.Close();
 
-                if (command != null)
-                    command.Dispose();
+                return result;
             }
         }
 
@@ -458,7 +443,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                 command.Parameters.Add(p);
 
 
-                using (DbDataReader reader = await command.ExecuteReaderAsync().ConfigureAwait(false))
+                using (var reader = await command.ExecuteReaderAsync().ConfigureAwait(false))
                 {
                     if (reader.HasRows)
                     {
@@ -555,7 +540,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                 command.Parameters.Add(p);
 
 
-                using (DbDataReader reader = await command.ExecuteReaderAsync().ConfigureAwait(false))
+                using (var reader = await command.ExecuteReaderAsync().ConfigureAwait(false))
                 {
                     if (reader.HasRows)
                     {
@@ -655,7 +640,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                 p.DbType = DbType.Int64;
                 command.Parameters.Add(p);
 
-                using (DbDataReader reader = await command.ExecuteReaderAsync().ConfigureAwait(false))
+                using (var reader = await command.ExecuteReaderAsync().ConfigureAwait(false))
                 {
                     if (reader.HasRows)
                     {
@@ -707,8 +692,9 @@ namespace Dotmim.Sync.SqlServer.Scope
                      ELSE
                      SELECT 0";
 
-                return ((int)await command.ExecuteScalarAsync().ConfigureAwait(false)) != 1;
+                var result = await command.ExecuteScalarAsync().ConfigureAwait(false);
 
+                return (int)result != 1;
             }
             catch (Exception ex)
             {
@@ -747,7 +733,9 @@ namespace Dotmim.Sync.SqlServer.Scope
                      ELSE
                      SELECT 0";
 
-                return ((int)await command.ExecuteScalarAsync().ConfigureAwait(false)) != 1;
+                var result = await command.ExecuteScalarAsync().ConfigureAwait(false);
+
+                return (int)result != 1;
 
             }
             catch (Exception ex)
@@ -767,18 +755,17 @@ namespace Dotmim.Sync.SqlServer.Scope
 
         public virtual async Task<bool> NeedToCreateServerScopeInfoTableAsync()
         {
-            var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            try
+            using (var command = connection.CreateCommand())
             {
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (transaction != null)
+                    command.Transaction = transaction;
+
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
                 var tableName = $"{scopeTableName.Unquoted().Normalized()}_server";
-
 
                 command.CommandText =
                     $@"IF EXISTS (SELECT t.name FROM sys.tables t 
@@ -788,36 +775,29 @@ namespace Dotmim.Sync.SqlServer.Scope
                      ELSE
                      SELECT 0";
 
-                return ((int)await command.ExecuteScalarAsync().ConfigureAwait(false)) != 1;
+                var result = await command.ExecuteScalarAsync().ConfigureAwait(false);
 
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during NeedToCreateServerScopeInfoTable command : {ex}");
-                throw;
-            }
-            finally
-            {
                 if (!alreadyOpened && connection.State != ConnectionState.Closed)
                     connection.Close();
 
-                if (command != null)
-                    command.Dispose();
+                return (int)result != 1;
             }
+
         }
 
         public async Task<List<ServerScopeInfo>> GetAllServerScopesAsync(string scopeName)
         {
-            var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
-
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-            var tableName = $"{scopeTableName.Unquoted().Normalized()}_server";
-
-            var scopes = new List<ServerScopeInfo>();
-            try
+            using (var command = connection.CreateCommand())
             {
+                var tableName = $"{scopeTableName.Unquoted().Normalized()}_server";
+
+                if (transaction != null)
+                    command.Transaction = transaction;
+
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                var scopes = new List<ServerScopeInfo>();
+
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
@@ -852,21 +832,12 @@ namespace Dotmim.Sync.SqlServer.Scope
                     }
                 }
 
-                return scopes;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during GetAllServerScopes : {ex}");
-                throw;
-            }
-            finally
-            {
                 if (!alreadyOpened && connection.State != ConnectionState.Closed)
                     connection.Close();
 
-                if (command != null)
-                    command.Dispose();
+                return scopes;
             }
+
         }
     }
 }

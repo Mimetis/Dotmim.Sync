@@ -3,7 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -39,13 +39,11 @@ namespace Dotmim.Sync.SqlServer
                 p = new SqlParameter("@procedure_schema", SqlDbType.NVarChar);
                 p.Value = schemaName;
                 getParamsCommand.Parameters.Add(p);
-                
-                var sdr = await getParamsCommand.ExecuteReaderAsync().ConfigureAwait(false);
 
-                // Do we have any rows?
-                if (sdr.HasRows)
+                using (var sdr = await getParamsCommand.ExecuteReaderAsync().ConfigureAwait(false))
                 {
-                    using (sdr)
+                    // Do we have any rows?
+                    if (sdr.HasRows)
                     {
                         // Read the parameter information
                         int ParamNameCol = sdr.GetOrdinal("PARAMETER_NAME");
@@ -106,6 +104,7 @@ namespace Dotmim.Sync.SqlServer
                         }
                     }
                 }
+
             }
             finally
             {
@@ -127,7 +126,7 @@ namespace Dotmim.Sync.SqlServer
             return discoveredParameters;
         }
 
-        
+
 
         internal static SqlParameter Clone(this SqlParameter param)
         {
@@ -149,6 +148,6 @@ namespace Dotmim.Sync.SqlServer
 
             return p;
         }
-  
+
     }
 }

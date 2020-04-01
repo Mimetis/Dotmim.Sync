@@ -24,7 +24,8 @@ namespace Dotmim.Sync
 
     public class MetadataCleanedArgs : MetadataCleaningArgs
     {
-        public MetadataCleanedArgs(SyncContext context, SyncSetup setup, long timeStampStart, DbConnection connection, DbTransaction transaction) : base(context, setup, timeStampStart, connection, transaction)
+        public MetadataCleanedArgs(SyncContext context, SyncSetup setup, long timeStampStart, DbConnection connection = null, DbTransaction transaction = null) 
+            : base(context, setup, timeStampStart, connection, transaction)
         {
         }
 

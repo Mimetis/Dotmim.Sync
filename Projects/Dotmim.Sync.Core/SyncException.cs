@@ -140,6 +140,27 @@ namespace Dotmim.Sync
         public MissingColumnException(string columnName, string sourceTableName) : base(string.Format(message, columnName, sourceTableName)) { }
     }
 
+    /// <summary>
+    /// Setup columns exception. Used when a setup table has no columns during provisioning.
+    /// </summary>
+    public class MissingsColumnException : Exception
+    {
+        const string message = "Table {0} has no columns.";
+
+        public MissingsColumnException(string sourceTableName) : base(string.Format(message, sourceTableName)) { }
+    }
+
+
+    /// <summary>
+    /// Setup column exception. Used when a setup column  is defined that does not exist in the data source table
+    /// </summary>
+    public class MissingPrimaryKeyColumnException : Exception
+    {
+        const string message = "Primary key column {0} should be part of the columns list in your Setup table {1}.";
+
+        public MissingPrimaryKeyColumnException(string columnName, string sourceTableName) : base(string.Format(message, columnName, sourceTableName)) { }
+    }
+
 
     /// <summary>
     /// Setup table exception. Used when a your setup does not contains any table

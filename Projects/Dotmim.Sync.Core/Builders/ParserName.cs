@@ -1,5 +1,6 @@
 ﻿
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -10,13 +11,8 @@ using System.Threading.Tasks;
 namespace Dotmim.Sync.Builders
 {
 
-
     public class ParserName
     {
-
-        // cache
-        private static Dictionary<string, ParserString> parsers = new Dictionary<string, ParserString>();
-
         private string key;
 
         private bool withDatabase = false;
@@ -24,9 +20,10 @@ namespace Dotmim.Sync.Builders
         private bool withQuotes = false;
         private bool withNormalized = false;
 
-        public string SchemaName => parsers[key].SchemaName;
-        public string ObjectName => parsers[key].ObjectName;
-        public string DatabaseName => parsers[key].DatabaseName;
+        public string SchemaName => GlobalParser.GetParserString(this.key).SchemaName;
+        public string ObjectName => GlobalParser.GetParserString(this.key).ObjectName;
+        public string DatabaseName => GlobalParser.GetParserString(this.key).DatabaseName;
+
 
         /// <summary>
         /// Add database name if available to the final string
@@ -72,38 +69,11 @@ namespace Dotmim.Sync.Builders
 
         }
 
-        public override string ToString()
-        {
-            var sb = new StringBuilder();
-
-            if (this.withDatabase && !string.IsNullOrEmpty(this.DatabaseName))
-            {
-                sb.Append(this.withQuotes ? parsers[key].QuotedDatabaseName : this.DatabaseName);
-                sb.Append(this.withNormalized ? "_" : ".");
-            }
-            if (this.withSchema && !string.IsNullOrEmpty(this.SchemaName))
-            {
-                sb.Append(this.withQuotes ? parsers[key].QuotedSchemaName : this.SchemaName);
-                sb.Append(this.withNormalized ? "_" : ".");
-            }
-
-            var name = this.withQuotes ? parsers[key].QuotedObjectName : this.ObjectName;
-            name = this.withNormalized ? name.Replace(" ", "_").Replace(".", "_") : name;
-            sb.Append(name);
-
-            // now we have the correct string, reset options for the next time we call the same instance
-            withDatabase = false;
-            withSchema = false;
-            withQuotes = false;
-            withNormalized = false;
-
-            return sb.ToString();
-        }
-
+    
         public static ParserName Parse(SyncTable syncTable, string leftQuote = null, string rightQuote = null) => new ParserName(syncTable, leftQuote, rightQuote);
         public static ParserName Parse(SyncColumn syncColumn, string leftQuote = null, string rightQuote = null) => new ParserName(syncColumn, leftQuote, rightQuote);
         public static ParserName Parse(string input, string leftQuote = null, string rightQuote = null) => new ParserName(input, leftQuote, rightQuote);
-   
+
 
 
 
@@ -134,135 +104,44 @@ namespace Dotmim.Sync.Builders
             else if (!string.IsNullOrEmpty(leftQuote))
                 this.key = $"{leftQuote}^{leftQuote}^{input}";
 
-            // check cache
-            if (parsers.ContainsKey(this.key))
-                return;
+            var s = GlobalParser.GetParserString(this.key);
 
-            var parserString = new ParserString();
-            parsers.Add(this.key, parserString);
-
-            if (!string.IsNullOrEmpty(leftQuote))
-            {
-                parserString.QuotePrefix = leftQuote;
-                parserString.QuoteSuffix = leftQuote;
-            }
-            if (!string.IsNullOrEmpty(rightQuote))
-                parserString.QuoteSuffix = rightQuote;
-
-            parserString.DatabaseName = string.Empty;
-            parserString.QuotedDatabaseName = string.Empty;
-            parserString.SchemaName = string.Empty;
-            parserString.QuotedSchemaName = string.Empty;
-            parserString.ObjectName = string.Empty;
-            parserString.QuotedObjectName = string.Empty;
-
-            //var regex = new Regex(string.Format(CultureInfo.InvariantCulture,
-            //     "(?:(?<space>\\s+)*)*(?:(?<open>\\[)*)*(?(open)(?<quoted>[^\\]]+)*|(?<unquoted>[^\\.\\s\\]]+)*)",
-            //     Regex.Escape(parserString.QuotePrefix), Regex.Escape(parserString.QuoteSuffix)), RegexOptions.IgnorePatternWhitespace);
-
-
-            var regexExpression = string.Format(CultureInfo.InvariantCulture,
-                     "(?<quoted>\\w[^\\{0}\\{1}\\.]*)",
-                     parserString.QuotePrefix, parserString.QuoteSuffix);
-
-            var regex = new Regex(regexExpression, RegexOptions.IgnorePatternWhitespace | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant); 
-
-
-            var matchCollections = regex.Matches(input);
-
-            string[] strMatches = new string[3];
-            int matchCounts = 0;
-            foreach (Match match in matchCollections)
-            {
-                if (matchCounts >= 3)
-                    break;
-
-                if (!match.Success || string.IsNullOrWhiteSpace(match.Value))
-                    continue;
-
-                var quotedGroup = match.Groups["quoted"];
-
-                if (quotedGroup == null || string.IsNullOrEmpty(quotedGroup.Value))
-                    continue;
-
-                strMatches[matchCounts] = quotedGroup.Value.Trim();
-
-                matchCounts++;
-            }
-            switch (matchCounts)
-            {
-                case 1:
-                    {
-                        this.ParseObjectName(parserString, strMatches[0]);
-                        return;
-                    }
-                case 2:
-                    {
-
-                        this.ParseSchemaName(parserString, strMatches[0]);
-                        this.ParseObjectName(parserString, strMatches[1]);
-                        return;
-                    }
-                case 3:
-                    {
-                        this.ParseDatabaseName(parserString, strMatches[0]);
-                        this.ParseSchemaName(parserString, strMatches[1]);
-                        this.ParseObjectName(parserString, strMatches[2]);
-                        return;
-                    }
-                default:
-                    {
-                        return;
-                    }
-            }
         }
 
-        private void ParseObjectName(ParserString parserString, string name)
+        public override string ToString()
         {
-            parserString.ObjectName = name;
+            var sb = new StringBuilder();
 
-            if (parserString.ObjectName.StartsWith(parserString.QuotePrefix))
-                parserString.ObjectName = this.ObjectName.Substring(1);
+            var parsedName = GlobalParser.GetParserString(this.key);
 
-            if (parserString.ObjectName.EndsWith(parserString.QuoteSuffix))
-                parserString.ObjectName = parserString.ObjectName.Substring(0, parserString.ObjectName.Length - 1);
 
-            parserString.QuotedObjectName = string.Concat(parserString.QuotePrefix, parserString.ObjectName, parserString.QuoteSuffix);
-
-        }
-
-        private void ParseSchemaName(ParserString parserString, string name)
-        {
-            parserString.SchemaName = name;
-
-            if (!string.IsNullOrEmpty(parserString.SchemaName))
+            if (this.withDatabase && !string.IsNullOrEmpty(this.DatabaseName))
             {
-                if (parserString.SchemaName.StartsWith(parserString.QuotePrefix))
-                    parserString.SchemaName = this.SchemaName.Substring(1);
-
-                if (parserString.SchemaName.EndsWith(parserString.QuoteSuffix))
-                    parserString.SchemaName = parserString.SchemaName.Substring(0, parserString.SchemaName.Length - 1);
-
-                parserString.QuotedSchemaName = string.Concat(parserString.QuotePrefix, this.SchemaName, parserString.QuoteSuffix);
+                sb.Append(this.withQuotes ? parsedName.QuotedDatabaseName : this.DatabaseName);
+                sb.Append(this.withNormalized ? "_" : ".");
             }
+            if (this.withSchema && !string.IsNullOrEmpty(this.SchemaName))
+            {
+                sb.Append(this.withQuotes ? parsedName.QuotedSchemaName : this.SchemaName);
+                sb.Append(this.withNormalized ? "_" : ".");
+            }
+
+            var name = this.withQuotes ? parsedName.QuotedObjectName : this.ObjectName;
+            name = this.withNormalized ? name.Replace(" ", "_").Replace(".", "_") : name;
+            sb.Append(name);
+
+            // now we have the correct string, reset options for the next time we call the same instance
+            withDatabase = false;
+            withSchema = false;
+            withQuotes = false;
+            withNormalized = false;
+
+            return sb.ToString();
+
+
         }
 
-        private void ParseDatabaseName(ParserString parserString, string name)
-        {
-            parserString.DatabaseName = name;
 
-            if (parserString.DatabaseName.StartsWith(parserString.QuotePrefix))
-                parserString.DatabaseName = parserString.DatabaseName.Substring(1);
-
-            if (parserString.DatabaseName.EndsWith(parserString.QuoteSuffix))
-                parserString.DatabaseName = parserString.DatabaseName.Substring(0, parserString.DatabaseName.Length - 1);
-
-            parserString.QuotedDatabaseName = string.Concat(parserString.QuotePrefix, parserString.DatabaseName, parserString.QuoteSuffix);
-
-        }
     }
-
-
-
 
 }

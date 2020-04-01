@@ -109,9 +109,13 @@ namespace Dotmim.Sync.Builders
                 await connection.OpenAsync().ConfigureAwait(false);
 
             var trackingTableBuilder = CreateTrackingTableBuilder(connection, transaction);
+            var tableBuilder = CreateTableBuilder(connection, transaction);
 
             if (await trackingTableBuilder.NeedToCreateTrackingTableAsync().ConfigureAwait(false))
             {
+                if (await tableBuilder.NeedToCreateSchemaAsync().ConfigureAwait(false))
+                    await tableBuilder.CreateSchemaAsync().ConfigureAwait(false);
+
                 await trackingTableBuilder.CreateTableAsync().ConfigureAwait(false);
                 await trackingTableBuilder.CreatePkAsync().ConfigureAwait(false);
                 await trackingTableBuilder.CreateIndexAsync().ConfigureAwait(false);
@@ -122,7 +126,6 @@ namespace Dotmim.Sync.Builders
 
         }
 
- 
         public async Task CreateStoredProceduresAsync(DbConnection connection, DbTransaction transaction = null)
         {
             if (TableDescription.PrimaryKeys.Count <= 0)
@@ -176,6 +179,9 @@ namespace Dotmim.Sync.Builders
 
         public async Task CreateTableAsync(DbConnection connection, DbTransaction transaction = null)
         {
+            if (TableDescription.Columns.Count <= 0)
+                throw new MissingsColumnException(TableDescription.TableName);
+
             if (TableDescription.PrimaryKeys.Count <= 0)
                 throw new MissingPrimaryKeyException(TableDescription.TableName);
 
@@ -207,6 +213,9 @@ namespace Dotmim.Sync.Builders
         /// </summary>
         public async Task CreateAsync(SyncProvision provision,  DbConnection connection, DbTransaction transaction = null)
         {
+            if (TableDescription.Columns.Count <= 0)
+                throw new MissingsColumnException(TableDescription.TableName);
+
             if (TableDescription.PrimaryKeys.Count <= 0)
                 throw new MissingPrimaryKeyException(TableDescription.TableName);
 

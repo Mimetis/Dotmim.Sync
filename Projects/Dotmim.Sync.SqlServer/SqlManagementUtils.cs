@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using System.Data.SqlTypes;
 using System.Globalization;
 using System.Net.Http.Headers;
@@ -44,6 +44,51 @@ namespace Dotmim.Sync.SqlServer
             using (var sqlCommand = new SqlCommand(command, connection))
             {
                 sqlCommand.Parameters.AddWithValue("@tableName", tableNameString);
+                sqlCommand.Parameters.AddWithValue("@schemaName", schemaNameString);
+
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    await connection.OpenAsync().ConfigureAwait(false);
+
+                if (transaction != null)
+                    sqlCommand.Transaction = transaction;
+
+                using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
+                    syncTable.Load(reader);
+
+                if (!alreadyOpened)
+                    connection.Close();
+
+            }
+            return syncTable;
+        }
+
+        /// <summary>
+        /// Get Table
+        /// </summary>
+        public static async Task<SyncTable> GetTriggerAsync(SqlConnection connection, SqlTransaction transaction, string triggerName, string schemaName)
+        {
+            var command = $"SELECT tr.name FROM sys.triggers tr " + 
+                           "JOIN sys.tables t ON tr.parent_id = t.object_id " + 
+                           "JOIN sys.schemas s ON t.schema_id = s.schema_id " + 
+                           "WHERE tr.name = @triggerName and s.name = @schemaName";
+
+            var triggerNameNormalized = ParserName.Parse(triggerName).Unquoted().Normalized().ToString();
+            var triggerNameString = ParserName.Parse(triggerName).ToString();
+
+            var schemaNameString = "dbo";
+            if (!string.IsNullOrEmpty(schemaName))
+            {
+                schemaNameString = ParserName.Parse(schemaName).ToString();
+                schemaNameString = string.IsNullOrWhiteSpace(schemaNameString) ? "dbo" : schemaNameString;
+            }
+
+            var syncTable = new SyncTable(triggerNameNormalized, schemaNameString);
+
+            using (var sqlCommand = new SqlCommand(command, connection))
+            {
+                sqlCommand.Parameters.AddWithValue("@triggerName", triggerNameString);
                 sqlCommand.Parameters.AddWithValue("@schemaName", schemaNameString);
 
                 bool alreadyOpened = connection.State == ConnectionState.Open;
@@ -353,7 +398,9 @@ namespace Dotmim.Sync.SqlServer
                 if (transaction != null)
                     sqlCommand.Transaction = transaction;
 
-                flag = ((int)await sqlCommand.ExecuteScalarAsync().ConfigureAwait(false)) != 0;
+                var result = await sqlCommand.ExecuteScalarAsync().ConfigureAwait(false);
+
+                flag = (int)result != 0;
 
                 if (!alreadyOpened)
                     connection.Close();
@@ -386,13 +433,12 @@ namespace Dotmim.Sync.SqlServer
                 if (transaction != null)
                     dbCommand.Transaction = transaction;
 
-                tableExist = ((int)await dbCommand.ExecuteScalarAsync().ConfigureAwait(false)) != 0;
+                var result = await dbCommand.ExecuteScalarAsync().ConfigureAwait(false);
+
+                tableExist = (int)result != 0;
 
                 if (!alreadyOpened)
                     connection.Close();
-
-
-
             }
             return tableExist;
         }
@@ -416,7 +462,9 @@ namespace Dotmim.Sync.SqlServer
                 if (transaction != null)
                     sqlCommand.Transaction = transaction;
 
-                flag = ((int)await sqlCommand.ExecuteScalarAsync().ConfigureAwait(false)) != 0;
+                var result = await sqlCommand.ExecuteScalarAsync().ConfigureAwait(false);
+
+                flag = (int)result != 0;
 
                 if (!alreadyOpened)
                     connection.Close();
@@ -457,7 +505,9 @@ namespace Dotmim.Sync.SqlServer
                 if (transaction != null)
                     dbCommand.Transaction = transaction;
 
-                tableExist = ((int)await dbCommand.ExecuteScalarAsync().ConfigureAwait(false)) != 0;
+                var result = await dbCommand.ExecuteScalarAsync().ConfigureAwait(false);
+
+                tableExist = (int)result != 0;
 
                 if (!alreadyOpened)
                     connection.Close();
@@ -490,7 +540,9 @@ namespace Dotmim.Sync.SqlServer
                 if (transaction != null)
                     dbCommand.Transaction = transaction;
 
-                schemaExist = ((int)await dbCommand.ExecuteScalarAsync().ConfigureAwait(false)) != 0;
+                var result = await dbCommand.ExecuteScalarAsync().ConfigureAwait(false);
+
+                schemaExist = (int)result != 0;
 
                 if (!alreadyOpened)
                     connection.Close();
@@ -517,7 +569,9 @@ namespace Dotmim.Sync.SqlServer
                 if (transaction != null)
                     sqlCommand.Transaction = transaction;
 
-                triggerExist = ((int)await sqlCommand.ExecuteScalarAsync().ConfigureAwait(false)) != 0;
+                var result = await sqlCommand.ExecuteScalarAsync().ConfigureAwait(false);
+
+                triggerExist = (int)result != 0;
 
                 if (!alreadyOpened)
                     connection.Close();
@@ -546,7 +600,9 @@ namespace Dotmim.Sync.SqlServer
                 if (transaction != null)
                     sqlCommand.Transaction = transaction;
 
-                typeExist = ((int)await sqlCommand.ExecuteScalarAsync().ConfigureAwait(false)) != 0;
+                var result = await sqlCommand.ExecuteScalarAsync().ConfigureAwait(false);
+
+                typeExist = (int)result != 0;
 
                 if (!alreadyOpened)
                     connection.Close();

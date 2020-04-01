@@ -10,9 +10,9 @@ namespace Dotmim.Sync
     /// <summary>
     /// Event args generated when a connection is opened
     /// </summary>
-    public class ConnectionOpenArgs : ProgressArgs
+    public class ConnectionOpenedArgs : ProgressArgs
     {
-        public ConnectionOpenArgs(SyncContext context, DbConnection connection)
+        public ConnectionOpenedArgs(SyncContext context, DbConnection connection)
             : base(context, connection)
         {
         }
@@ -24,10 +24,10 @@ namespace Dotmim.Sync
     /// <summary>
     /// Event args generated when a connection is closed 
     /// </summary>
-    public class ConnectionCloseArgs : ProgressArgs
+    public class ConnectionClosedArgs : ProgressArgs
     {
-        public ConnectionCloseArgs(SyncContext context, DbConnection connection, DbTransaction transaction)
-            : base(context, connection, transaction)
+        public ConnectionClosedArgs(SyncContext context, DbConnection connection)
+            : base(context, connection)
         {
         }
 
@@ -38,9 +38,9 @@ namespace Dotmim.Sync
     /// <summary>
     /// Event args generated when a transaction is opened
     /// </summary>
-    public class TransactionOpenArgs : ProgressArgs
+    public class TransactionOpenedArgs : ProgressArgs
     {
-        public TransactionOpenArgs(SyncContext context, DbConnection connection, DbTransaction transaction)
+        public TransactionOpenedArgs(SyncContext context, DbConnection connection, DbTransaction transaction)
             : base(context, connection, transaction)
         {
         }

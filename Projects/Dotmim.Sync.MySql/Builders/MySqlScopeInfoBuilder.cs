@@ -86,10 +86,10 @@ namespace Dotmim.Sync.MySql
                 command.CommandText =
                     $@"CREATE TABLE `{tableName}`(
                         sync_scope_id varchar(36) NOT NULL,
-	                    sync_scope_name varchar(100) NOT NULL,
+                        sync_scope_name varchar(100) NOT NULL,
                         scope_last_sync_timestamp bigint NULL,
                         scope_last_sync_duration bigint NULL,
-                        scope_last_sync datetime NULL
+                        scope_last_sync datetime NULL,
                         PRIMARY KEY (sync_scope_id)
                         )";
 
@@ -567,7 +567,7 @@ namespace Dotmim.Sync.MySql
 
                 string stmtText = exist
                     ? $"Update `{tableName}` set sync_scope_name=@sync_scope_name, scope_last_sync_timestamp=@scope_last_sync_timestamp, scope_last_sync=@scope_last_sync, scope_last_sync_duration=@scope_last_sync_duration where sync_scope_id=@sync_scope_id"
-                    : $"Insert into `{tableName}` (sync_scope_name, scope_last_sync_timestamp, scope_last_sync, scope_last_sync_duration) values (@sync_scope_name, @scope_last_sync_timestamp, @scope_last_sync, @scope_last_sync_duration)";
+                    : $"Insert into `{tableName}` (sync_scope_id, sync_scope_name, scope_last_sync_timestamp, scope_last_sync, scope_last_sync_duration) values (@sync_scope_id, @sync_scope_name, @scope_last_sync_timestamp, @scope_last_sync, @scope_last_sync_duration)";
 
                 using (var command = connection.CreateCommand())
                 {
@@ -739,7 +739,7 @@ namespace Dotmim.Sync.MySql
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
-                command.CommandText = $"select count(*) from information_schema.TABLES where TABLE_NAME = `{scopeTableName.Unquoted()}` and TABLE_SCHEMA = schema() and TABLE_TYPE = 'BASE TABLE'";
+                command.CommandText = $"select count(*) from information_schema.TABLES where TABLE_NAME = '{scopeTableName.Unquoted()}' and TABLE_SCHEMA = schema() and TABLE_TYPE = 'BASE TABLE'";
                 
                 return ((long)await command.ExecuteScalarAsync()) != 1;
 
@@ -773,7 +773,7 @@ namespace Dotmim.Sync.MySql
 
                 var tableName = $"{scopeTableName.Unquoted().Normalized()}_history";
 
-                command.CommandText = $"select count(*) from information_schema.TABLES where TABLE_NAME = `{tableName}` and TABLE_SCHEMA = schema() and TABLE_TYPE = 'BASE TABLE'";
+                command.CommandText = $"select count(*) from information_schema.TABLES where TABLE_NAME = '{tableName}' and TABLE_SCHEMA = schema() and TABLE_TYPE = 'BASE TABLE'";
 
                 return ((long)await command.ExecuteScalarAsync()) != 1;
 
@@ -807,7 +807,7 @@ namespace Dotmim.Sync.MySql
 
                 var tableName = $"{scopeTableName.Unquoted().Normalized()}_server";
 
-                command.CommandText = $"select count(*) from information_schema.TABLES where TABLE_NAME = `{tableName}` and TABLE_SCHEMA = schema() and TABLE_TYPE = 'BASE TABLE'";
+                command.CommandText = $"select count(*) from information_schema.TABLES where TABLE_NAME = '{tableName}' and TABLE_SCHEMA = schema() and TABLE_TYPE = 'BASE TABLE'";
 
                 return ((long)await command.ExecuteScalarAsync()) != 1;
 

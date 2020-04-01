@@ -117,6 +117,9 @@ namespace Dotmim.Sync
                 // adding filter
                 this.AddFilters(schemaTable, tableBuilder);
 
+                // Interceptor
+                await this.Orchestrator.InterceptAsync(new TableProvisioningArgs(context, provision, tableBuilder, connection, transaction), cancellationToken).ConfigureAwait(false);
+
                 await tableBuilder.CreateAsync(provision, connection, transaction).ConfigureAwait(false);
                 await tableBuilder.CreateForeignKeysAsync(connection, transaction).ConfigureAwait(false);
 

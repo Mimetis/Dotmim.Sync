@@ -14,7 +14,7 @@ using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Dotmim.Sync.Tests
+namespace Dotmim.Sync.Tests.IntegrationTests
 {
     public class SqlServerTcpFilterTests : TcpFilterTests
     {
@@ -86,7 +86,7 @@ namespace Dotmim.Sync.Tests
 
 
         public override List<ProviderType> ClientsType => new List<ProviderType>
-            { ProviderType.Sqlite, ProviderType.Sql };
+            { ProviderType.MySql, ProviderType.Sql };
 
         public override ProviderType ServerType =>
             ProviderType.Sql;
