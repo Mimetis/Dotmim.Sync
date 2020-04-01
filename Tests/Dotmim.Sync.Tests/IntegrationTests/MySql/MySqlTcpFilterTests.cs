@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Dotmim.Sync.Tests
+namespace Dotmim.Sync.Tests.IntegrationTests
 {
     public class MySqlTcpFilterTests : TcpFilterTests
     {

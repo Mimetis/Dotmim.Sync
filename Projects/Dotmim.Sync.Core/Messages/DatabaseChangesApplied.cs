@@ -69,6 +69,7 @@ namespace Dotmim.Sync
             }
         }
 
+        public override string ToString() => $"{this.TotalAppliedChanges} changes applied for {this.TableChangesApplied.Count} tables";
     }
 
 }

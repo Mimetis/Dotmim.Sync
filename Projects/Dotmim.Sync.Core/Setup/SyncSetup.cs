@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.Serialization;
 using System.Text;
 
@@ -68,6 +69,16 @@ namespace Dotmim.Sync
             this.Filters = new SetupFilters();
             this.Version = "1";
         }
+
+        /// <summary>
+        /// Check if Setup has tables
+        /// </summary>
+        public bool HasTables => this.Tables?.Count > 0;
+
+        /// <summary>
+        /// Check if Setup has at least one table with columns
+        /// </summary>
+        public bool HasColumns => this.Tables?.SelectMany(t => t.Columns).Count() > 0;  // using SelectMany to get columns and not Collection<Column>
 
 
     }

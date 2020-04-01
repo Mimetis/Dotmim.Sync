@@ -396,7 +396,6 @@ namespace Dotmim.Sync
                     // Provision local database
                     var provision = SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
                     await this.LocalOrchestrator.ProvisionAsync(schema, provision, cancellationToken, progress).ConfigureAwait(false);
-
                 }
                 else
                 {
@@ -443,23 +442,15 @@ namespace Dotmim.Sync
                     // Get snapshot files
                     var serverSnapshotChanges = await this.RemoteOrchestrator.GetSnapshotAsync(cancellationToken, remoteProgress);
 
-                    if (serverSnapshotChanges.serverBatchInfo != null)
-                    {
-                        var hasChanges = await serverSnapshotChanges.serverBatchInfo.HasDataAsync();
-                        if (hasChanges)
-                        {
-                            await this.LocalOrchestrator.ApplySnapshotAndGetChangesAsync(this.Schema, serverSnapshotChanges.serverBatchInfo,
-                                clientChanges.clientTimestamp, serverSnapshotChanges.remoteClientTimestamp, cancellationToken, progress);
-
-                        }
-                    }
+                    // Apply snapshot
+                    (result.SnapshotChangesAppliedOnClient, clientScopeInfo) = await this.LocalOrchestrator.ApplySnapshotAsync(
+                        clientScopeInfo, serverSnapshotChanges.serverBatchInfo, clientChanges.clientTimestamp, serverSnapshotChanges.remoteClientTimestamp, cancellationToken, progress);
                 }
 
                 var serverChanges = await this.RemoteOrchestrator.ApplyThenGetChangesAsync(clientScopeInfo, clientChanges.clientBatchInfo, cancellationToken, remoteProgress);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
-
 
                 // Policy is always Server policy, so reverse this policy to get the client policy
                 var reverseConflictResolutionPolicy = serverChanges.serverPolicy == ConflictResolutionPolicy.ServerWins ? ConflictResolutionPolicy.ClientWins : ConflictResolutionPolicy.ServerWins;
@@ -473,13 +464,12 @@ namespace Dotmim.Sync
                 this.LocalOrchestrator.CompleteTime = completeTime;
                 this.RemoteOrchestrator.CompleteTime = completeTime;
 
-
                 result.CompleteTime = completeTime;
 
                 // All clients changes selected
                 result.ClientChangesSelected = clientChanges.clientChangesSelected;
                 result.ServerChangesSelected = serverChanges.serverChangesSelected;
-                result.ChangesAppliedOnClient = clientChangesApplied;
+                result.ChangesAppliedOnClient = clientChangesApplied.ChangesApplied;
                 result.ChangesAppliedOnServer = serverChanges.clientChangesApplied;
 
                 // Begin session

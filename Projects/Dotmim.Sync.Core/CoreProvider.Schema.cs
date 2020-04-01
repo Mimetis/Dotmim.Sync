@@ -209,7 +209,7 @@ namespace Dotmim.Sync
         private async Task SetPrimaryKeysAsync(SyncTable schemaTable, IDbTableManager dbManagerTable)
         {
             // Get PrimaryKey
-            var schemaPrimaryKeys = await dbManagerTable.GetPrimaryKeysAsync();
+            var schemaPrimaryKeys = await dbManagerTable.GetPrimaryKeysAsync().ConfigureAwait(false);
 
             if (schemaPrimaryKeys == null || schemaPrimaryKeys.Any() == false)
                 throw new MissingPrimaryKeyException(schemaTable.TableName);
@@ -220,7 +220,7 @@ namespace Dotmim.Sync
                 var columnKey = schemaTable.Columns.FirstOrDefault(sc => sc == rowColumn);
 
                 if (columnKey == null)
-                    throw new MissingColumnException(rowColumn.ColumnName, schemaTable.TableName);
+                    throw new MissingPrimaryKeyColumnException(rowColumn.ColumnName, schemaTable.TableName);
 
                 schemaTable.PrimaryKeys.Add(columnKey.ColumnName);
             }

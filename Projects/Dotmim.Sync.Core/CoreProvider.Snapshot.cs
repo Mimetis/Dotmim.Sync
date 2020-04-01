@@ -20,7 +20,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// update configuration object with tables desc from server database
         /// </summary>
-        public virtual async Task<SyncContext> CreateSnapshotAsync(SyncContext context, SyncSet schema,
+        public virtual async Task<(SyncContext, BatchInfo)> CreateSnapshotAsync(SyncContext context, SyncSet schema,
                              DbConnection connection, DbTransaction transaction, string snapshotDirectory, int batchSize, long remoteClientTimestamp,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
@@ -81,7 +81,7 @@ namespace Dotmim.Sync
                 await this.Orchestrator.InterceptAsync(new TableChangesSelectingArgs(context, syncTable.TableName, connection, transaction), cancellationToken).ConfigureAwait(false);
 
                 // Get Select initialize changes command
-                var selectIncrementalChangesCommand = this.GetSelectChangesCommand(context, syncAdapter, syncTable, true);
+                var selectIncrementalChangesCommand = await this.GetSelectChangesCommandAsync(context, syncAdapter, syncTable, true);
 
                 // Set parameters
                 this.SetSelectChangesCommonParameters(context, syncTable, null, true, 0, selectIncrementalChangesCommand);
@@ -158,7 +158,7 @@ namespace Dotmim.Sync
                 f.Write(bytes, 0, bytes.Length);
             }
 
-            return context;
+            return (context, batchInfo);
         }
 
 

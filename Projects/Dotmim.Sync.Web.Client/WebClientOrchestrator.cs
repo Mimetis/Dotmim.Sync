@@ -21,12 +21,7 @@ namespace Dotmim.Sync.Web.Client
         /// </summary>
         public override SyncSide Side => SyncSide.ClientSide;
 
-        /// <summary>
-        /// Gets or Sets the provider used in this proxy Orchestrator
-        /// Should be null. CoreProvider is only used on the remote side (WebProxyServerProvider)
-        /// </summary>
-        public override CoreProvider Provider { get => null; set => throw new NotSupportedException("Proxy Web does not need any provider. Everything is made on the server side"); }
-    
+     
 
         private readonly HttpRequestHandler httpRequestHandler = new HttpRequestHandler();
 
@@ -76,7 +71,7 @@ namespace Dotmim.Sync.Web.Client
         /// Gets a new web proxy orchestrator
         /// </summary>
         public WebClientOrchestrator(string serviceUri, ISerializerFactory serializerFactory = null, IConverter customConverter = null, HttpClient client = null)
-            : base(null, new SyncOptions(), new SyncSetup())
+            : base(new FancyCoreProvider(), new SyncOptions(), new SyncSetup())
         {
             // if no HttpClient provisionned, create a new one
             if (client == null)

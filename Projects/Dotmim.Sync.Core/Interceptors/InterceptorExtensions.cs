@@ -16,37 +16,37 @@ namespace Dotmim.Sync
         /// <summary>
         /// Intercept the provider action whenever a connection is opened
         /// </summary>
-        public static void OnConnectionOpen(this IOrchestrator orchestrator, Func<ConnectionOpenArgs, Task> func)
+        public static void OnConnectionOpen(this IOrchestrator orchestrator, Func<ConnectionOpenedArgs, Task> func)
             => orchestrator.SetInterceptor(func);
 
         /// <summary>
         /// Intercept the provider action whenever a connection is opened
         /// </summary>
-        public static void OnConnectionOpen(this IOrchestrator orchestrator, Action<ConnectionOpenArgs> action)
+        public static void OnConnectionOpen(this IOrchestrator orchestrator, Action<ConnectionOpenedArgs> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider action whenever a transaction is opened
         /// </summary>
-        public static void OnTransactionOpen(this IOrchestrator orchestrator, Action<TransactionOpenArgs> action)
+        public static void OnTransactionOpen(this IOrchestrator orchestrator, Action<TransactionOpenedArgs> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider action whenever a transaction is opened
         /// </summary>
-        public static void OnTransactionOpen(this IOrchestrator orchestrator, Func<ConnectionOpenArgs, Task> func)
+        public static void OnTransactionOpen(this IOrchestrator orchestrator, Func<ConnectionOpenedArgs, Task> func)
             => orchestrator.SetInterceptor(func);
 
         /// <summary>
         /// Intercept the provider action whenever a connection is closed
         /// </summary>
-        public static void OnConnectionClose(this IOrchestrator orchestrator, Func<ConnectionCloseArgs, Task> func)
+        public static void OnConnectionClose(this IOrchestrator orchestrator, Func<ConnectionClosedArgs, Task> func)
             => orchestrator.SetInterceptor(func);
 
         /// <summary>
         /// Intercept the provider action whenever a connection is closed
         /// </summary>
-        public static void OnConnectionClose(this IOrchestrator orchestrator, Action<ConnectionCloseArgs> action)
+        public static void OnConnectionClose(this IOrchestrator orchestrator, Action<ConnectionClosedArgs> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
@@ -71,6 +71,31 @@ namespace Dotmim.Sync
         /// Intercept the provider action when session begin is called
         /// </summary>
         public static void OnOutdated(this IOrchestrator orchestrator, Action<OutdatedArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+
+        /// <summary>
+        /// Intercept the orchestrator when creating a snapshot
+        /// </summary>
+        public static void OnSnapshotCreating(this IOrchestrator orchestrator, Func<SnapshotCreatingArgs, Task> func)
+            => orchestrator.SetInterceptor(func);
+
+        /// <summary>
+        /// Intercept the orchestrator when creating a snapshot
+        /// </summary>
+        public static void OnSnapshotCreating(this IOrchestrator orchestrator, Action<SnapshotCreatingArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the orchestrator when a snapshot has been created
+        /// </summary>
+        public static void OnSnapshotCreated(this IOrchestrator orchestrator, Func<SnapshotCreatedArgs, Task> func)
+            => orchestrator.SetInterceptor(func);
+
+        /// <summary>
+        /// Intercept the orchestrator when a snapshot has been created
+        /// </summary>
+        public static void OnSnapshotCreated(this IOrchestrator orchestrator, Action<SnapshotCreatedArgs> action)
             => orchestrator.SetInterceptor(action);
 
 
@@ -152,13 +177,13 @@ namespace Dotmim.Sync
         /// <summary>
         /// Intercept the provider when schema is readed
         /// </summary>
-        public static void OnSchema(this IOrchestrator orchestrator, Func<SchemaArgs, Task> func)
+        public static void OnSchemaRead(this IOrchestrator orchestrator, Func<SchemaArgs, Task> func)
             => orchestrator.SetInterceptor(func);
 
         /// <summary>
         /// Intercept the provider when schema is readed
         /// </summary>
-        public static void OnSchema(this IOrchestrator orchestrator, Action<SchemaArgs> action)
+        public static void OnSchemaRead(this IOrchestrator orchestrator, Action<SchemaArgs> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
@@ -185,17 +210,16 @@ namespace Dotmim.Sync
         public static void OnDatabaseDeprovisioned(this IOrchestrator orchestrator, Action<DatabaseDeprovisionedArgs> action)
             => orchestrator.SetInterceptor(action);
 
-
         /// <summary>
         /// Intercept the provider after it has deprovisioned a table
         /// </summary>
-        public static void OnTabledDeprovisioned(this IOrchestrator orchestrator, Func<TableDeprovisionedArgs, Task> func)
+        public static void OnTableDeprovisioned(this IOrchestrator orchestrator, Func<TableDeprovisionedArgs, Task> func)
             => orchestrator.SetInterceptor(func);
 
         /// <summary>
         /// Intercept the provider after it has deprovisioned a table
         /// </summary>
-        public static void OnTabledDeprovisioned(this IOrchestrator orchestrator, Action<TableDeprovisionedArgs> action)
+        public static void OnTableDeprovisioned(this IOrchestrator orchestrator, Action<TableDeprovisionedArgs> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
@@ -225,13 +249,25 @@ namespace Dotmim.Sync
         /// <summary>
         /// Intercept the provider after it has provisioned a table
         /// </summary>
-        public static void OnTabledProvisioned(this IOrchestrator orchestrator, Func<TableProvisionedArgs, Task> func)
+        public static void OnTableProvisioned(this IOrchestrator orchestrator, Func<TableProvisionedArgs, Task> func)
             => orchestrator.SetInterceptor(func);
 
         /// <summary>
         /// Intercept the provider after it has provisioned a table
         /// </summary>
-        public static void OnTabledProvisioned(this IOrchestrator orchestrator, Action<TableProvisionedArgs> action)
+        public static void OnTableProvisioned(this IOrchestrator orchestrator, Action<TableProvisionedArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the provider before it will provisioned a table
+        /// </summary>
+        public static void OnTableProvisioning(this IOrchestrator orchestrator, Func<TableProvisioningArgs, Task> func)
+            => orchestrator.SetInterceptor(func);
+
+        /// <summary>
+        /// Intercept the provider before it will provisioned a table
+        /// </summary>
+        public static void OnTableProvisioning(this IOrchestrator orchestrator, Action<TableProvisioningArgs> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>

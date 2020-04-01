@@ -45,7 +45,7 @@ internal class Program
     public static string[] oneTable = new string[] { "ProductCategory" };
     private static async Task Main(string[] args)
     {
-        await SynchronizeAsync();
+        await CreateSnapshotAsync();
     }
 
 
@@ -212,6 +212,21 @@ internal class Program
         // specific Setup with only 2 tables, and one filtered
         var setup = new SyncSetup(allTables);
 
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
+            Console.ResetColor();
+        });
+
+        var remoteProgress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
+            Console.ResetColor();
+        });
+
         // snapshot directory
         var directory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Snapshots");
 
@@ -223,7 +238,7 @@ internal class Program
 
         var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup);
 
-        await remoteOrchestrator.CreateSnapshotAsync();
+        await remoteOrchestrator.CreateSnapshotAsync(null, default, remoteProgress);
         // client provider
         var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
 
@@ -242,20 +257,6 @@ internal class Program
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, syncOptions, setup);
 
-        // Using the Progress pattern to handle progession during the synchronization
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
-            Console.ResetColor();
-        });
-
-        var remoteProgress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
-            Console.ResetColor();
-        });
 
 
         //// Launch the sync process
@@ -273,7 +274,7 @@ internal class Program
             Console.WriteLine("Sync Start");
             try
             {
-                var s1 = await agent.SynchronizeAsync(progress);
+                var s1 = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
                 Console.WriteLine(s1);
             }
             catch (Exception e)
