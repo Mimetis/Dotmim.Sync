@@ -10,7 +10,7 @@ namespace Dotmim.Sync
     /// </summary>
     public class SchemaArgs : ProgressArgs
     {
-        public SchemaArgs(SyncContext context, SyncSet schema, DbConnection connection, DbTransaction transaction)
+        public SchemaArgs(SyncContext context, SyncSet schema, DbConnection connection, DbTransaction transaction = null)
             : base(context, connection, transaction) => this.Schema = schema;
 
         /// <summary>
@@ -27,7 +27,7 @@ namespace Dotmim.Sync
     }
     public class OutdatedArgs : ProgressArgs
     {
-        public OutdatedArgs(SyncContext context, DbConnection connection, DbTransaction transaction) : base(context, connection, transaction)
+        public OutdatedArgs(SyncContext context, DbConnection connection, DbTransaction transaction = null) : base(context, connection, transaction)
         {
         }
 

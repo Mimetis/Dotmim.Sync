@@ -3,21 +3,19 @@ using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Tests.Models;
-using Microsoft.EntityFrameworkCore.Storage;
+using Dotmim.Sync.Web.Server;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Xunit;
 using Xunit.Abstractions;
-using System.Data.SqlClient;
 
-namespace Dotmim.Sync.Tests
+namespace Dotmim.Sync.Tests.IntegrationTests
 {
-    public class SqlServerTcpTests : TcpTests
+    public class SqlServerHttpTests : HttpTests
     {
-        public SqlServerTcpTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
+        public SqlServerHttpTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
         {
         }
 
@@ -29,9 +27,10 @@ namespace Dotmim.Sync.Tests
         };
 
         public override List<ProviderType> ClientsType => new List<ProviderType>
-            { ProviderType.Sql, ProviderType.Sql};
+            { ProviderType.Sql, ProviderType.Sqlite, ProviderType.MySql};
 
         public override ProviderType ServerType => ProviderType.Sql;
+
 
 
         public override CoreProvider CreateProvider(ProviderType providerType, string dbName)
@@ -49,10 +48,9 @@ namespace Dotmim.Sync.Tests
             }
         }
 
-        public override Task CreateDatabaseAsync(ProviderType providerType, string dbName, bool recreateDb = true)
-        {
-            return HelperDatabase.CreateDatabaseAsync(providerType, dbName, recreateDb);
-        }
+
+
+        public override bool UseFiddler => false;
 
         public override async Task EnsureDatabaseSchemaAndSeedAsync((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) t, bool useSeeding = false, bool useFallbackSchema = false)
         {
@@ -73,6 +71,10 @@ namespace Dotmim.Sync.Tests
             }
         }
 
+        public override Task CreateDatabaseAsync(ProviderType providerType, string dbName, bool recreateDb = true)
+        {
+            return HelperDatabase.CreateDatabaseAsync(providerType, dbName, recreateDb);
+        }
 
 
         /// <summary>
@@ -108,8 +110,6 @@ namespace Dotmim.Sync.Tests
             return totalCountRows;
         }
 
-
-
-    
+      
     }
 }

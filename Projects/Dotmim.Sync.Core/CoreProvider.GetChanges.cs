@@ -77,7 +77,7 @@ namespace Dotmim.Sync
                 await this.Orchestrator.InterceptAsync(new TableChangesSelectingArgs(context, syncTable.TableName, connection, transaction), cancellationToken).ConfigureAwait(false);
 
                 // Get Command
-                var selectIncrementalChangesCommand = this.GetSelectChangesCommand(context, syncAdapter, syncTable, message.IsNew);
+                var selectIncrementalChangesCommand = await this.GetSelectChangesCommandAsync(context, syncAdapter, syncTable, message.IsNew);
 
                 // Set parameters
                 this.SetSelectChangesCommonParameters(context, syncTable, message.ExcludingScopeId, message.IsNew, message.LastTimestamp, selectIncrementalChangesCommand);
@@ -86,7 +86,7 @@ namespace Dotmim.Sync
                 var tableChangesSelected = new TableChangesSelected(syncTable.TableName, syncTable.SchemaName);
 
                 // Get the reader
-                using (var dataReader = selectIncrementalChangesCommand.ExecuteReader())
+                using (var dataReader = await selectIncrementalChangesCommand.ExecuteReaderAsync().ConfigureAwait(false))
                 {
                     // memory size total
                     double rowsMemorySize = 0L;
@@ -144,6 +144,8 @@ namespace Dotmim.Sync
                         }
                     }
                 }
+
+                // be sure it's disposed
                 selectIncrementalChangesCommand.Dispose();
 
                 if (tableChangesSelected.Deletes > 0 || tableChangesSelected.Upserts > 0)
@@ -201,7 +203,7 @@ namespace Dotmim.Sync
         /// - SelectInitializedChangesWithFilters   : All changes for first sync with filters
         /// - SelectChangesWithFilters              : All changes filtered by timestamp with filters
         /// </summary>
-        private DbCommand GetSelectChangesCommand(SyncContext context, DbSyncAdapter syncAdapter, SyncTable syncTable, bool isNew)
+        private async Task<DbCommand> GetSelectChangesCommandAsync(SyncContext context, DbSyncAdapter syncAdapter, SyncTable syncTable, bool isNew)
         {
             DbCommand selectIncrementalChangesCommand;
             DbCommandType dbCommandType;
@@ -233,7 +235,7 @@ namespace Dotmim.Sync
                 throw new MissingCommandException(dbCommandType.ToString());
 
             // Add common parameters
-            syncAdapter.SetCommandParametersAsync(dbCommandType, selectIncrementalChangesCommand, tableFilter);
+            await syncAdapter.SetCommandParametersAsync(dbCommandType, selectIncrementalChangesCommand, tableFilter);
 
             return selectIncrementalChangesCommand;
 

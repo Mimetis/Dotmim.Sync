@@ -112,7 +112,7 @@ namespace Dotmim.Sync
         /// Try to get a source row
         /// </summary>
         /// <returns></returns>
-        internal SyncRow GetRow(Guid localScopeId, SyncRow primaryKeyRow, SyncTable schema)
+        internal async Task<SyncRow> GetRowAsync(Guid localScopeId, SyncRow primaryKeyRow, SyncTable schema)
         {
             // Get the row in the local repository
             using (var selectCommand = GetCommand(DbCommandType.SelectRow))
@@ -121,7 +121,7 @@ namespace Dotmim.Sync
                     throw new MissingCommandException(DbCommandType.SelectRow.ToString());
 
                 // Deriving Parameters
-                this.SetCommandParametersAsync(DbCommandType.SelectRow, selectCommand);
+                await this.SetCommandParametersAsync(DbCommandType.SelectRow, selectCommand).ConfigureAwait(false);
 
                 // set the primary keys columns as parameters
                 this.SetColumnParametersValues(selectCommand, primaryKeyRow);
@@ -139,7 +139,7 @@ namespace Dotmim.Sync
                 var changesSet = schema.Schema.Clone(false);
                 var selectTable = CreateChangesTable(schema, changesSet);
                 SyncRow syncRow = null;
-                using (var dataReader = selectCommand.ExecuteReader())
+                using (var dataReader = await selectCommand.ExecuteReaderAsync().ConfigureAwait(false))
                 {
                     while (dataReader.Read())
                     {
@@ -266,7 +266,7 @@ namespace Dotmim.Sync
 
                 var remoteConflictRow = remoteConflictRows.ToList()[0];
 
-                var localConflictRow = GetRow(localScopeId, failedRow, changesTable);
+                var localConflictRow = await GetRowAsync(localScopeId, failedRow, changesTable).ConfigureAwait(false);
 
                 conflicts.Add(GetConflict(remoteConflictRow, localConflictRow));
             }
@@ -341,7 +341,7 @@ namespace Dotmim.Sync
                     if (operationComplete)
                         appliedRows++;
                     else
-                        conflicts.Add(GetConflict(row, GetRow(localScopeId, row, changesTable)));
+                        conflicts.Add(GetConflict(row, await GetRowAsync(localScopeId, row, changesTable).ConfigureAwait(false)));
 
                 }
                 catch (Exception ex)
@@ -355,7 +355,7 @@ namespace Dotmim.Sync
                         conflict.AddRemoteRow(row);
 
                         // Get the local row
-                        var localRow = GetRow(localScopeId, row, changesTable);
+                        var localRow = await GetRowAsync(localScopeId, row, changesTable).ConfigureAwait(false);
                         if (localRow != null)
                             conflict.AddLocalRow(localRow);
 

@@ -37,6 +37,8 @@ namespace Dotmim.Sync
         [IgnoreDataMember]
         public int TotalChangesSelectedUpdates => this.TableChangesSelected.Sum(t => t.Upserts);
 
+        public override string ToString() => $"{this.TotalChangesSelected} changes selected for {this.TableChangesSelected.Count} tables";
+
     }
 
 

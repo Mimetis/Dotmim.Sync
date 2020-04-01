@@ -41,9 +41,7 @@ namespace Dotmim.Sync
 
             // Get context or create a new one
             var ctx = this.GetContext();
-            ServerScopeInfo serverScopeInfo;
-
-            DbTransaction transaction = null;
+            ServerScopeInfo serverScopeInfo = null;
 
             using (var connection = this.Provider.CreateConnection())
             {
@@ -51,17 +49,14 @@ namespace Dotmim.Sync
                 {
                     ctx.SyncStage = SyncStage.ScopeLoading;
 
-                    await connection.OpenAsync().ConfigureAwait(false);
+                    // Open connection
+                    await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
 
-                    // Let provider knows a connection is opened
-                    this.Provider.OnConnectionOpened(connection);
-
-                    await this.InterceptAsync(new ConnectionOpenArgs(ctx, connection), cancellationToken).ConfigureAwait(false);
-
+                    DbTransaction transaction;
                     // Create a transaction
                     using (transaction = connection.BeginTransaction())
                     {
-                        await this.InterceptAsync(new TransactionOpenArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+                        await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
 
                         await this.InterceptAsync(new ScopeLoadingArgs(ctx, this.ScopeName, this.Options.ScopeInfoTableName, connection, transaction), cancellationToken).ConfigureAwait(false);
 
@@ -81,39 +76,26 @@ namespace Dotmim.Sync
 
                     ctx.SyncStage = SyncStage.ScopeLoaded;
 
+                    await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+
                     var scopeArgs = new ServerScopeLoadedArgs(ctx, serverScopeInfo, connection, transaction);
                     await this.InterceptAsync(scopeArgs, cancellationToken).ConfigureAwait(false);
                     this.ReportProgress(ctx, progress, scopeArgs);
 
-                    return serverScopeInfo;
                 }
                 catch (Exception ex)
                 {
-
-                    var syncException = new SyncException(ex, SyncStage.ScopeLoading);
-
-                    // try to let the provider enrich the exception
-                    this.Provider.EnsureSyncException(syncException);
-                    syncException.Side = this.Side;
-                    throw syncException;
+                    RaiseError(ex);
                 }
                 finally
                 {
-                    if (transaction != null)
-                        transaction.Dispose();
-
                     if (connection != null && connection.State == ConnectionState.Open)
                         connection.Close();
-
-                    await this.InterceptAsync(new ConnectionCloseArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
-
-                    // Let provider knows a connection is closed
-                    this.Provider.OnConnectionClosed(connection);
                 }
+
+                return serverScopeInfo;
             }
         }
-
-
 
         /// <summary>
         /// Get the scope infos from remote
@@ -126,9 +108,8 @@ namespace Dotmim.Sync
             // Get context or create a new one
             var ctx = this.GetContext();
 
-            ServerScopeInfo serverScopeInfo;
-            DbTransaction transaction = null;
-            SyncSet schema;
+            ServerScopeInfo serverScopeInfo = null;
+            SyncSet schema = null;
 
             using (var connection = this.Provider.CreateConnection())
             {
@@ -137,19 +118,16 @@ namespace Dotmim.Sync
                     // starting with scope loading
                     ctx.SyncStage = SyncStage.ScopeLoading;
 
-                    await connection.OpenAsync().ConfigureAwait(false);
+                    // Open connection
+                    await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
 
-                    // Let provider knows a connection is opened
-                    this.Provider.OnConnectionOpened(connection);
-
-                    await this.InterceptAsync(new ConnectionOpenArgs(ctx, connection), cancellationToken).ConfigureAwait(false);
-
+                    DbTransaction transaction;
                     // Create a transaction
                     using (transaction = connection.BeginTransaction())
                     {
                         // Open the connection
                         // Interceptors
-                        await this.InterceptAsync(new TransactionOpenArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+                        await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
 
                         // raise scope loading
                         await this.InterceptAsync(new ScopeLoadingArgs(ctx, this.ScopeName, this.Options.ScopeInfoTableName, connection, transaction), cancellationToken).ConfigureAwait(false);
@@ -175,7 +153,7 @@ namespace Dotmim.Sync
                         if (string.IsNullOrEmpty(serverScopeInfo.Schema))
                         {
                             // So far, we don't have already a database provisionned
-                            ctx.SyncStage = SyncStage.SchemaProvisioning;
+                            ctx.SyncStage = SyncStage.Provisioning;
 
                             // 1) Get Schema from remote provider
                             (ctx, schema) = await this.Provider.GetSchemaAsync(ctx, this.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
@@ -188,7 +166,7 @@ namespace Dotmim.Sync
                             ctx = await this.Provider.ProvisionAsync(ctx, schema, provision, this.Options.ScopeInfoTableName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                             // So far, we don't have already a database provisionned
-                            ctx.SyncStage = SyncStage.SchemaProvisioned;
+                            ctx.SyncStage = SyncStage.Provisioned;
 
                             // Generated the first serverscope to be updated
                             serverScopeInfo.LastCleanupTimestamp = 0;
@@ -212,31 +190,20 @@ namespace Dotmim.Sync
 
                         transaction.Commit();
                     }
+                    await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
 
-                    return (schema, serverScopeInfo.Version);
                 }
                 catch (Exception ex)
                 {
-                    var syncException = new SyncException(ex, ctx.SyncStage);
-
-                    // try to let the provider enrich the exception
-                    this.Provider.EnsureSyncException(syncException);
-                    syncException.Side = this.Side;
-                    throw syncException;
+                    RaiseError(ex);
                 }
                 finally
                 {
-                    if (transaction != null)
-                        transaction.Dispose();
-
                     if (connection != null && connection.State == ConnectionState.Open)
                         connection.Close();
-
-                    await this.InterceptAsync(new ConnectionCloseArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
-
-                    // Let provider knows a connection is closed
-                    this.Provider.OnConnectionClosed(connection);
                 }
+
+                return (schema, serverScopeInfo.Version);
             }
         }
 
@@ -263,32 +230,28 @@ namespace Dotmim.Sync
             // Get context or create a new one
             var ctx = this.GetContext();
 
-            long remoteClientTimestamp;
-            DatabaseChangesSelected serverChangesSelected;
-            DatabaseChangesApplied clientChangesApplied;
-            BatchInfo serverBatchInfo;
-            DbTransaction transaction = null;
-            SyncSet schema;
+            long remoteClientTimestamp = 0L;
+            DatabaseChangesSelected serverChangesSelected = null;
+            DatabaseChangesApplied clientChangesApplied = null;
+            BatchInfo serverBatchInfo = null;
+            SyncSet schema = null;
 
             using (var connection = this.Provider.CreateConnection())
             {
                 try
                 {
-                    ctx.SyncStage = SyncStage.DatabaseChangesApplying;
+                    ctx.SyncStage = SyncStage.ChangesApplying;
 
-                    await connection.OpenAsync().ConfigureAwait(false);
+                    // Open connection
+                    await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
 
-                    // Let provider knows a connection is opened
-                    this.Provider.OnConnectionOpened(connection);
-
-                    await this.InterceptAsync(new ConnectionOpenArgs(ctx, connection), cancellationToken).ConfigureAwait(false);
-
+                    DbTransaction transaction;
                     // Create two transactions
                     // First one to commit changes
                     // Second one to get changes now that everything is commited
                     using (transaction = connection.BeginTransaction())
                     {
-                        await this.InterceptAsync(new TransactionOpenArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+                        await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
 
                         ServerScopeInfo serverScopeInfo;
                         // Maybe here, get the schema from server, issue from client scope name
@@ -327,13 +290,13 @@ namespace Dotmim.Sync
                         transaction.Commit();
                     }
 
-                    ctx.SyncStage = SyncStage.DatabaseChangesApplied;
+                    ctx.SyncStage = SyncStage.ChangesApplied;
 
                     var databaseChangesAppliedArgs = new DatabaseChangesAppliedArgs(ctx, clientChangesApplied, connection, transaction);
                     await this.InterceptAsync(databaseChangesAppliedArgs, cancellationToken).ConfigureAwait(false);
                     this.ReportProgress(ctx, progress, databaseChangesAppliedArgs, connection, transaction);
 
-                    ctx.SyncStage = SyncStage.DatabaseChangesSelecting;
+                    ctx.SyncStage = SyncStage.ChangesSelecting;
 
                     using (transaction = connection.BeginTransaction())
                     {
@@ -400,112 +363,104 @@ namespace Dotmim.Sync
                     }
 
                     // Event progress & interceptor
-                    ctx.SyncStage = SyncStage.DatabaseChangesSelected;
+                    ctx.SyncStage = SyncStage.ChangesSelected;
+
+                    await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
 
                     var tableChangesSelectedArgs = new DatabaseChangesSelectedArgs(ctx, remoteClientTimestamp, serverBatchInfo, serverChangesSelected, connection, transaction);
                     this.ReportProgress(ctx, progress, tableChangesSelectedArgs);
                     await this.InterceptAsync(tableChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
-
-                    return (remoteClientTimestamp, serverBatchInfo, this.Options.ConflictResolutionPolicy, clientChangesApplied, serverChangesSelected);
                 }
                 catch (Exception ex)
                 {
-                    var syncException = new SyncException(ex, SyncStage.DatabaseChangesApplying);
-                    // try to let the provider enrich the exception
-                    this.Provider.EnsureSyncException(syncException);
-                    syncException.Side = SyncSide.ServerSide;
-                    throw syncException;
+                    RaiseError(ex);
                 }
                 finally
                 {
-                    if (transaction != null)
-                        transaction.Dispose();
-
                     if (connection != null && connection.State != ConnectionState.Closed)
                         connection.Close();
-
-                    await this.InterceptAsync(new ConnectionCloseArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
-
-                    // Let provider knows a connection is closed
-                    this.Provider.OnConnectionClosed(connection);
                 }
+                return (remoteClientTimestamp, serverBatchInfo, this.Options.ConflictResolutionPolicy, clientChangesApplied, serverChangesSelected);
             }
 
         }
 
-
-
-        public async Task CreateSnapshotAsync(SyncParameters syncParameters = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public async Task<BatchInfo> CreateSnapshotAsync(SyncParameters syncParameters = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (!this.StartTime.HasValue)
                 this.StartTime = DateTime.UtcNow;
 
-            if (string.IsNullOrEmpty(this.Options.SnapshotsDirectory) || this.Options.BatchSize <= 0)
-                throw new SnapshotMissingMandatariesOptionsException();
-
             // Get context or create a new one
             var ctx = this.GetContext();
 
-            // check parameters
-            // If context has no parameters specified, and user specifies a parameter collection we switch them
-            if ((ctx.Parameters == null || ctx.Parameters.Count <= 0) && syncParameters != null && syncParameters.Count > 0)
-                ctx.Parameters = syncParameters;
-
-            DbTransaction transaction = null;
-            long remoteClientTimestamp;
-
-            // Get Schema from remote provider
-            var (schema, version) = await this.EnsureSchemaAsync(cancellationToken, progress).ConfigureAwait(false);
+            SyncSet schema = null;
+            BatchInfo batchInfo = null;
 
             using (var connection = this.Provider.CreateConnection())
             {
                 try
                 {
-                    await connection.OpenAsync().ConfigureAwait(false);
+                    ctx.SyncStage = SyncStage.SnapshotCreating;
 
-                    // Let provider knows a connection is opened
-                    this.Provider.OnConnectionOpened(connection);
+                    if (string.IsNullOrEmpty(this.Options.SnapshotsDirectory) || this.Options.BatchSize <= 0)
+                        throw new SnapshotMissingMandatariesOptionsException();
 
-                    await this.InterceptAsync(new ConnectionOpenArgs(ctx, connection), cancellationToken).ConfigureAwait(false);
+                    // check parameters
+                    // If context has no parameters specified, and user specifies a parameter collection we switch them
+                    if ((ctx.Parameters == null || ctx.Parameters.Count <= 0) && syncParameters != null && syncParameters.Count > 0)
+                        ctx.Parameters = syncParameters;
+
+                    // Open connection
+                    await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
 
                     // Create a transaction
-                    using (transaction = connection.BeginTransaction())
+                    using (var transaction = connection.BeginTransaction())
                     {
-                        await this.InterceptAsync(new TransactionOpenArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+                        await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
 
-                        // JUST Before get changes, get the timestamp, to be sure to 
-                        // get rows inserted / updated elsewhere since the sync is not over
-                        remoteClientTimestamp = await this.Provider.GetLocalTimestampAsync(ctx, connection, transaction, cancellationToken, progress);
+                        // 1) Get Schema from remote provider
+                        (ctx, schema) = await this.Provider.GetSchemaAsync(ctx, this.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                        // Create snapshot
-                        await this.Provider.CreateSnapshotAsync(ctx, schema, connection, transaction, this.Options.SnapshotsDirectory,
+                        // 2) Ensure databases are ready
+                        var provision = SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
+
+                        await this.InterceptAsync(new DatabaseProvisioningArgs(ctx, provision, schema, connection, transaction), cancellationToken).ConfigureAwait(false);
+
+                        ctx = await this.Provider.ProvisionAsync(ctx, schema, provision, this.Options.ScopeInfoTableName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                        // 3) Getting the most accurate timestamp
+                        var remoteClientTimestamp = await this.Provider.GetLocalTimestampAsync(ctx, connection, transaction, cancellationToken, progress);
+
+                        await this.InterceptAsync(new SnapshotCreatingArgs(ctx, schema, this.Options.SnapshotsDirectory, this.Options.BatchSize, remoteClientTimestamp, connection, transaction), cancellationToken).ConfigureAwait(false);
+
+                        // 4) Create the snapshot
+                        (ctx, batchInfo) = await this.Provider.CreateSnapshotAsync(ctx, schema, connection, transaction, this.Options.SnapshotsDirectory,
                                 this.Options.BatchSize, remoteClientTimestamp, cancellationToken, progress).ConfigureAwait(false);
 
                         await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+
                         transaction.Commit();
                     }
+
+                    ctx.SyncStage = SyncStage.SnapshotCreated;
+
+                    await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+
+                    var snapshotCreated = new SnapshotCreatedArgs(ctx, schema, batchInfo, connection);
+                    await this.InterceptAsync(snapshotCreated, cancellationToken).ConfigureAwait(false);
+                    this.ReportProgress(ctx, progress, snapshotCreated);
+
                 }
                 catch (Exception ex)
                 {
-                    var syncException = new SyncException(ex, SyncStage.SnapshotApplying);
-                    // try to let the provider enrich the exception
-                    this.Provider.EnsureSyncException(syncException);
-                    syncException.Side = SyncSide.ServerSide;
-                    throw syncException;
+                    RaiseError(ex);
                 }
                 finally
                 {
-                    if (transaction != null)
-                        transaction.Dispose();
-
                     if (connection != null && connection.State != ConnectionState.Closed)
                         connection.Close();
-
-                    await this.InterceptAsync(new ConnectionCloseArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
-
-                    // Let provider knows a connection is closed
-                    this.Provider.OnConnectionClosed(connection);
                 }
+                return batchInfo;
             }
         }
 
@@ -513,8 +468,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get a snapshot
         /// </summary>
-        public async Task<(long remoteClientTimestamp, BatchInfo serverBatchInfo)>
-                GetSnapshotAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public async Task<(long remoteClientTimestamp, BatchInfo serverBatchInfo)> GetSnapshotAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
 
             // TODO: Get snapshot based on version and scopename
@@ -522,7 +476,7 @@ namespace Dotmim.Sync
             // Get context or create a new one
             var ctx = this.GetContext();
 
-            BatchInfo serverBatchInfo;
+            BatchInfo serverBatchInfo = null;
             try
             {
                 if (string.IsNullOrEmpty(this.Options.SnapshotsDirectory))
@@ -537,7 +491,6 @@ namespace Dotmim.Sync
                 // Get Schema from remote provider
                 var (schema, version) = await this.EnsureSchemaAsync(cancellationToken, progress).ConfigureAwait(false);
 
-
                 // When we get the chnages from server, we create the batches if it's requested by the client
                 // the batch decision comes from batchsize from client
                 (ctx, serverBatchInfo) =
@@ -546,11 +499,7 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                var syncException = new SyncException(ex, SyncStage.SnapshotApplying);
-                // try to let the provider enrich the exception
-                this.Provider.EnsureSyncException(syncException);
-                syncException.Side = SyncSide.ServerSide;
-                throw syncException;
+                RaiseError(ex);
             }
 
             if (serverBatchInfo == null)

@@ -44,11 +44,16 @@ namespace Dotmim.Sync.Builders
             if (TableDescription.PrimaryKeys.Count <= 0)
                 throw new MissingPrimaryKeyException(TableDescription.TableName);
 
-            var alreadyOpened = connection.State != ConnectionState.Closed;
-
             var triggerBuilder = CreateTriggerBuilder(connection, transaction);
 
-            if (!await triggerBuilder.NeedToCreateTriggerAsync(triggerType))
+            var alreadyOpened = connection.State != ConnectionState.Closed;
+
+            if (!alreadyOpened)
+                await connection.OpenAsync().ConfigureAwait(false);
+
+            var needToCreateTrigger = await triggerBuilder.NeedToCreateTriggerAsync(triggerType).ConfigureAwait(false);
+
+            if (needToCreateTrigger)
             {
                 switch (triggerType)
                 {
@@ -75,11 +80,17 @@ namespace Dotmim.Sync.Builders
         /// </summary>
         public async Task CreateTriggersAsync(DbConnection connection, DbTransaction transaction = null)
         {
-            var t1 = this.CreateTriggerAsync(DbTriggerType.Insert, connection, transaction);
-            var t2 = this.CreateTriggerAsync(DbTriggerType.Update, connection, transaction);
-            var t3 = this.CreateTriggerAsync(DbTriggerType.Delete, connection, transaction);
 
-            await Task.WhenAll(t1, t2, t3).ConfigureAwait(false);
+            await this.CreateTriggerAsync(DbTriggerType.Insert, connection, transaction);
+            await this.CreateTriggerAsync(DbTriggerType.Update, connection, transaction);
+            await this.CreateTriggerAsync(DbTriggerType.Delete, connection, transaction);
+
+            // Can't use the Task.WhenAll parrallel tasks because we are not sure to have MultipleActiveResultsSet enabled on the connection
+            //var t1 = this.CreateTriggerAsync(DbTriggerType.Insert, connection, transaction);
+            //var t2 = this.CreateTriggerAsync(DbTriggerType.Update, connection, transaction);
+            //var t3 = this.CreateTriggerAsync(DbTriggerType.Delete, connection, transaction);
+
+            //await Task.WhenAll(t1, t2, t3).ConfigureAwait(false);
         }
 
         /// <summary>

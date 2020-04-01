@@ -3081,10 +3081,12 @@ namespace Dotmim.Sync.Tests
                     if (client.ProviderType == ProviderType.MySql)
                     {
                         var cmd = tca.Connection.CreateCommand();
+                        tca.Connection.Open();
                         cmd.CommandText = "SET FOREIGN_KEY_CHECKS = 1;";
                         cmd.Connection = tca.Connection;
                         cmd.Transaction = tca.Transaction;
                         cmd.ExecuteNonQuery();
+                        tca.Connection.Close();
 
                         return;
                     }
@@ -3094,12 +3096,14 @@ namespace Dotmim.Sync.Tests
                         foreach (var table in agent.Schema.Tables.Where(t => t.TableName == "Product" || t.TableName == "ProductCategory"))
                         {
                             var cmd = tca.Connection.CreateCommand();
+                            tca.Connection.Open();
                             var tableAndSchemaName = ParserName.Parse(table).Schema().Quoted().ToString();
                             var tableName = ParserName.Parse(table).Schema().Quoted().ToString();
                             cmd.CommandText = $"ALTER TABLE {tableAndSchemaName} CHECK CONSTRAINT ALL";
                             cmd.Connection = tca.Connection;
                             cmd.Transaction = tca.Transaction;
                             cmd.ExecuteNonQuery();
+                            tca.Connection.Close();
                         }
                     }
 
