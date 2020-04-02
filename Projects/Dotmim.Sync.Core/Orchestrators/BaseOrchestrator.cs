@@ -65,6 +65,7 @@ namespace Dotmim.Sync
             this.Setup = setup ?? throw new ArgumentNullException(nameof(setup));
 
             this.Provider.Orchestrator = this;
+            this.Provider.Options = options;
         }
 
         /// <summary>
