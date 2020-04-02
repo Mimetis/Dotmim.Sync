@@ -118,7 +118,8 @@ namespace Dotmim.Sync.Tests.UnitTests
         [InlineData(637168896000000000)]
         public void Convert_ToDateTime(object input)
         {
-            var o1 = SyncTypeConverter.TryConvertTo<DateTime>(input);
+            var cultureInfo = CultureInfo.GetCultureInfo("fr-FR");
+            var o1 = SyncTypeConverter.TryConvertTo<DateTime>(input, cultureInfo);
             Assert.IsType<DateTime>(o1);
             Assert.Equal(new DateTime(2020, 02, 10), o1);
         }
@@ -131,9 +132,10 @@ namespace Dotmim.Sync.Tests.UnitTests
         [InlineData(637168896000000000)]
         public void Convert_ToDateTimeOffset(object input)
         {
+            var cultureInfo = CultureInfo.GetCultureInfo("fr-FR");
             var ti = new DateTimeOffset(new DateTime(2020, 02, 10)).Ticks;
 
-            var o1 = SyncTypeConverter.TryConvertTo<DateTimeOffset>(input);
+            var o1 = SyncTypeConverter.TryConvertTo<DateTimeOffset>(input, cultureInfo);
             Assert.IsType<DateTimeOffset>(o1);
             Assert.Equal(new DateTimeOffset(new DateTime(2020, 02, 10)), o1);
         }
@@ -234,7 +236,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         [InlineData("12.177")]
         [InlineData(12.177)]
         [InlineData((float)12.177)]
-        public void Convert_ToDecimal(object input)
+        public void Convert_ToDecimal_Invariant(object input)
         {
             var o1 = SyncTypeConverter.TryConvertTo<decimal>(input);
             Assert.IsType<decimal>(o1);
@@ -242,14 +244,12 @@ namespace Dotmim.Sync.Tests.UnitTests
         }
 
         [Theory]
-        [InlineData("12,177")]
-        public void Convert_ToDecimal_WithNfi(object input)
+        [InlineData("12.177")]
+        public void Convert_ToDecimal_OtherCulture(object input)
         {
+            var cultureInfo = CultureInfo.GetCultureInfo("en-US");
 
-            NumberFormatInfo nfi = new NumberFormatInfo();
-            nfi.NumberDecimalSeparator = ",";
-
-            var o1 = SyncTypeConverter.TryConvertTo<decimal>(input, nfi);
+            var o1 = SyncTypeConverter.TryConvertTo<decimal>(input, cultureInfo);
             Assert.IsType<decimal>(o1);
             Assert.Equal((decimal)12.177, o1);
 
@@ -275,18 +275,15 @@ namespace Dotmim.Sync.Tests.UnitTests
         public void Convert_ToDouble_WithNfi(object input)
         {
 
-            NumberFormatInfo nfi = new NumberFormatInfo();
-            nfi.NumberDecimalSeparator = ",";
+            var cultureInfo = CultureInfo.GetCultureInfo("fr-FR");
 
-            var o1 = SyncTypeConverter.TryConvertTo<double>(input, nfi);
+            var o1 = SyncTypeConverter.TryConvertTo<double>(input, cultureInfo);
             Assert.IsType<double>(o1);
             Assert.Equal((double)12.177, o1);
 
-            SyncGlobalization.DataSourceNumberDecimalSeparator = ",";
-            var o2 = SyncTypeConverter.TryConvertTo<double>(input);
+            var o2 = SyncTypeConverter.TryConvertTo<double>(input, cultureInfo);
             Assert.IsType<double>(o2);
             Assert.Equal((double)12.177, o2);
-            SyncGlobalization.DataSourceNumberDecimalSeparator = CultureInfo.InvariantCulture.NumberFormat.NumberDecimalSeparator;
         }
         [Theory]
         [InlineData("12.177")]
@@ -300,14 +297,13 @@ namespace Dotmim.Sync.Tests.UnitTests
         }
 
         [Theory]
-        [InlineData("12,177")]
-        public void Convert_ToFloat_WithNfi(object input)
+        [InlineData("12.177")]
+        public void Convert_ToFloat_OtherCulture(object input)
         {
 
-            NumberFormatInfo nfi = new NumberFormatInfo();
-            nfi.NumberDecimalSeparator = ",";
+            var cultureInfo = CultureInfo.GetCultureInfo("en-US");
 
-            var o1 = SyncTypeConverter.TryConvertTo<float>(input, nfi);
+            var o1 = SyncTypeConverter.TryConvertTo<float>(input, cultureInfo);
             Assert.IsType<float>(o1);
             Assert.Equal((float)12.177, o1);
 
