@@ -42,6 +42,7 @@ namespace Dotmim.Sync.MySql
                         sync_scope_id varchar(36) NOT NULL,
 	                    sync_scope_name varchar(100) NOT NULL,
 	                    sync_scope_schema longtext NULL,
+	                    sync_scope_setup longtext NULL,
 	                    sync_scope_version varchar(10) NULL,
                         scope_last_sync datetime NULL,
                         scope_last_server_sync_timestamp bigint NULL,
@@ -128,6 +129,7 @@ namespace Dotmim.Sync.MySql
                     $@"CREATE TABLE `{tableName}` (
 	                    sync_scope_name varchar(100) NOT NULL,
 	                    sync_scope_schema longtext NULL,
+	                    sync_scope_setup longtext NULL,
 	                    sync_scope_version varchar(10) NULL,
                         sync_scope_last_clean_timestamp bigint NULL,
                         PRIMARY KEY (sync_scope_name)
@@ -271,6 +273,7 @@ namespace Dotmim.Sync.MySql
                     $@"SELECT sync_scope_id
                            , sync_scope_name
                            , sync_scope_schema
+                           , sync_scope_setup
                            , sync_scope_version
                            , scope_last_sync
                            , scope_last_server_sync_timestamp
@@ -295,6 +298,7 @@ namespace Dotmim.Sync.MySql
                             var scopeInfo = new ScopeInfo();
                             scopeInfo.Name = reader["sync_scope_name"] as String;
                             scopeInfo.Schema = reader["sync_scope_schema"] as string;
+                            scopeInfo.Schema = reader["sync_scope_setup"] as string;
                             scopeInfo.Version = reader["sync_scope_version"] as string;
                             scopeInfo.Id = new Guid((String)reader["sync_scope_id"]);
                             scopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value ? (DateTime?)reader["scope_last_sync"] : null;
@@ -342,6 +346,7 @@ namespace Dotmim.Sync.MySql
                 command.CommandText =
                     $@"SELECT sync_scope_name
                            , sync_scope_schema
+                           , sync_scope_setup
                            , sync_scope_version
                            , sync_scope_last_clean_timestamp                    
                     FROM  `{tableName}`
@@ -363,6 +368,7 @@ namespace Dotmim.Sync.MySql
                             var scopeInfo = new ServerScopeInfo();
                             scopeInfo.Name = reader["sync_scope_name"] as String;
                             scopeInfo.Schema = reader["sync_scope_schema"] as string;
+                            scopeInfo.Setup = reader["sync_scope_setup"] as string;
                             scopeInfo.Version = reader["sync_scope_version"] as string;
                             scopeInfo.LastCleanupTimestamp = reader["sync_scope_last_clean_timestamp"] != DBNull.Value ? (long)reader["sync_scope_last_clean_timestamp"] : 0L;
                             scopes.Add(scopeInfo);
@@ -447,8 +453,8 @@ namespace Dotmim.Sync.MySql
                 }
 
                 string stmtText = exist
-                    ? $"Update {scopeTableName.Quoted()} set sync_scope_name=@sync_scope_name, sync_scope_schema=@sync_scope_schema, sync_scope_version=@sync_scope_version, scope_last_sync=@scope_last_sync, scope_last_server_sync_timestamp=@scope_last_server_sync_timestamp, scope_last_sync_timestamp=@scope_last_sync_timestamp, scope_last_sync_duration=@scope_last_sync_duration  where sync_scope_id=@sync_scope_id"
-                    : $"Insert into {scopeTableName.Quoted()} (sync_scope_name, sync_scope_schema, sync_scope_version, scope_last_sync, sync_scope_id, scope_last_server_sync_timestamp, scope_last_sync_timestamp, scope_last_sync_duration) values (@sync_scope_name, @sync_scope_schema, @sync_scope_version, @scope_last_sync, @sync_scope_id, @scope_last_server_sync_timestamp, @scope_last_sync_timestamp, @scope_last_sync_duration)";
+                    ? $"Update {scopeTableName.Quoted()} set sync_scope_name=@sync_scope_name, sync_scope_schema=@sync_scope_schema,  sync_scope_setup=@sync_scope_setup, sync_scope_version=@sync_scope_version, scope_last_sync=@scope_last_sync, scope_last_server_sync_timestamp=@scope_last_server_sync_timestamp, scope_last_sync_timestamp=@scope_last_sync_timestamp, scope_last_sync_duration=@scope_last_sync_duration  where sync_scope_id=@sync_scope_id"
+                    : $"Insert into {scopeTableName.Quoted()} (sync_scope_name, sync_scope_schema, sync_scope_setup, sync_scope_version, scope_last_sync, sync_scope_id, scope_last_server_sync_timestamp, scope_last_sync_timestamp, scope_last_sync_duration) values (@sync_scope_name, @sync_scope_schema, @sync_scope_setup, @sync_scope_version, @scope_last_sync, @sync_scope_id, @scope_last_server_sync_timestamp, @scope_last_sync_timestamp, @scope_last_sync_duration)";
 
                 using (var command = connection.CreateCommand())
                 {
@@ -466,6 +472,12 @@ namespace Dotmim.Sync.MySql
                     p = command.CreateParameter();
                     p.ParameterName = "@sync_scope_schema";
                     p.Value = scopeInfo.Schema;
+                    p.DbType = DbType.String;
+                    command.Parameters.Add(p);
+
+                    p = command.CreateParameter();
+                    p.ParameterName = "@sync_scope_setup";
+                    p.Value = scopeInfo.Setup;
                     p.DbType = DbType.String;
                     command.Parameters.Add(p);
 
@@ -513,6 +525,7 @@ namespace Dotmim.Sync.MySql
                             {
                                 scopeInfo.Name = reader["sync_scope_name"] as string;
                                 scopeInfo.Schema = reader["sync_scope_schema"] as string;
+                                scopeInfo.Schema = reader["sync_scope_setup"] as string;
                                 scopeInfo.Version = reader["sync_scope_version"] as string;
                                 scopeInfo.Id = new Guid((string)reader["sync_scope_id"]);
                                 scopeInfo.LastSyncDuration = reader["scope_last_sync_duration"] != DBNull.Value ? (long)reader["scope_last_sync_duration"] : 0L;
@@ -664,8 +677,8 @@ namespace Dotmim.Sync.MySql
                 }
 
                 string stmtText = exist
-                    ? $"Update `{tableName}` set sync_scope_schema=@sync_scope_schema, sync_scope_version=@sync_scope_version, sync_scope_last_clean_timestamp=@sync_scope_last_clean_timestamp where sync_scope_name=@sync_scope_name"
-                    : $"Insert into `{tableName}` (sync_scope_name, sync_scope_schema, sync_scope_version, sync_scope_last_clean_timestamp) values (@sync_scope_name, @sync_scope_schema, @sync_scope_version, @sync_scope_last_clean_timestamp)";
+                    ? $"Update `{tableName}` set sync_scope_schema=@sync_scope_schema, sync_scope_setup=@sync_scope_setup, sync_scope_version=@sync_scope_version, sync_scope_last_clean_timestamp=@sync_scope_last_clean_timestamp where sync_scope_name=@sync_scope_name"
+                    : $"Insert into `{tableName}` (sync_scope_name, sync_scope_schema, sync_scope_setup, sync_scope_version, sync_scope_last_clean_timestamp) values (@sync_scope_name, @sync_scope_schema, @sync_scope_setup, @sync_scope_version, @sync_scope_last_clean_timestamp)";
 
                 using (var command = connection.CreateCommand())
                 {
@@ -682,6 +695,12 @@ namespace Dotmim.Sync.MySql
 
                     p = command.CreateParameter();
                     p.ParameterName = "@sync_scope_schema";
+                    p.Value = serverScopeInfo.Schema;
+                    p.DbType = DbType.String;
+                    command.Parameters.Add(p);
+
+                    p = command.CreateParameter();
+                    p.ParameterName = "@sync_scope_setup";
                     p.Value = serverScopeInfo.Schema;
                     p.DbType = DbType.String;
                     command.Parameters.Add(p);
@@ -706,6 +725,7 @@ namespace Dotmim.Sync.MySql
                             {
                                 serverScopeInfo.Name = reader["sync_scope_name"] as string;
                                 serverScopeInfo.Schema = reader["sync_scope_schema"] as string;
+                                serverScopeInfo.Setup = reader["sync_scope_setup"] as string;
                                 serverScopeInfo.Version = reader["sync_scope_version"] as string;
                                 serverScopeInfo.LastCleanupTimestamp = reader["sync_scope_last_clean_timestamp"] != DBNull.Value ? (long)reader["sync_scope_last_clean_timestamp"] : 0L;
                             }

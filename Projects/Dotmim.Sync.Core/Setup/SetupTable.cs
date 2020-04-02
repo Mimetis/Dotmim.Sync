@@ -7,28 +7,33 @@ using System.Text;
 
 namespace Dotmim.Sync
 {
+    [DataContract(Name = "st"), Serializable]
     public class SetupTable : IEquatable<SetupTable>
     {
 
         /// <summary>
         /// Gets or Sets the table name
         /// </summary>
+        [DataMember(Name = "tn", IsRequired = true, Order = 1)]
         public string TableName { get; set; }
 
         /// <summary>
         /// Gets or Sets the schema name
         /// </summary>
+        [DataMember(Name = "sn", IsRequired = false, EmitDefaultValue = false, Order = 2)]
         public string SchemaName { get; set; }
 
         /// <summary>
         /// Gets or Sets the table columns collection
         /// </summary>
+        [DataMember(Name = "cols", IsRequired = false, EmitDefaultValue = false, Order = 3)]
         public SetupColumns Columns { get; set; }
 
         /// <summary>
         /// Gets or Sets the Sync direction (may be Bidirectional, DownloadOnly, UploadOnly) 
         /// Default is Bidirectional
         /// </summary>
+        [DataMember(Name = "sd", IsRequired = false, EmitDefaultValue = false, Order = 4)]
         public SyncDirection SyncDirection { get; set; }
 
         /// <summary>

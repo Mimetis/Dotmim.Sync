@@ -57,10 +57,38 @@ namespace Dotmim.Sync.SampleWebServer
                 TrackingTablesSuffix = ""
             };
 
-            setup.Filters.Add("ProductDescriptionFilter", "ProductDescriptionId");
+            setup.Filters.Add("Customer", "CompanyName");
+
+            var addressCustomerFilter = new SetupFilter("CustomerAddress");
+            addressCustomerFilter.AddParameter("CompanyName", "Customer");
+            addressCustomerFilter.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
+            addressCustomerFilter.AddWhere("CompanyName", "Customer", "CompanyName");
+            setup.Filters.Add(addressCustomerFilter);
+
+            var addressFilter = new SetupFilter("Address");
+            addressFilter.AddParameter("CompanyName", "Customer");
+            addressFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "AddressId", "Address", "AddressId");
+            addressFilter.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
+            addressFilter.AddWhere("CompanyName", "Customer", "CompanyName");
+            setup.Filters.Add(addressFilter);
+
+            var orderHeaderFilter = new SetupFilter("SalesOrderHeader");
+            orderHeaderFilter.AddParameter("CompanyName", "Customer");
+            orderHeaderFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerId", "SalesOrderHeader", "CustomerId");
+            orderHeaderFilter.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
+            orderHeaderFilter.AddWhere("CompanyName", "Customer", "CompanyName");
+            setup.Filters.Add(orderHeaderFilter);
+
+            var orderDetailsFilter = new SetupFilter("SalesOrderDetail");
+            orderDetailsFilter.AddParameter("CompanyName", "Customer");
+            orderDetailsFilter.AddJoin(Join.Left, "SalesOrderHeader").On("SalesOrderDetail", "SalesOrderID", "SalesOrderHeader", "SalesOrderID");
+            orderDetailsFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerId", "SalesOrderHeader", "CustomerId");
+            orderDetailsFilter.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
+            orderDetailsFilter.AddWhere("CompanyName", "Customer", "CompanyName");
+            setup.Filters.Add(orderDetailsFilter);
 
             // add a SqlSyncProvider acting as the server hub
-            services.AddSyncServer<SqlSyncChangeTrackingProvider>(connectionString, setup, options);
+            services.AddSyncServer<SqlSyncProvider>(connectionString, setup, options);
 
             // Create the setup used for your sync process
             tables = new string[] { "ProductCategory" };
@@ -75,7 +103,7 @@ namespace Dotmim.Sync.SampleWebServer
             };
 
             // add a SqlSyncProvider acting as the server hub
-            services.AddSyncServer<SqlSyncChangeTrackingProvider>(connectionString, "ProdScope", setup, options);
+            services.AddSyncServer<SqlSyncProvider>(connectionString, "ProdScope", setup, options);
 
 
         }

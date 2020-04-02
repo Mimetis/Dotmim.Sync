@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Runtime.Serialization;
 using System.Text;
 
 namespace Dotmim.Sync
@@ -50,23 +51,34 @@ namespace Dotmim.Sync
     }
 
 
+    [DataContract(Name = "sfj"), Serializable]
     public struct SetupFilterJoin
     {
-        internal Join joinEnum;
-        internal string tableName;
-        internal string leftTableName;
-        internal string leftColumnName;
-        internal string rightTableName;
-        internal string rightColumnName;
+        [DataMember(Name = "je", IsRequired = true, Order = 1)]
+        public Join JoinEnum { get; set; }
 
+        [DataMember(Name = "tn", IsRequired = true, Order = 2)]
+        public string TableName { get; set; }
+
+        [DataMember(Name = "ltn", IsRequired = true, Order = 3)]
+        public string LeftTableName { get; set; }
+
+        [DataMember(Name = "lcn", IsRequired = true, Order = 4)]
+        public string LeftColumnName { get; set; }
+
+        [DataMember(Name = "rtn", IsRequired = true, Order = 5)]
+        public string RightTableName { get; set; }
+
+        [DataMember(Name = "rcn", IsRequired = true, Order = 6)]
+        public string RightColumnName { get; set; }
         public SetupFilterJoin(Join joinEnum, string tableName, string leftTableName, string leftColumnName, string rightTableName, string rightColumnName)
         {
-            this.joinEnum = joinEnum;
-            this.tableName = tableName;
-            this.leftTableName = leftTableName;
-            this.leftColumnName = leftColumnName;
-            this.rightTableName = rightTableName;
-            this.rightColumnName = rightColumnName;
+            this.JoinEnum = joinEnum;
+            this.TableName = tableName;
+            this.LeftTableName = leftTableName;
+            this.LeftColumnName = leftColumnName;
+            this.RightTableName = rightTableName;
+            this.RightColumnName = rightColumnName;
         }
 
     }
