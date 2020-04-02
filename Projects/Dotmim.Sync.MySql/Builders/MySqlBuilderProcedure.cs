@@ -552,7 +552,12 @@ namespace Dotmim.Sync.MySql
                 stringBuilderParameters.Append(string.Concat(empty, $"{MYSQL_PREFIX_PARAMETER}{parameterName}"));
                 empty = ", ";
             }
-            stringBuilder.AppendLine($"\tINSERT INTO {tableName.Quoted().ToString()}");
+
+            // If we don't have any mutable column, we can't update, and the Insert
+            // will fail if we don't ignore the insert (on Reinitialize for example)
+            var ignoreKeyWord = hasMutableColumns ? "" : "IGNORE";
+
+            stringBuilder.AppendLine($"\tINSERT {ignoreKeyWord} INTO {tableName.Quoted().ToString()}");
             stringBuilder.AppendLine($"\t({stringBuilderArguments.ToString()})");
             stringBuilder.AppendLine($"\tSELECT * FROM ( SELECT {stringBuilderParameters.ToString()}) as TMP ");
             stringBuilder.AppendLine($"\tWHERE ( {listColumnsTmp3.ToString()} )");
