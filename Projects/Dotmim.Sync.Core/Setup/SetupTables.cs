@@ -2,6 +2,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Text;
@@ -11,10 +12,15 @@ namespace Dotmim.Sync
     /// <summary>
     /// Represents a list of tables to be added to the sync process
     /// </summary>
+    [CollectionDataContract(Name = "tbls", ItemName = "tbl"), Serializable]
     public class SetupTables : ICollection<SetupTable>, IList<SetupTable>
     {
 
-        private List<SetupTable> innerCollection = new List<SetupTable>();
+        /// <summary>
+        /// Exposing the InnerCollection for serialization purpose
+        /// </summary>
+        [DataMember(Name = "c", IsRequired = true, Order = 1)]
+        public Collection<SetupTable> InnerCollection = new Collection<SetupTable>();
 
         public SetupTables()
         {
@@ -45,10 +51,10 @@ namespace Dotmim.Sync
         /// </summary>
         public void Add(SetupTable table)
         {
-            if (innerCollection.Any(st => table == st))
+            if (InnerCollection.Any(st => table == st))
                 throw new Exception($"Table {table.TableName} already exists in the collection");
 
-            innerCollection.Add(table);
+            InnerCollection.Add(table);
         }
 
 
@@ -58,7 +64,7 @@ namespace Dotmim.Sync
         public void AddRange(IEnumerable<SetupTable> tables)
         {
             foreach (var table in tables)
-                this.innerCollection.Add(table);
+                this.InnerCollection.Add(table);
         }
 
 
@@ -71,7 +77,7 @@ namespace Dotmim.Sync
                 return;
 
             foreach (var table in tables)
-                this.innerCollection.Add(new SetupTable(table));
+                this.InnerCollection.Add(new SetupTable(table));
         }
 
         /// <summary>
@@ -91,7 +97,7 @@ namespace Dotmim.Sync
                 // Create a tmp SetupTable to benefit the use of SetupTable.Equals()
                 var tmpTable = new SetupTable(tblName, schemaName);
 
-                var table = innerCollection.FirstOrDefault(c => c == tmpTable);
+                var table = InnerCollection.FirstOrDefault(c => c == tmpTable);
 
                 if (table == null)
                     throw new MissingTableException(tmpTable.ToString());
@@ -114,7 +120,7 @@ namespace Dotmim.Sync
                 var tmpTable = new SetupTable(tableName, schemaName);
 
 
-                var table = innerCollection.FirstOrDefault(c => c == tmpTable);
+                var table = InnerCollection.FirstOrDefault(c => c == tmpTable);
 
                 if (table == null)
                     throw new MissingTableException(tmpTable.ToString());
@@ -126,27 +132,27 @@ namespace Dotmim.Sync
         /// <summary>
         /// Check if Setup has tables
         /// </summary>
-        public bool HasTables => this.innerCollection?.Count > 0;
+        public bool HasTables => this.InnerCollection?.Count > 0;
 
         /// <summary>
         /// Check if Setup has at least one table with columns
         /// </summary>
-        public bool HasColumns => this.innerCollection?.SelectMany(t => t.Columns).Count() > 0;  // using SelectMany to get columns and not Collection<Column>
+        public bool HasColumns => this.InnerCollection?.SelectMany(t => t.Columns).Count() > 0;  // using SelectMany to get columns and not Collection<Column>
 
-        public void Clear() => this.innerCollection.Clear();
-        public SetupTable this[int index] => innerCollection[index];
-        public int Count => innerCollection.Count;
+        public void Clear() => this.InnerCollection.Clear();
+        public SetupTable this[int index] => InnerCollection[index];
+        public int Count => InnerCollection.Count;
         public bool IsReadOnly => false;
-        SetupTable IList<SetupTable>.this[int index] { get => this.innerCollection[index]; set => this.innerCollection[index] = value; }
-        public bool Remove(SetupTable item) => innerCollection.Remove(item);
-        public bool Contains(SetupTable item) => innerCollection.Any(st => st == item);
-        public void CopyTo(SetupTable[] array, int arrayIndex) => innerCollection.CopyTo(array, arrayIndex);
-        public int IndexOf(SetupTable item) => innerCollection.IndexOf(item);
-        public void RemoveAt(int index) => innerCollection.RemoveAt(index);
-        public override string ToString() => this.innerCollection.Count.ToString();
-        public void Insert(int index, SetupTable item) => this.innerCollection.Insert(index, item);
-        public IEnumerator<SetupTable> GetEnumerator() => innerCollection.GetEnumerator();
-        IEnumerator<SetupTable> IEnumerable<SetupTable>.GetEnumerator() => this.innerCollection.GetEnumerator();
-        IEnumerator IEnumerable.GetEnumerator() => this.innerCollection.GetEnumerator();
+        SetupTable IList<SetupTable>.this[int index] { get => this.InnerCollection[index]; set => this.InnerCollection[index] = value; }
+        public bool Remove(SetupTable item) => InnerCollection.Remove(item);
+        public bool Contains(SetupTable item) => InnerCollection.Any(st => st == item);
+        public void CopyTo(SetupTable[] array, int arrayIndex) => InnerCollection.CopyTo(array, arrayIndex);
+        public int IndexOf(SetupTable item) => InnerCollection.IndexOf(item);
+        public void RemoveAt(int index) => InnerCollection.RemoveAt(index);
+        public override string ToString() => this.InnerCollection.Count.ToString();
+        public void Insert(int index, SetupTable item) => this.InnerCollection.Insert(index, item);
+        public IEnumerator<SetupTable> GetEnumerator() => InnerCollection.GetEnumerator();
+        IEnumerator<SetupTable> IEnumerable<SetupTable>.GetEnumerator() => this.InnerCollection.GetEnumerator();
+        IEnumerator IEnumerable.GetEnumerator() => this.InnerCollection.GetEnumerator();
     }
 }

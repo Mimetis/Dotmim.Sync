@@ -17,11 +17,16 @@ namespace Dotmim.Sync
         public string Name { get; set; }
 
         /// <summary>
-        /// Scope schema. stored locally on the client
-        /// When returning from server we don't want it in the payload.
+        /// Scope schema. stored locally
         /// </summary>
         [IgnoreDataMember]
         public string Schema { get; set; }
+
+        /// <summary>
+        /// Setup. stored locally
+        /// </summary>
+        [IgnoreDataMember]
+        public string Setup { get; set; }
 
         /// <summary>
         /// Gets or Sets the schema version

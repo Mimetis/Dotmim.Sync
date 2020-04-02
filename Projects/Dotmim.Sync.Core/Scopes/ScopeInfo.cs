@@ -35,6 +35,11 @@ namespace Dotmim.Sync
         [IgnoreDataMember]
         public string Schema { get; set; }
 
+        /// <summary>
+        /// Setup. stored locally on the client
+        /// </summary>
+        [IgnoreDataMember]
+        public string Setup { get; set; }
 
         /// <summary>
         /// Gets or Sets the schema version

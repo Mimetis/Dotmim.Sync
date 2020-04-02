@@ -40,6 +40,7 @@ namespace Dotmim.Sync.Sqlite
                         sync_scope_id blob NOT NULL PRIMARY KEY,
 	                    sync_scope_name text NOT NULL,
 	                    sync_scope_schema text NULL,
+	                    sync_scope_setup text NULL,
 	                    sync_scope_version text NULL,
                         scope_last_server_sync_timestamp integer NULL,
                         scope_last_sync_timestamp integer NULL,
@@ -123,6 +124,7 @@ namespace Dotmim.Sync.Sqlite
                     $@"SELECT sync_scope_id
                            , sync_scope_name
                            , sync_scope_schema
+                           , sync_scope_setup
                            , sync_scope_version
                            , scope_last_sync
                            , scope_last_server_sync_timestamp
@@ -147,6 +149,7 @@ namespace Dotmim.Sync.Sqlite
                             var scopeInfo = new ScopeInfo();
                             scopeInfo.Name = reader["sync_scope_name"] as String;
                             scopeInfo.Schema = reader["sync_scope_schema"] as String;
+                            scopeInfo.Setup = reader["sync_scope_setup"] as String;
                             scopeInfo.Version = reader["sync_scope_version"] as String;
                             scopeInfo.Id = reader.GetGuid(reader.GetOrdinal("sync_scope_id"));
                             scopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value
@@ -236,8 +239,8 @@ namespace Dotmim.Sync.Sqlite
                 var exist = ((long)await command.ExecuteScalarAsync().ConfigureAwait(false)) > 0;
 
                 string stmtText = exist
-                    ? $"Update {scopeTableName.Unquoted().ToString()} set sync_scope_name=@sync_scope_name, sync_scope_schema=@sync_scope_schema, sync_scope_version=@sync_scope_version, scope_last_sync=@scope_last_sync, scope_last_server_sync_timestamp=@scope_last_server_sync_timestamp,  scope_last_sync_timestamp=@scope_last_sync_timestamp, scope_last_sync_duration=@scope_last_sync_duration where sync_scope_id=@sync_scope_id"
-                    : $"Insert into {scopeTableName.Unquoted().ToString()} (sync_scope_name, sync_scope_schema, sync_scope_version, scope_last_sync, scope_last_sync_duration, scope_last_server_sync_timestamp, scope_last_sync_timestamp, sync_scope_id) values (@sync_scope_name, @sync_scope_schema, @sync_scope_version, @scope_last_sync, @scope_last_sync_duration, @scope_last_server_sync_timestamp, @scope_last_sync_timestamp, @sync_scope_id)";
+                    ? $"Update {scopeTableName.Unquoted().ToString()} set sync_scope_name=@sync_scope_name, sync_scope_schema=@sync_scope_schema, sync_scope_setup=@sync_scope_setup, sync_scope_version=@sync_scope_version, scope_last_sync=@scope_last_sync, scope_last_server_sync_timestamp=@scope_last_server_sync_timestamp,  scope_last_sync_timestamp=@scope_last_sync_timestamp, scope_last_sync_duration=@scope_last_sync_duration where sync_scope_id=@sync_scope_id"
+                    : $"Insert into {scopeTableName.Unquoted().ToString()} (sync_scope_name, sync_scope_schema, sync_scope_setup, sync_scope_version, scope_last_sync, scope_last_sync_duration, scope_last_server_sync_timestamp, scope_last_sync_timestamp, sync_scope_id) values (@sync_scope_name, @sync_scope_schema, @sync_scope_setup, @sync_scope_version, @scope_last_sync, @scope_last_sync_duration, @scope_last_server_sync_timestamp, @scope_last_sync_timestamp, @sync_scope_id)";
 
                 command = connection.CreateCommand();
                 command.CommandText = stmtText;
@@ -251,6 +254,12 @@ namespace Dotmim.Sync.Sqlite
                 p = command.CreateParameter();
                 p.ParameterName = "@sync_scope_schema";
                 p.Value = string.IsNullOrEmpty(scopeInfo.Schema) ? DBNull.Value : (object)scopeInfo.Schema;
+                p.DbType = DbType.String;
+                command.Parameters.Add(p);
+
+                p = command.CreateParameter();
+                p.ParameterName = "@sync_scope_setup";
+                p.Value = string.IsNullOrEmpty(scopeInfo.Setup) ? DBNull.Value : (object)scopeInfo.Setup;
                 p.DbType = DbType.String;
                 command.Parameters.Add(p);
 
@@ -299,6 +308,7 @@ namespace Dotmim.Sync.Sqlite
 
                             scopeInfo.Name = reader["sync_scope_name"] as string;
                             scopeInfo.Schema = reader["sync_scope_schema"] as string;
+                            scopeInfo.Setup = reader["sync_scope_setup"] as string;
                             scopeInfo.Version = reader["sync_scope_version"] as string;
                             scopeInfo.Id = reader.GetGuid(reader.GetOrdinal("sync_scope_id"));
                             scopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value
@@ -328,10 +338,14 @@ namespace Dotmim.Sync.Sqlite
             }
         }
 
-        public async Task<ServerHistoryScopeInfo> InsertOrUpdateServerHistoryScopeInfoAsync(ServerHistoryScopeInfo serverHistoryScopeInfo) 
+#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
+        public async Task<ServerHistoryScopeInfo> InsertOrUpdateServerHistoryScopeInfoAsync(ServerHistoryScopeInfo serverHistoryScopeInfo)
+#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
             => throw new NotImplementedException();
 
-        public async Task<ServerScopeInfo> InsertOrUpdateServerScopeInfoAsync(ServerScopeInfo serverScopeInfo) 
+#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
+        public async Task<ServerScopeInfo> InsertOrUpdateServerScopeInfoAsync(ServerScopeInfo serverScopeInfo)
+#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
             => throw new NotImplementedException();
 
         public async Task<bool> NeedToCreateClientScopeInfoTableAsync()
@@ -367,10 +381,14 @@ namespace Dotmim.Sync.Sqlite
             }
         }
 
-        public async Task<bool> NeedToCreateServerHistoryScopeInfoTableAsync() 
+#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
+        public async Task<bool> NeedToCreateServerHistoryScopeInfoTableAsync()
+#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
             => throw new NotImplementedException();
 
-        public async Task<bool> NeedToCreateServerScopeInfoTableAsync() 
+#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
+        public async Task<bool> NeedToCreateServerScopeInfoTableAsync()
+#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
             => throw new NotImplementedException();
     }
 }

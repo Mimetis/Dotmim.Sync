@@ -171,7 +171,9 @@ namespace Dotmim.Sync
                             // Generated the first serverscope to be updated
                             serverScopeInfo.LastCleanupTimestamp = 0;
                             serverScopeInfo.Schema = JsonConvert.SerializeObject(schema);
+                            serverScopeInfo.Setup = JsonConvert.SerializeObject(this.Setup);
                             serverScopeInfo.Version = "1";
+
 
                             // 3) Update server scope
                             ctx = await this.Provider.WriteServerScopeAsync(ctx, this.Options.ScopeInfoTableName, serverScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
