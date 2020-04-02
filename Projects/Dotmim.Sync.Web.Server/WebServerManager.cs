@@ -15,7 +15,7 @@ namespace Dotmim.Sync.Web.Server
     /// <summary>
     /// Contains all providers registered on the server side
     /// </summary>
-    public class WebServerProperties : ICollection<WebServerOrchestrator>, IList<WebServerOrchestrator>
+    public class WebServerManager : ICollection<WebServerOrchestrator>, IList<WebServerOrchestrator>
     {
         private List<WebServerOrchestrator> innerCollection = new List<WebServerOrchestrator>();
         public IMemoryCache Cache { get; }
@@ -23,7 +23,7 @@ namespace Dotmim.Sync.Web.Server
 
         public string Hint { get; set; }
 
-        public WebServerProperties(IMemoryCache cache, IHostingEnvironment env)
+        public WebServerManager(IMemoryCache cache, IHostingEnvironment env)
         {
             this.Cache = cache;
             this.Environment = env;
@@ -47,7 +47,7 @@ namespace Dotmim.Sync.Web.Server
             await this[scopeName].HandleRequestAsync(context, cancellationToken, progress).ConfigureAwait(false);
         }
 
-       
+
 
         /// <summary>
         /// Add a new WebServerOrchestrator to the collection of WebServerOrchestrator
@@ -80,7 +80,33 @@ namespace Dotmim.Sync.Web.Server
             }
         }
 
+        /// <summary>
+        /// Get a WebServerOrchestrator by its scope name
+        /// </summary>
+        public WebServerOrchestrator GetOrchestrator(string scopeName)
+        {
+            if (string.IsNullOrEmpty(scopeName))
+                throw new ArgumentNullException("scopeName");
 
+            var wsp = innerCollection.FirstOrDefault(c => c.ScopeName.Equals(scopeName, SyncGlobalization.DataSourceStringComparison));
+
+            if (wsp == null)
+                throw new ArgumentNullException($"Scope name {scopeName} does not exists");
+
+            return wsp;
+        }
+
+        /// <summary>
+        /// Get a WebServerOrchestrator with Scope name == SyncOptions.
+        /// </summary>
+        public WebServerOrchestrator GetOrchestrator(HttpContext context)
+        {
+            if (!WebServerOrchestrator.TryGetHeaderValue(context.Request.Headers, "dotmim-sync-scope-name", out var scopeName))
+                throw new HttpHeaderMissingExceptiopn("dotmim-sync-scope-name");
+
+            return GetOrchestrator(scopeName);
+
+        }
 
 
         private async Task WriteHelloAsync(HttpContext context, CancellationToken cancellationToken)

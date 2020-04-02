@@ -12,30 +12,39 @@ namespace Dotmim.Sync.SampleWebServer.Controllers
     [ApiController]
     public class SyncController : ControllerBase
     {
-        private WebServerProperties webProxyServer;
+        private WebServerManager webServerManager;
 
         // Injected thanks to Dependency Injection
-        public SyncController(WebServerProperties proxy) => this.webProxyServer = proxy;
+        public SyncController(WebServerManager webServerManager) => this.webServerManager = webServerManager;
 
         [HttpPost]
         public async Task Post()
         {
-            //webProxyServer.WebServerOrchestrator.OnApplyChangesFailed(e =>
-            //{
-            //    if (e.Conflict.RemoteRow.Table.TableName == "Region")
-            //    {
-            //        e.Resolution = ConflictResolution.MergeRow;
-            //        e.FinalRow["RegionDescription"] = "Eastern alone !";
-            //    }
-            //    else
-            //    {
-            //        e.Resolution = ConflictResolution.ServerWins;
-            //    }
-            //});
+            // Get Orchestrator regarding the incoming scope name (from http context)
+            var orchestrator = webServerManager.GetOrchestrator(this.HttpContext);
 
-            
+            orchestrator.OnApplyChangesFailed(e =>
+            {
+                if (e.Conflict.RemoteRow.Table.TableName == "Region")
+                {
+                    e.Resolution = ConflictResolution.MergeRow;
+                    e.FinalRow["RegionDescription"] = "Eastern alone !";
+                }
+                else
+                {
+                    e.Resolution = ConflictResolution.ServerWins;
+                }
+            });
 
-            await webProxyServer.HandleRequestAsync(this.HttpContext);
+            var progress = new SynchronousProgress<ProgressArgs>(pa =>
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine($"{pa.Context.SyncStage}\t {pa.Message}");
+                Console.ResetColor();
+            });
+
+            // handle request
+            await webServerManager.HandleRequestAsync(this.HttpContext);
         }
     }
 }

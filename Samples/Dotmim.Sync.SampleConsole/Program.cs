@@ -572,7 +572,7 @@ internal class Program
 
         var serverHandler = new RequestDelegate(async context =>
         {
-            var webProxyServer = context.RequestServices.GetService(typeof(WebServerProperties)) as WebServerProperties;
+            var webServerManager = context.RequestServices.GetService(typeof(WebServerManager)) as WebServerManager;
 
             var progress = new SynchronousProgress<ProgressArgs>(pa =>
             {
@@ -581,7 +581,7 @@ internal class Program
                 Console.ResetColor();
             });
 
-            await webProxyServer.HandleRequestAsync(context, default, progress);
+            await webServerManager.HandleRequestAsync(context, default, progress);
         });
 
         using (var server = new KestrellTestServer(configureServices))
