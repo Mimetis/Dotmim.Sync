@@ -41,32 +41,31 @@ namespace Microsoft.Extensions.DependencyInjection
             var serviceProvider = serviceCollection.BuildServiceProvider();
 
             // Get all registered server providers with schema and options
-            var webServerProperties = serviceProvider.GetService<WebServerProperties>();
+            var webServerManager = serviceProvider.GetService<WebServerManager>();
 
             // On first time, inject the singleton in the service collection provider
-            if (webServerProperties == null)
+            if (webServerManager == null)
             {
                 var cache = serviceProvider.GetService<IMemoryCache>();
                 var env = serviceProvider.GetService<IHostingEnvironment>();
 
-                webServerProperties = new WebServerProperties(cache, env);
-                serviceCollection.AddSingleton(webServerProperties);
+                webServerManager = new WebServerManager(cache, env);
+                serviceCollection.AddSingleton(webServerManager);
             }
 
             // Check if we don't have already added this scope name provider to the remote orchestrator list
-            if (webServerProperties.Contains(scopeName))
+            if (webServerManager.Contains(scopeName))
                 throw new ArgumentException($"Orchestrator with scope name {scopeName} already exists in the service collection");
 
             // Create provider
             var provider = (CoreProvider)Activator.CreateInstance(providerType);
             provider.ConnectionString = connectionString;
-            provider.Options = options;
 
             // Create orchestrator
-            var webServerOrchestrator = new WebServerOrchestrator(provider, options, webServerOptions, setup, webServerProperties.Cache, scopeName);
+            var webServerOrchestrator = new WebServerOrchestrator(provider, options, webServerOptions, setup, webServerManager.Cache, scopeName);
 
             // add it to the singleton collection
-            webServerProperties.Add(webServerOrchestrator);
+            webServerManager.Add(webServerOrchestrator);
 
             return serviceCollection;
         }
@@ -77,23 +76,23 @@ namespace Microsoft.Extensions.DependencyInjection
             var serviceProvider = serviceCollection.BuildServiceProvider();
 
             // Get all registered server providers with schema and options
-            var webServerProperties = serviceProvider.GetService<WebServerProperties>();
+            var webServerManager = serviceProvider.GetService<WebServerManager>();
 
-            if (webServerProperties == null)
+            if (webServerManager == null)
             {
                 var cache = serviceProvider.GetService<IMemoryCache>();
                 var env = serviceProvider.GetService<IHostingEnvironment>();
 
-                webServerProperties = new WebServerProperties(cache, env); 
-                serviceCollection.AddSingleton(webServerProperties);
+                webServerManager = new WebServerManager(cache, env); 
+                serviceCollection.AddSingleton(webServerManager);
             }
            
             // Check if we don't have already added this scope name provider to the remote orchestrator list
-            if (webServerProperties.Contains(webServerOrchestrator.ScopeName))
+            if (webServerManager.Contains(webServerOrchestrator.ScopeName))
                 throw new ArgumentException($"Orchestrator with scope name {webServerOrchestrator.ScopeName} already exists in the service collection");
 
             // add it to the singleton collection
-            webServerProperties.Add(webServerOrchestrator);
+            webServerManager.Add(webServerOrchestrator);
 
             return serviceCollection;
         }

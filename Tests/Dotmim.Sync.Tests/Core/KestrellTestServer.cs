@@ -61,7 +61,7 @@ namespace Dotmim.Sync.Tests
             // Create server web proxy
             var serverHandler = new RequestDelegate(async context =>
             {
-                var webProxyServer = context.RequestServices.GetService<WebServerProperties>();
+                var webProxyServer = context.RequestServices.GetService<WebServerManager>();
                 await webProxyServer.HandleRequestAsync(context);
             });
 
