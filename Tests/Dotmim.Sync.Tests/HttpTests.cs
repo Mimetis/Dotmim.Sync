@@ -1630,11 +1630,12 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // snapshot directory
-            var directory = Path.Combine(Environment.CurrentDirectory, "Snapshots_H");
+            var snapshotDirctoryName = HelperDatabase.GetRandomName();
+            var snapshotDirectory = Path.Combine(Environment.CurrentDirectory, snapshotDirctoryName);
 
             // configure server orchestrator
             this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
-            this.WebServerOrchestrator.Options.SnapshotsDirectory = directory;
+            this.WebServerOrchestrator.Options.SnapshotsDirectory = snapshotDirectory;
             this.WebServerOrchestrator.Options.BatchSize = 2000;
 
             // ----------------------------------
