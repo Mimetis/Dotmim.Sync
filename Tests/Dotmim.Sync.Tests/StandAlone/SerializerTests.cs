@@ -155,12 +155,6 @@ namespace Dotmim.Sync.Tests.StandAlone
             outSchema.EnsureSchema();
 
             Assert.NotNull(outSchema);
-            Assert.Equal("spp", outSchema.StoredProceduresPrefix);
-            Assert.Equal("sps", outSchema.StoredProceduresSuffix);
-            Assert.Equal("ttp", outSchema.TrackingTablesPrefix);
-            Assert.Equal("tts", outSchema.TrackingTablesSuffix);
-            Assert.Equal("tp", outSchema.TriggersPrefix);
-            Assert.Equal("ts", outSchema.TriggersSuffix);
             Assert.NotEmpty(outSchema.Tables);
             Assert.NotEmpty(outSchema.Filters);
             Assert.NotEmpty(outSchema.Relations);
@@ -266,12 +260,6 @@ namespace Dotmim.Sync.Tests.StandAlone
         private static SyncSet CreateSchema()
         {
             var set = new SyncSet();
-            set.StoredProceduresPrefix = "spp";
-            set.StoredProceduresSuffix = "sps";
-            set.TrackingTablesPrefix = "ttp";
-            set.TrackingTablesSuffix = "tts";
-            set.TriggersPrefix = "tp";
-            set.TriggersSuffix = "ts";
 
             var tbl = new SyncTable("ServiceTickets", null);
             tbl.OriginalProvider = "SqlServerProvider";

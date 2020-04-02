@@ -21,7 +21,7 @@ namespace Dotmim.Sync.Sqlite
         private ParserName tableName, trackingName;
 
         public SyncTable TableDescription { get; }
-
+        public SyncSetup Setup { get; }
 
         public void AddName(DbCommandType objectType, string name)
         {
@@ -44,10 +44,11 @@ namespace Dotmim.Sync.Sqlite
             return commandName;
         }
 
-        public SqliteObjectNames(SyncTable tableDescription)
+        public SqliteObjectNames(SyncTable tableDescription, SyncSetup setup)
         {
             this.TableDescription = tableDescription;
-            (tableName, trackingName) = SqliteTableBuilder.GetParsers(this.TableDescription);
+            this.Setup = setup;
+            (tableName, trackingName) = SqliteTableBuilder.GetParsers(this.TableDescription, this.Setup);
 
             SetDefaultNames();
         }
@@ -57,8 +58,8 @@ namespace Dotmim.Sync.Sqlite
         /// </summary>
         private void SetDefaultNames()
         {
-            var tpref = this.TableDescription.Schema.TriggersPrefix != null ? this.TableDescription.Schema.TriggersPrefix : "";
-            var tsuf = this.TableDescription.Schema.TriggersSuffix != null ? this.TableDescription.Schema.TriggersSuffix : "";
+            var tpref = this.Setup.TriggersPrefix != null ? this.Setup.TriggersPrefix : "";
+            var tsuf = this.Setup.TriggersSuffix != null ? this.Setup.TriggersSuffix : "";
 
             this.AddName(DbCommandType.InsertTrigger, string.Format(insertTriggerName, $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}"));
             this.AddName(DbCommandType.UpdateTrigger, string.Format(updateTriggerName, $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}"));

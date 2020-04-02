@@ -19,7 +19,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Deprovision a database. You have to passe a configuration object, containing at least the dmTables
         /// </summary>
-        public async Task<SyncContext> DeprovisionAsync(SyncContext context, SyncSet schema, SyncProvision provision, string scopeInfoTableName,
+        public async Task<SyncContext> DeprovisionAsync(SyncContext context, SyncSet schema, SyncSetup setup, SyncProvision provision, string scopeInfoTableName,
                              bool disableConstraintsOnApplyChanges, DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
@@ -35,7 +35,7 @@ namespace Dotmim.Sync
             // Disable check constraints
             if (disableConstraintsOnApplyChanges)
                 foreach (var table in schema.Tables.Reverse())
-                    await this.DisableConstraintsAsync(context, table, connection, transaction).ConfigureAwait(false);
+                    await this.DisableConstraintsAsync(context, table, setup, connection, transaction).ConfigureAwait(false);
 
             // Sorting tables based on dependencies between them
             var schemaTables = schema.Tables
@@ -44,7 +44,7 @@ namespace Dotmim.Sync
 
             foreach (var schemaTable in schemaTables)
             {
-                var tableBuilder = this.GetTableBuilder(schemaTable);
+                var tableBuilder = this.GetTableBuilder(schemaTable, setup);
                 // set if the builder supports creating the bulk operations proc stock
                 tableBuilder.UseBulkProcedures = this.SupportBulkOperations;
                 tableBuilder.UseChangeTracking = this.UseChangeTracking;
@@ -75,7 +75,7 @@ namespace Dotmim.Sync
         /// Be sure all tables are ready and configured for sync
         /// the ScopeSet Configuration MUST be filled by the schema form Database
         /// </summary>
-        public virtual async Task<SyncContext> ProvisionAsync(SyncContext context, SyncSet schema, SyncProvision provision, string scopeInfoTableName,
+        public virtual async Task<SyncContext> ProvisionAsync(SyncContext context, SyncSet schema, SyncSetup setup, SyncProvision provision, string scopeInfoTableName,
                              DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
@@ -109,7 +109,7 @@ namespace Dotmim.Sync
 
             foreach (var schemaTable in schemaTables)
             {
-                var tableBuilder = this.GetTableBuilder(schemaTable);
+                var tableBuilder = this.GetTableBuilder(schemaTable, setup);
                 // set if the builder supports creating the bulk operations proc stock
                 tableBuilder.UseBulkProcedures = this.SupportBulkOperations;
                 tableBuilder.UseChangeTracking = this.UseChangeTracking;

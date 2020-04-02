@@ -30,9 +30,9 @@ namespace Dotmim.Sync.Tests.UnitTests
 
         public override DbScopeBuilder GetScopeBuilder() => new MockScopeBuilder();
 
-        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription)
+        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, SyncSetup setup)
         {
-            return new MockTableBuilder(tableDescription);
+            return new MockTableBuilder(tableDescription, setup);
         }
 
         public override DbTableManagerFactory GetTableManagerFactory(string tableName, string schemaName)

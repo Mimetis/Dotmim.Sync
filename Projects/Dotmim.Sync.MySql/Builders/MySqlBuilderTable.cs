@@ -19,13 +19,14 @@ namespace Dotmim.Sync.MySql
         private readonly ParserName tableName;
         private readonly ParserName trackingName;
         private readonly SyncTable tableDescription;
+        private readonly SyncSetup setup;
         private readonly MySqlConnection connection;
         private readonly MySqlTransaction transaction;
         private readonly MySqlDbMetadata mySqlDbMetadata;
 
         private static Dictionary<string, string> createdRelationNames = new Dictionary<string, string>();
 
-        private static string GetRandomString() 
+        private static string GetRandomString()
             => Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
 
         /// <summary>
@@ -45,13 +46,14 @@ namespace Dotmim.Sync.MySql
 
             return name;
         }
-        public MySqlBuilderTable(SyncTable tableDescription, DbConnection connection, DbTransaction transaction = null)
+        public MySqlBuilderTable(SyncTable tableDescription, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
         {
 
             this.connection = connection as MySqlConnection;
             this.transaction = transaction as MySqlTransaction;
             this.tableDescription = tableDescription;
-            (this.tableName, this.trackingName) = MyTableSqlBuilder.GetParsers(this.tableDescription);
+            this.setup = setup;
+            (this.tableName, this.trackingName) = MyTableSqlBuilder.GetParsers(this.tableDescription, setup);
             this.mySqlDbMetadata = new MySqlDbMetadata();
         }
 
@@ -169,7 +171,7 @@ namespace Dotmim.Sync.MySql
 
         public Task CreatePrimaryKeyAsync() => Task.CompletedTask;
 
-    
+
         private MySqlCommand BuildTableCommand()
         {
             var command = new MySqlCommand();
@@ -276,7 +278,7 @@ namespace Dotmim.Sync.MySql
         /// <summary>
         /// Check if we need to create the table in the current database
         /// </summary>
-        public async Task<bool> NeedToCreateTableAsync() 
+        public async Task<bool> NeedToCreateTableAsync()
             => !(await MySqlManagementUtils.TableExistsAsync(this.connection, this.transaction, this.tableName).ConfigureAwait(false));
 
         public Task<bool> NeedToCreateSchemaAsync() => Task.FromResult(false);
@@ -315,6 +317,6 @@ namespace Dotmim.Sync.MySql
             }
 
         }
-      
+
     }
 }

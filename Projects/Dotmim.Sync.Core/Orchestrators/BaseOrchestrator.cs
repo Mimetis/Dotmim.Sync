@@ -234,7 +234,7 @@ namespace Dotmim.Sync
 
                         await this.InterceptAsync(new DatabaseProvisioningArgs(ctx, provision, schema, connection, transaction), cancellationToken).ConfigureAwait(false);
 
-                        await this.Provider.ProvisionAsync(ctx, schema, provision, this.Options.ScopeInfoTableName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        await this.Provider.ProvisionAsync(ctx, schema, this.Setup, provision, this.Options.ScopeInfoTableName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                         await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
 
@@ -304,7 +304,7 @@ namespace Dotmim.Sync
 
                         await this.InterceptAsync(new DatabaseDeprovisioningArgs(ctx, provision, schema, connection, transaction), cancellationToken).ConfigureAwait(false);
 
-                        await this.Provider.DeprovisionAsync(ctx, schema, provision, this.Options.ScopeInfoTableName, this.Options.DisableConstraintsOnApplyChanges, connection, transaction, cancellationToken, progress);
+                        await this.Provider.DeprovisionAsync(ctx, schema, this.Setup, provision, this.Options.ScopeInfoTableName, this.Options.DisableConstraintsOnApplyChanges, connection, transaction, cancellationToken, progress);
 
                         await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
 
@@ -424,7 +424,7 @@ namespace Dotmim.Sync
                         // No need columns or primary keys to be able to deprovision a table
                         SyncSet schema = new SyncSet(this.Setup);
 
-                        ctx = await this.Provider.DeleteMetadatasAsync(ctx, schema, timeStampStart, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        ctx = await this.Provider.DeleteMetadatasAsync(ctx, schema, this.Setup, timeStampStart, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                         await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
 

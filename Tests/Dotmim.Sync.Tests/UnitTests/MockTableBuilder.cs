@@ -8,7 +8,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 {
     public class MockTableBuilder : DbTableBuilder
     {
-        public MockTableBuilder(SyncTable tableDescription) : base(tableDescription)
+        public MockTableBuilder(SyncTable tableDescription, SyncSetup setup) : base(tableDescription, setup)
         {
         }
 
@@ -16,7 +16,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             => new MockBuilderProcedureHelper();
 
         public override DbSyncAdapter CreateSyncAdapter(DbConnection connection, DbTransaction transaction = null)
-            => new MockSyncAdapter(this.TableDescription, connection, transaction);
+            => new MockSyncAdapter(this.TableDescription, this.Setup, connection, transaction);
 
         public override IDbBuilderTableHelper CreateTableBuilder(DbConnection connection, DbTransaction transaction = null)
             => new MockBuilderTableHelper();
