@@ -312,6 +312,7 @@ namespace Dotmim.Sync
                         scope.LastSyncTimestamp = clientTimestamp;
                         scope.LastServerSyncTimestamp = remoteClientTimestamp;
                         scope.LastSyncDuration = this.CompleteTime.Value.Subtract(this.StartTime.Value).Ticks;
+                        scope.Setup = JsonConvert.SerializeObject(this.Setup);
 
                         // Write scopes locally
                         ctx = await this.Provider.WriteClientScopeAsync(ctx, this.Options.ScopeInfoTableName, scope, connection, transaction, cancellationToken, progress).ConfigureAwait(false);

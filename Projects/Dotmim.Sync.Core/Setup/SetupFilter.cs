@@ -11,39 +11,45 @@ namespace Dotmim.Sync
     /// <summary>
     /// Design a filter clause on Dmtable
     /// </summary>
+    [DataContract(Name = "sf"), Serializable]
     public class SetupFilter : IEquatable<SetupFilter>
     {
-        /// <summary>
-        /// Gets the custom joins list, used with custom wheres
-        /// </summary>
-        public List<SetupFilterJoin> Joins { get; } = new List<SetupFilterJoin>();
-
-        /// <summary>
-        /// Gets the custom joins list, used with custom wheres
-        /// </summary>
-        public List<string> CustomWheres { get; } = new List<string>();
-
-        /// <summary>
-        /// Gets the parameters list, used as input in the stored procedure
-        /// </summary>
-        public List<SetupFilterParameter> Parameters { get; } = new List<SetupFilterParameter>();
-
-        /// <summary>
-        /// Side where filters list
-        /// </summary>
-        public List<(string columName, string tableName, string parameterName, string schemaName)> Where { get; } = new List<(string columName, string tableName, string parameterName, string schemaName)>();
-
 
         /// <summary>
         /// Gets or Sets the name of the table where the filter will be applied (and so the _Changes stored proc)
         /// </summary>
+        [DataMember(Name = "tn", IsRequired = true, Order = 1)]
         public string TableName { get; set; }
 
         /// <summary>
         /// Gets or Sets the schema name of the table where the filter will be applied (and so the _Changes stored proc)
         /// </summary>
+        [DataMember(Name = "sn", IsRequired = false, EmitDefaultValue = false, Order = 2)]
         public string SchemaName { get; set; }
 
+        /// <summary>
+        /// Gets the custom joins list, used with custom wheres
+        /// </summary>
+        [DataMember(Name = "j", IsRequired = false, EmitDefaultValue = false, Order = 3)]
+        public List<SetupFilterJoin> Joins { get; } = new List<SetupFilterJoin>();
+
+        /// <summary>
+        /// Gets the custom joins list, used with custom wheres
+        /// </summary>
+        [DataMember(Name = "cw", IsRequired = false, EmitDefaultValue = false, Order = 4)]
+        public List<string> CustomWheres { get; } = new List<string>();
+
+        /// <summary>
+        /// Gets the parameters list, used as input in the stored procedure
+        /// </summary>
+        [DataMember(Name = "p", IsRequired = false, EmitDefaultValue = false, Order = 5)]
+        public List<SetupFilterParameter> Parameters { get; } = new List<SetupFilterParameter>();
+
+        /// <summary>
+        /// Side where filters list
+        /// </summary>
+        [DataMember(Name = "w", IsRequired = false, EmitDefaultValue = false, Order = 5)]
+        public List<SetupFilterWhere> Where { get; } = new List<SetupFilterWhere>();
 
         /// <summary>
         /// Creates a filterclause allowing to specify a different DbType.
@@ -61,7 +67,7 @@ namespace Dotmim.Sync
         /// For SQL Server, parameter will be added as @{parameterName}
         /// For MySql, parameter will be added as in_{parameterName}
         /// </summary>
-        public void AddParameter(string parameterName, DbType type, bool allowNull = false, string defaultValue = null,  int maxLength = 0)
+        public void AddParameter(string parameterName, DbType type, bool allowNull = false, string defaultValue = null, int maxLength = 0)
         {
 
             if (this.Parameters.Any(p => string.Equals(p.Name, parameterName, SyncGlobalization.DataSourceStringComparison)))
@@ -123,7 +129,7 @@ namespace Dotmim.Sync
             if (!this.Parameters.Any(p => string.Equals(p.Name, parameterName, SyncGlobalization.DataSourceStringComparison)))
                 throw new FilterTrackingWhereException(parameterName);
 
-            this.Where.Add((columnName, tableName, parameterName, schemaName));
+            this.Where.Add(new SetupFilterWhere { ColumnName = columnName, TableName = tableName, ParameterName = parameterName, SchemaName = schemaName });
             return this;
         }
 
