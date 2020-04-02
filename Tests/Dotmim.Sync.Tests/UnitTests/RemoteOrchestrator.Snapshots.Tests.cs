@@ -68,7 +68,9 @@ namespace Dotmim.Sync.Tests.UnitTests
             var onSnapshotCreated = false;
 
 
-            var snapshotDirectory = Path.Combine(Environment.CurrentDirectory, "Snapshots_R");
+            // snapshot directory
+            var snapshotDirctoryName = HelperDatabase.GetRandomName();
+            var snapshotDirectory = Path.Combine(Environment.CurrentDirectory, snapshotDirctoryName);
 
             var options = new SyncOptions
             {
@@ -144,8 +146,9 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var scopeName = "scopesnap2";
 
-
-            var snapshotDirectory = Path.Combine(Environment.CurrentDirectory, "Snapshots_U");
+            // snapshot directory
+            var snapshotDirctoryName = HelperDatabase.GetRandomName();
+            var snapshotDirectory = Path.Combine(Environment.CurrentDirectory, snapshotDirctoryName);
 
             var options = new SyncOptions
             {
@@ -205,9 +208,9 @@ namespace Dotmim.Sync.Tests.UnitTests
             var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, true);
             await ctx.Database.EnsureCreatedAsync();
 
-          
-
-            var snapshotDirectory = Path.Combine(Environment.CurrentDirectory, "Snapshots_B");
+            // snapshot directory
+            var snapshotDirctoryName = HelperDatabase.GetRandomName();
+            var snapshotDirectory = Path.Combine(Environment.CurrentDirectory, snapshotDirctoryName);
 
             var options = new SyncOptions
             {
@@ -305,7 +308,10 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var scopeName = "scopesnap";
 
-            var snapshotDirectory = Path.Combine(Environment.CurrentDirectory, "Snapshots_E");
+            // snapshot directory
+            var snapshotDirctoryName = HelperDatabase.GetRandomName();
+            var snapshotDirectory = Path.Combine(Environment.CurrentDirectory, snapshotDirctoryName);
+
             var options = new SyncOptions { SnapshotsDirectory = snapshotDirectory };
 
             var setup = new SyncSetup(Tables);
