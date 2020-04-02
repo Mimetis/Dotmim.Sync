@@ -82,7 +82,7 @@ namespace Dotmim.Sync.SqlServer.Manager
                 }
 
             }
-            return relations.ToArray();
+            return relations.OrderBy(t => t.ForeignKey).ToArray();
         }
 
         public async Task<IEnumerable<SyncColumn>> GetColumnsAsync() 

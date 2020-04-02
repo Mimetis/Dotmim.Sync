@@ -1,17 +1,41 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
+using System.Reflection;
 using System.Text;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace Dotmim.Sync.Tests.UnitTests
 {
-    public class SyncTypeConverterTests
+    public class SyncTypeConverterTests : IDisposable
     {
-        public SyncTypeConverterTests()
+        // Current test running
+        private ITest test;
+        private Stopwatch stopwatch;
+        public ITestOutputHelper Output { get; }
+
+        public SyncTypeConverterTests(ITestOutputHelper output)
         {
 
+            // Getting the test running
+            this.Output = output;
+            var type = output.GetType();
+            var testMember = type.GetField("test", BindingFlags.Instance | BindingFlags.NonPublic);
+            this.test = (ITest)testMember.GetValue(output);
+            this.stopwatch = Stopwatch.StartNew();
         }
+
+        public void Dispose()
+        {
+            this.stopwatch.Stop();
+
+            var str = $"{test.TestCase.DisplayName} : {this.stopwatch.Elapsed.Minutes}:{this.stopwatch.Elapsed.Seconds}.{this.stopwatch.Elapsed.Milliseconds}";
+            Console.WriteLine(str);
+            Debug.WriteLine(str);
+        }
+
 
         [Theory]
         [InlineData("12")]

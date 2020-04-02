@@ -242,6 +242,9 @@ namespace Dotmim.Sync
                 {
                     ctx.SyncStage = SyncStage.ChangesApplying;
 
+                    //Direction set to Upload
+                    ctx.SyncWay = SyncWay.Upload;
+
                     // Open connection
                     await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
 
@@ -251,6 +254,7 @@ namespace Dotmim.Sync
                     // Second one to get changes now that everything is commited
                     using (transaction = connection.BeginTransaction())
                     {
+
                         await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
 
                         ServerScopeInfo serverScopeInfo;
@@ -273,6 +277,7 @@ namespace Dotmim.Sync
 
                         // deserialiaze schema
                         schema = JsonConvert.DeserializeObject<SyncSet>(serverScopeInfo.Schema);
+
 
                         // Create message containing everything we need to apply on server side
                         var applyChanges = new MessageApplyChanges(Guid.Empty, clientScope.Id, false, clientScope.LastServerSyncTimestamp, schema, this.Options.ConflictResolutionPolicy,
