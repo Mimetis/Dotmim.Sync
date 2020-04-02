@@ -7,16 +7,19 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace Dotmim.Sync.Tests.UnitTests
 {
-    public partial class RemoteOrchestratorTests
+    public partial class RemoteOrchestratorTests : IDisposable
     {
         public string[] Tables => new string[]
         {
@@ -25,6 +28,30 @@ namespace Dotmim.Sync.Tests.UnitTests
             "PricesList", "PricesListCategory", "PricesListDetail"
         };
 
+        // Current test running
+        private ITest test;
+        private Stopwatch stopwatch;
+        public ITestOutputHelper Output { get; }
+
+        public RemoteOrchestratorTests(ITestOutputHelper output)
+        {
+
+            // Getting the test running
+            this.Output = output;
+            var type = output.GetType();
+            var testMember = type.GetField("test", BindingFlags.Instance | BindingFlags.NonPublic);
+            this.test = (ITest)testMember.GetValue(output);
+            this.stopwatch = Stopwatch.StartNew();
+        }
+
+        public void Dispose()
+        {
+            this.stopwatch.Stop();
+
+            var str = $"{test.TestCase.DisplayName} : {this.stopwatch.Elapsed.Minutes}:{this.stopwatch.Elapsed.Seconds}.{this.stopwatch.Elapsed.Milliseconds}";
+            Console.WriteLine(str);
+            Debug.WriteLine(str);
+        }
 
         [Fact]
         public async Task RemoteOrchestrator_CreateSnapshot_CheckInterceptors()

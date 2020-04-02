@@ -124,7 +124,7 @@ namespace Dotmim.Sync.MySql
                 }
             }
 
-            return relations.ToArray();
+            return relations.OrderBy(t => t.ForeignKey).ToArray();
         }
 
         public async Task<IEnumerable<SyncColumn>> GetPrimaryKeysAsync()

@@ -274,6 +274,9 @@ namespace Dotmim.Sync
                         var lastSyncTS = scope.LastSyncTimestamp;
                         // isNew : if IsNew, don't apply deleted rows from server
                         var isNew = scope.IsNewScope;
+                        // We are in downloading mode
+                        ctx.SyncWay = SyncWay.Download;
+
 
                         // Create the message containing everything needed to apply changes
                         var applyChanges = new MessageApplyChanges(scope.Id, Guid.Empty, isNew, lastSyncTS, schema, policy,
