@@ -63,6 +63,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             Assert.NotNull(orchestrator.Options);
             Assert.Same(options, orchestrator.Options);
+            Assert.Same(options, provider.Options);
 
             Assert.NotNull(orchestrator.Provider);
             Assert.Same(provider, orchestrator.Provider);

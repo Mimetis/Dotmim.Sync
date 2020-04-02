@@ -35,6 +35,9 @@ namespace Microsoft.Extensions.DependencyInjection
             if (webServerOptions == null)
                 webServerOptions = new WebServerOptions();
 
+            options = options ?? new SyncOptions();
+            setup = setup ?? throw new ArgumentNullException(nameof(setup));
+
             var serviceProvider = serviceCollection.BuildServiceProvider();
 
             // Get all registered server providers with schema and options
@@ -57,6 +60,7 @@ namespace Microsoft.Extensions.DependencyInjection
             // Create provider
             var provider = (CoreProvider)Activator.CreateInstance(providerType);
             provider.ConnectionString = connectionString;
+            provider.Options = options;
 
             // Create orchestrator
             var webServerOrchestrator = new WebServerOrchestrator(provider, options, webServerOptions, setup, webServerProperties.Cache, scopeName);
