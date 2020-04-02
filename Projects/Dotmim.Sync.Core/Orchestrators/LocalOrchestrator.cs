@@ -126,7 +126,7 @@ namespace Dotmim.Sync
         /// </summary>
         /// <returns></returns>
         public async Task<(long clientTimestamp, BatchInfo clientBatchInfo, DatabaseChangesSelected clientChangesSelected)>
-            GetChangesAsync(ScopeInfo localScopeInfo, CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+            GetChangesAsync(ScopeInfo localScopeInfo = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (!this.StartTime.HasValue)
                 this.StartTime = DateTime.UtcNow;
@@ -145,16 +145,22 @@ namespace Dotmim.Sync
                 {
                     ctx.SyncStage = SyncStage.ChangesSelecting;
 
-                    // Check if we have a schema in local scope info
-                    if (localScopeInfo == null || string.IsNullOrEmpty(localScopeInfo.Schema))
-                        throw new ArgumentNullException("can't get changes if we don't have a scope info fill with a schema stored in it");
-
                     // Open connection
                     await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
 
                     using (var transaction = connection.BeginTransaction())
                     {
                         await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+
+                        // Get local scope, if not provided 
+                        if (localScopeInfo == null)
+                        {
+                            // Ensure table exists
+                            ctx = await this.Provider.EnsureClientScopeAsync(ctx, this.Options.ScopeInfoTableName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                            // Get scope info
+                            (ctx, localScopeInfo) = await this.Provider.GetClientScopeAsync(ctx, this.Options.ScopeInfoTableName, this.ScopeName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        }
 
                         // Get concrete schema
                         var schema = JsonConvert.DeserializeObject<SyncSet>(localScopeInfo.Schema);
@@ -192,7 +198,7 @@ namespace Dotmim.Sync
                         }
 
                         // Creating the message
-                        var message = new MessageGetChangesBatch(remoteScopeId, localScopeInfo.Id, isNew, lastSyncTS, schema, this.Options.BatchSize, this.Options.BatchDirectory);
+                        var message = new MessageGetChangesBatch(remoteScopeId, localScopeInfo.Id, isNew, lastSyncTS, schema, this.Setup, this.Options.BatchSize, this.Options.BatchDirectory);
 
                         // Call interceptor
                         await this.InterceptAsync(new DatabaseChangesSelectingArgs(ctx, message, connection, transaction), cancellationToken).ConfigureAwait(false);
@@ -247,7 +253,7 @@ namespace Dotmim.Sync
         public async Task<(DatabaseChangesApplied ChangesApplied, ScopeInfo ClientScopeInfo)>
             ApplyChangesAsync(ScopeInfo scope, SyncSet schema, BatchInfo serverBatchInfo,
                               long clientTimestamp, long remoteClientTimestamp, ConflictResolutionPolicy policy,
-                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+                              CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (!this.StartTime.HasValue)
                 this.StartTime = DateTime.UtcNow;
@@ -279,7 +285,7 @@ namespace Dotmim.Sync
 
 
                         // Create the message containing everything needed to apply changes
-                        var applyChanges = new MessageApplyChanges(scope.Id, Guid.Empty, isNew, lastSyncTS, schema, policy,
+                        var applyChanges = new MessageApplyChanges(scope.Id, Guid.Empty, isNew, lastSyncTS, schema, this.Setup, policy,
                                         this.Options.DisableConstraintsOnApplyChanges,
                                         this.Options.UseBulkOperations, this.Options.CleanMetadatas, this.Options.CleanFolder,
                                         serverBatchInfo);
@@ -295,7 +301,7 @@ namespace Dotmim.Sync
 
                         // check if we need to delete metadatas
                         if (this.Options.CleanMetadatas && clientChangesApplied.TotalAppliedChanges > 0)
-                            await this.Provider.DeleteMetadatasAsync(ctx, schema, lastSyncTS, connection, transaction, cancellationToken, progress);
+                            await this.Provider.DeleteMetadatasAsync(ctx, schema, this.Setup, lastSyncTS, connection, transaction, cancellationToken, progress);
 
                         // now the sync is complete, remember the time
                         this.CompleteTime = DateTime.UtcNow;
@@ -336,8 +342,8 @@ namespace Dotmim.Sync
         }
 
 
-        public async Task<(DatabaseChangesApplied snapshotChangesApplied, ScopeInfo clientScopeInfo)> 
-            ApplySnapshotAsync(ScopeInfo clientScopeInfo, BatchInfo serverBatchInfo, long clientTimestamp, long remoteClientTimestamp, CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+        public async Task<(DatabaseChangesApplied snapshotChangesApplied, ScopeInfo clientScopeInfo)>
+            ApplySnapshotAsync(ScopeInfo clientScopeInfo, BatchInfo serverBatchInfo, long clientTimestamp, long remoteClientTimestamp, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (!this.StartTime.HasValue)
                 this.StartTime = DateTime.UtcNow;

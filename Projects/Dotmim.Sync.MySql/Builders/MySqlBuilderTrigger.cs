@@ -1,7 +1,6 @@
 ﻿using Dotmim.Sync.Builders;
 using MySql.Data.MySqlClient;
 using System;
-using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics;
@@ -16,17 +15,19 @@ namespace Dotmim.Sync.MySql
         private ParserName tableName;
         private ParserName trackingName;
         private SyncTable tableDescription;
+        private SyncSetup setup;
         private MySqlConnection connection;
         private MySqlTransaction transaction;
         private MySqlObjectNames mySqlObjectNames;
 
-        public MySqlBuilderTrigger(SyncTable tableDescription, DbConnection connection, DbTransaction transaction = null)
+        public MySqlBuilderTrigger(SyncTable tableDescription, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
         {
             this.connection = connection as MySqlConnection;
             this.transaction = transaction as MySqlTransaction;
             this.tableDescription = tableDescription;
-            (this.tableName, this.trackingName) = MyTableSqlBuilder.GetParsers(this.tableDescription);
-            this.mySqlObjectNames = new MySqlObjectNames(this.tableDescription);
+            this.setup = setup;
+            (this.tableName, this.trackingName) = MyTableSqlBuilder.GetParsers(this.tableDescription, setup);
+            this.mySqlObjectNames = new MySqlObjectNames(this.tableDescription, this.setup);
         }
 
         private string DeleteTriggerBodyText()
@@ -35,7 +36,7 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("BEGIN");
 
-            stringBuilder.AppendLine($"\tINSERT INTO {trackingName.Quoted().ToString()} (");
+            stringBuilder.AppendLine($"\tINSERT INTO {this.trackingName.Quoted()} (");
 
             StringBuilder stringBuilderArguments = new StringBuilder();
             StringBuilder stringBuilderArguments2 = new StringBuilder();
@@ -45,11 +46,11 @@ namespace Dotmim.Sync.MySql
             string argAnd = string.Empty;
             foreach (var mutableColumn in this.tableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
             {
-                var columnName = ParserName.Parse(mutableColumn, "`").Quoted().ToString();
+                var columnName = ParserName.Parse(mutableColumn, "`").Quoted();
 
                 stringBuilderArguments.AppendLine($"\t\t{argComma}{columnName}");
                 stringBuilderArguments2.AppendLine($"\t\t{argComma}old.{columnName}");
-                stringPkAreNull.Append($"{argAnd}{trackingName.Quoted().ToString()}.{columnName} IS NULL");
+                stringPkAreNull.Append($"{argAnd}{trackingName.Quoted()}.{columnName} IS NULL");
                 argComma = ",";
                 argAnd = " AND ";
             }

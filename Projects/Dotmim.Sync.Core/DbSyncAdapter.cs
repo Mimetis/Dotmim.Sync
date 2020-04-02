@@ -29,6 +29,7 @@ namespace Dotmim.Sync
         /// Gets the table description
         /// </summary>
         public SyncTable TableDescription { get; private set; }
+        public SyncSetup Setup { get; }
 
         /// <summary>
         /// Get or Set the current step (could be only Added, Modified, Deleted)
@@ -73,9 +74,13 @@ namespace Dotmim.Sync
         /// <summary>
         /// Create a Sync Adapter
         /// </summary>
-        public DbSyncAdapter(SyncTable tableDescription) => this.TableDescription = tableDescription;
+        public DbSyncAdapter(SyncTable tableDescription, SyncSetup setup)
+        {
+            this.TableDescription = tableDescription;
+            this.Setup = setup;
+        }
 
-      
+
         /// <summary>
         /// Set command parameters value mapped to Row
         /// </summary>

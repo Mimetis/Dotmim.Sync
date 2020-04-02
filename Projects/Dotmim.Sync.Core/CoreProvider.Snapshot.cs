@@ -20,7 +20,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// update configuration object with tables desc from server database
         /// </summary>
-        public virtual async Task<(SyncContext, BatchInfo)> CreateSnapshotAsync(SyncContext context, SyncSet schema,
+        public virtual async Task<(SyncContext, BatchInfo)> CreateSnapshotAsync(SyncContext context, SyncSet schema, SyncSetup setup,
                              DbConnection connection, DbTransaction transaction, string snapshotDirectory, int batchSize, long remoteClientTimestamp,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
@@ -74,7 +74,7 @@ namespace Dotmim.Sync
 
             foreach (var syncTable in schema.Tables)
             {
-                var tableBuilder = this.GetTableBuilder(syncTable);
+                var tableBuilder = this.GetTableBuilder(syncTable, setup);
                 var syncAdapter = tableBuilder.CreateSyncAdapter(connection, transaction);
 
                 // launch interceptor if any

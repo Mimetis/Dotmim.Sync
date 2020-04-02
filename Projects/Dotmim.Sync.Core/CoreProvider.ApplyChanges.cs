@@ -34,13 +34,13 @@ namespace Dotmim.Sync
             // Report this disabling constraints brefore opening a transaction
             if (message.DisableConstraintsOnApplyChanges)
                 foreach (var table in message.Schema.Tables.Reverse())
-                   await this.DisableConstraintsAsync(context, table, connection, transaction);
+                   await this.DisableConstraintsAsync(context, table, message.Setup, connection, transaction);
 
             // -----------------------------------------------------
             // 0) Check if we are in a reinit mode
             // -----------------------------------------------------
             if (context.SyncWay == SyncWay.Download && context.SyncType != SyncType.Normal)
-                await this.ResetInternalAsync(context, message.Schema, connection, transaction);
+                await this.ResetInternalAsync(context, message.Schema, message.Setup, connection, transaction);
 
             // -----------------------------------------------------
             // 1) Applying deletes. Do not apply deletes if we are in a new database
@@ -67,7 +67,7 @@ namespace Dotmim.Sync
             // Re enable check constraints
             if (message.DisableConstraintsOnApplyChanges)
                 foreach (var table in message.Schema.Tables)
-                    await this.EnableConstraintsAsync(context, table, connection, transaction);
+                    await this.EnableConstraintsAsync(context, table, message.Setup, connection, transaction);
 
 
             // Before cleaning, check if we are not applying changes from a snapshotdirectory
@@ -92,7 +92,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Here we are reseting all tables and tracking tables to be able to Reinitialize completely
         /// </summary>
-        private async Task ResetInternalAsync(SyncContext context, SyncSet schema, DbConnection connection, DbTransaction transaction)
+        private async Task ResetInternalAsync(SyncContext context, SyncSet schema, SyncSetup setup, DbConnection connection, DbTransaction transaction)
         {
             if (schema == null || schema.Tables.Count <= 0)
                 return;
@@ -100,7 +100,7 @@ namespace Dotmim.Sync
             for (var i = 0; i < schema.Tables.Count; i++)
             {
                 var tableDescription = schema.Tables[schema.Tables.Count - i - 1];
-                var builder = this.GetTableBuilder(tableDescription);
+                var builder = this.GetTableBuilder(tableDescription, setup);
                 var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
 
                 // reset table
@@ -131,7 +131,7 @@ namespace Dotmim.Sync
             if (context.SyncWay == SyncWay.Download && schemaTable.SyncDirection == SyncDirection.UploadOnly)
                 return;
 
-            var builder = this.GetTableBuilder(schemaTable);
+            var builder = this.GetTableBuilder(schemaTable, message.Setup);
 
             var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
             syncAdapter.ApplyType = applyType;
@@ -411,10 +411,10 @@ namespace Dotmim.Sync
         /// Since we can disable at the database level
         /// Just check for one available table and execute for the whole db
         /// </summary>
-        internal Task DisableConstraintsAsync(SyncContext context, SyncTable table, DbConnection connection, DbTransaction transaction = null)
+        internal Task DisableConstraintsAsync(SyncContext context, SyncTable table, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
         {
 
-            var builder = this.GetTableBuilder(table);
+            var builder = this.GetTableBuilder(table, setup);
             var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
 
             // disable constraints
@@ -427,9 +427,9 @@ namespace Dotmim.Sync
         /// Since we can disable at the database level
         /// Just check for one available table and execute for the whole db
         /// </summary>
-        private Task EnableConstraintsAsync(SyncContext context, SyncTable table, DbConnection connection, DbTransaction transaction)
+        private Task EnableConstraintsAsync(SyncContext context, SyncTable table, SyncSetup setup, DbConnection connection, DbTransaction transaction)
         {
-            var builder = this.GetTableBuilder(table);
+            var builder = this.GetTableBuilder(table, setup);
             var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
 
             // enable table

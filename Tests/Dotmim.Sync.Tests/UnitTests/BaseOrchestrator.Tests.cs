@@ -130,7 +130,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
 
         }
-         
+
         internal static void AssertConnectionAndTransaction(BaseOrchestrator orchestrator, SyncStage beginStage, SyncStage endStage)
         {
             orchestrator.OnConnectionOpen(args =>
@@ -192,7 +192,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup, scopeName);
 
- 
+
             localOrchestrator.OnSchemaRead(args =>
             {
                 Assert.IsType<SchemaArgs>(args);
@@ -641,7 +641,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var scopeName = "scope";
 
             var options = new SyncOptions();
-            var setup = new SyncSetup();
+            var setup = new SyncSetup { TrackingTablesSuffix = "sync", TrackingTablesPrefix = "trck" };
 
             var schema = new SyncSet();
             var table = new SyncTable("Product", "SalesLT");
@@ -653,13 +653,13 @@ namespace Dotmim.Sync.Tests.UnitTests
             table.Columns.Add("Number", typeof(int));
             table.PrimaryKeys.Add("ID");
 
-            schema.TrackingTablesSuffix = "sync";
-            schema.TrackingTablesPrefix = "trck";
+            //schema.TrackingTablesSuffix = "sync";
+            //schema.TrackingTablesPrefix = "trck";
 
             schema.Tables.Add(table);
 
             // trackign table name is composed with prefix and suffix from setup
-            var trackingTableName = $"{schema.TrackingTablesPrefix}{table.TableName}{schema.TrackingTablesSuffix}";
+            var trackingTableName = $"{setup.TrackingTablesPrefix}{table.TableName}{setup.TrackingTablesSuffix}";
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup, scopeName);
 
@@ -876,7 +876,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var provision = SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
 
-            
+
 
             var se = await Assert.ThrowsAsync<SyncException>(async () => await localOrchestrator.ProvisionAsync(schema, provision));
 
@@ -917,7 +917,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
 
-     
+
 
     }
 }

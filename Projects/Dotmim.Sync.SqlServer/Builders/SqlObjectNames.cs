@@ -44,7 +44,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         Dictionary<DbCommandType, (string name, bool isStoredProcedure)> names = new Dictionary<DbCommandType, (string name, bool isStoredProcedure)>();
         
         public SyncTable TableDescription { get; }
-
+        public SyncSetup Setup { get; }
 
         public void AddName(DbCommandType objectType, string name, bool isStoredProcedure)
         {
@@ -67,9 +67,10 @@ namespace Dotmim.Sync.SqlServer.Builders
             return (commandName, isStoredProc);
         }
 
-        public SqlObjectNames(SyncTable tableDescription)
+        public SqlObjectNames(SyncTable tableDescription, SyncSetup setup)
         {
             this.TableDescription = tableDescription;
+            this.Setup = setup;
             SetDefaultNames();
         }
 
@@ -78,10 +79,10 @@ namespace Dotmim.Sync.SqlServer.Builders
         /// </summary>
         private void SetDefaultNames()
         {
-            var pref = this.TableDescription.Schema.StoredProceduresPrefix;
-            var suf = this.TableDescription.Schema.StoredProceduresSuffix;
-            var tpref = this.TableDescription.Schema.TriggersPrefix;
-            var tsuf = this.TableDescription.Schema.TriggersSuffix;
+            var pref = this.Setup.StoredProceduresPrefix;
+            var suf = this.Setup.StoredProceduresSuffix;
+            var tpref = this.Setup.TriggersPrefix;
+            var tsuf = this.Setup.TriggersSuffix;
 
             var tableName = ParserName.Parse(TableDescription);
 
