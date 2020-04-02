@@ -576,7 +576,7 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // snapshot directory
-            var directory = Path.Combine(Environment.CurrentDirectory, "Snapshots");
+            var directory = Path.Combine(Environment.CurrentDirectory, "Snapshots_F");
             // ----------------------------------
             // Setting correct options for sync agent to be able to reach snapshot
             // ----------------------------------
