@@ -1331,7 +1331,7 @@ namespace Dotmim.Sync.Tests
 
                 Assert.Equal(rowsCount + download, s.TotalChangesDownloaded);
                 Assert.Equal(2, s.TotalChangesUploaded);
-                Assert.Equal(download, s.TotalResolvedConflicts);
+                Assert.Equal(0, s.TotalResolvedConflicts);
                 download += 2;
             }
 
