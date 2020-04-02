@@ -16,18 +16,18 @@ namespace Dotmim.Sync.Sqlite
 
         SqliteObjectNames sqlObjectNames;
 
-        public SqliteTableBuilder(SyncTable tableDescription) : base(tableDescription)
+        public SqliteTableBuilder(SyncTable tableDescription, SyncSetup setup) : base(tableDescription, setup)
         {
-            sqlObjectNames = new SqliteObjectNames(tableDescription);
+            sqlObjectNames = new SqliteObjectNames(tableDescription, setup);
         }
 
-        internal static (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription)
+        internal static (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription, SyncSetup setup)
         {
             string tableAndPrefixName = tableDescription.TableName;
             var originalTableName = ParserName.Parse(tableDescription);
 
-            var pref = tableDescription.Schema.TrackingTablesPrefix != null ? tableDescription.Schema.TrackingTablesPrefix : "";
-            var suf = tableDescription.Schema.TrackingTablesSuffix != null ? tableDescription.Schema.TrackingTablesSuffix : "";
+            var pref = setup.TrackingTablesPrefix != null ? setup.TrackingTablesPrefix : "";
+            var suf = setup.TrackingTablesSuffix != null ? setup.TrackingTablesSuffix : "";
 
             // be sure, at least, we have a suffix if we have empty values. 
             // othewise, we have the same name for both table and tracking table
@@ -64,15 +64,15 @@ namespace Dotmim.Sync.Sqlite
         public override IDbBuilderProcedureHelper CreateProcBuilder(DbConnection connection, DbTransaction transaction = null) => null;
 
         public override IDbBuilderTriggerHelper CreateTriggerBuilder(DbConnection connection, DbTransaction transaction = null) 
-            => new SqliteBuilderTrigger(TableDescription, connection, transaction);
+            => new SqliteBuilderTrigger(TableDescription, Setup, connection, transaction);
 
         public override IDbBuilderTableHelper CreateTableBuilder(DbConnection connection, DbTransaction transaction = null) 
-            => new SqliteBuilderTable(TableDescription, connection, transaction);
+            => new SqliteBuilderTable(TableDescription, Setup, connection, transaction);
 
         public override IDbBuilderTrackingTableHelper CreateTrackingTableBuilder(DbConnection connection, DbTransaction transaction = null) 
-            => new SqliteBuilderTrackingTable(TableDescription, connection, transaction);
+            => new SqliteBuilderTrackingTable(TableDescription, Setup, connection, transaction);
 
         public override DbSyncAdapter CreateSyncAdapter(DbConnection connection, DbTransaction transaction = null) 
-            => new SqliteSyncAdapter(TableDescription, connection, transaction);
+            => new SqliteSyncAdapter(TableDescription, Setup, connection, transaction);
     }
 }

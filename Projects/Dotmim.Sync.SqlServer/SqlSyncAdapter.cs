@@ -33,14 +33,14 @@ namespace Dotmim.Sync.SqlServer.Builders
         public override DbConnection Connection => this.connection;
         public override DbTransaction Transaction => this.transaction;
 
-        public SqlSyncAdapter(SyncTable tableDescription, DbConnection connection, DbTransaction transaction) : base(tableDescription)
+        public SqlSyncAdapter(SyncTable tableDescription, SyncSetup setup, DbConnection connection, DbTransaction transaction) : base(tableDescription, setup)
         {
             var sqlc = connection as SqlConnection;
             this.connection = sqlc ?? throw new InvalidCastException("Connection should be a SqlConnection");
 
             this.transaction = transaction as SqlTransaction;
 
-            this.sqlObjectNames = new SqlObjectNames(tableDescription);
+            this.sqlObjectNames = new SqlObjectNames(tableDescription, setup);
             this.sqlMetadata = new SqlDbMetadata();
         }
 

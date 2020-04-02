@@ -47,25 +47,25 @@ namespace Dotmim.Sync
             // - Alter tracking table name
             // - Regenerate stored procedure
             // - Regenerate triggers
-            if (currentSchema.TrackingTablesPrefix != newSchema.TrackingTablesPrefix ||
-                currentSchema.TrackingTablesSuffix != newSchema.TrackingTablesSuffix)
-            {
-                this.NeedRenameTrackingTable = true;
-                this.NeedRecreateTriggers = true;
-                this.NeedRecreateStoredProcedures = true;
-            }
+            //if (currentSchema.TrackingTablesPrefix != newSchema.TrackingTablesPrefix ||
+            //    currentSchema.TrackingTablesSuffix != newSchema.TrackingTablesSuffix)
+            //{
+            //    this.NeedRenameTrackingTable = true;
+            //    this.NeedRecreateTriggers = true;
+            //    this.NeedRecreateStoredProcedures = true;
+            //}
 
-            if (currentSchema.TriggersPrefix != newSchema.TriggersPrefix ||
-                currentSchema.TriggersSuffix != newSchema.TriggersSuffix)
-            {
-                this.NeedRecreateTriggers = true;
-            }
+            //if (currentSchema.TriggersPrefix != newSchema.TriggersPrefix ||
+            //    currentSchema.TriggersSuffix != newSchema.TriggersSuffix)
+            //{
+            //    this.NeedRecreateTriggers = true;
+            //}
 
-            if (currentSchema.StoredProceduresPrefix != newSchema.StoredProceduresPrefix ||
-                currentSchema.StoredProceduresSuffix != newSchema.StoredProceduresSuffix)
-            {
-                this.NeedRecreateStoredProcedures = true;
-            }
+            //if (currentSchema.StoredProceduresPrefix != newSchema.StoredProceduresPrefix ||
+            //    currentSchema.StoredProceduresSuffix != newSchema.StoredProceduresSuffix)
+            //{
+            //    this.NeedRecreateStoredProcedures = true;
+            //}
         }
 
         private void CheckAddedOrRemovedColumns()

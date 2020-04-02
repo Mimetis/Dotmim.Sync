@@ -60,7 +60,7 @@ namespace Dotmim.Sync.SampleWebServer
             setup.Filters.Add("ProductDescriptionFilter", "ProductDescriptionId");
 
             // add a SqlSyncProvider acting as the server hub
-            services.AddSyncServer<SqlSyncProvider>(connectionString, setup, options);
+            services.AddSyncServer<SqlSyncChangeTrackingProvider>(connectionString, setup, options);
 
             // Create the setup used for your sync process
             tables = new string[] { "ProductCategory" };
@@ -75,7 +75,7 @@ namespace Dotmim.Sync.SampleWebServer
             };
 
             // add a SqlSyncProvider acting as the server hub
-            services.AddSyncServer<SqlSyncProvider>(connectionString, "ProdScope", setup, options );
+            services.AddSyncServer<SqlSyncChangeTrackingProvider>(connectionString, "ProdScope", setup, options);
 
 
         }

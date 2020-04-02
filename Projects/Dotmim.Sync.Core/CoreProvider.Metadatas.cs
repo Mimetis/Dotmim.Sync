@@ -30,14 +30,14 @@ namespace Dotmim.Sync
 
         //}
 
-        public virtual async Task<SyncContext> DeleteMetadatasAsync(SyncContext context, SyncSet schema, long timestampLimit,
+        public virtual async Task<SyncContext> DeleteMetadatasAsync(SyncContext context, SyncSet schema, SyncSetup setup, long timestampLimit,
                             DbConnection connection, DbTransaction transaction,
                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             foreach (var syncTable in schema.Tables)
             {
                 // get table builder
-                var tableBuilder = this.GetTableBuilder(syncTable);
+                var tableBuilder = this.GetTableBuilder(syncTable, setup);
 
                 var tableHelper = tableBuilder.CreateTableBuilder(connection, transaction);
 

@@ -21,26 +21,34 @@ namespace Dotmim.Sync.SampleWebServer.Controllers
         [HttpPost]
         public async Task Post()
         {
-            // Get Orchestrator regarding the incoming scope name (from http context)
-            var orchestrator = webServerManager.GetOrchestrator(this.HttpContext);
-
-            orchestrator.OnApplyChangesFailed(e =>
+            try
             {
-                if (e.Conflict.RemoteRow.Table.TableName == "Region")
-                {
-                    e.Resolution = ConflictResolution.MergeRow;
-                    e.FinalRow["RegionDescription"] = "Eastern alone !";
-                }
-                else
-                {
-                    e.Resolution = ConflictResolution.ServerWins;
-                }
-            });
+                // Get Orchestrator regarding the incoming scope name (from http context)
+                var orchestrator = webServerManager.GetOrchestrator(this.HttpContext);
 
-            var progress = new SynchronousProgress<ProgressArgs>(pa => Debug.WriteLine($"{pa.Context.SyncStage}\t {pa.Message}"));
+                orchestrator.OnApplyChangesFailed(e =>
+                {
+                    if (e.Conflict.RemoteRow.Table.TableName == "Region")
+                    {
+                        e.Resolution = ConflictResolution.MergeRow;
+                        e.FinalRow["RegionDescription"] = "Eastern alone !";
+                    }
+                    else
+                    {
+                        e.Resolution = ConflictResolution.ServerWins;
+                    }
+                });
 
-            // handle request
-            await webServerManager.HandleRequestAsync(this.HttpContext, default, progress);
+                var progress = new SynchronousProgress<ProgressArgs>(pa => Debug.WriteLine($"{pa.Context.SyncStage}\t {pa.Message}"));
+
+                // handle request
+                await webServerManager.HandleRequestAsync(this.HttpContext, default, progress);
+
+            }
+            catch (Exception ex)
+            {
+                await WebServerManager.WriteExceptionAsync(this.HttpContext.Response, ex);
+            }
         }
 
         /// <summary>
