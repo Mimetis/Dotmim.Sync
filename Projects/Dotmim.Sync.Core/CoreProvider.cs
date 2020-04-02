@@ -1,10 +1,12 @@
 ﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Manager;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
+using System.Runtime.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -18,6 +20,8 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the reference to the orchestrator owner of this instance
         /// </summary>
+        [JsonIgnore]
+        [IgnoreDataMember]
         public IOrchestrator Orchestrator { get; internal set; }
 
         /// <summary>
@@ -34,6 +38,8 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets or Sets options used during the sync
         /// </summary>
+        [JsonIgnore]
+        [IgnoreDataMember]
         public virtual SyncOptions Options { get; set; }
 
    

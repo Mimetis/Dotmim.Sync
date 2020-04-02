@@ -35,14 +35,15 @@ namespace Dotmim.Sync.Web.Server
         /// </summary>
         public async Task HandleRequestAsync(HttpContext context, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            if (!WebServerOrchestrator.TryGetHeaderValue(context.Request.Headers, "dotmim-sync-scope-name", out var scopeName))
-                throw new HttpHeaderMissingExceptiopn("dotmim-sync-scope-name");
 
             if (context.Request.Method.ToLowerInvariant() == "get")
             {
                 await this.WriteHelloAsync(context, cancellationToken);
                 return;
             }
+
+            if (!WebServerOrchestrator.TryGetHeaderValue(context.Request.Headers, "dotmim-sync-scope-name", out var scopeName))
+                throw new HttpHeaderMissingExceptiopn("dotmim-sync-scope-name");
 
             await this[scopeName].HandleRequestAsync(context, cancellationToken, progress).ConfigureAwait(false);
         }
@@ -114,32 +115,78 @@ namespace Dotmim.Sync.Web.Server
             var httpResponse = context.Response;
             var stringBuilder = new StringBuilder();
 
-            stringBuilder.AppendLine("<H1>Sync Configuration:</H1>");
-
             if (this.Environment != null && this.Environment.IsDevelopment())
             {
-                stringBuilder.AppendLine("<div>Web Server properties:</div>");
+                stringBuilder.AppendLine("<!doctype html>");
+                stringBuilder.AppendLine("<html>");
+                stringBuilder.AppendLine("<head>");
+                stringBuilder.AppendLine("<meta charset='utf-8'>");
+                stringBuilder.AppendLine("<meta name='viewport' content='width=device-width, initial-scale=1, shrink-to-fit=no'>");
                 stringBuilder.AppendLine("<script src='https://cdn.jsdelivr.net/gh/google/code-prettify@master/loader/run_prettify.js'></script>");
+                stringBuilder.AppendLine("<link rel='stylesheet' href='https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css' integrity='sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh' crossorigin='anonymous'>");
+                stringBuilder.AppendLine("</head>");
+                stringBuilder.AppendLine("<title>Web Server properties</title>");
+                stringBuilder.AppendLine("<body>");
+
+
+                stringBuilder.AppendLine("<div class='container'>");
+                stringBuilder.AppendLine("<h2>Web Server properties</h2>");
 
                 foreach (var webOrchestrator in this)
                 {
-                    stringBuilder.AppendLine("<H2>Scope name</H2>");
-                    stringBuilder.AppendLine(webOrchestrator.ScopeName);
 
-                    var s = JsonConvert.SerializeObject(webOrchestrator.Options, Formatting.Indented);
-                    stringBuilder.AppendLine("<H2>Options</H2>");
-                    stringBuilder.AppendLine("<pre class='prettyprint'>");
+                    stringBuilder.AppendLine("<ul class='list-group mb-2'>");
+                    //stringBuilder.AppendLine("<div class='row'><div class='col'>");
+                    //stringBuilder.AppendLine($"<span class='d-block p-2 bg-primary text-white'>ScopeName: {webOrchestrator.ScopeName}</span>");
+                    stringBuilder.AppendLine($"<li class='list-group-item active'>ScopeName: {webOrchestrator.ScopeName}</li>");
+                    stringBuilder.AppendLine("</ul>");
+
+                    var s = JsonConvert.SerializeObject(webOrchestrator.Setup, Formatting.Indented);
+                    stringBuilder.AppendLine("<ul class='list-group mb-2'>");
+                    stringBuilder.AppendLine($"<li class='list-group-item list-group-item-primary'>Setup</li>");
+                    stringBuilder.AppendLine($"<li class='list-group-item list-group-item-light'>");
+                    stringBuilder.AppendLine("<pre class='prettyprint' style='border:0px;font-size:75%'>");
                     stringBuilder.AppendLine(s);
                     stringBuilder.AppendLine("</pre>");
+                    stringBuilder.AppendLine("</li>");
+                    stringBuilder.AppendLine("</ul>");
 
-                    s = JsonConvert.SerializeObject(webOrchestrator.Schema, Formatting.Indented);
-                    stringBuilder.AppendLine("<H2>Schema</H2>");
-                    stringBuilder.AppendLine("<pre class='prettyprint'>");
+                    s = JsonConvert.SerializeObject(webOrchestrator.Provider, Formatting.Indented);
+                    stringBuilder.AppendLine("<ul class='list-group mb-2'>");
+                    stringBuilder.AppendLine($"<li class='list-group-item list-group-item-primary'>Provider</li>");
+                    stringBuilder.AppendLine($"<li class='list-group-item list-group-item-light'>");
+                    stringBuilder.AppendLine("<pre class='prettyprint' style='border:0px;font-size:75%'>");
                     stringBuilder.AppendLine(s);
                     stringBuilder.AppendLine("</pre>");
+                    stringBuilder.AppendLine("</li>");
+                    stringBuilder.AppendLine("</ul>");
+
+                    s = JsonConvert.SerializeObject(webOrchestrator.Options, Formatting.Indented);
+                    stringBuilder.AppendLine("<ul class='list-group mb-2'>");
+                    stringBuilder.AppendLine($"<li class='list-group-item list-group-item-primary'>Options</li>");
+                    stringBuilder.AppendLine($"<li class='list-group-item list-group-item-light'>");
+                    stringBuilder.AppendLine("<pre class='prettyprint' style='border:0px;font-size:75%'>");
+                    stringBuilder.AppendLine(s);
+                    stringBuilder.AppendLine("</pre>");
+                    stringBuilder.AppendLine("</li>");
+                    stringBuilder.AppendLine("</ul>");
+
+                    s = JsonConvert.SerializeObject(webOrchestrator.WebServerOptions, Formatting.Indented);
+                    stringBuilder.AppendLine("<ul class='list-group mb-2'>");
+                    stringBuilder.AppendLine($"<li class='list-group-item list-group-item-primary'>Web Server Options</li>");
+                    stringBuilder.AppendLine($"<li class='list-group-item list-group-item-light'>");
+                    stringBuilder.AppendLine("<pre class='prettyprint' style='border:0px;font-size:75%'>");
+                    stringBuilder.AppendLine(s);
+                    stringBuilder.AppendLine("</pre>");
+                    stringBuilder.AppendLine("</li>");
+                    stringBuilder.AppendLine("</ul>");
+
+
 
                 }
-
+                stringBuilder.AppendLine("</div>");
+                stringBuilder.AppendLine("</body>");
+                stringBuilder.AppendLine("</html>");
 
             }
             else
