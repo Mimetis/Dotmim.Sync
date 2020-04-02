@@ -45,7 +45,7 @@ internal class Program
     public static string[] oneTable = new string[] { "ProductCategory" };
     private static async Task Main(string[] args)
     {
-        await CreateSnapshotAsync();
+        await SyncThroughWebApiAsync();
     }
 
 
@@ -629,9 +629,7 @@ internal class Program
         var handler = new HttpClientHandler { AutomaticDecompression = DecompressionMethods.GZip };
         var client = new HttpClient(handler) { Timeout = TimeSpan.FromMinutes(5) };
 
-        var proxyClientProvider = new WebClientOrchestrator("http://localhost:52288/api/Sync", null, null, client);
-
-
+        var proxyClientProvider = new WebClientOrchestrator("https://localhost:44369/api/Sync", null, null, client);
 
         // ----------------------------------
         // Client side
@@ -657,7 +655,7 @@ internal class Program
         };
 
 
-        var agent = new SyncAgent(clientProvider, proxyClientProvider, clientOptions, clientSetup);
+        var agent = new SyncAgent(clientProvider, proxyClientProvider, clientOptions, clientSetup, "ProdScope");
 
         Console.WriteLine("Press a key to start (be sure web api is running ...)");
         Console.ReadKey();

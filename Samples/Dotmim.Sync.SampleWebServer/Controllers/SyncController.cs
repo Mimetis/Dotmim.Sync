@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Dotmim.Sync.Enumerations;
@@ -36,15 +37,17 @@ namespace Dotmim.Sync.SampleWebServer.Controllers
                 }
             });
 
-            var progress = new SynchronousProgress<ProgressArgs>(pa =>
-            {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine($"{pa.Context.SyncStage}\t {pa.Message}");
-                Console.ResetColor();
-            });
+            var progress = new SynchronousProgress<ProgressArgs>(pa => Debug.WriteLine($"{pa.Context.SyncStage}\t {pa.Message}"));
 
             // handle request
-            await webServerManager.HandleRequestAsync(this.HttpContext);
+            await webServerManager.HandleRequestAsync(this.HttpContext, default, progress);
         }
+
+        /// <summary>
+        /// This Get handler is optional. It allows you to see the configuration hosted on the server
+        /// The configuration is shown only if Environmenent == Development
+        /// </summary>
+        [HttpGet]
+        public async Task Get() => await webServerManager.HandleRequestAsync(this.HttpContext);
     }
 }
