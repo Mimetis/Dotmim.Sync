@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -68,8 +69,21 @@ namespace Dotmim.Sync
                 foreach (var table in message.Schema.Tables)
                     await this.EnableConstraintsAsync(context, table, connection, transaction);
 
+
+            // Before cleaning, check if we are not applying changes from a snapshotdirectory
+            var cleanFolder = message.CleanFolder;
+            if (cleanFolder && !String.IsNullOrEmpty(this.Options.SnapshotsDirectory) && !String.IsNullOrEmpty(message.Changes.DirectoryRoot))
+            {
+                var snapshotDirectory = new DirectoryInfo(Path.Combine(this.Options.SnapshotsDirectory, context.ScopeName)).FullName;
+                var messageBatchInfoDirectory = new DirectoryInfo(message.Changes.DirectoryRoot).FullName;
+
+                // If we are getting batches from a snapshot folder, do not delete it
+                if (snapshotDirectory.Equals(messageBatchInfoDirectory, SyncGlobalization.DataSourceStringComparison))
+                    cleanFolder = false;
+
+            }
             // clear the changes because we don't need them anymore
-            message.Changes.Clear(message.CleanFolder);
+            message.Changes.Clear(cleanFolder);
 
             return (context, changesApplied);
 
