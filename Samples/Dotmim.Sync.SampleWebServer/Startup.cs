@@ -61,6 +61,23 @@ namespace Dotmim.Sync.SampleWebServer
 
             // add a SqlSyncProvider acting as the server hub
             services.AddSyncServer<SqlSyncProvider>(connectionString, setup, options);
+
+            // Create the setup used for your sync process
+            tables = new string[] { "ProductCategory" };
+
+            setup = new SyncSetup(tables)
+            {
+                // optional :
+                StoredProceduresPrefix = "server",
+                StoredProceduresSuffix = "",
+                TrackingTablesPrefix = "server",
+                TrackingTablesSuffix = ""
+            };
+
+            // add a SqlSyncProvider acting as the server hub
+            services.AddSyncServer<SqlSyncProvider>(connectionString, "ProdScope", setup, options );
+
+
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
