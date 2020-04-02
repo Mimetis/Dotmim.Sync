@@ -70,7 +70,7 @@ namespace Dotmim.Sync
                 if (context.SyncWay == SyncWay.Download && syncTable.SyncDirection == SyncDirection.UploadOnly)
                     continue;
 
-                var tableBuilder = this.GetTableBuilder(syncTable);
+                var tableBuilder = this.GetTableBuilder(syncTable, message.Setup);
                 var syncAdapter = tableBuilder.CreateSyncAdapter(connection, transaction);
 
                 // launch interceptor if any

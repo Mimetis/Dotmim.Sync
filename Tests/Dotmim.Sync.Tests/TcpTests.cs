@@ -2434,7 +2434,7 @@ namespace Dotmim.Sync.Tests
                     using (var dbConnection = client.Provider.CreateConnection())
                     {
                         // get the database manager factory then the db manager itself
-                        var dbTableBuilder = client.Provider.GetTableBuilder(syncTable);
+                        var dbTableBuilder = client.Provider.GetTableBuilder(syncTable, setup);
 
                         // get builders
                         var trackingTablesBuilder = dbTableBuilder.CreateTrackingTableBuilder(dbConnection);
@@ -2489,7 +2489,7 @@ namespace Dotmim.Sync.Tests
                     using (var dbConnection = localOrchestrator.Provider.CreateConnection())
                     {
                         // get the database manager factory then the db manager itself
-                        var dbTableBuilder = localOrchestrator.Provider.GetTableBuilder(dmTable);
+                        var dbTableBuilder = localOrchestrator.Provider.GetTableBuilder(dmTable, setup);
 
                         // get builders
                         var trackingTablesBuilder = dbTableBuilder.CreateTrackingTableBuilder(dbConnection);

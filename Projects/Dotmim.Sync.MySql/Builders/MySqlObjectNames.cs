@@ -40,7 +40,7 @@ namespace Dotmim.Sync.MySql
         private ParserName tableName, trackingName;
 
         public SyncTable TableDescription { get; }
-
+        public SyncSetup Setup { get; }
 
         public void AddName(DbCommandType objectType, string name, bool isStoredProcedure)
         {
@@ -64,10 +64,11 @@ namespace Dotmim.Sync.MySql
             return (commandName, isStoredProc);
         }
 
-        public MySqlObjectNames(SyncTable tableDescription)
+        public MySqlObjectNames(SyncTable tableDescription, SyncSetup setup)
         {
             this.TableDescription = tableDescription;
-            (tableName, trackingName) = MyTableSqlBuilder.GetParsers(this.TableDescription);
+            this.Setup = setup;
+            (tableName, trackingName) = MyTableSqlBuilder.GetParsers(this.TableDescription, this.Setup);
 
             SetDefaultNames();
         }
@@ -77,10 +78,10 @@ namespace Dotmim.Sync.MySql
         /// </summary>
         private void SetDefaultNames()
         {
-            var pref = this.TableDescription.Schema.TrackingTablesPrefix != null ? this.TableDescription.Schema.TrackingTablesPrefix : "";
-            var suf = this.TableDescription.Schema.TrackingTablesSuffix != null ? this.TableDescription.Schema.TrackingTablesSuffix : "";
-            var tpref = this.TableDescription.Schema.TriggersPrefix != null ? this.TableDescription.Schema.TriggersPrefix : "";
-            var tsuf = this.TableDescription.Schema.TriggersSuffix != null ? this.TableDescription.Schema.TriggersSuffix : "";
+            var pref = this.Setup.TrackingTablesPrefix != null ? this.Setup.TrackingTablesPrefix : "";
+            var suf = this.Setup.TrackingTablesSuffix != null ? this.Setup.TrackingTablesSuffix : "";
+            var tpref = this.Setup.TriggersPrefix != null ? this.Setup.TriggersPrefix : "";
+            var tsuf = this.Setup.TriggersSuffix != null ? this.Setup.TriggersSuffix : "";
 
             this.AddName(DbCommandType.InsertTrigger, string.Format(insertTriggerName, $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}"), true);
             this.AddName(DbCommandType.UpdateTrigger, string.Format(updateTriggerName, $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}"), true);

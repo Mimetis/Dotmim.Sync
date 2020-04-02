@@ -193,7 +193,7 @@ namespace Dotmim.Sync.Web.Server
             }
             catch (Exception ex)
             {
-                await WriteExceptionAsync(httpResponse, ex);
+                await WebServerManager.WriteExceptionAsync(httpResponse, ex);
             }
             finally
             {
@@ -264,35 +264,6 @@ namespace Dotmim.Sync.Web.Server
             {
                 throw new HttpConverterNotConfiguredException(serverOrchestrator.WebServerOptions.Converters.Select(sf => sf.Key));
             }
-        }
-
-
-        /// <summary>
-        /// Write exception to output message
-        /// </summary>
-        public async Task WriteExceptionAsync(HttpResponse httpResponse, Exception ex)
-        {
-            // Check if it's an unknown error, not managed (yet)
-            if (!(ex is SyncException syncException))
-                syncException = new SyncException(ex);
-
-
-            var webException = new WebSyncException
-            {
-                Message = syncException.Message,
-                SyncStage = syncException.SyncStage,
-                TypeName = syncException.TypeName,
-                DataSource = syncException.DataSource,
-                InitialCatalog = syncException.InitialCatalog,
-                Number = syncException.Number,
-                Side = syncException.Side
-            };
-
-            var webXMessage = JsonConvert.SerializeObject(webException);
-
-            httpResponse.StatusCode = StatusCodes.Status400BadRequest;
-            httpResponse.ContentLength = webXMessage.Length;
-            await httpResponse.WriteAsync(webXMessage);
         }
 
 

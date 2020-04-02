@@ -24,12 +24,12 @@ namespace Dotmim.Sync.MySql
         private MySqlDbMetadata mySqlDbMetadata;
 
 
-        public MySqlBuilderTrackingTable(SyncTable tableDescription, DbConnection connection, DbTransaction transaction = null)
+        public MySqlBuilderTrackingTable(SyncTable tableDescription, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
         {
             this.connection = connection as MySqlConnection;
             this.transaction = transaction as MySqlTransaction;
             this.tableDescription = tableDescription;
-            (this.tableName, this.trackingName) = MyTableSqlBuilder.GetParsers(this.tableDescription);
+            (this.tableName, this.trackingName) = MyTableSqlBuilder.GetParsers(this.tableDescription, setup);
             this.mySqlDbMetadata = new MySqlDbMetadata();
         }
 

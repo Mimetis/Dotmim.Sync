@@ -13,8 +13,8 @@ namespace Dotmim.Sync.Tests.UnitTests
         private DbConnection connection;
         private DbTransaction transaction;
 
-        public MockSyncAdapter(SyncTable tableDescription, DbConnection connection, DbTransaction transaction)
-            : base(tableDescription)
+        public MockSyncAdapter(SyncTable tableDescription, SyncSetup setup, DbConnection connection, DbTransaction transaction)
+            : base(tableDescription, setup)
         {
             this.connection = connection;
             this.transaction = transaction;

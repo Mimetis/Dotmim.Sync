@@ -19,18 +19,20 @@ namespace Dotmim.Sync.MySql
         private MySqlConnection connection;
         private MySqlTransaction transaction;
         private SyncTable tableDescription;
+        private SyncSetup setup;
         private MySqlObjectNames mySqlObjectNames;
         private MySqlDbMetadata mySqlDbMetadata;
         internal const string MYSQL_PREFIX_PARAMETER = "in_";
 
-        public MySqlBuilderProcedure(SyncTable tableDescription, DbConnection connection, DbTransaction transaction = null)
+        public MySqlBuilderProcedure(SyncTable tableDescription, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
         {
             this.connection = connection as MySqlConnection;
             this.transaction = transaction as MySqlTransaction;
 
             this.tableDescription = tableDescription;
-            (this.tableName, this.trackingName) = MyTableSqlBuilder.GetParsers(tableDescription);
-            this.mySqlObjectNames = new MySqlObjectNames(this.tableDescription);
+            this.setup = setup;
+            (this.tableName, this.trackingName) = MyTableSqlBuilder.GetParsers(tableDescription, setup);
+            this.mySqlObjectNames = new MySqlObjectNames(this.tableDescription, this.setup);
             this.mySqlDbMetadata = new MySqlDbMetadata();
         }
 
@@ -903,13 +905,19 @@ namespace Dotmim.Sync.MySql
 
 
 
+#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
         public async Task CreateTVPTypeAsync() => throw new NotImplementedException();
+#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
 
 
+#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
         public async Task CreateBulkUpdateAsync(bool hasMutableColumns) => throw new NotImplementedException();
+#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
 
 
+#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
         public async Task CreateBulkDeleteAsync() => throw new NotImplementedException();
+#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
 
 
         private async Task DropProcedureAsync(DbCommandType procType, SyncFilter filter = null)

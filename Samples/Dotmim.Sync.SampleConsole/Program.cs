@@ -45,7 +45,7 @@ internal class Program
     public static string[] oneTable = new string[] { "ProductCategory" };
     private static async Task Main(string[] args)
     {
-        await SyncThroughWebApiAsync();
+        //await SyncThroughWebApiAsync();
     }
 
 
@@ -624,7 +624,7 @@ internal class Program
     /// </summary>
     private static async Task SyncThroughWebApiAsync()
     {
-        var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
+        var clientProvider = new SqlSyncChangeTrackingProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
 
         var handler = new HttpClientHandler { AutomaticDecompression = DecompressionMethods.GZip };
         var client = new HttpClient(handler) { Timeout = TimeSpan.FromMinutes(5) };
@@ -655,7 +655,7 @@ internal class Program
         };
 
 
-        var agent = new SyncAgent(clientProvider, proxyClientProvider, clientOptions, clientSetup, "ProdScope");
+        var agent = new SyncAgent(clientProvider, proxyClientProvider, clientOptions, clientSetup);
 
         Console.WriteLine("Press a key to start (be sure web api is running ...)");
         Console.ReadKey();

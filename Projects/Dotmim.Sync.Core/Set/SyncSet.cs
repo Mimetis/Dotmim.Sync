@@ -15,41 +15,41 @@ namespace Dotmim.Sync
     [DataContract(Name = "s"), Serializable]
     public class SyncSet : IDisposable, IEquatable<SyncSet>
     {
-        /// <summary>
-        /// Specify a prefix for naming stored procedure. Default is empty string
-        /// </summary>
-        [DataMember(Name = "spp", IsRequired = false, EmitDefaultValue = false, Order = 2)]
-        public string StoredProceduresPrefix { get; set; }
+        ///// <summary>
+        ///// Specify a prefix for naming stored procedure. Default is empty string
+        ///// </summary>
+        //[DataMember(Name = "spp", IsRequired = false, EmitDefaultValue = false, Order = 2)]
+        //public string StoredProceduresPrefix { get; set; }
 
-        /// <summary>
-        /// Specify a suffix for naming stored procedures. Default is empty string
-        /// </summary>
-        [DataMember(Name = "sps", IsRequired = false, EmitDefaultValue = false, Order = 3)]
-        public string StoredProceduresSuffix { get; set; }
+        ///// <summary>
+        ///// Specify a suffix for naming stored procedures. Default is empty string
+        ///// </summary>
+        //[DataMember(Name = "sps", IsRequired = false, EmitDefaultValue = false, Order = 3)]
+        //public string StoredProceduresSuffix { get; set; }
 
-        /// <summary>
-        /// Specify a prefix for naming stored procedure. Default is empty string
-        /// </summary>
-        [DataMember(Name = "tp", IsRequired = false, EmitDefaultValue = false, Order = 4)]
-        public string TriggersPrefix { get; set; }
+        ///// <summary>
+        ///// Specify a prefix for naming stored procedure. Default is empty string
+        ///// </summary>
+        //[DataMember(Name = "tp", IsRequired = false, EmitDefaultValue = false, Order = 4)]
+        //public string TriggersPrefix { get; set; }
 
-        /// <summary>
-        /// Specify a suffix for naming stored procedures. Default is empty string
-        /// </summary>
-        [DataMember(Name = "ts", IsRequired = false, EmitDefaultValue = false, Order = 5)]
-        public string TriggersSuffix { get; set; }
+        ///// <summary>
+        ///// Specify a suffix for naming stored procedures. Default is empty string
+        ///// </summary>
+        //[DataMember(Name = "ts", IsRequired = false, EmitDefaultValue = false, Order = 5)]
+        //public string TriggersSuffix { get; set; }
 
-        /// <summary>
-        /// Specify a prefix for naming tracking tables. Default is empty string
-        /// </summary>
-        [DataMember(Name = "ttp", IsRequired = false, EmitDefaultValue = false, Order = 6)]
-        public string TrackingTablesPrefix { get; set; }
+        ///// <summary>
+        ///// Specify a prefix for naming tracking tables. Default is empty string
+        ///// </summary>
+        //[DataMember(Name = "ttp", IsRequired = false, EmitDefaultValue = false, Order = 6)]
+        //public string TrackingTablesPrefix { get; set; }
 
-        /// <summary>
-        /// Specify a suffix for naming tracking tables.
-        /// </summary>
-        [DataMember(Name = "tts", IsRequired = false, EmitDefaultValue = false, Order = 7)]
-        public string TrackingTablesSuffix { get; set; }
+        ///// <summary>
+        ///// Specify a suffix for naming tracking tables.
+        ///// </summary>
+        //[DataMember(Name = "tts", IsRequired = false, EmitDefaultValue = false, Order = 7)]
+        //public string TrackingTablesSuffix { get; set; }
 
         /// <summary>
         /// Gets or Sets the sync set tables
@@ -89,12 +89,12 @@ namespace Dotmim.Sync
             // Create the schema
             var schema = new SyncSet()
             {
-                StoredProceduresPrefix = setup.StoredProceduresPrefix,
-                StoredProceduresSuffix = setup.StoredProceduresSuffix,
-                TrackingTablesPrefix = setup.TrackingTablesPrefix,
-                TrackingTablesSuffix = setup.TrackingTablesSuffix,
-                TriggersPrefix = setup.TriggersPrefix,
-                TriggersSuffix = setup.TriggersSuffix,
+                //StoredProceduresPrefix = setup.StoredProceduresPrefix,
+                //StoredProceduresSuffix = setup.StoredProceduresSuffix,
+                //TrackingTablesPrefix = setup.TrackingTablesPrefix,
+                //TrackingTablesSuffix = setup.TrackingTablesSuffix,
+                //TriggersPrefix = setup.TriggersPrefix,
+                //TriggersSuffix = setup.TriggersSuffix,
             };
 
             foreach (var filter in setup.Filters)
@@ -125,12 +125,12 @@ namespace Dotmim.Sync
         public SyncSet Clone(bool includeTables = true)
         {
             var clone = new SyncSet();
-            clone.StoredProceduresPrefix = this.StoredProceduresPrefix;
-            clone.StoredProceduresSuffix = this.StoredProceduresSuffix;
-            clone.TrackingTablesPrefix = this.TrackingTablesPrefix;
-            clone.TrackingTablesSuffix = this.TrackingTablesSuffix;
-            clone.TriggersPrefix = this.TriggersPrefix;
-            clone.TriggersSuffix = this.TriggersSuffix;
+            //clone.StoredProceduresPrefix = this.StoredProceduresPrefix;
+            //clone.StoredProceduresSuffix = this.StoredProceduresSuffix;
+            //clone.TrackingTablesPrefix = this.TrackingTablesPrefix;
+            //clone.TrackingTablesSuffix = this.TrackingTablesSuffix;
+            //clone.TriggersPrefix = this.TriggersPrefix;
+            //clone.TriggersSuffix = this.TriggersSuffix;
 
             if (!includeTables)
                 return clone;
@@ -239,13 +239,13 @@ namespace Dotmim.Sync
             if (this.Tables.Count != otherSet.Tables.Count)
                 return false;
 
-            if (this.StoredProceduresPrefix != otherSet.StoredProceduresPrefix ||
-                this.StoredProceduresSuffix != otherSet.StoredProceduresSuffix ||
-                this.TrackingTablesPrefix != otherSet.TrackingTablesPrefix ||
-                this.TrackingTablesSuffix != otherSet.TrackingTablesSuffix ||
-                this.TriggersPrefix != otherSet.TriggersPrefix ||
-                this.TriggersSuffix != otherSet.TriggersSuffix)
-                return false;
+            //if (this.StoredProceduresPrefix != otherSet.StoredProceduresPrefix ||
+            //    this.StoredProceduresSuffix != otherSet.StoredProceduresSuffix ||
+            //    this.TrackingTablesPrefix != otherSet.TrackingTablesPrefix ||
+            //    this.TrackingTablesSuffix != otherSet.TrackingTablesSuffix ||
+            //    this.TriggersPrefix != otherSet.TriggersPrefix ||
+            //    this.TriggersSuffix != otherSet.TriggersSuffix)
+            //    return false;
 
             if (this.Relations != null && otherSet.Relations == null || this.Relations == null && otherSet.Filters != null)
                 return false;

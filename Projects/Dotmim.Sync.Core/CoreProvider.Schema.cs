@@ -26,12 +26,12 @@ namespace Dotmim.Sync
             // Create the schema
             var schema = new SyncSet()
             {
-                StoredProceduresPrefix = setup.StoredProceduresPrefix,
-                StoredProceduresSuffix = setup.StoredProceduresSuffix,
-                TrackingTablesPrefix = setup.TrackingTablesPrefix,
-                TrackingTablesSuffix = setup.TrackingTablesSuffix,
-                TriggersPrefix = setup.TriggersPrefix,
-                TriggersSuffix = setup.TriggersSuffix,
+                //StoredProceduresPrefix = setup.StoredProceduresPrefix,
+                //StoredProceduresSuffix = setup.StoredProceduresSuffix,
+                //TrackingTablesPrefix = setup.TrackingTablesPrefix,
+                //TrackingTablesSuffix = setup.TrackingTablesSuffix,
+                //TriggersPrefix = setup.TriggersPrefix,
+                //TriggersSuffix = setup.TriggersSuffix,
             };
 
             // copy filters from setup

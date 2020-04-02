@@ -35,7 +35,7 @@ namespace Dotmim.Sync.MySql
 
         }
 
-        public MySqlSyncAdapter(SyncTable tableDescription, DbConnection connection, DbTransaction transaction) : base(tableDescription)
+        public MySqlSyncAdapter(SyncTable tableDescription, SyncSetup setup, DbConnection connection, DbTransaction transaction) : base(tableDescription, setup)
         {
             var sqlc = connection as MySqlConnection;
             this.connection = sqlc ?? throw new InvalidCastException("Connection should be a MySqlConnection");
@@ -43,7 +43,7 @@ namespace Dotmim.Sync.MySql
             this.transaction = transaction as MySqlTransaction;
             this.mySqlDbMetadata = new MySqlDbMetadata();
 
-            this.mySqlObjectNames = new MySqlObjectNames(TableDescription);
+            this.mySqlObjectNames = new MySqlObjectNames(TableDescription, Setup);
         }
 
         public override bool IsPrimaryKeyViolation(Exception Error)
@@ -77,7 +77,7 @@ namespace Dotmim.Sync.MySql
         }
 
 
-        public override async Task SetCommandParametersAsync(DbCommandType commandType, DbCommand command, SyncFilter filter = null)
+        public override Task SetCommandParametersAsync(DbCommandType commandType, DbCommand command, SyncFilter filter = null)
         {
             switch (commandType)
             {
@@ -102,6 +102,8 @@ namespace Dotmim.Sync.MySql
                 default:
                     break;
             }
+
+            return Task.CompletedTask;
         }
 
         private void SetUpdateRowParameters(DbCommand command)
@@ -269,7 +271,9 @@ namespace Dotmim.Sync.MySql
 
         }
 
+#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
         public override async Task ExecuteBatchCommandAsync(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable, SyncTable failedRows, long lastTimestamp)
+#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
         {
             throw new NotImplementedException();
         }

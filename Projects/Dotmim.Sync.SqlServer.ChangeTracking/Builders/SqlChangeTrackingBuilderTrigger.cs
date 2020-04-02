@@ -18,8 +18,8 @@ namespace Dotmim.Sync.SqlServer.Builders
     {
 
 
-        public SqlChangeTrackingBuilderTrigger(SyncTable tableDescription, DbConnection connection, DbTransaction transaction = null)
-            : base(tableDescription, connection, transaction)
+        public SqlChangeTrackingBuilderTrigger(SyncTable tableDescription, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
+            : base(tableDescription, setup, connection, transaction)
         {
         }
 

@@ -21,6 +21,12 @@ namespace Dotmim.Sync.Builders
         /// </summary>
         public SyncTable TableDescription { get; set; }
 
+
+        /// <summary>
+        /// Gets or Sets Setup, containing naming prefix and suffix if needed
+        /// </summary>
+        public SyncSetup Setup { get; }
+
         /// <summary>
         /// Filtered Columns
         /// </summary>
@@ -64,7 +70,11 @@ namespace Dotmim.Sync.Builders
         /// <summary>
         /// Construct a DbBuilder
         /// </summary>
-        public DbTableBuilder(SyncTable tableDescription) => this.TableDescription = tableDescription;
+        public DbTableBuilder(SyncTable tableDescription, SyncSetup setup)
+        {
+            this.TableDescription = tableDescription;
+            this.Setup = setup;
+        }
 
         /// <summary>
         /// Apply config.
