@@ -3854,7 +3854,7 @@ namespace Dotmim.Sync.Tests
             var setup = new SyncSetup(Tables);
 
             // snapshot directory
-            var directory = Path.Combine(Environment.CurrentDirectory, "Snapshots");
+            var directory = Path.Combine(Environment.CurrentDirectory, "Snapshots_I");
 
             var options = new SyncOptions
             {

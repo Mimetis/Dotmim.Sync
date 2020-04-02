@@ -68,7 +68,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var onSnapshotCreated = false;
 
 
-            var snapshotDirectory = Path.Combine(Environment.CurrentDirectory, "Snapshots");
+            var snapshotDirectory = Path.Combine(Environment.CurrentDirectory, "Snapshots_R");
 
             var options = new SyncOptions
             {
@@ -145,7 +145,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var scopeName = "scopesnap2";
 
 
-            var snapshotDirectory = Path.Combine(Environment.CurrentDirectory, "Snapshots");
+            var snapshotDirectory = Path.Combine(Environment.CurrentDirectory, "Snapshots_U");
 
             var options = new SyncOptions
             {
@@ -207,7 +207,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
           
 
-            var snapshotDirectory = Path.Combine(Environment.CurrentDirectory, "Snapshots");
+            var snapshotDirectory = Path.Combine(Environment.CurrentDirectory, "Snapshots_B");
 
             var options = new SyncOptions
             {
@@ -305,7 +305,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var scopeName = "scopesnap";
 
-            var snapshotDirectory = Path.Combine(Environment.CurrentDirectory, "Snapshots");
+            var snapshotDirectory = Path.Combine(Environment.CurrentDirectory, "Snapshots_E");
             var options = new SyncOptions { SnapshotsDirectory = snapshotDirectory };
 
             var setup = new SyncSetup(Tables);
