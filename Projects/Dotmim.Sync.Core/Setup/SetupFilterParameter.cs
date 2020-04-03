@@ -11,7 +11,7 @@ namespace Dotmim.Sync.Setup
     /// For example : @CustomerID int NULL = 12
     /// </summary>
     [DataContract(Name = "sfp"), Serializable]
-    public class SetupFilterParameter
+    public class SetupFilterParameter : IEquatable<SetupFilterParameter>
     {
         /// <summary>
         /// Gets or sets the name of the parameter.
@@ -59,5 +59,35 @@ namespace Dotmim.Sync.Setup
         /// </summary>
         [DataMember(Name = "ml", IsRequired = false, EmitDefaultValue = false, Order = 7)]
         public int MaxLength { get; set; }
+
+
+        public bool Equals(SetupFilterParameter other)
+        {
+            if (other == null)
+                return false;
+
+            var sc = SyncGlobalization.DataSourceStringComparison;
+
+            var sn = this.SchemaName == null ? string.Empty : this.SchemaName;
+            var otherSn = other.SchemaName == null ? string.Empty : other.SchemaName;
+
+            return string.Equals(this.Name, other.Name, sc)
+                && string.Equals(this.TableName, other.TableName, sc)
+                && string.Equals(sn, otherSn, sc)
+                && string.Equals(this.DefaultValue, other.DefaultValue, sc)
+                && this.DbType.Equals(other.DbType)
+                && this.AllowNull.Equals(other.AllowNull)
+                && this.MaxLength.Equals(other.MaxLength);
+        }
+
+        public override bool Equals(object obj) => this.Equals(obj as SetupFilterParameter);
+
+        public override int GetHashCode() => base.GetHashCode();
+
+        public static bool operator ==(SetupFilterParameter left, SetupFilterParameter right)
+            => EqualityComparer<SetupFilterParameter>.Default.Equals(left, right);
+
+        public static bool operator !=(SetupFilterParameter left, SetupFilterParameter right)
+            => !(left == right);
     }
 }

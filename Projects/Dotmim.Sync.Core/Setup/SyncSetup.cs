@@ -7,7 +7,7 @@ using System.Text;
 namespace Dotmim.Sync
 {
     [DataContract(Name = "s"), Serializable]
-    public class SyncSetup
+    public class SyncSetup : IEquatable<SyncSetup>
     {
 
         /// <summary>
@@ -89,6 +89,61 @@ namespace Dotmim.Sync
         /// Check if Setup has at least one table with columns
         /// </summary>
         public bool HasColumns => this.Tables?.SelectMany(t => t.Columns).Count() > 0;  // using SelectMany to get columns and not Collection<Column>
+
+        public bool Equals(SyncSetup otherSetup)
+        {
+            if (otherSetup == null)
+                return false;
+
+            if (this.Tables.Count != otherSetup.Tables.Count)
+                return false;
+
+            var sc = SyncGlobalization.DataSourceStringComparison;
+
+            if (!string.Equals(this.StoredProceduresPrefix, otherSetup.StoredProceduresPrefix, sc) ||
+                !string.Equals(this.StoredProceduresSuffix, otherSetup.StoredProceduresSuffix, sc) ||
+                !string.Equals(this.TrackingTablesPrefix, otherSetup.TrackingTablesPrefix, sc) ||
+                !string.Equals(this.TrackingTablesSuffix, otherSetup.TrackingTablesSuffix, sc) ||
+                !string.Equals(this.TriggersPrefix, otherSetup.TriggersPrefix, sc) ||
+                !string.Equals(this.TriggersSuffix, otherSetup.TriggersSuffix, sc) ||
+                !string.Equals(this.Version, otherSetup.Version, sc))
+                return false;
+
+            // Checking Filters
+            if ((this.Filters == null && otherSetup.Filters != null) || (this.Filters != null && otherSetup.Filters == null))
+                return false;
+
+            // Checking Joins
+            if (this.Filters != null && otherSetup.Filters != null)
+            {
+                if (this.Filters.Count != otherSetup.Filters.Count || !this.Filters.All(item1 => otherSetup.Filters.Any(item2 => item1 == item2)))
+                    return false;
+            }
+
+            // Checking Filters
+            if ((this.Tables == null && otherSetup.Tables != null) || (this.Tables != null && otherSetup.Tables == null))
+                return false;
+
+            // Checking Joins
+            if (this.Tables != null && otherSetup.Tables != null)
+            {
+                if (this.Tables.Count != otherSetup.Tables.Count || !this.Tables.All(item1 => otherSetup.Tables.Any(item2 => item1 == item2)))
+                    return false;
+            }
+
+
+            return true;
+        }
+
+        public override bool Equals(object obj) => this.Equals(obj as SyncSetup);
+
+        public override int GetHashCode() => base.GetHashCode();
+
+        public static bool operator ==(SyncSetup left, SyncSetup right)
+            => EqualityComparer<SyncSetup>.Default.Equals(left, right);
+
+        public static bool operator !=(SyncSetup left, SyncSetup right)
+            => !(left == right);
 
 
     }
