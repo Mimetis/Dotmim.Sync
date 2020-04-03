@@ -1,8 +1,6 @@
 ﻿using Dotmim.Sync.Builders;
 using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Linq;
 
 namespace Dotmim.Sync.MySql
 {
@@ -78,26 +76,26 @@ namespace Dotmim.Sync.MySql
         /// </summary>
         private void SetDefaultNames()
         {
-            var pref = this.Setup.TrackingTablesPrefix != null ? this.Setup.TrackingTablesPrefix : "";
-            var suf = this.Setup.TrackingTablesSuffix != null ? this.Setup.TrackingTablesSuffix : "";
-            var tpref = this.Setup.TriggersPrefix != null ? this.Setup.TriggersPrefix : "";
-            var tsuf = this.Setup.TriggersSuffix != null ? this.Setup.TriggersSuffix : "";
+            var spPref = this.Setup.StoredProceduresPrefix != null ? this.Setup.StoredProceduresPrefix : "";
+            var spSuf = this.Setup.StoredProceduresSuffix != null ? this.Setup.StoredProceduresSuffix : "";
+            var trigPref = this.Setup.TriggersPrefix != null ? this.Setup.TriggersPrefix : "";
+            var trigSuf = this.Setup.TriggersSuffix != null ? this.Setup.TriggersSuffix : "";
 
-            this.AddName(DbCommandType.InsertTrigger, string.Format(insertTriggerName, $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}"), true);
-            this.AddName(DbCommandType.UpdateTrigger, string.Format(updateTriggerName, $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}"), true);
-            this.AddName(DbCommandType.DeleteTrigger, string.Format(deleteTriggerName, $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}"), true);
+            this.AddName(DbCommandType.InsertTrigger, string.Format(insertTriggerName, $"{trigPref}{tableName.Unquoted().Normalized().ToString()}{trigSuf}"), true);
+            this.AddName(DbCommandType.UpdateTrigger, string.Format(updateTriggerName, $"{trigPref}{tableName.Unquoted().Normalized().ToString()}{trigSuf}"), true);
+            this.AddName(DbCommandType.DeleteTrigger, string.Format(deleteTriggerName, $"{trigPref}{tableName.Unquoted().Normalized().ToString()}{trigSuf}"), true);
 
-            this.AddName(DbCommandType.SelectChanges, string.Format(selectChangesProcName, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
-            this.AddName(DbCommandType.SelectChangesWithFilters, string.Format(selectChangesProcNameWithFilters, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}", "{0}"), true);
+            this.AddName(DbCommandType.SelectChanges, string.Format(selectChangesProcName, $"{spPref}{tableName.Unquoted().Normalized().ToString()}{spSuf}"), true);
+            this.AddName(DbCommandType.SelectChangesWithFilters, string.Format(selectChangesProcNameWithFilters, $"{spPref}{tableName.Unquoted().Normalized().ToString()}{spSuf}", "{0}"), true);
 
-            this.AddName(DbCommandType.SelectInitializedChanges, string.Format(initializeChangesProcName, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
-            this.AddName(DbCommandType.SelectInitializedChangesWithFilters, string.Format(initializeChangesProcNameWithFilters, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}", "{0}"), true);
+            this.AddName(DbCommandType.SelectInitializedChanges, string.Format(initializeChangesProcName, $"{spPref}{tableName.Unquoted().Normalized().ToString()}{spSuf}"), true);
+            this.AddName(DbCommandType.SelectInitializedChangesWithFilters, string.Format(initializeChangesProcNameWithFilters, $"{spPref}{tableName.Unquoted().Normalized().ToString()}{spSuf}", "{0}"), true);
 
-            this.AddName(DbCommandType.SelectRow, string.Format(selectRowProcName, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
-            this.AddName(DbCommandType.UpdateRow, string.Format(updateProcName, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
-            this.AddName(DbCommandType.DeleteRow, string.Format(deleteProcName, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
-            this.AddName(DbCommandType.DeleteMetadata, string.Format(deleteMetadataProcName, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
-            this.AddName(DbCommandType.Reset, string.Format(resetProcName, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
+            this.AddName(DbCommandType.SelectRow, string.Format(selectRowProcName, $"{spPref}{tableName.Unquoted().Normalized().ToString()}{spSuf}"), true);
+            this.AddName(DbCommandType.UpdateRow, string.Format(updateProcName, $"{spPref}{tableName.Unquoted().Normalized().ToString()}{spSuf}"), true);
+            this.AddName(DbCommandType.DeleteRow, string.Format(deleteProcName, $"{spPref}{tableName.Unquoted().Normalized().ToString()}{spSuf}"), true);
+            this.AddName(DbCommandType.DeleteMetadata, string.Format(deleteMetadataProcName, $"{spPref}{tableName.Unquoted().Normalized().ToString()}{spSuf}"), true);
+            this.AddName(DbCommandType.Reset, string.Format(resetProcName, $"{spPref}{tableName.Unquoted().Normalized().ToString()}{spSuf}"), true);
 
             this.AddName(DbCommandType.DisableConstraints, string.Format(disableConstraintsText, ParserName.Parse(TableDescription).Quoted().ToString()), false);
             this.AddName(DbCommandType.EnableConstraints, string.Format(enableConstraintsText, ParserName.Parse(TableDescription).Quoted().ToString()), false);

@@ -52,7 +52,7 @@ namespace Dotmim.Sync
 
 
     [DataContract(Name = "sfj"), Serializable]
-    public struct SetupFilterJoin
+    public class SetupFilterJoin : IEquatable<SetupFilterJoin>
     {
         [DataMember(Name = "je", IsRequired = true, Order = 1)]
         public Join JoinEnum { get; set; }
@@ -81,6 +81,30 @@ namespace Dotmim.Sync
             this.RightColumnName = rightColumnName;
         }
 
+        public bool Equals(SetupFilterJoin other)
+        {
+            if (other == null)
+                return false;
+
+            var sc = SyncGlobalization.DataSourceStringComparison;
+
+            return this.JoinEnum == other.JoinEnum
+                && string.Equals(this.TableName, other.TableName, sc)
+                && string.Equals(this.LeftColumnName, other.LeftColumnName, sc)
+                && string.Equals(this.LeftTableName, other.LeftTableName, sc)
+                && string.Equals(this.RightColumnName, other.RightColumnName, sc)
+                && string.Equals(this.RightTableName, other.RightTableName, sc);
+        }
+
+        public override bool Equals(object obj) => this.Equals(obj as SetupFilterJoin);
+
+        public override int GetHashCode() => base.GetHashCode();
+
+        public static bool operator ==(SetupFilterJoin left, SetupFilterJoin right)
+            => EqualityComparer<SetupFilterJoin>.Default.Equals(left, right);
+
+        public static bool operator !=(SetupFilterJoin left, SetupFilterJoin right)
+            => !(left == right);
     }
 
 

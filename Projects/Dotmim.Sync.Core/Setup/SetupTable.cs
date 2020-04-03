@@ -2,6 +2,7 @@
 using Dotmim.Sync.Enumerations;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.Serialization;
 using System.Text;
 
@@ -42,10 +43,12 @@ namespace Dotmim.Sync
         /// </summary>
         public SetupTable(string tableName, string schemaName = null)
         {
+            this.TableName = tableName ?? throw new ArgumentNullException(nameof(tableName));
+
             // Potentially user can pass something like [SalesLT].[Product]
             // or SalesLT.Product or Product. ParserName will handle it
-            var parserTableName = ParserName.Parse(tableName);
-            tableName = parserTableName.ObjectName;
+            var parserTableName = ParserName.Parse(this.TableName);
+            this.TableName = parserTableName.ObjectName;
 
             // Check Schema
             if (string.IsNullOrEmpty(schemaName))
@@ -58,7 +61,6 @@ namespace Dotmim.Sync
                 schemaName = parserSchemaName.ObjectName;
             }
 
-            this.TableName = tableName;
             this.SchemaName = schemaName;
             this.Columns = new SetupColumns();
         }
@@ -96,9 +98,21 @@ namespace Dotmim.Sync
             var sn = this.SchemaName == null ? string.Empty : this.SchemaName;
             var otherSn = other.SchemaName == null ? string.Empty : other.SchemaName;
 
-            return other != null &&
-                   this.TableName.Equals(other.TableName, sc) &&
-                   sn.Equals(otherSn, sc);
+            // checking properties
+            if (!string.Equals(this.TableName, other.TableName, sc) || !sn.Equals(otherSn, sc) || !(this.SyncDirection == other.SyncDirection))
+                return false;
+
+            // checking columns
+            if ((this.Columns == null && other.Columns != null) || (this.Columns != null && other.Columns == null))
+                return false;
+
+            if (this.Columns != null && other.Columns != null)
+            {
+                if (this.Columns.Count != other.Columns.Count || !this.Columns.All(item1 => other.Columns.Any(item2 => string.Equals(item1, item2, sc))))
+                    return false;
+            }
+
+            return true;
         }
 
         public override int GetHashCode()
