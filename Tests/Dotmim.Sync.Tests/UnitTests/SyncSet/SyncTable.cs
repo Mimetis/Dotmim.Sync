@@ -71,24 +71,6 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(tCustomer, tCustomer.Rows.Table);
 
         }
-
-        [Fact]
-        public void Synctable_Compare_Two_Instances_Should_Work()
-        {
-            //SyncTable tCustomer = new SyncTable("Customer");
-            //tCustomer.Columns.Add(new SyncColumn("ID", typeof(Guid)));
-            //tCustomer.Columns.Add(new SyncColumn("Name", typeof(string)));
-
-            //SyncRow tCustomerRow = new SyncRow(tCustomer);
-            //tCustomerRow["ID"] = "A";
-            //tCustomerRow["Name"] = "B";
-
-            //tCustomer.Rows.Add(tCustomerRow);
-
-            //tCustomer.EnsureTable(new SyncSet());
-
-            // Todo : Make the test
-            Assert.True(false);
-        }
+       
     }
 }
