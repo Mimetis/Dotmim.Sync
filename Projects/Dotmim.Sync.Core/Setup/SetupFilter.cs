@@ -49,7 +49,7 @@ namespace Dotmim.Sync
         /// Side where filters list
         /// </summary>
         [DataMember(Name = "w", IsRequired = false, EmitDefaultValue = false, Order = 5)]
-        public List<SetupFilterWhere> Where { get; } = new List<SetupFilterWhere>();
+        public List<SetupFilterWhere> Wheres { get; } = new List<SetupFilterWhere>();
 
         /// <summary>
         /// Creates a filterclause allowing to specify a different DbType.
@@ -129,7 +129,7 @@ namespace Dotmim.Sync
             if (!this.Parameters.Any(p => string.Equals(p.Name, parameterName, SyncGlobalization.DataSourceStringComparison)))
                 throw new FilterTrackingWhereException(parameterName);
 
-            this.Where.Add(new SetupFilterWhere { ColumnName = columnName, TableName = tableName, ParameterName = parameterName, SchemaName = schemaName });
+            this.Wheres.Add(new SetupFilterWhere { ColumnName = columnName, TableName = tableName, ParameterName = parameterName, SchemaName = schemaName });
             return this;
         }
 
@@ -138,6 +138,9 @@ namespace Dotmim.Sync
         /// </summary>
         public SetupFilter AddCustomerWhere(string where)
         {
+            // check we don't add a null value
+            where = where ?? string.Empty;
+
             this.CustomWheres.Add(where);
             return this;
         }
@@ -162,9 +165,55 @@ namespace Dotmim.Sync
             var sn = this.SchemaName == null ? string.Empty : this.SchemaName;
             var otherSn = other.SchemaName == null ? string.Empty : other.SchemaName;
 
-            return other != null &&
-                   this.TableName.Equals(other.TableName, sc) &&
-                   sn.Equals(otherSn, sc);
+            // checking properties
+            if (!string.Equals(this.TableName, other.TableName, sc) || !sn.Equals(otherSn, sc))
+                return false;
+
+            // checking CustomWheres
+            if ((this.CustomWheres == null && other.CustomWheres != null) || (this.CustomWheres != null && other.CustomWheres == null))
+                return false;
+
+            // Checking custom wheres
+            if (this.CustomWheres != null && other.CustomWheres != null)
+            {
+                if (this.CustomWheres.Count != other.CustomWheres.Count || !this.CustomWheres.All(cw => other.CustomWheres.Any(ocw => string.Equals(ocw, cw, sc))))
+                    return false;
+            }
+
+            // Checking Joins
+            if ((this.Joins == null && other.Joins != null) || (this.Joins != null && other.Joins == null))
+                return false;
+
+            // Checking Joins
+            if (this.Joins != null && other.Joins != null)
+            {
+                if (this.Joins.Count != other.Joins.Count || !this.Joins.All(item1 => other.Joins.Any(item2 => item1 == item2)))
+                    return false;
+            }
+
+            // Checking Joins
+            if ((this.Parameters == null && other.Parameters != null) || (this.Parameters != null && other.Parameters == null))
+                return false;
+
+            // Checking Joins
+            if (this.Parameters != null && other.Parameters != null)
+            {
+                if (this.Parameters.Count != other.Parameters.Count || !this.Parameters.All(item1 => other.Parameters.Any(item2 => item1 == item2)))
+                    return false;
+            }
+
+            // Checking Where
+            if ((this.Wheres == null && other.Wheres != null) || (this.Wheres != null && other.Wheres == null))
+                return false;
+
+            // Checking Where
+            if (this.Wheres != null && other.Wheres != null)
+            {
+                if (this.Wheres.Count != other.Wheres.Count || !this.Wheres.All(item1 => other.Wheres.Any(item2 => item1 == item2)))
+                    return false;
+            }
+
+            return true;
         }
 
         public override int GetHashCode()

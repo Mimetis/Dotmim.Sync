@@ -298,7 +298,7 @@ namespace Dotmim.Sync.MySql
                             var scopeInfo = new ScopeInfo();
                             scopeInfo.Name = reader["sync_scope_name"] as String;
                             scopeInfo.Schema = reader["sync_scope_schema"] as string;
-                            scopeInfo.Schema = reader["sync_scope_setup"] as string;
+                            scopeInfo.Setup = reader["sync_scope_setup"] as string;
                             scopeInfo.Version = reader["sync_scope_version"] as string;
                             scopeInfo.Id = new Guid((String)reader["sync_scope_id"]);
                             scopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value ? (DateTime?)reader["scope_last_sync"] : null;
@@ -525,7 +525,7 @@ namespace Dotmim.Sync.MySql
                             {
                                 scopeInfo.Name = reader["sync_scope_name"] as string;
                                 scopeInfo.Schema = reader["sync_scope_schema"] as string;
-                                scopeInfo.Schema = reader["sync_scope_setup"] as string;
+                                scopeInfo.Setup = reader["sync_scope_setup"] as string;
                                 scopeInfo.Version = reader["sync_scope_version"] as string;
                                 scopeInfo.Id = new Guid((string)reader["sync_scope_id"]);
                                 scopeInfo.LastSyncDuration = reader["scope_last_sync_duration"] != DBNull.Value ? (long)reader["scope_last_sync_duration"] : 0L;
@@ -701,7 +701,7 @@ namespace Dotmim.Sync.MySql
 
                     p = command.CreateParameter();
                     p.ParameterName = "@sync_scope_setup";
-                    p.Value = serverScopeInfo.Schema;
+                    p.Value = serverScopeInfo.Setup;
                     p.DbType = DbType.String;
                     command.Parameters.Add(p);
 
