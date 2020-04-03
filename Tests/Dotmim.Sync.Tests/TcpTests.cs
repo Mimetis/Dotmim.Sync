@@ -171,7 +171,8 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in this.Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(this.Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, 
+                    new SyncSetup(this.Tables) { StoredProceduresPrefix = "cli", StoredProceduresSuffix = "", TrackingTablesPrefix = "tr" });
 
                 var s = await agent.SynchronizeAsync();
 
@@ -3521,7 +3522,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, new SyncOptions(),  setup); ;
+                var agent = new SyncAgent(client.Provider, Server.Provider, new SyncOptions(), setup); ;
 
                 var s = await agent.SynchronizeAsync();
 
