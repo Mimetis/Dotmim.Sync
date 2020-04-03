@@ -11,7 +11,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 
 namespace Dotmim.Sync.Tests.IntegrationTests
 {
