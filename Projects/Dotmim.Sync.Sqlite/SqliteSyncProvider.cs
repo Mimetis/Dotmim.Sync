@@ -5,12 +5,15 @@ using System.Data.Common;
 using Microsoft.Data.Sqlite;
 using System.IO;
 using Dotmim.Sync.Sqlite.Builders;
+using SQLitePCL;
 
 namespace Dotmim.Sync.Sqlite
 {
 
     public class SqliteSyncProvider : CoreProvider
     {
+
+       
         private string filePath;
         private DbMetadata dbMetadata;
         private static String providerType;
@@ -83,7 +86,6 @@ namespace Dotmim.Sync.Sqlite
                     // overriding connectionstring
                     ForeignKeys = !this.Options.DisableConstraintsOnApplyChanges
                 };
-
                 this.ConnectionString = builder.ToString();
             }
         }
