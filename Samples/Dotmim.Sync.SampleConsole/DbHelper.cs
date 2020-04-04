@@ -14,8 +14,11 @@ namespace Dotmim.Sync.SampleConsole
         public static string GetDatabaseConnectionString(string dbName) =>
             $"Data Source=(localdb)\\mssqllocaldb; Initial Catalog={dbName}; Integrated Security=true;";
 
+        public static string GetLocalhostDatabaseConnectionString(string dbName) =>
+            $"Data Source=localhost; Initial Catalog={dbName}; Integrated Security=false;User Id=;Password=";
+
         public static string GetAzureDatabaseConnectionString(string dbName) =>
-            $"Data Source=spertus.database.windows.net; Initial Catalog={dbName}; Integrated Security=false;User Id=spertus;Password=azerty31$;";
+            $"Data Source=spertus.database.windows.net; Initial Catalog={dbName}; Integrated Security=false;User Id=;Password=";
 
 
 
