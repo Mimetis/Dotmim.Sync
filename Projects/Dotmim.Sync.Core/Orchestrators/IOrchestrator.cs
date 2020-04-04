@@ -98,7 +98,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Ensure scope is created (both scope_info_server and scope_info_history tables)
         /// </summary>
-        Task<ServerScopeInfo> EnsureScopesAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null);
+        Task<ServerScopeInfo> GetServerScopeAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null);
 
         /// <summary>
         /// Get configuration from remote to ensure local provider has everything needed
@@ -126,6 +126,6 @@ namespace Dotmim.Sync
         /// <summary>
         /// Delete all metadatas from tracking tables that are below a timestamp
         /// </summary>
-        Task DeleteMetadatasAsync(long timeStampStart, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null);
+        Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(long timeStampStart, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null);
     }
 }

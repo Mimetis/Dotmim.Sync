@@ -354,6 +354,8 @@ namespace Dotmim.Sync
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
+                ServerScopeInfo serverScopeInfo = null;
+
                 this.LocalOrchestrator.SetContext(context);
                 this.RemoteOrchestrator.SetContext(context);
                 this.LocalOrchestrator.StartTime = startTime;
@@ -378,7 +380,7 @@ namespace Dotmim.Sync
                 //
 
                 // On local orchestrator, get scope info
-                var clientScopeInfo = await this.LocalOrchestrator.EnsureScopeAsync(cancellationToken, progress);
+                var clientScopeInfo = await this.LocalOrchestrator.GetClientScopeAsync(cancellationToken, progress);
 
                 // if client is new or else schema does not exists
                 // We need to get it from server
@@ -400,7 +402,7 @@ namespace Dotmim.Sync
                 else
                 {
                     // on remote orchestrator get scope info as well
-                    var serverScopeInfo = await this.RemoteOrchestrator.EnsureScopesAsync(cancellationToken, remoteProgress);
+                    serverScopeInfo = await this.RemoteOrchestrator.GetServerScopeAsync(cancellationToken, remoteProgress);
 
                     // If coming from Web remote, the schema is null, so just compare version
                     // if server schema is null, assuming they are identical, unless version are differents
@@ -426,6 +428,18 @@ namespace Dotmim.Sync
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
+
+                // Before call the changes from localorchestrator, check if we are outdated
+                if (serverScopeInfo != null)
+                {
+                    var isOutDated = await this.LocalOrchestrator.IsOutDated(clientScopeInfo, serverScopeInfo);
+
+                    // if client does not change SyncType to Reinitialize / ReinitializeWithUpload on SyncInterceptor, we raise an error
+                    // otherwise, we are outdated, but we can continue, because we have a new mode.
+                    if (isOutDated)
+                        Debug.WriteLine($"Client id outdated, but we change mode to {context.SyncType}");
+                }
+
 
                 // On local orchestrator, get local changes
                 var clientChanges = await this.LocalOrchestrator.GetChangesAsync(clientScopeInfo, cancellationToken, progress);

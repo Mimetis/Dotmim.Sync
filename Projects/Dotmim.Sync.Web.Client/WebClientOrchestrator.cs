@@ -118,7 +118,7 @@ namespace Dotmim.Sync.Web.Client
 
         }
 
-        public async Task<ServerScopeInfo> EnsureScopesAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public async Task<ServerScopeInfo> GetServerScopeAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             // Get context or create a new one
             var ctx = this.GetContext();
@@ -478,7 +478,7 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// We can't delete metadats on request from client
         /// </summary>
-        public override Task DeleteMetadatasAsync(long timeStampStart, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public override Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(long timeStampStart, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
             => throw new NotImplementedException();
 
         public void BeforeSerializeRows(SyncSet data)

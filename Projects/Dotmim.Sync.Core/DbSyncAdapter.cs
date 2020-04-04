@@ -471,7 +471,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Delete all metadatas from one table before a timestamp limit
         /// </summary>
-        internal async Task<bool> DeleteMetadatasAsync(long timestampLimit)
+        internal async Task<int> DeleteMetadatasAsync(long timestampLimit)
         {
             using (var command = this.GetCommand(DbCommandType.DeleteMetadata))
             {
@@ -503,7 +503,7 @@ namespace Dotmim.Sync
                 if (!alreadyOpened)
                     Connection.Close();
 
-                return metadataDeletedRowsCount > 0;
+                return metadataDeletedRowsCount;
             }
         }
 

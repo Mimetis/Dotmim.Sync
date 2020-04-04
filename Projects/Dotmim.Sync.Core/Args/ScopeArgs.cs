@@ -48,7 +48,7 @@ namespace Dotmim.Sync
         /// </summary>
         public ScopeInfo ScopeInfo { get; }
 
-        public override string Message => $"[{Connection.Database}] [{ScopeInfo?.Name}] [Version {ScopeInfo.Version}] Last sync:{ScopeInfo?.LastSync} Last sync duration:{ScopeInfo?.GetLastSyncDurationString()} ";
+        public override string Message => $"[{Connection.Database}] [{ScopeInfo?.Name}] [Version {ScopeInfo.Version}] Last sync:{ScopeInfo?.LastSync} Last sync duration:{ScopeInfo?.LastSyncDurationString} ";
     }
 
     /// <summary>

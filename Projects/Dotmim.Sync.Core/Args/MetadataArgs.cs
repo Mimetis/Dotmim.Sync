@@ -22,14 +22,20 @@ namespace Dotmim.Sync
 
     }
 
-    public class MetadataCleanedArgs : MetadataCleaningArgs
+    public class MetadataCleanedArgs : ProgressArgs
     {
-        public MetadataCleanedArgs(SyncContext context, SyncSetup setup, long timeStampStart, DbConnection connection = null, DbTransaction transaction = null) 
-            : base(context, setup, timeStampStart, connection, transaction)
+        public MetadataCleanedArgs(SyncContext context, DatabaseMetadatasCleaned databaseMetadatasCleaned, DbConnection connection = null, DbTransaction transaction = null) 
+            : base(context, connection, transaction)
         {
+            this.DatabaseMetadatasCleaned = databaseMetadatasCleaned;
         }
 
-        public override string Message => $"tables cleaned count:{Setup.Tables.Count}";
+        /// <summary>
+        /// Gets or Sets the rows count cleaned for all tables, during a DeleteMetadatasAsync call
+        /// </summary>
+        public DatabaseMetadatasCleaned DatabaseMetadatasCleaned { get; set; }
+
+        public override string Message => $"Tables cleaned count:{DatabaseMetadatasCleaned.Tables.Count}. Rows cleaned count:{DatabaseMetadatasCleaned.RowsCleanedCount}";
 
     }
 }

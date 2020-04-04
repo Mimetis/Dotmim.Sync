@@ -598,6 +598,7 @@ namespace Dotmim.Sync.SqlServer.Scope
         public virtual async Task<ServerHistoryScopeInfo> InsertOrUpdateServerHistoryScopeInfoAsync(ServerHistoryScopeInfo serverHistoryScopeInfo)
         {
             var command = connection.CreateCommand();
+
             if (transaction != null)
                 command.Transaction = transaction;
             bool alreadyOpened = connection.State == ConnectionState.Open;
@@ -853,6 +854,63 @@ namespace Dotmim.Sync.SqlServer.Scope
                             serverScopeInfo.Setup = reader["sync_scope_setup"] as string;
                             serverScopeInfo.Version = reader["sync_scope_version"] as string;
                             serverScopeInfo.LastCleanupTimestamp = reader["sync_scope_last_clean_timestamp"] != DBNull.Value ? (long)reader["sync_scope_last_clean_timestamp"] : 0;
+                            scopes.Add(serverScopeInfo);
+                        }
+                    }
+                }
+
+                if (!alreadyOpened && connection.State != ConnectionState.Closed)
+                    connection.Close();
+
+                return scopes;
+            }
+
+        }
+
+        public async Task<List<ServerHistoryScopeInfo>> GetAllServerHistoryScopesAsync(string scopeName)
+        {
+            using (var command = connection.CreateCommand())
+            {
+                var tableName = $"{scopeTableName.Unquoted().Normalized()}_history";
+
+                if (transaction != null)
+                    command.Transaction = transaction;
+
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                var scopes = new List<ServerHistoryScopeInfo>();
+
+                if (!alreadyOpened)
+                    await connection.OpenAsync().ConfigureAwait(false);
+
+                command.CommandText =
+                    $@"SELECT [sync_scope_id]
+                           , [sync_scope_name]
+                           , [scope_last_sync_timestamp]
+                           , [scope_last_sync_duration]
+                           , [scope_last_sync]
+                    FROM  [{tableName}]
+                    WHERE [sync_scope_name] = @sync_scope_name";
+
+                var p = command.CreateParameter();
+                p.ParameterName = "@sync_scope_name";
+                p.Value = scopeName;
+                p.DbType = DbType.String;
+                command.Parameters.Add(p);
+
+                using (var reader = await command.ExecuteReaderAsync().ConfigureAwait(false))
+                {
+                    if (reader.HasRows)
+                    {
+                        // read only the first one
+                        while (reader.Read())
+                        {
+                            var serverScopeInfo = new ServerHistoryScopeInfo();
+                            serverScopeInfo.Id = (Guid)reader["sync_scope_id"];
+                            serverScopeInfo.Name = reader["sync_scope_name"] as string;
+                            serverScopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value ? (DateTime?)reader["scope_last_sync"] : null;
+                            serverScopeInfo.LastSyncDuration = reader["scope_last_sync_duration"] != DBNull.Value ? (long)reader["scope_last_sync_duration"] : 0;
+                            serverScopeInfo.LastSyncTimestamp = reader["scope_last_sync_timestamp"] != DBNull.Value ? (long)reader["scope_last_sync_timestamp"] : 0;
                             scopes.Add(serverScopeInfo);
                         }
                     }
