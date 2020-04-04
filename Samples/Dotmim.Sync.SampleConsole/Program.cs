@@ -45,7 +45,7 @@ internal class Program
     public static string[] oneTable = new string[] { "ProductCategory" };
     private static async Task Main(string[] args)
     {
-        await SyncThroughWebApiAsync();
+        await SynchronizeAsync();
     }
 
 
@@ -366,8 +366,8 @@ internal class Program
     private static async Task SynchronizeAsync()
     {
         // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
-        var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
+        var serverProvider = new SqlSyncChangeTrackingProvider(DbHelper.GetLocalhostDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqlSyncChangeTrackingProvider(DbHelper.GetLocalhostDatabaseConnectionString(clientDbName));
         //var clientProvider = new SqliteSyncProvider("clientX.db");
 
         //var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" });
