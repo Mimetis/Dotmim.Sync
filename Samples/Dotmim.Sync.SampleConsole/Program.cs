@@ -30,7 +30,7 @@ using System.Runtime.Serialization.Formatters.Binary;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
-
+using System.Diagnostics;
 
 internal class Program
 {
@@ -70,7 +70,7 @@ internal class Program
             p = command.CreateParameter();
             p.ParameterName = "@Name";
             p.DbType = DbType.String;
-            p.Value = "Awesom Bike";
+            p.Value = "Awesome Bike";
             command.Parameters.Add(p);
 
             clientConnection.Open();
@@ -620,6 +620,70 @@ internal class Program
     }
 
     /// <summary>
+    /// Testing client clean metadatas
+    /// </summary>
+    private static async Task CleanClientMetadatasAsync()
+    {
+        // Create the setup used for your sync process
+        var tables = new string[] {"ProductCategory",
+                    "ProductDescription", "ProductModel",
+                    "Product", "ProductModelProductDescription",
+                    "Address", "Customer", "CustomerAddress",
+                    "SalesOrderHeader", "SalesOrderDetail" };
+
+        var setup = new SyncSetup(tables)
+        {
+            // optional :
+            StoredProceduresPrefix = "cli",
+            StoredProceduresSuffix = "",
+            TrackingTablesPrefix = "cli",
+            TrackingTablesSuffix = ""
+        };
+
+        var syncOptions = new SyncOptions
+        {
+            ScopeInfoTableName = "client_scopeinfo"
+        };
+
+        var sqlSyncProvider = new SqlSyncProvider("Data Source=(localdb)\\mssqllocaldb; Initial Catalog=Client; Integrated Security=true;");
+        var orchestrator = new LocalOrchestrator(sqlSyncProvider, syncOptions, setup);
+
+        // delelete metadatas
+        var dmd = await orchestrator.DeleteMetadatasAsync();
+
+        Console.WriteLine(dmd);
+    }
+
+    /// <summary>
+    /// Testing server clean metadatas
+    /// </summary>
+    private static async Task CleanServerMetadatasAsync()
+    {
+        // Create the setup used for your sync process
+        var tables = new string[] {"ProductCategory",
+                    "ProductDescription", "ProductModel",
+                    "Product", "ProductModelProductDescription",
+                    "Address", "Customer", "CustomerAddress",
+                    "SalesOrderHeader", "SalesOrderDetail" };
+        var setup = new SyncSetup(tables)
+        {
+            // optional :
+            StoredProceduresPrefix = "server",
+            StoredProceduresSuffix = "",
+            TrackingTablesPrefix = "server",
+            TrackingTablesSuffix = ""
+        };
+
+        var remoteSqlSyncProvider = new SqlSyncProvider("Data Source=(localdb)\\mssqllocaldb; Initial Catalog=AdventureWorks; Integrated Security=true;");
+        var remoteOrchestrator = new RemoteOrchestrator(remoteSqlSyncProvider, new SyncOptions(), setup);
+
+        // delelete metadatas
+        var dmd = await remoteOrchestrator.DeleteMetadatasAsync();
+
+        Console.WriteLine(dmd);
+    }
+
+    /// <summary>
     /// Test a client syncing through a web api
     /// </summary>
     private static async Task SyncThroughWebApiAsync()
@@ -655,7 +719,12 @@ internal class Program
         };
 
 
+
         var agent = new SyncAgent(clientProvider, proxyClientProvider, clientOptions, clientSetup);
+
+        agent.LocalOrchestrator.OnOutdated(oa => oa.Action = OutdatedAction.Reinitialize);
+
+        agent.Parameters.Add("CompanyName", "A Bike Store");
 
         Console.WriteLine("Press a key to start (be sure web api is running ...)");
         Console.ReadKey();

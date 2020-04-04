@@ -24,15 +24,7 @@ namespace Dotmim.Sync
                 throw new MissingTablesException();
 
             // Create the schema
-            var schema = new SyncSet()
-            {
-                //StoredProceduresPrefix = setup.StoredProceduresPrefix,
-                //StoredProceduresSuffix = setup.StoredProceduresSuffix,
-                //TrackingTablesPrefix = setup.TrackingTablesPrefix,
-                //TrackingTablesSuffix = setup.TrackingTablesSuffix,
-                //TriggersPrefix = setup.TriggersPrefix,
-                //TriggersSuffix = setup.TriggersSuffix,
-            };
+            var schema = new SyncSet();
 
             // copy filters from setup
             foreach (var filter in setup.Filters)

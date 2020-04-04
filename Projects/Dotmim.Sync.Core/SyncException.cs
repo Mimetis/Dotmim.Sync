@@ -244,13 +244,13 @@ namespace Dotmim.Sync
 
 
   /// <summary>
-  /// [Not Used] Occurs when sync metadatas are out of date
+  /// Occurs when sync metadatas are out of date
   /// </summary>
   public class OutOfDateException : Exception
   {
-    const string message = "The provider is out of date ! Try to make a Reinitialize sync.";
+    const string message = "Client database is out of date. Last client sync timestamp:{0}. Last server cleanup metadata:{1} Try to make a Reinitialize sync.";
 
-    public OutOfDateException() : base(message) { }
+    public OutOfDateException(long timestampLimit, long serverLastCleanTimestamp) : base(string.Format(message, timestampLimit, serverLastCleanTimestamp)) { }
   }
 
   /// <summary>

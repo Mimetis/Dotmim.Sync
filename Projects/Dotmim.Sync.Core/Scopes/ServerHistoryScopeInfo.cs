@@ -33,6 +33,20 @@ namespace Dotmim.Sync
         /// Gets or Sets the last duration a sync has occured. 
         /// </summary>
         public long LastSyncDuration { get; set; }
-       
+
+
+        /// <summary>
+        /// Gets a readable version of LastSyncDuration
+        /// </summary>
+        /// <returns></returns>
+        public string LastSyncDurationString
+        {
+            get
+            {
+                var durationTs = new TimeSpan(this.LastSyncDuration);
+                return $"{durationTs.Hours}:{durationTs.Minutes}:{durationTs.Seconds}.{durationTs.Milliseconds}";
+            }
+        }
+
     }
 }

@@ -40,5 +40,7 @@ namespace Dotmim.Sync
         [DataMember(Name = "lst", IsRequired = false, EmitDefaultValue = false, Order = 3)]
         public long LastCleanupTimestamp { get; set; }
 
+
+
     }
 }
