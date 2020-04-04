@@ -218,6 +218,24 @@ namespace Dotmim.Sync
         }
 
 
+        /// <summary>
+        /// Get Client scope information
+        /// </summary>
+        public virtual async Task<(SyncContext, List<ServerHistoryScopeInfo>)> GetServerHistoryScopesAsync(SyncContext context, string scopeInfoTableName, string scopeName,
+                             DbConnection connection, DbTransaction transaction,
+                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+        {
+
+            var scopeBuilder = this.GetScopeBuilder();
+            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName, connection, transaction);
+
+            // get all scopes shared by all (identified by scopeName)
+            var serverHistoryScopes = await scopeInfoBuilder.GetAllServerHistoryScopesAsync(scopeName).ConfigureAwait(false);
+
+            return (context, serverHistoryScopes);
+        }
+
+
 
         /// <summary>
         /// Write scope in the local data source

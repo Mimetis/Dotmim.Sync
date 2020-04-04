@@ -264,7 +264,7 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Deprovision the orchestrator database based on the orchestrator Setup argument, and the provision enumeration
+        /// Deprovision the orchestrator database based on the orchestrator Setup instance, provided on constructor, and the provision enumeration
         /// </summary>
         /// <param name="provision">Provision enumeration to determine which components to deprovision</param>
         public virtual Task DeprovisionAsync(SyncProvision provision, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
@@ -296,7 +296,7 @@ namespace Dotmim.Sync
 
                     // Open connection
                     await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
-                  
+
                     // Create a transaction
                     using (var transaction = connection.BeginTransaction())
                     {
@@ -397,11 +397,12 @@ namespace Dotmim.Sync
         /// <param name="timeStampStart">Timestamp start. Used to limit the delete metadatas rows from now to this timestamp</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <param name="progress">Progress args</param>
-        public virtual async Task DeleteMetadatasAsync(long timeStampStart, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(long timeStampStart, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (!this.StartTime.HasValue)
                 this.StartTime = DateTime.UtcNow;
 
+            DatabaseMetadatasCleaned databaseMetadatasCleaned = null;
             // Get context or create a new one
             var ctx = this.GetContext();
             using (var connection = this.Provider.CreateConnection())
@@ -424,7 +425,7 @@ namespace Dotmim.Sync
                         // No need columns or primary keys to be able to deprovision a table
                         SyncSet schema = new SyncSet(this.Setup);
 
-                        ctx = await this.Provider.DeleteMetadatasAsync(ctx, schema, this.Setup, timeStampStart, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        (ctx, databaseMetadatasCleaned) = await this.Provider.DeleteMetadatasAsync(ctx, schema, this.Setup, timeStampStart, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                         await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
 
@@ -435,7 +436,7 @@ namespace Dotmim.Sync
 
                     await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
 
-                    var args = new MetadataCleanedArgs(ctx, this.Setup, timeStampStart, connection);
+                    var args = new MetadataCleanedArgs(ctx, databaseMetadatasCleaned, connection);
                     await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
                     this.ReportProgress(ctx, progress, args);
                 }
@@ -448,6 +449,8 @@ namespace Dotmim.Sync
                     if (connection != null && connection.State != ConnectionState.Closed)
                         connection.Close();
                 }
+
+                return databaseMetadatasCleaned;
             }
 
         }
@@ -459,7 +462,7 @@ namespace Dotmim.Sync
         /// <param name="timeStampStart">Timestamp start. Used to limit the delete metadatas rows from now to this timestamp</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <param name="progress">Progress args</param>
-        public virtual async Task<bool> IsOutDated(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<bool> IsOutDated(ScopeInfo clientScopeInfo, ServerScopeInfo serverScopeInfo, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (!this.StartTime.HasValue)
                 this.StartTime = DateTime.UtcNow;
@@ -468,39 +471,27 @@ namespace Dotmim.Sync
 
             // Get context or create a new one
             var ctx = this.GetContext();
-            using (var connection = this.Provider.CreateConnection())
+
+            // Check if the provider is not outdated
+            if (clientScopeInfo.LastServerSyncTimestamp > 0 && serverScopeInfo.LastCleanupTimestamp > 0)
+                isOutdated = clientScopeInfo.LastServerSyncTimestamp < serverScopeInfo.LastCleanupTimestamp;
+
+            // Get a chance to make the sync even if it's outdated
+            if (isOutdated)
             {
-                try
-                {
-                    // Open connection
-                    await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+                var outdatedArgs = new OutdatedArgs(ctx, clientScopeInfo, serverScopeInfo);
 
-                    // Create a transaction
-                    using (var transaction = connection.BeginTransaction())
-                    {
-                        await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+                // Interceptor
+                await this.InterceptAsync(outdatedArgs, cancellationToken).ConfigureAwait(false);
 
-                        isOutdated = this.Provider.IsRemoteOutdated();
+                if (outdatedArgs.Action != OutdatedAction.Rollback)
+                    ctx.SyncType = outdatedArgs.Action == OutdatedAction.Reinitialize ? SyncType.Reinitialize : SyncType.ReinitializeWithUpload;
 
-                        await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
-
-                        transaction.Commit();
-                    }
-
-                    await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
-
-                }
-                catch (Exception ex)
-                {
-                    RaiseError(ex);
-                }
-                finally
-                {
-                    if (connection != null && connection.State != ConnectionState.Closed)
-                        connection.Close();
-                }
-                return isOutdated;
+                if (outdatedArgs.Action == OutdatedAction.Rollback)
+                    throw new OutOfDateException(clientScopeInfo.LastServerSyncTimestamp, serverScopeInfo.LastCleanupTimestamp);
             }
+
+            return isOutdated;
         }
     }
 }

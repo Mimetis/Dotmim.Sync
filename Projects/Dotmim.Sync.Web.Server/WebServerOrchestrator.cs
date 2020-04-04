@@ -298,7 +298,7 @@ namespace Dotmim.Sync.Web.Server
             this.SetContext(ctx);
 
             // Get schema
-            var serverScopeInfo = await this.EnsureScopesAsync(cancellationToken, progress).ConfigureAwait(false);
+            var serverScopeInfo = await this.GetServerScopeAsync(cancellationToken, progress).ConfigureAwait(false);
 
             // Create http response
             var httpResponse = new HttpMessageEnsureScopesResponse(ctx, serverScopeInfo);

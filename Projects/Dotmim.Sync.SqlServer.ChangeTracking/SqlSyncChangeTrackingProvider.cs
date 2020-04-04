@@ -68,9 +68,8 @@ namespace Dotmim.Sync.SqlServer
         /// Metadatas are handled by Change Tracking
         /// So just do nothing here
         /// </summary>
-        public override Task<SyncContext> DeleteMetadatasAsync(SyncContext context, SyncSet schema, SyncSetup setup, long timestampLimit, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null) 
-            => Task.FromResult(context);
-
+        public override Task<(SyncContext, DatabaseMetadatasCleaned)> DeleteMetadatasAsync(SyncContext context, SyncSet schema, SyncSetup setup, long timestampLimit, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null) 
+            => Task.FromResult((context, new DatabaseMetadatasCleaned()));
 
         public override DbConnection CreateConnection() => new SqlConnection(this.ConnectionString);
         public override DbScopeBuilder GetScopeBuilder() => new SqlChangeTrackingScopeBuilder();

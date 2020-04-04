@@ -29,7 +29,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var localOrchestrator = new LocalOrchestrator(provider, options, setup);
 
-            var scope = await localOrchestrator.EnsureScopeAsync();
+            var scope = await localOrchestrator.GetClientScopeAsync();
 
             Assert.NotNull(scope);
 
@@ -82,7 +82,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             // Check connection and transaction interceptors
             BaseOrchestratorTests.AssertConnectionAndTransaction(localOrchestrator, SyncStage.ScopeLoading, SyncStage.ScopeLoaded);
 
-            var localScopeInfo = await localOrchestrator.EnsureScopeAsync();
+            var localScopeInfo = await localOrchestrator.GetClientScopeAsync();
 
             Assert.True(onScopeLoaded);
             Assert.True(onScopeLoading);
@@ -107,7 +107,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup, scopeName);
 
-            var localScopeInfo = await localOrchestrator.EnsureScopeAsync();
+            var localScopeInfo = await localOrchestrator.GetClientScopeAsync();
 
             Assert.NotNull(localScopeInfo);
             Assert.Equal(scopeName, localScopeInfo.Name);
@@ -152,7 +152,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             localOrchestrator.OnConnectionOpen(args => cts.Cancel());
 
-            var se = await Assert.ThrowsAsync<SyncException>(async () => await localOrchestrator.EnsureScopeAsync(cts.Token));
+            var se = await Assert.ThrowsAsync<SyncException>(async () => await localOrchestrator.GetClientScopeAsync(cts.Token));
 
             Assert.Equal(SyncSide.ClientSide, se.Side);
             Assert.Equal("OperationCanceledException", se.TypeName);
@@ -177,7 +177,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var cts = new CancellationTokenSource();
 
             localOrchestrator.OnTransactionCommit(args => cts.Cancel());
-            var se = await Assert.ThrowsAsync<SyncException>(async () => await localOrchestrator.EnsureScopeAsync(cts.Token));
+            var se = await Assert.ThrowsAsync<SyncException>(async () => await localOrchestrator.GetClientScopeAsync(cts.Token));
             Assert.Equal(SyncSide.ClientSide, se.Side);
             Assert.Equal("OperationCanceledException", se.TypeName);
             

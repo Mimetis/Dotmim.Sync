@@ -31,10 +31,68 @@ namespace Dotmim.Sync
 
 
         /// <summary>
+        /// Get the server scope histories
+        /// </summary>
+        public async Task<List<ServerHistoryScopeInfo>> GetServerHistoryScopes(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            if (!this.StartTime.HasValue)
+                this.StartTime = DateTime.UtcNow;
+
+            // Get context or create a new one
+            var ctx = this.GetContext();
+            List<ServerHistoryScopeInfo> serverHistoryScopes = null;
+
+            using (var connection = this.Provider.CreateConnection())
+            {
+                try
+                {
+                    ctx.SyncStage = SyncStage.ScopeLoading;
+
+                    // Open connection
+                    await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+
+                    DbTransaction transaction;
+                    // Create a transaction
+                    using (transaction = connection.BeginTransaction())
+                    {
+                        await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+
+                        // Ensore scope history table exists
+                        ctx = await this.Provider.EnsureServerHistoryScopeAsync(ctx, this.Options.ScopeInfoTableName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                        // Get scope if exists
+                        (ctx, serverHistoryScopes) = await this.Provider.GetServerHistoryScopesAsync(ctx, this.Options.ScopeInfoTableName, this.ScopeName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                        await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+
+                        transaction.Commit();
+                    }
+
+                    ctx.SyncStage = SyncStage.ScopeLoaded;
+
+                    await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+
+                }
+                catch (Exception ex)
+                {
+                    RaiseError(ex);
+                }
+                finally
+                {
+                    if (connection != null && connection.State == ConnectionState.Open)
+                        connection.Close();
+                }
+
+                return serverHistoryScopes;
+            }
+        }
+
+
+        /// <summary>
         /// Get the local configuration, ensures the local scope is created
         /// </summary>
-        /// <returns>current context, the local scope info created or get from the database and the configuration from the client if changed </returns>
-        public async Task<ServerScopeInfo> EnsureScopesAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        /// <returns>Server scope info, containing all scopes names, version, setup and related schema infos</returns>
+        public async Task<ServerScopeInfo> GetServerScopeAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (!this.StartTime.HasValue)
                 this.StartTime = DateTime.UtcNow;
@@ -98,8 +156,11 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Get the scope infos from remote
+        /// Ensure the schema is readed from the server, based on the Setup instance.
+        /// Creates all required tables (server_scope tables) and provision all tables (tracking, stored proc, triggers and so on...)
+        /// Then return the schema readed
         /// </summary>
+        /// <returns>current context, the local scope info created or get from the database and the configuration from the client if changed </returns>
         public async Task<(SyncSet Schema, string Version)> EnsureSchemaAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (!this.StartTime.HasValue)
@@ -219,11 +280,7 @@ namespace Dotmim.Sync
         /// <param name="cancellationToken">cancellation token</param>
         /// <param name="progress">progress</param>
         /// <returns></returns>
-        public async Task<(long remoteClientTimestamp,
-              BatchInfo serverBatchInfo,
-              ConflictResolutionPolicy serverPolicy,
-              DatabaseChangesApplied clientChangesApplied,
-              DatabaseChangesSelected serverChangesSelected)>
+        public async Task<(long remoteClientTimestamp, BatchInfo serverBatchInfo, ConflictResolutionPolicy serverPolicy, DatabaseChangesApplied clientChangesApplied, DatabaseChangesSelected serverChangesSelected)>
             ApplyThenGetChangesAsync(ScopeInfo clientScope, BatchInfo clientBatchInfo, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (!this.StartTime.HasValue)
@@ -314,24 +371,6 @@ namespace Dotmim.Sync
                         // get rows inserted / updated elsewhere since the sync is not over
                         remoteClientTimestamp = await this.Provider.GetLocalTimestampAsync(ctx, connection, transaction, cancellationToken, progress);
 
-                        // Check if the provider is not outdated
-                        var isOutdated = this.Provider.IsRemoteOutdated();
-
-                        // Get a chance to make the sync even if it's outdated
-                        if (isOutdated)
-                        {
-                            var outdatedArgs = new OutdatedArgs(ctx, connection, transaction);
-
-                            // Interceptor
-                            await this.InterceptAsync(outdatedArgs, cancellationToken).ConfigureAwait(false);
-
-                            if (outdatedArgs.Action != OutdatedAction.Rollback)
-                                ctx.SyncType = outdatedArgs.Action == OutdatedAction.Reinitialize ? SyncType.Reinitialize : SyncType.ReinitializeWithUpload;
-
-                            if (outdatedArgs.Action == OutdatedAction.Rollback)
-                                throw new OutOfDateException();
-                        }
-
                         // Get if we need to get all rows from the datasource
                         var fromScratch = clientScope.IsNewScope || ctx.SyncType == SyncType.Reinitialize || ctx.SyncType == SyncType.ReinitializeWithUpload;
 
@@ -392,6 +431,12 @@ namespace Dotmim.Sync
 
         }
 
+
+        /// <summary>
+        /// Create a snapshot, based on the Setup object. 
+        /// </summary>
+        /// <param name="syncParameters">if not parameters are found in the SyncContext instance, will use thes sync parameters instead</param>
+        /// <returns>Instance containing all information regarding the snapshot</returns>
         public async Task<BatchInfo> CreateSnapshotAsync(SyncParameters syncParameters = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (!this.StartTime.HasValue)
@@ -471,7 +516,6 @@ namespace Dotmim.Sync
             }
         }
 
-
         /// <summary>
         /// Get a snapshot
         /// </summary>
@@ -513,6 +557,100 @@ namespace Dotmim.Sync
                 return (0, null);
 
             return (serverBatchInfo.Timestamp, serverBatchInfo);
+        }
+
+        /// <summary>
+        /// Delete all metadatas from tracking tables, based on min timestamp from history client table
+        /// </summary>
+        public async Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            if (!this.StartTime.HasValue)
+                this.StartTime = DateTime.UtcNow;
+            
+            var ctx = this.GetContext();
+
+            // Get the min timestamp, where we can without any problem, delete metadatas
+            var histories = await this.GetServerHistoryScopes(cancellationToken, progress);
+
+            var minTimestamp = histories.Min(shsi => shsi.LastSyncTimestamp);
+
+            if (minTimestamp == 0)
+                return new DatabaseMetadatasCleaned();
+
+            return await this.DeleteMetadatasAsync(minTimestamp, cancellationToken, progress);
+        }
+
+        /// <summary>
+        /// Delete metadatas items from tracking tables
+        /// </summary>
+        /// <param name="timeStampStart">Timestamp start. Used to limit the delete metadatas rows from now to this timestamp</param>
+        public override async Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(long timeStampStart, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            if (!this.StartTime.HasValue)
+                this.StartTime = DateTime.UtcNow;
+
+            DatabaseMetadatasCleaned databaseMetadatasCleaned = null;
+            // Get context or create a new one
+            var ctx = this.GetContext();
+            using (var connection = this.Provider.CreateConnection())
+            {
+                try
+                {
+                    ctx.SyncStage = SyncStage.MetadataCleaning;
+
+                    // Open connection
+                    await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+
+                    // Create a transaction
+                    using (var transaction = connection.BeginTransaction())
+                    {
+                        await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+
+                        await this.InterceptAsync(new MetadataCleaningArgs(ctx, this.Setup, timeStampStart, connection, transaction), cancellationToken).ConfigureAwait(false);
+
+                        // Create a dummy schema to be able to call the DeprovisionAsync method on the provider
+                        // No need columns or primary keys to be able to deprovision a table
+                        SyncSet schema = new SyncSet(this.Setup);
+
+                        (ctx, databaseMetadatasCleaned) = await this.Provider.DeleteMetadatasAsync(ctx, schema, this.Setup, timeStampStart, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                        // Update server scope table
+                        ctx = await this.Provider.EnsureServerScopeAsync(ctx, this.Options.ScopeInfoTableName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                        // Get scope 
+                        ServerScopeInfo serverScopeInfo;
+                        (ctx, serverScopeInfo) = await this.Provider.GetServerScopeAsync(ctx, this.Options.ScopeInfoTableName, this.ScopeName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                        serverScopeInfo.LastCleanupTimestamp = databaseMetadatasCleaned.TimestampLimit;
+
+                        ctx = await this.Provider.WriteServerScopeAsync(ctx, this.Options.ScopeInfoTableName, serverScopeInfo, connection, transaction, cancellationToken, progress);
+
+                        await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+
+                        transaction.Commit();
+                    }
+
+                    ctx.SyncStage = SyncStage.MetadataCleaned;
+
+                    await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+
+                    var args = new MetadataCleanedArgs(ctx, databaseMetadatasCleaned, connection);
+                    await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
+                    this.ReportProgress(ctx, progress, args);
+                }
+                catch (Exception ex)
+                {
+                    RaiseError(ex);
+                }
+                finally
+                {
+                    if (connection != null && connection.State != ConnectionState.Closed)
+                        connection.Close();
+                }
+
+                return databaseMetadatasCleaned;
+            }
+
         }
     }
 }
