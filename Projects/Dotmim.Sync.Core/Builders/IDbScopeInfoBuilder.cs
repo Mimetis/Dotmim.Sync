@@ -19,6 +19,7 @@ namespace Dotmim.Sync.Builders
 
         Task<List<ScopeInfo>> GetAllClientScopesAsync(string scopeName);
         Task<List<ServerScopeInfo>> GetAllServerScopesAsync(string scopeName);
+        Task<List<ServerHistoryScopeInfo>> GetAllServerHistoryScopesAsync(string scopeName);
 
         Task<ScopeInfo> InsertOrUpdateClientScopeInfoAsync(ScopeInfo scopeInfo);
         Task<ServerScopeInfo> InsertOrUpdateServerScopeInfoAsync(ServerScopeInfo serverScopeInfo);

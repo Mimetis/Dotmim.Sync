@@ -29,6 +29,8 @@ namespace Dotmim.Sync.Tests.UnitTests
 
         public Task<List<ScopeInfo>> GetAllClientScopesAsync(string scopeName) => Task.FromResult(new List<ScopeInfo>());
 
+        public Task<List<ServerHistoryScopeInfo>> GetAllServerHistoryScopesAsync(string scopeName) => throw new NotImplementedException();
+
         public Task<List<ServerScopeInfo>> GetAllServerScopesAsync(string scopeName) => Task.FromResult(new List<ServerScopeInfo>());
 
 

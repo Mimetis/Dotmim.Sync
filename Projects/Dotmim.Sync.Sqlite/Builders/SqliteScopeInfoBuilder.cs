@@ -180,6 +180,8 @@ namespace Dotmim.Sync.Sqlite
             }
         }
 
+        public Task<List<ServerHistoryScopeInfo>> GetAllServerHistoryScopesAsync(string scopeName) => throw new NotImplementedException();
+
         public Task<List<ServerScopeInfo>> GetAllServerScopesAsync(string scopeName) => throw new NotImplementedException();
 
         public async Task<long> GetLocalTimestampAsync()
@@ -338,15 +340,9 @@ namespace Dotmim.Sync.Sqlite
             }
         }
 
-#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
-        public async Task<ServerHistoryScopeInfo> InsertOrUpdateServerHistoryScopeInfoAsync(ServerHistoryScopeInfo serverHistoryScopeInfo)
-#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
-            => throw new NotImplementedException();
+        public Task<ServerHistoryScopeInfo> InsertOrUpdateServerHistoryScopeInfoAsync(ServerHistoryScopeInfo serverHistoryScopeInfo) => throw new NotImplementedException();
 
-#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
-        public async Task<ServerScopeInfo> InsertOrUpdateServerScopeInfoAsync(ServerScopeInfo serverScopeInfo)
-#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
-            => throw new NotImplementedException();
+        public Task<ServerScopeInfo> InsertOrUpdateServerScopeInfoAsync(ServerScopeInfo serverScopeInfo) => throw new NotImplementedException();
 
         public async Task<bool> NeedToCreateClientScopeInfoTableAsync()
         {
@@ -381,14 +377,8 @@ namespace Dotmim.Sync.Sqlite
             }
         }
 
-#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
-        public async Task<bool> NeedToCreateServerHistoryScopeInfoTableAsync()
-#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
-            => throw new NotImplementedException();
+        public Task<bool> NeedToCreateServerHistoryScopeInfoTableAsync() => throw new NotImplementedException();
 
-#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
-        public async Task<bool> NeedToCreateServerScopeInfoTableAsync()
-#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
-            => throw new NotImplementedException();
+        public Task<bool> NeedToCreateServerScopeInfoTableAsync() => throw new NotImplementedException();
     }
 }

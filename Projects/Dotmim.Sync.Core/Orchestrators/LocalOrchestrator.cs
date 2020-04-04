@@ -63,11 +63,11 @@ namespace Dotmim.Sync
             this.ReportProgress(ctx, progress, sessionArgs);
         }
 
-        /// <summary>
+        /// <summary> 
         /// Get the local configuration, ensures the local scope is created
         /// </summary>
         /// <returns>current context, the local scope info created or get from the database and the configuration from the client if changed </returns>
-        public async Task<ScopeInfo> EnsureScopeAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public async Task<ScopeInfo> GetClientScopeAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (!this.StartTime.HasValue)
                 this.StartTime = DateTime.UtcNow;
@@ -178,24 +178,6 @@ namespace Dotmim.Sync
                         // JUST before the whole process, get the timestamp, to be sure to 
                         // get rows inserted / updated elsewhere since the sync is not over
                         clientTimestamp = await this.Provider.GetLocalTimestampAsync(ctx, connection, transaction, cancellationToken, progress);
-
-                        // Check if the provider is not outdated
-                        var isOutdated = this.Provider.IsRemoteOutdated();
-
-                        // Get a chance to make the sync even if it's outdated
-                        if (isOutdated)
-                        {
-                            var outdatedArgs = new OutdatedArgs(ctx, connection, transaction);
-
-                            // Interceptor
-                            await this.InterceptAsync(outdatedArgs, cancellationToken).ConfigureAwait(false);
-
-                            if (outdatedArgs.Action != OutdatedAction.Rollback)
-                                ctx.SyncType = outdatedArgs.Action == OutdatedAction.Reinitialize ? SyncType.Reinitialize : SyncType.ReinitializeWithUpload;
-
-                            if (outdatedArgs.Action == OutdatedAction.Rollback)
-                                throw new OutOfDateException();
-                        }
 
                         // Creating the message
                         var message = new MessageGetChangesBatch(remoteScopeId, localScopeInfo.Id, isNew, lastSyncTS, schema, this.Setup, this.Options.BatchSize, this.Options.BatchDirectory);
@@ -380,6 +362,26 @@ namespace Dotmim.Sync
 
             return (changesApplied, newClientScopeInfo);
 
+        }
+
+
+        /// <summary>
+        /// Delete all metadatas from tracking tables, based on min timestamp from scope info table
+        /// </summary>
+        public async Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            if (!this.StartTime.HasValue)
+                this.StartTime = DateTime.UtcNow;
+
+            var ctx = this.GetContext();
+
+            // Get the min timestamp, where we can without any problem, delete metadatas
+            var clientScopeInfo = await this.GetClientScopeAsync(cancellationToken, progress);
+
+            if (clientScopeInfo.LastSyncTimestamp == 0)
+                return new DatabaseMetadatasCleaned();
+
+            return await base.DeleteMetadatasAsync(clientScopeInfo.LastSyncTimestamp, cancellationToken, progress);
         }
 
     }
