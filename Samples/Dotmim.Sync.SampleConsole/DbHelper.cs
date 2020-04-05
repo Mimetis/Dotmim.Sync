@@ -6,6 +6,7 @@ using Microsoft.Data.SqlClient;
 using System.Text;
 using System.Threading.Tasks;
 
+
 namespace Dotmim.Sync.SampleConsole
 {
     public class DbHelper
@@ -15,10 +16,10 @@ namespace Dotmim.Sync.SampleConsole
             $"Data Source=(localdb)\\mssqllocaldb; Initial Catalog={dbName}; Integrated Security=true;";
 
         public static string GetLocalhostDatabaseConnectionString(string dbName) =>
-            $"Data Source=localhost; Initial Catalog={dbName}; Integrated Security=false;User Id=;Password=";
+            $"Data Source=localhost; Initial Catalog={dbName}; Integrated Security=true;";
 
         public static string GetAzureDatabaseConnectionString(string dbName) =>
-            $"Data Source=spertus.database.windows.net; Initial Catalog={dbName}; Integrated Security=false;User Id=;Password=";
+            $"Data Source=spertus.database.windows.net; Initial Catalog={dbName}; Integrated Security=true;";
 
 
 

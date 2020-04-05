@@ -6,6 +6,33 @@ Choose either **SQL Server**, **SQLite**, **MySQL**, and (hopefully, I hope soon
 
 No need to handle any configuration file, or any generation code or whatever. Just code the list of tables you need to synchronize, call `SynchronizeAsync()` and that's all !
 
+## Nuget packages
+
+You can add your database type provider, through nuget, from **Visual Studio**:  
+![Nuget packages](/assets/Packages.png)
+
+
+or through you command line, assuming you are developing with **Visual Studio Code**, **Rider** or **Notepad** :)
+``` bash
+# Adding the package required to synchronize a SQL Server database:
+dotnet add package Dotmim.Sync.SqlServer
+# Adding the package required to synchronize a SQL Server database, using the Change Tracking feature:
+dotnet add package Dotmim.Sync.SqlServer.ChangeTracking
+# Adding the package required to synchronize a MySQL database:
+dotnet add package Dotmim.Sync.MySql
+# Adding the package required to synchronize a SQLite database:
+dotnet add package Dotmim.Sync.Sqlite
+```
+
+For instance, if you need to synchronize two MySql databases, the only package you need to install, on both Server and Client side, is `Dotmim.Sync.MySql`
+On the other side, if you need to synchronize a SQL server database, with multiple SQLite client databases, install `Dotmim.Sync.SqlServer` (or `Dotmim.Sync.SqlServer.ChangeTracking`) on the server side, and install `Dotmim.Sync.Sqlite` on the client side.
+
+> Note: the package `Dotmim.Sync.Core` is the core framework, and is used by all the providers. You don't have to explicitely add it to your projects, since it's always part of the provider you installed.
+
+The last two packages available, `Dotmim.Sync.Web.Client` and `Dotmim.Sync.Web.Server` are packages used on a specific scenario, where you server database is not accessible directly, and is exposed with a web api.
+
+
+
 ## A few lines of codes
 
 **TL,DR** : Here is the most straightforward way to synchronize two relational databases:
@@ -49,14 +76,14 @@ And here is the result you should have, after a few seconds:
 
 ``` cmd
 Synchronization done.
-        Total changes downloaded: 2752
-        Total changes uploaded: 0
-        Total conflicts: 0
-        Total duration :0:0:1.989
+        Total changes  uploaded: 0
+        Total changes  downloaded: 2752
+        Total changes  applied: 2752
+        Total resolved conflicts: 0
+        Total duration :0:0:3.776
 ```
 
-
-It took almost **2 seconds** on my machine to make a full synchronization between the **Server** and the **Client**.  
+It took almost **4 seconds** on my machine to make a full synchronization between the **Server** and the **Client**.  
 
 It's a little bit long, because the `Dotmim.Sync` framework, on the **first sync only**, will have to:
 - Get the schema from the **Server** side and create all the tables on the **Client** side, if needed. (yes, you don't need a client database with an existing schema)
@@ -75,13 +102,20 @@ From the same console application (we have a `do while` loop), same code, just h
 
 ``` cmd
 Synchronization done.
-        Total changes downloaded: 100
-        Total changes uploaded: 0
-        Total conflicts: 0
-        Total duration :0:0:0.182
+        Total changes  uploaded: 0
+        Total changes  downloaded: 100
+        Total changes  applied: 100
+        Total resolved conflicts: 0
+        Total duration :0:0:0.145
 ```
 
-Boom, less than **200** milliseconds. 
+Boom, less than **150** milliseconds. 
+
+## Hello Sync Sample
+
+You will find the sample used for this demonstration, here : [HelloSync sample](/samples/HelloSync)
+
+You can see this sample, live, hosted on [dotnetfiddle](https://dotnetfiddle.net) : https://dotnetfiddle.net/CZgNDm
 
 ## Nuget packages
 
