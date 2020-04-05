@@ -3,7 +3,7 @@
 In a more realistic world, you will not have *always* a direct TCP link to your local and remote servers.  
 That's why we should use a web proxy, and expose our server through a web api.   
 
-To be able to *proxyfy* everything, you will have to
+To be able to *proxify* everything, you will have to
 * Create a new **ASP.NET Core Web application**. (Don't forget to add the Web API stuff)
 * Add the `Dotmim.Sync.Web.Server` nuget package on your ASP.NET project: [https://www.nuget.org/packages/Dotmim.Sync.Web.Server]()
     * Add your server provider, like `Dotmim.Sync.SqlServerProvider` for example.
