@@ -439,13 +439,12 @@ internal class Program
         //agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
         //agent.Options.UseVerboseErrors = false;
 
+        //agent.RemoteOrchestrator.(migr =>
+        //{
+        //    var cs = migr.CurrentSchema;
+        //    var ns = migr.NewSchema;
 
-        agent.RemoteOrchestrator.On<MigrationArgs>(migr =>
-        {
-            var cs = migr.CurrentSchema;
-            var ns = migr.NewSchema;
-
-        });
+        //});
 
         //var myRijndael = new RijndaelManaged();
         //myRijndael.GenerateKey();

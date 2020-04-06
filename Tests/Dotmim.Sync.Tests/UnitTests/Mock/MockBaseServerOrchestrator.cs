@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Dotmim.Sync.Tests.UnitTests
 {
-    public class MockBaseServerOrchestrator : BaseOrchestrator, IOrchestrator
+    public class MockBaseServerOrchestrator : RemoteOrchestrator
     {
         public MockBaseServerOrchestrator(CoreProvider provider, SyncOptions options, SyncSetup setup, string scopeName = "DefaultScope")
             : base(provider, options, setup, scopeName)
@@ -16,7 +16,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
     }
 
-    public class MockBaseClientOrchestrator : BaseOrchestrator, IOrchestrator
+    public class MockBaseClientOrchestrator : LocalOrchestrator
     {
         public MockBaseClientOrchestrator(CoreProvider provider, SyncOptions options, SyncSetup setup, string scopeName = "DefaultScope")
             : base(provider, options, setup, scopeName)

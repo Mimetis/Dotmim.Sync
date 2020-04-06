@@ -96,7 +96,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(productName, productRowName);
 
             var productCategoryTable = changes.ServerBatchInfo.InMemoryData.Tables["ProductCategory", "SalesLT"];
-            var productCategoryRowName = productTable.Rows[0]["Name"];
+            var productCategoryRowName = productCategoryTable.Rows[0]["Name"];
 
             Assert.Equal(productCategoryName, productCategoryRowName);
 
