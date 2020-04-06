@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
-    public class RemoteOrchestrator : BaseOrchestrator, IRemoteOrchestrator
+    public class RemoteOrchestrator : BaseOrchestrator
     {
 
         /// <summary>
@@ -33,7 +33,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get the server scope histories
         /// </summary>
-        public async Task<List<ServerHistoryScopeInfo>> GetServerHistoryScopes(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<List<ServerHistoryScopeInfo>> GetServerHistoryScopes(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (!this.StartTime.HasValue)
                 this.StartTime = DateTime.UtcNow;
@@ -87,12 +87,11 @@ namespace Dotmim.Sync
             }
         }
 
-
         /// <summary>
         /// Get the local configuration, ensures the local scope is created
         /// </summary>
         /// <returns>Server scope info, containing all scopes names, version, setup and related schema infos</returns>
-        public async Task<ServerScopeInfo> GetServerScopeAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<ServerScopeInfo> GetServerScopeAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (!this.StartTime.HasValue)
                 this.StartTime = DateTime.UtcNow;
@@ -161,7 +160,7 @@ namespace Dotmim.Sync
         /// Then return the schema readed
         /// </summary>
         /// <returns>current context, the local scope info created or get from the database and the configuration from the client if changed </returns>
-        public async Task<(SyncSet Schema, string Version)> EnsureSchemaAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<(SyncSet Schema, string Version)> EnsureSchemaAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (!this.StartTime.HasValue)
                 this.StartTime = DateTime.UtcNow;
@@ -270,17 +269,10 @@ namespace Dotmim.Sync
             }
         }
 
-
         /// <summary>
         /// Apply changes on remote provider
         /// </summary>
-        /// <param name="clientScope">client scope</param>
-        /// <param name="schema">schema used to apply and then get changes</param>
-        /// <param name="clientBatchInfo">changes to apply</param>
-        /// <param name="cancellationToken">cancellation token</param>
-        /// <param name="progress">progress</param>
-        /// <returns></returns>
-        public async Task<(long RemoteClientTimestamp, BatchInfo ServerBatchInfo, ConflictResolutionPolicy ServerPolicy, DatabaseChangesApplied ClientChangesApplied, DatabaseChangesSelected ServerChangesSelected)>
+        internal virtual async Task<(long RemoteClientTimestamp, BatchInfo ServerBatchInfo, ConflictResolutionPolicy ServerPolicy, DatabaseChangesApplied ClientChangesApplied, DatabaseChangesSelected ServerChangesSelected)>
             ApplyThenGetChangesAsync(ScopeInfo clientScope, BatchInfo clientBatchInfo, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (!this.StartTime.HasValue)
@@ -431,12 +423,11 @@ namespace Dotmim.Sync
 
         }
 
-
         /// <summary>
         /// Get changes from remote database
         /// </summary>
         /// <returns></returns>
-        public async Task<(long RemoteClientTimestamp, BatchInfo ServerBatchInfo, DatabaseChangesSelected ServerChangesSelected)>
+        public virtual async Task<(long RemoteClientTimestamp, BatchInfo ServerBatchInfo, DatabaseChangesSelected ServerChangesSelected)>
             GetChangesAsync(ScopeInfo clientScope, ServerScopeInfo serverScope = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (!this.StartTime.HasValue)
@@ -530,7 +521,7 @@ namespace Dotmim.Sync
         /// </summary>
         /// <param name="syncParameters">if not parameters are found in the SyncContext instance, will use thes sync parameters instead</param>
         /// <returns>Instance containing all information regarding the snapshot</returns>
-        public async Task<BatchInfo> CreateSnapshotAsync(SyncParameters syncParameters = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<BatchInfo> CreateSnapshotAsync(SyncParameters syncParameters = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (!this.StartTime.HasValue)
                 this.StartTime = DateTime.UtcNow;
@@ -612,7 +603,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get a snapshot
         /// </summary>
-        public async Task<(long RemoteClientTimestamp, BatchInfo ServerBatchInfo)> GetSnapshotAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<(long RemoteClientTimestamp, BatchInfo ServerBatchInfo)> GetSnapshotAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
 
             // TODO: Get snapshot based on version and scopename
@@ -655,7 +646,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Delete all metadatas from tracking tables, based on min timestamp from history client table
         /// </summary>
-        public async Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (!this.StartTime.HasValue)
                 this.StartTime = DateTime.UtcNow;

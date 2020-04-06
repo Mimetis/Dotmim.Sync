@@ -22,7 +22,7 @@ namespace Dotmim.Sync
         /// </summary>
         [JsonIgnore]
         [IgnoreDataMember]
-        public IOrchestrator Orchestrator { get; internal set; }
+        public BaseOrchestrator Orchestrator { get; internal set; }
 
         /// <summary>
         /// Connection is opened. this method is called before any interceptors

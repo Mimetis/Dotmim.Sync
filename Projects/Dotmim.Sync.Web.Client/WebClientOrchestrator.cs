@@ -13,7 +13,7 @@ using Newtonsoft.Json;
 
 namespace Dotmim.Sync.Web.Client
 {
-    public class WebClientOrchestrator : BaseOrchestrator, IRemoteOrchestrator
+    public class WebClientOrchestrator : RemoteOrchestrator
     {
 
         /// <summary>
@@ -21,11 +21,11 @@ namespace Dotmim.Sync.Web.Client
         /// </summary>
         public override SyncSide Side => SyncSide.ClientSide;
 
-     
+
 
         private readonly HttpRequestHandler httpRequestHandler = new HttpRequestHandler();
 
-    
+
         /// <summary>
         /// Interceptor just before sending changes
         /// </summary>
@@ -118,7 +118,10 @@ namespace Dotmim.Sync.Web.Client
 
         }
 
-        public async Task<ServerScopeInfo> GetServerScopeAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        /// <summary>
+        /// Get server scope from server, by sending an http request to the server 
+        /// </summary>
+        public override async Task<ServerScopeInfo> GetServerScopeAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             // Get context or create a new one
             var ctx = this.GetContext();
@@ -143,7 +146,7 @@ namespace Dotmim.Sync.Web.Client
             if (ensureScopesResponse == null)
                 throw new ArgumentException("Http Message content for Ensure scope can't be null");
 
-            if (ensureScopesResponse.ServerScopeInfo == null )
+            if (ensureScopesResponse.ServerScopeInfo == null)
                 throw new ArgumentException("Server scope from EnsureScopesAsync can't be null and may contains a server scope");
 
 
@@ -154,7 +157,7 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// Send a request to remote web proxy for First step : Ensure scopes and schema
         /// </summary>
-        public async Task<(SyncSet Schema, string Version)> EnsureSchemaAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public override async Task<(SyncSet Schema, string Version)> EnsureSchemaAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             // Get context or create a new one
             var ctx = this.GetContext();
@@ -189,15 +192,12 @@ namespace Dotmim.Sync.Web.Client
             return (ensureScopesResponse.Schema, ensureScopesResponse.Version);
         }
 
-
-
-        public async Task<(long RemoteClientTimestamp,
-              BatchInfo ServerBatchInfo,
-              ConflictResolutionPolicy ServerPolicy,
-              DatabaseChangesApplied ClientChangesApplied,
-              DatabaseChangesSelected ServerChangesSelected)>
-            ApplyThenGetChangesAsync(ScopeInfo scope, BatchInfo clientBatchInfo,
-                                     CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        /// <summary>
+        /// Apply changes
+        /// </summary>
+        internal override async Task<(long RemoteClientTimestamp, BatchInfo ServerBatchInfo, ConflictResolutionPolicy ServerPolicy,
+                                      DatabaseChangesApplied ClientChangesApplied, DatabaseChangesSelected ServerChangesSelected)>
+            ApplyThenGetChangesAsync(ScopeInfo scope, BatchInfo clientBatchInfo, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
 
             SyncSet schema;
@@ -385,7 +385,7 @@ namespace Dotmim.Sync.Web.Client
         }
 
 
-        public async Task<(long RemoteClientTimestamp, BatchInfo ServerBatchInfo)>
+        public override async Task<(long RemoteClientTimestamp, BatchInfo ServerBatchInfo)>
             GetSnapshotAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
 
@@ -484,7 +484,7 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// We can't get changes from server, from a web client orchestrator
         /// </summary>
-        public Task<(long RemoteClientTimestamp, BatchInfo ServerBatchInfo, DatabaseChangesSelected ServerChangesSelected)> GetChangesAsync(ScopeInfo clientScope, ServerScopeInfo serverScope = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public override Task<(long RemoteClientTimestamp, BatchInfo ServerBatchInfo, DatabaseChangesSelected ServerChangesSelected)> GetChangesAsync(ScopeInfo clientScope, ServerScopeInfo serverScope = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
             => throw new NotImplementedException();
 
         public void BeforeSerializeRows(SyncSet data)
