@@ -280,7 +280,7 @@ namespace Dotmim.Sync
         /// <param name="cancellationToken">cancellation token</param>
         /// <param name="progress">progress</param>
         /// <returns></returns>
-        public async Task<(long remoteClientTimestamp, BatchInfo serverBatchInfo, ConflictResolutionPolicy serverPolicy, DatabaseChangesApplied clientChangesApplied, DatabaseChangesSelected serverChangesSelected)>
+        public async Task<(long RemoteClientTimestamp, BatchInfo ServerBatchInfo, ConflictResolutionPolicy ServerPolicy, DatabaseChangesApplied ClientChangesApplied, DatabaseChangesSelected ServerChangesSelected)>
             ApplyThenGetChangesAsync(ScopeInfo clientScope, BatchInfo clientBatchInfo, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (!this.StartTime.HasValue)
@@ -313,7 +313,6 @@ namespace Dotmim.Sync
                     // Second one to get changes now that everything is commited
                     using (transaction = connection.BeginTransaction())
                     {
-
                         await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
 
                         ServerScopeInfo serverScopeInfo;
@@ -336,7 +335,6 @@ namespace Dotmim.Sync
 
                         // deserialiaze schema
                         schema = JsonConvert.DeserializeObject<SyncSet>(serverScopeInfo.Schema);
-
 
                         // Create message containing everything we need to apply on server side
                         var applyChanges = new MessageApplyChanges(Guid.Empty, clientScope.Id, false, clientScope.LastServerSyncTimestamp, schema, this.Setup, this.Options.ConflictResolutionPolicy,
@@ -364,6 +362,8 @@ namespace Dotmim.Sync
 
                     using (transaction = connection.BeginTransaction())
                     {
+                        await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+
                         //Direction set to Download
                         ctx.SyncWay = SyncWay.Download;
 
@@ -431,6 +431,99 @@ namespace Dotmim.Sync
 
         }
 
+
+        /// <summary>
+        /// Get changes from remote database
+        /// </summary>
+        /// <returns></returns>
+        public async Task<(long RemoteClientTimestamp, BatchInfo ServerBatchInfo, DatabaseChangesSelected ServerChangesSelected)>
+            GetChangesAsync(ScopeInfo clientScope, ServerScopeInfo serverScope = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            if (!this.StartTime.HasValue)
+                this.StartTime = DateTime.UtcNow;
+
+            // Output
+            long remoteClientTimestamp = 0L;
+            BatchInfo serverBatchInfo = null;
+            DatabaseChangesSelected serverChangesSelected = null;
+
+            // Get context or create a new one
+            var ctx = this.GetContext();
+            using (var connection = this.Provider.CreateConnection())
+            {
+                try
+                {
+                    ctx.SyncStage = SyncStage.ChangesSelecting;
+
+                    // Open connection
+                    await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+
+                    using (var transaction = connection.BeginTransaction())
+                    {
+                        await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+
+                        //Direction set to Download
+                        ctx.SyncWay = SyncWay.Download;
+
+                        // Getting server scope assumes we have already created the schema on server
+                        if (serverScope == null)
+                            (ctx, serverScope) = await this.Provider.GetServerScopeAsync(ctx, this.Options.ScopeInfoTableName, clientScope.Name,
+                                                connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                        // Should we ?
+                        if (string.IsNullOrEmpty(serverScope.Schema))
+                            throw new MissingRemoteOrchestratorSchemaException();
+
+                        // Get concrete schema
+                        var schema = JsonConvert.DeserializeObject<SyncSet>(serverScope.Schema);
+
+                        // JUST Before get changes, get the timestamp, to be sure to 
+                        // get rows inserted / updated elsewhere since the sync is not over
+                        remoteClientTimestamp = await this.Provider.GetLocalTimestampAsync(ctx, connection, transaction, cancellationToken, progress);
+
+                        // Get if we need to get all rows from the datasource
+                        var fromScratch = clientScope.IsNewScope || ctx.SyncType == SyncType.Reinitialize || ctx.SyncType == SyncType.ReinitializeWithUpload;
+
+                        var message = new MessageGetChangesBatch(clientScope.Id, Guid.Empty, fromScratch, clientScope.LastServerSyncTimestamp, schema, this.Setup, this.Options.BatchSize, this.Options.BatchDirectory);
+
+                        // Call interceptor
+                        await this.InterceptAsync(new DatabaseChangesSelectingArgs(ctx, message, connection, transaction), cancellationToken).ConfigureAwait(false);
+
+                        // When we get the chnages from server, we create the batches if it's requested by the client
+                        // the batch decision comes from batchsize from client
+                        (ctx, serverBatchInfo, serverChangesSelected) =
+                            await this.Provider.GetChangeBatchAsync(ctx, message, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                        // Commit second transaction for getting changes
+                        await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+
+                        transaction.Commit();
+                    }
+
+
+                    // Event progress & interceptor
+                    ctx.SyncStage = SyncStage.ChangesSelected;
+
+                    await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+
+                    var tableChangesSelectedArgs = new DatabaseChangesSelectedArgs(ctx, remoteClientTimestamp, serverBatchInfo, serverChangesSelected, connection);
+                    this.ReportProgress(ctx, progress, tableChangesSelectedArgs);
+                    await this.InterceptAsync(tableChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
+
+                }
+                catch (Exception ex)
+                {
+                    RaiseError(ex);
+                }
+                finally
+                {
+                    if (connection != null && connection.State != ConnectionState.Closed)
+                        connection.Close();
+                }
+
+                return (remoteClientTimestamp, serverBatchInfo, serverChangesSelected);
+            }
+        }
 
         /// <summary>
         /// Create a snapshot, based on the Setup object. 
@@ -519,7 +612,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get a snapshot
         /// </summary>
-        public async Task<(long remoteClientTimestamp, BatchInfo serverBatchInfo)> GetSnapshotAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public async Task<(long RemoteClientTimestamp, BatchInfo ServerBatchInfo)> GetSnapshotAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
 
             // TODO: Get snapshot based on version and scopename
@@ -566,7 +659,7 @@ namespace Dotmim.Sync
         {
             if (!this.StartTime.HasValue)
                 this.StartTime = DateTime.UtcNow;
-            
+
             var ctx = this.GetContext();
 
             // Get the min timestamp, where we can without any problem, delete metadatas

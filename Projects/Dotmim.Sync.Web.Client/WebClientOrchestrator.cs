@@ -191,11 +191,11 @@ namespace Dotmim.Sync.Web.Client
 
 
 
-        public async Task<(long remoteClientTimestamp,
-              BatchInfo serverBatchInfo,
-              ConflictResolutionPolicy serverPolicy,
-              DatabaseChangesApplied clientChangesApplied,
-              DatabaseChangesSelected serverChangesSelected)>
+        public async Task<(long RemoteClientTimestamp,
+              BatchInfo ServerBatchInfo,
+              ConflictResolutionPolicy ServerPolicy,
+              DatabaseChangesApplied ClientChangesApplied,
+              DatabaseChangesSelected ServerChangesSelected)>
             ApplyThenGetChangesAsync(ScopeInfo scope, BatchInfo clientBatchInfo,
                                      CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
@@ -385,7 +385,7 @@ namespace Dotmim.Sync.Web.Client
         }
 
 
-        public async Task<(long remoteClientTimestamp, BatchInfo serverBatchInfo)>
+        public async Task<(long RemoteClientTimestamp, BatchInfo ServerBatchInfo)>
             GetSnapshotAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
 
@@ -481,6 +481,12 @@ namespace Dotmim.Sync.Web.Client
         public override Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(long timeStampStart, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
             => throw new NotImplementedException();
 
+        /// <summary>
+        /// We can't get changes from server, from a web client orchestrator
+        /// </summary>
+        public Task<(long RemoteClientTimestamp, BatchInfo ServerBatchInfo, DatabaseChangesSelected ServerChangesSelected)> GetChangesAsync(ScopeInfo clientScope, ServerScopeInfo serverScope = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            => throw new NotImplementedException();
+
         public void BeforeSerializeRows(SyncSet data)
         {
             foreach (var table in data.Tables)
@@ -507,5 +513,6 @@ namespace Dotmim.Sync.Web.Client
             }
 
         }
+
     }
 }
