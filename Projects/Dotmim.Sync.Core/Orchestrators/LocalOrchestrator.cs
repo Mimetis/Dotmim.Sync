@@ -221,16 +221,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Apply changes locally
         /// </summary>
-        /// <param name="scope">client scope</param>
-        /// <param name="schema">schema used in the sync process</param>
-        /// <param name="serverBatchInfo">batch from server to apply locally</param>
-        /// <param name="clientTimestamp">last sync timestamp from client</param>
-        /// <param name="remoteClientTimestamp">last sync timestamp from server</param>
-        /// <param name="policy">policy used to apply locally. We don't use this.Option.ConflictResolutionPolicy because it could be the reverse policy</param>
-        /// <param name="cancellationToken">Cancellation token</param>
-        /// <param name="progress">Progress args</param>
-        /// <returns></returns>
-        public async Task<(DatabaseChangesApplied ChangesApplied, ScopeInfo ClientScopeInfo)>
+        internal async Task<(DatabaseChangesApplied ChangesApplied, ScopeInfo ClientScopeInfo)>
             ApplyChangesAsync(ScopeInfo scope, SyncSet schema, BatchInfo serverBatchInfo,
                               long clientTimestamp, long remoteClientTimestamp, ConflictResolutionPolicy policy,
                               CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
@@ -323,7 +314,10 @@ namespace Dotmim.Sync
         }
 
 
-        public async Task<(DatabaseChangesApplied snapshotChangesApplied, ScopeInfo clientScopeInfo)>
+        /// <summary>
+        /// Apply a snapshot locally
+        /// </summary>
+        internal async Task<(DatabaseChangesApplied snapshotChangesApplied, ScopeInfo clientScopeInfo)>
             ApplySnapshotAsync(ScopeInfo clientScopeInfo, BatchInfo serverBatchInfo, long clientTimestamp, long remoteClientTimestamp, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (!this.StartTime.HasValue)

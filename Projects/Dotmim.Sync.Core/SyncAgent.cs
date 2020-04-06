@@ -40,7 +40,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get or Sets the remote orchestrator
         /// </summary>
-        public IRemoteOrchestrator RemoteOrchestrator { get; set; }
+        public RemoteOrchestrator RemoteOrchestrator { get; set; }
 
         /// <summary>
         /// Get or Sets the Sync parameters to pass to Remote provider for filtering rows
@@ -79,13 +79,30 @@ namespace Dotmim.Sync
         /// Shortcut to Apply changed failed if remote orchestrator supports it
         /// </summary>
         public void OnApplyChangesFailed(Func<ApplyChangesFailedArgs, Task> func)
-            => this.RemoteOrchestrator.OnApplyChangesFailed(func);
+        {
+            var remoteOrchestrator = this.RemoteOrchestrator as RemoteOrchestrator;
+
+            if (remoteOrchestrator == null)
+                throw new InvalidRemoteOrchestratorException();
+
+            remoteOrchestrator.OnApplyChangesFailed(func);
+
+        }
+            
 
         /// <summary>
         /// Shortcut to Apply changed failed if remote orchestrator supports it
         /// </summary>
         public void OnApplyChangesFailed(Action<ApplyChangesFailedArgs> action)
-            => this.RemoteOrchestrator.OnApplyChangesFailed(action);
+        {
+            var remoteOrchestrator = this.RemoteOrchestrator as RemoteOrchestrator;
+
+            if (remoteOrchestrator == null)
+                throw new InvalidRemoteOrchestratorException();
+
+            remoteOrchestrator.OnApplyChangesFailed(action);
+
+        }
 
 
         /// <summary>
@@ -192,7 +209,7 @@ namespace Dotmim.Sync
         /// <param name="remoteOrchestrator">remote orchestrator</param>
         /// <param name="tables">tables list</param>
         /// <param name="scopeName">scope name</param>
-        public SyncAgent(CoreProvider clientProvider, IRemoteOrchestrator remoteOrchestrator, string[] tables, string scopeName = SyncOptions.DefaultScopeName)
+        public SyncAgent(CoreProvider clientProvider, RemoteOrchestrator remoteOrchestrator, string[] tables, string scopeName = SyncOptions.DefaultScopeName)
             : this(clientProvider, remoteOrchestrator, new SyncOptions(), new SyncSetup(tables), scopeName)
         {
         }
@@ -205,7 +222,7 @@ namespace Dotmim.Sync
         /// <param name="clientProvider">local provider to your client database</param>
         /// <param name="remoteOrchestrator">remote orchestrator</param>
         /// <param name="scopeName">scope name</param>
-        public SyncAgent(CoreProvider clientProvider, IRemoteOrchestrator remoteOrchestrator, string scopeName = SyncOptions.DefaultScopeName)
+        public SyncAgent(CoreProvider clientProvider, RemoteOrchestrator remoteOrchestrator, string scopeName = SyncOptions.DefaultScopeName)
             : this(clientProvider, remoteOrchestrator, new SyncOptions(), new SyncSetup(), scopeName)
         {
 
@@ -221,7 +238,7 @@ namespace Dotmim.Sync
         /// <param name="options">sync options</param>
         /// <param name="tables">tables list</param>
         /// <param name="scopeName">scope name</param>
-        public SyncAgent(CoreProvider clientProvider, IRemoteOrchestrator remoteOrchestrator, SyncOptions options, string[] tables, string scopeName = SyncOptions.DefaultScopeName)
+        public SyncAgent(CoreProvider clientProvider, RemoteOrchestrator remoteOrchestrator, SyncOptions options, string[] tables, string scopeName = SyncOptions.DefaultScopeName)
             : this(clientProvider, remoteOrchestrator, options, new SyncSetup(tables), scopeName)
         {
         }
@@ -235,7 +252,7 @@ namespace Dotmim.Sync
         /// <param name="options">sync options</param>
         /// <param name="tables">tables list</param>
         /// <param name="scopeName">scope name</param>
-        public SyncAgent(CoreProvider clientProvider, IRemoteOrchestrator remoteOrchestrator, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
+        public SyncAgent(CoreProvider clientProvider, RemoteOrchestrator remoteOrchestrator, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
             : this(clientProvider, remoteOrchestrator, options, new SyncSetup(), scopeName)
         {
         }
@@ -249,7 +266,7 @@ namespace Dotmim.Sync
         /// <param name="options">Sync options.</param>
         /// <param name="setup">Contains list of your tables.</param>
         /// <param name="scopeName">scope name</param>
-        public SyncAgent(CoreProvider clientProvider, IRemoteOrchestrator remoteOrchestrator, SyncOptions options, SyncSetup setup, string scopeName = SyncOptions.DefaultScopeName)
+        public SyncAgent(CoreProvider clientProvider, RemoteOrchestrator remoteOrchestrator, SyncOptions options, SyncSetup setup, string scopeName = SyncOptions.DefaultScopeName)
             : this(scopeName)
         {
             if (clientProvider is null)
@@ -461,6 +478,7 @@ namespace Dotmim.Sync
                         clientScopeInfo, serverSnapshotChanges.ServerBatchInfo, clientChanges.ClientTimestamp, serverSnapshotChanges.RemoteClientTimestamp, cancellationToken, progress);
                 }
 
+                // Hook !! (I'm Evil inside :) )
                 var serverChanges = await this.RemoteOrchestrator.ApplyThenGetChangesAsync(clientScopeInfo, clientChanges.ClientBatchInfo, cancellationToken, remoteProgress);
 
                 if (cancellationToken.IsCancellationRequested)

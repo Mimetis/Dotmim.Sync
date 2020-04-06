@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
-    public abstract class BaseOrchestrator : IOrchestrator
+    public abstract class BaseOrchestrator
     {
         // Collection of Interceptors
         private Interceptors interceptors = new Interceptors();
@@ -71,25 +71,25 @@ namespace Dotmim.Sync
         /// <summary>
         /// Set an interceptor to get info on the current sync process
         /// </summary>
-        public void On<T>(Func<T, Task> interceptorFunc) where T : ProgressArgs =>
+        internal void On<T>(Func<T, Task> interceptorFunc) where T : ProgressArgs =>
             this.interceptors.GetInterceptor<T>().Set(interceptorFunc);
 
         /// <summary>
         /// Set an interceptor to get info on the current sync process
         /// </summary>
-        public void On<T>(Action<T> interceptorAction) where T : ProgressArgs =>
+        internal void On<T>(Action<T> interceptorAction) where T : ProgressArgs =>
             this.interceptors.GetInterceptor<T>().Set(interceptorAction);
 
         /// <summary>
         /// Set a collection of interceptors
         /// </summary>
-        public void On(Interceptors interceptors) => this.interceptors = interceptors;
+        internal void On(Interceptors interceptors) => this.interceptors = interceptors;
 
         /// <summary>
         /// Returns the Task associated with given type of BaseArgs 
         /// Because we are not doing anything else than just returning a task, no need to use async / await. Just return the Task itself
         /// </summary>
-        public Task InterceptAsync<T>(T args, CancellationToken cancellationToken) where T : ProgressArgs
+        internal Task InterceptAsync<T>(T args, CancellationToken cancellationToken) where T : ProgressArgs
         {
             if (this.interceptors == null)
                 return Task.CompletedTask;
@@ -102,7 +102,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Try to report progress
         /// </summary>
-        public void ReportProgress(SyncContext context, IProgress<ProgressArgs> progress, ProgressArgs args, DbConnection connection = null, DbTransaction transaction = null)
+        internal void ReportProgress(SyncContext context, IProgress<ProgressArgs> progress, ProgressArgs args, DbConnection connection = null, DbTransaction transaction = null)
         {
             if (progress == null)
                 return;
@@ -124,7 +124,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Open a connection
         /// </summary>
-        public async Task OpenConnectionAsync(DbConnection connection, CancellationToken cancellationToken)
+        internal async Task OpenConnectionAsync(DbConnection connection, CancellationToken cancellationToken)
         {
             await connection.OpenAsync().ConfigureAwait(false);
 
@@ -137,7 +137,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Close a connection
         /// </summary>
-        public async Task CloseConnectionAsync(DbConnection connection, CancellationToken cancellationToken)
+        internal async Task CloseConnectionAsync(DbConnection connection, CancellationToken cancellationToken)
         {
             connection.Close();
 
@@ -151,7 +151,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Encapsulates an error in a SyncException, let provider enrich the error if needed, then throw again
         /// </summary>
-        public void RaiseError(Exception exception)
+        internal void RaiseError(Exception exception)
         {
             var syncException = new SyncException(exception, this.GetContext().SyncStage);
 
@@ -166,7 +166,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Sets the current context
         /// </summary>
-        public void SetContext(SyncContext context) => this.syncContext = context;
+        internal void SetContext(SyncContext context) => this.syncContext = context;
 
         /// <summary>
         /// Gets the current context
@@ -183,9 +183,6 @@ namespace Dotmim.Sync
 
             return this.syncContext;
         }
-
-
-
 
         /// <summary>
         /// Provision the orchestrator database based on the orchestrator Setup, and the provision enumeration

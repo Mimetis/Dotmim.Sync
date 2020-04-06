@@ -2396,7 +2396,7 @@ namespace Dotmim.Sync.Tests
                 var provision = SyncProvision.ClientScope | SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
 
                 // just check interceptor
-                localOrchestrator.On<TableProvisionedArgs>(args =>
+                localOrchestrator.OnTableProvisioned(args =>
                 {
                     Assert.Equal(provision, args.Provision);
                 });
@@ -2475,10 +2475,10 @@ namespace Dotmim.Sync.Tests
                     }
                 }
 
-                localOrchestrator.On<TableProvisionedArgs>(null);
+                localOrchestrator.OnTableProvisioned(null);
 
                 // just check interceptor
-                localOrchestrator.On<TableDeprovisionedArgs>(args => Assert.Equal(provision, args.Provision));
+                localOrchestrator.OnTableDeprovisioned(args => Assert.Equal(provision, args.Provision));
 
                 // Deprovision the database with all tracking tables, stored procedures, triggers and scope
                 await localOrchestrator.DeprovisionAsync(schema, provision);
@@ -2527,11 +2527,7 @@ namespace Dotmim.Sync.Tests
 
                     }
                 }
-
-
-                localOrchestrator.On<TableDeprovisionedArgs>(null);
-
-
+                localOrchestrator.OnTableDeprovisioned(null);
             }
         }
 

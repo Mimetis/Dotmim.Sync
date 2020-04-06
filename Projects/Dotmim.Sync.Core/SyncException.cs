@@ -107,6 +107,17 @@ namespace Dotmim.Sync
     /// <summary>
     /// Occurs when a bad SyncProvision is provided to a local orchestrator
     /// </summary>
+    public class InvalidRemoteOrchestratorException : Exception
+    {
+        const string message = "The remote orchestrator used here is not able to intercept the OnApplyChangedFailed event, since this event is occuring on the server side only";
+
+        public InvalidRemoteOrchestratorException() : base(message) { }
+    }
+
+
+    /// <summary>
+    /// Occurs when a bad SyncProvision is provided to a local orchestrator
+    /// </summary>
     public class InvalidProvisionForLocalOrchestratorException : Exception
     {
         const string message = "A local database should not have a server scope table. Please provide a correct SyncProvision flag.";
