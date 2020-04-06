@@ -34,6 +34,23 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
+        /// Gets a boolean indicating if client scope table exists
+        /// </summary>
+        public virtual async Task<(SyncContext, bool)> ClientScopeExistsAsync(SyncContext context, string scopeInfoTableName,
+                             DbConnection connection, DbTransaction transaction,
+                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+        {
+
+            var scopeBuilder = this.GetScopeBuilder();
+            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName, connection, transaction);
+
+            var exist = !await scopeInfoBuilder.NeedToCreateClientScopeInfoTableAsync().ConfigureAwait(false);
+
+
+            return (context, exist);
+        }
+
+        /// <summary>
         /// Drop client scope
         /// </summary>
         public virtual async Task<SyncContext> DropClientScopeAsync(SyncContext context, string scopeInfoTableName,

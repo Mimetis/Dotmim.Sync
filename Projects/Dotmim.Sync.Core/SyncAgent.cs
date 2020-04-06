@@ -458,20 +458,20 @@ namespace Dotmim.Sync
 
                     // Apply snapshot
                     (result.SnapshotChangesAppliedOnClient, clientScopeInfo) = await this.LocalOrchestrator.ApplySnapshotAsync(
-                        clientScopeInfo, serverSnapshotChanges.serverBatchInfo, clientChanges.clientTimestamp, serverSnapshotChanges.remoteClientTimestamp, cancellationToken, progress);
+                        clientScopeInfo, serverSnapshotChanges.ServerBatchInfo, clientChanges.ClientTimestamp, serverSnapshotChanges.RemoteClientTimestamp, cancellationToken, progress);
                 }
 
-                var serverChanges = await this.RemoteOrchestrator.ApplyThenGetChangesAsync(clientScopeInfo, clientChanges.clientBatchInfo, cancellationToken, remoteProgress);
+                var serverChanges = await this.RemoteOrchestrator.ApplyThenGetChangesAsync(clientScopeInfo, clientChanges.ClientBatchInfo, cancellationToken, remoteProgress);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
                 // Policy is always Server policy, so reverse this policy to get the client policy
-                var reverseConflictResolutionPolicy = serverChanges.serverPolicy == ConflictResolutionPolicy.ServerWins ? ConflictResolutionPolicy.ClientWins : ConflictResolutionPolicy.ServerWins;
+                var reverseConflictResolutionPolicy = serverChanges.ServerPolicy == ConflictResolutionPolicy.ServerWins ? ConflictResolutionPolicy.ClientWins : ConflictResolutionPolicy.ServerWins;
 
                 var clientChangesApplied = await this.LocalOrchestrator.ApplyChangesAsync(
-                    clientScopeInfo, this.Schema, serverChanges.serverBatchInfo,
-                    clientChanges.clientTimestamp, serverChanges.remoteClientTimestamp, reverseConflictResolutionPolicy,
+                    clientScopeInfo, this.Schema, serverChanges.ServerBatchInfo,
+                    clientChanges.ClientTimestamp, serverChanges.RemoteClientTimestamp, reverseConflictResolutionPolicy,
                     cancellationToken, progress);
 
                 completeTime = DateTime.UtcNow;
@@ -481,10 +481,10 @@ namespace Dotmim.Sync
                 result.CompleteTime = completeTime;
 
                 // All clients changes selected
-                result.ClientChangesSelected = clientChanges.clientChangesSelected;
-                result.ServerChangesSelected = serverChanges.serverChangesSelected;
+                result.ClientChangesSelected = clientChanges.ClientChangesSelected;
+                result.ServerChangesSelected = serverChanges.ServerChangesSelected;
                 result.ChangesAppliedOnClient = clientChangesApplied.ChangesApplied;
-                result.ChangesAppliedOnServer = serverChanges.clientChangesApplied;
+                result.ChangesAppliedOnServer = serverChanges.ClientChangesApplied;
 
                 // Begin session
                 await this.LocalOrchestrator.EndSessionAsync(cancellationToken, progress);

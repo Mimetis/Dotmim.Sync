@@ -218,6 +218,11 @@ namespace Dotmim.Sync
                     if (schema == null || schema.Tables == null || !schema.HasTables)
                         throw new MissingTablesException();
 
+                    if (this is LocalOrchestrator && (provision.HasFlag(SyncProvision.ServerHistoryScope) || provision.HasFlag(SyncProvision.ServerScope)))
+                        throw new InvalidProvisionForLocalOrchestratorException();
+                    else if (!(this is LocalOrchestrator) && provision.HasFlag(SyncProvision.ClientScope))
+                        throw new InvalidProvisionForRemoteOrchestratorException();
+
                     // Open connection
                     await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
 
@@ -231,6 +236,12 @@ namespace Dotmim.Sync
                         // So far we have only tables names, it's enough to get the schema
                         if (schema.HasTables && !schema.HasColumns)
                             (ctx, schema) = await this.Provider.GetSchemaAsync(ctx, this.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                        if (!schema.HasTables)
+                            throw new MissingTablesException();
+
+                        if (!schema.HasColumns)
+                            throw new MissingColumnsException();
 
                         await this.InterceptAsync(new DatabaseProvisioningArgs(ctx, provision, schema, connection, transaction), cancellationToken).ConfigureAwait(false);
 

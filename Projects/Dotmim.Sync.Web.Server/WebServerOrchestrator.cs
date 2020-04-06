@@ -366,24 +366,24 @@ namespace Dotmim.Sync.Web.Server
             // get changes
             var snap = await this.GetSnapshotAsync(cancellationToken, progress).ConfigureAwait(false);
 
-            sessionCache.RemoteClientTimestamp = snap.remoteClientTimestamp;
-            sessionCache.ServerBatchInfo = snap.serverBatchInfo;
+            sessionCache.RemoteClientTimestamp = snap.RemoteClientTimestamp;
+            sessionCache.ServerBatchInfo = snap.ServerBatchInfo;
 
             // if no snapshot, return empty response
-            if (snap.serverBatchInfo == null)
+            if (snap.ServerBatchInfo == null)
             {
                 var changesResponse = new HttpMessageSendChangesResponse(ctx);
                 changesResponse.ServerStep = HttpStep.GetSnapshot;
                 changesResponse.BatchIndex = 0;
                 changesResponse.IsLastBatch = true;
-                changesResponse.RemoteClientTimestamp = snap.remoteClientTimestamp;
+                changesResponse.RemoteClientTimestamp = snap.RemoteClientTimestamp;
                 changesResponse.Changes = new ContainerSet();
                 return changesResponse;
             }
 
 
             // Get the firt response to send back to client
-            return await GetChangesResponseAsync(ctx, snap.remoteClientTimestamp, snap.serverBatchInfo, null, null, 0);
+            return await GetChangesResponseAsync(ctx, snap.RemoteClientTimestamp, snap.ServerBatchInfo, null, null, 0);
         }
 
         /// <summary>
