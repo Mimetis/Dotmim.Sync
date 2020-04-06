@@ -108,19 +108,27 @@ namespace Dotmim.Sync
         /// <summary>
         /// Send all changes and get new changes in return
         /// </summary>
-        Task<(long remoteClientTimestamp,
-              BatchInfo serverBatchInfo,
-              ConflictResolutionPolicy serverPolicy,
-              DatabaseChangesApplied clientChangesApplied,
-              DatabaseChangesSelected serverChangesSelected)>
+        Task<(long RemoteClientTimestamp,
+              BatchInfo ServerBatchInfo,
+              ConflictResolutionPolicy ServerPolicy,
+              DatabaseChangesApplied ClientChangesApplied,
+              DatabaseChangesSelected ServerChangesSelected)>
             ApplyThenGetChangesAsync(ScopeInfo clientScope, BatchInfo clientBatchInfo, 
                                      CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null);
 
 
         /// <summary>
+        /// Get changes from the remote datasource, based on a client scope
+        /// </summary>
+        /// <param name="clientScope">client scope containing all the information needed to get changes from the server</param>
+        /// <param name="serverScope">server scope containing useful information. If null, the remote orchestrator will try to get this information from the server database</param>
+        Task<(long RemoteClientTimestamp, BatchInfo ServerBatchInfo, DatabaseChangesSelected ServerChangesSelected)>
+                    GetChangesAsync(ScopeInfo clientScope, ServerScopeInfo serverScope = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null);
+
+        /// <summary>
         /// Gets a snapshot for initialization
         /// </summary>
-        Task<(long remoteClientTimestamp, BatchInfo serverBatchInfo)> GetSnapshotAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null);
+        Task<(long RemoteClientTimestamp, BatchInfo ServerBatchInfo)> GetSnapshotAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null);
 
 
         /// <summary>

@@ -45,7 +45,8 @@ internal class Program
     public static string[] oneTable = new string[] { "ProductCategory" };
     private static async Task Main(string[] args)
     {
-        await SynchronizeAsync();
+       await SynchronizeAsync();
+      
     }
 
 
@@ -366,8 +367,8 @@ internal class Program
     private static async Task SynchronizeAsync()
     {
         // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncChangeTrackingProvider(DbHelper.GetLocalhostDatabaseConnectionString(serverDbName));
-        var clientProvider = new SqlSyncChangeTrackingProvider(DbHelper.GetLocalhostDatabaseConnectionString(clientDbName));
+        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
         //var clientProvider = new SqliteSyncProvider("clientX.db");
 
         //var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" });
@@ -405,10 +406,10 @@ internal class Program
         //setup.Filters.Add(orderDetailsFilter);
 
         // Add pref suf
-        setup.StoredProceduresPrefix = "s";
-        setup.StoredProceduresSuffix = "";
-        setup.TrackingTablesPrefix = "t";
-        setup.TrackingTablesSuffix = "";
+        //setup.StoredProceduresPrefix = "s";
+        //setup.StoredProceduresSuffix = "";
+        //setup.TrackingTablesPrefix = "t";
+        //setup.TrackingTablesSuffix = "";
 
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, new SyncOptions(), setup);

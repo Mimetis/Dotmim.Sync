@@ -122,10 +122,10 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Input : localScopeInfo
+        /// Get changes from local database
         /// </summary>
         /// <returns></returns>
-        public async Task<(long clientTimestamp, BatchInfo clientBatchInfo, DatabaseChangesSelected clientChangesSelected)>
+        public async Task<(long ClientTimestamp, BatchInfo ClientBatchInfo, DatabaseChangesSelected ClientChangesSelected)>
             GetChangesAsync(ScopeInfo localScopeInfo = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (!this.StartTime.HasValue)
@@ -154,13 +154,11 @@ namespace Dotmim.Sync
 
                         // Get local scope, if not provided 
                         if (localScopeInfo == null)
-                        {
-                            // Ensure table exists
-                            ctx = await this.Provider.EnsureClientScopeAsync(ctx, this.Options.ScopeInfoTableName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                            // Get scope info
                             (ctx, localScopeInfo) = await this.Provider.GetClientScopeAsync(ctx, this.Options.ScopeInfoTableName, this.ScopeName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                        }
+
+                        // If no schema in the client scope. Maybe the client scope table does not exists, or we never get the schema from server
+                        if (localScopeInfo.Schema == null)
+                            throw new MissingLocalOrchestratorSchemaException();
 
                         // Get concrete schema
                         var schema = JsonConvert.DeserializeObject<SyncSet>(localScopeInfo.Schema);
