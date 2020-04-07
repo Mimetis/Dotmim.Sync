@@ -474,6 +474,7 @@ namespace Dotmim.Sync
                     var serverSnapshotChanges = await this.RemoteOrchestrator.GetSnapshotAsync(cancellationToken, remoteProgress);
 
                     // Apply snapshot
+                    serverSnapshotChanges.ServerBatchInfo.Orchestrator = this.LocalOrchestrator;
                     (result.SnapshotChangesAppliedOnClient, clientScopeInfo) = await this.LocalOrchestrator.ApplySnapshotAsync(
                         clientScopeInfo, serverSnapshotChanges.ServerBatchInfo, clientChanges.ClientTimestamp, serverSnapshotChanges.RemoteClientTimestamp, cancellationToken, progress);
                 }
