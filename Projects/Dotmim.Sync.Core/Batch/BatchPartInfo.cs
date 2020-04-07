@@ -22,7 +22,7 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Loads the batch file and import the rows in a SyncSet instance
         /// </summary>
-        public async Task LoadBatchAsync(SyncSet sanitizedSchema, string directoryFullPath, BaseOrchestrator orchestrator)
+        public async Task LoadBatchAsync(SyncSet sanitizedSchema, string directoryFullPath, BaseOrchestrator orchestrator = null)
         {
             if (this.Data != null)
                 return;
@@ -149,7 +149,7 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Create a new BPI, and serialize the changeset if not in memory
         /// </summary>
-        internal static async Task<BatchPartInfo> CreateBatchPartInfoAsync(int batchIndex, SyncSet set, string fileName, string directoryFullPath, bool isLastBatch, BaseOrchestrator orchestrator)
+        internal static async Task<BatchPartInfo> CreateBatchPartInfoAsync(int batchIndex, SyncSet set, string fileName, string directoryFullPath, bool isLastBatch, BaseOrchestrator orchestrator = null)
         {
             BatchPartInfo bpi = null;
 

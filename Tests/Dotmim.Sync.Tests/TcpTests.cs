@@ -3986,7 +3986,7 @@ namespace Dotmim.Sync.Tests
 
                 Assert.Equal(GetServerDatabaseRowsCount(this.Server), result.TotalChangesDownloaded);
 
-                // Server side : Create a product category and a product
+                // Client side : Create a product category and a product
                 // Create a productcategory item
                 // Create a new product on server
                 var productId = Guid.NewGuid();
@@ -4013,5 +4013,78 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(2, r.TotalChangesUploaded);
             }
         }
+
+
+        [Fact, TestPriority(41)]
+        public async Task IsOutdated_ShouldWork_If_Correct_Action()
+        {
+            // create a server schema without seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            var scopeName = "scopesnap1";
+
+
+            foreach (var client in this.Clients)
+            {
+                // Defining options with Batchsize to enable serialization on disk
+                var options = new SyncOptions { BatchSize = 1000 };
+
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables), scopeName);
+
+                // Get the orchestrators
+                var localOrchestrator = agent.LocalOrchestrator;
+                var remoteOrchestrator = agent.RemoteOrchestrator;
+
+                // Making a first sync, will initialize everything we need
+                await agent.SynchronizeAsync();
+
+                // Call a server delete metadata to update the last valid timestamp value in scope_info_server table
+                var dmc = await agent.RemoteOrchestrator.DeleteMetadatasAsync();
+
+                // Client side : Create a product category and a product
+                var productId = Guid.NewGuid();
+                var productName = HelperDatabase.GetRandomName();
+                var productNumber = productName.ToUpperInvariant().Substring(0, 10);
+                var productCategoryName = HelperDatabase.GetRandomName();
+                var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
+
+                using (var ctx = new AdventureWorksContext(client))
+                {
+                    var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
+                    ctx.Add(pc);
+
+                    var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber };
+                    ctx.Add(product);
+
+                    await ctx.SaveChangesAsync();
+                }
+
+                // Generate an outdated situation
+                await HelperDatabase.ExecuteScriptAsync(client.ProviderType, client.DatabaseName,
+                                    $"Update scope_info set scope_last_server_sync_timestamp={dmc.TimestampLimit - 1}");
+
+                // Making a first sync, will initialize everything we need
+                var se = await Assert.ThrowsAsync<SyncException>(() => agent.SynchronizeAsync());
+
+                Assert.Equal(SyncSide.ClientSide, se.Side);
+                Assert.Equal("OutOfDateException", se.TypeName);
+
+                // Intercept outdated event, and make a reinitialize with upload action
+                agent.LocalOrchestrator.OnOutdated(oa => oa.Action = OutdatedAction.ReinitializeWithUpload);
+
+                var r = await agent.SynchronizeAsync();
+                var c = GetServerDatabaseRowsCount(this.Server);
+                var d = 0;
+                Assert.Equal(c + d, r.TotalChangesDownloaded);
+                Assert.Equal(2, r.TotalChangesUploaded);
+                d += 2;
+
+            }
+        }
+
     }
 }
