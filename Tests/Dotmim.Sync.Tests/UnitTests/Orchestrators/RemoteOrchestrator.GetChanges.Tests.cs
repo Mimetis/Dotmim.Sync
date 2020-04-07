@@ -83,7 +83,6 @@ namespace Dotmim.Sync.Tests.UnitTests
             // Get changes to be populated to the server
             var changes = await remoteOrchestrator.GetChangesAsync(clientScope);
 
-
             Assert.NotNull(changes.ServerBatchInfo);
             Assert.NotNull(changes.ServerChangesSelected);
             Assert.Equal(2, changes.ServerChangesSelected.TableChangesSelected.Count);
@@ -101,7 +100,5 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(productCategoryName, productCategoryRowName);
 
         }
-
-
     }
 }
