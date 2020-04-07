@@ -384,18 +384,6 @@ namespace Dotmim.Sync
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
-                // TODO : Should we make a test to see if we need to get schema from server ?
-                // A metadata in client with a schema version maybe, compared to a version from server side ?
-                // So far, we need to store this metadata on both side, in scope ?
-                // And we need a method to upgrade the schema version on server
-                // Maybe add a new column in scope_info_server (server side) and scope_info (client side) with a version number
-                //
-                // then we make a client get scope (with schema version)
-                // if schema == null then get rempte schema
-                // else if schema != null && cli.version != ser.version
-                // raise an error ?
-                //
-
                 // On local orchestrator, get scope info
                 var clientScopeInfo = await this.LocalOrchestrator.GetClientScopeAsync(cancellationToken, progress);
 
@@ -447,7 +435,7 @@ namespace Dotmim.Sync
                     cancellationToken.ThrowIfCancellationRequested();
 
                 // Before call the changes from localorchestrator, check if we are outdated
-                if (serverScopeInfo != null)
+                if (serverScopeInfo != null && context.SyncType != SyncType.Reinitialize && context.SyncType != SyncType.ReinitializeWithUpload)
                 {
                     var isOutDated = await this.LocalOrchestrator.IsOutDated(clientScopeInfo, serverScopeInfo);
 

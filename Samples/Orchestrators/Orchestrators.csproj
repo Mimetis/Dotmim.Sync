@@ -6,8 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Dotmim.Sync.SqlServer" Version="0.5.0-beta-0304" />
-    <PackageReference Include="Dotmim.Sync.SqlServer.ChangeTracking" Version="0.5.0-beta-0304" />
+    <ProjectReference Include="..\..\Projects\Dotmim.Sync.SqlServer\Dotmim.Sync.SqlServer.csproj" />
   </ItemGroup>
 
 </Project>
