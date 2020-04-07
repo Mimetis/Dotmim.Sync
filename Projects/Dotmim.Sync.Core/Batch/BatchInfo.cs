@@ -27,9 +27,8 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Create a new BatchInfo, containing all BatchPartInfo
         /// </summary>
-        public BatchInfo(BaseOrchestrator orchestrator, bool isInMemory, SyncSet inSchema, string rootDirectory = null, string directoryName = null)
+        public BatchInfo(bool isInMemory, SyncSet inSchema, string rootDirectory = null, string directoryName = null)
         {
-            this.Orchestrator = orchestrator;
             this.InMemory = isInMemory;
 
             // We need to create a change table set, containing table with columns not readonly
@@ -50,12 +49,6 @@ namespace Dotmim.Sync.Batch
         /// </summary>
         [IgnoreDataMember]
         public SyncSet SanitizedSchema { get; set; } = new SyncSet();
-
-        /// <summary>
-        /// Gets the orchestrator who create the Batch Info
-        /// </summary>
-        [IgnoreDataMember]
-        public BaseOrchestrator Orchestrator { get; internal set; }
 
         /// <summary>
         /// Is the batch parts are in memory
@@ -112,7 +105,7 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Check if this batchinfo has some data (in memory or not)
         /// </summary>
-        public async Task<bool> HasDataAsync()
+        public async Task<bool> HasDataAsync(BaseOrchestrator orchestrator)
         {
             if (this.SanitizedSchema == null)
                 throw new NullReferenceException("Batch info schema should not be null");
@@ -124,7 +117,7 @@ namespace Dotmim.Sync.Batch
             {
                 foreach (var bpi in BatchPartsInfo)
                 {
-                    await bpi.LoadBatchAsync(this.Orchestrator, this.SanitizedSchema, GetDirectoryFullPath()).ConfigureAwait(false);
+                    await bpi.LoadBatchAsync(this.SanitizedSchema, GetDirectoryFullPath(), orchestrator).ConfigureAwait(false);
 
                     var hasData = bpi.Data.HasRows;
 
@@ -143,7 +136,7 @@ namespace Dotmim.Sync.Batch
         /// Get all parts containing this table
         /// Could be multiple parts, since the table may be spread across multiples files
         /// </summary>
-        public IEnumerable<SyncTable> GetTable(string tableName, string schemaName)
+        public IEnumerable<SyncTable> GetTable(string tableName, string schemaName, BaseOrchestrator orchestrator)
         {
             if (this.SanitizedSchema == null)
                 throw new NullReferenceException("Batch info schema should not be null");
@@ -167,7 +160,7 @@ namespace Dotmim.Sync.Batch
                         // But .Net Standard 2.1 is not compatible with .Net Framework 4.8
                         // So far, we can't use it, until we decide to abandon .Net FX 4.8
                         // For sure, it will be replaced when .Net 5 will appears ...
-                        batchPartinInfo.LoadBatchAsync(this.Orchestrator, this.SanitizedSchema, GetDirectoryFullPath()).ConfigureAwait(false)
+                        batchPartinInfo.LoadBatchAsync(this.SanitizedSchema, GetDirectoryFullPath(), orchestrator).ConfigureAwait(false)
                             .GetAwaiter().GetResult();
 
                         // Get the table from the batchPartInfo
@@ -211,7 +204,7 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Add changes to batch info.
         /// </summary>
-        public async Task AddChangesAsync(SyncSet changes, int batchIndex = 0, bool isLastBatch = true)
+        public async Task AddChangesAsync(SyncSet changes, int batchIndex = 0, bool isLastBatch = true, BaseOrchestrator orchestrator = null)
         {
             if (this.InMemory)
             {
@@ -221,7 +214,7 @@ namespace Dotmim.Sync.Batch
             {
                 var bpId = this.GenerateNewFileName(batchIndex.ToString());
                 //var fileName = Path.Combine(this.GetDirectoryFullPath(), bpId);
-                var bpi = await BatchPartInfo.CreateBatchPartInfoAsync(this.Orchestrator, batchIndex, changes, bpId, GetDirectoryFullPath(), isLastBatch).ConfigureAwait(false);
+                var bpi = await BatchPartInfo.CreateBatchPartInfoAsync(batchIndex, changes, bpId, GetDirectoryFullPath(), isLastBatch, orchestrator).ConfigureAwait(false);
 
                 // add the batchpartinfo tp the current batchinfo
                 this.BatchPartsInfo.Add(bpi);
