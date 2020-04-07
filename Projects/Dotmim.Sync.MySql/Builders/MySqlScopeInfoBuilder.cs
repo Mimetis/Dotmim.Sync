@@ -71,7 +71,7 @@ namespace Dotmim.Sync.MySql
         public async Task CreateServerHistoryScopeInfoTableAsync()
         {
             var command = connection.CreateCommand();
-            
+
             if (transaction != null)
                 command.Transaction = transaction;
 
@@ -300,7 +300,7 @@ namespace Dotmim.Sync.MySql
                             scopeInfo.Schema = reader["sync_scope_schema"] as string;
                             scopeInfo.Setup = reader["sync_scope_setup"] as string;
                             scopeInfo.Version = reader["sync_scope_version"] as string;
-                            scopeInfo.Id = new Guid((String)reader["sync_scope_id"]);
+                            scopeInfo.Id = SyncTypeConverter.TryConvertTo<Guid>(reader["sync_scope_id"]);
                             scopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value ? (DateTime?)reader["scope_last_sync"] : null;
                             scopeInfo.LastSyncDuration = reader["scope_last_sync_duration"] != DBNull.Value ? (long)reader["scope_last_sync_duration"] : 0L;
                             scopeInfo.LastServerSyncTimestamp = reader["scope_last_server_sync_timestamp"] != DBNull.Value ? (long)reader["scope_last_server_sync_timestamp"] : 0L;
@@ -432,7 +432,7 @@ namespace Dotmim.Sync.MySql
                         while (reader.Read())
                         {
                             var serverScopeInfo = new ServerHistoryScopeInfo();
-                            serverScopeInfo.Id = (Guid)reader["sync_scope_id"];
+                            serverScopeInfo.Id = SyncTypeConverter.TryConvertTo<Guid>(reader["sync_scope_id"]);
                             serverScopeInfo.Name = reader["sync_scope_name"] as string;
                             serverScopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value ? (DateTime?)reader["scope_last_sync"] : null;
                             serverScopeInfo.LastSyncDuration = reader["scope_last_sync_duration"] != DBNull.Value ? (long)reader["scope_last_sync_duration"] : 0;
@@ -593,7 +593,7 @@ namespace Dotmim.Sync.MySql
                                 scopeInfo.Schema = reader["sync_scope_schema"] as string;
                                 scopeInfo.Setup = reader["sync_scope_setup"] as string;
                                 scopeInfo.Version = reader["sync_scope_version"] as string;
-                                scopeInfo.Id = new Guid((string)reader["sync_scope_id"]);
+                                scopeInfo.Id = SyncTypeConverter.TryConvertTo<Guid>(reader["sync_scope_id"]);
                                 scopeInfo.LastSyncDuration = reader["scope_last_sync_duration"] != DBNull.Value ? (long)reader["scope_last_sync_duration"] : 0L;
                                 scopeInfo.LastServerSyncTimestamp = reader["scope_last_server_sync_timestamp"] != DBNull.Value ? (long)reader["scope_last_server_sync_timestamp"] : 0L;
                                 scopeInfo.LastSyncTimestamp = reader["scope_last_sync_timestamp"] != DBNull.Value ? (long)reader["scope_last_sync_timestamp"] : 0L;
@@ -691,7 +691,7 @@ namespace Dotmim.Sync.MySql
                         {
                             while (reader.Read())
                             {
-                                serverHistoryScopeInfo.Id = new Guid((string)reader["sync_scope_id"]);
+                                serverHistoryScopeInfo.Id = SyncTypeConverter.TryConvertTo<Guid>(reader["sync_scope_id"]);
                                 serverHistoryScopeInfo.Name = reader["sync_scope_name"] as string;
                                 serverHistoryScopeInfo.LastSyncDuration = reader["scope_last_sync_duration"] != DBNull.Value ? (long)reader["scope_last_sync_duration"] : 0L;
                                 serverHistoryScopeInfo.LastSyncTimestamp = reader["scope_last_sync_timestamp"] != DBNull.Value ? (long)reader["scope_last_sync_timestamp"] : 0L;
@@ -826,7 +826,7 @@ namespace Dotmim.Sync.MySql
                     await connection.OpenAsync().ConfigureAwait(false);
 
                 command.CommandText = $"select count(*) from information_schema.TABLES where TABLE_NAME = '{scopeTableName.Unquoted()}' and TABLE_SCHEMA = schema() and TABLE_TYPE = 'BASE TABLE'";
-                
+
                 return ((long)await command.ExecuteScalarAsync()) != 1;
 
             }

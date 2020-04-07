@@ -1,6 +1,5 @@
 ﻿using Dotmim.Sync;
 using Dotmim.Sync.SqlServer;
-using Dotmim.Sync.Web.Client;
 using Newtonsoft.Json;
 using System;
 using System.IO;
@@ -25,7 +24,6 @@ namespace EncryptionClient
         private static async Task EncryptionAsync()
         {
             // Database script used for this sample : https://github.com/Mimetis/Dotmim.Sync/blob/master/CreateAdventureWorks.sql 
-
 
             var myRijndael = new RijndaelManaged();
             myRijndael.GenerateKey();
@@ -53,7 +51,6 @@ namespace EncryptionClient
 
             var serializing = new Action<SerializingSetArgs>(ssa =>
             {
-
                 Console.WriteLine($"Serialized container to file {ssa.FileName}. container tables count:{ssa.Set.Tables.Count}");
 
                 // Create an encryptor to perform the stream transform.
